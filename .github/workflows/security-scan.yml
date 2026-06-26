@@ -1,0 +1,32 @@
+name: Security scan
+
+# Produces the "security scan" status check that the synaptixs/spine "Protect main"
+# ruleset requires on PRs into main. The job NAME must stay exactly "security scan"
+# — the ruleset matches the required check by that context name. Runs on PRs into
+# main (and on demand); a clean tree passes, committed secrets fail it.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: security scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Scan for committed secrets
+        run: |
+          set -euo pipefail
+          # High-signal credential/key patterns. Fail the check if any are committed.
+          patterns='AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|xox[baprs]-[0-9A-Za-z-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
+          # Exclude this workflow (it contains the patterns themselves) to avoid self-matching.
+          if git grep -nIE "$patterns" -- . ':!.github/workflows'; then
+            echo "::error::Potential committed secret detected — see matches above."
+            exit 1
+          fi
+          echo "No committed secrets detected."
