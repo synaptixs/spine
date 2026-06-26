@@ -24,8 +24,14 @@ jobs:
           set -euo pipefail
           # High-signal credential/key patterns. Fail the check if any are committed.
           patterns='AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|xox[baprs]-[0-9A-Za-z-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
-          # Exclude this workflow (it contains the patterns themselves) to avoid self-matching.
-          if git grep -nIE "$patterns" -- . ':!.github/workflows'; then
+          # Allowlist (not real secrets):
+          #  - this workflow defines the patterns themselves
+          #  - tests/ and scripts/ hold dummy fixtures for the codereview secret-detector
+          #  - AKIAIOSFODNN7EXAMPLE is AWS's canonical documentation example key
+          matches="$(git grep -nIE "$patterns" -- . ':!.github/workflows' ':!tests' ':!scripts' || true)"
+          real="$(printf '%s\n' "$matches" | grep -vE 'AKIAIOSFODNN7EXAMPLE' | grep -v '^$' || true)"
+          if [ -n "$real" ]; then
+            printf '%s\n' "$real"
             echo "::error::Potential committed secret detected — see matches above."
             exit 1
           fi
