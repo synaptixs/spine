@@ -1,0 +1,7 @@
+# Code owners for the public mirror (synaptixs/spine).
+#
+# The "Protect main" ruleset on synaptixs/spine requires a code-owner review on
+# every PR into main. This assigns ownership to the synaptixs maintainer identity,
+# who approves release PRs (develop → main). Kept off the maintainer's personal
+# handle on purpose — the public repo uses the de-linked org identity.
+* @ssmith-synaptixs
