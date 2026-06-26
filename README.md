@@ -33,6 +33,8 @@ orchestrator sdlc feature --source file://./spec.md --safe   # build locally —
 |---|---|
 | **[Setup & Install](SETUP.md)** | Installing the CLI, the `.env`, and standing up the full stack (Temporal + Postgres) for the autonomous pipeline. |
 | **[User Guide](USER_GUIDE.md)** | A step-by-step walkthrough: from your first local build to a real PR, local models, the web dashboard, and connecting tools (MCP). |
+| **[Features & Capabilities](FEATURES.md)** | The capability catalog — everything Spine can do today, its status, the command/flag to use it, and a link to each deep dive. |
+| **[Operations & Developer Guide](OPERATIONS.md)** | How to operate it: deployment modes, the full environment-variable reference, and standing up each advanced capability — including the semantic spine (ontomesh × infodrift). |
 | **[Community brief](COMMUNITY.md)** | A one-page overview to share — what it does, lifecycle coverage, how to try it, and the feedback we're looking for. |
 
 New here? **Install → [User Guide](USER_GUIDE.md) Steps 1–4.** That's the whole
