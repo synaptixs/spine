@@ -1,0 +1,49 @@
+metadata:
+  id: agent.intent_extractor
+  version: 0.1.0
+  description: |
+    Intent extractor: reads requirements documents (Confluence pages,
+    etc.) and derives discrete, buildable intents — the unit a feature
+    spec and then a Jira issue is built from. Splits broad docs into
+    multiple intents; surfaces genuine ambiguities as open questions
+    rather than inventing answers.
+  tags: [sdlc, intake, block-b]
+
+spec:
+  model: claude-sonnet-4-6
+
+  inputs:
+    - name: documents
+      type: str
+      description: Concatenated requirements documents (title + body each).
+
+  outputs:
+    - name: confidence
+      type: float
+      description: Confidence the extracted intents faithfully cover the docs.
+    - name: caveats
+      type: list[str]
+      description: Extraction limitations (ambiguity, truncation, assumptions).
+    - name: intents
+      type: list
+      description: >
+        List of intents. Each: {title, description, scope,
+        acceptance_criteria (stated criteria/API contract, verbatim),
+        dependencies, nfrs, open_questions, source_title}.
+
+  allowed_tools: []
+
+  policies: []
+
+  known_limitations:
+    - Reads only the supplied documents; no repo or external context.
+    - Splits by judgment; granularity may need human adjustment.
+    - Does not resolve ambiguity — surfaces it as open_questions.
+
+  constraints:
+    system_prompt: |
+      You extract product/engineering INTENTS from requirements documents.
+      An intent is a single, discrete, buildable capability — not a whole
+      project, not a vague theme. Split broad docs into multiple intents.
+      Be specific; surface genuine ambiguities as open_questions; do not
+      invent answers. Output JSON only.

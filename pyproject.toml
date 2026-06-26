@@ -1,0 +1,172 @@
+[project]
+name = "agent-orchestrator"
+version = "1.21.0"
+description = "Agent orchestration platform — planner, registry, runtime, verifier."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.12"
+authors = [{ name = "Neeraj Rohilla", email = "nnmrohilla@gmail.com" }]
+keywords = ["llm", "agents", "sdlc", "orchestration", "temporal", "codegen"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Code Generators",
+]
+dependencies = [
+    "pydantic>=2.7",
+    "pydantic-settings>=2.4",
+    "sqlalchemy[asyncio]>=2.0",
+    "greenlet>=3.0",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.1",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "typer>=0.12",
+    "httpx>=0.27",
+    "litellm>=1.50",
+    "langgraph>=0.2",
+    "langgraph-checkpoint-postgres>=2.0",
+    "pyyaml>=6.0",
+    "types-pyyaml>=6.0",
+    "aioboto3>=13.0",
+    "types-aiobotocore-s3>=2.13",
+    "temporalio>=1.7",
+    "pyjwt[crypto]>=2.9",
+    "rdflib>=7.0",
+    "pyshacl>=0.26",
+]
+
+[project.optional-dependencies]
+security = [
+    "semgrep>=1.0",
+]
+# PKG multi-language extraction (G6). tree-sitter gives accurate ASTs; the
+# JavaExtractor lazy-imports these so the base install stays stdlib-only.
+java = [
+    "tree-sitter>=0.21",
+    "tree-sitter-java>=0.21",
+]
+# TypeScript PKG front-end (G6). Same lazy-import contract as the `java` extra.
+typescript = [
+    "tree-sitter>=0.21",
+    "tree-sitter-typescript>=0.21",
+]
+# Onboard external MCP servers (DBs, Atlassian, …) as orchestrator tools. The
+# MCP client lazy-imports this, so the base install stays MCP-free.
+mcp = [
+    "mcp>=1.0",
+]
+# The SDLC feature/run pipeline shells out to pytest to run generated tests.
+# pytest is a dev-only dep, absent from a plain install — install this extra so
+# `sdlc feature`/`run` work out of the box: pip install 'agent-orchestrator[sdlc]'.
+sdlc = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+]
+# The developer TUI (P4). Textual is lazy-imported by the `tui` CLI command, so
+# the base install (and the web UI) stay Textual-free.
+tui = [
+    "textual>=0.50",
+]
+# Live OpenTelemetry tracing (G16). orchestrator.obs.tracing lazy-imports this and
+# stays a no-op unless OTEL_EXPORTER_OTLP_ENDPOINT is set, so the base install is
+# unaffected: pip install 'agent-orchestrator[otel]'.
+otel = [
+    "opentelemetry-sdk>=1.27",
+    "opentelemetry-exporter-otlp-proto-http>=1.27",
+]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5",
+    "asgi-lifespan>=2.1",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pre-commit>=3.8",
+    # so the tracing span-tree tests can use the in-memory exporter
+    "opentelemetry-sdk>=1.27",
+    # async SQLite driver for fast, Postgres-free repository unit tests
+    "aiosqlite>=0.20",
+]
+
+[project.scripts]
+orchestrator = "orchestrator.cli:app"
+orchestrator-mcp = "orchestrator.plugin.__main__:main"
+
+[project.urls]
+Repository = "https://github.com/synaptixs/spine"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/orchestrator"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "SIM"]
+ignore = [
+    # FastAPI's recommended `param: T = Depends(...)` triggers B008.
+    "B008",
+    # Migration to enum.StrEnum / PEP-695 generics is mechanical churn that
+    # doesn't change runtime behaviour; revisit if Python 3.12 floor moves up.
+    "UP042",
+    "UP046",
+    "UP047",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    # Test files use shadowing builtins (id, version) and broad raises for
+    # negative-path coverage.
+    "B017",
+    "A002",
+]
+# The console page embeds a JS blob as a Python string; line length there is
+# JS style, not Python — don't hold the embedded script to the 110-col bar.
+"src/orchestrator/registry/api/console.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "tests"]
+
+# tree-sitter is an optional extra (the `java`/`typescript` PKG front-ends); not
+# installed in the default/CI env, so don't fail type-checking on its absence.
+[[tool.mypy.overrides]]
+module = ["tree_sitter", "tree_sitter.*", "tree_sitter_java", "tree_sitter_typescript"]
+ignore_missing_imports = true
+
+# `textual` is the optional `tui` extra; not installed in the default/CI env.
+[[tool.mypy.overrides]]
+module = ["textual", "textual.*"]
+ignore_missing_imports = true
+
+# The Textual app is thin glue whose base classes are `Any` when the `tui` extra
+# is absent (CI), which trips "cannot subclass Any". Skip type-checking that one
+# module so the result is stable whether or not textual is installed; the
+# dependency-light `tui.client` keeps full mypy coverage.
+[[tool.mypy.overrides]]
+module = ["orchestrator.tui.app"]
+ignore_errors = true
+
+# `mcp` is an optional extra (the MCP client transport), lazy-imported; not in
+# the default/CI env, so don't fail type-checking on its absence.
+[[tool.mypy.overrides]]
+module = ["mcp", "mcp.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers -m 'not integration and not real_llm'"
+asyncio_mode = "auto"
+markers = [
+    "integration: tests that require a running Postgres (run with -m integration)",
+    "real_llm: tests that hit a real LLM provider (run with -m real_llm; needs API keys)",
+]

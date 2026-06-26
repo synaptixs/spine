@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "orchestrator": {
+      "command": "orchestrator-mcp",
+      "args": []
+    }
+  }
+}

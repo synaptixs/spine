@@ -1,0 +1,73 @@
+.toolbar {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.toolbar input#key {
+  flex: 1;
+  max-width: 24rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: monospace;
+  background: var(--bg);
+  color: var(--text);
+}
+.toolbar label.auto {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  user-select: none;
+}
+button {
+  font: inherit;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button.danger { background: var(--bg); color: var(--fail); border-color: var(--fail); }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th, td { text-align: left; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); }
+tr.clickable:hover { background: var(--surface); cursor: pointer; }
+.risk-high, .state-failed, .state-denied { color: var(--fail); font-weight: 600; }
+.risk-medium { color: var(--warn); font-weight: 600; }
+.risk-low, .state-merged { color: var(--ok); font-weight: 600; }
+.state-cancelled { color: var(--muted); }
+.state-running { color: var(--accent); font-weight: 600; }
+.detail {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 0.75rem 0;
+  background: var(--surface);
+}
+.detail pre {
+  white-space: pre-wrap;
+  font-size: 0.85rem;
+  background: var(--bg);
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.detail textarea {
+  width: 100%;
+  min-height: 4rem;
+  font-family: monospace;
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+}
+.actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+.muted { color: var(--muted); font-size: 0.85rem; }
+#msg { padding: 0.4rem 0; font-size: 0.9rem; min-height: 1.2rem; }
+#msg.err { color: var(--fail); }
+#msg.ok { color: var(--ok); }

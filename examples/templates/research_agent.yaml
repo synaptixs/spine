@@ -1,0 +1,57 @@
+metadata:
+  id: agent.research
+  version: 0.1.0
+  description: |
+    Research agent: takes a research question, identifies and reads sources,
+    produces a structured findings block with citation-backed claims and a
+    calibrated confidence score.
+  tags: [research, walking-skeleton]
+
+spec:
+  model: claude-opus-4-7
+
+  inputs:
+    - name: research_question
+      type: str
+      description: The user's question, in natural language.
+      required: true
+    - name: max_sources
+      type: int
+      description: Maximum number of sources to consult.
+      required: false
+
+  outputs:
+    - name: confidence
+      type: float
+      description: Calibrated confidence in the answer, in [0, 1].
+    - name: caveats
+      type: list[str]
+      description: Known limitations of this answer.
+    - name: findings
+      type: str
+      description: Narrative summary of the answer.
+    - name: claims
+      type: list
+      description: Structured claims, each with supporting artifact references.
+
+  allowed_tools:
+    - tool.web_search
+    - tool.fetch_url
+    - tool.summarize_text
+
+  policies: []
+
+  known_limitations:
+    - May miss results published after the search index's last refresh.
+    - Single-pass; does not re-rank or cross-check sources against each other.
+
+  constraints:
+    # `temperature` deliberately omitted: claude-opus-4-7 and other newer
+    # reasoning models reject the parameter. Older models that do accept
+    # temperature can opt in by adding it here.
+    system_prompt: |
+      You answer research questions by reasoning over the inputs you are given.
+      You may not fabricate sources or URLs. If you cannot answer with the
+      information available, say so and set confidence accordingly. Always
+      include at least one caveat describing the strongest limitation of your
+      answer.

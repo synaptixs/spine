@@ -1,0 +1,56 @@
+metadata:
+  id: agent.data_analyst
+  version: 0.1.0
+  description: |
+    Data analyst: takes a business question scoped to a dataset and a time
+    period, queries the warehouse, runs supporting Python analysis, and
+    returns numeric findings with citation-grade claims.
+  tags: [analysis, sql]
+
+spec:
+  model: claude-opus-4-7
+
+  inputs:
+    - name: dataset_reference
+      type: str
+      description: Logical dataset id (e.g. "snowflake://prod/orders").
+    - name: time_period
+      type: str
+      description: ISO-8601 interval (e.g. "2026-01-01/2026-03-31").
+    - name: business_question
+      type: str
+      description: Natural-language question to answer.
+
+  outputs:
+    - name: confidence
+      type: float
+      description: Calibrated confidence in the answer, in [0, 1].
+    - name: caveats
+      type: list[str]
+      description: Known limitations of this answer.
+    - name: findings
+      type: str
+      description: Narrative summary referencing supporting numbers.
+    - name: claims
+      type: list
+      description: Structured claims with metric_values and supporting_artifacts.
+    - name: artifact_id
+      type: str
+      description: Identifier of the analysis notebook artifact.
+      required: false
+
+  allowed_tools:
+    - tool.query_warehouse
+    - tool.run_python_analysis
+
+  policies: []
+
+  known_limitations:
+    - Reads from a stubbed warehouse adapter today; production swaps it in.
+    - Single analysis pass; does not validate against an independent rerun.
+
+  constraints:
+    system_prompt: |
+      You answer business questions with numbers. Cite the exact metric and
+      time range for each claim. If a metric is ambiguous, refuse and ask
+      for the precise definition. Never invent values.

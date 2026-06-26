@@ -1,0 +1,41 @@
+# Default gap rules for the intent-approval bookend (Block B.3).
+#
+# Each rule is a predicate over an extracted Intent; when it FAILS, a
+# finding fires with the given severity:
+#   blocker     — gates approval (intent too incomplete to build)
+#   needs_input — gates approval (a human must resolve open questions)
+#   warning     — advisory, does not gate
+#
+# check kinds: field_present | min_length | min_items | max_items
+# fields:      title | description | scope | dependencies | nfrs | open_questions
+#
+# Copy + edit this file and point the analyzer at it to tune the gate for
+# your team — no code change required. These mirror DEFAULT_GAP_RULES.
+
+rules:
+  - id: description_present
+    description: Intent must have a real description.
+    severity: blocker
+    check: min_length
+    field: description
+    length: 10
+
+  - id: scope_declared
+    description: Intent should declare what is in / out of scope.
+    severity: warning
+    check: field_present
+    field: scope
+
+  - id: open_questions_unresolved
+    description: Intent has open questions a human must resolve.
+    severity: needs_input
+    check: max_items
+    field: open_questions
+    count: 0
+
+  - id: nfrs_missing
+    description: Intent should list at least one non-functional requirement.
+    severity: warning
+    check: min_items
+    field: nfrs
+    count: 1

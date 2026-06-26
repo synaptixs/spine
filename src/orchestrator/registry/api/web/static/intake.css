@@ -1,0 +1,48 @@
+.intake-form {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 1rem 0;
+}
+.intake-form input[type="text"] {
+  flex: 1;
+  min-width: 18rem;
+  padding: 0.5rem;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+}
+.intake-form button {
+  padding: 0.5rem 1rem;
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+}
+.intake-form button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+  background: var(--surface);
+}
+.gap { border-left: 4px solid var(--warn); padding-left: 0.6rem; margin: 0.3rem 0; }
+.gap.blocker, .gap.needs_input { border-left-color: var(--fail); }
+.badge {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  background: var(--code-bg);
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.blocked { color: var(--fail); font-weight: 600; }
+#out ul { margin: 0.3rem 0; padding-left: 1.2rem; }
+#out pre { white-space: pre-wrap; }
+.err { color: var(--fail); }

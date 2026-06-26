@@ -1,0 +1,33 @@
+/docs/*
+!/docs/specs/
+!/docs/evals/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+dist/
+build/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Local smoke-test artefacts
+.smoke-api.log
+
+# Claude Code session lockfiles
+.claude/
+
+# Secrets / local credentials (live integration testing)
+.env
+.env.*
+!.env.example
+*.pem

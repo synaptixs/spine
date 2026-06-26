@@ -1,0 +1,119 @@
+name: Publish to TestPyPI
+
+# Manual, intentional publish to the TestPyPI sandbox. Build with the same uv
+# toolchain as CI, then upload the sdist + wheel.
+#
+# Auth uses PyPI **Trusted Publishing** (OIDC) — no API token stored in GitHub.
+# One-time setup on TestPyPI (https://test.pypi.org → the project, or "pending
+# publisher" before the first upload) — register THIS repository as a trusted
+# publisher for the `agent-orchestrator` project:
+#   Owner:        <this repo's owner>   (e.g. synaptixs)
+#   Repository:   <this repo's name>    (e.g. spine)
+#   Workflow:     publish-testpypi.yml
+#   Environment:  testpypi
+# A project may have several trusted publishers, but to avoid version races pick
+# ONE repo as the release source. To use an API token instead, delete the
+# `permissions`/`environment` blocks and set
+# `password: ${{ secrets.TEST_PYPI_API_TOKEN }}` on the publish step.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish-testpypi:
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      contents: read # an explicit permissions block drops the defaults; checkout needs this
+      id-token: write # required for OIDC trusted publishing
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Build sdist + wheel
+        run: uv build
+
+      - name: Check metadata
+        run: uvx twine check dist/*
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          # Don't hard-fail when a version was already uploaded (TestPyPI is
+          # immutable per version — bump `version` in pyproject.toml to release).
+          skip-existing: true
+
+      # Tell testers a new build is up. Runs only after a successful publish.
+      # Best-effort: a webhook hiccup must not fail the release.
+      #
+      # Setup (one-time): in the target Teams channel → ··· → Workflows →
+      # template "Post to a channel when a webhook request is received". Copy the
+      # generated URL into a GitHub Actions secret named TEAMS_WEBHOOK_URL
+      # (repo → Settings → Secrets and variables → Actions). Until that secret
+      # exists the step no-ops (it does not fail). The payload is an Adaptive
+      # Card wrapped in the message/attachments envelope the Workflows webhook
+      # expects (the modern replacement for the retired O365 connectors).
+      - name: Notify Teams (testers) of the new build
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TEAMS_WEBHOOK_URL}" ]; then
+            echo "TEAMS_WEBHOOK_URL not set — skipping Teams notification."
+            exit 0
+          fi
+          VERSION=$(python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          INSTALL="pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ \"agent-orchestrator==${VERSION}\""
+          PAYLOAD=$(jq -n \
+            --arg title "🚀 agent-orchestrator ${VERSION} published to TestPyPI" \
+            --arg subtitle "A new build is ready for testing." \
+            --arg version "${VERSION}" \
+            --arg commit "${GITHUB_SHA:0:7}" \
+            --arg branch "${GITHUB_REF_NAME}" \
+            --arg install "${INSTALL}" \
+            --arg pypi_url "https://test.pypi.org/project/agent-orchestrator/${VERSION}/" \
+            --arg run_url "${RUN_URL}" \
+            '{
+              type: "message",
+              attachments: [{
+                contentType: "application/vnd.microsoft.card.adaptive",
+                content: {
+                  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  type: "AdaptiveCard",
+                  version: "1.4",
+                  body: [
+                    {type:"TextBlock", size:"Large", weight:"Bolder", text:$title, wrap:true},
+                    {type:"TextBlock", text:$subtitle, wrap:true, spacing:"None"},
+                    {type:"FactSet", facts:[
+                      {title:"Version", value:$version},
+                      {title:"Branch",  value:$branch},
+                      {title:"Commit",  value:$commit}
+                    ]},
+                    {type:"TextBlock", text:"Install:", weight:"Bolder", spacing:"Medium"},
+                    {type:"TextBlock", text:$install, wrap:true, fontType:"Monospace"}
+                  ],
+                  actions: [
+                    {type:"Action.OpenUrl", title:"View on TestPyPI", url:$pypi_url},
+                    {type:"Action.OpenUrl", title:"Workflow run",     url:$run_url}
+                  ]
+                }
+              }]
+            }')
+          code=$(curl -sS -o /tmp/teams_resp.txt -w "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}" "${TEAMS_WEBHOOK_URL}") || true
+          echo "Teams webhook HTTP ${code}"
+          # Workflows returns 200/202 on accept; warn (don't fail) on anything else.
+          case "${code}" in
+            200|202) echo "Teams notified." ;;
+            *) echo "::warning::Teams notification failed (HTTP ${code}): $(cat /tmp/teams_resp.txt)" ;;
+          esac

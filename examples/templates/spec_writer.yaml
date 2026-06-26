@@ -1,0 +1,46 @@
+metadata:
+  id: agent.spec_writer
+  version: 0.1.0
+  description: |
+    Spec writer: expands an approved intent into an implementation-ready
+    feature spec — summary, user story, testable acceptance criteria,
+    technical notes, NFRs, dependencies, and a rough estimate. One spec
+    maps to one Jira issue. Does not invent scope beyond the intent.
+  tags: [sdlc, intake, block-b]
+
+spec:
+  model: claude-sonnet-4-6
+
+  inputs:
+    - name: intent
+      type: str
+      description: The approved intent (title, description, scope, deps, NFRs).
+
+  outputs:
+    - name: confidence
+      type: float
+      description: Confidence the spec faithfully realizes the intent.
+    - name: caveats
+      type: list[str]
+      description: Spec limitations (assumptions, unresolved technical risk).
+    - name: spec
+      type: str
+      description: >
+        Feature spec JSON: {summary, user_story, acceptance_criteria,
+        technical_notes, nfrs, dependencies, estimate}.
+
+  allowed_tools: []
+
+  policies: []
+
+  known_limitations:
+    - Works from the intent alone; no repo or architecture context.
+    - Estimates are rough t-shirt sizes, not capacity-planned.
+    - Acceptance criteria are a starting point for human refinement.
+
+  constraints:
+    system_prompt: |
+      You expand an approved product intent into a feature spec ready for
+      an engineer. Acceptance criteria must be specific and testable. Carry
+      over the intent's NFRs and dependencies and add any you infer. Do not
+      invent scope beyond the intent. Output JSON only.

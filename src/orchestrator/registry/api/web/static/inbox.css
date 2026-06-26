@@ -1,0 +1,73 @@
+.composer {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 1rem 0 0.25rem;
+}
+.composer input#src {
+  flex: 1;
+  min-width: 18rem;
+  padding: 0.5rem;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+}
+.composer label.auto { color: var(--muted); font-size: 0.85rem; display: flex; align-items: center; gap: 0.3rem; }
+.composer button.primary {
+  padding: 0.5rem 1rem;
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+}
+#cmsg { font-size: 0.9rem; min-height: 1.2rem; margin-bottom: 0.5rem; }
+.err { color: var(--fail); }
+.gate {
+  border: 2px solid var(--warn);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0;
+  background: var(--surface);
+}
+.gate-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.run {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  margin: 0.4rem 0;
+  background: var(--surface);
+  transition: background 0.4s ease;
+}
+.run.flash { background: var(--code-bg); }
+.run-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.2rem; }
+.pill {
+  font-size: 0.78rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.state-merged { color: var(--ok); border-color: var(--ok); }
+.state-failed, .state-denied { color: var(--fail); border-color: var(--fail); }
+.state-running { color: var(--accent); border-color: var(--accent); }
+.state-cancelled { color: var(--muted); }
+.risk-high { color: var(--fail); font-weight: 500; }
+.risk-medium { color: var(--warn); font-weight: 500; }
+.risk-low { color: var(--ok); font-weight: 500; }
+.actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.actions button {
+  font: inherit;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+.actions button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.actions button.danger { color: var(--fail); border-color: var(--fail); }
+.muted { color: var(--muted); font-size: 0.85rem; }

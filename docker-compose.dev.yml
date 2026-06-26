@@ -1,0 +1,128 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: orchestrator-postgres
+    environment:
+      POSTGRES_USER: orchestrator
+      POSTGRES_PASSWORD: orchestrator
+      POSTGRES_DB: orchestrator
+    ports:
+      # Host port 5433 -> container 5432, so a local brew Postgres on 5432
+      # (the macOS default) doesn't collide with the dev container.
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orchestrator -d orchestrator"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: orchestrator-minio
+    environment:
+      MINIO_ROOT_USER: minio_admin
+      MINIO_ROOT_PASSWORD: minio_admin_password
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio-setup:
+    image: minio/mc:latest
+    container_name: orchestrator-minio-setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 minio_admin minio_admin_password &&
+        mc mb --ignore-existing local/artifacts &&
+        mc mb --ignore-existing local/documents &&
+        echo 'minio buckets ready'
+      "
+
+  # Sprint 13: Temporal server (workflow orchestrator). Uses the auto-setup
+  # image which provisions its own Postgres schema on first run, so it does
+  # NOT share the orchestrator's Postgres above. Separate container = simpler
+  # mental model for dev; teardown is per-service.
+  temporal:
+    image: temporalio/auto-setup:1.25
+    container_name: orchestrator-temporal
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal
+      POSTGRES_SEEDS: temporal-postgres
+    depends_on:
+      temporal-postgres:
+        condition: service_healthy
+    ports:
+      - "7233:7233"   # gRPC frontend
+    healthcheck:
+      test: ["CMD", "tctl", "--address", "temporal:7233", "cluster", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  temporal-postgres:
+    image: postgres:16
+    container_name: orchestrator-temporal-postgres
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_DB: temporal
+    volumes:
+      - temporal_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal -d temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  temporal-ui:
+    image: temporalio/ui:2.31.2
+    container_name: orchestrator-temporal-ui
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      temporal:
+        condition: service_healthy
+    ports:
+      - "8233:8080"   # Temporal Web UI
+
+  # Live OpenTelemetry tracing (G16). Jaeger all-in-one bundles an OTLP
+  # receiver, so it doubles as the collector — no separate otel-collector
+  # service needed. Point the app at it with:
+  #   export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+  # then open the trace UI at http://localhost:16686. The app/worker run on
+  # the host (uv run ...), so they reach Jaeger over the published ports.
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: orchestrator-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # Jaeger web UI
+      - "4317:4317"     # OTLP gRPC receiver
+      - "4318:4318"     # OTLP HTTP receiver (what the app exports to)
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:16686/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+  minio_data:
+  temporal_postgres_data:

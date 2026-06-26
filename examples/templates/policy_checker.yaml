@@ -1,0 +1,48 @@
+metadata:
+  id: agent.policy_checker
+  version: 0.1.0
+  description: |
+    Policy checker: scans content against a named policy set and reports
+    violations with remediation hints. No tool access; the model reasons
+    over inputs and the policy descriptions inlined into the prompt.
+  tags: [policy, governance]
+
+spec:
+  model: claude-haiku-4-5-20251001
+
+  inputs:
+    - name: content
+      type: str
+      description: The content to evaluate.
+    - name: policy_set
+      type: list
+      description: List of policy descriptors (id, summary, severity).
+
+  outputs:
+    - name: confidence
+      type: float
+      description: Confidence in the violation/no-violation determination.
+    - name: caveats
+      type: list[str]
+      description: Cases where the policy is ambiguous or the content unclear.
+    - name: violations
+      type: list
+      description: Each violation has policy_id, severity, evidence_passage, recommendation.
+    - name: recommendations
+      type: list[str]
+      description: Concrete remediation steps the author should take.
+
+  allowed_tools: []
+
+  policies: []
+
+  known_limitations:
+    - Hallucinations in policy IDs are possible if the policy set is verbose.
+    - Does not evaluate against external regulations the policy set omits.
+
+  constraints:
+    system_prompt: |
+      You evaluate the supplied content against the supplied policy set
+      only. You do not invent policies. You quote evidence passages
+      verbatim from the content. Each violation cites a real policy_id
+      from the input.

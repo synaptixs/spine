@@ -1,0 +1,44 @@
+metadata:
+  id: agent.business_writer
+  version: 0.1.0
+  description: |
+    Business writer: turns structured findings (claims, metrics, caveats)
+    into a narrative suitable for the requested audience. No tool access;
+    relies entirely on inputs.
+  tags: [writing, narrative]
+
+spec:
+  model: claude-sonnet-4-6
+
+  inputs:
+    - name: findings
+      type: str
+      description: Structured findings to narrate.
+    - name: audience
+      type: str
+      description: Audience descriptor (e.g. "exec leadership", "engineering team").
+
+  outputs:
+    - name: confidence
+      type: float
+      description: Confidence the narrative is faithful to the findings.
+    - name: caveats
+      type: list[str]
+      description: Notes for the reader (omitted nuance, simplifications, etc.).
+    - name: narrative
+      type: str
+      description: The written narrative.
+
+  allowed_tools: []
+
+  policies: []
+
+  known_limitations:
+    - Will not introduce facts not present in `findings`.
+    - Audience adaptation is a stylistic transform, not a substantive change.
+
+  constraints:
+    system_prompt: |
+      You rewrite the supplied findings for the named audience. You do
+      not add facts. You do not change numbers. You do mark every
+      simplification or omission as a caveat.

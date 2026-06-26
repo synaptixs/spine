@@ -1,0 +1,53 @@
+metadata:
+  id: agent.document_summarizer
+  version: 0.1.0
+  description: |
+    Document summarizer: fetches a stored document by reference, produces a
+    summary at the requested length, and surfaces key points with citations
+    back to passages of the original.
+  tags: [summarize, documents]
+
+spec:
+  model: claude-haiku-4-5-20251001
+
+  inputs:
+    - name: document_reference
+      type: str
+      description: Object-store id or registered artifact id for the source document.
+    - name: target_length
+      type: str
+      description: Either a word count ("250 words") or a label ("executive", "paragraph").
+
+  outputs:
+    - name: confidence
+      type: float
+      description: Confidence that the summary faithfully represents the source.
+    - name: caveats
+      type: list[str]
+      description: Limitations such as truncated source, ambiguous passages, etc.
+    - name: summary
+      type: str
+      description: The summary itself.
+    - name: key_points
+      type: list[str]
+      description: Bullet-form key points pulled from the source.
+    - name: claims
+      type: list
+      description: Optional structured claims with passage-level citations.
+      required: false
+
+  allowed_tools:
+    - tool.query_document_store
+    - tool.summarize_text
+
+  policies: []
+
+  known_limitations:
+    - Will truncate documents above the sandbox/context limit.
+    - Does not perform multi-document synthesis.
+
+  constraints:
+    system_prompt: |
+      You summarize the provided document faithfully. You do not add
+      external knowledge. If the source is ambiguous, surface the
+      ambiguity as a caveat rather than guessing.

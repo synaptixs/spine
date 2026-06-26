@@ -1,0 +1,54 @@
+metadata:
+  id: agent.code_executor
+  version: 0.1.0
+  description: |
+    Code executor: runs Python in a sandboxed environment and returns the
+    outcome. Intended as a callable sub-agent for analysis and verification
+    chains rather than a user-facing endpoint.
+  tags: [code, sandbox]
+
+spec:
+  model: claude-sonnet-4-6
+
+  inputs:
+    - name: code
+      type: str
+      description: Python source to execute.
+    - name: runtime_requirements
+      type: list
+      description: Pip-installable requirements for the run.
+      required: false
+
+  outputs:
+    - name: confidence
+      type: float
+      description: Confidence the execution result reflects the code's intent.
+    - name: caveats
+      type: list[str]
+      description: Known limitations or sandbox restrictions hit during the run.
+    - name: execution_result
+      type: dict
+      description: stdout, stderr, exit_code, elapsed_ms.
+    - name: logs
+      type: str
+      description: Concatenated stdout + stderr for human review.
+      required: false
+    - name: error
+      type: str
+      description: Structured error if the sandbox refused the run.
+      required: false
+
+  allowed_tools:
+    - tool.run_python_analysis
+
+  policies: []
+
+  known_limitations:
+    - No persistent filesystem between runs.
+    - Network access is gated by the sandbox's egress policy.
+
+  constraints:
+    system_prompt: |
+      You only execute code that has been provided to you. You do not
+      generate code from scratch. You do not modify the code before
+      execution. You report exactly what the sandbox returned.
