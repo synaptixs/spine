@@ -22,6 +22,7 @@ _LANG_BY_SUFFIX = {
     ".tsx": "typescript",
     ".js": "javascript",
     ".jsx": "javascript",
+    ".cs": "csharp",
     ".go": "go",
     ".rb": "ruby",
 }
@@ -103,7 +104,21 @@ def _read_markers(root: Path) -> str:
             blobs.append(_safe_read(path))
     for req in root.glob("requirements*.txt"):
         blobs.append(_safe_read(req))
+    blobs.extend(_read_dotnet_markers(root))  # .csproj/.sln can live in subdirs
     return "\n".join(blobs).lower()
+
+
+def _read_dotnet_markers(root: Path, *, limit: int = 50) -> list[str]:
+    """A bounded set of .NET project files (SDK + PackageReference live here)."""
+    blobs: list[str] = []
+    for dirpath, dirnames, files in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".")]
+        for fn in files:
+            if fn.endswith((".csproj", ".sln")):
+                blobs.append(_safe_read(Path(dirpath) / fn))
+                if len(blobs) >= limit:
+                    return blobs
+    return blobs
 
 
 def _safe_read(path: Path) -> str:
@@ -120,6 +135,8 @@ def _detect_framework(markers: str, languages: frozenset[str]) -> str | None:
         ("flask", "flask"),
         ("springframework", "spring"),
         ('"react"', "react"),
+        ("microsoft.aspnetcore", "aspnet"),
+        ("microsoft.net.sdk.web", "aspnet"),
     ):
         if needle in markers:
             return name
@@ -147,6 +164,12 @@ def _detect_test_runner(root: Path, markers: str, languages: frozenset[str]) -> 
         return "jest"
     if "junit" in markers:
         return "junit"
+    if "xunit" in markers:
+        return "xunit"
+    if "nunit" in markers:
+        return "nunit"
+    if "mstest" in markers or "microsoft.net.test.sdk" in markers:
+        return "mstest"
     if "python" in languages:
         return "pytest"
     return None
