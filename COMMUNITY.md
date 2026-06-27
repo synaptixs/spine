@@ -48,7 +48,7 @@ loop into *operate → self-remediate* with end-to-end provenance.
 ## Try it (about 10 minutes)
 
 ```bash
-pip install --extra-index-url https://pypi.org/simple/ synaptixs-spine
+pip install synaptixs-spine
 orchestrator init && orchestrator doctor                       # scaffold .env, check readiness
 orchestrator sdlc feature --source file://./spec.md --safe     # build locally — no pushes, no PRs
 ```
@@ -71,9 +71,8 @@ Open an issue (or start a discussion) on anything — especially:
 
 ## Honest status
 
-Single-tenant today (RBAC is in progress). Published on **TestPyPI** while the PyPI
-name is sorted — see the [Setup guide](SETUP.md) for the install line. Codegen is
-strongest on Python; Java/TypeScript are supported. The *operate → remediate*
+Single-tenant today (RBAC is in progress). On **PyPI** — `pip install synaptixs-spine`.
+Codegen is strongest on Python; Java/TypeScript are supported. The *operate → remediate*
 extension is wired and tested but not yet proven against live production data — try it
 with the runbook and tell us where it bends.
 

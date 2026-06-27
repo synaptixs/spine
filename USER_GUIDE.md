@@ -54,47 +54,28 @@ You do **not** need Docker, a database, or any servers for Steps 1–6.
 The published package is `synaptixs-spine`; the command it gives you is
 `orchestrator`.
 
-### From TestPyPI (just the tool)
-
-The name collides with an unrelated project on the real PyPI, so install the
-**TestPyPI** build directly. This one-liner resolves the newest wheel from the
-**simple index** — the same index pip reads, so it's always current (the JSON
-API used by older snippets lags minutes behind a release):
+### From PyPI (just the tool)
 
 ```bash
-WHL=$(curl -s -H 'Accept: application/vnd.pypi.simple.v1+json' \
-  https://test.pypi.org/simple/synaptixs-spine/ \
-  | python3 -c "import sys,json,re
-fs=[f for f in json.load(sys.stdin)['files'] if f['filename'].endswith('.whl')]
-key=lambda f:[int(n) for n in re.findall(r'\d+', f['filename'].split('-')[1])]
-print(max(fs,key=key)['url'])")
-pip install --upgrade --extra-index-url https://pypi.org/simple/ "synaptixs-spine @ $WHL"
-
+pip install synaptixs-spine
 orchestrator --help
 ```
 
-The `[sdlc]` / `[mcp]` / `[tui]` extras aren't carried by a direct-wheel install;
-add them explicitly when needed, e.g. `pip install 'synaptixs-spine[sdlc]'`
-(the `[tui]` extra adds the `orchestrator tui` terminal UI — see Step 7).
+Optional extras, added when you need them:
+- `pip install 'synaptixs-spine[sdlc]'` — run the generated tests (the `sdlc feature`/`run` path)
+- `pip install 'synaptixs-spine[tui]'` — the `orchestrator tui` terminal UI (Step 7)
+- `[mcp]` (MCP client), `[otel]` (live tracing)
 
 ### Upgrading
 
-- **TestPyPI install:** re-run the one-liner above — it already passes
-  `--upgrade` and resolves the newest wheel from the simple index. Verify with
-  `pip show synaptixs-spine`.
+- **PyPI install:** `pip install --upgrade synaptixs-spine` (verify with `pip show synaptixs-spine`).
 - **Source checkout:** `git pull && uv sync --extra dev`.
-- **Pin / manual fallback** (if you want an exact version, or the resolver ever
-  misbehaves): list the wheels and install one directly —
-  ```bash
-  curl -s https://test.pypi.org/simple/synaptixs-spine/ | grep -o 'https://[^"]*\.whl'
-  pip install --upgrade --extra-index-url https://pypi.org/simple/ "synaptixs-spine @ <wheel-url>"
-  ```
 
 ### From source (needed for Step 7's pipeline, or to develop)
 
 ```bash
 git clone https://github.com/synaptixs/spine
-cd agent-orachestrator
+cd spine
 uv sync --extra dev            # installs the project + dev tools
 uv run orchestrator --help     # in this layout, prefix CLI calls with `uv run`
 ```

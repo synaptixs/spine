@@ -21,13 +21,10 @@ It's built for teams who want agents that are **inspectable, reproducible, and s
 to run on real code** — not demos.
 
 ```bash
-pip install --extra-index-url https://pypi.org/simple/ synaptixs-spine
+pip install synaptixs-spine
 orchestrator init && orchestrator doctor                  # scaffold .env, check readiness
 orchestrator sdlc feature --source file://./spec.md --safe   # build locally — no pushes, no PRs
 ```
-
-> The published name collides with an unrelated PyPI project — see the
-> [Setup & Install guide](SETUP.md) for the exact install one-liner.
 
 ---
 
