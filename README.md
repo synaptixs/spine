@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/spine-banner.png" alt="Spine — governed, provenance-grounded autonomous delivery" width="820">
+</p>
+
 # Spine
 
 **Governed, provenance-grounded autonomous delivery** — turn requirements into
