@@ -1,0 +1,45 @@
+name: Release notes
+
+# On every release to main (a develop -> main merge), publish a GitHub Release for
+# the current version with auto-generated notes. Idempotent: if a release for the
+# version tag already exists, it does nothing. Notes are categorized by .github/release.yml.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write # create the tag + release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # full history so release notes can diff against the prior tag
+
+      - name: Read version from pyproject.toml
+        id: ver
+        run: |
+          set -euo pipefail
+          v="$(python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $v"
+
+      - name: Create release if the tag doesn't exist yet
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="v${VERSION}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists — nothing to do."
+            exit 0
+          fi
+          echo "Creating release $tag with auto-generated notes."
+          gh release create "$tag" \
+            --target "${GITHUB_SHA}" \
+            --title "Spine $tag" \
+            --generate-notes
