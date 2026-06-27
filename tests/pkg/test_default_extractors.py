@@ -28,6 +28,12 @@ def test_default_includes_typescript_when_available() -> None:
     assert ("typescript" in langs) == have_ts
 
 
+def test_default_includes_csharp_when_available() -> None:
+    have_csharp = importlib.util.find_spec("tree_sitter_c_sharp") is not None
+    langs = {e.language for e in default_extractors()}
+    assert ("csharp" in langs) == have_csharp
+
+
 def test_repo_extractor_default_handles_java(tmp_path: Path) -> None:
     pytest.importorskip("tree_sitter_java", reason="install the 'java' extra")
     src = tmp_path / "src" / "main" / "java" / "com" / "demo"
@@ -49,4 +55,17 @@ def test_repo_extractor_default_handles_typescript(tmp_path: Path) -> None:
     # Default RepoCodeExtractor (no explicit extractors) must now pick up .ts.
     batch = RepoCodeExtractor().extract(tmp_path)
     types = {n.name for n in batch.nodes if n.kind is NodeKind.TYPE and n.language == "typescript"}
+    assert "Widget" in types
+
+
+def test_repo_extractor_default_handles_csharp(tmp_path: Path) -> None:
+    pytest.importorskip("tree_sitter_c_sharp", reason="install the 'csharp' extra")
+    src = tmp_path / "src"
+    src.mkdir(parents=True)
+    (src / "Widget.cs").write_text(
+        "namespace Demo;\n\npublic class Widget {\n    public int Score() { return 1; }\n}\n"
+    )
+    # Default RepoCodeExtractor (no explicit extractors) must now pick up .cs.
+    batch = RepoCodeExtractor().extract(tmp_path)
+    types = {n.name for n in batch.nodes if n.kind is NodeKind.TYPE and n.language == "csharp"}
     assert "Widget" in types

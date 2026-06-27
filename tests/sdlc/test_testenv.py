@@ -291,3 +291,64 @@ async def test_node_runner_fails_and_captures_output(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
     result = await NodeTestRunner().run(path="/wt")
     assert not result.passed and "FAIL" in result.output
+
+
+# --- C# (1.2) ----------------------------------------------------------------
+
+
+def test_make_test_environment_csharp() -> None:
+    from orchestrator.sdlc.testenv import DotnetToolEnvironment, make_test_environment
+
+    assert isinstance(make_test_environment("csharp"), DotnetToolEnvironment)
+
+
+def test_make_test_runner_picks_dotnet_for_csharp() -> None:
+    from orchestrator.sdlc.testenv import DotnetToolEnvironment, make_test_runner
+    from orchestrator.sdlc.testrunner import DotnetTestRunner
+
+    assert isinstance(make_test_runner("csharp", DotnetToolEnvironment()), DotnetTestRunner)
+
+
+def test_dotnet_env_install_is_noop_and_python_unavailable() -> None:
+    import asyncio
+
+    from orchestrator.sdlc.testenv import DotnetToolEnvironment
+
+    env = DotnetToolEnvironment()
+    assert asyncio.run(env.install(["xunit"])) is False  # deps come from .csproj
+    with pytest.raises(RuntimeError):
+        _ = env.python
+
+
+def test_dotnet_toolchain_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.sdlc import testenv
+
+    monkeypatch.setattr(
+        "orchestrator.sdlc.testenv.shutil.which",
+        lambda name: "/usr/bin/dotnet" if name == "dotnet" else None,
+    )
+    assert testenv.dotnet_toolchain_available() is True
+    monkeypatch.setattr("orchestrator.sdlc.testenv.shutil.which", lambda name: None)
+    assert testenv.dotnet_toolchain_available() is False
+
+
+async def test_dotnet_runner_passes_on_zero_exit(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.sdlc.testrunner import DotnetTestRunner
+
+    async def fake_exec(*a: object, **k: object) -> _FakeProc:
+        return _FakeProc(0, b"Passed!  - Failed: 0, Passed: 3")
+
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
+    result = await DotnetTestRunner().run(path="/wt")
+    assert result.passed and result.returncode == 0
+
+
+async def test_dotnet_runner_fails_and_captures_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.sdlc.testrunner import DotnetTestRunner
+
+    async def fake_exec(*a: object, **k: object) -> _FakeProc:
+        return _FakeProc(1, b"error CS0103: The name 'Foo' does not exist")
+
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
+    result = await DotnetTestRunner().run(path="/wt")
+    assert not result.passed and "CS0103" in result.output

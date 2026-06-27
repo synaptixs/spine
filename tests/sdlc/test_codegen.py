@@ -323,6 +323,41 @@ async def test_typescript_layout_selects_typescript_prompts(tmp_path: Path) -> N
     assert ".js" in llm.calls[0][-1].content  # NodeNext import hint
 
 
+async def test_csharp_layout_selects_csharp_prompts(tmp_path: Path) -> None:
+    """A C# layout switches implement/author_tests/refine to the .NET/xUnit prompts
+    and pins the C# namespace + project conventions in the layout block."""
+    from orchestrator.sdlc.layout import TargetLayout
+
+    layout = TargetLayout(
+        "Widgets",
+        "src/Widgets",
+        "tests/Widgets.Tests",
+        True,
+        "new",
+        language="csharp",
+        build_tool="dotnet",
+    )
+    llm = _ScriptedLLM(
+        [
+            _files_response({"src/Widgets/Calc.cs": "namespace Widgets;\npublic class Calc {}\n"}),
+            _files_response(
+                {"tests/Widgets.Tests/CalcTests.cs": "using Xunit;\npublic class CalcTests {}\n"}
+            ),
+            _files_response({"src/Widgets/Calc.cs": "namespace Widgets;\npublic class Calc {}\n"}),
+        ]
+    )
+    adapter = LLMCodegenAdapter(llm, layout=layout)
+    await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="C-1")
+    await adapter.author_tests(spec=_SPEC, path=str(tmp_path), issue_key="C-1")
+    await adapter.refine(spec=_SPEC, path=str(tmp_path), issue_key="C-1", failures="error CS0103")
+
+    assert "runnable C#" in llm.calls[0][0].content  # implement system prompt
+    assert "xUnit" in llm.calls[1][0].content  # author_tests system prompt
+    assert ".csproj" in llm.calls[2][0].content  # refine system prompt
+    assert "namespace Widgets;" in llm.calls[0][-1].content  # layout block (user)
+    assert "<TypeName>Tests.cs" in llm.calls[0][-1].content  # xUnit test path hint
+
+
 async def test_no_layout_block_when_layout_unset(tmp_path: Path) -> None:
     """Backward compatible: without a layout, the prompt carries no layout block."""
     llm = _ScriptedLLM([_files_response({"m.py": "x = 1\n"})])

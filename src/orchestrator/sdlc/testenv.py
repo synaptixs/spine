@@ -210,9 +210,36 @@ class NodeToolEnvironment:
         return f"node toolchain ({self.package_manager}; deps resolved from package.json)"
 
 
+class DotnetToolEnvironment:
+    """.NET build toolchain (``dotnet``). Dependencies come from ``.csproj``
+    ``<PackageReference>`` entries restored on build, not pip — so ``install``
+    (auto-heal) is a no-op and ``ensure`` does nothing (``dotnet test`` restores).
+    ``python`` is unavailable by design."""
+
+    declared: set[str] = set()
+
+    @property
+    def python(self) -> str:
+        raise RuntimeError("DotnetToolEnvironment has no Python interpreter")
+
+    async def ensure(self, worktree: Path | str) -> None:
+        return None
+
+    async def install(self, packages: list[str]) -> bool:
+        return False  # .NET deps are declared in .csproj, not pip-installed
+
+    def describe(self) -> str:
+        return "dotnet toolchain (deps resolved from .csproj PackageReferences)"
+
+
 def java_toolchain_available() -> bool:
     """True if both ``mvn`` and ``java`` are on PATH (Java codegen prerequisite)."""
     return shutil.which("mvn") is not None and shutil.which("java") is not None
+
+
+def dotnet_toolchain_available() -> bool:
+    """True if the ``dotnet`` CLI is on PATH (C# codegen prerequisite)."""
+    return shutil.which("dotnet") is not None
 
 
 def node_toolchain_available(package_manager: str = "npm") -> bool:
@@ -228,6 +255,8 @@ def make_test_environment(language: str = "python", *, build_tool: str = "") -> 
         return JavaToolEnvironment()
     if language == "typescript":
         return NodeToolEnvironment(build_tool or "npm")
+    if language == "csharp":
+        return DotnetToolEnvironment()
     if os.getenv("SDLC_TEST_ISOLATION", "venv").lower() == "local":
         return LocalTestEnvironment()
     return VenvTestEnvironment()
@@ -236,12 +265,19 @@ def make_test_environment(language: str = "python", *, build_tool: str = "") -> 
 def make_test_runner(language: str, env: TestEnvironment) -> TestRunner:
     """The runner for ``language``: Maven for Java, the package manager's ``test``
     script for TypeScript, pytest (on the env's interpreter) for Python."""
-    from orchestrator.sdlc.testrunner import MavenTestRunner, NodeTestRunner, SubprocessTestRunner
+    from orchestrator.sdlc.testrunner import (
+        DotnetTestRunner,
+        MavenTestRunner,
+        NodeTestRunner,
+        SubprocessTestRunner,
+    )
 
     if language == "java":
         return MavenTestRunner()
     if language == "typescript":
         return NodeTestRunner(package_manager=getattr(env, "package_manager", "npm"))
+    if language == "csharp":
+        return DotnetTestRunner()
     return SubprocessTestRunner(python=env.python)
 
 
@@ -360,12 +396,14 @@ def _project_dependencies(root: Path) -> list[str]:
 
 
 __all__ = [
+    "DotnetToolEnvironment",
     "JavaToolEnvironment",
     "LocalTestEnvironment",
     "MODULE_TO_PACKAGE",
     "NodeToolEnvironment",
     "TestEnvironment",
     "VenvTestEnvironment",
+    "dotnet_toolchain_available",
     "java_toolchain_available",
     "make_test_environment",
     "make_test_runner",

@@ -126,6 +126,10 @@ NATIVE_SKILLS: tuple[Skill, ...] = (
         "Match the repo's TypeScript conventions — layout, imports, strict types.",
     ),
     Skill(
+        "csharp-conventions",
+        "Match the repo's C# conventions — namespaces, file/type layout, nullable types.",
+    ),
+    Skill(
         "repo-pkg-grounding",
         "Reuse existing symbols — use the pkg_* tools to find them before writing code.",
     ),

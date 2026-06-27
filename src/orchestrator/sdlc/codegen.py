@@ -425,22 +425,65 @@ _REFINE_SYSTEM_TS = (
     "run green. Same path rules — relative, no '..'."
 )
 
+# C# (.NET/xUnit) variants — selected when the layout's language is "csharp".
+_IMPLEMENT_SYSTEM_CSHARP = (
+    "You are a senior engineer. Implement the feature described by the SPEC as "
+    "runnable C# inside the given .NET project (the worktree).\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: paths are relative to the worktree root — no leading slash, no '..'. "
+    "Write source files only (NO test files here). Put each public type in the "
+    "source project shown in the layout, one public type per file; the file name "
+    "matches the type name; declare the namespace shown in the layout (a "
+    "file-scoped `namespace <Name>;` is fine). Target `net8.0` with nullable "
+    "reference types enabled. Use only the BCL or packages already referenced in "
+    "the source `.csproj` — to add one, edit the `.csproj` with a "
+    "`<PackageReference>`. Every file must be complete and compilable."
+)
+
+_TESTS_SYSTEM_CSHARP = (
+    "You write xUnit tests for an already-implemented feature. You are given the "
+    "SPEC and the CURRENT SOURCE FILES.\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: write test files only, under the test project dir shown in the layout, "
+    "named `<TypeName>Tests.cs`. Use xUnit (`using Xunit;` with `[Fact]` / "
+    "`[Theory]` methods and `Assert`). The test project already references the "
+    "source project — use the source namespace shown in the layout. Each "
+    "acceptance criterion maps to at least one assertion. Tests must pass against "
+    "the given source."
+)
+
+_REFINE_SYSTEM_CSHARP = (
+    "You are fixing a failing `dotnet test` run (a compile or xUnit failure). You "
+    "are given the SPEC, the CURRENT FILES, and the FAILURE OUTPUT.\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: files you created earlier this session may be resent in full via "
+    "`content`; any other existing file must be changed via `edits` (including a "
+    "`.csproj` to add a `<PackageReference>`). Make the smallest change that turns "
+    "the build green. Same path rules — relative, no '..'."
+)
+
 # Phase system prompts keyed by language (default: Python). Adding a language is a
 # new column here, not another boolean branch at each call site.
 _IMPLEMENT_SYSTEMS = {
     "python": _IMPLEMENT_SYSTEM,
     "java": _IMPLEMENT_SYSTEM_JAVA,
     "typescript": _IMPLEMENT_SYSTEM_TS,
+    "csharp": _IMPLEMENT_SYSTEM_CSHARP,
 }
 _TESTS_SYSTEMS = {
     "python": _TESTS_SYSTEM,
     "java": _TESTS_SYSTEM_JAVA,
     "typescript": _TESTS_SYSTEM_TS,
+    "csharp": _TESTS_SYSTEM_CSHARP,
 }
 _REFINE_SYSTEMS = {
     "python": _REFINE_SYSTEM,
     "java": _REFINE_SYSTEM_JAVA,
     "typescript": _REFINE_SYSTEM_TS,
+    "csharp": _REFINE_SYSTEM_CSHARP,
 }
 
 
@@ -614,6 +657,17 @@ class LLMCodegenAdapter:
                 'extension (NodeNext), e.g. `import { x } from "./<name>.js"`.\n'
                 f"- Put Vitest tests co-located beside the code as `{layout.tests_dir}/<name>.test.ts`.\n"
                 "- Declare any new dependency in `package.json` (edit it); don't invent unrelated paths.\n\n"
+            )
+        if layout.language == "csharp":
+            return (
+                "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
+                f"- C# namespace is `{layout.package_name}`. Put each public type at "
+                f"`{layout.source_dir}/<TypeName>.cs`, one public type per file, declaring "
+                f"`namespace {layout.package_name};` (target net8.0, nullable enabled).\n"
+                f"- Put xUnit tests at `{layout.tests_dir}/<TypeName>Tests.cs` (the test "
+                "project already references the source project).\n"
+                f"- Declare any new dependency as a `<PackageReference>` in the source "
+                "`.csproj` (edit it); don't invent unrelated paths.\n\n"
             )
         return (
             "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"

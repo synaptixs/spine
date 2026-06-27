@@ -31,7 +31,8 @@ radius) and grounds new code in what already exists. Full guide:
 
 | Capability | Status | How to use |
 |---|---|---|
-| Multi-language comprehension + codegen — Python, Java, TypeScript | ✅ | automatic per repo |
+| Multi-language comprehension + codegen — Python, Java, TypeScript, C# | ✅ | automatic per repo |
+| Framework-aware edges — ASP.NET Core endpoints, EF Core entities (C#) | ✅ | emitted into the PKG on `pkg extract` / `understand` |
 | Committed `memory-bank/` for humans + any AI tool | ✅ | `orchestrator understand --out memory-bank` |
 | PKG extraction / export | ✅ | `orchestrator pkg extract`, `orchestrator pkg export` |
 | Repo profile / audit | ✅ | `orchestrator profile <repo>`, `orchestrator audit <repo>` |

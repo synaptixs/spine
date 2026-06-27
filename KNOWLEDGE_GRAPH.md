@@ -116,7 +116,7 @@ walking edges, not by guessing.
 
 ```mermaid
 flowchart LR
-    src["Source files<br/>(.py · .java · .ts/.tsx)"] --> ext["Language extractor<br/>(tree-sitter / AST)"]
+    src["Source files<br/>(.py · .java · .ts/.tsx · .cs)"] --> ext["Language extractor<br/>(tree-sitter / AST)"]
     ext --> facts["Facts<br/>Nodes + Edges + Provenance"]
     facts --> cache["Per-commit cache"]
     facts --> store["Fact store<br/>(queryable)"]
@@ -132,6 +132,12 @@ flowchart LR
   | Python | ✅ built-in | (default) |
   | Java | ✅ | `pip install 'synaptixs-spine[java]'` |
   | TypeScript / TSX | ✅ | `pip install 'synaptixs-spine[typescript]'` |
+  | C# | ✅ + framework edges | `pip install 'synaptixs-spine[csharp]'` |
+
+  C# additionally lifts **framework edges** into the graph: ASP.NET Core controllers
+  and Minimal-API routes become `Endpoint` nodes with `EXPOSES` edges to their
+  handlers, and EF Core entities (`DbSet<T>` / `[Table]`) become `Entity` nodes with
+  `REFERENCES` edges following navigation properties.
 - **Cached per commit.** Re-running on an unchanged tree reuses the cache; `--refresh`
   forces a re-extract. So `understand` is cheap to re-run as the code evolves.
 
@@ -271,8 +277,8 @@ reviews honest.
 
 - **Static, not runtime.** The PKG is built from source structure; it doesn't capture
   runtime behavior, dynamic dispatch it can't see, or values only known at execution.
-- **Parser coverage.** Python/Java/TypeScript today. Other languages aren't extracted yet
-  (their files are simply not represented).
+- **Parser coverage.** Python/Java/TypeScript/C# today. Other languages aren't extracted
+  yet (their files are simply not represented).
 - **Heuristic edges.** Some edges (e.g. data-layer foreign keys) are inferred and improve
   over time; treat them as strong hints, not proofs.
 - **Domain meaning is separate.** The PKG knows *structure*, not business intent — that's

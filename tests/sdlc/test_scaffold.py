@@ -105,6 +105,52 @@ def test_scaffold_typescript_is_idempotent(tmp_path: Path) -> None:
     assert scaffold(tmp_path, _TS_LAYOUT) == []
 
 
+_CSHARP_LAYOUT = TargetLayout(
+    package_name="Widgets",
+    source_dir="src/Widgets",
+    tests_dir="tests/Widgets.Tests",
+    src_layout=True,
+    mode="new",
+    language="csharp",
+    build_tool="dotnet",
+)
+
+
+def test_scaffold_csharp_solution_project(tmp_path: Path) -> None:
+    created = scaffold(tmp_path, _CSHARP_LAYOUT)
+    assert "Widgets.sln" in created
+    assert "src/Widgets/Widgets.csproj" in created
+    assert "tests/Widgets.Tests/Widgets.Tests.csproj" in created
+    sln = (tmp_path / "Widgets.sln").read_text()
+    assert "Microsoft Visual Studio Solution File" in sln
+    assert "src\\Widgets\\Widgets.csproj" in sln  # backslash paths in the .sln
+    assert "tests\\Widgets.Tests\\Widgets.Tests.csproj" in sln
+    src_csproj = (tmp_path / "src" / "Widgets" / "Widgets.csproj").read_text()
+    assert "<TargetFramework>net8.0</TargetFramework>" in src_csproj
+    assert "<RootNamespace>Widgets</RootNamespace>" in src_csproj
+    test_csproj = (tmp_path / "tests" / "Widgets.Tests" / "Widgets.Tests.csproj").read_text()
+    assert "xunit" in test_csproj  # xUnit wired
+    # the test project references the source project up two levels.
+    assert 'Include="..\\..\\src\\Widgets\\Widgets.csproj"' in test_csproj
+    assert "bin/" in (tmp_path / ".gitignore").read_text()  # C# .gitignore
+    assert not (tmp_path / "pyproject.toml").exists()  # no Python files
+
+
+def test_scaffold_csharp_guids_are_deterministic(tmp_path: Path) -> None:
+    a, b = tmp_path / "a", tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+    scaffold(a, _CSHARP_LAYOUT)
+    scaffold(b, _CSHARP_LAYOUT)
+    # Same project → byte-identical solution (deterministic uuid5 GUIDs).
+    assert (a / "Widgets.sln").read_text() == (b / "Widgets.sln").read_text()
+
+
+def test_scaffold_csharp_is_idempotent(tmp_path: Path) -> None:
+    scaffold(tmp_path, _CSHARP_LAYOUT)
+    assert scaffold(tmp_path, _CSHARP_LAYOUT) == []
+
+
 def test_flat_layout_pythonpath(tmp_path: Path) -> None:
     flat = TargetLayout("pkg", "pkg", "tests", src_layout=False, mode="new")
     scaffold(tmp_path, flat)

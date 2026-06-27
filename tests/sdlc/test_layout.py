@@ -175,3 +175,42 @@ class TestTypeScriptLayout:
         (tmp_path / "yarn.lock").write_text("")
         layout = resolve_layout(tmp_path, mode="auto", language="typescript")
         assert layout.build_tool == "yarn"
+
+
+class TestCSharpLayout:
+    def test_derive_csharp_namespace(self) -> None:
+        from orchestrator.sdlc.layout import derive_csharp_namespace
+
+        assert derive_csharp_namespace("https://x/Example-Service.") == "ExampleService"
+        assert derive_csharp_namespace("git@github.com:org/My-Repo.git") == "MyRepo"
+        assert derive_csharp_namespace("9lives") == "App9lives"
+        assert derive_csharp_namespace("---") == "App"
+
+    def test_new_csharp_layout(self, tmp_path: Path) -> None:
+        layout = resolve_layout(tmp_path, mode="new", language="csharp", repo="https://x/widgets")
+        assert layout.language == "csharp" and layout.build_tool == "dotnet" and layout.mode == "new"
+        assert layout.package_name == "Widgets"
+        assert layout.source_dir == "src/Widgets"
+        assert layout.tests_dir == "tests/Widgets.Tests"
+        assert layout.module_rel_path("Widget") == "src/Widgets/Widget.cs"
+
+    def test_detect_existing_csharp_project(self, tmp_path: Path) -> None:
+        from orchestrator.sdlc.layout import detect_csharp_layout
+
+        src = tmp_path / "src" / "Shop"
+        src.mkdir(parents=True)
+        (src / "Shop.csproj").write_text("<Project/>")
+        tst = tmp_path / "tests" / "Shop.Tests"
+        tst.mkdir(parents=True)
+        (tst / "Shop.Tests.csproj").write_text("<Project/>")
+        assert detect_csharp_layout(tmp_path) == ("Shop", "src/Shop", "tests/Shop.Tests")
+
+    def test_auto_existing_csharp_is_not_scaffolded(self, tmp_path: Path) -> None:
+        src = tmp_path / "src" / "Shop"
+        src.mkdir(parents=True)
+        (src / "Shop.csproj").write_text("<Project/>")
+        layout = resolve_layout(tmp_path, mode="auto", language="csharp")
+        assert layout.mode == "existing"
+        assert layout.package_name == "Shop" and layout.build_tool == "dotnet"
+        # no test project present → tests dir is derived from the source project name.
+        assert layout.tests_dir == "tests/Shop.Tests"

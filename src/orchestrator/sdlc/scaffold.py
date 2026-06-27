@@ -12,10 +12,15 @@ written, existing files are never clobbered. Safe to call on every feature run.
 from __future__ import annotations
 
 import json
+import os
+import uuid
 from pathlib import Path
 
 from orchestrator.catalog.profile import ProjectProfile
 from orchestrator.sdlc.layout import TargetLayout
+
+# Project-type GUID for SDK-style C# projects (what `dotnet sln add` writes).
+_CSHARP_SLN_PROJECT_TYPE = "9A19103F-16F7-4668-BE54-9A1E7A4F7556"
 
 _PYPROJECT_TEMPLATE = """\
 [build-system]
@@ -74,6 +79,8 @@ def scaffold(root: Path | str, layout: TargetLayout, *, profile: ProjectProfile 
         files = _java_files(layout)
     elif layout.language == "typescript":
         files = _typescript_files(layout)
+    elif layout.language == "csharp":
+        files = _csharp_files(layout)
     else:
         files = _python_files(layout)
 
@@ -160,6 +167,120 @@ def _typescript_files(layout: TargetLayout) -> dict[str, str]:
         ),
         ".gitignore": _TS_GITIGNORE,
     }
+
+
+def _csharp_files(layout: TargetLayout) -> dict[str, str]:
+    # A solution tying an SDK-style classlib (the source project) to an xUnit test
+    # project that references it, so `dotnet test` at the root builds + tests both.
+    name = layout.package_name
+    src_dir, test_dir = layout.source_dir, layout.tests_dir
+    test_name = f"{name}.Tests"
+    src_csproj = f"{src_dir}/{name}.csproj"
+    test_csproj = f"{test_dir}/{test_name}.csproj"
+    # ProjectReference from the test project back to the source project (relative).
+    ref = os.path.relpath(src_csproj, start=test_dir).replace("/", "\\")
+    return {
+        f"{name}.sln": _sln(name, src_csproj, test_name, test_csproj),
+        src_csproj: _CSPROJ_LIB.format(name=name),
+        test_csproj: _CSPROJ_TEST.format(ref=ref),
+        # SDK-style projects anchor their own dirs in git; xUnit's default template
+        # has no source files, so a placeholder keeps the source dir non-empty.
+        f"{src_dir}/.gitkeep": "",
+        "README.md": _README_TEMPLATE.format(
+            package=layout.package_name,
+            source_dir=layout.source_dir,
+            tests_dir=layout.tests_dir,
+        ),
+        ".gitignore": _CSHARP_GITIGNORE,
+    }
+
+
+def _sln(name: str, src_csproj: str, test_name: str, test_csproj: str) -> str:
+    # Deterministic GUIDs (uuid5) so the same project always scaffolds the same
+    # solution — no randomness, reproducible run-to-run. .sln uses backslash paths.
+    src_guid = _guid(f"proj:{name}")
+    test_guid = _guid(f"proj:{test_name}")
+    pt = _CSHARP_SLN_PROJECT_TYPE
+    src_path = src_csproj.replace("/", "\\")
+    test_path = test_csproj.replace("/", "\\")
+    cfgs = "".join(
+        f"\t\t{{{g}}}.Debug|Any CPU.ActiveCfg = Debug|Any CPU\n"
+        f"\t\t{{{g}}}.Debug|Any CPU.Build.0 = Debug|Any CPU\n"
+        f"\t\t{{{g}}}.Release|Any CPU.ActiveCfg = Release|Any CPU\n"
+        f"\t\t{{{g}}}.Release|Any CPU.Build.0 = Release|Any CPU\n"
+        for g in (src_guid, test_guid)
+    )
+    return (
+        "Microsoft Visual Studio Solution File, Format Version 12.00\n"
+        "# Visual Studio Version 17\n"
+        f'Project("{{{pt}}}") = "{name}", "{src_path}", "{{{src_guid}}}"\n'
+        "EndProject\n"
+        f'Project("{{{pt}}}") = "{test_name}", "{test_path}", "{{{test_guid}}}"\n'
+        "EndProject\n"
+        "Global\n"
+        "\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n"
+        "\t\tDebug|Any CPU = Debug|Any CPU\n"
+        "\t\tRelease|Any CPU = Release|Any CPU\n"
+        "\tEndGlobalSection\n"
+        "\tGlobalSection(ProjectConfigurationPlatforms) = postSolution\n"
+        f"{cfgs}"
+        "\tEndGlobalSection\n"
+        f"\tGlobalSection(SolutionProperties) = preSolution\n"
+        "\t\tHideSolutionNode = FALSE\n"
+        "\tEndGlobalSection\n"
+        "EndGlobal\n"
+    )
+
+
+def _guid(seed: str) -> str:
+    """A stable upper-case GUID derived from ``seed`` (deterministic, no randomness)."""
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"spine-sdlc:{seed}")).upper()
+
+
+_CSPROJ_LIB = """\
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>{name}</RootNamespace>
+  </PropertyGroup>
+
+</Project>
+"""
+
+_CSPROJ_TEST = """\
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+    <PackageReference Include="xunit" Version="2.7.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="{ref}" />
+  </ItemGroup>
+
+</Project>
+"""
+
+_CSHARP_GITIGNORE = """\
+bin/
+obj/
+*.user
+.vs/
+[Dd]ebug/
+[Rr]elease/
+"""
 
 
 _TSCONFIG = """\
