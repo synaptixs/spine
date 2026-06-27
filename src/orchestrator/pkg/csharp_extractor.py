@@ -295,27 +295,52 @@ def _framework_edges(
 
 
 def _endpoint_edges(types: list[_TypeRec], source: bytes, rel: str, batch: FactBatch) -> None:
-    """Attribute-routed controllers → Endpoint + EXPOSES (route→handler)."""
+    """Attribute-routed controllers → Endpoint + EXPOSES (route→handler).
+
+    The route is sourced, in order, from the HTTP-verb attribute's own argument
+    (``[HttpGet("x")]``), then a sibling method-level ``[Route("x")]`` (the very
+    common ``[Route(...)] + [HttpGet]`` split), then the class-level ``[Route]``
+    prefix. A method-level ``[Route]`` with no verb attribute (responds to all
+    verbs) is emitted as ``ANY`` — but only on a controller, so a stray ``[Route]``
+    on a plain class doesn't masquerade as an endpoint."""
     for rec in types:
         class_route = ""
         for aname, anode in _attributes(rec.node, source):
             if aname == "Route":
                 class_route = _attr_string_arg(anode, source)
                 break
+        controller = _is_controller(rec, source)
         for _mname, mid, mnode in rec.methods:
-            verb, route = "", ""
+            verb, http_route, method_route = "", "", ""
             for aname, anode in _attributes(mnode, source):
                 if aname in _HTTP_VERB_ATTRS:
                     verb = _HTTP_VERB_ATTRS[aname]
-                    route = _attr_string_arg(anode, source)
-                    break
+                    http_route = _attr_string_arg(anode, source)
+                elif aname == "Route":
+                    method_route = _attr_string_arg(anode, source)
             if not verb:
-                continue
-            full = _join_route(class_route, route)
+                if not (controller and method_route):
+                    continue
+                verb = "ANY"  # [Route]-only action handles every HTTP method
+            full = _join_route(class_route, http_route or method_route)
             line = mnode.start_point[0] + 1
             eid = f"csharp:endpoint:{verb} {full}"
             batch.add_node(Node(eid, NodeKind.ENDPOINT, f"{verb} {full}", "csharp", Provenance(rel, line)))
             batch.add_edge(Edge(eid, mid, EdgeKind.EXPOSES, Provenance(rel, line)))
+
+
+def _is_controller(rec: _TypeRec, source: bytes) -> bool:
+    """A type is a controller if it's named ``*Controller``, carries
+    ``[ApiController]``, or derives from a ``*Controller`` / ``ControllerBase`` base
+    (covers custom bases like ``BaseController``)."""
+    if rec.name.endswith("Controller"):
+        return True
+    if any(aname == "ApiController" for aname, _ in _attributes(rec.node, source)):
+        return True
+    return any(
+        _last_segment(b).endswith("Controller") or _last_segment(b) == "ControllerBase"
+        for b in _base_types(rec.node, source)
+    )
 
 
 def _minimal_api_edges(root: TSNode, module_id: str, source: bytes, rel: str, batch: FactBatch) -> None:

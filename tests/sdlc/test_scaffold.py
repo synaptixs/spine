@@ -151,6 +151,29 @@ def test_scaffold_csharp_is_idempotent(tmp_path: Path) -> None:
     assert scaffold(tmp_path, _CSHARP_LAYOUT) == []
 
 
+def test_scaffold_csharp_appends_dotnet_ignores_to_existing_gitignore(tmp_path: Path) -> None:
+    # A scratch/brownfield repo may already have a .gitignore (never clobbered) that
+    # lacks bin/ obj/ — the scaffold must append them so build output isn't committed.
+    (tmp_path / ".gitignore").write_text(".venv/\n__pycache__/\n", encoding="utf-8")
+    created = scaffold(tmp_path, _CSHARP_LAYOUT)
+    assert ".gitignore" in created  # appended (counts as changed)
+    gi = (tmp_path / ".gitignore").read_text()
+    assert ".venv/" in gi  # pre-existing rules preserved
+    assert "bin/" in gi and "obj/" in gi  # .NET build output now ignored
+
+
+def test_scaffold_csharp_honors_target_framework(tmp_path: Path) -> None:
+    from dataclasses import replace
+
+    # The runner sets target_framework from the installed SDK so the project runs,
+    # not just builds; both csproj files must carry it (default stays net8.0).
+    scaffold(tmp_path, replace(_CSHARP_LAYOUT, target_framework="net10.0"))
+    src = (tmp_path / "src" / "Widgets" / "Widgets.csproj").read_text()
+    test = (tmp_path / "tests" / "Widgets.Tests" / "Widgets.Tests.csproj").read_text()
+    assert "<TargetFramework>net10.0</TargetFramework>" in src
+    assert "<TargetFramework>net10.0</TargetFramework>" in test
+
+
 def test_flat_layout_pythonpath(tmp_path: Path) -> None:
     flat = TargetLayout("pkg", "pkg", "tests", src_layout=False, mode="new")
     scaffold(tmp_path, flat)

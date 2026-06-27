@@ -587,7 +587,9 @@ def sdlc_feature(
     ] = False,
     language: Annotated[
         str,
-        typer.Option("--language", help="Target language: auto (detect), python, java, or typescript."),
+        typer.Option(
+            "--language", help="Target language: auto (detect), python, java, typescript, or csharp."
+        ),
     ] = "auto",
 ) -> None:
     """Linear pipeline for ONE intent, end to end.

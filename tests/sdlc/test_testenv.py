@@ -332,6 +332,24 @@ def test_dotnet_toolchain_available(monkeypatch: pytest.MonkeyPatch) -> None:
     assert testenv.dotnet_toolchain_available() is False
 
 
+def test_detect_dotnet_tfm(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.sdlc import testenv
+
+    class _Proc:
+        stdout = "10.0.301\n"
+
+    monkeypatch.setattr("orchestrator.sdlc.testenv.shutil.which", lambda _n: "/usr/bin/dotnet")
+    monkeypatch.setattr("subprocess.run", lambda *a, **k: _Proc())
+    assert testenv.detect_dotnet_tfm() == "net10.0"  # net{major}.0 from the SDK version
+
+
+def test_detect_dotnet_tfm_falls_back_without_dotnet(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.sdlc import testenv
+
+    monkeypatch.setattr("orchestrator.sdlc.testenv.shutil.which", lambda _n: None)
+    assert testenv.detect_dotnet_tfm(default="net8.0") == "net8.0"
+
+
 async def test_dotnet_runner_passes_on_zero_exit(monkeypatch: pytest.MonkeyPatch) -> None:
     from orchestrator.sdlc.testrunner import DotnetTestRunner
 
@@ -352,3 +370,40 @@ async def test_dotnet_runner_fails_and_captures_output(monkeypatch: pytest.Monke
     monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
     result = await DotnetTestRunner().run(path="/wt")
     assert not result.passed and "CS0103" in result.output
+
+
+async def test_dotnet_runner_targets_a_nested_solution(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # A monorepo's solution is often nested (not at the worktree root); the runner
+    # must point `dotnet test` at it instead of failing to find a project at root.
+    sln_dir = tmp_path / "backend" / "App"
+    sln_dir.mkdir(parents=True)
+    (sln_dir / "App.sln").write_text("")
+    captured: list[tuple[object, ...]] = []
+
+    async def fake_exec(*a: object, **k: object) -> _FakeProc:
+        captured.append(a)
+        return _FakeProc(0, b"Passed!")
+
+    from orchestrator.sdlc.testrunner import DotnetTestRunner
+
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
+    await DotnetTestRunner().run(path=str(tmp_path))
+    argv = captured[0]
+    assert "test" in argv and str(sln_dir / "App.sln") in argv  # targeted the nested .sln
+
+
+async def test_dotnet_runner_no_target_runs_at_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # No solution/project (or several) → no path argument; dotnet resolves at root.
+    captured: list[tuple[object, ...]] = []
+
+    async def fake_exec(*a: object, **k: object) -> _FakeProc:
+        captured.append(a)
+        return _FakeProc(0, b"Passed!")
+
+    from orchestrator.sdlc.testrunner import DotnetTestRunner
+
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
+    await DotnetTestRunner().run(path=str(tmp_path))
+    assert captured[0] == ("dotnet", "test", "--nologo")

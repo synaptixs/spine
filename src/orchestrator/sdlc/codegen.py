@@ -435,8 +435,9 @@ _IMPLEMENT_SYSTEM_CSHARP = (
     "Write source files only (NO test files here). Put each public type in the "
     "source project shown in the layout, one public type per file; the file name "
     "matches the type name; declare the namespace shown in the layout (a "
-    "file-scoped `namespace <Name>;` is fine). Target `net8.0` with nullable "
-    "reference types enabled. Use only the BCL or packages already referenced in "
+    "file-scoped `namespace <Name>;` is fine). Target the framework shown in the "
+    "layout, with nullable reference types enabled. Use only the BCL or packages "
+    "already referenced in "
     "the source `.csproj` — to add one, edit the `.csproj` with a "
     "`<PackageReference>`. Every file must be complete and compilable."
 )
@@ -659,11 +660,12 @@ class LLMCodegenAdapter:
                 "- Declare any new dependency in `package.json` (edit it); don't invent unrelated paths.\n\n"
             )
         if layout.language == "csharp":
+            tfm = layout.target_framework or "net8.0"
             return (
                 "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
                 f"- C# namespace is `{layout.package_name}`. Put each public type at "
                 f"`{layout.source_dir}/<TypeName>.cs`, one public type per file, declaring "
-                f"`namespace {layout.package_name};` (target net8.0, nullable enabled).\n"
+                f"`namespace {layout.package_name};` (target {tfm}, nullable enabled).\n"
                 f"- Put xUnit tests at `{layout.tests_dir}/<TypeName>Tests.cs` (the test "
                 "project already references the source project).\n"
                 f"- Declare any new dependency as a `<PackageReference>` in the source "

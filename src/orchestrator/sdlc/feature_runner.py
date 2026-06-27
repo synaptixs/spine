@@ -95,8 +95,9 @@ async def _changed_files(path: Path) -> list[str]:
             rel = rel.strip().strip('"')
             # Drop build/cache/venv output — these are test-run byproducts, not the
             # change (e.g. Maven target/, a stray .sdlc-venv when a repo's .gitignore
-            # doesn't cover them).
-            if rel.split("/", 1)[0] in _BUILD_DIRS:
+            # doesn't cover them, or .NET bin/ obj/ nested under a project dir).
+            segments = rel.split("/")
+            if segments[0] in _BUILD_DIRS or "bin" in segments or "obj" in segments:
                 continue
             changed.add(rel)
         return sorted(changed)
@@ -159,6 +160,7 @@ async def run_feature(
     from orchestrator.sdlc.layout import is_effectively_empty, resolve_layout
     from orchestrator.sdlc.scaffold import scaffold
     from orchestrator.sdlc.testenv import (
+        detect_dotnet_tfm,
         dotnet_toolchain_available,
         java_toolchain_available,
         make_test_environment,
@@ -244,6 +246,10 @@ async def run_feature(
     #     (existing package) is detected and reused — never scaffolded.
     lang = _resolve_language(path, language)
     layout = resolve_layout(path, mode=layout_mode, package_name=package_name, repo=repo_url, language=lang)
+    if lang == "csharp":
+        # Target the installed SDK so a greenfield scaffold builds AND runs (a TFM
+        # with no matching runtime fails at the test host, not at build).
+        layout = replace(layout, target_framework=detect_dotnet_tfm())
     if layout.mode == "new":
         was_empty = is_effectively_empty(path)
         created = scaffold(path, layout)

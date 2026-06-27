@@ -245,6 +245,48 @@ def test_controller_endpoints_expose_handlers(tmp_path: Path) -> None:
     assert (post_id, "csharp:Shop.Api.OrdersController.Create", EdgeKind.EXPOSES) in edges
 
 
+ROUTE_SPLIT_CONTROLLER = """\
+namespace App.Web;
+
+public class SearchController : BaseController
+{
+    [Route("api/getInfo")]
+    [HttpGet]
+    public IActionResult GetInfo(string login) { return null; }
+
+    [Route("api/saveThing")]
+    [HttpPost]
+    public IActionResult SaveThing() { return null; }
+
+    [Route("api/anyVerb")]
+    public IActionResult AnyVerb() { return null; }
+}
+"""
+
+
+def test_method_level_route_attribute_distinguishes_endpoints(tmp_path: Path) -> None:
+    # The common ASP.NET pattern: a separate method-level [Route("api/x")] carries the
+    # path and [HttpGet]/[HttpPost] carries only the verb (no class [Route], no route
+    # arg on the verb attr). Each must become a DISTINCT endpoint — not collapse to "/".
+    batch, _ = _facts(tmp_path, ROUTE_SPLIT_CONTROLLER, name="SearchController.cs")
+    by_id = {n.id: n for n in batch.nodes}
+    assert by_id["csharp:endpoint:GET /api/getInfo"].kind is NodeKind.ENDPOINT
+    assert by_id["csharp:endpoint:POST /api/saveThing"].kind is NodeKind.ENDPOINT
+    # a [Route]-only action (no verb attr) on a controller → ANY.
+    assert by_id["csharp:endpoint:ANY /api/anyVerb"].kind is NodeKind.ENDPOINT
+    edges = {(e.src, e.dst, e.kind) for e in batch.edges}
+    base = "csharp:App.Web.SearchController"
+    assert ("csharp:endpoint:GET /api/getInfo", f"{base}.GetInfo", EdgeKind.EXPOSES) in edges
+    assert ("csharp:endpoint:POST /api/saveThing", f"{base}.SaveThing", EdgeKind.EXPOSES) in edges
+
+
+def test_route_only_method_on_plain_class_is_not_an_endpoint(tmp_path: Path) -> None:
+    # precision-first: a [Route] on a non-controller class must NOT become an endpoint.
+    src = 'namespace N { public class Helper { [Route("x")] public int F() { return 0; } } }\n'
+    batch, _ = _facts(tmp_path, src, name="Helper.cs")
+    assert not [n for n in batch.nodes if n.kind is NodeKind.ENDPOINT]
+
+
 def test_intra_type_calls_resolve_to_siblings(tmp_path: Path) -> None:
     batch, _ = _facts(tmp_path, CONTROLLER, name="OrdersController.cs")
     calls = {(e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.CALLS}
