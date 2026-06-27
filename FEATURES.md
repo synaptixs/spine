@@ -26,7 +26,8 @@ tests, get them green, open a PR — with **two human gates** (before building, 
 
 ## Code-grounded understanding
 Builds a **Product Knowledge Graph** of the repo (modules, types, call sites, blast
-radius) and grounds new code in what already exists.
+radius) and grounds new code in what already exists. Full guide:
+[KNOWLEDGE_GRAPH.md](KNOWLEDGE_GRAPH.md).
 
 | Capability | Status | How to use |
 |---|---|---|

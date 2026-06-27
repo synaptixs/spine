@@ -125,6 +125,10 @@ there; greenfield repos get a stub that fills in as features land. Re-run anytim
 to refresh (`--refresh` re-extracts instead of using the commit cache). Commit
 `memory-bank/` so your team — and any AI tool — reads the same project truth.
 
+> **Deep dive:** see **[KNOWLEDGE_GRAPH.md](KNOWLEDGE_GRAPH.md)** for the full PKG
+> guide — the data model, the CLI (`pkg extract` / `export` / `docs`), how grounding
+> uses it, and how it works for brownfield and greenfield projects.
+
 > **Multi-language.** Comprehension covers **Python** out of the box and
 > **Java** when the parser extra is installed (`pip install 'synaptixs-spine[java]'`).
 > `understand`, codegen grounding, and `pkg extract` then process `.java` too.
