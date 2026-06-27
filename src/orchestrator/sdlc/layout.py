@@ -51,6 +51,10 @@ class TargetLayout:
     scaffolded: bool = False
     language: str = "python"
     build_tool: str = ""  # "maven"|"gradle" (Java) | "npm"|"yarn"|"pnpm" (TypeScript) | ""
+    # Greenfield C# target-framework moniker (e.g. "net8.0"/"net10.0"). Empty → the
+    # scaffold's default; the runner sets it from the installed SDK so the generated
+    # project both builds AND runs (a TFM with no matching runtime fails at test host).
+    target_framework: str = ""
 
     def module_rel_path(self, module: str) -> str:
         """Worktree-relative path for a new source module/class (no leading dir)."""

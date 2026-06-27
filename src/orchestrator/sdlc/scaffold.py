@@ -21,6 +21,8 @@ from orchestrator.sdlc.layout import TargetLayout
 
 # Project-type GUID for SDK-style C# projects (what `dotnet sln add` writes).
 _CSHARP_SLN_PROJECT_TYPE = "9A19103F-16F7-4668-BE54-9A1E7A4F7556"
+# Greenfield C# target framework when the installed SDK can't be probed (LTS).
+_DEFAULT_DOTNET_TFM = "net8.0"
 
 _PYPROJECT_TEMPLATE = """\
 [build-system]
@@ -92,7 +94,33 @@ def scaffold(root: Path | str, layout: TargetLayout, *, profile: ProjectProfile 
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
         created.append(rel)
+    if layout.language == "csharp":
+        created += _ensure_dotnet_gitignore(root_path)
     return created
+
+
+def _ensure_dotnet_gitignore(root: Path) -> list[str]:
+    """Guarantee ``bin/`` and ``obj/`` are ignored so ``dotnet`` build output never
+    lands in a commit/PR. The scaffold's own ``.gitignore`` covers them, but a
+    brownfield or scratch worktree with a pre-existing ``.gitignore`` (never
+    clobbered) may not — append the missing rules rather than overwrite."""
+    gi = root / ".gitignore"
+    if not gi.exists():
+        return []  # the scaffold just wrote its .gitignore (already has bin/ obj/)
+    existing = gi.read_text(encoding="utf-8")
+    have = {ln.strip().rstrip("/") for ln in existing.splitlines()}
+    missing = [d for d in ("bin", "obj") if d not in have]
+    if not missing:
+        return []
+    sep = "" if existing.endswith("\n") else "\n"
+    gi.write_text(
+        existing
+        + sep
+        + "\n# .NET build output (appended by the SDLC scaffold)\n"
+        + "".join(f"{d}/\n" for d in missing),
+        encoding="utf-8",
+    )
+    return [".gitignore"]
 
 
 def _python_files(layout: TargetLayout) -> dict[str, str]:
@@ -177,12 +205,15 @@ def _csharp_files(layout: TargetLayout) -> dict[str, str]:
     test_name = f"{name}.Tests"
     src_csproj = f"{src_dir}/{name}.csproj"
     test_csproj = f"{test_dir}/{test_name}.csproj"
+    # Target the installed SDK (set by the runner) so the project runs, not just
+    # builds; fall back to the LTS default when unset (unit tests, no SDK probe).
+    tfm = layout.target_framework or _DEFAULT_DOTNET_TFM
     # ProjectReference from the test project back to the source project (relative).
     ref = os.path.relpath(src_csproj, start=test_dir).replace("/", "\\")
     return {
         f"{name}.sln": _sln(name, src_csproj, test_name, test_csproj),
-        src_csproj: _CSPROJ_LIB.format(name=name),
-        test_csproj: _CSPROJ_TEST.format(ref=ref),
+        src_csproj: _CSPROJ_LIB.format(name=name, tfm=tfm),
+        test_csproj: _CSPROJ_TEST.format(ref=ref, tfm=tfm),
         # SDK-style projects anchor their own dirs in git; xUnit's default template
         # has no source files, so a placeholder keeps the source dir non-empty.
         f"{src_dir}/.gitkeep": "",
@@ -241,7 +272,7 @@ _CSPROJ_LIB = """\
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>{tfm}</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>{name}</RootNamespace>
@@ -254,7 +285,7 @@ _CSPROJ_TEST = """\
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>{tfm}</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>

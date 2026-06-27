@@ -23,6 +23,10 @@ build/
 # Local smoke-test artefacts
 .smoke-api.log
 
+# Generated per-run backlog ledger (./BACKLOG.md) — a local artifact of `sdlc
+# feature` runs, never committed to this repo.
+/BACKLOG.md
+
 # Claude Code session lockfiles
 .claude/
 
@@ -31,3 +35,11 @@ build/
 .env.*
 !.env.example
 *.pem
+
+# Local-only validation artefacts from live-proving against private target repos —
+# findings/reports/extracts must NEVER be committed. Clones live in /tmp; reports
+# under docs/ are already ignored. Neutral catch-alls for any stray in-repo copy:
+/.local/
+*.local.md
+*.local.json
+*.local.txt

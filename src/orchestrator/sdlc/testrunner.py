@@ -185,10 +185,17 @@ class DotnetTestRunner:
 
     async def run(self, *, path: str) -> TestRunResult:
         env = {k: v for k, v in os.environ.items() if not k.startswith(_SECRET_ENV_PREFIXES)}
+        # `dotnet test` with no argument needs exactly one project/solution in cwd.
+        # In a monorepo the solution is often NESTED (e.g. backend/App/App.sln), so
+        # point it at the single .sln when there is one; otherwise let dotnet resolve
+        # at the root (greenfield scaffold writes the .sln at the root).
+        target = _discover_dotnet_target(Path(path))
+        args = ["test", "--nologo"]
+        if target:
+            args.insert(1, target)  # `dotnet test <solution> --nologo`
         proc = await asyncio.create_subprocess_exec(
             self._dotnet,
-            "test",
-            "--nologo",
+            *args,
             cwd=path,
             env=env,
             stdout=asyncio.subprocess.PIPE,
@@ -239,6 +246,26 @@ class NodeTestRunner:
             output = output[-_MAX_OUTPUT_CHARS:]
         rc = proc.returncode if proc.returncode is not None else -1
         return TestRunResult(passed=rc == 0, returncode=rc, output=output)
+
+
+_DOTNET_SKIP_DIRS = {"bin", "obj", "node_modules", ".git", ".vs"}
+
+
+def _discover_dotnet_target(root: Path) -> str | None:
+    """The single ``.sln`` in the worktree (so a nested solution is found), else the
+    single ``.csproj``, else ``None`` (run ``dotnet test`` at the root). Returns a
+    path only when it's unambiguous — multiple solutions stay at the root so this
+    never guesses which one to test."""
+    for ext in ("*.sln", "*.csproj"):
+        hits: list[Path] = []
+        for p in root.rglob(ext):
+            if _DOTNET_SKIP_DIRS.isdisjoint(part.lower() for part in p.relative_to(root).parts):
+                hits.append(p)
+        if len(hits) == 1:
+            return str(hits[0])
+        if hits:  # several solutions/projects → ambiguous; defer to the root
+            return None
+    return None
 
 
 class StubTestRunner:

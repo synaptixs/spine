@@ -242,6 +242,27 @@ def dotnet_toolchain_available() -> bool:
     return shutil.which("dotnet") is not None
 
 
+def detect_dotnet_tfm(default: str = "net8.0") -> str:
+    """The installed SDK's target-framework moniker (``net{major}.0``), or ``default``.
+
+    A greenfield project must target a framework whose RUNTIME is installed — a
+    ``net8.0`` project on a box with only the .NET 10 runtime builds but can't launch
+    the test host (roll-forward doesn't cross majors). So the scaffold targets the
+    SDK actually present. Best-effort: falls back to ``default`` if ``dotnet`` is
+    missing or its version can't be parsed."""
+    import subprocess
+
+    exe = shutil.which("dotnet")
+    if exe is None:
+        return default
+    try:
+        proc = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=30)  # noqa: S603
+    except (OSError, subprocess.SubprocessError):
+        return default
+    m = re.match(r"\s*(\d+)\.", proc.stdout)
+    return f"net{m.group(1)}.0" if m else default
+
+
 def node_toolchain_available(package_manager: str = "npm") -> bool:
     """True if both ``node`` and the package manager are on PATH (TS prerequisite)."""
     return shutil.which("node") is not None and shutil.which(package_manager or "npm") is not None
@@ -403,6 +424,7 @@ __all__ = [
     "NodeToolEnvironment",
     "TestEnvironment",
     "VenvTestEnvironment",
+    "detect_dotnet_tfm",
     "dotnet_toolchain_available",
     "java_toolchain_available",
     "make_test_environment",
