@@ -148,6 +148,39 @@ to refresh (`--refresh` re-extracts instead of using the commit cache). Commit
 > **Java** when the parser extra is installed (`pip install 'agent-orchestrator[java]'`).
 > `understand`, codegen grounding, and `pkg extract` then process `.java` too.
 
+### Working with existing repos (brownfield) — and how knowledge grows
+
+Spine understands a repo from its **own code**: it builds a Product Knowledge Graph
+(PKG) and a committed `memory-bank/`, then grounds every action in that. ontomesh
+(domain ontology) is an *optional* add-on — not the thing that reads your code.
+
+**Brownfield — comprehend, then deliver:**
+
+1. **Comprehend** the existing codebase (deterministic, no LLM):
+   ```bash
+   orchestrator understand .       # PKG → memory-bank/*.md
+   orchestrator profile .          # quick architecture profile
+   orchestrator audit .            # surface findings / issues
+   ```
+2. **Deliver** new intents or bug fixes, grounded in the repo's real layout and
+   conventions — `--layout auto` follows the existing structure and never scaffolds:
+   ```bash
+   orchestrator sdlc feature --source file://./spec.md --safe
+   ```
+   The `[grounding] target-KG context: N chars` line is it reusing what's already there.
+3. **Findings** come from the same PKG: blast-radius scoping, the reviewer pass, `audit`.
+
+**Greenfield — knowledge grows as you build.** The first `understand` writes a stub and
+the first `feature` run scaffolds `src/<package>/` + `tests/`. From there the PKG and
+`memory-bank/` fill in with every feature that lands — re-run
+`orchestrator understand . --refresh` so the committed knowledge keeps pace. The repo
+accumulates its own code-true memory as it grows.
+
+> **Optional domain layer.** For domain-heavy systems (fraud, telecom, healthcare) you
+> can compose *business-domain* knowledge on top of the code-true grounding (Spine
+> Seam 1, `SPINE_ONTOMESH_URL`) — see [OPERATIONS.md](OPERATIONS.md#the-semantic-spine).
+> It augments comprehension; it never replaces the PKG.
+
 ---
 
 ## Step 3 — Your first build (local and safe)
