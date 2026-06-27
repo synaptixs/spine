@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/pkg-hero.png" alt="Spine — Product Knowledge Graph: a code-native graph of modules, types, functions, fields, endpoints, and entities" width="820">
+</p>
+
 # The Product Knowledge Graph (PKG)
 
 > How Spine *understands your codebase* — a code-native knowledge graph that grounds

@@ -1,0 +1,34 @@
+<svg width="100%" viewBox="0 0 1280 640" role="img" xmlns="http://www.w3.org/2000/svg"><title>Spine — Product Knowledge Graph</title><desc>The Product Knowledge Graph: a code-native graph of modules, types, functions, fields, endpoints, and entities.</desc>
+<rect x="0" y="0" width="1280" height="640" fill="#0B1020"/>
+<rect x="0" y="0" width="1280" height="6" fill="#2DD4BF"/>
+<text x="90" y="170" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="500" letter-spacing="3" fill="#5DCAA5">PRODUCT KNOWLEDGE GRAPH</text>
+<text x="86" y="288" font-family="Inter, Arial, sans-serif" font-size="82" font-weight="700" fill="#F5F7FA">Knowledge Graph</text>
+<text x="90" y="346" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="500" fill="#C9D2E0">Spine understands your codebase —</text>
+<text x="90" y="382" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="500" fill="#C9D2E0">code-native, not guessed.</text>
+<text x="90" y="436" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="400" fill="#9AA4B2">Modules · types · functions · calls · blast radius.</text>
+<text x="90" y="520" font-family="ui-monospace, Menlo, monospace" font-size="22" font-weight="400" fill="#5DCAA5">pip install synaptixs-spine</text>
+<text x="90" y="556" font-family="ui-monospace, Menlo, monospace" font-size="22" font-weight="400" fill="#8A94A6">orchestrator understand .</text>
+
+<line x1="1010" y1="175" x2="910" y2="285" stroke="#3C4663" stroke-width="2"/>
+<line x1="1010" y1="175" x2="1110" y2="295" stroke="#3C4663" stroke-width="2"/>
+<line x1="910" y1="285" x2="1110" y2="295" stroke="#3C4663" stroke-width="2"/>
+<line x1="910" y1="285" x2="1015" y2="410" stroke="#3C4663" stroke-width="2"/>
+<line x1="1110" y1="295" x2="1015" y2="410" stroke="#3C4663" stroke-width="2"/>
+<line x1="880" y1="415" x2="910" y2="285" stroke="#3C4663" stroke-width="2"/>
+<line x1="1150" y1="410" x2="1110" y2="295" stroke="#3C4663" stroke-width="2"/>
+<line x1="1015" y1="410" x2="880" y2="415" stroke="#3C4663" stroke-width="2"/>
+
+<circle cx="1010" cy="175" r="24" fill="#123A36" stroke="#2DD4BF" stroke-width="3"/>
+<circle cx="910" cy="285" r="24" fill="#123A36" stroke="#2DD4BF" stroke-width="3"/>
+<circle cx="1110" cy="295" r="24" fill="#123A36" stroke="#2DD4BF" stroke-width="3"/>
+<circle cx="1015" cy="410" r="24" fill="#123A36" stroke="#2DD4BF" stroke-width="3"/>
+<circle cx="880" cy="415" r="24" fill="#3A2C10" stroke="#F0A92A" stroke-width="3"/>
+<circle cx="1150" cy="410" r="24" fill="#3A2C10" stroke="#F0A92A" stroke-width="3"/>
+
+<text x="1010" y="139" font-family="Inter, Arial, sans-serif" font-size="17" fill="#9AA4B2" text-anchor="middle">Module</text>
+<text x="868" y="290" font-family="Inter, Arial, sans-serif" font-size="17" fill="#9AA4B2" text-anchor="end">Type</text>
+<text x="1144" y="300" font-family="Inter, Arial, sans-serif" font-size="17" fill="#9AA4B2" text-anchor="start">Function</text>
+<text x="1015" y="456" font-family="Inter, Arial, sans-serif" font-size="17" fill="#9AA4B2" text-anchor="middle">Field</text>
+<text x="880" y="461" font-family="Inter, Arial, sans-serif" font-size="17" fill="#F0A92A" text-anchor="middle">Endpoint</text>
+<text x="1150" y="456" font-family="Inter, Arial, sans-serif" font-size="17" fill="#F0A92A" text-anchor="middle">Entity</text>
+</svg>
