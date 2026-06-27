@@ -176,3 +176,119 @@ def test_indexer_is_a_field(tmp_path: Path) -> None:
     batch, _ = _facts(tmp_path, src, name="Bag.cs")
     by_id = {n.id: n for n in batch.nodes}
     assert by_id["csharp:N.Bag.this[]"].kind is NodeKind.FIELD
+
+
+# --- Phase 1.3: framework + call edges -------------------------------------
+
+CONTROLLER = """\
+namespace Shop.Api;
+
+using Microsoft.AspNetCore.Mvc;
+
+[ApiController]
+[Route("api/[controller]")]
+public class OrdersController : ControllerBase
+{
+    [HttpGet("{id}")]
+    public Order GetById(int id) { return Find(id); }
+
+    [HttpPost]
+    public void Create([FromBody] Order o) { Save(o); }
+
+    private Order Find(int id) { return this.Lookup(id); }
+    private Order Lookup(int id) { return null; }
+    private void Save(Order o) { }
+}
+"""
+
+ENTITIES = """\
+namespace Shop.Data;
+
+public class ShopContext : DbContext
+{
+    public DbSet<Order> Orders { get; set; }
+    public DbSet<Customer> Customers { get; set; }
+}
+
+[Table("orders")]
+public class Order
+{
+    public int Id { get; set; }
+    public Customer Customer { get; set; }
+    public List<LineItem> Items { get; set; }
+}
+
+public class Customer { public int Id { get; set; } }
+
+[Table("line_items")]
+public class LineItem { public int Id { get; set; } }
+"""
+
+MINIMAL_API = """\
+var app = builder.Build();
+app.MapGet("/health", () => "ok");
+app.MapPost("/orders", (Order o) => Save(o));
+app.Run();
+"""
+
+
+def test_controller_endpoints_expose_handlers(tmp_path: Path) -> None:
+    batch, _ = _facts(tmp_path, CONTROLLER, name="OrdersController.cs")
+    by_id = {n.id: n for n in batch.nodes}
+    # class [Route] prefix is joined with the method route; nodes are Endpoints.
+    get_id = "csharp:endpoint:GET /api/[controller]/{id}"
+    post_id = "csharp:endpoint:POST /api/[controller]"
+    assert by_id[get_id].kind is NodeKind.ENDPOINT
+    assert by_id[post_id].kind is NodeKind.ENDPOINT
+    edges = {(e.src, e.dst, e.kind) for e in batch.edges}
+    assert (get_id, "csharp:Shop.Api.OrdersController.GetById", EdgeKind.EXPOSES) in edges
+    assert (post_id, "csharp:Shop.Api.OrdersController.Create", EdgeKind.EXPOSES) in edges
+
+
+def test_intra_type_calls_resolve_to_siblings(tmp_path: Path) -> None:
+    batch, _ = _facts(tmp_path, CONTROLLER, name="OrdersController.cs")
+    calls = {(e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.CALLS}
+    base = "csharp:Shop.Api.OrdersController"
+    assert (f"{base}.GetById", f"{base}.Find") in calls  # unqualified call
+    assert (f"{base}.Find", f"{base}.Lookup") in calls  # this.-qualified call
+    assert (f"{base}.Create", f"{base}.Save") in calls
+
+
+def test_no_calls_to_unknown_methods(tmp_path: Path) -> None:
+    # precision-first: a call to a method not declared in the same type is dropped.
+    src = "namespace N { public class C { void F() { External(1); } } }\n"
+    batch, _ = _facts(tmp_path, src, name="C.cs")
+    assert not [e for e in batch.edges if e.kind is EdgeKind.CALLS]
+
+
+def test_ef_entities_and_references(tmp_path: Path) -> None:
+    batch, _ = _facts(tmp_path, ENTITIES, name="Shop.cs")
+    by_id = {n.id: n for n in batch.nodes}
+    # DbSet<T> + [Table] both register entities; Customer is reached via DbSet only.
+    assert by_id["csharp:entity:Shop.Data.Order"].kind is NodeKind.ENTITY
+    assert by_id["csharp:entity:Shop.Data.Customer"].kind is NodeKind.ENTITY
+    assert by_id["csharp:entity:Shop.Data.LineItem"].kind is NodeKind.ENTITY
+    refs = {(e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.REFERENCES}
+    # navigation properties (scalar + collection element) become entity→entity edges.
+    assert ("csharp:entity:Shop.Data.Order", "csharp:entity:Shop.Data.Customer") in refs
+    assert ("csharp:entity:Shop.Data.Order", "csharp:entity:Shop.Data.LineItem") in refs
+
+
+def test_non_entity_class_emits_no_entity_node(tmp_path: Path) -> None:
+    # a plain class with no [Table] and not in any DbSet<T> is not an entity.
+    src = "namespace N { public class Plain { public int X { get; set; } } }\n"
+    batch, _ = _facts(tmp_path, src, name="Plain.cs")
+    assert not [n for n in batch.nodes if n.kind is NodeKind.ENTITY]
+
+
+def test_minimal_api_endpoints_expose_module(tmp_path: Path) -> None:
+    batch, module = _facts(tmp_path, MINIMAL_API, name="Program.cs")
+    by_id = {n.id: n for n in batch.nodes}
+    get_id = "csharp:endpoint:GET /health"
+    post_id = "csharp:endpoint:POST /orders"
+    assert by_id[get_id].kind is NodeKind.ENDPOINT
+    assert by_id[post_id].kind is NodeKind.ENDPOINT
+    edges = {(e.src, e.dst, e.kind) for e in batch.edges}
+    # no named handler for a lambda → EXPOSES points at the module the route lives in.
+    assert (get_id, f"csharp:{module}", EdgeKind.EXPOSES) in edges
+    assert (post_id, f"csharp:{module}", EdgeKind.EXPOSES) in edges

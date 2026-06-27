@@ -64,6 +64,8 @@ orchestrator --help
 Optional extras, added when you need them:
 - `pip install 'synaptixs-spine[sdlc]'` — run the generated tests (the `sdlc feature`/`run` path)
 - `pip install 'synaptixs-spine[tui]'` — the `orchestrator tui` terminal UI (Step 7)
+- `[java]`, `[typescript]`, `[csharp]` — language parsers for comprehension + grounding
+  (Python needs no extra). C# codegen also needs the **.NET SDK** (`dotnet`) on your PATH.
 - `[mcp]` (MCP client), `[otel]` (live tracing)
 
 ### Upgrading
@@ -129,9 +131,13 @@ to refresh (`--refresh` re-extracts instead of using the commit cache). Commit
 > guide — the data model, the CLI (`pkg extract` / `export` / `docs`), how grounding
 > uses it, and how it works for brownfield and greenfield projects.
 
-> **Multi-language.** Comprehension covers **Python** out of the box and
-> **Java** when the parser extra is installed (`pip install 'synaptixs-spine[java]'`).
-> `understand`, codegen grounding, and `pkg extract` then process `.java` too.
+> **Multi-language.** Comprehension covers **Python** out of the box and **Java**,
+> **TypeScript**, and **C#** when the matching parser extra is installed
+> (`pip install 'synaptixs-spine[java]'` / `[typescript]` / `[csharp]`). `understand`,
+> codegen grounding, and `pkg extract` then process `.java` / `.ts` / `.cs` too. For
+> **C#**, the graph additionally captures ASP.NET Core endpoints (`EXPOSES`) and EF
+> Core entities (`REFERENCES`); end-to-end codegen (`sdlc feature` / `run`) scaffolds a
+> solution + xUnit project and runs `dotnet test`, so it needs the **.NET SDK** on PATH.
 
 ### Working with existing repos (brownfield) — and how knowledge grows
 

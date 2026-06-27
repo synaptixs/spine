@@ -55,7 +55,7 @@ writes) so you can inspect everything first.
 **Code-grounded understanding.** Before generating, it builds a **Product Knowledge
 Graph** of your repo — modules, types, functions, call sites, blast radius — and
 grounds new code in what already exists, so output reads like your team wrote it.
-Works across **Python, Java, and TypeScript**. `orchestrator understand` writes a
+Works across **Python, Java, TypeScript, and C#**. `orchestrator understand` writes a
 committed, code-true `memory-bank/` your whole team (and any AI tool) can read.
 
 **Governed autonomy.** The workflow itself is a typed, validated artifact. A planner
@@ -124,7 +124,8 @@ The autonomous multi-feature pipeline + web dashboard needs Temporal + Postgres 
 see the [Setup guide](SETUP.md).
 
 **Which languages and models?**
-Code generation and comprehension cover **Python, Java, and TypeScript**. Any
+Code generation and comprehension cover **Python, Java, TypeScript, and C#**
+(C# also extracts ASP.NET Core endpoints and EF Core entities into the graph). Any
 LiteLLM-supported provider (Anthropic, OpenAI, Bedrock) or a local Ollama model;
 you can set a different model per stage.
 

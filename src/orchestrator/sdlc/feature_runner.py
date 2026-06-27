@@ -119,6 +119,8 @@ def _resolve_language(path: Path, requested: str) -> str:
             return "java"
         if "typescript" in langs:
             return "typescript"
+        if "csharp" in langs:
+            return "csharp"
     return "python"
 
 
@@ -157,6 +159,7 @@ async def run_feature(
     from orchestrator.sdlc.layout import is_effectively_empty, resolve_layout
     from orchestrator.sdlc.scaffold import scaffold
     from orchestrator.sdlc.testenv import (
+        dotnet_toolchain_available,
         java_toolchain_available,
         make_test_environment,
         make_test_runner,
@@ -272,6 +275,11 @@ async def run_feature(
                 f"TypeScript codegen needs Node.js + {pm} on PATH (install both, then retry).",
                 code=2,
             )
+    elif lang == "csharp" and not dotnet_toolchain_available():
+        raise FeatureRunError(
+            "C# codegen needs the .NET SDK (`dotnet`) on PATH (install it, then retry).",
+            code=2,
+        )
     # ``ensure`` may install deps (Node ``<pm> install``); run it after the
     # toolchain preflight so a missing toolchain fails fast with a clear message.
     await testenv.ensure(path)

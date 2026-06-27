@@ -169,6 +169,44 @@ class MavenTestRunner:
         return TestRunResult(passed=rc == 0, returncode=rc, output=output)
 
 
+class DotnetTestRunner:
+    """Runs ``dotnet test`` in a C# worktree via exec (no shell).
+
+    With no project/solution argument the .NET CLI resolves the single ``.sln`` or
+    ``.csproj`` in the worktree (the greenfield scaffold writes a solution tying the
+    source + xUnit test projects). ``dotnet test`` restores packages, builds, and
+    runs the tests, exiting non-zero on any compile or test failure → ``passed`` is
+    ``returncode == 0``. ``--nologo`` trims the banner so the captured tail is the
+    build/test errors the refine prompt needs."""
+
+    def __init__(self, dotnet: str = "dotnet", *, timeout: float = 600.0) -> None:
+        self._dotnet = dotnet
+        self._timeout = timeout
+
+    async def run(self, *, path: str) -> TestRunResult:
+        env = {k: v for k, v in os.environ.items() if not k.startswith(_SECRET_ENV_PREFIXES)}
+        proc = await asyncio.create_subprocess_exec(
+            self._dotnet,
+            "test",
+            "--nologo",
+            cwd=path,
+            env=env,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        try:
+            stdout_bytes, _ = await asyncio.wait_for(proc.communicate(), timeout=self._timeout)
+        except TimeoutError:
+            proc.kill()
+            await proc.wait()
+            return TestRunResult(passed=False, returncode=-1, output="dotnet test run timed out")
+        output = stdout_bytes.decode("utf-8", "replace")
+        if len(output) > _MAX_OUTPUT_CHARS:
+            output = output[-_MAX_OUTPUT_CHARS:]
+        rc = proc.returncode if proc.returncode is not None else -1
+        return TestRunResult(passed=rc == 0, returncode=rc, output=output)
+
+
 class NodeTestRunner:
     """Runs the project's ``test`` script via its package manager (``<pm> test``).
 
@@ -224,6 +262,7 @@ class StubTestRunner:
 
 
 __all__ = [
+    "DotnetTestRunner",
     "MavenTestRunner",
     "NodeTestRunner",
     "StubTestRunner",

@@ -31,7 +31,7 @@ _FALLBACK_PACKAGE = "app"
 _JAVA_GROUP = "org.example"  # default reverse-DNS group for greenfield Java
 
 # Source-file extension per language (Python is the default).
-_SOURCE_EXT = {"java": "java", "typescript": "ts"}
+_SOURCE_EXT = {"java": "java", "typescript": "ts", "csharp": "cs"}
 
 
 @dataclass(frozen=True)
@@ -235,6 +235,77 @@ def _resolve_typescript_layout(
     return TargetLayout(derived, "src", "src", True, "new", language="typescript", build_tool=pm)
 
 
+def derive_csharp_namespace(name: str) -> str:
+    """Repo name → a PascalCase .NET root namespace / project name.
+
+    ``example-service.`` → ``ExampleService``. .NET names are PascalCase
+    identifiers; map every run of non-alphanumerics to a word boundary, capitalize
+    each word, and guard against empty / digit-leading results."""
+    base = name.rstrip("/").rsplit("/", 1)[-1]
+    if base.endswith(".git"):
+        base = base[: -len(".git")]
+    words = [w for w in re.split(r"[^0-9a-zA-Z]+", base) if w]
+    slug = "".join(w[:1].upper() + w[1:] for w in words)
+    if not slug:
+        return "App"
+    if slug[0].isdigit():
+        slug = f"App{slug}"
+    return slug
+
+
+def _csharp_dirs(project: str) -> tuple[str, str]:
+    """Source + test dirs for a greenfield C# project (src + xUnit test project)."""
+    return f"src/{project}", f"tests/{project}.Tests"
+
+
+def detect_csharp_layout(root: Path) -> tuple[str, str, str] | None:
+    """If the repo is a recognizable .NET project, return ``(project, source_dir,
+    tests_dir)``. The project is the first ``*.csproj`` whose name doesn't look
+    like a test project; ``source_dir`` is that project's directory. Tests go to a
+    sibling ``<Project>.Tests`` project when one exists, else a derived one."""
+    csprojs = sorted(root.rglob("*.csproj"))
+    if not csprojs:
+        return None
+    # Prefer the first non-test project as the source project.
+    src_proj = next(
+        (p for p in csprojs if not p.stem.lower().endswith(("test", "tests"))),
+        csprojs[0],
+    )
+    project = src_proj.stem
+    source_dir = src_proj.parent.relative_to(root).as_posix()
+    test_proj = next(
+        (p for p in csprojs if p.stem.lower().endswith(("test", "tests"))),
+        None,
+    )
+    tests_dir = (
+        test_proj.parent.relative_to(root).as_posix() if test_proj is not None else _csharp_dirs(project)[1]
+    )
+    return project, source_dir, tests_dir
+
+
+def _resolve_csharp_layout(
+    root: Path, *, mode: str, package_name: str | None, repo: str | None
+) -> TargetLayout:
+    existing = detect_csharp_layout(root)
+    derived = package_name or derive_csharp_namespace(repo or str(root))
+    if mode == "existing" or (mode == "auto" and existing is not None):
+        if existing is not None:
+            pkg, source_dir, tests_dir = existing
+            return TargetLayout(
+                package_name=package_name or pkg,
+                source_dir=source_dir,
+                tests_dir=tests_dir,
+                src_layout=source_dir.startswith("src"),
+                mode="existing",
+                language="csharp",
+                build_tool="dotnet",
+            )
+        src, tst = _csharp_dirs(derived)
+        return TargetLayout(derived, src, tst, True, "existing", language="csharp", build_tool="dotnet")
+    src, tst = _csharp_dirs(derived)
+    return TargetLayout(derived, src, tst, True, "new", language="csharp", build_tool="dotnet")
+
+
 def is_effectively_empty(root: Path) -> bool:
     """True when the worktree holds no source the model could extend (a fresh
     clone of an empty repo is just ``.git`` + maybe a README/LICENSE). Used to
@@ -260,9 +331,11 @@ def resolve_layout(
     """Resolve the target layout for a worktree.
 
     ``mode`` ∈ {``auto``, ``new``, ``existing``}. ``language`` ∈ {``python``,
-    ``java``, ``typescript``} selects the layout convention (Python ``src/<pkg>``;
-    Java ``src/main/java/<pkg path>`` + Maven/Gradle; TypeScript ``src/`` with
-    co-located ``*.test.ts`` + npm/yarn/pnpm). ``package_name`` overrides the
+    ``java``, ``typescript``, ``csharp``} selects the layout convention (Python
+    ``src/<pkg>``; Java ``src/main/java/<pkg path>`` + Maven/Gradle; TypeScript
+    ``src/`` with co-located ``*.test.ts`` + npm/yarn/pnpm; C# ``src/<Project>`` +
+    ``tests/<Project>.Tests`` xUnit project, built with ``dotnet``).
+    ``package_name`` overrides the
     derived name; ``repo`` (clone URL) seeds derivation. Deterministic; the caller
     scaffolds when ``mode == "new"``.
     """
@@ -271,6 +344,8 @@ def resolve_layout(
         return _resolve_java_layout(root_path, mode=mode, package_name=package_name, repo=repo)
     if language == "typescript":
         return _resolve_typescript_layout(root_path, mode=mode, package_name=package_name, repo=repo)
+    if language == "csharp":
+        return _resolve_csharp_layout(root_path, mode=mode, package_name=package_name, repo=repo)
     existing = detect_existing_package(root_path)
     derived = package_name or derive_package_name(repo or str(root_path))
 
@@ -295,9 +370,11 @@ def resolve_layout(
 
 __all__ = [
     "TargetLayout",
+    "derive_csharp_namespace",
     "derive_java_package",
     "derive_npm_package",
     "derive_package_name",
+    "detect_csharp_layout",
     "detect_existing_package",
     "detect_java_layout",
     "detect_typescript_layout",
