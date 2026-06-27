@@ -39,6 +39,27 @@ def test_java_repo(tmp_path: Path) -> None:
     assert prof.test_runner == "junit"
 
 
+def test_csharp_aspnet_with_xunit(tmp_path: Path) -> None:
+    _write(tmp_path, "src/Api/Program.cs", "namespace App; public class P { }")
+    _write(
+        tmp_path,
+        "src/Api/Api.csproj",
+        '<Project Sdk="Microsoft.NET.Sdk.Web">'
+        '<ItemGroup><PackageReference Include="Microsoft.AspNetCore.Mvc"/></ItemGroup></Project>',
+    )
+    _write(
+        tmp_path,
+        "tests/Api.Tests/Api.Tests.csproj",
+        '<Project Sdk="Microsoft.NET.Sdk"><ItemGroup>'
+        '<PackageReference Include="xunit"/>'
+        '<PackageReference Include="Microsoft.NET.Test.Sdk"/></ItemGroup></Project>',
+    )
+    prof = ProjectProfile.from_repo(tmp_path)
+    assert "csharp" in prof.languages
+    assert prof.framework == "aspnet"
+    assert prof.test_runner == "xunit"
+
+
 def test_greenfield_empty_repo(tmp_path: Path) -> None:
     prof = ProjectProfile.from_repo(tmp_path)
     assert prof.languages == frozenset()

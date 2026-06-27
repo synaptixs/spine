@@ -1204,6 +1204,38 @@ def understand(
     )
 
 
+@app.command("state")
+def state(
+    path: Annotated[Path, typer.Argument(help="Repo or directory to summarize.")] = Path("."),
+    lens: Annotated[str, typer.Option("--lens", help="Audience: developer | stakeholder.")] = "developer",
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", help="Write the report to this file (default: print to stdout)."),
+    ] = None,
+    refresh: Annotated[
+        bool, typer.Option("--refresh", help="Re-extract the PKG instead of using the commit cache.")
+    ] = False,
+) -> None:
+    """Current State — a team-facing snapshot of what a repo is today and how healthy it looks.
+
+    Synthesized from the Product Knowledge Graph + project profile (deterministic, no LLM),
+    layered on top of `understand`. `--lens developer` gives the technical view;
+    `--lens stakeholder` gives plain language. A report is a *view* of the code — re-run to
+    refresh; nothing is written unless `--out` is given.
+    """
+    from orchestrator.knowledge.current_state import build_current_state
+
+    if lens not in ("developer", "stakeholder"):
+        typer.echo("ERROR: --lens must be 'developer' or 'stakeholder'.", err=True)
+        raise typer.Exit(code=2)
+    markdown = build_current_state(path, lens=lens, refresh=refresh)
+    if out is not None:
+        out.write_text(markdown, encoding="utf-8")
+        typer.echo(f"wrote {out}")
+    else:
+        typer.echo(markdown)
+
+
 @catalog_app.command("list")
 def catalog_list(
     as_json: Annotated[bool, typer.Option("--json", help="Emit the catalog as JSON.")] = False,
