@@ -8,7 +8,7 @@ BLOCKER, WARNING → WARNING, INFO → NIT.
 Failure posture, chosen deliberately:
 - **semgrep not installed** → log + no findings. An optional scanner that
   isn't deployed must not block every review (install via the ``security``
-  extra: ``pip install "agent-orchestrator[security]"``).
+  extra: ``pip install "synaptixs-spine[security]"``).
 - **semgrep present but errored** → one WARNING finding. A scanner that was
   supposed to run and didn't is itself a reviewable fact, never silent.
 - Exit code 1 is semgrep's "findings exist" — success, not an error.

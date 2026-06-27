@@ -53,7 +53,7 @@ class SessionMCPClient:
             from mcp import ClientSession  # lazy: only when actually used
         except ImportError as exc:  # pragma: no cover - exercised only without the extra
             raise MCPError(
-                "MCP support needs the 'mcp' extra — install with: pip install 'agent-orchestrator[mcp]'"
+                "MCP support needs the 'mcp' extra — install with: pip install 'synaptixs-spine[mcp]'"
             ) from exc
 
         cfg = self._config

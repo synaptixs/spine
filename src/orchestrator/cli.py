@@ -1020,13 +1020,13 @@ def tui(
     """Launch the terminal UI: watch runs, clear gates, and delegate a run.
 
     A keyboard-driven cousin of the web inbox over the same ``/v1`` API. Needs the
-    ``tui`` extra: ``pip install 'agent-orchestrator[tui]'``.
+    ``tui`` extra: ``pip install 'synaptixs-spine[tui]'``.
     """
     try:
         from orchestrator.tui.app import run_tui
     except ImportError as exc:  # textual is the optional `tui` extra
         typer.echo(
-            "The TUI needs the 'tui' extra. Install it: pip install 'agent-orchestrator[tui]'.", err=True
+            "The TUI needs the 'tui' extra. Install it: pip install 'synaptixs-spine[tui]'.", err=True
         )
         raise typer.Exit(code=2) from exc
     run_tui(api_url, api_key)

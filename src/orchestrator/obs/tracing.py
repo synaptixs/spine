@@ -29,7 +29,7 @@ from typing import Any
 logger = logging.getLogger("orchestrator.obs.tracing")
 
 _ENDPOINT_ENV = "OTEL_EXPORTER_OTLP_ENDPOINT"
-_SERVICE_NAME = "agent-orchestrator"
+_SERVICE_NAME = "synaptixs-spine"
 
 # The current run's correlation id. Bind it (``bind_trace_id``) at a request /
 # workflow boundary; ``span()`` attaches it to every span underneath so spans
@@ -84,7 +84,7 @@ def _ensure_configured() -> None:
     except Exception:  # pragma: no cover - import guard
         logger.warning(
             "obs.tracing: %s is set but the 'otel' extra is not installed; tracing disabled "
-            "(pip install 'agent-orchestrator[otel]')",
+            "(pip install 'synaptixs-spine[otel]')",
             _ENDPOINT_ENV,
         )
         return
