@@ -7,7 +7,7 @@
 **Governed, provenance-grounded autonomous delivery** — turn requirements into
 reviewed, tested pull requests, with a human in control.
 
-> **Naming.** *Spine* is the product. It's distributed as the **`agent-orchestrator`**
+> **Naming.** *Spine* is the product. It's distributed as the **`synaptixs-spine`**
 > package and its command is **`orchestrator`** — those names stay in install lines
 > and commands throughout the docs.
 
@@ -21,7 +21,7 @@ It's built for teams who want agents that are **inspectable, reproducible, and s
 to run on real code** — not demos.
 
 ```bash
-pip install --extra-index-url https://pypi.org/simple/ agent-orchestrator
+pip install --extra-index-url https://pypi.org/simple/ synaptixs-spine
 orchestrator init && orchestrator doctor                  # scaffold .env, check readiness
 orchestrator sdlc feature --source file://./spec.md --safe   # build locally — no pushes, no PRs
 ```

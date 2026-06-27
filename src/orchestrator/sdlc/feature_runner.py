@@ -279,7 +279,7 @@ async def run_feature(
     if lang == "python" and not await pytest_available(testenv.python):
         raise FeatureRunError(
             "pytest is required to run the generated tests but isn't available in the test "
-            "environment. Install it: pip install 'agent-orchestrator[sdlc]' (or pip install pytest).",
+            "environment. Install it: pip install 'synaptixs-spine[sdlc]' (or pip install pytest).",
             code=2,
         )
 

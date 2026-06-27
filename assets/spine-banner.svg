@@ -5,7 +5,7 @@
 <text x="86" y="320" font-family="Inter, Arial, sans-serif" font-size="132" font-weight="700" fill="#F5F7FA">Spine</text>
 <text x="90" y="376" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="500" fill="#C9D2E0">Governed, provenance-grounded autonomous delivery</text>
 <text x="90" y="416" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="400" fill="#9AA4B2">Requirements → reviewed, tested PRs. Human-gated. Inspectable.</text>
-<text x="90" y="512" font-family="ui-monospace, Menlo, monospace" font-size="23" font-weight="400" fill="#5DCAA5">pip install agent-orchestrator</text>
+<text x="90" y="512" font-family="ui-monospace, Menlo, monospace" font-size="23" font-weight="400" fill="#5DCAA5">pip install synaptixs-spine</text>
 <text x="90" y="548" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="400" fill="#8A94A6">github.com/synaptixs/spine</text>
 <line x1="1120" y1="150" x2="1120" y2="500" stroke="#3C4663" stroke-width="3"/>
 <circle cx="1120" cy="150" r="13" fill="#1A2236" stroke="#3C4663" stroke-width="2"/>

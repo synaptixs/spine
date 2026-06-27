@@ -1,6 +1,6 @@
 # Contributing to Spine
 
-Thanks for your interest! Spine (distributed as the `agent-orchestrator` package)
+Thanks for your interest! Spine (distributed as the `synaptixs-spine` package)
 is open source under the MIT license, and community input genuinely shapes it.
 
 ## Ways to contribute

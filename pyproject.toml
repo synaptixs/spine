@@ -1,6 +1,6 @@
 [project]
-name = "agent-orchestrator"
-version = "1.22.2"
+name = "synaptixs-spine"
+version = "1.23.0"
 description = "Agent orchestration platform — planner, registry, runtime, verifier."
 readme = "README.md"
 license = { text = "MIT" }
@@ -60,7 +60,7 @@ mcp = [
 ]
 # The SDLC feature/run pipeline shells out to pytest to run generated tests.
 # pytest is a dev-only dep, absent from a plain install — install this extra so
-# `sdlc feature`/`run` work out of the box: pip install 'agent-orchestrator[sdlc]'.
+# `sdlc feature`/`run` work out of the box: pip install 'synaptixs-spine[sdlc]'.
 sdlc = [
     "pytest>=8",
     "pytest-asyncio>=0.24",
@@ -72,7 +72,7 @@ tui = [
 ]
 # Live OpenTelemetry tracing (G16). orchestrator.obs.tracing lazy-imports this and
 # stays a no-op unless OTEL_EXPORTER_OTLP_ENDPOINT is set, so the base install is
-# unaffected: pip install 'agent-orchestrator[otel]'.
+# unaffected: pip install 'synaptixs-spine[otel]'.
 otel = [
     "opentelemetry-sdk>=1.27",
     "opentelemetry-exporter-otlp-proto-http>=1.27",

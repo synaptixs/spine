@@ -1,6 +1,6 @@
 # User Guide — Spine
 
-> **Spine** is the product; it's distributed as the **`agent-orchestrator`** package
+> **Spine** is the product; it's distributed as the **`synaptixs-spine`** package
 > and its command is **`orchestrator`**. Install lines and commands below use those
 > names verbatim.
 
@@ -51,7 +51,7 @@ You do **not** need Docker, a database, or any servers for Steps 1–6.
 
 ## Step 1 — Install
 
-The published package is `agent-orchestrator`; the command it gives you is
+The published package is `synaptixs-spine`; the command it gives you is
 `orchestrator`.
 
 ### From TestPyPI (just the tool)
@@ -63,31 +63,31 @@ API used by older snippets lags minutes behind a release):
 
 ```bash
 WHL=$(curl -s -H 'Accept: application/vnd.pypi.simple.v1+json' \
-  https://test.pypi.org/simple/agent-orchestrator/ \
+  https://test.pypi.org/simple/synaptixs-spine/ \
   | python3 -c "import sys,json,re
 fs=[f for f in json.load(sys.stdin)['files'] if f['filename'].endswith('.whl')]
 key=lambda f:[int(n) for n in re.findall(r'\d+', f['filename'].split('-')[1])]
 print(max(fs,key=key)['url'])")
-pip install --upgrade --extra-index-url https://pypi.org/simple/ "agent-orchestrator @ $WHL"
+pip install --upgrade --extra-index-url https://pypi.org/simple/ "synaptixs-spine @ $WHL"
 
 orchestrator --help
 ```
 
 The `[sdlc]` / `[mcp]` / `[tui]` extras aren't carried by a direct-wheel install;
-add them explicitly when needed, e.g. `pip install 'agent-orchestrator[sdlc]'`
+add them explicitly when needed, e.g. `pip install 'synaptixs-spine[sdlc]'`
 (the `[tui]` extra adds the `orchestrator tui` terminal UI — see Step 7).
 
 ### Upgrading
 
 - **TestPyPI install:** re-run the one-liner above — it already passes
   `--upgrade` and resolves the newest wheel from the simple index. Verify with
-  `pip show agent-orchestrator`.
+  `pip show synaptixs-spine`.
 - **Source checkout:** `git pull && uv sync --extra dev`.
 - **Pin / manual fallback** (if you want an exact version, or the resolver ever
   misbehaves): list the wheels and install one directly —
   ```bash
-  curl -s https://test.pypi.org/simple/agent-orchestrator/ | grep -o 'https://[^"]*\.whl'
-  pip install --upgrade --extra-index-url https://pypi.org/simple/ "agent-orchestrator @ <wheel-url>"
+  curl -s https://test.pypi.org/simple/synaptixs-spine/ | grep -o 'https://[^"]*\.whl'
+  pip install --upgrade --extra-index-url https://pypi.org/simple/ "synaptixs-spine @ <wheel-url>"
   ```
 
 ### From source (needed for Step 7's pipeline, or to develop)
@@ -145,7 +145,7 @@ to refresh (`--refresh` re-extracts instead of using the commit cache). Commit
 `memory-bank/` so your team — and any AI tool — reads the same project truth.
 
 > **Multi-language.** Comprehension covers **Python** out of the box and
-> **Java** when the parser extra is installed (`pip install 'agent-orchestrator[java]'`).
+> **Java** when the parser extra is installed (`pip install 'synaptixs-spine[java]'`).
 > `understand`, codegen grounding, and `pkg extract` then process `.java` too.
 
 ### Working with existing repos (brownfield) — and how knowledge grows
@@ -346,7 +346,7 @@ curl -X POST -H "x-api-key: dev-key" http://localhost:8000/v1/approvals/sdlc-<id
 | `/app/personas` | **Personas & skills** — the personas the engineer adopts and the skills they apply. |
 | `http://localhost:8233` | **Temporal UI** — the raw execution: every activity, retries, per-stage pass/fail (where the actual test output lives). |
 
-> Prefer the terminal? `pip install 'agent-orchestrator[tui]'` then `orchestrator tui`
+> Prefer the terminal? `pip install 'synaptixs-spine[tui]'` then `orchestrator tui`
 > — the same watch-runs / clear-gates / delegate actions, keyboard-driven, over the
 > same API (`ORCHESTRATOR_API_URL` + `ORCHESTRATOR_API_KEY`, or `--api-url`/`--api-key`).
 
@@ -403,7 +403,7 @@ Claude or Codex.
 
 **9.1 — Install + point at a config:**
 ```bash
-pip install 'agent-orchestrator[mcp]'        # or from source: uv sync --extra mcp
+pip install 'synaptixs-spine[mcp]'        # or from source: uv sync --extra mcp
 ```
 Supply an `mcpServers` JSON file via `--config`, `$ORCHESTRATOR_MCP_CONFIG`, or
 `./mcp.json`. Transport is inferred (`command` → stdio, `url` → HTTP). Example
@@ -457,7 +457,7 @@ The reverse of Step 9: Spine can **become** an MCP server, so any host
 "intent → reviewed PR" pipeline as tools, with the **same human gates**.
 
 ```bash
-pip install 'agent-orchestrator[mcp]'        # or from source: uv sync --extra mcp
+pip install 'synaptixs-spine[mcp]'        # or from source: uv sync --extra mcp
 ```
 
 **10.1 — Local (the host launches it over stdio):**
@@ -493,7 +493,7 @@ Destructive tools stay gated regardless of auth: `sdlc_feature(live=true)` and
 | `sdlc run` hangs at a gate | Approve it in the console or via `/v1/approvals/.../approve`. |
 | Worker does nothing | It reads the process env, not `.env` — `set -a; source .env; set +a` before starting it. |
 | `mcp list` shows no servers | Add an `mcpServers` file (`--config`, `$ORCHESTRATOR_MCP_CONFIG`, or `./mcp.json`). |
-| `mcp` commands fail to import | Install the extra: `pip install 'agent-orchestrator[mcp]'` (or `uv sync --extra mcp`). |
+| `mcp` commands fail to import | Install the extra: `pip install 'synaptixs-spine[mcp]'` (or `uv sync --extra mcp`). |
 | An MCP tool is "not allow-listed" / write-gated | Add it to the server's `allow`; for mutating tools set `write_enabled: true`. |
 | Agentic loop falls back to single-shot | Use a tool-calling model (`gpt-4o`, `claude-*`) and set `SDLC_CODEGEN=llm`. |
 | `orchestrator-mcp --http` refuses to start | Set `ORCHESTRATOR_MCP_TOKEN` or `…_INTROSPECTION_URL`, bind `127.0.0.1`, or pass `--allow-unauthenticated` on a trusted net. |

@@ -3,7 +3,7 @@
 Zero-to-running guide. For what Spine is and its capabilities, see `README.md`;
 for the day-to-day workflow, see `USER_GUIDE.md`.
 
-> **Spine** is the product; it installs as the **`agent-orchestrator`** package and
+> **Spine** is the product; it installs as the **`synaptixs-spine`** package and
 > its command is **`orchestrator`** — used verbatim in the commands below.
 
 ---
@@ -70,7 +70,7 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 uv run python -m orchestrator.temporal.worker   # (and/or the API)
 ```
 
-Open **http://localhost:16686**, pick the `agent-orchestrator` service, and you'll see one
+Open **http://localhost:16686**, pick the `synaptixs-spine` service, and you'll see one
 trace per run: `execute_graph_pass → agent.step → llm.complete / tool.<name>`, with the app
 `trace_id` on every span so it joins the audit log. See `docs/specs/live-observability-otel.md`.
 

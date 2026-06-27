@@ -4,7 +4,7 @@
 requirement and your repo; it opens a **reviewed, tested pull request** — with a
 human in control at two gates. We're looking for early users and honest feedback.
 
-> *Spine* is the product; it installs as the **`agent-orchestrator`** package and its
+> *Spine* is the product; it installs as the **`synaptixs-spine`** package and its
 > command is **`orchestrator`**. MIT-licensed, open source.
 
 ---
@@ -48,7 +48,7 @@ loop into *operate → self-remediate* with end-to-end provenance.
 ## Try it (about 10 minutes)
 
 ```bash
-pip install --extra-index-url https://pypi.org/simple/ agent-orchestrator
+pip install --extra-index-url https://pypi.org/simple/ synaptixs-spine
 orchestrator init && orchestrator doctor                       # scaffold .env, check readiness
 orchestrator sdlc feature --source file://./spec.md --safe     # build locally — no pushes, no PRs
 ```

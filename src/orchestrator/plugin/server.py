@@ -196,7 +196,7 @@ def _import_fastmcp() -> Any:
         from mcp.server.fastmcp import FastMCP
     except ImportError as exc:  # pragma: no cover - only without the extra
         raise RuntimeError(
-            "The orchestrator MCP plugin needs the 'mcp' extra: pip install 'agent-orchestrator[mcp]'"
+            "The orchestrator MCP plugin needs the 'mcp' extra: pip install 'synaptixs-spine[mcp]'"
         ) from exc
     return FastMCP
 
@@ -213,7 +213,7 @@ def build_server() -> Any:
     Stdio transport (Phase A): the local plugin a desktop host launches as a
     subprocess. For the remote HTTP transport see ``build_http_server``.
     """
-    return _register_tools(_import_fastmcp()("agent-orchestrator"))
+    return _register_tools(_import_fastmcp()("synaptixs-spine"))
 
 
 def build_http_server(
@@ -245,7 +245,7 @@ def build_http_server(
         )
 
     server = fastmcp(
-        "agent-orchestrator",
+        "synaptixs-spine",
         host=host,
         port=port,
         streamable_http_path=path,
