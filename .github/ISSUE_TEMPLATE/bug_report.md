@@ -14,7 +14,7 @@ labels: bug
 2.
 
 **Environment**
-- Spine / `agent-orchestrator` version:
+- Spine / `synaptixs-spine` version:
 - Python version:
 - OS:
 - Codegen model / provider:

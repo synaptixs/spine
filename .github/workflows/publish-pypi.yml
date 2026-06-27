@@ -1,0 +1,40 @@
+name: Publish to PyPI
+
+# Manual, intentional publish to PRODUCTION PyPI via OIDC Trusted Publishing — no
+# stored token. One-time setup on PyPI (https://pypi.org): register a trusted
+# publisher for the `synaptixs-spine` project:
+#   Owner: synaptixs   Repository: spine
+#   Workflow: publish-pypi.yml   Environment: pypi
+# PyPI supports a "pending publisher", so register it BEFORE the first upload —
+# the first publish then creates the project. Bump `version` in pyproject.toml each
+# release (PyPI is immutable; a duplicate version is rejected).
+on:
+  workflow_dispatch:
+
+jobs:
+  publish-pypi:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read # an explicit permissions block drops the defaults; checkout needs this
+      id-token: write # required for OIDC trusted publishing
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Build sdist + wheel
+        run: uv build
+
+      - name: Check metadata
+        run: uvx twine check dist/*
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # No repository-url → defaults to production PyPI (upload.pypi.org).

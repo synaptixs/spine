@@ -54,7 +54,7 @@ We follow coordinated disclosure: please give us reasonable time to investigate 
 
 While the project is pre-1.0:
 
-- Do not run agent-orchestrator on data you cannot afford to lose or expose.
+- Do not run synaptixs-spine on data you cannot afford to lose or expose.
 - Treat the registry, MCP gateway, and runtime as privileged services. Place them behind your authentication layer.
 - Review tool contracts before enabling them — a tool with `side_effects: write` and no approval gate can take destructive action on your behalf.
 - Pin LLM provider credentials to least-privilege scopes.

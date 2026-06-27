@@ -6,7 +6,7 @@ name: Publish to TestPyPI
 # Auth uses PyPI **Trusted Publishing** (OIDC) — no API token stored in GitHub.
 # One-time setup on TestPyPI (https://test.pypi.org → the project, or "pending
 # publisher" before the first upload) — register THIS repository as a trusted
-# publisher for the `agent-orchestrator` project:
+# publisher for the `synaptixs-spine` project:
 #   Owner:        <this repo's owner>   (e.g. synaptixs)
 #   Repository:   <this repo's name>    (e.g. spine)
 #   Workflow:     publish-testpypi.yml
@@ -72,15 +72,15 @@ jobs:
             exit 0
           fi
           VERSION=$(python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
-          INSTALL="pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ \"agent-orchestrator==${VERSION}\""
+          INSTALL="pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ \"synaptixs-spine==${VERSION}\""
           PAYLOAD=$(jq -n \
-            --arg title "🚀 agent-orchestrator ${VERSION} published to TestPyPI" \
+            --arg title "🚀 synaptixs-spine ${VERSION} published to TestPyPI" \
             --arg subtitle "A new build is ready for testing." \
             --arg version "${VERSION}" \
             --arg commit "${GITHUB_SHA:0:7}" \
             --arg branch "${GITHUB_REF_NAME}" \
             --arg install "${INSTALL}" \
-            --arg pypi_url "https://test.pypi.org/project/agent-orchestrator/${VERSION}/" \
+            --arg pypi_url "https://test.pypi.org/project/synaptixs-spine/${VERSION}/" \
             --arg run_url "${RUN_URL}" \
             '{
               type: "message",

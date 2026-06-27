@@ -4,7 +4,7 @@ What Spine can do today, and how to use it. For setup see [SETUP.md](SETUP.md), 
 the everyday workflow see [USER_GUIDE.md](USER_GUIDE.md), and for configuration +
 operations see [OPERATIONS.md](OPERATIONS.md).
 
-> **Naming.** *Spine* is the product; it ships as the **`agent-orchestrator`**
+> **Naming.** *Spine* is the product; it ships as the **`synaptixs-spine`**
 > package with the **`orchestrator`** command.
 
 **Status:** ✅ shipped · 🟡 partial / operator-gated · 🔬 experimental (off by default).
