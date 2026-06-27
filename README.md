@@ -140,11 +140,18 @@ MCP server so Claude Code / Codex / your IDE can call the pipeline (with the sam
 
 ---
 
-## Contributing
+## Contributing & feedback
 
-Issues and PRs are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md),
-[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and [SECURITY.md](SECURITY.md).
+We'd love your input. Pick the channel that fits:
+
+- 🐛 **Bug?** Open a [bug report](https://github.com/synaptixs/spine/issues/new?template=bug_report.md).
+- 💡 **Feature idea / enhancement?** Open a [feature request](https://github.com/synaptixs/spine/issues/new?template=feature_request.md).
+- 💬 **Question, feedback, or idea to discuss?** Start a [Discussion](https://github.com/synaptixs/spine/discussions).
+- 🔒 **Security issue?** Please follow [SECURITY.md](SECURITY.md) — don't open a public issue.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and the [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+for how contributions are reviewed.
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE).
+MIT License. See [LICENSE](LICENSE).

@@ -5,7 +5,7 @@ requirement and your repo; it opens a **reviewed, tested pull request** — with
 human in control at two gates. We're looking for early users and honest feedback.
 
 > *Spine* is the product; it installs as the **`agent-orchestrator`** package and its
-> command is **`orchestrator`**. Apache-2.0, open source.
+> command is **`orchestrator`**. MIT-licensed, open source.
 
 ---
 
@@ -80,4 +80,4 @@ with the runbook and tell us where it bends.
 ---
 
 **Build something, or hit a wall this didn't cover? [Open an issue.](../../issues)**
-Spine is Apache-2.0 — see [CONTRIBUTING.md](CONTRIBUTING.md) and [LICENSE](LICENSE).
+Spine is MIT-licensed — see [CONTRIBUTING.md](CONTRIBUTING.md) and [LICENSE](LICENSE).

@@ -350,4 +350,4 @@ new type stubs, then re-run `uv run mypy`.
 | Pydantic model specifications | `docs/specs/models.md` |
 | Contributing guidelines | `CONTRIBUTING.md` |
 | Security policy | `SECURITY.md` |
-| License | `LICENSE` (Apache-2.0) |
+| License | `LICENSE` (MIT) |

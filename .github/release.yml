@@ -1,0 +1,16 @@
+# Categorizes GitHub's auto-generated release notes (grouped by PR label).
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+  categories:
+    - title: ✨ Features
+      labels: [feature, enhancement]
+    - title: 🐛 Fixes
+      labels: [bug, fix]
+    - title: 📚 Docs
+      labels: [documentation, docs]
+    - title: 🔧 Maintenance
+      labels: [chore, ci, dependencies]
+    - title: Other changes
+      labels: ["*"]
