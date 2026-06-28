@@ -237,9 +237,48 @@ def java_toolchain_available() -> bool:
     return shutil.which("mvn") is not None and shutil.which("java") is not None
 
 
+class CToolEnvironment:
+    """C build toolchain (CMake or Meson + a C compiler). Dependencies come from the
+    system / build files, not pip — so ``install`` (auto-heal) is a no-op and
+    ``ensure`` does nothing (the build configures on the test run). ``build_tool``
+    (``cmake``/``meson``) selects the runner. ``python`` is unavailable by design."""
+
+    declared: set[str] = set()
+
+    def __init__(self, build_tool: str = "cmake") -> None:
+        self.build_tool = build_tool or "cmake"
+
+    @property
+    def python(self) -> str:
+        raise RuntimeError("CToolEnvironment has no Python interpreter")
+
+    async def ensure(self, worktree: Path | str) -> None:
+        return None
+
+    async def install(self, packages: list[str]) -> bool:
+        return False  # C deps are system / CMake-resolved, not pip-installed
+
+    def describe(self) -> str:
+        return f"c toolchain ({self.build_tool} + system compiler)"
+
+
 def dotnet_toolchain_available() -> bool:
     """True if the ``dotnet`` CLI is on PATH (C# codegen prerequisite)."""
     return shutil.which("dotnet") is not None
+
+
+def _c_compiler_available() -> bool:
+    return any(shutil.which(cc) is not None for cc in ("cc", "gcc", "clang"))
+
+
+def c_toolchain_available() -> bool:
+    """True if CMake and a C compiler are on PATH (CMake C codegen prerequisite)."""
+    return shutil.which("cmake") is not None and _c_compiler_available()
+
+
+def meson_toolchain_available() -> bool:
+    """True if Meson, Ninja and a C compiler are on PATH (Meson C codegen prereq)."""
+    return shutil.which("meson") is not None and shutil.which("ninja") is not None and _c_compiler_available()
 
 
 def detect_dotnet_tfm(default: str = "net8.0") -> str:
@@ -278,6 +317,8 @@ def make_test_environment(language: str = "python", *, build_tool: str = "") -> 
         return NodeToolEnvironment(build_tool or "npm")
     if language == "csharp":
         return DotnetToolEnvironment()
+    if language == "c":
+        return CToolEnvironment(build_tool or "cmake")
     if os.getenv("SDLC_TEST_ISOLATION", "venv").lower() == "local":
         return LocalTestEnvironment()
     return VenvTestEnvironment()
@@ -287,8 +328,10 @@ def make_test_runner(language: str, env: TestEnvironment) -> TestRunner:
     """The runner for ``language``: Maven for Java, the package manager's ``test``
     script for TypeScript, pytest (on the env's interpreter) for Python."""
     from orchestrator.sdlc.testrunner import (
+        CTestRunner,
         DotnetTestRunner,
         MavenTestRunner,
+        MesonTestRunner,
         NodeTestRunner,
         SubprocessTestRunner,
     )
@@ -299,6 +342,9 @@ def make_test_runner(language: str, env: TestEnvironment) -> TestRunner:
         return NodeTestRunner(package_manager=getattr(env, "package_manager", "npm"))
     if language == "csharp":
         return DotnetTestRunner()
+    if language == "c":
+        # The build tool (cmake/meson) is carried on the C tool environment.
+        return MesonTestRunner() if getattr(env, "build_tool", "cmake") == "meson" else CTestRunner()
     return SubprocessTestRunner(python=env.python)
 
 
@@ -417,6 +463,7 @@ def _project_dependencies(root: Path) -> list[str]:
 
 
 __all__ = [
+    "CToolEnvironment",
     "DotnetToolEnvironment",
     "JavaToolEnvironment",
     "LocalTestEnvironment",
@@ -424,9 +471,11 @@ __all__ = [
     "NodeToolEnvironment",
     "TestEnvironment",
     "VenvTestEnvironment",
+    "c_toolchain_available",
     "detect_dotnet_tfm",
     "dotnet_toolchain_available",
     "java_toolchain_available",
+    "meson_toolchain_available",
     "make_test_environment",
     "make_test_runner",
     "node_toolchain_available",

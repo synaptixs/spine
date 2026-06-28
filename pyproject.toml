@@ -1,6 +1,6 @@
 [project]
 name = "synaptixs-spine"
-version = "2.0.1"
+version = "2.2.0"
 description = "Agent orchestration platform — planner, registry, runtime, verifier."
 readme = "README.md"
 license = { text = "MIT" }
@@ -57,6 +57,11 @@ typescript = [
 csharp = [
     "tree-sitter>=0.21",
     "tree-sitter-c-sharp>=0.21",
+]
+# C PKG front-end (.c/.h). Same lazy-import contract as the `java` extra.
+c = [
+    "tree-sitter>=0.21",
+    "tree-sitter-c>=0.21",
 ]
 # Onboard external MCP servers (DBs, Atlassian, …) as orchestrator tools. The
 # MCP client lazy-imports this, so the base install stays MCP-free.
@@ -145,7 +150,7 @@ files = ["src", "tests"]
 # tree-sitter is an optional extra (the `java`/`typescript` PKG front-ends); not
 # installed in the default/CI env, so don't fail type-checking on its absence.
 [[tool.mypy.overrides]]
-module = ["tree_sitter", "tree_sitter.*", "tree_sitter_java", "tree_sitter_typescript", "tree_sitter_c_sharp"]
+module = ["tree_sitter", "tree_sitter.*", "tree_sitter_java", "tree_sitter_typescript", "tree_sitter_c_sharp", "tree_sitter_c"]
 ignore_missing_imports = true
 
 # `textual` is the optional `tui` extra; not installed in the default/CI env.

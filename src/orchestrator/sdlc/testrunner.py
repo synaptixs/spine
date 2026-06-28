@@ -248,6 +248,85 @@ class NodeTestRunner:
         return TestRunResult(passed=rc == 0, returncode=rc, output=output)
 
 
+class CTestRunner:
+    """Configures, builds, and tests a CMake project via ``cmake`` + ``ctest``.
+
+    Runs, in order: ``cmake -S <root> -B <root>/build``, ``cmake --build <root>/build``,
+    then ``ctest --test-dir <root>/build --output-on-failure``. The first non-zero step
+    fails the run (``passed`` is rc == 0) and its output — a configure error, a
+    compiler error, or a failing assertion — is what the refine prompt needs. The
+    greenfield scaffold's ``CMakeLists.txt`` globs ``src/*.c`` into a library and each
+    ``tests/*.c`` into a ctest executable, so no build argument is needed."""
+
+    def __init__(self, cmake: str = "cmake", ctest: str = "ctest", *, timeout: float = 600.0) -> None:
+        self._cmake = cmake
+        self._ctest = ctest
+        self._timeout = timeout
+
+    async def run(self, *, path: str) -> TestRunResult:
+        build = str(Path(path) / "build")
+        steps = (
+            (self._cmake, "-S", path, "-B", build),
+            (self._cmake, "--build", build),
+            (self._ctest, "--test-dir", build, "--output-on-failure"),
+        )
+        captured: list[str] = []
+        for argv in steps:
+            rc, out = await _exec_capture(argv, cwd=path, timeout=self._timeout)
+            captured.append(out)
+            if rc != 0:
+                return TestRunResult(passed=False, returncode=rc, output=_clip("\n".join(captured)))
+        return TestRunResult(passed=True, returncode=0, output=_clip("\n".join(captured)))
+
+
+class MesonTestRunner:
+    """Configures, builds, and tests a Meson project via ``meson`` + ``ninja``.
+
+    Runs ``meson setup build`` once (configure), then ``meson test -C build
+    --print-errorlogs`` — which rebuilds changed targets and re-configures on a
+    ``meson.build`` edit before running the tests. The first non-zero step fails the
+    run (``passed`` is rc == 0); its output is the configure/compiler/test-log error
+    the refine prompt needs. Used for brownfield C repos whose build system is
+    Meson; greenfield still scaffolds CMake."""
+
+    def __init__(self, meson: str = "meson", *, timeout: float = 600.0) -> None:
+        self._meson = meson
+        self._timeout = timeout
+
+    async def run(self, *, path: str) -> TestRunResult:
+        captured: list[str] = []
+        if not (Path(path) / "build").exists():
+            rc, out = await _exec_capture((self._meson, "setup", "build"), cwd=path, timeout=self._timeout)
+            captured.append(out)
+            if rc != 0:
+                return TestRunResult(passed=False, returncode=rc, output=_clip("\n".join(captured)))
+        rc, out = await _exec_capture(
+            (self._meson, "test", "-C", "build", "--print-errorlogs"), cwd=path, timeout=self._timeout
+        )
+        captured.append(out)
+        return TestRunResult(passed=rc == 0, returncode=rc, output=_clip("\n".join(captured)))
+
+
+def _clip(output: str) -> str:
+    return output[-_MAX_OUTPUT_CHARS:] if len(output) > _MAX_OUTPUT_CHARS else output
+
+
+async def _exec_capture(argv: tuple[str, ...], *, cwd: str, timeout: float) -> tuple[int, str]:
+    """Run ``argv`` (no shell), returning ``(returncode, combined_output)``."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith(_SECRET_ENV_PREFIXES)}
+    proc = await asyncio.create_subprocess_exec(
+        *argv, cwd=cwd, env=env, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
+    )
+    try:
+        stdout_bytes, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except TimeoutError:
+        proc.kill()
+        await proc.wait()
+        return -1, f"timed out: {' '.join(argv)}"
+    rc = proc.returncode if proc.returncode is not None else -1
+    return rc, stdout_bytes.decode("utf-8", "replace")
+
+
 _DOTNET_SKIP_DIRS = {"bin", "obj", "node_modules", ".git", ".vs"}
 
 
@@ -289,8 +368,10 @@ class StubTestRunner:
 
 
 __all__ = [
+    "CTestRunner",
     "DotnetTestRunner",
     "MavenTestRunner",
+    "MesonTestRunner",
     "NodeTestRunner",
     "StubTestRunner",
     "SubprocessTestRunner",

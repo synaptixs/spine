@@ -407,3 +407,142 @@ async def test_dotnet_runner_no_target_runs_at_root(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
     await DotnetTestRunner().run(path=str(tmp_path))
     assert captured[0] == ("dotnet", "test", "--nologo")
+
+
+# --- C (2.2) -----------------------------------------------------------------
+
+
+def test_make_test_environment_c() -> None:
+    from orchestrator.sdlc.testenv import CToolEnvironment, make_test_environment
+
+    assert isinstance(make_test_environment("c"), CToolEnvironment)
+
+
+def test_make_test_runner_picks_ctest_for_c() -> None:
+    from orchestrator.sdlc.testenv import CToolEnvironment, make_test_runner
+    from orchestrator.sdlc.testrunner import CTestRunner
+
+    assert isinstance(make_test_runner("c", CToolEnvironment()), CTestRunner)
+
+
+def test_c_env_install_is_noop_and_python_unavailable() -> None:
+    import asyncio
+
+    from orchestrator.sdlc.testenv import CToolEnvironment
+
+    env = CToolEnvironment()
+    assert asyncio.run(env.install(["cmocka"])) is False  # C deps are system/CMake
+    with pytest.raises(RuntimeError):
+        _ = env.python
+
+
+def test_c_toolchain_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.sdlc import testenv
+
+    monkeypatch.setattr(
+        "orchestrator.sdlc.testenv.shutil.which",
+        lambda name: f"/usr/bin/{name}" if name in {"cmake", "clang"} else None,
+    )
+    assert testenv.c_toolchain_available() is True  # cmake + a compiler
+    monkeypatch.setattr(
+        "orchestrator.sdlc.testenv.shutil.which",
+        lambda name: "/usr/bin/cmake" if name == "cmake" else None,  # no compiler
+    )
+    assert testenv.c_toolchain_available() is False
+
+
+async def test_ctest_runner_passes_when_all_steps_succeed(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.sdlc.testrunner import CTestRunner
+
+    calls: list[tuple[object, ...]] = []
+
+    async def fake_exec(*a: object, **k: object) -> _FakeProc:
+        calls.append(a)
+        return _FakeProc(0, b"100% tests passed")
+
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
+    result = await CTestRunner().run(path="/wt")
+    assert result.passed and result.returncode == 0
+    # configure → build → test (three steps), starting with cmake -S/-B.
+    assert len(calls) == 3 and calls[0][:2] == ("cmake", "-S")
+
+
+async def test_ctest_runner_short_circuits_on_compile_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.sdlc.testrunner import CTestRunner
+
+    calls: list[tuple[object, ...]] = []
+
+    async def fake_exec(*a: object, **k: object) -> _FakeProc:
+        calls.append(a)
+        rc = 0 if a[:2] == ("cmake", "-S") else 1  # configure ok, build fails
+        return _FakeProc(rc, b"error: expected ';'")
+
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
+    result = await CTestRunner().run(path="/wt")
+    assert not result.passed and "error:" in result.output
+    assert len(calls) == 2  # stopped after the failing build; ctest skipped
+
+
+# --- C with Meson (2.4) ------------------------------------------------------
+
+
+def test_make_test_environment_c_carries_build_tool() -> None:
+    from orchestrator.sdlc.testenv import CToolEnvironment, make_test_environment
+
+    env = make_test_environment("c", build_tool="meson")
+    assert isinstance(env, CToolEnvironment) and env.build_tool == "meson"
+    default = make_test_environment("c")
+    assert isinstance(default, CToolEnvironment) and default.build_tool == "cmake"  # default
+
+
+def test_make_test_runner_picks_meson_when_build_tool_is_meson() -> None:
+    from orchestrator.sdlc.testenv import CToolEnvironment, make_test_runner
+    from orchestrator.sdlc.testrunner import CTestRunner, MesonTestRunner
+
+    assert isinstance(make_test_runner("c", CToolEnvironment("meson")), MesonTestRunner)
+    assert isinstance(make_test_runner("c", CToolEnvironment("cmake")), CTestRunner)
+
+
+def test_meson_toolchain_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.sdlc import testenv
+
+    monkeypatch.setattr(
+        "orchestrator.sdlc.testenv.shutil.which",
+        lambda name: f"/usr/bin/{name}" if name in {"meson", "ninja", "clang"} else None,
+    )
+    assert testenv.meson_toolchain_available() is True
+    monkeypatch.setattr(
+        "orchestrator.sdlc.testenv.shutil.which",
+        lambda name: f"/usr/bin/{name}" if name in {"meson", "clang"} else None,  # no ninja
+    )
+    assert testenv.meson_toolchain_available() is False
+
+
+async def test_meson_runner_configures_then_tests(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from orchestrator.sdlc.testrunner import MesonTestRunner
+
+    calls: list[tuple[object, ...]] = []
+
+    async def fake_exec(*a: object, **k: object) -> _FakeProc:
+        calls.append(a)
+        return _FakeProc(0, b"Ok: 1")
+
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
+    result = await MesonTestRunner().run(path=str(tmp_path))  # no build/ → setup + test
+    assert result.passed
+    assert calls[0][:2] == ("meson", "setup") and calls[1][:2] == ("meson", "test")
+
+
+async def test_meson_runner_fails_on_setup(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from orchestrator.sdlc.testrunner import MesonTestRunner
+
+    calls: list[tuple[object, ...]] = []
+
+    async def fake_exec(*a: object, **k: object) -> _FakeProc:
+        calls.append(a)
+        return _FakeProc(1, b"meson.build:3: ERROR: Unknown function")
+
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
+    result = await MesonTestRunner().run(path=str(tmp_path))
+    assert not result.passed and "ERROR" in result.output
+    assert len(calls) == 1  # setup failed → test skipped

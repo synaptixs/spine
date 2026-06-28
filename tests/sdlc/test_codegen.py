@@ -358,6 +358,31 @@ async def test_csharp_layout_selects_csharp_prompts(tmp_path: Path) -> None:
     assert "<TypeName>Tests.cs" in llm.calls[0][-1].content  # xUnit test path hint
 
 
+async def test_c_layout_selects_c_prompts(tmp_path: Path) -> None:
+    """A C layout switches implement/author_tests/refine to the CMake/ctest prompts and
+    pins the header/source + tests-dir conventions in the layout block."""
+    from orchestrator.sdlc.layout import TargetLayout
+
+    layout = TargetLayout("calc_lib", "src", "tests", True, "new", language="c", build_tool="cmake")
+    llm = _ScriptedLLM(
+        [
+            _files_response({"src/calc.c": '#include "calc.h"\nint add(int a,int b){return a+b;}\n'}),
+            _files_response({"tests/test_calc.c": '#include "calc.h"\nint main(void){return 0;}\n'}),
+            _files_response({"src/calc.c": '#include "calc.h"\nint add(int a,int b){return a+b;}\n'}),
+        ]
+    )
+    adapter = LLMCodegenAdapter(llm, layout=layout)
+    await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="C-1")
+    await adapter.author_tests(spec=_SPEC, path=str(tmp_path), issue_key="C-1")
+    await adapter.refine(spec=_SPEC, path=str(tmp_path), issue_key="C-1", failures="error: expected ';'")
+
+    assert "runnable C inside" in llm.calls[0][0].content  # implement system prompt
+    assert "C unit tests" in llm.calls[1][0].content  # author_tests system prompt
+    assert "CMakeLists.txt" in llm.calls[2][0].content  # refine system prompt
+    assert "test_<name>.c" in llm.calls[0][-1].content  # layout block (user)
+    assert "#ifndef" in llm.calls[0][-1].content  # header-guard hint
+
+
 async def test_no_layout_block_when_layout_unset(tmp_path: Path) -> None:
     """Backward compatible: without a layout, the prompt carries no layout block."""
     llm = _ScriptedLLM([_files_response({"m.py": "x = 1\n"})])

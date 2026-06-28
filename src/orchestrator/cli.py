@@ -588,7 +588,8 @@ def sdlc_feature(
     language: Annotated[
         str,
         typer.Option(
-            "--language", help="Target language: auto (detect), python, java, typescript, or csharp."
+            "--language",
+            help="Target language: auto (detect), python, java, typescript, csharp, or c.",
         ),
     ] = "auto",
 ) -> None:

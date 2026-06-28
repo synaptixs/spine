@@ -31,7 +31,7 @@ _FALLBACK_PACKAGE = "app"
 _JAVA_GROUP = "org.example"  # default reverse-DNS group for greenfield Java
 
 # Source-file extension per language (Python is the default).
-_SOURCE_EXT = {"java": "java", "typescript": "ts", "csharp": "cs"}
+_SOURCE_EXT = {"java": "java", "typescript": "ts", "csharp": "cs", "c": "c"}
 
 
 @dataclass(frozen=True)
@@ -310,6 +310,58 @@ def _resolve_csharp_layout(
     return TargetLayout(derived, src, tst, True, "new", language="csharp", build_tool="dotnet")
 
 
+def _detect_c_build_tool(root: Path) -> str:
+    if (root / "CMakeLists.txt").is_file():
+        return "cmake"
+    if (root / "meson.build").is_file():
+        return "meson"
+    if (root / "Makefile").is_file() or (root / "makefile").is_file():
+        return "make"
+    return ""
+
+
+def detect_c_layout(root: Path) -> tuple[str, str, str] | None:
+    """If the repo is a recognizable C project (CMake or Make), return
+    ``(package, source_dir, tests_dir)``. The package is the CMake ``project()`` name
+    when parseable, else derived; ``source_dir`` is ``src`` when it holds ``.c`` files,
+    else the repo root."""
+    if _detect_c_build_tool(root) == "":
+        return None
+    package = _read_cmake_project_name(root) or derive_package_name(str(root))
+    src = root / "src"
+    source_dir = "src" if src.is_dir() and any(src.glob("*.c")) else "."
+    tests_dir = "tests" if (root / "tests").is_dir() else source_dir
+    return package, source_dir, tests_dir
+
+
+def _read_cmake_project_name(root: Path) -> str | None:
+    cmake = root / "CMakeLists.txt"
+    if not cmake.is_file():
+        return None
+    m = re.search(r"project\s*\(\s*([A-Za-z_][\w-]*)", cmake.read_text(encoding="utf-8", errors="replace"))
+    return m.group(1) if m else None
+
+
+def _resolve_c_layout(root: Path, *, mode: str, package_name: str | None, repo: str | None) -> TargetLayout:
+    existing = detect_c_layout(root)
+    derived = package_name or derive_package_name(repo or str(root))
+    build_tool = _detect_c_build_tool(root) or "cmake"
+    if mode == "existing" or (mode == "auto" and existing is not None):
+        if existing is not None:
+            pkg, source_dir, tests_dir = existing
+            return TargetLayout(
+                package_name=package_name or pkg,
+                source_dir=source_dir,
+                tests_dir=tests_dir,
+                src_layout=source_dir.startswith("src"),
+                mode="existing",
+                language="c",
+                build_tool=build_tool,
+            )
+        return TargetLayout(derived, "src", "tests", True, "existing", language="c", build_tool=build_tool)
+    return TargetLayout(derived, "src", "tests", True, "new", language="c", build_tool="cmake")
+
+
 def is_effectively_empty(root: Path) -> bool:
     """True when the worktree holds no source the model could extend (a fresh
     clone of an empty repo is just ``.git`` + maybe a README/LICENSE). Used to
@@ -350,6 +402,8 @@ def resolve_layout(
         return _resolve_typescript_layout(root_path, mode=mode, package_name=package_name, repo=repo)
     if language == "csharp":
         return _resolve_csharp_layout(root_path, mode=mode, package_name=package_name, repo=repo)
+    if language == "c":
+        return _resolve_c_layout(root_path, mode=mode, package_name=package_name, repo=repo)
     existing = detect_existing_package(root_path)
     derived = package_name or derive_package_name(repo or str(root_path))
 
@@ -378,6 +432,7 @@ __all__ = [
     "derive_java_package",
     "derive_npm_package",
     "derive_package_name",
+    "detect_c_layout",
     "detect_csharp_layout",
     "detect_existing_package",
     "detect_java_layout",

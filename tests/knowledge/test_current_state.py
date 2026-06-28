@@ -75,8 +75,41 @@ def test_developer_lens_renders_sections() -> None:
     assert "# Current State" in md
     assert "## Architecture — layers" in md
     assert "## Recommendations" in md
-    assert "```mermaid" in md  # coupling diagram
+    # System-architecture diagram: a mermaid flowchart with zone subgraphs + a
+    # component-dependency table.
+    assert "## System architecture" in md
+    assert "```mermaid" in md and "subgraph" in md
+    assert "### Component dependencies" in md
     assert "UserController" in md
+
+
+def test_area_groups_by_directory_for_path_modules() -> None:
+    # C/C++ modules are slash-paths: areas must be the directory, not the whole file
+    # (so the architecture diagram shows components, not one node per file).
+    from orchestrator.knowledge.current_state import _area, _zone
+
+    assert _area("src/smf/smf-sm.c") == "src/smf"
+    assert _area("lib/sbi/openapi/model/x.c") == "lib/sbi"
+    assert _zone("src/smf") == "src"
+    # dotted namespaces (C#/Java/Python) keep the first-two-segments behavior
+    assert _area("App.Api.Controllers") == "App.Api"
+
+
+def test_call_graph_hotspots_rendered() -> None:
+    # Functions with the most incoming CALLS edges surface as "most-depended-upon".
+    b = FactBatch()
+    mod = _node("c:src/util.c", NodeKind.MODULE, "src/util.c", "src/util.c")
+    helper = _node("c:helper", NodeKind.FUNCTION, "helper", "src/util.c")
+    b.add_node(mod)
+    b.add_node(helper)
+    for i in range(3):
+        caller = _node(f"c:caller{i}", NodeKind.FUNCTION, f"caller{i}", "src/util.c")
+        b.add_node(caller)
+        b.add_edge(Edge(caller.id, helper.id, EdgeKind.CALLS, Provenance("src/util.c", i)))
+    s = compute_current_state(b, _PROFILE)
+    assert s.call_hotspots and s.call_hotspots[0] == ("helper", 3)
+    md = render_current_state(s, lens="developer")
+    assert "## Call graph — most-depended-upon functions" in md and "`helper`" in md
 
 
 def test_stakeholder_lens_is_plain_language() -> None:
@@ -104,3 +137,22 @@ def test_build_current_state_end_to_end_python(tmp_path: Path) -> None:
     )
     md = build_current_state(tmp_path, lens="developer", refresh=True)
     assert "# Current State" in md and "## At a glance" in md
+
+
+def test_vendored_and_generated_paths_excluded() -> None:
+    # Live-proving on a large real C repo showed vendored/generated trees skew the
+    # "what is THIS project" metrics. _is_generated now catches common conventions
+    # (path substrings), language-agnostically — not just the C# markers.
+    from orchestrator.knowledge.current_state import _is_generated
+
+    def n(file: str) -> Node:
+        return Node("c:x", NodeKind.TYPE, "x", "c", Provenance(file, 1))
+
+    assert _is_generated(n("lib/sbi/openapi/external/cJSON.c"))  # /external/
+    assert _is_generated(n("lib/sbi/contrib/multipart_parser.c"))  # /contrib/
+    assert _is_generated(n("lib/ipfw/objs/include/ip_fw.h"))  # /objs/
+    assert _is_generated(n("subprojects/freediameter/foo.c"))  # /subprojects/
+    assert _is_generated(n("third_party/x/y.c"))  # /third_party/
+    # the project's own code is NOT flagged
+    assert not _is_generated(n("src/amf/amf-context.c"))
+    assert not _is_generated(n("lib/core/ogs-hash.c"))

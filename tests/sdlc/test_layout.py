@@ -214,3 +214,40 @@ class TestCSharpLayout:
         assert layout.package_name == "Shop" and layout.build_tool == "dotnet"
         # no test project present → tests dir is derived from the source project name.
         assert layout.tests_dir == "tests/Shop.Tests"
+
+
+class TestCLayout:
+    def test_new_c_cmake_layout(self, tmp_path: Path) -> None:
+        layout = resolve_layout(tmp_path, mode="new", language="c", repo="https://x/Calc-Lib")
+        assert layout.language == "c" and layout.build_tool == "cmake" and layout.mode == "new"
+        assert layout.package_name == "calc_lib"
+        assert layout.source_dir == "src" and layout.tests_dir == "tests"
+        assert layout.module_rel_path("vector") == "src/vector.c"
+
+    def test_detect_existing_cmake_project(self, tmp_path: Path) -> None:
+        from orchestrator.sdlc.layout import detect_c_layout
+
+        (tmp_path / "CMakeLists.txt").write_text("cmake_minimum_required(VERSION 3.15)\nproject(mylib C)\n")
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "a.c").write_text("int x;\n")
+        (tmp_path / "tests").mkdir()
+        # package comes from the CMake project() name; src/ holds .c so it's the source dir.
+        assert detect_c_layout(tmp_path) == ("mylib", "src", "tests")
+
+    def test_auto_existing_make_project(self, tmp_path: Path) -> None:
+        (tmp_path / "Makefile").write_text("all:\n\tcc -o app main.c\n")
+        layout = resolve_layout(tmp_path, mode="auto", language="c")
+        assert layout.mode == "existing" and layout.build_tool == "make"
+
+    def test_detects_meson_build_tool(self, tmp_path: Path) -> None:
+        # Meson projects are recognized as C with build_tool=meson, so
+        # the runner can fail fast with a clear "CMake-only" message (not a cryptic
+        # cmake error). CMake remains the supported brownfield build path.
+        from orchestrator.sdlc.layout import detect_c_layout
+
+        (tmp_path / "meson.build").write_text("project('demo', 'c')\n")
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "a.c").write_text("int x;\n")
+        assert detect_c_layout(tmp_path) is not None
+        layout = resolve_layout(tmp_path, mode="existing", language="c")
+        assert layout.build_tool == "meson"
