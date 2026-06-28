@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from orchestrator.knowledge.infrastructure import Infrastructure, detect_infrastructure
 from orchestrator.pkg.facts import EdgeKind, FactBatch, Node, NodeKind
 
 if TYPE_CHECKING:
@@ -143,6 +144,9 @@ class CurrentState:
     auth_surface: list[str] = field(default_factory=list)
     recent_areas: list[tuple[str, int]] = field(default_factory=list)
     recommendations: list[tuple[str, str]] = field(default_factory=list)
+    infrastructure: Infrastructure | None = None
+    entry_points: list[str] = field(default_factory=list)
+    modules: int = 0
 
 
 _AUTH_KW = ("auth", "login", "permission", "role", "identity", "token", "jwt", "session", "secur")
@@ -303,9 +307,32 @@ def compute_current_state(
         call_hotspots=call_hotspots,
         auth_surface=auth_surface,
         recent_areas=_recent_areas(root),
+        infrastructure=detect_infrastructure(root) if root is not None else None,
+        entry_points=_entry_points(root, nodes),
+        modules=len(mods),
     )
     state.recommendations = _recommend(state)
     return state
+
+
+def _entry_points(root: Path | None, nodes: list[Node]) -> list[str]:
+    """How the system is started: declared console scripts + ``main`` functions."""
+    eps: list[str] = []
+    if root is not None and (root / "pyproject.toml").is_file():
+        try:
+            import tomllib
+
+            data = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+            for name, target in (data.get("project", {}).get("scripts", {}) or {}).items():
+                eps.append(f"`{name}` → {target} (console script)")
+        except (OSError, ValueError, ModuleNotFoundError):
+            pass
+    for n in nodes:
+        if n.kind is NodeKind.FUNCTION and n.name.lower() == "main" and n.provenance:
+            eps.append(f"`main()` @ {n.provenance}")
+        if len(eps) >= 8:
+            break
+    return eps
 
 
 def _recommend(s: CurrentState) -> list[tuple[str, str]]:
@@ -428,10 +455,89 @@ def _render_stakeholder(s: CurrentState) -> str:
         f"**Health:** {health}.",
         "",
     ]
+    if s.infrastructure and s.infrastructure.summary:
+        out += [
+            f"**To run it, you need:** {', '.join(s.infrastructure.summary[:6])}.",
+            "",
+        ]
     if s.recommendations:
         out += ["**What to do next:**"]
         out += [f"- {text}" for _p, text in s.recommendations[:4]]
     return "\n".join(out) + "\n"
+
+
+def _app_type(s: CurrentState) -> str:
+    if s.controllers or s.endpoints:
+        return "web service / API"
+    if s.framework:
+        return f"{s.framework} application"
+    if s.languages == ["c"] or s.languages == ["c", "h"]:
+        return "C codebase"
+    return "library / service"
+
+
+def _overview(s: CurrentState) -> str:
+    """A plain-language paragraph: what this is, what it needs, what to fix first."""
+    lang = ", ".join(s.languages) or "code"
+    parts = [
+        f"This is a {lang} {_app_type(s)} — **{s.counts.get('Type', 0)} types** and "
+        f"**{s.counts.get('Function', 0)} functions** across **{s.areas} components** "
+        f"({s.modules} files)."
+    ]
+    if s.infrastructure and s.infrastructure.summary:
+        parts.append(f"To run it you'll need {', '.join(s.infrastructure.summary[:5])}.")
+    if not s.tested_areas:
+        parts.append("No automated tests were detected — that's the first gap to close.")
+    if s.recommendations:
+        parts.append(f"Top priority: {s.recommendations[0][1]}")
+    return " ".join(parts)
+
+
+def _code_structure(s: CurrentState) -> list[str]:
+    """Project layout (top components per zone), entry points, and public surface."""
+    o = [
+        "## Code structure",
+        "",
+        "_How the code is organized — components are top-level source directories or "
+        "namespaces; entry points are how it starts._",
+        "",
+        f"{', '.join(s.languages) or 'code'} · {s.modules} files · {s.counts.get('Type', 0)} types · "
+        f"{s.counts.get('Function', 0)} functions · {s.counts.get('Field', 0)} fields.",
+        "",
+        "Layout — top components by zone:",
+    ]
+    zones: dict[str, list[str]] = {}
+    areas = set(s.area_types) | set(s.area_funcs)
+    for a in sorted(areas, key=lambda a: s.area_types.get(a, 0) * 3 + s.area_funcs.get(a, 0), reverse=True):
+        zones.setdefault(_zone(a), []).append(a)
+    for zone in sorted(zones):
+        top = zones[zone][:5]
+        cells = ", ".join(
+            f"`{a}` ({s.area_types.get(a, 0)} types, {s.area_funcs.get(a, 0)} fns)" for a in top
+        )
+        o.append(f"- **{zone}/** — {cells}")
+    if s.entry_points:
+        o += ["", "Entry points:"]
+        o += [f"- {e}" for e in s.entry_points[:8]]
+    return o
+
+
+def _infrastructure_section(s: CurrentState) -> list[str]:
+    inf = s.infrastructure
+    if inf is None or inf.is_empty():
+        return []
+    o = [
+        "## Infrastructure & runtime",
+        "",
+        "_What this codebase declares it needs to run and deploy — read from its manifests, "
+        'build files, and container configs. Absence means "not declared here", not "unused"._',
+        "",
+    ]
+    if inf.summary:
+        o += [f"**To stand it up, you'll need:** {', '.join(inf.summary)}.", ""]
+    for cat, items in inf.categories.items():
+        o.append(f"- **{cat}:** {', '.join(items)}")
+    return o
 
 
 def _render_developer(s: CurrentState) -> str:
@@ -439,6 +545,10 @@ def _render_developer(s: CurrentState) -> str:
         "# Current State",
         "",
         "_Derived from the code (PKG) + profile. No LLM — re-run to refresh._",
+        "",
+        "## Overview",
+        "",
+        _overview(s),
         "",
     ]
     o += [
@@ -454,6 +564,10 @@ def _render_developer(s: CurrentState) -> str:
         f"- Data access: {', '.join(s.data_access) or '—'}",
         f"- Call graph: {'available' if s.has_calls else 'not extracted for this language yet'}",
     ]
+    infra = _infrastructure_section(s)
+    if infra:
+        o += ["", *infra]
+    o += ["", *_code_structure(s)]
     if s.coupling:
         o += [
             "",

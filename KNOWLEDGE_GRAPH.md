@@ -173,9 +173,12 @@ orchestrator state . --lens stakeholder    # plain-language view
 orchestrator state . --out STATE.md        # write to a file (otherwise printed)
 ```
 
-It renders a **system-architecture diagram** (top components grouped into zones with
-weighted dependency arrows from the import/`#include` graph), a **component-dependency**
-table, **call-graph hotspots** (most-depended-upon functions), complexity / god-components,
+It renders a plain-language **overview**, an **infrastructure & runtime** breakdown (the
+datastores, queues, cloud, container services and external APIs the repo *declares* it
+needs — read from manifests, build files, and `docker-compose`), a **code-structure** map
+(layout by component + entry points), a **system-architecture diagram** (components grouped
+into zones with weighted dependency arrows from the import/`#include` graph), a
+**component-dependency** table, **call-graph hotspots**, complexity / god-components,
 test-coverage and recent-activity signals, a name-based security surface, and prioritized
 recommendations. A report is a *view* — re-run to refresh.
 

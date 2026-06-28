@@ -81,6 +81,23 @@ def test_developer_lens_renders_sections() -> None:
     assert "```mermaid" in md and "subgraph" in md
     assert "### Component dependencies" in md
     assert "UserController" in md
+    # richer content: overview prose + code structure (entry points / layout)
+    assert "## Overview" in md
+    assert "## Code structure" in md and "Layout — top components by zone" in md
+
+
+def test_infrastructure_section_from_real_repo(tmp_path: Path) -> None:
+    # the report reads infra from the repo's manifests/compose (deterministic, no LLM)
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname="x"\ndependencies=["fastapi","psycopg","temporalio"]\n'
+        '[project.scripts]\nmytool="x.cli:app"\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "svc.py").write_text("class OrderService:\n    def place(self): return 1\n")
+    md = build_current_state(tmp_path, lens="developer", refresh=True)
+    assert "## Infrastructure & runtime" in md
+    assert "PostgreSQL" in md and "Temporal (workflow engine)" in md and "FastAPI" in md
+    assert "`mytool` → x.cli:app (console script)" in md  # entry point
 
 
 def test_area_groups_by_directory_for_path_modules() -> None:
