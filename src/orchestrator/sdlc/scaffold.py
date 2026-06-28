@@ -83,6 +83,8 @@ def scaffold(root: Path | str, layout: TargetLayout, *, profile: ProjectProfile 
         files = _typescript_files(layout)
     elif layout.language == "csharp":
         files = _csharp_files(layout)
+    elif layout.language == "c":
+        files = _c_files(layout)
     else:
         files = _python_files(layout)
 
@@ -95,28 +97,31 @@ def scaffold(root: Path | str, layout: TargetLayout, *, profile: ProjectProfile 
         path.write_text(content, encoding="utf-8")
         created.append(rel)
     if layout.language == "csharp":
-        created += _ensure_dotnet_gitignore(root_path)
+        created += _ensure_build_ignores(root_path, ("bin", "obj"))
+    elif layout.language == "c":
+        created += _ensure_build_ignores(root_path, ("build",))
     return created
 
 
-def _ensure_dotnet_gitignore(root: Path) -> list[str]:
-    """Guarantee ``bin/`` and ``obj/`` are ignored so ``dotnet`` build output never
-    lands in a commit/PR. The scaffold's own ``.gitignore`` covers them, but a
-    brownfield or scratch worktree with a pre-existing ``.gitignore`` (never
-    clobbered) may not — append the missing rules rather than overwrite."""
+def _ensure_build_ignores(root: Path, dirs: tuple[str, ...]) -> list[str]:
+    """Guarantee ``dirs`` (compiled output like ``bin``/``obj`` or CMake ``build``) are
+    gitignored so build output never lands in a commit/PR. The scaffold's own
+    ``.gitignore`` covers them, but a brownfield or scratch worktree with a pre-existing
+    ``.gitignore`` (never clobbered) may not — append the missing rules rather than
+    overwrite."""
     gi = root / ".gitignore"
     if not gi.exists():
-        return []  # the scaffold just wrote its .gitignore (already has bin/ obj/)
+        return []  # the scaffold just wrote its .gitignore (already has these)
     existing = gi.read_text(encoding="utf-8")
     have = {ln.strip().rstrip("/") for ln in existing.splitlines()}
-    missing = [d for d in ("bin", "obj") if d not in have]
+    missing = [d for d in dirs if d not in have]
     if not missing:
         return []
     sep = "" if existing.endswith("\n") else "\n"
     gi.write_text(
         existing
         + sep
-        + "\n# .NET build output (appended by the SDLC scaffold)\n"
+        + "\n# build output (appended by the SDLC scaffold)\n"
         + "".join(f"{d}/\n" for d in missing),
         encoding="utf-8",
     )
@@ -311,6 +316,72 @@ obj/
 .vs/
 [Dd]ebug/
 [Rr]elease/
+"""
+
+
+def _c_files(layout: TargetLayout) -> dict[str, str]:
+    # A CMake project that globs src/*.c into a library and turns each tests/*.c into a
+    # ctest executable linked against it. A stub source + header give CMake something to
+    # configure before codegen; tests run via `ctest` with plain assert()-based mains
+    # (no external framework needed — buildable offline).
+    name = layout.package_name
+    guard = f"{name.upper()}_H"
+    cmake = _CMAKELISTS.replace("__name__", name)
+    header = _C_HEADER.replace("__guard__", guard).replace("__name__", name)
+    return {
+        "CMakeLists.txt": cmake,
+        f"{layout.source_dir}/{name}.h": header,
+        f"{layout.source_dir}/{name}.c": f'#include "{name}.h"\n',
+        f"{layout.tests_dir}/.gitkeep": "",
+        "README.md": _README_TEMPLATE.format(
+            package=layout.package_name,
+            source_dir=layout.source_dir,
+            tests_dir=layout.tests_dir,
+        ),
+        ".gitignore": _C_GITIGNORE,
+    }
+
+
+_CMAKELISTS = """\
+cmake_minimum_required(VERSION 3.15)
+project(__name__ C)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Library built from everything under src/.
+file(GLOB __name___SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
+add_library(__name__ ${__name___SOURCES})
+target_include_directories(__name__ PUBLIC "${CMAKE_SOURCE_DIR}/src")
+
+# Tests: each tests/*.c is a ctest executable linked against the library.
+enable_testing()
+file(GLOB __name___TESTS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.c")
+foreach(test_file ${__name___TESTS})
+    get_filename_component(test_name ${test_file} NAME_WE)
+    add_executable(${test_name} ${test_file})
+    target_link_libraries(${test_name} __name__)
+    add_test(NAME ${test_name} COMMAND ${test_name})
+endforeach()
+"""
+
+_C_HEADER = """\
+#ifndef __guard__
+#define __guard__
+
+/* Public API for __name__. Declare functions here; define them in __name__.c. */
+
+#endif /* __guard__ */
+"""
+
+_C_GITIGNORE = """\
+build/
+*.o
+*.a
+*.so
+*.dylib
+compile_commands.json
 """
 
 

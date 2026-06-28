@@ -466,6 +466,48 @@ _REFINE_SYSTEM_CSHARP = (
     "the build green. Same path rules — relative, no '..'."
 )
 
+# C (CMake/ctest) variants — selected when the layout's language is "c".
+_IMPLEMENT_SYSTEM_C = (
+    "You are a senior engineer. Implement the feature described by the SPEC as "
+    "runnable C inside the given CMake project (the worktree).\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: paths are relative to the worktree root — no leading slash, no '..'. "
+    "Write source files only (NO test files here). Put implementation `.c` files "
+    "under the source dir shown in the layout and DECLARE the public functions in a "
+    "header (`.h`) there, guarded with `#ifndef`/`#define`. Write portable C11 using "
+    "only the standard library. Follow the build-file guidance in the LAYOUT block "
+    "(CMake globs new files; Meson needs them registered in `meson.build`). Every "
+    "file must be complete and compile with no warnings-as-errors."
+)
+
+_TESTS_SYSTEM_C = (
+    "You write C unit tests for an already-implemented feature. You are given the "
+    "SPEC and the CURRENT SOURCE FILES.\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: write test files only, under the tests dir shown in the layout, named "
+    "`test_<name>.c`. Each test file is a standalone program with an `int main(void)` "
+    "that exercises the feature and returns 0 on success, non-zero on failure (use "
+    "`assert.h` or explicit `if (...) return 1;` checks). `#include` the public "
+    "header from the source dir. Register the test as the LAYOUT describes (CMake "
+    "auto-discovers `tests/*.c`; Meson needs an `executable()`+`test()` in `meson.build`). "
+    "Each acceptance criterion maps to at least "
+    "one assertion; tests must pass against the given source."
+)
+
+_REFINE_SYSTEM_C = (
+    "You are fixing a failing build / test run (a configure error, a compiler "
+    "error, or a failing assertion). You are given the SPEC, the CURRENT FILES, and "
+    "the FAILURE OUTPUT.\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: files you created earlier this session may be resent in full via "
+    "`content`; any other existing file must be changed via `edits` (including "
+    "the build file — `CMakeLists.txt` or `meson.build`). Make the smallest change that turns the "
+    "build + tests green. Same path rules — relative, no '..'."
+)
+
 # Phase system prompts keyed by language (default: Python). Adding a language is a
 # new column here, not another boolean branch at each call site.
 _IMPLEMENT_SYSTEMS = {
@@ -473,18 +515,21 @@ _IMPLEMENT_SYSTEMS = {
     "java": _IMPLEMENT_SYSTEM_JAVA,
     "typescript": _IMPLEMENT_SYSTEM_TS,
     "csharp": _IMPLEMENT_SYSTEM_CSHARP,
+    "c": _IMPLEMENT_SYSTEM_C,
 }
 _TESTS_SYSTEMS = {
     "python": _TESTS_SYSTEM,
     "java": _TESTS_SYSTEM_JAVA,
     "typescript": _TESTS_SYSTEM_TS,
     "csharp": _TESTS_SYSTEM_CSHARP,
+    "c": _TESTS_SYSTEM_C,
 }
 _REFINE_SYSTEMS = {
     "python": _REFINE_SYSTEM,
     "java": _REFINE_SYSTEM_JAVA,
     "typescript": _REFINE_SYSTEM_TS,
     "csharp": _REFINE_SYSTEM_CSHARP,
+    "c": _REFINE_SYSTEM_C,
 }
 
 
@@ -670,6 +715,30 @@ class LLMCodegenAdapter:
                 "project already references the source project).\n"
                 f"- Declare any new dependency as a `<PackageReference>` in the source "
                 "`.csproj` (edit it); don't invent unrelated paths.\n\n"
+            )
+        if layout.language == "c":
+            if layout.build_tool == "meson":
+                build_line = (
+                    "- This project uses **Meson** (`meson.build`), which does NOT glob: "
+                    "register every new file — add new `.c` sources to the library/target "
+                    "source list, and add an `executable(...)` + `test(...)` for each new "
+                    f"`{layout.tests_dir}/test_<name>.c`. Edit `meson.build` to do so. "
+                    "Prefer extending existing files (no `meson.build` change needed) when you can."
+                )
+            else:
+                build_line = (
+                    "- New `src/*.c` and `tests/*.c` are auto-discovered by CMake's glob; "
+                    "edit `CMakeLists.txt` only to add an external dependency."
+                )
+            return (
+                "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
+                f"- Put implementation at `{layout.source_dir}/<name>.c` and DECLARE its "
+                f"public functions in a header `{layout.source_dir}/<name>.h` (with an "
+                "`#ifndef`/`#define` guard); C11, standard library only.\n"
+                f"- Put tests at `{layout.tests_dir}/test_<name>.c` — each a standalone "
+                "`int main(void)` returning non-zero on failure, `#include`-ing the "
+                f"header from `{layout.source_dir}/`.\n"
+                f"{build_line} Don't invent unrelated paths.\n\n"
             )
         return (
             "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"

@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from orchestrator.catalog.profile import ProjectProfile
 
 _GENERATED = (
+    # C# / .NET
     ".designer.cs",
     "reference.cs",
     "connected services",
@@ -37,19 +38,52 @@ _GENERATED = (
     "assemblyinfo",
     "/migrations/",
     ".generated.",
+    # Vendored / generated / build-output trees (language-agnostic conventions) — keep
+    # third-party and generated code out of "what is THIS project" metrics. Matched as
+    # lowercased path substrings, so they catch e.g. lib/.../external/cJSON.c, ipfw/objs/.
+    "/external/",
+    "/third_party/",
+    "/third-party/",
+    "/3rdparty/",
+    "/vendor/",
+    "/vendored/",
+    "/subprojects/",
+    "/contrib/",
+    "/generated/",
+    "/objs/",
+    "/.deps/",
+    "/node_modules/",
 )
 _FRAMEWORK_PREFIXES = ("System", "Microsoft", "java", "javax", "android")
 _DATA_SHAPE_SUFFIXES = ("ViewModel", "Dto", "Entity", "Request", "Response", "Model", "Details", "Item")
 
 
 def _area(name: str) -> str:
-    """Group a module/namespace into a top-level area (first two dotted segments)."""
+    """Group a module into a top-level area (a coarse component).
+
+    Slash-path modules (C/C++ translation units, e.g. ``src/smf/smf-sm.c``) group by
+    their first two path segments (the directory component → ``src/smf``); dotted
+    namespaces (Python/Java/C#) group by the first two dotted segments (``App.Api``)."""
+    if "/" in name:
+        return "/".join(name.split("/")[:2])
     return ".".join(name.split(".")[:2])
 
 
-def _is_generated(node: Node) -> bool:
-    f = (node.provenance.file if node.provenance else "").lower()
+def _zone(area: str) -> str:
+    """The architectural zone an area belongs to — its first path/namespace segment
+    (``src/smf`` → ``src``; ``App.Api`` → ``App``)."""
+    return area.split("/")[0].split(".")[0]
+
+
+def _is_generated_path(file: str) -> bool:
+    # Normalize with a leading "/" so a `/vendor/`-style marker also matches a
+    # vendored directory at the repo root (e.g. "subprojects/...", "third_party/...").
+    f = "/" + file.lower().lstrip("/")
     return any(p in f for p in _GENERATED)
+
+
+def _is_generated(node: Node) -> bool:
+    return _is_generated_path(node.provenance.file if node.provenance else "")
 
 
 def _is_framework(qualified: str) -> bool:
@@ -105,6 +139,7 @@ class CurrentState:
     data_access: list[str]
     generated: int
     has_calls: bool
+    call_hotspots: list[tuple[str, int]] = field(default_factory=list)
     auth_surface: list[str] = field(default_factory=list)
     recent_areas: list[tuple[str, int]] = field(default_factory=list)
     recommendations: list[tuple[str, str]] = field(default_factory=list)
@@ -130,11 +165,11 @@ def _recent_areas(root: Path | None) -> list[tuple[str, int]]:
         return []
     if out.returncode != 0:
         return []
-    exts = (".cs", ".py", ".java", ".ts", ".tsx")
+    exts = (".cs", ".py", ".java", ".ts", ".tsx", ".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh")
     changed = Counter(
         "/".join(line.strip().split("/")[:2])
         for line in out.stdout.splitlines()
-        if line.strip().endswith(exts)
+        if line.strip().endswith(exts) and not _is_generated_path(line.strip())
     )
     return changed.most_common(6)
 
@@ -162,10 +197,10 @@ def compute_current_state(
     area_types: Counter[str] = Counter()
     for e in contains:
         s, d = by_id.get(e.src), by_id.get(e.dst)
-        if s and s.kind is NodeKind.MODULE and d and d.kind is NodeKind.TYPE:
+        if s and s.kind is NodeKind.MODULE and d and d.kind is NodeKind.TYPE and not _is_generated(d):
             area_types[_area(s.name)] += 1
     area_funcs: Counter[str] = Counter(
-        _area(n.id.split(":", 1)[-1]) for n in nodes if n.kind is NodeKind.FUNCTION
+        _area(n.id.split(":", 1)[-1]) for n in nodes if n.kind is NodeKind.FUNCTION and not _is_generated(n)
     )
 
     controllers = [n for n in types if n.name.endswith("Controller") and not _is_generated(n)]
@@ -230,6 +265,12 @@ def compute_current_state(
     if any(d in external for d in ("System.Data",)) or (repos and not data_access):
         data_access.append("raw SQL / ADO.NET (no ORM)")
 
+    call_in: Counter[str] = Counter(e.dst for e in batch.edges if e.kind is EdgeKind.CALLS)
+    call_hotspots = [
+        (by_id[fid].name, c)
+        for fid, c in call_in.most_common()
+        if fid in by_id and by_id[fid].kind is NodeKind.FUNCTION and not _is_generated(by_id[fid])
+    ][:10]
     has_calls = any(e.kind is EdgeKind.CALLS for e in batch.edges)
     auth_surface = [
         n.name for n in types if any(k in n.name.lower() for k in _AUTH_KW) and not _is_generated(n)
@@ -259,6 +300,7 @@ def compute_current_state(
         data_access=data_access,
         generated=sum(1 for n in types if _is_generated(n)),
         has_calls=has_calls,
+        call_hotspots=call_hotspots,
         auth_surface=auth_surface,
         recent_areas=_recent_areas(root),
     )
@@ -296,6 +338,68 @@ def _recommend(s: CurrentState) -> list[tuple[str, str]]:
 
 def _mid(area: str) -> str:
     return "a" + re.sub(r"[^A-Za-z0-9]", "", area)[:24]
+
+
+_ZONE_LABELS = {
+    "src": "src — applications / services",
+    "lib": "lib — libraries",
+    "tests": "tests",
+    "test": "tests",
+    "app": "app",
+}
+
+
+def _zone_label(zone: str) -> str:
+    return _ZONE_LABELS.get(zone, zone)
+
+
+def _architecture_mermaid(s: CurrentState) -> list[str]:
+    """A system-architecture flowchart: the top components grouped into zone
+    subgraphs, with the strongest cross-component dependency edges (from the
+    `#include` / import graph). Bounded so it stays readable."""
+    from collections import defaultdict
+
+    def _is_test_area(a: str) -> bool:
+        return _zone(a) in ("tests", "test")
+
+    # The architecture is the PRODUCTION structure — drop edges originating in test
+    # code (test→lib isn't architecture) and test areas from the size-based picks.
+    edges = [(ab, c) for ab, c in s.coupling.most_common(40) if not _is_test_area(ab[0])][:14]
+    nodes: list[str] = []
+    seen: set[str] = set()
+
+    def add(a: str) -> None:
+        if a not in seen:
+            seen.add(a)
+            nodes.append(a)
+
+    for (a, b), _c in edges:
+        add(a)
+        add(b)
+    for a, _c in s.area_types.most_common(24):
+        if not _is_test_area(a):
+            add(a)
+    nodes = nodes[:18]
+    nodeset = set(nodes)
+    edges = [(ab, c) for ab, c in edges if ab[0] in nodeset and ab[1] in nodeset]
+
+    by_zone: dict[str, list[str]] = defaultdict(list)
+    for a in nodes:
+        by_zone[_zone(a)].append(a)
+
+    out = ["```mermaid", "flowchart LR"]
+    for zone in sorted(by_zone):
+        zid = "z_" + re.sub(r"[^A-Za-z0-9]", "", zone)[:16]
+        out.append(f'  subgraph {zid}["{_zone_label(zone)}"]')
+        for a in sorted(by_zone[zone]):
+            t, f = s.area_types.get(a, 0), s.area_funcs.get(a, 0)
+            out.append(f'    {_mid(a)}["{a}<br/>{t} types · {f} fns"]')
+        out.append("  end")
+    for (a, b), c in edges:
+        if a in nodeset and b in nodeset:
+            out.append(f"  {_mid(a)} -->|{c}| {_mid(b)}")
+    out.append("```")
+    return out
 
 
 def render_current_state(state: CurrentState, *, lens: str = "developer") -> str:
@@ -349,23 +453,27 @@ def _render_developer(s: CurrentState) -> str:
         else "- API surface: none detected",
         f"- Data access: {', '.join(s.data_access) or '—'}",
         f"- Call graph: {'available' if s.has_calls else 'not extracted for this language yet'}",
-        "",
-        "## Architecture — layers",
-        "",
-        "| Layer | Components |",
-        "|---|---|",
     ]
-    o += [f"| {lyr} | {c} |" for lyr, c in s.layers.most_common()]
     if s.coupling:
-        o += ["", "## Area dependency map", "", "```mermaid", "flowchart LR"]
-        seen: set[str] = set()
-        for (sa, da), c in s.coupling.most_common(9):
-            for a in (sa, da):
-                if a not in seen:
-                    o.append(f'  {_mid(a)}["{a}"]')
-                    seen.add(a)
-            o.append(f"  {_mid(sa)} -->|{c}| {_mid(da)}")
-        o += ["```"]
+        o += [
+            "",
+            "## System architecture",
+            "",
+            "_Components (top areas) grouped by zone; arrows are dependency strength "
+            "(import / `#include` count)._",
+            "",
+        ]
+        o += _architecture_mermaid(s)
+        o += [
+            "",
+            "### Component dependencies (strongest)",
+            "",
+            "| From | → | To | Strength |",
+            "|---|---|---|---|",
+        ]
+        o += [f"| `{a}` | → | `{b}` | {c} |" for (a, b), c in s.coupling.most_common(10)]
+    o += ["", "## Architecture — layers", "", "| Layer | Components |", "|---|---|"]
+    o += [f"| {lyr} | {c} |" for lyr, c in s.layers.most_common()]
     if s.busiest_controllers:
         o += ["", "## API surface — busiest controllers", "", "| Controller | Endpoints |", "|---|---|"]
         o += [f"| `{n}` | {c} |" for n, c in s.busiest_controllers]
@@ -384,6 +492,17 @@ def _render_developer(s: CurrentState) -> str:
         "|---|---|---|",
     ]
     o += [f"| `{n}` | {c} | {loc} |" for n, c, loc in s.hotspots]
+    if s.call_hotspots:
+        o += [
+            "",
+            "## Call graph — most-depended-upon functions",
+            "",
+            "_Functions with the most incoming calls — the code most other code relies on._",
+            "",
+            "| Function | Called from (sites) |",
+            "|---|---|",
+        ]
+        o += [f"| `{n}` | {c} |" for n, c in s.call_hotspots]
     o += [
         "",
         "## Test coverage",

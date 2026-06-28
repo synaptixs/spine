@@ -34,6 +34,12 @@ def test_default_includes_csharp_when_available() -> None:
     assert ("csharp" in langs) == have_csharp
 
 
+def test_default_includes_c_when_available() -> None:
+    have_c = importlib.util.find_spec("tree_sitter_c") is not None
+    langs = {e.language for e in default_extractors()}
+    assert ("c" in langs) == have_c
+
+
 def test_repo_extractor_default_handles_java(tmp_path: Path) -> None:
     pytest.importorskip("tree_sitter_java", reason="install the 'java' extra")
     src = tmp_path / "src" / "main" / "java" / "com" / "demo"
@@ -69,3 +75,15 @@ def test_repo_extractor_default_handles_csharp(tmp_path: Path) -> None:
     batch = RepoCodeExtractor().extract(tmp_path)
     types = {n.name for n in batch.nodes if n.kind is NodeKind.TYPE and n.language == "csharp"}
     assert "Widget" in types
+
+
+def test_repo_extractor_default_handles_c(tmp_path: Path) -> None:
+    pytest.importorskip("tree_sitter_c", reason="install the 'c' extra")
+    (tmp_path / "widget.c").write_text(
+        "struct Widget { int id; };\nint widget_score(struct Widget *w) { return w->id; }\n"
+    )
+    # Default RepoCodeExtractor (no explicit extractors) must now pick up .c.
+    batch = RepoCodeExtractor().extract(tmp_path)
+    types = {n.name for n in batch.nodes if n.kind is NodeKind.TYPE and n.language == "c"}
+    funcs = {n.name for n in batch.nodes if n.kind is NodeKind.FUNCTION and n.language == "c"}
+    assert "Widget" in types and "widget_score" in funcs

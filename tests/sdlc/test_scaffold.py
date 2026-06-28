@@ -162,6 +162,44 @@ def test_scaffold_csharp_appends_dotnet_ignores_to_existing_gitignore(tmp_path: 
     assert "bin/" in gi and "obj/" in gi  # .NET build output now ignored
 
 
+_C_LAYOUT = TargetLayout(
+    package_name="calc_lib",
+    source_dir="src",
+    tests_dir="tests",
+    src_layout=True,
+    mode="new",
+    language="c",
+    build_tool="cmake",
+)
+
+
+def test_scaffold_c_cmake_project(tmp_path: Path) -> None:
+    created = scaffold(tmp_path, _C_LAYOUT)
+    assert "CMakeLists.txt" in created
+    assert "src/calc_lib.c" in created and "src/calc_lib.h" in created
+    cmake = (tmp_path / "CMakeLists.txt").read_text()
+    assert "project(calc_lib C)" in cmake
+    assert "enable_testing()" in cmake and "add_test(" in cmake
+    assert "${CMAKE_SOURCE_DIR}/src/*.c" in cmake  # cmake vars preserved (not .format-mangled)
+    header = (tmp_path / "src" / "calc_lib.h").read_text()
+    assert "#ifndef CALC_LIB_H" in header  # include guard
+    assert "build/" in (tmp_path / ".gitignore").read_text()  # C .gitignore
+    assert not (tmp_path / "pyproject.toml").exists()
+
+
+def test_scaffold_c_appends_build_ignore_to_existing_gitignore(tmp_path: Path) -> None:
+    (tmp_path / ".gitignore").write_text(".venv/\n", encoding="utf-8")
+    created = scaffold(tmp_path, _C_LAYOUT)
+    assert ".gitignore" in created
+    gi = (tmp_path / ".gitignore").read_text()
+    assert ".venv/" in gi and "build/" in gi  # pre-existing preserved + build/ appended
+
+
+def test_scaffold_c_is_idempotent(tmp_path: Path) -> None:
+    scaffold(tmp_path, _C_LAYOUT)
+    assert scaffold(tmp_path, _C_LAYOUT) == []
+
+
 def test_scaffold_csharp_honors_target_framework(tmp_path: Path) -> None:
     from dataclasses import replace
 

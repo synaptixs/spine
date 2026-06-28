@@ -432,9 +432,9 @@ class PythonExtractor:
 def default_extractors() -> list[LanguageExtractor]:
     """The language front-ends used when none are passed explicitly.
 
-    Always Python (stdlib ``ast``). Java, TypeScript, and C# are added **only when
+    Always Python (stdlib ``ast``). Java, TypeScript, C#, and C are added **only when
     their tree-sitter grammar is importable** (the ``java`` / ``typescript`` /
-    ``csharp`` extras) so the base install stays stdlib-only — this is what makes
+    ``csharp`` / ``c`` extras) so the base install stays stdlib-only — this is what makes
     ``understand`` / grounding / ``pkg extract`` multi-language without forcing
     the parser dependency on everyone.
     """
@@ -454,6 +454,10 @@ def default_extractors() -> list[LanguageExtractor]:
         from orchestrator.pkg.csharp_extractor import CSharpExtractor
 
         extractors.append(CSharpExtractor())
+    if has_tree_sitter and importlib.util.find_spec("tree_sitter_c"):
+        from orchestrator.pkg.c_extractor import CExtractor
+
+        extractors.append(CExtractor())
     return extractors
 
 

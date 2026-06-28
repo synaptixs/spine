@@ -23,6 +23,8 @@ _LANG_BY_SUFFIX = {
     ".js": "javascript",
     ".jsx": "javascript",
     ".cs": "csharp",
+    ".c": "c",
+    ".h": "c",
     ".go": "go",
     ".rb": "ruby",
 }

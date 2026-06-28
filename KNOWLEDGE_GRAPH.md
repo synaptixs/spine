@@ -116,7 +116,7 @@ walking edges, not by guessing.
 
 ```mermaid
 flowchart LR
-    src["Source files<br/>(.py · .java · .ts/.tsx · .cs)"] --> ext["Language extractor<br/>(tree-sitter / AST)"]
+    src["Source files<br/>(.py · .java · .ts/.tsx · .cs · .c/.h)"] --> ext["Language extractor<br/>(tree-sitter / AST)"]
     ext --> facts["Facts<br/>Nodes + Edges + Provenance"]
     facts --> cache["Per-commit cache"]
     facts --> store["Fact store<br/>(queryable)"]
@@ -133,11 +133,17 @@ flowchart LR
   | Java | ✅ | `pip install 'synaptixs-spine[java]'` |
   | TypeScript / TSX | ✅ | `pip install 'synaptixs-spine[typescript]'` |
   | C# | ✅ + framework edges | `pip install 'synaptixs-spine[csharp]'` |
+  | C | ✅ + `#include` graph | `pip install 'synaptixs-spine[c]'` |
 
   C# additionally lifts **framework edges** into the graph: ASP.NET Core controllers
   and Minimal-API routes become `Endpoint` nodes with `EXPOSES` edges to their
   handlers, and EF Core entities (`DbSet<T>` / `[Table]`) become `Entity` nodes with
   `REFERENCES` edges following navigation properties.
+
+  C uses the **translation unit (file)** as the module and builds the **`#include`
+  graph** (`IMPORTS`); a function prototype in a `.h` and its definition in a `.c`
+  **merge onto one node** (the definition wins), `CALLS` resolve across files by name,
+  and a struct member whose type is another struct becomes a `REFERENCES` data edge.
 - **Cached per commit.** Re-running on an unchanged tree reuses the cache; `--refresh`
   forces a re-extract. So `understand` is cheap to re-run as the code evolves.
 
@@ -156,6 +162,22 @@ orchestrator understand . --refresh       # re-extract instead of using the comm
 It produces: `architecture.md`, `domain-model.md`, `tech-context.md`, `conventions.md`,
 `glossary.md`, and `progress.md`. **Commit `memory-bank/`** so your whole team — and any
 AI tool — reads the same code-true project truth.
+
+### `orchestrator state` — the team-facing current-state report
+A higher-level view rendered from the same graph (deterministic, no LLM) — *what the repo
+is today and how healthy it looks*:
+
+```bash
+orchestrator state .                       # developer view (architecture, components, hotspots)
+orchestrator state . --lens stakeholder    # plain-language view
+orchestrator state . --out STATE.md        # write to a file (otherwise printed)
+```
+
+It renders a **system-architecture diagram** (top components grouped into zones with
+weighted dependency arrows from the import/`#include` graph), a **component-dependency**
+table, **call-graph hotspots** (most-depended-upon functions), complexity / god-components,
+test-coverage and recent-activity signals, a name-based security surface, and prioritized
+recommendations. A report is a *view* — re-run to refresh.
 
 ### `orchestrator pkg extract` — inspect the raw graph
 ```bash
@@ -277,8 +299,9 @@ reviews honest.
 
 - **Static, not runtime.** The PKG is built from source structure; it doesn't capture
   runtime behavior, dynamic dispatch it can't see, or values only known at execution.
-- **Parser coverage.** Python/Java/TypeScript/C# today. Other languages aren't extracted
-  yet (their files are simply not represented).
+- **Parser coverage.** Python/Java/TypeScript/C#/C today. Other languages aren't
+  extracted yet (their files are simply not represented). For C, parsing is
+  pre-preprocessor — heavy macro use yields partial facts (we never run `cpp`).
 - **Heuristic edges.** Some edges (e.g. data-layer foreign keys) are inferred and improve
   over time; treat them as strong hints, not proofs.
 - **Domain meaning is separate.** The PKG knows *structure*, not business intent — that's

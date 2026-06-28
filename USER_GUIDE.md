@@ -64,8 +64,10 @@ orchestrator --help
 Optional extras, added when you need them:
 - `pip install 'synaptixs-spine[sdlc]'` — run the generated tests (the `sdlc feature`/`run` path)
 - `pip install 'synaptixs-spine[tui]'` — the `orchestrator tui` terminal UI (Step 7)
-- `[java]`, `[typescript]`, `[csharp]` — language parsers for comprehension + grounding
-  (Python needs no extra). C# codegen also needs the **.NET SDK** (`dotnet`) on your PATH.
+- `[java]`, `[typescript]`, `[csharp]`, `[c]` — language parsers for comprehension +
+  grounding (Python needs no extra). C# codegen also needs the **.NET SDK** (`dotnet`)
+  on PATH; C codegen needs a C compiler plus **CMake** (greenfield) or **Meson + Ninja**
+  (matching the target repo's build system).
 - `[mcp]` (MCP client), `[otel]` (live tracing)
 
 ### Upgrading
@@ -127,17 +129,36 @@ there; greenfield repos get a stub that fills in as features land. Re-run anytim
 to refresh (`--refresh` re-extracts instead of using the commit cache). Commit
 `memory-bank/` so your team — and any AI tool — reads the same project truth.
 
+For a **team-facing snapshot of what the repo is today and how healthy it looks**, use
+the Current State report (also no LLM — synthesized from the same graph):
+
+```bash
+orchestrator state .                       # developer view, to stdout
+orchestrator state . --lens stakeholder    # plain-language view
+orchestrator state . --out STATE.md        # write it to a file
+```
+
+It renders a **system-architecture diagram** (top components grouped into zones, with
+weighted dependency arrows from the import/`#include` graph), a **component-dependency**
+table, **call-graph hotspots**, complexity/god-components, test-coverage and recent-activity
+signals, a name-based security surface, and prioritized recommendations. A report is a
+*view* — re-run to refresh; nothing is written unless `--out` is given.
+
 > **Deep dive:** see **[KNOWLEDGE_GRAPH.md](KNOWLEDGE_GRAPH.md)** for the full PKG
 > guide — the data model, the CLI (`pkg extract` / `export` / `docs`), how grounding
 > uses it, and how it works for brownfield and greenfield projects.
 
 > **Multi-language.** Comprehension covers **Python** out of the box and **Java**,
-> **TypeScript**, and **C#** when the matching parser extra is installed
-> (`pip install 'synaptixs-spine[java]'` / `[typescript]` / `[csharp]`). `understand`,
-> codegen grounding, and `pkg extract` then process `.java` / `.ts` / `.cs` too. For
-> **C#**, the graph additionally captures ASP.NET Core endpoints (`EXPOSES`) and EF
-> Core entities (`REFERENCES`); end-to-end codegen (`sdlc feature` / `run`) scaffolds a
-> solution + xUnit project and runs `dotnet test`, so it needs the **.NET SDK** on PATH.
+> **TypeScript**, **C#**, and **C** when the matching parser extra is installed
+> (`pip install 'synaptixs-spine[java]'` / `[typescript]` / `[csharp]` / `[c]`).
+> `understand`, codegen grounding, and `pkg extract` then process `.java` / `.ts` /
+> `.cs` / `.c` / `.h` too. For **C#**, the graph additionally captures ASP.NET Core
+> endpoints (`EXPOSES`) and EF Core entities (`REFERENCES`); codegen scaffolds a
+> solution + xUnit project and runs `dotnet test` (needs the **.NET SDK**). For **C**,
+> it builds the `#include` graph and merges header declarations with their source
+> definitions; codegen scaffolds a **CMake** project (greenfield) or works in a brownfield
+> **Meson** repo, building + testing via `ctest` / `meson test` (needs a C compiler plus
+> CMake or Meson+Ninja).
 
 ### Working with existing repos (brownfield) — and how knowledge grows
 
