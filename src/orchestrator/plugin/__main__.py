@@ -54,7 +54,14 @@ def main(argv: list[str] | None = None) -> None:
     from orchestrator.core.env import load_local_env
 
     args = _build_parser().parse_args(argv)
+    # A host (the Codex app, Claude Desktop) launches this as a subprocess whose cwd
+    # isn't the repo, so cwd-relative `./.env` won't be found — `ORCHESTRATOR_DOTENV`
+    # lets the host point at an absolute .env path without copying secrets into its
+    # own config. Try cwd first, then the explicit path.
     load_local_env()
+    dotenv = os.getenv("ORCHESTRATOR_DOTENV")
+    if dotenv:
+        load_local_env(dotenv)
 
     if args.http:
         from orchestrator.plugin.server import build_http_server

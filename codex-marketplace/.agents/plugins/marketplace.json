@@ -1,0 +1,20 @@
+{
+  "name": "spine",
+  "interface": {
+    "displayName": "Spine"
+  },
+  "plugins": [
+    {
+      "name": "spine",
+      "source": {
+        "source": "local",
+        "path": "./plugins/spine"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Engineering"
+    }
+  ]
+}

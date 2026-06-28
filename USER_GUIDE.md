@@ -482,10 +482,40 @@ pip install 'synaptixs-spine[mcp]'        # or from source: uv sync --extra mcp
 ```bash
 orchestrator-mcp            # serves over stdio, reads ./.env for creds
 ```
-Register with Claude Code via `.mcp.json`:
+Register with **Claude Code** via `.mcp.json`:
 ```json
 { "mcpServers": { "orchestrator": { "command": "orchestrator-mcp" } } }
 ```
+Register with the **Codex app** in `~/.codex/config.toml` (a host launched from a
+different cwd won't find `./.env`, so point `ORCHESTRATOR_DOTENV` at it — no secrets
+are copied into the config):
+```toml
+[mcp_servers.spine]
+command = "orchestrator-mcp"      # or an absolute path to the venv's console script
+args = []
+tool_timeout_sec = 600            # sdlc_feature does codegen + a build; give it room
+
+[mcp_servers.spine.env]
+ORCHESTRATOR_DOTENV = "/abs/path/to/your/.env"
+```
+Restart the host to pick up the server. The tools it exposes: `doctor`,
+`ingest_preview`, `pkg_grounding`, `read_memory_bank`, and `sdlc_feature` — which
+takes `repo`, `language`, `layout` (`new` = greenfield, `existing` = brownfield),
+and `package_name`, so you can deliver into a fresh **or** an existing repo from the
+host. (`sdlc_start_run`/`…_status`/`…_decide_gate`/`…_result` drive the long gated run.)
+
+**As a first-class Codex plugin** (an entry in the plugin list, not just an
+`mcp_servers` line): this repo ships a one-plugin marketplace under
+[`codex-marketplace/`](codex-marketplace/). The MCP-server config above and the plugin
+are two layers of the same thing — the plugin *bundles* that server plus branding.
+```bash
+pip install 'synaptixs-spine[mcp]'            # puts `orchestrator-mcp` on PATH
+codex plugin marketplace add synaptixs/spine  # or a local path to codex-marketplace/
+codex plugin add spine@spine
+```
+Then **Spine** shows up under `codex plugin list`. See
+[codex-marketplace/README.md](codex-marketplace/README.md) for the manifest layout and
+how creds (`ORCHESTRATOR_DOTENV`) are supplied.
 
 **10.2 — Remote (hosted clients connect to a URL):**
 ```bash

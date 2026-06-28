@@ -52,11 +52,25 @@ async def ingest_preview(source: str) -> dict[str, Any]:
 async def sdlc_feature(
     source: str,
     intent_id: str | None = None,
+    repo: str | None = None,
+    language: str = "auto",
+    layout: str = "auto",
+    package_name: str | None = None,
     live: bool = False,
     confirm: bool = False,
     max_refine: int = 3,
 ) -> dict[str, Any]:
     """Build ONE intent end to end: spec → grounded codegen → tests → branch.
+
+    Works for **greenfield and brownfield**:
+    - ``repo`` — a git URL/owner-slug to branch from (e.g. ``https://github.com/me/app``
+      or ``me/app``). Omit for a throwaway scratch repo (pure greenfield demo).
+    - ``layout`` — ``auto`` (scaffold only empty repos), ``new`` (always scaffold a
+      fresh ``src/<pkg>/`` skeleton — greenfield into an existing repo), or
+      ``existing`` (follow the repo's own structure — **brownfield**).
+    - ``language`` — ``auto`` (detect from the repo) or an explicit
+      ``python|java|typescript|csharp|c|cpp``.
+    - ``package_name`` — override the scaffold package name (greenfield).
 
     Safe by default (``live=False``): a local branch + diff, dry-run Jira, NO
     external writes. ``live=True`` creates a real Jira issue, pushes a branch,
@@ -70,7 +84,16 @@ async def sdlc_feature(
     from orchestrator.sdlc.feature_runner import FeatureRunError, run_feature
 
     try:
-        result = await run_feature(source, intent_id=intent_id, live=live, max_refine=max_refine)
+        result = await run_feature(
+            source,
+            intent_id=intent_id,
+            repo=repo,
+            language=language,
+            layout_mode=layout,
+            package_name=package_name,
+            live=live,
+            max_refine=max_refine,
+        )
     except FeatureRunError as exc:
         return {"passed": False, "error": str(exc)}
     return {
