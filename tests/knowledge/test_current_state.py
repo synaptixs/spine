@@ -112,6 +112,30 @@ def test_area_groups_by_directory_for_path_modules() -> None:
     assert _area("App.Api.Controllers") == "App.Api"
 
 
+def test_function_areas_group_by_owning_module_not_symbol_id() -> None:
+    # Regression: C/C++ function ids are symbols (`cpp:HSL2RGB`, `cpp:Conn::read`),
+    # not locations. Areas must come from the function's owning module / source file —
+    # otherwise every function becomes its own component (and its own zone), flooding
+    # the layout with thousands of one-fn entries on a real C++ repo.
+    b = FactBatch()
+    mod = _node("cpp:lib/svm/svm.cpp", NodeKind.MODULE, "lib/svm/svm.cpp", "lib/svm/svm.cpp")
+    b.add_node(mod)
+    # A free function contained directly by the module.
+    free = Node("cpp:HSL2RGB", NodeKind.FUNCTION, "HSL2RGB", "cpp", Provenance("lib/svm/svm.cpp", 5))
+    b.add_node(free)
+    b.add_edge(Edge(mod.id, free.id, EdgeKind.CONTAINS, Provenance("lib/svm/svm.cpp", 5)))
+    # A method whose class lives in a `.h` (no owning module node) — must fall back to
+    # the source file it's defined in, not its `Conn::read` symbol id.
+    meth = Node("cpp:Conn::read", NodeKind.FUNCTION, "read", "cpp", Provenance("lib/svm/svm.cpp", 9))
+    b.add_node(meth)
+    b.add_edge(Edge("cpp:Conn", meth.id, EdgeKind.CONTAINS, Provenance("lib/svm/svm.cpp", 9)))
+
+    s = compute_current_state(b, _PROFILE)
+    assert set(s.area_funcs) == {"lib/svm"}  # both collapse to the directory component
+    assert s.area_funcs["lib/svm"] == 2
+    assert "HSL2RGB" not in s.area_funcs and "Conn::read" not in s.area_funcs
+
+
 def test_call_graph_hotspots_rendered() -> None:
     # Functions with the most incoming CALLS edges surface as "most-depended-upon".
     b = FactBatch()

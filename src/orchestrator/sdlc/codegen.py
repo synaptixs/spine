@@ -508,6 +508,46 @@ _REFINE_SYSTEM_C = (
     "build + tests green. Same path rules — relative, no '..'."
 )
 
+# C++ (CMake/ctest) variants — selected when the layout's language is "cpp".
+_IMPLEMENT_SYSTEM_CPP = (
+    "You are a senior engineer. Implement the feature described by the SPEC as "
+    "runnable C++ inside the given CMake project (the worktree).\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: paths are relative to the worktree root — no leading slash, no '..'. "
+    "Write source files only (NO test files here). Declare classes/functions in a "
+    "header (`.hpp`) under the source dir with an include guard or `#pragma once`; "
+    "define them in a matching `.cpp`. Write modern C++17 with RAII/ownership "
+    "discipline (no raw owning pointers; prefer references / smart pointers), using "
+    "only the standard library. New `src/*.cpp` are picked up by CMake's glob — edit "
+    "`CMakeLists.txt` only to add an external dependency. Every file must compile."
+)
+
+_TESTS_SYSTEM_CPP = (
+    "You write C++ unit tests for an already-implemented feature. You are given the "
+    "SPEC and the CURRENT SOURCE FILES.\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: write test files only, under the tests dir shown in the layout, named "
+    "`test_<name>.cpp`. Each is a standalone program with `int main()` that exercises "
+    "the feature and returns 0 on success, non-zero on failure (use `<cassert>` or "
+    "explicit `if (...) return 1;`). `#include` the public header from the source dir. "
+    "Each `tests/*.cpp` becomes a ctest executable linked against the library "
+    "automatically. Each acceptance criterion maps to at least one assertion."
+)
+
+_REFINE_SYSTEM_CPP = (
+    "You are fixing a failing CMake build / ctest run (a configure error, a C++ "
+    "compiler error, or a failing assertion). You are given the SPEC, the CURRENT "
+    "FILES, and the FAILURE OUTPUT.\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: files you created earlier this session may be resent in full via "
+    "`content`; any other existing file must be changed via `edits` (including "
+    "`CMakeLists.txt`). Make the smallest change that turns the build + tests green. "
+    "Same path rules — relative, no '..'."
+)
+
 # Phase system prompts keyed by language (default: Python). Adding a language is a
 # new column here, not another boolean branch at each call site.
 _IMPLEMENT_SYSTEMS = {
@@ -516,6 +556,7 @@ _IMPLEMENT_SYSTEMS = {
     "typescript": _IMPLEMENT_SYSTEM_TS,
     "csharp": _IMPLEMENT_SYSTEM_CSHARP,
     "c": _IMPLEMENT_SYSTEM_C,
+    "cpp": _IMPLEMENT_SYSTEM_CPP,
 }
 _TESTS_SYSTEMS = {
     "python": _TESTS_SYSTEM,
@@ -523,6 +564,7 @@ _TESTS_SYSTEMS = {
     "typescript": _TESTS_SYSTEM_TS,
     "csharp": _TESTS_SYSTEM_CSHARP,
     "c": _TESTS_SYSTEM_C,
+    "cpp": _TESTS_SYSTEM_CPP,
 }
 _REFINE_SYSTEMS = {
     "python": _REFINE_SYSTEM,
@@ -530,6 +572,7 @@ _REFINE_SYSTEMS = {
     "typescript": _REFINE_SYSTEM_TS,
     "csharp": _REFINE_SYSTEM_CSHARP,
     "c": _REFINE_SYSTEM_C,
+    "cpp": _REFINE_SYSTEM_CPP,
 }
 
 
@@ -738,6 +781,25 @@ class LLMCodegenAdapter:
                 f"- Put tests at `{layout.tests_dir}/test_<name>.c` — each a standalone "
                 "`int main(void)` returning non-zero on failure, `#include`-ing the "
                 f"header from `{layout.source_dir}/`.\n"
+                f"{build_line} Don't invent unrelated paths.\n\n"
+            )
+        if layout.language == "cpp":
+            meson = layout.build_tool == "meson"
+            build_line = (
+                "- Meson (`meson.build`) does NOT glob: register new `.cpp` sources + an "
+                "`executable()`+`test()` per new `tests/*.cpp` in `meson.build`."
+                if meson
+                else "- New `src/*.cpp` and `tests/*.cpp` are auto-discovered by CMake's glob; "
+                "edit `CMakeLists.txt` only to add a dependency."
+            )
+            return (
+                "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
+                f"- Declare classes/functions in `{layout.source_dir}/<name>.hpp` (include "
+                f"guard or `#pragma once`) and define them in `{layout.source_dir}/<name>.cpp`; "
+                "modern C++17, RAII, standard library only.\n"
+                f"- Put tests at `{layout.tests_dir}/test_<name>.cpp` — each a standalone "
+                "`int main()` returning non-zero on failure, `#include`-ing the header from "
+                f"`{layout.source_dir}/`.\n"
                 f"{build_line} Don't invent unrelated paths.\n\n"
             )
         return (

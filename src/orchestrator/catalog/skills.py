@@ -134,6 +134,10 @@ NATIVE_SKILLS: tuple[Skill, ...] = (
         "Match the repo's C conventions — header/source split, include guards, naming.",
     ),
     Skill(
+        "cpp-conventions",
+        "Match the repo's C++ conventions — header/source split, RAII/ownership, namespaces.",
+    ),
+    Skill(
         "repo-pkg-grounding",
         "Reuse existing symbols — use the pkg_* tools to find them before writing code.",
     ),

@@ -64,10 +64,10 @@ orchestrator --help
 Optional extras, added when you need them:
 - `pip install 'synaptixs-spine[sdlc]'` — run the generated tests (the `sdlc feature`/`run` path)
 - `pip install 'synaptixs-spine[tui]'` — the `orchestrator tui` terminal UI (Step 7)
-- `[java]`, `[typescript]`, `[csharp]`, `[c]` — language parsers for comprehension +
+- `[java]`, `[typescript]`, `[csharp]`, `[c]`, `[cpp]` — language parsers for comprehension +
   grounding (Python needs no extra). C# codegen also needs the **.NET SDK** (`dotnet`)
-  on PATH; C codegen needs a C compiler plus **CMake** (greenfield) or **Meson + Ninja**
-  (matching the target repo's build system).
+  on PATH; C / C++ codegen needs a C / C++ compiler plus **CMake** (greenfield) or
+  **Meson + Ninja** (matching the target repo's build system).
 - `[mcp]` (MCP client), `[otel]` (live tracing)
 
 ### Upgrading
@@ -152,16 +152,19 @@ signals, a name-based security surface, and prioritized recommendations. A repor
 > uses it, and how it works for brownfield and greenfield projects.
 
 > **Multi-language.** Comprehension covers **Python** out of the box and **Java**,
-> **TypeScript**, **C#**, and **C** when the matching parser extra is installed
-> (`pip install 'synaptixs-spine[java]'` / `[typescript]` / `[csharp]` / `[c]`).
+> **TypeScript**, **C#**, **C**, and **C++** when the matching parser extra is installed
+> (`pip install 'synaptixs-spine[java]'` / `[typescript]` / `[csharp]` / `[c]` / `[cpp]`).
 > `understand`, codegen grounding, and `pkg extract` then process `.java` / `.ts` /
-> `.cs` / `.c` / `.h` too. For **C#**, the graph additionally captures ASP.NET Core
-> endpoints (`EXPOSES`) and EF Core entities (`REFERENCES`); codegen scaffolds a
+> `.cs` / `.c` / `.h` / `.cpp` / `.hpp` too. For **C#**, the graph additionally captures
+> ASP.NET Core endpoints (`EXPOSES`) and EF Core entities (`REFERENCES`); codegen scaffolds a
 > solution + xUnit project and runs `dotnet test` (needs the **.NET SDK**). For **C**,
 > it builds the `#include` graph and merges header declarations with their source
 > definitions; codegen scaffolds a **CMake** project (greenfield) or works in a brownfield
 > **Meson** repo, building + testing via `ctest` / `meson test` (needs a C compiler plus
-> CMake or Meson+Ninja).
+> CMake or Meson+Ninja). **C++** is a superset of the C front-end — it reuses the include
+> graph and header/source merge and adds classes, namespaces, inheritance (`IMPLEMENTS`),
+> member functions, and templates; codegen scaffolds a CMake **CXX** project and builds +
+> tests via `ctest` (needs a C++ compiler plus CMake).
 
 ### Working with existing repos (brownfield) — and how knowledge grows
 

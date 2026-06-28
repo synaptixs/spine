@@ -122,6 +122,8 @@ def _resolve_language(path: Path, requested: str) -> str:
             return "typescript"
         if "csharp" in langs:
             return "csharp"
+        if "cpp" in langs:
+            return "cpp"
         if "c" in langs:
             return "c"
     return "python"
@@ -163,6 +165,7 @@ async def run_feature(
     from orchestrator.sdlc.scaffold import scaffold
     from orchestrator.sdlc.testenv import (
         c_toolchain_available,
+        cpp_toolchain_available,
         detect_dotnet_tfm,
         dotnet_toolchain_available,
         java_toolchain_available,
@@ -290,33 +293,36 @@ async def run_feature(
             "C# codegen needs the .NET SDK (`dotnet`) on PATH (install it, then retry).",
             code=2,
         )
-    elif lang == "c":
+    elif lang in ("c", "cpp"):
         # Greenfield always scaffolds a CMake project; brownfield uses the repo's own
         # build system (CMake or Meson). Preflight the matching toolchain and fail
         # fast with a clear message rather than a cryptic build error in refine.
+        label = "C++" if lang == "cpp" else "C"
+        cmake_ok = cpp_toolchain_available if lang == "cpp" else c_toolchain_available
         build_tool = layout.build_tool if layout.mode == "existing" else "cmake"
         if build_tool == "meson":
             if not meson_toolchain_available():
                 raise FeatureRunError(
-                    "Meson C codegen needs meson + ninja + a C compiler (cc/gcc/clang) on PATH "
+                    f"Meson {label} codegen needs meson + ninja + a compiler on PATH "
                     "(install them, then retry).",
                     code=2,
                 )
         elif build_tool in ("cmake", ""):
-            if not c_toolchain_available():
+            if not cmake_ok():
                 raise FeatureRunError(
-                    "C codegen needs CMake + a C compiler (cc/gcc/clang) on PATH (install both, then retry).",
+                    f"{label} codegen needs CMake + a {label} compiler on PATH (install both, then retry).",
                     code=2,
                 )
             if layout.mode == "existing" and not (path / "CMakeLists.txt").is_file():
                 raise FeatureRunError(
-                    "C codegen builds with CMake or Meson, but this repo has neither a "
+                    f"{label} codegen builds with CMake or Meson, but this repo has neither a "
                     "CMakeLists.txt nor a recognized meson.build.",
                     code=2,
                 )
         else:  # make or another unrecognized build system
             raise FeatureRunError(
-                f"C codegen builds with CMake or Meson, but this repo uses {build_tool} (not supported yet).",
+                f"{label} codegen builds with CMake or Meson, but this repo uses "
+                f"{build_tool} (not supported yet).",
                 code=2,
             )
     # ``ensure`` may install deps (Node ``<pm> install``); run it after the

@@ -546,3 +546,30 @@ async def test_meson_runner_fails_on_setup(monkeypatch: pytest.MonkeyPatch, tmp_
     result = await MesonTestRunner().run(path=str(tmp_path))
     assert not result.passed and "ERROR" in result.output
     assert len(calls) == 1  # setup failed → test skipped
+
+
+# --- C++ (3.2) ---------------------------------------------------------------
+
+
+def test_make_test_environment_and_runner_for_cpp() -> None:
+    from orchestrator.sdlc.testenv import CToolEnvironment, make_test_environment, make_test_runner
+    from orchestrator.sdlc.testrunner import CTestRunner, MesonTestRunner
+
+    assert isinstance(make_test_environment("cpp"), CToolEnvironment)
+    assert isinstance(make_test_runner("cpp", CToolEnvironment("cmake")), CTestRunner)
+    assert isinstance(make_test_runner("cpp", CToolEnvironment("meson")), MesonTestRunner)
+
+
+def test_cpp_toolchain_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.sdlc import testenv
+
+    monkeypatch.setattr(
+        "orchestrator.sdlc.testenv.shutil.which",
+        lambda name: f"/usr/bin/{name}" if name in {"cmake", "clang++"} else None,
+    )
+    assert testenv.cpp_toolchain_available() is True  # cmake + a C++ compiler
+    monkeypatch.setattr(
+        "orchestrator.sdlc.testenv.shutil.which",
+        lambda name: "/usr/bin/cmake" if name == "cmake" else None,  # no C++ compiler
+    )
+    assert testenv.cpp_toolchain_available() is False

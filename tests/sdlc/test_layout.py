@@ -251,3 +251,22 @@ class TestCLayout:
         assert detect_c_layout(tmp_path) is not None
         layout = resolve_layout(tmp_path, mode="existing", language="c")
         assert layout.build_tool == "meson"
+
+
+class TestCppLayout:
+    def test_new_cpp_cmake_layout(self, tmp_path: Path) -> None:
+        layout = resolve_layout(tmp_path, mode="new", language="cpp", repo="https://x/Vec-Lib")
+        assert layout.language == "cpp" and layout.build_tool == "cmake" and layout.mode == "new"
+        assert layout.package_name == "vec_lib"
+        assert layout.source_dir == "src" and layout.tests_dir == "tests"
+        assert layout.module_rel_path("vector") == "src/vector.cpp"
+
+    def test_detect_existing_cpp_project(self, tmp_path: Path) -> None:
+        from orchestrator.sdlc.layout import detect_cpp_layout
+
+        (tmp_path / "CMakeLists.txt").write_text("project(engine CXX)\n")
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "a.cpp").write_text("int x;\n")
+        (tmp_path / "tests").mkdir()
+        # src holds .cpp → it's the source dir; package from the CMake project() name.
+        assert detect_cpp_layout(tmp_path) == ("engine", "src", "tests")

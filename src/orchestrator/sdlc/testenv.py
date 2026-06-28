@@ -271,9 +271,18 @@ def _c_compiler_available() -> bool:
     return any(shutil.which(cc) is not None for cc in ("cc", "gcc", "clang"))
 
 
+def _cpp_compiler_available() -> bool:
+    return any(shutil.which(cc) is not None for cc in ("c++", "g++", "clang++"))
+
+
 def c_toolchain_available() -> bool:
     """True if CMake and a C compiler are on PATH (CMake C codegen prerequisite)."""
     return shutil.which("cmake") is not None and _c_compiler_available()
+
+
+def cpp_toolchain_available() -> bool:
+    """True if CMake and a C++ compiler are on PATH (CMake C++ codegen prerequisite)."""
+    return shutil.which("cmake") is not None and _cpp_compiler_available()
 
 
 def meson_toolchain_available() -> bool:
@@ -317,7 +326,7 @@ def make_test_environment(language: str = "python", *, build_tool: str = "") -> 
         return NodeToolEnvironment(build_tool or "npm")
     if language == "csharp":
         return DotnetToolEnvironment()
-    if language == "c":
+    if language in ("c", "cpp"):
         return CToolEnvironment(build_tool or "cmake")
     if os.getenv("SDLC_TEST_ISOLATION", "venv").lower() == "local":
         return LocalTestEnvironment()
@@ -342,8 +351,8 @@ def make_test_runner(language: str, env: TestEnvironment) -> TestRunner:
         return NodeTestRunner(package_manager=getattr(env, "package_manager", "npm"))
     if language == "csharp":
         return DotnetTestRunner()
-    if language == "c":
-        # The build tool (cmake/meson) is carried on the C tool environment.
+    if language in ("c", "cpp"):
+        # The build tool (cmake/meson) is carried on the C/C++ tool environment.
         return MesonTestRunner() if getattr(env, "build_tool", "cmake") == "meson" else CTestRunner()
     return SubprocessTestRunner(python=env.python)
 
@@ -472,6 +481,7 @@ __all__ = [
     "TestEnvironment",
     "VenvTestEnvironment",
     "c_toolchain_available",
+    "cpp_toolchain_available",
     "detect_dotnet_tfm",
     "dotnet_toolchain_available",
     "java_toolchain_available",

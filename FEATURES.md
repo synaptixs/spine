@@ -31,7 +31,7 @@ radius) and grounds new code in what already exists. Full guide:
 
 | Capability | Status | How to use |
 |---|---|---|
-| Multi-language comprehension + codegen — Python, Java, TypeScript, C#, C | ✅ | automatic per repo |
+| Multi-language comprehension + codegen — Python, Java, TypeScript, C#, C, C++ | ✅ | automatic per repo |
 | Framework-aware edges — ASP.NET Core endpoints, EF Core entities (C#) | ✅ | emitted into the PKG on `pkg extract` / `understand` |
 | C `#include` graph + header/source merge; codegen on **CMake or Meson** | ✅ | `.c`/`.h` per repo; `sdlc feature --language c` |
 | Committed `memory-bank/` for humans + any AI tool | ✅ | `orchestrator understand --out memory-bank` |
