@@ -203,9 +203,40 @@ def compute_current_state(
         s, d = by_id.get(e.src), by_id.get(e.dst)
         if s and s.kind is NodeKind.MODULE and d and d.kind is NodeKind.TYPE and not _is_generated(d):
             area_types[_area(s.name)] += 1
-    area_funcs: Counter[str] = Counter(
-        _area(n.id.split(":", 1)[-1]) for n in nodes if n.kind is NodeKind.FUNCTION and not _is_generated(n)
-    )
+    # A function's area is the component it *lives in* (its owning module's path or
+    # namespace), resolved by walking CONTAINS upward — not its bare symbol id. C/C++
+    # function ids are symbols (`cpp:HSL2RGB`, `cpp:A::A`, `c:widget_score`), so
+    # deriving the area from the id would make every function its own component (and,
+    # via `_zone`, its own zone) — flooding the layout with thousands of one-fn entries.
+    parent_of = {e.dst: e.src for e in contains}
+
+    def _owning_module_name(nid: str) -> str | None:
+        cur, seen = nid, set()
+        while cur in parent_of and cur not in seen:
+            seen.add(cur)
+            p = by_id.get(parent_of[cur])
+            if p is None:
+                break
+            if p.kind is NodeKind.MODULE:
+                return p.name
+            cur = p.id
+        return None
+
+    def _area_of(n: Node) -> str:
+        # The component a node lives in: its owning module's name (dotted namespace /
+        # file path). When that can't be resolved — e.g. a C++ method whose class is
+        # declared in a `.h` parsed as C, so no `cpp:` type node owns it — fall back to
+        # the source file it's defined in, never the bare symbol id (which for C/C++ is
+        # a symbol like `cpp:HSL2RGB`, not a location, so it'd be its own component).
+        mod = _owning_module_name(n.id)
+        if mod is None and n.provenance is not None:
+            mod = n.provenance.file
+        return _area(mod) if mod else _area(n.id.split(":", 1)[-1])
+
+    area_funcs: Counter[str] = Counter()
+    for n in nodes:
+        if n.kind is NodeKind.FUNCTION and not _is_generated(n):
+            area_funcs[_area_of(n)] += 1
 
     controllers = [n for n in types if n.name.endswith("Controller") and not _is_generated(n)]
     ctrl_ids = {c.id for c in controllers}
@@ -251,7 +282,7 @@ def compute_current_state(
         f = (n.provenance.file if n.provenance else "").lower()
         return "test" in n.name.lower() or ".tests" in n.id.lower() or "/test" in f
 
-    tested = {_area(n.id.split(":", 1)[-1]) for n in types if _is_test(n)}
+    tested = {_area_of(n) for n in types if _is_test(n)}
     untested_top = [(a, c) for a, c in area_types.most_common(5) if a not in tested]
 
     dup_names = [

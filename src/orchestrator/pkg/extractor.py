@@ -458,6 +458,10 @@ def default_extractors() -> list[LanguageExtractor]:
         from orchestrator.pkg.c_extractor import CExtractor
 
         extractors.append(CExtractor())
+    if has_tree_sitter and importlib.util.find_spec("tree_sitter_cpp"):
+        from orchestrator.pkg.cpp_extractor import CppExtractor
+
+        extractors.append(CppExtractor())
     return extractors
 
 

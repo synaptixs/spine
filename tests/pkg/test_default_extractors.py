@@ -40,6 +40,12 @@ def test_default_includes_c_when_available() -> None:
     assert ("c" in langs) == have_c
 
 
+def test_default_includes_cpp_when_available() -> None:
+    have_cpp = importlib.util.find_spec("tree_sitter_cpp") is not None
+    langs = {e.language for e in default_extractors()}
+    assert ("cpp" in langs) == have_cpp
+
+
 def test_repo_extractor_default_handles_java(tmp_path: Path) -> None:
     pytest.importorskip("tree_sitter_java", reason="install the 'java' extra")
     src = tmp_path / "src" / "main" / "java" / "com" / "demo"
@@ -87,3 +93,14 @@ def test_repo_extractor_default_handles_c(tmp_path: Path) -> None:
     types = {n.name for n in batch.nodes if n.kind is NodeKind.TYPE and n.language == "c"}
     funcs = {n.name for n in batch.nodes if n.kind is NodeKind.FUNCTION and n.language == "c"}
     assert "Widget" in types and "widget_score" in funcs
+
+
+def test_repo_extractor_default_handles_cpp(tmp_path: Path) -> None:
+    pytest.importorskip("tree_sitter_cpp", reason="install the 'cpp' extra")
+    (tmp_path / "widget.cpp").write_text(
+        "namespace app {\nclass Widget {\npublic:\n  int score() const;\n};\n}\n"
+        "int app::Widget::score() const { return 1; }\n"
+    )
+    batch = RepoCodeExtractor().extract(tmp_path)
+    types = {n.name for n in batch.nodes if n.kind is NodeKind.TYPE and n.language == "cpp"}
+    assert "Widget" in types

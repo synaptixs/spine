@@ -25,6 +25,12 @@ _LANG_BY_SUFFIX = {
     ".cs": "csharp",
     ".c": "c",
     ".h": "c",
+    ".cpp": "cpp",
+    ".cc": "cpp",
+    ".cxx": "cpp",
+    ".hpp": "cpp",
+    ".hh": "cpp",
+    ".hxx": "cpp",
     ".go": "go",
     ".rb": "ruby",
 }

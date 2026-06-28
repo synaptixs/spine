@@ -134,6 +134,7 @@ flowchart LR
   | TypeScript / TSX | ✅ | `pip install 'synaptixs-spine[typescript]'` |
   | C# | ✅ + framework edges | `pip install 'synaptixs-spine[csharp]'` |
   | C | ✅ + `#include` graph | `pip install 'synaptixs-spine[c]'` |
+  | C++ | ✅ classes/namespaces/inheritance | `pip install 'synaptixs-spine[cpp]'` |
 
   C# additionally lifts **framework edges** into the graph: ASP.NET Core controllers
   and Minimal-API routes become `Endpoint` nodes with `EXPOSES` edges to their
@@ -144,6 +145,13 @@ flowchart LR
   graph** (`IMPORTS`); a function prototype in a `.h` and its definition in a `.c`
   **merge onto one node** (the definition wins), `CALLS` resolve across files by name,
   and a struct member whose type is another struct becomes a `REFERENCES` data edge.
+
+  C++ is a **superset of the C front-end** — it reuses the include graph and the
+  header/source merge, then adds the object model: `class`/`struct`/`union`/`enum`
+  become namespace-qualified `Type` nodes, base classes become `IMPLEMENTS` edges
+  (multiple inheritance → multiple edges), member functions merge an in-class
+  declaration with an out-of-line `Class::method` definition, templates emit their
+  `Type`/`Function`, and `CALLS`/`REFERENCES` carry over.
 - **Cached per commit.** Re-running on an unchanged tree reuses the cache; `--refresh`
   forces a re-extract. So `understand` is cheap to re-run as the code evolves.
 
@@ -302,7 +310,7 @@ reviews honest.
 
 - **Static, not runtime.** The PKG is built from source structure; it doesn't capture
   runtime behavior, dynamic dispatch it can't see, or values only known at execution.
-- **Parser coverage.** Python/Java/TypeScript/C#/C today. Other languages aren't
+- **Parser coverage.** Python/Java/TypeScript/C#/C/C++ today. Other languages aren't
   extracted yet (their files are simply not represented). For C, parsing is
   pre-preprocessor — heavy macro use yields partial facts (we never run `cpp`).
 - **Heuristic edges.** Some edges (e.g. data-layer foreign keys) are inferred and improve

@@ -383,6 +383,31 @@ async def test_c_layout_selects_c_prompts(tmp_path: Path) -> None:
     assert "#ifndef" in llm.calls[0][-1].content  # header-guard hint
 
 
+async def test_cpp_layout_selects_cpp_prompts(tmp_path: Path) -> None:
+    """A C++ layout switches the phases to the CMake/ctest C++ prompts and pins the
+    header/source + RAII conventions in the layout block."""
+    from orchestrator.sdlc.layout import TargetLayout
+
+    layout = TargetLayout("vec", "src", "tests", True, "new", language="cpp", build_tool="cmake")
+    llm = _ScriptedLLM(
+        [
+            _files_response({"src/vec.cpp": '#include "vec.hpp"\n'}),
+            _files_response({"tests/test_vec.cpp": '#include "vec.hpp"\nint main(){return 0;}\n'}),
+            _files_response({"src/vec.cpp": '#include "vec.hpp"\n'}),
+        ]
+    )
+    adapter = LLMCodegenAdapter(llm, layout=layout)
+    await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="P-1")
+    await adapter.author_tests(spec=_SPEC, path=str(tmp_path), issue_key="P-1")
+    await adapter.refine(spec=_SPEC, path=str(tmp_path), issue_key="P-1", failures="error: expected ';'")
+
+    assert "runnable C++" in llm.calls[0][0].content  # implement system prompt
+    assert "C++ unit tests" in llm.calls[1][0].content  # author_tests system prompt
+    assert "CMakeLists.txt" in llm.calls[2][0].content  # refine system prompt
+    assert "test_<name>.cpp" in llm.calls[0][-1].content  # layout block (user)
+    assert ".hpp" in llm.calls[0][-1].content  # header-discipline hint
+
+
 async def test_no_layout_block_when_layout_unset(tmp_path: Path) -> None:
     """Backward compatible: without a layout, the prompt carries no layout block."""
     llm = _ScriptedLLM([_files_response({"m.py": "x = 1\n"})])

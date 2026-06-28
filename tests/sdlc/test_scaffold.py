@@ -200,6 +200,35 @@ def test_scaffold_c_is_idempotent(tmp_path: Path) -> None:
     assert scaffold(tmp_path, _C_LAYOUT) == []
 
 
+_CPP_LAYOUT = TargetLayout(
+    package_name="vec_lib",
+    source_dir="src",
+    tests_dir="tests",
+    src_layout=True,
+    mode="new",
+    language="cpp",
+    build_tool="cmake",
+)
+
+
+def test_scaffold_cpp_cmake_project(tmp_path: Path) -> None:
+    created = scaffold(tmp_path, _CPP_LAYOUT)
+    assert "CMakeLists.txt" in created
+    assert "src/vec_lib.cpp" in created and "src/vec_lib.hpp" in created
+    cmake = (tmp_path / "CMakeLists.txt").read_text()
+    assert "project(vec_lib CXX)" in cmake and "CMAKE_CXX_STANDARD" in cmake
+    assert "${CMAKE_SOURCE_DIR}/src/*.cpp" in cmake and "add_test(" in cmake
+    header = (tmp_path / "src" / "vec_lib.hpp").read_text()
+    assert "#ifndef VEC_LIB_HPP" in header
+    assert "build/" in (tmp_path / ".gitignore").read_text()
+    assert not (tmp_path / "pyproject.toml").exists()
+
+
+def test_scaffold_cpp_is_idempotent(tmp_path: Path) -> None:
+    scaffold(tmp_path, _CPP_LAYOUT)
+    assert scaffold(tmp_path, _CPP_LAYOUT) == []
+
+
 def test_scaffold_csharp_honors_target_framework(tmp_path: Path) -> None:
     from dataclasses import replace
 

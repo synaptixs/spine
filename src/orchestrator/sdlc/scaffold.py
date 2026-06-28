@@ -85,6 +85,8 @@ def scaffold(root: Path | str, layout: TargetLayout, *, profile: ProjectProfile 
         files = _csharp_files(layout)
     elif layout.language == "c":
         files = _c_files(layout)
+    elif layout.language == "cpp":
+        files = _cpp_files(layout)
     else:
         files = _python_files(layout)
 
@@ -98,7 +100,7 @@ def scaffold(root: Path | str, layout: TargetLayout, *, profile: ProjectProfile 
         created.append(rel)
     if layout.language == "csharp":
         created += _ensure_build_ignores(root_path, ("bin", "obj"))
-    elif layout.language == "c":
+    elif layout.language in ("c", "cpp"):
         created += _ensure_build_ignores(root_path, ("build",))
     return created
 
@@ -382,6 +384,61 @@ build/
 *.so
 *.dylib
 compile_commands.json
+"""
+
+
+def _cpp_files(layout: TargetLayout) -> dict[str, str]:
+    # A CMake (CXX) project: src/*.cpp glob into a library, each tests/*.cpp into a
+    # ctest executable (assert-based main, offline — no Catch2/GTest fetch needed).
+    name = layout.package_name
+    guard = f"{name.upper()}_HPP"
+    cmake = _CMAKELISTS_CPP.replace("__name__", name)
+    header = _CPP_HEADER.replace("__guard__", guard).replace("__name__", name)
+    return {
+        "CMakeLists.txt": cmake,
+        f"{layout.source_dir}/{name}.hpp": header,
+        f"{layout.source_dir}/{name}.cpp": f'#include "{name}.hpp"\n',
+        f"{layout.tests_dir}/.gitkeep": "",
+        "README.md": _README_TEMPLATE.format(
+            package=layout.package_name,
+            source_dir=layout.source_dir,
+            tests_dir=layout.tests_dir,
+        ),
+        ".gitignore": _C_GITIGNORE,
+    }
+
+
+_CMAKELISTS_CPP = """\
+cmake_minimum_required(VERSION 3.15)
+project(__name__ CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Library built from everything under src/.
+file(GLOB __name___SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
+add_library(__name__ ${__name___SOURCES})
+target_include_directories(__name__ PUBLIC "${CMAKE_SOURCE_DIR}/src")
+
+# Tests: each tests/*.cpp is a ctest executable linked against the library.
+enable_testing()
+file(GLOB __name___TESTS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.cpp")
+foreach(test_file ${__name___TESTS})
+    get_filename_component(test_name ${test_file} NAME_WE)
+    add_executable(${test_name} ${test_file})
+    target_link_libraries(${test_name} __name__)
+    add_test(NAME ${test_name} COMMAND ${test_name})
+endforeach()
+"""
+
+_CPP_HEADER = """\
+#ifndef __guard__
+#define __guard__
+
+// Public API for __name__. Declare classes/functions here; define them in __name__.cpp.
+
+#endif  // __guard__
 """
 
 

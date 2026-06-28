@@ -19,6 +19,7 @@ from __future__ import annotations
 import keyword
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -31,7 +32,7 @@ _FALLBACK_PACKAGE = "app"
 _JAVA_GROUP = "org.example"  # default reverse-DNS group for greenfield Java
 
 # Source-file extension per language (Python is the default).
-_SOURCE_EXT = {"java": "java", "typescript": "ts", "csharp": "cs", "c": "c"}
+_SOURCE_EXT = {"java": "java", "typescript": "ts", "csharp": "cs", "c": "c", "cpp": "cpp"}
 
 
 @dataclass(frozen=True)
@@ -320,18 +321,32 @@ def _detect_c_build_tool(root: Path) -> str:
     return ""
 
 
-def detect_c_layout(root: Path) -> tuple[str, str, str] | None:
-    """If the repo is a recognizable C project (CMake or Make), return
-    ``(package, source_dir, tests_dir)``. The package is the CMake ``project()`` name
-    when parseable, else derived; ``source_dir`` is ``src`` when it holds ``.c`` files,
-    else the repo root."""
+# Source globs that mark a directory as a native (C / C++) source dir.
+_C_SRC_GLOBS = ("*.c",)
+_CPP_SRC_GLOBS = ("*.cpp", "*.cc", "*.cxx")
+
+
+def _detect_native_layout(root: Path, src_globs: tuple[str, ...]) -> tuple[str, str, str] | None:
+    """Shared C/C++ layout detection: a recognizable CMake/Meson/Make project →
+    ``(package, source_dir, tests_dir)``. ``source_dir`` is ``src`` when it holds
+    matching source files, else the repo root."""
     if _detect_c_build_tool(root) == "":
         return None
     package = _read_cmake_project_name(root) or derive_package_name(str(root))
     src = root / "src"
-    source_dir = "src" if src.is_dir() and any(src.glob("*.c")) else "."
+    source_dir = "src" if src.is_dir() and any(src.glob(g) for g in src_globs) else "."
     tests_dir = "tests" if (root / "tests").is_dir() else source_dir
     return package, source_dir, tests_dir
+
+
+def detect_c_layout(root: Path) -> tuple[str, str, str] | None:
+    """``(package, source_dir, tests_dir)`` for a recognizable C (CMake/Meson/Make) repo."""
+    return _detect_native_layout(root, _C_SRC_GLOBS)
+
+
+def detect_cpp_layout(root: Path) -> tuple[str, str, str] | None:
+    """``(package, source_dir, tests_dir)`` for a recognizable C++ (CMake/Meson) repo."""
+    return _detect_native_layout(root, _CPP_SRC_GLOBS)
 
 
 def _read_cmake_project_name(root: Path) -> str | None:
@@ -342,8 +357,16 @@ def _read_cmake_project_name(root: Path) -> str | None:
     return m.group(1) if m else None
 
 
-def _resolve_c_layout(root: Path, *, mode: str, package_name: str | None, repo: str | None) -> TargetLayout:
-    existing = detect_c_layout(root)
+def _resolve_native_layout(
+    root: Path,
+    *,
+    mode: str,
+    package_name: str | None,
+    repo: str | None,
+    language: str,
+    detect: Callable[[Path], tuple[str, str, str] | None],
+) -> TargetLayout:
+    existing = detect(root)
     derived = package_name or derive_package_name(repo or str(root))
     build_tool = _detect_c_build_tool(root) or "cmake"
     if mode == "existing" or (mode == "auto" and existing is not None):
@@ -355,11 +378,25 @@ def _resolve_c_layout(root: Path, *, mode: str, package_name: str | None, repo: 
                 tests_dir=tests_dir,
                 src_layout=source_dir.startswith("src"),
                 mode="existing",
-                language="c",
+                language=language,
                 build_tool=build_tool,
             )
-        return TargetLayout(derived, "src", "tests", True, "existing", language="c", build_tool=build_tool)
-    return TargetLayout(derived, "src", "tests", True, "new", language="c", build_tool="cmake")
+        return TargetLayout(
+            derived, "src", "tests", True, "existing", language=language, build_tool=build_tool
+        )
+    return TargetLayout(derived, "src", "tests", True, "new", language=language, build_tool="cmake")
+
+
+def _resolve_c_layout(root: Path, *, mode: str, package_name: str | None, repo: str | None) -> TargetLayout:
+    return _resolve_native_layout(
+        root, mode=mode, package_name=package_name, repo=repo, language="c", detect=detect_c_layout
+    )
+
+
+def _resolve_cpp_layout(root: Path, *, mode: str, package_name: str | None, repo: str | None) -> TargetLayout:
+    return _resolve_native_layout(
+        root, mode=mode, package_name=package_name, repo=repo, language="cpp", detect=detect_cpp_layout
+    )
 
 
 def is_effectively_empty(root: Path) -> bool:
@@ -404,6 +441,8 @@ def resolve_layout(
         return _resolve_csharp_layout(root_path, mode=mode, package_name=package_name, repo=repo)
     if language == "c":
         return _resolve_c_layout(root_path, mode=mode, package_name=package_name, repo=repo)
+    if language == "cpp":
+        return _resolve_cpp_layout(root_path, mode=mode, package_name=package_name, repo=repo)
     existing = detect_existing_package(root_path)
     derived = package_name or derive_package_name(repo or str(root_path))
 
@@ -433,6 +472,7 @@ __all__ = [
     "derive_npm_package",
     "derive_package_name",
     "detect_c_layout",
+    "detect_cpp_layout",
     "detect_csharp_layout",
     "detect_existing_package",
     "detect_java_layout",
