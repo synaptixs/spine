@@ -106,6 +106,42 @@ async def test_sdlc_feature_safe_maps_result(monkeypatch: pytest.MonkeyPatch) ->
     assert out["live"] is False and out["pr_url"] is None
 
 
+async def test_sdlc_feature_passes_greenfield_brownfield_params(monkeypatch: pytest.MonkeyPatch) -> None:
+    # repo/language/layout/package_name must reach run_feature so a host (the Codex
+    # app) can drive both greenfield (layout=new) and brownfield (layout=existing).
+    seen: dict[str, Any] = {}
+
+    async def _capture(source: str, **kwargs: Any) -> Any:
+        seen.update(kwargs)
+        from orchestrator.sdlc.feature_runner import FeatureRunResult
+
+        return FeatureRunResult(
+            passed=True,
+            intent_id="i",
+            issue_key="DRY-1",
+            title="t",
+            branch="b",
+            worktree="/tmp/x",
+            grounding_chars=0,
+            iterations=1,
+            live=False,
+            files=[],
+        )
+
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _capture)
+    await sdlc_feature(
+        "file://./spec.md",
+        repo="me/app",
+        language="cpp",
+        layout="existing",
+        package_name="widgets",
+    )
+    assert seen["repo"] == "me/app"
+    assert seen["language"] == "cpp"
+    assert seen["layout_mode"] == "existing"  # tool's `layout` → runner's `layout_mode`
+    assert seen["package_name"] == "widgets"
+
+
 async def test_sdlc_feature_maps_run_error(monkeypatch: pytest.MonkeyPatch) -> None:
     from orchestrator.sdlc.feature_runner import FeatureRunError
 

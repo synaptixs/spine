@@ -1,0 +1,39 @@
+{
+  "name": "spine",
+  "version": "2.5.0",
+  "description": "Spine — delegate a ticket, get a reviewed PR. Builds a Product Knowledge Graph of your repo, grounds new code in what already exists, generates + tests it, and (on confirm) opens a PR. Greenfield + brownfield across Python, Java, TypeScript, C#, C, and C++.",
+  "author": {
+    "name": "Synaptixs",
+    "url": "https://github.com/synaptixs/spine"
+  },
+  "homepage": "https://github.com/synaptixs/spine",
+  "repository": "https://github.com/synaptixs/spine",
+  "license": "MIT",
+  "keywords": [
+    "sdlc",
+    "codegen",
+    "mcp",
+    "knowledge-graph",
+    "greenfield",
+    "brownfield",
+    "pkg"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Spine",
+    "shortDescription": "Delegate a ticket; get a reviewed PR",
+    "longDescription": "Spine is an AI-native SDLC engineer you delegate tickets to. It builds a Product Knowledge Graph of your repository, grounds new code in what already exists, generates and tests it, and — when you confirm — opens a pull request. Works for greenfield and brownfield repos across Python, Java, TypeScript, C#, C, and C++. Safe by default: a local branch + diff with no external writes; live writes (a real Jira issue + PR) are gated behind an explicit confirm.",
+    "developerName": "Synaptixs",
+    "category": "Engineering",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/synaptixs/spine",
+    "defaultPrompt": [
+      "Use spine to add a slugify() helper to a new Python project (layout=new)",
+      "Use spine's pkg_grounding to show what this repo would reuse for a new feature",
+      "Use spine to implement this ticket in the current repo (layout=existing)"
+    ]
+  }
+}
