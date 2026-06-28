@@ -35,7 +35,7 @@ radius) and grounds new code in what already exists. Full guide:
 | Framework-aware edges — ASP.NET Core endpoints, EF Core entities (C#) | ✅ | emitted into the PKG on `pkg extract` / `understand` |
 | C `#include` graph + header/source merge; codegen on **CMake or Meson** | ✅ | `.c`/`.h` per repo; `sdlc feature --language c` |
 | Committed `memory-bank/` for humans + any AI tool | ✅ | `orchestrator understand --out memory-bank` |
-| Current State report — architecture / component / call-graph diagrams (no LLM) | ✅ | `orchestrator state . --lens developer\|stakeholder` |
+| Current State report — overview, infrastructure/runtime, code structure, architecture diagrams (no LLM) | ✅ | `orchestrator state . --lens developer\|stakeholder` |
 | PKG extraction / export | ✅ | `orchestrator pkg extract`, `orchestrator pkg export` |
 | Repo profile / audit | ✅ | `orchestrator profile <repo>`, `orchestrator audit <repo>` |
 
