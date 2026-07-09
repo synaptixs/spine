@@ -29,7 +29,13 @@ from orchestrator.intake.service import SourceUriError
 def test_supported_kinds_match_registry() -> None:
     # The validate-only callers (e.g. `sdlc run`) trust this set; keep it
     # exactly the keys the dispatcher can actually build.
-    assert set(SUPPORTED_SOURCE_KINDS) == {"confluence", "notion", "file", "mcp-confluence"}
+    assert set(SUPPORTED_SOURCE_KINDS) == {
+        "confluence",
+        "notion",
+        "file",
+        "openspec",
+        "mcp-confluence",
+    }
 
 
 def test_dispatch_routes_to_kind_builder(monkeypatch: pytest.MonkeyPatch) -> None:

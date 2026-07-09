@@ -11,7 +11,8 @@ reviewed, tested pull requests, with a human in control.
 > package and its command is **`orchestrator`** — those names stay in install lines
 > and commands throughout the docs.
 
-Spine reads a requirement (from Confluence, Notion, or a Markdown file), understands
+Spine reads a requirement (from Confluence, Notion, a Markdown file, or an
+[OpenSpec](https://openspec.dev) spec-driven change), understands
 your target repo, generates code grounded in that repo's own conventions, writes and
 runs tests, and opens a **pull request for you to review**. It pauses for your
 approval before it starts and before anything merges. Nothing is pushed, merged, or
