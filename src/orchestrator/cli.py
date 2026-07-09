@@ -35,12 +35,14 @@ mcp_app = typer.Typer(help="Onboard external MCP servers (DBs, Atlassian, …)."
 catalog_app = typer.Typer(
     help="Capability catalog — inspect what the orchestrator can assemble.", no_args_is_help=True
 )
+openspec_app = typer.Typer(help="Spec-driven development with OpenSpec (openspec.dev).", no_args_is_help=True)
 app.add_typer(template_app, name="template")
 app.add_typer(contract_app, name="contract")
 app.add_typer(task_app, name="task")
 app.add_typer(sdlc_app, name="sdlc")
 app.add_typer(mcp_app, name="mcp")
 app.add_typer(catalog_app, name="catalog")
+app.add_typer(openspec_app, name="openspec")
 
 
 def _client() -> httpx.Client:
@@ -204,7 +206,8 @@ def ingest(
         str,
         typer.Option(
             "--source",
-            help="Source root, e.g. confluence://<page_id>, notion://<page_id>, or file://./spec.md.",
+            help="Source root, e.g. confluence://<page_id>, notion://<page_id>, "
+            "openspec://<change-id> (spec-driven), or file://./spec.md.",
         ),
     ],
     create: Annotated[
@@ -293,6 +296,83 @@ async def _run_ingest(
     _print({"created": [{"key": i.key, "url": i.url} for i in issues]})
 
 
+@openspec_app.command("draft")
+def openspec_draft(
+    source: Annotated[
+        str,
+        typer.Option("--source", help="Unstructured source to bootstrap FROM, e.g. confluence://<id>."),
+    ],
+    out: Annotated[
+        str,
+        typer.Option("--out", help="OpenSpec root to write into (changes/<id>/ is created under it)."),
+    ] = "openspec",
+    refresh: Annotated[
+        bool,
+        typer.Option("--refresh", help="Re-extract from the source (default: reuse the cached backlog)."),
+    ] = False,
+    overwrite: Annotated[
+        bool,
+        typer.Option("--overwrite", help="Overwrite existing change files (default: never clobber)."),
+    ] = False,
+) -> None:
+    """Bootstrap OpenSpec change proposals FROM an unstructured source (the write-back).
+
+    Runs the LLM intake once (source → intents → specs), then renders each as a
+    structured `openspec/changes/<id>/` proposal (proposal.md + specs delta + tasks).
+    A human polishes the draft, then implements deterministically:
+
+        orchestrator openspec draft --source confluence://<id> --out ./openspec
+        # …review/edit openspec/changes/<id>/…
+        orchestrator sdlc feature --source openspec://<id> --safe
+    """
+    import asyncio
+
+    asyncio.run(_run_openspec_draft(source, out=out, refresh=refresh, overwrite=overwrite))
+
+
+async def _run_openspec_draft(source: str, *, out: str, refresh: bool, overwrite: bool) -> None:
+    from pathlib import Path
+
+    from orchestrator.core.env import load_local_env
+
+    load_local_env()
+    from orchestrator.intake.cache import analyze_cached
+    from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
+    from orchestrator.intake.openspec_writer import change_id_for, render_change, write_change
+    from orchestrator.intake.service import parse_source_uri
+
+    parse_source_uri(source)  # validate early
+    try:
+        service = build_service_for(source, dry_run=True, rules_path=None)
+    except IntakeNotConfiguredError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+
+    plan = await analyze_cached(service, source, refresh=refresh, log=lambda m: typer.echo(m, err=True))
+    root = Path(out)
+    intents_by_id = {i.id: i for i in plan.intents}
+    drafted: list[dict[str, object]] = []
+    for spec in plan.specs:
+        intent = intents_by_id.get(spec.intent_id)
+        if intent is None:
+            continue
+        written = write_change(root, intent, render_change(spec, intent), overwrite=overwrite)
+        drafted.append(
+            {
+                "change_id": change_id_for(intent),
+                "source": f"openspec://{change_id_for(intent)}",
+                "files": [str(p) for p in written],
+                "skipped_existing": not written,
+            }
+        )
+    _print({"root": str(root), "drafted": drafted})
+    typer.echo(
+        f"\nDrafted {sum(1 for d in drafted if d['files'])} OpenSpec change(s) under {root}/changes/. "
+        "Review + polish them, then: orchestrator sdlc feature --source openspec://<change-id> --safe",
+        err=True,
+    )
+
+
 @app.command("backlog")
 def backlog(
     source: Annotated[
@@ -333,7 +413,8 @@ def sdlc_run(
         str,
         typer.Option(
             "--source",
-            help="Source root, e.g. confluence://<page_id>, notion://<page_id>, or file://./spec.md.",
+            help="Source root, e.g. confluence://<page_id>, notion://<page_id>, "
+            "openspec://<change-id> (spec-driven), or file://./spec.md.",
         ),
     ],
     actor: Annotated[
@@ -537,7 +618,8 @@ def sdlc_feature(
         str,
         typer.Option(
             "--source",
-            help="Source root, e.g. confluence://<page_id>, notion://<page_id>, or file://./spec.md.",
+            help="Source root, e.g. confluence://<page_id>, notion://<page_id>, "
+            "openspec://<change-id> (spec-driven), or file://./spec.md.",
         ),
     ],
     intent: Annotated[

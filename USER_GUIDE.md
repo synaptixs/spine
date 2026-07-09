@@ -211,7 +211,14 @@ a **local branch + diff** to inspect. No pushes, no PRs, nothing external.
 orchestrator sdlc feature --source confluence://<page_id> --safe
 ```
 
-- `--source` also accepts `notion://<page_id>` or `file://./spec.md`.
+- `--source` also accepts `notion://<page_id>`, `file://./spec.md`, or
+  **`openspec://<change-id>`** (spec-driven: reads an [OpenSpec](https://openspec.dev)
+  change under `openspec/changes/` and maps its `### Requirement:`/`#### Scenario:`
+  blocks straight to acceptance criteria — **deterministic, no LLM extraction**, so
+  intents are exactly what the spec states; `openspec://` alone runs every change).
+  To go the other way — **bootstrap** an OpenSpec change *from* a wiki page for a human
+  to polish — run `orchestrator openspec draft --source confluence://<id> --out ./openspec`,
+  edit the generated `openspec/changes/<id>/`, then `sdlc feature --source openspec://<id>`.
 - `--safe` is the safe default: dry-run tracker, local commit, **no push**.
 - Pin one requirement with `--intent <intent-id>` if a page has several.
 

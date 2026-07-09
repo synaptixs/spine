@@ -85,6 +85,19 @@ def build_file_service(*, dry_run: bool, rules_path: str | None = None) -> Backl
     return _build_service(FileSourceAdapter(FileSourceConfig()), dry_run=dry_run, rules_path=rules_path)
 
 
+def build_openspec_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
+    """Wire an OpenSpec-backed ``BacklogService`` (spec-driven intake).
+
+    Like ``file``, it needs no credentials — the change lives on disk under
+    ``openspec/`` (``$ORCHESTRATOR_OPENSPEC_ROOT``). The adapter is a
+    ``StructuredIntentSource``, so ``analyze`` parses changes → intents
+    deterministically and skips the LLM extractor.
+    """
+    from orchestrator.intake.openspec_source import OpenSpecSourceAdapter
+
+    return _build_service(OpenSpecSourceAdapter(), dry_run=dry_run, rules_path=rules_path)
+
+
 def build_mcp_confluence_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
     """Wire a Confluence source backed by an onboarded MCP server (Phase 3).
 
@@ -109,6 +122,7 @@ _BUILDERS = {
     "confluence": build_confluence_service,
     "notion": build_notion_service,
     "file": build_file_service,
+    "openspec": build_openspec_service,
     "mcp-confluence": build_mcp_confluence_service,
 }
 

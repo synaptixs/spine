@@ -23,7 +23,7 @@ import logging
 from dataclasses import dataclass, field
 
 from orchestrator.intake.gaps import GapAnalyzer, GapFinding, blocks_approval
-from orchestrator.intake.intents import Intent, IntentExtractor
+from orchestrator.intake.intents import Intent, IntentExtractor, StructuredIntentSource
 from orchestrator.intake.jira import CreatedIssue, IssueLink, IssueRequest, IssueTrackerAdapter
 from orchestrator.intake.source import SourceAdapter, SourceDocument
 from orchestrator.intake.specs import FeatureSpec, SpecWriter
@@ -57,6 +57,9 @@ def parse_source_uri(uri: str) -> tuple[str, str]:
         if not root:
             raise SourceUriError(f"file source needs a path: {uri!r}")
         return kind, root
+    if kind == "openspec":
+        # openspec://<change-id> selects one change; openspec:// (empty root) = every change.
+        return kind, rest.strip("/")
     rest = rest.strip("/")
     if rest.startswith("page/"):
         rest = rest[len("page/") :]
@@ -144,7 +147,13 @@ class BacklogService:
 
     async def analyze(self, root_id: str) -> BacklogPlan:
         tree = await self._source.fetch_tree(root_id)
-        intents = await self._extractor.extract(tree.documents)
+        # A structured source (e.g. OpenSpec) is already intent-shaped — parse it
+        # deterministically and skip the LLM extractor (cheaper + lossless on the
+        # stated acceptance criteria). Unstructured sources take the LLM path.
+        if isinstance(self._source, StructuredIntentSource):
+            intents = self._source.structured_intents(tree.documents)
+        else:
+            intents = await self._extractor.extract(tree.documents)
         gaps = self._analyzer.analyze(intents)
         specs = await self._spec_writer.write_all(intents)
         return BacklogPlan(

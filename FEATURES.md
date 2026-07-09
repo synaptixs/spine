@@ -19,6 +19,7 @@ tests, get them green, open a PR — with **two human gates** (before building, 
 | Capability | Status | How to use |
 |---|---|---|
 | Intake — Confluence / Notion / Markdown → specs → backlog | ✅ | `orchestrator ingest --source <uri>`, `orchestrator backlog` |
+| Spec-driven intake — [OpenSpec](https://openspec.dev) changes → deterministic intents (no LLM guessing); write-back drafts OpenSpec from a wiki for review | ✅ | `--source openspec://<change-id>`, `orchestrator openspec draft --source <uri>` |
 | Single feature build (local & safe by default) | ✅ | `orchestrator sdlc feature --source file://./spec.md --safe` |
 | Full orchestrated run (backlog → many features) | ✅ | `orchestrator sdlc run --source <uri>` |
 | Open / complete a PR (live) | ✅ | `orchestrator sdlc feature … --live`, `orchestrator sdlc complete` |

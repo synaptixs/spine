@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -92,6 +92,21 @@ class Intent(BaseModel):
     nfrs: list[str] = Field(default_factory=list)
     open_questions: list[str] = Field(default_factory=list)
     source_doc_ids: list[str] = Field(default_factory=list)
+
+
+@runtime_checkable
+class StructuredIntentSource(Protocol):
+    """A source that yields fully-formed ``Intent``s **deterministically** (no LLM).
+
+    Most sources hand the extractor unstructured prose (Confluence/Notion/markdown)
+    and an LLM guesses intents out of it. A source whose format is already
+    intent-shaped — e.g. OpenSpec change proposals, where each change is one
+    capability with `### Requirement:`/`#### Scenario:` acceptance criteria — should
+    parse straight to ``Intent``s instead. ``BacklogService.analyze`` prefers this
+    path when the source implements it, skipping the LLM extraction entirely (cheaper,
+    deterministic, and lossless on the stated criteria)."""
+
+    def structured_intents(self, documents: list[SourceDocument]) -> list[Intent]: ...
 
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
