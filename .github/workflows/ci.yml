@@ -44,6 +44,22 @@ jobs:
       - name: Format check (ruff)
         run: uv run ruff format --check .
 
+      # README.md is the PyPI project page. PyPI serves it from pypi.org, so any
+      # relative link/image 404s there — every reference must be an absolute URL.
+      - name: README links absolute (relative paths 404 on PyPI)
+        run: |
+          fail=0
+          if grep -nP '\]\((?!https?://|#|mailto:)[^)]+\)' README.md; then
+            echo "::error file=README.md::Relative markdown link(s) above — use absolute https:// URLs (they 404 on PyPI)."
+            fail=1
+          fi
+          if grep -nP 'src="(?!https?://)[^"]+"' README.md; then
+            echo "::error file=README.md::Relative image src above — use an absolute raw.githubusercontent.com URL."
+            fail=1
+          fi
+          [ "$fail" -eq 0 ] && echo "README link check passed."
+          exit $fail
+
       - name: Type check (mypy)
         run: uv run mypy
 

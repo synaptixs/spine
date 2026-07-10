@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/spine-banner.png" alt="Spine — governed, provenance-grounded autonomous delivery" width="820">
+  <img src="https://raw.githubusercontent.com/synaptixs/spine/main/assets/spine-banner.png" alt="Spine — governed, provenance-grounded autonomous delivery" width="820">
 </p>
 
 # Spine
@@ -33,15 +33,15 @@ orchestrator sdlc feature --source file://./spec.md --safe   # build locally —
 
 | Guide | Read it for |
 |---|---|
-| **[Setup & Install](SETUP.md)** | Installing the CLI, the `.env`, and standing up the full stack (Temporal + Postgres) for the autonomous pipeline. |
-| **[User Guide](USER_GUIDE.md)** | A step-by-step walkthrough: from your first local build to a real PR, local models, the web dashboard, and connecting tools (MCP). |
-| **[Using Spine from Codex](CODEX_GUIDE.md)** | Drive Spine from the **Codex app** — install (plugin or MCP server), credentials, the tool reference, and end-to-end greenfield + brownfield walkthroughs. |
-| **[Features & Capabilities](FEATURES.md)** | The capability catalog — everything Spine can do today, its status, the command/flag to use it, and a link to each deep dive. |
-| **[Knowledge Graph (PKG)](KNOWLEDGE_GRAPH.md)** | How Spine understands your codebase — the code-native graph, its model, the CLI, and how it powers brownfield *and* greenfield work. |
-| **[Operations & Developer Guide](OPERATIONS.md)** | How to operate it: deployment modes, the full environment-variable reference, and standing up each advanced capability — including the semantic spine (ontomesh × infodrift). |
-| **[Community brief](COMMUNITY.md)** | A one-page overview to share — what it does, lifecycle coverage, how to try it, and the feedback we're looking for. |
+| **[Setup & Install](https://github.com/synaptixs/spine/blob/main/SETUP.md)** | Installing the CLI, the `.env`, and standing up the full stack (Temporal + Postgres) for the autonomous pipeline. |
+| **[User Guide](https://github.com/synaptixs/spine/blob/main/USER_GUIDE.md)** | A step-by-step walkthrough: from your first local build to a real PR, local models, the web dashboard, and connecting tools (MCP). |
+| **[Using Spine from Codex](https://github.com/synaptixs/spine/blob/main/CODEX_GUIDE.md)** | Drive Spine from the **Codex app** — install (plugin or MCP server), credentials, the tool reference, and end-to-end greenfield + brownfield walkthroughs. |
+| **[Features & Capabilities](https://github.com/synaptixs/spine/blob/main/FEATURES.md)** | The capability catalog — everything Spine can do today, its status, the command/flag to use it, and a link to each deep dive. |
+| **[Knowledge Graph (PKG)](https://github.com/synaptixs/spine/blob/main/KNOWLEDGE_GRAPH.md)** | How Spine understands your codebase — the code-native graph, its model, the CLI, and how it powers brownfield *and* greenfield work. |
+| **[Operations & Developer Guide](https://github.com/synaptixs/spine/blob/main/OPERATIONS.md)** | How to operate it: deployment modes, the full environment-variable reference, and standing up each advanced capability — including the semantic spine (ontomesh × infodrift). |
+| **[Community brief](https://github.com/synaptixs/spine/blob/main/COMMUNITY.md)** | A one-page overview to share — what it does, lifecycle coverage, how to try it, and the feedback we're looking for. |
 
-New here? **Install → [User Guide](USER_GUIDE.md) Steps 1–4.** That's the whole
+New here? **Install → [User Guide](https://github.com/synaptixs/spine/blob/main/USER_GUIDE.md) Steps 1–4.** That's the whole
 everyday workflow in about ten minutes.
 
 ---
@@ -123,7 +123,7 @@ model (Ollama). Generated code stays in a local branch until you choose `--live`
 **Do I need Docker or a database?**
 Not for the everyday path (`sdlc feature --safe` builds one requirement locally).
 The autonomous multi-feature pipeline + web dashboard needs Temporal + Postgres —
-see the [Setup guide](SETUP.md).
+see the [Setup guide](https://github.com/synaptixs/spine/blob/main/SETUP.md).
 
 **Which languages and models?**
 Code generation and comprehension cover **Python, Java, TypeScript, C#, C, and C++**
@@ -155,11 +155,11 @@ We'd love your input. Pick the channel that fits:
 - 🐛 **Bug?** Open a [bug report](https://github.com/synaptixs/spine/issues/new?template=bug_report.md).
 - 💡 **Feature idea / enhancement?** Open a [feature request](https://github.com/synaptixs/spine/issues/new?template=feature_request.md).
 - 💬 **Question, feedback, or idea to discuss?** Start a [Discussion](https://github.com/synaptixs/spine/discussions).
-- 🔒 **Security issue?** Please follow [SECURITY.md](SECURITY.md) — don't open a public issue.
+- 🔒 **Security issue?** Please follow [SECURITY.md](https://github.com/synaptixs/spine/blob/main/SECURITY.md) — don't open a public issue.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and the [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+See [CONTRIBUTING.md](https://github.com/synaptixs/spine/blob/main/CONTRIBUTING.md) and the [CODE_OF_CONDUCT.md](https://github.com/synaptixs/spine/blob/main/CODE_OF_CONDUCT.md)
 for how contributions are reviewed.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE).
+MIT License. See [LICENSE](https://github.com/synaptixs/spine/blob/main/LICENSE).
