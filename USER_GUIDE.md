@@ -147,9 +147,16 @@ table, **call-graph hotspots**, complexity/god-components, test-coverage and rec
 signals, a name-based security surface, and prioritized recommendations. A report is a
 *view* — re-run to refresh; nothing is written unless `--out` is given.
 
+**Where it's stored.** `memory-bank/` is the one artifact you **commit** — the durable,
+versioned, code-true doc your team and any AI tool reads. The graph it renders from is a
+regenerable cache at `~/.cache/orchestrator/pkg/` (rebuilt from code on every commit, so it
+can't go stale); the Current State report is a *view* you regenerate on demand. So the habit
+is: `orchestrator understand .` → commit `memory-bank/`, then re-run whenever the code moves.
+
 > **Deep dive:** see **[KNOWLEDGE_GRAPH.md](KNOWLEDGE_GRAPH.md)** for the full PKG
-> guide — the data model, the CLI (`pkg extract` / `export` / `docs`), how grounding
-> uses it, and how it works for brownfield and greenfield projects.
+> guide — the data model, the CLI (`pkg extract` / `export` / `docs`), **where each
+> artifact is persisted**, how grounding uses it, and how it works for brownfield and
+> greenfield projects.
 
 > **Multi-language.** Comprehension covers **Python** out of the box and **Java**,
 > **TypeScript**, **C#**, **C**, and **C++** when the matching parser extra is installed

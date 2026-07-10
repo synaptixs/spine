@@ -211,6 +211,26 @@ orchestrator pkg docs . -d README.md -d ARCHITECTURE.md
 Reconciles documentation claims against the actual fact graph and flags drift (docs that
 describe code that no longer exists, etc.).
 
+### Where each artifact is persisted
+
+Knowledge lives in **four layers**, each with a different lifecycle. The **source of truth
+is always your code** — everything else is either a regenerable cache, a committed
+rendering, or a durable store that accumulates over time. Nothing can silently drift,
+because the graph is rebuilt from source whenever the commit changes.
+
+| Layer | Location | Committed? | Lifecycle |
+|---|---|---|---|
+| **PKG (the graph)** | `~/.cache/orchestrator/pkg/<repo-hash>-<HEAD-sha>.json` | No | **Regenerable cache.** Commit-keyed and used only on a *clean* tree at the exact HEAD SHA; a dirty tree or new commit triggers a fresh, deterministic re-extraction. Delete it anytime — it rebuilds from code. |
+| **`memory-bank/`** | `<repo>/memory-bank/*.md` | **Yes** — commit it | **Durable, versioned doc.** The human- and AI-readable rendering of the graph. Travels with the code, shows up in diffs/PRs, and is the one artifact meant to live in version control. Refresh with `understand --refresh`. |
+| **Current-state report** | stdout, or `--out <file>` | No | **Ephemeral view.** A point-in-time snapshot for a person/audience; nothing is written unless you pass `--out`. Re-run to refresh. |
+| **Cross-run memory** | Registry DB (`MemoryRow`, keyed per repo), via `ORCHESTRATOR_DATABASE_URL` | Durable DB | **Accumulating.** Learned conventions and abstractions distilled *across* runs, surfaced to codegen as a `recall_memory` tool. Active only when the full pipeline's database is configured (see [USER_GUIDE Step 7](USER_GUIDE.md)). |
+
+**In practice:** run `understand` and **commit `memory-bank/`** — that's the durable,
+team-visible "what's already in place." The PKG cache regenerates per commit under the
+hood (this is what blast-radius and grounding read from — see §7). The current-state
+report is a view you regenerate on demand; cross-run memory compounds automatically once
+the pipeline DB is on.
+
 ---
 
 ## 5. Brownfield projects — comprehend, then deliver
