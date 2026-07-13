@@ -33,6 +33,7 @@ _LANG_BY_SUFFIX = {
     ".hxx": "cpp",
     ".go": "go",
     ".rb": "ruby",
+    ".sql": "sql",
 }
 
 

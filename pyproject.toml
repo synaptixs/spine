@@ -1,6 +1,6 @@
 [project]
 name = "synaptixs-spine"
-version = "2.6.2"
+version = "2.7.0"
 description = "Agent orchestration platform — planner, registry, runtime, verifier."
 readme = "README.md"
 license = { text = "MIT" }
@@ -68,6 +68,12 @@ cpp = [
     "tree-sitter>=0.21",
     "tree-sitter-cpp>=0.21",
 ]
+# SQL PKG front-end (.sql). Uses sqlglot (pure-Python, multi-dialect DDL+DML
+# AST — no tree-sitter). Lazy-imported by pkg/sql_extractor.py, so the base
+# install stays dependency-free: pip install 'synaptixs-spine[sql]'.
+sql = [
+    "sqlglot>=25",
+]
 # Onboard external MCP servers (DBs, Atlassian, …) as orchestrator tools. The
 # MCP client lazy-imports this, so the base install stays MCP-free.
 mcp = [
@@ -104,6 +110,9 @@ dev = [
     "opentelemetry-sdk>=1.27",
     # async SQLite driver for fast, Postgres-free repository unit tests
     "aiosqlite>=0.20",
+    # SQL PKG front-end parser — pure-Python, so CI exercises the sql_extractor
+    # tests directly rather than skipping them.
+    "sqlglot>=25",
 ]
 
 [project.scripts]
