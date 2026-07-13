@@ -238,8 +238,11 @@ Three things make it more than a table dump:
 - **Grounded like code.** Data-shaped tickets ("add a column to `orders`", "who writes to
   `sessions`?") retrieve the real schema and blast-radius, instead of the agent guessing.
 
-Default dialect is Postgres (understands dollar-quoted routine bodies); a repo on another
-dialect can override it.
+**Multi-dialect.** The dialect is **auto-detected per file** (PostgreSQL, MySQL, SQL Server /
+T-SQL, Oracle, SQLite, …) from distinctive syntax — so T-SQL `[bracketed]` identifiers, MySQL
+back-ticks, and Oracle `VARCHAR2` parse under their own grammar instead of degrading as
+Postgres. Portable DDL with no tell-tale falls back to Postgres. Pin it with `--dialect`
+(on `pkg extract` / `understand` / `state`) when detection can't tell.
 
 **Greenfield too.** SQL isn't only read — `sdlc feature --language sql` *generates* the data
 layer: it scaffolds a `migrations/` directory, writes a DDL migration for the intent, and
@@ -370,9 +373,10 @@ reviews honest.
   runtime behavior, dynamic dispatch it can't see, or values only known at execution.
 - **Parser coverage.** Python/Java/TypeScript/C#/C/C++ and **SQL** today. Other languages
   aren't extracted yet (their files are simply not represented). For C, parsing is
-  pre-preprocessor — heavy macro use yields partial facts (we never run `cpp`). For SQL,
-  stored-procedure bodies are re-parsed best-effort — exotic procedural PL/pgSQL / T-SQL
-  constructs degrade to partial facts; migration folding assumes linearly-ordered files.
+  pre-preprocessor — heavy macro use yields partial facts (we never run `cpp`). For SQL, the
+  dialect is auto-detected (override with `--dialect`); stored-procedure bodies are re-parsed
+  best-effort — exotic procedural PL/pgSQL / T-SQL constructs degrade to partial facts;
+  migration folding assumes linearly-ordered files.
 - **Heuristic edges.** Some edges (e.g. ORM-inferred foreign keys) are inferred and improve
   over time; treat them as strong hints, not proofs. When a repo ships a `.sql` schema, it
   is treated as **authoritative** and those FKs become ground truth (see §4).

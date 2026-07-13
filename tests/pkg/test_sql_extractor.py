@@ -10,7 +10,7 @@ pytest.importorskip("sqlglot")
 
 from orchestrator.pkg.extractor import RepoCodeExtractor  # noqa: E402
 from orchestrator.pkg.facts import EdgeKind, FactBatch, NodeKind  # noqa: E402
-from orchestrator.pkg.sql_extractor import SqlExtractor  # noqa: E402
+from orchestrator.pkg.sql_extractor import SqlExtractor, detect_dialect  # noqa: E402
 
 _SCHEMA = """\
 CREATE TABLE customers (
@@ -164,6 +164,52 @@ def test_sql_extractor_registered_when_sqlglot_present() -> None:
     from orchestrator.pkg.extractor import default_extractors
 
     assert any(isinstance(e, SqlExtractor) for e in default_extractors())
+
+
+# ---- A1.5: dialect detection + selection --------------------------------
+
+
+def test_detect_dialect_fingerprints() -> None:
+    assert detect_dialect("CREATE TABLE [dbo].[T] (Id INT IDENTITY(1,1), N NVARCHAR(9));") == "tsql"
+    assert (
+        detect_dialect("CREATE TABLE t (id NUMBER(9), name VARCHAR2(9), d DATE DEFAULT SYSDATE);") == "oracle"
+    )
+    assert detect_dialect("CREATE TABLE `t` (`id` INT AUTO_INCREMENT) ENGINE=InnoDB;") == "mysql"
+    assert detect_dialect("CREATE TABLE t (id SERIAL PRIMARY KEY, d JSONB);") == "postgres"
+    assert detect_dialect("CREATE TABLE t (id INT PRIMARY KEY, name TEXT);") is None  # portable → unsure
+
+
+def test_autodetect_extracts_tsql_and_mysql(tmp_path: Path) -> None:
+    # T-SQL bracket-quoting + IDENTITY would ERROR under Postgres; MySQL
+    # back-ticks would lose the table. Auto-detect (the default) recovers both.
+    (tmp_path / "mssql.sql").write_text(
+        "CREATE TABLE [dbo].[Orders] (Id INT IDENTITY(1,1) PRIMARY KEY, Name NVARCHAR(255));",
+        encoding="utf-8",
+    )
+    (tmp_path / "mysql.sql").write_text(
+        "CREATE TABLE `customers` (`id` INT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;\n"
+        "CREATE TABLE `orders` (`id` INT AUTO_INCREMENT PRIMARY KEY, `cust` INT, "
+        "FOREIGN KEY (`cust`) REFERENCES `customers`(`id`)) ENGINE=InnoDB;",
+        encoding="utf-8",
+    )
+    batch = RepoCodeExtractor().extract(tmp_path)  # sql_dialect=None → auto
+    entities = {n.name for n in batch.nodes if n.kind is NodeKind.ENTITY and not n.external}
+    assert {"Orders", "customers", "orders"} <= entities
+    refs = {(e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.REFERENCES}
+    assert ("sql:orders", "sql:customers") in refs  # MySQL FK recovered
+
+
+def test_pinned_dialect_mismatch_skips_not_crashes(tmp_path: Path) -> None:
+    # Forcing Postgres on a T-SQL file makes sqlglot raise internally; the
+    # extractor must degrade to a skip, never abort the repo scan.
+    (tmp_path / "ok.sql").write_text("CREATE TABLE t (id INT);", encoding="utf-8")
+    (tmp_path / "mssql.sql").write_text(
+        "CREATE TABLE [dbo].[T] (Id INT IDENTITY(1,1), N NVARCHAR(9));", encoding="utf-8"
+    )
+    ex = RepoCodeExtractor(sql_dialect="postgres")
+    batch = ex.extract(tmp_path)
+    assert any(n.id == "sql:t" for n in batch.nodes)  # the portable file still extracted
+    assert "mssql.sql" in ex.skipped
 
 
 def test_unparseable_file_is_skipped_not_fatal(tmp_path: Path) -> None:
