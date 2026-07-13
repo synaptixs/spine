@@ -262,6 +262,40 @@ class CToolEnvironment:
         return f"c toolchain ({self.build_tool} + system compiler)"
 
 
+class SqlToolEnvironment:
+    """SQL 'toolchain' for greenfield DDL validation (SQL Track B).
+
+    There is no external toolchain: generated migrations are validated by
+    applying them to an in-memory SQLite database (``sqlite3`` is stdlib), so
+    this environment is **always available**. ``install``/``ensure`` are no-ops
+    and ``python`` is unavailable by design (validation runs in-process via the
+    ``SqlTestRunner``, not by exec-ing an interpreter). ``dialect`` is the source
+    dialect the generated DDL is written in (transpiled to SQLite on apply)."""
+
+    declared: set[str] = set()
+
+    def __init__(self, dialect: str = "postgres") -> None:
+        self.dialect = dialect or "postgres"
+
+    @property
+    def python(self) -> str:
+        raise RuntimeError("SqlToolEnvironment has no Python interpreter")
+
+    async def ensure(self, worktree: Path | str) -> None:
+        return None
+
+    async def install(self, packages: list[str]) -> bool:
+        return False  # nothing to install — SQLite validation is stdlib
+
+    def describe(self) -> str:
+        return f"sql toolchain (in-memory SQLite; dialect={self.dialect})"
+
+
+def sql_toolchain_available() -> bool:
+    """Always True — SQL validation uses stdlib ``sqlite3`` (no external tool)."""
+    return True
+
+
 def dotnet_toolchain_available() -> bool:
     """True if the ``dotnet`` CLI is on PATH (C# codegen prerequisite)."""
     return shutil.which("dotnet") is not None
@@ -328,6 +362,8 @@ def make_test_environment(language: str = "python", *, build_tool: str = "") -> 
         return DotnetToolEnvironment()
     if language in ("c", "cpp"):
         return CToolEnvironment(build_tool or "cmake")
+    if language == "sql":
+        return SqlToolEnvironment(build_tool or "postgres")
     if os.getenv("SDLC_TEST_ISOLATION", "venv").lower() == "local":
         return LocalTestEnvironment()
     return VenvTestEnvironment()
@@ -354,6 +390,17 @@ def make_test_runner(language: str, env: TestEnvironment) -> TestRunner:
     if language in ("c", "cpp"):
         # The build tool (cmake/meson) is carried on the C/C++ tool environment.
         return MesonTestRunner() if getattr(env, "build_tool", "cmake") == "meson" else CTestRunner()
+    if language == "sql":
+        dialect = getattr(env, "dialect", "postgres")
+        # Default: fast, zero-dependency SQLite. Opt into real Postgres (Docker +
+        # the sql-postgres extra) for dialect fidelity via SDLC_SQL_ENGINE=postgres.
+        if os.getenv("SDLC_SQL_ENGINE", "sqlite").lower() == "postgres":
+            from orchestrator.sdlc.testrunner import PostgresSqlTestRunner
+
+            return PostgresSqlTestRunner(dialect=dialect)
+        from orchestrator.sdlc.testrunner import SqlTestRunner
+
+        return SqlTestRunner(dialect=dialect)
     return SubprocessTestRunner(python=env.python)
 
 
@@ -478,6 +525,7 @@ __all__ = [
     "LocalTestEnvironment",
     "MODULE_TO_PACKAGE",
     "NodeToolEnvironment",
+    "SqlToolEnvironment",
     "TestEnvironment",
     "VenvTestEnvironment",
     "c_toolchain_available",
@@ -491,4 +539,5 @@ __all__ = [
     "node_toolchain_available",
     "parse_missing_module",
     "run_with_autoheal",
+    "sql_toolchain_available",
 ]

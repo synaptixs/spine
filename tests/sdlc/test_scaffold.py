@@ -246,3 +246,29 @@ def test_flat_layout_pythonpath(tmp_path: Path) -> None:
     scaffold(tmp_path, flat)
     assert 'pythonpath = ["."]' in (tmp_path / "pyproject.toml").read_text()
     assert (tmp_path / "pkg" / "__init__.py").exists()
+
+
+def test_scaffold_sql_creates_migrations_dir(tmp_path: Path) -> None:
+    layout = TargetLayout(
+        "shop", "migrations", "migrations", True, "new", language="sql", build_tool="postgres"
+    )
+    created = scaffold(tmp_path, layout)
+    assert "migrations/README.md" in created
+    readme = (tmp_path / "migrations" / "README.md").read_text()
+    assert "postgres" in readme  # dialect noted for contributors
+    # No pyproject / source-test split — the migration is the artifact.
+    assert not (tmp_path / "pyproject.toml").exists()
+
+
+def test_scaffold_sql_coexists_with_app_code(tmp_path: Path) -> None:
+    # B3 companion mode: generating the schema alongside an existing app package
+    # must add migrations/ without disturbing the app's source tree.
+    app = tmp_path / "src" / "shop"
+    app.mkdir(parents=True)
+    (app / "orders.py").write_text("ORDERS = []\n", encoding="utf-8")
+    layout = TargetLayout(
+        "shop", "migrations", "migrations", True, "new", language="sql", build_tool="postgres"
+    )
+    scaffold(tmp_path, layout)
+    assert (tmp_path / "migrations" / "README.md").exists()
+    assert (app / "orders.py").read_text() == "ORDERS = []\n"  # app code untouched

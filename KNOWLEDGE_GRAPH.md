@@ -241,6 +241,14 @@ Three things make it more than a table dump:
 Default dialect is Postgres (understands dollar-quoted routine bodies); a repo on another
 dialect can override it.
 
+**Greenfield too.** SQL isn't only read — `sdlc feature --language sql` *generates* the data
+layer: it scaffolds a `migrations/` directory, writes a DDL migration for the intent, and
+validates it by **applying it to an ephemeral database** — in-memory SQLite by default (zero
+toolchain), or a throwaway Postgres (`SDLC_SQL_ENGINE=postgres`, the `sql-postgres` extra +
+Docker) for dialect fidelity. A failed apply is the refine signal, exactly like a failing
+test; the applied schema is introspected back through this same model to confirm it matches
+the intent.
+
 ### Where each artifact is persisted
 
 Knowledge lives in **four layers**, each with a different lifecycle. The **source of truth

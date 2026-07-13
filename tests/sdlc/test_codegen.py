@@ -286,6 +286,69 @@ async def test_java_layout_selects_java_prompts(tmp_path: Path) -> None:
     assert "package com.demo;" in llm.calls[0][-1].content  # layout block (user)
 
 
+@pytest.mark.asyncio
+async def test_sql_layout_selects_sql_migration_prompts(tmp_path: Path) -> None:
+    """A SQL layout switches implement/refine to the migration prompts and pins the
+    migrations dir + dialect in the layout block. SQL has no author_tests leg."""
+    from orchestrator.sdlc.layout import TargetLayout
+
+    layout = TargetLayout(
+        "shop", "migrations", "migrations", True, "new", language="sql", build_tool="postgres"
+    )
+    llm = _ScriptedLLM(
+        [
+            _files_response({"migrations/001_orders.sql": "CREATE TABLE orders (id INT PRIMARY KEY);"}),
+            _files_response({"migrations/001_orders.sql": "CREATE TABLE orders (id INT PRIMARY KEY);"}),
+        ]
+    )
+    adapter = LLMCodegenAdapter(llm, layout=layout)
+    change = await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="SQL-1")
+    await adapter.refine(spec=_SPEC, path=str(tmp_path), issue_key="SQL-1", failures='near "(": syntax error')
+
+    assert "SQL migration" in llm.calls[0][0].content  # implement system prompt
+    assert "dialect: **postgres**" in llm.calls[0][-1].content  # layout block pins the dialect
+    assert "migrations/" in llm.calls[0][-1].content
+    assert "failed to apply" in llm.calls[1][0].content  # refine system prompt
+    assert change.files and change.files[0].endswith("migrations/001_orders.sql")
+
+
+@pytest.mark.asyncio
+async def test_sql_generate_validate_refine_loop(tmp_path: Path) -> None:
+    """End-to-end B2: a scripted model generates a broken migration (duplicate
+    table), the SqlTestRunner applies it to SQLite and fails, refine fixes it, and
+    the rerun applies clean — the greenfield SQL loop, without an LLM."""
+    from orchestrator.sdlc.layout import TargetLayout
+    from orchestrator.sdlc.testrunner import SqlTestRunner
+
+    layout = TargetLayout(
+        "shop", "migrations", "migrations", True, "new", language="sql", build_tool="postgres"
+    )
+    llm = _ScriptedLLM(
+        [
+            # broken: the same table created twice → SQLite rejects the second.
+            _files_response(
+                {
+                    "migrations/001_orders.sql": (
+                        "CREATE TABLE orders (id INT PRIMARY KEY);\nCREATE TABLE orders (id INT);"
+                    )
+                }
+            ),
+            # refine: a single, valid CREATE.
+            _files_response({"migrations/001_orders.sql": "CREATE TABLE orders (id INT PRIMARY KEY);"}),
+        ]
+    )
+    adapter = LLMCodegenAdapter(llm, layout=layout)
+    runner = SqlTestRunner()
+
+    await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="SQL-1")
+    red = await runner.run(path=str(tmp_path))
+    assert not red.passed  # duplicate table fails on apply
+
+    await adapter.refine(spec=_SPEC, path=str(tmp_path), issue_key="SQL-1", failures=red.output)
+    green = await runner.run(path=str(tmp_path))
+    assert green.passed, green.output
+
+
 async def test_typescript_layout_selects_typescript_prompts(tmp_path: Path) -> None:
     """A TypeScript layout switches implement/author_tests/refine to the Vitest
     prompts and pins the TS module/import conventions in the layout block."""

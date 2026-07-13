@@ -32,7 +32,7 @@ _FALLBACK_PACKAGE = "app"
 _JAVA_GROUP = "org.example"  # default reverse-DNS group for greenfield Java
 
 # Source-file extension per language (Python is the default).
-_SOURCE_EXT = {"java": "java", "typescript": "ts", "csharp": "cs", "c": "c", "cpp": "cpp"}
+_SOURCE_EXT = {"java": "java", "typescript": "ts", "csharp": "cs", "c": "c", "cpp": "cpp", "sql": "sql"}
 
 
 @dataclass(frozen=True)
@@ -393,6 +393,37 @@ def _resolve_c_layout(root: Path, *, mode: str, package_name: str | None, repo: 
     )
 
 
+def detect_sql_layout(root: Path) -> bool:
+    """True if the repo already has a migrations directory holding ``.sql`` files."""
+    for name in ("migrations", "migration", "db/migrate", "db/migrations"):
+        d = root / name
+        if d.is_dir() and any(d.glob("*.sql")):
+            return True
+    return False
+
+
+def _resolve_sql_layout(root: Path, *, mode: str, package_name: str | None, repo: str | None) -> TargetLayout:
+    """SQL greenfield/brownfield layout: ordered DDL under ``migrations/``.
+
+    There is no source/test split — generated migrations *are* the artifact, and
+    "tests" run by applying them to an ephemeral database. ``build_tool`` carries
+    the SQL **dialect** (default ``postgres``), which threads into the SQL test
+    environment/runner (transpiled to SQLite on apply)."""
+    derived = package_name or derive_package_name(repo or str(root))
+    dialect = "postgres"
+    existing = detect_sql_layout(root)
+    mode_out = "existing" if (mode == "existing" or (mode == "auto" and existing)) else "new"
+    return TargetLayout(
+        package_name=derived,
+        source_dir="migrations",
+        tests_dir="migrations",
+        src_layout=True,
+        mode=mode_out,
+        language="sql",
+        build_tool=dialect,
+    )
+
+
 def _resolve_cpp_layout(root: Path, *, mode: str, package_name: str | None, repo: str | None) -> TargetLayout:
     return _resolve_native_layout(
         root, mode=mode, package_name=package_name, repo=repo, language="cpp", detect=detect_cpp_layout
@@ -443,6 +474,8 @@ def resolve_layout(
         return _resolve_c_layout(root_path, mode=mode, package_name=package_name, repo=repo)
     if language == "cpp":
         return _resolve_cpp_layout(root_path, mode=mode, package_name=package_name, repo=repo)
+    if language == "sql":
+        return _resolve_sql_layout(root_path, mode=mode, package_name=package_name, repo=repo)
     existing = detect_existing_package(root_path)
     derived = package_name or derive_package_name(repo or str(root_path))
 

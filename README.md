@@ -133,8 +133,10 @@ Code generation and comprehension cover **Python, Java, TypeScript, C#, C, and C
 `#include` graph and merges header declarations with their source definitions; C++ is
 a superset of the C front-end that adds classes, namespaces, inheritance, member
 functions, and templates, and shares C's CMake/Meson + `ctest` codegen).
-**SQL** adds data-layer *comprehension* (`[sql]` extra) — schema, foreign keys, views,
-queries, stored procedures, and ordered-migration folding — grounded from `.sql` source. Any
+**SQL** (`[sql]` extra) adds data-layer *comprehension* — schema, foreign keys, views,
+queries, stored procedures, and ordered-migration folding, grounded from `.sql` source —
+plus *greenfield codegen* (`sdlc feature --language sql`): it generates a migration and
+validates it by applying it to an ephemeral database (in-memory SQLite by default). Any
 LiteLLM-supported provider (Anthropic, OpenAI, Bedrock) or a local Ollama model;
 you can set a different model per stage.
 

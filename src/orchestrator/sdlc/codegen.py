@@ -548,6 +548,36 @@ _REFINE_SYSTEM_CPP = (
     "Same path rules — relative, no '..'."
 )
 
+# SQL (migrations, validated on an ephemeral DB) — selected when language is "sql".
+# SQL is single-phase: the migration IS the artifact, so there is no author_tests
+# leg (the feature runner skips it); validation = applying the DDL.
+_IMPLEMENT_SYSTEM_SQL = (
+    "You are a senior database engineer. Implement the data model described by the "
+    "SPEC as an ordered SQL migration inside the given project (the worktree).\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: paths are relative to the worktree root — no leading slash, no '..'. "
+    "Write migration file(s) under the migrations dir shown in the LAYOUT, named with "
+    "a zero-padded ordering prefix (e.g. `001_<feature>.sql`). Use standard portable "
+    "DDL for the dialect shown in the LAYOUT: `CREATE TABLE` with explicit column "
+    "types, primary keys, `NOT NULL` where the SPEC implies it, and `FOREIGN KEY ... "
+    "REFERENCES` for relationships (define referenced tables before they are used). "
+    "Each statement ends with `;`. Do NOT write application code or test files — the "
+    "migration IS the artifact, validated by applying it to a database."
+)
+
+_REFINE_SYSTEM_SQL = (
+    "You are fixing a migration that failed to apply — a DDL error: an undefined "
+    "table/column reference, a duplicate object, or invalid syntax. You are given the "
+    "SPEC, the CURRENT FILES, and the FAILURE OUTPUT (the database error).\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: migration files you created earlier this session may be resent in full via "
+    "`content`; other existing files change via `edits`. Fix the DDL so every statement "
+    "applies in order — define referenced tables before they are referenced. Make the "
+    "smallest change that applies cleanly. Same path rules — relative, no '..'."
+)
+
 # Phase system prompts keyed by language (default: Python). Adding a language is a
 # new column here, not another boolean branch at each call site.
 _IMPLEMENT_SYSTEMS = {
@@ -557,6 +587,7 @@ _IMPLEMENT_SYSTEMS = {
     "csharp": _IMPLEMENT_SYSTEM_CSHARP,
     "c": _IMPLEMENT_SYSTEM_C,
     "cpp": _IMPLEMENT_SYSTEM_CPP,
+    "sql": _IMPLEMENT_SYSTEM_SQL,
 }
 _TESTS_SYSTEMS = {
     "python": _TESTS_SYSTEM,
@@ -573,6 +604,7 @@ _REFINE_SYSTEMS = {
     "csharp": _REFINE_SYSTEM_CSHARP,
     "c": _REFINE_SYSTEM_C,
     "cpp": _REFINE_SYSTEM_CPP,
+    "sql": _REFINE_SYSTEM_SQL,
 }
 
 
@@ -801,6 +833,16 @@ class LLMCodegenAdapter:
                 "`int main()` returning non-zero on failure, `#include`-ing the header from "
                 f"`{layout.source_dir}/`.\n"
                 f"{build_line} Don't invent unrelated paths.\n\n"
+            )
+        if layout.language == "sql":
+            return (
+                "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
+                f"- Target SQL dialect: **{layout.build_tool}**. Write standard DDL for it.\n"
+                f"- Put migration files under `{layout.source_dir}/` named with a zero-padded "
+                f"order prefix, e.g. `{layout.source_dir}/001_<feature>.sql`; they apply in "
+                "filename order (define referenced tables before they are referenced).\n"
+                "- No application code, no test files, no build files — the migration is the "
+                "artifact, validated by applying it to a database. Don't invent unrelated paths.\n\n"
             )
         return (
             "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"

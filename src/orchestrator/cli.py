@@ -671,7 +671,7 @@ def sdlc_feature(
         str,
         typer.Option(
             "--language",
-            help="Target language: auto (detect), python, java, typescript, csharp, c, or cpp.",
+            help="Target language: auto (detect), python, java, typescript, csharp, c, cpp, or sql.",
         ),
     ] = "auto",
 ) -> None:

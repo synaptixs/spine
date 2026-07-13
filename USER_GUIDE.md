@@ -168,8 +168,12 @@ is: `orchestrator understand .` → commit `memory-bank/`, then re-run whenever 
 > foreign keys → `REFERENCES`, views and `SELECT`/`INSERT`/`UPDATE`/`DELETE` → `READS`/
 > `WRITES`, and stored procedures → `Function` + `CALLS`. A `migrations/` folder is folded
 > in order (so you see the *current* schema, with `DROP`/`RENAME` applied), and a `.sql`
-> schema is treated as authoritative over ORM-inferred foreign keys. Comprehension only for
-> now — SQL codegen is a later track. For **C#**, the graph additionally captures
+> schema is treated as authoritative over ORM-inferred foreign keys. **Greenfield SQL
+> codegen** works too: `sdlc feature --language sql` scaffolds a `migrations/` directory,
+> generates a DDL migration for the intent, and validates it by **applying it to an ephemeral
+> database** (in-memory SQLite by default — zero toolchain; set `SDLC_SQL_ENGINE=postgres`
+> with the `[sql-postgres]` extra + Docker for real-Postgres fidelity). A failed apply is the
+> refine signal, exactly like a failing test. For **C#**, the graph additionally captures
 > ASP.NET Core endpoints (`EXPOSES`) and EF Core entities (`REFERENCES`); codegen scaffolds a
 > solution + xUnit project and runs `dotnet test` (needs the **.NET SDK**). For **C**,
 > it builds the `#include` graph and merges header declarations with their source
