@@ -429,14 +429,15 @@ class PythonExtractor:
         return None  # ambiguous attribute chain — skip rather than guess
 
 
-def default_extractors() -> list[LanguageExtractor]:
+def default_extractors(*, sql_dialect: str | None = None) -> list[LanguageExtractor]:
     """The language front-ends used when none are passed explicitly.
 
     Always Python (stdlib ``ast``). Java, TypeScript, C#, and C are added **only when
     their tree-sitter grammar is importable** (the ``java`` / ``typescript`` /
     ``csharp`` / ``c`` extras) so the base install stays stdlib-only — this is what makes
     ``understand`` / grounding / ``pkg extract`` multi-language without forcing
-    the parser dependency on everyone.
+    the parser dependency on everyone. ``sql_dialect`` pins the SQL front-end to a
+    dialect (``None`` = auto-detect per file).
     """
     import importlib.util
 
@@ -466,7 +467,7 @@ def default_extractors() -> list[LanguageExtractor]:
     if importlib.util.find_spec("sqlglot"):
         from orchestrator.pkg.sql_extractor import SqlExtractor
 
-        extractors.append(SqlExtractor())
+        extractors.append(SqlExtractor(dialect=sql_dialect))
     return extractors
 
 
@@ -478,9 +479,11 @@ class RepoCodeExtractor:
         extractors: list[LanguageExtractor] | None = None,
         *,
         ignore_dirs: frozenset[str] = DEFAULT_IGNORE_DIRS,
+        sql_dialect: str | None = None,
     ) -> None:
         self._by_suffix: dict[str, LanguageExtractor] = {}
-        for ex in extractors if extractors is not None else default_extractors():
+        chosen = extractors if extractors is not None else default_extractors(sql_dialect=sql_dialect)
+        for ex in chosen:
             for suffix in ex.suffixes:
                 self._by_suffix[suffix] = ex
         self._ignore_dirs = ignore_dirs

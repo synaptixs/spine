@@ -54,10 +54,14 @@ class _MutableTable:
         )
 
 
-def fold_migrations(paths: list[Path], *, root: Path, dialect: str | None = "postgres") -> DBSchema:
-    """Replay ordered migration files into the resulting current ``DBSchema``."""
+def fold_migrations(paths: list[Path], *, root: Path, dialect: str | None = None) -> DBSchema:
+    """Replay ordered migration files into the resulting current ``DBSchema``.
+
+    ``dialect=None`` auto-detects per file (falling back to Postgres)."""
     import sqlglot
     from sqlglot import expressions as exp
+
+    from orchestrator.pkg.sql_extractor import detect_dialect
 
     tables: dict[str, _MutableTable] = {}
 
@@ -69,10 +73,10 @@ def fold_migrations(paths: list[Path], *, root: Path, dialect: str | None = "pos
 
     for path in paths:
         rel = rel_of(path)
+        text = path.read_text(encoding="utf-8")
+        file_dialect = dialect or detect_dialect(text) or "postgres"
         try:
-            statements = sqlglot.parse(
-                path.read_text(encoding="utf-8"), dialect=dialect, error_level=sqlglot.ErrorLevel.IGNORE
-            )
+            statements = sqlglot.parse(text, dialect=file_dialect, error_level=sqlglot.ErrorLevel.IGNORE)
         except Exception:  # noqa: BLE001 — a broken migration must not abort the fold
             continue
         for stmt in statements:

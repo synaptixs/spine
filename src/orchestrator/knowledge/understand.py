@@ -28,6 +28,7 @@ def build_memory_bank(
     *,
     out_dir: Path | str | None = None,
     refresh: bool = False,
+    sql_dialect: str | None = None,
     log: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     """Render + write the memory bank; return a summary dict."""
@@ -44,7 +45,11 @@ def build_memory_bank(
     root_path = Path(root)
 
     greenfield = is_effectively_empty(root_path)
-    batch = RepoCodeExtractor().extract(root_path) if refresh else load_or_extract(root_path)
+    # A pinned --dialect changes SQL extraction, so bypass the commit cache
+    # (which is keyed only by HEAD sha).
+    extractor = RepoCodeExtractor(sql_dialect=sql_dialect)
+    fresh = refresh or sql_dialect is not None
+    batch = extractor.extract(root_path) if fresh else load_or_extract(root_path)
     # A4: fold ordered migrations into the authoritative current schema, then
     # A3: let that schema stand in for ORM-inferred entities/FKs. Both no-op
     # when the repo has no migrations / no .sql schema.

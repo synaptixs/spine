@@ -168,7 +168,9 @@ is: `orchestrator understand .` → commit `memory-bank/`, then re-run whenever 
 > foreign keys → `REFERENCES`, views and `SELECT`/`INSERT`/`UPDATE`/`DELETE` → `READS`/
 > `WRITES`, and stored procedures → `Function` + `CALLS`. A `migrations/` folder is folded
 > in order (so you see the *current* schema, with `DROP`/`RENAME` applied), and a `.sql`
-> schema is treated as authoritative over ORM-inferred foreign keys. **Greenfield SQL
+> schema is treated as authoritative over ORM-inferred foreign keys. The **dialect is
+> auto-detected per file** (PostgreSQL/MySQL/SQL Server/Oracle/…) so each parses under its own
+> grammar; pin it with `--dialect` on `pkg extract`/`understand`/`state`. **Greenfield SQL
 > codegen** works too: `sdlc feature --language sql` scaffolds a `migrations/` directory,
 > generates a DDL migration for the intent, and validates it by **applying it to an ephemeral
 > database** (in-memory SQLite by default — zero toolchain; set `SDLC_SQL_ENGINE=postgres`

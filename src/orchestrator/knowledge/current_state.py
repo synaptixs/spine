@@ -697,7 +697,9 @@ def _render_developer(s: CurrentState) -> str:
     return "\n".join(o) + "\n"
 
 
-def build_current_state(root: Path | str, *, lens: str = "developer", refresh: bool = False) -> str:
+def build_current_state(
+    root: Path | str, *, lens: str = "developer", refresh: bool = False, sql_dialect: str | None = None
+) -> str:
     """Extract the PKG + profile for ``root`` and render the current-state markdown."""
     from orchestrator.catalog.profile import ProjectProfile
     from orchestrator.pkg.data_layer_link import link_data_layer
@@ -706,7 +708,11 @@ def build_current_state(root: Path | str, *, lens: str = "developer", refresh: b
     from orchestrator.pkg.persistence import load_or_extract
 
     root_path = Path(root)
-    batch = RepoCodeExtractor().extract(root_path) if refresh else load_or_extract(root_path)
+    # A pinned --dialect changes SQL extraction, so bypass the sha-keyed cache.
+    if refresh or sql_dialect is not None:
+        batch = RepoCodeExtractor(sql_dialect=sql_dialect).extract(root_path)
+    else:
+        batch = load_or_extract(root_path)
     # A4 (fold ordered migrations → current schema) then A3 (schema is
     # authoritative over ORM-inferred entities). Both no-op without SQL.
     batch = apply_migrations(batch, root_path)

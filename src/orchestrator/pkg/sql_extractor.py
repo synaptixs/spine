@@ -43,6 +43,48 @@ _CALL_RE = re.compile(r"\b(?:CALL|PERFORM)\s+([A-Za-z_][\w.]*)\s*\(", re.IGNOREC
 _LEADING_BEGIN_RE = re.compile(r"^\s*(?:DECLARE\b.*?)?\bBEGIN\b", re.IGNORECASE | re.DOTALL)
 _TRAILING_END_RE = re.compile(r"\bEND\b\s*;?\s*$", re.IGNORECASE)
 
+# Dialect fingerprints — distinctive syntax per sqlglot dialect. Auto-detect
+# picks the highest-scoring dialect so Oracle / SQL Server / MySQL parse under
+# their own grammar instead of degrading as Postgres. Portable DDL (no signal)
+# falls back to Postgres (the most permissive default, and it handles `$$`).
+_DIALECT_SIGNALS: dict[str, tuple[re.Pattern[str], ...]] = {
+    "tsql": tuple(
+        re.compile(p, re.IGNORECASE | re.MULTILINE)
+        for p in (
+            r"\bNVARCHAR\b",
+            r"\bIDENTITY\s*\(",
+            r"^\s*GO\s*$",
+            r"\[\w+\]",
+            r"\bGETDATE\s*\(",
+            r"@@\w+",
+            r"\bISNULL\s*\(",
+        )
+    ),
+    "oracle": tuple(
+        re.compile(p, re.IGNORECASE | re.MULTILINE)
+        for p in (r"\bVARCHAR2\b", r"\bNUMBER\s*\(", r"\bSYSDATE\b", r"\bNVL\s*\(", r"\bDUAL\b", r"^\s*/\s*$")
+    ),
+    "mysql": tuple(
+        re.compile(p, re.IGNORECASE | re.MULTILINE)
+        for p in (r"`\w+`", r"\bAUTO_INCREMENT\b", r"\bENGINE\s*=", r"\bUNSIGNED\b", r"\bTINYINT\b")
+    ),
+    "postgres": tuple(
+        re.compile(p, re.IGNORECASE | re.MULTILINE)
+        for p in (r"\bSERIAL\b", r"\$\$", r"\bJSONB\b", r"::\w+", r"\bRETURNING\b", r"\bBYTEA\b")
+    ),
+}
+
+
+def detect_dialect(sql: str) -> str | None:
+    """Best-guess sqlglot dialect from distinctive syntax, or ``None`` if unsure.
+
+    ``None`` means "no dialect-specific signal" — the caller falls back to
+    Postgres (portable DDL parses fine there, and it understands `$$` bodies).
+    """
+    scores = {d: sum(len(p.findall(sql)) for p in pats) for d, pats in _DIALECT_SIGNALS.items()}
+    best = max(scores, key=lambda d: scores[d])
+    return best if scores[best] > 0 else None
+
 
 class SqlExtractor:
     """SQL front-end (sqlglot). Install the ``sql`` extra to use it."""
@@ -50,13 +92,13 @@ class SqlExtractor:
     language: str = "sql"
     suffixes: tuple[str, ...] = (".sql",)
 
-    def __init__(self, dialect: str | None = "postgres") -> None:
-        # Default to Postgres: it's the most common dialect and, unlike the
-        # generic tokenizer, understands dollar-quoted (``$$…$$``) routine
-        # bodies — essential for A2 procedure parsing. A repo on another dialect
-        # (MySQL back-ticks, T-SQL brackets) can override; unparseable
-        # statements degrade to a skip, never a crash (``error_level=IGNORE``).
+    def __init__(self, dialect: str | None = None) -> None:
+        # ``None`` = auto-detect the dialect per file (Oracle / SQL Server / MySQL
+        # / Postgres), falling back to Postgres when there's no distinctive signal
+        # (portable DDL, and Postgres handles ``$$`` bodies). An explicit dialect
+        # (e.g. from ``--dialect``) pins every file and skips detection.
         self._dialect = dialect
+        self._active_dialect = dialect or "postgres"
 
     def module_name(self, path: Path, root: Path) -> str:
         # A .sql file has no package declaration; the module is its repo path.
@@ -67,7 +109,6 @@ class SqlExtractor:
 
         import sqlglot
         from sqlglot import expressions as exp
-        from sqlglot.errors import ParseError, TokenError
 
         # We parse with error_level=IGNORE on purpose, so sqlglot's "falling back
         # to Command" warnings for unsupported (often procedural) syntax are
@@ -75,12 +116,19 @@ class SqlExtractor:
         logging.getLogger("sqlglot").setLevel(logging.ERROR)
 
         text = path.read_text(encoding="utf-8")
+        # Auto-detect per file unless a dialect was pinned; used by every parse
+        # below (and the routine-body re-parse) so this file reads under its own
+        # grammar.
+        dialect = self._dialect or detect_dialect(text) or "postgres"
+        self._active_dialect = dialect
         try:
-            statements = sqlglot.parse(text, dialect=self._dialect, error_level=sqlglot.ErrorLevel.IGNORE)
-            start_lines = _statement_start_lines(text, self._dialect)
-        except (ParseError, TokenError) as err:
-            # A file sqlglot can't tokenise at all → skipped, per the
-            # RepoCodeExtractor contract (it catches ValueError).
+            statements = sqlglot.parse(text, dialect=dialect, error_level=sqlglot.ErrorLevel.IGNORE)
+            start_lines = _statement_start_lines(text, dialect)
+        except Exception as err:  # noqa: BLE001
+            # Any sqlglot failure (ParseError/TokenError, or an internal
+            # AttributeError when the file's syntax doesn't match the chosen
+            # dialect) → skip this file, per the RepoCodeExtractor contract
+            # (it catches ValueError). Never abort the whole repo extraction.
             raise ValueError(f"sqlglot could not parse {rel}: {err}") from err
 
         module_id = f"sql:{module}" if module else "sql:<root>"
@@ -199,10 +247,10 @@ class SqlExtractor:
         batch.add_node(Node(func_id, NodeKind.FUNCTION, tbl.name, "sql", prov))
         batch.add_edge(Edge(module_id, func_id, EdgeKind.CONTAINS, prov))
 
-        body = _routine_body(stmt)
+        body = _routine_body(stmt, self._active_dialect)
         if not body:
             return
-        for sub in _reparse_body(body, self._dialect):
+        for sub in _reparse_body(body, self._active_dialect):
             if isinstance(sub, exp.Select | exp.Insert | exp.Update | exp.Delete):
                 self._emit_data_access(sub, func_id, prov, batch)
             for anon in sub.find_all(exp.Anonymous):  # SELECT foo() style calls
@@ -287,7 +335,7 @@ def _classify_tables(stmt: exp.Expression) -> tuple[set[str], set[str]]:
     return set(), all_tables
 
 
-def _routine_body(stmt: exp.Create) -> str:
+def _routine_body(stmt: exp.Create, dialect: str) -> str:
     """The routine's body text (``$$…$$`` heredoc or a quoted string)."""
     from sqlglot import expressions as exp
 
@@ -296,7 +344,7 @@ def _routine_body(stmt: exp.Create) -> str:
         return ""
     if isinstance(expr, exp.Literal):
         return str(expr.this)
-    raw = str(expr.sql(dialect="postgres")).strip()
+    raw = str(expr.sql(dialect=dialect)).strip()
     if raw.startswith("$$") and raw.endswith("$$"):
         return raw[2:-2]
     if len(raw) >= 2 and raw[0] in "'\"" and raw[-1] == raw[0]:
@@ -350,4 +398,4 @@ def _aligned_lines(statements: list[Any], start_lines: list[int]) -> list[int]:
     return start_lines + [1] * (len(kept) - len(start_lines))
 
 
-__all__ = ["SqlExtractor"]
+__all__ = ["SqlExtractor", "detect_dialect"]

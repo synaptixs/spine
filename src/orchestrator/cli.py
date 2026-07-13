@@ -1269,6 +1269,10 @@ def understand(
     refresh: Annotated[
         bool, typer.Option("--refresh", help="Re-extract the PKG instead of using the commit cache.")
     ] = False,
+    dialect: Annotated[
+        str | None,
+        typer.Option("--dialect", help="SQL dialect (postgres|mysql|tsql|oracle|…); default: auto-detect."),
+    ] = None,
 ) -> None:
     """Build a committed `memory-bank/` — a code-true project knowledge base.
 
@@ -1278,7 +1282,7 @@ def understand(
     """
     from orchestrator.knowledge import build_memory_bank
 
-    result = build_memory_bank(path, out_dir=out, refresh=refresh, log=typer.echo)
+    result = build_memory_bank(path, out_dir=out, refresh=refresh, sql_dialect=dialect, log=typer.echo)
     _print(
         {
             "dir": result["dir"],
@@ -1300,6 +1304,10 @@ def state(
     refresh: Annotated[
         bool, typer.Option("--refresh", help="Re-extract the PKG instead of using the commit cache.")
     ] = False,
+    dialect: Annotated[
+        str | None,
+        typer.Option("--dialect", help="SQL dialect (postgres|mysql|tsql|oracle|…); default: auto-detect."),
+    ] = None,
 ) -> None:
     """Current State — a team-facing snapshot of what a repo is today and how healthy it looks.
 
@@ -1313,7 +1321,7 @@ def state(
     if lens not in ("developer", "stakeholder"):
         typer.echo("ERROR: --lens must be 'developer' or 'stakeholder'.", err=True)
         raise typer.Exit(code=2)
-    markdown = build_current_state(path, lens=lens, refresh=refresh)
+    markdown = build_current_state(path, lens=lens, refresh=refresh, sql_dialect=dialect)
     if out is not None:
         out.write_text(markdown, encoding="utf-8")
         typer.echo(f"wrote {out}")
@@ -1381,11 +1389,15 @@ def pkg_extract(
         str | None, typer.Option("--query", "-q", help="Show callers + blast radius of a symbol name.")
     ] = None,
     as_json: Annotated[bool, typer.Option("--json", help="Dump all facts as JSON.")] = False,
+    dialect: Annotated[
+        str | None,
+        typer.Option("--dialect", help="SQL dialect (postgres|mysql|tsql|oracle|…); default: auto-detect."),
+    ] = None,
 ) -> None:
     """Extract grounded code facts from a repo and print a summary (read-only)."""
     from orchestrator.pkg import FactStore, RepoCodeExtractor
 
-    extractor = RepoCodeExtractor()
+    extractor = RepoCodeExtractor(sql_dialect=dialect)
     store = FactStore(extractor.extract(path))
 
     if as_json:
