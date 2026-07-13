@@ -700,11 +700,17 @@ def _render_developer(s: CurrentState) -> str:
 def build_current_state(root: Path | str, *, lens: str = "developer", refresh: bool = False) -> str:
     """Extract the PKG + profile for ``root`` and render the current-state markdown."""
     from orchestrator.catalog.profile import ProjectProfile
+    from orchestrator.pkg.data_layer_link import link_data_layer
     from orchestrator.pkg.extractor import RepoCodeExtractor
+    from orchestrator.pkg.migrations import apply_migrations
     from orchestrator.pkg.persistence import load_or_extract
 
     root_path = Path(root)
     batch = RepoCodeExtractor().extract(root_path) if refresh else load_or_extract(root_path)
+    # A4 (fold ordered migrations → current schema) then A3 (schema is
+    # authoritative over ORM-inferred entities). Both no-op without SQL.
+    batch = apply_migrations(batch, root_path)
+    batch = link_data_layer(batch)
     profile = ProjectProfile.from_repo(root_path)
     state = compute_current_state(batch, profile, root=root_path)
     return render_current_state(state, lens=lens)

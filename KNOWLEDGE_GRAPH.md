@@ -116,7 +116,7 @@ walking edges, not by guessing.
 
 ```mermaid
 flowchart LR
-    src["Source files<br/>(.py · .java · .ts/.tsx · .cs · .c/.h)"] --> ext["Language extractor<br/>(tree-sitter / AST)"]
+    src["Source files<br/>(.py · .java · .ts/.tsx · .cs · .c/.h · .sql)"] --> ext["Language extractor<br/>(tree-sitter / AST / sqlglot)"]
     ext --> facts["Facts<br/>Nodes + Edges + Provenance"]
     facts --> cache["Per-commit cache"]
     facts --> store["Fact store<br/>(queryable)"]
@@ -210,6 +210,36 @@ orchestrator pkg docs . -d README.md -d ARCHITECTURE.md
 ```
 Reconciles documentation claims against the actual fact graph and flags drift (docs that
 describe code that no longer exists, etc.).
+
+### SQL — the data layer, extracted from source
+
+`.sql` files are a first-class language (install the **`sql`** extra —
+`pip install 'synaptixs-spine[sql]'`; parsing is [`sqlglot`](https://github.com/tobymao/sqlglot),
+pure-Python, multi-dialect). Unlike the *live-DB* introspector (which needs a running
+database), this reads your schema **from source**, so every table and column is grounded to
+a `file:line` you can jump to:
+
+| SQL | PKG |
+|---|---|
+| `CREATE TABLE` / column | `Entity` / `Field` |
+| `FOREIGN KEY … REFERENCES` | `REFERENCES` edge (**ground truth**) |
+| `CREATE VIEW … AS SELECT` | `Entity` + `READS` its base tables |
+| `SELECT` / `INSERT` / `UPDATE` / `DELETE` | `READS` / `WRITES` |
+| `CREATE FUNCTION` / `PROCEDURE` | `Function` + body `READS` / `WRITES` / `CALLS` |
+
+Three things make it more than a table dump:
+
+- **Migration-aware.** A `migrations/` directory of ordered `.sql` files is *folded in order*
+  (applying `ADD` / `DROP` / `RENAME` / `DROP TABLE`), so `understand` / `state` show the
+  **current** schema — not every column that ever existed.
+- **Cross-language authoritative.** When a repo has both a `.sql` schema and an ORM model
+  (e.g. C# EF Core), the two are reconciled onto one entity per table and the **schema's**
+  foreign keys win over the ORM's inferred ones.
+- **Grounded like code.** Data-shaped tickets ("add a column to `orders`", "who writes to
+  `sessions`?") retrieve the real schema and blast-radius, instead of the agent guessing.
+
+Default dialect is Postgres (understands dollar-quoted routine bodies); a repo on another
+dialect can override it.
 
 ### Where each artifact is persisted
 
@@ -330,11 +360,14 @@ reviews honest.
 
 - **Static, not runtime.** The PKG is built from source structure; it doesn't capture
   runtime behavior, dynamic dispatch it can't see, or values only known at execution.
-- **Parser coverage.** Python/Java/TypeScript/C#/C/C++ today. Other languages aren't
-  extracted yet (their files are simply not represented). For C, parsing is
-  pre-preprocessor — heavy macro use yields partial facts (we never run `cpp`).
-- **Heuristic edges.** Some edges (e.g. data-layer foreign keys) are inferred and improve
-  over time; treat them as strong hints, not proofs.
+- **Parser coverage.** Python/Java/TypeScript/C#/C/C++ and **SQL** today. Other languages
+  aren't extracted yet (their files are simply not represented). For C, parsing is
+  pre-preprocessor — heavy macro use yields partial facts (we never run `cpp`). For SQL,
+  stored-procedure bodies are re-parsed best-effort — exotic procedural PL/pgSQL / T-SQL
+  constructs degrade to partial facts; migration folding assumes linearly-ordered files.
+- **Heuristic edges.** Some edges (e.g. ORM-inferred foreign keys) are inferred and improve
+  over time; treat them as strong hints, not proofs. When a repo ships a `.sql` schema, it
+  is treated as **authoritative** and those FKs become ground truth (see §4).
 - **Domain meaning is separate.** The PKG knows *structure*, not business intent — that's
   ontomesh's job, and it's optional.
 

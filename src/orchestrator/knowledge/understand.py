@@ -32,7 +32,9 @@ def build_memory_bank(
 ) -> dict[str, Any]:
     """Render + write the memory bank; return a summary dict."""
     from orchestrator.catalog.profile import ProjectProfile
+    from orchestrator.pkg.data_layer_link import link_data_layer
     from orchestrator.pkg.extractor import RepoCodeExtractor
+    from orchestrator.pkg.migrations import apply_migrations
     from orchestrator.pkg.persistence import load_or_extract
     from orchestrator.pkg.stats import summarise_store
     from orchestrator.pkg.store import FactStore
@@ -43,6 +45,11 @@ def build_memory_bank(
 
     greenfield = is_effectively_empty(root_path)
     batch = RepoCodeExtractor().extract(root_path) if refresh else load_or_extract(root_path)
+    # A4: fold ordered migrations into the authoritative current schema, then
+    # A3: let that schema stand in for ORM-inferred entities/FKs. Both no-op
+    # when the repo has no migrations / no .sql schema.
+    batch = apply_migrations(batch, root_path)
+    batch = link_data_layer(batch)
     store = FactStore(batch)
     stats = summarise_store(store)
     profile = ProjectProfile.from_repo(root_path)

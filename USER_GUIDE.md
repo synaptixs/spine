@@ -64,10 +64,11 @@ orchestrator --help
 Optional extras, added when you need them:
 - `pip install 'synaptixs-spine[sdlc]'` — run the generated tests (the `sdlc feature`/`run` path)
 - `pip install 'synaptixs-spine[tui]'` — the `orchestrator tui` terminal UI (Step 7)
-- `[java]`, `[typescript]`, `[csharp]`, `[c]`, `[cpp]` — language parsers for comprehension +
-  grounding (Python needs no extra). C# codegen also needs the **.NET SDK** (`dotnet`)
-  on PATH; C / C++ codegen needs a C / C++ compiler plus **CMake** (greenfield) or
-  **Meson + Ninja** (matching the target repo's build system).
+- `[java]`, `[typescript]`, `[csharp]`, `[c]`, `[cpp]`, `[sql]` — language parsers for
+  comprehension + grounding (Python needs no extra). C# codegen also needs the **.NET SDK**
+  (`dotnet`) on PATH; C / C++ codegen needs a C / C++ compiler plus **CMake** (greenfield) or
+  **Meson + Ninja** (matching the target repo's build system). `[sql]` adds `.sql`
+  comprehension (schema/queries/procedures + migration folding) — no toolchain needed.
 - `[mcp]` (MCP client), `[otel]` (live tracing)
 
 ### Upgrading
@@ -159,10 +160,16 @@ is: `orchestrator understand .` → commit `memory-bank/`, then re-run whenever 
 > greenfield projects.
 
 > **Multi-language.** Comprehension covers **Python** out of the box and **Java**,
-> **TypeScript**, **C#**, **C**, and **C++** when the matching parser extra is installed
-> (`pip install 'synaptixs-spine[java]'` / `[typescript]` / `[csharp]` / `[c]` / `[cpp]`).
-> `understand`, codegen grounding, and `pkg extract` then process `.java` / `.ts` /
-> `.cs` / `.c` / `.h` / `.cpp` / `.hpp` too. For **C#**, the graph additionally captures
+> **TypeScript**, **C#**, **C**, **C++**, and **SQL** when the matching parser extra is
+> installed (`pip install 'synaptixs-spine[java]'` / `[typescript]` / `[csharp]` / `[c]` /
+> `[cpp]` / `[sql]`). `understand`, codegen grounding, and `pkg extract` then process
+> `.java` / `.ts` / `.cs` / `.c` / `.h` / `.cpp` / `.hpp` / `.sql` too. For **SQL**, the
+> graph models the **data layer from source** — `CREATE TABLE`/columns → `Entity`/`Field`,
+> foreign keys → `REFERENCES`, views and `SELECT`/`INSERT`/`UPDATE`/`DELETE` → `READS`/
+> `WRITES`, and stored procedures → `Function` + `CALLS`. A `migrations/` folder is folded
+> in order (so you see the *current* schema, with `DROP`/`RENAME` applied), and a `.sql`
+> schema is treated as authoritative over ORM-inferred foreign keys. Comprehension only for
+> now — SQL codegen is a later track. For **C#**, the graph additionally captures
 > ASP.NET Core endpoints (`EXPOSES`) and EF Core entities (`REFERENCES`); codegen scaffolds a
 > solution + xUnit project and runs `dotnet test` (needs the **.NET SDK**). For **C**,
 > it builds the `#include` graph and merges header declarations with their source

@@ -22,6 +22,9 @@ class DBColumn:
     name: str
     type: str = ""
     nullable: bool = True
+    # Source provenance (``file:line``) when the schema was parsed from ``.sql``
+    # source rather than introspected from a live DB (which has no file).
+    provenance: Provenance | None = None
 
 
 @dataclass(frozen=True)
@@ -31,6 +34,7 @@ class ForeignKey:
     column: str
     ref_table: str
     ref_column: str = ""
+    provenance: Provenance | None = None
 
 
 @dataclass(frozen=True)
@@ -38,6 +42,9 @@ class DBTable:
     name: str
     columns: tuple[DBColumn, ...] = ()
     foreign_keys: tuple[ForeignKey, ...] = ()
+    # A view is still a data ``Entity``; the flag lets renderers/A2 distinguish it.
+    is_view: bool = False
+    provenance: Provenance | None = None
 
 
 @dataclass(frozen=True)
@@ -98,4 +105,61 @@ def schema_to_facts(schema: DBSchema) -> FactBatch:
     return batch
 
 
-__all__ = ["DBColumn", "DBSchema", "DBTable", "ForeignKey", "schema_to_facts"]
+def sql_source_to_facts(schema: DBSchema, *, module_id: str) -> FactBatch:
+    """Project a **source-parsed** ``DBSchema`` (with file provenance) into facts.
+
+    The sibling of :func:`schema_to_facts` (live-DB introspection, synthetic
+    ``db://`` locators). Here ids are ``sql:<table>`` and every node points at
+    the real ``.sql`` source, so schema nodes are blast-radius-retrievable like
+    any other grounded symbol. ``CONTAINS`` runs from ``module_id`` (the file).
+
+    Foreign keys emit ``REFERENCES`` unconditionally — a target defined in
+    *another* file gets an ``external`` placeholder that that file's ``CREATE``
+    upgrades in place when the batches merge (so cross-file FKs resolve without
+    the single-schema ``skip`` that :func:`schema_to_facts` uses).
+    """
+    batch = FactBatch()
+
+    def entity_id(table: str) -> str:
+        return f"sql:{table}"
+
+    for table in schema.tables:
+        eid = entity_id(table.name)
+        batch.add_node(
+            Node(id=eid, kind=NodeKind.ENTITY, name=table.name, language="sql", provenance=table.provenance)
+        )
+        batch.add_edge(Edge(src=module_id, dst=eid, kind=EdgeKind.CONTAINS))
+        for column in table.columns:
+            fid = f"{eid}.{column.name}"
+            batch.add_node(
+                Node(
+                    id=fid,
+                    kind=NodeKind.FIELD,
+                    name=f"{table.name}.{column.name}",
+                    language="sql",
+                    provenance=column.provenance,
+                )
+            )
+            batch.add_edge(Edge(src=eid, dst=fid, kind=EdgeKind.CONTAINS))
+
+    for table in schema.tables:
+        src_id = entity_id(table.name)
+        for fk in table.foreign_keys:
+            dst_id = entity_id(fk.ref_table)
+            # Placeholder for a target this file doesn't define; a grounded
+            # CREATE elsewhere upgrades it (FactBatch prefers the grounded node).
+            batch.add_node(
+                Node(id=dst_id, kind=NodeKind.ENTITY, name=fk.ref_table, language="sql", external=True)
+            )
+            batch.add_edge(Edge(src=src_id, dst=dst_id, kind=EdgeKind.REFERENCES, provenance=fk.provenance))
+    return batch
+
+
+__all__ = [
+    "DBColumn",
+    "DBSchema",
+    "DBTable",
+    "ForeignKey",
+    "schema_to_facts",
+    "sql_source_to_facts",
+]

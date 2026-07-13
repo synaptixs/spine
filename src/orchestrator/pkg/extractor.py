@@ -462,6 +462,11 @@ def default_extractors() -> list[LanguageExtractor]:
         from orchestrator.pkg.cpp_extractor import CppExtractor
 
         extractors.append(CppExtractor())
+    # SQL uses sqlglot (pure-Python, no tree-sitter) behind the ``sql`` extra.
+    if importlib.util.find_spec("sqlglot"):
+        from orchestrator.pkg.sql_extractor import SqlExtractor
+
+        extractors.append(SqlExtractor())
     return extractors
 
 
