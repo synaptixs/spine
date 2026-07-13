@@ -156,17 +156,16 @@ def apply_sql_postgres(texts: list[str], dsn: str, *, dialect: str = "postgres")
     apply signal the refine loop needs.
     """
     import psycopg  # lazy: only when the postgres engine is actually used
+    import sqlglot
 
+    # Split each file into individual statements and re-emit as Postgres (a
+    # near-identity transpile when the source already IS postgres) — psycopg's
+    # execute() runs one statement per call, so a multi-statement file must be split.
     statements: list[str] = []
-    if dialect == "postgres":
-        statements = [t for t in texts if t.strip()]
-    else:
-        import sqlglot
-
-        for text in texts:
-            statements.extend(
-                sqlglot.transpile(text, read=dialect, write="postgres", error_level=sqlglot.ErrorLevel.IGNORE)
-            )
+    for text in texts:
+        statements.extend(
+            sqlglot.transpile(text, read=dialect, write="postgres", error_level=sqlglot.ErrorLevel.IGNORE)
+        )
 
     applied = 0
     try:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -141,3 +142,34 @@ def _has_testcontainers() -> bool:
     import importlib.util
 
     return importlib.util.find_spec("testcontainers") is not None
+
+
+# Real-Postgres integration test — opt-in (needs Docker + the sql-postgres extra).
+# Skipped by default (including CI); run with RUN_POSTGRES_IT=1.
+@pytest.mark.skipif(
+    not os.getenv("RUN_POSTGRES_IT") or not _has_testcontainers(),
+    reason="set RUN_POSTGRES_IT=1 and install the sql-postgres extra (needs Docker)",
+)
+@pytest.mark.asyncio
+async def test_postgres_runner_applies_and_enforces_fks(tmp_path: Path) -> None:
+    from orchestrator.sdlc.testrunner import PostgresSqlTestRunner
+
+    mig = tmp_path / "migrations"
+    mig.mkdir()
+    # Postgres enforces FKs at apply time (unlike SQLite): a valid two-table
+    # migration applies, but an FK to an undefined table is rejected.
+    (mig / "001.sql").write_text(
+        "CREATE TABLE customers (id SERIAL PRIMARY KEY);\n"
+        "CREATE TABLE orders (id SERIAL PRIMARY KEY, cid INT REFERENCES customers(id));",
+        encoding="utf-8",
+    )
+    ok = await PostgresSqlTestRunner().run(path=str(tmp_path))
+    assert ok.passed, ok.output
+    assert "2 statement" in ok.output
+
+    (mig / "001.sql").write_text(
+        "CREATE TABLE orders (id SERIAL PRIMARY KEY, cid INT REFERENCES missing(id));", encoding="utf-8"
+    )
+    bad = await PostgresSqlTestRunner().run(path=str(tmp_path))
+    assert not bad.passed
+    assert "missing" in bad.output
