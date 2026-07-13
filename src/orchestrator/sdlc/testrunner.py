@@ -347,6 +347,85 @@ def _discover_dotnet_target(root: Path) -> str | None:
     return None
 
 
+class SqlTestRunner:
+    """Validates generated SQL by applying it to an ephemeral SQLite database.
+
+    SQL has no unit-test process to exec (SQL Track B). Instead the migration
+    ``.sql`` files in the worktree are transpiled to SQLite and applied in order
+    (see ``sql_build.apply_sql``); ``passed`` means *the DDL applied cleanly* — a
+    real DDL error (bad reference, duplicate table) is the refine signal. No
+    external toolchain: ``sqlite3`` is in the standard library, so this always
+    runs. Migration order is the ``migrations/`` fold order when present, else
+    a stable path sort."""
+
+    def __init__(self, dialect: str = "postgres") -> None:
+        self._dialect = dialect
+
+    async def run(self, *, path: str) -> TestRunResult:
+        from orchestrator.pkg.migrations import find_migration_files
+        from orchestrator.sdlc.sql_build import apply_sql
+
+        root = Path(path)
+        files = find_migration_files(root) or sorted(root.rglob("*.sql"))
+        if not files:
+            return TestRunResult(passed=False, returncode=-1, output="no .sql files to apply")
+        texts = [f.read_text(encoding="utf-8") for f in files]
+        result = await asyncio.to_thread(apply_sql, texts, dialect=self._dialect)
+        if result.ok:
+            n_tables = len(result.schema.tables) if result.schema else 0
+            return TestRunResult(
+                passed=True,
+                returncode=0,
+                output=f"applied {result.applied} statement(s) → {n_tables} table(s)",
+            )
+        return TestRunResult(passed=False, returncode=1, output=result.error)
+
+
+class PostgresSqlTestRunner:
+    """Validates generated SQL against a throwaway **Postgres** (SQL Track B, B4).
+
+    Higher fidelity than the SQLite default — dialect-specific Postgres features
+    apply as written. Spins an ephemeral Postgres via ``testcontainers`` (needs
+    Docker + the ``sql-postgres`` extra) and applies the worktree's migrations
+    with ``psycopg``. Opt-in via ``SDLC_SQL_ENGINE=postgres``; falls back to a
+    clear failure (not a crash) when the toolchain is absent."""
+
+    def __init__(self, dialect: str = "postgres", *, timeout: float = 300.0) -> None:
+        self._dialect = dialect
+        self._timeout = timeout
+
+    async def run(self, *, path: str) -> TestRunResult:
+        from orchestrator.pkg.migrations import find_migration_files
+        from orchestrator.sdlc.sql_build import apply_sql_postgres
+
+        root = Path(path)
+        files = find_migration_files(root) or sorted(root.rglob("*.sql"))
+        if not files:
+            return TestRunResult(passed=False, returncode=-1, output="no .sql files to apply")
+        texts = [f.read_text(encoding="utf-8") for f in files]
+
+        def _run() -> TestRunResult:
+            try:
+                from testcontainers.postgres import PostgresContainer  # type: ignore[import-not-found]
+            except ImportError:
+                return TestRunResult(
+                    passed=False,
+                    returncode=-1,
+                    output="postgres engine needs the 'sql-postgres' extra "
+                    "(testcontainers + psycopg) and Docker",
+                )
+            with PostgresContainer("postgres:16-alpine", driver="psycopg") as pg:
+                dsn = pg.get_connection_url().replace("postgresql+psycopg://", "postgresql://")
+                result = apply_sql_postgres(texts, dsn, dialect=self._dialect)
+            if result.ok:
+                return TestRunResult(
+                    passed=True, returncode=0, output=f"applied {result.applied} statement(s)"
+                )
+            return TestRunResult(passed=False, returncode=1, output=result.error)
+
+        return await asyncio.to_thread(_run)
+
+
 class StubTestRunner:
     """Scriptable in-memory runner for offline tests.
 
@@ -373,6 +452,8 @@ __all__ = [
     "MavenTestRunner",
     "MesonTestRunner",
     "NodeTestRunner",
+    "PostgresSqlTestRunner",
+    "SqlTestRunner",
     "StubTestRunner",
     "SubprocessTestRunner",
     "TestRunResult",

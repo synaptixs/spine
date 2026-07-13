@@ -270,3 +270,18 @@ class TestCppLayout:
         (tmp_path / "tests").mkdir()
         # src holds .cpp → it's the source dir; package from the CMake project() name.
         assert detect_cpp_layout(tmp_path) == ("engine", "src", "tests")
+
+
+def test_new_sql_layout_is_migrations_dir(tmp_path: Path) -> None:
+    layout = resolve_layout(tmp_path, mode="new", language="sql", repo="https://x/shop-db")
+    assert layout.language == "sql" and layout.mode == "new"
+    assert layout.source_dir == "migrations" and layout.tests_dir == "migrations"
+    assert layout.build_tool == "postgres"  # dialect carried on build_tool
+    assert layout.module_rel_path("orders") == "migrations/orders.sql"
+
+
+def test_auto_detects_existing_migrations_dir(tmp_path: Path) -> None:
+    (tmp_path / "migrations").mkdir()
+    (tmp_path / "migrations" / "001_init.sql").write_text("CREATE TABLE t (id INT);\n")
+    layout = resolve_layout(tmp_path, mode="auto", language="sql")
+    assert layout.language == "sql" and layout.mode == "existing"

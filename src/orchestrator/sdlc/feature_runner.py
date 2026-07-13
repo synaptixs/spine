@@ -372,9 +372,12 @@ async def run_feature(
             spec=spec, path=str(path), issue_key=issue_key, skills=capability_plan.skills
         )
     emit(f"[implement] {[Path(f).name for f in impl.files]} - {impl.summary}")
-    with llm.stage("author_tests"):
-        tests = await codegen.author_tests(spec=spec, path=str(path), issue_key=issue_key)
-    emit(f"[author_tests] {[Path(f).name for f in tests.files]} - {tests.summary}")
+    # SQL is single-phase: the migration IS the artifact and is validated by applying
+    # it to an ephemeral database, so there is no separate test-authoring leg.
+    if lang != "sql":
+        with llm.stage("author_tests"):
+            tests = await codegen.author_tests(spec=spec, path=str(path), issue_key=issue_key)
+        emit(f"[author_tests] {[Path(f).name for f in tests.files]} - {tests.summary}")
 
     passed = False
     iterations = 0

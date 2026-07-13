@@ -87,6 +87,8 @@ def scaffold(root: Path | str, layout: TargetLayout, *, profile: ProjectProfile 
         files = _c_files(layout)
     elif layout.language == "cpp":
         files = _cpp_files(layout)
+    elif layout.language == "sql":
+        files = _sql_files(layout)
     else:
         files = _python_files(layout)
 
@@ -128,6 +130,23 @@ def _ensure_build_ignores(root: Path, dirs: tuple[str, ...]) -> list[str]:
         encoding="utf-8",
     )
     return [".gitignore"]
+
+
+def _sql_files(layout: TargetLayout) -> dict[str, str]:
+    """A greenfield SQL project: an empty, ordered ``migrations/`` directory.
+
+    The generated DDL lands here as ``NNN_<name>.sql``; validation applies the
+    folder to an ephemeral database (no build files, no source/test split)."""
+    readme = (
+        f"# {layout.package_name} — database schema\n\n"
+        "Ordered SQL migrations. Each file is applied in filename order "
+        "(`001_*.sql`, `002_*.sql`, …). Validated by applying to an ephemeral "
+        f"database (dialect: {layout.build_tool}).\n"
+    )
+    return {
+        f"{layout.source_dir}/README.md": readme,
+        ".gitignore": _GITIGNORE,
+    }
 
 
 def _python_files(layout: TargetLayout) -> dict[str, str]:
