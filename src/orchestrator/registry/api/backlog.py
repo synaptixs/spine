@@ -18,7 +18,6 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from orchestrator.intake.factory import build_confluence_service
 from orchestrator.intake.web.app import PreviewRequest, run_preview
 from orchestrator.registry.api.deps import PrincipalDep
 from orchestrator.registry.api.web.auth import WebPrincipalDep
@@ -55,5 +54,8 @@ async def backlog_page(_principal: WebPrincipalDep) -> HTMLResponse:
 
 @router.post("/v1/intake/preview", tags=["preview"])
 async def preview(req: PreviewRequest, request: Request, _principal: PrincipalDep) -> dict[str, object]:
-    builder = getattr(request.app.state, "intake_service_builder", None) or build_confluence_service
+    # A test may inject a fixed builder; otherwise the builder is selected by the
+    # source scheme inside run_preview (so file:// / openspec:// / notion:// etc.
+    # preview too, not just confluence://).
+    builder = getattr(request.app.state, "intake_service_builder", None)
     return await run_preview(req, builder)

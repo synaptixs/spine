@@ -71,3 +71,17 @@ tr.clickable:hover { background: var(--surface); cursor: pointer; }
 #msg { padding: 0.4rem 0; font-size: 0.9rem; min-height: 1.2rem; }
 #msg.err { color: var(--fail); }
 #msg.ok { color: var(--ok); }
+
+/* A4: runs filter + inline trace + export action */
+.runs-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.runs-head .filter { font-size: 0.85rem; color: var(--muted); }
+.runs-head select {
+  font: inherit;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+}
+tr.clickable td:first-child { cursor: pointer; }
+.run-actions { white-space: nowrap; }

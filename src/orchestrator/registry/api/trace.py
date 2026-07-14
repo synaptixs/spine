@@ -18,7 +18,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from orchestrator.registry.api.deps import ApiKeyDep, SessionDep
 from orchestrator.registry.api.web.auth import WebPrincipalDep
@@ -98,8 +98,16 @@ async def _fetch_task_audit(session: Any, task_id: str) -> list[AuditLogRow]:
             break
 
     if trace_id is None:
-        # Fall back to action-scan; covers in-flight or aborted tasks.
-        return submit_rows
+        # No task_submit row (an in-flight/aborted task, or a non-"task" run such
+        # as an SDLC run, which records rows under resource_type="sdlc" with
+        # trace_id == resource_id). Match either the id as a trace_id or as the
+        # resource_id itself, so /trace works for SDLC runs too, not just tasks.
+        fallback_stmt = (
+            select(AuditLogRow)
+            .where(or_(AuditLogRow.trace_id == task_id, AuditLogRow.resource_id == task_id))
+            .order_by(AuditLogRow.timestamp)
+        )
+        return list((await session.execute(fallback_stmt)).scalars().all())
 
     related_stmt = select(AuditLogRow).where(AuditLogRow.trace_id == trace_id).order_by(AuditLogRow.timestamp)
     return list((await session.execute(related_stmt)).scalars().all())

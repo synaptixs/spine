@@ -45,7 +45,14 @@ _BODY = (
     "<div id='approvals'><p class='muted'>Loading…</p></div>"
     '<div class="cli">curl -X POST -H "x-api-key: $ORCHESTRATOR_API_KEY" '
     "http://localhost:8000/v1/approvals/&lt;gate-id&gt;/approve</div>"
-    "<h2>Runs</h2><div id='runs'></div>"
+    "<div class='runs-head'><h2>Runs</h2>"
+    "<label class='filter'>state "
+    "<select id='run-filter'>"
+    "<option value=''>all</option><option value='running'>running</option>"
+    "<option value='merged'>merged</option><option value='failed'>failed</option>"
+    "<option value='denied'>denied</option><option value='cancelled'>cancelled</option>"
+    "</select></label></div>"
+    "<div id='runs'></div>"
 )
 
 

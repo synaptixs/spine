@@ -11,7 +11,9 @@ from orchestrator.runtime.artifacts import (
     ArtifactStore,
     InMemoryArtifactStore,
     ObjectStoreArtifactStore,
+    artifact_store_from_env,
     make_artifact_id,
+    make_job_artifact_id,
 )
 from orchestrator.runtime.chain_node import AuditLogger, VerifierChainNode
 from orchestrator.runtime.checkpointer import (
@@ -77,6 +79,8 @@ __all__ = [
     "build_single_agent_graph",
     "default_chain_factory",
     "dispatch",
+    "artifact_store_from_env",
     "make_artifact_id",
+    "make_job_artifact_id",
     "open_postgres_checkpointer",
 ]

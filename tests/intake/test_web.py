@@ -104,11 +104,12 @@ async def test_preview_rejects_bad_uri() -> None:
     assert resp.status_code == 400
 
 
-async def test_preview_rejects_non_confluence_kind() -> None:
+async def test_preview_accepts_non_confluence_kind() -> None:
+    # D2: preview is scheme-agnostic now — with the injected builder, notion://
+    # previews rather than being rejected as "confluence only".
     async with await _client(_app()) as c:
         resp = await c.post("/v1/intake/preview", json={"source": "notion://abc"})
-    assert resp.status_code == 400
-    assert "confluence" in resp.json()["detail"]
+    assert resp.status_code == 200
 
 
 async def test_preview_maps_upstream_error_to_502() -> None:

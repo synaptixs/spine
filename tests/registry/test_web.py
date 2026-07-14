@@ -29,6 +29,13 @@ class TestPageShell:
         assert "<x>" not in out and "&lt;x&gt;" in out
         assert "navlink active" not in out  # nothing active for out-of-nav pages
 
+    def test_nav_is_grouped_into_sections(self) -> None:
+        out = page_shell(title="Home", active="Inbox", body="")
+        # Grouped sidebar: section wrappers + headings, links still present.
+        assert 'class="nav-section"' in out
+        assert ">Deliver</p>" in out and ">Registry</p>" in out
+        assert 'href="/app/inbox"' in out and 'class="navlink active"' in out
+
 
 async def _login(client: httpx.AsyncClient) -> None:
     resp = await client.post("/login", json={"api_key": "dev-key"})

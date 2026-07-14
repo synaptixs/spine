@@ -38,9 +38,9 @@ _MAX_BATCH = 200
 
 def event_type(action: str, resource_type: str) -> str:
     """The event ``type`` for an audit row's ``action`` / ``resource_type``."""
-    if action == "task_submit":
+    if action in ("task_submit", "capability_started"):
         return "run.created"
-    if action in _TERMINAL_STATE:
+    if action in _TERMINAL_STATE or action in ("capability_completed", "capability_failed"):
         return "run.completed"
     if "approval" in action or resource_type == "approval":
         return "approval.updated"

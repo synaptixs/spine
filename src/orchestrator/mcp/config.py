@@ -91,4 +91,60 @@ def load_mcp_configs(path: str | Path | None = None) -> list[MCPServerConfig]:
     return configs
 
 
-__all__ = ["DEFAULT_CONFIG_ENV", "MCPConfigError", "MCPServerConfig", "load_mcp_configs"]
+def resolve_config_path(path: str | None = None) -> Path:
+    """The mcp.json path to read/write. Precedence: explicit ``path`` >
+    ``$ORCHESTRATOR_MCP_CONFIG`` > ``mcp.json`` in the cwd. ``~`` is expanded."""
+    return Path(path or os.getenv(DEFAULT_CONFIG_ENV) or DEFAULT_CONFIG_FILE).expanduser()
+
+
+def _read_config_doc(p: Path) -> dict[str, Any]:
+    if not p.is_file():
+        return {}
+    try:
+        data: Any = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise MCPConfigError(f"{p}: invalid JSON ({exc})") from exc
+    if not isinstance(data, dict):
+        raise MCPConfigError(f"{p}: expected a JSON object")
+    return data
+
+
+def upsert_mcp_server(path: str | None, name: str, spec: dict[str, Any]) -> Path:
+    """Add or replace the ``mcpServers[name]`` entry in the config file, creating
+    the file (and parents) if needed. Preserves other keys. Returns the path."""
+    if not name.strip():
+        raise MCPConfigError("server name is required")
+    p = resolve_config_path(path)
+    doc = _read_config_doc(p)
+    servers = doc.get("mcpServers")
+    if not isinstance(servers, dict):
+        servers = {}
+    servers[name] = {k: v for k, v in spec.items() if v is not None}
+    doc["mcpServers"] = servers
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    return p
+
+
+def remove_mcp_server(path: str | None, name: str) -> bool:
+    """Remove ``mcpServers[name]``. Returns True if it existed."""
+    p = resolve_config_path(path)
+    doc = _read_config_doc(p)
+    servers = doc.get("mcpServers")
+    if not isinstance(servers, dict) or name not in servers:
+        return False
+    del servers[name]
+    doc["mcpServers"] = servers
+    p.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    return True
+
+
+__all__ = [
+    "DEFAULT_CONFIG_ENV",
+    "MCPConfigError",
+    "MCPServerConfig",
+    "load_mcp_configs",
+    "remove_mcp_server",
+    "resolve_config_path",
+    "upsert_mcp_server",
+]
