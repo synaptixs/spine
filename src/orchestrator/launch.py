@@ -156,9 +156,10 @@ def build_child_env(config: LaunchConfig) -> dict[str, str]:
     child = dict(config.env)
     child.setdefault("ORCHESTRATOR_API_KEY", config.api_key)
     child.setdefault("ORCHESTRATOR_SESSION_SECRET", config.session_secret)
-    # No MinIO in the minimal stack — keep artifacts in-memory so the worker
-    # doesn't block on an object store the user didn't start.
-    child.setdefault("ORCHESTRATOR_ARTIFACT_STORE", "memory")
+    # No MinIO in the minimal stack — use the disk-backed store so run artifacts
+    # (comprehension/design) the worker writes are visible to the web UI process,
+    # without an object store the user didn't start.
+    child.setdefault("ORCHESTRATOR_ARTIFACT_STORE", "fs")
     # Real codegen by default (the SDLC worker falls back to a stub otherwise),
     # so a delegated feature actually produces code. Needs an LLM key — run_up
     # warns if none is set.

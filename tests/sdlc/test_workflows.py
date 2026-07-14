@@ -82,6 +82,23 @@ async def _stub_profile_and_plan(payload: dict[str, Any]) -> dict[str, Any]:
     return {"profile": {"languages": [], "task_type": "feature"}, "plan": _PLAN["value"]}
 
 
+@activity.defn(name="sdlc_comprehend_repo")
+async def _stub_comprehend_repo(payload: dict[str, Any]) -> dict[str, Any]:
+    _ = payload
+    return {"skipped": True, "reason": "stub"}
+
+
+@activity.defn(name="sdlc_design_feature")
+async def _stub_design_feature(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "issue_key": payload.get("issue_key"),
+        "summary": "stub design",
+        "files_to_touch": [],
+        "design": {"approach": "stub", "files_to_touch": []},
+        "artifacts": {},
+    }
+
+
 @activity.defn(name="sdlc_create_jira_issues")
 async def _stub_create_jira_issues(payload: dict[str, Any]) -> dict[str, Any]:
     specs = list(payload.get("specs") or [])
@@ -233,6 +250,8 @@ _ACTIVITIES = [
     _stub_raise_approval_request,
     _stub_intake_analyze,
     _stub_profile_and_plan,
+    _stub_comprehend_repo,
+    _stub_design_feature,
     _stub_create_jira_issues,
     _stub_integration_test,
     _stub_merge_prs,

@@ -121,10 +121,30 @@ async function toggleRunDetail(id){
     const rows = (t.audit||[]).map(e =>
       `<tr><td class='muted'>${esc((e.timestamp||"").slice(0,19))}</td><td>${esc(e.action)}</td><td class='muted'>${esc(e.actor)}</td></tr>`).join("");
     cell.innerHTML = `<div class='detail'><div class='muted'>${(t.audit||[]).length} event(s) · <a href='/trace/${esc(id)}' target='_blank'>full trace →</a></div>`
+      + `<div id='ra-${esc(id)}'></div>`
       + `<table class='mini'><tbody>${rows || "<tr><td class='muted'>no events</td></tr>"}</tbody></table></div>`;
+    loadRunArtifacts(id);
   } catch(e){
     cell.innerHTML = "<div class='detail muted'>No trace available for this run.</div>";
   }
+}
+
+// Architectural artifacts the pipeline persisted (M1 comprehension / M2 design).
+async function loadRunArtifacts(id){
+  const box = $("ra-"+id);
+  if(!box) return;
+  try {
+    const items = (await api("/v1/runs/" + encodeURIComponent(id) + "/artifacts")).items || [];
+    if(!items.length) return;
+    const byKind = {};
+    for(const a of items){ (byKind[a.kind] = byKind[a.kind] || []).push(a); }
+    box.innerHTML = Object.keys(byKind).map(kind =>
+      `<div class='artifacts'><strong>${esc(kind)} artifacts</strong> `
+      + byKind[kind].map(a =>
+          `<a href='/v1/runs/${esc(id)}/artifacts/download?key=${encodeURIComponent(a.key)}'>${esc(a.name)}</a>`
+        ).join(" · ")
+      + `</div>`).join("");
+  } catch(e){ /* none / store not shared */ }
 }
 
 async function exportRun(id){

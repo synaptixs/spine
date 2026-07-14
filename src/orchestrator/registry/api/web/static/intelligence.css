@@ -27,10 +27,16 @@
 .fs-bar { padding: 0.5rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
 .fs-bar a { color: var(--accent); text-decoration: none; }
 .fs-path { margin-top: 0.35rem; color: var(--muted); overflow-x: auto; white-space: nowrap; }
-.fs-list { overflow-y: auto; padding: 0.35rem; }
+.fs-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0.35rem; }
 .fs-entry { padding: 0.35rem 0.6rem; border-radius: var(--radius); cursor: pointer; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fs-entry:hover { background: var(--accent-soft); }
 .fs-entry.fs-match { color: var(--accent); font-weight: 600; }
+/* Folder picker (repobrowse.js): files are shown but inert; a footer confirms the pick. */
+.fs-entry.fs-file { color: var(--muted); cursor: default; }
+.fs-entry.fs-file:hover { background: transparent; }
+.fs-git { margin-left: 0.4rem; padding: 0.05rem 0.4rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 0.72rem; font-weight: 600; }
+.fs-foot { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 1rem; border-top: 1px solid var(--border); }
+.fs-foot .muted { overflow-x: auto; white-space: nowrap; font-size: 0.8rem; }
 #status { min-height: 1.2rem; font-size: 0.88rem; margin-bottom: 0.5rem; }
 #status .ok { color: var(--ok); }
 #status .err { color: var(--fail); }

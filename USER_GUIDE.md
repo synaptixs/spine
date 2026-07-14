@@ -148,6 +148,15 @@ table, **call-graph hotspots**, complexity/god-components, test-coverage and rec
 signals, a name-based security surface, and prioritized recommendations. A report is a
 *view* — re-run to refresh; nothing is written unless `--out` is given.
 
+> **Local path _or_ git URL.** `understand`, `state`, `profile`, `catalog plan`, and
+> `pkg extract`/`export`/`docs` accept either — `orchestrator state https://github.com/org/repo`
+> shallow-clones it to a temp dir, analyses it, and cleans up (for `understand` on a URL the
+> memory bank lands in `./memory-bank`, since the clone is transient). Public providers
+> (github.com / bitbucket.org / gitlab.com) work out of the box; add an enterprise host with
+> `ORCHESTRATOR_REPO_ALLOWED_HOSTS=git.acme.com`. `file://`, plaintext `http://`, and
+> private/loopback hosts are always refused (SSRF guard). The web UI exposes the same on every
+> Understand page — a **Browse…** button to pick a local folder, or paste a URL.
+
 **Where it's stored.** `memory-bank/` is the one artifact you **commit** — the durable,
 versioned, code-true doc your team and any AI tool reads. The graph it renders from is a
 regenerable cache at `~/.cache/orchestrator/pkg/` (rebuilt from code on every commit, so it
@@ -387,13 +396,33 @@ authenticates every page). Start a run from the **Inbox** (paste a source, click
 **Delegate**), or from the terminal:
 ```bash
 orchestrator sdlc run --source confluence://<page_id> --max-features 1
-# prints the sdlc_id and two gate ids: sdlc-<id>-0 (intents), sdlc-<id>-1 (merge)
+# prints the sdlc_id and the gate ids: sdlc-<id>-0 (intents), sdlc-<id>-1 (merge),
+# plus sdlc-<id>-2 (designs) when the design gate is enabled — see 7.3a
 ```
 
 Approve a gate by clicking **Approve / Reject** in the Inbox or Console — or via the API:
 ```bash
 curl -X POST -H "x-api-key: dev-key" http://localhost:8000/v1/approvals/sdlc-<id>-0/approve
 ```
+
+**7.3a — What a run does before it writes code.** The pipeline **comprehends the repo**
+first — it builds the same knowledge graph + `memory-bank/` as `understand`, and folds a
+one-line summary into the intents gate, so you approve the extracted intents *and* see that
+Spine read the codebase. After you approve intents and it creates issues, a **design wave**
+produces a grounded, per-issue **design** (approach, files-to-touch, interfaces, risks, test
+strategy — anchored to the repo's real modules) that each feature then builds to. Both the
+comprehension and the designs are saved as **run artifacts**: expand the run in the **Console**
+to download `knowledge-graph.db`, the memory-bank docs, and each issue's
+`design.md` / `design.json`.
+
+Three pipeline flags control this (comprehension + design are **on** by default; the extra
+design *gate* is **off** so runs don't gain a mandatory pause unless you want one):
+
+| Env var | Default | Effect |
+|---|---|---|
+| `SDLC_COMPREHEND` | on | Comprehend the repo before the intents gate. |
+| `SDLC_DESIGN` | on | Produce a grounded design per issue before codegen. |
+| `SDLC_DESIGN_GATE` | **off** | Add a human **“approve designs”** gate (Gate 1.5, id `sdlc-<id>-2`) after the design wave, before any code is written. |
 
 **7.4 — The web UI (sign in at `/login` first):** one app, one nav, one login. The
 left sidebar groups every surface into sections:
@@ -404,9 +433,9 @@ left sidebar groups every surface into sections:
 | `/app/inbox` | **Inbox** — delegate a run, watch it progress **live** (server-sent events), approve/reject gates **inline**. The front door. |
 | `/app/intake` | **Intake studio** — preview any source (Confluence / Notion / file / OpenSpec) as a backlog, then delegate a gated run (dry-run by default). |
 | `/app/backlog` | **Backlog preview** — a source rendered as a derived backlog (read-only). |
-| `/console` | **Console** — the approval queue + runs dashboard (state filter, inline trace, export a run's timeline). |
+| `/console` | **Console** — the approval queue + runs dashboard (state filter, inline trace, export a run's timeline). Expand a run to download its **comprehension + design artifacts** (knowledge graph, memory bank, per-issue designs). |
 
-**Understand** — repo intelligence. Point at a **local path _or_ a git URL** (GitHub / Bitbucket / GitLab / enterprise); URLs are cloned on demand.
+**Understand** — repo intelligence. Point at a **local path _or_ a git URL** (GitHub / Bitbucket / GitLab / enterprise) — **Browse…** picks a local folder, or paste a URL (cloned on demand).
 | URL | What you see |
 |---|---|
 | `/app/understand` | Build the code-true **memory bank** for a repo (runs as a job, with live progress). |

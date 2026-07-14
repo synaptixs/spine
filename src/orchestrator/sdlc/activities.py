@@ -244,6 +244,61 @@ class SDLCActivities:
         plan = plan_capabilities(profile)
         return {"profile": profile.to_dict(), "plan": plan.to_dict()}
 
+    @activity.defn(name="sdlc_comprehend_repo")
+    async def comprehend_repo(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """M1: understand the repo → persist architectural artifacts (knowledge
+        graph, memory bank, current-state), summarised at the intent gate.
+
+        Deterministic, no LLM, best-effort: gated by ``SDLC_COMPREHEND`` (on by
+        default) and never fails the run — a missing repo or extraction error
+        degrades to a ``skipped`` result the gate simply notes."""
+        import os
+
+        if (os.getenv("SDLC_COMPREHEND", "1") or "1").strip().lower() in ("0", "false", "no"):
+            return {"skipped": True, "reason": "disabled"}
+        try:
+            base = await self._deps.workspace.ensure_base_repo()
+        except Exception as exc:  # noqa: BLE001 — no reachable repo → skip, don't block the run
+            logger.warning("sdlc.comprehend.no_repo", extra={"error": str(exc)[:200]})
+            return {"skipped": True, "reason": "no base repo reachable"}
+        try:
+            from orchestrator.sdlc.comprehension import run_comprehension
+
+            return await run_comprehension(
+                base,
+                artifact_store=self._deps.artifact_store,
+                run_id=str(payload["sdlc_id"]),
+                sql_dialect=payload.get("sql_dialect"),
+            )
+        except Exception as exc:  # noqa: BLE001 — comprehension is best-effort
+            logger.warning("sdlc.comprehend.failed", extra={"error": str(exc)[:200]})
+            return {"skipped": True, "reason": f"failed: {str(exc)[:150]}"}
+
+    @activity.defn(name="sdlc_design_feature")
+    async def design_feature(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """M2: spec × knowledge graph → a grounded design for one issue, persisted
+        as an artifact. Best-effort + flag-gated (``SDLC_DESIGN``, on by default);
+        an LLM writes it when configured, else a deterministic heuristic design."""
+        import os
+
+        issue_key = str(payload.get("issue_key") or "")
+        if (os.getenv("SDLC_DESIGN", "1") or "1").strip().lower() in ("0", "false", "no"):
+            return {"issue_key": issue_key, "skipped": True, "reason": "disabled"}
+        try:
+            from orchestrator.sdlc.design import design_feature as _design
+
+            return await _design(
+                dict(payload.get("spec") or {}),
+                comprehension=payload.get("comprehension") or {},
+                artifact_store=self._deps.artifact_store,
+                run_id=str(payload["sdlc_id"]),
+                issue_key=issue_key,
+                llm=self._deps.llm,
+            )
+        except Exception as exc:  # noqa: BLE001 — design is best-effort
+            logger.warning("sdlc.design.failed", extra={"issue": issue_key, "error": str(exc)[:200]})
+            return {"issue_key": issue_key, "skipped": True, "reason": f"failed: {str(exc)[:150]}"}
+
     @activity.defn(name="sdlc_create_jira_issues")
     async def create_jira_issues(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Pair each spec with an issue key for the fan-out.
@@ -372,11 +427,41 @@ class SDLCActivities:
 
     @activity.defn(name="sdlc_create_workspace")
     async def create_workspace(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Create a per-issue git worktree, returning its path."""
+        """Create a per-issue git worktree, returning its path.
+
+        Also seeds the worktree with the run's comprehension **memory bank** (M1b)
+        so codegen grounds every feature on the run's code-true knowledge (domain
+        model, conventions) via the existing memory-bank grounding path."""
         sdlc_id = str(payload["sdlc_id"])
         issue_key = str(payload["issue_key"])
         path = await self._deps.workspace.create(sdlc_id, issue_key)
-        return {"path": str(path)}
+        seeded = await self._seed_memory_bank(path, payload.get("comprehension") or {})
+        return {"path": str(path), "memory_bank_seeded": seeded}
+
+    async def _seed_memory_bank(self, path: Any, comprehension: dict[str, Any]) -> int:
+        """Fetch the comprehension memory-bank artifacts and write them into the
+        worktree's ``memory-bank/`` (best-effort — never fails workspace setup)."""
+        from pathlib import Path
+
+        artifacts = comprehension.get("artifacts")
+        if not isinstance(artifacts, dict):
+            return 0
+        mb_keys = {n: k for n, k in artifacts.items() if str(n).startswith("memory-bank/")}
+        if not mb_keys:
+            return 0
+        mb_dir = Path(path) / "memory-bank"
+        seeded = 0
+        for name, key in mb_keys.items():
+            try:
+                data = await self._deps.artifact_store.get_bytes(str(key))
+            except Exception as exc:  # noqa: BLE001 — a missing artifact must not block the run
+                logger.warning("sdlc.seed_memory_bank.miss", extra={"key": str(key), "error": str(exc)[:120]})
+                continue
+            dest = mb_dir / str(name).split("/", 1)[1]
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(data)
+            seeded += 1
+        return seeded
 
     @contextlib.asynccontextmanager
     async def _budget_scope(self, payload: dict[str, Any], stage: str) -> AsyncIterator[None]:

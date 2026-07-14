@@ -9,6 +9,7 @@ slot in when a ``chain_factory`` is supplied.
 from orchestrator.runtime.agent_node import SingleAgentNode
 from orchestrator.runtime.artifacts import (
     ArtifactStore,
+    FilesystemArtifactStore,
     InMemoryArtifactStore,
     ObjectStoreArtifactStore,
     artifact_store_from_env,
@@ -59,6 +60,7 @@ __all__ = [
     "ContextBudget",
     "FailurePolicy",
     "Handoff",
+    "FilesystemArtifactStore",
     "InMemoryArtifactStore",
     "ManagerSpec",
     "MemorySaver",

@@ -85,3 +85,8 @@ tr.clickable:hover { background: var(--surface); cursor: pointer; }
 }
 tr.clickable td:first-child { cursor: pointer; }
 .run-actions { white-space: nowrap; }
+
+/* Run artifacts (M1 comprehension / M2 design) in the run detail */
+.artifacts { margin: 0.4rem 0; font-size: 0.85rem; }
+.artifacts a { color: var(--accent); text-decoration: none; margin-right: 0.2rem; }
+.artifacts strong { margin-right: 0.4rem; }

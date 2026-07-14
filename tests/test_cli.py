@@ -171,3 +171,29 @@ def test_register_loads_json_payload(
     result = runner.invoke(app, ["template", "register", str(f)])
     assert result.exit_code == 0
     assert "ok" in result.stdout
+
+
+# --------------------------------------------------------------------------- #
+# Repo-analysis commands accept a local path OR a git URL (parity with the UI).
+# --------------------------------------------------------------------------- #
+def test_analysis_commands_reject_disallowed_or_plaintext_url(runner: CliRunner) -> None:
+    """The SSRF guard + host allow-list fire before any clone is attempted."""
+    for spec in ("http://localhost:8000/x", "https://evil.example.test/r.git"):
+        result = runner.invoke(app, ["profile", spec])
+        assert result.exit_code == 2
+        assert "ERROR" in result.output
+
+
+def test_analysis_command_accepts_local_path(runner: CliRunner, tmp_path: Path) -> None:
+    (tmp_path / "m.py").write_text("x = 1\n", encoding="utf-8")
+    result = runner.invoke(app, ["profile", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "languages:" in result.output
+
+
+def test_repo_arg_classifies_local_vs_git(tmp_path: Path) -> None:
+    from orchestrator.cli import _repo_arg
+
+    with _repo_arg(str(tmp_path)) as (path, is_remote):
+        assert path == tmp_path.resolve()
+        assert is_remote is False
