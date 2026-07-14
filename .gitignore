@@ -46,3 +46,6 @@ build/
 *.local.md
 *.local.json
 *.local.txt
+
+# Disk-backed artifact store written by `orchestrator up` (fs mode)
+.orchestrator-artifacts/

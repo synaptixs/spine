@@ -30,6 +30,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from temporalio.worker import Worker
 
 from orchestrator.core.llm import BudgetedLLMClient, LLMClient, RunBudget
+from orchestrator.runtime import artifact_store_from_env
 from orchestrator.sdlc.activities import SDLCActivities
 from orchestrator.sdlc.ci import CIAdapter, GHACIAdapter, StubCIAdapter
 from orchestrator.sdlc.codegen import (
@@ -212,6 +213,7 @@ def build_deps() -> SDLCDeps:
         preflight=SubprocessPreflightRunner(),
         budget=budget,
         llm=llm() if codegen_is_llm else None,
+        artifact_store=artifact_store_from_env(),
     )
 
 
@@ -232,6 +234,8 @@ def sdlc_activity_methods(instance: SDLCActivities) -> list[Any]:
         instance.raise_approval_request,
         instance.intake_analyze,
         instance.profile_and_plan,
+        instance.comprehend_repo,
+        instance.design_feature,
         instance.create_jira_issues,
         instance.integration_test,
         instance.merge_prs,

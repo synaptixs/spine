@@ -17,9 +17,11 @@ Configuration via environment variables:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -65,6 +67,36 @@ def _load_payload(path: Path) -> dict[str, Any]:
 
 def _print(data: Any) -> None:
     typer.echo(json.dumps(data, indent=2, default=str))
+
+
+@contextlib.contextmanager
+def _repo_arg(spec: str) -> Iterator[tuple[Path, bool]]:
+    """Resolve a repo argument to an on-disk path, yielding ``(path, is_remote)``.
+
+    ``spec`` is a **local path** (used as-is — the CLI is a trusted, single-user
+    context) or a **git URL** (``https://``/``ssh://``/``git@host:…`` for
+    github/bitbucket/gitlab, or a host in ``ORCHESTRATOR_REPO_ALLOWED_HOSTS``),
+    which is shallow-cloned on demand and removed on exit. This mirrors the web
+    ``/v1/capabilities/*`` resolution exactly (same SSRF guard + host allow-list),
+    so ``understand``/``state``/``pkg``/``profile``/``catalog plan`` reach remote
+    repos the way the UI does. ``is_remote`` lets a caller pick a sensible output
+    location (a clone's files vanish on exit)."""
+    from orchestrator.registry.api.config import Settings
+    from orchestrator.registry.api.workspace import (
+        RepoPathError,
+        RepoSourceError,
+        materialize_repo_source,
+        resolve_repo_source,
+    )
+
+    try:
+        # repo_allow_any_local: a local CLI path isn't sandboxed to a workspace root.
+        source = resolve_repo_source(spec, Settings(repo_allow_any_local=True))
+    except (RepoSourceError, RepoPathError) as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    with materialize_repo_source(source, log=lambda m: typer.echo(m, err=True)) as path:
+        yield path, source.kind == "git"
 
 
 def _check(resp: httpx.Response) -> dict[str, Any]:
@@ -1282,16 +1314,21 @@ def audit(
 
 @app.command("profile")
 def profile(
-    path: Annotated[Path, typer.Argument(help="Repo or directory to profile.")] = Path("."),
+    path: Annotated[str, typer.Argument(help="Repo path or git URL to profile.")] = ".",
     intent: Annotated[
         str | None, typer.Option("--intent", help="Intent title, to classify the task type.")
     ] = None,
     as_json: Annotated[bool, typer.Option("--json", help="Emit the profile as JSON.")] = False,
 ) -> None:
-    """Profile a project (languages, framework, DB, tests, task type) — read-only."""
+    """Profile a project (languages, framework, DB, tests, task type) — read-only.
+
+    ``path`` is a local path or a git URL (github/bitbucket/gitlab/enterprise),
+    cloned on demand.
+    """
     from orchestrator.catalog import ProjectProfile
 
-    prof = ProjectProfile.from_repo(path, intent_title=intent)
+    with _repo_arg(path) as (repo, _):
+        prof = ProjectProfile.from_repo(repo, intent_title=intent)
     if as_json:
         _print(prof.to_dict())
         return
@@ -1306,10 +1343,10 @@ def profile(
 
 @app.command("understand")
 def understand(
-    path: Annotated[Path, typer.Argument(help="Repo or directory to comprehend.")] = Path("."),
+    path: Annotated[str, typer.Argument(help="Repo path or git URL to comprehend.")] = ".",
     out: Annotated[
         Path | None,
-        typer.Option("--out", help="Memory-bank dir (default: <repo>/memory-bank)."),
+        typer.Option("--out", help="Memory-bank dir (default: <repo>/memory-bank; ./memory-bank for a URL)."),
     ] = None,
     refresh: Annotated[
         bool, typer.Option("--refresh", help="Re-extract the PKG instead of using the commit cache.")
@@ -1324,10 +1361,16 @@ def understand(
     Phase 0: extracts the Product Knowledge Graph + project profile and renders
     architecture / domain-model / tech-context / conventions / glossary as
     markdown in the target repo. Deterministic (no LLM); re-run to refresh.
+    ``path`` may be a local path or a git URL cloned on demand — for a URL the
+    clone is transient, so the memory bank defaults to ``./memory-bank``.
     """
     from orchestrator.knowledge import build_memory_bank
 
-    result = build_memory_bank(path, out_dir=out, refresh=refresh, sql_dialect=dialect, log=typer.echo)
+    with _repo_arg(path) as (repo, is_remote):
+        out_dir = out or (Path("memory-bank") if is_remote else repo / "memory-bank")
+        result = build_memory_bank(
+            repo, out_dir=out_dir, refresh=refresh, sql_dialect=dialect, log=typer.echo
+        )
     _print(
         {
             "dir": result["dir"],
@@ -1340,7 +1383,7 @@ def understand(
 
 @app.command("state")
 def state(
-    path: Annotated[Path, typer.Argument(help="Repo or directory to summarize.")] = Path("."),
+    path: Annotated[str, typer.Argument(help="Repo path or git URL to summarize.")] = ".",
     lens: Annotated[str, typer.Option("--lens", help="Audience: developer | stakeholder.")] = "developer",
     out: Annotated[
         Path | None,
@@ -1366,7 +1409,8 @@ def state(
     if lens not in ("developer", "stakeholder"):
         typer.echo("ERROR: --lens must be 'developer' or 'stakeholder'.", err=True)
         raise typer.Exit(code=2)
-    markdown = build_current_state(path, lens=lens, refresh=refresh, sql_dialect=dialect)
+    with _repo_arg(path) as (repo, _):
+        markdown = build_current_state(repo, lens=lens, refresh=refresh, sql_dialect=dialect)
     if out is not None:
         out.write_text(markdown, encoding="utf-8")
         typer.echo(f"wrote {out}")
@@ -1405,7 +1449,7 @@ def catalog_list(
 
 @catalog_app.command("plan")
 def catalog_plan(
-    path: Annotated[Path, typer.Argument(help="Repo or directory to plan for.")] = Path("."),
+    path: Annotated[str, typer.Argument(help="Repo path or git URL to plan for.")] = ".",
     intent: Annotated[
         str | None, typer.Option("--intent", help="Intent title, to classify the task type.")
     ] = None,
@@ -1414,7 +1458,8 @@ def catalog_plan(
     """Show the capability plan the orchestrator would assemble for a project."""
     from orchestrator.catalog import ProjectProfile, plan_capabilities
 
-    prof = ProjectProfile.from_repo(path, intent_title=intent)
+    with _repo_arg(path) as (repo, _):
+        prof = ProjectProfile.from_repo(repo, intent_title=intent)
     plan = plan_capabilities(prof)
     if as_json:
         _print(plan.to_dict())
@@ -1429,7 +1474,7 @@ def catalog_plan(
 
 @pkg_app.command("extract")
 def pkg_extract(
-    path: Annotated[Path, typer.Argument(help="Repo or directory to scan.")] = Path("."),
+    path: Annotated[str, typer.Argument(help="Repo path or git URL to scan.")] = ".",
     query: Annotated[
         str | None, typer.Option("--query", "-q", help="Show callers + blast radius of a symbol name.")
     ] = None,
@@ -1443,7 +1488,8 @@ def pkg_extract(
     from orchestrator.pkg import FactStore, RepoCodeExtractor
 
     extractor = RepoCodeExtractor(sql_dialect=dialect)
-    store = FactStore(extractor.extract(path))
+    with _repo_arg(path) as (repo, _):
+        store = FactStore(extractor.extract(repo))
 
     if as_json:
         _print(
@@ -1490,13 +1536,14 @@ def pkg_extract(
 
 @pkg_app.command("export")
 def pkg_export(
-    path: Annotated[Path, typer.Argument(help="Repo or directory to scan.")] = Path("."),
+    path: Annotated[str, typer.Argument(help="Repo path or git URL to scan.")] = ".",
     db: Annotated[Path, typer.Option("--db", help="SQLite file to write.")] = Path("pkg-facts.db"),
 ) -> None:
     """Extract facts and export the ontomesh-ready kind-per-table SQLite projection."""
     from orchestrator.pkg import RepoCodeExtractor, export_sqlite
 
-    batch = RepoCodeExtractor().extract(path)
+    with _repo_arg(path) as (repo, _):
+        batch = RepoCodeExtractor().extract(repo)
     counts = export_sqlite(batch, db)
     typer.echo(f"Exported {path} → {db}")
     for table, n in counts.items():
@@ -1505,7 +1552,7 @@ def pkg_export(
 
 @pkg_app.command("docs")
 def pkg_docs(
-    repo: Annotated[Path, typer.Argument(help="Repo to extract facts from.")] = Path("."),
+    repo: Annotated[str, typer.Argument(help="Repo path or git URL to extract facts from.")] = ".",
     docs: Annotated[list[Path], typer.Option("--doc", "-d", help="Markdown/text doc(s) to reconcile.")] = [],  # noqa: B006
 ) -> None:
     """Reconcile documentation claims against the code's fact graph (read-only)."""
@@ -1515,7 +1562,6 @@ def pkg_docs(
         typer.echo("No docs given — pass one or more --doc <file>.")
         raise typer.Exit(code=2)
 
-    batch = load_or_extract(repo)
     pages = [
         DocPage(
             title=str(p),
@@ -1524,7 +1570,9 @@ def pkg_docs(
         )
         for p in docs
     ]
-    bindings, drift = DocReconciler(batch, repo_root=repo).reconcile(pages)
+    with _repo_arg(repo) as (repo_path, _):
+        batch = load_or_extract(repo_path)
+        bindings, drift = DocReconciler(batch, repo_root=repo_path).reconcile(pages)
 
     bound = sum(1 for b in bindings if b.bound)
     typer.echo(

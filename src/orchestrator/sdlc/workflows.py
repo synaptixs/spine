@@ -49,6 +49,9 @@ _STAGE_TIMEOUT = timedelta(minutes=2)
 _CODEGEN_TIMEOUT = timedelta(minutes=15)
 _INTAKE_TIMEOUT = timedelta(minutes=5)
 _WORKSPACE_TIMEOUT = timedelta(minutes=2)
+# Comprehension (M1) extracts the PKG + memory bank + current-state; generous for
+# a large repo (SHA-cached, so re-runs on the same commit are fast).
+_COMPREHEND_TIMEOUT = timedelta(minutes=10)
 # Human approval can take a while but abandoned runs should self-clean.
 _DEFAULT_APPROVAL_WAIT = timedelta(hours=24)
 
@@ -107,9 +110,16 @@ class FeatureImplementationWorkflow:
 
     @workflow.run
     async def run(self, payload: FeatureWorkflowInput) -> FeatureWorkflowResult:
+        # M2: fold this issue's approved design into the spec so every codegen
+        # stage (plan / implement / refine) builds to the grounded approach.
+        payload.spec = _spec_with_design(payload.spec, payload.design)
         ws = await workflow.execute_activity(
             "sdlc_create_workspace",
-            {"sdlc_id": payload.sdlc_id, "issue_key": payload.issue_key},
+            {
+                "sdlc_id": payload.sdlc_id,
+                "issue_key": payload.issue_key,
+                "comprehension": payload.comprehension,
+            },
             schedule_to_close_timeout=_WORKSPACE_TIMEOUT,
             retry_policy=_STAGE_RETRY,
         )
@@ -540,6 +550,19 @@ class SDLCWorkflow:
             payload, "sdlc_capability_plan", {"profile": plan_out["profile"], "plan": capability_plan}
         )
 
+        # ---- 1c. comprehend the repo → architectural artifacts (M1) --------
+        # Deterministic, best-effort: extract the knowledge graph + memory bank +
+        # current-state on the base checkout, persist them as run artifacts, and
+        # summarise "what Spine understood" at the intent gate below.
+        comprehension = await workflow.execute_activity(
+            "sdlc_comprehend_repo",
+            {"sdlc_id": payload.sdlc_id, "trace_id": payload.trace_id},
+            schedule_to_close_timeout=_COMPREHEND_TIMEOUT,
+            retry_policy=_STAGE_RETRY,
+        )
+        result.stage_outcomes["comprehension"] = comprehension
+        await self._audit(payload, "sdlc_repo_comprehended", comprehension)
+
         # ---- 2. GATE 1: approve intents (and answer any open questions) ----
         # Surface the extractor's open questions to the approver so ambiguity
         # is resolved here — by a human — rather than guessed at by codegen.
@@ -551,7 +574,9 @@ class SDLCWorkflow:
             before_node="intents",
             title="approve intents",
             risk="medium",
-            description=_intents_gate_description(intake["intent_count"], open_questions, capability_plan),
+            description=_intents_gate_description(
+                intake["intent_count"], open_questions, capability_plan, comprehension
+            ),
         )
         result.gate_decisions.append(gate1)
         if gate1["action"] in ("deny", "cancel"):
@@ -601,6 +626,67 @@ class SDLCWorkflow:
         result.issue_keys = [p["issue_key"] for p in issue_plans]
         await self._audit(payload, "sdlc_issues_created", {"issue_keys": result.issue_keys})
 
+        # ---- 3b. DESIGN wave (M2) — one grounded design per issue -----------
+        # Fan out design activities (each self-gates on SDLC_DESIGN, best-effort)
+        # so every design is anchored to the comprehension knowledge graph BEFORE
+        # any code is written. Optionally gate the whole set (Gate 1.5).
+        designs_by_issue: dict[str, dict[str, Any]] = {}
+        if issue_plans:
+            design_results = await asyncio.gather(
+                *[
+                    workflow.execute_activity(
+                        "sdlc_design_feature",
+                        {
+                            "sdlc_id": payload.sdlc_id,
+                            "issue_key": plan["issue_key"],
+                            "spec": plan["spec"],
+                            "comprehension": comprehension if isinstance(comprehension, dict) else {},
+                            "trace_id": payload.trace_id,
+                        },
+                        schedule_to_close_timeout=_CODEGEN_TIMEOUT,
+                        retry_policy=_STAGE_RETRY,
+                    )
+                    for plan in issue_plans
+                ]
+            )
+            designs_by_issue = {d["issue_key"]: d for d in design_results if d.get("issue_key")}
+            produced = [d for d in design_results if not d.get("skipped")]
+            if produced:
+                # One audit per design carrying its artifact manifest, so the
+                # run-artifacts API (keyed on ``feature_designed`` + ``artifacts``)
+                # surfaces design.json/design.md for download in the console —
+                # the same way ``sdlc_repo_comprehended`` surfaces M1's artifacts.
+                for d in produced:
+                    if isinstance(d.get("artifacts"), dict) and d["artifacts"]:
+                        await self._audit(
+                            payload,
+                            "feature_designed",
+                            {
+                                "issue_key": d.get("issue_key"),
+                                "summary": d.get("summary"),
+                                "files_to_touch": d.get("files_to_touch") or [],
+                                "artifacts": d["artifacts"],
+                            },
+                        )
+                await self._audit(payload, "sdlc_designs_ready", {"count": len(produced)})
+                if payload.design_gate:
+                    gate15, decisions_consumed = await self._gate(
+                        payload,
+                        decisions_consumed,
+                        gate_index=2,
+                        before_node="designs",
+                        title="approve designs",
+                        risk="medium",
+                        description=_designs_gate_description(produced),
+                    )
+                    result.gate_decisions.append(gate15)
+                    if gate15["action"] in ("deny", "cancel"):
+                        reason = "cancelled" if gate15["action"] == "cancel" else "designs_denied"
+                        await self._audit(payload, f"sdlc_{reason}", {"gate": "designs"})
+                        result.terminated = True
+                        result.termination_reason = reason
+                        return result
+
         # ---- 4. fan-out: one child workflow per issue, run concurrently ----
         # Each child gets a deterministic id (feat-{sdlc_id}-{issue_key}) for
         # idempotency on replay. asyncio.gather starts them concurrently and
@@ -624,6 +710,8 @@ class SDLCWorkflow:
                         max_review_iterations=eff_max_review,
                         skills=list(capability_plan.get("skills") or []),
                         mcp_servers=list(capability_plan.get("mcp_servers") or []),
+                        comprehension=comprehension if isinstance(comprehension, dict) else {},
+                        design=designs_by_issue.get(plan["issue_key"], {}),
                     ),
                     # ``task-`` prefix so the child can receive REST approval
                     # signals for in-loop gates (the API signals task-{task_id}).
@@ -848,10 +936,67 @@ def _to_loop_decision(decision: dict[str, Any]) -> dict[str, Any]:
     return {"action": "reject", "rationale": "human denied the tool call"}
 
 
+def _designs_gate_description(designs: list[dict[str, Any]]) -> str:
+    """Gate 1.5 prompt: the per-issue designs to approve before implementation."""
+    lines = []
+    for d in designs:
+        files = d.get("files_to_touch") or []
+        files_note = f" — touches {', '.join(str(f) for f in files[:4])}" if files else ""
+        lines.append(f"  - {d.get('issue_key')}: {str(d.get('summary') or '')[:160]}{files_note}")
+    body = "\n".join(lines)
+    return (
+        f"Gate 1.5: approve {len(designs)} feature design(s) before implementation. Each is grounded "
+        f"in the repo's knowledge graph (see the run's design artifacts):\n{body}"
+    )
+
+
+def _spec_with_design(spec: dict[str, Any], design: dict[str, Any]) -> dict[str, Any]:
+    """Fold an approved design into the spec's technical notes so codegen builds
+    to the grounded approach (no codegen-adapter change needed)."""
+    d = (design or {}).get("design") or {}
+    if not d:
+        return spec
+    parts = [f"APPROVED DESIGN — approach: {d.get('approach', '')}"]
+    if d.get("files_to_touch"):
+        parts.append("Files to touch: " + ", ".join(str(f) for f in d["files_to_touch"]))
+    if d.get("interfaces"):
+        parts.append("Interfaces: " + "; ".join(str(i) for i in d["interfaces"]))
+    if d.get("data_changes"):
+        parts.append("Data changes: " + "; ".join(str(x) for x in d["data_changes"]))
+    if d.get("test_strategy"):
+        parts.append("Test strategy: " + str(d["test_strategy"]))
+    design_block = "\n".join(parts)
+    merged = dict(spec)
+    existing = str(merged.get("technical_notes") or "")
+    merged["technical_notes"] = f"{existing}\n\n{design_block}".strip() if existing else design_block
+    return merged
+
+
+def _comprehension_summary_line(comprehension: dict[str, Any] | None) -> str | None:
+    """A one-line "what Spine understood" summary for the intent gate (M1)."""
+    if not comprehension:
+        return None
+    if comprehension.get("skipped"):
+        return f"Repo comprehension skipped ({comprehension.get('reason', 'n/a')})."
+    counts = comprehension.get("counts") or {}
+    if comprehension.get("greenfield"):
+        return "Greenfield repo — no existing code to map."
+    nodes = counts.get("nodes")
+    edges = counts.get("edges")
+    if nodes is None:
+        return None
+    files = len(comprehension.get("memory_bank_files") or [])
+    return (
+        f"Understood the repo: {nodes} code entities, {edges} relationships; "
+        f"knowledge graph + {files} memory-bank docs + current-state saved (see the run's artifacts)."
+    )
+
+
 def _intents_gate_description(
     intent_count: int,
     open_questions: list[str],
     capability_plan: dict[str, Any] | None = None,
+    comprehension: dict[str, Any] | None = None,
 ) -> str:
     """Gate-1 prompt: intents, open questions, and the assembled capability plan.
 
@@ -869,6 +1014,9 @@ def _intents_gate_description(
             "`clarifications` patch (string or list), or approve to proceed as "
             f"specified:\n{lines}"
         )
+    comprehension_line = _comprehension_summary_line(comprehension)
+    if comprehension_line:
+        parts.append(comprehension_line)
     plan_lines = _plan_summary_lines(capability_plan)
     if plan_lines:
         body = "\n".join(f"  - {line}" for line in plan_lines)

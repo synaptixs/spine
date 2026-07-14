@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from orchestrator.core.llm import LLMClient, RunBudget
 from orchestrator.intake.service import BacklogService
+from orchestrator.runtime import ArtifactStore, InMemoryArtifactStore
 from orchestrator.sdlc.ci import CIAdapter, StubCIAdapter
 from orchestrator.sdlc.codegen import CodegenAdapter, StubCodegenAdapter
 from orchestrator.sdlc.escalation import EscalationPolicy
@@ -66,3 +67,7 @@ class SDLCDeps:
     # The LLM client for post-merge memory consolidation (Phase 2b). None when no
     # LLM is configured (stub codegen) — the consolidate activity then no-ops.
     llm: LLMClient | None = None
+    # Where the repo-comprehension milestone (M1) persists its architectural
+    # artifacts (knowledge graph, memory bank, current-state). Defaults to an
+    # in-memory store for tests; the worker wires the env-selected store.
+    artifact_store: ArtifactStore = field(default_factory=InMemoryArtifactStore)

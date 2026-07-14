@@ -14,6 +14,7 @@ the runtime can call directly without an HTTP hop, plus an
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any, Protocol
 
 from orchestrator.storage import ArtifactNotFoundError, ObjectStoreClient
@@ -109,6 +110,57 @@ class InMemoryArtifactStore:
         return list(self._blobs) + list(self._byte_blobs)
 
 
+class FilesystemArtifactStore:
+    """Disk-backed store — **shared across processes** (the SDLC worker writes,
+    the API reads). Artifacts live under ``ORCHESTRATOR_ARTIFACT_DIR`` (default
+    ``.orchestrator-artifacts``); the ``artifact_id`` is the relative path. The
+    local-``up`` default so run artifacts are visible to the web UI without MinIO.
+    """
+
+    def __init__(self, root: str | None = None) -> None:
+        import os
+
+        raw = root or os.getenv("ORCHESTRATOR_ARTIFACT_DIR") or ".orchestrator-artifacts"
+        self._root = Path(raw).expanduser().resolve()
+
+    def _path(self, artifact_id: str) -> Path:
+        p = (self._root / artifact_id).resolve()
+        if p != self._root and self._root not in p.parents:
+            raise ValueError(f"artifact id {artifact_id!r} escapes the artifact root")
+        return p
+
+    async def put_bytes(
+        self, artifact_id: str, body: bytes, content_type: str = "application/octet-stream"
+    ) -> None:
+        p = self._path(artifact_id)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(body)
+
+    async def get_bytes(self, artifact_id: str) -> bytes:
+        p = self._path(artifact_id)
+        if not p.is_file():
+            raise LookupError(f"artifact {artifact_id!r} not found")
+        return p.read_bytes()
+
+    async def put_json(self, artifact_id: str, body: dict[str, Any]) -> None:
+        payload = json.dumps(body, default=str, ensure_ascii=False).encode("utf-8")
+        await self.put_bytes(artifact_id, payload, "application/json")
+
+    async def get_json(self, artifact_id: str) -> dict[str, Any]:
+        raw = await self.get_bytes(artifact_id)
+        loaded = json.loads(raw.decode("utf-8"))
+        if not isinstance(loaded, dict):
+            raise ValueError(f"artifact {artifact_id!r} did not deserialise to a JSON object")
+        return dict(loaded)
+
+    def list_prefix(self, prefix: str) -> list[str]:
+        """Relative keys of every file under ``prefix`` (for run-artifact listing)."""
+        base = self._path(prefix)
+        if not base.is_dir():
+            return []
+        return sorted(str(p.relative_to(self._root)) for p in base.rglob("*") if p.is_file())
+
+
 def make_artifact_id(*, task_id: str, node_id: str, suffix: str = "output") -> str:
     """Stable key for a specialist's terminal output.
 
@@ -130,12 +182,16 @@ def make_job_artifact_id(*, job_id: str, filename: str) -> str:
 
 
 def artifact_store_from_env() -> ArtifactStore:
-    """Pick the artifact store from the environment: in-memory when
-    ``ORCHESTRATOR_ARTIFACT_STORE=memory`` (the local ``up`` default and CI),
-    else the S3/MinIO-backed object store. Shared by the Temporal worker and the
-    in-process capability job runner so both honour the same hint."""
+    """Pick the artifact store from ``ORCHESTRATOR_ARTIFACT_STORE``:
+    ``memory`` (in-process, tests/CI), ``fs`` (disk-backed, shared across the
+    worker + API — the local ``up`` default so run artifacts reach the web UI),
+    else the S3/MinIO object store (production). Shared by the Temporal worker
+    and the in-process capability job runner so both honour the same hint."""
     import os
 
-    if os.getenv("ORCHESTRATOR_ARTIFACT_STORE", "").lower() == "memory":
+    kind = os.getenv("ORCHESTRATOR_ARTIFACT_STORE", "").lower()
+    if kind == "memory":
         return InMemoryArtifactStore()
+    if kind == "fs":
+        return FilesystemArtifactStore()
     return ObjectStoreArtifactStore()

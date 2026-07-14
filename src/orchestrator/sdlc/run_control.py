@@ -86,6 +86,7 @@ async def start_run(
             dry_run_jira=not create_jira,
             max_features=max_features,
             max_parallel_features=max_parallel,
+            design_gate=(os.getenv("SDLC_DESIGN_GATE", "0") or "0").strip().lower() in ("1", "true", "yes"),
         ),
         id=f"task-{sdlc_id}",
         task_queue=queue,

@@ -11,14 +11,25 @@ writes exactly one): merged / failed / denied / cancelled, else running.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from typing import Any
+
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from orchestrator.registry.api.deps import PrincipalDep, SessionDep
 from orchestrator.registry.db.models import AuditLogRow
 
 router = APIRouter(prefix="/v1/runs", tags=["runs"])
+
+# Audit actions whose after_json carries an ``artifacts`` map (name → store key).
+_ARTIFACT_ACTIONS = {"sdlc_repo_comprehended": "comprehension", "feature_designed": "design"}
+_CONTENT_TYPES = {
+    ".db": "application/vnd.sqlite3",
+    ".json": "application/json",
+    ".md": "text/markdown",
+    ".txt": "text/plain",
+}
 
 # Terminal audit actions → run state. First match (latest-first scan) wins.
 _TERMINAL_STATE = {
@@ -139,3 +150,76 @@ def _summarize(run_id: str, events_newest_first: list[AuditLogRow]) -> RunSummar
 
 def _iso(row: AuditLogRow) -> str:
     return row.timestamp.isoformat() if row.timestamp else ""
+
+
+# --------------------------------------------------------------------------- #
+# Run artifacts — the architectural artifacts the pipeline persists (M1/M2)
+# --------------------------------------------------------------------------- #
+class RunArtifact(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: str  # comprehension | design
+    name: str  # e.g. current-state.md, memory-bank/architecture.md
+    key: str  # artifact-store key (download via /artifacts/download?key=)
+    resource_id: str  # the run or feature the artifact belongs to
+
+
+class RunArtifactsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[RunArtifact]
+
+
+@router.get("/{run_id}/artifacts", response_model=RunArtifactsResponse)
+async def run_artifacts(run_id: str, session: SessionDep, principal: PrincipalDep) -> RunArtifactsResponse:
+    """List the architectural artifacts a run persisted (comprehension + design),
+    derived from the audit manifests (which live in the shared DB)."""
+    stmt = (
+        select(AuditLogRow)
+        .where(
+            AuditLogRow.tenant_id == principal.tenant_id,
+            or_(AuditLogRow.resource_id == run_id, AuditLogRow.trace_id == run_id),
+            AuditLogRow.action.in_(list(_ARTIFACT_ACTIONS)),
+        )
+        .order_by(AuditLogRow.timestamp)
+        .limit(_MAX_SCAN)
+    )
+    rows = list((await session.execute(stmt)).scalars().all())
+    items: list[RunArtifact] = []
+    for r in rows:
+        after = r.after_json or {}
+        artifacts = after.get("artifacts")
+        if not isinstance(artifacts, dict):
+            continue
+        kind = _ARTIFACT_ACTIONS[r.action]
+        for name, key in artifacts.items():
+            items.append(RunArtifact(kind=kind, name=str(name), key=str(key), resource_id=r.resource_id))
+    return RunArtifactsResponse(items=items)
+
+
+@router.get("/{run_id}/artifacts/download")
+async def download_run_artifact(
+    run_id: str, request: Request, _principal: PrincipalDep, key: str
+) -> Response:
+    """Download one run artifact by its store key. The key must belong to this
+    run (``run/<run_id>/…``), and the store must be shared with the writer (the
+    disk-backed store under local ``up``; the object store in production)."""
+    if not key.startswith(f"run/{run_id}/"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="key does not belong to this run")
+    store: Any = getattr(request.app.state, "artifact_store", None)
+    if store is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="no artifact store")
+    try:
+        body = await store.get_bytes(key)
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"{exc} (run artifacts need a shared store — set ORCHESTRATOR_ARTIFACT_STORE=fs)",
+        ) from exc
+    ext = key[key.rfind(".") :] if "." in key else ""
+    filename = key.rsplit("/", 1)[-1]
+    return Response(
+        content=body,
+        media_type=_CONTENT_TYPES.get(ext, "application/octet-stream"),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

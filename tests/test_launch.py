@@ -57,7 +57,8 @@ class TestBuildChildEnv:
         env = launch.build_child_env(cfg)
         assert env["ORCHESTRATOR_API_KEY"] == "k1"
         assert env["ORCHESTRATOR_SESSION_SECRET"] == "s1"
-        assert env["ORCHESTRATOR_ARTIFACT_STORE"] == "memory"
+        # Disk-backed by default so worker-written run artifacts reach the web UI.
+        assert env["ORCHESTRATOR_ARTIFACT_STORE"] == "fs"
         assert env["SDLC_CODEGEN"] == "llm"
 
     def test_existing_values_win(self) -> None:

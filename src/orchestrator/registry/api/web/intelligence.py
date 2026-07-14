@@ -34,11 +34,14 @@ def _repo_bar(button_id: str, button_label: str, *, extra: str = "") -> str:
         '<div class="repo-bar">'
         '<label>repo <input id="repo" value="." '
         'placeholder="local path or git URL (https://github.com/org/repo)" size="40"></label>'
+        '<button id="repo-browse" type="button">Browse…</button>'
         f"{extra}"
         f'<button id="{button_id}" class="primary">{button_label}</button>'
         "</div>"
-        '<p class="repo-hint muted">A path under the workspace root, or a git URL to clone '
-        "(github.com / bitbucket.org / gitlab.com, or a configured enterprise host).</p>"
+        '<p class="repo-hint muted">A local path (use <strong>Browse…</strong> to pick a folder on '
+        "this machine), or a git URL to clone — github.com / bitbucket.org / gitlab.com, or a "
+        "configured enterprise host.</p>"
+        '<div id="fsmodal"></div>'
         '<div id="status" class="muted"></div>'
     )
 
@@ -50,7 +53,9 @@ def _page(*, title: str, active: str, intro: str, body: str, script: str) -> HTM
             active=active,
             body=f"<h1>{title}</h1><p class='lead'>{intro}</p>{body}",
             head='<link rel="stylesheet" href="/static/intelligence.css">',
-            scripts=script,
+            # repobrowse.js powers the shared "Browse…" repo-folder picker on
+            # every intelligence page; the page-specific script follows it.
+            scripts='<script src="/static/repobrowse.js"></script>' + script,
         )
     )
 

@@ -50,6 +50,11 @@ class SDLCWorkflowInput:
     # Children run in batches of this size — a full fan-out of LLM codegen
     # bursts past provider rate tiers (run #6's lesson).
     max_parallel_features: int = 2
+    # M2: raise the design gate (Gate 1.5) after the design wave, so a human
+    # signs off the per-issue designs before implementation. Captured at start
+    # from ``SDLC_DESIGN_GATE`` (off by default). Designs are always produced
+    # (the activity self-gates on ``SDLC_DESIGN``); this only controls the gate.
+    design_gate: bool = False
 
 
 @dataclass
@@ -98,6 +103,13 @@ class FeatureWorkflowInput:
     # to condition the agentic codegen loop. Run-level (same for every feature).
     skills: list[str] = field(default_factory=list)
     mcp_servers: list[str] = field(default_factory=list)
+    # Repo comprehension manifest (M1): the artifact keys for the shared memory
+    # bank, so a feature's worktree can be seeded with it before codegen and
+    # grounds on the run's code-true knowledge. Run-level; ``{}`` when skipped.
+    comprehension: dict[str, Any] = field(default_factory=dict)
+    # This issue's approved design (M2): folded into the spec before codegen so
+    # implementation follows the grounded approach. ``{}`` when design skipped.
+    design: dict[str, Any] = field(default_factory=dict)
 
 
 # Child verdicts. ``passed`` is the only one that opens a PR and lets the parent

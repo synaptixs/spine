@@ -110,6 +110,9 @@ async def test_intelligence_pages_render_and_are_navigable() -> None:
             r = await client.get(path)
             assert r.status_code == 200 and title in r.text and script in r.text
             assert 'id="repo"' in r.text  # the repo bar
+            # the shared "Browse…" repo-folder picker (local path exposure)
+            assert 'id="repo-browse"' in r.text and 'id="fsmodal"' in r.text
+            assert "/static/repobrowse.js" in r.text
         home = await client.get("/app")
         for href in ("/app/understand", "/app/state", "/app/graph"):
             assert f'href="{href}"' in home.text  # nav section + home cards
