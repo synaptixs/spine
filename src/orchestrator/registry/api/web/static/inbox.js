@@ -28,6 +28,11 @@ async function delegate() {
 
 function stateClass(s) { return "pill state-" + (s || "running"); }
 
+// Plain-language status for the feed — a PM shouldn't need to decode "running".
+function lifecycle(s) {
+  return ({ running: "In progress", completed: "Delivered", failed: "Stopped", pending: "Queued" })[s] || (s || "In progress");
+}
+
 // Turn an audit action (sdlc_intents_extracted) into a readable stage.
 function stage(action) {
   return String(action || "working").replace(/^sdlc_/, "").replace(/_/g, " ");
@@ -45,7 +50,7 @@ function renderFeed() {
   box.innerHTML = items.map((r) =>
     `<div class="run" id="run-${esc(r.sdlc_id)}">
        <div class="run-head"><code>${esc(r.sdlc_id)}</code>
-         <span class="${stateClass(r.state)}">${esc(r.state)}</span></div>
+         <span class="${stateClass(r.state)}">${esc(lifecycle(r.state))}</span></div>
        <div class="muted">${esc(stage(r.last_action))} · ${esc((r.updated_at || "").slice(0, 19))}
          · <a href="/trace/${esc(r.sdlc_id)}">trace →</a></div>
      </div>`).join("");
@@ -121,9 +126,8 @@ async function checkBackend() {
     bar.className = "statusbar ok"; txt.textContent = "Backend ready";
   } catch (_) {
     bar.className = "statusbar down";
-    txt.innerHTML = "Backend not ready — start the database + worker "
-      + "(<code>docker compose -f docker-compose.dev.yml up -d</code>, then "
-      + "<code>python -m orchestrator.sdlc.worker</code>). Delegating still queues a run.";
+    txt.innerHTML = "Backend not ready — start the whole stack in one command: "
+      + "<code>orchestrator up</code>. Delegating still queues a run.";
   }
 }
 
@@ -131,6 +135,10 @@ $("delegate").onclick = delegate;
 $("src").addEventListener("keydown", (e) => { if (e.key === "Enter") delegate(); });
 $("src").addEventListener("input", updateHint);
 $("jira").addEventListener("change", updateHint);
+// One-click examples fill the source box (and refresh the CLI hint).
+document.querySelectorAll(".ex[data-src]").forEach((b) => {
+  b.addEventListener("click", () => { $("src").value = b.dataset.src; updateHint(); $("src").focus(); });
+});
 
 updateHint();
 checkBackend();

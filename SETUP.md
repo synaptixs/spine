@@ -131,6 +131,13 @@ once their credentials are set in `.env` — run `orchestrator doctor` to check.
 
 ## 5. Running the dev API
 
+> **One command:** from a source checkout with Docker running, `orchestrator up`
+> brings up the infra (Postgres + Temporal), applies migrations, and launches the
+> web/API server **and** the SDLC worker together — then prints the URL
+> (`http://localhost:8000/app`) and login key. Ctrl-C stops the app processes. The
+> steps below are the manual equivalent (useful for `--reload` dev loops or running
+> a single process).
+
 ```bash
 # In one terminal: the registry + task API
 export ORCHESTRATOR_API_KEY=dev-key

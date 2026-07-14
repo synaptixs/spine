@@ -19,9 +19,57 @@ from pydantic import BaseModel
 
 from orchestrator.registry.api.deps import Principal, principal_from_session, resolve_principal_from_key
 from orchestrator.registry.api.session import COOKIE_NAME, MAX_AGE_SECONDS, sign_session
-from orchestrator.registry.api.web.shell import page_shell
+from orchestrator.registry.api.web.icons import brand_mark, icon
 
 router = APIRouter(tags=["auth"])
+
+# (icon, headline, sub) — the four beats of "what Spine does", animated top-to-bottom
+# on the login hero as a packet falls down the pipeline and each stage lights up.
+_PIPELINE: tuple[tuple[str, str, str], ...] = (
+    ("file", "You write a requirement", "A Confluence page, a Notion doc, or a note."),
+    ("search", "Spine understands your repo", "It maps the structure and conventions first."),
+    ("cpu", "It writes and tests the code", "Grounded in what already exists."),
+    ("gitpr", "You get a pull request", "Reviewed by you before anything ships."),
+)
+
+
+def _login_html() -> str:
+    nodes = "".join(
+        f'<div class="pnode"><span class="pico" style="--d:{0.3 + i * 1.2:.1f}s">{icon(glyph)}</span>'
+        f"<div><strong>{head}</strong><span class='lbl'>{sub}</span></div></div>"
+        for i, (glyph, head, sub) in enumerate(_PIPELINE)
+    )
+    pipeline = (
+        '<div class="pipe" aria-hidden="true">'
+        '<span class="pipe-line"></span><span class="pipe-dot"></span>'
+        f"{nodes}</div>"
+    )
+    return (
+        '<!doctype html><html lang="en"><head>'
+        '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+        "<title>Sign in · Spine</title>"
+        '<link rel="stylesheet" href="/static/app.css">'
+        '<link rel="stylesheet" href="/static/login.css">'
+        '</head><body class="login-body">'
+        '<div class="login-wrap">'
+        '<section class="login-hero">'
+        f'<div class="login-brand">{brand_mark()}Spine</div>'
+        "<h1>Delegate a ticket.<br>Get a reviewed pull request.</h1>"
+        '<p class="sub">Spine is an AI software engineer you hand a requirement to — it reads it, '
+        "learns your codebase, writes and tests the change, and opens a PR for you to review.</p>"
+        f"{pipeline}"
+        "</section>"
+        '<section class="login-card">'
+        "<h2>Sign in</h2>"
+        '<p class="hint">Enter your API key to continue.</p>'
+        '<form id="login">'
+        "<input id='key' type='password' placeholder='API key' autocomplete='current-password' autofocus>"
+        "<button class='primary' type='submit'>Sign in</button>"
+        "</form><div id='msg'></div>"
+        "</section></div>"
+        '<script src="/static/login.js"></script>'
+        "</body></html>"
+    )
 
 
 class WebAuthRequiredError(Exception):
@@ -50,23 +98,9 @@ class LoginRequest(BaseModel):
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page() -> HTMLResponse:
-    body = (
-        "<h1>Sign in</h1>"
-        '<p class="lead">Enter your API key to access the console.</p>'
-        '<form id="login" class="intake-form">'
-        "<input id='key' type='password' placeholder='API key' autocomplete='current-password' autofocus>"
-        "<button class='primary' type='submit'>Sign in</button>"
-        "</form><div id='msg'></div>"
-    )
-    return HTMLResponse(
-        page_shell(
-            title="Sign in",
-            active="",
-            body=body,
-            head='<link rel="stylesheet" href="/static/intake.css">',
-            scripts='<script src="/static/login.js"></script>',
-        )
-    )
+    """A standalone, animated sign-in page (no app nav) — a light blue/green hero
+    that shows what Spine does beside the key field."""
+    return HTMLResponse(_login_html())
 
 
 @router.post("/login", status_code=status.HTTP_204_NO_CONTENT)

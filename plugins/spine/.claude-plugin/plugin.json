@@ -1,0 +1,15 @@
+{
+  "name": "spine",
+  "displayName": "Spine",
+  "version": "2.5.0",
+  "description": "Delegate a ticket, get a reviewed PR. Spine builds a Product Knowledge Graph of your repo, grounds new code in what already exists, generates + tests it, and — when you confirm — opens a pull request. Greenfield + brownfield across Python, Java, TypeScript, C#, C, and C++. Safe by default: a local branch + diff with no external writes; live writes (a real Jira issue + PR) are gated behind an explicit confirm.",
+  "author": {
+    "name": "Synaptixs",
+    "url": "https://github.com/synaptixs/spine"
+  },
+  "homepage": "https://github.com/synaptixs/spine",
+  "repository": "https://github.com/synaptixs/spine",
+  "license": "MIT",
+  "keywords": ["sdlc", "codegen", "mcp", "knowledge-graph", "greenfield", "brownfield", "pkg"],
+  "mcpServers": "./.mcp.json"
+}

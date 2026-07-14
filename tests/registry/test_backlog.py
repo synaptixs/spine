@@ -70,7 +70,7 @@ async def test_backlog_page_requires_login_then_renders() -> None:
         await client.post("/login", json={"api_key": "dev-key"})
         resp = await client.get("/app/backlog")
     assert resp.status_code == 200
-    assert "Backlog · Orchestrator" in resp.text  # shell title
+    assert "Backlog · Spine" in resp.text  # shell title
     assert 'class="navlink active"' in resp.text  # Backlog active in the shared nav
     assert "/static/intake.css" in resp.text and "/static/intake.js" in resp.text
     assert "Confluence" in resp.text

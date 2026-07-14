@@ -31,9 +31,11 @@ router = APIRouter(tags=["console"])
 # so there's no API-key input. The shared shell supplies nav + base styles.
 _BODY = (
     "<h1>Console</h1>"
-    '<p class="lead">The operator view — approve the gates a run pauses at, and scan the runs '
-    "dashboard. Same data as the Inbox, shown as tables; click a run's <strong>trace</strong> for its "
-    "full timeline.</p>"
+    '<p class="lead">The operator view — a dense, table-first take on the same runs and gates as '
+    "the <a href='/app/inbox'>Inbox</a>, for scanning many at once and for <strong>richer "
+    "approvals</strong> (approve with clarifications / release notes, not just approve or reject). "
+    "For delegating a feature and watching one run live, use the Inbox; come here to review in "
+    "bulk. Click a run's <strong>trace</strong> for its full timeline.</p>"
     '<div class="toolbar">'
     "<button id='refresh' class='primary'>Load</button>"
     "<label class='auto'><input id='auto' type='checkbox'> live</label>"

@@ -8,39 +8,51 @@
 .composer input#src {
   flex: 1;
   min-width: 18rem;
-  padding: 0.5rem;
+  padding: 0.6rem 0.7rem;
   font: inherit;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: var(--bg);
   color: var(--text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.composer input#src:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .composer label.auto { color: var(--muted); font-size: 0.85rem; display: flex; align-items: center; gap: 0.3rem; }
 .composer button.primary {
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 1.1rem;
   font: inherit;
+  font-weight: 500;
   cursor: pointer;
   border: 1px solid var(--accent);
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: var(--accent);
   color: #fff;
+  transition: filter 0.15s, box-shadow 0.15s;
 }
+.composer button.primary:hover { filter: brightness(1.08); box-shadow: var(--shadow-sm); }
 #cmsg { font-size: 0.9rem; min-height: 1.2rem; margin-bottom: 0.5rem; }
 .err { color: var(--fail); }
 .gate {
-  border: 2px solid var(--warn);
-  border-radius: 10px;
+  border: 1px solid var(--warn);
+  border-left: 4px solid var(--warn);
+  border-radius: var(--radius-lg);
   padding: 0.75rem 1rem;
   margin: 0.5rem 0;
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 .gate-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
 .run {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   padding: 0.7rem 0.9rem;
   margin: 0.4rem 0;
-  background: var(--surface);
+  background: var(--bg);
+  box-shadow: var(--shadow-sm);
   transition: background 0.4s ease;
 }
 .run.flash { background: var(--code-bg); }
@@ -71,3 +83,67 @@
 .actions button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .actions button.danger { color: var(--fail); border-color: var(--fail); }
 .muted { color: var(--muted); font-size: 0.85rem; }
+
+/* --- compose card --- */
+.compose-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 14px);
+  padding: 1.1rem 1.25rem 1rem;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 1.4rem;
+}
+.compose-card .statusbar { margin-bottom: 0.85rem; }
+.compose-card .composer { margin: 0.1rem 0 0; }
+.help { color: var(--muted); font-size: 0.85rem; line-height: 1.5; margin: 0.85rem 0 0; }
+.examples { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.6rem; }
+.ex {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ex:hover { background: var(--accent-soft); border-color: var(--accent); }
+
+/* --- animated "what happens when you delegate" flow --- */
+.flow { position: relative; display: flex; justify-content: space-between; margin: 0.9rem 0 0.3rem; padding: 0 0.3rem; }
+.flow-line { position: absolute; left: 1.7rem; right: 1.7rem; top: 1.15rem; height: 2px; background: var(--border); border-radius: 2px; }
+.flow-dot {
+  position: absolute;
+  top: 0.84rem;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+  animation: flow-move 5s ease-in-out infinite;
+}
+.fnode { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; text-align: center; }
+.fico {
+  width: 2.2rem;
+  height: 2.2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  animation: fnode-lite 5s ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+}
+.flab { font-size: 0.72rem; color: var(--muted); }
+@keyframes flow-move { 0% { left: 6%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { left: 94%; opacity: 0; } }
+@keyframes fnode-lite {
+  0%, 100% { color: var(--muted); border-color: var(--border); transform: scale(1); }
+  6% { color: var(--accent); border-color: var(--accent); transform: scale(1.1); }
+  18% { color: var(--muted); border-color: var(--border); transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-dot { animation: none; left: 6%; }
+  .fico { animation: none; }
+}

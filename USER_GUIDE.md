@@ -344,7 +344,22 @@ console, and trace), and durable execution that survives restarts, switch on the
 pipeline. This is the part that
 needs Docker, and it runs from a **source checkout** (Step 1, option 2).
 
-**7.1 — Start the stack and create the database (once):**
+**7.1 — The one-command way (recommended):**
+```bash
+orchestrator up
+```
+That single command brings up the Docker infra (Postgres + Temporal), applies
+migrations, and launches **both** the web/API server and the SDLC worker with
+sensible defaults. When it prints **“Spine is up”**, open `http://localhost:8000/app`
+and log in with the API key it shows (`dev-key` by default). **Ctrl-C** stops the app
+processes (the infra containers stay up for fast restarts). It needs Docker running
+and an LLM key in your `.env` (for real codegen). Flags: `--port`, `--no-worker`
+(browse-only), `--no-docker` (infra already running), `--compose-file`.
+
+Prefer to run the pieces yourself (or need to customise ports/env)? The manual path
+below is exactly what `orchestrator up` automates.
+
+**7.1a — Start the stack and create the database (once):**
 ```bash
 docker compose -f docker-compose.dev.yml up -d     # Temporal + Postgres + MinIO
 set -a; source .env; set +a                        # load .env into this shell

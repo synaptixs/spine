@@ -1187,6 +1187,51 @@ def init(
     raise typer.Exit(code=1)
 
 
+@app.command("up")
+def up(
+    port: Annotated[int, typer.Option("--port", help="Port for the web UI + API.")] = 8000,
+    host: Annotated[str, typer.Option("--host", help="Bind address for the API.")] = "127.0.0.1",
+    no_docker: Annotated[
+        bool,
+        typer.Option("--no-docker", help="Don't manage Docker; assume Postgres + Temporal are already up."),
+    ] = False,
+    no_worker: Annotated[
+        bool, typer.Option("--no-worker", help="Skip the Temporal worker (browse-only; can't delegate runs).")
+    ] = False,
+    compose_file: Annotated[
+        Path | None, typer.Option("--compose-file", help="Override the docker compose file to use.")
+    ] = None,
+) -> None:
+    """Bring up the whole local stack in one command, then open the inbox.
+
+    Starts Docker infra (Postgres + Temporal), applies migrations, and launches
+    the web/API server **and** the Temporal worker with sensible defaults — so a
+    non-technical user reaches the delegation inbox at ``/app`` without wiring up
+    three terminals. Streams logs until Ctrl-C, then stops the app processes
+    (infra containers are left running for fast restarts).
+    """
+    from orchestrator.core.env import load_local_env
+    from orchestrator.launch import LaunchConfig, LaunchError, run_up
+
+    load_local_env()
+
+    config = LaunchConfig(
+        host=host,
+        port=port,
+        use_docker=not no_docker,
+        start_worker=not no_worker,
+        compose_file=compose_file,
+        api_key=os.getenv("ORCHESTRATOR_API_KEY", "dev-key"),
+        session_secret=os.getenv("ORCHESTRATOR_SESSION_SECRET", "dev-session-secret"),
+    )
+    try:
+        code = run_up(config, echo=typer.echo)
+    except LaunchError as exc:
+        typer.echo(f"\n✗ {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    raise typer.Exit(code=code)
+
+
 @app.command("audit")
 def audit(
     path: Annotated[Path, typer.Argument(help="Repo or directory to audit.")] = Path("."),

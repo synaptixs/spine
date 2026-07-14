@@ -11,19 +11,22 @@ from __future__ import annotations
 
 import html
 
-# (label, href) — the surfaces in the shared top nav. Grows as P0 folds in more.
-NAV: tuple[tuple[str, str], ...] = (
-    ("Home", "/app"),
-    ("Inbox", "/app/inbox"),
-    ("Console", "/console"),
-    ("Backlog", "/app/backlog"),
-    ("Personas", "/app/personas"),
-    ("Docs", "/docs"),
+from orchestrator.registry.api.web.icons import brand_mark, icon
+
+# (label, href, icon) — the surfaces in the shared left sidebar. "Docs" points at
+# the written guide (the raw OpenAPI schema stays reachable via the Home card).
+NAV: tuple[tuple[str, str, str], ...] = (
+    ("Home", "/app", "home"),
+    ("Inbox", "/app/inbox", "inbox"),
+    ("Console", "/console", "table"),
+    ("Backlog", "/app/backlog", "list"),
+    ("Personas", "/app/personas", "users"),
+    ("Docs", "https://github.com/synaptixs/spine/blob/main/USER_GUIDE.md", "book"),
 )
 
 
 def page_shell(*, title: str, active: str, body: str, head: str = "", scripts: str = "") -> str:
-    """Wrap a page ``body`` in the shared nav chrome + stylesheet.
+    """Wrap a page ``body`` in the shared left-sidebar app shell + stylesheet.
 
     ``active`` is the NAV label to highlight (or "" for pages outside the nav,
     like a single trace). ``body`` is trusted HTML the caller already escaped.
@@ -32,20 +35,22 @@ def page_shell(*, title: str, active: str, body: str, head: str = "", scripts: s
     DOM exists when it runs. Both default to "" → the base pages are unchanged.
     """
     links = "".join(
-        f'<a href="{href}" class="navlink{" active" if label == active else ""}">{html.escape(label)}</a>'
-        for label, href in NAV
+        f'<a href="{href}" class="navlink{" active" if label == active else ""}">'
+        f"{icon(glyph)}<span>{html.escape(label)}</span></a>"
+        for label, href, glyph in NAV
     )
     return (
         '<!doctype html><html lang="en"><head>'
         '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
-        f"<title>{html.escape(title)} · Orchestrator</title>"
+        f"<title>{html.escape(title)} · Spine</title>"
         '<link rel="stylesheet" href="/static/app.css">'
         f"{head}"
-        "</head><body>"
-        '<header class="topbar"><a class="brand" href="/app">Orchestrator</a>'
+        '</head><body><div class="app">'
+        f'<aside class="sidebar"><a class="brand" href="/app">{brand_mark()}Spine</a>'
         f'<nav class="nav">{links}</nav>'
-        '<a href="/logout" class="navlink signout">Sign out</a></header>'
-        f'<main class="wrap">{body}</main>'
+        f'<a href="/logout" class="navlink signout">{icon("logout")}<span>Sign out</span></a></aside>'
+        f'<main class="content">{body}</main>'
+        "</div>"
         f"{scripts}"
         "</body></html>"
     )

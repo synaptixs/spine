@@ -44,9 +44,13 @@ async def test_home_page_requires_login_then_renders() -> None:
         await _login(client)  # the session cookie carries through the client
         resp = await client.get("/app")
     assert resp.status_code == 200
-    assert "Orchestrator" in resp.text
+    assert "Spine" in resp.text  # branded as the product, not "Orchestrator"
     assert 'href="/console"' in resp.text  # nav + cards link the surfaces
     assert "/static/app.css" in resp.text
+    # Capabilities are surfaced on Home (the "what can I do" gap — Phase 3, Step 8).
+    assert "What Spine can build" in resp.text
+    for capability in ("Python", "TypeScript", "existing repos", "Safe by default"):
+        assert capability in resp.text
 
 
 async def test_login_rejects_a_bad_key() -> None:
@@ -76,7 +80,7 @@ async def test_personas_browser_requires_login_then_renders() -> None:
         await _login(client)
         resp = await client.get("/app/personas")
     assert resp.status_code == 200
-    assert "Personas · Orchestrator" in resp.text
+    assert "Personas · Spine" in resp.text
     assert "/static/personas.js" in resp.text
 
 
