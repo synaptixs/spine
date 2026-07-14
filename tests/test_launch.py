@@ -167,7 +167,10 @@ class TestResolveComposeFile:
 # CLI wiring
 # --------------------------------------------------------------------------- #
 def test_up_help_lists_flags() -> None:
-    result = CliRunner().invoke(app, ["up", "--help"])
+    # Force a wide terminal so Rich doesn't wrap the long option names across
+    # lines (CI runs at 80 cols, which splits "--no-docker" and breaks the
+    # substring match); COLUMNS is honored by Rich's console width detection.
+    result = CliRunner().invoke(app, ["up", "--help"], env={"COLUMNS": "200"})
     assert result.exit_code == 0
     assert "--no-docker" in result.stdout
     assert "--no-worker" in result.stdout
