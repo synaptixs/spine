@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from orchestrator import launch
@@ -166,12 +167,20 @@ class TestResolveComposeFile:
 # --------------------------------------------------------------------------- #
 # CLI wiring
 # --------------------------------------------------------------------------- #
-def test_up_help_lists_flags() -> None:
-    # Force a wide terminal so Rich doesn't wrap the long option names across
-    # lines (CI runs at 80 cols, which splits "--no-docker" and breaks the
-    # substring match); COLUMNS is honored by Rich's console width detection.
-    result = CliRunner().invoke(app, ["up", "--help"], env={"COLUMNS": "200"})
+def test_up_help_renders() -> None:
+    result = CliRunner().invoke(app, ["up", "--help"])
     assert result.exit_code == 0
-    assert "--no-docker" in result.stdout
-    assert "--no-worker" in result.stdout
-    assert "--port" in result.stdout
+
+
+def test_up_exposes_flags() -> None:
+    # Introspect the registered command's parameters rather than scraping the
+    # rendered --help text: Rich wraps/reflows long option names by terminal
+    # width and its exact layout varies across Rich/Typer versions, so a
+    # substring match on the help output is flaky in CI. The option names are
+    # the real contract.
+    up = typer.main.get_command(app).get_command(None, "up")  # type: ignore[attr-defined]
+    opts: set[str] = set()
+    for param in up.params:
+        opts.update(param.opts)
+        opts.update(param.secondary_opts)
+    assert {"--no-docker", "--no-worker", "--port", "--host", "--compose-file"} <= opts
