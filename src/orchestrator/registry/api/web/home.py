@@ -33,9 +33,20 @@ async def favicon() -> Response:
 # (title, href, description, icon) — the surfaces surfaced on the home page.
 _CARDS: tuple[tuple[str, str, str, str], ...] = (
     ("Inbox", "/app/inbox", "Delegate work, watch it live, clear its gates.", "inbox"),
+    ("Intake studio", "/app/intake", "Preview any source, then delegate a gated run.", "sparkles"),
     ("Console", "/console", "Review approval gates and the runs dashboard.", "table"),
     ("Backlog", "/app/backlog", "Preview a Confluence source as a backlog.", "list"),
+    ("Understand", "/app/understand", "Map a repo into a code-true memory bank.", "search"),
+    ("Current State", "/app/state", "A code-true report of what the system is.", "file"),
+    ("Knowledge graph", "/app/graph", "The module-level knowledge-graph overview.", "branch"),
     ("Personas", "/app/personas", "The personas and skills the engineer uses.", "users"),
+    ("Evals", "/app/evals", "Skill quality and the eval harness.", "target"),
+    ("Cross-run memory", "/app/memory", "What the engineer learned across runs.", "activity"),
+    ("Audit log", "/app/audit", "Every recorded action, filterable.", "shield"),
+    ("Policy & budget", "/app/governance", "Per-run spend, policy, and bundle export.", "gate"),
+    ("Connections", "/app/connections", "External MCP servers and source status.", "link"),
+    ("Registry", "/app/registry", "Agent templates, tool contracts, and glossary.", "cpu"),
+    ("System", "/app/system", "Environment checks and database readiness.", "activity"),
     ("API docs", "/docs", "The /v1 JSON API (OpenAPI).", "code"),
 )
 

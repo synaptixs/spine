@@ -78,27 +78,74 @@ async function decide(id, action){
   } catch(e){ setMsg(e.message, "err"); }
 }
 
+let allRuns = [];
+
 async function loadRuns(){
-  const data = await api("/v1/runs");
+  allRuns = (await api("/v1/runs")).items;
+  renderRuns();
+}
+
+// Client-side filter by state (no refetch) — the runs list is already loaded.
+function renderRuns(){
   const box = $("runs");
-  if(!data.items.length){ box.innerHTML = "<div class='empty'>No runs yet. Start one from the <a href='/app/inbox'>Inbox</a>, or run <code>orchestrator sdlc run --source &lt;id&gt;</code>. Runs need the worker + database up.</div>"; return; }
+  const want = $("run-filter") ? $("run-filter").value : "";
+  const runs = want ? allRuns.filter(r => r.state === want) : allRuns;
+  if(!allRuns.length){ box.innerHTML = "<div class='empty'>No runs yet. Start one from the <a href='/app/inbox'>Inbox</a>, or run <code>orchestrator sdlc run --source &lt;id&gt;</code>. Runs need the worker + database up.</div>"; return; }
+  if(!runs.length){ box.innerHTML = `<div class='empty'>No <strong>${esc(want)}</strong> runs.</div>`; return; }
   box.innerHTML = "<table><thead><tr><th>sdlc_id</th><th>state</th><th>last action</th>"
     + "<th>updated</th><th>events</th><th></th></tr></thead><tbody>"
-    + data.items.map(r =>
-        `<tr><td><code>${esc(r.sdlc_id)}</code></td>`
+    + runs.map(r =>
+        `<tr class='clickable' data-id='${esc(r.sdlc_id)}'><td><code>${esc(r.sdlc_id)}</code></td>`
         + `<td class='${stateClass(r.state)}'>${esc(r.state)}</td>`
         + `<td class='muted'>${esc(r.last_action)}</td>`
         + `<td class='muted'>${esc((r.updated_at||"").slice(0,19))}</td>`
         + `<td>${esc(r.events)}</td>`
-        + `<td><a href='/trace/${esc(r.sdlc_id)}' target='_blank'>trace →</a></td></tr>`).join("")
+        + `<td class='run-actions'><a href='/trace/${esc(r.sdlc_id)}' target='_blank'>trace →</a>`
+        + ` · <a href='#' class='export' data-id='${esc(r.sdlc_id)}'>export</a></td></tr>`
+        + `<tr id='rd-${esc(r.sdlc_id)}'><td colspan='6' style='padding:0'></td></tr>`).join("")
     + "</tbody></table>";
+  // Row click expands an inline trace; the trace link + export are separate actions.
+  box.querySelectorAll("tr.clickable").forEach(tr =>
+    tr.querySelector("td:first-child").onclick = () => toggleRunDetail(tr.dataset.id));
+  box.querySelectorAll("a.export").forEach(a =>
+    a.onclick = (e) => { e.preventDefault(); exportRun(a.dataset.id); });
+}
+
+async function toggleRunDetail(id){
+  const cell = $("rd-"+id).firstElementChild;
+  if(cell.dataset.open){ cell.innerHTML=""; delete cell.dataset.open; return; }
+  cell.dataset.open = "1";
+  cell.innerHTML = "<div class='detail muted'>Loading trace…</div>";
+  try {
+    const t = await api("/v1/tasks/" + encodeURIComponent(id) + "/trace");
+    const rows = (t.audit||[]).map(e =>
+      `<tr><td class='muted'>${esc((e.timestamp||"").slice(0,19))}</td><td>${esc(e.action)}</td><td class='muted'>${esc(e.actor)}</td></tr>`).join("");
+    cell.innerHTML = `<div class='detail'><div class='muted'>${(t.audit||[]).length} event(s) · <a href='/trace/${esc(id)}' target='_blank'>full trace →</a></div>`
+      + `<table class='mini'><tbody>${rows || "<tr><td class='muted'>no events</td></tr>"}</tbody></table></div>`;
+  } catch(e){
+    cell.innerHTML = "<div class='detail muted'>No trace available for this run.</div>";
+  }
+}
+
+async function exportRun(id){
+  setMsg("Exporting " + id + "…");
+  try {
+    const t = await api("/v1/tasks/" + encodeURIComponent(id) + "/trace");
+    const blob = new Blob([JSON.stringify(t, null, 2)], {type: "application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = id + ".trace.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setMsg("Exported " + id, "ok");
+  } catch(e){ setMsg("Could not export " + id + " (no trace yet)", "err"); }
 }
 
 // Live mode: poll on an interval. We SKIP a tick when a tab is hidden (no point
 // fetching offscreen) or when any approval detail is expanded — re-rendering the
 // table there would wipe the operator's in-progress decision (the JSON patch
 // textarea). A manual Load or a recorded decision still refreshes immediately.
-function anyDetailOpen(){ return !!document.querySelector("#approvals [data-open]"); }
+function anyDetailOpen(){ return !!document.querySelector("#approvals [data-open], #runs [data-open]"); }
 
 async function tick(){
   if(document.hidden || anyDetailOpen()) return;
@@ -114,6 +161,7 @@ function setAuto(on){
 
 $("refresh").onclick = loadAll;
 $("auto").addEventListener("change", e => setAuto(e.target.checked));
+if($("run-filter")){ $("run-filter").addEventListener("change", renderRuns); }
 
 // The page is authed via the session, so load immediately; restore live mode.
 if(localStorage.getItem(AUTO)){ setAuto(true); }

@@ -26,7 +26,11 @@ from pydantic import BaseModel, Field
 
 from orchestrator.core.env import load_local_env
 from orchestrator.intake.confluence import ConfluenceError
-from orchestrator.intake.factory import IntakeNotConfiguredError, build_confluence_service
+from orchestrator.intake.factory import (
+    IntakeNotConfiguredError,
+    build_confluence_service,
+    build_service_for,
+)
 from orchestrator.intake.service import (
     BacklogPlan,
     BacklogService,
@@ -78,29 +82,36 @@ def _plan_to_dict(plan: BacklogPlan) -> dict[str, object]:
     }
 
 
-async def run_preview(req: PreviewRequest, builder: ServiceBuilder) -> dict[str, object]:
-    """Run a read-only backlog preview for ``req`` via ``builder``.
+async def run_preview(req: PreviewRequest, builder: ServiceBuilder | None = None) -> dict[str, object]:
+    """Run a read-only backlog preview for ``req``.
 
-    Shared by the standalone app and the registry-hosted ``/app/backlog`` surface.
-    Raises ``HTTPException`` (400 bad/unsupported source or unconfigured intake,
-    502 upstream Confluence failure)."""
+    Shared by the standalone app, the registry ``/app/backlog``, and the intake
+    studio. When ``builder`` is given (a fixed factory or a test fake) it's used
+    as-is; otherwise the service is selected by the source's scheme via
+    ``build_service_for`` — so every supported source (confluence / notion /
+    file / openspec / mcp-confluence) previews, not just Confluence. Raises
+    ``HTTPException`` (400 bad/unsupported source or unconfigured intake, 502 on
+    an upstream fetch failure)."""
     try:
-        kind, root_id = parse_source_uri(req.source)
+        _kind, root_id = parse_source_uri(req.source)
     except SourceUriError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    if kind != "confluence":
-        raise HTTPException(
-            status_code=400, detail=f"unsupported source kind {kind!r} (only 'confluence' today)"
-        )
     try:
-        service = builder(dry_run=True, rules_path=req.rules)
+        service = (
+            builder(dry_run=True, rules_path=req.rules)
+            if builder is not None
+            else build_service_for(req.source, dry_run=True, rules_path=req.rules)
+        )
     except IntakeNotConfiguredError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except SourceUriError as exc:  # unsupported scheme surfaced by build_service_for
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     try:
         plan = await service.analyze(root_id)
     except ConfluenceError as exc:
-        # Upstream fetch failed (bad page id, auth, Confluence down).
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 — surface any source-fetch failure as 502, not a 500
+        raise HTTPException(status_code=502, detail=f"preview failed: {exc}") from exc
     return _plan_to_dict(plan)
 
 

@@ -75,6 +75,18 @@ body {
 }
 .brand-mark { width: 1.35rem; height: 1.35rem; color: var(--accent); }
 .nav { display: flex; flex-direction: column; gap: 0.1rem; }
+.nav-section { display: flex; flex-direction: column; gap: 0.1rem; }
+.nav-section + .nav-section { margin-top: 0.7rem; }
+.nav-heading {
+  margin: 0;
+  padding: 0.3rem 0.7rem 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  opacity: 0.7;
+}
 .navlink {
   display: flex;
   align-items: center;
@@ -104,6 +116,10 @@ body {
   }
   .brand { padding: 0.4rem 0.6rem; }
   .nav { flex-direction: row; }
+  /* Collapse section grouping into the horizontal icon row on mobile. */
+  .nav-section { display: contents; }
+  .nav-section + .nav-section { margin-top: 0; }
+  .nav-heading { display: none; }
   .navlink span { display: none; }
   .navlink.signout { margin-top: 0; }
   .content { padding: 1.5rem 1.25rem; }
@@ -155,6 +171,40 @@ code { background: var(--code-bg); padding: 0 0.25rem; border-radius: 3px; font-
 .card-title { font-weight: 600; margin-bottom: 0.2rem; }
 .card-desc { color: var(--muted); font-size: 0.9rem; }
 
+/* --- expandable entity spec (registry browser) --- */
+/* An entity card is a static container, not a link — don't lift it on hover. */
+.card:has(details.spec):hover { transform: none; box-shadow: none; border-color: var(--border); }
+details.spec { margin-top: 0.6rem; }
+details.spec > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.82rem;
+  user-select: none;
+}
+details.spec[open] > summary { margin-bottom: 0.4rem; }
+details.spec pre {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  max-height: 22rem;
+  white-space: pre-wrap;
+}
+.spec-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin: 0.6rem 0 0.3rem;
+}
+table.mini { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+table.mini td { padding: 0.3rem 0.5rem; border-top: 1px solid var(--border); vertical-align: top; }
+table.mini td:first-child { white-space: nowrap; }
+
 /* --- panel (capabilities / feature grid) --- */
 .panel {
   border: 1px solid var(--border);
@@ -199,6 +249,19 @@ code { background: var(--code-bg); padding: 0 0.25rem; border-radius: 3px; font-
 /* skill status: active = catalog-wired (planner-selectable); candidate = pending measurement */
 .stat-active { color: var(--ok); border-color: var(--ok); }
 .stat-candidate { color: var(--warn); border-color: var(--warn); }
+/* readiness pills (system page) */
+.pill.ok { color: var(--ok); border-color: var(--ok); }
+.pill.fail { color: var(--fail); border-color: var(--fail); }
+.pill.skip { color: var(--muted); border-color: var(--border); }
+.banner {
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin: 0 0 1rem;
+  font-weight: 500;
+}
+.banner.ok { color: var(--ok); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 8%, transparent); }
+.banner.fail { color: var(--fail); border-color: var(--fail); background: color-mix(in srgb, var(--fail) 8%, transparent); }
 .phase { font-size: 0.72rem; padding: 0.05rem 0.4rem; border-radius: 4px; background: var(--code-bg); color: var(--muted); font-family: var(--mono, monospace); }
 
 /* --- trace / runs rows (server-rendered) --- */

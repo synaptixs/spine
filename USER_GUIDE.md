@@ -395,16 +395,63 @@ Approve a gate by clicking **Approve / Reject** in the Inbox or Console — or v
 curl -X POST -H "x-api-key: dev-key" http://localhost:8000/v1/approvals/sdlc-<id>-0/approve
 ```
 
-**7.4 — The web UI (sign in at `/login` first):** one app, one nav, one login.
+**7.4 — The web UI (sign in at `/login` first):** one app, one nav, one login. The
+left sidebar groups every surface into sections:
 
+**Deliver** — hand work over and watch it ship.
 | URL | What you see |
 |---|---|
-| `/app/inbox` | **Inbox** — delegate a run, watch it progress **live** (server-sent events), and approve/reject its gates **inline**. The front door. |
-| `/console` | **Operator console** — the approval queue + the runs dashboard. |
-| `/app/backlog` | **Backlog preview** — a Confluence page rendered as a derived backlog (read-only). |
-| `/trace/<sdlc_id>` | **Run timeline** — the ordered stages for one run (intake → codegen → tests → review → merge). |
+| `/app/inbox` | **Inbox** — delegate a run, watch it progress **live** (server-sent events), approve/reject gates **inline**. The front door. |
+| `/app/intake` | **Intake studio** — preview any source (Confluence / Notion / file / OpenSpec) as a backlog, then delegate a gated run (dry-run by default). |
+| `/app/backlog` | **Backlog preview** — a source rendered as a derived backlog (read-only). |
+| `/console` | **Console** — the approval queue + runs dashboard (state filter, inline trace, export a run's timeline). |
+
+**Understand** — repo intelligence. Point at a **local path _or_ a git URL** (GitHub / Bitbucket / GitLab / enterprise); URLs are cloned on demand.
+| URL | What you see |
+|---|---|
+| `/app/understand` | Build the code-true **memory bank** for a repo (runs as a job, with live progress). |
+| `/app/state` | **Current State** report (developer / stakeholder lens), rendered in-app. |
+| `/app/memory-bank` | Browse a repo's committed `memory-bank/*.md`. |
+| `/app/graph` | **Knowledge graph** — a module-level overview (node/edge mix, biggest modules, dependencies, top symbols). |
+| `/app/catalog` | What Spine can do in this repo — the capability catalog + a per-intent plan. |
+
+**Govern** — the "governed autonomy" story, made visible.
+| URL | What you see |
+|---|---|
+| `/app/audit` | **Audit log** — the append-only record of every action; filter by run / actor / action. |
+| `/app/governance` | **Policy & budget** — per-run spend vs the cap, policy + approval decisions, and a one-click run-bundle **export**. |
+
+**Quality**
+| URL | What you see |
+|---|---|
+| `/app/evals` | **Evals** — skill quality + how the eval harness works. |
+| `/app/memory` | **Cross-run memory** — the conventions / pitfalls the engineer learned across runs. |
+| `/app/advanced` | **Advanced** — which gated subsystems (agentic loop, semantic spine) are wired. |
+
+**Connect · Registry · System**
+| URL | What you see |
+|---|---|
+| `/app/connections` | **Connections** — MCP servers (list, live-test, **browse to pick an `mcp.json`**, and — when enabled — add/edit/remove) + source/tracker status. |
+| `/app/registry` | **Registry** — agent templates, tool contracts, glossary. |
 | `/app/personas` | **Personas & skills** — the personas the engineer adopts and the skills they apply. |
+| `/app/system` | **System** — readiness (the `doctor` env checks) + a live database probe. |
+| `/trace/<sdlc_id>` | **Run timeline** — the ordered stages for one run (intake → codegen → tests → review → merge). |
 | `http://localhost:8233` | **Temporal UI** — the raw execution: every activity, retries, per-stage pass/fail (where the actual test output lives). |
+
+**7.5 — Access & safety config (safe by default).** Two surfaces reach beyond the
+current repo — analysing a repo by URL, and editing MCP config — so both are gated
+by environment variables you opt into:
+
+| Env var | Default | Effect |
+|---|---|---|
+| `ORCHESTRATOR_WORKSPACE_ROOT` | the cwd `up` ran in | Local repo paths must resolve under this root. |
+| `ORCHESTRATOR_REPO_ALLOWED_HOSTS` | `github.com,bitbucket.org,gitlab.com` | Hosts a repo URL may be cloned from. Add an enterprise/custom host, or `*` for any. `file://` / `http://` / localhost / private IPs are always blocked. |
+| `ORCHESTRATOR_REPO_ALLOW_ANY_LOCAL` | off | Allow any absolute **local** repo path (trusted single-user). |
+| `ORCHESTRATOR_MCP_CONFIG_WRITABLE` | off | Allow adding/editing MCP servers from the Connections page (writes `mcp.json`; a stdio server's `command` is executed on this machine — off by default). |
+
+> Non-GitHub private repos authenticate via your **ambient git credentials**
+> (SSH agent / credential helper / a token in the URL); GitHub uses `GITHUB_TOKEN`
+> or a GitHub App. Public repos need nothing.
 
 > Prefer the terminal? `pip install 'synaptixs-spine[tui]'` then `orchestrator tui`
 > — the same watch-runs / clear-gates / delegate actions, keyboard-driven, over the
@@ -507,6 +554,16 @@ orchestrator mcp ingest-db --server <db-server-name>
 ```
 In the pipeline (Step 7), configured MCP tools are auto-onboarded at startup with
 the same rate-limit + audit + approval path.
+
+**9.4 — Manage MCP servers from the web UI.** The **Connections** page
+(`/app/connections`) lists every configured server and **tests each live**
+(reachable? which allow-listed tools?), alongside your source/tracker status. Use
+**Browse…** to pick an `mcp.json` anywhere on the machine (a server-side file
+picker — the config lives on the server, so a normal upload can't select it). To
+add / edit / remove servers from the page (it writes `mcp.json`), start with
+`ORCHESTRATOR_MCP_CONFIG_WRITABLE=1` — off by default because a stdio server's
+`command` runs on this machine. When it's off, the page shows the config path so
+you can edit the file directly.
 
 ---
 

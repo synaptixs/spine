@@ -100,10 +100,17 @@ async def test_preview_runs_read_only_against_an_injected_service() -> None:
     assert body["specs"][0]["title"] == "Add CSV export"
 
 
-async def test_preview_rejects_non_confluence_source() -> None:
-    app = _app()
+async def test_preview_accepts_non_confluence_source() -> None:
+    # Preview is no longer confluence-only (D2): a non-confluence scheme now
+    # reaches the builder instead of being pre-rejected. (Previously notion://
+    # 400'd before the builder was even consulted.)
+    fake = _FakeService(_plan())
+
+    def builder(*, dry_run: bool, rules_path: str | None = None) -> _FakeService:
+        return fake
+
+    app = _app(builder=builder)
     transport = httpx.ASGITransport(app=app)  # type: ignore[arg-type]
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.post("/v1/intake/preview", json={"source": "notion://123"}, headers=_AUTH)
-    assert resp.status_code == 400
-    assert "confluence" in resp.json()["detail"]
+    assert resp.status_code == 200

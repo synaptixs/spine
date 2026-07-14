@@ -34,6 +34,28 @@ class Settings(BaseSettings):
     # would let anyone forge a session.
     session_secret: str = Field(default="dev-session-secret")
     db_echo: bool = False
+    # Root under which capability jobs (understand / state / pkg) may analyse
+    # repos. A web request names a repo by a path *relative to this root* (or an
+    # absolute path that resolves inside it); anything escaping the root is
+    # rejected — so a web caller can never point the analyser at an arbitrary
+    # server-side directory. Unset (the default) → the server's working
+    # directory, which is the repo a local ``orchestrator up`` was started in.
+    workspace_root: str | None = Field(default=None)
+    # Remote repos may also be analysed by git URL (cloned on demand). Only these
+    # hosts are allowed — a comma-separated list; ``*`` allows any host. Default:
+    # the public providers. Add an enterprise/custom host (e.g. ``git.acme.com``)
+    # here. ``file://``, plaintext ``http://``, ``localhost``, and private/
+    # loopback/metadata IPs are always rejected (SSRF guard).
+    repo_allowed_hosts: str = Field(default="github.com,bitbucket.org,gitlab.com")
+    # When False (default), a local repo path must resolve under ``workspace_root``.
+    # Set True to allow any absolute local path (a single-user, trusted-local
+    # deployment) — do NOT enable this if the UI is exposed to untrusted callers.
+    repo_allow_any_local: bool = Field(default=False)
+    # When False (default), the MCP connections page is read-only (list + test).
+    # Set True to allow adding/editing/removing MCP servers from the UI, which
+    # writes mcp.json — a stdio server's ``command`` is executed by the MCP
+    # process, so enabling this on an exposed UI is a code-execution surface.
+    mcp_config_writable: bool = Field(default=False)
 
     @field_validator("principals", mode="before")
     @classmethod

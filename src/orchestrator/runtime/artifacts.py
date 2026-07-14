@@ -26,6 +26,12 @@ class ArtifactStore(Protocol):
 
     async def get_json(self, artifact_id: str) -> dict[str, Any]: ...
 
+    async def put_bytes(
+        self, artifact_id: str, body: bytes, content_type: str = "application/octet-stream"
+    ) -> None: ...
+
+    async def get_bytes(self, artifact_id: str) -> bytes: ...
+
 
 class ObjectStoreArtifactStore:
     """Production implementation backed by S3-compatible object storage."""
@@ -55,12 +61,31 @@ class ObjectStoreArtifactStore:
             raise ValueError(f"artifact {artifact_id!r} did not deserialise to a JSON object")
         return loaded
 
+    async def put_bytes(
+        self, artifact_id: str, body: bytes, content_type: str = "application/octet-stream"
+    ) -> None:
+        await self._client.put_object(
+            self._client.settings.artifacts_bucket, artifact_id, body, content_type=content_type
+        )
+
+    async def get_bytes(self, artifact_id: str) -> bytes:
+        try:
+            return await self._client.get_object(self._client.settings.artifacts_bucket, artifact_id)
+        except ArtifactNotFoundError as exc:
+            raise LookupError(str(exc)) from exc
+
 
 class InMemoryArtifactStore:
-    """Dev/test implementation. Holds bytes in a process-local dict."""
+    """Dev/test implementation. Holds artifacts in process-local dicts.
+
+    Also the local-``up`` default (``ORCHESTRATOR_ARTIFACT_STORE=memory``): the
+    in-process capability job runner and the download route share one process,
+    so no object store (MinIO/S3) is needed for read-only comprehension jobs.
+    """
 
     def __init__(self) -> None:
         self._blobs: dict[str, dict[str, Any]] = {}
+        self._byte_blobs: dict[str, bytes] = {}
 
     async def put_json(self, artifact_id: str, body: dict[str, Any]) -> None:
         self._blobs[artifact_id] = body
@@ -70,8 +95,18 @@ class InMemoryArtifactStore:
             raise LookupError(f"artifact {artifact_id!r} not found")
         return dict(self._blobs[artifact_id])
 
+    async def put_bytes(
+        self, artifact_id: str, body: bytes, content_type: str = "application/octet-stream"
+    ) -> None:
+        self._byte_blobs[artifact_id] = bytes(body)
+
+    async def get_bytes(self, artifact_id: str) -> bytes:
+        if artifact_id not in self._byte_blobs:
+            raise LookupError(f"artifact {artifact_id!r} not found")
+        return self._byte_blobs[artifact_id]
+
     def keys(self) -> list[str]:
-        return list(self._blobs)
+        return list(self._blobs) + list(self._byte_blobs)
 
 
 def make_artifact_id(*, task_id: str, node_id: str, suffix: str = "output") -> str:
@@ -83,3 +118,24 @@ def make_artifact_id(*, task_id: str, node_id: str, suffix: str = "output") -> s
     log.
     """
     return f"task/{task_id}/{node_id}/{suffix}.json"
+
+
+def make_job_artifact_id(*, job_id: str, filename: str) -> str:
+    """Stable key for a capability job's deliverable.
+
+    Parallel namespace to ``make_artifact_id`` but under ``job/<job_id>/`` so a
+    comprehension job's report (markdown / sqlite / json) is browsable by job id.
+    """
+    return f"job/{job_id}/{filename}"
+
+
+def artifact_store_from_env() -> ArtifactStore:
+    """Pick the artifact store from the environment: in-memory when
+    ``ORCHESTRATOR_ARTIFACT_STORE=memory`` (the local ``up`` default and CI),
+    else the S3/MinIO-backed object store. Shared by the Temporal worker and the
+    in-process capability job runner so both honour the same hint."""
+    import os
+
+    if os.getenv("ORCHESTRATOR_ARTIFACT_STORE", "").lower() == "memory":
+        return InMemoryArtifactStore()
+    return ObjectStoreArtifactStore()

@@ -24,15 +24,25 @@ from orchestrator.registry.api.deps import PrincipalDep
 router = APIRouter(prefix="/v1", tags=["personas"])
 
 
+class OutputField(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    type: str
+    description: str
+
+
 class PersonaSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
     version: str
-    role: str
+    description: str  # what the persona is (from the template metadata)
+    role: str  # the persona's full instructions / system prompt
     skills: list[str]
     workflow_slot: str
     model: str
+    outputs: list[OutputField]  # the structured result the persona must return
 
 
 class SkillSummary(BaseModel):
@@ -67,10 +77,14 @@ async def list_personas(_principal: PrincipalDep) -> PersonaListResponse:
             PersonaSummary(
                 id=p.metadata.id,
                 version=p.metadata.version,
+                description=p.metadata.description,
                 role=p.spec.role,
                 skills=list(p.spec.skills),
                 workflow_slot=p.spec.workflow_slot,
                 model=p.spec.model,
+                outputs=[
+                    OutputField(name=o.name, type=o.type, description=o.description) for o in p.spec.outputs
+                ],
             )
             for p in ALL_PERSONAS
         ]
