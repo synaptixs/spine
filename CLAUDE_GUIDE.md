@@ -1,15 +1,16 @@
-# Using Spine from the Codex app
+# Using Spine from Claude Code
 
 **Spine** (the `synaptixs-spine` / *agent-orchestrator* engine) is an AI‑native SDLC
-engineer you delegate tickets to. From inside the **Codex app** you can ask it to read a
+engineer you delegate tickets to. From inside **Claude Code** you can ask it to read a
 requirement, ground new code in your repo's real structure, generate and test that code,
 and — when you say so — open a pull request. It works for **greenfield** (fresh) and
 **brownfield** (existing) repos across **Python, Java, TypeScript, C#, C, and C++**.
 
-This guide takes you from zero to a delivered feature, entirely through Codex.
+This guide takes you from zero to a delivered feature, entirely through Claude Code.
 
 > **New to Spine itself?** [USER_GUIDE.md](USER_GUIDE.md) covers the CLI and concepts;
-> this guide is specifically about driving Spine from Codex.
+> this guide is specifically about driving Spine from Claude Code. Driving it from the
+> **Codex app** instead? See [CODEX_GUIDE.md](CODEX_GUIDE.md) — same tools, same flow.
 
 ---
 
@@ -32,18 +33,18 @@ This guide takes you from zero to a delivered feature, entirely through Codex.
 
 ## 1. How it fits together
 
-Codex talks to Spine over **MCP** (Model Context Protocol). Spine runs as a small local
-server (`orchestrator-mcp`) that Codex launches as a subprocess; Codex then calls Spine's
-capabilities as **tools**. Each tool runs the real engine — PKG grounding, codegen,
-test/refine — and Spine clones/branches your target repo into a scratch workspace, so your
-working tree is never touched until you choose to push.
+Claude Code talks to Spine over **MCP** (Model Context Protocol). Spine runs as a small
+local server (`orchestrator-mcp`) that Claude Code launches as a subprocess; Claude then
+calls Spine's capabilities as **tools**. Each tool runs the real engine — PKG grounding,
+codegen, test/refine — and Spine clones/branches your target repo into a scratch
+workspace, so your working tree is never touched until you choose to push.
 
 There are **two layers** to the integration, and you only need one:
 
 | | What it is | When to use |
 |---|---|---|
-| **Plugin** | A packaged, branded entry in Codex's plugin list (it *bundles* the MCP server). | The friendly path — install once, toggle in the UI. |
-| **MCP server** | A raw `[mcp_servers]` entry in `~/.codex/config.toml`. | Power users / scripted setups / full control over env + paths. |
+| **Plugin** | A packaged, branded entry installed from the Spine marketplace (it *bundles* the MCP server). | The friendly path — install once, manage from `/plugin`. |
+| **MCP server** | A raw entry in a project's `.mcp.json` (or `claude mcp add`). | Power users / scripted setups / full control over env + paths. |
 
 Both expose the exact same tools.
 
@@ -51,14 +52,9 @@ Both expose the exact same tools.
 
 ## 2. Prerequisites
 
-- **Codex** installed. On **macOS** the app bundles the CLI at
-  `/Applications/Codex.app/Contents/Resources/codex` — add an alias if you like:
-  ```bash
-  alias codex="/Applications/Codex.app/Contents/Resources/codex"
-  ```
-  On **Linux / Windows** (or if you prefer the standalone CLI on macOS), install it with
-  `npm i -g @openai/codex` (or `brew install codex`) so `codex` is on your PATH. Everything
-  below is CLI-driven and works the same across platforms; only this path differs.
+- **Claude Code** installed — the CLI (`claude`) or an IDE extension. It runs on macOS,
+  Linux, and Windows; everything below is issued from a Claude Code session and works the
+  same across platforms.
 - **Python 3.12+**.
 - **An LLM provider key** — Anthropic, OpenAI, or a local Ollama endpoint.
 - **Per‑language build tools** only if you want Spine to *build/test* generated code in
@@ -69,36 +65,53 @@ Both expose the exact same tools.
 
 ## 3. Install (two ways)
 
-### 3a. As a Codex plugin (recommended)
+### 3a. As a Claude Code plugin (recommended)
 
-```bash
-pip install 'synaptixs-spine[mcp]'                 # provides the `orchestrator-mcp` command
-codex plugin marketplace add synaptixs/spine       # add the Spine marketplace
-codex plugin add spine@spine                        # install the plugin
-codex plugin list | grep spine                      # → spine@spine  installed, enabled
+From inside a Claude Code session:
+
+```
+/plugin marketplace add synaptixs/spine    # add the Spine marketplace
+/plugin install spine@spine                 # install the plugin
 ```
 
-Restart the Codex app. **Spine** now appears in your plugin list.
+Then make the `orchestrator-mcp` server available on PATH (the plugin declares it, pip
+provides it):
 
-> Prefer a local checkout? `codex plugin marketplace add ./codex-marketplace` from this
-> repo instead of `synaptixs/spine`.
+```bash
+pip install 'synaptixs-spine[mcp]'          # provides the `orchestrator-mcp` command
+```
+
+Restart Claude Code (or run `/reload-plugins`). Confirm with `/plugin` (Spine shows as
+installed + enabled) and `/mcp` (the `spine` server shows as connected).
+
+> Prefer a local checkout? `/plugin marketplace add ./` from a clone of this repo instead
+> of `synaptixs/spine`.
 
 ### 3b. As a raw MCP server
 
-Add this to `~/.codex/config.toml`:
+Add a project‑scoped `.mcp.json` at your repo root:
 
-```toml
-[mcp_servers.spine]
-command = "orchestrator-mcp"      # or an absolute path to the venv's console script
-args = []
-startup_timeout_sec = 60
-tool_timeout_sec = 600            # sdlc_feature does codegen + a build — give it room
-
-[mcp_servers.spine.env]
-ORCHESTRATOR_DOTENV = "/abs/path/to/your/.env"   # see §4
+```json
+{
+  "mcpServers": {
+    "spine": {
+      "command": "orchestrator-mcp",
+      "args": [],
+      "env": {
+        "ORCHESTRATOR_DOTENV": "/abs/path/to/your/.env"
+      }
+    }
+  }
+}
 ```
 
-Restart Codex. Verify with `codex mcp list` (you should see `spine`).
+…or add it from the CLI:
+
+```bash
+claude mcp add spine --env ORCHESTRATOR_DOTENV=/abs/path/to/your/.env -- orchestrator-mcp
+```
+
+Restart Claude Code (or `/reload-plugins`). Verify with `/mcp` (you should see `spine`).
 
 ---
 
@@ -126,9 +139,11 @@ Add more only for what you do:
 | Open a **live** PR | `GITHUB_TOKEN` (or `GH_TOKEN`), and `SDLC_REPO_URL` for the default repo |
 | Create a **live** Jira issue | `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` / `JIRA_PROJECT_KEY` |
 
-**How Spine finds your `.env`:** because Codex launches the server from its own working
-directory, point it at an absolute path with `ORCHESTRATOR_DOTENV` (in the plugin/server
-env, as shown in §3b). Read‑only tools (`doctor`, `pkg_grounding`) work without any creds.
+**How Spine finds your `.env`:** the bundled plugin server runs from your session's
+working directory, so the simplest path is to **launch Claude Code from a project that has
+a `.env`**. To point it anywhere else, use the raw‑MCP form (§3b) and set
+`ORCHESTRATOR_DOTENV` to the file's **absolute** path in the server's `env`. Read‑only
+tools (`doctor`, `pkg_grounding`) work without any creds.
 
 > Tip: set a *fast, capable* model. A slow default can time out on large generations.
 > `ORCHESTRATOR_INTAKE_MODEL` sets the default; `SDLC_CODEGEN_MODEL` overrides codegen only.
@@ -137,16 +152,16 @@ env, as shown in §3b). Read‑only tools (`doctor`, `pkg_grounding`) work witho
 
 ## 5. Verify the connection
 
-In a Codex chat, just ask:
+In a Claude Code chat, just ask:
 
 > **"Use spine's `doctor` tool and show me what's ready."**
 
 You'll get a readiness report (LLM provider, source, tracker, GitHub). Then confirm the
-tools are visible:
+server and tools are visible:
 
-```bash
-codex mcp list           # spine → enabled
-codex plugin list        # spine@spine → installed, enabled   (if you used the plugin)
+```
+/mcp        # spine → connected, with its tools listed
+/plugin     # spine@spine → installed, enabled   (if you used the plugin)
 ```
 
 If `doctor` reports the LLM provider missing, your `.env`/`ORCHESTRATOR_DOTENV` isn't being
@@ -167,7 +182,7 @@ At a glance:
 | [`sdlc_feature`](#sdlc_feature) | **The main one.** One intent end‑to‑end: spec → grounded codegen → tests → branch → *(optionally)* PR. | gated |
 | [`sdlc_start_run` + gate tools](#the-autonomous-run-sdlc_start_run--friends) | Drive the long, autonomous, gated run as a job (needs the Mode‑B backend). | gated |
 
-Each tool below shows the **Codex prompt** (what you type), the **tool call** it maps to
+Each tool below shows the **Claude prompt** (what you type), the **tool call** it maps to
 (the literal arguments — handy if you call it programmatically or want to be precise), and
 **returns** (the shape of the result). Arguments not shown use their defaults.
 
@@ -177,7 +192,7 @@ Each tool below shows the **Codex prompt** (what you type), the **tool call** it
 
 Checks what's wired up. Run this first.
 
-> **Ask Codex:** "Use spine's `doctor` and summarize what's ready."
+> **Ask Claude:** "Use spine's `doctor` and summarize what's ready."
 
 ```jsonc
 // tool: doctor   (no arguments)
@@ -192,7 +207,7 @@ Checks what's wired up. Run this first.
 Read‑only preview of what Spine would *reuse* in an existing repo for a given idea — the
 real symbols, with `file:line`. Great for "what will it build on?" before you commit.
 
-> **Ask Codex:** "Use spine's `pkg_grounding` on `repo_path=/path/to/my/repo` for the spec
+> **Ask Claude:** "Use spine's `pkg_grounding` on `repo_path=/path/to/my/repo` for the spec
 > 'add rate limiting to the public API', and summarize what it found."
 
 ```jsonc
@@ -212,7 +227,7 @@ real symbols, with `file:line`. Great for "what will it build on?" before you co
 Reads a repo's committed `memory-bank/` (the code‑true knowledge `orchestrator understand`
 writes). Omit `section` for the index; pass one to read it.
 
-> **Ask Codex:** "Use spine's `read_memory_bank` on `repo_path=/path/to/my/repo`, section
+> **Ask Claude:** "Use spine's `read_memory_bank` on `repo_path=/path/to/my/repo`, section
 > `architecture`."
 
 ```jsonc
@@ -231,7 +246,7 @@ writes). Omit `section` for the index; pass one to read it.
 Turns a requirements source into a backlog **without writing anything** — see the intents
 Spine derives and any gaps, before running a feature.
 
-> **Ask Codex:** "Use spine's `ingest_preview` on `file://./roadmap.md` and list the intents."
+> **Ask Claude:** "Use spine's `ingest_preview` on `file://./roadmap.md` and list the intents."
 
 ```jsonc
 // tool: ingest_preview
@@ -262,7 +277,7 @@ external writes). Parameters:
 
 **Example A — greenfield (safe):**
 
-> **Ask Codex:** "Use spine's `sdlc_feature` with `source=file://~/specs/slugify.md`,
+> **Ask Claude:** "Use spine's `sdlc_feature` with `source=file://~/specs/slugify.md`,
 > `language=python`, `layout=new`. Keep it safe. Show me the files and test result."
 
 ```jsonc
@@ -277,7 +292,7 @@ external writes). Parameters:
 
 **Example B — brownfield (safe):**
 
-> **Ask Codex:** "Use spine's `sdlc_feature` with `source=file://./rate-limit.md`,
+> **Ask Claude:** "Use spine's `sdlc_feature` with `source=file://./rate-limit.md`,
 > `repo=my-org/my-service`, `layout=existing`, `language=auto`. Keep it safe; show the diff."
 
 ```jsonc
@@ -292,7 +307,7 @@ external writes). Parameters:
 
 **Example C — brownfield, open a real PR (gated):**
 
-> **Ask Codex:** "Use spine's `sdlc_feature` with `source=file://./rate-limit.md`,
+> **Ask Claude:** "Use spine's `sdlc_feature` with `source=file://./rate-limit.md`,
 > `repo=my-org/my-service`, `layout=existing`, **`live=true`, `confirm=true`**. Open the PR."
 
 ```jsonc
@@ -332,7 +347,7 @@ result.
 
 **1. Start (safe — dry‑run Jira):**
 
-> **Ask Codex:** "Use spine's `sdlc_start_run` on `file://./roadmap.md`, max 3 features."
+> **Ask Claude:** "Use spine's `sdlc_start_run` on `file://./roadmap.md`, max 3 features."
 
 ```jsonc
 // tool: sdlc_start_run
@@ -391,7 +406,7 @@ non-alphanumeric characters with single hyphens.
 - slugify('  A__B  ') == 'a-b'
 ```
 
-**2. Ask Codex:**
+**2. Ask Claude:**
 
 > **"Use spine's `sdlc_feature` with `source=file://~/specs/slugify.md`, `language=python`,
 > `layout=new`. Keep it safe (don't open a PR). Then show me the generated files and the
@@ -402,7 +417,7 @@ non-alphanumeric characters with single hyphens.
 Spine scaffolded a project, wrote `slugify`, wrote tests, and ran them green — all in a
 scratch workspace. Nothing was pushed.
 
-**4. Iterate** by editing the acceptance criteria and re‑running, or ask Codex to read the
+**4. Iterate** by editing the acceptance criteria and re‑running, or ask Claude to read the
 generated files and explain them.
 
 > Swap `language=cpp` (and add a spec for, say, a small math utility) to watch Spine
@@ -451,7 +466,7 @@ To actually open a PR (and create the Jira issue), you must pass **both** `live=
 > **"Use spine's `sdlc_feature` with `source=file://./rate-limit.md`, `repo=my-org/my-service`,
 > `layout=existing`, **`live=true`, `confirm=true`**. Open the PR."**
 
-The `confirm=true` is a deliberate second authorization on top of Codex's own tool‑use
+The `confirm=true` is a deliberate second authorization on top of Claude Code's own tool‑use
 approval — Spine refuses a live write without it. `live=true` needs a reachable repo
 (`repo` or `SDLC_REPO_URL`) and a GitHub token. The same gate guards `sdlc_start_run`'s
 `create_jira=true`.
@@ -482,31 +497,31 @@ merges header declarations with their definitions.
 
 | Symptom | Fix |
 |---|---|
-| Codex doesn't see Spine's tools | Restart Codex after install. Check `codex mcp list` / `codex plugin list`. |
-| `doctor` says the LLM provider is missing | Your `.env` isn't being found — set `ORCHESTRATOR_DOTENV` to its **absolute** path in the server/plugin env. |
+| Claude doesn't see Spine's tools | Restart Claude Code or run `/reload-plugins`. Check `/mcp` and `/plugin`. |
+| `doctor` says the LLM provider is missing | Your `.env` isn't being found — launch Claude Code from a project with a `.env`, or use the raw‑MCP form (§3b) and set `ORCHESTRATOR_DOTENV` to its **absolute** path. |
 | `orchestrator-mcp: command not found` | The server isn't on PATH. `pip install 'synaptixs-spine[mcp]'`, or point `command` at the absolute path of the console script. |
-| Codegen times out | Set a faster model: `ORCHESTRATOR_INTAKE_MODEL=...` (or `SDLC_CODEGEN_MODEL`). Raise `tool_timeout_sec` for the server. |
+| Codegen times out | Set a faster model: `ORCHESTRATOR_INTAKE_MODEL=...` (or `SDLC_CODEGEN_MODEL`). |
 | "live needs a repo to push to" | Pass `repo=...` or set `SDLC_REPO_URL`; ensure `GITHUB_TOKEN`/`GH_TOKEN` is set. |
 | A `live` call refuses to write | That's the gate — pass `confirm=true` together with `live=true`. |
 | Build fails for Java/TS/C#/C/C++ | The language toolchain isn't installed — see [§10](#10-language-support--toolchains). |
 | Private repo clone fails | Set `GITHUB_TOKEN` (PAT) or configure the GitHub App. |
 
-For deeper diagnostics, ask Codex to run `doctor`, or run `orchestrator doctor` in a shell
+For deeper diagnostics, ask Claude to run `doctor`, or run `orchestrator doctor` in a shell
 from the folder with your `.env`.
 
 ---
 
 ## 12. Updating & uninstalling
 
-```bash
+```
 # update the engine (new languages, fixes)
 pip install -U 'synaptixs-spine[mcp]'
-codex plugin marketplace upgrade            # refresh a Git marketplace snapshot
+/plugin marketplace update spine            # refresh the marketplace snapshot
 
 # remove
-codex plugin remove spine@spine
-codex plugin marketplace remove spine
-# (or delete the [mcp_servers.spine] block from ~/.codex/config.toml)
+/plugin uninstall spine@spine
+/plugin marketplace remove spine
+# (or delete the spine block from your project's .mcp.json)
 ```
 
 ---

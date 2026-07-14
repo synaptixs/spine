@@ -36,8 +36,10 @@ async def test_console_requires_login_then_renders_through_the_shell() -> None:
         resp = await client.get("/console")
     assert resp.status_code == 200
     body = resp.text
-    assert "Console · Orchestrator" in body  # shell <title>
+    assert "Console · Spine" in body  # shell <title>
     assert 'class="navlink active"' in body  # shared nav, Console marked active
+    # Phase 3: the lead now gives Console a distinct job vs the Inbox (no "same data").
+    assert "richer approvals" in body and 'href="/app/inbox"' in body
     assert "/static/app.css" in body and "/static/console.css" in body
     assert "/static/console.js" in body  # JS is a real file, not inline
 

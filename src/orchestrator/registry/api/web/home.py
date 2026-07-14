@@ -13,6 +13,7 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from orchestrator.registry.api.web.auth import WebPrincipalDep
+from orchestrator.registry.api.web.icons import icon
 from orchestrator.registry.api.web.shell import page_shell
 
 router = APIRouter(tags=["web"])
@@ -29,21 +30,63 @@ async def favicon() -> Response:
     return Response(status_code=204)
 
 
-# (title, href, description) — the surfaces surfaced on the home page.
-_CARDS: tuple[tuple[str, str, str], ...] = (
-    ("Inbox", "/app/inbox", "Delegate work, watch it live, clear its gates."),
-    ("Console", "/console", "Review approval gates and the runs dashboard."),
-    ("Backlog", "/app/backlog", "Preview a Confluence source as a backlog."),
-    ("Personas", "/app/personas", "The personas and skills the engineer uses."),
-    ("API docs", "/docs", "The /v1 JSON API (OpenAPI)."),
+# (title, href, description, icon) — the surfaces surfaced on the home page.
+_CARDS: tuple[tuple[str, str, str, str], ...] = (
+    ("Inbox", "/app/inbox", "Delegate work, watch it live, clear its gates.", "inbox"),
+    ("Console", "/console", "Review approval gates and the runs dashboard.", "table"),
+    ("Backlog", "/app/backlog", "Preview a Confluence source as a backlog.", "list"),
+    ("Personas", "/app/personas", "The personas and skills the engineer uses.", "users"),
+    ("API docs", "/docs", "The /v1 JSON API (OpenAPI).", "code"),
 )
 
 
 def _cards_html() -> str:
     return "".join(
-        f'<a class="card" href="{href}"><div class="card-title">{html.escape(title)}</div>'
+        f'<a class="card" href="{href}"><div class="card-icon">{icon(glyph)}</div>'
+        f'<div class="card-title">{html.escape(title)}</div>'
         f'<div class="card-desc">{html.escape(desc)}</div></a>'
-        for title, href, desc in _CARDS
+        for title, href, desc, glyph in _CARDS
+    )
+
+
+# (icon, headline, detail) — what the delegated engineer can build. Rendered as a
+# feature grid so the capabilities read at a glance, not as a wall of text.
+_CAPS: tuple[tuple[str, str, str], ...] = (
+    ("terminal", "Six languages", "Python, Java, TypeScript, C#, C, and C++ (plus SQL data-layer)."),
+    (
+        "branch",
+        "New or existing repos",
+        "Scaffold a fresh project, or deliver into an existing codebase — following its conventions.",
+    ),
+    (
+        "target",
+        "Grounded in your code",
+        "It maps your repo first and reuses what's already there, so output reads like your team wrote it.",
+    ),
+    (
+        "shield",
+        "Safe by default",
+        "Every run stays local (a branch + a diff) until you approve — "
+        "nothing is pushed, merged, or filed to Jira.",
+    ),
+)
+_LANGS = ("Python", "Java", "TypeScript", "C#", "C", "C++", "SQL")
+
+
+def _capabilities_html() -> str:
+    features = "".join(
+        f'<div class="feature">{icon(glyph)}<div><strong>{html.escape(head)}</strong>'
+        f"<span>{html.escape(detail)}</span></div></div>"
+        for glyph, head, detail in _CAPS
+    )
+    chips = "".join(f'<span class="chip lang">{html.escape(lang)}</span>' for lang in _LANGS)
+    return (
+        '<div class="panel">'
+        f'<div class="panel-head">{icon("sparkles")} What Spine can build</div>'
+        '<p class="panel-sub">An AI software engineer you hand a ticket to.</p>'
+        f'<div class="features">{features}</div>'
+        f'<div class="chips">{chips}</div>'
+        "</div>"
     )
 
 
@@ -70,9 +113,10 @@ _HOWTO = (
 @router.get("/app", response_class=HTMLResponse)
 async def home(_principal: WebPrincipalDep) -> HTMLResponse:
     body = (
-        "<h1>Orchestrator</h1>"
+        "<h1>Spine</h1>"
         '<p class="lead">Delegate features to the software-engineer persona, review its work, and ship — '
         "the friendly face on the same pipeline the CLI runs.</p>"
+        f"{_capabilities_html()}"
         f"{_HOWTO}"
         f'<div class="cards">{_cards_html()}</div>'
     )
@@ -86,7 +130,9 @@ async def personas_page(_principal: WebPrincipalDep) -> HTMLResponse:
         '<p class="lead">A <strong>persona</strong> is the role the engineer takes on (today: '
         "software engineer) — a model, a set of <strong>skills</strong>, and which pipeline step it runs. "
         "A <strong>skill</strong> is reusable guidance it applies (e.g. match the repo's conventions). "
-        "This is a read-only view of what a delegated run will use; nothing to configure here yet.</p>"
+        "This is a read-only view of what a delegated run will use; nothing to configure here yet. "
+        "For what it can actually build — languages, new vs existing repos, the safe→live gate — "
+        "see <a href='/app'>Home</a>.</p>"
         '<p class="muted">Each skill shows its <strong>status</strong> — '
         '<span class="pill stat-active">active</span> means it\'s wired into the catalog and the '
         'planner can select it; <span class="pill stat-candidate">candidate</span> means it is defined '

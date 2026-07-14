@@ -1,0 +1,18 @@
+{
+  "name": "spine",
+  "owner": {
+    "name": "Synaptixs",
+    "url": "https://github.com/synaptixs/spine"
+  },
+  "description": "Spine's Claude Code plugin marketplace — delegate a ticket, get a reviewed PR.",
+  "plugins": [
+    {
+      "name": "spine",
+      "source": "./plugins/spine",
+      "description": "An AI-native SDLC engineer you delegate tickets to: build a repo's Product Knowledge Graph, ground new code in what already exists, generate + test it, and — on confirm — open a PR. Greenfield + brownfield across Python, Java, TypeScript, C#, C, and C++, exposed as MCP tools.",
+      "version": "2.5.0",
+      "category": "Engineering",
+      "keywords": ["sdlc", "codegen", "mcp", "knowledge-graph", "greenfield", "brownfield", "pkg"]
+    }
+  ]
+}

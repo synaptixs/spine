@@ -36,6 +36,9 @@ build/
 !.env.example
 *.pem
 
+# Minimal infra compose written by `orchestrator up` on pip-only installs
+.orchestrator-compose.yml
+
 # Local-only validation artefacts from live-proving against private target repos —
 # findings/reports/extracts must NEVER be committed. Clones live in /tmp; reports
 # under docs/ are already ignored. Neutral catch-alls for any stray in-repo copy:
