@@ -220,7 +220,12 @@ async def understand(body: UnderstandRequest, request: Request, principal: Princ
 
         with materialize_repo_source(source, log=log) as repo:
             result = build_memory_bank(repo, refresh=body.refresh, sql_dialect=body.dialect, log=log)
-            summary = {k: result.get(k) for k in ("files", "greenfield", "summary") if k in result}
+            # Annotate explicitly: the comprehension otherwise infers a Literal-keyed
+            # dict, which mypy rejects against CapabilityResult's dict[str, Any] under
+            # stricter type-stub versions (surfaced by a dependency bump, not our code).
+            summary: dict[str, Any] = {
+                k: result.get(k) for k in ("files", "greenfield", "summary") if k in result
+            }
             body_bytes = json.dumps(result, default=str, ensure_ascii=False).encode("utf-8")
             return CapabilityResult(body_bytes, "application/json", "understand.json", summary)
 
