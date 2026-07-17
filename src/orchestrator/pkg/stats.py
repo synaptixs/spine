@@ -154,8 +154,13 @@ def summarise_store(
         if callers:
             call_counts[fn_node.id] = len(callers)
 
+    # Tie-break on node_id: `most_common` leaves equal counts in insertion order,
+    # so unrelated code movement could reshuffle this list — and it is rendered into
+    # committed docs, which must diff clean when nothing relevant changed.
+    ranked = sorted(call_counts.items(), key=lambda kv: (-kv[1], kv[0]))[:top_n]
+
     top_called: list[FunctionCallFrequency] = []
-    for node_id, count in call_counts.most_common(top_n):
+    for node_id, count in ranked:
         fn = store.node(node_id)
         name = fn.name if fn is not None else node_id
         top_called.append(FunctionCallFrequency(node_id=node_id, name=name, call_count=count))

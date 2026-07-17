@@ -162,7 +162,7 @@ At a glance:
 |---|---|---|
 | [`doctor`](#doctor) | Environment readiness (LLM, source, tracker, GitHub). | no |
 | [`pkg_grounding`](#pkg_grounding) | The existing‑code context a repo's Product Knowledge Graph surfaces for a spec — real APIs/types Spine would reuse, with `file:line`. | no |
-| [`read_memory_bank`](#read_memory_bank) | Read a repo's committed `memory-bank/` (code‑true project knowledge). | no |
+| [`read_memory_bank`](#read_memory_bank) | Read a repo's committed `episteme/` (code‑true project knowledge). | no |
 | [`ingest_preview`](#ingest_preview) | Preview the backlog (derived intents + gaps) for a requirements source — dry‑run. | no |
 | [`sdlc_feature`](#sdlc_feature) | **The main one.** One intent end‑to‑end: spec → grounded codegen → tests → branch → *(optionally)* PR. | gated |
 | [`sdlc_start_run` + gate tools](#the-autonomous-run-sdlc_start_run--friends) | Drive the long, autonomous, gated run as a job (needs the Mode‑B backend). | gated |
@@ -209,7 +209,7 @@ real symbols, with `file:line`. Great for "what will it build on?" before you co
 
 #### `read_memory_bank`
 
-Reads a repo's committed `memory-bank/` (the code‑true knowledge `orchestrator understand`
+Reads a repo's committed `episteme/` (the code‑true knowledge `orchestrator understand`
 writes). Omit `section` for the index; pass one to read it.
 
 > **Ask Codex:** "Use spine's `read_memory_bank` on `repo_path=/path/to/my/repo`, section

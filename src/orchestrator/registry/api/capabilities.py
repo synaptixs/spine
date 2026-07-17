@@ -158,14 +158,16 @@ class MemoryBankResponse(BaseModel):
 
 @router.get("/memory-bank", response_model=MemoryBankResponse)
 async def memory_bank(request: Request, _principal: PrincipalDep, repo: str = ".") -> MemoryBankResponse:
-    """Read a repo's committed ``memory-bank/*.md`` (what ``understand`` writes).
+    """Read a repo's committed knowledge base (``episteme/*.md``, what ``understand`` writes).
 
-    Read-only and scoped to ``memory-bank/`` under the resolved repo. Returns
+    Read-only and scoped to the bank dir under the resolved repo. Returns
     ``exists=False`` (not 404) when the repo hasn't been analysed yet."""
     source = _source(request, repo)
 
     def work(root: Path) -> list[tuple[str, str]] | None:
-        mb_dir = root / "memory-bank"
+        from orchestrator.knowledge.understand import existing_bank_dir
+
+        mb_dir = existing_bank_dir(root)
         if not mb_dir.is_dir():
             return None
         return [(p.name, p.read_text(encoding="utf-8")) for p in sorted(mb_dir.glob("*.md"))]

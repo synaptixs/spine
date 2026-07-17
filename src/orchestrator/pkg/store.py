@@ -60,6 +60,37 @@ class FactStore:
         ids = [e.dst for e in self._edges if e.kind is EdgeKind.CONTAINS and e.src == node_id]
         return [self._nodes[i] for i in ids if i in self._nodes]
 
+    def edges_of_kind(self, kind: EdgeKind) -> list[Edge]:
+        """Every edge of one kind, for callers that aggregate the whole graph.
+
+        The per-node queries above answer "what touches X"; this answers "what does the
+        graph look like", without each caller rescanning every edge per node.
+        """
+        return [e for e in self._edges if e.kind is kind]
+
+    def parents_index(self) -> dict[str, str]:
+        """child id → parent id, from every CONTAINS edge, in one pass.
+
+        ``children_of`` only walks *down*. Resolving what a symbol belongs to means
+        walking *up*, and doing that per-node would rescan every edge each time — so
+        callers that need the upward direction build this index once.
+        """
+        return {e.dst: e.src for e in self._edges if e.kind is EdgeKind.CONTAINS}
+
+    def imports_of(self, node_id: str) -> list[Node]:
+        """What this module imports (IMPORTS out-edges) — the module-level ``callees_of``."""
+        ids = [e.dst for e in self._edges if e.kind is EdgeKind.IMPORTS and e.src == node_id]
+        return [self._nodes[i] for i in ids if i in self._nodes]
+
+    def importers_of(self, node_id: str) -> list[Node]:
+        """What imports this module (IMPORTS in-edges) — the module-level ``callers_of``.
+
+        The other half of ``imports_of``: every dependency edge has to be answerable
+        from both ends, or a reader can walk down the graph but never back up.
+        """
+        ids = [e.src for e in self._edges if e.kind is EdgeKind.IMPORTS and e.dst == node_id]
+        return [self._nodes[i] for i in ids if i in self._nodes]
+
     def touches(self, node_id: str) -> list[Node]:
         """Blast radius: every node directly connected to this one, either direction."""
         related: set[str] = set()

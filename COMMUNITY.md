@@ -27,7 +27,7 @@ requirement → understand repo → implement → test → review → CI → ope
 | Stage | Spine | |
 |---|---|---|
 | Requirements → backlog | intents + specs from your docs | ✅ proven |
-| Understand the code | knowledge graph + committed `memory-bank/` (Python/Java/TS) | ✅ |
+| Understand the code | knowledge graph + committed `episteme/` (Python/Java/TS) | ✅ |
 | Implement → test → refine | grounded codegen, runs tests, fixes until green | ✅ proven |
 | Review → CI → merge | semantic review, real PR, gate-approved **merge-on-green** | ✅ proven |
 | Govern + observe | two human gates, policy, per-run budget, append-only audit, OpenTelemetry | ✅ |

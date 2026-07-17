@@ -60,8 +60,9 @@ Graph** of your repo — modules, types, functions, call sites, blast radius —
 grounds new code in what already exists, so output reads like your team wrote it.
 Works across **Python, Java, TypeScript, C#, C, and C++**, plus **SQL** data-layer
 comprehension (schema, queries, stored procedures, migration folding). `orchestrator
-understand` writes a committed, code-true `memory-bank/` your whole team (and any AI tool)
-can read.
+understand` writes a committed, code-true `episteme/` your whole team (and any AI tool)
+can read — *epistēmē*, knowledge grounded in evidence, because every word of it is derived
+from the code rather than written by hand.
 
 **Governed autonomy.** The workflow itself is a typed, validated artifact. A planner
 decomposes the objective, a runtime executes it, and **per-edge verifiers** check

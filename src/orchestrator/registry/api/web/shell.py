@@ -37,7 +37,7 @@ NAV_SECTIONS: tuple[NavSection, ...] = (
         (
             ("Understand", "/app/understand", "search"),
             ("Current State", "/app/state", "file"),
-            ("Memory bank", "/app/memory-bank", "book"),
+            ("Episteme", "/app/memory-bank", "book"),
             ("Knowledge graph", "/app/graph", "branch"),
             ("Catalog", "/app/catalog", "sparkles"),
         ),

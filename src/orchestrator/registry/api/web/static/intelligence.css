@@ -68,6 +68,17 @@
 .report table.md th { background: var(--sidebar-bg); }
 .report hr { border: none; border-top: 1px solid var(--border); margin: 1.2rem 0; }
 
+/* mermaid flowcharts, rendered to inline SVG by md.js (no library). Themed off the
+   same vars as everything else so the diagram follows light/dark with the console. */
+.report figure.mermaid { margin: 1rem 0; overflow-x: auto; }
+.report figure.mermaid svg { display: block; max-width: 100%; }
+.mm-node rect { fill: var(--surface); stroke: var(--border); stroke-width: 1px; }
+.mm-label { fill: var(--text); font-size: 11px; text-anchor: middle; }
+.mm-edge { fill: none; stroke: var(--muted); stroke-width: 1.5px; }
+#mm-arrow path { fill: var(--muted); }
+.mm-elabel { fill: var(--muted); font-size: 10px; text-anchor: middle; }
+.mm-cap { color: var(--muted); font-size: 0.8rem; margin-top: 0.35rem; }
+
 /* memory-bank two-pane layout */
 .mb { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 1.25rem; align-items: start; }
 .mb-nav { display: flex; flex-direction: column; gap: 0.1rem; position: sticky; top: 1rem; }

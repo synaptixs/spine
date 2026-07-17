@@ -149,8 +149,8 @@ async def test_create_workspace_seeds_memory_bank(tmp_path: Path) -> None:
         {"sdlc_id": "R", "issue_key": "SDLC-1", "comprehension": comprehension}
     )
     assert out["memory_bank_seeded"] == 2
-    assert (worktree / "memory-bank" / "domain-model.md").read_text(encoding="utf-8") == "# Domain\n"
-    assert (worktree / "memory-bank" / "glossary.md").exists()
+    assert (worktree / "episteme" / "domain-model.md").read_text(encoding="utf-8") == "# Domain\n"
+    assert (worktree / "episteme" / "glossary.md").exists()
 
 
 async def test_create_workspace_without_comprehension_seeds_nothing(tmp_path: Path) -> None:
@@ -159,4 +159,4 @@ async def test_create_workspace_without_comprehension_seeds_nothing(tmp_path: Pa
     deps = SDLCDeps(session_factory=_session_factory(), workspace=_SeedWorkspace(worktree))  # type: ignore[arg-type]
     out = await SDLCActivities(deps).create_workspace({"sdlc_id": "R", "issue_key": "SDLC-1"})
     assert out["memory_bank_seeded"] == 0
-    assert not (worktree / "memory-bank").exists()
+    assert not (worktree / "episteme").exists()

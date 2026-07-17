@@ -37,7 +37,7 @@ radius) and grounds new code in what already exists. Full guide:
 | SQL greenfield codegen — generate a migration, validate on an ephemeral DB | ✅ | `sdlc feature --language sql` (in-memory SQLite; `SDLC_SQL_ENGINE=postgres` for real Postgres) |
 | Framework-aware edges — ASP.NET Core endpoints, EF Core entities (C#) | ✅ | emitted into the PKG on `pkg extract` / `understand` |
 | C `#include` graph + header/source merge; codegen on **CMake or Meson** | ✅ | `.c`/`.h` per repo; `sdlc feature --language c` |
-| Committed `memory-bank/` for humans + any AI tool | ✅ | `orchestrator understand --out memory-bank` |
+| Committed `episteme/` for humans + any AI tool | ✅ | `orchestrator understand --out episteme` |
 | Current State report — overview, infrastructure/runtime, code structure, architecture diagrams (no LLM) | ✅ | `orchestrator state . --lens developer\|stakeholder` |
 | PKG extraction / export | ✅ | `orchestrator pkg extract`, `orchestrator pkg export` |
 | Repo profile / audit | ✅ | `orchestrator profile <repo>`, `orchestrator audit <repo>` |

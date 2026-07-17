@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from orchestrator.knowledge.areas import area_of_name, zone_of
 from orchestrator.knowledge.infrastructure import Infrastructure, detect_infrastructure
 from orchestrator.pkg.facts import EdgeKind, FactBatch, Node, NodeKind
 
@@ -59,21 +60,11 @@ _FRAMEWORK_PREFIXES = ("System", "Microsoft", "java", "javax", "android")
 _DATA_SHAPE_SUFFIXES = ("ViewModel", "Dto", "Entity", "Request", "Response", "Model", "Details", "Item")
 
 
-def _area(name: str) -> str:
-    """Group a module into a top-level area (a coarse component).
-
-    Slash-path modules (C/C++ translation units, e.g. ``src/smf/smf-sm.c``) group by
-    their first two path segments (the directory component → ``src/smf``); dotted
-    namespaces (Python/Java/C#) group by the first two dotted segments (``App.Api``)."""
-    if "/" in name:
-        return "/".join(name.split("/")[:2])
-    return ".".join(name.split(".")[:2])
-
-
-def _zone(area: str) -> str:
-    """The architectural zone an area belongs to — its first path/namespace segment
-    (``src/smf`` → ``src``; ``App.Api`` → ``App``)."""
-    return area.split("/")[0].split(".")[0]
+# Area/zone grouping lives in `knowledge.areas` because the episteme's area pages group
+# the same way. Two definitions would let `state` and the episteme show different
+# architectures for the same commit; these aliases keep the local call sites readable.
+_area = area_of_name
+_zone = zone_of
 
 
 def _is_generated_path(file: str) -> bool:

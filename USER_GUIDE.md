@@ -120,7 +120,7 @@ orchestrator doctor    # readiness report — tells you exactly what's set and w
 Build a committed, code-true knowledge base before generating anything:
 
 ```bash
-orchestrator understand .        # writes ./memory-bank/*.md
+orchestrator understand .        # writes ./episteme/*.md
 ```
 
 It extracts the Product Knowledge Graph + project profile and renders
@@ -128,7 +128,7 @@ It extracts the Product Knowledge Graph + project profile and renders
 `glossary.md` — deterministic, no LLM. Brownfield repos get a real map of what's
 there; greenfield repos get a stub that fills in as features land. Re-run anytime
 to refresh (`--refresh` re-extracts instead of using the commit cache). Commit
-`memory-bank/` so your team — and any AI tool — reads the same project truth.
+`episteme/` so your team — and any AI tool — reads the same project truth.
 
 For a **team-facing snapshot of what the repo is today and how healthy it looks**, use
 the Current State report (also no LLM — synthesized from the same graph):
@@ -151,17 +151,17 @@ signals, a name-based security surface, and prioritized recommendations. A repor
 > **Local path _or_ git URL.** `understand`, `state`, `profile`, `catalog plan`, and
 > `pkg extract`/`export`/`docs` accept either — `orchestrator state https://github.com/org/repo`
 > shallow-clones it to a temp dir, analyses it, and cleans up (for `understand` on a URL the
-> memory bank lands in `./memory-bank`, since the clone is transient). Public providers
+> episteme lands in `./episteme`, since the clone is transient). Public providers
 > (github.com / bitbucket.org / gitlab.com) work out of the box; add an enterprise host with
 > `ORCHESTRATOR_REPO_ALLOWED_HOSTS=git.acme.com`. `file://`, plaintext `http://`, and
 > private/loopback hosts are always refused (SSRF guard). The web UI exposes the same on every
 > Understand page — a **Browse…** button to pick a local folder, or paste a URL.
 
-**Where it's stored.** `memory-bank/` is the one artifact you **commit** — the durable,
+**Where it's stored.** `episteme/` is the one artifact you **commit** — the durable,
 versioned, code-true doc your team and any AI tool reads. The graph it renders from is a
 regenerable cache at `~/.cache/orchestrator/pkg/` (rebuilt from code on every commit, so it
 can't go stale); the Current State report is a *view* you regenerate on demand. So the habit
-is: `orchestrator understand .` → commit `memory-bank/`, then re-run whenever the code moves.
+is: `orchestrator understand .` → commit `episteme/`, then re-run whenever the code moves.
 
 > **Deep dive:** see **[KNOWLEDGE_GRAPH.md](KNOWLEDGE_GRAPH.md)** for the full PKG
 > guide — the data model, the CLI (`pkg extract` / `export` / `docs`), **where each
@@ -198,14 +198,14 @@ is: `orchestrator understand .` → commit `memory-bank/`, then re-run whenever 
 ### Working with existing repos (brownfield) — and how knowledge grows
 
 Spine understands a repo from its **own code**: it builds a Product Knowledge Graph
-(PKG) and a committed `memory-bank/`, then grounds every action in that. ontomesh
+(PKG) and a committed `episteme/`, then grounds every action in that. ontomesh
 (domain ontology) is an *optional* add-on — not the thing that reads your code.
 
 **Brownfield — comprehend, then deliver:**
 
 1. **Comprehend** the existing codebase (deterministic, no LLM):
    ```bash
-   orchestrator understand .       # PKG → memory-bank/*.md
+   orchestrator understand .       # PKG → episteme/*.md
    orchestrator profile .          # quick architecture profile
    orchestrator audit .            # surface findings / issues
    ```
@@ -219,7 +219,7 @@ Spine understands a repo from its **own code**: it builds a Product Knowledge Gr
 
 **Greenfield — knowledge grows as you build.** The first `understand` writes a stub and
 the first `feature` run scaffolds `src/<package>/` + `tests/`. From there the PKG and
-`memory-bank/` fill in with every feature that lands — re-run
+`episteme/` fill in with every feature that lands — re-run
 `orchestrator understand . --refresh` so the committed knowledge keeps pace. The repo
 accumulates its own code-true memory as it grows.
 
@@ -406,13 +406,13 @@ curl -X POST -H "x-api-key: dev-key" http://localhost:8000/v1/approvals/sdlc-<id
 ```
 
 **7.3a — What a run does before it writes code.** The pipeline **comprehends the repo**
-first — it builds the same knowledge graph + `memory-bank/` as `understand`, and folds a
+first — it builds the same knowledge graph + `episteme/` as `understand`, and folds a
 one-line summary into the intents gate, so you approve the extracted intents *and* see that
 Spine read the codebase. After you approve intents and it creates issues, a **design wave**
 produces a grounded, per-issue **design** (approach, files-to-touch, interfaces, risks, test
 strategy — anchored to the repo's real modules) that each feature then builds to. Both the
 comprehension and the designs are saved as **run artifacts**: expand the run in the **Console**
-to download `knowledge-graph.db`, the memory-bank docs, and each issue's
+to download `knowledge-graph.db`, the episteme docs, and each issue's
 `design.md` / `design.json`.
 
 Three pipeline flags control this (comprehension + design are **on** by default; the extra
@@ -433,14 +433,14 @@ left sidebar groups every surface into sections:
 | `/app/inbox` | **Inbox** — delegate a run, watch it progress **live** (server-sent events), approve/reject gates **inline**. The front door. |
 | `/app/intake` | **Intake studio** — preview any source (Confluence / Notion / file / OpenSpec) as a backlog, then delegate a gated run (dry-run by default). |
 | `/app/backlog` | **Backlog preview** — a source rendered as a derived backlog (read-only). |
-| `/console` | **Console** — the approval queue + runs dashboard (state filter, inline trace, export a run's timeline). Expand a run to download its **comprehension + design artifacts** (knowledge graph, memory bank, per-issue designs). |
+| `/console` | **Console** — the approval queue + runs dashboard (state filter, inline trace, export a run's timeline). Expand a run to download its **comprehension + design artifacts** (knowledge graph, episteme, per-issue designs). |
 
 **Understand** — repo intelligence. Point at a **local path _or_ a git URL** (GitHub / Bitbucket / GitLab / enterprise) — **Browse…** picks a local folder, or paste a URL (cloned on demand).
 | URL | What you see |
 |---|---|
-| `/app/understand` | Build the code-true **memory bank** for a repo (runs as a job, with live progress). |
+| `/app/understand` | Build the code-true **episteme** for a repo (runs as a job, with live progress). |
 | `/app/state` | **Current State** report (developer / stakeholder lens), rendered in-app. |
-| `/app/memory-bank` | Browse a repo's committed `memory-bank/*.md`. |
+| `/app/memory-bank` | Browse a repo's committed `episteme/*.md`. |
 | `/app/graph` | **Knowledge graph** — a module-level overview (node/edge mix, biggest modules, dependencies, top symbols). |
 | `/app/catalog` | What Spine can do in this repo — the capability catalog + a per-intent plan. |
 

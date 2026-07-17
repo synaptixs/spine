@@ -18,11 +18,11 @@ $("run").onclick = async () => {
     const s = job.summary || {};
     const files = (s.files || []).map((f) => `<span class="chip">${esc(f)}</span>`).join("");
     $("status").innerHTML = `<span class="ok">Done${s.greenfield ? " · greenfield repo" : ""}.</span>`;
-    $("result").innerHTML = `<div class="panel"><div class="panel-head">Memory bank built</div>
-      <p class="panel-sub">${esc(s.summary || "Code mapped into memory-bank/*.md.")}</p>
+    $("result").innerHTML = `<div class="panel"><div class="panel-head">Episteme built</div>
+      <p class="panel-sub">${esc(s.summary || "Code mapped into episteme/*.md.")}</p>
       <div class="chips">${files}</div>
       <div class="cards" style="margin-top:1rem">
-        <a class="card" href="/app/memory-bank">Browse memory bank →</a>
+        <a class="card" href="/app/memory-bank">Browse episteme →</a>
         <a class="card" href="/app/state">Current-state report →</a>
         <a class="card" href="/app/graph">Knowledge graph →</a>
       </div></div>`;
