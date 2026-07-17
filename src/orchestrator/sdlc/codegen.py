@@ -1165,6 +1165,9 @@ class LLMCodegenAdapter:
             self._condition_system(self._refine_system(), self._skills, phase="refine"),
             f"{self._layout_block()}{self._grounding(spec, root)}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}\n\n"
+            "IMPORTANT: Fix the IMPLEMENTATION files only. Do NOT modify test files to "
+            "make them match a broken implementation — fix the source code so the tests "
+            "pass as written.\n\n"
             f"CURRENT FILES:\n{self._session_files(root, include_tests=True)}"
             f"{_named_existing_files(spec, root)}{self._convention_block(root)}\n\n"
             f"FAILURE OUTPUT:\n{_truncate(failures, _MAX_CONTEXT_BYTES)}",
