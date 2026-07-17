@@ -27,10 +27,10 @@ jobs:
       contents: read # an explicit permissions block drops the defaults; checkout needs this
       id-token: write # required for OIDC trusted publishing
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           enable-cache: true
 
@@ -44,7 +44,7 @@ jobs:
         run: uvx twine check dist/*
 
       - name: Publish to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
           # Don't hard-fail when a version was already uploaded (TestPyPI is
