@@ -97,6 +97,7 @@ def _normalise(design: dict[str, Any]) -> dict[str, Any]:
 
 async def _llm_design(spec: dict[str, Any], ctx: dict[str, Any], llm: Any) -> dict[str, Any]:
     from orchestrator.core.llm.client import Message
+    from orchestrator.core.prompt_safety import fence_untrusted
     from orchestrator.sdlc.codegen import resolve_codegen_model
 
     structure = "\n".join(_structure_lines(ctx.get("overview"))) or "(no structure available)"
@@ -110,7 +111,9 @@ async def _llm_design(spec: dict[str, Any], ctx: dict[str, Any], llm: Any) -> di
         f"FEATURE: {spec.get('title', '')}\n{spec.get('summary', '')}\n"
         f"Acceptance criteria:\n{ac}\n\n"
         f"REPO STRUCTURE (knowledge graph):\n{structure}\n\n"
-        f"CONVENTIONS / DOMAIN (memory bank):\n{conventions[:4000]}"
+        # memory-bank conventions are free-text markdown from the (untrusted) target
+        # repo; fence them so injected instructions can't steer the design/codegen LLM.
+        f"CONVENTIONS / DOMAIN (memory bank):\n{fence_untrusted('repo conventions', conventions[:4000])}"
     )
     result = await llm.complete(
         [

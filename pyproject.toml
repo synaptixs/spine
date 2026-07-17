@@ -1,6 +1,6 @@
 [project]
 name = "synaptixs-spine"
-version = "3.4.0"
+version = "3.5.0"
 description = "Agent orchestration platform — planner, registry, runtime, verifier."
 readme = "README.md"
 license = { text = "MIT" }
@@ -140,10 +140,24 @@ line-length = 110
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "N", "SIM"]
+# "S" = flake8-bandit. Security linting runs in the normal `ruff check` gate rather
+# than as a separate bandit step: same coverage for a Python-only tree, no extra
+# dependency, no extra CI job. Deeper dataflow analysis is CodeQL's job (see
+# .github/workflows/codeql.yml). Note several `# noqa: S...` suppressions predate
+# this — they were written when the rules were dormant and are now live.
+select = ["E", "F", "I", "B", "UP", "N", "SIM", "S"]
 ignore = [
     # FastAPI's recommended `param: T = Depends(...)` triggers B008.
     "B008",
+    # Spine is a build/test orchestrator — shelling out to pytest/cmake/meson/git
+    # IS the product. Every call site builds an argv list (never `shell=True`), so
+    # the risk these flag (shell metacharacter injection) is structurally absent.
+    # Enabling them would mean ~19 permanent noqa comments across the runners.
+    "S603",
+    "S607",
+    # try/except/continue. A code-quality signal, not a security one, and the two
+    # sites (pkg/migrations.py, spine/grounder.py) are deliberate best-effort loops.
+    "S112",
     # Migration to enum.StrEnum / PEP-695 generics is mechanical churn that
     # doesn't change runtime behaviour; revisit if Python 3.12 floor moves up.
     "UP042",
@@ -157,7 +171,40 @@ ignore = [
     # negative-path coverage.
     "B017",
     "A002",
+    # `assert` is what a test IS (~3,500 sites).
+    "S101",
+    # Dummy credentials, fixture temp paths, and localhost binds in fixtures —
+    # including deliberate fake secrets for the codereview secret-detector tests.
+    "S105",
+    "S106",
+    "S108",
+    "S104",
 ]
+# The local dev launcher: binds 0.0.0.0 so the UI is reachable from a container or
+# LAN device, and ships a placeholder session secret for zero-config local runs.
+# Both are dev-only affordances — see OPERATIONS.md for the deployed configuration.
+"src/orchestrator/launch.py" = ["S104", "S105"]
+# `PASS = "pass"` — a verifier verdict enum. S105 matches the *word*, not a secret.
+"src/orchestrator/runtime/verifier.py" = ["S105"]
+"src/orchestrator/runtime/verifiers/base.py" = ["S105"]
+# Invariant assertions that narrow a type for mypy rather than validate input; none
+# is a security check, so `python -O` stripping them changes nothing.
+"src/orchestrator/pkg/migrations.py" = ["S101"]
+"src/orchestrator/registry/api/tasks.py" = ["S101"]
+"src/orchestrator/registry/api/workspace.py" = ["S101"]
+"src/orchestrator/runtime/graphs.py" = ["S101"]
+# `/tmp/sdlc-workspaces` is an env-overridable DEFAULT (SDLC_WORKSPACE_ROOT), and
+# each run lands in a `uuid4()` subdirectory, so the path an attacker would have to
+# predict isn't predictable. What S108 does still reach: the shared parent, which is
+# pre-createable as a symlink on a multi-tenant host. Deployments set the env var
+# (OPERATIONS.md). Left for the Phase 2 sdlc/ review rather than fixed blind —
+# see docs/specs/security-review-plan.md.
+"src/orchestrator/sdlc/feature_runner.py" = ["S108"]
+"src/orchestrator/sdlc/worker.py" = ["S108"]
+# Dev/live-testing helpers — not packaged (hatch ships src/orchestrator only), run
+# by hand against test accounts. Same two categories as above: asserts that narrow a
+# type, and an env-overridable workspace-root default.
+"scripts/**" = ["S101", "S108"]
 # The console page embeds a JS blob as a Python string; line length there is
 # JS style, not Python — don't hold the embedded script to the 110-col bar.
 "src/orchestrator/registry/api/console.py" = ["E501"]

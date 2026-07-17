@@ -16,6 +16,7 @@ import re
 from typing import Any
 
 from orchestrator.core.llm import LLMClient, Message
+from orchestrator.core.prompt_safety import fence_untrusted
 from orchestrator.registry.agent_template import AgentTemplate
 
 
@@ -126,7 +127,10 @@ class SingleAgentNode:
             terms = "\n".join(
                 f"- {k}: {v.get('value', v) if isinstance(v, dict) else v}" for k, v in glossary.items()
             )
-            glossary_block = f"\n\nGlossary (pinned definitions, treat as authoritative):\n{terms}"
+            # Glossary values can originate from request task_metadata, so they are
+            # untrusted. Fence them as term definitions rather than labelling them
+            # "authoritative" — otherwise an injected value steers the system prompt.
+            glossary_block = "\n\n" + fence_untrusted("glossary (pinned term definitions)", terms)
         custom_prompt = self._template.spec.constraints.get("system_prompt", "")
         base = (
             f"You are agent {self._template.metadata.id} v{self._template.metadata.version}. "

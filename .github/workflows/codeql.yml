@@ -1,0 +1,57 @@
+name: CodeQL
+
+# Dataflow SAST — the analysis `ruff --select S` can't do. Where the lint rules ask
+# "does this line look risky?", CodeQL asks "does untrusted input reach this sink?",
+# which is the question that matters for the surfaces in
+# docs/specs/security-review-plan.md §2: the repo-URL allow-list (SSRF), the
+# content_type passthrough in registry/api/jobs.py, and the hand-rolled renderers
+# in web/static (XSS).
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Weekly. CodeQL ships new queries continuously, so a tree that was clean at
+    # merge time can turn up findings later with no code change.
+    - cron: "27 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    # CodeQL uploads results to the Security tab, which needs code scanning enabled —
+    # free on public repos, but requires GitHub Advanced Security on private ones. The
+    # public repo (synaptixs/spine) is where releases and the security messaging live and
+    # where scanning is available; on a private working fork the upload fails and would
+    # block CI for no code reason. Run only where results can actually be surfaced.
+    if: github.event.repository.visibility == 'public'
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # javascript-typescript covers web/static — 2,378 lines of vanilla JS with
+        # no build step and no framework auto-escaping, so the renderers there are
+        # exactly where an XSS would live.
+        language: [python, javascript-typescript]
+
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@b7351df727350dca84cb9d725d57dcf5bc82ba26 # v3
+        with:
+          language: ${{ matrix.language }}
+          queries: security-and-quality
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@b7351df727350dca84cb9d725d57dcf5bc82ba26 # v3
+        with:
+          category: "/language:${{ matrix.language }}"

@@ -3,7 +3,7 @@
 // fenced code, inline code/bold/italic, links, and rules — enough for our own
 // output, not a general CommonMark engine. Exposes window.renderMarkdown.
 (function () {
-  function esc(s) { return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 
   function inline(s) {
     s = esc(s);

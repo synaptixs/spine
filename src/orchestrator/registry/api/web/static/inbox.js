@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const esc = (s) => { const d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; };
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const SSE_EVENTS = ["run.created", "run.stage", "run.gate", "run.completed", "approval.updated"];
 const runs = new Map();  // sdlc_id → summary
 

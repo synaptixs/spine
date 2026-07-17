@@ -1,7 +1,7 @@
 const f = document.getElementById('f');
 const out = document.getElementById('out');
 const statusEl = document.getElementById('status');
-const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const list = xs => (xs && xs.length)
   ? '<ul>' + xs.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '';
 

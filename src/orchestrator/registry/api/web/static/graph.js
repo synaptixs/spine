@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const esc = (s) => { const d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; };
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 function tile(v, l) { return `<div class="tile"><div class="tile-v">${esc(v)}</div><div class="tile-l">${esc(l)}</div></div>`; }
 function tiles(s) { return `<div class="tiles">${tile(s.nodes || 0, "nodes")}${tile(s.grounded_nodes || 0, "grounded")}${tile(s.external_nodes || 0, "external")}${tile(s.edges || 0, "edges")}</div>`; }

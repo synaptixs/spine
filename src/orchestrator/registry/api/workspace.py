@@ -24,6 +24,7 @@ import ipaddress
 import os
 import re
 import shutil
+import socket
 import subprocess
 import tempfile
 from collections.abc import Callable, Iterator
@@ -99,15 +100,25 @@ def _allowed_hosts(settings: Settings) -> set[str]:
     return {h.strip().lower() for h in raw.split(",") if h.strip()}
 
 
+def _ip_is_internal(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast
+
+
 def _is_internal_host(host: str) -> bool:
     """Block localhost, cloud-metadata, and private/loopback/link-local IPs —
     the SSRF backstop that applies even when the host allow-list is ``*``."""
     h = host.lower().strip("[]")
     if h in ("localhost", "metadata", "metadata.google.internal") or h.endswith((".local", ".internal")):
         return True
+    # Standard IP literal (dotted-quad IPv4 / IPv6, incl. IPv4-mapped).
     with contextlib.suppress(ValueError):
-        ip = ipaddress.ip_address(h)
-        return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast
+        return _ip_is_internal(ipaddress.ip_address(h))
+    # Obfuscated IPv4 the standard parser rejects but libc (hence git/curl) accepts:
+    # integer (2130706433), hex (0x7f000001), octal (0177.0.0.1), short (127.1). Without
+    # this, an allow-list=* operator could reach loopback/metadata through them. inet_aton
+    # normalises exactly these forms and rejects real hostnames (github.com → OSError).
+    with contextlib.suppress(OSError):
+        return _ip_is_internal(ipaddress.ip_address(socket.inet_aton(h)))
     return False
 
 

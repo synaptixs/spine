@@ -12,11 +12,7 @@
 // or the classic-script global scope would collide.
 (function () {
   const $ = (id) => document.getElementById(id);
-  const esc = (s) => {
-    const d = document.createElement("div");
-    d.textContent = s == null ? "" : String(s);
-    return d.innerHTML;
-  };
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const modal = () => $("fsmodal");
   function close() {
     if (modal()) modal().innerHTML = "";
