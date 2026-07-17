@@ -150,7 +150,7 @@ def module_page_slugs(names: list[str]) -> dict[str, str]:
     for name in sorted(names):
         stem = _slug(name)
         if stem.lower() in used:
-            stem = f"{stem}-{hashlib.sha1(name.encode()).hexdigest()[:6]}"
+            stem = f"{stem}-{hashlib.sha1(name.encode(), usedforsecurity=False).hexdigest()[:6]}"
         used.add(stem.lower())
         out[name] = stem
     return out

@@ -44,7 +44,7 @@ def default_cache_dir() -> Path:
 
 def cache_path(source_uri: str, cache_dir: Path | None = None) -> Path:
     root = cache_dir or default_cache_dir()
-    key = hashlib.sha1(source_uri.encode("utf-8")).hexdigest()[:16]
+    key = hashlib.sha1(source_uri.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
     return root / f"{key}.json"
 
 

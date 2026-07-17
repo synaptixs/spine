@@ -29,6 +29,25 @@ orchestrator sdlc feature --source file://./spec.md --safe   # build locally —
 
 ---
 
+## 🔒 Security
+
+Spine runs on real code, clones untrusted repositories, and executes generated code — so
+we hold its own source to the same bar.
+
+- **Checks run in CI on every pull request:** CodeQL (Python + JavaScript), `pip-audit`
+  over the locked dependency set, `bandit`-class static analysis, and Dependabot.
+- **We security-reviewed our own source** with a multi-model adversarial pass — 7
+  confirmed issues fixed, **each with a regression test** (path traversal, an SSRF
+  backstop gap, prompt-injection hardening in the review pipeline, and a web-UI XSS).
+  Details in the [changelog](https://github.com/synaptixs/spine/blob/main/CHANGELOG.md).
+- **All patchable dependency CVEs are resolved**, and the audit fails CI on any new one.
+
+Found something? Please follow our coordinated-disclosure policy in
+[SECURITY.md](https://github.com/synaptixs/spine/blob/main/SECURITY.md) — don't open a
+public issue.
+
+---
+
 ## Documentation
 
 | Guide | Read it for |

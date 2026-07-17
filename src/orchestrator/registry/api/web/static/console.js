@@ -6,7 +6,7 @@ let timer = null;
 function setMsg(text, cls) { const m = $("msg"); m.textContent = text || ""; m.className = cls || ""; }
 function riskClass(r){ return "risk-" + (r||"").toLowerCase(); }
 function stateClass(s){ return "state-" + (s||"running"); }
-function esc(s){ const d=document.createElement("div"); d.textContent = s==null?"":String(s); return d.innerHTML; }
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 
 // Auth is the session cookie (same-origin fetch sends it automatically). A 401
 // means the session lapsed → bounce to the login page.

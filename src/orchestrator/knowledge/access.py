@@ -48,8 +48,13 @@ def read_memory_bank(root: Path | str, section: str | None = None) -> dict[str, 
     sections = sorted(p.name for p in mb.glob("*.md"))
     if section:
         name = section if section.endswith(".md") else f"{section}.md"
-        path = mb / name
-        content = path.read_text(encoding="utf-8") if path.is_file() else None
+        # `section` is untrusted (it arrives as an MCP tool argument). Without this
+        # guard, "../../secrets.md" or an absolute path — or a symlink inside the bank
+        # pointing outside it — reaches read_text() and discloses arbitrary files.
+        # Resolve, then confine to the bank dir. Same idiom as evals/graders.py.
+        path = (mb / name).resolve()
+        contained = path.is_relative_to(mb.resolve())
+        content = path.read_text(encoding="utf-8") if contained and path.is_file() else None
         return {"exists": True, "section": name, "content": content}
     readme = mb / "README.md"
     return {

@@ -189,3 +189,24 @@ async def test_capability_rejects_bad_repo_and_lens(ctx: SimpleNamespace) -> Non
 
         bad_lens = await client.post("/v1/capabilities/state", json={"repo": ".", "lens": "wizard"})
         assert bad_lens.status_code == 400
+
+
+async def test_memory_bank_does_not_follow_symlinks_out_of_the_bank(ctx: SimpleNamespace) -> None:
+    """Confirmed finding (Phase 3): the repo is untrusted cloned content, and a symlink
+    committed as `episteme/X.md` was followed by read_text, exfiltrating a server-side
+    file in the response. The endpoint must confine reads to the bank dir."""
+    secret = ctx.tmp.parent / "server-secret.md"
+    secret.write_text("PRIVATE KEY MATERIAL", encoding="utf-8")
+
+    bank = ctx.tmp / "episteme"
+    bank.mkdir()
+    (bank / "domain-model.md").write_text("# legit", encoding="utf-8")
+    (bank / "pwn.md").symlink_to(secret)  # attacker-committed symlink escaping the bank
+
+    transport = httpx.ASGITransport(app=ctx.app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test", headers=_AUTH) as client:
+        resp = await client.get("/v1/capabilities/memory-bank", params={"repo": "."})
+    assert resp.status_code == 200
+    body = resp.text
+    assert "PRIVATE KEY MATERIAL" not in body  # the symlink target was NOT disclosed
+    assert "# legit" in body  # the real bank file still comes through

@@ -170,7 +170,17 @@ async def memory_bank(request: Request, _principal: PrincipalDep, repo: str = ".
         mb_dir = existing_bank_dir(root)
         if not mb_dir.is_dir():
             return None
-        return [(p.name, p.read_text(encoding="utf-8")) for p in sorted(mb_dir.glob("*.md"))]
+        # The repo (hence its bank dir) may be untrusted cloned content. glob('*.md')
+        # matches a symlink committed as `X.md`, and read_text would follow it to an
+        # arbitrary server-side file, exfiltrating it in the response. Confine each
+        # resolved path to the bank dir before reading.
+        base = mb_dir.resolve()
+        out: list[tuple[str, str]] = []
+        for p in sorted(mb_dir.glob("*.md")):
+            rp = p.resolve()
+            if rp.is_file() and rp.is_relative_to(base):
+                out.append((p.name, rp.read_text(encoding="utf-8")))
+        return out
 
     files = await _in_repo(source, work)
     if files is None:

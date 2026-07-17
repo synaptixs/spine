@@ -1,0 +1,61 @@
+name: Dependency audit
+
+# pip-audit over the RESOLVED lockfile — not the ambient environment. Running bare
+# `pip-audit` inside a uv-managed checkout audits uv's own throwaway env and cheerfully
+# reports "No known vulnerabilities found" while the project's actual dependencies go
+# unexamined. Export the lock, audit the export.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Weekly. New advisories land against pinned versions with no code change, so
+    # this must run on a timer, not only on push.
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Export locked dependencies
+        run: uv export --format requirements-txt --no-emit-project --no-dev -o requirements-audit.txt
+
+      # The 18 CVEs baselined here on 2026-07-17 have been patched (aiohttp, starlette,
+      # cryptography, langsmith, langgraph-checkpoint/sdk, pydantic-settings — see the
+      # 3.5.0 CHANGELOG). ONE remains, accepted with reason rather than force-fixed:
+      #
+      #   PYSEC-2026-2132  click 8.1.8  (fix: 8.3.3)
+      #     Command injection in click.edit(). Spine never calls click.edit() (typer
+      #     doesn't use it), so the sink is unreachable. Forcing click ≥ 8.3.3 drags
+      #     semgrep back from 1.170 to 1.79 (a ~2-year regression of the codereview
+      #     scanner) — a worse outcome than an unreachable CVE. Revisit when semgrep's
+      #     upstream click ceiling lifts; Dependabot will surface it.
+      #
+      # This list must only ever SHRINK. Adding an ID is a PR-review decision, never a
+      # drive-by — and each addition needs a reachability/trade-off note like the above.
+      - name: Audit locked dependencies (fails on any NEW advisory)
+        run: |
+          uv run --with pip-audit pip-audit -r requirements-audit.txt \
+            --ignore-vuln PYSEC-2026-2132
+
+      # Always visible, never blocking: the full picture including the backlog above,
+      # so the ignore list can't quietly become the place findings go to die.
+      - name: Full report (informational — includes the known backlog)
+        if: always()
+        run: uv run --with pip-audit pip-audit -r requirements-audit.txt || true
