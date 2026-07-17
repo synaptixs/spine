@@ -19,7 +19,7 @@ async function load() {
     const data = await window.spine.apiJSON("/v1/capabilities/memory-bank?repo=" + encodeURIComponent(repo));
     if (!data.exists || !data.files.length) {
       $("status").innerHTML = "";
-      $("mb-doc").innerHTML = "<div class='empty'>No memory bank yet for this repo. Run <a href='/app/understand'>Understand</a> first.</div>";
+      $("mb-doc").innerHTML = "<div class='empty'>No episteme yet for this repo. Run <a href='/app/understand'>Understand</a> first.</div>";
       return;
     }
     files = data.files;

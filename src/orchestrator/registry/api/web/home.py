@@ -36,7 +36,7 @@ _CARDS: tuple[tuple[str, str, str, str], ...] = (
     ("Intake studio", "/app/intake", "Preview any source, then delegate a gated run.", "sparkles"),
     ("Console", "/console", "Review approval gates and the runs dashboard.", "table"),
     ("Backlog", "/app/backlog", "Preview a Confluence source as a backlog.", "list"),
-    ("Understand", "/app/understand", "Map a repo into a code-true memory bank.", "search"),
+    ("Understand", "/app/understand", "Map a repo into a code-true knowledge base.", "search"),
     ("Current State", "/app/state", "A code-true report of what the system is.", "file"),
     ("Knowledge graph", "/app/graph", "The module-level knowledge-graph overview.", "branch"),
     ("Personas", "/app/personas", "The personas and skills the engineer uses.", "users"),

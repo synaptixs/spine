@@ -17,7 +17,7 @@ and how it powers both **brownfield** (existing code) and **greenfield** (new) p
 ```bash
 pip install synaptixs-spine
 
-orchestrator understand .          # build the PKG → write a committed memory-bank/
+orchestrator understand .          # build the PKG → write a committed episteme/
 orchestrator pkg extract . -q User # inspect: callers + blast radius of a symbol
 ```
 
@@ -43,7 +43,7 @@ flowchart TB
     repo["📁 Your repository"]
     subgraph code["Code-native — always on"]
         pkg["PKG<br/>(code graph)"]
-        mb["memory-bank/<br/>(committed knowledge)"]
+        mb["episteme/<br/>(committed knowledge)"]
     end
     subgraph dom["Domain — optional"]
         onto["ontomesh<br/>(business ontology)"]
@@ -120,7 +120,7 @@ flowchart LR
     ext --> facts["Facts<br/>Nodes + Edges + Provenance"]
     facts --> cache["Per-commit cache"]
     facts --> store["Fact store<br/>(queryable)"]
-    store --> mb["memory-bank/*.md"]
+    store --> mb["episteme/*.md"]
     store --> grd["Codegen grounding"]
     store --> db["SQLite projection"]
 ```
@@ -160,15 +160,15 @@ flowchart LR
 ## 4. Using the PKG — CLI reference
 
 ### `orchestrator understand` — the everyday entry point
-Builds the PKG and renders a committed, human- and AI-readable **memory bank**:
+Builds the PKG and renders a committed, human- and AI-readable **episteme**:
 
 ```bash
-orchestrator understand .                 # writes ./memory-bank/*.md
+orchestrator understand .                 # writes ./episteme/*.md
 orchestrator understand . --refresh       # re-extract instead of using the commit cache
 ```
 
 It produces: `architecture.md`, `domain-model.md`, `tech-context.md`, `conventions.md`,
-`glossary.md`, and `progress.md`. **Commit `memory-bank/`** so your whole team — and any
+`glossary.md`, and `progress.md`. **Commit `episteme/`** so your whole team — and any
 AI tool — reads the same code-true project truth.
 
 ### `orchestrator state` — the team-facing current-state report
@@ -262,11 +262,11 @@ because the graph is rebuilt from source whenever the commit changes.
 | Layer | Location | Committed? | Lifecycle |
 |---|---|---|---|
 | **PKG (the graph)** | `~/.cache/orchestrator/pkg/<repo-hash>-<HEAD-sha>.json` | No | **Regenerable cache.** Commit-keyed and used only on a *clean* tree at the exact HEAD SHA; a dirty tree or new commit triggers a fresh, deterministic re-extraction. Delete it anytime — it rebuilds from code. |
-| **`memory-bank/`** | `<repo>/memory-bank/*.md` | **Yes** — commit it | **Durable, versioned doc.** The human- and AI-readable rendering of the graph. Travels with the code, shows up in diffs/PRs, and is the one artifact meant to live in version control. Refresh with `understand --refresh`. |
+| **`episteme/`** | `<repo>/episteme/*.md` | **Yes** — commit it | **Durable, versioned doc.** The human- and AI-readable rendering of the graph. Travels with the code, shows up in diffs/PRs, and is the one artifact meant to live in version control. Refresh with `understand --refresh`. |
 | **Current-state report** | stdout, or `--out <file>` | No | **Ephemeral view.** A point-in-time snapshot for a person/audience; nothing is written unless you pass `--out`. Re-run to refresh. |
 | **Cross-run memory** | Registry DB (`MemoryRow`, keyed per repo), via `ORCHESTRATOR_DATABASE_URL` | Durable DB | **Accumulating.** Learned conventions and abstractions distilled *across* runs, surfaced to codegen as a `recall_memory` tool. Active only when the full pipeline's database is configured (see [USER_GUIDE Step 7](USER_GUIDE.md)). |
 
-**In practice:** run `understand` and **commit `memory-bank/`** — that's the durable,
+**In practice:** run `understand` and **commit `episteme/`** — that's the durable,
 team-visible "what's already in place." The PKG cache regenerates per commit under the
 hood (this is what blast-radius and grounding read from — see §7). The current-state
 report is a view you regenerate on demand; cross-run memory compounds automatically once
@@ -280,7 +280,7 @@ For an **existing** repo, the PKG gives Spine an instant, accurate map so new wo
 
 ```mermaid
 flowchart TD
-    A["Existing repo"] --> B["orchestrator understand .<br/>(PKG + memory-bank/)"]
+    A["Existing repo"] --> B["orchestrator understand .<br/>(PKG + episteme/)"]
     B --> C{What do you want?}
     C -->|New feature| D["sdlc feature --safe<br/>(grounded in real layout)"]
     C -->|Bug fix| E["scoped by blast radius<br/>(callers, impacted symbols)"]
@@ -312,7 +312,7 @@ build**. Knowledge isn't a one-time scan; it compounds.
 
 ```mermaid
 flowchart LR
-    s0["Empty repo<br/>(stub memory-bank)"] --> s1["Feature 1<br/>scaffolds src/ + tests/"]
+    s0["Empty repo<br/>(stub episteme)"] --> s1["Feature 1<br/>scaffolds src/ + tests/"]
     s1 --> s2["PKG grows<br/>(new nodes + edges)"]
     s2 --> s3["Feature 2<br/>grounded in Feature 1"]
     s3 --> s4["PKG grows again…"]
@@ -324,7 +324,7 @@ flowchart LR
    pytest-ready layout, then generates into it.
 3. As each feature lands, the PKG gains nodes and edges — and the **next** feature is
    grounded in everything built so far. Re-run `orchestrator understand . --refresh` (or
-   it refreshes on the next run) to keep `memory-bank/` in step.
+   it refreshes on the next run) to keep `episteme/` in step.
 4. Over time the repo **builds its own code-true memory**, so even a brand-new project
    quickly becomes one an agent (or a new teammate) can navigate.
 
@@ -363,7 +363,7 @@ reviews honest.
   SELECT * FROM edge_EXPOSES;     -- one table per edge kind
   SELECT * FROM node_Function;    -- one table per node kind, with file:line provenance
   ```
-- **Committed prose:** `memory-bank/*.md` — the human-readable rendering of the graph.
+- **Committed prose:** `episteme/*.md` — the human-readable rendering of the graph.
 
 ---
 

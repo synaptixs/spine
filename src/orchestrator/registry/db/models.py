@@ -218,7 +218,7 @@ class MemoryRow(Base):
 
     A consolidated fact learned *from* past runs (see
     ``docs/specs/cross-run-semantic-memory.md``), read back by the agentic loop
-    via the ``recall_memory`` tool. Distinct from the code-true ``memory-bank/``
+    via the ``recall_memory`` tool. Distinct from the code-true ``episteme/``
     files: this is derived from what the agent *did*, and every row cites its
     source run(s) in ``evidence`` so it stays auditable and prunable. The
     ``embedding`` column (pgvector ANN) is deferred to Phase 3; Phase 1 ranks by

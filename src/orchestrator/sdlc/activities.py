@@ -439,9 +439,16 @@ class SDLCActivities:
         return {"path": str(path), "memory_bank_seeded": seeded}
 
     async def _seed_memory_bank(self, path: Any, comprehension: dict[str, Any]) -> int:
-        """Fetch the comprehension memory-bank artifacts and write them into the
-        worktree's ``memory-bank/`` (best-effort — never fails workspace setup)."""
+        """Fetch the comprehension knowledge-base artifacts and write them into the
+        worktree's ``episteme/`` (best-effort — never fails workspace setup).
+
+        The artifact *keys* keep their ``memory-bank/`` prefix: they are a stored
+        contract and historical runs already carry them, so renaming the prefix
+        would break reading past artifacts. Only the on-disk directory is renamed.
+        """
         from pathlib import Path
+
+        from orchestrator.knowledge.understand import BANK_DIRNAME
 
         artifacts = comprehension.get("artifacts")
         if not isinstance(artifacts, dict):
@@ -449,7 +456,7 @@ class SDLCActivities:
         mb_keys = {n: k for n, k in artifacts.items() if str(n).startswith("memory-bank/")}
         if not mb_keys:
             return 0
-        mb_dir = Path(path) / "memory-bank"
+        mb_dir = Path(path) / BANK_DIRNAME
         seeded = 0
         for name, key in mb_keys.items():
             try:

@@ -5,7 +5,8 @@ comprehension capabilities become the UI's centrepiece:
 
 - B1 ``/app/understand``   — run ``understand`` as a job with live progress.
 - B2 ``/app/state``        — render the current-state report (developer/stakeholder).
-- B3 ``/app/memory-bank``  — browse a repo's committed ``memory-bank/*.md``.
+- B3 ``/app/memory-bank``  — browse a repo's committed ``episteme/*.md`` (route keeps its
+  name: it is a published URL, and only the on-disk directory was renamed).
 - B4 ``/app/graph``        — a module-level knowledge-graph overview.
 - B5 ``/app/catalog``      — what Spine can do in this repo (catalog + plan).
 
@@ -67,7 +68,7 @@ async def understand_page(_p: WebPrincipalDep) -> HTMLResponse:
         active="Understand",
         intro=(
             "Point Spine at a repo and it maps the code — languages, structure, data layer — "
-            "into a committed <strong>memory bank</strong>. Deterministic, no LLM. Runs as a job; "
+            "into a committed <strong>episteme</strong>. Deterministic, no LLM. Runs as a job; "
             "watch progress below, then open the results."
         ),
         body=_repo_bar("run", "Analyze")
@@ -101,11 +102,12 @@ async def state_page(_p: WebPrincipalDep) -> HTMLResponse:
 @router.get("/app/memory-bank", response_class=HTMLResponse)
 async def memory_bank_page(_p: WebPrincipalDep) -> HTMLResponse:
     return _page(
-        title="Memory bank",
-        active="Memory bank",
+        title="Episteme",
+        active="Episteme",  # must match the nav label in shell.py or the highlight breaks
         intro=(
             "The committed, code-true knowledge <code>understand</code> writes to "
-            "<code>memory-bank/*.md</code> — architecture, domain model, tech context, conventions. "
+            "<code>episteme/*.md</code> — architecture, domain model, tech context, conventions. "
+            "<em>Epistēmē</em>: knowledge grounded in evidence, derived from the code itself. "
             "Haven't run it yet? Use <a href='/app/understand'>Understand</a> first."
         ),
         body=_repo_bar("load", "Load")

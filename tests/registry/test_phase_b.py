@@ -98,7 +98,7 @@ async def test_intelligence_pages_render_and_are_navigable() -> None:
     pages = {
         "/app/understand": ("Understand · Spine", "understand.js"),
         "/app/state": ("Current State · Spine", "state.js"),
-        "/app/memory-bank": ("Memory bank · Spine", "memory-bank.js"),
+        "/app/memory-bank": ("Episteme · Spine", "memory-bank.js"),
         "/app/graph": ("Knowledge graph · Spine", "graph.js"),
         "/app/catalog": ("Catalog · Spine", "catalog.js"),
     }

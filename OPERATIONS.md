@@ -51,12 +51,12 @@ All behavior is configured by environment variables (`orchestrator init` scaffol
 
 ## Operating advanced capabilities
 
-**Committed `understand` memory bank:**
+**Committed `understand` episteme:**
 ```bash
-orchestrator understand --out memory-bank            # commit-cached PKG
-orchestrator understand --out memory-bank --refresh  # force re-extraction
+orchestrator understand --out episteme            # commit-cached PKG
+orchestrator understand --out episteme --refresh  # force re-extraction
 ```
-Commit `memory-bank/` so the team (and any AI tool) shares grounded context.
+Commit `episteme/` so the team (and any AI tool) shares grounded context.
 
 **Agentic codegen loop** (off by default):
 ```bash

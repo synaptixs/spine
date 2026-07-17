@@ -1346,7 +1346,7 @@ def understand(
     path: Annotated[str, typer.Argument(help="Repo path or git URL to comprehend.")] = ".",
     out: Annotated[
         Path | None,
-        typer.Option("--out", help="Memory-bank dir (default: <repo>/memory-bank; ./memory-bank for a URL)."),
+        typer.Option("--out", help="Knowledge-base dir (default: <repo>/episteme; ./episteme for a URL)."),
     ] = None,
     refresh: Annotated[
         bool, typer.Option("--refresh", help="Re-extract the PKG instead of using the commit cache.")
@@ -1356,18 +1356,19 @@ def understand(
         typer.Option("--dialect", help="SQL dialect (postgres|mysql|tsql|oracle|…); default: auto-detect."),
     ] = None,
 ) -> None:
-    """Build a committed `memory-bank/` — a code-true project knowledge base.
+    """Build a committed `episteme/` — a code-true project knowledge base.
 
     Phase 0: extracts the Product Knowledge Graph + project profile and renders
     architecture / domain-model / tech-context / conventions / glossary as
     markdown in the target repo. Deterministic (no LLM); re-run to refresh.
     ``path`` may be a local path or a git URL cloned on demand — for a URL the
-    clone is transient, so the memory bank defaults to ``./memory-bank``.
+    clone is transient, so the knowledge base defaults to ``./episteme``.
     """
     from orchestrator.knowledge import build_memory_bank
+    from orchestrator.knowledge.understand import BANK_DIRNAME, memory_bank_dir
 
     with _repo_arg(path) as (repo, is_remote):
-        out_dir = out or (Path("memory-bank") if is_remote else repo / "memory-bank")
+        out_dir = out or (Path(BANK_DIRNAME) if is_remote else memory_bank_dir(repo))
         result = build_memory_bank(
             repo, out_dir=out_dir, refresh=refresh, sql_dialect=dialect, log=typer.echo
         )
