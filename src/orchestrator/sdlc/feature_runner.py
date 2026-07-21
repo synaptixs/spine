@@ -109,7 +109,7 @@ async def _changed_files(path: Path) -> list[str]:
 # set, test env + runner). `--language auto` detects from the worktree. Anything outside
 # this set is rejected at the CLI — historically an unknown value silently fell through
 # to the Python branch and scaffolded a Python project.
-SUPPORTED_LANGUAGES = frozenset({"python", "java", "typescript", "csharp", "c", "cpp", "go", "sql"})
+_unused_supported_languages = frozenset({"python", "java", "typescript", "csharp", "c", "cpp", "go", "sql"})
 
 
 def _resolve_language(path: Path, requested: str) -> str:
