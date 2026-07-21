@@ -4,6 +4,32 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.6.1 — Shareable codebase-intelligence report
+
+`orchestrator state . --out report.html` now emits a single **self-contained HTML file** you
+open in a browser and forward to your team — the engineering-decision counterpart to a
+concept-map `graph.html`. Deterministic, no LLM, nothing fetched. It packages the analysis
+`state` already computes, so this is rendering, not new comprehension.
+
+### Added
+
+- **Shareable HTML report** — `orchestrator state . --out report.html` writes one
+  self-contained, theme-aware (light/dark) file with a provenance header, plain-language
+  overview, architecture diagram, blast-radius hotspots, risk & health, test-coverage gaps,
+  security surface, recent activity, and prioritized recommendations. `--out *.html` selects
+  HTML; any other extension keeps today's markdown. `--no-timestamp` gives byte-stable output
+  for CI diffs. The `--lens stakeholder` view drops the jargon-heavy sections.
+- **Deterministic architecture diagram** — an inline SVG (components grouped into zones,
+  weighted dependency arrows) laid out seeded-in-Python, so the same commit renders the same
+  picture; it grid-wraps large zones to stay legible and themes with the page (no mermaid, no
+  external assets).
+- **Graph-quantified blast radius** — the spotlight quantifies the cross-layer impact of the
+  top hotspot via `impact_across` ("changing X → N dependents across M files") and lists
+  blast-radius symbols with no covering test via the regression plan (`build_regression_plan`).
+- **In-browser filter** — a client-side search box hides non-matching rows, dims non-matching
+  architecture components, and collapses emptied sections; vanilla JS, no build step, still one
+  self-contained file.
+
 ## 3.6.0 — Knowledge-graph-grounded design & RCA
 
 A suite of new, deterministic-first CLI commands that ground engineering work — design,

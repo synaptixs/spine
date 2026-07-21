@@ -402,11 +402,15 @@ def _zone_label(zone: str) -> str:
     return _ZONE_LABELS.get(zone, zone)
 
 
-def _architecture_mermaid(s: CurrentState) -> list[str]:
-    """A system-architecture flowchart: the top components grouped into zone
-    subgraphs, with the strongest cross-component dependency edges (from the
-    `#include` / import graph). Bounded so it stays readable."""
-    from collections import defaultdict
+def architecture_graph(s: CurrentState) -> tuple[list[str], list[tuple[tuple[str, str], int]]]:
+    """The bounded ``(components, weighted_edges)`` behind the architecture diagram.
+
+    The strongest cross-component dependency edges (from the import / ``#include`` graph)
+    plus the biggest components, capped so any visual stays legible (invariant #7). Shared
+    by the mermaid block and the SVG renderer so the two never draw different architectures
+    for the same commit. ``components`` is the draw order; each edge is ``((from, to), weight)``
+    over that node set.
+    """
 
     def _is_test_area(a: str) -> bool:
         return _zone(a) in ("tests", "test")
@@ -431,6 +435,17 @@ def _architecture_mermaid(s: CurrentState) -> list[str]:
     nodes = nodes[:18]
     nodeset = set(nodes)
     edges = [(ab, c) for ab, c in edges if ab[0] in nodeset and ab[1] in nodeset]
+    return nodes, edges
+
+
+def _architecture_mermaid(s: CurrentState) -> list[str]:
+    """A system-architecture flowchart: the top components grouped into zone
+    subgraphs, with the strongest cross-component dependency edges (from the
+    `#include` / import graph). Bounded so it stays readable."""
+    from collections import defaultdict
+
+    nodes, edges = architecture_graph(s)
+    nodeset = set(nodes)
 
     by_zone: dict[str, list[str]] = defaultdict(list)
     for a in nodes:
@@ -688,10 +703,15 @@ def _render_developer(s: CurrentState) -> str:
     return "\n".join(o) + "\n"
 
 
-def build_current_state(
-    root: Path | str, *, lens: str = "developer", refresh: bool = False, sql_dialect: str | None = None
-) -> str:
-    """Extract the PKG + profile for ``root`` and render the current-state markdown."""
+def load_current_state(
+    root: Path | str, *, refresh: bool = False, sql_dialect: str | None = None
+) -> tuple[CurrentState, FactBatch]:
+    """Extract the PKG + profile for ``root`` and return the structured ``CurrentState``.
+
+    The raw ``FactBatch`` is returned alongside so callers that need graph-level
+    provenance (grounded/edge counts, the HTML report's blast-radius spotlight) can
+    reuse it without a second extraction. Rendering (markdown, HTML) is a separate step.
+    """
     from orchestrator.catalog.profile import ProjectProfile
     from orchestrator.pkg.data_layer_link import link_data_layer
     from orchestrator.pkg.extractor import RepoCodeExtractor
@@ -710,7 +730,22 @@ def build_current_state(
     batch = link_data_layer(batch)
     profile = ProjectProfile.from_repo(root_path)
     state = compute_current_state(batch, profile, root=root_path)
+    return state, batch
+
+
+def build_current_state(
+    root: Path | str, *, lens: str = "developer", refresh: bool = False, sql_dialect: str | None = None
+) -> str:
+    """Extract the PKG + profile for ``root`` and render the current-state markdown."""
+    state, _batch = load_current_state(root, refresh=refresh, sql_dialect=sql_dialect)
     return render_current_state(state, lens=lens)
 
 
-__all__ = ["CurrentState", "build_current_state", "compute_current_state", "render_current_state"]
+__all__ = [
+    "CurrentState",
+    "architecture_graph",
+    "build_current_state",
+    "compute_current_state",
+    "load_current_state",
+    "render_current_state",
+]
