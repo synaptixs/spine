@@ -22,6 +22,7 @@ import json
 import os
 import sys
 from collections.abc import Iterator
+from datetime import UTC
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -1397,6 +1398,10 @@ def state(
         str | None,
         typer.Option("--dialect", help="SQL dialect (postgres|mysql|tsql|oracle|…); default: auto-detect."),
     ] = None,
+    no_timestamp: Annotated[
+        bool,
+        typer.Option("--no-timestamp", help="Omit the generated-at time (byte-stable HTML for CI diffs)."),
+    ] = False,
 ) -> None:
     """Current State — a team-facing snapshot of what a repo is today and how healthy it looks.
 
@@ -1404,19 +1409,56 @@ def state(
     layered on top of `understand`. `--lens developer` gives the technical view;
     `--lens stakeholder` gives plain language. A report is a *view* of the code — re-run to
     refresh; nothing is written unless `--out` is given.
-    """
-    from orchestrator.knowledge.current_state import build_current_state
 
+    Output format follows `--out`'s extension: `--out report.html` emits a single
+    self-contained, shareable HTML report; any other extension (or stdout) emits markdown.
+    """
     if lens not in ("developer", "stakeholder"):
         typer.echo("ERROR: --lens must be 'developer' or 'stakeholder'.", err=True)
         raise typer.Exit(code=2)
+
+    want_html = out is not None and out.suffix.lower() in (".html", ".htm")
     with _repo_arg(path) as (repo, _):
-        markdown = build_current_state(repo, lens=lens, refresh=refresh, sql_dialect=dialect)
+        if want_html:
+            content = _render_state_html(
+                repo, lens=lens, refresh=refresh, dialect=dialect, no_timestamp=no_timestamp
+            )
+        else:
+            from orchestrator.knowledge.current_state import build_current_state
+
+            content = build_current_state(repo, lens=lens, refresh=refresh, sql_dialect=dialect)
     if out is not None:
-        out.write_text(markdown, encoding="utf-8")
+        out.write_text(content, encoding="utf-8")
         typer.echo(f"wrote {out}")
     else:
-        typer.echo(markdown)
+        typer.echo(content)
+
+
+def _render_state_html(
+    repo: Path, *, lens: str, refresh: bool, dialect: str | None, no_timestamp: bool
+) -> str:
+    """Build a `CurrentState` and render the self-contained shareable HTML report."""
+    from datetime import datetime
+
+    from orchestrator.knowledge.current_state import load_current_state
+    from orchestrator.knowledge.report_html import render_report_html
+    from orchestrator.pkg.persistence import repo_state
+    from orchestrator.pkg.store import FactStore
+
+    state, batch = load_current_state(repo, refresh=refresh, sql_dialect=dialect)
+    sha, _dirty = repo_state(repo)
+    grounded = sum(1 for n in batch.nodes if n.grounded)
+    timestamp = None if no_timestamp else datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    return render_report_html(
+        state,
+        repo_name=repo.resolve().name or "repository",
+        sha=sha,
+        timestamp=timestamp,
+        lens=lens,
+        grounded=grounded,
+        edges=len(batch.edges),
+        store=FactStore(batch),
+    )
 
 
 @app.command("design")
