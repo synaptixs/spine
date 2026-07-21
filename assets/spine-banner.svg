@@ -1,26 +1,60 @@
-<svg width="100%" viewBox="0 0 1280 640" role="img" xmlns="http://www.w3.org/2000/svg"><title>Spine</title><desc>Spine — governed, provenance-grounded autonomous delivery. A pipeline with two human-approval gates.</desc>
+<svg width="100%" viewBox="0 0 1280 640" role="img" xmlns="http://www.w3.org/2000/svg"><title>Spine</title><desc>Spine — one governed, provenance-grounded platform: understand a codebase, design and debug grounded in a Program Knowledge Graph, ingest requirements from many sources, and build human-gated, reviewed PRs.</desc>
 <rect x="0" y="0" width="1280" height="640" fill="#0B1020"/>
 <rect x="0" y="0" width="1280" height="6" fill="#2DD4BF"/>
-<text x="90" y="178" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="500" letter-spacing="3" fill="#5DCAA5">OPEN SOURCE · MIT LICENSE</text>
-<text x="86" y="320" font-family="Inter, Arial, sans-serif" font-size="132" font-weight="700" fill="#F5F7FA">Spine</text>
-<text x="90" y="376" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="500" fill="#C9D2E0">Governed, provenance-grounded autonomous delivery</text>
-<text x="90" y="416" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="400" fill="#9AA4B2">Requirements → reviewed, tested PRs. Human-gated. Inspectable.</text>
-<text x="90" y="512" font-family="ui-monospace, Menlo, monospace" font-size="23" font-weight="400" fill="#5DCAA5">pip install synaptixs-spine</text>
-<text x="90" y="548" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="400" fill="#8A94A6">github.com/synaptixs/spine</text>
-<line x1="1120" y1="150" x2="1120" y2="500" stroke="#3C4663" stroke-width="3"/>
-<circle cx="1120" cy="150" r="13" fill="#1A2236" stroke="#3C4663" stroke-width="2"/>
-<circle cx="1120" cy="290" r="13" fill="#1A2236" stroke="#3C4663" stroke-width="2"/>
-<circle cx="1120" cy="360" r="13" fill="#1A2236" stroke="#3C4663" stroke-width="2"/>
-<circle cx="1120" cy="500" r="13" fill="#1A2236" stroke="#3C4663" stroke-width="2"/>
-<circle cx="1120" cy="220" r="20" fill="#F0A92A"/>
-<path d="M1111 220 L1117 227 L1130 212" fill="none" stroke="#0B1020" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="1120" cy="430" r="20" fill="#F0A92A"/>
-<path d="M1111 430 L1117 437 L1130 422" fill="none" stroke="#0B1020" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="1088" y="157" text-anchor="end" font-family="Inter, Arial, sans-serif" font-size="22" fill="#C9D2E0">Requirement</text>
-<text x="1088" y="227" text-anchor="end" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="500" fill="#F0A92A">Approve build</text>
-<text x="1088" y="297" text-anchor="end" font-family="Inter, Arial, sans-serif" font-size="22" fill="#C9D2E0">Build + test</text>
-<text x="1088" y="367" text-anchor="end" font-family="Inter, Arial, sans-serif" font-size="22" fill="#C9D2E0">Open PR</text>
-<text x="1088" y="437" text-anchor="end" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="500" fill="#F0A92A">Approve merge</text>
-<text x="1088" y="507" text-anchor="end" font-family="Inter, Arial, sans-serif" font-size="22" fill="#C9D2E0">Merge</text>
-<text x="1120" y="548" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="17" fill="#6B7488">two human gates</text>
+
+<!-- Left: branding -->
+<text x="90" y="150" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="500" letter-spacing="3" fill="#5DCAA5">OPEN SOURCE · MIT LICENSE</text>
+<text x="86" y="292" font-family="Inter, Arial, sans-serif" font-size="120" font-weight="700" fill="#F5F7FA">Spine</text>
+<text x="90" y="346" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="500" fill="#C9D2E0">Governed, provenance-grounded</text>
+<text x="90" y="382" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="500" fill="#C9D2E0">software delivery — end to end</text>
+<text x="90" y="430" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#9AA4B2">One platform, grounded in a Program Knowledge Graph.</text>
+<text x="90" y="512" font-family="ui-monospace, Menlo, monospace" font-size="22" font-weight="400" fill="#5DCAA5">pip install synaptixs-spine</text>
+<text x="90" y="548" font-family="Inter, Arial, sans-serif" font-size="21" font-weight="400" fill="#8A94A6">github.com/synaptixs/spine</text>
+
+<!-- Right: capability map -->
+<text x="600" y="138" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" letter-spacing="3" fill="#5DCAA5">CAPABILITIES</text>
+
+<!-- Row 1 -->
+<g>
+  <rect x="600" y="156" width="290" height="96" rx="11" fill="#141B2E" stroke="#2C3550" stroke-width="1.5"/>
+  <rect x="600" y="156" width="4" height="96" rx="2" fill="#2DD4BF"/>
+  <text x="622" y="196" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="600" fill="#E6ECF5">Understand</text>
+  <text x="622" y="226" font-family="Inter, Arial, sans-serif" font-size="16" fill="#9AA4B2">Knowledge graph · 6 languages</text>
+</g>
+<g>
+  <rect x="910" y="156" width="290" height="96" rx="11" fill="#141B2E" stroke="#2C3550" stroke-width="1.5"/>
+  <rect x="910" y="156" width="4" height="96" rx="2" fill="#2DD4BF"/>
+  <text x="932" y="196" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="600" fill="#E6ECF5">Design</text>
+  <text x="932" y="226" font-family="Inter, Arial, sans-serif" font-size="16" fill="#9AA4B2">Grounded · blast-radius aware</text>
+</g>
+
+<!-- Row 2 -->
+<g>
+  <rect x="600" y="270" width="290" height="96" rx="11" fill="#141B2E" stroke="#2C3550" stroke-width="1.5"/>
+  <rect x="600" y="270" width="4" height="96" rx="2" fill="#2DD4BF"/>
+  <text x="622" y="310" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="600" fill="#E6ECF5">Debug &amp; RCA</text>
+  <text x="622" y="340" font-family="ui-monospace, Menlo, monospace" font-size="15" fill="#9AA4B2">localize · rca · regression</text>
+</g>
+<g>
+  <rect x="910" y="270" width="290" height="96" rx="11" fill="#141B2E" stroke="#2C3550" stroke-width="1.5"/>
+  <rect x="910" y="270" width="4" height="96" rx="2" fill="#2DD4BF"/>
+  <text x="932" y="310" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="600" fill="#E6ECF5">Intake</text>
+  <text x="932" y="340" font-family="Inter, Arial, sans-serif" font-size="16" fill="#9AA4B2">Confluence · Jira · MCP · specs</text>
+</g>
+
+<!-- Row 3 -->
+<g>
+  <rect x="600" y="384" width="290" height="96" rx="11" fill="#1B1B24" stroke="#4A3A1A" stroke-width="1.5"/>
+  <rect x="600" y="384" width="4" height="96" rx="2" fill="#F0A92A"/>
+  <text x="622" y="424" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="600" fill="#F5F0E6">Build → PR</text>
+  <text x="622" y="454" font-family="Inter, Arial, sans-serif" font-size="16" fill="#C7A46A">code · tests · human-gated</text>
+</g>
+<g>
+  <rect x="910" y="384" width="290" height="96" rx="11" fill="#141B2E" stroke="#2C3550" stroke-width="1.5"/>
+  <rect x="910" y="384" width="4" height="96" rx="2" fill="#2DD4BF"/>
+  <text x="932" y="424" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="600" fill="#E6ECF5">Govern</text>
+  <text x="932" y="454" font-family="Inter, Arial, sans-serif" font-size="16" fill="#9AA4B2">audit · policy · provenance</text>
+</g>
+
+<text x="600" y="524" font-family="Inter, Arial, sans-serif" font-size="18" fill="#8A94A6">Deterministic where it counts · inspectable · reproducible · two human gates</text>
 </svg>

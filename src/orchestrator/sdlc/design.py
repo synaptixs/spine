@@ -12,9 +12,12 @@ from __future__ import annotations
 
 import contextlib
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from orchestrator.runtime import ArtifactStore
+
+if TYPE_CHECKING:
+    from orchestrator.pkg import FactStore
 
 _FIELDS = ("approach", "files_to_touch", "interfaces", "data_changes", "risks", "test_strategy")
 _LIST_FIELDS = ("files_to_touch", "interfaces", "data_changes", "risks")
@@ -134,6 +137,8 @@ async def _llm_design(spec: dict[str, Any], ctx: dict[str, Any], llm: Any) -> di
 
 
 def render_design_md(spec: dict[str, Any], design: dict[str, Any]) -> str:
+    from orchestrator.sdlc.impact import render_md as _render_blast
+
     def _list(title: str, items: list[str]) -> str:
         if not items:
             return ""
@@ -150,7 +155,37 @@ def render_design_md(spec: dict[str, Any], design: dict[str, Any]) -> str:
         + _list("Data changes", design.get("data_changes") or [])
         + _list("Risks", design.get("risks") or [])
         + f"\n## Test strategy\n{design.get('test_strategy', '')}\n"
+        + _render_blast(design.get("blast_radius") or {})
     )
+
+
+async def produce_design(
+    spec: dict[str, Any],
+    *,
+    overview: dict[str, Any] | None,
+    memory_bank: dict[str, str] | None = None,
+    store: FactStore | None = None,
+    llm: Any = None,
+) -> dict[str, Any]:
+    """Produce a grounded design dict for one spec — the pure core, no I/O.
+
+    An LLM writes it when configured, else a deterministic heuristic from the
+    graph overview + acceptance criteria. When a ``FactStore`` is supplied, the
+    design is annotated with its **blast radius** (module dependents + call
+    hotspots) and any **unverified references** (named paths absent from the
+    graph). Shared by the SDLC activity (persists artifacts) and the CLI.
+    """
+    ctx = {"overview": overview, "memory_bank": memory_bank or {}}
+    try:
+        design = await _llm_design(spec, ctx, llm) if llm is not None else _fallback_design(spec, overview)
+    except Exception:  # noqa: BLE001 — LLM/parse failure → deterministic design, never blocks
+        design = _fallback_design(spec, overview)
+    if store is not None:
+        with contextlib.suppress(Exception):  # impact is an annotation; never fail the design
+            from orchestrator.sdlc.impact import blast_radius, to_dict
+
+            design["blast_radius"] = to_dict(blast_radius(store, design.get("files_to_touch") or []))
+    return design
 
 
 async def design_feature(
@@ -161,15 +196,13 @@ async def design_feature(
     run_id: str,
     issue_key: str,
     llm: Any = None,
+    store: FactStore | None = None,
 ) -> dict[str, Any]:
     """Produce + persist a grounded design for one issue; return a summary + refs."""
     ctx = await _load_context(comprehension, artifact_store)
-    try:
-        design = (
-            await _llm_design(spec, ctx, llm) if llm is not None else _fallback_design(spec, ctx["overview"])
-        )
-    except Exception:  # noqa: BLE001 — LLM/parse failure → deterministic design, never blocks
-        design = _fallback_design(spec, ctx["overview"])
+    design = await produce_design(
+        spec, overview=ctx["overview"], memory_bank=ctx["memory_bank"], store=store, llm=llm
+    )
 
     artifacts: dict[str, str] = {}
 
@@ -186,10 +219,11 @@ async def design_feature(
         "issue_key": issue_key,
         "summary": design.get("approach", ""),
         "files_to_touch": design.get("files_to_touch") or [],
+        "unverified_references": (design.get("blast_radius") or {}).get("unverified_references") or [],
         "llm": design.get("llm", False),
         "design": design,
         "artifacts": artifacts,
     }
 
 
-__all__ = ["design_feature", "render_design_md"]
+__all__ = ["design_feature", "produce_design", "render_design_md"]

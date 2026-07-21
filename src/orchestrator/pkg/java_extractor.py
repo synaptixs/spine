@@ -10,9 +10,12 @@ base install stays stdlib-only and importing this module never fails.
 Emits the high-confidence declaration subset, precision-first like the Python
 front-end: ``Module`` (the package), ``Type`` (class/interface/enum/record),
 ``Function`` (method/constructor), ``Field`` nodes; ``IMPORTS``, ``CONTAINS``,
-and ``IMPLEMENTS`` (extends + implements) edges. CALLS is intentionally NOT
-emitted — Java call resolution needs type inference, and a guessed edge would
-poison grounding; better to omit than to emit noise.
+and ``IMPLEMENTS`` (extends + implements) edges. ``CALLS`` is emitted only where
+the callee resolves precisely (a second pass over method bodies): unqualified /
+``this.`` calls to a sibling method, and ``Type.method()`` calls whose ``Type``
+resolves via imports or the same package. Instance calls on a typed variable
+(``obj.method()``) are skipped — they'd need type inference, and a guessed edge
+poisons grounding. Overloads collapse onto one id (no arity in ids).
 """
 
 from __future__ import annotations
@@ -57,9 +60,15 @@ class JavaExtractor:
         batch.add_node(Node(module_id, NodeKind.MODULE, module or rel, "java", Provenance(rel, 1)))
 
         imports = self._imports(tree.root_node, module_id, source, rel, batch)
+        # Two-pass: collect method bodies + a per-type method registry during the
+        # declaration walk, then resolve calls once every method id is known.
+        funcs: list[tuple[str, str, TSNode]] = []
+        type_methods: dict[str, set[str]] = {}
         for node in tree.root_node.named_children:
             if node.type in _TYPE_DECLS:
-                self._emit_type(node, module_id, module, imports, source, rel, batch)
+                self._emit_type(node, module_id, module, imports, source, rel, batch, funcs, type_methods)
+        for fid, type_id, body in funcs:
+            self._calls(fid, type_id, body, type_methods, imports, module, source, rel, batch)
         return batch
 
     def _imports(
@@ -88,6 +97,8 @@ class JavaExtractor:
         source: bytes,
         rel: str,
         batch: FactBatch,
+        funcs: list[tuple[str, str, TSNode]],
+        type_methods: dict[str, set[str]],
     ) -> None:
         name = _field_text(node, "name", source)
         if not name:
@@ -107,6 +118,7 @@ class JavaExtractor:
         body = node.child_by_field_name("body")
         if body is None:
             return
+        methods = type_methods.setdefault(type_id, set())
         for member in body.named_children:
             mline = member.start_point[0] + 1
             if member.type in ("method_declaration", "constructor_declaration"):
@@ -115,13 +127,70 @@ class JavaExtractor:
                     fid = f"{type_id}.{mname}"
                     batch.add_node(Node(fid, NodeKind.FUNCTION, mname, "java", Provenance(rel, mline)))
                     batch.add_edge(Edge(type_id, fid, EdgeKind.CONTAINS, Provenance(rel, mline)))
+                    methods.add(mname)
+                    mbody = member.child_by_field_name("body")
+                    if mbody is not None:
+                        funcs.append((fid, type_id, mbody))
             elif member.type == "field_declaration":
                 for fname in _field_names(member, source):
                     fid = f"{type_id}.{fname}"
                     batch.add_node(Node(fid, NodeKind.FIELD, fname, "java", Provenance(rel, mline)))
                     batch.add_edge(Edge(type_id, fid, EdgeKind.CONTAINS, Provenance(rel, mline)))
             elif member.type in _TYPE_DECLS:
-                self._emit_type(member, type_id, package, imports, source, rel, batch)
+                self._emit_type(member, type_id, package, imports, source, rel, batch, funcs, type_methods)
+
+    def _calls(
+        self,
+        caller: str,
+        type_id: str,
+        body: TSNode,
+        type_methods: dict[str, set[str]],
+        imports: dict[str, str],
+        package: str,
+        source: bytes,
+        rel: str,
+        batch: FactBatch,
+    ) -> None:
+        """Emit CALLS for precisely-resolvable ``method_invocation`` sites in a body."""
+        siblings = type_methods.get(type_id, set())
+        stack = list(body.named_children)
+        while stack:
+            n = stack.pop()
+            if n.type in _TYPE_DECLS:
+                continue  # nested/local class — a separate scope, not this method's calls
+            if n.type == "method_invocation":
+                target = self._resolve_call(n, type_id, siblings, imports, package, source)
+                if target is not None:
+                    batch.add_edge(
+                        Edge(caller, target, EdgeKind.CALLS, Provenance(rel, n.start_point[0] + 1))
+                    )
+            stack.extend(n.named_children)
+
+    def _resolve_call(
+        self,
+        inv: TSNode,
+        type_id: str,
+        siblings: set[str],
+        imports: dict[str, str],
+        package: str,
+        source: bytes,
+    ) -> str | None:
+        """The callee's node id, or ``None`` when it can't be resolved precisely."""
+        name = _field_text(inv, "name", source)
+        if not name:
+            return None
+        obj = inv.child_by_field_name("object")
+        if obj is None or obj.type == "this":  # foo() / this.foo() → sibling method
+            return f"{type_id}.{name}" if name in siblings else None
+        if obj.type == "identifier":
+            recv = _text(obj, source)
+            # A capitalized receiver is a Type (static call); lowercase is a
+            # variable (instance call) we can't resolve without type inference.
+            if recv[:1].isupper():
+                resolved = self._resolve_type(recv, package, imports)
+                if resolved is not None:
+                    return f"{resolved}.{name}"
+        return None
 
     def _resolve_type(self, simple_or_fqn: str, package: str, imports: dict[str, str]) -> str | None:
         """Resolve a base type name to a node id (precision-first, else None)."""

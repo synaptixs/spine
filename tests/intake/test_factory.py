@@ -31,10 +31,13 @@ def test_supported_kinds_match_registry() -> None:
     # exactly the keys the dispatcher can actually build.
     assert set(SUPPORTED_SOURCE_KINDS) == {
         "confluence",
+        "jira",
         "notion",
         "file",
         "openspec",
         "mcp-confluence",
+        "mcp-jira",
+        "mcp",
     }
 
 
@@ -62,9 +65,9 @@ def test_dispatch_routes_to_kind_builder(monkeypatch: pytest.MonkeyPatch) -> Non
 
 def test_unsupported_kind_raises_with_supported_list() -> None:
     with pytest.raises(IntakeNotConfiguredError) as exc:
-        build_service_for("jira://PROJ", dry_run=True)
+        build_service_for("linear://TEAM", dry_run=True)
     msg = str(exc.value)
-    assert "jira" in msg
+    assert "linear" in msg
     assert "confluence" in msg and "notion" in msg
 
 

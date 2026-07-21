@@ -14,6 +14,11 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
+_AUTH_PY = (
+    "def authenticate(token):\n    if not token:\n        raise ValueError('empty token')\n    return True\n"
+)
+
+
 def test_top_level_help_lists_command_groups(runner: CliRunner) -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
@@ -39,6 +44,113 @@ def test_sdlc_help_lists_run(runner: CliRunner) -> None:
     result = runner.invoke(app, ["sdlc", "--help"])
     assert result.exit_code == 0
     assert "run" in result.stdout
+
+
+def test_design_requires_a_title(runner: CliRunner, tmp_path: Path) -> None:
+    (tmp_path / "a.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+    result = runner.invoke(app, ["design", str(tmp_path)])
+    assert result.exit_code == 2
+    assert "provide --title" in result.output
+
+
+def test_design_emits_grounded_blast_radius(runner: CliRunner, tmp_path: Path) -> None:
+    """`design` grounds the spec in the repo's real modules and annotates the
+    blast radius from the knowledge graph (heuristic path — no LLM)."""
+    (tmp_path / "report.py").write_text("def render(rows):\n    return rows\n", encoding="utf-8")
+    (tmp_path / "web.py").write_text(
+        "import report\n\ndef handler(rows):\n    return report.render(rows)\n", encoding="utf-8"
+    )
+    result = runner.invoke(app, ["design", str(tmp_path), "--title", "Add CSV export"])
+    assert result.exit_code == 0, result.output
+    assert "# Design — Add CSV export" in result.output
+    assert "## Blast radius" in result.output
+    assert "report.py" in result.output and "imported by" in result.output
+
+
+def test_investigate_requires_a_ticket(runner: CliRunner, tmp_path: Path) -> None:
+    (tmp_path / "a.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+    result = runner.invoke(app, ["investigate", str(tmp_path)])
+    assert result.exit_code == 2
+    assert "provide --source or --title" in result.output
+
+
+def test_investigate_grounds_ticket_in_the_codebase(runner: CliRunner, tmp_path: Path) -> None:
+    """Inline ticket → brief that locates the matching symbol in the repo's graph."""
+    (tmp_path / "auth.py").write_text("def authenticate(token):\n    return bool(token)\n", encoding="utf-8")
+    result = runner.invoke(
+        app, ["investigate", str(tmp_path), "--title", "authenticate fails on empty token"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "# Investigation — authenticate fails on empty token" in result.output
+    assert "## Where it lands in the code" in result.output
+    assert "`authenticate`" in result.output
+
+
+def test_localize_requires_a_trace(runner: CliRunner, tmp_path: Path) -> None:
+    (tmp_path / "a.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+    # --text empty and no stdin → error
+    result = runner.invoke(app, ["localize", str(tmp_path), "--text", ""], input="")
+    assert result.exit_code == 2
+    assert "provide a trace" in result.output
+
+
+def test_localize_resolves_traceback_to_repo_symbol(runner: CliRunner, tmp_path: Path) -> None:
+    (tmp_path / "auth.py").write_text(_AUTH_PY, encoding="utf-8")
+    trace = (
+        "Traceback (most recent call last):\n"
+        f'  File "{tmp_path / "auth.py"}", line 3, in authenticate\n'
+        "    raise ValueError('empty token')\n"
+        "ValueError: empty token\n"
+    )
+    result = runner.invoke(app, ["localize", str(tmp_path), "--text", trace])
+    assert result.exit_code == 0, result.output
+    assert "# Fault localization" in result.output
+    assert "authenticate" in result.output and "auth.py:3" in result.output
+
+
+def test_rca_requires_a_bug(runner: CliRunner, tmp_path: Path) -> None:
+    (tmp_path / "a.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+    result = runner.invoke(app, ["rca", str(tmp_path), "--text", ""], input="")
+    assert result.exit_code == 2
+    assert "provide the bug" in result.output
+
+
+def test_rca_produces_grounded_analysis(runner: CliRunner, tmp_path: Path) -> None:
+    (tmp_path / "auth.py").write_text(_AUTH_PY, encoding="utf-8")
+    trace = (
+        "Traceback (most recent call last):\n"
+        f'  File "{tmp_path / "auth.py"}", line 3, in authenticate\n'
+        "    raise ValueError('empty token')\n"
+        "ValueError: empty token\n"
+    )
+    result = runner.invoke(app, ["rca", str(tmp_path), "--text", trace])
+    assert result.exit_code == 0, result.output
+    assert "# Root-cause analysis" in result.output
+    assert "authenticate at auth.py:3" in result.output
+    assert "no code is changed" in result.output.lower()
+
+
+def test_regression_requires_symbol_or_trace(runner: CliRunner, tmp_path: Path) -> None:
+    (tmp_path / "a.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+    result = runner.invoke(app, ["regression", str(tmp_path)])
+    assert result.exit_code == 2
+    assert "provide --symbol" in result.output
+
+
+def test_regression_flags_untested_caller(runner: CliRunner, tmp_path: Path) -> None:
+    """A change to `validate` — the test exercises it, but `handler` in the blast
+    radius has no covering test → flagged as a regression gap (uses Python CALLS)."""
+    (tmp_path / "core.py").write_text("def validate(x):\n    return bool(x)\n", encoding="utf-8")
+    (tmp_path / "web.py").write_text(
+        "import core\n\ndef handler(x):\n    return core.validate(x)\n", encoding="utf-8"
+    )
+    (tmp_path / "test_core.py").write_text(
+        "import core\n\ndef test_validate():\n    assert core.validate(1)\n", encoding="utf-8"
+    )
+    result = runner.invoke(app, ["regression", str(tmp_path), "--symbol", "validate"])
+    assert result.exit_code == 0, result.output
+    assert "# Regression coverage" in result.output
+    assert "Regression gaps" in result.output and "handler" in result.output
 
 
 def test_sdlc_run_rejects_unsupported_source_kind(runner: CliRunner) -> None:

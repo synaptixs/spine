@@ -15,6 +15,7 @@ for the CLI, a 400 for the web app.
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 from orchestrator.core.llm import LiteLLMClient
 from orchestrator.intake.confluence import ConfluenceAdapter, ConfluenceConfig
@@ -22,10 +23,14 @@ from orchestrator.intake.file_source import FileSourceAdapter, FileSourceConfig
 from orchestrator.intake.gaps import GapAnalyzer, load_gap_rules
 from orchestrator.intake.intents import IntentExtractor
 from orchestrator.intake.jira import JiraAdapter, JiraConfig
+from orchestrator.intake.jira_source import JiraSourceAdapter
 from orchestrator.intake.notion import NotionAdapter, NotionConfig
 from orchestrator.intake.service import BacklogService, parse_source_uri
 from orchestrator.intake.source import SourceAdapter
 from orchestrator.intake.specs import SpecWriter
+
+if TYPE_CHECKING:
+    from orchestrator.intake.mcp_source import MCPSourceConfig
 
 
 class IntakeNotConfiguredError(RuntimeError):
@@ -64,6 +69,22 @@ def build_confluence_service(*, dry_run: bool, rules_path: str | None = None) ->
     return _build_service(ConfluenceAdapter(conf), dry_run=dry_run, rules_path=rules_path)
 
 
+def build_jira_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
+    """Wire a Jira-backed (read) ``BacklogService`` from environment config.
+
+    Reads existing issues as the requirements source (``jira://PROJ-123`` /
+    ``jira://PROJ`` / ``jira://jql/…``). Uses the same ``JIRA_`` creds as the
+    tracker, minus ``project_key`` (only writes need a target project). Raises
+    ``IntakeNotConfiguredError`` when the read creds are absent.
+    """
+    conf = JiraConfig()
+    if not (conf.base_url and conf.email and conf.api_token):
+        raise IntakeNotConfiguredError(
+            "Jira source not configured (set JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN)."
+        )
+    return _build_service(JiraSourceAdapter(conf), dry_run=dry_run, rules_path=rules_path)
+
+
 def build_notion_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
     """Wire a Notion-backed ``BacklogService`` from environment config.
 
@@ -98,32 +119,74 @@ def build_openspec_service(*, dry_run: bool, rules_path: str | None = None) -> B
     return _build_service(OpenSpecSourceAdapter(), dry_run=dry_run, rules_path=rules_path)
 
 
-def build_mcp_confluence_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
-    """Wire a Confluence source backed by an onboarded MCP server (Phase 3).
+def _build_mcp_service(
+    config: MCPSourceConfig, *, label: str, dry_run: bool, rules_path: str | None
+) -> BacklogService:
+    """Wire a source backed by an onboarded MCP server. Shared by every MCP kind.
 
-    Reads pages through the operator's Atlassian MCP server instead of direct
-    REST creds. Raises ``IntakeNotConfiguredError`` when the named server isn't
-    in the mcpServers config. Lazy-imports the ``mcp`` extra.
+    Reads through the operator's MCP server instead of direct REST creds. Raises
+    ``IntakeNotConfiguredError`` when the named server isn't in the mcpServers
+    config. Lazy-imports the ``mcp`` extra.
     """
-    from orchestrator.intake.mcp_source import MCPConfluenceAdapter, MCPSourceConfig
+    from orchestrator.intake.mcp_source import MCPSourceAdapter
     from orchestrator.mcp.registry import MCPRegistry
 
-    config = MCPSourceConfig.from_env()
+    if not config.configured:
+        raise IntakeNotConfiguredError(
+            f"{label} needs a server + tools (set MCP_SOURCE_SERVER / MCP_SOURCE_DOC_TOOL, "
+            "or use the mcp-confluence / mcp-jira presets)."
+        )
     registry = MCPRegistry.from_config()
     if config.server not in registry.server_names():
         raise IntakeNotConfiguredError(
-            f"MCP Confluence source needs an onboarded MCP server named {config.server!r} "
-            "(add it to your mcpServers config, or set MCP_CONFLUENCE_SERVER)."
+            f"{label} needs an onboarded MCP server named {config.server!r} "
+            "(add it to your mcpServers config, or set the matching *_SERVER env)."
         )
-    return _build_service(MCPConfluenceAdapter(registry, config), dry_run=dry_run, rules_path=rules_path)
+    return _build_service(MCPSourceAdapter(registry, config), dry_run=dry_run, rules_path=rules_path)
+
+
+def build_mcp_confluence_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
+    """Confluence pages via an onboarded MCP server (e.g. ``mcp-atlassian``)."""
+    from orchestrator.intake.mcp_source import MCPSourceConfig
+
+    return _build_mcp_service(
+        MCPSourceConfig.for_confluence(),
+        label="MCP Confluence source",
+        dry_run=dry_run,
+        rules_path=rules_path,
+    )
+
+
+def build_mcp_jira_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
+    """Jira issues via an onboarded MCP server. ``mcp-jira://<issue-key>`` walks the
+    issue + its ``parent = <key>`` children; the same ``mcp-atlassian`` server that
+    serves Confluence usually serves Jira too (point both at it via the ``*_SERVER`` env)."""
+    from orchestrator.intake.mcp_source import MCPSourceConfig
+
+    return _build_mcp_service(
+        MCPSourceConfig.for_jira(), label="MCP Jira source", dry_run=dry_run, rules_path=rules_path
+    )
+
+
+def build_mcp_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
+    """Generic escape hatch — any onboarded MCP server, via ``MCP_SOURCE_*`` env
+    (server + doc/children tool + arg names). For sources without a preset."""
+    from orchestrator.intake.mcp_source import MCPSourceConfig
+
+    return _build_mcp_service(
+        MCPSourceConfig.from_env(), label="MCP source", dry_run=dry_run, rules_path=rules_path
+    )
 
 
 _BUILDERS = {
     "confluence": build_confluence_service,
+    "jira": build_jira_service,
     "notion": build_notion_service,
     "file": build_file_service,
     "openspec": build_openspec_service,
     "mcp-confluence": build_mcp_confluence_service,
+    "mcp-jira": build_mcp_jira_service,
+    "mcp": build_mcp_service,
 }
 
 #: Source kinds the factory can wire — callers that only validate a URI (e.g.

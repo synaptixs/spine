@@ -13,9 +13,11 @@ front-ends: ``Module`` (the file, path-addressed — TS has no package namespace
 exported arrow consts, class methods, interface method signatures), ``Field``
 (class properties, interface members) nodes; ``IMPORTS``, ``CONTAINS``, and
 ``IMPLEMENTS`` (class ``extends``/``implements`` + interface ``extends``) edges.
-CALLS is intentionally NOT emitted — TS call resolution needs type/alias
-inference, and a guessed edge would poison grounding; better to omit than emit
-noise (same stance as the Java front-end).
+``CALLS`` is emitted only where the callee resolves precisely (a second pass over
+function/method bodies): a bare call to a module-level function or an imported
+binding, ``this.method()`` calls to a sibling, and ``ns.func()`` calls through an
+imported namespace. Instance calls on a typed variable (``obj.method()``) are
+skipped — they'd need type inference, and a guessed edge poisons grounding.
 """
 
 from __future__ import annotations
@@ -75,15 +77,24 @@ class TypeScriptExtractor:
         local_types = {
             _field_text(d, "name", source) for d in decls if d is not None and d.type in _TYPE_DECLS
         }
+        # Two-pass: collect bodies + a module-level callable registry during the
+        # declaration walk, then resolve calls once every callable id is known.
+        funcs: list[tuple[str, str | None, TSNode]] = []
+        local_funcs: dict[str, str] = {}
+        type_methods: dict[str, set[str]] = {}
         for node in decls:
             if node is None:
                 continue
             if node.type in _TYPE_DECLS:
-                self._emit_type(node, module_id, imports, local_types, source, rel, batch)
+                self._emit_type(
+                    node, module_id, imports, local_types, source, rel, batch, funcs, type_methods
+                )
             elif node.type == "function_declaration":
-                _emit_function(node, module_id, source, rel, batch)
+                _emit_function(node, module_id, source, rel, batch, funcs, local_funcs)
             elif node.type in _FUNC_CONST_DECLS:
-                self._emit_const_functions(node, module_id, source, rel, batch)
+                self._emit_const_functions(node, module_id, source, rel, batch, funcs, local_funcs)
+        for fid, type_id, body in funcs:
+            _calls(fid, type_id, body, type_methods, local_funcs, imports, source, rel, batch)
         return batch
 
     def _imports(
@@ -114,6 +125,8 @@ class TypeScriptExtractor:
         source: bytes,
         rel: str,
         batch: FactBatch,
+        funcs: list[tuple[str, str | None, TSNode]],
+        type_methods: dict[str, set[str]],
     ) -> None:
         name = _field_text(node, "name", source)
         if not name:
@@ -141,6 +154,10 @@ class TypeScriptExtractor:
                     fid = f"{type_id}.{mname}"
                     batch.add_node(Node(fid, NodeKind.FUNCTION, mname, "typescript", Provenance(rel, mline)))
                     batch.add_edge(Edge(type_id, fid, EdgeKind.CONTAINS, Provenance(rel, mline)))
+                    type_methods.setdefault(type_id, set()).add(mname)
+                    mbody = member.child_by_field_name("body")
+                    if mbody is not None:
+                        funcs.append((fid, type_id, mbody))
             elif member.type in ("public_field_definition", "property_signature"):
                 fname = _field_text(member, "name", source)
                 if fname:
@@ -149,7 +166,14 @@ class TypeScriptExtractor:
                     batch.add_edge(Edge(type_id, fid, EdgeKind.CONTAINS, Provenance(rel, mline)))
 
     def _emit_const_functions(
-        self, node: TSNode, module_id: str, source: bytes, rel: str, batch: FactBatch
+        self,
+        node: TSNode,
+        module_id: str,
+        source: bytes,
+        rel: str,
+        batch: FactBatch,
+        funcs: list[tuple[str, str | None, TSNode]],
+        local_funcs: dict[str, str],
     ) -> None:
         """``export const f = () => {}`` / ``const f = function () {}`` → a Function node."""
         for declarator in node.named_children:
@@ -165,9 +189,21 @@ class TypeScriptExtractor:
             fid = f"{module_id}.{name}"
             batch.add_node(Node(fid, NodeKind.FUNCTION, name, "typescript", Provenance(rel, line)))
             batch.add_edge(Edge(module_id, fid, EdgeKind.CONTAINS, Provenance(rel, line)))
+            local_funcs[name] = fid
+            fbody = value.child_by_field_name("body")
+            if fbody is not None:
+                funcs.append((fid, None, fbody))
 
 
-def _emit_function(node: TSNode, module_id: str, source: bytes, rel: str, batch: FactBatch) -> None:
+def _emit_function(
+    node: TSNode,
+    module_id: str,
+    source: bytes,
+    rel: str,
+    batch: FactBatch,
+    funcs: list[tuple[str, str | None, TSNode]],
+    local_funcs: dict[str, str],
+) -> None:
     name = _field_text(node, "name", source)
     if not name:
         return
@@ -175,6 +211,103 @@ def _emit_function(node: TSNode, module_id: str, source: bytes, rel: str, batch:
     fid = f"{module_id}.{name}"
     batch.add_node(Node(fid, NodeKind.FUNCTION, name, "typescript", Provenance(rel, line)))
     batch.add_edge(Edge(module_id, fid, EdgeKind.CONTAINS, Provenance(rel, line)))
+    local_funcs[name] = fid
+    body = node.child_by_field_name("body")
+    if body is not None:
+        funcs.append((fid, None, body))
+
+
+# Call-resolution boundaries: a nested *named* scope (function/method/class) is
+# collected separately, so don't attribute its calls to the enclosing function.
+# Anonymous arrows / function expressions are closures — we descend into them.
+_CALL_SCOPE_STOP = frozenset(
+    {"function_declaration", "method_definition", "class_declaration", "abstract_class_declaration"}
+)
+
+
+def _import_target(spec: str, name: str, rel: str) -> str:
+    """Resolve an imported call target to a node id.
+
+    A **relative** specifier (``./core``) is resolved against the importing
+    file's path to the definition's module id (``ts:core.name``), so cross-file
+    calls connect to the real symbol. A **package** specifier (``react``) stays
+    an external, specifier-keyed id (``ts:react:name``) — its definition isn't in
+    this repo.
+    """
+    if not spec.startswith("."):
+        return f"ts:{spec}:{name}"
+    import posixpath
+
+    joined = posixpath.normpath(posixpath.join(posixpath.dirname(rel), spec))
+    for suffix in (".ts", ".tsx"):
+        if joined.endswith(suffix):
+            joined = joined[: -len(suffix)]
+            break
+    if joined.endswith("/index"):
+        joined = joined[: -len("/index")]
+    elif joined == "index":
+        joined = ""
+    return f"ts:{joined}.{name}" if joined else f"ts:{name}"
+
+
+def _calls(
+    caller: str,
+    type_id: str | None,
+    body: TSNode,
+    type_methods: dict[str, set[str]],
+    local_funcs: dict[str, str],
+    imports: dict[str, str],
+    source: bytes,
+    rel: str,
+    batch: FactBatch,
+) -> None:
+    """Emit CALLS for precisely-resolvable ``call_expression`` sites in a body."""
+    siblings = type_methods.get(type_id or "", set())
+    stack = list(body.named_children)
+    while stack:
+        n = stack.pop()
+        if n.type in _CALL_SCOPE_STOP:
+            continue
+        if n.type == "call_expression":
+            fn = n.child_by_field_name("function")
+            target = _resolve_callee(fn, type_id, siblings, local_funcs, imports, rel, source)
+            if target is not None:
+                batch.add_edge(Edge(caller, target, EdgeKind.CALLS, Provenance(rel, n.start_point[0] + 1)))
+        stack.extend(n.named_children)
+
+
+def _resolve_callee(
+    fn: TSNode | None,
+    type_id: str | None,
+    siblings: set[str],
+    local_funcs: dict[str, str],
+    imports: dict[str, str],
+    rel: str,
+    source: bytes,
+) -> str | None:
+    """The callee's node id, or ``None`` when it can't be resolved precisely."""
+    if fn is None:
+        return None
+    if fn.type == "identifier":
+        name = _text(fn, source)
+        if name in local_funcs:  # module-level function / arrow const
+            return local_funcs[name]
+        if name in imports:  # imported binding → resolve to its definition module
+            return _import_target(imports[name], name, rel)
+        return None
+    if fn.type == "member_expression":
+        obj = fn.child_by_field_name("object")
+        prop = fn.child_by_field_name("property")
+        pname = _text(prop, source) if prop is not None else ""
+        if obj is None or not pname:
+            return None
+        if obj.type == "this":  # this.method() → sibling
+            return f"{type_id}.{pname}" if type_id and pname in siblings else None
+        if obj.type == "identifier":  # ns.func() through an imported namespace
+            oname = _text(obj, source)
+            if oname in imports:
+                return _import_target(imports[oname], pname, rel)
+    return None
 
 
 def _unwrap(node: TSNode) -> TSNode | None:

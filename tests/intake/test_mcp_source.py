@@ -1,4 +1,4 @@
-"""Atlassian (Confluence) requirements source via an onboarded MCP server."""
+"""Requirements sources via an onboarded MCP server (Confluence, Jira, generic)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from orchestrator.intake.factory import (
     IntakeNotConfiguredError,
     build_service_for,
 )
-from orchestrator.intake.mcp_source import MCPConfluenceAdapter, MCPSourceConfig
+from orchestrator.intake.mcp_source import MCPConfluenceAdapter, MCPSourceAdapter, MCPSourceConfig
 from orchestrator.mcp.config import MCPServerConfig
 from orchestrator.mcp.models import MCPTool, MCPToolResult
 from orchestrator.mcp.registry import MCPRegistry
@@ -69,7 +69,98 @@ async def test_fetch_tree_respects_max_docs() -> None:
     assert len(result.documents) == 1 and result.truncated is True
 
 
+# ---- Jira over MCP (preset) -------------------------------------------------
+
+
+class _FakeJira:
+    """Minimal mcp-atlassian Jira: jira_get_issue + jira_search."""
+
+    def __init__(self, issues: dict[str, Any], children: dict[str, list[dict[str, Any]]]) -> None:
+        self._issues, self._children = issues, children
+        self.searched: list[str] = []
+
+    async def list_tools(self) -> list[MCPTool]:
+        return [
+            MCPTool(server="jira", name="jira_get_issue", read_only=True),
+            MCPTool(server="jira", name="jira_search", read_only=True),
+        ]
+
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> MCPToolResult:
+        if name == "jira_get_issue":
+            return MCPToolResult(text=json.dumps(self._issues.get(arguments["issue_key"], {})))
+        if name == "jira_search":
+            jql = str(arguments["jql"])
+            self.searched.append(jql)
+            return MCPToolResult(text=json.dumps({"issues": self._children.get(jql, [])}))
+        return MCPToolResult(text="{}")
+
+
+def _jira_adapter(issues: dict[str, Any], children: dict[str, list[dict[str, Any]]]) -> MCPSourceAdapter:
+    cfg = MCPServerConfig(name="jira", url="http://x", allow=("jira_get_issue", "jira_search"))
+    registry = MCPRegistry([cfg], client_factory=lambda _c: _FakeJira(issues, children))
+    return MCPSourceAdapter(registry, MCPSourceConfig.for_jira())
+
+
+async def test_mcp_jira_fetches_issue_with_adf_description() -> None:
+    adf = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "boom"}]}]}
+    adapter = _jira_adapter(
+        {"ENG-1": {"key": "ENG-1", "fields": {"summary": "Login 500", "description": adf}}}, {}
+    )
+    doc = await adapter.fetch_document("ENG-1")
+    assert doc.id == "ENG-1" and doc.title == "Login 500" and "boom" in doc.body
+
+
+async def test_mcp_jira_walks_children_via_parent_jql() -> None:
+    adapter = _jira_adapter(
+        {
+            "ENG-1": {"key": "ENG-1", "fields": {"summary": "Epic"}},
+            "ENG-2": {"key": "ENG-2", "fields": {"summary": "Sub"}},
+        },
+        {"parent = ENG-1": [{"key": "ENG-2", "fields": {"summary": "Sub"}}]},
+    )
+    result = await adapter.fetch_tree("ENG-1")
+    assert {d.id for d in result.documents} == {"ENG-1", "ENG-2"}
+
+
+# ---- generic escape hatch + raw-text fallback -------------------------------
+
+
+class _FakeAny:
+    def __init__(self, text: str) -> None:
+        self._text = text
+
+    async def list_tools(self) -> list[MCPTool]:
+        return [MCPTool(server="acme", name="get_doc", read_only=True)]
+
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> MCPToolResult:
+        return MCPToolResult(text=self._text)
+
+
+async def test_generic_server_falls_back_to_raw_text() -> None:
+    cfg = MCPServerConfig(name="acme", url="http://x", allow=("get_doc",))
+    registry = MCPRegistry([cfg], client_factory=lambda _c: _FakeAny("plain requirements text"))
+    config = MCPSourceConfig(
+        source_kind="mcp", server="acme", doc_tool="get_doc", doc_arg="id", children_tool=""
+    )
+    adapter = MCPSourceAdapter(registry, config)
+    doc = await adapter.fetch_document("D1")
+    assert doc.id == "D1" and doc.body == "plain requirements text"
+    assert await adapter.list_children("D1") == []  # no children_tool → no walk
+
+
 # ---- factory dispatch -------------------------------------------------------
+
+
+def test_mcp_kinds_are_supported() -> None:
+    for kind in ("mcp-confluence", "mcp-jira", "mcp"):
+        assert kind in SUPPORTED_SOURCE_KINDS
+
+
+def test_generic_mcp_unconfigured_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("MCP_SOURCE_SERVER", raising=False)
+    monkeypatch.delenv("MCP_SOURCE_DOC_TOOL", raising=False)
+    with pytest.raises(IntakeNotConfiguredError, match="MCP source"):
+        build_service_for("mcp://D1", dry_run=True)
 
 
 def test_mcp_confluence_is_a_supported_source_kind() -> None:
