@@ -307,6 +307,7 @@ class SDLCActivities:
         Reuses the commit-keyed PKG cache that comprehension just populated for
         this commit, so re-extraction is cheap; any failure returns ``None`` and
         the design falls back to the overview-only grounding."""
+        import asyncio
 
         try:
             base = await self._deps.workspace.ensure_base_repo()

@@ -77,7 +77,7 @@ writes) so you can inspect everything first.
 **Code-grounded understanding.** Before generating, it builds a **Product Knowledge
 Graph** of your repo — modules, types, functions, call sites, blast radius — and
 grounds new code in what already exists, so output reads like your team wrote it.
-Works across **Python, Java, TypeScript, C#, C, and C++**, plus **SQL** data-layer
+Works across **Python, Java, TypeScript, C#, C, C++, and Go**, plus **SQL** data-layer
 comprehension (schema, queries, stored procedures, migration folding). `orchestrator
 understand` writes a committed, code-true `episteme/` your whole team (and any AI tool)
 can read — *epistēmē*, knowledge grounded in evidence, because every word of it is derived
@@ -149,11 +149,14 @@ The autonomous multi-feature pipeline + web dashboard needs Temporal + Postgres 
 see the [Setup guide](https://github.com/synaptixs/spine/blob/main/SETUP.md).
 
 **Which languages and models?**
-Code generation and comprehension cover **Python, Java, TypeScript, C#, C, and C++**
+Code generation and comprehension cover **Python, Java, TypeScript, C#, C, C++, and Go**
 (C# also extracts ASP.NET Core endpoints and EF Core entities; C builds the
 `#include` graph and merges header declarations with their source definitions; C++ is
 a superset of the C front-end that adds classes, namespaces, inheritance, member
-functions, and templates, and shares C's CMake/Meson + `ctest` codegen).
+functions, and templates, and shares C's CMake/Meson + `ctest` codegen; **Go** models a
+package as its directory, extracts calls and — via method-set matching — **interface
+satisfaction** (`IMPLEMENTS`), and generates code built + tested with `go build`/`go test`,
+multi-module aware).
 **SQL** (`[sql]` extra) adds data-layer *comprehension* — schema, foreign keys, views,
 queries, stored procedures, and ordered-migration folding, grounded from `.sql` source —
 plus *greenfield codegen* (`sdlc feature --language sql`): it generates a migration and

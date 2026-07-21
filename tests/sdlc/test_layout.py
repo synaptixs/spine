@@ -272,6 +272,69 @@ class TestCppLayout:
         assert detect_cpp_layout(tmp_path) == ("engine", "src", "tests")
 
 
+class TestGoLayout:
+    def test_derive_go_module(self) -> None:
+        from orchestrator.sdlc.layout import derive_go_module
+
+        assert derive_go_module("https://x/Example-Service.") == "exampleservice"
+        assert derive_go_module("git@github.com:org/My-Repo.git") == "myrepo"
+        assert derive_go_module("9lives") == "pkg9lives"
+        assert derive_go_module("func") == "funcpkg"  # Go keyword guarded
+        assert derive_go_module("---") == "app"
+
+    def test_new_go_layout_is_root_package(self, tmp_path: Path) -> None:
+        layout = resolve_layout(tmp_path, mode="new", language="go", repo="https://x/widget")
+        assert layout.language == "go" and layout.build_tool == "go" and layout.mode == "new"
+        assert layout.package_name == "widget"
+        # Greenfield Go: a single package at the module root; tests co-located.
+        assert layout.source_dir == "." and layout.tests_dir == "."
+        assert layout.module_rel_path("account") == "./account.go"
+
+    def test_detect_existing_go_module_root(self, tmp_path: Path) -> None:
+        from orchestrator.sdlc.layout import detect_go_layout
+
+        (tmp_path / "go.mod").write_text("module github.com/acme/widget\n\ngo 1.22\n")
+        (tmp_path / "widget.go").write_text("package widget\n")
+        # The dir's EXISTING package clause (not the module path); co-located tests.
+        assert detect_go_layout(tmp_path) == ("widget", ".", ".")
+
+    def test_detect_existing_go_module_subdir(self, tmp_path: Path) -> None:
+        from orchestrator.sdlc.layout import detect_go_layout
+
+        (tmp_path / "go.mod").write_text("module acme\n")
+        pkg = tmp_path / "internal" / "core"
+        pkg.mkdir(parents=True)
+        (pkg / "core.go").write_text("package core\n")
+        # Placement = the lib package; package clause = its own `package core`.
+        assert detect_go_layout(tmp_path) == ("core", "internal/core", "internal/core")
+
+    def test_brownfield_placement_prefers_root_module_lib_over_main_and_demo(self, tmp_path: Path) -> None:
+        # Mirrors the OTel shape that caused 4.4's false green: a root module with a lib
+        # package under tool/, plus a `main` and a nested-module demo. Placement must pick
+        # the root-module lib (tool/util, package util), not demo/ or a main.
+        (tmp_path / "go.mod").write_text("module example.com/app\n\ngo 1.21\n")
+        (tmp_path / "cmd").mkdir()
+        (tmp_path / "cmd" / "main.go").write_text("package main\n\nfunc main() {}\n")
+        (tmp_path / "tool" / "util").mkdir(parents=True)
+        (tmp_path / "tool" / "util" / "util.go").write_text("package util\n")
+        demo = tmp_path / "demo" / "svc"  # a nested module — must be skipped
+        demo.mkdir(parents=True)
+        (demo / "go.mod").write_text("module example.com/app/demo/svc\n")
+        (demo / "svc.go").write_text("package svc\n")
+        from orchestrator.sdlc.layout import detect_go_layout
+
+        detected = detect_go_layout(tmp_path)
+        assert detected is not None
+        pkg, source_dir, _ = detected
+        assert (pkg, source_dir) == ("util", "tool/util")
+
+    def test_auto_existing_go_is_not_scaffolded(self, tmp_path: Path) -> None:
+        (tmp_path / "go.mod").write_text("module acme\n")
+        (tmp_path / "acme.go").write_text("package acme\n")
+        layout = resolve_layout(tmp_path, mode="auto", language="go")
+        assert layout.mode == "existing" and layout.package_name == "acme"
+
+
 def test_new_sql_layout_is_migrations_dir(tmp_path: Path) -> None:
     layout = resolve_layout(tmp_path, mode="new", language="sql", repo="https://x/shop-db")
     assert layout.language == "sql" and layout.mode == "new"

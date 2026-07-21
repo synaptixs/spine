@@ -262,6 +262,43 @@ class CToolEnvironment:
         return f"c toolchain ({self.build_tool} + system compiler)"
 
 
+class GoToolEnvironment:
+    """Go build toolchain. Dependencies are resolved from ``go.mod`` (not pip), so
+    ``install`` (auto-heal) is a no-op; ``ensure`` runs ``go mod download`` best-effort
+    (a no-op for a stdlib-only greenfield module, and offline-safe). ``python`` is
+    unavailable by design."""
+
+    declared: set[str] = set()
+
+    @property
+    def python(self) -> str:
+        raise RuntimeError("GoToolEnvironment has no Python interpreter")
+
+    async def ensure(self, worktree: Path | str) -> None:
+        exe = shutil.which("go")
+        if exe is None:
+            return None
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                exe,
+                "mod",
+                "download",
+                cwd=str(worktree),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+            await proc.communicate()
+        except OSError:
+            return None  # best-effort: a build/test run surfaces any real dependency error
+        return None
+
+    async def install(self, packages: list[str]) -> bool:
+        return False  # Go deps are declared in go.mod / fetched by `go get`, not pip
+
+    def describe(self) -> str:
+        return "go toolchain (deps via go mod download)"
+
+
 class SqlToolEnvironment:
     """SQL 'toolchain' for greenfield DDL validation (SQL Track B).
 
@@ -350,6 +387,11 @@ def node_toolchain_available(package_manager: str = "npm") -> bool:
     return shutil.which("node") is not None and shutil.which(package_manager or "npm") is not None
 
 
+def go_toolchain_available() -> bool:
+    """True if the ``go`` toolchain is on PATH (Go codegen prerequisite)."""
+    return shutil.which("go") is not None
+
+
 def make_test_environment(language: str = "python", *, build_tool: str = "") -> TestEnvironment:
     """The test environment for ``language``: Java toolchain, Node toolchain
     (``build_tool`` selects the package manager), or a Python venv
@@ -362,6 +404,8 @@ def make_test_environment(language: str = "python", *, build_tool: str = "") -> 
         return DotnetToolEnvironment()
     if language in ("c", "cpp"):
         return CToolEnvironment(build_tool or "cmake")
+    if language == "go":
+        return GoToolEnvironment()
     if language == "sql":
         return SqlToolEnvironment(build_tool or "postgres")
     if os.getenv("SDLC_TEST_ISOLATION", "venv").lower() == "local":
@@ -375,6 +419,7 @@ def make_test_runner(language: str, env: TestEnvironment) -> TestRunner:
     from orchestrator.sdlc.testrunner import (
         CTestRunner,
         DotnetTestRunner,
+        GoTestRunner,
         MavenTestRunner,
         MesonTestRunner,
         NodeTestRunner,
@@ -390,6 +435,8 @@ def make_test_runner(language: str, env: TestEnvironment) -> TestRunner:
     if language in ("c", "cpp"):
         # The build tool (cmake/meson) is carried on the C/C++ tool environment.
         return MesonTestRunner() if getattr(env, "build_tool", "cmake") == "meson" else CTestRunner()
+    if language == "go":
+        return GoTestRunner()
     if language == "sql":
         dialect = getattr(env, "dialect", "postgres")
         # Default: fast, zero-dependency SQLite. Opt into real Postgres (Docker +
@@ -521,6 +568,7 @@ def _project_dependencies(root: Path) -> list[str]:
 __all__ = [
     "CToolEnvironment",
     "DotnetToolEnvironment",
+    "GoToolEnvironment",
     "JavaToolEnvironment",
     "LocalTestEnvironment",
     "MODULE_TO_PACKAGE",
@@ -532,6 +580,7 @@ __all__ = [
     "cpp_toolchain_available",
     "detect_dotnet_tfm",
     "dotnet_toolchain_available",
+    "go_toolchain_available",
     "java_toolchain_available",
     "meson_toolchain_available",
     "make_test_environment",

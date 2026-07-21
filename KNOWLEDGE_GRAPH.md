@@ -116,7 +116,7 @@ walking edges, not by guessing.
 
 ```mermaid
 flowchart LR
-    src["Source files<br/>(.py · .java · .ts/.tsx · .cs · .c/.h · .sql)"] --> ext["Language extractor<br/>(tree-sitter / AST / sqlglot)"]
+    src["Source files<br/>(.py · .java · .ts/.tsx · .cs · .c/.h · .cpp · .go · .sql)"] --> ext["Language extractor<br/>(tree-sitter / AST / sqlglot)"]
     ext --> facts["Facts<br/>Nodes + Edges + Provenance"]
     facts --> cache["Per-commit cache"]
     facts --> store["Fact store<br/>(queryable)"]
@@ -135,6 +135,7 @@ flowchart LR
   | C# | ✅ + framework edges | `pip install 'synaptixs-spine[csharp]'` |
   | C | ✅ + `#include` graph | `pip install 'synaptixs-spine[c]'` |
   | C++ | ✅ classes/namespaces/inheritance | `pip install 'synaptixs-spine[cpp]'` |
+  | Go | ✅ + interface satisfaction (`IMPLEMENTS`) | `pip install 'synaptixs-spine[go]'` |
 
   C# additionally lifts **framework edges** into the graph: ASP.NET Core controllers
   and Minimal-API routes become `Endpoint` nodes with `EXPOSES` edges to their
@@ -152,6 +153,15 @@ flowchart LR
   (multiple inheritance → multiple edges), member functions merge an in-class
   declaration with an out-of-line `Class::method` definition, templates emit their
   `Type`/`Function`, and `CALLS`/`REFERENCES` carry over.
+
+  Go's module unit is the **package (its directory)** — every `.go` file in a dir merges
+  onto one `Module`. Structs/interfaces/aliases become `Type` nodes, funcs and receiver
+  methods become `Function`s, and struct fields become `Field`s. Its distinctive edge is
+  **interface satisfaction** (`IMPLEMENTS`): because Go has no `implements` keyword, a
+  concrete type is matched to each in-repo interface by **method set** — name + arity over
+  value **and** pointer receivers — so a type that structurally satisfies an interface is
+  linked to it. `CALLS` resolve same-package functions and receiver-method calls, and a
+  struct field whose type is another same-package type becomes a `REFERENCES` edge.
 - **Cached per commit.** Re-running on an unchanged tree reuses the cache; `--refresh`
   forces a re-extract. So `understand` is cheap to re-run as the code evolves.
 

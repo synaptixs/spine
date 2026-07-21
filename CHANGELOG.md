@@ -4,6 +4,36 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.7.0 — Go: the 8th PKG language
+
+Go is now a first-class language across the whole stack — comprehension, the call and
+interface graph, and greenfield **and** brownfield codegen — so `understand`, `state`,
+`design`, `investigate`, `localize`, `rca`, `regression`, grounding, and
+`sdlc feature --language go` all work on Go repos. Install with the `go` extra
+(`pip install 'synaptixs-spine[go]'`); codegen needs the `go` toolchain on PATH.
+
+### Added
+
+- **Go comprehension** (`go` extra, tree-sitter-go) — `Module`/`Type`/`Function`/`Field` +
+  `IMPORTS`/`CONTAINS`. Go's module unit is the **package = its directory**, so every `.go`
+  file in a dir merges into one component (the first front-end where that holds).
+- **Go call + data + interface graph** — `CALLS` (same-file package functions and
+  receiver-method calls), `REFERENCES` (same-package struct-field types), and the Go
+  highlight, **`IMPLEMENTS` by method-set matching**: because Go has no `implements` keyword,
+  a concrete type is linked to each in-repo interface it structurally satisfies (matched by
+  method name + arity over value **and** pointer receivers). So blast-radius, `design`,
+  `rca`, and `regression` light up on Go.
+- **Go codegen** (`sdlc feature --language go`) — scaffolds/extends a module and builds +
+  tests it with `go build ./...` / `go test ./...`, with co-located `_test.go` tests. It is
+  **multi-module aware**: the runner builds and tests the module(s) a change actually
+  touches (not just the repo root), so code generated into a sub-module is never a false
+  green.
+
+### Changed
+
+- **`sdlc feature --language` is now validated** against the supported set — an unknown value
+  errors instead of silently scaffolding a Python project.
+
 ## 3.6.1 — Shareable codebase-intelligence report
 
 `orchestrator state . --out report.html` now emits a single **self-contained HTML file** you

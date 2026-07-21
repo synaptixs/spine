@@ -432,9 +432,10 @@ class PythonExtractor:
 def default_extractors(*, sql_dialect: str | None = None) -> list[LanguageExtractor]:
     """The language front-ends used when none are passed explicitly.
 
-    Always Python (stdlib ``ast``). Java, TypeScript, C#, and C are added **only when
-    their tree-sitter grammar is importable** (the ``java`` / ``typescript`` /
-    ``csharp`` / ``c`` extras) so the base install stays stdlib-only — this is what makes
+    Always Python (stdlib ``ast``). Java, TypeScript, C#, C, C++, and Go are added **only
+    when their tree-sitter grammar is importable** (the ``java`` / ``typescript`` /
+    ``csharp`` / ``c`` / ``cpp`` / ``go`` extras) so the base install stays stdlib-only —
+    this is what makes
     ``understand`` / grounding / ``pkg extract`` multi-language without forcing
     the parser dependency on everyone. ``sql_dialect`` pins the SQL front-end to a
     dialect (``None`` = auto-detect per file).
@@ -463,6 +464,10 @@ def default_extractors(*, sql_dialect: str | None = None) -> list[LanguageExtrac
         from orchestrator.pkg.cpp_extractor import CppExtractor
 
         extractors.append(CppExtractor())
+    if has_tree_sitter and importlib.util.find_spec("tree_sitter_go"):
+        from orchestrator.pkg.go_extractor import GoExtractor
+
+        extractors.append(GoExtractor())
     # SQL uses sqlglot (pure-Python, no tree-sitter) behind the ``sql`` extra.
     if importlib.util.find_spec("sqlglot"):
         from orchestrator.pkg.sql_extractor import SqlExtractor
@@ -492,16 +497,27 @@ class RepoCodeExtractor:
     def extract(self, root: Path | str) -> FactBatch:
         root_path = Path(root)
         batch = FactBatch()
+        used: list[LanguageExtractor] = []
         for path in self._iter_files(root_path):
             extractor = self._by_suffix.get(path.suffix)
             if extractor is None:
                 continue
+            if extractor not in used:
+                used.append(extractor)
             rel = path.resolve().relative_to(root_path.resolve()).as_posix()
             try:
                 module = extractor.module_name(path, root_path)
                 batch.merge(extractor.extract(path=path, module=module, rel=rel))
             except (SyntaxError, UnicodeDecodeError, ValueError):
                 self.skipped.append(rel)
+        # Optional whole-repo pass: an extractor with a ``finalize`` method resolves
+        # cross-file edges that a per-file pass can't (e.g. Go's IMPLEMENTS by method-set
+        # matching, which spans every file in a package). Duck-typed so no front-end is
+        # obliged to implement it.
+        for extractor in used:
+            finalize = getattr(extractor, "finalize", None)
+            if callable(finalize):
+                finalize(batch)
         return batch
 
     def _iter_files(self, root: Path) -> Iterator[Path]:

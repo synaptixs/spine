@@ -573,3 +573,103 @@ def test_cpp_toolchain_available(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda name: "/usr/bin/cmake" if name == "cmake" else None,  # no C++ compiler
     )
     assert testenv.cpp_toolchain_available() is False
+
+
+def test_make_test_environment_and_runner_for_go() -> None:
+    from orchestrator.sdlc.testenv import GoToolEnvironment, make_test_environment, make_test_runner
+    from orchestrator.sdlc.testrunner import GoTestRunner
+
+    assert isinstance(make_test_environment("go"), GoToolEnvironment)
+    assert isinstance(make_test_runner("go", GoToolEnvironment()), GoTestRunner)
+
+
+def test_go_env_install_is_noop_and_python_unavailable() -> None:
+    import asyncio
+
+    from orchestrator.sdlc.testenv import GoToolEnvironment
+
+    env = GoToolEnvironment()
+    assert asyncio.run(env.install(["golang.org/x/mod"])) is False  # Go deps via go.mod
+    with pytest.raises(RuntimeError):
+        _ = env.python
+
+
+def test_go_toolchain_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.sdlc import testenv
+
+    monkeypatch.setattr("orchestrator.sdlc.testenv.shutil.which", lambda name: "/usr/bin/go")
+    assert testenv.go_toolchain_available() is True
+    monkeypatch.setattr("orchestrator.sdlc.testenv.shutil.which", lambda _n: None)
+    assert testenv.go_toolchain_available() is False
+
+
+def _mock_go_exec(
+    monkeypatch: pytest.MonkeyPatch,
+    calls: list[tuple[object, ...]],
+    cwds: list[str],
+    *,
+    status: bytes,
+    go_rc: int = 0,
+    go_out: bytes = b"ok",
+) -> None:
+    """Mock create_subprocess_exec: `git status` returns ``status``; each `go` step
+    records (argv, cwd) and returns (go_rc, go_out)."""
+
+    async def fake_exec(*a: object, **k: object) -> _FakeProc:
+        if a and a[0] == "git":
+            return _FakeProc(0, status)
+        calls.append(a)
+        cwds.append(str(k.get("cwd")))
+        return _FakeProc(go_rc, go_out)
+
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
+
+
+async def test_go_runner_tests_root_when_root_files_change(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc.testrunner import GoTestRunner
+
+    (tmp_path / "go.mod").write_text("module app\n")
+    (tmp_path / "main.go").write_text("package main\n")
+    calls: list[tuple[object, ...]] = []
+    cwds: list[str] = []
+    _mock_go_exec(monkeypatch, calls, cwds, status=b"?? main.go\n M go.mod\n")
+    result = await GoTestRunner().run(path=str(tmp_path))
+    assert result.passed and result.returncode == 0
+    assert [c[:3] for c in calls] == [("go", "build", "./..."), ("go", "test", "./...")]
+    assert cwds == [str(tmp_path), str(tmp_path)]  # ran in the root module
+
+
+async def test_go_runner_tests_the_changed_submodule(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # The 4.4 fix: code changed inside a sub-module (its own go.mod) must be built/tested
+    # in THAT module — not just the root (which would skip it → a false green).
+    from orchestrator.sdlc.testrunner import GoTestRunner
+
+    (tmp_path / "go.mod").write_text("module app\n")
+    sub = tmp_path / "sub" / "mod"
+    sub.mkdir(parents=True)
+    (sub / "go.mod").write_text("module app/sub/mod\n")
+    (sub / "x.go").write_text("package mod\n")
+    calls: list[tuple[object, ...]] = []
+    cwds: list[str] = []
+    _mock_go_exec(monkeypatch, calls, cwds, status=b" M sub/mod/x.go\n")
+    result = await GoTestRunner().run(path=str(tmp_path))
+    assert result.passed
+    assert cwds == [str(sub), str(sub)]  # built + tested in the sub-module, not the root
+
+
+async def test_go_runner_short_circuits_on_build_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc.testrunner import GoTestRunner
+
+    (tmp_path / "go.mod").write_text("module app\n")
+    calls: list[tuple[object, ...]] = []
+    cwds: list[str] = []
+    _mock_go_exec(
+        monkeypatch, calls, cwds, status=b"?? bad.go\n", go_rc=2, go_out=b"./bad.go:5:2: undefined: Foo"
+    )
+    result = await GoTestRunner().run(path=str(tmp_path))
+    assert not result.passed and result.returncode == 2
+    assert len(calls) == 1  # a build failure short-circuits before `go test`

@@ -4,7 +4,7 @@
 engineer you delegate tickets to. From inside **Claude Code** you can ask it to read a
 requirement, ground new code in your repo's real structure, generate and test that code,
 and — when you say so — open a pull request. It works for **greenfield** (fresh) and
-**brownfield** (existing) repos across **Python, Java, TypeScript, C#, C, and C++**.
+**brownfield** (existing) repos across **Python, Java, TypeScript, C#, C, C++, and Go**.
 
 This guide takes you from zero to a delivered feature, entirely through Claude Code.
 
@@ -269,7 +269,7 @@ external writes). Parameters:
 | `intent_id` | Which derived intent to build (default: the first one). |
 | `repo` | Git URL or `owner/repo` to branch from. Omit for a throwaway scratch repo (pure demo). |
 | `layout` | `new` = **greenfield** (scaffold a fresh structure), `existing` = **brownfield** (follow the repo), `auto` = scaffold only if the repo is empty. |
-| `language` | `auto` (detect) or `python` / `java` / `typescript` / `csharp` / `c` / `cpp`. |
+| `language` | `auto` (detect) or `python` / `java` / `typescript` / `csharp` / `c` / `cpp` / `go` / `sql`. |
 | `package_name` | Override the scaffold package name (greenfield). |
 | `live` | `false` (default) = local branch + diff, no external writes. `true` = real Jira + push + PR. |
 | `confirm` | Must be `true` alongside `live=true` — the explicit authorization for writes. |
@@ -475,7 +475,7 @@ approval — Spine refuses a live write without it. `live=true` needs a reachabl
 
 ## 10. Language support & toolchains
 
-Comprehension + codegen cover six languages. Spine only needs a language's toolchain when
+Comprehension + codegen cover seven languages. Spine only needs a language's toolchain when
 it **builds/tests** generated code in that language:
 
 | Language | Build/test needs on PATH |
@@ -486,6 +486,7 @@ it **builds/tests** generated code in that language:
 | C# | the **.NET SDK** (`dotnet`) |
 | C | **CMake** (or **Meson + Ninja**) + a C compiler |
 | C++ | **CMake** (or **Meson + Ninja**) + a C++ compiler |
+| Go | the **`go`** toolchain (`go build` / `go test`) |
 
 `language=auto` detects from the repo. For C#, Spine additionally lifts ASP.NET Core
 endpoints and EF Core entities into the graph; for C/C++ it builds the `#include` graph and
@@ -503,7 +504,7 @@ merges header declarations with their definitions.
 | Codegen times out | Set a faster model: `ORCHESTRATOR_INTAKE_MODEL=...` (or `SDLC_CODEGEN_MODEL`). |
 | "live needs a repo to push to" | Pass `repo=...` or set `SDLC_REPO_URL`; ensure `GITHUB_TOKEN`/`GH_TOKEN` is set. |
 | A `live` call refuses to write | That's the gate — pass `confirm=true` together with `live=true`. |
-| Build fails for Java/TS/C#/C/C++ | The language toolchain isn't installed — see [§10](#10-language-support--toolchains). |
+| Build fails for Java/TS/C#/C/C++/Go | The language toolchain isn't installed — see [§10](#10-language-support--toolchains). |
 | Private repo clone fails | Set `GITHUB_TOKEN` (PAT) or configure the GitHub App. |
 
 For deeper diagnostics, ask Claude to run `doctor`, or run `orchestrator doctor` in a shell

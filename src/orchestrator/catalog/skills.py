@@ -138,6 +138,11 @@ NATIVE_SKILLS: tuple[Skill, ...] = (
         "Match the repo's C++ conventions — header/source split, RAII/ownership, namespaces.",
     ),
     Skill(
+        "go-conventions",
+        "Match the repo's Go conventions — package layout, exported API, error returns "
+        "(not panics), and co-located table-driven tests.",
+    ),
+    Skill(
         "repo-pkg-grounding",
         "Reuse existing symbols — use the pkg_* tools to find them before writing code.",
     ),

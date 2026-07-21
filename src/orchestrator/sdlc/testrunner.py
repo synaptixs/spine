@@ -307,6 +307,69 @@ class MesonTestRunner:
         return TestRunResult(passed=rc == 0, returncode=rc, output=_clip("\n".join(captured)))
 
 
+class GoTestRunner:
+    """Builds and tests the Go module(s) a change actually touched, via ``go build ./...``
+    then ``go test ./... -v`` **run from each changed module's directory**.
+
+    A Go repo is often multi-module (its own ``go.mod`` per subtree); running ``go test
+    ./...`` only from the repo root silently skips code generated into a sub-module — which
+    reports a false green (a passing root module while the changed sub-module never compiled).
+    So this discovers the modules containing the changed ``.go`` files (via ``git status`` +
+    the nearest ``go.mod``) and builds/tests each. The first non-zero step fails the run
+    (``passed`` is rc == 0); its output is what the refine prompt needs. Falls back to the
+    repo root when nothing is detected (fresh greenfield scaffold, or no git)."""
+
+    def __init__(self, go: str = "go", *, timeout: float = 600.0) -> None:
+        self._go = go
+        self._timeout = timeout
+
+    async def run(self, *, path: str) -> TestRunResult:
+        modules = await self._changed_modules(path) or ["."]
+        captured: list[str] = []
+        for mod in modules:
+            cwd = path if mod == "." else str(Path(path) / mod)
+            for argv in ((self._go, "build", "./..."), (self._go, "test", "./...", "-v")):
+                rc, out = await _exec_capture(argv, cwd=cwd, timeout=self._timeout)
+                captured.append(f"# ({mod}) {' '.join(argv)}\n{out}")
+                if rc != 0:
+                    return TestRunResult(passed=False, returncode=rc, output=_clip("\n".join(captured)))
+        return TestRunResult(passed=True, returncode=0, output=_clip("\n".join(captured)))
+
+    async def _changed_modules(self, path: str) -> list[str]:
+        """Repo-relative dirs of the go.mod modules that own the worktree's changed ``.go``
+        files (uncommitted at test time). ``.`` is the root module."""
+        rc, out = await _exec_capture(("git", "status", "--porcelain"), cwd=path, timeout=60.0)
+        if rc != 0:
+            return []
+        root = Path(path)
+        mods: set[str] = set()
+        for line in out.splitlines():
+            name = line[3:].strip() if len(line) > 3 else ""
+            if "->" in name:  # a rename: "old -> new"
+                name = name.split("->", 1)[1].strip()
+            name = name.strip('"')
+            if not name.endswith(".go"):
+                continue
+            mod_dir = _nearest_go_mod(root / name, root)
+            if mod_dir is not None:
+                rel = mod_dir.relative_to(root).as_posix()
+                mods.add("." if rel == "" else rel)
+        return sorted(mods)
+
+
+def _nearest_go_mod(start: Path, root: Path) -> Path | None:
+    """Nearest ancestor of ``start`` (a file) within ``root`` that holds a ``go.mod``."""
+    d = start.parent
+    while True:
+        if (d / "go.mod").is_file():
+            return d
+        if d == root:
+            return None
+        d = d.parent
+        if d != root and root not in d.parents:
+            return None
+
+
 def _clip(output: str) -> str:
     return output[-_MAX_OUTPUT_CHARS:] if len(output) > _MAX_OUTPUT_CHARS else output
 
@@ -449,6 +512,7 @@ class StubTestRunner:
 __all__ = [
     "CTestRunner",
     "DotnetTestRunner",
+    "GoTestRunner",
     "MavenTestRunner",
     "MesonTestRunner",
     "NodeTestRunner",
