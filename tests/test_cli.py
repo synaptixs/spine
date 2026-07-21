@@ -46,6 +46,20 @@ def test_sdlc_help_lists_run(runner: CliRunner) -> None:
     assert "run" in result.stdout
 
 
+def test_sdlc_feature_rejects_unknown_language(runner: CliRunner) -> None:
+    # An unsupported --language must error (historically it silently scaffolded Python).
+    result = runner.invoke(app, ["sdlc", "feature", "--source", "jira://X-1", "--language", "rust"])
+    assert result.exit_code == 2
+    assert "not supported" in result.output and "rust" in result.output
+
+
+def test_sdlc_feature_accepts_go_language(runner: CliRunner) -> None:
+    # `go` is a supported language: validation passes it through (the run then fails
+    # later for lack of a configured source/LLM — never the "not supported" error).
+    result = runner.invoke(app, ["sdlc", "feature", "--source", "jira://X-1", "--language", "go"])
+    assert "not supported" not in result.output
+
+
 def test_design_requires_a_title(runner: CliRunner, tmp_path: Path) -> None:
     (tmp_path / "a.py").write_text("def f():\n    return 1\n", encoding="utf-8")
     result = runner.invoke(app, ["design", str(tmp_path)])

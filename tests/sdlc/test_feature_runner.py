@@ -293,6 +293,24 @@ async def test_language_typescript_requires_toolchain(
     assert exc.value.code == 2
 
 
+async def test_language_go_requires_toolchain(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """--language go runs the Go pipeline (root-package scaffold / `go build`+`go test`
+    runner) but preflights the `go` toolchain — fail fast with a clear message when absent."""
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setattr("orchestrator.sdlc.testenv.go_toolchain_available", lambda: False)
+    with pytest.raises(FeatureRunError, match="Go toolchain") as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a", language="go")
+    assert exc.value.code == 2
+
+
+def test_resolve_language_detects_go(tmp_path: Path) -> None:
+    from orchestrator.sdlc.feature_runner import _resolve_language
+
+    (tmp_path / "go.mod").write_text("module widget\n")
+    (tmp_path / "widget.go").write_text("package widget\n")
+    assert _resolve_language(tmp_path, "auto") == "go"
+
+
 async def test_missing_pytest_fails_fast_with_actionable_message(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

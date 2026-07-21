@@ -578,6 +578,42 @@ _REFINE_SYSTEM_SQL = (
     "smallest change that applies cleanly. Same path rules — relative, no '..'."
 )
 
+# Go (go build/go test) variants — selected when the layout's language is "go".
+_IMPLEMENT_SYSTEM_GO = (
+    "You are a senior engineer. Implement the feature described by the SPEC as "
+    "runnable Go inside the given module (the worktree).\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: paths are relative to the worktree root — no leading slash, no '..'. "
+    "Write source files only (NO `_test.go` files here). Every `.go` file starts with the "
+    "same `package` clause shown in the LAYOUT. Export the feature's public API with "
+    "capitalized identifiers. Use only the standard library; idiomatic Go (return errors, "
+    "don't panic). New files in the package are picked up automatically — edit `go.mod` only "
+    "to add an external module dependency. Every file must compile (`go build ./...`)."
+)
+
+_TESTS_SYSTEM_GO = (
+    "You write Go unit tests for an already-implemented feature. You are given the SPEC "
+    "and the CURRENT SOURCE FILES.\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: write test files only, co-located beside the code as `<name>_test.go`, with the "
+    "same `package` clause as the source (white-box testing). Use the standard `testing` "
+    "package: `func TestXxx(t *testing.T)` calling `t.Errorf`/`t.Fatalf` on failure "
+    '(table-driven where it fits). `import "testing"`. Each acceptance criterion maps to at '
+    "least one assertion. Tests must pass with `go test ./...`."
+)
+
+_REFINE_SYSTEM_GO = (
+    "You are fixing a failing `go build` / `go test` run (a compile error or a failing "
+    "test). You are given the SPEC, the CURRENT FILES, and the FAILURE OUTPUT.\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: files you created earlier this session may be resent in full via `content`; any "
+    "other existing file must be changed via `edits` (including `go.mod`). Make the smallest "
+    "change that turns the build + tests green. Same path rules — relative, no '..'."
+)
+
 # Phase system prompts keyed by language (default: Python). Adding a language is a
 # new column here, not another boolean branch at each call site.
 _IMPLEMENT_SYSTEMS = {
@@ -587,6 +623,7 @@ _IMPLEMENT_SYSTEMS = {
     "csharp": _IMPLEMENT_SYSTEM_CSHARP,
     "c": _IMPLEMENT_SYSTEM_C,
     "cpp": _IMPLEMENT_SYSTEM_CPP,
+    "go": _IMPLEMENT_SYSTEM_GO,
     "sql": _IMPLEMENT_SYSTEM_SQL,
 }
 _TESTS_SYSTEMS = {
@@ -596,6 +633,7 @@ _TESTS_SYSTEMS = {
     "csharp": _TESTS_SYSTEM_CSHARP,
     "c": _TESTS_SYSTEM_C,
     "cpp": _TESTS_SYSTEM_CPP,
+    "go": _TESTS_SYSTEM_GO,
 }
 _REFINE_SYSTEMS = {
     "python": _REFINE_SYSTEM,
@@ -604,6 +642,7 @@ _REFINE_SYSTEMS = {
     "csharp": _REFINE_SYSTEM_CSHARP,
     "c": _REFINE_SYSTEM_C,
     "cpp": _REFINE_SYSTEM_CPP,
+    "go": _REFINE_SYSTEM_GO,
     "sql": _REFINE_SYSTEM_SQL,
 }
 
@@ -833,6 +872,19 @@ class LLMCodegenAdapter:
                 "`int main()` returning non-zero on failure, `#include`-ing the header from "
                 f"`{layout.source_dir}/`.\n"
                 f"{build_line} Don't invent unrelated paths.\n\n"
+            )
+        if layout.language == "go":
+            pkg = layout.package_name.rstrip("/").rsplit("/", 1)[-1]
+            loc = "the module root" if layout.source_dir == "." else f"`{layout.source_dir}/`"
+            prefix = "" if layout.source_dir == "." else f"{layout.source_dir}/"
+            return (
+                "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
+                f"- Put new Go source at `{prefix}<name>.go` in {loc}; every file MUST start "
+                f"with `package {pkg}` (match the other files already in that directory).\n"
+                f"- Put tests co-located beside the code as `{prefix}<name>_test.go` "
+                f"(same `package {pkg}`), using the standard `testing` package.\n"
+                "- Declare any new dependency in `go.mod` (edit it); standard library only "
+                "otherwise. Don't invent unrelated paths.\n\n"
             )
         if layout.language == "sql":
             return (

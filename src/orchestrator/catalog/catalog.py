@@ -54,6 +54,12 @@ _SEED: tuple[Capability, ...] = (
         CapabilitySelector(languages=frozenset({"cpp"}), task_types=frozenset({"feature"})),
     ),
     Capability(
+        "go-conventions",
+        CapabilityKind.SKILL,
+        "Match the repo's Go conventions",
+        CapabilitySelector(languages=frozenset({"go"}), task_types=frozenset({"feature"})),
+    ),
+    Capability(
         "repo-pkg-grounding",
         CapabilityKind.SKILL,
         "Ground codegen on the repo's knowledge graph",

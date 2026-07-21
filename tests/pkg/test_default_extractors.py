@@ -46,6 +46,26 @@ def test_default_includes_cpp_when_available() -> None:
     assert ("cpp" in langs) == have_cpp
 
 
+def test_default_includes_go_when_available() -> None:
+    have_go = importlib.util.find_spec("tree_sitter_go") is not None
+    langs = {e.language for e in default_extractors()}
+    assert ("go" in langs) == have_go
+
+
+def test_repo_extractor_default_handles_go(tmp_path: Path) -> None:
+    pytest.importorskip("tree_sitter_go", reason="install the 'go' extra")
+    pkg = tmp_path / "trace"
+    pkg.mkdir(parents=True)
+    (pkg / "span.go").write_text(
+        "package trace\n\ntype Span struct { name string }\nfunc (s *Span) Name() string { return s.name }\n"
+    )
+    # Default RepoCodeExtractor (no explicit extractors) must now pick up .go.
+    batch = RepoCodeExtractor().extract(tmp_path)
+    types = {n.name for n in batch.nodes if n.kind is NodeKind.TYPE and n.language == "go"}
+    funcs = {n.name for n in batch.nodes if n.kind is NodeKind.FUNCTION and n.language == "go"}
+    assert "Span" in types and "Name" in funcs
+
+
 def test_repo_extractor_default_handles_java(tmp_path: Path) -> None:
     pytest.importorskip("tree_sitter_java", reason="install the 'java' extra")
     src = tmp_path / "src" / "main" / "java" / "com" / "demo"

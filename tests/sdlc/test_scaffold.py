@@ -229,6 +229,35 @@ def test_scaffold_cpp_is_idempotent(tmp_path: Path) -> None:
     assert scaffold(tmp_path, _CPP_LAYOUT) == []
 
 
+_GO_LAYOUT = TargetLayout(
+    package_name="widget",
+    source_dir=".",
+    tests_dir=".",
+    src_layout=False,
+    mode="new",
+    language="go",
+    build_tool="go",
+)
+
+
+def test_scaffold_go_module(tmp_path: Path) -> None:
+    created = scaffold(tmp_path, _GO_LAYOUT)
+    assert "go.mod" in created and "widget.go" in created
+    gomod = (tmp_path / "go.mod").read_text()
+    assert gomod.startswith("module widget")
+    stub = (tmp_path / "widget.go").read_text()
+    assert stub.rstrip().endswith("package widget")  # package clause = module last element
+    gi = (tmp_path / ".gitignore").read_text()
+    assert "*.test" in gi and "go.work" in gi
+    assert not (tmp_path / "pyproject.toml").exists()
+    assert not (tmp_path / "CMakeLists.txt").exists()
+
+
+def test_scaffold_go_is_idempotent(tmp_path: Path) -> None:
+    scaffold(tmp_path, _GO_LAYOUT)
+    assert scaffold(tmp_path, _GO_LAYOUT) == []
+
+
 def test_scaffold_csharp_honors_target_framework(tmp_path: Path) -> None:
     from dataclasses import replace
 

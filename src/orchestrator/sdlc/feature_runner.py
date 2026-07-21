@@ -105,6 +105,13 @@ async def _changed_files(path: Path) -> list[str]:
     return [str(p.relative_to(path)) for p in sorted(path.rglob("*.py"))]
 
 
+# Languages the codegen pipeline supports (each has a layout resolver, scaffold, prompt
+# set, test env + runner). `--language auto` detects from the worktree. Anything outside
+# this set is rejected at the CLI — historically an unknown value silently fell through
+# to the Python branch and scaffolded a Python project.
+SUPPORTED_LANGUAGES = frozenset({"python", "java", "typescript", "csharp", "c", "cpp", "go", "sql"})
+
+
 def _resolve_language(path: Path, requested: str) -> str:
     """Resolve ``--language`` (``auto`` → detect from the worktree).
 
@@ -122,6 +129,8 @@ def _resolve_language(path: Path, requested: str) -> str:
             return "typescript"
         if "csharp" in langs:
             return "csharp"
+        if "go" in langs:
+            return "go"
         if "cpp" in langs:
             return "cpp"
         if "c" in langs:
@@ -168,6 +177,7 @@ async def run_feature(
         cpp_toolchain_available,
         detect_dotnet_tfm,
         dotnet_toolchain_available,
+        go_toolchain_available,
         java_toolchain_available,
         make_test_environment,
         make_test_runner,
@@ -291,6 +301,11 @@ async def run_feature(
     elif lang == "csharp" and not dotnet_toolchain_available():
         raise FeatureRunError(
             "C# codegen needs the .NET SDK (`dotnet`) on PATH (install it, then retry).",
+            code=2,
+        )
+    elif lang == "go" and not go_toolchain_available():
+        raise FeatureRunError(
+            "Go codegen needs the Go toolchain (`go`) on PATH (install it, then retry).",
             code=2,
         )
     elif lang in ("c", "cpp"):

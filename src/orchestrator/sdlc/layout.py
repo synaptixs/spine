@@ -32,7 +32,47 @@ _FALLBACK_PACKAGE = "app"
 _JAVA_GROUP = "org.example"  # default reverse-DNS group for greenfield Java
 
 # Source-file extension per language (Python is the default).
-_SOURCE_EXT = {"java": "java", "typescript": "ts", "csharp": "cs", "c": "c", "cpp": "cpp", "sql": "sql"}
+_SOURCE_EXT = {
+    "java": "java",
+    "typescript": "ts",
+    "csharp": "cs",
+    "c": "c",
+    "cpp": "cpp",
+    "sql": "sql",
+    "go": "go",
+}
+
+# Go package names can't be a reserved keyword (or `init`); guard the derived slug.
+_GO_KEYWORDS = frozenset(
+    {
+        "break",
+        "case",
+        "chan",
+        "const",
+        "continue",
+        "default",
+        "defer",
+        "else",
+        "fallthrough",
+        "for",
+        "func",
+        "go",
+        "goto",
+        "if",
+        "import",
+        "interface",
+        "map",
+        "package",
+        "range",
+        "return",
+        "select",
+        "struct",
+        "switch",
+        "type",
+        "var",
+        "init",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -430,6 +470,131 @@ def _resolve_cpp_layout(root: Path, *, mode: str, package_name: str | None, repo
     )
 
 
+def derive_go_module(name: str) -> str:
+    """Repo name → a valid Go module path that is also a valid package identifier.
+
+    ``Example-Service.`` → ``exampleservice``. A single lowercase word doubles as the
+    greenfield ``go.mod`` module path and the ``package`` clause; guarded against empty,
+    digit-leading, and reserved-keyword results."""
+    base = name.rstrip("/").rsplit("/", 1)[-1]
+    if base.endswith(".git"):
+        base = base[: -len(".git")]
+    slug = re.sub(r"[^0-9a-z]+", "", base.lower())
+    if not slug:
+        slug = _FALLBACK_PACKAGE
+    if slug[0].isdigit():
+        slug = f"pkg{slug}"
+    if slug in _GO_KEYWORDS:
+        slug = f"{slug}pkg"
+    return slug
+
+
+def _read_go_module(root: Path) -> str | None:
+    """The module path from ``go.mod``'s ``module`` directive, if present."""
+    gomod = root / "go.mod"
+    if not gomod.is_file():
+        return None
+    m = re.search(r"^\s*module\s+(\S+)", gomod.read_text(encoding="utf-8", errors="replace"), re.M)
+    return m.group(1) if m else None
+
+
+# Path segments whose packages are never a good brownfield placement target (example /
+# demo apps, fixtures). ``main`` packages are filtered separately (by package clause).
+_GO_SKIP_DIR_SEGMENTS = frozenset({"demo", "example", "examples", "testdata", "vendor"})
+
+
+def _go_package_of_dir(d: Path) -> str:
+    """The ``package`` clause of a directory's first non-test ``.go`` file (``""`` if none)."""
+    for f in sorted(d.glob("*.go")):
+        if f.name.endswith("_test.go"):
+            continue
+        m = re.search(r"^\s*package\s+(\w+)", f.read_text(encoding="utf-8", errors="replace"), re.M)
+        if m:
+            return m.group(1)
+    return ""
+
+
+def _nearest_go_module_dir(start: Path, root: Path) -> Path | None:
+    """The nearest ancestor of ``start`` (inclusive, within ``root``) holding a ``go.mod``."""
+    d = start
+    while True:
+        if (d / "go.mod").is_file():
+            return d
+        if d == root:
+            return None
+        d = d.parent
+        if d != root and root not in d.parents:
+            return None
+
+
+def _pick_go_source_dir(root: Path) -> tuple[str, str] | None:
+    """Pick a brownfield placement: ``(source_dir, package_clause)`` for a **library**
+    package (not ``package main``), preferring one in the repo-**root** module so the
+    generated code lands where ``go build``/``go test`` on that module actually reaches it
+    (a ``main`` / ``demo`` / nested-module dir is what produced 4.4's false green). Skips
+    demo/example/testdata trees. Deterministic: root-module first, then shallowest, then path."""
+    root_mod = root if (root / "go.mod").is_file() else None
+    best_key: tuple[int, int, str] | None = None
+    best: tuple[str, str] | None = None
+    for dirpath, dirnames, files in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".")]
+        rel = Path(dirpath).relative_to(root)
+        if any(seg in _GO_SKIP_DIR_SEGMENTS for seg in rel.parts):
+            continue
+        if not any(f.endswith(".go") and not f.endswith("_test.go") for f in files):
+            continue
+        pkg = _go_package_of_dir(Path(dirpath))
+        if not pkg or pkg == "main":
+            continue
+        in_root = _nearest_go_module_dir(Path(dirpath), root) == root_mod
+        key = (0 if in_root else 1, len(rel.parts), rel.as_posix())
+        if best_key is None or key < best_key:
+            best_key = key
+            best = (rel.as_posix() if rel.parts else ".", pkg)
+    return best
+
+
+def detect_go_layout(root: Path) -> tuple[str, str, str] | None:
+    """``(package_clause, source_dir, tests_dir)`` for a recognizable Go module (has
+    ``go.mod``). ``package_clause`` is the **existing** ``package`` name of the chosen
+    placement dir (so brownfield codegen matches it, not the module's last path element —
+    the 4.4 package-conflict bug). Go tests are co-located, so ``tests_dir == source_dir``."""
+    if not (root / "go.mod").is_file():
+        return None
+    picked = _pick_go_source_dir(root)
+    if picked is not None:
+        source_dir, pkg = picked
+        return pkg, source_dir, source_dir
+    # go.mod but only main packages / no lib package: default to the module root.
+    root_pkg = (
+        _go_package_of_dir(root) or (_read_go_module(root) or derive_go_module(str(root))).rsplit("/", 1)[-1]
+    )
+    return root_pkg, ".", "."
+
+
+def _resolve_go_layout(root: Path, *, mode: str, package_name: str | None, repo: str | None) -> TargetLayout:
+    """Go layout. Greenfield = a single package at the module root (``go.mod`` + `.go`
+    files beside it), the simplest module ``go build ./...`` / ``go test ./...`` accept.
+    Brownfield = a library package in the root module, using that dir's existing ``package``
+    clause. Co-located tests → ``tests_dir == source_dir``. ``build_tool`` is ``go``."""
+    existing = detect_go_layout(root)
+    derived = package_name or derive_go_module(repo or str(root))
+    if mode == "existing" or (mode == "auto" and existing is not None):
+        if existing is not None:
+            pkg_clause, source_dir, tests_dir = existing
+            return TargetLayout(
+                package_name=package_name or pkg_clause,
+                source_dir=source_dir,
+                tests_dir=tests_dir,
+                src_layout=False,
+                mode="existing",
+                language="go",
+                build_tool="go",
+            )
+        return TargetLayout(derived, ".", ".", False, "existing", language="go", build_tool="go")
+    return TargetLayout(derived, ".", ".", False, "new", language="go", build_tool="go")
+
+
 def is_effectively_empty(root: Path) -> bool:
     """True when the worktree holds no source the model could extend (a fresh
     clone of an empty repo is just ``.git`` + maybe a README/LICENSE). Used to
@@ -474,6 +639,8 @@ def resolve_layout(
         return _resolve_c_layout(root_path, mode=mode, package_name=package_name, repo=repo)
     if language == "cpp":
         return _resolve_cpp_layout(root_path, mode=mode, package_name=package_name, repo=repo)
+    if language == "go":
+        return _resolve_go_layout(root_path, mode=mode, package_name=package_name, repo=repo)
     if language == "sql":
         return _resolve_sql_layout(root_path, mode=mode, package_name=package_name, repo=repo)
     existing = detect_existing_package(root_path)
@@ -501,6 +668,7 @@ def resolve_layout(
 __all__ = [
     "TargetLayout",
     "derive_csharp_namespace",
+    "derive_go_module",
     "derive_java_package",
     "derive_npm_package",
     "derive_package_name",
@@ -508,6 +676,7 @@ __all__ = [
     "detect_cpp_layout",
     "detect_csharp_layout",
     "detect_existing_package",
+    "detect_go_layout",
     "detect_java_layout",
     "detect_typescript_layout",
     "is_effectively_empty",

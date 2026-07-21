@@ -64,10 +64,11 @@ orchestrator --help
 Optional extras, added when you need them:
 - `pip install 'synaptixs-spine[sdlc]'` — run the generated tests (the `sdlc feature`/`run` path)
 - `pip install 'synaptixs-spine[tui]'` — the `orchestrator tui` terminal UI (Step 7)
-- `[java]`, `[typescript]`, `[csharp]`, `[c]`, `[cpp]`, `[sql]` — language parsers for
+- `[java]`, `[typescript]`, `[csharp]`, `[c]`, `[cpp]`, `[go]`, `[sql]` — language parsers for
   comprehension + grounding (Python needs no extra). C# codegen also needs the **.NET SDK**
   (`dotnet`) on PATH; C / C++ codegen needs a C / C++ compiler plus **CMake** (greenfield) or
-  **Meson + Ninja** (matching the target repo's build system). `[sql]` adds `.sql`
+  **Meson + Ninja** (matching the target repo's build system); **Go** codegen needs the **`go`
+  toolchain** on PATH (`go build`/`go test`). `[sql]` adds `.sql`
   comprehension (schema/queries/procedures + migration folding) — no toolchain needed.
 - `[mcp]` (MCP client), `[otel]` (live tracing)
 
@@ -206,7 +207,7 @@ orchestrator regression . --trace crash.log          # or use the fault site fro
 ```
 
 > **Call graphs.** `localize`, `rca`, and `regression` (and the design **Blast radius**) trace
-> caller/callee edges — now extracted for **Python, C, C++, C#, Java, and TypeScript** (Java/TS
+> caller/callee edges — now extracted for **Python, C, C++, C#, Java, TypeScript, and Go** (Java/TS
 > call graphs were added alongside these commands). On a language without one, the reports say
 > so and fall back to module-level impact rather than implying zero.
 
@@ -231,10 +232,10 @@ is: `orchestrator understand .` → commit `episteme/`, then re-run whenever the
 > greenfield projects.
 
 > **Multi-language.** Comprehension covers **Python** out of the box and **Java**,
-> **TypeScript**, **C#**, **C**, **C++**, and **SQL** when the matching parser extra is
+> **TypeScript**, **C#**, **C**, **C++**, **Go**, and **SQL** when the matching parser extra is
 > installed (`pip install 'synaptixs-spine[java]'` / `[typescript]` / `[csharp]` / `[c]` /
-> `[cpp]` / `[sql]`). `understand`, codegen grounding, and `pkg extract` then process
-> `.java` / `.ts` / `.cs` / `.c` / `.h` / `.cpp` / `.hpp` / `.sql` too. For **SQL**, the
+> `[cpp]` / `[go]` / `[sql]`). `understand`, codegen grounding, and `pkg extract` then process
+> `.java` / `.ts` / `.cs` / `.c` / `.h` / `.cpp` / `.hpp` / `.go` / `.sql` too. For **SQL**, the
 > graph models the **data layer from source** — `CREATE TABLE`/columns → `Entity`/`Field`,
 > foreign keys → `REFERENCES`, views and `SELECT`/`INSERT`/`UPDATE`/`DELETE` → `READS`/
 > `WRITES`, and stored procedures → `Function` + `CALLS`. A `migrations/` folder is folded
@@ -255,7 +256,15 @@ is: `orchestrator understand .` → commit `episteme/`, then re-run whenever the
 > CMake or Meson+Ninja). **C++** is a superset of the C front-end — it reuses the include
 > graph and header/source merge and adds classes, namespaces, inheritance (`IMPLEMENTS`),
 > member functions, and templates; codegen scaffolds a CMake **CXX** project and builds +
-> tests via `ctest` (needs a C++ compiler plus CMake).
+> tests via `ctest` (needs a C++ compiler plus CMake). For **Go**, the module unit is the
+> **package (its directory)**, so every `.go` file in a dir merges into one component; the
+> graph carries the call graph (`CALLS`), same-package struct-field `REFERENCES`, and — the
+> Go highlight — **interface satisfaction** (`IMPLEMENTS`), computed by matching a concrete
+> type's method set (name + arity, value **and** pointer receivers) against each in-repo
+> interface. Codegen writes idiomatic Go into the target package and builds + tests it with
+> `go build ./...` / `go test ./...` (needs the **`go` toolchain**); it is **multi-module
+> aware** — the runner builds and tests the module(s) the change actually touches, not just
+> the repo root, so code generated into a sub-module is never a false green.
 
 ### Working with existing repos (brownfield) — and how knowledge grows
 

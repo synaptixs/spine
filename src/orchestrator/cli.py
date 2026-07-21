@@ -704,7 +704,7 @@ def sdlc_feature(
         str,
         typer.Option(
             "--language",
-            help="Target language: auto (detect), python, java, typescript, csharp, c, cpp, or sql.",
+            help="Target language: auto (detect), python, java, typescript, csharp, c, cpp, go, or sql.",
         ),
     ] = "auto",
 ) -> None:
@@ -719,6 +719,16 @@ def sdlc_feature(
     the issue.
     """
     import asyncio
+
+    from orchestrator.sdlc.feature_runner import SUPPORTED_LANGUAGES
+
+    if language != "auto" and language not in SUPPORTED_LANGUAGES:
+        supported = ", ".join(sorted(SUPPORTED_LANGUAGES))
+        typer.echo(
+            f"ERROR: --language '{language}' is not supported. Choose auto or one of: {supported}.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
 
     asyncio.run(
         _run_sdlc_feature(

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import uuid
 from pathlib import Path
 
@@ -87,6 +88,8 @@ def scaffold(root: Path | str, layout: TargetLayout, *, profile: ProjectProfile 
         files = _c_files(layout)
     elif layout.language == "cpp":
         files = _cpp_files(layout)
+    elif layout.language == "go":
+        files = _go_files(layout)
     elif layout.language == "sql":
         files = _sql_files(layout)
     else:
@@ -458,6 +461,41 @@ _CPP_HEADER = """\
 // Public API for __name__. Declare classes/functions here; define them in __name__.cpp.
 
 #endif  // __guard__
+"""
+
+
+def _go_ident(module: str) -> str:
+    """The Go ``package`` identifier for a module path (its last element, lowercased)."""
+    last = module.rstrip("/").rsplit("/", 1)[-1]
+    ident = re.sub(r"[^0-9a-zA-Z_]", "", last).lower() or "app"
+    return f"p{ident}" if ident[0].isdigit() else ident
+
+
+def _go_files(layout: TargetLayout) -> dict[str, str]:
+    # A minimal single-package Go module: go.mod at the root + a stub source file
+    # declaring the package, so `go build ./...` / `go test ./...` are green before
+    # codegen (a package with no tests is still an `ok` run). Tests are co-located
+    # (`<name>_test.go` beside the code), so there is no separate tests dir.
+    module = layout.package_name
+    pkg = _go_ident(module)
+    src = layout.source_dir
+    stub = f"{pkg}.go" if src == "." else f"{src}/{pkg}.go"
+    return {
+        "go.mod": f"module {module}\n\ngo 1.21\n",
+        stub: f"// Package {pkg} is scaffolded by the SDLC orchestrator.\npackage {pkg}\n",
+        "README.md": _README_TEMPLATE.format(package=module, source_dir=src, tests_dir=layout.tests_dir),
+        ".gitignore": _GO_GITIGNORE,
+    }
+
+
+_GO_GITIGNORE = """\
+# Binaries / test artifacts
+*.exe
+*.test
+*.out
+# Go workspace
+go.work
+go.work.sum
 """
 
 
