@@ -4,6 +4,46 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.6.0 — Knowledge-graph-grounded design & RCA
+
+A suite of new, deterministic-first CLI commands that ground engineering work — design,
+debugging, and root-cause analysis — in the Product Knowledge Graph, plus the call-graph
+extraction that makes them work across languages. Every command is inspectable and states
+its own limits rather than implying certainty.
+
+### Added
+
+- **`orchestrator design`** — spec × knowledge graph → a grounded design with a **blast
+  radius** (which modules a change touches, who imports them, the call hotspots) and an
+  **unverified-references** flag for named paths absent from the graph. Deterministic by
+  default; `--llm` writes the prose.
+- **`orchestrator investigate`** — research a ticket against the codebase before designing:
+  where it lands in the code (real symbols with `file:line` + caller counts) and the relevant
+  committed `episteme/` knowledge. Ticket from a source URI or inline.
+- **`orchestrator localize`** — parse a stack trace / pytest failure and resolve each frame to
+  the repo symbol it names, pointing at the likely fault site and its callers.
+- **`orchestrator rca`** — a gated root-cause report: fault site, ranked root-cause
+  *hypotheses* with evidence (exception priors, recent git churn, call sites), the regression
+  surface a fix must cover, and a scoped fix approach. Stops at analysis — no autonomous code.
+- **`orchestrator regression`** — blast-radius regression coverage: split the call-graph
+  impact of a change into tests that already exercise it vs production code with no covering
+  test (the gaps).
+- **Jira as a read source** (`jira://PROJ-123` / `jira://PROJ` / `jira://jql/…`) — ingest
+  existing issues as requirements, the read counterpart to the Jira issue-tracker sink.
+- **Generalized MCP-backed sources** — `mcp-jira` and `mcp-confluence` presets plus a generic
+  `mcp` escape hatch, so any onboarded MCP server can back intake (route access through a
+  governed server instead of spreading REST tokens).
+
+### Changed
+
+- **Call graphs across the stack:** the Java and TypeScript front-ends now extract `CALLS`
+  edges (precision-first; TypeScript resolves relative imports to the definition, so
+  cross-file call graphs connect). Impact, RCA, and regression coverage now work on Python,
+  C, C++, C#, Java, and TypeScript.
+- **`FactStore.impact_across`** — composed transitive blast radius over CALLS + IMPORTS +
+  REFERENCES, so impact traces across the code, module, and data layers.
+- The README banner now shows the platform's full capability map rather than a single pipeline.
+
 ## 3.5.0 — Security hardening
 
 This release is the output of a security baseline of Spine's own source tree. Nothing

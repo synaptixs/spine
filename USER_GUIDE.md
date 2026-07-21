@@ -148,6 +148,68 @@ table, **call-graph hotspots**, complexity/god-components, test-coverage and rec
 signals, a name-based security surface, and prioritized recommendations. A report is a
 *view* — re-run to refresh; nothing is written unless `--out` is given.
 
+To turn one feature idea into a **grounded design before writing code**, use `design`:
+
+```bash
+orchestrator design . --title "Add CSV export" -c "downloads a .csv"   # heuristic, to stdout
+orchestrator design . --title "Add CSV export" --llm --out DESIGN.md   # LLM writes the prose
+```
+
+It anchors the design to the repo's real modules and adds a **Blast radius** section from the
+knowledge graph — for each module the design touches, who imports it and which of its symbols
+have the most callers (the risky-to-change hotspots) — plus a **Unverified references** flag
+for any named path that doesn't exist in the graph (a hallucinated file, or a genuinely new
+one to confirm). Deterministic by default; `--llm` (needs a provider) writes the approach and
+interfaces. Symbol-level hotspots need a call graph, so on languages without one the report
+says so and gives module-level impact only.
+
+To **research a ticket against the codebase before designing**, use `investigate` — it takes a
+ticket (from a source or inline) and produces a brief: where it lands in the code (real
+symbols with `file:line` + caller counts), the relevant committed `episteme/` knowledge, and,
+when the pipeline's registry DB is configured, prior-run notes. Deterministic, no LLM.
+
+```bash
+orchestrator investigate . --source jira://PROJ-123     # research a real ticket
+orchestrator investigate . --title "Login 500s on empty token"   # or an inline problem
+```
+
+When you have a **stack trace or a failing test**, `localize` resolves each frame to the repo
+symbol it names (`file:line`), points at the likely fault site, and lists who calls it — the
+first step of a root-cause investigation. Deterministic, no LLM. Feed it a trace via `--trace`,
+`--text`, or stdin:
+
+```bash
+pytest 2>&1 | orchestrator localize .            # pipe a failing run straight in
+orchestrator localize . --trace crash.log        # or from a saved traceback
+```
+
+For the **full root-cause analysis**, `rca` goes a step further: it localizes the bug, then
+reports the fault site, ranked root-cause **hypotheses** with evidence (callers, recent git
+churn, the exception), the **regression surface** a fix must cover, and a scoped fix approach.
+It **stops at the report — no code is changed** (a human decides). Deterministic by default;
+`--llm` enriches the hypotheses. The bug can be a trace, a `jira://` Bug, or inline text:
+
+```bash
+pytest 2>&1 | orchestrator rca .                 # a failing test → grounded RCA
+orchestrator rca . --source jira://PROJ-42        # a Jira Bug → grounded RCA
+orchestrator rca . --trace crash.log --llm --out rca.md
+```
+
+Before you change a symbol, `regression` tells you **what to re-test**: it walks the call
+graph to find everything that depends on the target, then splits the blast radius into tests
+that already exercise it and production code with **no covering test** — the regression gaps.
+Deterministic, no LLM. Give it a symbol or a fault site:
+
+```bash
+orchestrator regression . --symbol validate_token   # what breaks if I change this?
+orchestrator regression . --trace crash.log          # or use the fault site from a trace
+```
+
+> **Call graphs.** `localize`, `rca`, and `regression` (and the design **Blast radius**) trace
+> caller/callee edges — now extracted for **Python, C, C++, C#, Java, and TypeScript** (Java/TS
+> call graphs were added alongside these commands). On a language without one, the reports say
+> so and fall back to module-level impact rather than implying zero.
+
 > **Local path _or_ git URL.** `understand`, `state`, `profile`, `catalog plan`, and
 > `pkg extract`/`export`/`docs` accept either — `orchestrator state https://github.com/org/repo`
 > shallow-clones it to a temp dir, analyses it, and cleans up (for `understand` on a URL the
@@ -240,7 +302,10 @@ a **local branch + diff** to inspect. No pushes, no PRs, nothing external.
 orchestrator sdlc feature --source confluence://<page_id> --safe
 ```
 
-- `--source` also accepts `notion://<page_id>`, `file://./spec.md`, or
+- `--source` also accepts `notion://<page_id>`, `file://./spec.md`,
+  **`jira://<root>`** (read existing tickets — `jira://PROJ-123` walks an issue and its
+  subtasks/epic children, `jira://PROJ` a whole project, `jira://jql/<query>` a saved
+  search; uses the same `JIRA_*` creds as issue creation), or
   **`openspec://<change-id>`** (spec-driven: reads an [OpenSpec](https://openspec.dev)
   change under `openspec/changes/` and maps its `### Requirement:`/`#### Scenario:`
   blocks straight to acceptance criteria — **deterministic, no LLM extraction**, so
@@ -578,9 +643,16 @@ orchestrator mcp call confluence:confluence_get_page --args '{"page_id":"123"}'
 ```bash
 # Drive intake through Atlassian's MCP server instead of REST creds:
 orchestrator sdlc feature --source mcp-confluence://<page_id> --safe
+orchestrator sdlc feature --source mcp-jira://<issue-key> --safe   # Jira issue + its children
 # Feed a database's real schema into codegen's grounding:
 orchestrator mcp ingest-db --server <db-server-name>
 ```
+`mcp-confluence` and `mcp-jira` are presets (one `mcp-atlassian` server usually serves both —
+point them at it with `MCP_CONFLUENCE_SERVER` / `MCP_JIRA_SERVER`). For **any other** MCP
+server, use the generic `mcp://<root>` and name its tools via `MCP_SOURCE_SERVER` /
+`MCP_SOURCE_DOC_TOOL` / `MCP_SOURCE_CHILDREN_TOOL` (results are parsed leniently, falling back
+to raw text). This routes source access through a governed MCP server instead of spreading
+`CONFLUENCE_*` / `JIRA_*` tokens into the env.
 In the pipeline (Step 7), configured MCP tools are auto-onboarded at startup with
 the same rate-limit + audit + approval path.
 

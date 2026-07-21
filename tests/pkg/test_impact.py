@@ -63,3 +63,23 @@ def test_impact_handles_cycle_without_looping() -> None:
 def test_impact_empty_for_uncalled_symbol() -> None:
     leaf = _fn("leaf", 1)
     assert _store([], [leaf]).impact_of(leaf.id) == []
+
+
+def test_impact_across_unions_kinds_and_filters() -> None:
+    # n0 has three incoming edges of different kinds; c2 chains two CALLS hops.
+    n0, c1, c2, m1, e1 = (_fn(x, i) for i, x in enumerate(("n0", "c1", "c2", "m1", "e1")))
+    edges = [
+        Edge("py:m.c1", "py:m.n0", EdgeKind.CALLS),
+        Edge("py:m.c2", "py:m.c1", EdgeKind.CALLS),  # transitive caller
+        Edge("py:m.m1", "py:m.n0", EdgeKind.IMPORTS),
+        Edge("py:m.e1", "py:m.n0", EdgeKind.REFERENCES),
+    ]
+    store = _store(edges, [n0, c1, c2, m1, e1])
+
+    across = {n.id for n, _ in store.impact_across("py:m.n0")}
+    assert across == {"py:m.c1", "py:m.c2", "py:m.m1", "py:m.e1"}  # all three layers
+
+    calls_only = {n.id for n, _ in store.impact_across("py:m.n0", kinds=(EdgeKind.CALLS,))}
+    assert calls_only == {"py:m.c1", "py:m.c2"}  # data + import layers filtered out
+    # the CALLS-filtered composed query matches the original CALLS-only impact_of
+    assert calls_only == {n.id for n, _ in store.impact_of("py:m.n0")}

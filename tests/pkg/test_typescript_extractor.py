@@ -126,3 +126,32 @@ def test_tsx_is_parsed(tmp_path: Path) -> None:
     by_id = {n.id: n for n in batch.nodes}
     assert by_id["ts:widget.Widget"].kind is NodeKind.TYPE
     assert by_id["ts:widget.Widget.render"].kind is NodeKind.FUNCTION
+
+
+_TS_CALLS = """\
+import { help } from "./helper";
+import * as util from "./util";
+
+export function a() {
+  b();
+  help();
+  util.run();
+  local.ignored();
+}
+export function b() {}
+
+class Svc {
+  run() { this.step(); }
+  step() {}
+}
+"""
+
+
+def test_emits_calls_for_local_imported_and_this(tmp_path: Path) -> None:
+    batch, _ = _facts(tmp_path, _TS_CALLS, "a.ts")
+    calls = {(e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.CALLS}
+    assert ("ts:a.a", "ts:a.b") in calls  # local module function
+    assert ("ts:a.a", "ts:src/helper.help") in calls  # imported binding
+    assert ("ts:a.a", "ts:src/util.run") in calls  # imported namespace
+    assert ("ts:a.Svc.run", "ts:a.Svc.step") in calls  # this.method()
+    assert not any(dst.endswith(":ignored") or dst.endswith(".ignored") for _, dst in calls)

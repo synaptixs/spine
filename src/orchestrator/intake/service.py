@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from orchestrator.intake.gaps import GapAnalyzer, GapFinding, blocks_approval
 from orchestrator.intake.intents import Intent, IntentExtractor, StructuredIntentSource
 from orchestrator.intake.jira import CreatedIssue, IssueLink, IssueRequest, IssueTrackerAdapter
-from orchestrator.intake.source import SourceAdapter, SourceDocument
+from orchestrator.intake.source import FetchTreeResult, SourceAdapter, SourceDocument
 from orchestrator.intake.specs import FeatureSpec, SpecWriter
 
 logger = logging.getLogger("orchestrator.intake.service")
@@ -40,7 +40,8 @@ def parse_source_uri(uri: str) -> tuple[str, str]:
 
     Accepts ``confluence://123``, ``confluence://page/123``. Space-key
     rooting (``confluence://space/ENG``) is not resolved yet — the page id
-    is the supported root. For ``file://<path>`` the root is a filesystem
+    is the supported root. ``jira://<root>`` keeps its root verbatim (an issue
+    key, a project key, or ``jql/<query>``). For ``file://<path>`` the root is a filesystem
     path, kept verbatim: ``file:///abs/x.md`` preserves its leading slash and
     ``file://./x.md`` resolves from the CWD.
     """
@@ -60,6 +61,15 @@ def parse_source_uri(uri: str) -> tuple[str, str]:
     if kind == "openspec":
         # openspec://<change-id> selects one change; openspec:// (empty root) = every change.
         return kind, rest.strip("/")
+    if kind == "jira":
+        # jira://PROJ-123 (issue subtree) | jira://PROJ (project) | jira://jql/<query>.
+        # Kept verbatim (bar surrounding slashes) so a JQL's spaces/quotes survive.
+        root = rest.strip("/")
+        if not root:
+            raise SourceUriError(
+                "jira source needs an issue key, project key, or 'jql/<query>' (e.g. jira://PROJ-123)."
+            )
+        return kind, root
     rest = rest.strip("/")
     if rest.startswith("page/"):
         rest = rest[len("page/") :]
@@ -144,6 +154,11 @@ class BacklogService:
         self._spec_writer = spec_writer
         self._tracker = tracker
         self._labels = issue_labels
+
+    async def fetch_source_documents(self, root_id: str) -> FetchTreeResult:
+        """Just the source fetch — no LLM, no tracker. For read-only consumers
+        (e.g. the investigation brief) that want the raw documents, not a backlog."""
+        return await self._source.fetch_tree(root_id)
 
     async def analyze(self, root_id: str) -> BacklogPlan:
         tree = await self._source.fetch_tree(root_id)

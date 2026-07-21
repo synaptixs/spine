@@ -100,3 +100,31 @@ def test_repo_extractor_dispatches_java_by_suffix(tmp_path: Path) -> None:
 def test_unpackaged_file_falls_back_to_path(tmp_path: Path) -> None:
     _, module = _facts(tmp_path, "class Bare {}\n", name="Bare.java")
     assert module == "Bare.java"
+
+
+_CALLS_SRC = """\
+package com.ex;
+
+import com.other.Helper;
+
+class Foo {
+    void a() {
+        b();
+        this.b();
+        Helper.help();
+        obj.ignored();
+    }
+    void b() {}
+}
+"""
+
+
+def test_emits_calls_for_sibling_and_static(tmp_path: Path) -> None:
+    batch, _ = _facts(tmp_path, _CALLS_SRC, "Foo.java")
+    calls = {(e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.CALLS}
+    # bare b() and this.b() both resolve to the sibling (deduped)
+    assert ("java:com.ex.Foo.a", "java:com.ex.Foo.b") in calls
+    # Helper.help() resolves via the import
+    assert ("java:com.ex.Foo.a", "java:com.other.Helper.help") in calls
+    # obj.ignored() (instance call on a variable) is skipped — no type inference
+    assert not any(dst.endswith(".ignored") for _, dst in calls)

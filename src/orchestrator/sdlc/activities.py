@@ -287,6 +287,7 @@ class SDLCActivities:
         try:
             from orchestrator.sdlc.design import design_feature as _design
 
+            store = await self._design_store(payload.get("sql_dialect"))
             return await _design(
                 dict(payload.get("spec") or {}),
                 comprehension=payload.get("comprehension") or {},
@@ -294,10 +295,30 @@ class SDLCActivities:
                 run_id=str(payload["sdlc_id"]),
                 issue_key=issue_key,
                 llm=self._deps.llm,
+                store=store,
             )
         except Exception as exc:  # noqa: BLE001 — design is best-effort
             logger.warning("sdlc.design.failed", extra={"issue": issue_key, "error": str(exc)[:200]})
             return {"issue_key": issue_key, "skipped": True, "reason": f"failed: {str(exc)[:150]}"}
+
+    async def _design_store(self, sql_dialect: Any) -> Any:
+        """Best-effort ``FactStore`` over the base repo for blast-radius analysis.
+
+        Reuses the commit-keyed PKG cache that comprehension just populated for
+        this commit, so re-extraction is cheap; any failure returns ``None`` and
+        the design falls back to the overview-only grounding."""
+        try:
+            base = await self._deps.workspace.ensure_base_repo()
+
+            def _build() -> Any:
+                from orchestrator.pkg import FactStore, RepoCodeExtractor, load_or_extract
+
+                return FactStore(load_or_extract(base, extractor=RepoCodeExtractor(sql_dialect=sql_dialect)))
+
+            return await asyncio.to_thread(_build)
+        except Exception as exc:  # noqa: BLE001 — impact grounding is optional
+            logger.warning("sdlc.design.no_store", extra={"error": str(exc)[:200]})
+            return None
 
     @activity.defn(name="sdlc_create_jira_issues")
     async def create_jira_issues(self, payload: dict[str, Any]) -> dict[str, Any]:

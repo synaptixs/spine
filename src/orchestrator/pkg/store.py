@@ -123,6 +123,48 @@ class FactStore:
                     queue.append((cid, depth + 1))
         return out
 
+    def impact_across(
+        self,
+        node_id: str,
+        *,
+        kinds: tuple[EdgeKind, ...] = (EdgeKind.CALLS, EdgeKind.IMPORTS, EdgeKind.REFERENCES),
+        max_depth: int = 4,
+    ) -> list[tuple[Node, int]]:
+        """Cross-layer transitive blast radius — every node that (transitively)
+        depends on ``node_id`` via any of ``kinds``, in BFS order with hop
+        distance.
+
+        Where ``impact_of`` follows only CALLS (the code layer), this unions the
+        *reverse* direction of several edge kinds — CALLS (callers), IMPORTS
+        (importers), REFERENCES (data-layer dependents) — so a change traces
+        across layers: change an entity → who references it → who imports that
+        module → … A single reverse index over the requested kinds backs the
+        walk (the per-node accessors would rescan every edge each hop).
+        """
+        from collections import deque
+
+        kindset = set(kinds)
+        predecessors: dict[str, list[str]] = {}
+        for e in self._edges:
+            if e.kind in kindset:
+                predecessors.setdefault(e.dst, []).append(e.src)
+
+        seen = {node_id}
+        out: list[tuple[Node, int]] = []
+        queue: deque[tuple[str, int]] = deque([(node_id, 0)])
+        while queue:
+            nid, depth = queue.popleft()
+            if depth >= max_depth:
+                continue
+            for src in predecessors.get(nid, ()):
+                if src not in seen:
+                    seen.add(src)
+                    node = self._nodes.get(src)
+                    if node is not None:
+                        out.append((node, depth + 1))
+                        queue.append((src, depth + 1))
+        return out
+
     def references_of(self, entity_id: str) -> list[Node]:
         """Entities this one points at via a foreign key (REFERENCES out-edges)."""
         ids = [e.dst for e in self._edges if e.kind is EdgeKind.REFERENCES and e.src == entity_id]
