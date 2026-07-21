@@ -720,14 +720,11 @@ def sdlc_feature(
     """
     import asyncio
 
-    from orchestrator.sdlc.feature_runner import SUPPORTED_LANGUAGES
+    from orchestrator.sdlc.feature_runner import unsupported_language_error
 
-    if language != "auto" and language not in SUPPORTED_LANGUAGES:
-        supported = ", ".join(sorted(SUPPORTED_LANGUAGES))
-        typer.echo(
-            f"ERROR: --language '{language}' is not supported. Choose auto or one of: {supported}.",
-            err=True,
-        )
+    lang_error = unsupported_language_error(language)
+    if lang_error is not None:
+        typer.echo(f"ERROR: {lang_error}", err=True)
         raise typer.Exit(code=2)
 
     asyncio.run(
