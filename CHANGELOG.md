@@ -4,6 +4,31 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.8.0 — The `/spine` comprehension skill
+
+Spine's read-only comprehension is now a **drop-in skill** any assistant can call — Codex
+(plugin) and Claude Code (an `understand-codebase` Agent Skill) — so you can ask about a
+codebase in plain language and get engineering *decisions*, not just a map: what a change
+breaks, what's untested, and where a ticket or bug lands, each grounded to `file:line`.
+
+### Added
+
+- **Comprehension MCP tools** on the Spine plugin server, all read-only, deterministic
+  (no LLM), and needing no credentials: `map_repo` (structure, call-hotspots, coverage
+  gaps, recommendations), `blast_radius` ("what breaks if I change X" — callers +
+  cross-layer reach), `explain_symbol`, `investigate` (where a ticket lands), `localize`
+  (stack trace → fault site), and `regression_gaps` (blast-radius symbols with no covering
+  test). Each returns structured fields **plus** a `markdown` rendering. They join
+  `read_memory_bank` (a repo's committed `episteme/`).
+- **`root_cause`** — a grounded root-cause report (fault site, ranked hypotheses with
+  evidence, regression surface, fix approach). Deterministic by default; `use_llm=true`
+  opts into LLM-enriched hypotheses.
+- **`understand-codebase` Agent Skill** bundled with the Claude Code plugin — tells Claude
+  which tool to reach for, so you just ask in plain language.
+- **git-URL support** across the comprehension tools — point them at a local path *or* a
+  git URL (shallow-cloned behind the same host allow-list as the CLI). Serve them to a
+  remote host over HTTP with `orchestrator-mcp --http`.
+
 ## 3.7.0 — Go: the 8th PKG language
 
 Go is now a first-class language across the whole stack — comprehension, the call and

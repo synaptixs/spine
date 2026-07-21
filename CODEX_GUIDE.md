@@ -161,11 +161,29 @@ At a glance:
 | Tool | What it does | Writes? |
 |---|---|---|
 | [`doctor`](#doctor) | Environment readiness (LLM, source, tracker, GitHub). | no |
-| [`pkg_grounding`](#pkg_grounding) | The existing‑code context a repo's Product Knowledge Graph surfaces for a spec — real APIs/types Spine would reuse, with `file:line`. | no |
+| **Understand a codebase — the comprehension tools** | | |
+| `map_repo` | A skim‑first map of a repo: languages, components, **call‑hotspots**, **test‑coverage gaps**, prioritized **recommendations**. Structured + markdown. | no |
+| `blast_radius` | **"What breaks if I change X"** — a symbol's direct callers plus the cross‑layer set a change ripples into, each with `file:line`. | no |
+| `explain_symbol` | What a symbol is and how it connects — kind, location, who calls it, what it calls, what it contains. | no |
+| `investigate` | Where a ticket lands in the code: the real symbols to start from (`file:line` + caller counts) + owning areas. | no |
+| `localize` | Resolve a stack trace / traceback to the repo symbols it names → the likely fault site + its callers. | no |
+| `regression_gaps` | The production symbols a change (by symbol or trace) reaches that **no test covers** — what could break silently. | no |
+| `root_cause` | A grounded root‑cause report for a bug: fault site, ranked hypotheses + evidence, regression surface, fix approach. Deterministic by default; `use_llm=true` enriches (needs a model). | no |
 | [`read_memory_bank`](#read_memory_bank) | Read a repo's committed `episteme/` (code‑true project knowledge). | no |
+| [`pkg_grounding`](#pkg_grounding) | The existing‑code context a repo's Product Knowledge Graph surfaces for a spec — real APIs/types Spine would reuse, with `file:line`. | no |
 | [`ingest_preview`](#ingest_preview) | Preview the backlog (derived intents + gaps) for a requirements source — dry‑run. | no |
-| [`sdlc_feature`](#sdlc_feature) | **The main one.** One intent end‑to‑end: spec → grounded codegen → tests → branch → *(optionally)* PR. | gated |
+| [`sdlc_feature`](#sdlc_feature) | **Ship it.** One intent end‑to‑end: spec → grounded codegen → tests → branch → *(optionally)* PR. | gated |
 | [`sdlc_start_run` + gate tools](#the-autonomous-run-sdlc_start_run--friends) | Drive the long, autonomous, gated run as a job (needs the Mode‑B backend). | gated |
+
+> **The comprehension tools are read‑only, need no credentials, and are deterministic** (only
+> `root_cause`'s opt‑in `use_llm` uses a model) — the differentiator: they don't just map the code,
+> they hand Codex **engineering decisions** (what breaks, what's untested, where a change lands).
+> `repo_path` is a **local path or a git URL** (shallow‑cloned behind the same host allow‑list as the
+> CLI); each returns structured fields **plus** a `markdown` rendering, bounded (top‑N with
+> `file:line`). Example — *"Use spine's `blast_radius` on `repo_path=.` for `symbol=create_app` and
+> tell me what a change would touch."* To serve these to a **remote** Codex/host over HTTP, run the
+> streamable‑HTTP server (`orchestrator-mcp --http`, bearer/OAuth auth from env — see §3b); it
+> registers the exact same tools.
 
 Each tool below shows the **Codex prompt** (what you type), the **tool call** it maps to
 (the literal arguments — handy if you call it programmatically or want to be precise), and

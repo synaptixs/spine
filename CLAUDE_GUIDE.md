@@ -176,11 +176,48 @@ At a glance:
 | Tool | What it does | Writes? |
 |---|---|---|
 | [`doctor`](#doctor) | Environment readiness (LLM, source, tracker, GitHub). | no |
-| [`pkg_grounding`](#pkg_grounding) | The existing‑code context a repo's Product Knowledge Graph surfaces for a spec — real APIs/types Spine would reuse, with `file:line`. | no |
+| **Understand a codebase — the comprehension tools** | | |
+| `map_repo` | A skim‑first map of a repo: languages, components, **call‑hotspots**, **test‑coverage gaps**, prioritized **recommendations**. Structured + markdown. | no |
+| `blast_radius` | **"What breaks if I change X"** — a symbol's direct callers plus the cross‑layer set a change ripples into, each with `file:line`. | no |
+| `explain_symbol` | What a symbol is and how it connects — kind, location, who calls it, what it calls, what it contains. | no |
+| `investigate` | Where a ticket lands in the code: the real symbols to start from (`file:line` + caller counts) + owning areas. | no |
+| `localize` | Resolve a stack trace / traceback to the repo symbols it names → the likely fault site + its callers. | no |
+| `regression_gaps` | The production symbols a change (by symbol or trace) reaches that **no test covers** — what could break silently. | no |
+| `root_cause` | A grounded root‑cause report for a bug: fault site, ranked hypotheses + evidence, regression surface, fix approach. Deterministic by default; `use_llm=true` enriches (needs a model). | no |
 | [`read_memory_bank`](#read_memory_bank) | Read a repo's committed `episteme/` (code‑true project knowledge). | no |
+| [`pkg_grounding`](#pkg_grounding) | The existing‑code context a repo's Product Knowledge Graph surfaces for a spec — real APIs/types Spine would reuse, with `file:line`. | no |
 | [`ingest_preview`](#ingest_preview) | Preview the backlog (derived intents + gaps) for a requirements source — dry‑run. | no |
-| [`sdlc_feature`](#sdlc_feature) | **The main one.** One intent end‑to‑end: spec → grounded codegen → tests → branch → *(optionally)* PR. | gated |
+| [`sdlc_feature`](#sdlc_feature) | **Ship it.** One intent end‑to‑end: spec → grounded codegen → tests → branch → *(optionally)* PR. | gated |
 | [`sdlc_start_run` + gate tools](#the-autonomous-run-sdlc_start_run--friends) | Drive the long, autonomous, gated run as a job (needs the Mode‑B backend). | gated |
+
+> **The comprehension tools are read‑only, need no credentials, and are deterministic** (only
+> `root_cause`'s opt‑in `use_llm` uses a model). They ship with an **`understand-codebase` skill**
+> that tells Claude *when* to reach for each — so you can just ask in plain language and Claude picks
+> the tool. Try: *"Map this repo and tell me what's untested,"* or *"What breaks if I change
+> `create_app`?"* `repo_path` is a **local path or a git URL** (shallow‑cloned behind the CLI's host
+> allow‑list); each returns structured fields **plus** a `markdown` rendering, bounded (top‑N +
+> `file:line`). To serve them to a **remote** host over HTTP, run the streamable‑HTTP server
+> (`orchestrator-mcp --http`, bearer/OAuth auth from env) — it registers the same tools.
+
+### Using the `understand-codebase` skill
+
+Spine's Claude Code plugin bundles an **Agent Skill** called `understand-codebase`. A skill is a
+short instruction sheet Claude reads automatically — it tells Claude *which comprehension tool to
+reach for* on which kind of question, so **you don't have to name tools**: just ask in plain
+language and Claude picks `map_repo` / `blast_radius` / `localize` / … for you.
+
+- **Install:** nothing extra — it ships **with the plugin** (§3a). Once `spine` is installed and
+  enabled, the skill and its MCP tools are both available. (Confirm with `/plugin list`; the skill
+  activates on its own when your question matches.)
+- **Use it:** ask naturally about a repository. For example —
+  - *"Map this repo and tell me what's untested."* → `map_repo`
+  - *"What breaks if I change `create_app`?"* → `blast_radius`
+  - *"Here's a traceback — where's the bug?"* (paste it) → `localize` → `regression_gaps`
+  - *"Where would a rate-limiting feature land in this codebase?"* → `investigate`
+- **Scope:** the skill only *reads* — understanding, not editing. To actually change code, use the
+  gated [`sdlc_feature`](#sdlc_feature) (which requires an explicit `confirm` for any external write).
+- **In Codex:** there's no separate skill file — Codex calls the same MCP tools directly (the tool
+  descriptions carry the same guidance). See [CODEX_GUIDE §6](CODEX_GUIDE.md#6-the-tools-spine-exposes).
 
 Each tool below shows the **Claude prompt** (what you type), the **tool call** it maps to
 (the literal arguments — handy if you call it programmatically or want to be precise), and

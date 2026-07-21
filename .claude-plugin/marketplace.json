@@ -9,7 +9,7 @@
     {
       "name": "spine",
       "source": "./plugins/spine",
-      "description": "An AI-native SDLC engineer you delegate tickets to: build a repo's Product Knowledge Graph, ground new code in what already exists, generate + test it, and — on confirm — open a PR. Greenfield + brownfield across Python, Java, TypeScript, C#, C, and C++, exposed as MCP tools.",
+      "description": "Understand any codebase, then ship changes to it. Read-only comprehension tools hand you engineering decisions (what breaks if you change X, what's untested, where a ticket/bug lands) from a deterministic Product Knowledge Graph; then delegate a ticket and, on confirm, get a reviewed, tested PR. Greenfield + brownfield across Python, Java, TypeScript, C#, C, C++, and Go, exposed as MCP tools + an understand-codebase skill.",
       "version": "2.5.0",
       "category": "Engineering",
       "keywords": ["sdlc", "codegen", "mcp", "knowledge-graph", "greenfield", "brownfield", "pkg"]
