@@ -20,8 +20,8 @@ casually; they're contracts. Get the dir from `understand.BANK_DIRNAME` /
 
 | Package | What it owns |
 |---|---|
-| `pkg/` | The **PKG** (Program Knowledge Graph) — the source of truth. `facts.py` = the universal vocabulary (`NodeKind`/`EdgeKind`/`Node`/`Edge`/`FactBatch`); `extractor.py` dispatches per-suffix to language front-ends; `store.py` = query layer; `overview.py` = bounded view for UIs; `persistence.py` = commit-keyed cache; `export.py`/`rdf.py` = projections |
-| `knowledge/` | Synthesis **on top of** the PKG — `understand.py` (→ `episteme/*.md`), `current_state.py` (`state`, two lenses), `renderers.py` |
+| `pkg/` | The **PKG** (Program Knowledge Graph) — the source of truth. `facts.py` = the universal vocabulary (`NodeKind`/`EdgeKind`/`Node`/`Edge`/`FactBatch` — includes the `Doc` node + `MENTIONS` edge from doc ingestion); `extractor.py` dispatches per-suffix to language front-ends; `store.py` = query layer (incl. `docs_for`/`mentions_of`); `docs.py` = the deterministic doc→symbol binder, `doc_source.py` reads docs (md/rst/txt/PDF, section-split), `doc_link.py` = the `link_docs` post-pass (Doc nodes + MENTIONS) + drift; `overview.py` = bounded view for UIs; `persistence.py` = commit-keyed cache; `export.py`/`rdf.py` = projections |
+| `knowledge/` | Synthesis **on top of** the PKG — `understand.py` (→ `episteme/*.md`), `current_state.py` (`state`, two lenses, incl. the Documentation section; runs `link_docs` as a post-pass), `renderers.py` |
 | `registry/` | FastAPI service + the operator web UI (`registry/api/web/`) |
 | `sdlc/` | The feature/run pipeline (largest package) |
 | `catalog/`, `intake/`, `agentic/`, `personas/`, `evals/` | profiling, sources→intents, the codegen tool-use loop, personas, measurement |

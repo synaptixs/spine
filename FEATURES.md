@@ -38,8 +38,11 @@ radius) and grounds new code in what already exists. Full guide:
 | Framework-aware edges — ASP.NET Core endpoints, EF Core entities (C#) | ✅ | emitted into the PKG on `pkg extract` / `understand` |
 | C `#include` graph + header/source merge; codegen on **CMake or Meson** | ✅ | `.c`/`.h` per repo; `sdlc feature --language c` |
 | Go — package-per-directory, call graph, **interface satisfaction** (`IMPLEMENTS` by method-set); codegen built + tested with `go build`/`go test`, multi-module aware | ✅ | `pip install 'synaptixs-spine[go]'`; `.go` per repo; `sdlc feature --language go` |
+| Doc ingestion — folds Markdown/reST/text docs into the PKG as `Doc` nodes + `MENTIONS` edges (which docs describe a symbol); section-granular, precision-first, no LLM | ✅ | automatic on `orchestrator understand` / `orchestrator state` |
+| PDF ingestion — same, for `.pdf` docs (scanned/image-only PDFs skipped, no OCR) | ✅ | `pip install 'synaptixs-spine[docs]'` |
+| Doc-grounded codegen — a reused symbol's documenting prose rides into the codegen context | ✅ | automatic in `sdlc feature` grounding when the repo has docs |
 | Committed `episteme/` for humans + any AI tool | ✅ | `orchestrator understand --out episteme` |
-| Current State report — overview, infrastructure/runtime, code structure, architecture diagrams (no LLM) | ✅ | `orchestrator state . --lens developer\|stakeholder` |
+| Current State report — overview, infrastructure/runtime, code structure, **documentation coverage + doc drift**, architecture diagrams (no LLM) | ✅ | `orchestrator state . --lens developer\|stakeholder` |
 | PKG extraction / export | ✅ | `orchestrator pkg extract`, `orchestrator pkg export` |
 | Repo profile / audit | ✅ | `orchestrator profile <repo>`, `orchestrator audit <repo>` |
 

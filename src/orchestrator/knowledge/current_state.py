@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 
 from orchestrator.knowledge.areas import area_of_name, zone_of
 from orchestrator.knowledge.infrastructure import Infrastructure, detect_infrastructure
+from orchestrator.pkg.doc_link import doc_drift, symbolish_drift
 from orchestrator.pkg.facts import EdgeKind, FactBatch, Node, NodeKind
 
 if TYPE_CHECKING:
@@ -138,9 +139,19 @@ class CurrentState:
     infrastructure: Infrastructure | None = None
     entry_points: list[str] = field(default_factory=list)
     modules: int = 0
+    # Documentation (doc-ingestion): Doc nodes, symbol coverage, and drift.
+    docs: int = 0
+    documented_symbols: int = 0
+    coverable_symbols: int = 0
+    doc_drift_total: int = 0
+    doc_drift_top: list[tuple[str, str]] = field(default_factory=list)  # (claim, doc)
 
 
 _AUTH_KW = ("auth", "login", "permission", "role", "identity", "token", "jwt", "session", "secur")
+
+# The symbol-vs-path drift filter is shared with the review-path finding (pkg.verifier), so it
+# lives in pkg.doc_link. Aliased here for the local call site (and the existing test import).
+_symbolish_drift = symbolish_drift
 
 
 def _recent_areas(root: Path | None) -> list[tuple[str, int]]:
@@ -302,6 +313,16 @@ def compute_current_state(
         n.name for n in types if any(k in n.name.lower() for k in _AUTH_KW) and not _is_generated(n)
     ][:12]
 
+    doc_ids = {n.id for n in nodes if n.kind is NodeKind.DOC}
+    mentions = [e for e in batch.edges if e.kind is EdgeKind.MENTIONS]
+    documented = {e.dst for e in mentions if e.dst in by_id}
+    coverable = {
+        n.id
+        for n in nodes
+        if n.kind in (NodeKind.TYPE, NodeKind.FUNCTION, NodeKind.MODULE) and not _is_generated(n)
+    }
+    drift = [f for f in doc_drift(batch, root) if _symbolish_drift(f.mention)] if root and doc_ids else []
+
     state = CurrentState(
         languages=sorted(profile.languages),
         framework=profile.framework,
@@ -332,6 +353,11 @@ def compute_current_state(
         infrastructure=detect_infrastructure(root) if root is not None else None,
         entry_points=_entry_points(root, nodes),
         modules=len(mods),
+        docs=len(doc_ids),
+        documented_symbols=len(documented & coverable),
+        coverable_symbols=len(coverable),
+        doc_drift_total=len(drift),
+        doc_drift_top=[(f.mention, f.page_title) for f in drift[:8]],
     )
     state.recommendations = _recommend(state)
     return state
@@ -577,6 +603,34 @@ def _infrastructure_section(s: CurrentState) -> list[str]:
     return o
 
 
+def _documentation_section(s: CurrentState) -> list[str]:
+    """Doc-ingestion surface: how much of the code the docs describe, and where the
+    docs claim code that the graph can't find (potential drift). Empty with no docs."""
+    if not s.docs:
+        return []
+    pct = round(100 * s.documented_symbols / s.coverable_symbols) if s.coverable_symbols else 0
+    o = [
+        "",
+        "## Documentation",
+        "",
+        "_Repo docs folded into the graph (`Doc` nodes + `MENTIONS` edges). Deterministic — "
+        + "a mention counts only when it binds to exactly one symbol._",
+        "",
+        f"- **{s.docs} doc{'s' if s.docs != 1 else ''}** ingested; they name "
+        f"**{s.documented_symbols} of {s.coverable_symbols} symbols** ({pct}% doc coverage).",
+    ]
+    if s.doc_drift_total:
+        o.append(
+            f"- **{s.doc_drift_total} potential drift** — doc claims that reference code the "
+            f"graph doesn't have (renamed/removed symbols, or prose the binder can't resolve)."
+        )
+        o += ["", "| Doc claims… | …in |", "|---|---|"]
+        o += [f"| `{claim}` | {doc} |" for claim, doc in s.doc_drift_top]
+        if s.doc_drift_total > len(s.doc_drift_top):
+            o.append(f"| … | _+{s.doc_drift_total - len(s.doc_drift_top)} more_ |")
+    return o
+
+
 def _render_developer(s: CurrentState) -> str:
     o: list[str] = [
         "# Current State",
@@ -665,6 +719,7 @@ def _render_developer(s: CurrentState) -> str:
             else ""
         ),
     ]
+    o += _documentation_section(s)
     if s.recent_areas:
         o += [
             "",
@@ -714,6 +769,7 @@ def load_current_state(
     """
     from orchestrator.catalog.profile import ProjectProfile
     from orchestrator.pkg.data_layer_link import link_data_layer
+    from orchestrator.pkg.doc_link import link_docs
     from orchestrator.pkg.extractor import RepoCodeExtractor
     from orchestrator.pkg.migrations import apply_migrations
     from orchestrator.pkg.persistence import load_or_extract
@@ -728,6 +784,8 @@ def load_current_state(
     # authoritative over ORM-inferred entities). Both no-op without SQL.
     batch = apply_migrations(batch, root_path)
     batch = link_data_layer(batch)
+    # Fold the repo's text docs into the graph (Doc nodes + MENTIONS edges); no-op with no docs.
+    batch = link_docs(batch, root_path)
     profile = ProjectProfile.from_repo(root_path)
     state = compute_current_state(batch, profile, root=root_path)
     return state, batch

@@ -4,6 +4,41 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.8.1 — Doc & PDF ingestion: your docs become code-linked facts
+
+Spine now reads a repository's **documentation** — Markdown, reStructuredText, plain text,
+and **PDF** — into the Product Knowledge Graph as first-class **`Doc` nodes**, each
+**`MENTIONS`**-linked to the code symbol it describes. So comprehension can answer *"which
+docs describe `X`?"*, *"how documented is this?"*, and *"do the docs still match the code?"* —
+all deterministic, no LLM. This is the *knowledge-doc* half of Spine's doc story; the
+*structured-doc* half (OpenSpec `openspec://` → intents) already shipped. It closes the
+biggest remaining reach gap vs. doc-graph tools.
+
+Nothing to configure: docs are folded in automatically when you run `orchestrator understand`
+or `orchestrator state`. A repo with no docs behaves exactly as before.
+
+### Added
+
+- **Doc ingestion** — `understand`/`state` now emit `Doc` nodes + `MENTIONS` edges. Binding is
+  **precision-first**: a mention becomes an edge only when it resolves to exactly one symbol.
+  Reuses the deterministic doc→symbol binder already in `pkg/docs.py`.
+- **PDF support** behind a new **`[docs]`** extra (`pip install 'synaptixs-spine[docs]'`, lazy
+  `pypdf`). The base install stays stdlib-only; malformed or scanned (image-only) PDFs are
+  skipped, never fatal — no OCR.
+- **`state` Documentation section** — doc count, **symbol coverage %** (how much of the code the
+  docs describe), and top **doc drift** (doc claims about code the graph can't resolve —
+  renamed/removed symbols), filtered to real symbols so paths/URLs/filenames don't drown it.
+- **`docs_for` `/spine` MCP tool** — with a `symbol`, the docs that describe it; with no symbol,
+  a doc-coverage summary + top drift. Joins the read-only comprehension tool set; documented in
+  the Claude/Codex guides and the `understand-codebase` skill.
+- **Section-granular `Doc` nodes** — Markdown is split by heading into `doc:README.md#usage`
+  nodes (bounded), so a `MENTIONS` edge points at the *section* that names a symbol, with
+  provenance at the heading line.
+- **Doc-grounded codegen** — `sdlc feature` grounding now folds a reused symbol's documenting
+  prose into the codegen context, so generated code sees not just an API but what it's for.
+- **Doc-drift review finding** — `GroundingVerifier.doc_findings` surfaces stale-doc symbol
+  claims as an informational, source-anchored finding.
+
 ## 3.8.0 — The `/spine` comprehension skill
 
 Spine's read-only comprehension is now a **drop-in skill** any assistant can call — Codex

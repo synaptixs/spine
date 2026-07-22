@@ -2,7 +2,7 @@
   "name": "spine",
   "displayName": "Spine",
   "version": "2.5.0",
-  "description": "Understand any codebase, then ship changes to it. Read-only comprehension tools (map_repo, blast_radius, explain_symbol, investigate, localize, regression_gaps) hand you engineering decisions — what breaks if you change X, what's untested, where a ticket or bug lands — from a deterministic Product Knowledge Graph (no LLM, no credentials, every fact file:line-grounded). Then delegate a ticket and, on confirm, get a reviewed, tested PR. Greenfield + brownfield across Python, Java, TypeScript, C#, C, C++, and Go. Safe by default: local branch + diff, no external writes; live writes are gated behind an explicit confirm.",
+  "description": "Understand any codebase, then ship changes to it. Read-only comprehension tools (map_repo, blast_radius, explain_symbol, investigate, localize, regression_gaps, docs_for) hand you engineering decisions — what breaks if you change X, what's untested, where a ticket or bug lands, which docs describe it — from a deterministic Product Knowledge Graph (no LLM, no credentials, every fact file:line-grounded). Then delegate a ticket and, on confirm, get a reviewed, tested PR. Greenfield + brownfield across Python, Java, TypeScript, C#, C, C++, and Go. Safe by default: local branch + diff, no external writes; live writes are gated behind an explicit confirm.",
   "author": {
     "name": "Synaptixs",
     "url": "https://github.com/synaptixs/spine"

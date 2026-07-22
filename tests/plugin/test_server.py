@@ -11,6 +11,7 @@ import pytest
 
 from orchestrator.plugin.server import (
     blast_radius,
+    docs_for,
     doctor,
     explain_symbol,
     ingest_preview,
@@ -104,6 +105,23 @@ def test_explain_symbol_lists_callers(tmp_path: Path) -> None:
     out = explain_symbol(_comprehension_repo(tmp_path), "validate")
     assert out["found"]
     assert any("handler" in c for c in out["matches"][0]["called_by"])
+
+
+def test_docs_for_summary_and_symbol(tmp_path: Path) -> None:
+    repo = _comprehension_repo(tmp_path)
+    (tmp_path / "README.md").write_text("The `validate` function checks input.\n", encoding="utf-8")
+    summary = docs_for(repo)
+    assert summary["docs"] == 1
+    assert summary["documented_symbols"] >= 1
+    assert "coverage" in summary["markdown"].lower()
+
+    hit = docs_for(repo, "validate")
+    assert hit["found"] is True
+    assert any("README.md" in m["docs"] for m in hit["matches"])
+
+
+def test_docs_for_no_docs_reports_zero(tmp_path: Path) -> None:
+    assert docs_for(_comprehension_repo(tmp_path))["docs"] == 0
 
 
 def test_investigate_lands_on_real_symbols(tmp_path: Path) -> None:

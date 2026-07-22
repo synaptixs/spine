@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from orchestrator.pkg import (
@@ -114,3 +115,25 @@ def test_deleted_file_makes_all_its_facts_stale(tmp_path: Path) -> None:
     (repo / "m.py").unlink()
     stale = {f.symbol_id for f in GroundingVerifier(batch).stale_findings(repo)}
     assert {"py:m", "py:m.f", "py:m.g"} <= stale
+
+
+# ---- documentation drift (phase 3) ------------------------------------------
+
+
+def test_doc_findings_flag_stale_symbol_claims(tmp_path: Path) -> None:
+    repo, batch = _extracted_repo(tmp_path)
+    (repo / "README.md").write_text(
+        "`f` is the entry point; the old `deleted_helper` is gone. See `docs/x.md`.\n",
+        encoding="utf-8",
+    )
+    findings = GroundingVerifier(batch).doc_findings(repo)
+    mentions = {m.group(1) for f in findings if (m := re.search(r"references `([^`]+)`", f.message))}
+    assert "deleted_helper" in mentions  # doc claims a symbol the graph lacks
+    assert "f" not in mentions  # a real symbol doesn't drift
+    assert "docs/x.md" not in mentions  # a path is filtered by symbolish_drift
+    assert all(f.rule == "doc_drift" and f.file == "README.md" for f in findings)
+
+
+def test_doc_findings_empty_without_docs(tmp_path: Path) -> None:
+    repo, batch = _extracted_repo(tmp_path)
+    assert GroundingVerifier(batch).doc_findings(repo) == []

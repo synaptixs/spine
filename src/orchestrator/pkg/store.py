@@ -177,6 +177,17 @@ class FactStore:
         ids = [e.src for e in self._edges if e.kind is EdgeKind.REFERENCES and e.dst == entity_id]
         return [self._nodes[i] for i in ids if i in self._nodes]
 
+    def docs_for(self, symbol_id: str) -> list[Node]:
+        """The ``Doc`` pages that describe a symbol (incoming ``MENTIONS`` edges) — "which docs
+        talk about this?" (empty until docs are ingested; see ``pkg.doc_link``)."""
+        ids = [e.src for e in self._edges if e.kind is EdgeKind.MENTIONS and e.dst == symbol_id]
+        return [self._nodes[i] for i in ids if i in self._nodes]
+
+    def mentions_of(self, doc_id: str) -> list[Node]:
+        """The code symbols a ``Doc`` page names (outgoing ``MENTIONS`` edges)."""
+        ids = [e.dst for e in self._edges if e.kind is EdgeKind.MENTIONS and e.src == doc_id]
+        return [self._nodes[i] for i in ids if i in self._nodes]
+
     def summary(self) -> dict[str, int]:
         grounded = sum(1 for n in self._nodes.values() if n.grounded)
         return {

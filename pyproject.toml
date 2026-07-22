@@ -1,6 +1,6 @@
 [project]
 name = "synaptixs-spine"
-version = "3.8.0"
+version = "3.8.1"
 description = "Agent orchestration platform — planner, registry, runtime, verifier."
 readme = "README.md"
 license = { text = "MIT" }
@@ -85,6 +85,12 @@ sql-postgres = [
     "testcontainers>=4",
     "psycopg[binary]>=3",
 ]
+# Doc ingestion — PDF support. Markdown/RST/plain-text parse with stdlib; PDF
+# needs a parser (pypdf, pure-Python), lazy-imported by pkg/doc_source.py so the
+# base install stays stdlib-only: pip install 'synaptixs-spine[docs]'.
+docs = [
+    "pypdf>=4",
+]
 # Onboard external MCP servers (DBs, Atlassian, …) as orchestrator tools. The
 # MCP client lazy-imports this, so the base install stays MCP-free.
 mcp = [
@@ -124,6 +130,9 @@ dev = [
     # SQL PKG front-end parser — pure-Python, so CI exercises the sql_extractor
     # tests directly rather than skipping them.
     "sqlglot>=25",
+    # PDF doc-ingestion parser — pure-Python, so CI exercises the PDF path in
+    # doc_source directly rather than skipping it.
+    "pypdf>=4",
 ]
 
 [project.scripts]
@@ -242,6 +251,12 @@ ignore_errors = true
 # the default/CI env, so don't fail type-checking on its absence.
 [[tool.mypy.overrides]]
 module = ["mcp", "mcp.*"]
+ignore_missing_imports = true
+
+# `pypdf` is the optional `docs` extra (PDF doc-ingestion), lazy-imported by
+# pkg/doc_source.py; not guaranteed in every env, so don't fail on its absence.
+[[tool.mypy.overrides]]
+module = ["pypdf", "pypdf.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

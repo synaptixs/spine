@@ -78,7 +78,10 @@ writes) so you can inspect everything first.
 Graph** of your repo — modules, types, functions, call sites, blast radius — and
 grounds new code in what already exists, so output reads like your team wrote it.
 Works across **Python, Java, TypeScript, C#, C, C++, and Go**, plus **SQL** data-layer
-comprehension (schema, queries, stored procedures, migration folding). `orchestrator
+comprehension (schema, queries, stored procedures, migration folding). It even reads your
+**documentation** — Markdown, reST, plain text, and **PDF** — folding it into the graph as
+`Doc` nodes linked to the code they describe, so you can ask *which docs cover this symbol*,
+*how documented the code is*, and *where the docs have drifted from the code*. `orchestrator
 understand` writes a committed, code-true `episteme/` your whole team (and any AI tool)
 can read — *epistēmē*, knowledge grounded in evidence, because every word of it is derived
 from the code rather than written by hand.
@@ -160,7 +163,9 @@ multi-module aware).
 **SQL** (`[sql]` extra) adds data-layer *comprehension* — schema, foreign keys, views,
 queries, stored procedures, and ordered-migration folding, grounded from `.sql` source —
 plus *greenfield codegen* (`sdlc feature --language sql`): it generates a migration and
-validates it by applying it to an ephemeral database (in-memory SQLite by default). Any
+validates it by applying it to an ephemeral database (in-memory SQLite by default).
+**Documentation** is folded in automatically on `understand`/`state` (Markdown/reST/text
+need nothing; **PDF** needs the `[docs]` extra — `pip install 'synaptixs-spine[docs]'`). Any
 LiteLLM-supported provider (Anthropic, OpenAI, Bedrock) or a local Ollama model;
 you can set a different model per stage.
 

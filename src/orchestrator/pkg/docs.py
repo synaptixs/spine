@@ -49,16 +49,23 @@ class MentionKind(str, Enum):
 
 @dataclass(frozen=True)
 class DocPage:
-    """One document: a Confluence page, a Markdown file, a spec.
+    """One document (or one section of one): a Confluence page, a Markdown file, a spec.
 
     ``base_dir`` (repo-relative) lets file mentions resolve relative to the
     document itself — docs link siblings ("archive/PLAN.md"), not repo roots.
+
+    ``source_file`` / ``line`` locate the page in a real file when it came from one
+    (section-granular ingestion sets them to the heading's file + line, so a section
+    node's provenance points at the heading, not the file top). They default to
+    empty/1 for non-file pages (Confluence, an in-memory spec).
     """
 
     title: str
     text: str
     url: str = ""
     base_dir: str = ""
+    source_file: str = ""
+    line: int = 1
 
 
 @dataclass(frozen=True)
