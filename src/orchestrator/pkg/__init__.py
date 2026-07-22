@@ -8,6 +8,7 @@ pluggable parsing — Python first.
 
 from __future__ import annotations
 
+from orchestrator.pkg.doc_link import doc_drift, link_docs
 from orchestrator.pkg.docs import (
     DocBinding,
     DocDriftFinding,
@@ -39,6 +40,8 @@ from orchestrator.pkg.verifier import GroundingFinding, GroundingVerifier
 __all__ = [
     "CallSite",
     "DocBinding",
+    "doc_drift",
+    "link_docs",
     "DocDriftFinding",
     "DocMention",
     "DocPage",

@@ -32,7 +32,7 @@ from orchestrator.pkg.rdf import DEFAULT_NAMESPACE, facts_to_graph, symbol_iri
 class GroundingFinding:
     """One grounding failure, anchored to source where possible."""
 
-    rule: str  # "shacl_violation" | "stale_fact"
+    rule: str  # "shacl_violation" | "stale_fact" | "doc_drift"
     message: str
     file: str | None = None
     line: int | None = None
@@ -85,6 +85,36 @@ class GroundingVerifier:
                     symbol_id=node.id if node else None,
                 )
             )
+        return findings
+
+    # ---- 3. documentation drift --------------------------------------------
+
+    def doc_findings(self, root: Path | str, *, limit: int = 20) -> list[GroundingFinding]:
+        """Docs that claim a *symbol* the graph doesn't have — the third way the knowledge can
+        lie: not the code being stale, but the *prose* about it. Deterministic, informational
+        (a review comment, not a blocker): high-confidence symbol drift only (paths/URLs/filenames
+        filtered out by :func:`doc_link.symbolish_drift`), anchored to the doc's ``file:line``.
+        Empty when the repo has no docs."""
+        from orchestrator.pkg.doc_link import doc_drift, symbolish_drift
+
+        findings: list[GroundingFinding] = []
+        for f in doc_drift(self._batch, root):
+            if not symbolish_drift(f.mention):
+                continue
+            file, _, _line = f.page_title.partition("#")
+            findings.append(
+                GroundingFinding(
+                    rule="doc_drift",
+                    message=(
+                        f"Documentation drift: `{f.page_title}` references `{f.mention}`, "
+                        "but the knowledge graph has no such symbol (renamed, removed, or never "
+                        "existed). Update the doc or the code."
+                    ),
+                    file=file or None,
+                )
+            )
+            if len(findings) >= limit:
+                break
         return findings
 
     # ---- 2. freshness against current source -------------------------------

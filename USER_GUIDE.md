@@ -70,6 +70,8 @@ Optional extras, added when you need them:
   **Meson + Ninja** (matching the target repo's build system); **Go** codegen needs the **`go`
   toolchain** on PATH (`go build`/`go test`). `[sql]` adds `.sql`
   comprehension (schema/queries/procedures + migration folding) — no toolchain needed.
+- `[docs]` — **PDF** doc ingestion (`.md`/`.rst`/`.txt` need no extra). With it, `understand`/`state`
+  fold your PDFs into the graph too; without it, PDFs are simply skipped.
 - `[mcp]` (MCP client), `[otel]` (live tracing)
 
 ### Upgrading
@@ -131,6 +133,11 @@ there; greenfield repos get a stub that fills in as features land. Re-run anytim
 to refresh (`--refresh` re-extracts instead of using the commit cache). Commit
 `episteme/` so your team — and any AI tool — reads the same project truth.
 
+Your repo's **documentation** is folded in at the same time: Markdown, reST, and plain-text
+docs (and **PDF**, with the `[docs]` extra) become `Doc` nodes linked to the code they
+describe. Nothing to turn on — a repo with no docs just skips it. This powers the
+**Documentation** section in `state` (below) and the `docs_for` `/spine` tool.
+
 For a **team-facing snapshot of what the repo is today and how healthy it looks**, use
 the Current State report (also no LLM — synthesized from the same graph):
 
@@ -146,7 +153,8 @@ from its manifests, build files, and `docker-compose`), a **code-structure** map
 component + entry points), a **system-architecture diagram** (components grouped into zones,
 with weighted dependency arrows from the import/`#include` graph), a **component-dependency**
 table, **call-graph hotspots**, complexity/god-components, test-coverage and recent-activity
-signals, a name-based security surface, and prioritized recommendations. A report is a
+signals, a **Documentation** section (symbol coverage % + top doc drift, from the ingested
+docs), a name-based security surface, and prioritized recommendations. A report is a
 *view* — re-run to refresh; nothing is written unless `--out` is given.
 
 To turn one feature idea into a **grounded design before writing code**, use `design`:
@@ -708,10 +716,13 @@ tool_timeout_sec = 600            # sdlc_feature does codegen + a build; give it
 ORCHESTRATOR_DOTENV = "/abs/path/to/your/.env"
 ```
 Restart the host to pick up the server. The tools it exposes: `doctor`,
-`ingest_preview`, `pkg_grounding`, `read_memory_bank`, and `sdlc_feature` — which
-takes `repo`, `language`, `layout` (`new` = greenfield, `existing` = brownfield),
-and `package_name`, so you can deliver into a fresh **or** an existing repo from the
-host. (`sdlc_start_run`/`…_status`/`…_decide_gate`/`…_result` drive the long gated run.)
+`ingest_preview`, `pkg_grounding`, `read_memory_bank`; the read-only **comprehension**
+set — `map_repo`, `blast_radius`, `explain_symbol`, `investigate`, `localize`,
+`regression_gaps`, `root_cause`, and **`docs_for`** (which docs describe a symbol, or a
+repo-wide doc-coverage summary); and `sdlc_feature` — which takes `repo`, `language`,
+`layout` (`new` = greenfield, `existing` = brownfield), and `package_name`, so you can
+deliver into a fresh **or** an existing repo from the host.
+(`sdlc_start_run`/`…_status`/`…_decide_gate`/`…_result` drive the long gated run.)
 
 **As a first-class Codex plugin** (an entry in the plugin list, not just an
 `mcp_servers` line): this repo ships a one-plugin marketplace under

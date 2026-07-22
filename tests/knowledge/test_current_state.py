@@ -61,6 +61,25 @@ def test_compute_metrics() -> None:
     assert s.tested_areas == 0
 
 
+def test_documentation_metrics_and_section() -> None:
+    b = _synthetic_batch()
+    b.add_node(Node("doc:README.md", NodeKind.DOC, "README.md", "doc", Provenance("README.md", 1)))
+    b.add_edge(Edge("doc:README.md", "c:App.Biz.UserService", EdgeKind.MENTIONS, Provenance("README.md", 1)))
+    s = compute_current_state(b, _PROFILE)  # no root → coverage counted, drift skipped
+    assert s.docs == 1
+    assert s.documented_symbols == 1  # the one MENTIONS-linked symbol
+    assert s.coverable_symbols > 1
+    md = render_current_state(s)
+    assert "## Documentation" in md
+    assert "1 doc" in md
+
+
+def test_no_documentation_section_without_docs() -> None:
+    s = compute_current_state(_synthetic_batch(), _PROFILE)
+    assert s.docs == 0
+    assert "## Documentation" not in render_current_state(s)
+
+
 def test_recommendations_flag_tests_and_fat_controller() -> None:
     s = compute_current_state(_synthetic_batch(), _PROFILE)
     text = " ".join(t for _p, t in s.recommendations)

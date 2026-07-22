@@ -26,6 +26,7 @@ class NodeKind(str, Enum):
     FIELD = "Field"  # attribute / property / column
     ENDPOINT = "Endpoint"  # HTTP route / RPC
     ENTITY = "Entity"  # ORM model / data entity
+    DOC = "Doc"  # a documentation page (README, design doc, ADR, …)
 
 
 class EdgeKind(str, Enum):
@@ -39,6 +40,7 @@ class EdgeKind(str, Enum):
     WRITES = "WRITES"
     EXPOSES = "EXPOSES"  # route→handler
     REFERENCES = "REFERENCES"  # entity→entity foreign key
+    MENTIONS = "MENTIONS"  # doc→the code symbol it describes
 
 
 @dataclass(frozen=True)

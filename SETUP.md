@@ -45,6 +45,11 @@ docker compose -f docker-compose.dev.yml ps
 uv run alembic upgrade head
 ```
 
+> `--extra dev` already pulls in the parsers CI exercises (including `pypdf` for PDF doc
+> ingestion), so `understand`/`state` handle PDFs out of the box here. End users add feature
+> extras à la carte — e.g. `pip install 'synaptixs-spine[docs]'` for PDF ingestion, `[sql]`
+> for SQL comprehension (see [USER_GUIDE.md](USER_GUIDE.md#step-1--install)).
+
 What just came up:
 
 | Service | Port | Purpose |

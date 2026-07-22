@@ -61,7 +61,7 @@ flowchart TB
 
 ## 2. The data model
 
-Everything in the PKG is one of six **node kinds**, connected by eight **edge kinds**.
+Everything in the PKG is one of seven **node kinds**, connected by nine **edge kinds**.
 Every node and edge carries **provenance** — the exact `file:line` it came from — so any
 claim is traceable back to source.
 
@@ -75,6 +75,7 @@ claim is traceable back to source.
 | `Field` | An attribute, property, or column |
 | `Endpoint` | An HTTP route or RPC |
 | `Entity` | An ORM model / data entity |
+| `Doc` | A documentation page or section (README, design doc, PDF) — section-granular, e.g. `doc:README.md#usage`, with provenance at the heading line |
 
 Each node has a stable, language-prefixed id (e.g. `py:billing.invoice.Invoice`), a
 `name`, its `language`, and `provenance` (`file:line`). Nodes referenced but not defined
@@ -91,6 +92,7 @@ in-repo (e.g. a third-party class) are marked `external`.
 | `READS` / `WRITES` | function → field/column |
 | `EXPOSES` | endpoint → handler |
 | `REFERENCES` | entity → entity (foreign key) |
+| `MENTIONS` | doc → the code symbol/module it describes (bound, `file:line`-grounded) |
 
 ### How it fits together
 
@@ -104,6 +106,7 @@ flowchart LR
     F -->|READS / WRITES| FL[Field]
     EP[Endpoint] -->|EXPOSES| F
     EN[Entity] -->|REFERENCES| EN2[Entity]
+    D[Doc] -->|MENTIONS| F
 ```
 
 This is what lets Spine answer questions like *"what calls this function?"*, *"what's the
@@ -181,6 +184,12 @@ It produces: `architecture.md`, `domain-model.md`, `tech-context.md`, `conventio
 `glossary.md`, and `progress.md`. **Commit `episteme/`** so your whole team — and any
 AI tool — reads the same code-true project truth.
 
+A **doc-ingestion post-pass** folds the repo's own documentation (Markdown, reST, plain
+text, and — with the `[docs]` extra — **PDF**) into the same graph: a `Doc` node per doc
+section, `MENTIONS`-linked to each code symbol it names. Nothing to configure; a repo with
+no docs is unaffected. This is what lets `state` report doc coverage and the `docs_for`
+`/spine` tool answer *"which docs describe this symbol?"*.
+
 ### `orchestrator state` — the team-facing current-state report
 A higher-level view rendered from the same graph (deterministic, no LLM) — *what the repo
 is today and how healthy it looks*:
@@ -197,8 +206,10 @@ needs — read from manifests, build files, and `docker-compose`), a **code-stru
 (layout by component + entry points), a **system-architecture diagram** (components grouped
 into zones with weighted dependency arrows from the import/`#include` graph), a
 **component-dependency** table, **call-graph hotspots**, complexity / god-components,
-test-coverage and recent-activity signals, a name-based security surface, and prioritized
-recommendations. A report is a *view* — re-run to refresh.
+test-coverage and recent-activity signals, a **Documentation** section (how much of the code
+the docs describe — symbol coverage % — and the top **doc drift**: doc claims about code the
+graph can't resolve), a name-based security surface, and prioritized recommendations. A
+report is a *view* — re-run to refresh.
 
 ### `orchestrator pkg extract` — inspect the raw graph
 ```bash
@@ -214,12 +225,15 @@ orchestrator pkg export . --db pkg-facts.db   # a kind-per-table SQLite database
 Query it with any SQLite tool — one table per node/edge kind, provenance included. (This
 is also the "ontomesh-ready" projection that bridges code facts to the domain layer.)
 
-### `orchestrator pkg docs` — catch stale docs
+### `orchestrator pkg docs` — reconcile specific docs on demand
 ```bash
 orchestrator pkg docs . -d README.md -d ARCHITECTURE.md
 ```
-Reconciles documentation claims against the actual fact graph and flags drift (docs that
-describe code that no longer exists, etc.).
+Reconciles the documentation claims in the docs you *name* against the actual fact graph and
+flags drift (docs that describe code that no longer exists, etc.). This is the **targeted,
+read-only** counterpart to whole-repo ingestion: `understand`/`state` fold **all** the repo's
+docs into the graph as `Doc` nodes + `MENTIONS` edges automatically, whereas this command
+checks a specific file (or two) and prints the binding/drift summary without touching the graph.
 
 ### SQL — the data layer, extracted from source
 

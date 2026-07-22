@@ -417,6 +417,66 @@ async def root_cause(repo_path: str, bug: str, use_llm: bool = False) -> dict[st
     }
 
 
+def docs_for(repo_path: str, symbol: str = "") -> dict[str, Any]:
+    """Which docs describe the code — the doc-ingestion surface. With a ``symbol``, the doc pages
+    that **MENTION** it (grounded to the repo's docs). Without one, a doc-coverage summary: how many
+    docs are ingested, how many symbols they name, and the top **potential drift** (doc claims the
+    graph can't resolve — renamed/removed code). Deterministic (no LLM). ``repo_path`` is a local
+    path or a git URL."""
+
+    def run(repo: Any) -> dict[str, Any]:
+        from orchestrator.knowledge.current_state import load_current_state
+        from orchestrator.pkg import FactStore
+
+        state, batch = load_current_state(repo)
+        if not state.docs:
+            return {"repo": str(repo), "docs": 0, "note": "no docs ingested (no .md/.rst/.txt/.pdf found)"}
+        if symbol:
+            store = FactStore(batch)
+            matches = store.find(symbol)
+            if not matches:
+                return {"symbol": symbol, "found": False, "matches": []}
+            out: list[dict[str, Any]] = []
+            lines = [f"# Docs describing `{symbol}`", ""]
+            for node in matches[:5]:
+                doc_names = [d.name for d in store.docs_for(node.id)]
+                where = str(node.provenance) if node.provenance else None
+                out.append({"id": node.id, "kind": node.kind.value, "where": where, "docs": doc_names})
+                loc = f" @ {where}" if where else ""
+                shown = ", ".join(f"`{d}`" for d in doc_names) or "_no docs mention this symbol_"
+                lines += [f"### `{node.id}` — {node.kind.value}{loc}", f"- {shown}"]
+            return {"symbol": symbol, "found": True, "matches": out, "markdown": "\n".join(lines)}
+
+        pct = (
+            round(100 * state.documented_symbols / state.coverable_symbols) if state.coverable_symbols else 0
+        )
+        drift_top = [{"claim": c, "doc": d} for c, d in state.doc_drift_top]
+        lines = [
+            "# Documentation coverage",
+            "",
+            f"- **{state.docs} docs** ingested; they name **{state.documented_symbols} of "
+            f"{state.coverable_symbols} symbols** ({pct}% coverage).",
+        ]
+        if state.doc_drift_total:
+            lines.append(
+                f"- **{state.doc_drift_total} potential drift** — doc claims the graph can't resolve."
+            )
+            lines += ["", "| Doc claims… | …in |", "|---|---|"]
+            lines += [f"| `{d['claim']}` | {d['doc']} |" for d in drift_top]
+        return {
+            "symbol": None,
+            "docs": state.docs,
+            "documented_symbols": state.documented_symbols,
+            "coverable_symbols": state.coverable_symbols,
+            "coverage_pct": pct,
+            "drift_total": state.doc_drift_total,
+            "drift_top": drift_top,
+            "markdown": "\n".join(lines),
+        }
+
+    return _in_repo(repo_path, run)
+
+
 def _blast_markdown(matches: list[dict[str, Any]]) -> str:
     lines: list[str] = []
     for m in matches:
@@ -507,6 +567,7 @@ _TOOLS = (
     localize,
     regression_gaps,
     root_cause,
+    docs_for,
     # gated codegen / run control
     sdlc_feature,
     sdlc_start_run,

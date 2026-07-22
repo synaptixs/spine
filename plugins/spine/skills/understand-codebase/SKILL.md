@@ -7,8 +7,8 @@ description: >-
   decisions (what a change breaks, what's untested, where a ticket or bug lands), each
   grounded to file:line. Triggers: "how does this repo work", "what breaks if I change X",
   "where do I fix this / where does this land", "what's untested here", "explain this symbol",
-  "map this codebase". Tools: map_repo, blast_radius, explain_symbol, investigate, localize,
-  regression_gaps (all read-only, no credentials, from the Spine plugin).
+  "map this codebase", "which docs cover this". Tools: map_repo, blast_radius, explain_symbol,
+  investigate, localize, regression_gaps, docs_for (all read-only, no credentials, from the Spine plugin).
 ---
 
 # Understand a codebase with Spine
@@ -33,6 +33,7 @@ and they cite their sources.
 | pin a bug from a stack trace | **`localize(trace=…)`** — resolve each frame to the repo symbol; the likely fault site |
 | see what a change could break silently | **`regression_gaps(symbol=… or trace=…)`** — blast-radius symbols with **no covering test** |
 | root-cause a bug (hypotheses + fix approach) | **`root_cause(bug=…)`** — fault site, ranked hypotheses with evidence, regression surface, fix approach; deterministic (add `use_llm=true` for richer hypotheses) |
+| find which docs describe code (or how documented it is) | **`docs_for(symbol=…)`** — the doc pages that mention a symbol; call with no symbol for a doc-coverage summary + top drift. Ingests `.md`/`.rst`/`.txt`/PDF |
 
 Read a repo's committed knowledge base with **`read_memory_bank`** when one exists (built by
 `orchestrator understand`).

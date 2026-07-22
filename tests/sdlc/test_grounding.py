@@ -83,6 +83,19 @@ def test_context_empty_when_repo_has_nothing_relevant(tmp_path: Path) -> None:
     assert grounder.context_for_spec(SPEC) == ""
 
 
+def test_context_folds_in_documentation_for_reused_symbols(tmp_path: Path) -> None:
+    _repo(tmp_path)
+    (tmp_path / "README.md").write_text(
+        "# Ledger\nThe `TokenLedger` records per-stage usage and persists it to disk.\n",
+        encoding="utf-8",
+    )
+    context = PKGCodegenGrounder.from_repo(tmp_path).context_for_spec(SPEC)
+    assert "py:ledger.TokenLedger" in context  # the code is still grounded
+    # …and its human documentation rides along, tied to the section that names it.
+    assert "Documented in `README.md#ledger`" in context
+    assert "records per-stage usage and persists it to disk" in context
+
+
 def test_spec_query_concatenates_prose_fields() -> None:
     q = _spec_query(SPEC)
     assert "Persist the token ledger" in q and "round-trips" in q
