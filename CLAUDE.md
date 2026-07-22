@@ -61,8 +61,16 @@ subsystem; that's where the *why* is. `docs/specs/README.md` indexes them.
 
 ## Gotchas that have bitten
 
-- **`md.js` escapes every fence, including ```mermaid** — diagrams in markdown render as
-  raw text in our own web UI (they only look right in GitHub/IDE viewers).
+- **`md.js` renders mermaid, but only a tiny subset** — `mermaidSvg()` (a ~90-line
+  hand-rolled renderer, chosen over a 2.6 MB library because the UI has no build step and
+  must work air-gapped) draws inline SVG for: `flowchart LR|TD|TB|RL`, `subgraph x["Zone"]`
+  /`end`, **quoted** node decls `id["label"]` (`<br/>` for line breaks), and bare-id edges
+  `a --> b` / `a -->|label| b`. Anything else — chained `a --> b --> c`, dotted `-. x .->`,
+  decision `c{...}`, or a node declared inline in an edge line — returns null and the whole
+  block falls back to `<pre>` ("no picture beats a wrong picture"). It renders fine on
+  GitHub either way, so a broken diagram is invisible until you open our own UI. Declare
+  nodes first, then edges, and verify rather than eyeball:
+  `node scripts/check-mermaid.js *.md` (runs the real `md.js`; non-zero on any fallback).
 - **`pkg extract --json` omits edges** — nodes + summary only.
 - **`--language` is not validated in `cli.py`** — an unsupported language silently
   scaffolds a *Python* project (every dispatch chain falls through to the Python branch).

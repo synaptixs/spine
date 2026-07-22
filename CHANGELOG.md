@@ -4,6 +4,40 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.8.2 — Doc ingestion reaches HTML and Office
+
+3.8.1 folded Markdown, reST, plain text and PDF into the graph. This release adds the
+remaining **file** formats teams actually keep specs in — **HTML** and **Word/Excel** — so a
+`.docx` architecture doc or an exported HTML spec sitting in your repo becomes `Doc` nodes
+`MENTIONS`-linked to the code it describes, exactly like a README.
+
+Still deterministic, still no LLM, still a no-op on a repo with no docs.
+
+### Added
+
+- **HTML ingestion** (`.html`/`.htm`) — no extra needed. `<h1>`…`<h6>` become section
+  boundaries (so an HTML doc sections exactly like markdown), and inline `<code>` is
+  preserved as a code claim, so the symbols a doc names actually bind. `<script>`/`<style>`
+  bodies are ignored; malformed markup is skipped rather than fatal.
+- **Word & Excel ingestion** behind a new **`[office]`** extra
+  (`pip install 'synaptixs-spine[office]'`). `.docx` maps Word's heading styles to sections
+  and treats monospace runs as code claims — the Word equivalent of backticks — and keeps
+  table text, which is where spec documents put API and field lists. `.xlsx` gives one
+  section per sheet and keeps string cells only (numbers and formula results are data, not
+  prose about code). Encrypted or corrupt documents are skipped.
+- **Markdown front matter** is now read as prose: the *values* of a `---` block (`title:`,
+  `module:`, `tags:`) bind like the text they stand for, while the keys and fences no longer
+  leak into the graph as noise.
+
+### Changed
+
+- Documentation formats are now **registered readers** rather than hard-coded branches, so
+  adding a format touches no existing one. Behaviour for existing formats is unchanged.
+- Standalone `.yaml`/`.yml` files are **deliberately not ingested**. A repo's YAML is
+  overwhelmingly configuration, and treating it as documentation would inflate the doc
+  coverage `state` reports and flood doc-drift with config values that were never prose.
+  YAML's documentary case — front matter — is covered above.
+
 ## 3.8.1 — Doc & PDF ingestion: your docs become code-linked facts
 
 Spine now reads a repository's **documentation** — Markdown, reStructuredText, plain text,

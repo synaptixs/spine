@@ -39,7 +39,9 @@ radius) and grounds new code in what already exists. Full guide:
 | C `#include` graph + header/source merge; codegen on **CMake or Meson** | ✅ | `.c`/`.h` per repo; `sdlc feature --language c` |
 | Go — package-per-directory, call graph, **interface satisfaction** (`IMPLEMENTS` by method-set); codegen built + tested with `go build`/`go test`, multi-module aware | ✅ | `pip install 'synaptixs-spine[go]'`; `.go` per repo; `sdlc feature --language go` |
 | Doc ingestion — folds Markdown/reST/text docs into the PKG as `Doc` nodes + `MENTIONS` edges (which docs describe a symbol); section-granular, precision-first, no LLM | ✅ | automatic on `orchestrator understand` / `orchestrator state` |
+| HTML ingestion — `<h1..h6>` become sections, inline `<code>` binds like a backtick | ✅ | automatic (stdlib, no extra) |
 | PDF ingestion — same, for `.pdf` docs (scanned/image-only PDFs skipped, no OCR) | ✅ | `pip install 'synaptixs-spine[docs]'` |
+| Office ingestion — `.docx` (Word heading styles → sections, monospace runs → code claims) and `.xlsx` (sheet → section) | ✅ | `pip install 'synaptixs-spine[office]'` |
 | Doc-grounded codegen — a reused symbol's documenting prose rides into the codegen context | ✅ | automatic in `sdlc feature` grounding when the repo has docs |
 | Committed `episteme/` for humans + any AI tool | ✅ | `orchestrator understand --out episteme` |
 | Current State report — overview, infrastructure/runtime, code structure, **documentation coverage + doc drift**, architecture diagrams (no LLM) | ✅ | `orchestrator state . --lens developer\|stakeholder` |
