@@ -42,18 +42,18 @@ language-native parsers, so it's **accurate, not guessed**.
 flowchart TB
     repo["📁 Your repository"]
     subgraph code["Code-native — always on"]
-        pkg["PKG<br/>(code graph)"]
-        mb["episteme/<br/>(committed knowledge)"]
+    pkg["PKG<br/>(code graph)"]
+    mb["episteme/<br/>(committed knowledge)"]
     end
     subgraph dom["Domain — optional"]
-        onto["ontomesh<br/>(business ontology)"]
+    onto["ontomesh<br/>(business ontology)"]
     end
     ground["Grounding"]
     deliver["Governed delivery<br/>(features · fixes · findings)"]
-
-    repo --> pkg --> mb
+    repo --> pkg
+    pkg --> mb
     pkg --> ground
-    onto -. optional .-> ground
+    onto -->|optional| ground
     ground --> deliver
 ```
 
@@ -98,15 +98,26 @@ in-repo (e.g. a third-party class) are marked `external`.
 
 ```mermaid
 flowchart LR
-    M[Module] -->|CONTAINS| T[Type]
-    M -->|IMPORTS| M2[Module]
-    T -->|CONTAINS| F[Function]
-    T -->|IMPLEMENTS| T2[Type]
-    F -->|CALLS| F2[Function]
-    F -->|READS / WRITES| FL[Field]
-    EP[Endpoint] -->|EXPOSES| F
-    EN[Entity] -->|REFERENCES| EN2[Entity]
-    D[Doc] -->|MENTIONS| F
+    M["Module"]
+    M2["Module"]
+    T["Type"]
+    T2["Type"]
+    F["Function"]
+    F2["Function"]
+    FL["Field"]
+    EP["Endpoint"]
+    EN["Entity"]
+    EN2["Entity"]
+    D["Doc"]
+    M -->|CONTAINS| T
+    M -->|IMPORTS| M2
+    T -->|CONTAINS| F
+    T -->|IMPLEMENTS| T2
+    F -->|CALLS| F2
+    F -->|READS / WRITES| FL
+    EP -->|EXPOSES| F
+    EN -->|REFERENCES| EN2
+    D -->|MENTIONS| F
 ```
 
 This is what lets Spine answer questions like *"what calls this function?"*, *"what's the
@@ -119,13 +130,25 @@ walking edges, not by guessing.
 
 ```mermaid
 flowchart LR
-    src["Source files<br/>(.py · .java · .ts/.tsx · .cs · .c/.h · .cpp · .go · .sql)"] --> ext["Language extractor<br/>(tree-sitter / AST / sqlglot)"]
-    ext --> facts["Facts<br/>Nodes + Edges + Provenance"]
-    facts --> cache["Per-commit cache"]
-    facts --> store["Fact store<br/>(queryable)"]
-    store --> mb["episteme/*.md"]
-    store --> grd["Codegen grounding"]
-    store --> db["SQLite projection"]
+    src["Source files<br/>(.py · .java · .ts · .cs<br/>.c/.h · .cpp · .go · .sql)"]
+    docs["Docs<br/>(.md · .rst · .txt · .html<br/>.pdf · .docx · .xlsx)"]
+    ext["Language extractor<br/>(tree-sitter / AST / sqlglot)"]
+    facts["Facts<br/>Nodes + Edges + Provenance"]
+    link["link_docs<br/>(Doc + MENTIONS)"]
+    cache["Per-commit cache"]
+    store["Fact store<br/>(queryable)"]
+    mb["episteme/*.md"]
+    grd["Codegen grounding"]
+    db["SQLite projection"]
+    src --> ext
+    ext --> facts
+    facts --> cache
+    docs --> link
+    facts --> link
+    link --> store
+    store --> mb
+    store --> grd
+    store --> db
 ```
 
 - **Deterministic, no LLM.** Extraction is pure parsing — same code in, same facts out.
@@ -185,7 +208,8 @@ It produces: `architecture.md`, `domain-model.md`, `tech-context.md`, `conventio
 AI tool — reads the same code-true project truth.
 
 A **doc-ingestion post-pass** folds the repo's own documentation (Markdown, reST, plain
-text, and — with the `[docs]` extra — **PDF**) into the same graph: a `Doc` node per doc
+text, **HTML**, and — with extras — **PDF** (`[docs]`) and **Word/Excel** (`[office]`))
+into the same graph: a `Doc` node per doc
 section, `MENTIONS`-linked to each code symbol it names. Nothing to configure; a repo with
 no docs is unaffected. This is what lets `state` report doc coverage and the `docs_for`
 `/spine` tool answer *"which docs describe this symbol?"*.
@@ -304,14 +328,22 @@ For an **existing** repo, the PKG gives Spine an instant, accurate map so new wo
 
 ```mermaid
 flowchart TD
-    A["Existing repo"] --> B["orchestrator understand .<br/>(PKG + episteme/)"]
-    B --> C{What do you want?}
-    C -->|New feature| D["sdlc feature --safe<br/>(grounded in real layout)"]
-    C -->|Bug fix| E["scoped by blast radius<br/>(callers, impacted symbols)"]
-    C -->|Findings| F["profile · audit · reviewer"]
-    D --> G["Reviewed PR"]
+    A["Existing repo"]
+    B["orchestrator understand .<br/>(PKG + episteme/)"]
+    C["What do you want?"]
+    D["sdlc feature --safe<br/>(grounded in real layout)"]
+    E["Scoped by blast radius<br/>(callers, impacted symbols)"]
+    F["profile · audit · reviewer"]
+    G["Reviewed PR"]
+    H["Issues / report"]
+    A --> B
+    B --> C
+    C -->|New feature| D
+    C -->|Bug fix| E
+    C -->|Findings| F
+    D --> G
     E --> G
-    F --> H["Issues / report"]
+    F --> H
 ```
 
 1. **Comprehend** — `orchestrator understand .` builds the graph; `profile`/`audit`
@@ -336,11 +368,17 @@ build**. Knowledge isn't a one-time scan; it compounds.
 
 ```mermaid
 flowchart LR
-    s0["Empty repo<br/>(stub episteme)"] --> s1["Feature 1<br/>scaffolds src/ + tests/"]
-    s1 --> s2["PKG grows<br/>(new nodes + edges)"]
-    s2 --> s3["Feature 2<br/>grounded in Feature 1"]
-    s3 --> s4["PKG grows again…"]
-    s4 --> s5["Mature, self-describing repo"]
+    s0["Empty repo<br/>(stub episteme)"]
+    s1["Feature 1<br/>scaffolds src/ + tests/"]
+    s2["PKG grows<br/>(new nodes + edges)"]
+    s3["Feature 2<br/>grounded in Feature 1"]
+    s4["PKG grows again…"]
+    s5["Mature,<br/>self-describing repo"]
+    s0 --> s1
+    s1 --> s2
+    s2 --> s3
+    s3 --> s4
+    s4 --> s5
 ```
 
 1. The first `understand` writes a **stub** (there's barely any code yet).

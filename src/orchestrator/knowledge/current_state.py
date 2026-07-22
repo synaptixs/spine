@@ -614,7 +614,7 @@ def _documentation_section(s: CurrentState) -> list[str]:
         "## Documentation",
         "",
         "_Repo docs folded into the graph (`Doc` nodes + `MENTIONS` edges). Deterministic — "
-        + "a mention counts only when it binds to exactly one symbol._",
+        "a mention counts only when it binds to exactly one symbol._",
         "",
         f"- **{s.docs} doc{'s' if s.docs != 1 else ''}** ingested; they name "
         f"**{s.documented_symbols} of {s.coverable_symbols} symbols** ({pct}% doc coverage).",

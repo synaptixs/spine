@@ -1,6 +1,6 @@
 [project]
 name = "synaptixs-spine"
-version = "3.8.1"
+version = "3.8.2"
 description = "Agent orchestration platform — planner, registry, runtime, verifier."
 readme = "README.md"
 license = { text = "MIT" }
@@ -85,11 +85,18 @@ sql-postgres = [
     "testcontainers>=4",
     "psycopg[binary]>=3",
 ]
-# Doc ingestion — PDF support. Markdown/RST/plain-text parse with stdlib; PDF
+# Doc ingestion — PDF support. Markdown/RST/plain-text/HTML parse with stdlib; PDF
 # needs a parser (pypdf, pure-Python), lazy-imported by pkg/doc_source.py so the
 # base install stays stdlib-only: pip install 'synaptixs-spine[docs]'.
 docs = [
     "pypdf>=4",
+]
+# Doc ingestion — Office documents (.docx/.xlsx). Kept out of `[docs]` because that
+# extra's promise is "pure-Python and tiny"; openpyxl is heavier. Same lazy-import
+# contract: pip install 'synaptixs-spine[office]'.
+office = [
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
 ]
 # Onboard external MCP servers (DBs, Atlassian, …) as orchestrator tools. The
 # MCP client lazy-imports this, so the base install stays MCP-free.
@@ -133,6 +140,9 @@ dev = [
     # PDF doc-ingestion parser — pure-Python, so CI exercises the PDF path in
     # doc_source directly rather than skipping it.
     "pypdf>=4",
+    # Office doc-ingestion parsers, so CI exercises the .docx/.xlsx readers too.
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
 ]
 
 [project.scripts]
@@ -257,6 +267,12 @@ ignore_missing_imports = true
 # pkg/doc_source.py; not guaranteed in every env, so don't fail on its absence.
 [[tool.mypy.overrides]]
 module = ["pypdf", "pypdf.*"]
+ignore_missing_imports = true
+
+# `python-docx` (imports as `docx`) and `openpyxl` are the optional `office` extra,
+# lazy-imported by pkg/doc_source.py; not guaranteed in every env.
+[[tool.mypy.overrides]]
+module = ["docx", "docx.*", "openpyxl", "openpyxl.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

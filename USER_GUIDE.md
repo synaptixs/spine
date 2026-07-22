@@ -70,8 +70,9 @@ Optional extras, added when you need them:
   **Meson + Ninja** (matching the target repo's build system); **Go** codegen needs the **`go`
   toolchain** on PATH (`go build`/`go test`). `[sql]` adds `.sql`
   comprehension (schema/queries/procedures + migration folding) — no toolchain needed.
-- `[docs]` — **PDF** doc ingestion (`.md`/`.rst`/`.txt` need no extra). With it, `understand`/`state`
-  fold your PDFs into the graph too; without it, PDFs are simply skipped.
+- `[docs]` — **PDF** doc ingestion; `[office]` — **Word/Excel** (`.docx`/`.xlsx`) ingestion.
+  Markdown, `.rst`, `.txt` and **HTML** need no extra. Without an extra those files are simply
+  skipped, so a base install still ingests everything it can read.
 - `[mcp]` (MCP client), `[otel]` (live tracing)
 
 ### Upgrading
@@ -134,7 +135,8 @@ to refresh (`--refresh` re-extracts instead of using the commit cache). Commit
 `episteme/` so your team — and any AI tool — reads the same project truth.
 
 Your repo's **documentation** is folded in at the same time: Markdown, reST, and plain-text
-docs (and **PDF**, with the `[docs]` extra) become `Doc` nodes linked to the code they
+docs and **HTML** (plus **PDF** with `[docs]`, and **Word/Excel** with `[office]`) become
+`Doc` nodes linked to the code they
 describe. Nothing to turn on — a repo with no docs just skips it. This powers the
 **Documentation** section in `state` (below) and the `docs_for` `/spine` tool.
 
@@ -314,6 +316,28 @@ accumulates its own code-true memory as it grows.
 This is the core loop, with zero infrastructure. It reads one requirement, writes
 code grounded in the target repo's own structure, generates tests, and leaves you
 a **local branch + diff** to inspect. No pushes, no PRs, nothing external.
+
+The full pipeline, and where **you** stay in control — nothing crosses a gate without you:
+
+```mermaid
+flowchart LR
+    src["Requirements source<br/>(Confluence · Jira<br/>OpenSpec · file)"]
+    intent["Intents + specs"]
+    gate1["HUMAN GATE<br/>approve intents"]
+    code["Grounded codegen<br/>+ tests (refine loop)"]
+    review["Review + verify"]
+    gate2["HUMAN GATE<br/>approve merge"]
+    pr["PR opened / merged"]
+    src --> intent
+    intent --> gate1
+    gate1 --> code
+    code --> review
+    review --> gate2
+    gate2 --> pr
+```
+
+> `sdlc feature --safe` (this step) runs the middle of that flow locally and stops at a
+> branch + diff. The two gates are enforced by the autonomous `sdlc run` (Step 7).
 
 ```bash
 orchestrator sdlc feature --source confluence://<page_id> --safe

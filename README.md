@@ -21,6 +21,24 @@ written to your tracker unless you say so.
 It's built for teams who want agents that are **inspectable, reproducible, and safe
 to run on real code** — not demos.
 
+**How it fits together.** Everything starts from one deterministic graph of your repo —
+built from the code *and* its docs — and every surface is a read of that graph:
+
+```mermaid
+flowchart LR
+    repo["Your repo<br/>(code + docs)"]
+    pkg["Product Knowledge Graph<br/>(deterministic, file:line)"]
+    know["understand / state<br/>(episteme + health)"]
+    ask["What breaks if I<br/>change X? What's<br/>untested?"]
+    build["sdlc feature<br/>(grounded codegen)"]
+    pr["Reviewed PR"]
+    repo --> pkg
+    pkg --> know
+    pkg --> ask
+    pkg --> build
+    build --> pr
+```
+
 ```bash
 pip install synaptixs-spine
 orchestrator init && orchestrator doctor                  # scaffold .env, check readiness
@@ -58,6 +76,7 @@ public issue.
 | **[Using Spine from Claude Code](https://github.com/synaptixs/spine/blob/main/CLAUDE_GUIDE.md)** | Drive Spine from **Claude Code** — install (plugin or MCP server), credentials, the tool reference, and end-to-end greenfield + brownfield walkthroughs. |
 | **[Features & Capabilities](https://github.com/synaptixs/spine/blob/main/FEATURES.md)** | The capability catalog — everything Spine can do today, its status, the command/flag to use it, and a link to each deep dive. |
 | **[Knowledge Graph (PKG)](https://github.com/synaptixs/spine/blob/main/KNOWLEDGE_GRAPH.md)** | How Spine understands your codebase — the code-native graph, its model, the CLI, and how it powers brownfield *and* greenfield work. |
+| **[CLI Reference](https://github.com/synaptixs/spine/blob/main/CLI_REFERENCE.md)** | Every `orchestrator` command across all 7 areas — arguments, options, and defaults. Run `orchestrator <command> --help` for the live version. |
 | **[Operations & Developer Guide](https://github.com/synaptixs/spine/blob/main/OPERATIONS.md)** | How to operate it: deployment modes, the full environment-variable reference, and standing up each advanced capability — including the semantic spine (ontomesh × infodrift). |
 | **[Community brief](https://github.com/synaptixs/spine/blob/main/COMMUNITY.md)** | A one-page overview to share — what it does, lifecycle coverage, how to try it, and the feedback we're looking for. |
 
@@ -165,7 +184,7 @@ queries, stored procedures, and ordered-migration folding, grounded from `.sql` 
 plus *greenfield codegen* (`sdlc feature --language sql`): it generates a migration and
 validates it by applying it to an ephemeral database (in-memory SQLite by default).
 **Documentation** is folded in automatically on `understand`/`state` (Markdown/reST/text
-need nothing; **PDF** needs the `[docs]` extra — `pip install 'synaptixs-spine[docs]'`). Any
+and **HTML** need nothing; **PDF** needs `[docs]`, **Word/Excel** need `[office]`). Any
 LiteLLM-supported provider (Anthropic, OpenAI, Bedrock) or a local Ollama model;
 you can set a different model per stage.
 
