@@ -132,6 +132,9 @@ walking edges, not by guessing.
 flowchart LR
     src["Source files<br/>(.py · .java · .ts · .cs<br/>.c/.h · .cpp · .go · .sql)"]
     docs["Docs<br/>(.md · .rst · .txt · .html<br/>.pdf · .docx · .xlsx)"]
+    media["Media<br/>(.png · .mp4 · .wav)"]
+    mex["media extract<br/>(opt-in · OCR/ASR)"]
+    art[".spine-media artifacts<br/>(committed JSON)"]
     ext["Language extractor<br/>(tree-sitter / AST / sqlglot)"]
     facts["Facts<br/>Nodes + Edges + Provenance"]
     link["link_docs<br/>(Doc + MENTIONS)"]
@@ -144,6 +147,9 @@ flowchart LR
     ext --> facts
     facts --> cache
     docs --> link
+    media --> mex
+    mex --> art
+    art --> link
     facts --> link
     link --> store
     store --> mb
@@ -213,6 +219,15 @@ into the same graph: a `Doc` node per doc
 section, `MENTIONS`-linked to each code symbol it names. Nothing to configure; a repo with
 no docs is unaffected. This is what lets `state` report doc coverage and the `docs_for`
 `/spine` tool answer *"which docs describe this symbol?"*.
+
+**Media** (architecture diagrams, screenshots, recorded design reviews) join the graph the
+same way — as `Doc` nodes + `MENTIONS` — but through one extra, deliberate step. Because OCR
+and speech-to-text are model inference (non-deterministic, slow, sometimes networked), they
+are kept **out** of the deterministic build: you run `orchestrator media extract` once (opt-in,
+may use a model), which writes a committed transcript artifact under `.spine-media/`; the build
+then reads that plain-JSON artifact like any other doc and **never runs a model**. A media file
+with no artifact is skipped, so a repo that never runs `media extract` builds byte-identically to
+one with no media at all. See the [CLI reference](CLI_REFERENCE.md) for `media extract`.
 
 ### `orchestrator state` — the team-facing current-state report
 A higher-level view rendered from the same graph (deterministic, no LLM) — *what the repo

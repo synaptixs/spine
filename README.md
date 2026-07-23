@@ -184,7 +184,10 @@ queries, stored procedures, and ordered-migration folding, grounded from `.sql` 
 plus *greenfield codegen* (`sdlc feature --language sql`): it generates a migration and
 validates it by applying it to an ephemeral database (in-memory SQLite by default).
 **Documentation** is folded in automatically on `understand`/`state` (Markdown/reST/text
-and **HTML** need nothing; **PDF** needs `[docs]`, **Word/Excel** need `[office]`). Any
+and **HTML** need nothing; **PDF** needs `[docs]`, **Word/Excel** need `[office]`).
+**Media** — diagrams, screenshots, recorded design reviews — join the graph too via the opt-in
+`orchestrator media extract` (image OCR with `[media]`, audio/video transcription with `[asr]`);
+the model runs only in that command, never in the deterministic build. Any
 LiteLLM-supported provider (Anthropic, OpenAI, Bedrock) or a local Ollama model;
 you can set a different model per stage.
 
