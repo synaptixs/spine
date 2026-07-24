@@ -10,10 +10,6 @@ see [CLAUDE.md](CLAUDE.md).
        width="900">
 </p>
 
-> **▶ [Open the interactive diagram](https://raw.githubusercontent.com/synaptixs/spine/main/assets/spine-architecture-diagram.html)**
-> — animated, self-contained (no network), with a "step the flow" control that pauses on each gate.
-> Download it and open in a browser.
-
 ---
 
 ## The one-sentence version

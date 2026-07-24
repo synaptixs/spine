@@ -14,9 +14,7 @@ Knowledge Graph they all read from. Documentation only; no code or behaviour cha
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** — how Spine fits together, layer by layer, with a diagram
   that renders on GitHub and in Spine's own web UI.
-- A **static architecture image** (`assets/spine-architecture.png`) in the README, and a
-  self-contained **interactive diagram** (`assets/spine-architecture-diagram.html`) — animated, no
-  network, with a step control that pauses on each gate.
+- A **static architecture image** (`assets/spine-architecture.png`), shown in the README.
 
 ## 3.8.2 — Doc ingestion reaches HTML and Office
 
