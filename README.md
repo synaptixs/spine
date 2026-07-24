@@ -75,6 +75,7 @@ public issue.
 | **[Using Spine from Codex](https://github.com/synaptixs/spine/blob/main/CODEX_GUIDE.md)** | Drive Spine from the **Codex app** — install (plugin or MCP server), credentials, the tool reference, and end-to-end greenfield + brownfield walkthroughs. |
 | **[Using Spine from Claude Code](https://github.com/synaptixs/spine/blob/main/CLAUDE_GUIDE.md)** | Drive Spine from **Claude Code** — install (plugin or MCP server), credentials, the tool reference, and end-to-end greenfield + brownfield walkthroughs. |
 | **[Features & Capabilities](https://github.com/synaptixs/spine/blob/main/FEATURES.md)** | The capability catalog — everything Spine can do today, its status, the command/flag to use it, and a link to each deep dive. |
+| **[Architecture](https://github.com/synaptixs/spine/blob/main/ARCHITECTURE.md)** | How the whole platform fits together — the six layers, all components, the two human gates, and the knowledge graph they all read from. Includes an animated diagram. |
 | **[Knowledge Graph (PKG)](https://github.com/synaptixs/spine/blob/main/KNOWLEDGE_GRAPH.md)** | How Spine understands your codebase — the code-native graph, its model, the CLI, and how it powers brownfield *and* greenfield work. |
 | **[CLI Reference](https://github.com/synaptixs/spine/blob/main/CLI_REFERENCE.md)** | Every `orchestrator` command across all 7 areas — arguments, options, and defaults. Run `orchestrator <command> --help` for the live version. |
 | **[Operations & Developer Guide](https://github.com/synaptixs/spine/blob/main/OPERATIONS.md)** | How to operate it: deployment modes, the full environment-variable reference, and standing up each advanced capability — including the semantic spine (ontomesh × infodrift). |
@@ -132,6 +133,16 @@ survive restarts and resume across human approval pauses.
 ---
 
 ## How it works
+
+A request flows top to bottom — through comprehension and planning, into a governed execution loop
+that **pauses at two human gates** — and out as a reviewed PR. The **[full architecture, with an
+animated diagram, is in ARCHITECTURE.md](https://github.com/synaptixs/spine/blob/main/ARCHITECTURE.md)**.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/synaptixs/spine/main/assets/spine-architecture.png"
+       alt="Spine platform architecture: surfaces → comprehension → planning → governed execution loop with two human gates → reviewed PR, over the Product Knowledge Graph"
+       width="820">
+</p>
 
 ```
   requirement (Confluence / Notion / Markdown)

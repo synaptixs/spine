@@ -4,6 +4,18 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.8.3 — Architecture diagram
+
+Adds a full **architecture diagram** and an [ARCHITECTURE.md](ARCHITECTURE.md) that walks the whole
+platform end to end — the six layers, every component, the two human gates, and the Product
+Knowledge Graph they all read from. Documentation only; no code or behaviour change.
+
+### Added
+
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** — how Spine fits together, layer by layer, with a diagram
+  that renders on GitHub and in Spine's own web UI.
+- A **static architecture image** (`assets/spine-architecture.png`), shown in the README.
+
 ## 3.8.2 — Doc ingestion reaches HTML and Office
 
 3.8.1 folded Markdown, reST, plain text and PDF into the graph. This release adds the
