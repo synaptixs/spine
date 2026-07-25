@@ -4,6 +4,26 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.8.4 — The architecture diagram now explains itself
+
+The 3.8.3 diagram named its components but didn't say what they *do* — boxes read
+`CLI · cli.py`, which tells you a module exists, not why it's there. Redrawn so every box
+answers "what is this for?", and every layer carries a plain-English line describing what
+happens there. Documentation only; no code change.
+
+### Changed
+
+- **Every box now has a purpose line** — `Command line · 41 commands · the main surface`,
+  `Hand out credentials · only at the moment of use`. Package paths (`plugin/`, `runtime/`)
+  drop to a dimmed third line: useful to a contributor, noise to everyone else. No box is
+  labelled with a filename any more.
+- **Each layer is narrated.** A sentence under every layer heading says what is happening —
+  *"Before writing anything, Spine reads."* — and both gates now read **"Stop."**, spelling out
+  that nothing has been written before gate one and nothing pushed before gate two.
+- Plainer names over internal jargon: *Read the requirement* rather than `Intake`, *The plan,
+  typed* rather than `GraphIR`.
+- The image is **72% smaller** (1.3 MB → 0.37 MB) at the same resolution.
+
 ## 3.8.3 — Architecture diagram
 
 Adds a full **architecture diagram** and an [ARCHITECTURE.md](ARCHITECTURE.md) that walks the whole
