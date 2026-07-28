@@ -10,12 +10,14 @@ base install stays stdlib-only and importing this module never fails.
 Emits the high-confidence declaration subset, precision-first like the Python
 front-end: ``Module`` (the package), ``Type`` (class/interface/enum/record),
 ``Function`` (method/constructor), ``Field`` nodes; ``IMPORTS``, ``CONTAINS``,
-and ``IMPLEMENTS`` (extends + implements) edges. ``CALLS`` is emitted only where
-the callee resolves precisely (a second pass over method bodies): unqualified /
-``this.`` calls to a sibling method, and ``Type.method()`` calls whose ``Type``
-resolves via imports or the same package. Instance calls on a typed variable
-(``obj.method()``) are skipped — they'd need type inference, and a guessed edge
-poisons grounding. Overloads collapse onto one id (no arity in ids).
+and ``IMPLEMENTS`` (extends + implements) edges; JAX-RS / Jakarta REST
+annotations become ``Endpoint`` nodes with ``EXPOSES`` edges to their handler
+methods. ``CALLS`` is emitted only where the callee resolves precisely (a
+second pass over method bodies): unqualified / ``this.`` calls to a sibling
+method, and ``Type.method()`` calls whose ``Type`` resolves via imports or the
+same package. Instance calls on a typed variable (``obj.method()``) are skipped
+— they'd need type inference, and a guessed edge poisons grounding. Overloads
+collapse onto one id (no arity in ids).
 """
 
 from __future__ import annotations
@@ -34,6 +36,15 @@ _PACKAGE_RE = re.compile(r"^\s*package\s+([\w.]+)\s*;", re.M)
 _TYPE_DECLS = frozenset(
     {"class_declaration", "interface_declaration", "enum_declaration", "record_declaration"}
 )
+_HTTP_VERB_ANNOTATIONS = {
+    "GET": "GET",
+    "POST": "POST",
+    "PUT": "PUT",
+    "DELETE": "DELETE",
+    "PATCH": "PATCH",
+    "HEAD": "HEAD",
+    "OPTIONS": "OPTIONS",
+}
 
 
 class JavaExtractor:
@@ -118,6 +129,7 @@ class JavaExtractor:
         body = node.child_by_field_name("body")
         if body is None:
             return
+        class_path = _path_annotation(node, source)
         methods = type_methods.setdefault(type_id, set())
         for member in body.named_children:
             mline = member.start_point[0] + 1
@@ -128,6 +140,8 @@ class JavaExtractor:
                     batch.add_node(Node(fid, NodeKind.FUNCTION, mname, "java", Provenance(rel, mline)))
                     batch.add_edge(Edge(type_id, fid, EdgeKind.CONTAINS, Provenance(rel, mline)))
                     methods.add(mname)
+                    if member.type == "method_declaration":
+                        _jax_rs_endpoints(member, fid, class_path, source, rel, batch)
                     mbody = member.child_by_field_name("body")
                     if mbody is not None:
                         funcs.append((fid, type_id, mbody))
@@ -202,6 +216,128 @@ class JavaExtractor:
         if package:  # same-package sibling type
             return f"java:{package}.{name}"
         return None
+
+
+def _jax_rs_endpoints(
+    method: TSNode,
+    method_id: str,
+    class_path: str | None,
+    source: bytes,
+    rel: str,
+    batch: FactBatch,
+) -> None:
+    """Emit JAX-RS/Jakarta REST endpoints for a verb-annotated handler.
+
+    Annotation names are matched by their final segment, so both ``@GET`` and
+    ``@jakarta.ws.rs.GET`` work. A ``@Path`` without an HTTP verb is a sub-resource
+    locator and is deliberately skipped. ``@Produces``/``@Consumes`` are not
+    captured, and cross-file ``@ApplicationPath`` resolution is out of scope.
+    """
+    annotations = _annotations(method, source)
+    verbs = list(
+        dict.fromkeys(
+            _HTTP_VERB_ANNOTATIONS[name] for name, _ in annotations if name in _HTTP_VERB_ANNOTATIONS
+        )
+    )
+    if not verbs:
+        return
+    method_path = next(
+        (_annotation_string_arg(annotation, source) for name, annotation in annotations if name == "Path"),
+        "",
+    )
+    if class_path is None or method_path is None:
+        return  # a non-literal @Path cannot be grounded precisely
+    full_path = _join_path(class_path, method_path)
+    line = method.start_point[0] + 1
+    provenance = Provenance(rel, line)
+    for verb in verbs:
+        endpoint_id = f"java:endpoint:{verb} {full_path}"
+        batch.add_node(
+            Node(
+                endpoint_id,
+                NodeKind.ENDPOINT,
+                f"{verb} {full_path}",
+                "java",
+                provenance,
+            )
+        )
+        batch.add_edge(Edge(endpoint_id, method_id, EdgeKind.EXPOSES, provenance))
+
+
+def _path_annotation(node: TSNode, source: bytes) -> str | None:
+    """Return ``@Path`` text, empty when absent, or ``None`` when non-literal."""
+    return next(
+        (
+            _annotation_string_arg(annotation, source)
+            for name, annotation in _annotations(node, source)
+            if name == "Path"
+        ),
+        "",
+    )
+
+
+def _annotations(node: TSNode, source: bytes) -> list[tuple[str, TSNode]]:
+    """Return declaration annotations as ``(last dotted name segment, node)``."""
+    modifiers = next((child for child in node.named_children if child.type == "modifiers"), None)
+    if modifiers is None:
+        return []
+    annotations: list[tuple[str, TSNode]] = []
+    for child in modifiers.named_children:
+        if child.type not in ("annotation", "marker_annotation"):
+            continue
+        name = _field_text(child, "name", source).rsplit(".", 1)[-1]
+        if name:
+            annotations.append((name, child))
+    return annotations
+
+
+def _annotation_string_arg(annotation: TSNode, source: bytes) -> str | None:
+    """Return a direct string or ``value = "..."`` argument, else ``None``."""
+    arguments = annotation.child_by_field_name("arguments")
+    if arguments is None:
+        return None
+    for child in arguments.named_children:
+        candidate = child.child_by_field_name("value") if child.type == "element_value_pair" else child
+        if candidate is not None and candidate.type == "string_literal":
+            return _string_literal(candidate, source)
+    return None
+
+
+def _string_literal(node: TSNode, source: bytes) -> str | None:
+    """Decode Java string escapes useful in URI paths while preserving templates."""
+    value = _text(node, source)
+    if len(value) < 2 or not value.startswith('"') or not value.endswith('"'):
+        return None
+    inner = value[1:-1]
+    escapes = {
+        "b": "\b",
+        "t": "\t",
+        "n": "\n",
+        "f": "\f",
+        "r": "\r",
+        '"': '"',
+        "'": "'",
+        "\\": "\\",
+    }
+
+    def replace_escape(match: re.Match[str]) -> str:
+        unicode_digits = match.group(1)
+        if unicode_digits is not None:
+            return chr(int(unicode_digits, 16))
+        escaped = match.group(2)
+        return escapes.get(escaped or "", match.group(0))
+
+    return re.sub(
+        r"\\(?:u([0-9a-fA-F]{4})|([btnfr\"'\\]))",
+        replace_escape,
+        inner,
+    )
+
+
+def _join_path(prefix: str, suffix: str) -> str:
+    """Join class and method JAX-RS paths into one normalized absolute path."""
+    parts = [part.strip("/") for part in (prefix, suffix) if part and part.strip("/")]
+    return "/" + "/".join(parts) if parts else "/"
 
 
 def _supertypes(node: TSNode, source: bytes) -> list[str]:
