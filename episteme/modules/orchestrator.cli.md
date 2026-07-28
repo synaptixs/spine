@@ -129,7 +129,6 @@ _20 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (13 production · 1 test): [`catalog_plan`](../../src/orchestrator/cli.py#L1920), [`design`](../../src/orchestrator/cli.py#L1500), [`investigate`](../../src/orchestrator/cli.py#L1611), [`localize`](../../src/orchestrator/cli.py#L1689), [`pkg_docs`](../../src/orchestrator/cli.py#L2066), [`pkg_export`](../../src/orchestrator/cli.py#L2050), [`pkg_extract`](../../src/orchestrator/cli.py#L1945), [`pkg_verify`](../../src/orchestrator/cli.py#L2007), [`profile`](../../src/orchestrator/cli.py#L1324), [`rca`](../../src/orchestrator/cli.py#L1739), [`regression`](../../src/orchestrator/cli.py#L1827), [`state`](../../src/orchestrator/cli.py#L1422), [`understand`](../../src/orchestrator/cli.py#L1353), [`test_repo_arg_classifies_local_vs_git`](../../tests/test_cli.py#L320)
 - **Calls** (5): `Exit`, [`Settings`](../../src/orchestrator/registry/api/config.py#L12), `echo`, [`materialize_repo_source`](../../src/orchestrator/registry/api/workspace.py#L216), [`resolve_repo_source`](../../src/orchestrator/registry/api/workspace.py#L166)
-- **Documented in**: `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `_run_address_review`
 
@@ -198,7 +197,7 @@ _20 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:410`](../../src/orchestrator/cli.py#L410)
 
 - **Calls** (6): `Exit`, `echo`, [`load_cached_plan`](../../src/orchestrator/intake/cache.py#L156), [`load_progress`](../../src/orchestrator/intake/cache.py#L102), [`render_markdown`](../../src/orchestrator/intake/backlog_doc.py#L26), [`write_backlog`](../../src/orchestrator/intake/backlog_doc.py#L49)
-- **Documented in**: `CLI_REFERENCE.md`, `docs/specs/intake-backlog-progress.md#rollout`
+- **Documented in**: `CLI_REFERENCE.md`
 
 ### `catalog_list`
 
@@ -259,14 +258,14 @@ _20 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:237`](../../src/orchestrator/cli.py#L237)
 
 - **Calls** (2): [`_run_ingest`](../../src/orchestrator/cli.py#L281), `run`
-- **Documented in**: `CLI_REFERENCE.md`, `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/project-comprehension-memory-bank.md#reframe`
+- **Documented in**: `CLI_REFERENCE.md`
 
 ### `init`
 
 [`src/orchestrator/cli.py:1182`](../../src/orchestrator/cli.py#L1182)
 
 - **Calls** (6): `Exit`, `echo`, [`parse_env_file`](../../src/orchestrator/init_scaffold.py#L77), [`render_report`](../../src/orchestrator/doctor.py#L132), [`run_env_checks`](../../src/orchestrator/doctor.py#L125), [`scaffold_env`](../../src/orchestrator/init_scaffold.py#L95)
-- **Documented in**: `CLI_REFERENCE.md`, `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/README.md#44-build-phases-per-repo-split`, `docs/specs/README.md#5-full-roadmap-eight-tracks-agent-paced`, `docs/specs/archive/AI-NATIVE-PLATFORM-PLAN.md#4-gap-taxonomy`, `docs/specs/archive/PKG-INTEGRATION-PLAN.md#6-decision-log`
+- **Documented in**: `CLI_REFERENCE.md`
 
 ### `investigate`
 
@@ -345,14 +344,14 @@ _20 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:1739`](../../src/orchestrator/cli.py#L1739)
 
 - **Calls** (13): `Exit`, `FactStore`, [`_load_bug_text`](../../src/orchestrator/cli.py#L1812), [`_repo_arg`](../../src/orchestrator/cli.py#L74), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L211), `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), `orchestrator.core.llm.LiteLLMClient`, `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.load_or_extract`, [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L249), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L42), `run`
-- **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `USER_GUIDE.md#step-25-understand-the-project-optional-recommended`, `docs/specs/comprehension-skill-spec.md#design-decisions`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/doc-ingestion-spec.md#open-questions`
+- **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `USER_GUIDE.md#step-25-understand-the-project-optional-recommended`
 
 ### `regression`
 
 [`src/orchestrator/cli.py:1827`](../../src/orchestrator/cli.py#L1827)
 
 - **Calls** (10): `Exit`, `FactStore`, [`_repo_arg`](../../src/orchestrator/cli.py#L74), [`build_regression_plan`](../../src/orchestrator/sdlc/coverage.py#L137), `echo`, [`localize_trace`](../../src/orchestrator/sdlc/localize.py#L117), `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.load_or_extract`, [`render_regression_plan_md`](../../src/orchestrator/sdlc/coverage.py#L180), [`resolve_target`](../../src/orchestrator/sdlc/coverage.py#L170)
-- **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `USER_GUIDE.md#step-25-understand-the-project-optional-recommended`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/graphify-vs-spine-comparison.md#side-by-side`, `docs/specs/graphify-vs-spine-comparison.md#where-spine-stands-apart-ahead`
+- **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `USER_GUIDE.md#step-25-understand-the-project-optional-recommended`
 
 ### `sdlc_address_review`
 
