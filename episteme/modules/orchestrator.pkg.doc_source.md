@@ -91,7 +91,6 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1): [`_read_pdf`](../../src/orchestrator/pkg/doc_source.py#L188)
 - **Calls** (1): `pypdf.PdfReader`
-- **Documented in**: `docs/specs/doc-ingestion-spec.md#phases`
 
 ### `_read_text`
 
@@ -137,7 +136,6 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 2 test): [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L148), [`test_split_sections_by_heading`](../../tests/pkg/test_doc_link.py#L174), [`test_split_sections_leaves_heading_less_docs_whole`](../../tests/pkg/test_doc_link.py#L187)
 - **Calls** (2): [`DocPage`](../../src/orchestrator/pkg/docs.py#L51), [`_slug`](../../src/orchestrator/pkg/doc_source.py#L86)
-- **Documented in**: `docs/specs/doc-ingestion-spec.md#phases`
 
 ## Imports
 

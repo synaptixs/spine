@@ -31,7 +31,6 @@ _7 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/agentic/loop.py:197`](../../src/orchestrator/agentic/loop.py#L197)
 
 - **Fields**: `_budget`, `_llm`, `_max_nudges`, `_max_steps`, `_max_tokens`, `_model`, `_no_progress`, `_policy`, `_require_terminal`, `_specs`, `_terminal_names`, `_tools`
-- **Documented in**: `docs/specs/README.md#autonomous-agent-scorecard`, `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist`, `docs/specs/bet2c-in-loop-approval.md#2-activity-layer-sdlcactivitiespy-sdlccodegenpy`, `docs/specs/phase5-agentic-codegen-loop.md#2-the-loop-controller`, `docs/specs/phase5-agentic-codegen-loop.md#integration-points`, `docs/specs/phase5-agentic-codegen-loop.md#phased-pr-breakdown`
 
 ### `HumanDecision`
 
@@ -45,7 +44,6 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1): [`_checkpoint`](../../src/orchestrator/agentic/loop.py#L426)
 - **Fields**: `blocks`, `made`, `messages`, `nudges`, `pending`, `recent`, `remaining_calls`, `step`, `step_calls`, `step_text`, `trace`
-- **Documented in**: `docs/specs/README.md#autonomous-agent-scorecard`, `docs/specs/bet2c-in-loop-approval.md#1-loop-layer-agenticlooppy`
 
 ### `LoopResult`
 
@@ -53,7 +51,6 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (4): [`_drive`](../../src/orchestrator/agentic/loop.py#L289), [`_no_progress_check`](../../src/orchestrator/agentic/loop.py#L419), [`_process_calls`](../../src/orchestrator/agentic/loop.py#L353), [`resume`](../../src/orchestrator/agentic/loop.py#L242)
 - **Fields**: `checkpoint`, `final_text`, `pending`, `policy_blocks`, `steps`, `stopped_reason`, `tool_calls_made`, `trace`
-- **Documented in**: `docs/specs/cross-run-semantic-memory.md#phasing`, `docs/specs/phase5-agentic-codegen-loop.md#2-the-loop-controller`
 
 ### `PendingApproval`
 
@@ -61,7 +58,6 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1): [`_process_calls`](../../src/orchestrator/agentic/loop.py#L353)
 - **Fields**: `arguments`, `call_id`, `reason`, `step`, `tool`
-- **Documented in**: `docs/specs/bet2c-in-loop-approval.md#1-loop-layer-agenticlooppy`
 
 ### `StepRecord`
 
@@ -69,7 +65,6 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (5): [`_drive`](../../src/orchestrator/agentic/loop.py#L289), [`_finalize_step`](../../src/orchestrator/agentic/loop.py#L416), [`_process_calls`](../../src/orchestrator/agentic/loop.py#L353), [`from_dict`](../../src/orchestrator/agentic/loop.py#L124), [`resume`](../../src/orchestrator/agentic/loop.py#L242)
 - **Fields**: `calls`, `step`, `text`
-- **Documented in**: `docs/specs/bet2c-in-loop-approval.md#1-loop-layer-agenticlooppy`, `docs/specs/cross-run-semantic-memory.md#design-cross-run-semantic-memory-the-experience-true-layer`, `docs/specs/live-observability-otel.md#layer-1-the-agentic-loop-highest-value-the-3am-case`
 
 ### `Tool`
 

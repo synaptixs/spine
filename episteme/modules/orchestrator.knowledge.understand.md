@@ -45,14 +45,12 @@
 [`src/orchestrator/knowledge/understand.py:81`](../../src/orchestrator/knowledge/understand.py#L81)
 
 - **Called by** (1): [`build_memory_bank`](../../src/orchestrator/knowledge/understand.py#L243)
-- **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-2-shipped`
 
 ### `_source_prefix`
 
 [`src/orchestrator/knowledge/understand.py:65`](../../src/orchestrator/knowledge/understand.py#L65)
 
 - **Called by** (1): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
-- **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-1-shipped-5daf1b8`
 
 ### `build_memory_bank`
 
@@ -60,7 +58,7 @@
 
 - **Called by** (0 production · 15 test): [`_build_and_commit`](../../tests/knowledge/test_bank_check.py#L47), [`_repo_with_memory_bank`](../../tests/knowledge/test_memory_bank.py#L510), [`test_api_surface_page_is_written_only_when_routes_exist`](../../tests/knowledge/test_module_briefing.py#L154), [`test_build_is_idempotent_so_check_holds_after_a_rebuild`](../../tests/knowledge/test_bank_check.py#L195), [`test_build_memory_bank_greenfield`](../../tests/knowledge/test_memory_bank.py#L504), [`test_build_memory_bank_writes_files`](../../tests/knowledge/test_memory_bank.py#L490), [`test_build_reaps_orphaned_module_pages`](../../tests/knowledge/test_memory_bank.py#L277), [`test_build_writes_area_pages_and_architecture_lists_areas`](../../tests/knowledge/test_memory_bank.py#L256), [`test_build_writes_entity_pages_and_reaps_them`](../../tests/knowledge/test_memory_bank.py#L419), [`test_build_writes_module_pages_and_architecture_links_down`](../../tests/knowledge/test_memory_bank.py#L264), [`test_check_still_passes_after_committing_the_bank`](../../tests/knowledge/test_shared_analysis.py#L141), [`test_dirty_tree_is_marked_in_the_stamp`](../../tests/knowledge/test_bank_check.py#L85), [`test_stamp_records_commit_and_version`](../../tests/knowledge/test_bank_check.py#L56), [`test_stamp_says_so_when_there_is_no_commit`](../../tests/knowledge/test_bank_check.py#L77), [`test_the_bank_is_not_ingested_as_its_own_documentation`](../../tests/knowledge/test_bank_check.py#L184)
 - **Calls** (3): [`_reap_orphans`](../../src/orchestrator/knowledge/understand.py#L81), `py:emit`, [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
-- **Documented in**: `CHANGELOG.md`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/pkg-navigable-reports.md#phase-1-the-rename-memory-bank-episteme`
+- **Documented in**: `CHANGELOG.md`
 
 ### `check_memory_bank`
 
@@ -75,7 +73,7 @@
 
 - **Called by** (5 production · 2 test): [`_read_design_bank`](../../src/orchestrator/cli.py#L1596), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L310), [`memory_bank_grounding`](../../src/orchestrator/knowledge/access.py#L24), [`read_memory_bank`](../../src/orchestrator/knowledge/access.py#L43), [`work`](../../src/orchestrator/registry/api/capabilities.py#L167), [`test_existing_bank_dir_falls_back_to_legacy_memory_bank`](../../tests/knowledge/test_memory_bank.py#L469), [`test_existing_bank_dir_override_beats_legacy`](../../tests/knowledge/test_memory_bank.py#L480)
 - **Calls** (3): `getenv`, [`memory_bank_dir`](../../src/orchestrator/knowledge/understand.py#L41), `pathlib.Path`
-- **Documented in**: `CLAUDE.md#spine-working-on-this-repo`, `docs/specs/pkg-navigable-reports.md#phase-1-shipped-5daf1b8`
+- **Documented in**: `CLAUDE.md#spine-working-on-this-repo`
 
 ### `memory_bank_dir`
 
@@ -83,7 +81,7 @@
 
 - **Called by** (3 production · 1 test): [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`understand`](../../src/orchestrator/cli.py#L1353), [`test_memory_bank_dir_override`](../../tests/knowledge/test_memory_bank.py#L463)
 - **Calls** (2): `getenv`, `pathlib.Path`
-- **Documented in**: `CLAUDE.md#spine-working-on-this-repo`, `docs/specs/pkg-navigable-reports.md#phase-1-the-rename-memory-bank-episteme`
+- **Documented in**: `CLAUDE.md#spine-working-on-this-repo`
 
 ### `render_memory_bank`
 
