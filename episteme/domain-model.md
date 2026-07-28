@@ -8,27 +8,27 @@ _No database or ORM entities detected, so this is the **code's** model: the type
 | [`Provenance`](../src/orchestrator/pkg/facts.py#L47) | 4 members · used by 105 production · 95 test call-sites |
 | [`Edge`](../src/orchestrator/pkg/facts.py#L75) | 5 members · used by 73 production · 90 test call-sites |
 | [`Node`](../src/orchestrator/pkg/facts.py#L59) | 7 members · used by 65 production · 90 test call-sites |
-| [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L650) | 47 members · used by 6 production · 59 test call-sites |
 | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L79) | 10 members · used by 19 production · 11 test call-sites |
+| [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L650) | 47 members · used by 6 production · 59 test call-sites |
 | [`TestRunResult`](../src/orchestrator/sdlc/testrunner.py#L66) | 4 members · used by 22 production · 1 test call-sites |
-| [`PlannerError`](../src/orchestrator/planner/v0.py#L38) | used by 23 production call-sites |
-| [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | 5 members · used by 18 production call-sites |
-| [`FactBatch`](../src/orchestrator/pkg/facts.py#L88) | 8 members · used by 15 production · 48 test call-sites |
-| [`AuditLogRepo`](../src/orchestrator/registry/repositories.py#L161) | 3 members · used by 18 production · 6 test call-sites |
 | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L118) | 36 members · used by 1 production call-site |
-| [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L234) | 3 members · used by 16 production call-sites |
-| [`VersionedRepo`](../src/orchestrator/registry/repositories.py#L45) | 11 members · used by 11 production · 13 test call-sites |
-| [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L44) | 30 members · used by 1 production · 27 test call-sites |
-| [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L40) | 2 members · used by 14 production · 1 test call-sites |
-| [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | 3 members · used by 13 production call-sites |
+| [`AuditLogRepo`](../src/orchestrator/registry/repositories.py#L161) | 3 members · used by 18 production · 6 test call-sites |
+| [`PlannerError`](../src/orchestrator/planner/v0.py#L38) | used by 23 production call-sites |
+| [`FactBatch`](../src/orchestrator/pkg/facts.py#L88) | 8 members · used by 15 production · 48 test call-sites |
+| [`SDLCWorkflow`](../src/orchestrator/sdlc/workflows.py#L475) | 12 members |
+| [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | 5 members · used by 18 production call-sites |
+| [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L42) | 9 members |
 | [`FactStore`](../src/orchestrator/pkg/store.py#L24) | 23 members · used by 2 production · 35 test call-sites |
-| [`SourceDocument`](../src/orchestrator/intake/source.py#L35) | 7 members · used by 9 production · 11 test call-sites |
-| [`Tool`](../src/orchestrator/agentic/loop.py#L30) | 3 members · used by 11 production · 5 test call-sites |
-| [`ApprovalRequestRow`](../src/orchestrator/registry/db/models.py#L127) | 22 members · used by 1 production call-site |
-| [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L143) | 20 members · used by 2 production · 11 test call-sites |
-| [`ApprovalRequest`](../src/orchestrator/approval/models.py#L71) | 21 members · used by 1 production call-site |
-| [`Finding`](../src/orchestrator/codereview/verifiers.py#L45) | 6 members · used by 8 production · 3 test call-sites |
-| [`LineageIndex`](../src/orchestrator/spine/lineage.py#L95) | 22 members |
-| [`Metadata`](../src/orchestrator/registry/_common.py#L30) | 8 members · used by 7 production · 29 test call-sites |
+| [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | 17 members · used by 2 production · 19 test call-sites |
+| [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | 14 members |
+| [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L44) | 30 members · used by 1 production · 27 test call-sites |
+| [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L234) | 3 members · used by 16 production call-sites |
+| [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L40) | 2 members · used by 14 production · 1 test call-sites |
+| [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L532) | 6 members · used by 2 production · 25 test call-sites |
+| [`AgentLoop`](../src/orchestrator/agentic/loop.py#L197) | 21 members |
+| [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L84) | 7 members |
+| [`VersionedRepo`](../src/orchestrator/registry/repositories.py#L45) | 11 members · used by 11 production · 13 test call-sites |
+| [`MemoryRow`](../src/orchestrator/registry/db/models.py#L216) | 13 members · used by 1 production call-site |
+| [`PKGCodegenGrounder`](../src/orchestrator/sdlc/grounding.py#L30) | 10 members |
 
 _Top 25 of 547 types; the rest are in the module pages._

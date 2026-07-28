@@ -22,7 +22,12 @@ from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Pr
 
 # v2: batches carry post-``link_imports`` resolved IMPORTS edges — v1 caches
 # predate the join and would silently reintroduce the dangling-import bug.
-_FORMAT_VERSION = 2
+# v3: Java endpoints are import-resolved — v2 caches predate the check and would
+# silently keep the Retrofit-as-JAX-RS endpoints it removes. The cache is keyed on
+# the analyzed repo's HEAD, not ours, so an unchanged repo never re-extracts on
+# upgrade; a false endpoint looks exactly like a real one, so bump on any change
+# that makes previously-emitted facts wrong.
+_FORMAT_VERSION = 3
 
 
 class FactCacheError(RuntimeError):

@@ -50,6 +50,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/intake/factory.py:57`](../../src/orchestrator/intake/factory.py#L57)
 
 - **Calls** (4): [`ConfluenceAdapter`](../../src/orchestrator/intake/confluence.py#L98), [`ConfluenceConfig`](../../src/orchestrator/intake/confluence.py#L61), [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`_build_service`](../../src/orchestrator/intake/factory.py#L40)
+- **Documented in**: `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`
 
 ### `build_file_service`
 

@@ -105,7 +105,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 2607 symbols; 
 | `_c_compiler_available` | [`orchestrator.sdlc.testenv`](modules/orchestrator.sdlc.testenv.md#_c_compiler_available) | [`_c_compiler_available`](../src/orchestrator/sdlc/testenv.py#L341) |
 | `_c_files` | [`orchestrator.sdlc.scaffold`](modules/orchestrator.sdlc.scaffold.md#_c_files) | [`_c_files`](../src/orchestrator/sdlc/scaffold.py#L346) |
 | `_c_parser` | [`orchestrator.pkg.c_extractor`](modules/orchestrator.pkg.c_extractor.md#_c_parser) | [`_c_parser`](../src/orchestrator/pkg/c_extractor.py#L439) |
-| `_cache_path` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#_cache_path) | [`_cache_path`](../src/orchestrator/pkg/persistence.py#L142) |
+| `_cache_path` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#_cache_path) | [`_cache_path`](../src/orchestrator/pkg/persistence.py#L147) |
 | `_CachedToken` | `orchestrator.codereview.auth` | [`_CachedToken`](../src/orchestrator/codereview/auth.py#L61) |
 | `_call_edges` | [`orchestrator.pkg.csharp_extractor`](modules/orchestrator.pkg.csharp_extractor.md#_call_edges) | [`_call_edges`](../src/orchestrator/pkg/csharp_extractor.py#L431) |
 | `_caller_line` | [`orchestrator.knowledge.renderers`](modules/orchestrator.knowledge.renderers.md#_caller_line) | [`_caller_line`](../src/orchestrator/knowledge/renderers.py#L198) |
@@ -329,7 +329,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 2607 symbols; 
 | `_get` | `orchestrator.intake.jira` | [`_get`](../src/orchestrator/intake/jira.py#L195) |
 | `_get` | `orchestrator.intake.notion` | [`_get`](../src/orchestrator/intake/notion.py#L170) |
 | `_gh` | `orchestrator.sdlc.forge` | [`_gh`](../src/orchestrator/sdlc/forge.py#L204) |
-| `_git` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#_git) | [`_git`](../src/orchestrator/pkg/persistence.py#L121) |
+| `_git` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#_git) | [`_git`](../src/orchestrator/pkg/persistence.py#L126) |
 | `_git` | `orchestrator.sdlc.forge` | [`_git`](../src/orchestrator/sdlc/forge.py#L198) |
 | `_git_clone` | [`orchestrator.registry.api.workspace`](modules/orchestrator.registry.api.workspace.md#_git_clone) | [`_git_clone`](../src/orchestrator/registry/api/workspace.py#L188) |
 | `_glob_any` | `orchestrator.knowledge.infrastructure` | [`_glob_any`](../src/orchestrator/knowledge/infrastructure.py#L275) |
@@ -592,8 +592,8 @@ _Every first-party symbol, A–Z, and the page that describes it. 2607 symbols; 
 | `_promoted_span` | [`orchestrator.evals.promotion`](modules/orchestrator.evals.promotion.md#_promoted_span) | [`_promoted_span`](../src/orchestrator/evals/promotion.py#L164) |
 | `_proposal_md` | `orchestrator.intake.openspec_writer` | [`_proposal_md`](../src/orchestrator/intake/openspec_writer.py#L78) |
 | `_prose` | [`orchestrator.knowledge.report_html`](modules/orchestrator.knowledge.report_html.md#_prose) | [`_prose`](../src/orchestrator/knowledge/report_html.py#L49) |
-| `_prov_from_dict` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#_prov_from_dict) | [`_prov_from_dict`](../src/orchestrator/pkg/persistence.py#L41) |
-| `_prov_to_dict` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#_prov_to_dict) | [`_prov_to_dict`](../src/orchestrator/pkg/persistence.py#L35) |
+| `_prov_from_dict` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#_prov_from_dict) | [`_prov_from_dict`](../src/orchestrator/pkg/persistence.py#L46) |
+| `_prov_to_dict` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#_prov_to_dict) | [`_prov_to_dict`](../src/orchestrator/pkg/persistence.py#L40) |
 | `_provenance` | `orchestrator.pkg.schema` | [`_provenance`](../src/orchestrator/pkg/schema.py#L56) |
 | `_publish` | [`orchestrator.cli`](modules/orchestrator.cli.md#_publish) | [`_publish`](../src/orchestrator/cli.py#L137) |
 | `_put` | `orchestrator.sdlc.comprehension` | [`_put`](../src/orchestrator/sdlc/comprehension.py#L79) |
@@ -1258,7 +1258,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 2607 symbols; 
 | `decorate` | [`orchestrator.obs.tracing`](modules/orchestrator.obs.tracing.md#decorate) | [`decorate`](../src/orchestrator/obs/tracing.py#L186) |
 | `decorator` | `orchestrator.gateway.handlers` | [`decorator`](../src/orchestrator/gateway/handlers.py#L61) |
 | `default_cache_dir` | [`orchestrator.intake.cache`](modules/orchestrator.intake.cache.md#default_cache_dir) | [`default_cache_dir`](../src/orchestrator/intake/cache.py#L40) |
-| `default_cache_dir` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#default_cache_dir) | [`default_cache_dir`](../src/orchestrator/pkg/persistence.py#L138) |
+| `default_cache_dir` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#default_cache_dir) | [`default_cache_dir`](../src/orchestrator/pkg/persistence.py#L143) |
 | `default_catalog` | `orchestrator.catalog.catalog` | [`default_catalog`](../src/orchestrator/catalog/catalog.py#L129) |
 | `default_chain_factory` | `orchestrator.runtime.graphs` | [`default_chain_factory`](../src/orchestrator/runtime/graphs.py#L39) |
 | `default_code_verifiers` | [`orchestrator.codereview.verifiers`](modules/orchestrator.codereview.verifiers.md#default_code_verifiers) | [`default_code_verifiers`](../src/orchestrator/codereview/verifiers.py#L279) |
@@ -1405,9 +1405,9 @@ _Every first-party symbol, A–Z, and the page that describes it. 2607 symbols; 
 | `extract_mentions` | `orchestrator.pkg.docs` | [`extract_mentions`](../src/orchestrator/pkg/docs.py#L103) |
 | `f1` | `orchestrator.spine.benchmark` | [`f1`](../src/orchestrator/spine/benchmark.py#L45) |
 | `FactBatch` | `orchestrator.pkg.facts` | [`FactBatch`](../src/orchestrator/pkg/facts.py#L88) |
-| `FactCacheError` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#factcacheerror) | [`FactCacheError`](../src/orchestrator/pkg/persistence.py#L28) |
-| `facts_from_dict` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#facts_from_dict) | [`facts_from_dict`](../src/orchestrator/pkg/persistence.py#L73) |
-| `facts_to_dict` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#facts_to_dict) | [`facts_to_dict`](../src/orchestrator/pkg/persistence.py#L47) |
+| `FactCacheError` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#factcacheerror) | [`FactCacheError`](../src/orchestrator/pkg/persistence.py#L33) |
+| `facts_from_dict` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#facts_from_dict) | [`facts_from_dict`](../src/orchestrator/pkg/persistence.py#L78) |
+| `facts_to_dict` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#facts_to_dict) | [`facts_to_dict`](../src/orchestrator/pkg/persistence.py#L52) |
 | `facts_to_graph` | `orchestrator.pkg.rdf` | [`facts_to_graph`](../src/orchestrator/pkg/rdf.py#L51) |
 | `FactStore` | `orchestrator.pkg.store` | [`FactStore`](../src/orchestrator/pkg/store.py#L24) |
 | `FailureAction` | [`orchestrator.runtime.post_conditions`](modules/orchestrator.runtime.post_conditions.md#failureaction) | [`FailureAction`](../src/orchestrator/runtime/post_conditions.py#L38) |
