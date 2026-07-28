@@ -106,7 +106,8 @@ writes) so you can inspect everything first.
 Graph** of your repo — modules, types, functions, call sites, blast radius — and
 grounds new code in what already exists, so output reads like your team wrote it.
 Works across **Python, Java, TypeScript, C#, C, C++, and Go**, plus **SQL** data-layer
-comprehension (schema, queries, stored procedures, migration folding). It even reads your
+comprehension (schema, queries, stored procedures, migration folding). Java JAX-RS and
+Jakarta REST resources are captured as grounded API endpoints. It even reads your
 **documentation** — Markdown, reST, plain text, and **PDF** — folding it into the graph as
 `Doc` nodes linked to the code they describe, so you can ask *which docs cover this symbol*,
 *how documented the code is*, and *where the docs have drifted from the code*. `orchestrator
@@ -191,7 +192,8 @@ see the [Setup guide](https://github.com/synaptixs/spine/blob/main/SETUP.md).
 
 **Which languages and models?**
 Code generation and comprehension cover **Python, Java, TypeScript, C#, C, C++, and Go**
-(C# also extracts ASP.NET Core endpoints and EF Core entities; C builds the
+(Java also extracts JAX-RS / Jakarta REST endpoints; C# extracts ASP.NET Core endpoints
+and EF Core entities; C builds the
 `#include` graph and merges header declarations with their source definitions; C++ is
 a superset of the C front-end that adds classes, namespaces, inheritance, member
 functions, and templates, and shares C's CMake/Meson + `ctest` codegen; **Go** models a

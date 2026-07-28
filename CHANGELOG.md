@@ -4,6 +4,42 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.9.1 — Java REST endpoints in the graph
+
+Java joins C# in having its web framework understood, not just its classes. JAX-RS /
+Jakarta REST resource methods are lifted into the same `Endpoint` nodes and `EXPOSES`
+edges the C# front-end already emits — so "what does this service expose, and which
+method handles it?" is now answerable for a Java codebase, and the API surface shows up
+in `understand` and `state` without a new concept to learn.
+
+Precision-first, like the rest of the Java front-end: a route is only emitted when it can
+be grounded exactly. Deterministic and LLM-free, as ever.
+
+### Added
+
+- **JAX-RS / Jakarta REST endpoint extraction** (`pkg/java_extractor.py`) — `@GET`,
+  `@POST`, `@PUT`, `@DELETE`, `@PATCH`, `@HEAD` and `@OPTIONS` become `Endpoint` nodes
+  with `EXPOSES` edges to the handler method, carrying the handler's provenance. Class-
+  and method-level `@Path` values are joined into one absolute route, preserving templates
+  like `{id}`. Annotations are matched on their final name segment, so both `javax.ws.rs`
+  and `jakarta.ws.rs` — plain or fully qualified — are recognized.
+- Endpoints flow through every surface that already renders them: the `Endpoint`/`EXPOSES`
+  vocabulary, RDF projection, and the API-surface section of the rendered reports were
+  already language-neutral, so nothing downstream needed a new case.
+
+### Notes
+
+- A `@Path` with a non-literal value, and a `@Path` with no HTTP verb (a sub-resource
+  locator), are deliberately skipped — a guessed route poisons grounding.
+- `@Produces` / `@Consumes` and cross-file `@ApplicationPath` resolution are out of scope.
+- The fact cache is keyed on the repo's HEAD commit, so a clean tree that hasn't moved
+  since the last extraction will keep its cached facts. Commit, or clear the cache dir, to
+  see the new endpoints on an unchanged repo.
+
+Thanks to [@pritam0802](https://github.com/pritam0802) for the contribution
+([#55](https://github.com/synaptixs/spine/pull/55), implementing
+[discussion #54](https://github.com/synaptixs/spine/discussions/54)).
+
 ## 3.9.0 — Comprehension you can trust
 
 A six-phase overhaul of the understanding layer, driven by an assessment against a real

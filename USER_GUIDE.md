@@ -257,8 +257,10 @@ is: `orchestrator understand .` → commit `episteme/`, then re-run whenever the
 > generates a DDL migration for the intent, and validates it by **applying it to an ephemeral
 > database** (in-memory SQLite by default — zero toolchain; set `SDLC_SQL_ENGINE=postgres`
 > with the `[sql-postgres]` extra + Docker for real-Postgres fidelity). A failed apply is the
-> refine signal, exactly like a failing test. For **C#**, the graph additionally captures
-> ASP.NET Core endpoints (`EXPOSES`) and EF Core entities (`REFERENCES`); codegen scaffolds a
+> refine signal, exactly like a failing test. For **Java**, JAX-RS / Jakarta REST resource
+> methods become endpoints with `EXPOSES` edges to their handlers. For **C#**, the graph
+> additionally captures ASP.NET Core endpoints (`EXPOSES`) and EF Core entities
+> (`REFERENCES`); codegen scaffolds a
 > solution + xUnit project and runs `dotnet test` (needs the **.NET SDK**). For **C**,
 > it builds the `#include` graph and merges header declarations with their source
 > definitions; codegen scaffolds a **CMake** project (greenfield) or works in a brownfield

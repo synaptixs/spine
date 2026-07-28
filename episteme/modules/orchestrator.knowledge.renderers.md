@@ -402,7 +402,7 @@
 
 ## Imports
 
-`__future__.annotations`, `collections.Counter`, `collections.defaultdict`, `hashlib`, `json`, [`orchestrator.catalog.profile`](orchestrator.catalog.profile.md), [`orchestrator.knowledge.areas`](../../src/orchestrator/knowledge/areas.py#L1), [`orchestrator.knowledge.current_state`](orchestrator.knowledge.current_state.md), [`orchestrator.knowledge.insights`](../../src/orchestrator/knowledge/insights.py#L1), [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.stats`](../../src/orchestrator/pkg/stats.py#L1), [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1), [`orchestrator.sdlc.conventions`](orchestrator.sdlc.conventions.md), [`orchestrator.sdlc.coverage`](../../src/orchestrator/sdlc/coverage.py#L1), `pathlib.Path`, `re`, `tomllib`, `typing.TYPE_CHECKING`, `urllib.parse.quote`
+`__future__.annotations`, `collections.Counter`, `collections.defaultdict`, `hashlib`, `json`, [`orchestrator.catalog.profile`](orchestrator.catalog.profile.md), [`orchestrator.knowledge.areas`](../../src/orchestrator/knowledge/areas.py#L1), [`orchestrator.knowledge.current_state`](orchestrator.knowledge.current_state.md), [`orchestrator.knowledge.insights`](../../src/orchestrator/knowledge/insights.py#L1), [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.stats`](../../src/orchestrator/pkg/stats.py#L1), [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1), [`orchestrator.sdlc.conventions`](../../src/orchestrator/sdlc/conventions.py#L1), [`orchestrator.sdlc.coverage`](../../src/orchestrator/sdlc/coverage.py#L1), `pathlib.Path`, `re`, `tomllib`, `typing.TYPE_CHECKING`, `urllib.parse.quote`
 
 ## Imported by
 
