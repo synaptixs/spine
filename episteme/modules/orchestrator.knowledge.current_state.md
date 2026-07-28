@@ -161,7 +161,7 @@
 
 [`src/orchestrator/knowledge/current_state.py:496`](../../src/orchestrator/knowledge/current_state.py#L496)
 
-- **Called by** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L663), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1005)
+- **Called by** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L663), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1014)
 - **Calls** (6): [`_mid`](../../src/orchestrator/knowledge/current_state.py#L444), [`_zone_label`](../../src/orchestrator/knowledge/current_state.py#L457), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L461), `collections.defaultdict`, `py:_zone`, `sub`
 
 ### `build_current_state`

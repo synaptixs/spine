@@ -22,7 +22,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **GitHubAppConfig** | [`GitHubAppConfig`](../src/orchestrator/codereview/config.py#L25) | — |
 | **GitHubClient** | [`GitHubClient`](../src/orchestrator/codereview/github_client.py#L110) | — |
 | **GraphSpec** | [`GraphSpec`](../src/orchestrator/ir/graph.py#L108) | — |
-| **Importance** | [`Importance`](../src/orchestrator/knowledge/renderers.py#L214) | — |
+| **Importance** | [`Importance`](../src/orchestrator/knowledge/renderers.py#L216) | — |
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
 | **JiraAdapter** | [`JiraAdapter`](../src/orchestrator/intake/jira.py#L103) | — |
 | **LineageIndex** | [`LineageIndex`](../src/orchestrator/spine/lineage.py#L95) | — |

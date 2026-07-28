@@ -190,3 +190,79 @@ def test_symbol_index_excludes_dunders_and_tests(tmp_path: Path) -> None:
     page = renderers.render_symbol_index(_store(tmp_path), page_of={})
     assert "`real`" in page
     assert "__call__" not in page
+
+
+# ---- language-aware visibility (the open5gs findings) -----------------------
+
+
+def _sym(nid: str, lang: str, name: str) -> Node:
+    return Node(nid, NodeKind.FUNCTION, name, lang, Provenance("f", 1))
+
+
+def test_visibility_uses_each_language_own_rule() -> None:
+    """Python's underscore is not a universal rule. Applying it to C reported
+    19,212 public vs 32 internal on open5gs — computed, and meaningless."""
+    # C: the front-end keys static (internal-linkage) symbols as file.c::name
+    assert is_public(_sym("c:ogs-crypt.c::helper", "c", "helper")) is False
+    assert is_public(_sym("c:ogs_crypt_init", "c", "ogs_crypt_init")) is True
+    # Go: an upper-case initial IS the export rule
+    assert is_public(_sym("go:pkg.Helper", "go", "Helper")) is True
+    assert is_public(_sym("go:pkg.helper", "go", "helper")) is False
+    # Python keeps the underscore convention
+    assert is_public(_sym("py:m._hidden", "python", "_hidden")) is False
+    assert is_public(_sym("py:m.shown", "python", "shown")) is True
+
+
+def test_visibility_declines_to_guess_where_the_graph_cannot_tell() -> None:
+    """Java/C# express visibility with keywords the front-ends don't record."""
+    assert is_public(_sym("java:com.App.run", "java", "run")) is None
+    assert is_public(_sym("csharp:App.Run", "csharp", "Run")) is None
+
+
+def test_api_split_excludes_unclassifiable_symbols_from_both_counts() -> None:
+    batch = FactBatch()
+    prov = Provenance("f.c", 1)
+    batch.add_node(Node("c:pub_fn", NodeKind.FUNCTION, "pub_fn", "c", prov))
+    batch.add_node(Node("c:f.c::static_fn", NodeKind.FUNCTION, "static_fn", "c", prov))
+    batch.add_node(Node("java:com.App.run", NodeKind.FUNCTION, "run", "java", prov))
+
+    split = api_split(FactStore(batch))
+    assert len(split.public) == 1 and split.internal_count == 1
+    assert split.unknown_count == 1  # the Java symbol is neither
+    assert split.total == 2  # and isn't silently folded into "public"
+    assert "static" in split.rules
+
+
+def test_dead_code_never_flags_symbols_of_unknown_visibility() -> None:
+    """`is_public` returning None must not read as "internal, therefore a candidate"."""
+    batch = FactBatch()
+    prov = Provenance("App.java", 1)
+    batch.add_node(Node("java:com.App.orphan", NodeKind.FUNCTION, "orphan", "java", prov))
+    assert dead_code_candidates(FactStore(batch)).candidates == []
+
+
+# ---- prose that survives contact with C -------------------------------------
+
+
+def test_area_page_does_not_call_an_unimported_area_safe(repo: Path) -> None:
+    """ "Nothing imports this" is what an entry point looks like. On open5gs it fired
+    for src/amf — 390 functions — as "the safer place to change"."""
+    pages = _pages(repo)
+    for name, text in pages.items():
+        if name.startswith("areas/"):
+            assert "safer place to change" not in text, name
+
+
+def test_c_import_cycles_are_not_called_a_hazard() -> None:
+    """Include guards make mutual #include compile fine; it's a smell, not a bug."""
+    batch = FactBatch()
+    prov = Provenance("a.h", 1)
+    for nid, nm in (("c:a.h", "a.h"), ("c:b.h", "b.h")):
+        batch.add_node(Node(nid, NodeKind.MODULE, nm, "c", prov))
+    batch.add_edge(Edge("c:a.h", "c:b.h", EdgeKind.IMPORTS, prov))
+    batch.add_edge(Edge("c:b.h", "c:a.h", EdgeKind.IMPORTS, prov))
+    store = FactStore(batch)
+
+    block = renderers._cycles_block(renderers.ModuleDeps(store, AreaIndex(store)), store)
+    assert "include guards" in block
+    assert "hazard for import order" not in block
