@@ -46,7 +46,6 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 8 test): [`default_code_verifiers`](../../src/orchestrator/codereview/verifiers.py#L279), [`test_secrets_flags_aws_key_as_blocker`](../../tests/codereview/test_verifiers.py#L49), [`test_secrets_flags_generic_assignment_and_private_key`](../../tests/codereview/test_verifiers.py#L57), [`test_secrets_generic_downgrades_to_warning_in_test_files`](../../tests/codereview/test_verifiers.py#L97), [`test_secrets_ignores_removed_files`](../../tests/codereview/test_verifiers.py#L71), [`test_secrets_placeholder_test_needs_boundary`](../../tests/codereview/test_verifiers.py#L90), [`test_secrets_scans_non_code_files_too`](../../tests/codereview/test_verifiers.py#L64), [`test_secrets_structured_tokens_still_block_in_test_files`](../../tests/codereview/test_verifiers.py#L103), [`test_secrets_suppresses_placeholder_values`](../../tests/codereview/test_verifiers.py#L76)
 - **Fields**: `_PATTERNS`, `_PLACEHOLDER_VALUE`, `verifier_id`
-- **Documented in**: `docs/specs/archive/SDLC-ORCHESTRATOR-PLAN.md#10-week-1-starting-actions-block-a`, `docs/specs/archive/SDLC-ORCHESTRATOR-PLAN.md#block-a-weeks-14-adopter-wedge-1-standalone-pr-reviewer`, `docs/specs/archive/SDLC-ORCHESTRATOR-PLAN.md#domain-layer-to-build-new`, `docs/specs/archive/STATUS-2026-06-09.md#5-recommended-next-steps`
 
 ### `SecurityVerifier`
 
@@ -54,7 +53,6 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 4 test): [`default_code_verifiers`](../../src/orchestrator/codereview/verifiers.py#L279), [`test_security_flags_eval_and_shell_true_as_blockers`](../../tests/codereview/test_verifiers.py#L113), [`test_security_flags_heuristics_as_warnings`](../../tests/codereview/test_verifiers.py#L121), [`test_security_skips_non_code_files`](../../tests/codereview/test_verifiers.py#L135), [`test_security_yaml_safe_load_not_flagged`](../../tests/codereview/test_verifiers.py#L140)
 - **Fields**: `_RULES`, `verifier_id`
-- **Documented in**: `docs/specs/archive/SDLC-ORCHESTRATOR-PLAN.md#10-week-1-starting-actions-block-a`, `docs/specs/archive/SDLC-ORCHESTRATOR-PLAN.md#5-architecture`, `docs/specs/archive/SDLC-ORCHESTRATOR-PLAN.md#block-a-weeks-14-adopter-wedge-1-standalone-pr-reviewer`, `docs/specs/archive/SDLC-ORCHESTRATOR-PLAN.md#domain-layer-to-build-new`
 
 ### `Severity`
 
@@ -70,7 +68,6 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 2 test): [`default_code_verifiers`](../../src/orchestrator/codereview/verifiers.py#L279), [`test_style_allows_print_in_test_files`](../../tests/codereview/test_verifiers.py#L161), [`test_style_flags_nits_only`](../../tests/codereview/test_verifiers.py#L149)
 - **Fields**: `_max_line`, `_print`, `_todo`, `verifier_id`
-- **Documented in**: `docs/specs/archive/SDLC-ORCHESTRATOR-PLAN.md#10-week-1-starting-actions-block-a`, `docs/specs/archive/SDLC-ORCHESTRATOR-PLAN.md#block-a-weeks-14-adopter-wedge-1-standalone-pr-reviewer`, `docs/specs/archive/SDLC-ORCHESTRATOR-PLAN.md#domain-layer-to-build-new`
 
 ## Functions
 
