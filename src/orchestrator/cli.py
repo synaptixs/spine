@@ -1359,6 +1359,13 @@ def understand(
     refresh: Annotated[
         bool, typer.Option("--refresh", help="Re-extract the PKG instead of using the commit cache.")
     ] = False,
+    check: Annotated[
+        bool,
+        typer.Option(
+            "--check",
+            help="Verify the committed episteme still matches the code; write nothing, exit non-zero if not.",
+        ),
+    ] = False,
     dialect: Annotated[
         str | None,
         typer.Option("--dialect", help="SQL dialect (postgres|mysql|tsql|oracle|…); default: auto-detect."),
@@ -1371,9 +1378,30 @@ def understand(
     markdown in the target repo. Deterministic (no LLM); re-run to refresh.
     ``path`` may be a local path or a git URL cloned on demand — for a URL the
     clone is transient, so the knowledge base defaults to ``./episteme``.
+
+    ``--check`` writes nothing: it re-renders and diffs against the committed
+    bank, exiting non-zero when they disagree. That makes episteme *provably*
+    current in CI rather than hopefully current.
     """
-    from orchestrator.knowledge import build_memory_bank
+    from orchestrator.knowledge import build_memory_bank, check_memory_bank
     from orchestrator.knowledge.understand import BANK_DIRNAME, memory_bank_dir
+
+    if check:
+        with _repo_arg(path) as (repo, _):
+            report = check_memory_bank(repo, out_dir=out, sql_dialect=dialect, log=typer.echo)
+        typer.echo(report.summary_line())
+        for label, names in (
+            ("out of date", report.stale),
+            ("missing", report.missing),
+            ("describes code that's gone", report.orphaned),
+        ):
+            for name in names:
+                typer.echo(f"  {label}: {name}")
+        if not report.ok:
+            if not report.absent:  # the absent message already says what to run
+                typer.echo("Regenerate with `orchestrator understand .` and commit the result.")
+            raise typer.Exit(code=1)
+        return
 
     with _repo_arg(path) as (repo, is_remote):
         out_dir = out or (Path(BANK_DIRNAME) if is_remote else memory_bank_dir(repo))
@@ -1973,6 +2001,49 @@ def pkg_extract(
             touched = store.touches(node.id)
             tail = "…" if len(touched) > 12 else ""
             typer.echo(f"  touches ({len(touched)}): " + ", ".join(t.id for t in touched[:12]) + tail)
+
+
+@pkg_app.command("verify")
+def pkg_verify(
+    path: Annotated[str, typer.Argument(help="Repo path or git URL to scan.")] = ".",
+    as_json: Annotated[bool, typer.Option("--json", help="Emit the report as JSON.")] = False,
+    dialect: Annotated[
+        str | None,
+        typer.Option("--dialect", help="SQL dialect (postgres|mysql|tsql|oracle|…); default: auto-detect."),
+    ] = None,
+) -> None:
+    """Check Tier-1 graph invariants (dangling edges, provenance, unjoined imports).
+
+    Self-consistency checks that need no ground truth: every edge endpoint
+    exists, every grounded provenance resolves, and first-party imports
+    actually join (orphan rate / external ratio per language). Exits non-zero
+    on any error, so it can stand guard in CI.
+    """
+    from orchestrator.pkg import RepoCodeExtractor
+    from orchestrator.pkg.verify import verify_batch
+
+    extractor = RepoCodeExtractor(sql_dialect=dialect)
+    with _repo_arg(path) as (repo, _):
+        report = verify_batch(extractor.extract(repo), repo)
+
+    if as_json:
+        _print(
+            {
+                "ok": report.ok,
+                "issues": [
+                    {"check": i.check, "severity": i.severity, "message": i.message} for i in report.issues
+                ],
+            }
+        )
+    else:
+        for issue in report.issues:
+            typer.echo(f"[{issue.severity}] {issue.check}: {issue.message}")
+        typer.echo(
+            f"pkg verify: {'OK' if report.ok else 'FAILED'} — "
+            f"{len(report.errors)} error(s), {len(report.warnings)} warning(s)."
+        )
+    if not report.ok:
+        raise typer.Exit(code=1)
 
 
 @pkg_app.command("export")

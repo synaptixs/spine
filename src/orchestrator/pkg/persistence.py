@@ -20,7 +20,9 @@ from typing import Any
 from orchestrator.pkg.extractor import RepoCodeExtractor
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 
-_FORMAT_VERSION = 1
+# v2: batches carry post-``link_imports`` resolved IMPORTS edges — v1 caches
+# predate the join and would silently reintroduce the dangling-import bug.
+_FORMAT_VERSION = 2
 
 
 class FactCacheError(RuntimeError):

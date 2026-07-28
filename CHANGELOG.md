@@ -4,6 +4,241 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.9.0 — Comprehension you can trust
+
+A six-phase overhaul of the understanding layer, driven by an assessment against a real
+public repo. The headline: **the dependency graph stopped lying** — relative and
+intra-package imports never resolved, so the graph saw almost no internal dependencies
+and confidently called a codebase's most central module "a leaf, so it's the safer place
+to change". That is fixed in every language front-end at once. On `pallets/click`, import
+edges naming a submodule went from 27/232 joined to **321/321**, and
+`impact_across("Context")` from **0 symbols to 61**.
+
+Built on that, the committed knowledge base went from 4 sections to 18, gained a
+provenance stamp and a CI gate that **proves** it still matches the code, and turned each
+module page into a pre-change briefing. Spine now commits its own `episteme/` and fails
+its own CI if that knowledge base degrades.
+
+Everything here stays deterministic and LLM-free: same commit in, byte-identical output.
+
+### The import graph stops lying
+
+Phase 0 of the [`understand` enhancement plan](docs/specs/understand-enhancement-spec.md):
+relative and intra-package imports now join the modules they denote, in every language
+front-end at once — and a standing invariant check makes sure the bug class can't return
+unnoticed. Measured on `pallets/click`: import edges naming a click submodule went from
+27/232 joined (all from tests) to **321/321**; `impact_across(Context)` from **0 symbols to
+61**; the `click.core` area page from *"it's a leaf, so it's the safer place to change"* to
+*"it sits in the middle of the graph: 10 areas below it, 8 above."*
+
+#### Fixed
+
+- **Python front-end reads `stmt.level`** — `from .types import X` resolves against the
+  module's own package (`py:click.types.X`), so it can no longer be conflated with the
+  stdlib `types`. An import that climbs past the scanned tree keeps its dots and never
+  falsely joins.
+- **`link_imports` post-pass** (`pkg/import_link.py`) — a whole-repo join that repoints
+  `IMPORTS` edges at the first-party modules they denote and drops the orphaned phantom
+  nodes. One shared resolver; per-language matchers only: dotted-prefix walk (Python /
+  Java / C#), relative-specifier resolution (TypeScript), `go.mod` module-path matching
+  (Go), unique path-suffix matching for `-I`-style includes (C / C++). Runs inside
+  `RepoCodeExtractor.extract`, so every consumer — `understand`, `state`, grounding,
+  `pkg export`, the MCP tools — gets resolved imports with no extra wiring.
+- Fact-cache format bumped to v2: pre-fix caches would silently reintroduce the dangling
+  imports, so they re-extract.
+
+#### Added
+
+- **`orchestrator pkg verify`** — Tier-1 graph invariants, no oracle needed: every edge
+  endpoint exists, every grounded provenance resolves to a real `file:line`, per-language
+  orphan-rate and external-ratio tripwires (the completeness failures a does-it-run test
+  can't see), and phantom-basename warnings. Non-zero exit on error, so it can stand guard
+  in CI. Per-language regression fixtures pin the join: a repo using relative imports must
+  show non-zero importers for the imported module.
+
+### Episteme can prove it's current
+
+Phase 1 of the [`understand` enhancement plan](docs/specs/understand-enhancement-spec.md):
+a committed knowledge base whose entire value is being *code-true* could not tell a reader
+whether it described HEAD or a commit from six months ago. Now it says where it came from,
+and CI can prove whether it still holds.
+
+#### Added
+
+- **A provenance stamp on `episteme/README.md`** — which commit the bank was generated
+  from, whether that tree was dirty, and which Spine rendered it. Deliberately carries **no
+  timestamp**: invariant #2 requires the same code to produce byte-identical output, and a
+  date would break the property the artifact is trusted for.
+- **`orchestrator understand --check`** — writes nothing, re-renders, and diffs against the
+  committed bank, exiting non-zero when they disagree. It reports what to look at: pages out
+  of date, missing, or still describing code that's gone. The comparison ignores the fenced
+  stamp, because committing the episteme itself creates a new commit — content, not the
+  stamp, is what proves currency.
+
+#### Fixed
+
+- **`understand` no longer reads its own output.** `episteme/` and the legacy `memory-bank/`
+  join the ignored directories. A committed bank was being ingested as the repo's own
+  documentation: on a small fixture it turned 6 grounded nodes into 32, all 26 `Doc` nodes
+  coming from Spine's own prose. Worse, it made the artifact unable to ever be self-
+  consistent — writing the bank changed the graph that rendered it, so no bank could
+  describe its own repo twice the same way, and `--check` could never pass.
+
+#### Changed
+
+- `build_memory_bank` is now a thin writer over a new `render_memory_bank`, so the build and
+  the check share one rendering path and cannot drift apart.
+
+### One analysis layer, two renderings
+
+Phase 2 of the [`understand` enhancement plan](docs/specs/understand-enhancement-spec.md):
+`state` computed sixteen sections and printed them, while the *committed* episteme rendered
+four — the ephemeral report was richer than the knowledge base a team reads and an AI tool
+grounds on. Both surfaces now read one analysis. On `pallets/click`, episteme goes from 4
+top-level sections to 13.
+
+#### Added
+
+- **`knowledge/analysis.py`** — the single pipeline (extract → migrations → data layer →
+  docs → profile → metrics) that both `understand` and `state` go through. What differs
+  downstream is only rendering.
+- **`architecture.md`** gains the **system-architecture diagram** and the strongest
+  component dependencies (drawn from `current_state`'s own bounded `architecture_graph`, so
+  the two surfaces can't disagree), **layers**, and **test coverage**.
+- **`tech-context.md`** gains **infrastructure & runtime**, **entry points**, and
+  **most-used external imports** — it was a six-row table, mostly `—`.
+- **`progress.md`** leads with computed **suggested next steps** instead of only pointing at
+  a `BACKLOG.md` that doesn't exist unless Spine built the repo.
+
+#### Fixed
+
+- **Test coverage measured what it claimed.** An area counted as tested if it *contained* a
+  type with "test" in the name — which answers "which areas are tests", not "which areas
+  have tests", and reported `click.core`, the most-tested module in click, as untested.
+  Coverage is now test→source imports, a lookup that only became possible once Phase 0 made
+  intra-package imports resolve. click reads 13 of 27 components exercised, and the untested
+  list is now genuinely untested code (`click._winconsole`, the `examples/` trees).
+- **Entry points exclude tests.** `main()` inside a test file is a fixture, not how the
+  system starts; click's entry-point list was two test functions ahead of the real one.
+
+#### Note
+
+Git-history metrics stay out of the committed bank on purpose. `state`'s "Recent activity"
+reads the last ~60 commits, so its value moves on every commit — including the one that
+lands the bank — which would make episteme stale the moment it was committed and
+`understand --check` fail forever after.
+
+### The module page becomes a briefing
+
+Phase 3 of the [`understand` enhancement plan](docs/specs/understand-enhancement-spec.md):
+a module page told you what the code *is*. It now answers what depends on it, what breaks
+if it changes, what isn't tested, what it inherits from, and which docs describe it.
+Findings 3, 8 and 9 — all of it graph computation, no LLM.
+
+#### Added
+
+- **"Changing this safely" on every module page** — who tests the module, the symbols other
+  code most depends on with their blast radius, and which of those have no visible test
+  path. This was the product's most persuasive answer and it was only reachable by running
+  `regression` against a symbol you had already chosen to change.
+- **`store.implementors_of()` / `store.implements_of()`** and inheritance rendered from both
+  ends. click's 42 `IMPLEMENTS` edges rendered nowhere; `click.exceptions` now shows all 12
+  exception subclasses, and `Parameter` → `Argument`/`Option` is walkable in either direction.
+- **"Documented in …"** on modules and symbols, from `MENTIONS`, plus a repo-level
+  **Documentation** section with coverage and drift. Four releases of doc ingestion had
+  reduced, in the committed bank, to a single `Doc: 264` line; click now reports 6% doc
+  coverage and 250 potential drift where only `state` used to.
+- **`api-surface.md`** — every route and the code behind it, keyed on `Endpoint`/`EXPOSES`.
+  Written only for repos that have routes.
+- **`CoverageIndex`** (`sdlc/coverage.py`) — whole-repo test reachability and blast radius
+  indexed once. `build_regression_plan` rebuilds a predecessor index per call, which is
+  quadratic when every module page needs it; `understand` on click stays at ~1.4s.
+
+#### Note on honesty
+
+The first cut of the safety block reported "16 of 20 symbols have no test" for `click.core`,
+naming `Context` — one of the most tested classes in the Python ecosystem. Call resolution is
+precision-first (ambiguous `obj.method()` chains are skipped rather than guessed), so an
+invisible test path is not an absent one. It now flags only the actionable intersection —
+depended upon **and** no visible path — says plainly that invisible ≠ absent, and takes
+module-level "tested by" from test **imports**, which are complete in a way call edges aren't.
+
+### No page is a stub or a directory listing
+
+Phase 4 of the [`understand` enhancement plan](docs/specs/understand-enhancement-spec.md) —
+Findings 4, 5 and 6 — plus the CI dogfooding left open since Phase 0.
+
+#### Changed
+
+- **`domain-model.md` is ranked, not alphabetised.** With no database it listed 40+ classes
+  A–Z and called them *prominent* without computing anything; `Abort` led click's page
+  because it starts with A. Now ranked by subtypes, production call-sites, members and doc
+  mentions — click's page opens with `Context`, `ProgressBar`, `Command`, `Parameter` — and
+  each row says *why* it matters. Retitled too: on a repo with no database, "domain model"
+  promises a schema that isn't there.
+- **`glossary.md` no longer promises definitions it can't write.** It was 60 alphabetical
+  lines of `**Abort** — _TODO: definition_`. Each term now links to where it's defined and
+  to the doc that explains it (from `MENTIONS`); private types are excluded.
+- **The "Node kinds" dump is gone from `architecture.md`.** `Function: 1938, Field: 400` was
+  database statistics in a section of its own. The counts survive as scale on the graph-size
+  line, and **Complexity** (size distribution + largest types) takes the slot.
+- **`conventions.md`** gains counted naming conventions, test layout, and the error idiom —
+  it was four sampled rules and a lint config. **`tech-context.md`** gains the declared
+  version and language floor.
+- **Production and test call-sites are counted apart** (Finding 6). `echo`'s
+  "most-depended-upon" callers were `test_echo`, `test_echo_color_flag`,
+  `test_echo_custom_file`. Rankings now use production call-sites only — being called by
+  thirty tests makes a symbol well covered, not central — while both numbers are displayed,
+  and caller lists lead with production.
+
+#### Fixed
+
+- **Unresolved base classes are recorded instead of dropped.** The Python front-end emitted
+  an `IMPLEMENTS` edge only when a base resolved to an import or a local definition, so a
+  class extending a *builtin* had no base at all in the graph: `class Abort(RuntimeError)`
+  and even `class ClickException(Exception)` answered "extends nothing", and anything
+  walking a hierarchy under-counted it. Bare-name bases now emit an external node, exactly
+  as unresolved bare *calls* already did. Click's exception hierarchy reads 12 types rooted
+  at `ClickException`, matching the source; the name-matching approach found 4.
+- A symbol with no edges rendered as a heading followed by silence. It now says so.
+
+#### Added
+
+- **CI runs `orchestrator pkg verify .` and `orchestrator understand . --check`**, and Spine
+  commits its own `episteme/`. The product's flagship claim is detecting when docs drift
+  from code; until now its own knowledge base could drift silently.
+
+### Answers to questions nobody was asking yet
+
+Phase 5, the last of the [`understand` enhancement plan](docs/specs/understand-enhancement-spec.md).
+Finding 10's opportunistic list: findings that need no new facts, only questions aimed at
+the *reader* ("where do I start?", "what can I ignore?", "what's tangled?") rather than at
+the extractor.
+
+#### Added
+
+- **Onboarding path** on the index — "New here? Read these first": where execution starts,
+  then what the most code depends on, each step saying why it's there.
+- **Public surface split** — "400 public · 306 internal, of 706". The same codebase,
+  reframed as approachable, with the most-depended-upon public symbols listed.
+- **Import cycles** — strongly-connected components of the module graph. Undetectable
+  before Phase 0, because the graph had almost no first-party import edges to form a cycle
+  with; click turns out to have an 11-module core cycle. Iterative Tarjan, because a real
+  dependency chain would blow the recursion limit.
+- **Possibly-unused candidates** — internal symbols with no caller, subclass or doc
+  reference. Restricted to *internal* on purpose: a public function with no in-repo caller
+  is what an API looks like. Labelled candidates, not verdicts.
+- **`symbol-index.md`** — every first-party symbol A–Z with the page that describes it, so
+  the bank is searchable by name without grep.
+
+#### Not done, deliberately
+
+**Churn per module** is the one item from Finding 10 left out. It reads the last ~60
+commits, so its value changes on *every* commit — including the one that lands the
+knowledge base — which would make the bank stale the moment it was written and
+`understand --check` fail permanently. It stays in the ephemeral `state` report.
+Tests→module shipped earlier, as Phase 3's "Tested by".
+
 ## 3.8.4 — The architecture diagram now explains itself
 
 The 3.8.3 diagram named its components but didn't say what they *do* — boxes read

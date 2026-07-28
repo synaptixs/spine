@@ -364,9 +364,12 @@ def test_domain_model_tabulates_entities_and_links_to_pages() -> None:
     assert "(entities/orders.md)" not in md
 
 
-def test_domain_model_falls_back_when_there_are_no_entities() -> None:
+def test_domain_model_ranks_core_types_when_there_are_no_entities() -> None:
+    """With no DB this is the code's model — and "prominent" has to be computed, not
+    claimed. An alphabetical dump put `Abort` at the top of click's page."""
     md = render_domain_model(_store(), src="../")
-    assert "No DB/ORM entities detected" in md and "Widget" in md
+    assert "No database or ORM entities detected" in md and "Widget" in md
+    assert "Why it matters" in md  # ranked with the reason shown, not a bare list
 
 
 def test_hotspots_exclude_third_party_and_test_symbols() -> None:
@@ -410,7 +413,7 @@ def test_hotspots_report_transitive_blast_radius() -> None:
     store = FactStore(batch)
     md = render_architecture(store, summarise_store(store, top_n=50), greenfield=False, src="../")
     # target has 1 direct caller but 2 symbols transitively depend on it.
-    assert "1 call-sites · **reaches 2 symbols** (≤2 hops)" in md
+    assert "1 production call-site · **reaches 2 symbols** (≤2 hops)" in md
 
 
 def test_build_writes_entity_pages_and_reaps_them(tmp_path: Path) -> None:

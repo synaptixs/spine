@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,16 @@ from orchestrator.knowledge.areas import AreaIndex
 
 BANK_DIRNAME = "episteme"
 _LEGACY_DIRNAME = "memory-bank"
+
+
+def spine_version() -> str:
+    """The installed Spine version, for the provenance stamp."""
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version("synaptixs-spine")
+    except PackageNotFoundError:  # running from a source tree without an install
+        return "unknown"
 
 
 def memory_bank_dir(root: Path | str, out_dir: Path | str | None = None) -> Path:
@@ -88,49 +99,48 @@ def _reap_orphans(page_dir: Path, keep: set[str]) -> int:
     return reaped
 
 
-def build_memory_bank(
+@dataclass(frozen=True)
+class RenderedBank:
+    """A fully-rendered knowledge base, not yet written anywhere.
+
+    Separating render from write is what lets ``understand --check`` compare the
+    committed bank against what the code says *now* without touching the checkout —
+    one rendering path, so the check can never disagree with the build for reasons
+    of its own.
+    """
+
+    target: Path
+    files: dict[str, str]
+    # Generated-page dirs → the basenames this render produced, for orphan reaping
+    # (build) and orphan reporting (check).
+    page_dirs: dict[str, set[str]] = field(default_factory=dict)
+    greenfield: bool = False
+    summary: dict[str, int] = field(default_factory=dict)
+    profile: dict[str, Any] = field(default_factory=dict)
+
+
+def render_memory_bank(
     root: Path | str,
     *,
     out_dir: Path | str | None = None,
     refresh: bool = False,
     sql_dialect: str | None = None,
     log: Callable[[str], None] | None = None,
-) -> dict[str, Any]:
-    """Render + write the memory bank; return a summary dict."""
-    from orchestrator.catalog.profile import ProjectProfile
-    from orchestrator.pkg.data_layer_link import link_data_layer
-    from orchestrator.pkg.doc_link import link_docs
-    from orchestrator.pkg.extractor import RepoCodeExtractor
-    from orchestrator.pkg.migrations import apply_migrations
-    from orchestrator.pkg.persistence import load_or_extract
-    from orchestrator.pkg.stats import summarise_store
-    from orchestrator.pkg.store import FactStore
-    from orchestrator.sdlc.layout import is_effectively_empty
+) -> RenderedBank:
+    """Render every page of the knowledge base in memory (no writes)."""
+    from orchestrator.knowledge.analysis import analyse
+    from orchestrator.knowledge.insights import onboarding_path
+    from orchestrator.pkg.persistence import repo_state
+    from orchestrator.sdlc.coverage import CoverageIndex
 
     emit = log or (lambda _m: None)
     root_path = Path(root)
 
-    greenfield = is_effectively_empty(root_path)
-    # A pinned --dialect changes SQL extraction, so bypass the commit cache
-    # (which is keyed only by HEAD sha).
-    extractor = RepoCodeExtractor(sql_dialect=sql_dialect)
-    fresh = refresh or sql_dialect is not None
-    batch = extractor.extract(root_path) if fresh else load_or_extract(root_path)
-    # A4: fold ordered migrations into the authoritative current schema, then
-    # A3: let that schema stand in for ORM-inferred entities/FKs. Both no-op
-    # when the repo has no migrations / no .sql schema.
-    batch = apply_migrations(batch, root_path)
-    batch = link_data_layer(batch)
-    # Fold the repo's text docs into the graph (Doc nodes + MENTIONS edges); no-op with no docs.
-    batch = link_docs(batch, root_path)
-    store = FactStore(batch)
-    # Ask for a deep candidate list, not the top 10: the renderer keeps only first-party
-    # symbols, and the raw ranking is dominated by stdlib/third-party ones (`json.dumps`,
-    # `pytest.raises`). Ten raw candidates can filter down to nearly nothing. Costs
-    # nothing — `summarise_store` counts every function either way and only slices at the
-    # end. `renderers` re-slices to the display count.
-    stats = summarise_store(store, top_n=renderers.HOTSPOT_CANDIDATES)
-    profile = ProjectProfile.from_repo(root_path)
+    # One analysis layer, two renderings: `state` computes exactly this and prints it
+    # (see `knowledge/analysis.py`). Everything below is rendering.
+    analysis = analyse(root_path, refresh=refresh, sql_dialect=sql_dialect)
+    store, stats, profile = analysis.store, analysis.stats, analysis.profile
+    greenfield = analysis.greenfield
     kind = "greenfield" if greenfield else "brownfield"
     grounded = store.summary().get("grounded_nodes", 0)
     emit(f"[understand] {kind} — {grounded} grounded nodes")
@@ -156,6 +166,9 @@ def build_memory_bank(
     entity_slugs = renderers.module_page_slugs([e.name for e in paged_entities])
     entity_page_of = {e.id: entity_slugs[e.name] for e in paged_entities}
 
+    # Provenance facts for the stamp, gathered here (invariant #1: the renderer
+    # renders facts, it doesn't go and find them).
+    sha, dirty = repo_state(root_path)
     files = {
         "README.md": renderers.render_index(
             root_path,
@@ -164,6 +177,11 @@ def build_memory_bank(
             module_pages=len(paged),
             area_pages=len(paged_areas),
             entity_pages=len(paged_entities),
+            stamp=renderers.render_stamp(commit=sha, dirty=dirty, version=spine_version()),
+            api_surface=renderers.has_api_surface(store),
+            onboarding=renderers.render_onboarding(
+                onboarding_path(store, deps.importers, analysis.state.entry_points), src
+            ),
         ),
         "architecture.md": renderers.render_architecture(
             store,
@@ -173,16 +191,27 @@ def build_memory_bank(
             page_of=page_of,
             areas=paged_areas,
             area_pages=area_page_of,
+            state=analysis.state,
+            deps=deps,
         ),
         "domain-model.md": renderers.render_domain_model(store, src=src, entity_pages=entity_page_of),
-        "tech-context.md": renderers.render_tech_context(profile, greenfield=greenfield),
-        "conventions.md": renderers.render_conventions(root_path),
-        "glossary.md": renderers.render_glossary(store),
-        "progress.md": renderers.render_progress_pointer(),
+        "tech-context.md": renderers.render_tech_context(
+            profile, greenfield=greenfield, state=analysis.state, root=root_path
+        ),
+        "conventions.md": renderers.render_conventions(root_path, store),
+        "glossary.md": renderers.render_glossary(store, src=src),
+        "progress.md": renderers.render_progress_pointer(analysis.state),
+        "symbol-index.md": renderers.render_symbol_index(store, page_of=page_of, src=src),
     }
+    # Only for repos that actually expose routes — see `render_api_surface`.
+    if renderers.has_api_surface(store):
+        files["api-surface.md"] = renderers.render_api_surface(store, src=src)
+    # Indexed once for the whole repo: per-module blast radius and test reachability
+    # would otherwise rescan every call edge on every page.
+    cov = CoverageIndex(store)
     for m in paged:
         files[f"{renderers.MODULES_SUBDIR}/{slugs[m.name]}.md"] = renderers.render_module_page(
-            store, m, src=src_sub, page_of=page_of, deps=deps
+            store, m, src=src_sub, page_of=page_of, deps=deps, cov=cov
         )
     for a in paged_areas:
         files[f"{renderers.AREAS_SUBDIR}/{area_slugs[a.name]}.md"] = renderers.render_area_page(
@@ -197,23 +226,152 @@ def build_memory_bank(
             store, e, src=src_sub, entity_pages=entity_page_of, data=data
         )
 
+    return RenderedBank(
+        target=target,
+        files=files,
+        page_dirs={
+            renderers.MODULES_SUBDIR: {f"{s}.md" for s in slugs.values()},
+            renderers.AREAS_SUBDIR: {f"{s}.md" for s in area_slugs.values()},
+            renderers.ENTITIES_SUBDIR: {f"{s}.md" for s in entity_slugs.values()},
+        },
+        greenfield=greenfield,
+        summary=store.summary(),
+        profile=profile.to_dict(),
+    )
+
+
+def build_memory_bank(
+    root: Path | str,
+    *,
+    out_dir: Path | str | None = None,
+    refresh: bool = False,
+    sql_dialect: str | None = None,
+    log: Callable[[str], None] | None = None,
+) -> dict[str, Any]:
+    """Render + write the memory bank; return a summary dict."""
+    emit = log or (lambda _m: None)
+    bank = render_memory_bank(root, out_dir=out_dir, refresh=refresh, sql_dialect=sql_dialect, log=log)
+    target = bank.target
     target.mkdir(parents=True, exist_ok=True)
-    for name, content in files.items():
+    for name, content in bank.files.items():
         path = target / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
-    reaped = _reap_orphans(target / renderers.MODULES_SUBDIR, {f"{s}.md" for s in slugs.values()})
-    reaped += _reap_orphans(target / renderers.AREAS_SUBDIR, {f"{s}.md" for s in area_slugs.values()})
-    reaped += _reap_orphans(target / renderers.ENTITIES_SUBDIR, {f"{s}.md" for s in entity_slugs.values()})
-    emit(f"[understand] wrote {len(files)} files → {target}" + (f" (reaped {reaped})" if reaped else ""))
+    reaped = sum(_reap_orphans(target / sub, keep) for sub, keep in bank.page_dirs.items())
+    emit(f"[understand] wrote {len(bank.files)} files → {target}" + (f" (reaped {reaped})" if reaped else ""))
 
     return {
         "dir": str(target),
-        "files": sorted(files),
-        "greenfield": greenfield,
-        "summary": store.summary(),
-        "profile": profile.to_dict(),
+        "files": sorted(bank.files),
+        "greenfield": bank.greenfield,
+        "summary": bank.summary,
+        "profile": bank.profile,
     }
 
 
-__all__ = ["BANK_DIRNAME", "build_memory_bank", "existing_bank_dir", "memory_bank_dir"]
+@dataclass(frozen=True)
+class BankCheck:
+    """The verdict of ``understand --check``: is the committed episteme still true?
+
+    ``missing``/``stale``/``orphaned`` are repo-relative page names, so the message
+    can name what to look at rather than just failing.
+    """
+
+    bank_dir: Path
+    # Set when the check couldn't run at all (no bank on disk) — distinct from a bank
+    # that exists and disagrees.
+    absent: bool = False
+    missing: tuple[str, ...] = ()
+    stale: tuple[str, ...] = ()
+    orphaned: tuple[str, ...] = ()
+    commit: str | None = None
+    dirty: bool = False
+
+    @property
+    def ok(self) -> bool:
+        return not (self.absent or self.missing or self.stale or self.orphaned)
+
+    def summary_line(self) -> str:
+        if self.absent:
+            return f"No knowledge base at {self.bank_dir} — run `orchestrator understand .` to build one."
+        if self.ok:
+            if self.dirty:
+                return "episteme is current — it matches the working tree (which has uncommitted changes)."
+            where = f" at commit {self.commit[:12]}" if self.commit else ""
+            return f"episteme is current — it matches the code{where}."
+        counts = [
+            f"{len(self.stale)} out of date" if self.stale else "",
+            f"{len(self.missing)} missing" if self.missing else "",
+            f"{len(self.orphaned)} describing code that's gone" if self.orphaned else "",
+        ]
+        return "episteme is stale — " + ", ".join(c for c in counts if c) + "."
+
+
+def check_memory_bank(
+    root: Path | str,
+    *,
+    out_dir: Path | str | None = None,
+    refresh: bool = False,
+    sql_dialect: str | None = None,
+    log: Callable[[str], None] | None = None,
+) -> BankCheck:
+    """Compare the committed knowledge base against what the code says now.
+
+    Re-renders and diffs page by page. The comparison ignores the fenced provenance
+    stamp: committing the episteme itself creates a new commit, so a bank is always
+    one commit "behind" the moment it lands — content, not the stamp, is what proves
+    currency. A dirty working tree therefore reads as stale, which is honest: the
+    committed pages genuinely don't describe the code as it stands.
+    """
+    from orchestrator.pkg.persistence import repo_state
+
+    root_path = Path(root)
+    bank_dir = existing_bank_dir(root_path, out_dir)
+    sha, dirty = repo_state(root_path)
+    if not bank_dir.is_dir():
+        return BankCheck(bank_dir=bank_dir, absent=True, commit=sha, dirty=dirty)
+
+    rendered = render_memory_bank(
+        root_path, out_dir=bank_dir, refresh=refresh, sql_dialect=sql_dialect, log=log
+    )
+    missing: list[str] = []
+    stale: list[str] = []
+    for name, expected in rendered.files.items():
+        path = bank_dir / name
+        try:
+            actual = path.read_text(encoding="utf-8")
+        except OSError:
+            missing.append(name)
+            continue
+        if renderers.strip_stamp(actual) != renderers.strip_stamp(expected):
+            stale.append(name)
+
+    # Pages for code that no longer exists — the same set `build` would reap.
+    orphaned: list[str] = []
+    for sub, keep in rendered.page_dirs.items():
+        page_dir = bank_dir / sub
+        if not page_dir.is_dir():
+            continue
+        orphaned += [f"{sub}/{p.name}" for p in page_dir.glob("*.md") if p.name not in keep]
+
+    return BankCheck(
+        bank_dir=bank_dir,
+        missing=tuple(sorted(missing)),
+        stale=tuple(sorted(stale)),
+        orphaned=tuple(sorted(orphaned)),
+        commit=sha,
+        dirty=dirty,
+    )
+
+
+__all__ = [
+    "BANK_DIRNAME",
+    "BankCheck",
+    "RenderedBank",
+    "build_memory_bank",
+    "check_memory_bank",
+    "existing_bank_dir",
+    "memory_bank_dir",
+    "render_memory_bank",
+    "spine_version",
+]

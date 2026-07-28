@@ -91,6 +91,14 @@ DEFAULT_IGNORE_DIRS = frozenset(
         ".tox",
         "obj",  # .NET build output (generated *.g.cs, *.AssemblyInfo.cs)
         "bin",  # .NET build output
+        # Spine's OWN generated knowledge base (``knowledge/understand.py``'s
+        # BANK_DIRNAME and its legacy name). It is output, not source: ingesting it
+        # would count our own prose as the repo's documentation, inflate every graph
+        # total, and — because writing the bank would then change the graph that
+        # renders it — leave the artifact unable to ever describe its own repo
+        # consistently. `understand --check` depends on that fixed point.
+        "episteme",
+        "memory-bank",
     }
 )
 
@@ -138,6 +146,10 @@ class PythonExtractor:
     language: str = "python"
     suffixes: tuple[str, ...] = (".py",)
 
+    # Per-file context set by ``extract`` (the extractor handles one file at a time).
+    _module: str = ""
+    _is_pkg: bool = False
+
     def module_name(self, path: Path, root: Path) -> str:
         return module_qualname(path, root)
 
@@ -147,6 +159,10 @@ class PythonExtractor:
         module_id = f"py:{module}" if module else "py:<root>"
         batch.add_node(Node(module_id, NodeKind.MODULE, module or rel, "python", Provenance(rel, 1)))
 
+        # A package's ``__init__`` is its own package for relative-import
+        # resolution; an ordinary module resolves against its parent package.
+        self._module = module
+        self._is_pkg = rel.endswith("__init__.py")
         imports = self._collect_imports(tree)
         module_names = self._collect_defs(tree.body, module_id)
         self._emit_body(tree.body, module_id, module_id, imports, module_names, {}, rel, batch)
@@ -154,15 +170,40 @@ class PythonExtractor:
 
     # ---- pass 1: names available for call resolution --------------------
 
+    def _import_base(self, stmt: ast.ImportFrom) -> str:
+        """The absolute dotted base a ``from … import`` resolves against.
+
+        ``stmt.level`` (the leading dots) is resolved against this module's own
+        qualname — local knowledge, so ``from .types import X`` in
+        ``click.core`` yields ``click.types`` and can never collide with the
+        stdlib ``types``. An import that climbs past the scanned tree keeps its
+        dots (``..x``) so it stays visibly relative and never joins.
+        """
+        if not stmt.level:
+            return stmt.module or ""
+        parts = self._module.split(".") if self._module else []
+        if not self._is_pkg and parts:
+            parts = parts[:-1]
+        climb = stmt.level - 1
+        if climb > len(parts):
+            return "." * stmt.level + (stmt.module or "")
+        if climb:
+            parts = parts[:-climb]
+        if stmt.module:
+            parts = [*parts, *stmt.module.split(".")]
+        return ".".join(parts)
+
     def _collect_imports(self, tree: ast.Module) -> dict[str, str]:
         binds: dict[str, str] = {}
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for a in node.names:
                     binds[a.asname or a.name.split(".")[0]] = f"py:{a.name}"
-            elif isinstance(node, ast.ImportFrom) and node.module:
+            elif isinstance(node, ast.ImportFrom):
+                base = self._import_base(node)
                 for a in node.names:
-                    binds[a.asname or a.name] = f"py:{node.module}.{a.name}"
+                    target = f"{base}.{a.name}" if base else a.name
+                    binds[a.asname or a.name] = f"py:{target}"
         return binds
 
     def _collect_defs(self, body: list[ast.stmt], parent_id: str) -> dict[str, str]:
@@ -246,8 +287,9 @@ class PythonExtractor:
         if isinstance(stmt, ast.Import):
             targets = [(a.name, f"py:{a.name}") for a in stmt.names]
         else:
-            mod = stmt.module or ""
-            targets = [(f"{mod}.{a.name}", f"py:{mod}.{a.name}") for a in stmt.names]
+            base = self._import_base(stmt)
+            names = [f"{base}.{a.name}" if base else a.name for a in stmt.names]
+            targets = [(n, f"py:{n}") for n in names]
         for name, tid in targets:
             batch.add_node(Node(tid, NodeKind.MODULE, name, "python", external=True))
             batch.add_edge(Edge(module_id, tid, EdgeKind.IMPORTS, prov))
@@ -333,20 +375,31 @@ class PythonExtractor:
         rel: str,
         batch: FactBatch,
     ) -> None:
-        """Emit an IMPLEMENTS edge to each base class that resolves.
+        """Emit an IMPLEMENTS edge to each base class.
 
-        Resolution is precision-first (same discipline as call resolution):
-        a bare-name base resolves to an import or a module-level def; anything
-        ambiguous (attribute-chain bases, unresolved names) is skipped rather
-        than guessed.
+        Resolution is precision-first, on the same terms as call resolution: a
+        bare-name base resolves to an import or a module-level def, and an
+        attribute-chain base (``pkg.Base``, ``typing.Generic[...]``) is skipped
+        rather than guessed at.
+
+        A bare name that resolves to neither still gets an edge to an
+        ``external`` node — exactly what ``_resolve_call`` does for an unresolved
+        bare call. Dropping it instead made a class extending a *builtin*
+        invisible: ``class Abort(RuntimeError)`` and even
+        ``class ClickException(Exception)`` had no base at all in the graph, so
+        "what does this extend?" came back empty for the root of a hierarchy, and
+        anything walking the hierarchy under-counted it.
         """
         prov = Provenance(rel, cls.lineno)
         for base in cls.bases:
             if not isinstance(base, ast.Name):
                 continue  # e.g. typing.Generic[...] / pkg.Base — skip, don't guess
             target = imports.get(base.id) or names.get(base.id)
-            if target is not None:
-                batch.add_edge(Edge(type_id, target, EdgeKind.IMPLEMENTS, prov))
+            if target is None:
+                # Unresolved bare name: a builtin, or a base defined out of scope.
+                target = f"py:{base.id}"
+                batch.add_node(Node(target, NodeKind.TYPE, base.id, "python", external=True))
+            batch.add_edge(Edge(type_id, target, EdgeKind.IMPLEMENTS, prov))
 
     def _sub_bodies(self, stmt: ast.stmt) -> list[ast.stmt]:
         out: list[ast.stmt] = []
@@ -518,12 +571,31 @@ class RepoCodeExtractor:
             finalize = getattr(extractor, "finalize", None)
             if callable(finalize):
                 finalize(batch)
-        return batch
+        # Whole-repo import join: repoint IMPORTS edges at the first-party modules
+        # they denote. Lives here (not in a front-end) because it needs the full
+        # module index, and here (not at call sites) so every consumer of the
+        # graph — understand, state, grounding, export — gets resolved imports.
+        from orchestrator.pkg.import_link import link_imports
+
+        return link_imports(batch, root_path)
 
     def _iter_files(self, root: Path) -> Iterator[Path]:
+        """Walk the repo in a **sorted**, platform-independent order.
+
+        ``os.walk`` yields entries in filesystem order, which differs between
+        filesystems — APFS and ext4 hand back the same directory differently. That
+        made extraction order machine-dependent, and order leaks into the output:
+        ``Counter.most_common()`` breaks ties by *insertion* order, so equally-weighted
+        coupling edges, layers, and external dependencies could rank differently on a
+        developer's laptop than in CI. Same commit, same facts, different pages —
+        exactly what invariant #2 forbids, and what ``understand --check`` caught.
+
+        ``doc_source`` has always sorted its walk for this reason; this is the same
+        discipline for code.
+        """
         for dirpath, dirnames, filenames in os.walk(root):
-            dirnames[:] = [d for d in dirnames if d not in self._ignore_dirs and not d.startswith(".")]
-            for name in filenames:
+            dirnames[:] = sorted(d for d in dirnames if d not in self._ignore_dirs and not d.startswith("."))
+            for name in sorted(filenames):
                 yield Path(dirpath) / name
 
 
