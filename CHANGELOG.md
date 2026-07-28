@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## Unreleased
+
+### Fixed
+
+- Java endpoint extraction now resolves unqualified HTTP verb and `@Path`
+  annotations through explicit or wildcard `javax.ws.rs` / `jakarta.ws.rs`
+  imports. Annotations from client frameworks such as Retrofit are no longer
+  misclassified as server endpoints.
+
 ## 3.9.2 — Prose that survives contact with C
 
 The graph was right; the sentences wrapped around it weren't. Running `understand` on a
