@@ -9,7 +9,7 @@ commits; from then on the reader turns that plain JSON into ``Doc`` nodes with n
 
 OCR here is **local** — Tesseract via ``pytesseract`` + Pillow, the ``[media]`` extra, lazy-imported
 so the base install stays stdlib-only. Nothing leaves the machine (invariant #5: no silent network).
-An absent extra or a missing ``tesseract`` binary raises :class:`MediaExtractorUnavailable` with
+An absent extra or a missing ``tesseract`` binary raises :class:`MediaExtractorUnavailableError` with
 actionable guidance — never a silent skip, because the user explicitly *asked* to extract.
 
 Diagram-oriented: architecture diagrams are labels, not prose, so extraction keeps short text lines
@@ -52,7 +52,7 @@ class OcrFn(Protocol):
     def __call__(self, path: Path, /) -> str: ...
 
 
-class MediaExtractorUnavailable(RuntimeError):
+class MediaExtractorUnavailableError(RuntimeError):
     """The ``[media]`` extra or the system ``tesseract`` binary isn't installed.
 
     Raised — never swallowed — because ``media extract`` is an explicit request: the user wants
@@ -75,7 +75,7 @@ def _load_pytesseract() -> object:
     try:
         import pytesseract
     except ImportError as exc:  # the `[media]` extra isn't installed
-        raise MediaExtractorUnavailable(
+        raise MediaExtractorUnavailableError(
             "media extraction needs the [media] extra: pip install 'synaptixs-spine[media]' "
             "(and a system `tesseract` binary — https://tesseract-ocr.github.io/)."
         ) from exc
@@ -85,14 +85,14 @@ def _load_pytesseract() -> object:
 def tesseract_version() -> str:
     """The installed Tesseract version string, pinned into artifacts for determinism/diffing.
 
-    Raises :class:`MediaExtractorUnavailable` if the binary is missing — the version *is* the
+    Raises :class:`MediaExtractorUnavailableError` if the binary is missing — the version *is* the
     binary's, so we can't record a truthful artifact without it.
     """
     pytesseract = _load_pytesseract()
     try:
         return str(pytesseract.get_tesseract_version())  # type: ignore[attr-defined]
     except Exception as exc:  # noqa: BLE001 — pytesseract raises TesseractNotFoundError et al.
-        raise MediaExtractorUnavailable(
+        raise MediaExtractorUnavailableError(
             "the `tesseract` binary was not found on PATH. Install it "
             "(https://tesseract-ocr.github.io/) — the [media] Python extra wraps it, it is not a "
             "pure-Python OCR engine."
@@ -105,16 +105,16 @@ def _tesseract_ocr(path: Path) -> str:
     try:
         from PIL import Image
     except ImportError as exc:
-        raise MediaExtractorUnavailable(
+        raise MediaExtractorUnavailableError(
             "media extraction needs Pillow: pip install 'synaptixs-spine[media]'."
         ) from exc
     try:
         with Image.open(path) as image:
             return str(pytesseract.image_to_string(image))  # type: ignore[attr-defined]
-    except MediaExtractorUnavailable:
+    except MediaExtractorUnavailableError:
         raise
     except Exception as exc:  # noqa: BLE001 — unreadable image / tesseract failure
-        raise MediaExtractorUnavailable(f"OCR failed for {path}: {exc}") from exc
+        raise MediaExtractorUnavailableError(f"OCR failed for {path}: {exc}") from exc
 
 
 def labels_from_ocr(text: str) -> list[str]:
@@ -151,7 +151,7 @@ def build_image_artifact(
     """
     sha = _file_sha256(media_path)
     if sha is None:
-        raise MediaExtractorUnavailable(f"could not read {media_path}")
+        raise MediaExtractorUnavailableError(f"could not read {media_path}")
     run_ocr = ocr or _tesseract_ocr
     extractor_version = version or tesseract_version()
     labels = labels_from_ocr(run_ocr(media_path))
@@ -200,11 +200,11 @@ def extract_image(
         if media_path.stat().st_size > _MAX_IMAGE_BYTES:
             return ExtractResult(media_path, "skipped-too-large")
     except OSError as exc:
-        raise MediaExtractorUnavailable(f"could not read {media_path}") from exc
+        raise MediaExtractorUnavailableError(f"could not read {media_path}") from exc
 
     sha = _file_sha256(media_path)
     if sha is None:
-        raise MediaExtractorUnavailable(f"could not read {media_path}")
+        raise MediaExtractorUnavailableError(f"could not read {media_path}")
     existing = artifact_path(repo_root, sha)
     if existing.is_file() and not force:
         return ExtractResult(media_path, "unchanged", existing)
@@ -250,7 +250,7 @@ def iter_media_files(paths: list[Path]) -> list[Path]:
 __all__ = [
     "EXTRACTOR_NAME",
     "ExtractResult",
-    "MediaExtractorUnavailable",
+    "MediaExtractorUnavailableError",
     "build_image_artifact",
     "extract_image",
     "iter_image_files",

@@ -182,10 +182,10 @@ def test_iter_image_files_expands_dirs_images_only(tmp_path: Path) -> None:
 
 def test_extractor_unavailable_propagates(tmp_path: Path) -> None:
     def broken_ocr(_p: Path) -> str:
-        raise mx.MediaExtractorUnavailable("no tesseract")
+        raise mx.MediaExtractorUnavailableError("no tesseract")
 
     png = _png(tmp_path)
-    with pytest.raises(mx.MediaExtractorUnavailable):
+    with pytest.raises(mx.MediaExtractorUnavailableError):
         mx.extract_image(png, tmp_path, ocr=broken_ocr, version="v")
 
 
@@ -215,7 +215,7 @@ def test_real_tesseract_produces_a_valid_artifact(tmp_path: Path) -> None:
 
     try:
         mx.tesseract_version()  # raises if the system binary is absent
-    except mx.MediaExtractorUnavailable:
+    except mx.MediaExtractorUnavailableError:
         pytest.skip("tesseract binary not installed")
 
     image = Image.new("RGB", (320, 80), "white")

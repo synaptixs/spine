@@ -33,7 +33,7 @@ from orchestrator.pkg.media import (
 )
 from orchestrator.pkg.media_extract import (
     ExtractResult,
-    MediaExtractorUnavailable,
+    MediaExtractorUnavailableError,
     write_artifact,
 )
 
@@ -43,7 +43,7 @@ _MAX_DURATION_MS = 3 * 60 * 60 * 1000  # 3 hours of transcript kept; the rest is
 _MAX_SEGMENTS = 10_000
 
 
-class RemoteConsentRequired(RuntimeError):
+class RemoteConsentRequiredError(RuntimeError):
     """A remote (off-machine) ASR backend was asked to run without explicit per-run consent.
 
     Raised — never bypassed — so audio can never leave the machine as a silent side effect
@@ -89,7 +89,7 @@ class LocalWhisperBackend:
             model = whisper.load_model(self.model)  # type: ignore[attr-defined]
             result = model.transcribe(str(path))
         except Exception as exc:  # noqa: BLE001 — whisper raises assorted runtime errors
-            raise MediaExtractorUnavailable(f"local transcription failed for {path}: {exc}") from exc
+            raise MediaExtractorUnavailableError(f"local transcription failed for {path}: {exc}") from exc
         return _segments_from_whisper(result.get("segments", []))
 
 
@@ -118,7 +118,7 @@ class ApiAsrBackend:
 
         api_key = os.environ.get(self.api_key_env)
         if not api_key:
-            raise MediaExtractorUnavailable(
+            raise MediaExtractorUnavailableError(
                 f"remote ASR needs an API key in ${self.api_key_env} (never passed as a flag)."
             )
         try:
@@ -133,7 +133,7 @@ class ApiAsrBackend:
             response.raise_for_status()
             payload = response.json()
         except Exception as exc:  # noqa: BLE001 — network/HTTP/JSON errors all surface the same way
-            raise MediaExtractorUnavailable(f"remote transcription failed for {path}: {exc}") from exc
+            raise MediaExtractorUnavailableError(f"remote transcription failed for {path}: {exc}") from exc
         return _segments_from_whisper(payload.get("segments", []))
 
 
@@ -141,7 +141,7 @@ def _load_whisper() -> object:
     try:
         import whisper
     except ImportError as exc:
-        raise MediaExtractorUnavailable(
+        raise MediaExtractorUnavailableError(
             "local ASR needs the [asr] extra: pip install 'synaptixs-spine[asr]'. "
             "For a no-local-model option, use --asr api (which sends audio off-machine)."
         ) from exc
@@ -202,7 +202,7 @@ def build_media_artifact(
     """
     sha = _file_sha256(media_path)
     if sha is None:
-        raise MediaExtractorUnavailable(f"could not read {media_path}")
+        raise MediaExtractorUnavailableError(f"could not read {media_path}")
     kept, truncated = _bounded(backend.transcribe(media_path))
     rel = media_path.resolve().relative_to(repo_root.resolve()).as_posix()
     # Drop empty/whitespace segments so a committed artifact carries only real transcript text,
@@ -239,7 +239,7 @@ def extract_media(
     Then skips oversized files and up-to-date artifacts, exactly like the image path.
     """
     if backend.off_machine and not allow_remote:
-        raise RemoteConsentRequired(
+        raise RemoteConsentRequiredError(
             f"backend {backend.name!r} would upload {media_path.name} off-machine. "
             "Re-run with --allow-remote to consent, or use --asr local."
         )
@@ -247,11 +247,11 @@ def extract_media(
         if media_path.stat().st_size > _MAX_MEDIA_BYTES:
             return ExtractResult(media_path, "skipped-too-large")
     except OSError as exc:
-        raise MediaExtractorUnavailable(f"could not read {media_path}") from exc
+        raise MediaExtractorUnavailableError(f"could not read {media_path}") from exc
 
     sha = _file_sha256(media_path)
     if sha is None:
-        raise MediaExtractorUnavailable(f"could not read {media_path}")
+        raise MediaExtractorUnavailableError(f"could not read {media_path}")
     existing = artifact_path(repo_root, sha)
     if existing.is_file() and not force:
         return ExtractResult(media_path, "unchanged", existing)
@@ -267,7 +267,7 @@ __all__ = [
     "ApiAsrBackend",
     "AsrBackend",
     "LocalWhisperBackend",
-    "RemoteConsentRequired",
+    "RemoteConsentRequiredError",
     "Segment",
     "build_media_artifact",
     "extract_media",

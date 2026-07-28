@@ -2066,11 +2066,11 @@ def media_extract(
         ApiAsrBackend,
         AsrBackend,
         LocalWhisperBackend,
-        RemoteConsentRequired,
+        RemoteConsentRequiredError,
         extract_media,
     )
     from orchestrator.pkg.media_extract import (
-        MediaExtractorUnavailable,
+        MediaExtractorUnavailableError,
         extract_image,
         iter_media_files,
     )
@@ -2103,7 +2103,7 @@ def media_extract(
                 result = extract_image(media, repo_root, force=force)
                 unit = "label(s)"
             else:
-                assert backend is not None  # set whenever needs_asr
+                assert backend is not None  # noqa: S101  (type-narrowing for mypy; set whenever needs_asr)
                 result = extract_media(media, repo_root, backend, allow_remote=allow_remote, force=force)
                 unit = "segment(s)"
             if result.status == "written":
@@ -2114,10 +2114,10 @@ def media_extract(
                 typer.echo(f"  unchanged {media} (artifact exists; --force to re-extract)")
             elif result.status == "skipped-too-large":
                 typer.echo(f"  skipped {media} (larger than the size cap)")
-    except RemoteConsentRequired as exc:
+    except RemoteConsentRequiredError as exc:
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=2) from exc
-    except MediaExtractorUnavailable as exc:
+    except MediaExtractorUnavailableError as exc:
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=2) from exc
 

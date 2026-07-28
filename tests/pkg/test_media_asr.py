@@ -155,7 +155,7 @@ def test_oversized_media_is_skipped(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 def test_remote_backend_refuses_without_consent(tmp_path: Path) -> None:
     remote = _FakeBackend(_REVIEW, off_machine=True)
     # A remote backend must not run — and therefore must not upload — without allow_remote.
-    with pytest.raises(asr.RemoteConsentRequired):
+    with pytest.raises(asr.RemoteConsentRequiredError):
         asr.extract_media(_audio(tmp_path), tmp_path, remote, allow_remote=False)
 
 
