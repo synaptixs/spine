@@ -22,6 +22,10 @@
 - [`_git`](../../src/orchestrator/pkg/persistence.py#L121) — reaches **9** symbols
 - [`FactCacheError`](../../src/orchestrator/pkg/persistence.py#L28) — reaches **6** symbols
 
+## Documented in
+
+`docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#4-risks-open-items-for-phase-2`
+
 ## Types
 
 ### `FactCacheError`
@@ -94,6 +98,7 @@
 
 - **Called by** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
 - **Calls** (7): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L532), [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L142), [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L138), [`load_facts`](../../src/orchestrator/pkg/persistence.py#L107), `pathlib.Path`, [`repo_state`](../../src/orchestrator/pkg/persistence.py#L128), [`save_facts`](../../src/orchestrator/pkg/persistence.py#L100)
+- **Documented in**: `docs/specs/comprehension-skill-spec.md#phases`, `docs/specs/design-and-comprehension-milestones.md#what-it-does-all-existing-deterministic-no-llm`, `docs/specs/multi-language-java.md#slice-1-java-comprehension-this-build`, `docs/specs/project-comprehension-memory-bank.md#two-branches-same-output-shape`, `docs/specs/typescript-codegen.md#slice-1-typescript-comprehension-ships-first-cheap`
 
 ### `repo_state`
 

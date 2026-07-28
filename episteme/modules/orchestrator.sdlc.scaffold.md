@@ -55,6 +55,7 @@
 
 - **Called by** (1): [`scaffold`](../../src/orchestrator/sdlc/scaffold.py#L72)
 - **Calls** (1): [`_go_ident`](../../src/orchestrator/sdlc/scaffold.py#L467)
+- **Documented in**: `docs/specs/go-support-roadmap.md#track-4-go-go`
 
 ### `_go_ident`
 
@@ -75,12 +76,14 @@
 [`src/orchestrator/sdlc/scaffold.py:176`](../../src/orchestrator/sdlc/scaffold.py#L176)
 
 - **Called by** (1): [`scaffold`](../../src/orchestrator/sdlc/scaffold.py#L72)
+- **Documented in**: `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
 ### `_python_files`
 
 [`src/orchestrator/sdlc/scaffold.py:155`](../../src/orchestrator/sdlc/scaffold.py#L155)
 
 - **Called by** (1): [`scaffold`](../../src/orchestrator/sdlc/scaffold.py#L72)
+- **Documented in**: `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
 ### `_sln`
 
@@ -94,6 +97,7 @@
 [`src/orchestrator/sdlc/scaffold.py:138`](../../src/orchestrator/sdlc/scaffold.py#L138)
 
 - **Called by** (1): [`scaffold`](../../src/orchestrator/sdlc/scaffold.py#L72)
+- **Documented in**: `docs/specs/sql-support-roadmap.md#phases`
 
 ### `_typescript_files`
 
@@ -101,6 +105,7 @@
 
 - **Called by** (1): [`scaffold`](../../src/orchestrator/sdlc/scaffold.py#L72)
 - **Calls** (1): `dumps`
+- **Documented in**: `docs/specs/typescript-codegen.md#scaffold-typescript-files-template-dispatch-by-language`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
 ### `scaffold`
 
@@ -108,6 +113,7 @@
 
 - **Called by** (1 production · 25 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`_scaffold_and_install`](../../tests/sdlc/test_typescript_integration.py#L29), [`_scaffold_go`](../../tests/sdlc/test_go_integration.py#L22), [`_scaffold_java`](../../tests/sdlc/test_java_integration.py#L23), [`test_flat_layout_pythonpath`](../../tests/sdlc/test_scaffold.py#L273), [`test_scaffold_c_appends_build_ignore_to_existing_gitignore`](../../tests/sdlc/test_scaffold.py#L190), [`test_scaffold_c_cmake_project`](../../tests/sdlc/test_scaffold.py#L176), [`test_scaffold_c_is_idempotent`](../../tests/sdlc/test_scaffold.py#L198), [`test_scaffold_cpp_cmake_project`](../../tests/sdlc/test_scaffold.py#L214), [`test_scaffold_cpp_is_idempotent`](../../tests/sdlc/test_scaffold.py#L227), [`test_scaffold_creates_runnable_skeleton`](../../tests/sdlc/test_scaffold.py#L19), [`test_scaffold_csharp_appends_dotnet_ignores_to_existing_gitignore`](../../tests/sdlc/test_scaffold.py#L154), [`test_scaffold_csharp_guids_are_deterministic`](../../tests/sdlc/test_scaffold.py#L139), [`test_scaffold_csharp_honors_target_framework`](../../tests/sdlc/test_scaffold.py#L261), [`test_scaffold_csharp_is_idempotent`](../../tests/sdlc/test_scaffold.py#L149), [`test_scaffold_csharp_solution_project`](../../tests/sdlc/test_scaffold.py#L119), [`test_scaffold_go_is_idempotent`](../../tests/sdlc/test_scaffold.py#L256), [`test_scaffold_go_module`](../../tests/sdlc/test_scaffold.py#L243), [`test_scaffold_is_idempotent`](../../tests/sdlc/test_scaffold.py#L32), [`test_scaffold_java_is_idempotent`](../../tests/sdlc/test_scaffold.py#L70), [`test_scaffold_java_maven_project`](../../tests/sdlc/test_scaffold.py#L57), [`test_scaffold_never_clobbers_existing_files`](../../tests/sdlc/test_scaffold.py#L39), [`test_scaffold_sql_coexists_with_app_code`](../../tests/sdlc/test_scaffold.py#L292), [`test_scaffold_sql_creates_migrations_dir`](../../tests/sdlc/test_scaffold.py#L280), [`test_scaffold_typescript_is_idempotent`](../../tests/sdlc/test_scaffold.py#L103), +1 more
 - **Calls** (10): [`_c_files`](../../src/orchestrator/sdlc/scaffold.py#L346), [`_cpp_files`](../../src/orchestrator/sdlc/scaffold.py#L412), [`_csharp_files`](../../src/orchestrator/sdlc/scaffold.py#L229), [`_ensure_build_ignores`](../../src/orchestrator/sdlc/scaffold.py#L113), [`_go_files`](../../src/orchestrator/sdlc/scaffold.py#L474), [`_java_files`](../../src/orchestrator/sdlc/scaffold.py#L176), [`_python_files`](../../src/orchestrator/sdlc/scaffold.py#L155), [`_sql_files`](../../src/orchestrator/sdlc/scaffold.py#L138), [`_typescript_files`](../../src/orchestrator/sdlc/scaffold.py#L194), `pathlib.Path`
+- **Documented in**: `docs/specs/java-codegen.md#scaffold-template-dispatch-by-language`
 
 ## Imports
 

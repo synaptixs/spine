@@ -53,6 +53,8 @@ _MAX_GLOSSARY_TERMS = 40
 _MAX_PUBLIC_SYMBOLS = 15
 _MAX_CYCLES = 8
 _MAX_CYCLE_MEMBERS = 6
+# Languages where mutual inclusion is normal-ish (include guards make it compile).
+_C_FAMILY = frozenset({"c", "cpp"})
 _MAX_ONBOARDING_STEPS = 5
 # The symbol index is the exception: it exists to be searched, so it wants to be long.
 # Still capped, because a 10k-row table helps nobody and the cut has to be reported.
@@ -760,9 +762,16 @@ def _area_prose(area: AreaFacts, total_areas: int) -> str:
             "on it — it's a foundation, so changes ripple outward."
         )
     elif area.imports:
+        # State the structure; don't infer safety from it. "Nothing imports this" is
+        # exactly what an application entry point looks like — on open5gs it fired for
+        # `src/amf`, a 390-function network function, calling it "the safer place to
+        # change". Being un-imported bounds what a change can reach *outward*; it says
+        # nothing about how much lives inside.
         role = (
-            f"No other area imports it, and it draws on {len(area.imports)} — "
-            "it's a leaf, so it's the safer place to change."
+            f"No other area imports it, and it draws on {len(area.imports)} — nothing else "
+            "in this repo depends on it. That's the shape of an entry point or a top-level "
+            "application as much as a leaf utility, so it bounds the outward reach of a "
+            "change here, not its difficulty."
         )
     else:
         role = "It has no import edges to or from other areas — it stands alone."
@@ -1116,18 +1125,25 @@ def _api_split_block(store: FactStore, src: str | None) -> str:
     from orchestrator.knowledge.insights import api_split
 
     split = api_split(store)
+    # Nothing classifiable (a pure Java/C# repo) — say nothing rather than imply the
+    # whole codebase is public. The section is an aid, not an obligation.
     if not split.total:
         return ""
     imp = Importance(store)
     listed = ", ".join(_link(n, src) for n in imp.rank(split.public)[:_MAX_PUBLIC_SYMBOLS])
     rest = len(split.public) - _MAX_PUBLIC_SYMBOLS
+    unknown = (
+        f" {split.unknown_count} symbol{'s' if split.unknown_count != 1 else ''} in languages "
+        "whose visibility the graph can't read are left out of this count."
+        if split.unknown_count
+        else ""
+    )
     return (
         "## Public surface\n"
-        "_Split by naming convention — a leading underscore on the symbol or its module "
-        "means internal._\n\n"
+        f"_Split by each language's own rule — {split.rules}._\n\n"
         f"**{len(split.public)} public** symbols · **{split.internal_count} internal**, "
         f"of {split.total}. Most of this codebase is machinery you don't need to read to "
-        "use it.\n\n"
+        f"use it.{unknown}\n\n"
         f"Most-depended-upon public symbols: {listed}" + (f", +{rest} more" if rest > 0 else "") + "\n\n"
     )
 
@@ -1151,13 +1167,26 @@ def _cycles_block(deps: ModuleDeps, store: FactStore) -> str:
         rest = len(names) - _MAX_CYCLE_MEMBERS
         rows.append(f"- {len(cycle)} modules: {listed}" + (f", +{rest} more" if rest > 0 else ""))
     tail = f"\n\n_Showing {len(shown)} of {len(cycles)} cycles._" if len(cycles) > len(shown) else ""
+    # How bad a cycle is depends on the language. A Python circular import can fail at
+    # runtime; mutual `#include` in C compiles fine because of include guards, so calling
+    # it "a hazard for import order" there overstates a design smell into a bug.
+    langs = {n.language for cycle in shown for i in cycle if (n := store.node(i)) is not None}
+    if langs and langs <= _C_FAMILY:
+        severity = (
+            "In C/C++ include guards make these compile cleanly, so read them as a design "
+            "smell — layering that doesn't hold — rather than a defect."
+        )
+    elif langs & _C_FAMILY:
+        severity = (
+            "Severity varies by language: a circular import can fail at runtime, while "
+            "mutual `#include` in C/C++ compiles fine behind include guards."
+        )
+    else:
+        severity = "Each is a place the layering doesn't hold — and a hazard for import order."
     return (
         "## Import cycles\n"
-        "_Groups of modules that depend on each other, directly or through a chain. Each "
-        "is a place the layering doesn't hold — and a hazard for import order._\n\n"
-        + "\n".join(rows)
-        + tail
-        + "\n\n"
+        f"_Groups of modules that depend on each other, directly or through a chain. "
+        f"{severity}_\n\n" + "\n".join(rows) + tail + "\n\n"
     )
 
 

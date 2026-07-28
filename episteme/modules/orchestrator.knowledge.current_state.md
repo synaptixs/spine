@@ -30,6 +30,7 @@
 
 - **Called by** (1): [`compute_current_state`](../../src/orchestrator/knowledge/current_state.py#L195)
 - **Fields**: `area_funcs`, `area_types`, `areas`, `auth_surface`, `busiest_controllers`, `call_hotspots`, `controllers`, `counts`, `coupling`, `coverable_symbols`, `data_access`, `doc_drift_top`, `doc_drift_total`, `docs`, `documented_symbols`, `dup_names`, `endpoints`, `entry_points`, `external_deps`, `framework`, `generated`, `has_calls`, `hotspots`, `infrastructure`, `interfaces`, `languages`, `layers`, `modules`, `namespaces`, `production_areas`, `recent_areas`, `recommendations`, `size_dist`, `test_runner`, `tested_areas`, `untested_top`
+- **Documented in**: `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes`, `docs/specs/shareable-report-spec.md#phases`, `docs/specs/shareable-report-spec.md#report-content`, `docs/specs/shareable-report-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ## Functions
 
@@ -129,6 +130,7 @@
 [`src/orchestrator/knowledge/current_state.py:416`](../../src/orchestrator/knowledge/current_state.py#L416)
 
 - **Called by** (1): [`compute_current_state`](../../src/orchestrator/knowledge/current_state.py#L195)
+- **Documented in**: `docs/specs/shareable-report-spec.md#report-content`
 
 ### `_render_developer`
 
@@ -161,7 +163,7 @@
 
 [`src/orchestrator/knowledge/current_state.py:496`](../../src/orchestrator/knowledge/current_state.py#L496)
 
-- **Called by** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L663), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1005)
+- **Called by** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L663), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1014)
 - **Calls** (6): [`_mid`](../../src/orchestrator/knowledge/current_state.py#L444), [`_zone_label`](../../src/orchestrator/knowledge/current_state.py#L457), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L461), `collections.defaultdict`, `py:_zone`, `sub`
 
 ### `build_current_state`
@@ -170,6 +172,7 @@
 
 - **Called by** (3 production · 2 test): [`_compute`](../../src/orchestrator/sdlc/comprehension.py#L31), [`adapter`](../../src/orchestrator/registry/api/capabilities.py#L261), [`state`](../../src/orchestrator/cli.py#L1422), [`test_build_current_state_end_to_end_python`](../../tests/knowledge/test_current_state.py#L193), [`test_infrastructure_section_from_real_repo`](../../tests/knowledge/test_current_state.py#L108)
 - **Calls** (2): [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L790), [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L524)
+- **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `compute_current_state`
 
@@ -191,6 +194,7 @@
 
 - **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L1472), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L808), [`run`](../../src/orchestrator/plugin/server.py#L427), [`run`](../../src/orchestrator/plugin/server.py#L204)
 - **Calls** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
+- **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `render_current_state`
 

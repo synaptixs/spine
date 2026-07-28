@@ -28,17 +28,49 @@ if TYPE_CHECKING:
     from orchestrator.pkg.store import FactStore
 
 
-def is_public(node: Node) -> bool:
+# How each language marks "not part of the public surface". These are *language*
+# conventions, not one universal rule — assuming Python's underscore everywhere
+# reported 19,212 public vs 32 internal on a C codebase, which is a number that
+# looks computed and means nothing.
+_UNDERSCORE_LANGS = frozenset({"python", "typescript", "javascript"})
+_C_LANGS = frozenset({"c", "cpp"})
+
+#: Human-readable rule per language, so a page can say how it decided.
+VISIBILITY_RULES = {
+    "python": "a leading underscore",
+    "typescript": "a leading underscore",
+    "javascript": "a leading underscore",
+    "c": "`static` (internal linkage)",
+    "cpp": "`static` (internal linkage)",
+    "go": "a lower-case initial (unexported)",
+}
+
+
+def is_public(node: Node) -> bool | None:
     """Is this symbol part of the surface another project could use?
 
-    Language-agnostic and deliberately crude: a leading underscore on the symbol *or*
-    on any segment of its owning module marks it internal. That is the near-universal
-    convention across the front-ends we support, and it errs toward calling things
-    public — safer for the two consumers below, where mistaking internal for public
-    only weakens a suggestion, while the reverse would call a real API dead.
+    Returns ``None`` when the language gives no signal the graph can read — Java and
+    C# express visibility with keywords the front-ends don't record, and guessing
+    would be worse than declining to answer.
+
+    Per language:
+
+    - **Python / TypeScript / JavaScript** — a leading underscore on the symbol *or*
+      on any segment of its owning module.
+    - **C / C++** — ``static`` storage class, which the front-end already encodes by
+      keying internal-linkage symbols as ``file.c::name``. This is the real linkage
+      rule; C has no underscore convention, and applying Python's made the split
+      meaningless.
+    - **Go** — an upper-case initial is exported; that *is* the language rule.
     """
     body = node.id.partition(":")[2]
-    return not any(seg.startswith("_") for seg in body.replace("/", ".").split(".") if seg)
+    if node.language in _C_LANGS:
+        return "::" not in body
+    if node.language == "go":
+        return node.name[:1].isupper()
+    if node.language in _UNDERSCORE_LANGS:
+        return not any(seg.startswith("_") for seg in body.replace("/", ".").split(".") if seg)
+    return None
 
 
 @dataclass(frozen=True)
@@ -47,30 +79,55 @@ class ApiSplit:
 
     public: list[Node]
     internal_count: int
+    # Symbols in languages whose visibility the graph can't read (Java, C#). Counted
+    # apart so a page never presents "everything is public" when it simply can't tell.
+    unknown_count: int = 0
+    # Languages actually classified, for naming the rule that was applied.
+    languages: frozenset[str] = frozenset()
 
     @property
     def total(self) -> int:
         return len(self.public) + self.internal_count
+
+    @property
+    def rules(self) -> str:
+        """ "a leading underscore" / "`static` (internal linkage)" — how it decided."""
+        seen = {VISIBILITY_RULES[lang] for lang in sorted(self.languages) if lang in VISIBILITY_RULES}
+        return ", ".join(sorted(seen))
 
 
 def api_split(store: FactStore) -> ApiSplit:
     """Split first-party symbols into the public surface and the internals.
 
     "40 public symbols, 1,900 internal" reframes a 2,000-symbol repo as approachable:
-    most of it is machinery you don't have to read to use the thing.
+    most of it is machinery you don't have to read to use the thing. Symbols whose
+    language offers no readable signal are excluded from both counts rather than
+    defaulted into one.
     """
     from orchestrator.knowledge.renderers import _under_tests
 
     public: list[Node] = []
     internal = 0
+    unknown = 0
+    languages: set[str] = set()
     for n in store.nodes:
         if n.kind not in (NodeKind.TYPE, NodeKind.FUNCTION) or not n.grounded or _under_tests(n):
             continue
-        if is_public(n):
+        verdict = is_public(n)
+        if verdict is None:
+            unknown += 1
+            continue
+        languages.add(n.language)
+        if verdict:
             public.append(n)
         else:
             internal += 1
-    return ApiSplit(public=public, internal_count=internal)
+    return ApiSplit(
+        public=public,
+        internal_count=internal,
+        unknown_count=unknown,
+        languages=frozenset(languages),
+    )
 
 
 def import_cycles(imports: dict[str, set[str]], *, limit: int | None = None) -> list[list[str]]:
@@ -216,7 +273,10 @@ def dead_code_candidates(store: FactStore, *, limit: int = 20) -> DeadCode:
     for n in store.nodes:
         if n.kind not in (NodeKind.TYPE, NodeKind.FUNCTION) or not n.grounded or _under_tests(n):
             continue
-        if is_public(n) or n.name.startswith("__"):  # dunders are called by the runtime
+        # Only *definitely* internal symbols qualify. `is_public` returns None where
+        # the language hides visibility from us (Java, C#); treating that as "internal"
+        # would put real API on a possibly-unused list.
+        if is_public(n) is not False or n.name.startswith("__"):
             continue
         out.considered += 1
         if n.id not in called:

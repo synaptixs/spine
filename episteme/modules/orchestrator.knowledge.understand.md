@@ -45,12 +45,14 @@
 [`src/orchestrator/knowledge/understand.py:81`](../../src/orchestrator/knowledge/understand.py#L81)
 
 - **Called by** (1): [`build_memory_bank`](../../src/orchestrator/knowledge/understand.py#L243)
+- **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-2-shipped`
 
 ### `_source_prefix`
 
 [`src/orchestrator/knowledge/understand.py:65`](../../src/orchestrator/knowledge/understand.py#L65)
 
 - **Called by** (1): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
+- **Documented in**: `docs/specs/pkg-navigable-reports.md#phase-1-shipped-5daf1b8`
 
 ### `build_memory_bank`
 
@@ -58,14 +60,14 @@
 
 - **Called by** (0 production · 15 test): [`_build_and_commit`](../../tests/knowledge/test_bank_check.py#L47), [`_repo_with_memory_bank`](../../tests/knowledge/test_memory_bank.py#L510), [`test_api_surface_page_is_written_only_when_routes_exist`](../../tests/knowledge/test_module_briefing.py#L154), [`test_build_is_idempotent_so_check_holds_after_a_rebuild`](../../tests/knowledge/test_bank_check.py#L195), [`test_build_memory_bank_greenfield`](../../tests/knowledge/test_memory_bank.py#L504), [`test_build_memory_bank_writes_files`](../../tests/knowledge/test_memory_bank.py#L490), [`test_build_reaps_orphaned_module_pages`](../../tests/knowledge/test_memory_bank.py#L277), [`test_build_writes_area_pages_and_architecture_lists_areas`](../../tests/knowledge/test_memory_bank.py#L256), [`test_build_writes_entity_pages_and_reaps_them`](../../tests/knowledge/test_memory_bank.py#L419), [`test_build_writes_module_pages_and_architecture_links_down`](../../tests/knowledge/test_memory_bank.py#L264), [`test_check_still_passes_after_committing_the_bank`](../../tests/knowledge/test_shared_analysis.py#L141), [`test_dirty_tree_is_marked_in_the_stamp`](../../tests/knowledge/test_bank_check.py#L85), [`test_stamp_records_commit_and_version`](../../tests/knowledge/test_bank_check.py#L56), [`test_stamp_says_so_when_there_is_no_commit`](../../tests/knowledge/test_bank_check.py#L77), [`test_the_bank_is_not_ingested_as_its_own_documentation`](../../tests/knowledge/test_bank_check.py#L184)
 - **Calls** (3): [`_reap_orphans`](../../src/orchestrator/knowledge/understand.py#L81), `py:emit`, [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
-- **Documented in**: `CHANGELOG.md`
+- **Documented in**: `CHANGELOG.md`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/pkg-navigable-reports.md#phase-1-the-rename-memory-bank-episteme`
 
 ### `check_memory_bank`
 
 [`src/orchestrator/knowledge/understand.py:310`](../../src/orchestrator/knowledge/understand.py#L310)
 
 - **Called by** (0 production · 10 test): [`test_build_is_idempotent_so_check_holds_after_a_rebuild`](../../tests/knowledge/test_bank_check.py#L195), [`test_check_fails_on_a_hand_edited_page`](../../tests/knowledge/test_bank_check.py#L139), [`test_check_fails_on_a_missing_page`](../../tests/knowledge/test_bank_check.py#L148), [`test_check_fails_on_a_page_describing_deleted_code`](../../tests/knowledge/test_bank_check.py#L156), [`test_check_fails_when_the_code_changed`](../../tests/knowledge/test_bank_check.py#L127), [`test_check_ignores_a_stamp_naming_an_older_commit`](../../tests/knowledge/test_bank_check.py#L114), [`test_check_passes_on_a_freshly_committed_bank`](../../tests/knowledge/test_bank_check.py#L105), [`test_check_reports_an_absent_bank_distinctly`](../../tests/knowledge/test_bank_check.py#L164), [`test_check_still_passes_after_committing_the_bank`](../../tests/knowledge/test_shared_analysis.py#L141), [`test_check_writes_nothing`](../../tests/knowledge/test_bank_check.py#L172)
-- **Calls** (6): [`BankCheck`](../../src/orchestrator/knowledge/understand.py#L273), [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49), `pathlib.Path`, [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L128), [`strip_stamp`](../../src/orchestrator/knowledge/renderers.py#L139)
+- **Calls** (6): [`BankCheck`](../../src/orchestrator/knowledge/understand.py#L273), [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49), `pathlib.Path`, [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L128), [`strip_stamp`](../../src/orchestrator/knowledge/renderers.py#L141)
 
 ### `existing_bank_dir`
 
@@ -73,7 +75,7 @@
 
 - **Called by** (5 production · 2 test): [`_read_design_bank`](../../src/orchestrator/cli.py#L1596), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L310), [`memory_bank_grounding`](../../src/orchestrator/knowledge/access.py#L24), [`read_memory_bank`](../../src/orchestrator/knowledge/access.py#L43), [`work`](../../src/orchestrator/registry/api/capabilities.py#L167), [`test_existing_bank_dir_falls_back_to_legacy_memory_bank`](../../tests/knowledge/test_memory_bank.py#L469), [`test_existing_bank_dir_override_beats_legacy`](../../tests/knowledge/test_memory_bank.py#L480)
 - **Calls** (3): `getenv`, [`memory_bank_dir`](../../src/orchestrator/knowledge/understand.py#L41), `pathlib.Path`
-- **Documented in**: `CLAUDE.md#spine-working-on-this-repo`
+- **Documented in**: `CLAUDE.md#spine-working-on-this-repo`, `docs/specs/pkg-navigable-reports.md#phase-1-shipped-5daf1b8`
 
 ### `memory_bank_dir`
 
@@ -81,14 +83,14 @@
 
 - **Called by** (3 production · 1 test): [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`understand`](../../src/orchestrator/cli.py#L1353), [`test_memory_bank_dir_override`](../../tests/knowledge/test_memory_bank.py#L463)
 - **Calls** (2): `getenv`, `pathlib.Path`
-- **Documented in**: `CLAUDE.md#spine-working-on-this-repo`
+- **Documented in**: `CLAUDE.md#spine-working-on-this-repo`, `docs/specs/pkg-navigable-reports.md#phase-1-the-rename-memory-bank-episteme`
 
 ### `render_memory_bank`
 
 [`src/orchestrator/knowledge/understand.py:122`](../../src/orchestrator/knowledge/understand.py#L122)
 
 - **Called by** (2 production · 8 test): [`build_memory_bank`](../../src/orchestrator/knowledge/understand.py#L243), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L310), [`_bank`](../../tests/knowledge/test_shared_analysis.py#L58), [`_page`](../../tests/knowledge/test_module_briefing.py#L51), [`_pages`](../../tests/knowledge/test_insights.py#L57), [`_pages`](../../tests/knowledge/test_weak_pages.py#L52), [`test_bank_does_not_embed_the_local_directory_name`](../../tests/knowledge/test_weak_pages.py#L171), [`test_documentation_section_absent_without_docs`](../../tests/knowledge/test_module_briefing.py#L95), [`test_stamp_carries_no_timestamp_so_output_stays_byte_identical`](../../tests/knowledge/test_bank_check.py#L69), [`test_the_bank_is_not_ingested_as_its_own_documentation`](../../tests/knowledge/test_bank_check.py#L184)
-- **Calls** (33): [`AreaIndex`](../../src/orchestrator/knowledge/areas.py#L42), [`CoverageIndex`](../../src/orchestrator/sdlc/coverage.py#L65), [`DataLayer`](../../src/orchestrator/knowledge/renderers.py#L574), [`ModuleDeps`](../../src/orchestrator/knowledge/renderers.py#L326), [`RenderedBank`](../../src/orchestrator/knowledge/understand.py#L103), [`_source_prefix`](../../src/orchestrator/knowledge/understand.py#L65), [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50), [`collect_areas`](../../src/orchestrator/knowledge/renderers.py#L695), [`has_api_surface`](../../src/orchestrator/knowledge/renderers.py#L1647), [`memory_bank_dir`](../../src/orchestrator/knowledge/understand.py#L41), [`module_page_slugs`](../../src/orchestrator/knowledge/renderers.py#L287), [`onboarding_path`](../../src/orchestrator/knowledge/insights.py#L143), `pathlib.Path`, `py:emit`, [`render_api_surface`](../../src/orchestrator/knowledge/renderers.py#L1652), [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1227), [`render_area_page`](../../src/orchestrator/knowledge/renderers.py#L828), [`render_conventions`](../../src/orchestrator/knowledge/renderers.py#L1512), [`render_domain_model`](../../src/orchestrator/knowledge/renderers.py#L1370), [`render_entity_page`](../../src/orchestrator/knowledge/renderers.py#L611), [`render_glossary`](../../src/orchestrator/knowledge/renderers.py#L1543), [`render_index`](../../src/orchestrator/knowledge/renderers.py#L1708), [`render_module_page`](../../src/orchestrator/knowledge/renderers.py#L511), [`render_onboarding`](../../src/orchestrator/knowledge/renderers.py#L1636), [`render_progress_pointer`](../../src/orchestrator/knowledge/renderers.py#L1683), +8 more
+- **Calls** (33): [`AreaIndex`](../../src/orchestrator/knowledge/areas.py#L42), [`CoverageIndex`](../../src/orchestrator/sdlc/coverage.py#L65), [`DataLayer`](../../src/orchestrator/knowledge/renderers.py#L576), [`ModuleDeps`](../../src/orchestrator/knowledge/renderers.py#L328), [`RenderedBank`](../../src/orchestrator/knowledge/understand.py#L103), [`_source_prefix`](../../src/orchestrator/knowledge/understand.py#L65), [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50), [`collect_areas`](../../src/orchestrator/knowledge/renderers.py#L697), [`has_api_surface`](../../src/orchestrator/knowledge/renderers.py#L1676), [`memory_bank_dir`](../../src/orchestrator/knowledge/understand.py#L41), [`module_page_slugs`](../../src/orchestrator/knowledge/renderers.py#L289), [`onboarding_path`](../../src/orchestrator/knowledge/insights.py#L200), `pathlib.Path`, `py:emit`, [`render_api_surface`](../../src/orchestrator/knowledge/renderers.py#L1681), [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1256), [`render_area_page`](../../src/orchestrator/knowledge/renderers.py#L837), [`render_conventions`](../../src/orchestrator/knowledge/renderers.py#L1541), [`render_domain_model`](../../src/orchestrator/knowledge/renderers.py#L1399), [`render_entity_page`](../../src/orchestrator/knowledge/renderers.py#L613), [`render_glossary`](../../src/orchestrator/knowledge/renderers.py#L1572), [`render_index`](../../src/orchestrator/knowledge/renderers.py#L1737), [`render_module_page`](../../src/orchestrator/knowledge/renderers.py#L513), [`render_onboarding`](../../src/orchestrator/knowledge/renderers.py#L1665), [`render_progress_pointer`](../../src/orchestrator/knowledge/renderers.py#L1712), +8 more
 - **Documented in**: `CHANGELOG.md`
 
 ### `spine_version`
