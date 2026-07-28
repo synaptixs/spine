@@ -180,3 +180,93 @@ def test_module_name_is_per_extractor(tmp_path: Path) -> None:
     f.write_text("x = 1\n", encoding="utf-8")
     assert PythonExtractor().module_name(f, tmp_path) == "a.b"
     assert rel_module_name(f, tmp_path) == "src/a/b.py"
+
+
+# ---- relative imports: the level is preserved and resolved locally ---------
+
+
+def test_relative_import_resolves_against_own_package(tmp_path: Path) -> None:
+    f = tmp_path / "core.py"
+    f.write_text("from .types import convert\n", encoding="utf-8")
+    batch = PythonExtractor().extract(path=f, module="click.core", rel="src/click/core.py")
+    edges = {(e.src, e.dst, e.kind) for e in batch.edges}
+    # NOT py:types.convert — the package prefix must survive
+    assert ("py:click.core", "py:click.types.convert", EdgeKind.IMPORTS) in edges
+
+
+def test_relative_import_in_init_resolves_to_own_package(tmp_path: Path) -> None:
+    f = tmp_path / "__init__.py"
+    f.write_text("from . import core\nfrom .core import Context\n", encoding="utf-8")
+    batch = PythonExtractor().extract(path=f, module="click", rel="src/click/__init__.py")
+    edges = {(e.src, e.dst, e.kind) for e in batch.edges}
+    assert ("py:click", "py:click.core", EdgeKind.IMPORTS) in edges
+    assert ("py:click", "py:click.core.Context", EdgeKind.IMPORTS) in edges
+
+
+def test_double_dot_import_climbs_one_package(tmp_path: Path) -> None:
+    f = tmp_path / "mod.py"
+    f.write_text("from ..types import convert\n", encoding="utf-8")
+    batch = PythonExtractor().extract(path=f, module="click.sub.mod", rel="src/click/sub/mod.py")
+    edges = {(e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.IMPORTS}
+    assert ("py:click.sub.mod", "py:click.types.convert") in edges
+
+
+def test_stdlib_shadow_is_not_conflated_with_relative(tmp_path: Path) -> None:
+    f = tmp_path / "core.py"
+    f.write_text("import types\nfrom .types import convert\n", encoding="utf-8")
+    batch = PythonExtractor().extract(path=f, module="click.core", rel="src/click/core.py")
+    dsts = {e.dst for e in batch.edges if e.kind is EdgeKind.IMPORTS}
+    assert "py:types" in dsts  # the stdlib module, absolute
+    assert "py:click.types.convert" in dsts  # the sibling, package-qualified
+
+
+def test_relative_import_escaping_the_tree_keeps_its_dots(tmp_path: Path) -> None:
+    f = tmp_path / "mod.py"
+    f.write_text("from ...outside import thing\n", encoding="utf-8")
+    batch = PythonExtractor().extract(path=f, module="pkg.mod", rel="pkg/mod.py")
+    dsts = {e.dst for e in batch.edges if e.kind is EdgeKind.IMPORTS}
+    # climbs past the scanned tree: stays visibly relative, can never join or shadow
+    assert "py:...outside.thing" in dsts
+
+
+def test_relatively_imported_symbol_call_resolves(tmp_path: Path) -> None:
+    src = "from .tax import calc\n\n\ndef run():\n    return calc()\n"
+    f = tmp_path / "mod.py"
+    f.write_text(src, encoding="utf-8")
+    batch = PythonExtractor().extract(path=f, module="billing.mod", rel="billing/mod.py")
+    edges = {(e.src, e.dst, e.kind) for e in batch.edges}
+    assert ("py:billing.mod.run", "py:billing.tax.calc", EdgeKind.CALLS) in edges
+
+
+def test_builtin_base_is_recorded_as_an_external_type(tmp_path: Path) -> None:
+    """A class extending a builtin used to have no base at all in the graph, so the
+    root of an exception hierarchy answered "extends nothing"."""
+    src = "class AppError(Exception):\n    pass\n"
+    batch = _facts(tmp_path, src, module="m")
+    edges = {(e.src, e.dst, e.kind) for e in batch.edges}
+    assert ("py:m.AppError", "py:Exception", EdgeKind.IMPLEMENTS) in edges
+    base = next(n for n in batch.nodes if n.id == "py:Exception")
+    assert base.external and base.kind is NodeKind.TYPE
+
+
+def test_walk_order_is_sorted_not_filesystem_order(tmp_path: Path) -> None:
+    """Extraction order must not depend on the filesystem.
+
+    `os.walk` yields entries in filesystem order, which differs between APFS and
+    ext4. Order leaks into output via `Counter.most_common`, whose ties break on
+    insertion order — so an unsorted walk made the committed knowledge base differ
+    between a laptop and CI for the same commit.
+    """
+    pkg = tmp_path / "pkg"
+    (pkg / "sub").mkdir(parents=True)
+    for name in ("zebra.py", "alpha.py", "middle.py"):
+        (pkg / name).write_text("x = 1\n", encoding="utf-8")
+    (pkg / "sub" / "nested.py").write_text("y = 2\n", encoding="utf-8")
+
+    by_dir: dict[str, list[str]] = {}
+    for p in RepoCodeExtractor()._iter_files(tmp_path):
+        by_dir.setdefault(str(p.parent), []).append(p.name)
+
+    for names in by_dir.values():
+        assert names == sorted(names), f"walk not sorted: {names}"
+    assert any("nested.py" in names for names in by_dir.values())  # descends too

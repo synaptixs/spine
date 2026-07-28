@@ -65,3 +65,17 @@ jobs:
 
       - name: Tests
         run: uv run pytest
+
+      # Tier-1 graph invariants on our own repo. These are completeness checks — the
+      # kind that catch a front-end silently *stopping* to resolve something, which a
+      # does-it-run test passes straight through. The dangling-import bug lived for
+      # eight releases behind 204 green tests because every assertion checked that an
+      # edge was emitted with the expected text, and none checked that it resolved.
+      - name: PKG invariants (orchestrator pkg verify)
+        run: uv run orchestrator pkg verify .
+
+      # Spine's own episteme has to describe Spine's own HEAD. The product's flagship
+      # claim is detecting when docs drift from code; a knowledge base that drifts
+      # silently in our own repo is the one failure we cannot ship.
+      - name: Episteme is current (orchestrator understand --check)
+        run: uv run orchestrator understand . --check

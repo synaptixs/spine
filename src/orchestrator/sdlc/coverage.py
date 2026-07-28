@@ -62,6 +62,78 @@ def _is_reached_by_test(store: FactStore, node_id: str, *, max_depth: int = 3) -
     )
 
 
+class CoverageIndex:
+    """Whole-repo test reachability and blast radius, indexed once.
+
+    :func:`build_regression_plan` answers this for *one* symbol on demand, rebuilding
+    a predecessor index over every edge each time it walks. That is fine for a single
+    CLI query and far too slow to precompute a "changing this safely" block for every
+    symbol on every module page — the cost is quadratic in the graph.
+
+    This builds the two structures once: the reverse ``CALLS`` adjacency (who calls
+    whom) and, from a single forward sweep out of every test symbol, the set of nodes
+    some test transitively reaches. Both are then O(1) lookups.
+
+    "Covered" carries the same meaning as everywhere else in this module: *exercised
+    by a test through the call graph*, not *asserted correct*. A gap is therefore a
+    solid "nothing tests this"; coverage is "reached, worth confirming".
+    """
+
+    def __init__(self, store: FactStore) -> None:
+        self._store = store
+        callers: dict[str, list[str]] = {}  # callee -> callers
+        callees: dict[str, list[str]] = {}  # caller -> callees
+        for e in store.edges_of_kind(EdgeKind.CALLS):
+            callers.setdefault(e.dst, []).append(e.src)
+            callees.setdefault(e.src, []).append(e.dst)
+        self._callers = callers
+        self.call_graph_available = bool(callers)
+        self._covered = self._sweep_from_tests(store, callees)
+
+    @staticmethod
+    def _sweep_from_tests(store: FactStore, callees: dict[str, list[str]]) -> set[str]:
+        """Every symbol reachable *from* a test by following calls forward."""
+        from collections import deque
+
+        seen = {n.id for n in store.nodes if is_test_node(n)}
+        queue = deque(seen)
+        while queue:
+            for nxt in callees.get(queue.popleft(), ()):
+                if nxt not in seen:
+                    seen.add(nxt)
+                    queue.append(nxt)
+        return seen
+
+    def is_covered(self, node_id: str) -> bool:
+        """Does any test transitively call this symbol?"""
+        return node_id in self._covered
+
+    def blast_radius(self, node_id: str, *, max_depth: int = 4) -> list[Node]:
+        """Production symbols that transitively call ``node_id`` — what a change reaches.
+
+        Tests are excluded: a test breaking is the system working. Deterministic order
+        (BFS, then by id) so a committed page diffs cleanly.
+        """
+        from collections import deque
+
+        seen = {node_id}
+        out: list[Node] = []
+        queue: deque[tuple[str, int]] = deque([(node_id, 0)])
+        while queue:
+            nid, depth = queue.popleft()
+            if depth >= max_depth:
+                continue
+            for caller in sorted(self._callers.get(nid, ())):
+                if caller in seen:
+                    continue
+                seen.add(caller)
+                queue.append((caller, depth + 1))
+                node = self._store.node(caller)
+                if node is not None and not is_test_node(node):
+                    out.append(node)
+        return out
+
+
 def build_regression_plan(store: FactStore, target_id: str, *, max_impacted: int = 20) -> RegressionPlan:
     """Compute the regression coverage plan for changing ``target_id``."""
     node = store.node(target_id)
@@ -154,6 +226,7 @@ def render_regression_plan_md(plan: RegressionPlan) -> str:
 
 
 __all__ = [
+    "CoverageIndex",
     "CoverageItem",
     "RegressionPlan",
     "build_regression_plan",

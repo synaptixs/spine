@@ -177,6 +177,22 @@ class FactStore:
         ids = [e.src for e in self._edges if e.kind is EdgeKind.REFERENCES and e.dst == entity_id]
         return [self._nodes[i] for i in ids if i in self._nodes]
 
+    def implementors_of(self, type_id: str) -> list[Node]:
+        """Types that extend or implement this one (incoming ``IMPLEMENTS`` edges).
+
+        "What implements this interface?" is a core comprehension question, and the
+        answer is a lookup the graph has always been able to serve — 42 edges sit in
+        click's graph alone. The counterpart to :meth:`implements_of`; render both and
+        a reader can walk a hierarchy in either direction.
+        """
+        ids = [e.src for e in self._edges if e.kind is EdgeKind.IMPLEMENTS and e.dst == type_id]
+        return [self._nodes[i] for i in ids if i in self._nodes]
+
+    def implements_of(self, type_id: str) -> list[Node]:
+        """Base types this one extends or implements (outgoing ``IMPLEMENTS`` edges)."""
+        ids = [e.dst for e in self._edges if e.kind is EdgeKind.IMPLEMENTS and e.src == type_id]
+        return [self._nodes[i] for i in ids if i in self._nodes]
+
     def docs_for(self, symbol_id: str) -> list[Node]:
         """The ``Doc`` pages that describe a symbol (incoming ``MENTIONS`` edges) — "which docs
         talk about this?" (empty until docs are ingested; see ``pkg.doc_link``)."""

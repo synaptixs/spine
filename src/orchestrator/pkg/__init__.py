@@ -24,6 +24,7 @@ from orchestrator.pkg.extractor import (
     module_qualname,
 )
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
+from orchestrator.pkg.import_link import link_imports
 from orchestrator.pkg.java_extractor import JavaExtractor
 from orchestrator.pkg.persistence import (
     FactCacheError,
@@ -36,6 +37,7 @@ from orchestrator.pkg.rdf import facts_to_graph
 from orchestrator.pkg.retrieval import GroundedRetriever, SymbolImpact
 from orchestrator.pkg.store import CallSite, FactStore
 from orchestrator.pkg.verifier import GroundingFinding, GroundingVerifier
+from orchestrator.pkg.verify import VerifyIssue, VerifyReport, verify_batch
 
 __all__ = [
     "CallSite",
@@ -55,6 +57,7 @@ __all__ = [
     "GroundingFinding",
     "GroundingVerifier",
     "LanguageExtractor",
+    "link_imports",
     "Node",
     "NodeKind",
     "Provenance",
@@ -62,6 +65,8 @@ __all__ = [
     "PythonExtractor",
     "RepoCodeExtractor",
     "SymbolImpact",
+    "VerifyIssue",
+    "VerifyReport",
     "export_sqlite",
     "facts_to_graph",
     "load_facts",
@@ -69,4 +74,5 @@ __all__ = [
     "module_qualname",
     "repo_state",
     "save_facts",
+    "verify_batch",
 ]

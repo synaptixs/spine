@@ -45,6 +45,13 @@ orchestrator init && orchestrator doctor                  # scaffold .env, check
 orchestrator sdlc feature --source file://./spec.md --safe   # build locally — no pushes, no PRs
 ```
 
+> ### 👉 [**See it work end to end — one ticket, start to finish**](https://github.com/synaptixs/spine/blob/main/EXAMPLE.md)
+>
+> A real bug, in a real public codebase you can clone yourself
+> ([`pallets/click`](https://github.com/pallets/click)) — from *"where does this even live?"* to a
+> reviewed PR. **Every command is one you can run, and the output is real.** It finds the four
+> functions in the blast radius that **no test covers**, in about a minute, with no API key.
+
 ---
 
 ## 🔒 Security
@@ -70,6 +77,7 @@ public issue.
 
 | Guide | Read it for |
 |---|---|
+| **[Worked example](https://github.com/synaptixs/spine/blob/main/EXAMPLE.md)** | **Start here.** One ticket, start to finish, on a public repo you can clone — with real output you can reproduce command for command. |
 | **[Setup & Install](https://github.com/synaptixs/spine/blob/main/SETUP.md)** | Installing the CLI, the `.env`, and standing up the full stack (Temporal + Postgres) for the autonomous pipeline. |
 | **[User Guide](https://github.com/synaptixs/spine/blob/main/USER_GUIDE.md)** | A step-by-step walkthrough: from your first local build to a real PR, local models, the web dashboard, and connecting tools (MCP). |
 | **[Using Spine from Codex](https://github.com/synaptixs/spine/blob/main/CODEX_GUIDE.md)** | Drive Spine from the **Codex app** — install (plugin or MCP server), credentials, the tool reference, and end-to-end greenfield + brownfield walkthroughs. |
