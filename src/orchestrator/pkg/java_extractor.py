@@ -23,6 +23,7 @@ collapse onto one id (no arity in ids).
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -36,15 +37,16 @@ _PACKAGE_RE = re.compile(r"^\s*package\s+([\w.]+)\s*;", re.M)
 _TYPE_DECLS = frozenset(
     {"class_declaration", "interface_declaration", "enum_declaration", "record_declaration"}
 )
-_HTTP_VERB_ANNOTATIONS = {
-    "GET": "GET",
-    "POST": "POST",
-    "PUT": "PUT",
-    "DELETE": "DELETE",
-    "PATCH": "PATCH",
-    "HEAD": "HEAD",
-    "OPTIONS": "OPTIONS",
-}
+_HTTP_VERB_ANNOTATIONS = frozenset({"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"})
+_JAX_RS_PACKAGES = frozenset({"jakarta.ws.rs", "javax.ws.rs"})
+
+
+@dataclass(frozen=True)
+class _ImportContext:
+    """Java imports needed for precise type and annotation resolution."""
+
+    by_simple: dict[str, str]
+    wildcard_prefixes: frozenset[str]
 
 
 class JavaExtractor:
@@ -84,27 +86,33 @@ class JavaExtractor:
 
     def _imports(
         self, root: TSNode, module_id: str, source: bytes, rel: str, batch: FactBatch
-    ) -> dict[str, str]:
-        """Emit IMPORTS edges; return {SimpleName: fully.qualified.Name}."""
+    ) -> _ImportContext:
+        """Emit concrete IMPORTS edges and retain wildcard prefixes for annotations."""
         by_simple: dict[str, str] = {}
+        wildcard_prefixes: set[str] = set()
         for node in root.named_children:
             if node.type != "import_declaration":
                 continue
-            fqn = _text(node.named_children[-1], source) if node.named_children else ""
-            if not fqn or fqn.endswith("*"):
+            children = node.named_children
+            if children and children[-1].type == "asterisk":
+                if len(children) >= 2:
+                    wildcard_prefixes.add(_text(children[-2], source))
+                continue
+            fqn = _text(children[-1], source) if children else ""
+            if not fqn:
                 continue
             tid = f"java:{fqn}"
             batch.add_node(Node(tid, NodeKind.MODULE, fqn, "java", external=True))
             batch.add_edge(Edge(module_id, tid, EdgeKind.IMPORTS, Provenance(rel, node.start_point[0] + 1)))
             by_simple[fqn.rsplit(".", 1)[-1]] = fqn
-        return by_simple
+        return _ImportContext(by_simple, frozenset(wildcard_prefixes))
 
     def _emit_type(
         self,
         node: TSNode,
         parent_id: str,
         package: str,
-        imports: dict[str, str],
+        imports: _ImportContext,
         source: bytes,
         rel: str,
         batch: FactBatch,
@@ -129,7 +137,7 @@ class JavaExtractor:
         body = node.child_by_field_name("body")
         if body is None:
             return
-        class_path = _path_annotation(node, source)
+        class_path = _path_annotation(node, source, imports)
         methods = type_methods.setdefault(type_id, set())
         for member in body.named_children:
             mline = member.start_point[0] + 1
@@ -141,7 +149,7 @@ class JavaExtractor:
                     batch.add_edge(Edge(type_id, fid, EdgeKind.CONTAINS, Provenance(rel, mline)))
                     methods.add(mname)
                     if member.type == "method_declaration":
-                        _jax_rs_endpoints(member, fid, class_path, source, rel, batch)
+                        _jax_rs_endpoints(member, fid, class_path, imports, source, rel, batch)
                     mbody = member.child_by_field_name("body")
                     if mbody is not None:
                         funcs.append((fid, type_id, mbody))
@@ -159,7 +167,7 @@ class JavaExtractor:
         type_id: str,
         body: TSNode,
         type_methods: dict[str, set[str]],
-        imports: dict[str, str],
+        imports: _ImportContext,
         package: str,
         source: bytes,
         rel: str,
@@ -185,7 +193,7 @@ class JavaExtractor:
         inv: TSNode,
         type_id: str,
         siblings: set[str],
-        imports: dict[str, str],
+        imports: _ImportContext,
         package: str,
         source: bytes,
     ) -> str | None:
@@ -206,13 +214,13 @@ class JavaExtractor:
                     return f"{resolved}.{name}"
         return None
 
-    def _resolve_type(self, simple_or_fqn: str, package: str, imports: dict[str, str]) -> str | None:
+    def _resolve_type(self, simple_or_fqn: str, package: str, imports: _ImportContext) -> str | None:
         """Resolve a base type name to a node id (precision-first, else None)."""
         name = simple_or_fqn.split("<", 1)[0].strip()  # drop generics: List<T> → List
         if not name or "." in name:  # a qualified base we won't second-guess
             return f"java:{name}" if "." in name else None
-        if name in imports:
-            return f"java:{imports[name]}"
+        if name in imports.by_simple:
+            return f"java:{imports.by_simple[name]}"
         if package:  # same-package sibling type
             return f"java:{package}.{name}"
         return None
@@ -222,27 +230,39 @@ def _jax_rs_endpoints(
     method: TSNode,
     method_id: str,
     class_path: str | None,
+    imports: _ImportContext,
     source: bytes,
     rel: str,
     batch: FactBatch,
 ) -> None:
     """Emit JAX-RS/Jakarta REST endpoints for a verb-annotated handler.
 
-    Annotation names are matched by their final segment, so both ``@GET`` and
-    ``@jakarta.ws.rs.GET`` work. A ``@Path`` without an HTTP verb is a sub-resource
-    locator and is deliberately skipped. ``@Produces``/``@Consumes`` are not
-    captured, and cross-file ``@ApplicationPath`` resolution is out of scope.
+    Fully qualified annotations work directly; unqualified annotations must
+    resolve through an explicit or wildcard ``javax.ws.rs``/``jakarta.ws.rs``
+    import. This deliberately excludes clients such as Retrofit. A ``@Path``
+    without an HTTP verb is a sub-resource locator and is skipped.
+    ``@Produces``/``@Consumes`` are not captured, and cross-file
+    ``@ApplicationPath`` resolution is out of scope. A missing class ``@Path``
+    remains an empty prefix so method-only paths requested by Discussion #54
+    are represented; application/inheritance reachability is not inferred.
     """
     annotations = _annotations(method, source)
     verbs = list(
         dict.fromkeys(
-            _HTTP_VERB_ANNOTATIONS[name] for name, _ in annotations if name in _HTTP_VERB_ANNOTATIONS
+            _simple_annotation_name(name)
+            for name, _ in annotations
+            if _simple_annotation_name(name) in _HTTP_VERB_ANNOTATIONS
+            and _is_jax_rs_annotation(name, imports)
         )
     )
     if not verbs:
         return
     method_path = next(
-        (_annotation_string_arg(annotation, source) for name, annotation in annotations if name == "Path"),
+        (
+            _annotation_string_arg(annotation, source)
+            for name, annotation in annotations
+            if _simple_annotation_name(name) == "Path" and _is_jax_rs_annotation(name, imports)
+        ),
         "",
     )
     if class_path is None or method_path is None:
@@ -264,20 +284,20 @@ def _jax_rs_endpoints(
         batch.add_edge(Edge(endpoint_id, method_id, EdgeKind.EXPOSES, provenance))
 
 
-def _path_annotation(node: TSNode, source: bytes) -> str | None:
+def _path_annotation(node: TSNode, source: bytes, imports: _ImportContext) -> str | None:
     """Return ``@Path`` text, empty when absent, or ``None`` when non-literal."""
     return next(
         (
             _annotation_string_arg(annotation, source)
             for name, annotation in _annotations(node, source)
-            if name == "Path"
+            if _simple_annotation_name(name) == "Path" and _is_jax_rs_annotation(name, imports)
         ),
         "",
     )
 
 
 def _annotations(node: TSNode, source: bytes) -> list[tuple[str, TSNode]]:
-    """Return declaration annotations as ``(last dotted name segment, node)``."""
+    """Return declaration annotations as ``(possibly-qualified name, node)``."""
     modifiers = next((child for child in node.named_children if child.type == "modifiers"), None)
     if modifiers is None:
         return []
@@ -285,10 +305,26 @@ def _annotations(node: TSNode, source: bytes) -> list[tuple[str, TSNode]]:
     for child in modifiers.named_children:
         if child.type not in ("annotation", "marker_annotation"):
             continue
-        name = _field_text(child, "name", source).rsplit(".", 1)[-1]
+        name = _field_text(child, "name", source)
         if name:
             annotations.append((name, child))
     return annotations
+
+
+def _simple_annotation_name(name: str) -> str:
+    """Return the final segment of a possibly-qualified annotation name."""
+    return name.rsplit(".", 1)[-1]
+
+
+def _is_jax_rs_annotation(name: str, imports: _ImportContext) -> bool:
+    """Whether an annotation name resolves precisely to javax/jakarta JAX-RS."""
+    simple = _simple_annotation_name(name)
+    if "." in name:
+        return name.rsplit(".", 1)[0] in _JAX_RS_PACKAGES
+    imported = imports.by_simple.get(simple)
+    if imported is not None:
+        return imported in {f"{package}.{simple}" for package in _JAX_RS_PACKAGES}
+    return bool(imports.wildcard_prefixes & _JAX_RS_PACKAGES)
 
 
 def _annotation_string_arg(annotation: TSNode, source: bytes) -> str | None:
