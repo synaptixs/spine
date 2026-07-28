@@ -30,6 +30,7 @@
 
 - **Called by** (1): [`decision_from_ab`](../../src/orchestrator/evals/promotion.py#L73)
 - **Fields**: `baseline_rate`, `margin`, `model`, `promote`, `provider`, `runs_per_arm`, `skill`, `treatment_rate`
+- **Documented in**: `docs/specs/persona-skill-measurement.md#phasing-each-shippable`
 
 ## Functions
 
@@ -58,6 +59,7 @@
 
 - **Called by** (1 production · 3 test): [`main`](../../scripts/skill_promote.py#L80), [`test_appends_alongside_existing`](../../tests/evals/test_promotion.py#L120), [`test_idempotent`](../../tests/evals/test_promotion.py#L114), [`test_injects_only_promoted`](../../tests/evals/test_promotion.py#L103)
 - **Calls** (2): [`_promoted_span`](../../src/orchestrator/evals/promotion.py#L164), [`capability_source`](../../src/orchestrator/evals/promotion.py#L146)
+- **Documented in**: `docs/specs/persona-skill-measurement.md#phasing-each-shippable`
 
 ### `capability_source`
 

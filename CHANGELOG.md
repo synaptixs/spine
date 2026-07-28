@@ -4,19 +4,45 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
-## Unreleased
+## 3.9.3 — Endpoints that are actually endpoints
+
+A REST client is not a REST server, but the Java front-end couldn't tell them apart. It
+matched annotations by their final segment, so Retrofit's `retrofit2.http.GET` read as
+JAX-RS's `jakarta.ws.rs.GET` and every client method in a file collapsed into one
+`java:endpoint:GET /` — a confident, wrong fact in a graph whose whole claim is that it
+only asserts what it can ground.
+
+Annotations now resolve through the file's imports, the way Java itself resolves names.
+The second half is less visible and mattered just as much: the fact cache is keyed on the
+*analyzed repo's* HEAD, not on Spine's version, so a corrected extractor doesn't reach a
+repository that hasn't moved. Fixing the extractor without bumping the cache format would
+have left the bad endpoints in place for exactly the users who had already run Spine.
 
 ### Fixed
 
 - Java endpoint extraction now resolves unqualified HTTP verb and `@Path`
   annotations through explicit or wildcard `javax.ws.rs` / `jakarta.ws.rs`
-  imports. Annotations from client frameworks such as Retrofit are no longer
-  misclassified as server endpoints.
+  imports, with explicit non-JAX-RS imports taking precedence over JAX-RS
+  wildcards as Java name resolution does. Fully qualified annotations still work
+  without an import. Annotations from client frameworks such as Retrofit are no
+  longer misclassified as server endpoints.
 - The fact cache format is now v3, so the corrected endpoints reach repositories
   that haven't moved since they were last extracted. The cache is keyed on the
   analyzed repo's HEAD rather than on Spine's version, so without the bump an
   unchanged tree would keep serving the misclassified endpoints after an upgrade
   — and a false endpoint is indistinguishable from a real one.
+
+### Notes
+
+- An unqualified annotation with no resolving import is skipped rather than
+  guessed at. In compilable Java the import is always present, so this only
+  affects fragments.
+- Known gap: a JAX-RS verb combined with a *non*-JAX-RS `@Path` in the same file
+  drops the path rather than skipping the endpoint. Uncommon, and not a
+  regression — tracked as a follow-up.
+
+Thanks to [@pritam0802](https://github.com/pritam0802) for the fix
+([synaptixs/spine#60](https://github.com/synaptixs/spine/pull/60)).
 
 ## 3.9.2 — Prose that survives contact with C
 

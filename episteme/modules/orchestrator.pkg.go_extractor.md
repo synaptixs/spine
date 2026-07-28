@@ -32,6 +32,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (1 production · 1 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L485), [`_facts`](../../tests/pkg/test_go_extractor.py#L53)
 - **Fields**: `_concrete_sigs`, `_interfaces`, `language`, `suffixes`
+- **Documented in**: `docs/specs/go-support-roadmap.md#track-4-go-go`, `docs/specs/language-expansion-roadmap.md#where-we-are-today`
 
 ### `_Body`
 
@@ -94,6 +95,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/go_extractor.py#L121)
 - **Calls** (4): `RuntimeError`, `language`, `tree_sitter.Language`, `tree_sitter.Parser`
+- **Documented in**: `docs/specs/go-support-roadmap.md#track-4-go-go`
 
 ### `_receiver`
 

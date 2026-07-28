@@ -29,6 +29,7 @@
 [`src/orchestrator/catalog/profile.py:51`](../../src/orchestrator/catalog/profile.py#L51)
 
 - **Fields**: `framework`, `has_db`, `has_migrations`, `languages`, `task_type`, `test_runner`
+- **Documented in**: `docs/specs/catalog-then-compose-roadmap.md#phase-1-profiler`, `docs/specs/multi-language-java.md#where-java-stands-today`, `docs/specs/sdlc-target-layout-scaffold.md#33-scaffolder-template-based-idempotent`
 
 ## Functions
 
@@ -50,6 +51,7 @@
 
 - **Called by** (1): [`from_repo`](../../src/orchestrator/catalog/profile.py#L62)
 - **Calls** (2): `pathlib.Path`, `walk`
+- **Documented in**: `docs/specs/typescript-codegen.md#why-typescript-why-now`
 
 ### `_detect_migrations`
 
