@@ -13,101 +13,101 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L147) — reaches **12** symbols
-- [`repo_state`](../../src/orchestrator/pkg/persistence.py#L128) — reaches **11** symbols
-- [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L142) — reaches **10** symbols
-- [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L138) — reaches **10** symbols
-- [`load_facts`](../../src/orchestrator/pkg/persistence.py#L107) — reaches **10** symbols
-- [`save_facts`](../../src/orchestrator/pkg/persistence.py#L100) — reaches **10** symbols
-- [`_git`](../../src/orchestrator/pkg/persistence.py#L121) — reaches **9** symbols
-- [`FactCacheError`](../../src/orchestrator/pkg/persistence.py#L28) — reaches **6** symbols
+- [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L152) — reaches **12** symbols
+- [`repo_state`](../../src/orchestrator/pkg/persistence.py#L133) — reaches **11** symbols
+- [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L147) — reaches **10** symbols
+- [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L143) — reaches **10** symbols
+- [`load_facts`](../../src/orchestrator/pkg/persistence.py#L112) — reaches **10** symbols
+- [`save_facts`](../../src/orchestrator/pkg/persistence.py#L105) — reaches **10** symbols
+- [`_git`](../../src/orchestrator/pkg/persistence.py#L126) — reaches **9** symbols
+- [`FactCacheError`](../../src/orchestrator/pkg/persistence.py#L33) — reaches **6** symbols
 
 ## Types
 
 ### `FactCacheError`
 
-[`src/orchestrator/pkg/persistence.py:28`](../../src/orchestrator/pkg/persistence.py#L28)
+[`src/orchestrator/pkg/persistence.py:33`](../../src/orchestrator/pkg/persistence.py#L33)
 
 - **Extends** (1): `RuntimeError`
-- **Called by** (2): [`facts_from_dict`](../../src/orchestrator/pkg/persistence.py#L73), [`load_facts`](../../src/orchestrator/pkg/persistence.py#L107)
+- **Called by** (2): [`facts_from_dict`](../../src/orchestrator/pkg/persistence.py#L78), [`load_facts`](../../src/orchestrator/pkg/persistence.py#L112)
 
 ## Functions
 
 ### `_cache_path`
 
-[`src/orchestrator/pkg/persistence.py:142`](../../src/orchestrator/pkg/persistence.py#L142)
+[`src/orchestrator/pkg/persistence.py:147`](../../src/orchestrator/pkg/persistence.py#L147)
 
-- **Called by** (1): [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L147)
+- **Called by** (1): [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L152)
 - **Calls** (1): `sha256`
 
 ### `_git`
 
-[`src/orchestrator/pkg/persistence.py:121`](../../src/orchestrator/pkg/persistence.py#L121)
+[`src/orchestrator/pkg/persistence.py:126`](../../src/orchestrator/pkg/persistence.py#L126)
 
-- **Called by** (1): [`repo_state`](../../src/orchestrator/pkg/persistence.py#L128)
+- **Called by** (1): [`repo_state`](../../src/orchestrator/pkg/persistence.py#L133)
 - **Calls** (1): `run`
 
 ### `_prov_from_dict`
 
-[`src/orchestrator/pkg/persistence.py:41`](../../src/orchestrator/pkg/persistence.py#L41)
+[`src/orchestrator/pkg/persistence.py:46`](../../src/orchestrator/pkg/persistence.py#L46)
 
-- **Called by** (1): [`facts_from_dict`](../../src/orchestrator/pkg/persistence.py#L73)
+- **Called by** (1): [`facts_from_dict`](../../src/orchestrator/pkg/persistence.py#L78)
 - **Calls** (1): [`Provenance`](../../src/orchestrator/pkg/facts.py#L47)
 
 ### `_prov_to_dict`
 
-[`src/orchestrator/pkg/persistence.py:35`](../../src/orchestrator/pkg/persistence.py#L35)
+[`src/orchestrator/pkg/persistence.py:40`](../../src/orchestrator/pkg/persistence.py#L40)
 
-- **Called by** (1): [`facts_to_dict`](../../src/orchestrator/pkg/persistence.py#L47)
+- **Called by** (1): [`facts_to_dict`](../../src/orchestrator/pkg/persistence.py#L52)
 
 ### `default_cache_dir`
 
-[`src/orchestrator/pkg/persistence.py:138`](../../src/orchestrator/pkg/persistence.py#L138)
+[`src/orchestrator/pkg/persistence.py:143`](../../src/orchestrator/pkg/persistence.py#L143)
 
-- **Called by** (1): [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L147)
+- **Called by** (1): [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L152)
 - **Calls** (1): `home`
 
 ### `facts_from_dict`
 
-[`src/orchestrator/pkg/persistence.py:73`](../../src/orchestrator/pkg/persistence.py#L73)
+[`src/orchestrator/pkg/persistence.py:78`](../../src/orchestrator/pkg/persistence.py#L78)
 
-- **Called by** (1): [`load_facts`](../../src/orchestrator/pkg/persistence.py#L107)
-- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L75), [`EdgeKind`](../../src/orchestrator/pkg/facts.py#L32), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L88), [`FactCacheError`](../../src/orchestrator/pkg/persistence.py#L28), [`Node`](../../src/orchestrator/pkg/facts.py#L59), [`NodeKind`](../../src/orchestrator/pkg/facts.py#L20), [`_prov_from_dict`](../../src/orchestrator/pkg/persistence.py#L41)
+- **Called by** (1): [`load_facts`](../../src/orchestrator/pkg/persistence.py#L112)
+- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L75), [`EdgeKind`](../../src/orchestrator/pkg/facts.py#L32), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L88), [`FactCacheError`](../../src/orchestrator/pkg/persistence.py#L33), [`Node`](../../src/orchestrator/pkg/facts.py#L59), [`NodeKind`](../../src/orchestrator/pkg/facts.py#L20), [`_prov_from_dict`](../../src/orchestrator/pkg/persistence.py#L46)
 
 ### `facts_to_dict`
 
-[`src/orchestrator/pkg/persistence.py:47`](../../src/orchestrator/pkg/persistence.py#L47)
+[`src/orchestrator/pkg/persistence.py:52`](../../src/orchestrator/pkg/persistence.py#L52)
 
-- **Called by** (1): [`save_facts`](../../src/orchestrator/pkg/persistence.py#L100)
-- **Calls** (1): [`_prov_to_dict`](../../src/orchestrator/pkg/persistence.py#L35)
+- **Called by** (1): [`save_facts`](../../src/orchestrator/pkg/persistence.py#L105)
+- **Calls** (1): [`_prov_to_dict`](../../src/orchestrator/pkg/persistence.py#L40)
 
 ### `load_facts`
 
-[`src/orchestrator/pkg/persistence.py:107`](../../src/orchestrator/pkg/persistence.py#L107)
+[`src/orchestrator/pkg/persistence.py:112`](../../src/orchestrator/pkg/persistence.py#L112)
 
-- **Called by** (1): [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L147)
-- **Calls** (4): [`FactCacheError`](../../src/orchestrator/pkg/persistence.py#L28), [`facts_from_dict`](../../src/orchestrator/pkg/persistence.py#L73), `loads`, `pathlib.Path`
+- **Called by** (1): [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L152)
+- **Calls** (4): [`FactCacheError`](../../src/orchestrator/pkg/persistence.py#L33), [`facts_from_dict`](../../src/orchestrator/pkg/persistence.py#L78), `loads`, `pathlib.Path`
 
 ### `load_or_extract`
 
-[`src/orchestrator/pkg/persistence.py:147`](../../src/orchestrator/pkg/persistence.py#L147)
+[`src/orchestrator/pkg/persistence.py:152`](../../src/orchestrator/pkg/persistence.py#L152)
 
 - **Called by** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
-- **Calls** (7): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L532), [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L142), [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L138), [`load_facts`](../../src/orchestrator/pkg/persistence.py#L107), `pathlib.Path`, [`repo_state`](../../src/orchestrator/pkg/persistence.py#L128), [`save_facts`](../../src/orchestrator/pkg/persistence.py#L100)
+- **Calls** (7): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L532), [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L147), [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L143), [`load_facts`](../../src/orchestrator/pkg/persistence.py#L112), `pathlib.Path`, [`repo_state`](../../src/orchestrator/pkg/persistence.py#L133), [`save_facts`](../../src/orchestrator/pkg/persistence.py#L105)
 
 ### `repo_state`
 
-[`src/orchestrator/pkg/persistence.py:128`](../../src/orchestrator/pkg/persistence.py#L128)
+[`src/orchestrator/pkg/persistence.py:133`](../../src/orchestrator/pkg/persistence.py#L133)
 
-- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L1472), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L310), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L147), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
-- **Calls** (2): [`_git`](../../src/orchestrator/pkg/persistence.py#L121), `pathlib.Path`
+- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L1472), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L310), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L152), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
+- **Calls** (2): [`_git`](../../src/orchestrator/pkg/persistence.py#L126), `pathlib.Path`
 
 ### `save_facts`
 
-[`src/orchestrator/pkg/persistence.py:100`](../../src/orchestrator/pkg/persistence.py#L100)
+[`src/orchestrator/pkg/persistence.py:105`](../../src/orchestrator/pkg/persistence.py#L105)
 
-- **Called by** (1): [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L147)
-- **Calls** (3): `dumps`, [`facts_to_dict`](../../src/orchestrator/pkg/persistence.py#L47), `pathlib.Path`
+- **Called by** (1): [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L152)
+- **Calls** (3): `dumps`, [`facts_to_dict`](../../src/orchestrator/pkg/persistence.py#L52), `pathlib.Path`
 
 ## Imports
 

@@ -133,6 +133,8 @@ def test_emits_calls_for_sibling_and_static(tmp_path: Path) -> None:
 JAX_RS_RESOURCE = """\
 package com.example.orders;
 
+import jakarta.ws.rs.*;
+
 @Path("/orders")
 public class OrderResource {
     @GET
@@ -175,13 +177,13 @@ def test_jax_rs_endpoints_expose_grounded_handlers(tmp_path: Path) -> None:
     exposes = {(edge.src, edge.dst): edge for edge in batch.edges if edge.kind is EdgeKind.EXPOSES}
     base = "java:com.example.orders.OrderResource"
     expected = {
-        "java:endpoint:GET /orders/{id}": (f"{base}.getOrder", 5),
-        "java:endpoint:POST /orders": (f"{base}.create", 9),
-        "java:endpoint:PUT /orders/{id}": (f"{base}.replace", 12),
-        "java:endpoint:DELETE /orders/{id}": (f"{base}.delete", 16),
-        "java:endpoint:PATCH /orders/{id}": (f"{base}.patch", 20),
-        "java:endpoint:HEAD /orders": (f"{base}.head", 24),
-        "java:endpoint:OPTIONS /orders": (f"{base}.options", 27),
+        "java:endpoint:GET /orders/{id}": (f"{base}.getOrder", 7),
+        "java:endpoint:POST /orders": (f"{base}.create", 11),
+        "java:endpoint:PUT /orders/{id}": (f"{base}.replace", 14),
+        "java:endpoint:DELETE /orders/{id}": (f"{base}.delete", 18),
+        "java:endpoint:PATCH /orders/{id}": (f"{base}.patch", 22),
+        "java:endpoint:HEAD /orders": (f"{base}.head", 26),
+        "java:endpoint:OPTIONS /orders": (f"{base}.options", 29),
     }
 
     for endpoint_id, (handler_id, line) in expected.items():
@@ -203,6 +205,9 @@ def test_jax_rs_endpoints_expose_grounded_handlers(tmp_path: Path) -> None:
 
 ASYMMETRIC_JAX_RS_PATHS = """\
 package com.example.health;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
 
 @javax.ws.rs.Path("/health")
 class HealthResource {
@@ -236,6 +241,70 @@ def test_jax_rs_supports_asymmetric_and_qualified_annotations(tmp_path: Path) ->
         "java:com.example.health.MetricsResource.metrics",
     ) in exposes
     assert not any(dst.endswith(".unresolved") for _, dst in exposes)
+
+
+@pytest.mark.parametrize("namespace", ["jakarta.ws.rs", "javax.ws.rs"])
+def test_jax_rs_unqualified_annotations_require_explicit_import(tmp_path: Path, namespace: str) -> None:
+    source = f"""\
+package com.example.health;
+
+import {namespace}.GET;
+import {namespace}.Path;
+
+@Path("/health")
+class HealthResource {{
+    @GET
+    String status() {{ return "ok"; }}
+}}
+"""
+    batch, _ = _facts(tmp_path, source, "HealthResource.java")
+    exposes = {(edge.src, edge.dst) for edge in batch.edges if edge.kind is EdgeKind.EXPOSES}
+    assert (
+        "java:endpoint:GET /health",
+        "java:com.example.health.HealthResource.status",
+    ) in exposes
+
+
+RETROFIT_CLIENT = """\
+package com.example.client;
+
+import retrofit2.http.GET;
+import retrofit2.http.Path;
+
+interface UserClient {
+    @GET("users/{id}")
+    User getUser(@Path("id") String id);
+}
+"""
+
+
+def test_jax_rs_does_not_treat_retrofit_clients_as_endpoints(tmp_path: Path) -> None:
+    batch, _ = _facts(tmp_path, RETROFIT_CLIENT, "UserClient.java")
+    assert not [node for node in batch.nodes if node.kind is NodeKind.ENDPOINT]
+    assert not [edge for edge in batch.edges if edge.kind is EdgeKind.EXPOSES]
+
+
+def test_jax_rs_explicit_non_jax_rs_import_overrides_wildcard(tmp_path: Path) -> None:
+    source = RETROFIT_CLIENT.replace(
+        "import retrofit2.http.GET;",
+        "import jakarta.ws.rs.*;\nimport retrofit2.http.GET;",
+    )
+    batch, _ = _facts(tmp_path, source, "UserClient.java")
+    assert not [node for node in batch.nodes if node.kind is NodeKind.ENDPOINT]
+
+
+def test_jax_rs_skips_unresolved_unqualified_annotations(tmp_path: Path) -> None:
+    source = """\
+package com.example.unknown;
+
+@Path("/unknown")
+class UnknownResource {
+    @GET
+    String get() { return "unknown"; }
+}
+"""
+    batch, _ = _facts(tmp_path, source, "UnknownResource.java")
+    assert not [node for node in batch.nodes if node.kind is NodeKind.ENDPOINT]
 
 
 def test_jax_rs_extraction_is_deterministic(tmp_path: Path) -> None:

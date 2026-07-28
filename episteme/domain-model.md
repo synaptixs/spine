@@ -31,4 +31,4 @@ _No database or ORM entities detected, so this is the **code's** model: the type
 | [`LineageIndex`](../src/orchestrator/spine/lineage.py#L95) | 22 members |
 | [`Metadata`](../src/orchestrator/registry/_common.py#L30) | 8 members · used by 7 production · 29 test call-sites |
 
-_Top 25 of 546 types; the rest are in the module pages._
+_Top 25 of 547 types; the rest are in the module pages._
