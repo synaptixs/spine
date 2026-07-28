@@ -88,7 +88,6 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 - **Called by** (2 production · 5 test): [`_convention_block`](../../src/orchestrator/sdlc/codegen.py#L763), [`render_conventions`](../../src/orchestrator/knowledge/renderers.py#L1512), [`test_class_test_style_detected`](../../tests/sdlc/test_conventions.py#L56), [`test_empty_repo_yields_empty_digest_and_no_block`](../../tests/sdlc/test_conventions.py#L67), [`test_extract_derives_house_style`](../../tests/sdlc/test_conventions.py#L35), [`test_prompt_block_lists_observed_rules`](../../tests/sdlc/test_conventions.py#L47), [`test_unconventional_repo_does_not_assert_conventions`](../../tests/sdlc/test_conventions.py#L73)
 - **Calls** (8): [`RepoConventions`](../../src/orchestrator/sdlc/conventions.py#L32), [`_line_length`](../../src/orchestrator/sdlc/conventions.py#L151), [`_read`](../../src/orchestrator/sdlc/conventions.py#L127), [`_sample`](../../src/orchestrator/sdlc/conventions.py#L110), [`_test_style`](../../src/orchestrator/sdlc/conventions.py#L157), [`_top_package`](../../src/orchestrator/sdlc/conventions.py#L169), `pathlib.Path`, `py:frac`
-- **Documented in**: `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/java-codegen.md#codegen-prompts-language-parameterized`
 
 ## Imports
 

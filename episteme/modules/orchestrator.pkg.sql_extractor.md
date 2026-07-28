@@ -112,7 +112,6 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/sql_extractor.py:78`](../../src/orchestrator/pkg/sql_extractor.py#L78)
 
 - **Called by** (2 production · 1 test): [`extract`](../../src/orchestrator/pkg/sql_extractor.py#L107), [`fold_migrations`](../../src/orchestrator/pkg/migrations.py#L57), [`test_detect_dialect_fingerprints`](../../tests/pkg/test_sql_extractor.py#L172)
-- **Documented in**: `docs/specs/sql-support-roadmap.md#a15-dialect-selection-auto-detect-done`
 
 ## Imports
 
