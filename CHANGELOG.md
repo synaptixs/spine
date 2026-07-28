@@ -4,6 +4,38 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.9.2 — Prose that survives contact with C
+
+The graph was right; the sentences wrapped around it weren't. Running `understand` on a
+large C codebase (open5gs, ~8.6k `.c`/`.h` files) exposed three places where the rendered
+prose carried Python-shaped assumptions — the same class of confident-but-wrong claim
+3.9.0 set out to remove, but only visible on a non-Python repo.
+
+### Fixed
+
+- **An un-imported area is no longer called "the safer place to change."** The fact was
+  correct — nothing else depended on it — but the conclusion wasn't: that is exactly what
+  an application entry point looks like. It fired on 14 of 25 open5gs areas, including a
+  390-function 5G network function. Being un-imported bounds what a change reaches
+  *outward*; it says nothing about how much lives inside.
+- **The public/internal split now uses each language's own rule.** Applying Python's
+  leading-underscore convention everywhere reported *19,212 public · 32 internal* on C —
+  a number that looks computed and means nothing. C and C++ now use `static` (internal
+  linkage, which the front-end already encodes), Go uses the upper-case initial, and
+  Python/TypeScript/JavaScript keep the underscore. Java and C# express visibility with
+  keywords the graph doesn't record, so those symbols are excluded from both counts
+  rather than defaulted into "public", and the page names the rule it applied.
+- **Import-cycle severity is language-aware.** "A hazard for import order" is true for
+  Python and overstated for C, where include guards make mutual `#include` compile
+  cleanly — a design smell, not a defect.
+- **Possibly-unused candidates never include symbols of unknown visibility.** With
+  `is_public` gaining a third state, an unreadable verdict would otherwise have read as
+  "internal", putting real Java/C# API on a possibly-unused list.
+
+### Changed
+
+- Public sync commits no longer carry a hardcoded assistant co-author trailer.
+
 ## 3.9.1 — Java REST endpoints in the graph
 
 Java joins C# in having its web framework understood, not just its classes. JAX-RS /
