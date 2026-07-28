@@ -45,6 +45,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/codegen.py:104`](../../src/orchestrator/sdlc/codegen.py#L104)
 
 - **Extends** (1): `typing.Protocol`
+- **Documented in**: `docs/specs/README.md#5-full-roadmap-eight-tracks-agent-paced`, `docs/specs/archive/AI-NATIVE-PLATFORM-PLAN.md#10-immediate-next-steps-this-quarter`, `docs/specs/archive/AI-NATIVE-PLATFORM-PLAN.md#track-2-generative-depth-real-code-gen-behind-the-seams-g2-g3`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout`, `docs/specs/archive/BLOCK-C-DESIGN.md#5-child-featureimplementationworkflow`, `docs/specs/archive/BLOCK-C-DESIGN.md#5a-adapter-seams-the-block-d-plug-points`
 
 ### `CodegenError`
 
@@ -59,6 +60,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/codegen.py:258`](../../src/orchestrator/sdlc/codegen.py#L258)
 
 - **Extends** (1): `typing.Protocol`
+- **Documented in**: `docs/specs/pkg-code-grounded-understanding.md#4-grounding-integration-sdlcgroundingpy`, `docs/specs/tri-repo-integration.md#phasing-ordered-by-usable-value-gated-on-the-spine`, `docs/specs/tri-repo-integration.md#seam-1-domain-grounded-build-ontomesh-orchestrator-use-better-code-day-one`
 
 ### `ImplementOutcome`
 
@@ -66,6 +68,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (3 production · 1 test): [`_outcome`](../../src/orchestrator/sdlc/codegen.py#L1139), [`implement_governed`](../../src/orchestrator/sdlc/codegen.py#L1077), [`implement_governed`](../../src/orchestrator/sdlc/codegen.py#L205), [`implement_governed`](../../tests/sdlc/test_activities.py#L356)
 - **Fields**: `change`, `checkpoint`, `needs_approval`, `pending`, `policy_blocks`, `summary`, `written`
+- **Documented in**: `docs/specs/bet2c-in-loop-approval.md#as-built-notes`
 
 ### `LLMCodegenAdapter`
 
@@ -73,12 +76,14 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (5 production · 58 test): [`_build_codegen`](../../src/orchestrator/sdlc/worker.py#L87), [`main`](../../scripts/codegen_ab.py#L242), [`main`](../../scripts/live_sdlc_worker.py#L44), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`run_ticket`](../../scripts/codegen_benchmark.py#L1172), [`_adapter`](../../tests/sdlc/test_codegen_memory.py#L51), [`test_adapter_grounds_refine_too`](../../tests/sdlc/test_grounding.py#L165), [`test_adapter_prepends_grounding_to_implement`](../../tests/sdlc/test_grounding.py#L157), [`test_adapter_satisfies_protocol`](../../tests/sdlc/test_codegen.py#L76), [`test_adapter_without_grounder_unchanged`](../../tests/sdlc/test_grounding.py#L173), [`test_agentic_implement_can_call_an_mcp_tool`](../../tests/sdlc/test_codegen_agentic.py#L123), [`test_agentic_implement_raises_if_nothing_written`](../../tests/sdlc/test_codegen_agentic.py#L44), [`test_agentic_implement_writes_and_submits`](../../tests/sdlc/test_codegen_agentic.py#L29), [`test_ambiguous_anchor_is_atomic_per_file`](../../tests/sdlc/test_codegen.py#L620), [`test_anchor_repair_gives_up_after_one_retry`](../../tests/sdlc/test_codegen.py#L794), [`test_anchor_repair_retries_with_exact_file_content`](../../tests/sdlc/test_codegen.py#L769), [`test_author_tests_unchanged_without_phase_skills`](../../tests/sdlc/test_codegen.py#L537), [`test_c_layout_selects_c_prompts`](../../tests/sdlc/test_codegen.py#L424), [`test_content_rewrite_of_existing_file_triggers_repair`](../../tests/sdlc/test_codegen.py#L678), [`test_convention_block_injected_into_prompts`](../../tests/sdlc/test_codegen.py#L939), [`test_cpp_layout_selects_cpp_prompts`](../../tests/sdlc/test_codegen.py#L449), [`test_create_plus_edit_does_not_silently_drop_the_edit`](../../tests/sdlc/test_codegen.py#L710), [`test_csharp_layout_selects_csharp_prompts`](../../tests/sdlc/test_codegen.py#L389), [`test_edit_cap_per_file`](../../tests/sdlc/test_codegen.py#L756), [`test_edits_apply_sequentially`](../../tests/sdlc/test_codegen.py#L590), +38 more
 - **Fields**: `_agentic`, `_conventions`, `_grounder`, `_grounder_factory`, `_grounders`, `_layout`, `_llm`, `_mcp_configs`, `_mcp_registry`, `_memory_factory`, `_memory_repo_key`, `_memory_tenant_id`, `_model`, `_persona`, `_policy`, `_skill_scores`, `_skills`, `_written`
+- **Documented in**: `docs/specs/cross-run-semantic-memory.md#design-cross-run-semantic-memory-the-experience-true-layer`, `docs/specs/cross-run-semantic-memory.md#phasing`, `docs/specs/sdlc-target-layout-scaffold.md#34-wiring-into-feature-runner`
 
 ### `StubCodegenAdapter`
 
 [`src/orchestrator/sdlc/codegen.py:154`](../../src/orchestrator/sdlc/codegen.py#L154)
 
 - **Called by** (1): [`_build_codegen`](../../src/orchestrator/sdlc/worker.py#L87)
+- **Documented in**: `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout`, `docs/specs/archive/BLOCK-C-DESIGN.md#5-child-featureimplementationworkflow`, `docs/specs/archive/BLOCK-C-DESIGN.md#5a-adapter-seams-the-block-d-plug-points`
 
 ## Functions
 
@@ -122,6 +127,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1): [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1360)
 - **Calls** (1): [`CodegenError`](../../src/orchestrator/sdlc/codegen.py#L234)
+- **Documented in**: `docs/specs/phase5-agentic-codegen-loop.md#governance-inside-the-loop`
 
 ### `_shadows_stdlib`
 
@@ -165,7 +171,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ## Imports
 
-`__future__.annotations`, `collections.abc.Callable`, `collections.abc.Mapping`, `dataclasses.dataclass`, `dataclasses.field`, `json`, `logging`, [`orchestrator.agentic`](../../src/orchestrator/agentic/__init__.py#L1), [`orchestrator.agentic.codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L1), [`orchestrator.agentic.mcp_tools`](../../src/orchestrator/agentic/mcp_tools.py#L1), [`orchestrator.agentic.memory_tools`](../../src/orchestrator/agentic/memory_tools.py#L1), [`orchestrator.catalog.skills`](../../src/orchestrator/catalog/skills.py#L1), [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), [`orchestrator.mcp.config`](../../src/orchestrator/mcp/config.py#L1), [`orchestrator.mcp.registry`](../../src/orchestrator/mcp/registry.py#L1), [`orchestrator.personas.binding`](../../src/orchestrator/personas/binding.py#L1), [`orchestrator.registry.repositories`](../../src/orchestrator/registry/repositories.py#L1), [`orchestrator.sdlc.conventions`](orchestrator.sdlc.conventions.md), [`orchestrator.sdlc.layout`](orchestrator.sdlc.layout.md), [`orchestrator.sdlc.testrunner`](orchestrator.sdlc.testrunner.md), `os`, `pathlib.Path`, `re`, `subprocess`, `sys`, `typing.Any`, `typing.Protocol`, `typing.runtime_checkable`
+`__future__.annotations`, `collections.abc.Callable`, `collections.abc.Mapping`, `dataclasses.dataclass`, `dataclasses.field`, `json`, `logging`, [`orchestrator.agentic`](../../src/orchestrator/agentic/__init__.py#L1), [`orchestrator.agentic.codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L1), [`orchestrator.agentic.mcp_tools`](../../src/orchestrator/agentic/mcp_tools.py#L1), [`orchestrator.agentic.memory_tools`](../../src/orchestrator/agentic/memory_tools.py#L1), [`orchestrator.catalog.skills`](../../src/orchestrator/catalog/skills.py#L1), [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), [`orchestrator.mcp.config`](../../src/orchestrator/mcp/config.py#L1), [`orchestrator.mcp.registry`](../../src/orchestrator/mcp/registry.py#L1), [`orchestrator.personas.binding`](../../src/orchestrator/personas/binding.py#L1), [`orchestrator.registry.repositories`](../../src/orchestrator/registry/repositories.py#L1), [`orchestrator.sdlc.conventions`](../../src/orchestrator/sdlc/conventions.py#L1), [`orchestrator.sdlc.layout`](orchestrator.sdlc.layout.md), [`orchestrator.sdlc.testrunner`](orchestrator.sdlc.testrunner.md), `os`, `pathlib.Path`, `re`, `subprocess`, `sys`, `typing.Any`, `typing.Protocol`, `typing.runtime_checkable`
 
 ## Imported by
 

@@ -5,45 +5,45 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 
 | Term | Defined at | Explained in |
 |---|---|---|
-| **AgentLoop** | [`AgentLoop`](../src/orchestrator/agentic/loop.py#L197) | — |
+| **AgentLoop** | [`AgentLoop`](../src/orchestrator/agentic/loop.py#L197) | `docs/specs/README.md#autonomous-agent-scorecard`, `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist` |
 | **ApprovalRequest** | [`ApprovalRequest`](../src/orchestrator/approval/models.py#L71) | — |
 | **ApprovalRequestRow** | [`ApprovalRequestRow`](../src/orchestrator/registry/db/models.py#L127) | — |
-| **AuditLogRepo** | [`AuditLogRepo`](../src/orchestrator/registry/repositories.py#L161) | — |
-| **Base** | [`Base`](../src/orchestrator/registry/db/models.py#L23) | — |
+| **AuditLogRepo** | [`AuditLogRepo`](../src/orchestrator/registry/repositories.py#L161) | `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist`, `docs/specs/bet2-trust-spine.md#why-this-stands-out` |
+| **AuditLogRow** | [`AuditLogRow`](../src/orchestrator/registry/db/models.py#L186) | `docs/specs/cross-run-semantic-memory.md#data-model`, `docs/specs/cross-run-semantic-memory.md#design-cross-run-semantic-memory-the-experience-true-layer` |
+| **CodegenAdapter** | [`CodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L104) | `docs/specs/README.md#5-full-roadmap-eight-tracks-agent-paced`, `docs/specs/archive/AI-NATIVE-PLATFORM-PLAN.md#10-immediate-next-steps-this-quarter` |
 | **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L234) | — |
-| **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L118) | — |
+| **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L118) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
 | **Edge** | [`Edge`](../src/orchestrator/pkg/facts.py#L75) | — |
-| **FactBatch** | [`FactBatch`](../src/orchestrator/pkg/facts.py#L88) | `CLAUDE.md#layout-where-things-live` |
-| **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L24) | — |
-| **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L40) | — |
-| **FeatureWorkflowResult** | [`FeatureWorkflowResult`](../src/orchestrator/sdlc/types.py#L123) | — |
-| **Finding** | [`Finding`](../src/orchestrator/codereview/verifiers.py#L45) | — |
-| **GhPRAdapter** | [`GhPRAdapter`](../src/orchestrator/sdlc/forge.py#L91) | — |
-| **GitHubAppConfig** | [`GitHubAppConfig`](../src/orchestrator/codereview/config.py#L25) | — |
-| **GitHubClient** | [`GitHubClient`](../src/orchestrator/codereview/github_client.py#L110) | — |
-| **GraphSpec** | [`GraphSpec`](../src/orchestrator/ir/graph.py#L108) | — |
-| **Importance** | [`Importance`](../src/orchestrator/knowledge/renderers.py#L214) | — |
+| **EdgeKind** | [`EdgeKind`](../src/orchestrator/pkg/facts.py#L32) | `CLAUDE.md#layout-where-things-live`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#the-coercion-kind-per-table-projection` |
+| **FactBatch** | [`FactBatch`](../src/orchestrator/pkg/facts.py#L88) | `CLAUDE.md#layout-where-things-live`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#the-coercion-kind-per-table-projection` |
+| **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L24) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10`, `docs/specs/pkg-code-grounded-understanding.md#3-retrieval-upgrades-pkgretrievalpy-pkgstorepy` |
+| **FeatureImplementationWorkflow** | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
+| **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L40) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/sandboxed-test-execution.md#wiring-sdlcfeature-runnerpy` |
+| **FeatureRunResult** | [`FeatureRunResult`](../src/orchestrator/sdlc/feature_runner.py#L49) | `docs/specs/sdlc-tracking-blueprint.md#11-implementation-roadmap-incremental-each-phase-shippable`, `docs/specs/sdlc-tracking-blueprint.md#3-what-to-measure-the-metric-model` |
+| **GroundingVerifier** | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L42) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#2-what-ontomesh-produced-evidence`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
-| **JiraAdapter** | [`JiraAdapter`](../src/orchestrator/intake/jira.py#L103) | — |
-| **LineageIndex** | [`LineageIndex`](../src/orchestrator/spine/lineage.py#L95) | — |
-| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L650) | — |
-| **LoopResult** | [`LoopResult`](../src/orchestrator/agentic/loop.py#L163) | — |
-| **Metadata** | [`Metadata`](../src/orchestrator/registry/_common.py#L30) | — |
-| **Node** | [`Node`](../src/orchestrator/ir/graph.py#L45) | — |
+| **LineageIndex** | [`LineageIndex`](../src/orchestrator/spine/lineage.py#L95) | `docs/specs/spine-vignette-runbook.md#6-inspect-the-lineage-provenance-phase-4`, `docs/specs/tri-repo-integration.md#phasing-ordered-by-usable-value-gated-on-the-spine` |
+| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L650) | `docs/specs/cross-run-semantic-memory.md#design-cross-run-semantic-memory-the-experience-true-layer`, `docs/specs/cross-run-semantic-memory.md#phasing` |
+| **LoopResult** | [`LoopResult`](../src/orchestrator/agentic/loop.py#L163) | `docs/specs/cross-run-semantic-memory.md#phasing`, `docs/specs/phase5-agentic-codegen-loop.md#2-the-loop-controller` |
+| **MemoryRow** | [`MemoryRow`](../src/orchestrator/registry/db/models.py#L216) | `KNOWLEDGE_GRAPH.md#where-each-artifact-is-persisted`, `docs/specs/README.md#autonomous-agent-scorecard` |
 | **Node** | [`Node`](../src/orchestrator/pkg/facts.py#L59) | — |
+| **PKGCodegenGrounder** | [`PKGCodegenGrounder`](../src/orchestrator/sdlc/grounding.py#L30) | `KNOWLEDGE_GRAPH.md#7-how-grounding-uses-the-pkg`, `docs/specs/README.md#3-gap-taxonomy-g1g17` |
 | **PlannerError** | [`PlannerError`](../src/orchestrator/planner/v0.py#L38) | — |
 | **Provenance** | [`Provenance`](../src/orchestrator/pkg/facts.py#L47) | — |
-| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L143) | — |
-| **ReviewResult** | [`ReviewResult`](../src/orchestrator/sdlc/review.py#L32) | — |
-| **SDLCActivities** | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L44) | — |
-| **ServerInfo** | [`ServerInfo`](../src/orchestrator/registry/api/connections.py#L40) | — |
+| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L143) | `docs/specs/typescript-codegen.md#where-typescript-stands-today` |
+| **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L84) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
+| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L532) | `docs/specs/README.md#44-build-phases-per-repo-split`, `docs/specs/archive/PKG-INTEGRATION-PLAN.md#phase-1-repo-code-extractor-track-11-34-wks` |
+| **SDLCActivities** | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L44) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration` |
+| **SDLCWorkflow** | [`SDLCWorkflow`](../src/orchestrator/sdlc/workflows.py#L475) | `CLI_REFERENCE.md`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
+| **SDLCWorkflowInput** | [`SDLCWorkflowInput`](../src/orchestrator/sdlc/types.py#L17) | `docs/specs/archive/BLOCK-C-DESIGN.md#4-parent-sdlcworkflow`, `docs/specs/bet2c-rbac-multitenancy.md#as-built-notes` |
 | **SourceDocument** | [`SourceDocument`](../src/orchestrator/intake/source.py#L35) | — |
-| **TargetLayout** | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L79) | — |
-| **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/testrunner.py#L66) | — |
+| **SubprocessTestRunner** | [`SubprocessTestRunner`](../src/orchestrator/sdlc/testrunner.py#L83) | `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout`, `docs/specs/archive/BLOCK-C-DESIGN.md#5-child-featureimplementationworkflow` |
+| **TargetLayout** | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L79) | `docs/specs/java-codegen.md#feature-runner`, `docs/specs/java-codegen.md#first-step` |
+| **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/testrunner.py#L66) | `docs/specs/java-codegen.md#test-runner-env`, `docs/specs/typescript-codegen.md#test-runner-env` |
 | **Tool** | [`Tool`](../src/orchestrator/agentic/loop.py#L30) | — |
+| **VenvTestEnvironment** | [`VenvTestEnvironment`](../src/orchestrator/sdlc/testenv.py#L115) | `docs/specs/sandboxed-test-execution.md#build-plan-reliable-isolated-autonomous-execution`, `docs/specs/sandboxed-test-execution.md#file-level-change-list` |
 | **VerifierFailure** | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | — |
-| **VerifierResult** | [`VerifierResult`](../src/orchestrator/runtime/verifiers/base.py#L44) | — |
 | **VersionedRepo** | [`VersionedRepo`](../src/orchestrator/registry/repositories.py#L45) | — |
-| **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | — |
+| **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
 
 _Top 40 of 522 types by graph centrality._
