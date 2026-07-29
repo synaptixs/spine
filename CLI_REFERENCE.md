@@ -3,7 +3,7 @@
 > **Spine** is the product; the command is **`orchestrator`** (package `synaptixs-spine`).
 > Auto-generated from the CLI — run `orchestrator <command> --help` for the live version.
 
-**41 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
+**42 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
 
 ## Command map
 
@@ -11,7 +11,7 @@
 `init` · `doctor` · `up` · `tui` · `task submit`
 
 **Understand a codebase — the Knowledge Graph** — Extract and read the Product Knowledge Graph (PKG). Deterministic, no LLM. All accept a local path OR a git URL.  
-`understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs`
+`understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs` · `media extract`
 
 **Grounded design, debugging & RCA** — The KG-grounded engineering commands: design a change, research a ticket, and trace/analyze bugs — all anchored to real code.  
 `design` · `investigate` · `localize` · `rca` · `regression` · `audit`
@@ -141,7 +141,10 @@ clone is transient, so the knowledge base defaults to `./episteme`.
 
 A doc-ingestion post-pass also folds the repo's docs into the graph as `Doc` nodes +
 `MENTIONS` edges: Markdown, reST, plain text and **HTML** need nothing; **PDF** needs the
-`[docs]` extra and **Word/Excel** the `[office]` extra. No-op on a repo with no docs.
+`[docs]` extra and **Word/Excel** the `[office]` extra. **Media** (images, audio, video) also
+ingest — but only from a committed transcript artifact you produce first with `media extract`
+(below); with no artifact, media files are skipped and the build is unchanged. No-op on a repo
+with no docs.
 
 ```
 orchestrator understand [PATH] [OPTIONS]
@@ -283,6 +286,55 @@ orchestrator pkg docs [REPO] [OPTIONS]
 | Option | Description |
 |---|---|
 | `--doc`, `-d` | Markdown/text doc(s) to reconcile. (default: `[]`) |
+
+### `orchestrator media extract`
+
+OCR images and transcribe audio/video into reviewable transcript artifacts under `.spine-media/`,
+so diagrams and recorded design reviews become graph content.
+
+This is the **explicit, opt-in** producer half of media ingestion — it MAY run a model and be slow.
+It writes a content-addressed JSON artifact (`.spine-media/<sha256>.json`) that you review and
+commit; from then on the deterministic graph build (`understand`/`state`) reads that artifact like
+any other doc and **never runs a model itself**. A media file with no artifact is simply skipped, so
+this changes nothing until you run it.
+
+- **Images** (`.png`/`.jpg`/`.jpeg`/`.webp`) use local OCR (Tesseract) — needs the `[media]` extra
+  and a system `tesseract` binary. Diagram-oriented: it keeps box/edge labels, not prose.
+- **Audio/video** (`.mp3`/`.wav`/`.mp4`/`.mov`) use a pluggable ASR backend. `--asr local` runs
+  Whisper on your machine (the `[asr]` extra); `--asr api` **uploads the media to a remote service**
+  and therefore requires `--allow-remote`. Segment timestamps are preserved in the artifact.
+
+Everything runs on your machine unless you choose `--asr api`. Long media is capped and truncated
+(recorded in the artifact); oversized files are skipped. Review and commit `.spine-media/` to ingest.
+
+```
+orchestrator media extract PATHS... [OPTIONS]
+```
+
+**Arguments**
+
+- `PATHS` — Media file(s)/director(ies): images (OCR) + audio/video (ASR). _(required)_
+
+| Option | Description |
+|---|---|
+| `--repo-root` | Root whose `.spine-media/` receives the artifacts. (default: `.`) |
+| `--force` | Re-extract even if an up-to-date artifact exists. |
+| `--asr` | Audio/video backend: `local` (Whisper) or `api` (remote). (default: `local`) |
+| `--whisper-model` | Local Whisper model size (tiny/base/small/…). (default: `base`) |
+| `--api-endpoint` | OpenAI-compatible transcription URL (with `--asr api`). |
+| `--allow-remote` | Consent to uploading audio/video **off-machine** (required for `--asr api`). |
+
+**Examples**
+
+```bash
+orchestrator media extract docs/architecture/            # OCR every diagram in a folder
+orchestrator media extract review.mp4 --whisper-model small   # local transcription
+orchestrator media extract talk.mp3 --asr api \
+  --api-endpoint https://api.openai.com/v1/audio/transcriptions --allow-remote
+```
+
+> Requires `pip install 'synaptixs-spine[media]'` (image OCR) and/or `'[asr]'` (local audio/video).
+> The remote API backend reads its key from `$OPENAI_API_KEY` — never a flag.
 
 ---
 

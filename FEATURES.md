@@ -42,6 +42,9 @@ radius) and grounds new code in what already exists. Full guide:
 | HTML ingestion — `<h1..h6>` become sections, inline `<code>` binds like a backtick | ✅ | automatic (stdlib, no extra) |
 | PDF ingestion — same, for `.pdf` docs (scanned/image-only PDFs skipped, no OCR) | ✅ | `pip install 'synaptixs-spine[docs]'` |
 | Office ingestion — `.docx` (Word heading styles → sections, monospace runs → code claims) and `.xlsx` (sheet → section) | ✅ | `pip install 'synaptixs-spine[office]'` |
+| Media ingestion (G3) — images/audio/video become `Doc` nodes + `MENTIONS` via a committed `.spine-media/` transcript; model runs only in the opt-in `media extract`, never in the deterministic build | ✅ | `orchestrator media extract` (opt-in); no artifact → skipped, build unchanged |
+| Image OCR — architecture diagrams → box/edge labels bound to symbols (local Tesseract, diagram-oriented) | ✅ | `pip install 'synaptixs-spine[media]'` + a `tesseract` binary |
+| Audio/video ASR — recorded design reviews → searchable, timestamped transcripts; local Whisper or a remote API (off-machine only with explicit `--allow-remote`) | ✅ | `pip install 'synaptixs-spine[asr]'` (local) or `--asr api` |
 | Doc-grounded codegen — a reused symbol's documenting prose rides into the codegen context | ✅ | automatic in `sdlc feature` grounding when the repo has docs |
 | Committed `episteme/` for humans + any AI tool | ✅ | `orchestrator understand --out episteme` |
 | Current State report — overview, infrastructure/runtime, code structure, **documentation coverage + doc drift**, architecture diagrams (no LLM) | ✅ | `orchestrator state . --lens developer\|stakeholder` |
