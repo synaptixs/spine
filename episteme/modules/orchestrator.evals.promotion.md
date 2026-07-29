@@ -56,21 +56,21 @@
 
 [`src/orchestrator/evals/promotion.py:190`](../../src/orchestrator/evals/promotion.py#L190)
 
-- **Called by** (1 production · 3 test): [`main`](../../scripts/skill_promote.py#L80), [`test_appends_alongside_existing`](../../tests/evals/test_promotion.py#L120), [`test_idempotent`](../../tests/evals/test_promotion.py#L114), [`test_injects_only_promoted`](../../tests/evals/test_promotion.py#L103)
+- **Called by** (1 production · 3 test): [`main`](../../scripts/skill_promote.py#L81), [`test_appends_alongside_existing`](../../tests/evals/test_promotion.py#L120), [`test_idempotent`](../../tests/evals/test_promotion.py#L114), [`test_injects_only_promoted`](../../tests/evals/test_promotion.py#L103)
 - **Calls** (2): [`_promoted_span`](../../src/orchestrator/evals/promotion.py#L164), [`capability_source`](../../src/orchestrator/evals/promotion.py#L146)
 
 ### `capability_source`
 
 [`src/orchestrator/evals/promotion.py:146`](../../src/orchestrator/evals/promotion.py#L146)
 
-- **Called by** (2 production · 1 test): [`apply_to_catalog_source`](../../src/orchestrator/evals/promotion.py#L190), [`main`](../../scripts/skill_promote.py#L80), [`test_capability_source_is_valid_python`](../../tests/evals/test_promotion.py#L78)
+- **Called by** (2 production · 1 test): [`apply_to_catalog_source`](../../src/orchestrator/evals/promotion.py#L190), [`main`](../../scripts/skill_promote.py#L81), [`test_capability_source_is_valid_python`](../../tests/evals/test_promotion.py#L78)
 - **Calls** (2): [`_selector_src`](../../src/orchestrator/evals/promotion.py#L133), [`promoted_capability`](../../src/orchestrator/evals/promotion.py#L103)
 
 ### `decision_from_ab`
 
 [`src/orchestrator/evals/promotion.py:73`](../../src/orchestrator/evals/promotion.py#L73)
 
-- **Called by** (1 production · 10 test): [`_latest_per_skill`](../../scripts/skill_promote.py#L70), [`test_appends_alongside_existing`](../../tests/evals/test_promotion.py#L120), [`test_capability_source_is_valid_python`](../../tests/evals/test_promotion.py#L78), [`test_clears_bar`](../../tests/evals/test_promotion.py#L46), [`test_hold_has_no_capability`](../../tests/evals/test_promotion.py#L74), [`test_holds_within_noise`](../../tests/evals/test_promotion.py#L53), [`test_idempotent`](../../tests/evals/test_promotion.py#L114), [`test_injects_only_promoted`](../../tests/evals/test_promotion.py#L103), [`test_margin_override_reapplies_the_bar`](../../tests/evals/test_promotion.py#L58), [`test_promoted_capability_carries_evidence`](../../tests/evals/test_promotion.py#L66), [`test_records_winners_and_losers`](../../tests/evals/test_promotion.py#L137)
+- **Called by** (1 production · 10 test): [`_latest_per_skill`](../../scripts/skill_promote.py#L71), [`test_appends_alongside_existing`](../../tests/evals/test_promotion.py#L120), [`test_capability_source_is_valid_python`](../../tests/evals/test_promotion.py#L78), [`test_clears_bar`](../../tests/evals/test_promotion.py#L46), [`test_hold_has_no_capability`](../../tests/evals/test_promotion.py#L74), [`test_holds_within_noise`](../../tests/evals/test_promotion.py#L53), [`test_idempotent`](../../tests/evals/test_promotion.py#L114), [`test_injects_only_promoted`](../../tests/evals/test_promotion.py#L103), [`test_margin_override_reapplies_the_bar`](../../tests/evals/test_promotion.py#L58), [`test_promoted_capability_carries_evidence`](../../tests/evals/test_promotion.py#L66), [`test_records_winners_and_losers`](../../tests/evals/test_promotion.py#L137)
 - **Calls** (2): [`PromotionDecision`](../../src/orchestrator/evals/promotion.py#L39), [`_runs_per_arm`](../../src/orchestrator/evals/promotion.py#L98)
 
 ### `promoted_capability`
@@ -84,14 +84,14 @@
 
 [`src/orchestrator/evals/promotion.py:184`](../../src/orchestrator/evals/promotion.py#L184)
 
-- **Called by** (1 production · 4 test): [`main`](../../scripts/skill_promote.py#L80), [`test_appends_alongside_existing`](../../tests/evals/test_promotion.py#L120), [`test_empty_ids`](../../tests/evals/test_promotion.py#L100), [`test_injects_only_promoted`](../../tests/evals/test_promotion.py#L103), [`test_missing_marker_raises`](../../tests/evals/test_promotion.py#L131)
+- **Called by** (1 production · 4 test): [`main`](../../scripts/skill_promote.py#L81), [`test_appends_alongside_existing`](../../tests/evals/test_promotion.py#L120), [`test_empty_ids`](../../tests/evals/test_promotion.py#L100), [`test_injects_only_promoted`](../../tests/evals/test_promotion.py#L103), [`test_missing_marker_raises`](../../tests/evals/test_promotion.py#L131)
 - **Calls** (1): [`_promoted_span`](../../src/orchestrator/evals/promotion.py#L164)
 
 ### `render_decisions_log`
 
 [`src/orchestrator/evals/promotion.py:211`](../../src/orchestrator/evals/promotion.py#L211)
 
-- **Called by** (1 production · 1 test): [`main`](../../scripts/skill_promote.py#L80), [`test_records_winners_and_losers`](../../tests/evals/test_promotion.py#L137)
+- **Called by** (1 production · 1 test): [`main`](../../scripts/skill_promote.py#L81), [`test_records_winners_and_losers`](../../tests/evals/test_promotion.py#L137)
 
 ## Imports
 

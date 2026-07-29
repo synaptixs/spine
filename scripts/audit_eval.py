@@ -30,7 +30,7 @@ sys.path.insert(0, str(REPO / "src"))
 
 from orchestrator.core.env import load_local_env  # noqa: E402
 from orchestrator.core.llm import LiteLLMClient, RecordingLLMClient  # noqa: E402
-from orchestrator.evals import EvalTask, render_markdown, run_eval  # noqa: E402
+from orchestrator.evals import EvalTask, evals_dir, render_markdown, run_eval  # noqa: E402
 from orchestrator.personas import make_audit_arm  # noqa: E402
 from orchestrator.sdlc.codegen import resolve_codegen_model  # noqa: E402
 
@@ -73,13 +73,13 @@ async def main() -> None:
     )
 
     stamp = _dt.datetime.now().strftime("%Y-%m-%d")
-    out_dir = REPO / "docs" / "evals"
+    out_dir = evals_dir(REPO)
     out_dir.mkdir(parents=True, exist_ok=True)
     md = render_markdown(card, title=f"auditor persona — {stamp}")
     (out_dir / f"{stamp}-auditor.md").write_text(md, encoding="utf-8")
     (out_dir / f"{stamp}-auditor.json").write_text(json.dumps(card.to_dict(), indent=2), encoding="utf-8")
     print("\n" + md)
-    print(f"scorecard → docs/evals/{stamp}-auditor.{{md,json}}")
+    print(f"scorecard → {out_dir}/{stamp}-auditor.{{md,json}}")
 
 
 if __name__ == "__main__":

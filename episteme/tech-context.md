@@ -33,7 +33,7 @@ _How this system starts._
 
 - `orchestrator` → orchestrator.cli:app (console script)
 - `orchestrator-mcp` → orchestrator.plugin.__main__:main (console script)
-- `main()` @ scripts/agentic_eval.py:99
+- `main()` @ scripts/agentic_eval.py:100
 - `main()` @ scripts/audit_eval.py:54
 - `main()` @ scripts/codegen_ab.py:242
 - `main()` @ scripts/codegen_benchmark.py:1306
@@ -43,14 +43,14 @@ _How this system starts._
 ## Most-used external imports
 _Everything imported from outside this codebase, by how often — standard library and test dependencies included, so this is wider than the install list._
 
-- `__future__.annotations` — imported 525 times
+- `__future__.annotations` — imported 527 times
 - `typing.Any` — imported 194 times
-- `pathlib.Path` — imported 184 times
-- `pytest` — imported 140 times
+- `pathlib.Path` — imported 186 times
+- `pytest` — imported 141 times
 - `dataclasses.dataclass` — imported 103 times
 - `collections.abc` — imported 96 times
 - `json` — imported 95 times
-- `os` — imported 84 times
+- `os` — imported 85 times
 - `httpx` — imported 72 times
 - `asyncio` — imported 69 times
 

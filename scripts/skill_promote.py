@@ -31,6 +31,7 @@ REPO = Path(__file__).resolve().parent.parent
 if str(REPO / "src") not in sys.path:
     sys.path.insert(0, str(REPO / "src"))
 
+from orchestrator.evals import evals_dir  # noqa: E402
 from orchestrator.evals.promotion import (  # noqa: E402
     PromotionDecision,
     apply_to_catalog_source,
@@ -55,7 +56,7 @@ def _rel(path: Path) -> str:
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Promote skills that cleared the A/B bar (P3).")
     p.add_argument("results", nargs="*", help="A/B result JSON files (default: docs/evals/*-skill-ab-*.json)")
-    p.add_argument("--evals-dir", default=str(REPO / "docs" / "evals"), help="where to find/write results")
+    p.add_argument("--evals-dir", default=str(evals_dir(REPO)), help="where to find/write results")
     p.add_argument("--margin", type=float, default=None, help="override the promotion bar (default: per-run)")
     p.add_argument("--apply", action="store_true", help="edit the catalog _PROMOTED overlay in place")
     return p.parse_args(argv)

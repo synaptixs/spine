@@ -49,6 +49,7 @@ from orchestrator.core.llm import LiteLLMClient, RecordingLLMClient  # noqa: E40
 from orchestrator.evals import (  # noqa: E402
     EvalTask,
     Scorecard,
+    evals_dir,
     outcome_from_result,
     promotion_verdict,
     render_comparison,
@@ -69,7 +70,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--repeats", type=int, default=3, help="repeats per ticket per arm (variance)")
     p.add_argument("--tickets", default="", help="comma-separated ticket-key subset")
     p.add_argument("--margin", type=float, default=PROMOTION_MARGIN, help="promotion bar (default 0.10)")
-    p.add_argument("--out", default=str(REPO / "docs" / "evals"), help="output dir for scorecards")
+    p.add_argument("--out", default=str(evals_dir(REPO)), help="output dir for scorecards")
     p.add_argument("--live", action="store_true", help="actually call the LLM (default: dry-run plan)")
     p.add_argument("--agentic", action="store_true", help="run the agentic codegen loop arm")
     return p.parse_args(argv)
