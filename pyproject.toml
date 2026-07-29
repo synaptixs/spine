@@ -103,6 +103,22 @@ office = [
 mcp = [
     "mcp>=1.0",
 ]
+# Media ingestion (G3) — local OCR for images. Tesseract via pytesseract + Pillow, lazy-imported by
+# pkg/media_extract.py, used ONLY by the opt-in `media extract` command. The deterministic reader
+# (pkg/media.py) and `understand`/`state` never touch it, so the base install stays stdlib-only.
+# Also needs a system `tesseract` binary (this extra wraps it; it is not pure-Python):
+# pip install 'synaptixs-spine[media]'.
+media = [
+    "pytesseract>=0.3.10",
+    "Pillow>=10",
+]
+# Media ingestion (G3) — local speech-to-text for audio/video (phase 3). Whisper, lazy-imported by
+# pkg/media_asr.py, used ONLY by the opt-in `media extract`. Kept out of `[media]` because Whisper
+# pulls a heavy ML stack (torch); the remote `--asr api` backend needs none of this and uses the
+# base httpx. pip install 'synaptixs-spine[asr]'.
+asr = [
+    "openai-whisper>=20231117",
+]
 # The SDLC feature/run pipeline shells out to pytest to run generated tests.
 # pytest is a dev-only dep, absent from a plain install — install this extra so
 # `sdlc feature`/`run` work out of the box: pip install 'synaptixs-spine[sdlc]'.
@@ -273,6 +289,19 @@ ignore_missing_imports = true
 # lazy-imported by pkg/doc_source.py; not guaranteed in every env.
 [[tool.mypy.overrides]]
 module = ["docx", "docx.*", "openpyxl", "openpyxl.*"]
+ignore_missing_imports = true
+
+# `pytesseract` and `Pillow` (imports as `PIL`) are the optional `media` extra (G3 OCR),
+# lazy-imported by pkg/media_extract.py; not in the default/CI env (and need a system binary),
+# so don't fail type-checking on their absence.
+[[tool.mypy.overrides]]
+module = ["pytesseract", "pytesseract.*", "PIL", "PIL.*"]
+ignore_missing_imports = true
+
+# `openai-whisper` (imports as `whisper`) is the optional `asr` extra (G3 speech-to-text),
+# lazy-imported by pkg/media_asr.py; not in the default/CI env, so don't fail on its absence.
+[[tool.mypy.overrides]]
+module = ["whisper", "whisper.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

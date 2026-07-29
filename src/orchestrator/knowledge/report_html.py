@@ -286,6 +286,44 @@ def _security_section(state: CurrentState) -> str:
     )
 
 
+def _documentation_section(state: CurrentState) -> str:
+    """Doc-ingestion surface: how much of the code the repo's docs describe, and where docs claim
+    code the graph can't find (potential drift). ``docs`` counts every ``Doc`` node — prose files
+    *and* any media (OCR'd diagrams, transcribed recordings) folded in via ``media extract``. Empty
+    when the repo has no docs, mirroring the markdown ``state`` report."""
+    if not state.docs:
+        return ""
+    pct = round(100 * state.documented_symbols / state.coverable_symbols) if state.coverable_symbols else 0
+    plural = "s" if state.docs != 1 else ""
+    lede = (
+        f"<p><strong>{state.docs} doc{plural}</strong> folded into the graph "
+        "(<code>Doc</code> nodes + <code>MENTIONS</code> edges); they name "
+        f"<strong>{state.documented_symbols} of {state.coverable_symbols} symbols</strong> "
+        f"({pct}% doc coverage).</p>"
+    )
+    drift = ""
+    if state.doc_drift_total:
+        rows = "".join(
+            f"<tr><td><code>{_e(claim)}</code></td><td>{_e(doc)}</td></tr>"
+            for claim, doc in state.doc_drift_top
+        )
+        remainder = state.doc_drift_total - len(state.doc_drift_top)
+        if remainder > 0:
+            rows += f"<tr><td>…</td><td><em>+{remainder} more</em></td></tr>"
+        drift = (
+            f'<p class="section-sub"><strong>{state.doc_drift_total} potential drift</strong> — doc '
+            "claims that reference code the graph doesn't have (renamed/removed symbols, or prose the "
+            "binder can't resolve).</p>"
+            "<table><thead><tr><th>Doc claims…</th><th>…in</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table>"
+        )
+    return _section(
+        "Documentation",
+        "How much of the code the docs describe — prose, plus any OCR'd diagrams or transcribed media.",
+        f"{lede}{drift}",
+    )
+
+
 def _activity_section(state: CurrentState) -> str:
     if not state.recent_areas:
         return ""
@@ -369,6 +407,7 @@ def render_report_html(
         body.append(_risk_section(state))
         body.append(_coverage_section(state, store))
         body.append(_security_section(state))
+        body.append(_documentation_section(state))
     body.append(_activity_section(state))
     body.append(_recommendations_section(state))
     body.append(_footer(state))

@@ -9,6 +9,17 @@ and every agent query stay the same (see ``extractor.LanguageExtractor``).
 Every grounded node carries ``Provenance`` (``file:line``) so any answer can be
 traced back to source. Nodes referenced but not defined in the scanned tree
 (imported symbols, builtins) are marked ``external=True`` and have no provenance.
+
+**Media (G3) reuses ``DOC`` — it does not get its own node kind.** An extracted
+image/audio/video transcript enters the graph as a ``Doc`` whose ``source_file``
+is the media file (``.png``/``.mp4``/…). This is a deliberate Phase-0 decision:
+every doc surface — ``docs_for``, coverage, drift, and ``MENTIONS`` binding —
+then works on media unchanged, and ``facts.py`` needs no schema change beyond
+this note. The determinism contract is preserved *outside* the graph build: model
+inference runs only in the opt-in ``orchestrator media extract`` command, which
+writes a committed, content-addressed transcript artifact; ``understand``/``state``
+read that plain-JSON artifact exactly like any other doc and never run a model.
+See :mod:`orchestrator.pkg.media` for the artifact format and reader.
 """
 
 from __future__ import annotations
@@ -26,7 +37,7 @@ class NodeKind(str, Enum):
     FIELD = "Field"  # attribute / property / column
     ENDPOINT = "Endpoint"  # HTTP route / RPC
     ENTITY = "Entity"  # ORM model / data entity
-    DOC = "Doc"  # a documentation page (README, design doc, ADR, …)
+    DOC = "Doc"  # a documentation page (README, design doc, ADR, …) — and media transcripts (G3)
 
 
 class EdgeKind(str, Enum):
