@@ -4,6 +4,381 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.9.3 — Endpoints that are actually endpoints
+
+A REST client is not a REST server, but the Java front-end couldn't tell them apart. It
+matched annotations by their final segment, so Retrofit's `retrofit2.http.GET` read as
+JAX-RS's `jakarta.ws.rs.GET` and every client method in a file collapsed into one
+`java:endpoint:GET /` — a confident, wrong fact in a graph whose whole claim is that it
+only asserts what it can ground.
+
+Annotations now resolve through the file's imports, the way Java itself resolves names.
+The second half is less visible and mattered just as much: the fact cache is keyed on the
+*analyzed repo's* HEAD, not on Spine's version, so a corrected extractor doesn't reach a
+repository that hasn't moved. Fixing the extractor without bumping the cache format would
+have left the bad endpoints in place for exactly the users who had already run Spine.
+
+### Fixed
+
+- Java endpoint extraction now resolves unqualified HTTP verb and `@Path`
+  annotations through explicit or wildcard `javax.ws.rs` / `jakarta.ws.rs`
+  imports, with explicit non-JAX-RS imports taking precedence over JAX-RS
+  wildcards as Java name resolution does. Fully qualified annotations still work
+  without an import. Annotations from client frameworks such as Retrofit are no
+  longer misclassified as server endpoints.
+- The fact cache format is now v3, so the corrected endpoints reach repositories
+  that haven't moved since they were last extracted. The cache is keyed on the
+  analyzed repo's HEAD rather than on Spine's version, so without the bump an
+  unchanged tree would keep serving the misclassified endpoints after an upgrade
+  — and a false endpoint is indistinguishable from a real one.
+
+### Notes
+
+- An unqualified annotation with no resolving import is skipped rather than
+  guessed at. In compilable Java the import is always present, so this only
+  affects fragments.
+- Known gap: a JAX-RS verb combined with a *non*-JAX-RS `@Path` in the same file
+  drops the path rather than skipping the endpoint. Uncommon, and not a
+  regression — tracked as a follow-up.
+
+Thanks to [@pritam0802](https://github.com/pritam0802) for the fix
+([synaptixs/spine#60](https://github.com/synaptixs/spine/pull/60)).
+
+## 3.9.2 — Prose that survives contact with C
+
+The graph was right; the sentences wrapped around it weren't. Running `understand` on a
+large C codebase (open5gs, ~8.6k `.c`/`.h` files) exposed three places where the rendered
+prose carried Python-shaped assumptions — the same class of confident-but-wrong claim
+3.9.0 set out to remove, but only visible on a non-Python repo.
+
+### Fixed
+
+- **An un-imported area is no longer called "the safer place to change."** The fact was
+  correct — nothing else depended on it — but the conclusion wasn't: that is exactly what
+  an application entry point looks like. It fired on 14 of 25 open5gs areas, including a
+  390-function 5G network function. Being un-imported bounds what a change reaches
+  *outward*; it says nothing about how much lives inside.
+- **The public/internal split now uses each language's own rule.** Applying Python's
+  leading-underscore convention everywhere reported *19,212 public · 32 internal* on C —
+  a number that looks computed and means nothing. C and C++ now use `static` (internal
+  linkage, which the front-end already encodes), Go uses the upper-case initial, and
+  Python/TypeScript/JavaScript keep the underscore. Java and C# express visibility with
+  keywords the graph doesn't record, so those symbols are excluded from both counts
+  rather than defaulted into "public", and the page names the rule it applied.
+- **Import-cycle severity is language-aware.** "A hazard for import order" is true for
+  Python and overstated for C, where include guards make mutual `#include` compile
+  cleanly — a design smell, not a defect.
+- **Possibly-unused candidates never include symbols of unknown visibility.** With
+  `is_public` gaining a third state, an unreadable verdict would otherwise have read as
+  "internal", putting real Java/C# API on a possibly-unused list.
+
+### Changed
+
+- Public sync commits no longer carry a hardcoded assistant co-author trailer.
+
+## 3.9.1 — Java REST endpoints in the graph
+
+Java joins C# in having its web framework understood, not just its classes. JAX-RS /
+Jakarta REST resource methods are lifted into the same `Endpoint` nodes and `EXPOSES`
+edges the C# front-end already emits — so "what does this service expose, and which
+method handles it?" is now answerable for a Java codebase, and the API surface shows up
+in `understand` and `state` without a new concept to learn.
+
+Precision-first, like the rest of the Java front-end: a route is only emitted when it can
+be grounded exactly. Deterministic and LLM-free, as ever.
+
+### Added
+
+- **JAX-RS / Jakarta REST endpoint extraction** (`pkg/java_extractor.py`) — `@GET`,
+  `@POST`, `@PUT`, `@DELETE`, `@PATCH`, `@HEAD` and `@OPTIONS` become `Endpoint` nodes
+  with `EXPOSES` edges to the handler method, carrying the handler's provenance. Class-
+  and method-level `@Path` values are joined into one absolute route, preserving templates
+  like `{id}`. Annotations are matched on their final name segment, so both `javax.ws.rs`
+  and `jakarta.ws.rs` — plain or fully qualified — are recognized.
+- Endpoints flow through every surface that already renders them: the `Endpoint`/`EXPOSES`
+  vocabulary, RDF projection, and the API-surface section of the rendered reports were
+  already language-neutral, so nothing downstream needed a new case.
+
+### Notes
+
+- A `@Path` with a non-literal value, and a `@Path` with no HTTP verb (a sub-resource
+  locator), are deliberately skipped — a guessed route poisons grounding.
+- `@Produces` / `@Consumes` and cross-file `@ApplicationPath` resolution are out of scope.
+- The fact cache is keyed on the repo's HEAD commit, so a clean tree that hasn't moved
+  since the last extraction will keep its cached facts. Commit, or clear the cache dir, to
+  see the new endpoints on an unchanged repo.
+
+Thanks to [@pritam0802](https://github.com/pritam0802) for the contribution
+([#55](https://github.com/synaptixs/spine/pull/55), implementing
+[discussion #54](https://github.com/synaptixs/spine/discussions/54)).
+
+## 3.9.0 — Comprehension you can trust
+
+A six-phase overhaul of the understanding layer, driven by an assessment against a real
+public repo. The headline: **the dependency graph stopped lying** — relative and
+intra-package imports never resolved, so the graph saw almost no internal dependencies
+and confidently called a codebase's most central module "a leaf, so it's the safer place
+to change". That is fixed in every language front-end at once. On `pallets/click`, import
+edges naming a submodule went from 27/232 joined to **321/321**, and
+`impact_across("Context")` from **0 symbols to 61**.
+
+Built on that, the committed knowledge base went from 4 sections to 18, gained a
+provenance stamp and a CI gate that **proves** it still matches the code, and turned each
+module page into a pre-change briefing. Spine now commits its own `episteme/` and fails
+its own CI if that knowledge base degrades.
+
+Everything here stays deterministic and LLM-free: same commit in, byte-identical output.
+
+### The import graph stops lying
+
+Phase 0 of the [`understand` enhancement plan](docs/specs/understand-enhancement-spec.md):
+relative and intra-package imports now join the modules they denote, in every language
+front-end at once — and a standing invariant check makes sure the bug class can't return
+unnoticed. Measured on `pallets/click`: import edges naming a click submodule went from
+27/232 joined (all from tests) to **321/321**; `impact_across(Context)` from **0 symbols to
+61**; the `click.core` area page from *"it's a leaf, so it's the safer place to change"* to
+*"it sits in the middle of the graph: 10 areas below it, 8 above."*
+
+#### Fixed
+
+- **Python front-end reads `stmt.level`** — `from .types import X` resolves against the
+  module's own package (`py:click.types.X`), so it can no longer be conflated with the
+  stdlib `types`. An import that climbs past the scanned tree keeps its dots and never
+  falsely joins.
+- **`link_imports` post-pass** (`pkg/import_link.py`) — a whole-repo join that repoints
+  `IMPORTS` edges at the first-party modules they denote and drops the orphaned phantom
+  nodes. One shared resolver; per-language matchers only: dotted-prefix walk (Python /
+  Java / C#), relative-specifier resolution (TypeScript), `go.mod` module-path matching
+  (Go), unique path-suffix matching for `-I`-style includes (C / C++). Runs inside
+  `RepoCodeExtractor.extract`, so every consumer — `understand`, `state`, grounding,
+  `pkg export`, the MCP tools — gets resolved imports with no extra wiring.
+- Fact-cache format bumped to v2: pre-fix caches would silently reintroduce the dangling
+  imports, so they re-extract.
+
+#### Added
+
+- **`orchestrator pkg verify`** — Tier-1 graph invariants, no oracle needed: every edge
+  endpoint exists, every grounded provenance resolves to a real `file:line`, per-language
+  orphan-rate and external-ratio tripwires (the completeness failures a does-it-run test
+  can't see), and phantom-basename warnings. Non-zero exit on error, so it can stand guard
+  in CI. Per-language regression fixtures pin the join: a repo using relative imports must
+  show non-zero importers for the imported module.
+
+### Episteme can prove it's current
+
+Phase 1 of the [`understand` enhancement plan](docs/specs/understand-enhancement-spec.md):
+a committed knowledge base whose entire value is being *code-true* could not tell a reader
+whether it described HEAD or a commit from six months ago. Now it says where it came from,
+and CI can prove whether it still holds.
+
+#### Added
+
+- **A provenance stamp on `episteme/README.md`** — which commit the bank was generated
+  from, whether that tree was dirty, and which Spine rendered it. Deliberately carries **no
+  timestamp**: invariant #2 requires the same code to produce byte-identical output, and a
+  date would break the property the artifact is trusted for.
+- **`orchestrator understand --check`** — writes nothing, re-renders, and diffs against the
+  committed bank, exiting non-zero when they disagree. It reports what to look at: pages out
+  of date, missing, or still describing code that's gone. The comparison ignores the fenced
+  stamp, because committing the episteme itself creates a new commit — content, not the
+  stamp, is what proves currency.
+
+#### Fixed
+
+- **`understand` no longer reads its own output.** `episteme/` and the legacy `memory-bank/`
+  join the ignored directories. A committed bank was being ingested as the repo's own
+  documentation: on a small fixture it turned 6 grounded nodes into 32, all 26 `Doc` nodes
+  coming from Spine's own prose. Worse, it made the artifact unable to ever be self-
+  consistent — writing the bank changed the graph that rendered it, so no bank could
+  describe its own repo twice the same way, and `--check` could never pass.
+
+#### Changed
+
+- `build_memory_bank` is now a thin writer over a new `render_memory_bank`, so the build and
+  the check share one rendering path and cannot drift apart.
+
+### One analysis layer, two renderings
+
+Phase 2 of the [`understand` enhancement plan](docs/specs/understand-enhancement-spec.md):
+`state` computed sixteen sections and printed them, while the *committed* episteme rendered
+four — the ephemeral report was richer than the knowledge base a team reads and an AI tool
+grounds on. Both surfaces now read one analysis. On `pallets/click`, episteme goes from 4
+top-level sections to 13.
+
+#### Added
+
+- **`knowledge/analysis.py`** — the single pipeline (extract → migrations → data layer →
+  docs → profile → metrics) that both `understand` and `state` go through. What differs
+  downstream is only rendering.
+- **`architecture.md`** gains the **system-architecture diagram** and the strongest
+  component dependencies (drawn from `current_state`'s own bounded `architecture_graph`, so
+  the two surfaces can't disagree), **layers**, and **test coverage**.
+- **`tech-context.md`** gains **infrastructure & runtime**, **entry points**, and
+  **most-used external imports** — it was a six-row table, mostly `—`.
+- **`progress.md`** leads with computed **suggested next steps** instead of only pointing at
+  a `BACKLOG.md` that doesn't exist unless Spine built the repo.
+
+#### Fixed
+
+- **Test coverage measured what it claimed.** An area counted as tested if it *contained* a
+  type with "test" in the name — which answers "which areas are tests", not "which areas
+  have tests", and reported `click.core`, the most-tested module in click, as untested.
+  Coverage is now test→source imports, a lookup that only became possible once Phase 0 made
+  intra-package imports resolve. click reads 13 of 27 components exercised, and the untested
+  list is now genuinely untested code (`click._winconsole`, the `examples/` trees).
+- **Entry points exclude tests.** `main()` inside a test file is a fixture, not how the
+  system starts; click's entry-point list was two test functions ahead of the real one.
+
+#### Note
+
+Git-history metrics stay out of the committed bank on purpose. `state`'s "Recent activity"
+reads the last ~60 commits, so its value moves on every commit — including the one that
+lands the bank — which would make episteme stale the moment it was committed and
+`understand --check` fail forever after.
+
+### The module page becomes a briefing
+
+Phase 3 of the [`understand` enhancement plan](docs/specs/understand-enhancement-spec.md):
+a module page told you what the code *is*. It now answers what depends on it, what breaks
+if it changes, what isn't tested, what it inherits from, and which docs describe it.
+Findings 3, 8 and 9 — all of it graph computation, no LLM.
+
+#### Added
+
+- **"Changing this safely" on every module page** — who tests the module, the symbols other
+  code most depends on with their blast radius, and which of those have no visible test
+  path. This was the product's most persuasive answer and it was only reachable by running
+  `regression` against a symbol you had already chosen to change.
+- **`store.implementors_of()` / `store.implements_of()`** and inheritance rendered from both
+  ends. click's 42 `IMPLEMENTS` edges rendered nowhere; `click.exceptions` now shows all 12
+  exception subclasses, and `Parameter` → `Argument`/`Option` is walkable in either direction.
+- **"Documented in …"** on modules and symbols, from `MENTIONS`, plus a repo-level
+  **Documentation** section with coverage and drift. Four releases of doc ingestion had
+  reduced, in the committed bank, to a single `Doc: 264` line; click now reports 6% doc
+  coverage and 250 potential drift where only `state` used to.
+- **`api-surface.md`** — every route and the code behind it, keyed on `Endpoint`/`EXPOSES`.
+  Written only for repos that have routes.
+- **`CoverageIndex`** (`sdlc/coverage.py`) — whole-repo test reachability and blast radius
+  indexed once. `build_regression_plan` rebuilds a predecessor index per call, which is
+  quadratic when every module page needs it; `understand` on click stays at ~1.4s.
+
+#### Note on honesty
+
+The first cut of the safety block reported "16 of 20 symbols have no test" for `click.core`,
+naming `Context` — one of the most tested classes in the Python ecosystem. Call resolution is
+precision-first (ambiguous `obj.method()` chains are skipped rather than guessed), so an
+invisible test path is not an absent one. It now flags only the actionable intersection —
+depended upon **and** no visible path — says plainly that invisible ≠ absent, and takes
+module-level "tested by" from test **imports**, which are complete in a way call edges aren't.
+
+### No page is a stub or a directory listing
+
+Phase 4 of the [`understand` enhancement plan](docs/specs/understand-enhancement-spec.md) —
+Findings 4, 5 and 6 — plus the CI dogfooding left open since Phase 0.
+
+#### Changed
+
+- **`domain-model.md` is ranked, not alphabetised.** With no database it listed 40+ classes
+  A–Z and called them *prominent* without computing anything; `Abort` led click's page
+  because it starts with A. Now ranked by subtypes, production call-sites, members and doc
+  mentions — click's page opens with `Context`, `ProgressBar`, `Command`, `Parameter` — and
+  each row says *why* it matters. Retitled too: on a repo with no database, "domain model"
+  promises a schema that isn't there.
+- **`glossary.md` no longer promises definitions it can't write.** It was 60 alphabetical
+  lines of `**Abort** — _TODO: definition_`. Each term now links to where it's defined and
+  to the doc that explains it (from `MENTIONS`); private types are excluded.
+- **The "Node kinds" dump is gone from `architecture.md`.** `Function: 1938, Field: 400` was
+  database statistics in a section of its own. The counts survive as scale on the graph-size
+  line, and **Complexity** (size distribution + largest types) takes the slot.
+- **`conventions.md`** gains counted naming conventions, test layout, and the error idiom —
+  it was four sampled rules and a lint config. **`tech-context.md`** gains the declared
+  version and language floor.
+- **Production and test call-sites are counted apart** (Finding 6). `echo`'s
+  "most-depended-upon" callers were `test_echo`, `test_echo_color_flag`,
+  `test_echo_custom_file`. Rankings now use production call-sites only — being called by
+  thirty tests makes a symbol well covered, not central — while both numbers are displayed,
+  and caller lists lead with production.
+
+#### Fixed
+
+- **Unresolved base classes are recorded instead of dropped.** The Python front-end emitted
+  an `IMPLEMENTS` edge only when a base resolved to an import or a local definition, so a
+  class extending a *builtin* had no base at all in the graph: `class Abort(RuntimeError)`
+  and even `class ClickException(Exception)` answered "extends nothing", and anything
+  walking a hierarchy under-counted it. Bare-name bases now emit an external node, exactly
+  as unresolved bare *calls* already did. Click's exception hierarchy reads 12 types rooted
+  at `ClickException`, matching the source; the name-matching approach found 4.
+- A symbol with no edges rendered as a heading followed by silence. It now says so.
+
+#### Added
+
+- **CI runs `orchestrator pkg verify .` and `orchestrator understand . --check`**, and Spine
+  commits its own `episteme/`. The product's flagship claim is detecting when docs drift
+  from code; until now its own knowledge base could drift silently.
+
+### Answers to questions nobody was asking yet
+
+Phase 5, the last of the [`understand` enhancement plan](docs/specs/understand-enhancement-spec.md).
+Finding 10's opportunistic list: findings that need no new facts, only questions aimed at
+the *reader* ("where do I start?", "what can I ignore?", "what's tangled?") rather than at
+the extractor.
+
+#### Added
+
+- **Onboarding path** on the index — "New here? Read these first": where execution starts,
+  then what the most code depends on, each step saying why it's there.
+- **Public surface split** — "400 public · 306 internal, of 706". The same codebase,
+  reframed as approachable, with the most-depended-upon public symbols listed.
+- **Import cycles** — strongly-connected components of the module graph. Undetectable
+  before Phase 0, because the graph had almost no first-party import edges to form a cycle
+  with; click turns out to have an 11-module core cycle. Iterative Tarjan, because a real
+  dependency chain would blow the recursion limit.
+- **Possibly-unused candidates** — internal symbols with no caller, subclass or doc
+  reference. Restricted to *internal* on purpose: a public function with no in-repo caller
+  is what an API looks like. Labelled candidates, not verdicts.
+- **`symbol-index.md`** — every first-party symbol A–Z with the page that describes it, so
+  the bank is searchable by name without grep.
+
+#### Not done, deliberately
+
+**Churn per module** is the one item from Finding 10 left out. It reads the last ~60
+commits, so its value changes on *every* commit — including the one that lands the
+knowledge base — which would make the bank stale the moment it was written and
+`understand --check` fail permanently. It stays in the ephemeral `state` report.
+Tests→module shipped earlier, as Phase 3's "Tested by".
+
+## 3.8.4 — The architecture diagram now explains itself
+
+The 3.8.3 diagram named its components but didn't say what they *do* — boxes read
+`CLI · cli.py`, which tells you a module exists, not why it's there. Redrawn so every box
+answers "what is this for?", and every layer carries a plain-English line describing what
+happens there. Documentation only; no code change.
+
+### Changed
+
+- **Every box now has a purpose line** — `Command line · 41 commands · the main surface`,
+  `Hand out credentials · only at the moment of use`. Package paths (`plugin/`, `runtime/`)
+  drop to a dimmed third line: useful to a contributor, noise to everyone else. No box is
+  labelled with a filename any more.
+- **Each layer is narrated.** A sentence under every layer heading says what is happening —
+  *"Before writing anything, Spine reads."* — and both gates now read **"Stop."**, spelling out
+  that nothing has been written before gate one and nothing pushed before gate two.
+- Plainer names over internal jargon: *Read the requirement* rather than `Intake`, *The plan,
+  typed* rather than `GraphIR`.
+- The image is **72% smaller** (1.3 MB → 0.37 MB) at the same resolution.
+
+## 3.8.3 — Architecture diagram
+
+Adds a full **architecture diagram** and an [ARCHITECTURE.md](ARCHITECTURE.md) that walks the whole
+platform end to end — the six layers, every component, the two human gates, and the Product
+Knowledge Graph they all read from. Documentation only; no code or behaviour change.
+
+### Added
+
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** — how Spine fits together, layer by layer, with a diagram
+  that renders on GitHub and in Spine's own web UI.
+- A **static architecture image** (`assets/spine-architecture.png`), shown in the README.
+
 ## 3.8.2 — Doc ingestion reaches HTML and Office
 
 3.8.1 folded Markdown, reST, plain text and PDF into the graph. This release adds the

@@ -162,12 +162,16 @@ flowchart LR
   | Language | Status | Enable with |
   |---|---|---|
   | Python | ✅ built-in | (default) |
-  | Java | ✅ | `pip install 'synaptixs-spine[java]'` |
+  | Java | ✅ + JAX-RS endpoints | `pip install 'synaptixs-spine[java]'` |
   | TypeScript / TSX | ✅ | `pip install 'synaptixs-spine[typescript]'` |
   | C# | ✅ + framework edges | `pip install 'synaptixs-spine[csharp]'` |
   | C | ✅ + `#include` graph | `pip install 'synaptixs-spine[c]'` |
   | C++ | ✅ classes/namespaces/inheritance | `pip install 'synaptixs-spine[cpp]'` |
   | Go | ✅ + interface satisfaction (`IMPLEMENTS`) | `pip install 'synaptixs-spine[go]'` |
+
+  Java lifts JAX-RS / Jakarta REST resource methods into `Endpoint` nodes with
+  `EXPOSES` edges to their handlers. Both `javax.ws.rs` and `jakarta.ws.rs`
+  annotations are recognized.
 
   C# additionally lifts **framework edges** into the graph: ASP.NET Core controllers
   and Minimal-API routes become `Endpoint` nodes with `EXPOSES` edges to their

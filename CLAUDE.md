@@ -27,8 +27,14 @@ casually; they're contracts. Get the dir from `understand.BANK_DIRNAME` /
 | `catalog/`, `intake/`, `agentic/`, `personas/`, `evals/` | profiling, sources→intents, the codegen tool-use loop, personas, measurement |
 | `cli.py` | Every command surface (single module) |
 
-Design records live in **`docs/specs/`** — read the relevant spec before changing a
-subsystem; that's where the *why* is. `docs/specs/README.md` indexes them.
+Design records live in a **private companion repo, `synaptixs/spine-docs`** (`docs/specs/`,
+indexed by its `README.md`) — that's where the *why* is. Maintainers: read the relevant spec
+before changing a subsystem. Outside contributors don't need it; the public guides listed
+above are self-contained, and a PR is never blocked on a spec you can't read.
+
+Clone `spine-docs` as a **sibling** of this repo, never inside it — `understand` ingests
+markdown from disk whether or not git tracks it, so a nested `docs/` would add `Doc` nodes
+that CI doesn't see and make `understand --check` fail.
 
 ## Invariants — break these and things get subtly wrong
 

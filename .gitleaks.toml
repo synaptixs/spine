@@ -1,0 +1,28 @@
+# gitleaks configuration for Spine.
+#
+# Mirrors the allowlist the "security scan" CI job already applies, so the local
+# pre-commit hook and the required status check agree on what counts as a secret.
+# Divergence between the two is worse than either alone: a hook that flags what CI
+# tolerates gets bypassed with --no-verify, and the habit outlives the false positive.
+
+title = "Spine"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = """
+Dummy credential fixtures, not real secrets. tests/ and scripts/ carry planted
+values for the codereview secret-detector (they must look real to exercise it),
+and .github/workflows/security-scan.yml defines the detection patterns themselves.
+"""
+paths = [
+  '''^tests/''',
+  '''^scripts/''',
+  '''^\.github/workflows/''',
+  '''^\.gitleaks\.toml$''',
+]
+
+[[allowlists]]
+description = "AWS's canonical documentation example key — published by AWS, not a credential."
+regexes = ['''AKIAIOSFODNN7EXAMPLE''']

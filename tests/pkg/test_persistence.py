@@ -21,6 +21,7 @@ from orchestrator.pkg import (
     repo_state,
     save_facts,
 )
+from orchestrator.pkg.persistence import _FORMAT_VERSION
 
 
 def _batch() -> FactBatch:
@@ -135,4 +136,26 @@ def test_corrupt_cache_is_rebuilt(tmp_path: Path) -> None:
 
     batch = load_or_extract(repo, cache_dir=cache)
     assert any(n.id == "py:mod.f" for n in batch.nodes)  # extracted fresh
-    assert json.loads(cache_file.read_text(encoding="utf-8"))["version"] == 1  # re-saved
+    assert json.loads(cache_file.read_text(encoding="utf-8"))["version"] == _FORMAT_VERSION  # re-saved
+
+
+def test_outdated_format_cache_is_rebuilt(tmp_path: Path) -> None:
+    """An extractor fix must reach a repo that hasn't moved since it was cached.
+
+    The cache is keyed on the *analyzed* repo's HEAD, not on our version, so this
+    is the one path where a corrected fact silently survives an upgrade: bumping
+    ``_FORMAT_VERSION`` is what forces the re-extraction.
+    """
+    repo = _git_repo(tmp_path)
+    cache = tmp_path / "cache"
+    load_or_extract(repo, cache_dir=cache)
+    (cache_file,) = list(cache.glob("*.json"))
+
+    stale = json.loads(cache_file.read_text(encoding="utf-8"))
+    stale["version"] = _FORMAT_VERSION - 1
+    stale["nodes"] = []  # a fact the older extractor got wrong
+    cache_file.write_text(json.dumps(stale), encoding="utf-8")
+
+    batch = load_or_extract(repo, cache_dir=cache)
+    assert any(n.id == "py:mod.f" for n in batch.nodes)  # re-extracted, not served stale
+    assert json.loads(cache_file.read_text(encoding="utf-8"))["version"] == _FORMAT_VERSION

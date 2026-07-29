@@ -68,6 +68,15 @@ _area = area_of_name
 _zone = zone_of
 
 
+def is_test_area(area: str) -> bool:
+    """Is this component test code? One definition, shared by every consumer.
+
+    Used to keep tests out of the architecture picture and to tell "a test" from
+    "a thing under test" when measuring coverage.
+    """
+    return zone_of(area) in ("tests", "test")
+
+
 def _is_generated_path(file: str) -> bool:
     # Normalize with a leading "/" so a `/vendor/`-style marker also matches a
     # vendored directory at the repo root (e.g. "subprojects/...", "third_party/...").
@@ -126,6 +135,8 @@ class CurrentState:
     interfaces: int
     hotspots: list[tuple[str, int, str]]
     size_dist: Counter[str]
+    # Coverage is measured by test→source imports: `tested_areas` of `production_areas`
+    # non-test components have at least one test importing into them.
     tested_areas: int
     untested_top: list[tuple[str, int]]
     dup_names: list[tuple[str, int]]
@@ -139,6 +150,7 @@ class CurrentState:
     infrastructure: Infrastructure | None = None
     entry_points: list[str] = field(default_factory=list)
     modules: int = 0
+    production_areas: int = 0
     # Documentation (doc-ingestion): Doc nodes, symbol coverage, and drift.
     docs: int = 0
     documented_symbols: int = 0
@@ -280,12 +292,17 @@ def compute_current_state(
         )
         size_dist[bucket] += 1
 
-    def _is_test(n: Node) -> bool:
-        f = (n.provenance.file if n.provenance else "").lower()
-        return "test" in n.name.lower() or ".tests" in n.id.lower() or "/test" in f
-
-    tested = {_area_of(n) for n in types if _is_test(n)}
-    untested_top = [(a, c) for a, c in area_types.most_common(5) if a not in tested]
+    # Which production areas the tests actually exercise. An area counts as covered
+    # when a test area *imports into* it — the question a reader is really asking.
+    # Counting areas that merely *contain* a test type answers a different question
+    # ("which areas are tests"), which is why this used to report click.core, the most
+    # tested module in click, as untested. Resolvable only since intra-package imports
+    # started joining (`pkg/import_link.py`); before that no test→source edge existed.
+    all_areas = set(area_types) | set(area_funcs)
+    production = {a for a in all_areas if not is_test_area(a)}
+    covered = {dst for (src, dst) in coupling if is_test_area(src)} & production
+    tested_areas = len(covered)
+    untested_top = [(a, c) for a, c in area_types.most_common() if a in production and a not in covered][:5]
 
     dup_names = [
         (nm, c) for nm, c in Counter(n.name for n in types if not _is_generated(n)).most_common() if c > 1
@@ -330,6 +347,7 @@ def compute_current_state(
         counts=counts,
         namespaces=len(mods),
         areas=len(area_types),
+        production_areas=len(production),
         layers=layers,
         area_types=area_types,
         area_funcs=area_funcs,
@@ -341,7 +359,7 @@ def compute_current_state(
         interfaces=interfaces,
         hotspots=hotspots,
         size_dist=size_dist,
-        tested_areas=len(tested),
+        tested_areas=tested_areas,
         untested_top=untested_top,
         dup_names=dup_names,
         data_access=data_access,
@@ -364,7 +382,12 @@ def compute_current_state(
 
 
 def _entry_points(root: Path | None, nodes: list[Node]) -> list[str]:
-    """How the system is started: declared console scripts + ``main`` functions."""
+    """How the system is started: declared console scripts + ``main`` functions.
+
+    Test files are excluded. A ``main()`` defined inside a test is a fixture for the
+    thing under test, not a way anyone starts this system — listing it answers the
+    reader's question wrongly, which is worse than leaving the section short.
+    """
     eps: list[str] = []
     if root is not None and (root / "pyproject.toml").is_file():
         try:
@@ -376,11 +399,18 @@ def _entry_points(root: Path | None, nodes: list[Node]) -> list[str]:
         except (OSError, ValueError, ModuleNotFoundError):
             pass
     for n in nodes:
-        if n.kind is NodeKind.FUNCTION and n.name.lower() == "main" and n.provenance:
+        is_main = n.kind is NodeKind.FUNCTION and n.name.lower() == "main" and n.provenance
+        if is_main and n.provenance and not _is_test_path(n.provenance.file):
             eps.append(f"`main()` @ {n.provenance}")
         if len(eps) >= 8:
             break
     return eps
+
+
+def _is_test_path(file: str) -> bool:
+    """Repo-relative path that lives under a test tree, or is a test file itself."""
+    f = "/" + file.lower().lstrip("/")
+    return "/test/" in f or "/tests/" in f or "/test_" in f or f.endswith(("_test.py", "_test.go"))
 
 
 def _recommend(s: CurrentState) -> list[tuple[str, str]]:
@@ -438,8 +468,7 @@ def architecture_graph(s: CurrentState) -> tuple[list[str], list[tuple[tuple[str
     over that node set.
     """
 
-    def _is_test_area(a: str) -> bool:
-        return _zone(a) in ("tests", "test")
+    _is_test_area = is_test_area
 
     # The architecture is the PRODUCTION structure — drop edges originating in test
     # code (test→lib isn't architecture) and test areas from the size-based picks.
@@ -464,7 +493,7 @@ def architecture_graph(s: CurrentState) -> tuple[list[str], list[tuple[tuple[str
     return nodes, edges
 
 
-def _architecture_mermaid(s: CurrentState) -> list[str]:
+def architecture_mermaid(s: CurrentState) -> list[str]:
     """A system-architecture flowchart: the top components grouped into zone
     subgraphs, with the strongest cross-component dependency edges (from the
     `#include` / import graph). Bounded so it stays readable."""
@@ -668,7 +697,7 @@ def _render_developer(s: CurrentState) -> str:
             "(import / `#include` count)._",
             "",
         ]
-        o += _architecture_mermaid(s)
+        o += architecture_mermaid(s)
         o += [
             "",
             "### Component dependencies (strongest)",
@@ -712,9 +741,9 @@ def _render_developer(s: CurrentState) -> str:
         "",
         "## Test coverage",
         "",
-        f"- **{s.tested_areas} of {s.areas} areas** have any test type."
+        f"- **{s.tested_areas} of {s.production_areas} components** are imported by a test."
         + (
-            " Largest untested: " + ", ".join(f"{a} ({c})" for a, c in s.untested_top)
+            " Largest with no test importing them: " + ", ".join(f"{a} ({c})" for a, c in s.untested_top)
             if s.untested_top
             else ""
         ),
@@ -766,29 +795,14 @@ def load_current_state(
     The raw ``FactBatch`` is returned alongside so callers that need graph-level
     provenance (grounded/edge counts, the HTML report's blast-radius spotlight) can
     reuse it without a second extraction. Rendering (markdown, HTML) is a separate step.
-    """
-    from orchestrator.catalog.profile import ProjectProfile
-    from orchestrator.pkg.data_layer_link import link_data_layer
-    from orchestrator.pkg.doc_link import link_docs
-    from orchestrator.pkg.extractor import RepoCodeExtractor
-    from orchestrator.pkg.migrations import apply_migrations
-    from orchestrator.pkg.persistence import load_or_extract
 
-    root_path = Path(root)
-    # A pinned --dialect changes SQL extraction, so bypass the sha-keyed cache.
-    if refresh or sql_dialect is not None:
-        batch = RepoCodeExtractor(sql_dialect=sql_dialect).extract(root_path)
-    else:
-        batch = load_or_extract(root_path)
-    # A4 (fold ordered migrations → current schema) then A3 (schema is
-    # authoritative over ORM-inferred entities). Both no-op without SQL.
-    batch = apply_migrations(batch, root_path)
-    batch = link_data_layer(batch)
-    # Fold the repo's text docs into the graph (Doc nodes + MENTIONS edges); no-op with no docs.
-    batch = link_docs(batch, root_path)
-    profile = ProjectProfile.from_repo(root_path)
-    state = compute_current_state(batch, profile, root=root_path)
-    return state, batch
+    The pipeline itself lives in :mod:`orchestrator.knowledge.analysis`, shared with
+    ``understand`` so both surfaces describe the same graph.
+    """
+    from orchestrator.knowledge.analysis import analyse
+
+    result = analyse(root, refresh=refresh, sql_dialect=sql_dialect)
+    return result.state, result.batch
 
 
 def build_current_state(
@@ -802,6 +816,7 @@ def build_current_state(
 __all__ = [
     "CurrentState",
     "architecture_graph",
+    "architecture_mermaid",
     "build_current_state",
     "compute_current_state",
     "load_current_state",

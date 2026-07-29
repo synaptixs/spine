@@ -35,7 +35,7 @@ radius) and grounds new code in what already exists. Full guide:
 | Multi-language comprehension + codegen — Python, Java, TypeScript, C#, C, C++, Go | ✅ | automatic per repo |
 | SQL data-layer comprehension — schema, queries, stored procedures, migration folding | ✅ | `pip install 'synaptixs-spine[sql]'`; `.sql` per repo |
 | SQL greenfield codegen — generate a migration, validate on an ephemeral DB | ✅ | `sdlc feature --language sql` (in-memory SQLite; `SDLC_SQL_ENGINE=postgres` for real Postgres) |
-| Framework-aware edges — ASP.NET Core endpoints, EF Core entities (C#) | ✅ | emitted into the PKG on `pkg extract` / `understand` |
+| Framework-aware edges — JAX-RS endpoints (Java); ASP.NET Core endpoints and EF Core entities (C#) | ✅ | emitted into the PKG on `pkg extract` / `understand` |
 | C `#include` graph + header/source merge; codegen on **CMake or Meson** | ✅ | `.c`/`.h` per repo; `sdlc feature --language c` |
 | Go — package-per-directory, call graph, **interface satisfaction** (`IMPLEMENTS` by method-set); codegen built + tested with `go build`/`go test`, multi-module aware | ✅ | `pip install 'synaptixs-spine[go]'`; `.go` per repo; `sdlc feature --language go` |
 | Doc ingestion — folds Markdown/reST/text docs into the PKG as `Doc` nodes + `MENTIONS` edges (which docs describe a symbol); section-granular, precision-first, no LLM | ✅ | automatic on `orchestrator understand` / `orchestrator state` |
