@@ -14,6 +14,7 @@ from orchestrator.evals.graders import (
 )
 from orchestrator.evals.harness import Arm, render_comparison, render_markdown, run_eval
 from orchestrator.evals.models import ArmOutcome, EvalTask, Scorecard, TaskResult
+from orchestrator.evals.paths import EVALS_DIRNAME, evals_dir
 from orchestrator.evals.promotion import (
     PromotionDecision,
     capability_source,
@@ -31,6 +32,7 @@ from orchestrator.evals.skill_ab import (
 )
 
 __all__ = [
+    "EVALS_DIRNAME",
     "PROMOTION_MARGIN",
     "PROVIDER_MODELS",
     "Arm",
@@ -44,6 +46,7 @@ __all__ = [
     "capability_source",
     "count_semgrep_findings",
     "decision_from_ab",
+    "evals_dir",
     "outcome_from_result",
     "promoted_capability",
     "promotion_verdict",

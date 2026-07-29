@@ -37,6 +37,7 @@ from orchestrator.evals import (  # noqa: E402
     ArmOutcome,
     EvalTask,
     Scorecard,
+    evals_dir,
     render_comparison,
     render_markdown,
     run_eval,
@@ -116,7 +117,7 @@ async def main() -> None:
     llm = RecordingLLMClient(LiteLLMClient(request_timeout_seconds=300.0))
     cards: list[Scorecard] = []
     stamp = _dt.datetime.now().strftime("%Y-%m-%d")
-    out_dir = REPO / "docs" / "evals"
+    out_dir = evals_dir(REPO)
     out_dir.mkdir(parents=True, exist_ok=True)
     slug = "brownfield" if config else "on-repo"
 
@@ -140,7 +141,7 @@ async def main() -> None:
         comp = render_comparison(cards, title=f"single-shot vs agentic ({label}) — {stamp}")
         (out_dir / f"{stamp}-{slug}-comparison.md").write_text(comp, encoding="utf-8")
         print("\n" + comp)
-    print(f"scorecards → docs/evals/{stamp}-{slug}-*.{{md,json}}")
+    print(f"scorecards → {out_dir}/{stamp}-{slug}-*.{{md,json}}")
 
 
 if __name__ == "__main__":
