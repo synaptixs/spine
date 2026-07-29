@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img" aria-label="Synaptixs">
+  <title>Synaptixs</title>
+  <path d="M16.8 7.2 C16.8 4.8, 12.2 4.6, 10 6.6 C7.6 8.8, 9.2 11.2, 12 12 C15 12.9, 16.6 15.4, 14.2 17.6 C12 19.6, 7.4 19.2, 7.2 16.8"
+        fill="none" stroke="#0e9488" stroke-width="2.4" stroke-linecap="round"/>
+  <circle cx="16.8" cy="7.2" r="1.9" fill="#0e9488"/>
+  <circle cx="7.2" cy="16.8" r="1.9" fill="#0e9488"/>
+  <circle cx="12" cy="12" r="2.6" fill="#2DD4BF"/>
+</svg>
