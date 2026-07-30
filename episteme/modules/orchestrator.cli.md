@@ -121,7 +121,7 @@ _20 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:1481`](../../src/orchestrator/cli.py#L1481)
 
 - **Called by** (1): [`state`](../../src/orchestrator/cli.py#L1431)
-- **Calls** (5): `FactStore`, [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L790), `now`, [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L133)
+- **Calls** (5): `FactStore`, [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L835), `now`, [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L133)
 
 ### `_repo_arg`
 
@@ -394,7 +394,7 @@ _20 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/cli.py:1431`](../../src/orchestrator/cli.py#L1431)
 
-- **Calls** (5): `Exit`, [`_render_state_html`](../../src/orchestrator/cli.py#L1481), [`_repo_arg`](../../src/orchestrator/cli.py#L83), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L808), `echo`
+- **Calls** (5): `Exit`, [`_render_state_html`](../../src/orchestrator/cli.py#L1481), [`_repo_arg`](../../src/orchestrator/cli.py#L83), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L853), `echo`
 
 ### `task_submit`
 

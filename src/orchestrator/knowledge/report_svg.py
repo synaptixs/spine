@@ -16,13 +16,7 @@ import html
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from orchestrator.knowledge.clustering import (
-    communities_by_id,
-    detect_communities,
-    modularity,
-    significant_edges,
-)
-from orchestrator.knowledge.current_state import architecture_graph, is_test_area
+from orchestrator.knowledge.current_state import architecture_clusters, architecture_graph
 
 if TYPE_CHECKING:
     from orchestrator.knowledge.current_state import CurrentState
@@ -63,31 +57,6 @@ def _cluster_label(members: list[str], shown: int) -> str:
     return f"{head} — {shown} of {len(members)}" if shown < len(members) else f"{head} — {len(members)}"
 
 
-def _cluster_areas(state: CurrentState) -> tuple[dict[str, int], list[list[str]], float]:
-    """Community assignment over the production coupling graph.
-
-    Two filters before clustering, both of which change the answer materially:
-
-    * **Test areas are dropped.** A test imports what it tests harder than anything else
-      imports anything, so on the raw graph every community is one ``x`` + ``tests.x`` pair —
-      structurally true and architecturally useless. ``architecture_graph`` drops test-origin
-      edges for the same reason.
-    * **Weak couplings are dropped** at the mean weight (see
-      :func:`clustering.significant_edges`). Keeping them fuses 29 of this repo's 40
-      production areas into one community at modularity 0.245; cutting them gives 11 / 9 / 2
-      at 0.363.
-    """
-    production = {
-        pair: w
-        for pair, w in state.coupling.items()
-        if not is_test_area(pair[0]) and not is_test_area(pair[1])
-    }
-    kept, _threshold = significant_edges(production)
-    names = sorted({n for pair in production for n in pair})
-    assignment = detect_communities(kept, nodes=names)
-    return assignment, communities_by_id(assignment), modularity(kept, assignment)
-
-
 def _border_point(cx: float, cy: float, tx: float, ty: float) -> tuple[float, float]:
     """Where the ray from box-center (cx,cy) toward (tx,ty) exits the box border.
     Straight AABB clip — keeps arrowheads on the box edge, not buried inside it."""
@@ -118,7 +87,7 @@ def architecture_svg(state: CurrentState) -> str:
     # a module NAME, which on a single-namespace repo puts every component in one band and says
     # nothing — measured here: all 18 drawn components land in the `orchestrator` zone. The
     # coupling graph knows more than the naming does.
-    assignment, all_groups, q = _cluster_areas(state)
+    assignment, all_groups, q = architecture_clusters(state)
     members_of = {cid: group for cid, group in enumerate(all_groups)}
 
     by_cluster: dict[int, list[str]] = defaultdict(list)
