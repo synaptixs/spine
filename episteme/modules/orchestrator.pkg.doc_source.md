@@ -9,18 +9,18 @@
 
 ## Changing this safely
 
-**Tested by** (2): `tests.pkg.test_doc_link`, `tests.pkg.test_doc_source`
+**Tested by** (3): `tests.pkg.test_doc_link`, `tests.pkg.test_doc_source`, `tests.pkg.test_media`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L148) — reaches **25** symbols
-- [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L92) — reaches **19** symbols
-- [`_slug`](../../src/orchestrator/pkg/doc_source.py#L86) — reaches **15** symbols
-- [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L179) — reaches **2** symbols · **no test path visible**
-- [`_HtmlToText`](../../src/orchestrator/pkg/doc_source.py#L217) — reaches **1** symbol · **no test path visible**
-- [`_docx_heading_level`](../../src/orchestrator/pkg/doc_source.py#L314) — reaches **1** symbol
-- [`_docx_paragraph_text`](../../src/orchestrator/pkg/doc_source.py#L327) — reaches **1** symbol · **no test path visible**
-- [`_front_matter_prose`](../../src/orchestrator/pkg/doc_source.py#L422) — reaches **1** symbol · **no test path visible**
+- [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L153) — reaches **25** symbols
+- [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L97) — reaches **19** symbols
+- [`_slug`](../../src/orchestrator/pkg/doc_source.py#L91) — reaches **15** symbols
+- [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L184) — reaches **2** symbols · **no test path visible**
+- [`_HtmlToText`](../../src/orchestrator/pkg/doc_source.py#L222) — reaches **1** symbol · **no test path visible**
+- [`_docx_heading_level`](../../src/orchestrator/pkg/doc_source.py#L319) — reaches **1** symbol
+- [`_docx_paragraph_text`](../../src/orchestrator/pkg/doc_source.py#L332) — reaches **1** symbol · **no test path visible**
+- [`_front_matter_prose`](../../src/orchestrator/pkg/doc_source.py#L427) — reaches **1** symbol · **no test path visible**
 
 _5 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -28,119 +28,131 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ### `DocReader`
 
-[`src/orchestrator/pkg/doc_source.py:46`](../../src/orchestrator/pkg/doc_source.py#L46)
+[`src/orchestrator/pkg/doc_source.py:51`](../../src/orchestrator/pkg/doc_source.py#L51)
 
 - **Called by** (0 production · 2 test): [`test_reader_returning_none_skips_the_file`](../../tests/pkg/test_doc_source.py#L60), [`test_register_reader_adds_a_format_without_touching_dispatch`](../../tests/pkg/test_doc_source.py#L49)
 - **Fields**: `name`, `read`, `sections`, `suffixes`
+- **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`, `docs/specs/gap3-media-ingestion-roadmap.md#before-you-start`
 
 ### `_HtmlToText`
 
-[`src/orchestrator/pkg/doc_source.py:217`](../../src/orchestrator/pkg/doc_source.py#L217)
+[`src/orchestrator/pkg/doc_source.py:222`](../../src/orchestrator/pkg/doc_source.py#L222)
 
 - **Extends** (1): `html.parser.HTMLParser`
-- **Called by** (1): [`_read_html`](../../src/orchestrator/pkg/doc_source.py#L286)
+- **Called by** (1): [`_read_html`](../../src/orchestrator/pkg/doc_source.py#L291)
 - **Fields**: `_out`, `_pre`, `_skip`
+- **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
 
 ## Functions
 
 ### `_docx_heading_level`
 
-[`src/orchestrator/pkg/doc_source.py:314`](../../src/orchestrator/pkg/doc_source.py#L314)
+[`src/orchestrator/pkg/doc_source.py:319`](../../src/orchestrator/pkg/doc_source.py#L319)
 
-- **Called by** (1 production · 1 test): [`_read_docx`](../../src/orchestrator/pkg/doc_source.py#L355), [`test_docx_heading_level_mapping`](../../tests/pkg/test_doc_source.py#L203)
+- **Called by** (1 production · 1 test): [`_read_docx`](../../src/orchestrator/pkg/doc_source.py#L360), [`test_docx_heading_level_mapping`](../../tests/pkg/test_doc_source.py#L203)
 
 ### `_docx_paragraph_text`
 
-[`src/orchestrator/pkg/doc_source.py:327`](../../src/orchestrator/pkg/doc_source.py#L327)
+[`src/orchestrator/pkg/doc_source.py:332`](../../src/orchestrator/pkg/doc_source.py#L332)
 
-- **Called by** (1): [`_read_docx`](../../src/orchestrator/pkg/doc_source.py#L355)
+- **Called by** (1): [`_read_docx`](../../src/orchestrator/pkg/doc_source.py#L360)
+- **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
 
 ### `_front_matter_prose`
 
-[`src/orchestrator/pkg/doc_source.py:422`](../../src/orchestrator/pkg/doc_source.py#L422)
+[`src/orchestrator/pkg/doc_source.py:427`](../../src/orchestrator/pkg/doc_source.py#L427)
 
-- **Called by** (1): [`_read_markdown`](../../src/orchestrator/pkg/doc_source.py#L448)
+- **Called by** (1): [`_read_markdown`](../../src/orchestrator/pkg/doc_source.py#L453)
+- **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
 
 ### `_read_docx`
 
-[`src/orchestrator/pkg/doc_source.py:355`](../../src/orchestrator/pkg/doc_source.py#L355)
+[`src/orchestrator/pkg/doc_source.py:360`](../../src/orchestrator/pkg/doc_source.py#L360)
 
-- **Calls** (3): `Document`, [`_docx_heading_level`](../../src/orchestrator/pkg/doc_source.py#L314), [`_docx_paragraph_text`](../../src/orchestrator/pkg/doc_source.py#L327)
+- **Calls** (3): `Document`, [`_docx_heading_level`](../../src/orchestrator/pkg/doc_source.py#L319), [`_docx_paragraph_text`](../../src/orchestrator/pkg/doc_source.py#L332)
+- **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
 
 ### `_read_html`
 
-[`src/orchestrator/pkg/doc_source.py:286`](../../src/orchestrator/pkg/doc_source.py#L286)
+[`src/orchestrator/pkg/doc_source.py:291`](../../src/orchestrator/pkg/doc_source.py#L291)
 
-- **Calls** (2): [`_HtmlToText`](../../src/orchestrator/pkg/doc_source.py#L217), [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L179)
+- **Calls** (2): [`_HtmlToText`](../../src/orchestrator/pkg/doc_source.py#L222), [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L184)
+- **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
 
 ### `_read_markdown`
 
-[`src/orchestrator/pkg/doc_source.py:448`](../../src/orchestrator/pkg/doc_source.py#L448)
+[`src/orchestrator/pkg/doc_source.py:453`](../../src/orchestrator/pkg/doc_source.py#L453)
 
-- **Calls** (2): [`_front_matter_prose`](../../src/orchestrator/pkg/doc_source.py#L422), [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L179)
+- **Calls** (2): [`_front_matter_prose`](../../src/orchestrator/pkg/doc_source.py#L427), [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L184)
+- **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
 
 ### `_read_pdf`
 
-[`src/orchestrator/pkg/doc_source.py:188`](../../src/orchestrator/pkg/doc_source.py#L188)
+[`src/orchestrator/pkg/doc_source.py:193`](../../src/orchestrator/pkg/doc_source.py#L193)
 
-- **Calls** (1): [`_read_pdf_text`](../../src/orchestrator/pkg/doc_source.py#L126)
+- **Calls** (1): [`_read_pdf_text`](../../src/orchestrator/pkg/doc_source.py#L131)
 
 ### `_read_pdf_text`
 
-[`src/orchestrator/pkg/doc_source.py:126`](../../src/orchestrator/pkg/doc_source.py#L126)
+[`src/orchestrator/pkg/doc_source.py:131`](../../src/orchestrator/pkg/doc_source.py#L131)
 
-- **Called by** (1): [`_read_pdf`](../../src/orchestrator/pkg/doc_source.py#L188)
+- **Called by** (1): [`_read_pdf`](../../src/orchestrator/pkg/doc_source.py#L193)
 - **Calls** (1): `pypdf.PdfReader`
+- **Documented in**: `docs/specs/doc-ingestion-spec.md#phases`, `docs/specs/gap2-document-modality-roadmap.md#design-decisions`, `docs/specs/gap2-document-modality-roadmap.md#what-already-exists-reuse-dont-rebuild`
 
 ### `_read_text`
 
-[`src/orchestrator/pkg/doc_source.py:179`](../../src/orchestrator/pkg/doc_source.py#L179)
+[`src/orchestrator/pkg/doc_source.py:184`](../../src/orchestrator/pkg/doc_source.py#L184)
 
-- **Called by** (2): [`_read_html`](../../src/orchestrator/pkg/doc_source.py#L286), [`_read_markdown`](../../src/orchestrator/pkg/doc_source.py#L448)
+- **Called by** (2): [`_read_html`](../../src/orchestrator/pkg/doc_source.py#L291), [`_read_markdown`](../../src/orchestrator/pkg/doc_source.py#L453)
 
 ### `_read_xlsx`
 
-[`src/orchestrator/pkg/doc_source.py:385`](../../src/orchestrator/pkg/doc_source.py#L385)
+[`src/orchestrator/pkg/doc_source.py:390`](../../src/orchestrator/pkg/doc_source.py#L390)
 
 - **Calls** (1): `load_workbook`
+- **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
 
 ### `_slug`
 
-[`src/orchestrator/pkg/doc_source.py:86`](../../src/orchestrator/pkg/doc_source.py#L86)
+[`src/orchestrator/pkg/doc_source.py:91`](../../src/orchestrator/pkg/doc_source.py#L91)
 
-- **Called by** (1): [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L92)
+- **Called by** (1): [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L97)
 - **Calls** (1): `sub`
 
 ### `is_doc_file`
 
-[`src/orchestrator/pkg/doc_source.py:77`](../../src/orchestrator/pkg/doc_source.py#L77)
+[`src/orchestrator/pkg/doc_source.py:82`](../../src/orchestrator/pkg/doc_source.py#L82)
 
 - **Called by** (0 production · 3 test): [`test_is_doc_file_recognises_text_docs_and_pdf`](../../tests/pkg/test_doc_link.py#L88), [`test_register_reader_adds_a_format_without_touching_dispatch`](../../tests/pkg/test_doc_source.py#L49), [`test_unregistered_suffix_is_ignored`](../../tests/pkg/test_doc_source.py#L68)
 
 ### `read_doc_pages`
 
-[`src/orchestrator/pkg/doc_source.py:148`](../../src/orchestrator/pkg/doc_source.py#L148)
+[`src/orchestrator/pkg/doc_source.py:153`](../../src/orchestrator/pkg/doc_source.py#L153)
 
-- **Called by** (3 production · 20 test): [`doc_drift`](../../src/orchestrator/pkg/doc_link.py#L69), [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L47), [`link_docs`](../../src/orchestrator/pkg/doc_link.py#L47), [`test_corrupt_office_file_is_skipped_not_fatal`](../../tests/pkg/test_doc_source.py#L227), [`test_docx_heading_styles_become_sections`](../../tests/pkg/test_doc_source.py#L181), [`test_docx_monospace_run_becomes_backticks`](../../tests/pkg/test_doc_source.py#L188), [`test_docx_table_text_is_kept`](../../tests/pkg/test_doc_source.py#L197), [`test_front_matter_keeps_values_drops_keys`](../../tests/pkg/test_doc_source.py#L134), [`test_html_drops_script_and_style`](../../tests/pkg/test_doc_source.py#L105), [`test_html_headings_become_sections`](../../tests/pkg/test_doc_source.py#L89), [`test_html_inline_code_becomes_backticks`](../../tests/pkg/test_doc_source.py#L97), [`test_html_pre_block_is_not_backticked`](../../tests/pkg/test_doc_source.py#L112), [`test_html_without_headings_stays_whole`](../../tests/pkg/test_doc_source.py#L120), [`test_malformed_html_is_skipped_not_fatal`](../../tests/pkg/test_doc_source.py#L125), [`test_markdown_without_front_matter_is_untouched`](../../tests/pkg/test_doc_source.py#L146), [`test_read_doc_pages_extracts_pdf_text`](../../tests/pkg/test_doc_link.py#L105), [`test_read_doc_pages_skips_unparseable_pdf`](../../tests/pkg/test_doc_link.py#L113), [`test_read_doc_pages_walks_repo_and_skips_hidden`](../../tests/pkg/test_doc_link.py#L97), [`test_reader_returning_none_skips_the_file`](../../tests/pkg/test_doc_source.py#L60), [`test_register_reader_adds_a_format_without_touching_dispatch`](../../tests/pkg/test_doc_source.py#L49), [`test_standalone_yaml_is_not_ingested`](../../tests/pkg/test_doc_source.py#L151), [`test_unregistered_suffix_is_ignored`](../../tests/pkg/test_doc_source.py#L68), [`test_xlsx_sheet_becomes_a_section_with_string_cells`](../../tests/pkg/test_doc_source.py#L211)
-- **Calls** (4): [`DocPage`](../../src/orchestrator/pkg/docs.py#L51), `pathlib.Path`, [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L92), `walk`
+- **Called by** (3 production · 23 test): [`doc_drift`](../../src/orchestrator/pkg/doc_link.py#L69), [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L47), [`link_docs`](../../src/orchestrator/pkg/doc_link.py#L47), [`test_corrupt_office_file_is_skipped_not_fatal`](../../tests/pkg/test_doc_source.py#L227), [`test_docx_heading_styles_become_sections`](../../tests/pkg/test_doc_source.py#L181), [`test_docx_monospace_run_becomes_backticks`](../../tests/pkg/test_doc_source.py#L188), [`test_docx_table_text_is_kept`](../../tests/pkg/test_doc_source.py#L197), [`test_front_matter_keeps_values_drops_keys`](../../tests/pkg/test_doc_source.py#L134), [`test_html_drops_script_and_style`](../../tests/pkg/test_doc_source.py#L105), [`test_html_headings_become_sections`](../../tests/pkg/test_doc_source.py#L89), [`test_html_inline_code_becomes_backticks`](../../tests/pkg/test_doc_source.py#L97), [`test_html_pre_block_is_not_backticked`](../../tests/pkg/test_doc_source.py#L112), [`test_html_without_headings_stays_whole`](../../tests/pkg/test_doc_source.py#L120), [`test_malformed_artifact_is_not_fatal`](../../tests/pkg/test_media.py#L148), [`test_malformed_html_is_skipped_not_fatal`](../../tests/pkg/test_doc_source.py#L125), [`test_markdown_without_front_matter_is_untouched`](../../tests/pkg/test_doc_source.py#L146), [`test_media_file_without_artifact_is_skipped`](../../tests/pkg/test_media.py#L116), [`test_read_doc_pages_extracts_pdf_text`](../../tests/pkg/test_doc_link.py#L105), [`test_read_doc_pages_skips_unparseable_pdf`](../../tests/pkg/test_doc_link.py#L113), [`test_read_doc_pages_walks_repo_and_skips_hidden`](../../tests/pkg/test_doc_link.py#L97), [`test_reader_returning_none_skips_the_file`](../../tests/pkg/test_doc_source.py#L60), [`test_register_reader_adds_a_format_without_touching_dispatch`](../../tests/pkg/test_doc_source.py#L49), [`test_standalone_yaml_is_not_ingested`](../../tests/pkg/test_doc_source.py#L151), [`test_unregistered_suffix_is_ignored`](../../tests/pkg/test_doc_source.py#L68), [`test_valid_artifact_ingests_its_transcript`](../../tests/pkg/test_media.py#L106), +1 more
+- **Calls** (4): [`DocPage`](../../src/orchestrator/pkg/docs.py#L51), `pathlib.Path`, [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L97), `walk`
+- **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#design-decisions`, `docs/specs/gap3-media-ingestion-roadmap.md#the-determinism-problem-read-this-first`
 
 ### `register_reader`
 
-[`src/orchestrator/pkg/doc_source.py:67`](../../src/orchestrator/pkg/doc_source.py#L67)
+[`src/orchestrator/pkg/doc_source.py:72`](../../src/orchestrator/pkg/doc_source.py#L72)
 
 - **Called by** (0 production · 2 test): [`test_reader_returning_none_skips_the_file`](../../tests/pkg/test_doc_source.py#L60), [`test_register_reader_adds_a_format_without_touching_dispatch`](../../tests/pkg/test_doc_source.py#L49)
+- **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#design-decisions`, `docs/specs/gap2-document-modality-roadmap.md#non-goals`, `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`, `docs/specs/gap3-media-ingestion-roadmap.md#before-you-start`, `docs/specs/gap3-media-ingestion-roadmap.md#phases`, `docs/specs/gap3-media-ingestion-roadmap.md#working-alongside-other-tracks`
 
 ### `split_sections`
 
-[`src/orchestrator/pkg/doc_source.py:92`](../../src/orchestrator/pkg/doc_source.py#L92)
+[`src/orchestrator/pkg/doc_source.py:97`](../../src/orchestrator/pkg/doc_source.py#L97)
 
-- **Called by** (1 production · 2 test): [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L148), [`test_split_sections_by_heading`](../../tests/pkg/test_doc_link.py#L174), [`test_split_sections_leaves_heading_less_docs_whole`](../../tests/pkg/test_doc_link.py#L187)
-- **Calls** (2): [`DocPage`](../../src/orchestrator/pkg/docs.py#L51), [`_slug`](../../src/orchestrator/pkg/doc_source.py#L86)
+- **Called by** (1 production · 2 test): [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L153), [`test_split_sections_by_heading`](../../tests/pkg/test_doc_link.py#L174), [`test_split_sections_leaves_heading_less_docs_whole`](../../tests/pkg/test_doc_link.py#L187)
+- **Calls** (2): [`DocPage`](../../src/orchestrator/pkg/docs.py#L51), [`_slug`](../../src/orchestrator/pkg/doc_source.py#L91)
+- **Documented in**: `docs/specs/doc-ingestion-spec.md#phases`, `docs/specs/gap2-document-modality-roadmap.md#what-already-exists-reuse-dont-rebuild`
 
 ## Imports
 
-`__future__.annotations`, `collections.abc.Callable`, `dataclasses.dataclass`, `docx`, `html.parser.HTMLParser`, `openpyxl`, [`orchestrator.pkg.docs`](../../src/orchestrator/pkg/docs.py#L1), [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), `os`, `pathlib.Path`, `pypdf.PdfReader`, `re`
+`__future__.annotations`, `collections.abc.Callable`, `dataclasses.dataclass`, `docx`, `html.parser.HTMLParser`, `openpyxl`, [`orchestrator.pkg.docs`](../../src/orchestrator/pkg/docs.py#L1), [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`orchestrator.pkg.media`](../../src/orchestrator/pkg/media.py#L1), `os`, `pathlib.Path`, `pypdf.PdfReader`, `re`
 
 ## Imported by
 
-[`orchestrator.pkg.doc_link`](../../src/orchestrator/pkg/doc_link.py#L1), [`orchestrator.sdlc.grounding`](../../src/orchestrator/sdlc/grounding.py#L1), [`tests.pkg.test_doc_link`](../../tests/pkg/test_doc_link.py#L1), [`tests.pkg.test_doc_source`](../../tests/pkg/test_doc_source.py#L1)
+[`orchestrator.pkg.doc_link`](../../src/orchestrator/pkg/doc_link.py#L1), [`orchestrator.sdlc.grounding`](../../src/orchestrator/sdlc/grounding.py#L1), [`tests.pkg.test_doc_link`](../../tests/pkg/test_doc_link.py#L1), [`tests.pkg.test_doc_source`](../../tests/pkg/test_doc_source.py#L1), [`tests.pkg.test_media`](../../tests/pkg/test_media.py#L1)

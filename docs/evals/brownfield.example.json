@@ -1,0 +1,15 @@
+{
+  "repo": "/abs/path/to/a/local/checkout",
+  "tickets": [
+    {
+      "key": "BF-EDIT-1",
+      "kind": "edit",
+      "must_edit": ["src/yourpkg/module.py"],
+      "spec": {
+        "title": "Add a helper to an existing module",
+        "summary": "Extend src/yourpkg/module.py with foo(x) -> int returning ...; modify that file, do not create a new module.",
+        "acceptance_criteria": ["foo is added to src/yourpkg/module.py", "foo(0) returns 0"]
+      }
+    }
+  ]
+}
