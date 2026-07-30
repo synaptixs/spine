@@ -292,6 +292,42 @@ diffs cleanly.
 The graph formats include `Doc` nodes and `MENTIONS` edges (documentation, and the media
 transcripts that reuse them). `sqlite` does not — its kind-per-table schema has no doc table.
 
+#### Two things to know before you load an export
+
+**1. `IMPORTS` targets the imported *symbol*, not always the module.** `from app.core import
+slugify` produces `py:web.views → py:app.core.slugify`, not `py:web.views → py:app.core` — 2,746 of
+5,895 import edges on this repo. Keep only the edges whose endpoints are already modules and you
+get 3,033 dependencies; resolve properly and you get **4,287**. The naive read silently loses
+**1,254 real dependencies, 29% of the graph**, and it fails in the direction that looks plausible:
+a sparser, tidier architecture than the one you have. Resolve both endpoints upward through
+`CONTAINS` first:
+
+```python
+import json
+d = json.load(open("spine.json"))
+kind  = {n["id"]: n.get("kind") for n in d["nodes"]}
+owner = {e["dst"]: e["src"] for e in d["edges"] if e["kind"] == "CONTAINS"}
+
+def to_module(i):
+    seen = set()
+    while kind.get(i) != "Module" and i in owner and i not in seen:
+        seen.add(i); i = owner[i]
+    return i if kind.get(i) == "Module" else None
+
+deps = {(to_module(e["src"]), to_module(e["dst"]))
+        for e in d["edges"] if e["kind"] == "IMPORTS"}
+deps = {(s, t) for s, t in deps if s and t and s != t}
+```
+
+This is the same `CONTAINS` walk the `episteme` renderers do, and it is why their module maps look
+denser than a naive read of the raw edges.
+
+**2. Scope before you lay out.** These exports are complete, and complete is large: ~10k nodes and
+~29k edges for this repo. Graphviz took **3m44s** simply to *parse and canonicalize* that DOT file,
+before attempting any layout — and the result would be unreadable anyway. Gephi handles a graph
+this size because you filter inside it. If you are rendering a picture, slice first (one area, one
+module and its neighbours) and lay out the slice.
+
 ### `orchestrator pkg docs`
 
 Reconcile the **named** documentation file(s) against the code's fact graph (read-only) and

@@ -161,6 +161,25 @@ links, external links, bare anchors, targets escaping the vault, and **any label
 (`[[page|alias]]` has no escape for it). Wikilinks carry the vault-relative path, not the basename,
 or `modules/x.md` and `areas/x.md` would collide silently.
 
+**Two things only running it against a real consumer revealed** (Graphviz 15.1.0, this repo):
+
+* **A complete export is too large to lay out, and that is fine.** `dot -Tcanon` on the 10,342-node
+  DOT took **3m44s** just to parse and canonicalize — before any layout, and the result would be
+  unreadable regardless. This does not argue for truncating the export; it argues that *slice, then
+  lay out* is the real workflow. Gephi copes because you filter inside it. Phase 2 should assume
+  users arrive with a slice, not a whole graph.
+* **Consumers must resolve `IMPORTS` endpoints themselves, and the failure is silent.** 2,746 of
+  5,895 import edges target a `Type` or `Function`, not a `Module`. Measured: the naive filter
+  yields 3,033 module dependencies, the `CONTAINS` walk yields **4,287** — a naive read loses
+  **1,254 edges, 29%**, and loses them in the direction that looks *plausible*: a tidier, more
+  loosely-coupled architecture than the real one. That is the worst failure mode for a
+  comprehension tool, and it is invisible without the number. `renderers.py` already does this
+  walk; a Gephi user gets no such help. Documented in `CLI_REFERENCE.md` with a verified recipe.
+  **A future phase could offer `--resolve-imports` to do the walk at export time** — deliberately
+  not done here, because it would make the export a *view* rather than the facts, and "the export
+  is what the graph says" is worth more than the convenience. If it is added, it must be an opt-in
+  flag that says so in the output, never the default.
+
 **Still to do before release:** a CHANGELOG entry, at version-bump time. (`CLI_REFERENCE.md` is
 updated — it had documented only the SQLite form.)
 
