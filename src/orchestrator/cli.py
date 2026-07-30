@@ -2056,7 +2056,10 @@ def pkg_export(
     path: Annotated[str, typer.Argument(help="Repo path or git URL to scan.")] = ".",
     fmt: Annotated[
         str,
-        typer.Option("--format", help="sqlite | graphml | dot | json. GraphML/DOT open in Gephi/yEd."),
+        typer.Option(
+            "--format",
+            help="sqlite | graphml | dot | json | obsidian. GraphML/DOT open in Gephi/yEd.",
+        ),
     ] = "sqlite",
     out: Annotated[
         Path | None,
@@ -2071,7 +2074,9 @@ def pkg_export(
 
     `sqlite` is the ontomesh-ready kind-per-table projection. `graphml` and `dot` open in
     Gephi, yEd, Cytoscape and Graphviz; `json` carries nodes AND edges (unlike
-    `pkg extract --json`, which is nodes plus a summary).
+    `pkg extract --json`, which is nodes plus a summary). `obsidian` writes an Obsidian vault
+    — a COPY of the repo's existing `episteme/` with wikilink syntax, so run `understand`
+    first; it reads the knowledge base rather than re-extracting, and never edits it in place.
 
     Exports are **complete, never truncated** — the point of handing the graph to another tool
     is that its filtering is better than ours. Output is byte-identical for an identical commit.
@@ -2080,9 +2085,31 @@ def pkg_export(
     from orchestrator.pkg.graph_export import GRAPH_FORMATS, WRITERS
 
     fmt = fmt.lower()
-    if fmt not in ("sqlite", *GRAPH_FORMATS):
-        typer.echo(f"Unknown --format {fmt!r}. Choose from: sqlite, {', '.join(GRAPH_FORMATS)}.")
+    if fmt not in ("sqlite", "obsidian", *GRAPH_FORMATS):
+        typer.echo(f"Unknown --format {fmt!r}. Choose from: sqlite, obsidian, {', '.join(GRAPH_FORMATS)}.")
         raise typer.Exit(code=2)
+
+    if fmt == "obsidian":
+        # Reads the rendered episteme, not the fact graph — the vault is the same pages in a
+        # different link syntax, so re-extracting would be wasted work and could disagree with
+        # what is committed.
+        from orchestrator.knowledge.understand import existing_bank_dir
+        from orchestrator.knowledge.wikilinks import write_vault
+
+        if db is not None:
+            typer.echo("--db only applies to --format sqlite. Use --out.")
+            raise typer.Exit(code=2)
+        with _repo_arg(path) as (repo, _):
+            bank = existing_bank_dir(repo)
+            if not bank.is_dir():
+                typer.echo(f"No knowledge base at {bank}. Run `orchestrator understand {path}` first.")
+                raise typer.Exit(code=2)
+            vault = out if out is not None else Path("pkg-vault")
+            counts = write_vault(bank, vault)
+        typer.echo(f"Exported {bank} → {vault} (obsidian vault)")
+        for label, n in counts.items():
+            typer.echo(f"  {label:<18} {n}")
+        return
 
     # --db predates --format and is published surface, so it keeps working rather than being
     # silently ignored — that would break a script without saying so. It only ever meant sqlite.
