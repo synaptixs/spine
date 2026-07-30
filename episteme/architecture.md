@@ -146,10 +146,11 @@ _The repo's own prose folded into the graph (`Doc` nodes + `MENTIONS` edges). A 
 
 **919 docs** ingested, naming **463 of 6432 symbols** (7% doc coverage).
 
-**580 potential drift** — the docs name code the graph doesn't have (renamed or removed symbols, or prose the binder can't resolve).
+**581 potential drift** — the docs name code the graph doesn't have (renamed or removed symbols, or prose the binder can't resolve).
 
 | The docs claim… | …in |
 |---|---|
+| `Protocol` | CHANGELOG.md |
 | `javax.ws.rs` | CHANGELOG.md |
 | `jakarta.ws.rs` | CHANGELOG.md |
 | `click.core` | CHANGELOG.md |
@@ -157,8 +158,7 @@ _The repo's own prose folded into the graph (`Doc` nodes + `MENTIONS` edges). A 
 | `go.mod` | CHANGELOG.md |
 | `current_state` | CHANGELOG.md |
 | `click._winconsole` | CHANGELOG.md |
-| `click.exceptions` | CHANGELOG.md |
-| … | _+572 more_ |
+| … | _+573 more_ |
 
 ## Possibly unused
 _**108 of 947 internal symbols** have no caller, subclass or doc reference in the graph. **Candidates, not verdicts**: calls through an attribute chain are skipped rather than guessed at, and dynamic dispatch, registries and reflection are invisible. Public symbols are excluded — having no in-repo caller is what being an API looks like._
