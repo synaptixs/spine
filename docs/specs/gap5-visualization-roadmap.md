@@ -3,9 +3,11 @@
 > **"G5" is a label, not a position in a queue.** It's gap #5 in the Graphify comparison. The specs
 > are not ordered and do not run in sequence.
 
-**Status:** **Phase 1 SHIPPED** (2026-07-30, branch `feat/g5-visualization`). Phases 2 and 3 not
-started — and Phase 3 should not start before the re-evaluation in open question 3.
-**Owner:** _unassigned (phases 2–3)_
+**Status:** **Phases 1 and 2 SHIPPED** (2026-07-30, branch `feat/g5-visualization`). Phase 3 not
+started, and **should not start** before the re-evaluation in open question 3 — which Phase 1
+made due and Phase 2 did not change. Two Phase-2 scope phrases ("more diagram types", "bigger
+legible graphs") were **dropped, not deferred**; see "Phase 2 — shipped".
+**Owner:** _unassigned (phase 3)_
 
 ## Before you start
 
@@ -72,7 +74,7 @@ zooming, and hovering over a **precomputed** layout are all in bounds.
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
 | **1 — Exports** ✅ | Added `--format graphml\|dot\|json\|obsidian` to the existing `pkg export`. Byte-equality asserted by test. | ~2–3 d | **Done** — see "Phase 1 — shipped" below |
-| **2 — Richer deterministic visuals** | Extend the report/`state` visuals: seeded clustering (community grouping computed in Python — deterministic algorithm, stable tie-breaks), more diagram types, bigger legible graphs. Stays inline-SVG + self-contained. | ~5–7 d | `state --out report.html` shows a clustered architecture view; identical commit → identical bytes |
+| **2 — Richer deterministic visuals** ✅ (exit met) | Seeded clustering, wired into **both** the report SVG and the episteme mermaid. "More diagram types / bigger legible graphs" **deliberately not done** — see below. | ~5–7 d | **Exit met** — see "Phase 2 — shipped" |
 | **3 — Interaction over a precomputed layout** | In the web UI: filter by kind/area, search, collapse a cluster, click-through to source. Positions come precomputed from Python; JS only shows/hides/pans. No new deps. | ~5–8 d | Explorable graph in-UI; positions provably identical across reloads |
 
 **Phase 1 is the bang-for-buck.** It neutralises most of the comparison ("can I explore the
@@ -182,6 +184,51 @@ or `modules/x.md` and `areas/x.md` would collide silently.
 
 **Still to do before release:** a CHANGELOG entry, at version-bump time. (`CLI_REFERENCE.md` is
 updated — it had documented only the SQLite form.)
+
+## Phase 2 — shipped (exit criterion met; scope deliberately trimmed)
+
+`state --out report.html` and `episteme/architecture.md` both group components by **structural
+community** instead of by zone, byte-identical for an identical commit. New:
+`knowledge/clustering.py`, `current_state.architecture_clusters`, plus tests
+(`test_clustering.py`, `test_report_svg_clusters.py`).
+
+**Be clear about what "done" means here.** The exit criterion is met. Two scope phrases in the
+original row — *"more diagram types"* and *"bigger legible graphs"* — are **not** done and are
+not planned. They were never specified enough to build against, and neither has a demand behind
+it: Phase 1 established that a reader who wants a bigger or different graph exports to Gephi,
+which does it better than a no-build-step renderer will. **If either is wanted, it needs its own
+spec with a stated use case.** They are listed here as dropped rather than pending, so nobody
+reads the phase as half-finished.
+
+**What clustering by structure actually bought.** `zone_of` reads the first segments of a module
+*name*, so on a single-namespace repo it puts every component in one band — measured: all 18
+drawn components sit in the `orchestrator` zone, and the banding conveyed nothing at all. The
+coupling graph separates a build/comprehension toolchain (`sdlc`, `pkg`, `cli`, `intake`,
+`knowledge`, `codereview`, `core`) from a runtime service (`registry`, `runtime`, `gateway`,
+`catalog`, `mcp`, `ir`, `planner`). Real, useful, and previously invisible.
+
+**Three findings worth carrying forward.**
+
+* **Label propagation is only usable because determinism was designed in, not bolted on.** Sorted
+  visit order, labels seeded by position, ties broken to the smallest label, a bounded iteration
+  count — and, the part that actually keeps output stable, **final renumbering by each
+  community's alphabetically-first member**. Without that, adding one unrelated area renumbers
+  everything and produces a diff that looks like an architectural change and is not.
+* **Both filters materially change the answer, and skipping either produces a confident lie.**
+  Test areas must be dropped or every community is one `x` + `tests.x` pair. Weak couplings must
+  be cut at the mean weight or 29 of 40 production areas fuse into one community at modularity
+  0.245 instead of 11 / 9 / 2 at 0.363.
+* **Two renderers over one bounded graph will drift the moment you touch one.** Rewiring the SVG
+  alone left `episteme/architecture.md` banding by zone while a shared report banded by cluster —
+  same commit, two architectures, no way for a reader to tell which is real. Fixed by moving the
+  helper to `current_state.architecture_clusters` so both call one function. The `architecture_graph`
+  docstring had *stated* this contract all along; stating it did not enforce it.
+
+**Reporting the quality matters as much as computing it.** `modularity()` is surfaced in the
+SVG's `aria-label` so a reader can tell a meaningful partition from an arbitrary one. It was also
+wrong on first write — the null-model term must be summed over every pair in a community, not
+only adjacent ones — and scored the single-community partition at 0.61 when it is 0 by
+definition. A test caught it.
 
 ## Non-goals
 
