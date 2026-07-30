@@ -73,6 +73,9 @@ Optional extras, added when you need them:
 - `[docs]` — **PDF** doc ingestion; `[office]` — **Word/Excel** (`.docx`/`.xlsx`) ingestion.
   Markdown, `.rst`, `.txt` and **HTML** need no extra. Without an extra those files are simply
   skipped, so a base install still ingests everything it can read.
+- `[media]` — **image OCR** (needs a system `tesseract` binary); `[asr]` — **local audio/video
+  transcription** (Whisper). Only the opt-in `orchestrator media extract` uses these; the
+  deterministic build never does. See *Bringing diagrams & recordings into the graph* below.
 - `[mcp]` (MCP client), `[otel]` (live tracing)
 
 ### Upgrading
@@ -139,6 +142,45 @@ docs and **HTML** (plus **PDF** with `[docs]`, and **Word/Excel** with `[office]
 `Doc` nodes linked to the code they
 describe. Nothing to turn on — a repo with no docs just skips it. This powers the
 **Documentation** section in `state` (below) and the `docs_for` `/spine` tool.
+
+### Bringing diagrams & recordings into the graph
+
+Architecture diagrams and recorded design reviews hold a lot of the *why* that never makes it
+into code. Spine can fold them in too — as the same `Doc` nodes + `MENTIONS` — but through one
+deliberate extra step, because OCR and speech-to-text are model inference and must stay out of
+the deterministic build.
+
+Run the opt-in producer once:
+
+```bash
+orchestrator media extract docs/architecture/     # OCR diagrams (needs [media] + tesseract)
+orchestrator media extract review.mp4             # transcribe locally (needs [asr])
+```
+
+It writes a reviewable transcript artifact under `.spine-media/`; **review and commit it**. From
+then on `understand`/`state` read that plain-JSON artifact like any other doc and never run a
+model — same commit in, same graph out. A media file with no artifact is simply skipped, so this
+changes nothing until you choose to run it. Transcription stays on your machine unless you pass
+`--asr api --allow-remote`, which uploads the media to a remote service. See the
+[CLI reference](CLI_REFERENCE.md) for all options.
+
+**What actually binds (set your expectations here).** Media text is matched to code by the same
+precision-first binder used for docs, and it links a symbol only when the extracted text names it
+*unambiguously as code*: a `snake_case` identifier (`calc_tax`), a dotted path
+(`billing.tax.calc_tax`), or a **multi-word** `CamelCase` name (`BacklogService`, `InvoiceService`).
+A **single capitalised word** — a box simply labelled `Invoice`, or the word "Invoice" spoken in a
+review — is treated as prose, **not** a code claim, so it will *not* link (this is deliberate: a
+wrong link is worse than none). Practical upshot:
+
+- **Diagrams** link well — class/service labels are usually multi-word CamelCase or snake_case.
+- **Recordings** link the identifiers that are spoken or captioned as such; a spoken one-word type
+  name generally won't. Transcripts are still searchable as `Doc` text regardless.
+
+Because OCR/ASR quality varies, **validate on one real diagram or recording** before relying on the
+links: run `media extract`, commit the artifact, then `orchestrator state .` and check its
+**Documentation** section (or ask the `docs_for` `/spine` tool) to see which symbols the media
+actually bound. If precision is poor for your material, the transcripts are still useful as
+searchable `Doc` content even when few symbols link.
 
 For a **team-facing snapshot of what the repo is today and how healthy it looks**, use
 the Current State report (also no LLM — synthesized from the same graph):

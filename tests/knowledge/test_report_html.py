@@ -170,6 +170,38 @@ def test_filter_toolbar_and_inline_script() -> None:
     assert "table tbody tr" in html and "querySelectorAll" in html
 
 
+def test_documentation_section_renders_coverage_and_drift() -> None:
+    s = _state()
+    s.docs = 3
+    s.documented_symbols = 2
+    s.coverable_symbols = 8
+    s.doc_drift_total = 2
+    s.doc_drift_top = [("renamed_fn", "docs/architecture.png"), ("OldService", "docs/review.wav")]
+    html = render_report_html(s)
+    assert "Documentation" in html
+    assert "3 doc" in html and "2 of 8 symbols" in html and "25% doc coverage" in html
+    # Drift claims render, and the media docs that carry them are named.
+    assert "2 potential drift" in html
+    assert "renamed_fn" in html and "docs/architecture.png" in html
+    # The subtitle makes clear media docs count too.
+    assert "transcribed media" in html
+
+
+def test_documentation_section_omitted_without_docs() -> None:
+    s = _state()
+    s.docs = 0  # a repo with no docs (and no media artifacts) → section is absent
+    assert "Documentation</h2>" not in render_report_html(s)
+
+
+def test_documentation_section_is_developer_only() -> None:
+    s = _state()
+    s.docs = 1
+    s.documented_symbols = 1
+    s.coverable_symbols = 4
+    assert "Documentation</h2>" in render_report_html(s, lens="developer")
+    assert "Documentation</h2>" not in render_report_html(s, lens="stakeholder")
+
+
 def test_header_counts_rendered() -> None:
     s = _state()
     s.counts = {"Type": 12, "Function": 40, "Module": 3}

@@ -27,14 +27,14 @@ casually; they're contracts. Get the dir from `understand.BANK_DIRNAME` /
 | `catalog/`, `intake/`, `agentic/`, `personas/`, `evals/` | profiling, sources→intents, the codegen tool-use loop, personas, measurement |
 | `cli.py` | Every command surface (single module) |
 
-Design records live in a **private companion repo, `synaptixs/spine-docs`** (`docs/specs/`,
-indexed by its `README.md`) — that's where the *why* is. Maintainers: read the relevant spec
-before changing a subsystem. Outside contributors don't need it; the public guides listed
-above are self-contained, and a PR is never blocked on a spec you can't read.
+Design records live in **`docs/specs/`** — read the relevant spec before changing a
+subsystem; that's where the *why* is. `docs/specs/README.md` indexes them.
 
-Clone `spine-docs` as a **sibling** of this repo, never inside it — `understand` ingests
-markdown from disk whether or not git tracks it, so a nested `docs/` would add `Doc` nodes
-that CI doesn't see and make `understand --check` fail.
+They are **tracked on purpose.** `understand` ingests markdown from disk whether or not git
+tracks it, so a docs tree that exists locally but not in the repo makes your `episteme/`
+describe `Doc` nodes CI can't see — and `understand --check` fails on a diff you can't
+reproduce. Committed docs are in CI's checkout too, so local and CI agree by construction.
+Keep new design records in here rather than in an untracked scratch directory.
 
 ## Invariants — break these and things get subtly wrong
 

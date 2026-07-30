@@ -59,12 +59,14 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (2): [`_in_repo`](../../src/orchestrator/plugin/server.py#L174), [`_repo_store`](../../src/orchestrator/plugin/server.py#L166)
 - **Calls** (3): [`Settings`](../../src/orchestrator/registry/api/config.py#L12), [`materialize_repo_source`](../../src/orchestrator/registry/api/workspace.py#L216), [`resolve_repo_source`](../../src/orchestrator/registry/api/workspace.py#L166)
+- **Documented in**: `docs/specs/comprehension-skill-spec.md#phases`
 
 ### `_register_tools`
 
 [`src/orchestrator/plugin/server.py:590`](../../src/orchestrator/plugin/server.py#L590)
 
 - **Called by** (2): [`build_http_server`](../../src/orchestrator/plugin/server.py#L605), [`build_server`](../../src/orchestrator/plugin/server.py#L596)
+- **Documented in**: `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `_repo_store`
 
@@ -72,6 +74,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (2): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L185), [`root_cause`](../../src/orchestrator/plugin/server.py#L381)
 - **Calls** (3): `FactStore`, [`_open_repo`](../../src/orchestrator/plugin/server.py#L154), `orchestrator.pkg.load_or_extract`
+- **Documented in**: `docs/specs/comprehension-skill-spec.md#phases`
 
 ### `blast_radius`
 
@@ -86,6 +89,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 3 test): [`main`](../../src/orchestrator/plugin/__main__.py#L52), [`test_http_server_loopback_unauthenticated_is_allowed`](../../tests/plugin/test_server.py#L386), [`test_http_server_refuses_public_bind_without_auth`](../../tests/plugin/test_server.py#L376), [`test_http_server_wires_static_auth`](../../tests/plugin/test_server.py#L396)
 - **Calls** (5): `RuntimeError`, [`_import_fastmcp`](../../src/orchestrator/plugin/server.py#L580), [`_register_tools`](../../src/orchestrator/plugin/server.py#L590), [`build_auth_from_env`](../../src/orchestrator/plugin/auth.py#L122), `py:fastmcp`
+- **Documented in**: `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `build_server`
 
@@ -93,6 +97,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1): [`main`](../../src/orchestrator/plugin/__main__.py#L52)
 - **Calls** (2): [`_import_fastmcp`](../../src/orchestrator/plugin/server.py#L580), [`_register_tools`](../../src/orchestrator/plugin/server.py#L590)
+- **Documented in**: `docs/specs/comprehension-skill-spec.md#design-decisions`, `docs/specs/comprehension-skill-spec.md#the-agent-skill-skillmd`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `docs_for`
 
@@ -114,7 +119,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 1 test): [`test_explain_symbol_lists_callers`](../../tests/plugin/test_server.py#L104)
 - **Calls** (1): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L185)
-- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`, `plugins/spine/skills/understand-codebase/SKILL.md`
+- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`, `docs/specs/comprehension-skill-spec.md#phases`, `docs/specs/graphify-vs-spine-comparison.md#side-by-side`
 
 ### `ingest_preview`
 
@@ -144,7 +149,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 4 test): [`test_bad_repo_path_returns_error_not_exception`](../../tests/plugin/test_server.py#L192), [`test_disallowed_git_url_is_rejected`](../../tests/plugin/test_server.py#L198), [`test_map_repo_rejects_unknown_lens`](../../tests/plugin/test_server.py#L85), [`test_map_repo_structured_and_markdown`](../../tests/plugin/test_server.py#L77)
 - **Calls** (1): [`_in_repo`](../../src/orchestrator/plugin/server.py#L174)
-- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#using-the-understand-codebase-skill`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`, `plugins/spine/skills/understand-codebase/SKILL.md`
+- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#using-the-understand-codebase-skill`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`, `docs/specs/comprehension-skill-spec.md#open-questions`
 
 ### `pkg_grounding`
 
@@ -166,7 +171,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 2 test): [`test_regression_gaps_flags_untested_caller`](../../tests/plugin/test_server.py#L156), [`test_regression_gaps_needs_symbol_or_trace`](../../tests/plugin/test_server.py#L163)
 - **Calls** (1): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L185)
-- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#using-the-understand-codebase-skill`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`, `plugins/spine/skills/understand-codebase/SKILL.md`
+- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#using-the-understand-codebase-skill`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`, `docs/specs/comprehension-skill-spec.md#phases`
 
 ### `root_cause`
 
@@ -174,7 +179,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 3 test): [`test_root_cause_deterministic_by_default`](../../tests/plugin/test_server.py#L167), [`test_root_cause_llm_without_model_errors`](../../tests/plugin/test_server.py#L185), [`test_root_cause_requires_a_bug`](../../tests/plugin/test_server.py#L181)
 - **Calls** (6): [`_repo_store`](../../src/orchestrator/plugin/server.py#L166), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L211), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `orchestrator.core.llm.LiteLLMClient`, [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L249), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L42)
-- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`
+- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`, `docs/specs/comprehension-skill-spec.md#design-decisions`, `docs/specs/comprehension-skill-spec.md#open-questions`
 
 ### `sdlc_decide_gate`
 
@@ -197,7 +202,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 1 test): [`test_sdlc_run_status_and_result_delegate`](../../tests/plugin/test_server.py#L357)
 - **Calls** (1): [`run_result`](../../src/orchestrator/sdlc/run_control.py#L181)
-- **Documented in**: `CLAUDE_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `CODEX_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`
+- **Documented in**: `CLAUDE_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `CODEX_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `docs/specs/sdlc-tracking-blueprint.md#10-surfacing-where-the-numbers-show-up`
 
 ### `sdlc_run_status`
 

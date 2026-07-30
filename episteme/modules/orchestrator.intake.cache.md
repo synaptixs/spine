@@ -49,8 +49,9 @@
 
 [`src/orchestrator/intake/cache.py:184`](../../src/orchestrator/intake/cache.py#L184)
 
-- **Called by** (3 production · 2 test): [`_run_ingest`](../../src/orchestrator/cli.py#L281), [`_run_openspec_draft`](../../src/orchestrator/cli.py#L366), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_analyze_cached_extracts_once_then_reuses`](../../tests/intake/test_cache.py#L75), [`test_refresh_forces_reextract`](../../tests/intake/test_cache.py#L83)
+- **Called by** (3 production · 2 test): [`_run_ingest`](../../src/orchestrator/cli.py#L286), [`_run_openspec_draft`](../../src/orchestrator/cli.py#L371), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_analyze_cached_extracts_once_then_reuses`](../../tests/intake/test_cache.py#L75), [`test_refresh_forces_reextract`](../../tests/intake/test_cache.py#L83)
 - **Calls** (5): [`cache_path`](../../src/orchestrator/intake/cache.py#L45), [`load_cached_plan`](../../src/orchestrator/intake/cache.py#L156), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L38), `py:emit`, [`save_plan`](../../src/orchestrator/intake/cache.py#L170)
+- **Documented in**: `docs/specs/intake-backlog-progress.md#components`
 
 ### `cache_path`
 
@@ -63,7 +64,7 @@
 
 [`src/orchestrator/intake/cache.py:133`](../../src/orchestrator/intake/cache.py#L133)
 
-- **Called by** (1 production · 2 test): [`_run_sdlc_complete`](../../src/orchestrator/cli.py#L918), [`test_complete_by_pr_marks_done`](../../tests/intake/test_cache.py#L131), [`test_complete_by_pr_unmatched_returns_none`](../../tests/intake/test_cache.py#L141)
+- **Called by** (1 production · 2 test): [`_run_sdlc_complete`](../../src/orchestrator/cli.py#L923), [`test_complete_by_pr_marks_done`](../../tests/intake/test_cache.py#L131), [`test_complete_by_pr_unmatched_returns_none`](../../tests/intake/test_cache.py#L141)
 - **Calls** (4): [`_plan_from_dict`](../../src/orchestrator/intake/cache.py#L71), [`_read_raw`](../../src/orchestrator/intake/cache.py#L94), [`default_cache_dir`](../../src/orchestrator/intake/cache.py#L40), `dumps`
 
 ### `default_cache_dir`
@@ -77,15 +78,16 @@
 
 [`src/orchestrator/intake/cache.py:156`](../../src/orchestrator/intake/cache.py#L156)
 
-- **Called by** (2 production · 3 test): [`analyze_cached`](../../src/orchestrator/intake/cache.py#L184), [`backlog`](../../src/orchestrator/cli.py#L410), [`test_miss_returns_none`](../../tests/intake/test_cache.py#L64), [`test_round_trip_preserves_the_plan`](../../tests/intake/test_cache.py#L54), [`test_version_mismatch_is_ignored`](../../tests/intake/test_cache.py#L68)
+- **Called by** (2 production · 3 test): [`analyze_cached`](../../src/orchestrator/intake/cache.py#L184), [`backlog`](../../src/orchestrator/cli.py#L415), [`test_miss_returns_none`](../../tests/intake/test_cache.py#L64), [`test_round_trip_preserves_the_plan`](../../tests/intake/test_cache.py#L54), [`test_version_mismatch_is_ignored`](../../tests/intake/test_cache.py#L68)
 - **Calls** (3): [`_plan_from_dict`](../../src/orchestrator/intake/cache.py#L71), [`cache_path`](../../src/orchestrator/intake/cache.py#L45), `loads`
 
 ### `load_progress`
 
 [`src/orchestrator/intake/cache.py:102`](../../src/orchestrator/intake/cache.py#L102)
 
-- **Called by** (3 production · 5 test): [`_run_sdlc_complete`](../../src/orchestrator/cli.py#L918), [`backlog`](../../src/orchestrator/cli.py#L410), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_complete_by_pr_marks_done`](../../tests/intake/test_cache.py#L131), [`test_refresh_drops_progress_for_vanished_intents`](../../tests/intake/test_cache.py#L122), [`test_refresh_preserves_progress_for_surviving_intents`](../../tests/intake/test_cache.py#L114), [`test_set_progress_noop_without_cache`](../../tests/intake/test_cache.py#L109), [`test_set_progress_round_trips`](../../tests/intake/test_cache.py#L95)
+- **Called by** (3 production · 5 test): [`_run_sdlc_complete`](../../src/orchestrator/cli.py#L923), [`backlog`](../../src/orchestrator/cli.py#L415), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_complete_by_pr_marks_done`](../../tests/intake/test_cache.py#L131), [`test_refresh_drops_progress_for_vanished_intents`](../../tests/intake/test_cache.py#L122), [`test_refresh_preserves_progress_for_surviving_intents`](../../tests/intake/test_cache.py#L114), [`test_set_progress_noop_without_cache`](../../tests/intake/test_cache.py#L109), [`test_set_progress_round_trips`](../../tests/intake/test_cache.py#L95)
 - **Calls** (2): [`_read_raw`](../../src/orchestrator/intake/cache.py#L94), [`cache_path`](../../src/orchestrator/intake/cache.py#L45)
+- **Documented in**: `docs/specs/intake-backlog-progress.md#components`
 
 ### `save_plan`
 
@@ -100,6 +102,7 @@
 
 - **Called by** (1 production · 5 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_complete_by_pr_marks_done`](../../tests/intake/test_cache.py#L131), [`test_refresh_drops_progress_for_vanished_intents`](../../tests/intake/test_cache.py#L122), [`test_refresh_preserves_progress_for_surviving_intents`](../../tests/intake/test_cache.py#L114), [`test_set_progress_noop_without_cache`](../../tests/intake/test_cache.py#L109), [`test_set_progress_round_trips`](../../tests/intake/test_cache.py#L95)
 - **Calls** (3): [`_read_raw`](../../src/orchestrator/intake/cache.py#L94), [`cache_path`](../../src/orchestrator/intake/cache.py#L45), `dumps`
+- **Documented in**: `docs/specs/intake-backlog-progress.md#testing`
 
 ## Imports
 

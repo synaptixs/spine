@@ -15,6 +15,10 @@ Markdown, text, and HTML parse with the stdlib. **PDF** needs ``pypdf`` behind t
 ``[docs]`` extra; **Office** needs ``python-docx``/``openpyxl`` behind ``[office]``. Both are
 lazy-imported so the base install stays stdlib-only, and an absent extra just means those files
 are skipped — as is a scanned PDF (no extractable text; we don't OCR) or an encrypted document.
+
+**Media** (``.png``/``.mp4``/…) ingests via its committed ``.spine-media/`` transcript artifact
+(see :mod:`pkg.media`) — deterministic and model-free here; the OCR/ASR that produces the artifact
+lives in the separate ``orchestrator media extract`` command. A media file with no artifact skips.
 """
 
 from __future__ import annotations
@@ -28,6 +32,7 @@ from pathlib import Path
 
 from orchestrator.pkg.docs import DocPage
 from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS
+from orchestrator.pkg.media import MEDIA_SUFFIXES, read_media_artifact
 
 # Skip absurdly large docs (generated dumps, vendored changelogs) — keep the graph legible.
 _MAX_DOC_BYTES = 1_000_000
@@ -473,6 +478,11 @@ register_reader(DocReader("html", frozenset({".html", ".htm"}), _read_html, sect
 register_reader(DocReader("pdf", frozenset({".pdf"}), _read_pdf))
 register_reader(DocReader("docx", frozenset({".docx"}), _read_docx, sections=True))
 register_reader(DocReader("xlsx", frozenset({".xlsx"}), _read_xlsx, sections=True))
+# Media (G3): images/audio/video ingest via their committed `.spine-media/` transcript artifact.
+# The reader is pure and stdlib-only (no model, no network); model inference lives in the separate,
+# opt-in `orchestrator media extract` command. No artifact → the file skips, so a repo with no
+# artifacts builds byte-identically to today. See `pkg/media.py` for the reader + artifact schema.
+register_reader(DocReader("media", MEDIA_SUFFIXES, read_media_artifact))
 
 # NOT registered: standalone `.yaml`/`.yml`. A repo's YAML is overwhelmingly *configuration*
 # (CI workflows, compose files, manifests), not documentation, and ingesting it would corrupt

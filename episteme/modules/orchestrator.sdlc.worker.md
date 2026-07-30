@@ -26,7 +26,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 ## Documented in
 
-`USER_GUIDE.md#terminal-1-the-worker-that-executes-the-pipeline-stages`
+`USER_GUIDE.md#terminal-1-the-worker-that-executes-the-pipeline-stages`, `docs/specs/archive/LIVE-TESTING.md#2-run-the-sdlc-worker-own-queue-default-sdlc-tasks`
 
 ## Functions
 
@@ -43,6 +43,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (1): [`build_deps`](../../src/orchestrator/sdlc/worker.py#L183)
 - **Calls** (7): [`LLMCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L650), [`StubCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L154), [`compose_factory_with_ontomesh`](../../src/orchestrator/spine/grounder.py#L118), `from_file`, `getenv`, `py:llm`, [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L42)
+- **Documented in**: `docs/specs/bet2c-in-loop-approval.md#as-built-notes`
 
 ### `_build_llm`
 
@@ -96,7 +97,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/sdlc/worker.py:183`](../../src/orchestrator/sdlc/worker.py#L183)
 
-- **Called by** (3): [`_run_address_review`](../../src/orchestrator/cli.py#L604), [`main`](../../scripts/live_sdlc_worker.py#L44), [`run_sdlc_worker`](../../src/orchestrator/sdlc/worker.py#L259)
+- **Called by** (3): [`_run_address_review`](../../src/orchestrator/cli.py#L609), [`main`](../../scripts/live_sdlc_worker.py#L44), [`run_sdlc_worker`](../../src/orchestrator/sdlc/worker.py#L259)
 - **Calls** (15): [`SDLCDeps`](../../src/orchestrator/sdlc/deps.py#L48), [`SubprocessPreflightRunner`](../../src/orchestrator/sdlc/preflight.py#L64), [`SubprocessTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L83), [`WorkspaceManager`](../../src/orchestrator/sdlc/workspace.py#L59), [`_build_ci`](../../src/orchestrator/sdlc/worker.py#L163), [`_build_codegen`](../../src/orchestrator/sdlc/worker.py#L87), [`_build_review`](../../src/orchestrator/sdlc/worker.py#L148), [`_default_database_url`](../../src/orchestrator/sdlc/worker.py#L54), [`_default_workspace_root`](../../src/orchestrator/sdlc/worker.py#L61), [`build_run_budget`](../../src/orchestrator/sdlc/worker.py#L70), `getenv`, `orchestrator.runtime.artifact_store_from_env`, `py:llm`, `sqlalchemy.ext.asyncio.async_sessionmaker`, `sqlalchemy.ext.asyncio.create_async_engine`
 
 ### `build_run_budget`
@@ -112,19 +113,22 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (2): [`_main`](../../src/orchestrator/sdlc/worker.py#L305), [`main`](../../scripts/live_sdlc_worker.py#L44)
 - **Calls** (8): [`SDLCActivities`](../../src/orchestrator/sdlc/activities.py#L44), [`_sdlc_config`](../../src/orchestrator/sdlc/worker.py#L220), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L183), [`connect_client`](../../src/orchestrator/temporal/config.py#L61), `create_task`, [`sdlc_activity_methods`](../../src/orchestrator/sdlc/worker.py#L226), `temporalio.worker.Worker`, `wait`
+- **Documented in**: `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout`, `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration`
 
 ### `sdlc_activity_methods`
 
 [`src/orchestrator/sdlc/worker.py:226`](../../src/orchestrator/sdlc/worker.py#L226)
 
 - **Called by** (1 production · 1 test): [`run_sdlc_worker`](../../src/orchestrator/sdlc/worker.py#L259), [`test_sdlc_e2e_marches_through_both_gates`](../../tests/integration/test_sdlc_workflow_e2e.py#L95)
+- **Documented in**: `docs/specs/bet2c-in-loop-approval.md#as-built-notes`
 
 ### `sdlc_task_queue`
 
 [`src/orchestrator/sdlc/worker.py:65`](../../src/orchestrator/sdlc/worker.py#L65)
 
-- **Called by** (3): [`_run_sdlc`](../../src/orchestrator/cli.py#L503), [`_sdlc_config`](../../src/orchestrator/sdlc/worker.py#L220), [`start_run`](../../src/orchestrator/sdlc/run_control.py#L49)
+- **Called by** (3): [`_run_sdlc`](../../src/orchestrator/cli.py#L508), [`_sdlc_config`](../../src/orchestrator/sdlc/worker.py#L220), [`start_run`](../../src/orchestrator/sdlc/run_control.py#L49)
 - **Calls** (1): `getenv`
+- **Documented in**: `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration`, `docs/specs/archive/LIVE-TESTING.md#sdlcworkflow-with-id-task-sdlc-id-the-id-the-approval-api-routes-to`
 
 ## Imports
 

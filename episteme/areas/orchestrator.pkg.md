@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 26 modules — 47 types and 170 functions. Nothing here depends on other areas, but 10 areas depend on it — it's a foundation, so changes ripple outward.
+**`orchestrator.pkg`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 29 modules — 55 types and 192 functions. Nothing here depends on other areas, but 10 areas depend on it — it's a foundation, so changes ripple outward.
 
 ```mermaid
 flowchart LR
@@ -34,7 +34,7 @@ _Showing 8 of 10 neighbouring areas._
 
 - [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1)
 - [`orchestrator.pkg.c_extractor`](../modules/orchestrator.pkg.c_extractor.md)
-- [`orchestrator.pkg.cpp_extractor`](../modules/orchestrator.pkg.cpp_extractor.md)
+- [`orchestrator.pkg.cpp_extractor`](../../src/orchestrator/pkg/cpp_extractor.py#L1)
 - [`orchestrator.pkg.csharp_extractor`](../modules/orchestrator.pkg.csharp_extractor.md)
 - [`orchestrator.pkg.data_layer_link`](../../src/orchestrator/pkg/data_layer_link.py#L1)
 - [`orchestrator.pkg.doc_link`](../../src/orchestrator/pkg/doc_link.py#L1)
@@ -46,6 +46,9 @@ _Showing 8 of 10 neighbouring areas._
 - [`orchestrator.pkg.go_extractor`](../modules/orchestrator.pkg.go_extractor.md)
 - [`orchestrator.pkg.import_link`](../../src/orchestrator/pkg/import_link.py#L1)
 - [`orchestrator.pkg.java_extractor`](../modules/orchestrator.pkg.java_extractor.md)
+- [`orchestrator.pkg.media`](../../src/orchestrator/pkg/media.py#L1)
+- [`orchestrator.pkg.media_asr`](../modules/orchestrator.pkg.media_asr.md)
+- [`orchestrator.pkg.media_extract`](../modules/orchestrator.pkg.media_extract.md)
 - [`orchestrator.pkg.migrations`](../../src/orchestrator/pkg/migrations.py#L1)
 - [`orchestrator.pkg.overview`](../../src/orchestrator/pkg/overview.py#L1)
 - [`orchestrator.pkg.persistence`](../modules/orchestrator.pkg.persistence.md)
@@ -57,7 +60,7 @@ _Showing 8 of 10 neighbouring areas._
 - [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1)
 - [`orchestrator.pkg.typescript_extractor`](../modules/orchestrator.pkg.typescript_extractor.md)
 - [`orchestrator.pkg.verifier`](../../src/orchestrator/pkg/verifier.py#L1)
-- [`orchestrator.pkg.verify`](../modules/orchestrator.pkg.verify.md)
+- [`orchestrator.pkg.verify`](../../src/orchestrator/pkg/verify.py#L1)
 
 ## Depended on by
 

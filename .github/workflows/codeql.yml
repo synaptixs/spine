@@ -49,7 +49,10 @@ jobs:
         uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
         with:
           language: ${{ matrix.language }}
-          queries: security-and-quality
+          # Query selection lives in the config file, not here — it also carries the
+          # query-filters that drop two quality queries which can't read typed-Python
+          # idiom. Setting `queries:` here as well would ADD to the config, not replace it.
+          config-file: .github/codeql/codeql-config.yml
 
       - name: Analyze
         uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3

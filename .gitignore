@@ -40,8 +40,9 @@ build/
 .orchestrator-compose.yml
 
 # Local-only validation artefacts from live-proving against private target repos —
-# findings/reports/extracts must NEVER be committed. Clones live in /tmp; reports
-# under docs/ are already ignored. Neutral catch-alls for any stray in-repo copy:
+# findings/reports/extracts must NEVER be committed. Clones live in /tmp. Note
+# docs/specs/ and docs/evals/ ARE tracked now, so the old "anything under docs/ is
+# ignored" no longer holds — the *.local.md catch-all below is what guards them:
 /.local/
 *.local.md
 *.local.json
