@@ -1,0 +1,40 @@
+name: "Spine CodeQL config"
+
+# Keeps the full security-and-quality suite and drops only the quality queries that
+# misread idiomatic typed Python. Every security query stays enabled.
+queries:
+  - uses: security-and-quality
+
+query-filters:
+  # `py/ineffectual-statement` — "Statement has no effect".
+  #
+  # Fires on `...` as the body of a Protocol method stub, which is the idiomatic form
+  # (PEP 544):
+  #
+  #     class AsrBackend(Protocol):
+  #         def version(self) -> str: ...
+  #
+  # There are ~48 of these across 24 files in src/ — the codebase leans on Protocols
+  # for every injectable seam. The query has no way to tell a stub body from dead code,
+  # so it produced 51 open alerts, none of them real.
+  #
+  # This mattered beyond noise: the "Protect main" ruleset sets
+  # required_review_thread_resolution, and CodeQL posts each alert as a *review thread*
+  # on the PR. So every PR that added a Protocol method blocked its own merge on
+  # unresolvable threads, while GitHub reported it as "waiting for review" — which sent
+  # people hunting for missing approvals instead. Hit on PR #66.
+  - exclude:
+      id: py/ineffectual-statement
+
+  # `py/unused-global-variable` — same false-positive class, 27 open alerts.
+  #
+  # A module-level constant whose only consumer is a *function-local* `from … import`
+  # doesn't count as used by this query. Worse than noise here too: GitHub Autofix acted
+  # on it and renamed `SUPPORTED_LANGUAGES` to `_unused_supported_languages`, breaking
+  # the import and failing mypy on the release PR for v3.7.0.
+  #
+  # Prefer the in-module fix where it's natural (reference the constant from a function
+  # in its own module, as `unsupported_language_error()` does) — but the query is not a
+  # reliable signal, so it should not gate a merge.
+  - exclude:
+      id: py/unused-global-variable
