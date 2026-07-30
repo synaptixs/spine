@@ -170,7 +170,7 @@
 
 [`src/orchestrator/knowledge/current_state.py:808`](../../src/orchestrator/knowledge/current_state.py#L808)
 
-- **Called by** (3 production · 2 test): [`_compute`](../../src/orchestrator/sdlc/comprehension.py#L31), [`adapter`](../../src/orchestrator/registry/api/capabilities.py#L261), [`state`](../../src/orchestrator/cli.py#L1427), [`test_build_current_state_end_to_end_python`](../../tests/knowledge/test_current_state.py#L193), [`test_infrastructure_section_from_real_repo`](../../tests/knowledge/test_current_state.py#L108)
+- **Called by** (3 production · 2 test): [`_compute`](../../src/orchestrator/sdlc/comprehension.py#L31), [`adapter`](../../src/orchestrator/registry/api/capabilities.py#L261), [`state`](../../src/orchestrator/cli.py#L1431), [`test_build_current_state_end_to_end_python`](../../tests/knowledge/test_current_state.py#L193), [`test_infrastructure_section_from_real_repo`](../../tests/knowledge/test_current_state.py#L108)
 - **Calls** (2): [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L790), [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L524)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
@@ -192,7 +192,7 @@
 
 [`src/orchestrator/knowledge/current_state.py:790`](../../src/orchestrator/knowledge/current_state.py#L790)
 
-- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L1477), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L808), [`run`](../../src/orchestrator/plugin/server.py#L427), [`run`](../../src/orchestrator/plugin/server.py#L204)
+- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L1481), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L808), [`run`](../../src/orchestrator/plugin/server.py#L427), [`run`](../../src/orchestrator/plugin/server.py#L204)
 - **Calls** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 

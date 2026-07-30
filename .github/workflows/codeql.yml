@@ -2,10 +2,13 @@ name: CodeQL
 
 # Dataflow SAST — the analysis `ruff --select S` can't do. Where the lint rules ask
 # "does this line look risky?", CodeQL asks "does untrusted input reach this sink?",
-# which is the question that matters for the surfaces in
-# docs/specs/security-review-plan.md §2: the repo-URL allow-list (SSRF), the
-# content_type passthrough in registry/api/jobs.py, and the hand-rolled renderers
-# in web/static (XSS).
+# which is the question that matters wherever caller-supplied input reaches a
+# network call, a response header, or a hand-written renderer.
+#
+# (This deliberately does not enumerate the specific surfaces or name the internal
+# review that tracks them: a public list of where a project believes it is weakest
+# is a starting point for someone probing it. The queries cover the codebase either
+# way — the comment is orientation, not a checklist.)
 on:
   push:
     branches: [main, develop]

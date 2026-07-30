@@ -29,11 +29,20 @@ them on a release cadence — so opening an issue first avoids duplicated effort
 
 1. Fork the repo and create a branch from `main` (e.g. `fix/email-validator-edge-case`).
 2. Make your change with tests; keep it focused — one concern per PR.
-3. Make sure the quality gate is green locally:
+3. Make sure the quality gate is green locally — note `mypy src tests`, **not** just `src`;
+   typing `src` alone passes here and fails CI:
    ```bash
    mypy src tests
    ruff format --check .
    ```
+   CI also runs the tests and `orchestrator understand . --check`, which fails if `episteme/`
+   has drifted from the code. Installing the hooks catches all of that before you push,
+   and is the only way the secret scan runs on your machine at all:
+   ```bash
+   pre-commit install
+   ```
+   The episteme hook *regenerates* rather than just checking, so when it fires you will see
+   "files were modified by this hook" — `git add episteme` and commit again.
 4. Open the PR with a clear description of **what** and **why**, linking any issue.
 5. A maintainer reviews; the `security scan` check must pass.
 

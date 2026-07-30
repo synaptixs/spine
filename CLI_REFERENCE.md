@@ -116,7 +116,7 @@ orchestrator task submit [OBJECTIVE] [OPTIONS]
 
 **Arguments**
 
-- `OBJECTIVE` — 
+- `OBJECTIVE` —
 
 | Option | Description |
 |---|---|
@@ -835,7 +835,7 @@ orchestrator template register [FILE]
 
 **Arguments**
 
-- `FILE` — 
+- `FILE` —
 
 ### `orchestrator template list`
 
@@ -860,8 +860,8 @@ orchestrator template show [ID] [VERSION]
 
 **Arguments**
 
-- `ID` — 
-- `VERSION` — 
+- `ID` —
+- `VERSION` —
 
 ### `orchestrator template publish`
 
@@ -873,8 +873,8 @@ orchestrator template publish [ID] [VERSION]
 
 **Arguments**
 
-- `ID` — 
-- `VERSION` — 
+- `ID` —
+- `VERSION` —
 
 ### `orchestrator template deprecate`
 
@@ -886,8 +886,8 @@ orchestrator template deprecate [ID] [VERSION]
 
 **Arguments**
 
-- `ID` — 
-- `VERSION` — 
+- `ID` —
+- `VERSION` —
 
 ### `orchestrator contract register`
 
@@ -899,7 +899,7 @@ orchestrator contract register [FILE]
 
 **Arguments**
 
-- `FILE` — 
+- `FILE` —
 
 ### `orchestrator contract list`
 
@@ -924,8 +924,8 @@ orchestrator contract show [ID] [VERSION]
 
 **Arguments**
 
-- `ID` — 
-- `VERSION` — 
+- `ID` —
+- `VERSION` —
 
 ### `orchestrator contract publish`
 
@@ -937,8 +937,8 @@ orchestrator contract publish [ID] [VERSION]
 
 **Arguments**
 
-- `ID` — 
-- `VERSION` — 
+- `ID` —
+- `VERSION` —
 
 ### `orchestrator contract deprecate`
 
@@ -950,7 +950,7 @@ orchestrator contract deprecate [ID] [VERSION]
 
 **Arguments**
 
-- `ID` — 
-- `VERSION` — 
+- `ID` —
+- `VERSION` —
 
 ---

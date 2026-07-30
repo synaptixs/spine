@@ -260,7 +260,7 @@ one real feature Confluence→prod through both gates on real infra at ≥70%
 acceptance; verdict trustworthy.
 
 **Phase 7 — Generality + adoption (Q3, ~3 mo).** Track 5 (language packs +
-adapters) + Track 6 (multi-tenancy, UI, notifications, onboarding, cost). 
+adapters) + Track 6 (multi-tenancy, UI, notifications, onboarding, cost).
 **Milestone:** a second team on a second stack self-serve onboards and ships.
 
 **Phase 8 — Hardening + platformization (Q4, ~3 mo).** Track 7 (ops/compliance/

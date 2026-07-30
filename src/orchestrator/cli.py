@@ -47,7 +47,11 @@ app.add_typer(mcp_app, name="mcp")
 app.add_typer(catalog_app, name="catalog")
 app.add_typer(openspec_app, name="openspec")
 media_app = typer.Typer(
-    help="Media ingestion (G3) — OCR images into graph content. Explicit, opt-in, local.",
+    help=(
+        "Media ingestion (G3) — OCR images and transcribe audio/video into graph content. "
+        "Explicit and opt-in; local by default, and `--asr api` uploads off-machine only with "
+        "`--allow-remote`."
+    ),
     no_args_is_help=True,
 )
 app.add_typer(media_app, name="media")

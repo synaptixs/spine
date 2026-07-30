@@ -1,23 +1,47 @@
+# ruff and mypy run from the PROJECT environment (`language: system`), not from
+# pre-commit's isolated per-hook virtualenvs. Both mirror hooks were silently broken until
+# the hooks were first actually installed:
+#
+#   * ruff-pre-commit was pinned at v0.6.9 against a project on 0.15.x, so it did not know
+#     the `UP046` selector in pyproject.toml and failed to parse the config at all. A pinned
+#     rev is a second source of truth for a tool version, and it drifted.
+#   * mirrors-mypy runs in an env holding only `additional_dependencies`, so it could not
+#     resolve httpx, typer or sqlalchemy and reported 171 import errors on a tree that
+#     `uv run mypy src tests` types cleanly.
+#
+# Running from the project env means one source of truth (pyproject) and local results that
+# match CI. The cost is that these hooks need `uv sync --extra dev` first, which contributors
+# run anyway. Hooks that do not depend on the project's dependency graph stay pinned below.
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+  - repo: local
     hooks:
       - id: ruff
-        args: [--fix]
+        name: ruff (lint, --fix)
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
       - id: ruff-format
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.2
-    hooks:
+        name: ruff (format)
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
       - id: mypy
-        additional_dependencies: [pydantic>=2.7]
-        args: [--strict]
+        name: mypy src tests
+        # `mypy src tests`, not just `src` — typing src alone passes locally and fails CI.
+        entry: uv run mypy src tests
+        language: system
+        pass_filenames: false
         files: ^(src|tests)/
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
+      # Two trailing spaces are a markdown hard line break, not stray whitespace. Without
+      # this flag the hook strips them — silently changing how a page renders, and picking a
+      # fight it cannot win with CLI_REFERENCE.md, which is generated and emits them on
+      # purpose. Caught the first time the hooks were actually installed.
       - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-merge-conflict
@@ -31,3 +55,16 @@ repos:
     rev: v8.30.1
     hooks:
       - id: gitleaks
+
+  # Keeps episteme/ in step with src/. CI runs `understand --check` and fails the build
+  # when it drifts, which costs a round-trip to discover; this regenerates locally instead.
+  # pre-commit then reports "files were modified by this hook" — `git add episteme` and
+  # commit again. Scoped to src/ so doc- and config-only commits do not pay the ~10s.
+  - repo: local
+    hooks:
+      - id: episteme-current
+        name: episteme is current
+        entry: uv run orchestrator understand .
+        language: system
+        pass_filenames: false
+        files: ^src/

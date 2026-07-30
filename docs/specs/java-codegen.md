@@ -87,7 +87,7 @@ commit → PR. The branch/commit/PR plumbing is language-agnostic (already works
    CI for live Java tests needs a JDK step. Accept?
 3. **Auto-heal disabled for Java** (deps declared in `pom.xml` by codegen) — recommend yes;
    Maven doesn't have a clean "install the one missing package" like pip.
-4. **Reverse-DNS package default** `org.example.<repo-slug>` (override `--package-name`)? 
+4. **Reverse-DNS package default** `org.example.<repo-slug>` (override `--package-name`)?
 5. **Scope of the first PR** — recommend **2a only** (structure, no LLM/build-tool), then 2b–2d.
 
 ## Honest risks / limits
