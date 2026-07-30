@@ -11,7 +11,7 @@ _No database or ORM entities detected, so this is the **code's** model: the type
 | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L79) | 10 members · used by 19 production · 11 test call-sites |
 | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L650) | 47 members · used by 6 production · 59 test call-sites |
 | [`TestRunResult`](../src/orchestrator/sdlc/testrunner.py#L66) | 4 members · used by 22 production · 1 test call-sites |
-| [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L118) | 36 members · used by 1 production call-site |
+| [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L118) | 36 members · used by 1 production · 1 test call-sites |
 | [`AuditLogRepo`](../src/orchestrator/registry/repositories.py#L161) | 3 members · used by 18 production · 6 test call-sites |
 | [`PlannerError`](../src/orchestrator/planner/v0.py#L38) | used by 23 production call-sites |
 | [`FactBatch`](../src/orchestrator/pkg/facts.py#L99) | 8 members · used by 15 production · 53 test call-sites |
