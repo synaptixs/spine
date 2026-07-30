@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.knowledge`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 12 modules — 13 types and 132 functions. It sits in the middle of the graph: 5 areas below it, 4 above. Changes here can reach both ways.
+**`orchestrator.knowledge`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 12 modules — 13 types and 133 functions. It sits in the middle of the graph: 5 areas below it, 4 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR

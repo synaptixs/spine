@@ -32,6 +32,7 @@ _15 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (1 production · 2 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L485), [`_facts`](../../tests/pkg/test_java_extractor.py#L40), [`test_repo_extractor_dispatches_java_by_suffix`](../../tests/pkg/test_java_extractor.py#L90)
 - **Fields**: `language`, `suffixes`
+- **Documented in**: `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/multi-language-java.md#slice-1-java-comprehension-this-build`, `docs/specs/multi-language-java.md#where-java-stands-today`, `docs/specs/typescript-codegen.md#slice-1-typescript-comprehension-ships-first-cheap`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
 ### `_ImportContext`
 
@@ -89,7 +90,7 @@ _15 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/java_extractor.py:229`](../../src/orchestrator/pkg/java_extractor.py#L229)
 
 - **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L110)
-- **Calls** (8): [`Edge`](../../src/orchestrator/pkg/facts.py#L75), [`Node`](../../src/orchestrator/pkg/facts.py#L59), [`Provenance`](../../src/orchestrator/pkg/facts.py#L47), [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L330), [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L299), [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L319), [`_join_path`](../../src/orchestrator/pkg/java_extractor.py#L373), [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L314)
+- **Calls** (8): [`Edge`](../../src/orchestrator/pkg/facts.py#L86), [`Node`](../../src/orchestrator/pkg/facts.py#L70), [`Provenance`](../../src/orchestrator/pkg/facts.py#L58), [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L330), [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L299), [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L319), [`_join_path`](../../src/orchestrator/pkg/java_extractor.py#L373), [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L314)
 
 ### `_join_path`
 

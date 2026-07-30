@@ -32,6 +32,7 @@ _16 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (1 production · 2 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L485), [`_extract`](../../tests/pkg/test_c_extractor.py#L19), [`test_module_name_is_the_relative_path`](../../tests/pkg/test_c_extractor.py#L68)
 - **Fields**: `language`, `suffixes`
+- **Documented in**: `docs/specs/language-support-roadmap.md#track-2-c-c-h-do-second-new-model-but-simplest-language`
 
 ## Functions
 
@@ -149,4 +150,4 @@ _16 of the symbols other code depends on here have no test path the graph can se
 
 ## Imported by
 
-[`orchestrator.pkg.cpp_extractor`](orchestrator.pkg.cpp_extractor.md), [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`tests.pkg.test_c_extractor`](../../tests/pkg/test_c_extractor.py#L1)
+[`orchestrator.pkg.cpp_extractor`](../../src/orchestrator/pkg/cpp_extractor.py#L1), [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`tests.pkg.test_c_extractor`](../../tests/pkg/test_c_extractor.py#L1)
