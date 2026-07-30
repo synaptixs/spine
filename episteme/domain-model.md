@@ -5,16 +5,16 @@ _No database or ORM entities detected, so this is the **code's** model: the type
 
 | Type | Why it matters |
 |---|---|
-| [`Provenance`](../src/orchestrator/pkg/facts.py#L58) | 4 members · used by 105 production · 104 test call-sites |
-| [`Edge`](../src/orchestrator/pkg/facts.py#L86) | 5 members · used by 73 production · 90 test call-sites |
-| [`Node`](../src/orchestrator/pkg/facts.py#L70) | 7 members · used by 65 production · 99 test call-sites |
+| [`Provenance`](../src/orchestrator/pkg/facts.py#L58) | 4 members · used by 105 production · 107 test call-sites |
+| [`Edge`](../src/orchestrator/pkg/facts.py#L86) | 5 members · used by 73 production · 93 test call-sites |
+| [`Node`](../src/orchestrator/pkg/facts.py#L70) | 7 members · used by 65 production · 103 test call-sites |
 | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L79) | 10 members · used by 19 production · 11 test call-sites |
 | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L650) | 47 members · used by 6 production · 59 test call-sites |
 | [`TestRunResult`](../src/orchestrator/sdlc/testrunner.py#L66) | 4 members · used by 22 production · 1 test call-sites |
 | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L118) | 36 members · used by 1 production call-site |
 | [`AuditLogRepo`](../src/orchestrator/registry/repositories.py#L161) | 3 members · used by 18 production · 6 test call-sites |
 | [`PlannerError`](../src/orchestrator/planner/v0.py#L38) | used by 23 production call-sites |
-| [`FactBatch`](../src/orchestrator/pkg/facts.py#L99) | 8 members · used by 15 production · 51 test call-sites |
+| [`FactBatch`](../src/orchestrator/pkg/facts.py#L99) | 8 members · used by 15 production · 53 test call-sites |
 | [`SDLCWorkflow`](../src/orchestrator/sdlc/workflows.py#L475) | 12 members |
 | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L42) | 9 members |
 | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | 5 members · used by 18 production call-sites |

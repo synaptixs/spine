@@ -2054,17 +2054,66 @@ def pkg_verify(
 @pkg_app.command("export")
 def pkg_export(
     path: Annotated[str, typer.Argument(help="Repo path or git URL to scan.")] = ".",
-    db: Annotated[Path, typer.Option("--db", help="SQLite file to write.")] = Path("pkg-facts.db"),
+    fmt: Annotated[
+        str,
+        typer.Option("--format", help="sqlite | graphml | dot | json. GraphML/DOT open in Gephi/yEd."),
+    ] = "sqlite",
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", "-o", help="Output file. Defaults to pkg-facts.<ext> for the format."),
+    ] = None,
+    db: Annotated[
+        Path | None,
+        typer.Option("--db", help="DEPRECATED alias for --out (sqlite only). Use --out."),
+    ] = None,
 ) -> None:
-    """Extract facts and export the ontomesh-ready kind-per-table SQLite projection."""
+    """Extract facts and export the whole graph in a format other tools can read.
+
+    `sqlite` is the ontomesh-ready kind-per-table projection. `graphml` and `dot` open in
+    Gephi, yEd, Cytoscape and Graphviz; `json` carries nodes AND edges (unlike
+    `pkg extract --json`, which is nodes plus a summary).
+
+    Exports are **complete, never truncated** — the point of handing the graph to another tool
+    is that its filtering is better than ours. Output is byte-identical for an identical commit.
+    """
     from orchestrator.pkg import RepoCodeExtractor, export_sqlite
+    from orchestrator.pkg.graph_export import GRAPH_FORMATS, WRITERS
+
+    fmt = fmt.lower()
+    if fmt not in ("sqlite", *GRAPH_FORMATS):
+        typer.echo(f"Unknown --format {fmt!r}. Choose from: sqlite, {', '.join(GRAPH_FORMATS)}.")
+        raise typer.Exit(code=2)
+
+    # --db predates --format and is published surface, so it keeps working rather than being
+    # silently ignored — that would break a script without saying so. It only ever meant sqlite.
+    if db is not None:
+        if fmt != "sqlite":
+            typer.echo(f"--db only applies to --format sqlite (got {fmt!r}). Use --out instead.")
+            raise typer.Exit(code=2)
+        if out is not None:
+            typer.echo("Pass either --out or --db, not both.")
+            raise typer.Exit(code=2)
+        typer.echo("note: --db is deprecated; use --out.")
+        out = db
+
+    suffix = {"sqlite": "db", "graphml": "graphml", "dot": "dot", "json": "json"}[fmt]
+    target = out if out is not None else Path(f"pkg-facts.{suffix}")
 
     with _repo_arg(path) as (repo, _):
         batch = RepoCodeExtractor().extract(repo)
-    counts = export_sqlite(batch, db)
-    typer.echo(f"Exported {path} → {db}")
-    for table, n in counts.items():
-        typer.echo(f"  {table:<18} {n}")
+        if fmt != "sqlite":
+            # Doc nodes + MENTIONS come from the link_docs post-pass, not raw extraction, so
+            # without this the doc/media modality is invisible in the export — and media (G3)
+            # reuses Doc, so transcripts and OCR'd images would vanish too. Not applied to
+            # sqlite: that schema is kind-per-table with no doc table, so the nodes would be
+            # dropped anyway, and its shape is a contract with the ontomesh consumer.
+            from orchestrator.pkg import link_docs
+
+            batch = link_docs(batch, repo)
+    counts = export_sqlite(batch, target) if fmt == "sqlite" else WRITERS[fmt](batch, target)
+    typer.echo(f"Exported {path} → {target} ({fmt})")
+    for label, n in counts.items():
+        typer.echo(f"  {label:<18} {n}")
 
 
 @pkg_app.command("docs")
