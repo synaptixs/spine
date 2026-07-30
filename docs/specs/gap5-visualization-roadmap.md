@@ -3,11 +3,10 @@
 > **"G5" is a label, not a position in a queue.** It's gap #5 in the Graphify comparison. The specs
 > are not ordered and do not run in sequence.
 
-**Status:** **Phases 1 and 2 SHIPPED** (2026-07-30, branch `feat/g5-visualization`). Phase 3 not
-started, and **should not start** before the re-evaluation in open question 3 — which Phase 1
-made due and Phase 2 did not change. Two Phase-2 scope phrases ("more diagram types", "bigger
-legible graphs") were **dropped, not deferred**; see "Phase 2 — shipped".
-**Owner:** _unassigned (phase 3)_
+**Status: ✅ COMPLETE** (2026-07-30). Phases 1 and 2 shipped; **Phase 3 dropped after testing the
+export in Gephi** — it does everything Phase 3 promised, on our file, today. Two Phase-2 scope
+phrases ("more diagram types", "bigger legible graphs") were dropped for the same reason.
+**Nothing here is pending.** Reopen only with a use case the export demonstrably cannot serve.
 
 ## Before you start
 
@@ -75,7 +74,7 @@ zooming, and hovering over a **precomputed** layout are all in bounds.
 |---|---|---|---|
 | **1 — Exports** ✅ | Added `--format graphml\|dot\|json\|obsidian` to the existing `pkg export`. Byte-equality asserted by test. | ~2–3 d | **Done** — see "Phase 1 — shipped" below |
 | **2 — Richer deterministic visuals** ✅ (exit met) | Seeded clustering, wired into **both** the report SVG and the episteme mermaid. "More diagram types / bigger legible graphs" **deliberately not done** — see below. | ~5–7 d | **Exit met** — see "Phase 2 — shipped" |
-| **3 — Interaction over a precomputed layout** | In the web UI: filter by kind/area, search, collapse a cluster, click-through to source. Positions come precomputed from Python; JS only shows/hides/pans. No new deps. | ~5–8 d | Explorable graph in-UI; positions provably identical across reloads |
+| ~~**3 — Interaction over a precomputed layout**~~ **DROPPED** | ~~In the web UI: filter by kind/area, search, collapse a cluster, click-through to source.~~ Gephi already does all four, on our own export. See "Phase 3 — dropped". | ~~~5–8 d~~ | — |
 
 **Phase 1 is the bang-for-buck.** It neutralises most of the comparison ("can I explore the
 graph?" → "yes, in your tool of choice") for a fraction of Phase 3's cost and zero invariant risk.
@@ -230,6 +229,31 @@ wrong on first write — the null-model term must be summed over every pair in a
 only adjacent ones — and scored the single-community partition at 0.61 when it is 0 by
 definition. A test caught it.
 
+## Phase 3 — dropped (tested, not assumed)
+
+Phase 3 would have built filtering, search, cluster collapse and click-through-to-source into our
+own web UI, over a precomputed layout, in vanilla JS. **Dropped 2026-07-30 after loading the
+Phase 1 export into Gephi 0.11.2 and finding all four already work.**
+
+What was verified against the real 10,380-node / 28,719-edge export:
+
+| Phase 3 would have built | Gephi, on our file |
+|---|---|
+| Filter by kind/area | Filters → Attributes → Equal → `kind` |
+| Search | Data Laboratory search box |
+| Collapse a cluster | filter to one `kind`, or Statistics → Modularity |
+| Click-through to source | `file` + `line` columns on every node |
+
+Import counts matched the CLI exactly, so the export is faithful at full scale.
+
+**The reasoning, so nobody has to reconstruct it.** Phase 3 was ~5–8 days building, in a codebase
+that forbids bundlers and non-deterministic layout, a worse version of software that already
+exists and is free. The one case it would have served — a reader who will not install anything —
+was judged not worth a week. That trade is what this entry records; if it ever stops holding, the
+question to answer is *"what can this reader not do?"*, not *"should we have a graph UI?"*.
+
+**This closes G5.** Nothing in this spec is pending.
+
 ## Non-goals
 
 - Matching Graphify's force-directed aesthetic. We are trading visual polish for diffability on
@@ -253,13 +277,10 @@ definition. A test caught it.
    `--format`**, and more definitively than the original lean — `pkg export` is already a command
    (`cli.py`), so this is an extension, not a placement choice. The live question is what happens
    to its existing `--db` option; see "The `--db` problem" above.
-3. Is Phase 3 worth it at all once Phase 1 exists? **Now due — Phase 1 has shipped.** The case for
-   Phase 3 is weaker than when this was written: a user who wants an explorable graph can open the
-   GraphML in Gephi, which does layout, filtering, search and clustering better than an in-house
-   canvas with no build step ever will. What Phase 1 does *not* answer is the zero-install case —
-   someone reading a report who will not install Gephi. Decide against that question specifically,
-   not against "should we have a graph UI", and note that Phase 3 is where the invariant pressure
-   is highest. *Still open — but it should be answered before anyone starts it, not during.*
+3. ~~Is Phase 3 worth it at all once Phase 1 exists?~~ **ANSWERED: no — Phase 3 is dropped.**
+   Settled by testing rather than argument: the export was loaded into Gephi 0.11.2 and all four
+   Phase 3 capabilities already worked on it. The zero-install reader was judged not worth a week
+   of building a worse tool. See "Phase 3 — dropped".
 
 4. **New:** should exports be committable? A committed `graph.json` would make architectural drift
    reviewable in a PR diff, which is the same argument that justified `episteme/`. Against: it is
