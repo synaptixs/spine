@@ -3,11 +3,9 @@
 > **"G5" is a label, not a position in a queue.** It's gap #5 in the Graphify comparison. The specs
 > are not ordered and do not run in sequence.
 
-**Status:** Not started — **reviewed against the code 2026-07-30 and cleared to start at Phase 1.**
-Two of Phase 1's three parts already exist, so it was re-estimated ~4–6 d → ~2–3 d; open questions
-1 and 2 are answered; the bounding rule now distinguishes visuals from exports; and the
-byte-identical claim is now backed by a required test rather than an intention.
-**Owner:** _unassigned_
+**Status:** **Phase 1 SHIPPED** (2026-07-30, branch `feat/g5-visualization`). Phases 2 and 3 not
+started — and Phase 3 should not start before the re-evaluation in open question 3.
+**Owner:** _unassigned (phases 2–3)_
 
 ## Before you start
 
@@ -73,7 +71,7 @@ zooming, and hovering over a **precomputed** layout are all in bounds.
 
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
-| **1 — Exports (highest value, lowest risk)** | Add `--format graphml\|dot\|json` to the **existing** `pkg export`, plus a `[[wikilink]]` flavour on the **existing** episteme renderer. Deterministic ordering so exports diff cleanly. A test that exports the same commit twice and asserts **byte equality**. | ~2–3 d | A user opens our graph in **Gephi/yEd/Obsidian**; the byte-equality test is green |
+| **1 — Exports** ✅ | Added `--format graphml\|dot\|json\|obsidian` to the existing `pkg export`. Byte-equality asserted by test. | ~2–3 d | **Done** — see "Phase 1 — shipped" below |
 | **2 — Richer deterministic visuals** | Extend the report/`state` visuals: seeded clustering (community grouping computed in Python — deterministic algorithm, stable tie-breaks), more diagram types, bigger legible graphs. Stays inline-SVG + self-contained. | ~5–7 d | `state --out report.html` shows a clustered architecture view; identical commit → identical bytes |
 | **3 — Interaction over a precomputed layout** | In the web UI: filter by kind/area, search, collapse a cluster, click-through to source. Positions come precomputed from Python; JS only shows/hides/pans. No new deps. | ~5–8 d | Explorable graph in-UI; positions provably identical across reloads |
 
@@ -126,6 +124,46 @@ working script without saying so.
   tie-break; `stats.most_common` with no id tie-break).
 - Run `node scripts/check-mermaid.js *.md` on any diagram you add or touch.
 
+## Phase 1 — shipped
+
+`orchestrator pkg export --format graphml|dot|json|obsidian --out <path>`. Live on this repo:
+**10,321 nodes / 28,504 edges / 0 dangling** across the three graph formats, and an Obsidian vault
+of **83 pages / 1,351 wikilinks / 0 broken**. 25 tests; suite 1,990 green.
+
+New: `pkg/graph_export.py` (writers + `WRITERS`/`GRAPH_FORMATS`), `knowledge/wikilinks.py`
+(`to_wikilinks`, `write_vault`), `tests/pkg/test_graph_export.py`,
+`tests/knowledge/test_wikilinks.py`.
+
+**Four things the build taught that the plan did not know.**
+
+**1. The export was missing the entire doc modality, silently.** `pkg export` ran raw
+`RepoCodeExtractor`, but `Doc` nodes come from the `link_docs` post-pass — so the export carried
+**9,401 nodes / 26,926 edges** where the real graph has **10,321 / 28,504**. 920 `Doc` nodes and
+1,576 `MENTIONS` edges were absent, and because media (G3) reuses `Doc`, transcripts and OCR'd
+images would have been missing too. Graph formats now run `link_docs`; **sqlite deliberately does
+not** — its kind-per-table schema has no doc table, so the nodes would be dropped anyway, and its
+shape is a contract with the ontomesh consumer. *If you add a projection, ask what post-passes the
+graph needs before you serialise it; raw extraction is not the whole graph.*
+
+**2. `NodeKind` has no `UNKNOWN`, and adding one would have been the wrong fix.** GraphML rejects
+an edge whose endpoint is undeclared, so dangling endpoints need *something* — but inventing a
+vocabulary member for an exporter's convenience is exactly what invariant #1 prevents. Placeholders
+carry **no kind**, which is also the honest record: we have an id and nothing else.
+
+**3. The wikilink work is a transform over rendered markdown, not a renderer.** Link generation in
+`renderers.py` is ~18 inline f-strings with no single helper, so threading a mode through it would
+have been invasive and easy to get subtly wrong. A post-pass keeps `renderers.py` untouched — no
+second code path, nothing to drift. It writes a **copy**; `episteme/` stays canonical.
+
+**4. Most of the wikilink care is in what is *not* rewritten.** A wikilink pointing at nothing is a
+dead end; a surviving markdown link still works, because Obsidian renders both. Left alone: source
+links, external links, bare anchors, targets escaping the vault, and **any label containing a pipe**
+(`[[page|alias]]` has no escape for it). Wikilinks carry the vault-relative path, not the basename,
+or `modules/x.md` and `areas/x.md` would collide silently.
+
+**Still to do before release:** a CHANGELOG entry, at version-bump time. (`CLI_REFERENCE.md` is
+updated — it had documented only the SQLite form.)
+
 ## Non-goals
 
 - Matching Graphify's force-directed aesthetic. We are trading visual polish for diffability on
@@ -149,6 +187,16 @@ working script without saying so.
    `--format`**, and more definitively than the original lean — `pkg export` is already a command
    (`cli.py`), so this is an extension, not a placement choice. The live question is what happens
    to its existing `--db` option; see "The `--db` problem" above.
-3. Is Phase 3 worth it at all once Phase 1 exists? **Re-evaluate after Phase 1 ships** — external
-   tools may cover the need entirely, and Phase 3 is where the invariant pressure is highest.
-   *Still open, and deliberately so.*
+3. Is Phase 3 worth it at all once Phase 1 exists? **Now due — Phase 1 has shipped.** The case for
+   Phase 3 is weaker than when this was written: a user who wants an explorable graph can open the
+   GraphML in Gephi, which does layout, filtering, search and clustering better than an in-house
+   canvas with no build step ever will. What Phase 1 does *not* answer is the zero-install case —
+   someone reading a report who will not install Gephi. Decide against that question specifically,
+   not against "should we have a graph UI", and note that Phase 3 is where the invariant pressure
+   is highest. *Still open — but it should be answered before anyone starts it, not during.*
+
+4. **New:** should exports be committable? A committed `graph.json` would make architectural drift
+   reviewable in a PR diff, which is the same argument that justified `episteme/`. Against: it is
+   9.5 MB on this repo and would dominate every diff it appears in. A bounded, committed *summary*
+   projection may be the useful middle — but that is a different artifact from an export, and
+   "exports are complete" should not be weakened to get it.

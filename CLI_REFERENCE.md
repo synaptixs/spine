@@ -254,7 +254,8 @@ orchestrator pkg extract [PATH] [OPTIONS]
 
 ### `orchestrator pkg export`
 
-Extract facts and export the ontomesh-ready kind-per-table SQLite projection.
+Export the whole graph in a format another tool can read — so you can explore it in software
+that already does layout, filtering and search rather than waiting for us to build a canvas.
 
 ```
 orchestrator pkg export [PATH] [OPTIONS]
@@ -266,7 +267,30 @@ orchestrator pkg export [PATH] [OPTIONS]
 
 | Option | Description |
 |---|---|
-| `--db` | SQLite file to write. (default: `pkg-facts.db`) |
+| `--format` | `sqlite` \| `graphml` \| `dot` \| `json` \| `obsidian`. _(default: `sqlite`)_ |
+| `--out`, `-o` | Output file (or directory, for `obsidian`). _(default: `pkg-facts.<ext>`)_ |
+| `--db` | **Deprecated** alias for `--out`, `sqlite` only. Use `--out`. |
+
+| Format | What it's for |
+|---|---|
+| `sqlite` | The ontomesh-ready kind-per-table projection. |
+| `graphml` | **Gephi, yEd, Cytoscape.** The one to reach for to explore a graph visually. |
+| `dot` | Graphviz. |
+| `json` | Scripts and custom tooling. Carries nodes **and edges** — unlike `pkg extract --json`, which is nodes plus a summary. |
+| `obsidian` | An Obsidian vault: a copy of this repo's `episteme/` with `[[wikilink]]` syntax. Run `understand` first; it reads the knowledge base and never edits it in place. |
+
+```bash
+orchestrator pkg export . --format graphml --out spine.graphml
+```
+
+**Exports are complete, never truncated.** The bounded "top N of M" behaviour of the *visual*
+surfaces is deliberately absent here — the point of handing the graph to Gephi is that Gephi
+filters, and a silently truncated file would let you draw conclusions from a subset without
+knowing it was one. Output is byte-identical for an identical commit, so a committed export
+diffs cleanly.
+
+The graph formats include `Doc` nodes and `MENTIONS` edges (documentation, and the media
+transcripts that reuse them). `sqlite` does not — its kind-per-table schema has no doc table.
 
 ### `orchestrator pkg docs`
 
