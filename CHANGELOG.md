@@ -4,6 +4,53 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.10.0 — Diagrams and recordings become facts
+
+A codebase's knowledge was never only in its code and its prose. Architecture diagrams,
+screenshots of a dashboard, a recorded design review where the one person who remembers why
+explains it — Spine could read none of it. Media ingestion closes that: images go through
+OCR, audio and video through speech-to-text, and both land as reviewable artifacts under
+`.spine-media/`.
+
+The split is deliberate. `media extract` is the only thing that runs a model; the
+deterministic graph build *reads* the committed artifacts and never produces them. So
+`understand` and `state` stay no-LLM and reproducible — same commit in, same graph out —
+while the slow, non-deterministic part is an explicit, reviewable step you run and commit.
+An artifact you can read and diff is also an artifact you can correct when OCR mangles a
+label.
+
+Transcription is the first path in Spine that can leave your machine, so it carries a
+structural consent gate rather than a warning in the docs. A backend advertises whether it
+is off-machine; a remote one refuses to run without per-run `--allow-remote`. The default
+backend is local, the default consent is absent, and the API key is read from the
+environment rather than a flag that would land in shell history.
+
+### Added
+
+- `orchestrator media extract` — OCR for images (the `[media]` extra: pytesseract,
+  Pillow) and speech-to-text for audio and video (the `[asr]` extra: Whisper, kept
+  separate because it pulls a full ML stack including torch). Output goes to
+  `.spine-media/` as reviewable, committable artifacts keyed by content hash;
+  re-extraction is skipped when an artifact is already current unless `--force`.
+- A consent gate on off-machine transcription. `--asr local` (the default) and image OCR
+  run entirely on this machine; `--asr api` uploads audio and refuses to run without
+  `--allow-remote`. Oversized files are skipped rather than truncated silently.
+- `docs/specs/` and `docs/evals/` are tracked in the repo again — the design records that
+  say *why* a subsystem is shaped the way it is. This also removes a class of CI failure:
+  doc ingestion reads markdown from disk whether or not git tracks it, so docs that existed
+  locally but not in the repo made a contributor's `episteme/` describe pages CI could not
+  see, and `understand --check` failed on a diff nobody could reproduce.
+
+### Changed
+
+- CodeQL query selection moved into `.github/codeql/codeql-config.yml`. The full
+  `security-and-quality` suite still runs; two quality queries that misread idiomatic typed
+  Python are excluded — `py/ineffectual-statement` fired on `...` as a `Protocol` method-stub
+  body (PEP 544), and `py/unused-global-variable` on constants consumed only through a
+  function-local import. Between them they accounted for 78 open alerts, none real, and
+  because CodeQL posts alerts as review *threads* they blocked merges on a branch ruleset
+  that requires thread resolution.
+
 ## 3.9.3 — Endpoints that are actually endpoints
 
 A REST client is not a REST server, but the Java front-end couldn't tell them apart. It
