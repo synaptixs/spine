@@ -4,6 +4,55 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.12.0 — Read your tracker through a server, not a token
+
+**Behaviour change:** where an MCP server is onboarded that can serve them, `jira://` and
+`confluence://` now route through it instead of direct REST credentials. If you have an
+`mcp.json` and expected REST, this changes which path your ingest takes. `mcp-jira://` and
+`mcp-confluence://` still force MCP; deleting the server from `mcp.json` restores REST.
+
+The case for it is not ideology. Credentials stay with the operator's server rather than
+spreading through this process's environment, calls are allow-listed and audited, and the
+server tracks upstream API changes that a hand-rolled client does not — which stopped being
+hypothetical this cycle. Atlassian removed `GET /rest/api/3/search`; it answers 410 Gone on
+Jira Cloud, and every read through our Jira REST adapter died with it, including the
+`parent = <key>` traversal that walks an epic to its stories. That is repaired here too, but
+the lesson is that the MCP server absorbs this class of breakage on our behalf.
+
+Resolution is config-only and deterministic — building a source never launches a server to
+ask what it exposes. An explicit `$MCP_JIRA_SERVER` / `$MCP_CONFLUENCE_SERVER` wins; failing
+that, the first enabled server whose `allow` list names the tool; failing that, a lone server
+with no allow-list. With several unrestricted servers Spine declines to guess and falls back
+to REST, rather than routing your ticket through whichever name sorted first.
+
+### Added
+
+- `orchestrator mcp list` now reports **why** a server produced no tools. Previously every
+  cause — a missing `mcp` extra, an unpulled image, a typo in `command`, rejected
+  credentials, a genuinely dead server — produced the same empty list and a log line nobody
+  reads. Failures are now classified `config` (permanent; you must change something) or
+  `unreachable` (may resolve on its own), carry a remedy where one is known, print to stderr,
+  and exit non-zero when every configured server failed.
+
+### Fixed
+
+- Jira REST reads use `/search/jql`. The endpoint that replaced it returns no `total`, so
+  truncation is now taken from `isLast`/`nextPageToken` — reading a missing `total` as zero
+  would have quietly claimed every result set was complete.
+- Jira issues read over MCP are parsed correctly. `mcp-atlassian` returns issue attributes
+  flattened at the top level and spells the type `issue_type`, where Jira REST nests them
+  under `fields.issuetype` — so the fix released in 3.11.1 never actually fired against a
+  real server. Also: documents are keyed by issue key rather than the opaque numeric id, the
+  project key populates `space`, the server-supplied `browse_url` populates `url`, and an
+  issue with no description no longer ships its entire JSON payload as the body.
+
+### Documentation
+
+- `USER_GUIDE.md` step 9 covers running MCP servers under Docker, configuring several at
+  once, and the traps: `mcp.json` and `.mcp.json` are one character apart and point in
+  opposite directions; the old example put raw API tokens in a file that was not gitignored;
+  `--env-file` needs an absolute path and does not strip inline comments.
+
 ## 3.11.1 — A Bug should read like a Bug
 
 An epic, story or bug read through an MCP server arrived **untyped**, while the same issue
