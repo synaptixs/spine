@@ -16,8 +16,7 @@ import html
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from orchestrator.knowledge.areas import zone_of
-from orchestrator.knowledge.current_state import architecture_graph
+from orchestrator.knowledge.current_state import architecture_clusters, architecture_graph
 
 if TYPE_CHECKING:
     from orchestrator.knowledge.current_state import CurrentState
@@ -41,8 +40,21 @@ def _truncate(name: str) -> str:
     return name if len(name) <= _LABEL_MAX else name[: _LABEL_MAX - 1] + "…"
 
 
-def _zone_label(zone: str) -> str:
-    return {"src": "src — apps / services", "lib": "lib — libraries", "app": "app"}.get(zone, zone)
+def _cluster_label(members: list[str], shown: int) -> str:
+    """Name a cluster after the areas in it, not "Cluster 3".
+
+    ``members`` is the whole community (which may include areas the bounded picture does not
+    draw) **already ordered by weight**; ``shown`` is how many of them appear. Naming after the
+    two heaviest members tells a reader what the group *is* — an ordinal does not, and
+    alphabetical order does not either: it labelled this repo's build toolchain
+    "agentic · cli" when its centre of mass is ``sdlc`` and ``pkg``.
+    """
+    head = " · ".join(m.rsplit(".", 1)[-1] for m in members[:2])
+    if len(members) == 1:
+        return head
+    # One count, not two. An earlier form read "agentic · cli +9 (9 shown)", where the two
+    # nines meant different things and looked like a contradiction.
+    return f"{head} — {shown} of {len(members)}" if shown < len(members) else f"{head} — {len(members)}"
 
 
 def _border_point(cx: float, cy: float, tx: float, ty: float) -> tuple[float, float]:
@@ -71,14 +83,31 @@ def architecture_svg(state: CurrentState) -> str:
     def _weight(a: str) -> int:
         return state.area_types.get(a, 0) * 3 + state.area_funcs.get(a, 0)
 
-    by_zone: dict[str, list[str]] = defaultdict(list)
+    # Group by structural community rather than by zone. `zone_of` reads the first segments of
+    # a module NAME, which on a single-namespace repo puts every component in one band and says
+    # nothing — measured here: all 18 drawn components land in the `orchestrator` zone. The
+    # coupling graph knows more than the naming does.
+    assignment, all_groups, q = architecture_clusters(state)
+    members_of = {cid: group for cid, group in enumerate(all_groups)}
+
+    by_cluster: dict[int, list[str]] = defaultdict(list)
     for a in nodes:
-        by_zone[zone_of(a)].append(a)
-    zones = sorted(by_zone)
+        # Unclustered components (no significant coupling) share a trailing group rather than
+        # each taking a column; -1 sorts last.
+        by_cluster[assignment.get(a, -1)].append(a)
+    clusters = sorted(by_cluster)
     # Deterministic stacking within a column: weight desc, name asc (the name tiebreak is
     # what makes equal-weight rows reproducible rather than input-order dependent).
-    for z in zones:
-        by_zone[z].sort(key=lambda a: (-_weight(a), a))
+    for c in clusters:
+        by_cluster[c].sort(key=lambda a: (-_weight(a), a))
+
+    def _label(cid: int) -> str:
+        if cid == -1:
+            return "no strong coupling"
+        # Heaviest first, name as the tiebreak — the same ordering the boxes stack by, so the
+        # label names whatever sits at the top of the band.
+        members = sorted(members_of.get(cid, by_cluster[cid]), key=lambda a: (-_weight(a), a))
+        return _cluster_label(members, len(by_cluster[cid]))
 
     # Position every box. Each zone is a block of one-or-more sub-columns: components
     # stack down a column up to _MAX_ROWS, then wrap into the next sub-column of the same
@@ -86,10 +115,10 @@ def architecture_svg(state: CurrentState) -> str:
     # forming one absurdly tall column. Placement is column-major and fully determined by
     # the sorted order, so the layout stays reproducible (invariant #3).
     pos: dict[str, tuple[float, float]] = {}  # area -> (top-left x, y)
-    blocks: list[tuple[str, int, int]] = []  # (zone, start_col, ncols)
+    blocks: list[tuple[int, int, int]] = []  # (cluster id, start_col, ncols)
     col_cursor = 0
-    for z in zones:
-        members = by_zone[z]
+    for c in clusters:
+        members = by_cluster[c]
         ncols = (len(members) + _MAX_ROWS - 1) // _MAX_ROWS
         for idx, a in enumerate(members):
             col = col_cursor + idx // _MAX_ROWS
@@ -97,11 +126,11 @@ def architecture_svg(state: CurrentState) -> str:
             x = _PAD + col * (_BOX_W + _HGAP)
             y = _PAD + _ZONE_HEAD + row * (_BOX_H + _VGAP)
             pos[a] = (x, y)
-        blocks.append((z, col_cursor, ncols))
+        blocks.append((c, col_cursor, ncols))
         col_cursor += ncols
 
     total_cols = col_cursor
-    max_rows = max(min(len(by_zone[z]), _MAX_ROWS) for z in zones)
+    max_rows = max(min(len(by_cluster[c]), _MAX_ROWS) for c in clusters)
     width = _PAD * 2 + total_cols * _BOX_W + (total_cols - 1) * _HGAP
     height = _PAD * 2 + _ZONE_HEAD + max_rows * (_BOX_H + _VGAP) - _VGAP + 12
 
@@ -110,24 +139,26 @@ def architecture_svg(state: CurrentState) -> str:
         # http(s) URL so "self-contained, nothing fetched" stays trivially checkable.
         f'<svg class="arch" viewBox="0 0 {width} {height}" width="100%" '
         f'preserveAspectRatio="xMidYMin meet" role="img" '
-        f'aria-label="Architecture: {len(nodes)} components across {len(zones)} zones">',
+        f'aria-label="Architecture: {len(nodes)} components in {len(clusters)} '
+        f'structural clusters, modularity {q:.2f}">',
         # A closed arrowhead marker, styled via CSS (fill:currentColor on the edge group).
         '<defs><marker id="ah" markerWidth="9" markerHeight="9" refX="7.5" refY="4" '
         'orient="auto" markerUnits="userSpaceOnUse">'
         '<path d="M0,0 L8,4 L0,8 Z" class="arch-head"/></marker></defs>',
     ]
 
-    # Zone bands (behind the boxes) + labels. A band spans all of its zone's sub-columns
-    # and is as tall as its fullest column.
-    for z, start_col, ncols in blocks:
-        rows = min(len(by_zone[z]), _MAX_ROWS)
+    # Cluster bands (behind the boxes) + labels. A band spans all of its cluster's sub-columns
+    # and is as tall as its fullest column. Class names stay `arch-zone*` so the report's
+    # existing inline CSS keeps styling them — the grouping changed, the visual role did not.
+    for c, start_col, ncols in blocks:
+        rows = min(len(by_cluster[c]), _MAX_ROWS)
         zx = _PAD + start_col * (_BOX_W + _HGAP) - 8
         zw = ncols * _BOX_W + (ncols - 1) * _HGAP + 16
         zh = _ZONE_HEAD + rows * (_BOX_H + _VGAP) - _VGAP + 12
         parts.append(f'<rect class="arch-zone" x="{zx}" y="{_PAD}" width="{zw}" height="{zh}" rx="10"/>')
         parts.append(
             f'<text class="arch-zone-label" x="{zx + zw / 2}" y="{_PAD + 19}" '
-            f'text-anchor="middle">{_e(_zone_label(z))}</text>'
+            f'text-anchor="middle">{_e(_label(c))}</text>'
         )
 
     # Edges first, so boxes paint over the line ends.

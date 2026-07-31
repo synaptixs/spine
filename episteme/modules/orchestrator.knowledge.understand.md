@@ -13,8 +13,8 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`memory_bank_dir`](../../src/orchestrator/knowledge/understand.py#L41) — reaches **14** symbols
-- [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49) — reaches **10** symbols
+- [`memory_bank_dir`](../../src/orchestrator/knowledge/understand.py#L41) — reaches **15** symbols
+- [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49) — reaches **11** symbols
 - [`RenderedBank`](../../src/orchestrator/knowledge/understand.py#L103) — reaches **3** symbols
 - [`_source_prefix`](../../src/orchestrator/knowledge/understand.py#L65) — reaches **3** symbols
 - [`spine_version`](../../src/orchestrator/knowledge/understand.py#L31) — reaches **3** symbols
@@ -73,7 +73,7 @@
 
 [`src/orchestrator/knowledge/understand.py:49`](../../src/orchestrator/knowledge/understand.py#L49)
 
-- **Called by** (5 production · 2 test): [`_read_design_bank`](../../src/orchestrator/cli.py#L1601), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L310), [`memory_bank_grounding`](../../src/orchestrator/knowledge/access.py#L24), [`read_memory_bank`](../../src/orchestrator/knowledge/access.py#L43), [`work`](../../src/orchestrator/registry/api/capabilities.py#L167), [`test_existing_bank_dir_falls_back_to_legacy_memory_bank`](../../tests/knowledge/test_memory_bank.py#L469), [`test_existing_bank_dir_override_beats_legacy`](../../tests/knowledge/test_memory_bank.py#L480)
+- **Called by** (6 production · 2 test): [`_read_design_bank`](../../src/orchestrator/cli.py#L1605), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L310), [`memory_bank_grounding`](../../src/orchestrator/knowledge/access.py#L24), [`pkg_export`](../../src/orchestrator/cli.py#L2059), [`read_memory_bank`](../../src/orchestrator/knowledge/access.py#L43), [`work`](../../src/orchestrator/registry/api/capabilities.py#L167), [`test_existing_bank_dir_falls_back_to_legacy_memory_bank`](../../tests/knowledge/test_memory_bank.py#L469), [`test_existing_bank_dir_override_beats_legacy`](../../tests/knowledge/test_memory_bank.py#L480)
 - **Calls** (3): `getenv`, [`memory_bank_dir`](../../src/orchestrator/knowledge/understand.py#L41), `pathlib.Path`
 - **Documented in**: `CLAUDE.md#spine-working-on-this-repo`, `docs/specs/pkg-navigable-reports.md#phase-1-shipped-5daf1b8`
 
@@ -81,7 +81,7 @@
 
 [`src/orchestrator/knowledge/understand.py:41`](../../src/orchestrator/knowledge/understand.py#L41)
 
-- **Called by** (3 production · 1 test): [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`understand`](../../src/orchestrator/cli.py#L1358), [`test_memory_bank_dir_override`](../../tests/knowledge/test_memory_bank.py#L463)
+- **Called by** (3 production · 1 test): [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`understand`](../../src/orchestrator/cli.py#L1362), [`test_memory_bank_dir_override`](../../tests/knowledge/test_memory_bank.py#L463)
 - **Calls** (2): `getenv`, `pathlib.Path`
 - **Documented in**: `CLAUDE.md#spine-working-on-this-repo`, `docs/specs/pkg-navigable-reports.md#phase-1-the-rename-memory-bank-episteme`
 

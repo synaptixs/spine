@@ -236,7 +236,7 @@
 [`src/orchestrator/knowledge/renderers.py:1014`](../../src/orchestrator/knowledge/renderers.py#L1014)
 
 - **Called by** (1): [`render_architecture`](../../src/orchestrator/knowledge/renderers.py#L1256)
-- **Calls** (1): [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L496)
+- **Calls** (1): [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L526)
 
 ### `_test_coverage_block`
 

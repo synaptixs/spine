@@ -116,7 +116,7 @@ orchestrator task submit [OBJECTIVE] [OPTIONS]
 
 **Arguments**
 
-- `OBJECTIVE` — 
+- `OBJECTIVE` —
 
 | Option | Description |
 |---|---|
@@ -254,7 +254,8 @@ orchestrator pkg extract [PATH] [OPTIONS]
 
 ### `orchestrator pkg export`
 
-Extract facts and export the ontomesh-ready kind-per-table SQLite projection.
+Export the whole graph in a format another tool can read — so you can explore it in software
+that already does layout, filtering and search rather than waiting for us to build a canvas.
 
 ```
 orchestrator pkg export [PATH] [OPTIONS]
@@ -266,7 +267,66 @@ orchestrator pkg export [PATH] [OPTIONS]
 
 | Option | Description |
 |---|---|
-| `--db` | SQLite file to write. (default: `pkg-facts.db`) |
+| `--format` | `sqlite` \| `graphml` \| `dot` \| `json` \| `obsidian`. _(default: `sqlite`)_ |
+| `--out`, `-o` | Output file (or directory, for `obsidian`). _(default: `pkg-facts.<ext>`)_ |
+| `--db` | **Deprecated** alias for `--out`, `sqlite` only. Use `--out`. |
+
+| Format | What it's for |
+|---|---|
+| `sqlite` | The ontomesh-ready kind-per-table projection. |
+| `graphml` | **Gephi, yEd, Cytoscape.** The one to reach for to explore a graph visually. |
+| `dot` | Graphviz. |
+| `json` | Scripts and custom tooling. Carries nodes **and edges** — unlike `pkg extract --json`, which is nodes plus a summary. |
+| `obsidian` | An Obsidian vault: a copy of this repo's `episteme/` with `[[wikilink]]` syntax. Run `understand` first; it reads the knowledge base and never edits it in place. |
+
+```bash
+orchestrator pkg export . --format graphml --out spine.graphml
+```
+
+**Exports are complete, never truncated.** The bounded "top N of M" behaviour of the *visual*
+surfaces is deliberately absent here — the point of handing the graph to Gephi is that Gephi
+filters, and a silently truncated file would let you draw conclusions from a subset without
+knowing it was one. Output is byte-identical for an identical commit, so a committed export
+diffs cleanly.
+
+The graph formats include `Doc` nodes and `MENTIONS` edges (documentation, and the media
+transcripts that reuse them). `sqlite` does not — its kind-per-table schema has no doc table.
+
+#### Two things to know before you load an export
+
+**1. `IMPORTS` targets the imported *symbol*, not always the module.** `from app.core import
+slugify` produces `py:web.views → py:app.core.slugify`, not `py:web.views → py:app.core` — 2,746 of
+5,895 import edges on this repo. Keep only the edges whose endpoints are already modules and you
+get 3,033 dependencies; resolve properly and you get **4,287**. The naive read silently loses
+**1,254 real dependencies, 29% of the graph**, and it fails in the direction that looks plausible:
+a sparser, tidier architecture than the one you have. Resolve both endpoints upward through
+`CONTAINS` first:
+
+```python
+import json
+d = json.load(open("spine.json"))
+kind  = {n["id"]: n.get("kind") for n in d["nodes"]}
+owner = {e["dst"]: e["src"] for e in d["edges"] if e["kind"] == "CONTAINS"}
+
+def to_module(i):
+    seen = set()
+    while kind.get(i) != "Module" and i in owner and i not in seen:
+        seen.add(i); i = owner[i]
+    return i if kind.get(i) == "Module" else None
+
+deps = {(to_module(e["src"]), to_module(e["dst"]))
+        for e in d["edges"] if e["kind"] == "IMPORTS"}
+deps = {(s, t) for s, t in deps if s and t and s != t}
+```
+
+This is the same `CONTAINS` walk the `episteme` renderers do, and it is why their module maps look
+denser than a naive read of the raw edges.
+
+**2. Scope before you lay out.** These exports are complete, and complete is large: ~10k nodes and
+~29k edges for this repo. Graphviz took **3m44s** simply to *parse and canonicalize* that DOT file,
+before attempting any layout — and the result would be unreadable anyway. Gephi handles a graph
+this size because you filter inside it. If you are rendering a picture, slice first (one area, one
+module and its neighbours) and lay out the slice.
 
 ### `orchestrator pkg docs`
 
@@ -775,7 +835,7 @@ orchestrator template register [FILE]
 
 **Arguments**
 
-- `FILE` — 
+- `FILE` —
 
 ### `orchestrator template list`
 
@@ -800,8 +860,8 @@ orchestrator template show [ID] [VERSION]
 
 **Arguments**
 
-- `ID` — 
-- `VERSION` — 
+- `ID` —
+- `VERSION` —
 
 ### `orchestrator template publish`
 
@@ -813,8 +873,8 @@ orchestrator template publish [ID] [VERSION]
 
 **Arguments**
 
-- `ID` — 
-- `VERSION` — 
+- `ID` —
+- `VERSION` —
 
 ### `orchestrator template deprecate`
 
@@ -826,8 +886,8 @@ orchestrator template deprecate [ID] [VERSION]
 
 **Arguments**
 
-- `ID` — 
-- `VERSION` — 
+- `ID` —
+- `VERSION` —
 
 ### `orchestrator contract register`
 
@@ -839,7 +899,7 @@ orchestrator contract register [FILE]
 
 **Arguments**
 
-- `FILE` — 
+- `FILE` —
 
 ### `orchestrator contract list`
 
@@ -864,8 +924,8 @@ orchestrator contract show [ID] [VERSION]
 
 **Arguments**
 
-- `ID` — 
-- `VERSION` — 
+- `ID` —
+- `VERSION` —
 
 ### `orchestrator contract publish`
 
@@ -877,8 +937,8 @@ orchestrator contract publish [ID] [VERSION]
 
 **Arguments**
 
-- `ID` — 
-- `VERSION` — 
+- `ID` —
+- `VERSION` —
 
 ### `orchestrator contract deprecate`
 
@@ -890,7 +950,7 @@ orchestrator contract deprecate [ID] [VERSION]
 
 **Arguments**
 
-- `ID` — 
-- `VERSION` — 
+- `ID` —
+- `VERSION` —
 
 ---

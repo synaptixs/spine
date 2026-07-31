@@ -5,12 +5,16 @@ explicit argument wins, then ``$ORCHESTRATOR_EVALS_DIR``, then the in-repo
 default of ``<repo>/docs/evals``.
 
 The override exists because scorecards are *markdown*, and doc ingestion turns
-markdown on disk into ``Doc`` nodes whether or not git tracks it. Writing them
-under the analysed repo's own ``docs/`` therefore grows the graph with pages CI
-never sees, and ``understand --check`` fails on any tree where evals have been
-run — measured: one three-line file took the graph from 8843 to 8844 nodes and
-staled two episteme pages. Point ``$ORCHESTRATOR_EVALS_DIR`` at a directory
-outside the repo to keep measurement and comprehension from colliding.
+markdown on disk into ``Doc`` nodes whether or not git tracks it — measured: one
+three-line file moved this repo's graph by a node and staled two episteme pages.
+
+For a repo that analyses *itself*, that leaves two consistent options and one
+broken one. Committing each run's scorecards keeps the tree consistent but makes
+every measurement a commit. Writing them outside the repo via
+``$ORCHESTRATOR_EVALS_DIR`` keeps measurement and comprehension apart entirely.
+The broken option is leaving generated scorecards sitting uncommitted in a
+tracked ``docs/evals``: the local graph then describes pages CI cannot see, and
+``understand --check`` fails on a diff nobody can reproduce.
 
 The in-repo default is kept so a fresh clone behaves as it always has; only
 repos that *are* the analysed repo need the override.

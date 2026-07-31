@@ -493,24 +493,69 @@ def architecture_graph(s: CurrentState) -> tuple[list[str], list[tuple[tuple[str
     return nodes, edges
 
 
+def architecture_clusters(s: CurrentState) -> tuple[dict[str, int], list[list[str]], float]:
+    """Community assignment over the production coupling graph.
+
+    Two filters before clustering, both of which change the answer materially:
+
+    * **Test areas are dropped.** A test imports what it tests harder than anything else
+      imports anything, so on the raw graph every community is one ``x`` + ``tests.x`` pair —
+      structurally true and architecturally useless. ``architecture_graph`` drops test-origin
+      edges for the same reason.
+    * **Weak couplings are dropped** at the mean weight (see
+      :func:`clustering.significant_edges`). Keeping them fuses 29 of this repo's 40
+      production areas into one community at modularity 0.245; cutting them gives 11 / 9 / 2
+      at 0.363.
+    """
+    from orchestrator.knowledge.clustering import (
+        communities_by_id,
+        detect_communities,
+        modularity,
+        significant_edges,
+    )
+
+    production = {
+        pair: w for pair, w in s.coupling.items() if not is_test_area(pair[0]) and not is_test_area(pair[1])
+    }
+    kept, _threshold = significant_edges(production)
+    names = sorted({n for pair in production for n in pair})
+    assignment = detect_communities(kept, nodes=names)
+    return assignment, communities_by_id(assignment), modularity(kept, assignment)
+
+
 def architecture_mermaid(s: CurrentState) -> list[str]:
-    """A system-architecture flowchart: the top components grouped into zone
-    subgraphs, with the strongest cross-component dependency edges (from the
-    `#include` / import graph). Bounded so it stays readable."""
+    """A system-architecture flowchart: the top components grouped into **structural
+    cluster** subgraphs, with the strongest cross-component dependency edges (from the
+    `#include` / import graph). Bounded so it stays readable.
+
+    Groups by :func:`architecture_clusters`, the same partition ``report_svg`` bands by.
+    That is deliberate and load-bearing: these two renderers draw the same bounded graph
+    for the same commit, and if they grouped it differently a reader comparing
+    ``episteme/architecture.md`` against a shared report would see two architectures and
+    have no way to tell which one is real."""
     from collections import defaultdict
 
     nodes, edges = architecture_graph(s)
     nodeset = set(nodes)
+    assignment, _groups, _q = architecture_clusters(s)
 
-    by_zone: dict[str, list[str]] = defaultdict(list)
+    def _weight(a: str) -> int:
+        return s.area_types.get(a, 0) * 3 + s.area_funcs.get(a, 0)
+
+    by_cluster: dict[int, list[str]] = defaultdict(list)
     for a in nodes:
-        by_zone[_zone(a)].append(a)
+        by_cluster[assignment.get(a, -1)].append(a)
 
     out = ["```mermaid", "flowchart LR"]
-    for zone in sorted(by_zone):
-        zid = "z_" + re.sub(r"[^A-Za-z0-9]", "", zone)[:16]
-        out.append(f'  subgraph {zid}["{_zone_label(zone)}"]')
-        for a in sorted(by_zone[zone]):
+    for cid in sorted(by_cluster):
+        members = sorted(by_cluster[cid], key=lambda a: (-_weight(a), a))
+        # Named after the heaviest members, matching the SVG's band labels. Mermaid subgraph
+        # ids must be identifier-safe; the label carries the readable form.
+        head = " · ".join(m.rsplit(".", 1)[-1] for m in members[:2])
+        label = "no strong coupling" if cid == -1 else f"{head} ({len(members)})"
+        zid = f"c_{cid}" if cid >= 0 else "c_none"
+        out.append(f'  subgraph {zid}["{label}"]')
+        for a in sorted(by_cluster[cid]):
             t, f = s.area_types.get(a, 0), s.area_funcs.get(a, 0)
             out.append(f'    {_mid(a)}["{a}<br/>{t} types · {f} fns"]')
         out.append("  end")
