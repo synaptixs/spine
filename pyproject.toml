@@ -101,7 +101,7 @@ office = [
 # Onboard external MCP servers (DBs, Atlassian, …) as orchestrator tools. The
 # MCP client lazy-imports this, so the base install stays MCP-free.
 mcp = [
-    "mcp>=1.0",
+    "mcp>=1.28",
 ]
 # Media ingestion (G3) — local OCR for images. Tesseract via pytesseract + Pillow, lazy-imported by
 # pkg/media_extract.py, used ONLY by the opt-in `media extract` command. The deterministic reader
@@ -135,8 +135,8 @@ tui = [
 # stays a no-op unless OTEL_EXPORTER_OTLP_ENDPOINT is set, so the base install is
 # unaffected: pip install 'synaptixs-spine[otel]'.
 otel = [
-    "opentelemetry-sdk>=1.27",
-    "opentelemetry-exporter-otlp-proto-http>=1.27",
+    "opentelemetry-sdk>=1.44",
+    "opentelemetry-exporter-otlp-proto-http>=1.44",
 ]
 dev = [
     "pytest>=8",
@@ -147,7 +147,7 @@ dev = [
     "mypy>=1.11",
     "pre-commit>=3.8",
     # so the tracing span-tree tests can use the in-memory exporter
-    "opentelemetry-sdk>=1.27",
+    "opentelemetry-sdk>=1.44",
     # async SQLite driver for fast, Postgres-free repository unit tests
     "aiosqlite>=0.20",
     # SQL PKG front-end parser — pure-Python, so CI exercises the sql_extractor
@@ -178,6 +178,12 @@ packages = ["src/orchestrator"]
 [tool.ruff]
 line-length = 110
 target-version = "py312"
+# Ruff 0.16 began formatting Python code blocks *inside* markdown. Our markdown is design
+# records and CLI docs, where snippets are illustrative rather than executable — abbreviated
+# with `...`, and aligned for reading. Formatting them collapses deliberate comment alignment
+# and injects PEP 8 blank lines into fragments that were never meant to be PEP 8, changing
+# documentation for no correctness gain. Keep the formatter to real Python.
+extend-exclude = ["*.md"]
 
 [tool.ruff.lint]
 # "S" = flake8-bandit. Security linting runs in the normal `ruff check` gate rather
