@@ -1024,7 +1024,7 @@ def mcp_list(
     if not servers:
         typer.echo("No MCP servers configured. Add an mcpServers JSON file (--config or ./mcp.json).")
         return
-    tools = asyncio.run(registry.list_tools())
+    statuses = asyncio.run(registry.probe())
     _print(
         {
             "servers": servers,
@@ -1034,10 +1034,28 @@ def mcp_list(
                     "read_only": t.read_only,
                     "description": (t.description or "")[:120],
                 }
-                for t in tools
+                for s in statuses
+                for t in s.tools
+            ],
+            # Report failures rather than showing an empty list and leaving the operator to
+            # guess. A missing extra, an unpulled image and a dead server used to look
+            # identical here — all of them "tools": [].
+            "unavailable": [
+                {"server": s.name, "kind": s.kind, "error": s.error, "remedy": s.remedy}
+                for s in statuses
+                if not s.ok
             ],
         }
     )
+    failed = [s for s in statuses if not s.ok]
+    for s in failed:
+        typer.echo(f"! {s.name}: {s.error}", err=True)
+        if s.remedy:
+            typer.echo(f"  → {s.remedy}", err=True)
+    # Non-zero when a server the operator configured could not be reached at all, so a
+    # scripted `mcp list` fails loudly instead of quietly returning nothing.
+    if failed and not any(s.ok for s in statuses):
+        raise typer.Exit(code=1)
 
 
 @mcp_app.command("ingest-db")
