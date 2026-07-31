@@ -4,6 +4,62 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.11.0 — Take the graph somewhere else
+
+The visualization gap was never really about our own renderer. A user who wanted to explore
+the graph in Gephi, yEd, Cytoscape or Obsidian couldn't: the only projection was a
+kind-per-table SQLite file. `pkg export` now writes GraphML, DOT, JSON and an Obsidian
+vault, and the honest conclusion of building it is that we should stop there — Gephi
+already does filtering, search, clustering and click-through-to-source on our own export,
+and it does them better than a UI with no build step ever will.
+
+Exports are **complete, never truncated**, which is the opposite of what the built-in
+visuals do and deliberately so: a diagram with 9,000 nodes communicates nothing, but a
+silently truncated GraphML lets a reader draw conclusions from a subset without knowing it
+is one. They are also byte-identical for an identical commit, so a committed export diffs
+cleanly — asserted by a test that exports twice and compares bytes, because "deterministic"
+that nothing checks stops being true quietly.
+
+The architecture diagram now groups by structural community rather than by name prefix.
+Grouping by name answers "what did someone call this"; the coupling graph answers "what
+actually clusters", and on a single-namespace project the first answer is one box around
+everything. Both the report SVG and the committed `episteme/` diagram use the same
+partition, so they can't drift apart.
+
+### Added
+
+- `orchestrator pkg export --format graphml|dot|json|obsidian --out <path>`. GraphML and DOT
+  open in Gephi, yEd, Cytoscape and Graphviz; JSON carries nodes **and edges**, unlike
+  `pkg extract --json`; `obsidian` writes a vault — a copy of the repo's `episteme/` with
+  `[[wikilink]]` syntax, never editing it in place. The existing `--db` keeps working as a
+  deprecated alias, and combining it with a non-SQLite format is rejected rather than
+  silently ignored.
+- Deterministic community detection over the coupling graph
+  (`orchestrator.knowledge.clustering`), used to band the architecture diagram. Label
+  propagation with sorted iteration, seeded labels, stable tie-breaks and communities
+  renumbered by first member — so adding one unrelated area cannot renumber everything and
+  make an unchanged architecture look like it moved. Partition quality (modularity) is
+  reported in the diagram's `aria-label`.
+
+### Fixed
+
+- Graph exports now include `Doc` nodes and `MENTIONS` edges. `pkg export` ran raw
+  extraction, but documentation enters the graph through a post-pass — so exports were
+  missing 920 `Doc` nodes and 1,576 `MENTIONS` edges on this repo, and with them every
+  media transcript, which reuses `Doc`.
+- `media --help` said image OCR and "local", omitting that `--asr api` uploads audio
+  off-machine. The consent gate was always enforced in code; the summary was narrower than
+  the behaviour, which is the wrong way round for a privacy claim.
+
+### Documentation
+
+- `CLI_REFERENCE.md` documents the export formats, and warns that a naive read of `IMPORTS`
+  loses 29% of the dependency graph: 2,746 of 5,895 import edges target a `Type` or
+  `Function` rather than a `Module`, so filtering for module-to-module edges yields 3,033
+  dependencies where resolving through `CONTAINS` yields 4,287. It fails in the direction
+  that looks plausible — a tidier architecture than the real one — so the recipe is spelled
+  out.
+
 ## 3.10.0 — Diagrams and recordings become facts
 
 A codebase's knowledge was never only in its code and its prose. Architecture diagrams,
