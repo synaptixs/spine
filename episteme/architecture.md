@@ -152,7 +152,7 @@ _The repo's own prose folded into the graph (`Doc` nodes + `MENTIONS` edges). A 
 
 **923 docs** ingested, naming **470 of 6515 symbols** (7% doc coverage).
 
-**584 potential drift** — the docs name code the graph doesn't have (renamed or removed symbols, or prose the binder can't resolve).
+**585 potential drift** — the docs name code the graph doesn't have (renamed or removed symbols, or prose the binder can't resolve).
 
 | The docs claim… | …in |
 |---|---|
@@ -164,7 +164,7 @@ _The repo's own prose folded into the graph (`Doc` nodes + `MENTIONS` edges). A 
 | `go.mod` | CHANGELOG.md |
 | `current_state` | CHANGELOG.md |
 | `click._winconsole` | CHANGELOG.md |
-| … | _+576 more_ |
+| … | _+577 more_ |
 
 ## Possibly unused
 _**111 of 956 internal symbols** have no caller, subclass or doc reference in the graph. **Candidates, not verdicts**: calls through an attribute chain are skipped rather than guessed at, and dynamic dispatch, registries and reflection are invisible. Public symbols are excluded — having no in-repo caller is what being an API looks like._
