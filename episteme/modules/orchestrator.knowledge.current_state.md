@@ -157,6 +157,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 - **Called by** (2): [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L526), [`architecture_svg`](../../src/orchestrator/knowledge/report_svg.py#L73)
 - **Calls** (5): [`communities_by_id`](../../src/orchestrator/knowledge/clustering.py#L135), [`detect_communities`](../../src/orchestrator/knowledge/clustering.py#L82), [`is_test_area`](../../src/orchestrator/knowledge/current_state.py#L71), [`modularity`](../../src/orchestrator/knowledge/clustering.py#L143), [`significant_edges`](../../src/orchestrator/knowledge/clustering.py#L55)
+- **Documented in**: `docs/specs/gap5-visualization-roadmap.md#phase-2-shipped-exit-criterion-met-scope-deliberately-trimmed`
 
 ### `architecture_graph`
 
@@ -164,7 +165,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 - **Called by** (3): [`_architecture_section`](../../src/orchestrator/knowledge/report_html.py#L100), [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L526), [`architecture_svg`](../../src/orchestrator/knowledge/report_svg.py#L73)
 - **Calls** (2): `py:_is_test_area`, `py:add`
-- **Documented in**: `CHANGELOG.md`
+- **Documented in**: `CHANGELOG.md`, `docs/specs/gap5-visualization-roadmap.md#phase-2-shipped-exit-criterion-met-scope-deliberately-trimmed`
 
 ### `architecture_mermaid`
 

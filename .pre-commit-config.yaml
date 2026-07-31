@@ -56,10 +56,16 @@ repos:
     hooks:
       - id: gitleaks
 
-  # Keeps episteme/ in step with src/. CI runs `understand --check` and fails the build
-  # when it drifts, which costs a round-trip to discover; this regenerates locally instead.
-  # pre-commit then reports "files were modified by this hook" — `git add episteme` and
-  # commit again. Scoped to src/ so doc- and config-only commits do not pay the ~10s.
+  # Keeps episteme/ in step with everything that feeds the graph. CI runs
+  # `understand --check` and fails the build when it drifts, which costs a round-trip to
+  # discover; this regenerates locally instead. pre-commit then reports "files were modified
+  # by this hook" — `git add episteme` and commit again.
+  #
+  # Scoped to src/ AND markdown, not src/ alone. Doc ingestion turns every tracked .md into
+  # a Doc node, so a docs-only commit stales episteme exactly as a code change does — this
+  # hook was first written `^src/` and immediately missed a docs-only commit that CI would
+  # have failed. episteme/ itself is excluded: it is this hook's own output, and including it
+  # only makes the hook re-fire on its own regeneration.
   - repo: local
     hooks:
       - id: episteme-current
@@ -67,4 +73,5 @@ repos:
         entry: uv run orchestrator understand .
         language: system
         pass_filenames: false
-        files: ^src/
+        files: ^(src/.*|docs/.*\.(md|rst|txt)|[^/]+\.md)$
+        exclude: ^episteme/
