@@ -249,3 +249,70 @@ async def test_confluence_pages_are_untouched_by_the_jira_header() -> None:
     doc = _parse_document("123", {"title": "Design", "body": "the body"}, "")
     assert doc.body == "the body"
     assert doc.space == ""
+
+
+# Captured verbatim from mcp-atlassian 3.4.4 (`jira_get_issue` on a real Jira Cloud issue).
+# NOT hand-written: the previous fixtures used Jira REST's nested `fields` shape, which this
+# server does not produce — so the parser and its tests agreed with each other and both were
+# wrong about reality. Empty fields (description, labels) are absent, not null.
+_REAL_MCP_ATLASSIAN_ISSUE = {
+    "id": "36672",
+    "key": "CB-676",
+    "summary": "CLONE - CLONE - Write/update script to store this data in S3",
+    "browse_url": "https://fibonacci-solutions.atlassian.net/browse/CB-676",
+    "status": {"name": "Business Requirements", "category": "To Do", "color": "blue-gray"},
+    "issue_type": {"name": "Sub-task"},
+    "priority": {"name": "Medium"},
+}
+
+
+def test_parses_the_flattened_mcp_atlassian_shape() -> None:
+    """mcp-atlassian returns issue attributes at the TOP LEVEL with no `fields` envelope,
+    and spells the type `issue_type` where Jira REST spells it `issuetype`."""
+    from orchestrator.intake.mcp_source import _parse_document
+
+    doc = _parse_document("CB-676", _REAL_MCP_ATLASSIAN_ISSUE, "")
+    assert doc.body.startswith("Sub-task · status: Business Requirements · priority: Medium")
+
+
+def test_prefers_the_issue_key_over_the_opaque_numeric_id() -> None:
+    """`id` is 36672; `key` is CB-676. The key is what the browse URL, JQL and the project
+    prefix are all built from — keying on `id` left documents nobody could match up."""
+    from orchestrator.intake.mcp_source import _parse_document
+
+    doc = _parse_document("CB-676", _REAL_MCP_ATLASSIAN_ISSUE, "")
+    assert doc.id == "CB-676"
+    assert doc.space == "CB"
+
+
+def test_uses_the_browse_url_the_server_supplies() -> None:
+    """The server hands back the browse link, so `url` is available over MCP after all."""
+    from orchestrator.intake.mcp_source import _parse_document
+
+    doc = _parse_document("CB-676", _REAL_MCP_ATLASSIAN_ISSUE, "")
+    assert doc.url == "https://fibonacci-solutions.atlassian.net/browse/CB-676"
+
+
+def test_title_survives_when_the_description_field_is_absent() -> None:
+    """This issue has no description, and mcp-atlassian omits empty fields rather than
+    returning null — the body must still be the metadata header, never raw JSON."""
+    from orchestrator.intake.mcp_source import _parse_document
+
+    doc = _parse_document("CB-676", _REAL_MCP_ATLASSIAN_ISSUE, "{raw fallback}")
+    assert doc.title == "CLONE - CLONE - Write/update script to store this data in S3"
+    assert "{raw fallback}" not in doc.body
+    assert doc.body.count("\n") == 0, "header only, no stray blank lines"
+
+
+def test_nested_rest_shape_still_parses() -> None:
+    """The REST-shaped payload must keep working — both transports share this parser."""
+    from orchestrator.intake.mcp_source import _parse_document
+
+    doc = _parse_document(
+        "ENG-1",
+        {"key": "ENG-1", "fields": {"summary": "S", "description": "d", "issuetype": {"name": "Bug"}}},
+        "",
+    )
+    assert doc.id == "ENG-1"
+    assert doc.body.startswith("Bug")
+    assert "d" in doc.body

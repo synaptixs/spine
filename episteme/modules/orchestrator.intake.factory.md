@@ -5,20 +5,20 @@
 
 **Source:** [`src/orchestrator/intake/factory.py`](../../src/orchestrator/intake/factory.py)
 
-1 types · 11 functions · python
+1 types · 13 functions · python
 
 ## Changing this safely
 
-**Tested by** (6): `tests.intake.test_factory`, `tests.intake.test_jira_source`, `tests.intake.test_mcp_source`, `tests.intake.test_openspec_source`, `tests.intake.test_web`, `tests.sdlc.test_feature_runner`
+**Tested by** (7): `tests.intake.test_factory`, `tests.intake.test_jira_source`, `tests.intake.test_mcp_preferred`, `tests.intake.test_mcp_source`, `tests.intake.test_openspec_source`, `tests.intake.test_web`, `tests.sdlc.test_feature_runner`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36) — reaches **26** symbols
-- [`build_service_for`](../../src/orchestrator/intake/factory.py#L198) — reaches **18** symbols
+- [`build_service_for`](../../src/orchestrator/intake/factory.py#L268) — reaches **18** symbols
 - [`_build_service`](../../src/orchestrator/intake/factory.py#L40) — reaches **9** symbols
-- [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L122) — reaches **3** symbols · **no test path visible**
-
-_1 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+- [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L192) — reaches **5** symbols
+- [`_with_server`](../../src/orchestrator/intake/factory.py#L96) — reaches **2** symbols
+- [`mcp_server_for`](../../src/orchestrator/intake/factory.py#L57) — reaches **2** symbols
 
 ## Types
 
@@ -27,85 +27,99 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/intake/factory.py:36`](../../src/orchestrator/intake/factory.py#L36)
 
 - **Extends** (1): `RuntimeError`
-- **Called by** (5 production · 2 test): [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L122), [`build_confluence_service`](../../src/orchestrator/intake/factory.py#L57), [`build_jira_service`](../../src/orchestrator/intake/factory.py#L72), [`build_notion_service`](../../src/orchestrator/intake/factory.py#L88), [`build_service_for`](../../src/orchestrator/intake/factory.py#L198), [`_raise`](../../tests/sdlc/test_feature_runner.py#L84), [`builder`](../../tests/intake/test_web.py#L130)
+- **Called by** (5 production · 2 test): [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L192), [`build_confluence_service`](../../src/orchestrator/intake/factory.py#L103), [`build_jira_service`](../../src/orchestrator/intake/factory.py#L130), [`build_notion_service`](../../src/orchestrator/intake/factory.py#L158), [`build_service_for`](../../src/orchestrator/intake/factory.py#L268), [`_raise`](../../tests/sdlc/test_feature_runner.py#L84), [`builder`](../../tests/intake/test_web.py#L130)
 
 ## Functions
 
 ### `_build_mcp_service`
 
-[`src/orchestrator/intake/factory.py:122`](../../src/orchestrator/intake/factory.py#L122)
+[`src/orchestrator/intake/factory.py:192`](../../src/orchestrator/intake/factory.py#L192)
 
-- **Called by** (3): [`build_mcp_confluence_service`](../../src/orchestrator/intake/factory.py#L148), [`build_mcp_jira_service`](../../src/orchestrator/intake/factory.py#L160), [`build_mcp_service`](../../src/orchestrator/intake/factory.py#L171)
-- **Calls** (4): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`MCPSourceAdapter`](../../src/orchestrator/intake/mcp_source.py#L173), [`_build_service`](../../src/orchestrator/intake/factory.py#L40), [`from_config`](../../src/orchestrator/mcp/registry.py#L43)
+- **Called by** (5): [`build_confluence_service`](../../src/orchestrator/intake/factory.py#L103), [`build_jira_service`](../../src/orchestrator/intake/factory.py#L130), [`build_mcp_confluence_service`](../../src/orchestrator/intake/factory.py#L218), [`build_mcp_jira_service`](../../src/orchestrator/intake/factory.py#L230), [`build_mcp_service`](../../src/orchestrator/intake/factory.py#L241)
+- **Calls** (4): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`MCPSourceAdapter`](../../src/orchestrator/intake/mcp_source.py#L194), [`_build_service`](../../src/orchestrator/intake/factory.py#L40), [`from_config`](../../src/orchestrator/mcp/registry.py#L43)
 
 ### `_build_service`
 
 [`src/orchestrator/intake/factory.py:40`](../../src/orchestrator/intake/factory.py#L40)
 
-- **Called by** (6): [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L122), [`build_confluence_service`](../../src/orchestrator/intake/factory.py#L57), [`build_file_service`](../../src/orchestrator/intake/factory.py#L99), [`build_jira_service`](../../src/orchestrator/intake/factory.py#L72), [`build_notion_service`](../../src/orchestrator/intake/factory.py#L88), [`build_openspec_service`](../../src/orchestrator/intake/factory.py#L109)
+- **Called by** (6): [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L192), [`build_confluence_service`](../../src/orchestrator/intake/factory.py#L103), [`build_file_service`](../../src/orchestrator/intake/factory.py#L169), [`build_jira_service`](../../src/orchestrator/intake/factory.py#L130), [`build_notion_service`](../../src/orchestrator/intake/factory.py#L158), [`build_openspec_service`](../../src/orchestrator/intake/factory.py#L179)
 - **Calls** (9): [`BacklogService`](../../src/orchestrator/intake/service.py#L131), [`GapAnalyzer`](../../src/orchestrator/intake/gaps.py#L124), [`IntentExtractor`](../../src/orchestrator/intake/intents.py#L120), [`JiraAdapter`](../../src/orchestrator/intake/jira.py#L103), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L72), [`SpecWriter`](../../src/orchestrator/intake/specs.py#L74), `getenv`, [`load_gap_rules`](../../src/orchestrator/intake/gaps.py#L118), `orchestrator.core.llm.LiteLLMClient`
+
+### `_with_server`
+
+[`src/orchestrator/intake/factory.py:96`](../../src/orchestrator/intake/factory.py#L96)
+
+- **Called by** (2): [`build_confluence_service`](../../src/orchestrator/intake/factory.py#L103), [`build_jira_service`](../../src/orchestrator/intake/factory.py#L130)
+- **Calls** (1): `replace`
 
 ### `build_confluence_service`
 
-[`src/orchestrator/intake/factory.py:57`](../../src/orchestrator/intake/factory.py#L57)
+[`src/orchestrator/intake/factory.py:103`](../../src/orchestrator/intake/factory.py#L103)
 
-- **Calls** (4): [`ConfluenceAdapter`](../../src/orchestrator/intake/confluence.py#L98), [`ConfluenceConfig`](../../src/orchestrator/intake/confluence.py#L61), [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`_build_service`](../../src/orchestrator/intake/factory.py#L40)
+- **Calls** (8): [`ConfluenceAdapter`](../../src/orchestrator/intake/confluence.py#L98), [`ConfluenceConfig`](../../src/orchestrator/intake/confluence.py#L61), [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L192), [`_build_service`](../../src/orchestrator/intake/factory.py#L40), [`_with_server`](../../src/orchestrator/intake/factory.py#L96), [`for_confluence`](../../src/orchestrator/intake/mcp_source.py#L63), [`mcp_server_for`](../../src/orchestrator/intake/factory.py#L57)
 - **Documented in**: `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`
 
 ### `build_file_service`
 
-[`src/orchestrator/intake/factory.py:99`](../../src/orchestrator/intake/factory.py#L99)
+[`src/orchestrator/intake/factory.py:169`](../../src/orchestrator/intake/factory.py#L169)
 
 - **Calls** (3): [`FileSourceAdapter`](../../src/orchestrator/intake/file_source.py#L76), [`FileSourceConfig`](../../src/orchestrator/intake/file_source.py#L48), [`_build_service`](../../src/orchestrator/intake/factory.py#L40)
 
 ### `build_jira_service`
 
-[`src/orchestrator/intake/factory.py:72`](../../src/orchestrator/intake/factory.py#L72)
+[`src/orchestrator/intake/factory.py:130`](../../src/orchestrator/intake/factory.py#L130)
 
-- **Called by** (0 production · 1 test): [`test_jira_builder_unconfigured_raises`](../../tests/intake/test_jira_source.py#L230)
-- **Calls** (4): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L72), [`JiraSourceAdapter`](../../src/orchestrator/intake/jira_source.py#L110), [`_build_service`](../../src/orchestrator/intake/factory.py#L40)
+- **Called by** (0 production · 1 test): [`test_jira_builder_unconfigured_raises`](../../tests/intake/test_jira_source.py#L235)
+- **Calls** (8): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L72), [`JiraSourceAdapter`](../../src/orchestrator/intake/jira_source.py#L113), [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L192), [`_build_service`](../../src/orchestrator/intake/factory.py#L40), [`_with_server`](../../src/orchestrator/intake/factory.py#L96), [`for_jira`](../../src/orchestrator/intake/mcp_source.py#L75), [`mcp_server_for`](../../src/orchestrator/intake/factory.py#L57)
 
 ### `build_mcp_confluence_service`
 
-[`src/orchestrator/intake/factory.py:148`](../../src/orchestrator/intake/factory.py#L148)
+[`src/orchestrator/intake/factory.py:218`](../../src/orchestrator/intake/factory.py#L218)
 
-- **Calls** (2): [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L122), [`for_confluence`](../../src/orchestrator/intake/mcp_source.py#L63)
+- **Calls** (2): [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L192), [`for_confluence`](../../src/orchestrator/intake/mcp_source.py#L63)
 
 ### `build_mcp_jira_service`
 
-[`src/orchestrator/intake/factory.py:160`](../../src/orchestrator/intake/factory.py#L160)
+[`src/orchestrator/intake/factory.py:230`](../../src/orchestrator/intake/factory.py#L230)
 
-- **Calls** (2): [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L122), [`for_jira`](../../src/orchestrator/intake/mcp_source.py#L75)
+- **Calls** (2): [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L192), [`for_jira`](../../src/orchestrator/intake/mcp_source.py#L75)
 
 ### `build_mcp_service`
 
-[`src/orchestrator/intake/factory.py:171`](../../src/orchestrator/intake/factory.py#L171)
+[`src/orchestrator/intake/factory.py:241`](../../src/orchestrator/intake/factory.py#L241)
 
-- **Calls** (2): [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L122), [`from_env`](../../src/orchestrator/intake/mcp_source.py#L87)
+- **Calls** (2): [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L192), [`from_env`](../../src/orchestrator/intake/mcp_source.py#L87)
 
 ### `build_notion_service`
 
-[`src/orchestrator/intake/factory.py:88`](../../src/orchestrator/intake/factory.py#L88)
+[`src/orchestrator/intake/factory.py:158`](../../src/orchestrator/intake/factory.py#L158)
 
 - **Calls** (4): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`NotionAdapter`](../../src/orchestrator/intake/notion.py#L97), [`NotionConfig`](../../src/orchestrator/intake/notion.py#L55), [`_build_service`](../../src/orchestrator/intake/factory.py#L40)
 
 ### `build_openspec_service`
 
-[`src/orchestrator/intake/factory.py:109`](../../src/orchestrator/intake/factory.py#L109)
+[`src/orchestrator/intake/factory.py:179`](../../src/orchestrator/intake/factory.py#L179)
 
 - **Calls** (2): [`OpenSpecSourceAdapter`](../../src/orchestrator/intake/openspec_source.py#L172), [`_build_service`](../../src/orchestrator/intake/factory.py#L40)
 
 ### `build_service_for`
 
-[`src/orchestrator/intake/factory.py:198`](../../src/orchestrator/intake/factory.py#L198)
+[`src/orchestrator/intake/factory.py:268`](../../src/orchestrator/intake/factory.py#L268)
 
 - **Called by** (7 production · 12 test): [`_load_ticket`](../../src/orchestrator/cli.py#L1672), [`_run_ingest`](../../src/orchestrator/cli.py#L290), [`_run_openspec_draft`](../../src/orchestrator/cli.py#L375), [`ingest_preview`](../../src/orchestrator/plugin/server.py#L38), [`intake_analyze`](../../src/orchestrator/sdlc/activities.py#L177), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`run_preview`](../../src/orchestrator/intake/web/app.py#L85), [`test_configured_mcp_confluence_builds`](../../tests/intake/test_mcp_source.py#L176), [`test_confluence_builder_configured_wires_confluence_source`](../../tests/intake/test_factory.py#L106), [`test_confluence_builder_unconfigured_raises`](../../tests/intake/test_factory.py#L86), [`test_dispatch_routes_to_kind_builder`](../../tests/intake/test_factory.py#L44), [`test_file_builder_needs_no_credentials`](../../tests/intake/test_factory.py#L100), [`test_generic_mcp_unconfigured_raises`](../../tests/intake/test_mcp_source.py#L159), [`test_malformed_uri_propagates_source_uri_error`](../../tests/intake/test_factory.py#L74), [`test_notion_builder_configured_wires_notion_source`](../../tests/intake/test_factory.py#L94), [`test_notion_builder_unconfigured_raises`](../../tests/intake/test_factory.py#L80), [`test_openspec_is_a_supported_kind`](../../tests/intake/test_openspec_source.py#L143), [`test_unconfigured_mcp_confluence_raises`](../../tests/intake/test_mcp_source.py#L170), [`test_unsupported_kind_raises_with_supported_list`](../../tests/intake/test_factory.py#L66)
 - **Calls** (3): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L38), `py:builder`
 
+### `mcp_server_for`
+
+[`src/orchestrator/intake/factory.py:57`](../../src/orchestrator/intake/factory.py#L57)
+
+- **Called by** (2 production · 8 test): [`build_confluence_service`](../../src/orchestrator/intake/factory.py#L103), [`build_jira_service`](../../src/orchestrator/intake/factory.py#L130), [`test_a_lone_unrestricted_server_is_trusted`](../../tests/intake/test_mcp_preferred.py#L69), [`test_a_malformed_config_falls_back_rather_than_exploding`](../../tests/intake/test_mcp_preferred.py#L92), [`test_disabled_servers_are_skipped`](../../tests/intake/test_mcp_preferred.py#L83), [`test_env_var_naming_an_absent_server_is_ignored`](../../tests/intake/test_mcp_preferred.py#L62), [`test_env_var_overrides_the_allow_list_scan`](../../tests/intake/test_mcp_preferred.py#L48), [`test_no_config_means_no_mcp`](../../tests/intake/test_mcp_preferred.py#L28), [`test_picks_the_server_that_allow_lists_the_tool`](../../tests/intake/test_mcp_preferred.py#L34), [`test_several_unrestricted_servers_decline_to_guess`](../../tests/intake/test_mcp_preferred.py#L75)
+- **Calls** (2): `getenv`, [`load_mcp_configs`](../../src/orchestrator/mcp/config.py#L57)
+
 ## Imports
 
-`__future__.annotations`, [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), [`orchestrator.intake.confluence`](../../src/orchestrator/intake/confluence.py#L1), [`orchestrator.intake.file_source`](../../src/orchestrator/intake/file_source.py#L1), [`orchestrator.intake.gaps`](../../src/orchestrator/intake/gaps.py#L1), [`orchestrator.intake.intents`](../../src/orchestrator/intake/intents.py#L1), [`orchestrator.intake.jira`](../../src/orchestrator/intake/jira.py#L1), [`orchestrator.intake.jira_source`](../../src/orchestrator/intake/jira_source.py#L1), [`orchestrator.intake.mcp_source`](../../src/orchestrator/intake/mcp_source.py#L1), [`orchestrator.intake.notion`](../../src/orchestrator/intake/notion.py#L1), [`orchestrator.intake.openspec_source`](orchestrator.intake.openspec_source.md), [`orchestrator.intake.service`](../../src/orchestrator/intake/service.py#L1), [`orchestrator.intake.source`](../../src/orchestrator/intake/source.py#L1), [`orchestrator.intake.specs`](../../src/orchestrator/intake/specs.py#L1), [`orchestrator.mcp.registry`](../../src/orchestrator/mcp/registry.py#L1), `os`, `typing.TYPE_CHECKING`
+`__future__.annotations`, [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), [`orchestrator.intake.confluence`](../../src/orchestrator/intake/confluence.py#L1), [`orchestrator.intake.file_source`](../../src/orchestrator/intake/file_source.py#L1), [`orchestrator.intake.gaps`](../../src/orchestrator/intake/gaps.py#L1), [`orchestrator.intake.intents`](../../src/orchestrator/intake/intents.py#L1), [`orchestrator.intake.jira`](../../src/orchestrator/intake/jira.py#L1), [`orchestrator.intake.jira_source`](../../src/orchestrator/intake/jira_source.py#L1), [`orchestrator.intake.mcp_source`](../../src/orchestrator/intake/mcp_source.py#L1), [`orchestrator.intake.notion`](../../src/orchestrator/intake/notion.py#L1), [`orchestrator.intake.openspec_source`](orchestrator.intake.openspec_source.md), [`orchestrator.intake.service`](../../src/orchestrator/intake/service.py#L1), [`orchestrator.intake.source`](../../src/orchestrator/intake/source.py#L1), [`orchestrator.intake.specs`](../../src/orchestrator/intake/specs.py#L1), [`orchestrator.mcp.config`](../../src/orchestrator/mcp/config.py#L1), [`orchestrator.mcp.registry`](../../src/orchestrator/mcp/registry.py#L1), `os`, `typing.Any`, `typing.TYPE_CHECKING`
 
 ## Imported by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.intake.web.app`](../../src/orchestrator/intake/web/app.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.sdlc.activities`](../../src/orchestrator/sdlc/activities.py#L1), [`orchestrator.sdlc.feature_runner`](../../src/orchestrator/sdlc/feature_runner.py#L1), [`orchestrator.sdlc.run_control`](../../src/orchestrator/sdlc/run_control.py#L1), [`tests.intake.test_factory`](../../tests/intake/test_factory.py#L1), [`tests.intake.test_jira_source`](../../tests/intake/test_jira_source.py#L1), [`tests.intake.test_mcp_source`](../../tests/intake/test_mcp_source.py#L1), [`tests.intake.test_openspec_source`](../../tests/intake/test_openspec_source.py#L1), [`tests.intake.test_web`](../../tests/intake/test_web.py#L1), [`tests.sdlc.test_feature_runner`](../../tests/sdlc/test_feature_runner.py#L1)
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.intake.web.app`](../../src/orchestrator/intake/web/app.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.sdlc.activities`](../../src/orchestrator/sdlc/activities.py#L1), [`orchestrator.sdlc.feature_runner`](../../src/orchestrator/sdlc/feature_runner.py#L1), [`orchestrator.sdlc.run_control`](../../src/orchestrator/sdlc/run_control.py#L1), [`tests.intake.test_factory`](../../tests/intake/test_factory.py#L1), [`tests.intake.test_jira_source`](../../tests/intake/test_jira_source.py#L1), [`tests.intake.test_mcp_preferred`](../../tests/intake/test_mcp_preferred.py#L1), [`tests.intake.test_mcp_source`](../../tests/intake/test_mcp_source.py#L1), [`tests.intake.test_openspec_source`](../../tests/intake/test_openspec_source.py#L1), [`tests.intake.test_web`](../../tests/intake/test_web.py#L1), [`tests.sdlc.test_feature_runner`](../../tests/sdlc/test_feature_runner.py#L1)

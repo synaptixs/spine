@@ -126,7 +126,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:38`](../../src/orchestrator/plugin/server.py#L38)
 
 - **Called by** (0 production · 1 test): [`test_ingest_preview_summarizes_a_dry_run`](../../tests/plugin/test_server.py#L219)
-- **Calls** (2): [`build_service_for`](../../src/orchestrator/intake/factory.py#L198), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L38)
+- **Calls** (2): [`build_service_for`](../../src/orchestrator/intake/factory.py#L268), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L38)
 - **Documented in**: `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#ingest-preview`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `CODEX_GUIDE.md#ingest-preview`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`, `codex-marketplace/README.md#2-add-this-marketplace-install-the-plugin`
 
 ### `investigate`

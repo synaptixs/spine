@@ -81,17 +81,20 @@ def _description_text(description: Any) -> str:
 
 
 def issue_meta_header(fields: dict[str, Any]) -> str:
-    """``"Bug · status: Open · priority: High"`` from a Jira issue's ``fields``, or ``""``.
+    """``"Bug · status: Open · priority: High"`` from a Jira issue's fields, or ``""``.
 
     Shared by the REST adapter and the MCP one so an issue reads the same whichever
     transport fetched it. The header is how issue *type* reaches the extractor at all —
     :class:`SourceDocument` has no field for it, so it is prepended to the body, and a Bug
     genuinely reads differently from a Story.
 
-    Kept as one function on purpose: the MCP path originally re-derived the document without
-    it, so the same epic ingested over MCP arrived untyped while the REST path typed it.
+    Accepts **both spellings of the type key**, because the two transports disagree: Jira REST
+    returns ``issuetype``, while ``mcp-atlassian`` returns ``issue_type``. Reading only the
+    REST spelling is how this silently produced no header at all over MCP — the tests mocked
+    REST's shape, so they agreed with the code and both were wrong about the real server.
     """
-    itype = str((fields.get("issuetype") or {}).get("name") or "")
+    type_obj = fields.get("issuetype") or fields.get("issue_type") or {}
+    itype = str(type_obj.get("name") or "") if isinstance(type_obj, dict) else str(type_obj)
     status = str((fields.get("status") or {}).get("name") or "")
     priority = str((fields.get("priority") or {}).get("name") or "")
     parts = (itype, f"status: {status}" if status else "", f"priority: {priority}" if priority else "")
@@ -196,14 +199,28 @@ class JiraSourceAdapter:
         issues = data.get("issues") or []
         for issue in issues[:max_docs]:
             result.documents.append(self._issue_to_document(issue))
-        total = int(data.get("total") or len(result.documents))
-        if total > len(result.documents):
-            result.truncated = True
+        # `/search/jql` returns no `total` — the old endpoint's count is gone. Truncation is
+        # now "the server says there is more" (isLast false / a nextPageToken) or "we clipped
+        # the page ourselves". Reading a missing `total` as 0 would have silently claimed
+        # every result set was complete.
+        more_upstream = data.get("isLast") is False or bool(data.get("nextPageToken"))
+        result.truncated = more_upstream or len(issues) > len(result.documents)
         return result
 
     async def _search(self, jql: str, *, max_results: int) -> dict[str, Any]:
+        """JQL search via ``/search/jql``.
+
+        Atlassian **removed** ``GET /rest/api/3/search`` (CHANGE-2046); it now answers 410
+        Gone on Jira Cloud, which broke every read through this adapter — including the
+        ``parent = <key>`` traversal that walks an epic to its stories. The replacement drops
+        ``total`` in favour of ``isLast``/``nextPageToken``, so callers cannot ask "how many
+        are there?" any more; :meth:`_search_tree` decides truncation from ``isLast`` instead.
+
+        Prefer an MCP server for Jira where one is available — it tracks these API changes so
+        this client does not have to. See ``factory.mcp_server_for``.
+        """
         return await self._get(
-            "/search",
+            "/search/jql",
             params={"jql": jql, "maxResults": str(min(max_results, 100)), "fields": _FIELDS},
         )
 
