@@ -81,17 +81,20 @@ def _description_text(description: Any) -> str:
 
 
 def issue_meta_header(fields: dict[str, Any]) -> str:
-    """``"Bug · status: Open · priority: High"`` from a Jira issue's ``fields``, or ``""``.
+    """``"Bug · status: Open · priority: High"`` from a Jira issue's fields, or ``""``.
 
     Shared by the REST adapter and the MCP one so an issue reads the same whichever
     transport fetched it. The header is how issue *type* reaches the extractor at all —
     :class:`SourceDocument` has no field for it, so it is prepended to the body, and a Bug
     genuinely reads differently from a Story.
 
-    Kept as one function on purpose: the MCP path originally re-derived the document without
-    it, so the same epic ingested over MCP arrived untyped while the REST path typed it.
+    Accepts **both spellings of the type key**, because the two transports disagree: Jira REST
+    returns ``issuetype``, while ``mcp-atlassian`` returns ``issue_type``. Reading only the
+    REST spelling is how this silently produced no header at all over MCP — the tests mocked
+    REST's shape, so they agreed with the code and both were wrong about the real server.
     """
-    itype = str((fields.get("issuetype") or {}).get("name") or "")
+    type_obj = fields.get("issuetype") or fields.get("issue_type") or {}
+    itype = str(type_obj.get("name") or "") if isinstance(type_obj, dict) else str(type_obj)
     status = str((fields.get("status") or {}).get("name") or "")
     priority = str((fields.get("priority") or {}).get("name") or "")
     parts = (itype, f"status: {status}" if status else "", f"priority: {priority}" if priority else "")

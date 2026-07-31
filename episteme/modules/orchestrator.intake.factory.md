@@ -36,7 +36,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/intake/factory.py:122`](../../src/orchestrator/intake/factory.py#L122)
 
 - **Called by** (3): [`build_mcp_confluence_service`](../../src/orchestrator/intake/factory.py#L148), [`build_mcp_jira_service`](../../src/orchestrator/intake/factory.py#L160), [`build_mcp_service`](../../src/orchestrator/intake/factory.py#L171)
-- **Calls** (4): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`MCPSourceAdapter`](../../src/orchestrator/intake/mcp_source.py#L173), [`_build_service`](../../src/orchestrator/intake/factory.py#L40), [`from_config`](../../src/orchestrator/mcp/registry.py#L43)
+- **Calls** (4): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`MCPSourceAdapter`](../../src/orchestrator/intake/mcp_source.py#L194), [`_build_service`](../../src/orchestrator/intake/factory.py#L40), [`from_config`](../../src/orchestrator/mcp/registry.py#L43)
 
 ### `_build_service`
 
@@ -63,7 +63,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/intake/factory.py:72`](../../src/orchestrator/intake/factory.py#L72)
 
 - **Called by** (0 production · 1 test): [`test_jira_builder_unconfigured_raises`](../../tests/intake/test_jira_source.py#L230)
-- **Calls** (4): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L72), [`JiraSourceAdapter`](../../src/orchestrator/intake/jira_source.py#L110), [`_build_service`](../../src/orchestrator/intake/factory.py#L40)
+- **Calls** (4): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L72), [`JiraSourceAdapter`](../../src/orchestrator/intake/jira_source.py#L113), [`_build_service`](../../src/orchestrator/intake/factory.py#L40)
 
 ### `build_mcp_confluence_service`
 
