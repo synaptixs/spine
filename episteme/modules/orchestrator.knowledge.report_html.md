@@ -36,7 +36,7 @@
 [`src/orchestrator/knowledge/report_html.py:100`](../../src/orchestrator/knowledge/report_html.py#L100)
 
 - **Called by** (1): [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383)
-- **Calls** (4): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_section`](../../src/orchestrator/knowledge/report_html.py#L91), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L461), [`architecture_svg`](../../src/orchestrator/knowledge/report_svg.py#L61)
+- **Calls** (4): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_section`](../../src/orchestrator/knowledge/report_html.py#L91), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L461), [`architecture_svg`](../../src/orchestrator/knowledge/report_svg.py#L73)
 
 ### `_blast_coverage`
 
@@ -85,7 +85,7 @@
 [`src/orchestrator/knowledge/report_html.py:62`](../../src/orchestrator/knowledge/report_html.py#L62)
 
 - **Called by** (1): [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383)
-- **Calls** (3): [`_app_type`](../../src/orchestrator/knowledge/current_state.py#L561), [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_node_count`](../../src/orchestrator/knowledge/report_html.py#L55)
+- **Calls** (3): [`_app_type`](../../src/orchestrator/knowledge/current_state.py#L606), [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_node_count`](../../src/orchestrator/knowledge/report_html.py#L55)
 
 ### `_node_count`
 
@@ -98,7 +98,7 @@
 [`src/orchestrator/knowledge/report_html.py:96`](../../src/orchestrator/knowledge/report_html.py#L96)
 
 - **Called by** (1): [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383)
-- **Calls** (3): [`_overview`](../../src/orchestrator/knowledge/current_state.py#L571), [`_prose`](../../src/orchestrator/knowledge/report_html.py#L49), [`_section`](../../src/orchestrator/knowledge/report_html.py#L91)
+- **Calls** (3): [`_overview`](../../src/orchestrator/knowledge/current_state.py#L616), [`_prose`](../../src/orchestrator/knowledge/report_html.py#L49), [`_section`](../../src/orchestrator/knowledge/report_html.py#L91)
 
 ### `_prose`
 
@@ -158,7 +158,7 @@
 
 [`src/orchestrator/knowledge/report_html.py:383`](../../src/orchestrator/knowledge/report_html.py#L383)
 
-- **Called by** (1 production · 15 test): [`_render_state_html`](../../src/orchestrator/cli.py#L1477), [`test_architecture_order_is_name_tiebroken`](../../tests/knowledge/test_report_html.py#L108), [`test_blast_radius_coverage_gaps`](../../tests/knowledge/test_report_html.py#L154), [`test_documentation_section_is_developer_only`](../../tests/knowledge/test_report_html.py#L196), [`test_documentation_section_omitted_without_docs`](../../tests/knowledge/test_report_html.py#L190), [`test_documentation_section_renders_coverage_and_drift`](../../tests/knowledge/test_report_html.py#L173), [`test_empty_sections_omitted`](../../tests/knowledge/test_report_html.py#L97), [`test_filter_toolbar_and_inline_script`](../../tests/knowledge/test_report_html.py#L164), [`test_header_counts_rendered`](../../tests/knowledge/test_report_html.py#L205), [`test_html_escaping`](../../tests/knowledge/test_report_html.py#L89), [`test_self_contained_document`](../../tests/knowledge/test_report_html.py#L54), [`test_spotlight_uses_graph_when_store_given`](../../tests/knowledge/test_report_html.py#L144), [`test_stakeholder_lens_drops_jargon_sections`](../../tests/knowledge/test_report_html.py#L79), [`test_svg_diagram_replaces_placeholder`](../../tests/knowledge/test_report_html.py#L118), [`test_theme_aware`](../../tests/knowledge/test_report_html.py#L66), [`test_timestamp_optional_and_deterministic`](../../tests/knowledge/test_report_html.py#L71)
+- **Called by** (1 production · 15 test): [`_render_state_html`](../../src/orchestrator/cli.py#L1481), [`test_architecture_order_is_name_tiebroken`](../../tests/knowledge/test_report_html.py#L108), [`test_blast_radius_coverage_gaps`](../../tests/knowledge/test_report_html.py#L154), [`test_documentation_section_is_developer_only`](../../tests/knowledge/test_report_html.py#L196), [`test_documentation_section_omitted_without_docs`](../../tests/knowledge/test_report_html.py#L190), [`test_documentation_section_renders_coverage_and_drift`](../../tests/knowledge/test_report_html.py#L173), [`test_empty_sections_omitted`](../../tests/knowledge/test_report_html.py#L97), [`test_filter_toolbar_and_inline_script`](../../tests/knowledge/test_report_html.py#L164), [`test_header_counts_rendered`](../../tests/knowledge/test_report_html.py#L205), [`test_html_escaping`](../../tests/knowledge/test_report_html.py#L89), [`test_self_contained_document`](../../tests/knowledge/test_report_html.py#L54), [`test_spotlight_uses_graph_when_store_given`](../../tests/knowledge/test_report_html.py#L144), [`test_stakeholder_lens_drops_jargon_sections`](../../tests/knowledge/test_report_html.py#L79), [`test_svg_diagram_replaces_placeholder`](../../tests/knowledge/test_report_html.py#L118), [`test_theme_aware`](../../tests/knowledge/test_report_html.py#L66), [`test_timestamp_optional_and_deterministic`](../../tests/knowledge/test_report_html.py#L71)
 - **Calls** (13): [`_activity_section`](../../src/orchestrator/knowledge/report_html.py#L327), [`_architecture_section`](../../src/orchestrator/knowledge/report_html.py#L100), [`_blast_radius_section`](../../src/orchestrator/knowledge/report_html.py#L166), [`_coverage_section`](../../src/orchestrator/knowledge/report_html.py#L257), [`_documentation_section`](../../src/orchestrator/knowledge/report_html.py#L289), [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_footer`](../../src/orchestrator/knowledge/report_html.py#L369), [`_header`](../../src/orchestrator/knowledge/report_html.py#L62), [`_overview_section`](../../src/orchestrator/knowledge/report_html.py#L96), [`_recommendations_section`](../../src/orchestrator/knowledge/report_html.py#L341), [`_risk_section`](../../src/orchestrator/knowledge/report_html.py#L184), [`_security_section`](../../src/orchestrator/knowledge/report_html.py#L274), [`_toolbar`](../../src/orchestrator/knowledge/report_html.py#L355)
 - **Documented in**: `docs/specs/shareable-report-spec.md#components-where-the-code-goes`
 

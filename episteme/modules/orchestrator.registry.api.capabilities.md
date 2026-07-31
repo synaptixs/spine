@@ -138,6 +138,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/registry/api/capabilities.py:111`](../../src/orchestrator/registry/api/capabilities.py#L111)
 
 - **Calls** (3): [`CapabilityInfo`](../../src/orchestrator/registry/api/capabilities.py#L96), [`CatalogResponse`](../../src/orchestrator/registry/api/capabilities.py#L104), [`default_catalog`](../../src/orchestrator/catalog/catalog.py#L129)
+- **Documented in**: `docs/specs/gap5-visualization-roadmap.md#phase-2-shipped-exit-criterion-met-scope-deliberately-trimmed`
 
 ### `memory_bank`
 
