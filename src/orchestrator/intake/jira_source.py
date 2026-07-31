@@ -80,6 +80,29 @@ def _description_text(description: Any) -> str:
     return ""
 
 
+def issue_meta_header(fields: dict[str, Any]) -> str:
+    """``"Bug · status: Open · priority: High"`` from a Jira issue's ``fields``, or ``""``.
+
+    Shared by the REST adapter and the MCP one so an issue reads the same whichever
+    transport fetched it. The header is how issue *type* reaches the extractor at all —
+    :class:`SourceDocument` has no field for it, so it is prepended to the body, and a Bug
+    genuinely reads differently from a Story.
+
+    Kept as one function on purpose: the MCP path originally re-derived the document without
+    it, so the same epic ingested over MCP arrived untyped while the REST path typed it.
+    """
+    itype = str((fields.get("issuetype") or {}).get("name") or "")
+    status = str((fields.get("status") or {}).get("name") or "")
+    priority = str((fields.get("priority") or {}).get("name") or "")
+    parts = (itype, f"status: {status}" if status else "", f"priority: {priority}" if priority else "")
+    return " · ".join(p for p in parts if p)
+
+
+def project_key_of(issue_key: str) -> str:
+    """``"PROJ"`` from ``"PROJ-123"``, else ``""`` — the project an issue belongs to."""
+    return issue_key.split("-")[0] if "-" in issue_key else ""
+
+
 def _collapse(text: str) -> str:
     return _MULTI_BLANK_RE.sub("\n\n", text).strip()
 
@@ -98,17 +121,13 @@ class JiraSourceAdapter:
         key = str(issue.get("key", ""))
         fields = issue.get("fields") or {}
         summary = str(fields.get("summary") or "")
-        itype = str((fields.get("issuetype") or {}).get("name") or "")
-        status = str((fields.get("status") or {}).get("name") or "")
-        priority = str((fields.get("priority") or {}).get("name") or "")
         labels = tuple(str(x) for x in (fields.get("labels") or []))
         # A short metadata header gives the extractor context — a Bug reads
         # differently from a Story, and status tells done from open.
-        meta = (itype, f"status: {status}" if status else "", f"priority: {priority}" if priority else "")
-        header = " · ".join(b for b in meta if b)
+        header = issue_meta_header(fields)
         body = _collapse("\n\n".join(p for p in (header, _description_text(fields.get("description"))) if p))
         url = f"{self._config.base_url.rstrip('/')}/browse/{key}" if key else ""
-        project = key.split("-")[0] if "-" in key else ""
+        project = project_key_of(key)
         return SourceDocument(id=key, title=summary, body=body, url=url, space=project, labels=labels)
 
     async def fetch_document(self, doc_id: str) -> SourceDocument:
