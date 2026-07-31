@@ -76,13 +76,18 @@ class _JiraMock:
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path
-        if path.endswith("/search"):
+        # `/search/jql`, not `/search`: Atlassian removed the latter (CHANGE-2046) and it
+        # now answers 410 Gone. The replacement returns no `total` — truncation is signalled
+        # by `isLast`/`nextPageToken` instead.
+        if path.endswith("/search/jql"):
             jql = request.url.params.get("jql", "")
             self.searched.append(jql)
             keys = self._resolve_jql(jql)
             issues = [self._payload(k) for k in keys]
-            total = self.total if self.total is not None else len(issues)
-            return httpx.Response(200, json={"issues": issues, "total": total})
+            body: dict[str, object] = {"issues": issues, "isLast": True}
+            if self.total is not None and self.total > len(issues):
+                body["isLast"] = False
+            return httpx.Response(200, json=body)
         if "/issue/" in path:
             key = path.split("/issue/")[1]
             if key not in self.issues:

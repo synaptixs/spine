@@ -19,7 +19,7 @@ from typing import Any
 
 from orchestrator.mcp.client import MCPClient, SessionMCPClient
 from orchestrator.mcp.config import MCPServerConfig, load_mcp_configs
-from orchestrator.mcp.models import MCPTool, MCPToolResult
+from orchestrator.mcp.models import MCPServerStatus, MCPTool, MCPToolResult
 
 logger = logging.getLogger("orchestrator.mcp")
 
@@ -28,6 +28,28 @@ ClientFactory = Callable[[MCPServerConfig], MCPClient]
 
 def _default_factory(config: MCPServerConfig) -> MCPClient:
     return SessionMCPClient(config)
+
+
+def _classify(exc: Exception) -> tuple[str, str]:
+    """``(kind, remedy)`` for a failed tool listing.
+
+    ``config`` means the operator must change something and retrying will not help;
+    ``unreachable`` means the server may simply be down. Matching on message text is
+    unlovely but these strings come from our own client and from the OS, and getting the
+    *class* right matters more than the precision: telling someone to install an extra when
+    the server is merely down wastes a minute, whereas telling them nothing at all — which
+    is what happened before — wasted considerably more.
+    """
+    msg = str(exc)
+    if "'mcp' extra" in msg:
+        return ("config", "install it: pip install 'synaptixs-spine[mcp]'")
+    if isinstance(exc, FileNotFoundError) or "executable file not found" in msg or "No such file" in msg:
+        return ("config", "the server's `command` is not on PATH — is it installed?")
+    if "permission denied" in msg.lower():
+        return ("config", "the server's `command` is not executable")
+    if isinstance(exc, TimeoutError | ConnectionError) or "timed out" in msg.lower():
+        return ("unreachable", "the server did not respond — is it running?")
+    return ("unreachable", "")
 
 
 class MCPRegistry:
@@ -48,19 +70,38 @@ class MCPRegistry:
     def server_names(self) -> list[str]:
         return list(self._configs)
 
-    async def list_tools(self) -> list[MCPTool]:
-        """Every allow-listed tool across all reachable servers (namespaced)."""
-        out: list[MCPTool] = []
+    async def probe(self) -> list[MCPServerStatus]:
+        """Ask every configured server for its tools, reporting **why** any failed.
+
+        The counterpart to :meth:`list_tools`, which swallows failures so one bad server
+        cannot blank the rest. That leniency is right for a run and wrong for a human: it
+        made a missing ``mcp`` extra, an unpulled image, a typo in ``command`` and a dead
+        server indistinguishable — all of them an empty list plus a log line nobody reads.
+        Surfaces to ``orchestrator mcp list``.
+        """
+        out: list[MCPServerStatus] = []
         for name, cfg in self._configs.items():
             if cfg.allow is None:
                 logger.warning("mcp.no_allowlist", extra={"server": name})
             try:
                 tools = await self._factory(cfg).list_tools()
             except Exception as exc:  # noqa: BLE001 — a down server must not blank the rest
-                logger.warning("mcp.list_failed", extra={"server": name, "error": str(exc)[:200]})
+                kind, remedy = _classify(exc)
+                logger.warning(
+                    "mcp.list_failed", extra={"server": name, "error": str(exc)[:200], "kind": kind}
+                )
+                out.append(MCPServerStatus(name=name, kind=kind, error=str(exc)[:300], remedy=remedy))
                 continue
-            out.extend(t for t in tools if cfg.allows(t.name))
+            out.append(MCPServerStatus(name=name, tools=tuple(t for t in tools if cfg.allows(t.name))))
         return out
+
+    async def list_tools(self) -> list[MCPTool]:
+        """Every allow-listed tool across all reachable servers (namespaced).
+
+        Failures are skipped rather than raised — one unreachable server must not blank the
+        others mid-run. Use :meth:`probe` when a human needs to know what went wrong.
+        """
+        return [t for status in await self.probe() for t in status.tools]
 
     async def call(self, qualified_name: str, arguments: dict[str, Any]) -> MCPToolResult:
         """Invoke ``server:tool`` — refuses unknown servers and non-allow-listed tools."""

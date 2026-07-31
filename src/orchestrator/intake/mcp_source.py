@@ -118,7 +118,11 @@ def _parse_document(doc_id: str, data: Any, raw_text: str) -> SourceDocument:
     inner = data.get("page")
     doc: dict[str, Any] = inner if isinstance(inner, dict) else data
     fields_raw = doc.get("fields")
-    fields: dict[str, Any] = fields_raw if isinstance(fields_raw, dict) else {}
+    # Jira REST nests issue attributes under `fields`; mcp-atlassian returns them FLATTENED at
+    # the top level and omits empty ones entirely. Fall back to the document itself as the
+    # field source so both shapes read the same. Harmless for Confluence: a page has no
+    # issue keys, so every issue-specific lookup below simply misses.
+    fields: dict[str, Any] = fields_raw if isinstance(fields_raw, dict) else doc
 
     title = str(doc.get("title") or fields.get("summary") or doc.get("summary") or doc.get("key") or doc_id)
 
@@ -129,7 +133,7 @@ def _parse_document(doc_id: str, data: Any, raw_text: str) -> SourceDocument:
         body = _description_text(body_raw)
     else:  # Jira: description lives under fields, often as ADF
         body = _description_text(fields.get("description"))
-    body = body.strip() or raw_text.strip()
+    body = body.strip()
 
     # Jira issues carry type/status/priority, and SourceDocument has no field for them — the
     # REST adapter prepends them to the body so the extractor can tell a Bug from a Story and
@@ -137,15 +141,32 @@ def _parse_document(doc_id: str, data: Any, raw_text: str) -> SourceDocument:
     # over MCP arrives untyped while the REST path types it. Guarded on `fields` so Confluence
     # pages (which have no such shape) are untouched.
     header = issue_meta_header(fields) if fields else ""
+
+    # The raw-text fallback is for a payload we did not recognise AT ALL — not for one we
+    # parsed cleanly that happens to have no description. mcp-atlassian omits empty fields
+    # rather than nulling them, so a description-less issue took this branch and shipped the
+    # whole JSON blob as the body; the extractor then read JSON instead of prose and coped
+    # only because an LLM is forgiving. Recognising a title or a header means we understood
+    # the document, and an empty body is then the truth.
+    recognised = bool(header) or title != doc_id
+    if not body and not recognised:
+        body = raw_text.strip()
+
     if header:
         body = f"{header}\n\n{body}" if body else header
 
     labels = tuple(str(x) for x in (fields.get("labels") or doc.get("labels") or []))
-    resolved_id = str(doc.get("id") or doc.get("key") or doc_id)
-    # `space` is the project key for Jira, matching the REST adapter. There is no `url`: the
-    # MCP server abstracts the host away, so we have no base to build a browse link from.
+    # Prefer `key` over `id`. Jira's `id` is an opaque number (36672) while `key` is the
+    # human identifier (CB-676) that every other surface — the browse URL, JQL, the project
+    # prefix — is built from. Preferring `id` left documents keyed by a number nobody
+    # recognises, and made the project key underivable.
+    resolved_id = str(doc.get("key") or doc.get("id") or doc_id)
+    # `space` is the project key for Jira, matching the REST adapter.
     space = project_key_of(resolved_id) if header else ""
-    return SourceDocument(id=resolved_id, title=title, body=body, labels=labels, space=space)
+    # mcp-atlassian hands back the browse link, so the `url` the REST adapter builds from its
+    # base URL is available here after all — no need to know the host.
+    url = str(doc.get("browse_url") or doc.get("url") or "")
+    return SourceDocument(id=resolved_id, title=title, body=body, labels=labels, space=space, url=url)
 
 
 def _parse_children(data: Any) -> list[SourceRef]:

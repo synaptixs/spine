@@ -31,4 +31,4 @@ _No database or ORM entities detected, so this is the **code's** model: the type
 | [`MemoryRow`](../src/orchestrator/registry/db/models.py#L216) | 13 members · used by 1 production call-site |
 | [`SourceDocument`](../src/orchestrator/intake/source.py#L35) | 7 members · used by 9 production · 11 test call-sites |
 
-_Top 25 of 555 types; the rest are in the module pages._
+_Top 25 of 556 types; the rest are in the module pages._

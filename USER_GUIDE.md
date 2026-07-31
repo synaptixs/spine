@@ -691,31 +691,97 @@ Claude or Codex.
 ```bash
 pip install 'synaptixs-spine[mcp]'        # or from source: uv sync --extra mcp
 ```
-Supply an `mcpServers` JSON file via `--config`, `$ORCHESTRATOR_MCP_CONFIG`, or
-`./mcp.json`. Transport is inferred (`command` → stdio, `url` → HTTP). Example
-`mcp.json` for Atlassian:
+> **Install the extra first, or the failure is silent.** Without it, `mcp list` prints an
+> empty tool list rather than an error — a missing dependency currently looks identical to an
+> unreachable server. If you see zero tools, check this before debugging the server.
+
+**Two files, one character apart, opposite directions.** `mcp.json` (no leading dot) is what
+*Spine reads* to find servers it may call. A tracked `.mcp.json` is the reverse — how Claude
+Code launches Spine *as* a server. Editing the wrong one is the most common setup mistake.
+
+Supply the `mcpServers` JSON via `--config`, `$ORCHESTRATOR_MCP_CONFIG`, or `./mcp.json`.
+Transport is inferred (`command` → stdio, `url` → HTTP).
+
+**9.1a — Atlassian via Docker (recommended: no tokens in the config file).**
+`mcp.json` is *not* gitignored by default and is exactly the file people paste tokens into.
+Pass credentials with `--env-file` instead, so the config carries nothing secret and stays
+safe to commit or share:
 ```json
 {
   "mcpServers": {
-    "confluence": {
-      "command": "uvx",
-      "args": ["mcp-atlassian"],
-      "env": {
-        "CONFLUENCE_URL": "https://your-org.atlassian.net/wiki",
-        "CONFLUENCE_USERNAME": "you@org.com",
-        "CONFLUENCE_API_TOKEN": "<token>",
-        "JIRA_URL": "https://your-org.atlassian.net",
-        "JIRA_USERNAME": "you@org.com",
-        "JIRA_API_TOKEN": "<token>"
-      },
-      "allow": ["confluence_get_page", "confluence_get_page_children", "jira_get_issue", "jira_search"]
+    "atlassian": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "--env-file", "/abs/path/to/.env",
+               "ghcr.io/sooperset/mcp-atlassian:latest"],
+      "allow": ["jira_get_issue", "jira_search",
+                "confluence_get_page", "confluence_get_page_children"]
     }
   }
 }
 ```
+`mcp-atlassian` expects **different variable names** than Spine's own `CONFLUENCE_*`/`JIRA_*`.
+The token names already match; add four aliases to your `.env` (same values you already have):
+```
+JIRA_URL=https://your-org.atlassian.net            # Spine calls this JIRA_BASE_URL
+JIRA_USERNAME=you@org.com                          # Spine calls this JIRA_EMAIL
+CONFLUENCE_URL=https://your-org.atlassian.net/wiki # note the /wiki suffix
+CONFLUENCE_USERNAME=you@org.com
+```
+Use an **absolute** path for `--env-file`: the server is launched as a subprocess whose working
+directory you do not control. And note Docker's `--env-file` does **not** strip inline comments —
+`FOO=bar  # note` yields the value `bar  # note`. Keep comments on their own lines.
+
+**9.1b — Atlassian via `uvx`** (no Docker; installs into your environment):
+```json
+{
+  "mcpServers": {
+    "atlassian": {
+      "command": "uvx",
+      "args": ["mcp-atlassian"],
+      "env": { "JIRA_URL": "https://your-org.atlassian.net", "JIRA_USERNAME": "you@org.com" },
+      "allow": ["jira_get_issue", "jira_search", "confluence_get_page"]
+    }
+  }
+}
+```
+The inline `env` block is convenient but puts values **in the file** — fine for non-secrets,
+wrong for tokens. Prefer `--env-file` (9.1a) whenever credentials are involved.
+
+**9.1c — Several servers at once.** `mcpServers` is a map; add as many as you need. Each is
+launched independently, and **one unreachable server does not blank the others** — the rest
+still list their tools:
+```json
+{
+  "mcpServers": {
+    "atlassian": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "--env-file", "/abs/path/to/.env",
+               "ghcr.io/sooperset/mcp-atlassian:latest"],
+      "allow": ["jira_get_issue", "jira_search", "confluence_get_page"]
+    },
+    "postgres": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-e", "DATABASE_URI",
+               "mcp/postgres:latest"],
+      "allow": ["query", "list_schemas"]
+    },
+    "internal": {
+      "url": "https://mcp.your-org.internal/sse",
+      "headers": { "Authorization": "Bearer ${INTERNAL_MCP_TOKEN}" },
+      "write_enabled": false
+    }
+  }
+}
+```
+Tool names are namespaced `server:tool`, so two servers may expose the same tool name without
+colliding. Point the Atlassian presets at a specific server with `MCP_JIRA_SERVER` /
+`MCP_CONFLUENCE_SERVER` when you run more than one that could serve them.
+
 - **`allow`** is an allow-list — only those tools are callable (omit = all, with a warning).
 - **Writes are off by default**: mutating tools are refused unless you set
   `write_enabled: true` on that server.
+- **Servers run on your machine.** A stdio server's `command` is executed locally; Docker at
+  least confines it. Review what you onboard.
 
 **9.2 — Inspect + call:**
 ```bash

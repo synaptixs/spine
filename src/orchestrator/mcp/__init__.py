@@ -17,10 +17,11 @@ from orchestrator.mcp.config import (
 )
 from orchestrator.mcp.contract import contract_id_for, mcp_tool_to_contract
 from orchestrator.mcp.handler import MCPRegisteredTool, MCPToolHandler, build_mcp_tools
-from orchestrator.mcp.models import MCPTool, MCPToolResult
+from orchestrator.mcp.models import MCPServerStatus, MCPTool, MCPToolResult
 from orchestrator.mcp.registry import MCPRegistry
 
 __all__ = [
+    "MCPServerStatus",
     "MCPClient",
     "MCPConfigError",
     "MCPError",
