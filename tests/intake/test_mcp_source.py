@@ -182,3 +182,70 @@ def test_configured_mcp_confluence_builds(monkeypatch: pytest.MonkeyPatch, tmp_p
     monkeypatch.setenv("ORCHESTRATOR_MCP_CONFIG", str(cfgfile))
     service = build_service_for("mcp-confluence://123", dry_run=True)  # builds without connecting
     assert service is not None
+
+
+async def test_mcp_jira_carries_issue_type_status_and_priority() -> None:
+    """The gap this closes: SourceDocument has no field for issue type, so the REST adapter
+    prepends it to the body. The MCP path did not, and the same epic ingested over MCP
+    arrived untyped — the extractor could not tell a Bug from a Story or done from open."""
+    adapter = _jira_adapter(
+        {
+            "ENG-9": {
+                "key": "ENG-9",
+                "fields": {
+                    "summary": "Login 500",
+                    "description": "stack trace",
+                    "issuetype": {"name": "Bug"},
+                    "status": {"name": "Open"},
+                    "priority": {"name": "High"},
+                },
+            }
+        },
+        {},
+    )
+    doc = await adapter.fetch_document("ENG-9")
+    assert doc.body.startswith("Bug · status: Open · priority: High")
+    assert "stack trace" in doc.body
+    assert doc.space == "ENG", "project key should come from the issue key, as in REST"
+
+
+async def test_mcp_jira_matches_the_rest_adapter_byte_for_byte() -> None:
+    """Parity is the actual requirement — one issue must read the same whichever transport
+    fetched it. Asserting equality (rather than each field) is what stops the two drifting."""
+    from orchestrator.intake.jira import JiraConfig
+    from orchestrator.intake.jira_source import JiraSourceAdapter
+
+    fields = {
+        "summary": "Login 500",
+        "description": "stack trace",
+        "issuetype": {"name": "Bug"},
+        "status": {"name": "Open"},
+        "priority": {"name": "High"},
+        "labels": ["auth"],
+    }
+    mcp_doc = await _jira_adapter({"ENG-9": {"key": "ENG-9", "fields": fields}}, {}).fetch_document("ENG-9")
+    rest = JiraSourceAdapter(JiraConfig(base_url="https://x.atlassian.net", email="e", api_token="t"))
+    rest_doc = rest._issue_to_document({"key": "ENG-9", "fields": fields})
+
+    assert mcp_doc.body == rest_doc.body
+    assert mcp_doc.title == rest_doc.title
+    assert mcp_doc.labels == rest_doc.labels
+    assert mcp_doc.space == rest_doc.space
+
+
+async def test_mcp_jira_omits_the_header_when_the_issue_has_no_type() -> None:
+    """A bare issue must not gain a stray blank header line."""
+    adapter = _jira_adapter({"ENG-1": {"key": "ENG-1", "fields": {"summary": "S", "description": "d"}}}, {})
+    doc = await adapter.fetch_document("ENG-1")
+    assert doc.body == "d"
+    assert doc.space == ""
+
+
+async def test_confluence_pages_are_untouched_by_the_jira_header() -> None:
+    """`_parse_document` is shared across source kinds; a wiki page has no issue metadata
+    and must not acquire a header or a project key."""
+    from orchestrator.intake.mcp_source import _parse_document
+
+    doc = _parse_document("123", {"title": "Design", "body": "the body"}, "")
+    assert doc.body == "the body"
+    assert doc.space == ""
