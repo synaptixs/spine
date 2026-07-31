@@ -21,7 +21,7 @@
 
 **Tests**
 
-- **280 test modules**, named `test_*.py` (92%).
+- **281 test modules**, named `test_*.py` (91%).
 - They live in `tests/sdlc/` (35), `tests/registry/` (33), `tests/pkg/` (27), `tests/intake/` (21).
 
 **Errors**
