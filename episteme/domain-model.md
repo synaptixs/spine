@@ -29,6 +29,6 @@ _No database or ORM entities detected, so this is the **code's** model: the type
 | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L84) | 7 members |
 | [`VersionedRepo`](../src/orchestrator/registry/repositories.py#L45) | 11 members · used by 11 production · 13 test call-sites |
 | [`MemoryRow`](../src/orchestrator/registry/db/models.py#L216) | 13 members · used by 1 production call-site |
-| [`PKGCodegenGrounder`](../src/orchestrator/sdlc/grounding.py#L30) | 10 members |
+| [`SourceDocument`](../src/orchestrator/intake/source.py#L35) | 7 members · used by 9 production · 11 test call-sites |
 
 _Top 25 of 555 types; the rest are in the module pages._

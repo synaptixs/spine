@@ -4,6 +4,32 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.11.1 — A Bug should read like a Bug
+
+An epic, story or bug read through an MCP server arrived **untyped**, while the same issue
+fetched over REST arrived typed. Whether the extractor could tell a Bug from a Story, or
+done from open, depended on which transport happened to fetch it.
+
+The mechanism is easy to miss, and worth writing down. `SourceDocument` has no field for
+issue type — the REST adapter encodes it as a header prepended to the body
+(`Bug · status: Open · priority: High`), precisely because a Bug reads differently from a
+Story. The MCP parser built its own document and never produced that header, so the
+information was not stored elsewhere; it was dropped. The fix puts the header in one
+function both adapters call, and the test asserts the two produce *equal* documents for
+identical input rather than checking fields one at a time — which is what stops them
+drifting apart again.
+
+> **Note on 3.11.0.** It was tagged and released on GitHub but never published to PyPI;
+> this release supersedes it and contains everything it did. Publishing 3.11.0 after this
+> fix landed would have put an artifact on PyPI that did not match its own tag.
+
+### Fixed
+
+- Jira issue type, status and priority now survive ingestion over MCP, matching the REST
+  adapter. MCP documents also set `space` to the project key. They still carry no `url` —
+  an MCP server abstracts the host away, so there is no base to build a browse link from.
+  Confluence pages read through the same parser are unaffected.
+
 ## 3.11.0 — Take the graph somewhere else
 
 The visualization gap was never really about our own renderer. A user who wanted to explore
