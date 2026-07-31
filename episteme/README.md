@@ -4,11 +4,11 @@
 Code-true knowledge base for **synaptixs-spine** (brownfield), built by `orchestrator understand` from the Product Knowledge Graph + project profile.
 
 <!-- spine-stamp -->
-Generated from commit `c786d466906ad7bed396c3b6f05de76ad58bd302` **plus uncommitted changes** by **Spine 3.11.0**.
+Generated from commit `a2d47c25767c631fd7bed5992c3ce12281ce0e2e` **plus uncommitted changes** by **Spine 3.11.1**.
 Verify it still matches the code with `orchestrator understand --check`.
 <!-- /spine-stamp -->
 
-**Graph:** 9722 grounded nodes · 28741 edges.
+**Graph:** 9722 grounded nodes · 28743 edges.
 
 > **epistēmē** (ἐπιστήμη) — knowledge grounded in evidence, as opposed to *doxa*, opinion. Everything here is derived from the code itself, not written by hand.
 
