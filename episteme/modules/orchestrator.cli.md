@@ -86,7 +86,7 @@ _20 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:1672`](../../src/orchestrator/cli.py#L1672)
 
 - **Called by** (2): [`_load_bug_text`](../../src/orchestrator/cli.py#L1821), [`investigate`](../../src/orchestrator/cli.py#L1620)
-- **Calls** (5): `Exit`, [`build_service_for`](../../src/orchestrator/intake/factory.py#L198), `echo`, [`parse_source_uri`](../../src/orchestrator/intake/service.py#L38), `run`
+- **Calls** (5): `Exit`, [`build_service_for`](../../src/orchestrator/intake/factory.py#L268), `echo`, [`parse_source_uri`](../../src/orchestrator/intake/service.py#L38), `run`
 
 ### `_print`
 
@@ -143,14 +143,14 @@ _20 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:290`](../../src/orchestrator/cli.py#L290)
 
 - **Called by** (1): [`ingest`](../../src/orchestrator/cli.py#L246)
-- **Calls** (8): `Exit`, [`_print`](../../src/orchestrator/cli.py#L78), [`analyze_cached`](../../src/orchestrator/intake/cache.py#L184), [`build_service_for`](../../src/orchestrator/intake/factory.py#L198), `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L38), [`spec_to_issue_request`](../../src/orchestrator/intake/service.py#L85)
+- **Calls** (8): `Exit`, [`_print`](../../src/orchestrator/cli.py#L78), [`analyze_cached`](../../src/orchestrator/intake/cache.py#L184), [`build_service_for`](../../src/orchestrator/intake/factory.py#L268), `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L38), [`spec_to_issue_request`](../../src/orchestrator/intake/service.py#L85)
 
 ### `_run_openspec_draft`
 
 [`src/orchestrator/cli.py:375`](../../src/orchestrator/cli.py#L375)
 
 - **Called by** (1): [`openspec_draft`](../../src/orchestrator/cli.py#L342)
-- **Calls** (11): `Exit`, [`_print`](../../src/orchestrator/cli.py#L78), [`analyze_cached`](../../src/orchestrator/intake/cache.py#L184), [`build_service_for`](../../src/orchestrator/intake/factory.py#L198), [`change_id_for`](../../src/orchestrator/intake/openspec_writer.py#L35), `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L38), `pathlib.Path`, [`render_change`](../../src/orchestrator/intake/openspec_writer.py#L108), [`write_change`](../../src/orchestrator/intake/openspec_writer.py#L123)
+- **Calls** (11): `Exit`, [`_print`](../../src/orchestrator/cli.py#L78), [`analyze_cached`](../../src/orchestrator/intake/cache.py#L184), [`build_service_for`](../../src/orchestrator/intake/factory.py#L268), [`change_id_for`](../../src/orchestrator/intake/openspec_writer.py#L35), `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L38), `pathlib.Path`, [`render_change`](../../src/orchestrator/intake/openspec_writer.py#L108), [`write_change`](../../src/orchestrator/intake/openspec_writer.py#L123)
 
 ### `_run_sdlc`
 

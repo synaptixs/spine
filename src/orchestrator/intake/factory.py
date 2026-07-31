@@ -15,7 +15,7 @@ for the CLI, a 400 for the web app.
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from orchestrator.core.llm import LiteLLMClient
 from orchestrator.intake.confluence import ConfluenceAdapter, ConfluenceConfig
@@ -54,6 +54,52 @@ def _build_service(source: SourceAdapter, *, dry_run: bool, rules_path: str | No
     )
 
 
+def mcp_server_for(tool: str, env_var: str) -> str | None:
+    """Name of a configured MCP server able to serve ``tool``, or ``None``.
+
+    **MCP is preferred over direct REST credentials wherever a capable server is onboarded.**
+    A governed MCP server is the better path: credentials live with the operator's server
+    rather than spread through this process's environment, tool calls are allow-listed and
+    audited, and — for Atlassian specifically — the server tracks upstream API changes that
+    a hand-rolled REST client does not. Spine's own Jira REST reader broke exactly that way
+    when Atlassian removed ``GET /rest/api/3/search``.
+
+    Resolution is deliberately **config-only and deterministic** — no server is launched to
+    ask what it exposes, because building a source must not have that side effect:
+
+    1. ``$<env_var>`` naming a configured, enabled server wins outright.
+    2. Otherwise the first enabled server whose ``allow`` list names ``tool``.
+    3. Otherwise a lone configured server with no allow-list, which by definition may serve
+       anything. With several such servers we decline to guess and fall back to REST.
+    """
+    from orchestrator.mcp.config import load_mcp_configs
+
+    try:
+        configs = [c for c in load_mcp_configs() if c.enabled]
+    except Exception:  # noqa: BLE001 — a malformed mcp.json must not break REST sources
+        return None
+    if not configs:
+        return None
+
+    by_name = {c.name: c for c in configs}
+    preferred = os.getenv(env_var)
+    if preferred and preferred in by_name:
+        return preferred
+    for c in configs:
+        if c.allow and tool in c.allow:
+            return c.name
+    if len(configs) == 1 and configs[0].allow is None:
+        return configs[0].name
+    return None
+
+
+def _with_server(config: Any, server: str) -> Any:
+    """Same MCP source config, pinned to a specific server name."""
+    from dataclasses import replace
+
+    return replace(config, server=server)
+
+
 def build_confluence_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
     """Wire a Confluence-backed ``BacklogService`` from environment config.
 
@@ -61,10 +107,22 @@ def build_confluence_service(*, dry_run: bool, rules_path: str | None = None) ->
     so it passes ``dry_run=True`` and simply never calls ``create_issues``.
     Raises ``IntakeNotConfiguredError`` if Confluence credentials are absent.
     """
+    server = mcp_server_for("confluence_get_page", "MCP_CONFLUENCE_SERVER")
+    if server:
+        from orchestrator.intake.mcp_source import MCPSourceConfig
+
+        return _build_mcp_service(
+            _with_server(MCPSourceConfig.for_confluence(), server),
+            label="MCP Confluence source",
+            dry_run=dry_run,
+            rules_path=rules_path,
+        )
+
     conf = ConfluenceConfig()
     if not conf.configured:
         raise IntakeNotConfiguredError(
-            "Confluence not configured (set CONFLUENCE_BASE_URL / CONFLUENCE_EMAIL / CONFLUENCE_API_TOKEN)."
+            "Confluence not configured: onboard an MCP server exposing `confluence_get_page` "
+            "(see mcp.json), or set CONFLUENCE_BASE_URL / CONFLUENCE_EMAIL / CONFLUENCE_API_TOKEN."
         )
     return _build_service(ConfluenceAdapter(conf), dry_run=dry_run, rules_path=rules_path)
 
@@ -77,10 +135,22 @@ def build_jira_service(*, dry_run: bool, rules_path: str | None = None) -> Backl
     tracker, minus ``project_key`` (only writes need a target project). Raises
     ``IntakeNotConfiguredError`` when the read creds are absent.
     """
+    server = mcp_server_for("jira_get_issue", "MCP_JIRA_SERVER")
+    if server:
+        from orchestrator.intake.mcp_source import MCPSourceConfig
+
+        return _build_mcp_service(
+            _with_server(MCPSourceConfig.for_jira(), server),
+            label="MCP Jira source",
+            dry_run=dry_run,
+            rules_path=rules_path,
+        )
+
     conf = JiraConfig()
     if not (conf.base_url and conf.email and conf.api_token):
         raise IntakeNotConfiguredError(
-            "Jira source not configured (set JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN)."
+            "Jira source not configured: onboard an MCP server exposing `jira_get_issue` "
+            "(see mcp.json), or set JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN."
         )
     return _build_service(JiraSourceAdapter(conf), dry_run=dry_run, rules_path=rules_path)
 

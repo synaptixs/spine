@@ -199,14 +199,28 @@ class JiraSourceAdapter:
         issues = data.get("issues") or []
         for issue in issues[:max_docs]:
             result.documents.append(self._issue_to_document(issue))
-        total = int(data.get("total") or len(result.documents))
-        if total > len(result.documents):
-            result.truncated = True
+        # `/search/jql` returns no `total` — the old endpoint's count is gone. Truncation is
+        # now "the server says there is more" (isLast false / a nextPageToken) or "we clipped
+        # the page ourselves". Reading a missing `total` as 0 would have silently claimed
+        # every result set was complete.
+        more_upstream = data.get("isLast") is False or bool(data.get("nextPageToken"))
+        result.truncated = more_upstream or len(issues) > len(result.documents)
         return result
 
     async def _search(self, jql: str, *, max_results: int) -> dict[str, Any]:
+        """JQL search via ``/search/jql``.
+
+        Atlassian **removed** ``GET /rest/api/3/search`` (CHANGE-2046); it now answers 410
+        Gone on Jira Cloud, which broke every read through this adapter — including the
+        ``parent = <key>`` traversal that walks an epic to its stories. The replacement drops
+        ``total`` in favour of ``isLast``/``nextPageToken``, so callers cannot ask "how many
+        are there?" any more; :meth:`_search_tree` decides truncation from ``isLast`` instead.
+
+        Prefer an MCP server for Jira where one is available — it tracks these API changes so
+        this client does not have to. See ``factory.mcp_server_for``.
+        """
         return await self._get(
-            "/search",
+            "/search/jql",
             params={"jql": jql, "maxResults": str(min(max_results, 100)), "fields": _FIELDS},
         )
 
