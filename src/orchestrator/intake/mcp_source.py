@@ -29,7 +29,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-from orchestrator.intake.jira_source import _description_text
+from orchestrator.intake.jira_source import _description_text, issue_meta_header, project_key_of
 from orchestrator.intake.source import (
     DEFAULT_MAX_DEPTH,
     DEFAULT_MAX_DOCS,
@@ -131,9 +131,21 @@ def _parse_document(doc_id: str, data: Any, raw_text: str) -> SourceDocument:
         body = _description_text(fields.get("description"))
     body = body.strip() or raw_text.strip()
 
+    # Jira issues carry type/status/priority, and SourceDocument has no field for them — the
+    # REST adapter prepends them to the body so the extractor can tell a Bug from a Story and
+    # done from open. Do the same here, from the same helper, or the identical epic ingested
+    # over MCP arrives untyped while the REST path types it. Guarded on `fields` so Confluence
+    # pages (which have no such shape) are untouched.
+    header = issue_meta_header(fields) if fields else ""
+    if header:
+        body = f"{header}\n\n{body}" if body else header
+
     labels = tuple(str(x) for x in (fields.get("labels") or doc.get("labels") or []))
     resolved_id = str(doc.get("id") or doc.get("key") or doc_id)
-    return SourceDocument(id=resolved_id, title=title, body=body, labels=labels)
+    # `space` is the project key for Jira, matching the REST adapter. There is no `url`: the
+    # MCP server abstracts the host away, so we have no base to build a browse link from.
+    space = project_key_of(resolved_id) if header else ""
+    return SourceDocument(id=resolved_id, title=title, body=body, labels=labels, space=space)
 
 
 def _parse_children(data: Any) -> list[SourceRef]:
