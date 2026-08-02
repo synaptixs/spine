@@ -4,8 +4,16 @@ A reusable prompt for generating an animated, self-contained diagram of a **gene
 foundation architecture: many sources, across many repositories and products, collapsing into
 one evidence-grounded graph.
 
-**Reference:** [knowledge-graph-architecture.md](knowledge-graph-architecture.md) — the concrete,
-Spine-specific version this generalises from.
+**The pair this belongs to:**
+
+- [knowledge-graph-architecture.md](knowledge-graph-architecture.md) — the concrete,
+  Spine-specific version both prompts generalise from.
+- [engineering-memory-diagram-prompt.md](engineering-memory-diagram-prompt.md) — the
+  **single-product** version, where the time axis makes memory compound. That is the unit;
+  this is many of them federated.
+
+This prompt animates **convergence** (many sources into one vocabulary); its companion animates
+**accumulation** (one product deepening over time). They should read as the same visual family.
 
 **Two deliberate departures from that reference**, worth knowing before you use this:
 
