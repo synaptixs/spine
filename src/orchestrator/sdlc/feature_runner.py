@@ -9,13 +9,15 @@ own presentation and error mapping.
 
 ``live=False`` (safe) makes **no external writes** — dry-run Jira, a local
 commit, no push. ``live=True`` creates a real Jira issue, pushes a branch, and
-opens a PR.
+opens a PR — unless ``issue`` names one that already exists, in which case the
+run adopts it and creates nothing.
 """
 
 from __future__ import annotations
 
 import asyncio
 import os
+import re
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
@@ -37,12 +39,26 @@ _BUILD_DIRS = {
 }
 
 
+# A tracker key: project part, hyphen, number ("SSPN-9"). Checked before intake
+# runs so a typo costs nothing — the *existence* check needs the tracker and
+# happens at the Jira step, still ahead of the workspace, codegen and any tests.
+_ISSUE_KEY = re.compile(r"^[A-Za-z][A-Za-z0-9_]*-\d+$")
+
+
 class FeatureRunError(RuntimeError):
     """A feature run can't proceed. ``code`` mirrors the CLI exit code."""
 
     def __init__(self, message: str, *, code: int = 1) -> None:
         super().__init__(message)
         self.code = code
+
+
+def _validated_issue_key(issue_key: str | None) -> str:
+    """Normalize an adopted issue key, or "" when the run should create one."""
+    key = (issue_key or "").strip().upper()
+    if key and not _ISSUE_KEY.match(key):
+        raise FeatureRunError(f"{issue_key!r} is not an issue key (expected e.g. PROJ-123).", code=2)
+    return key
 
 
 @dataclass
@@ -158,6 +174,7 @@ async def run_feature(
     model: str | None = None,
     max_refine: int = 3,
     live: bool = False,
+    issue: str | None = None,
     base_branch: str | None = None,
     layout_mode: str = "auto",
     package_name: str | None = None,
@@ -170,8 +187,13 @@ async def run_feature(
 
     ``spec`` injects a pre-built spec (title / summary / acceptance_criteria) and
     skips intake — used by Spine remediation (drift → governed run from a task spec).
+
+    ``issue`` adopts an issue that already exists instead of creating one, so
+    a run can be pointed at the ticket the work is actually for. Without it the
+    issue is created as before.
     """
     emit: Callable[[str], None] = log or (lambda _m: None)
+    adopt_key = _validated_issue_key(issue)
 
     from orchestrator.core.env import load_local_env
     from orchestrator.core.llm import LiteLLMClient, RecordingLLMClient
@@ -252,15 +274,35 @@ async def run_feature(
     emit("=" * 70)
 
     # 2. Jira issue (real only with live; otherwise a synthetic dry-run key).
+    #    With an adopted key the run creates nothing: the branch, PR, comment and
+    #    transition all land on the ticket the work is already tracked under.
+    #    Creating unconditionally is what minted duplicate, epic-less issues — and
+    #    stranded a real one whenever a run failed after the create.
     jira = JiraAdapter(JiraConfig(dry_run=not live))
     # Same renderer the intake path uses, so a spec produces the same issue body
     # whichever command created it (this used to hand-roll a summary-plus-criteria
     # version that dropped technical notes, NFRs and dependencies on the floor).
     from orchestrator.intake.service import spec_to_issue_request
 
-    issue = await jira.create_issue(spec_to_issue_request(spec))
-    issue_key = issue.key
-    emit(f"[jira] {'created' if live else 'dry-run'} issue: {issue_key} {issue.url}".rstrip())
+    if adopt_key:
+        try:
+            tracker_issue = await jira.get_issue(adopt_key)
+        except IssueTrackerError as exc:
+            # Before the workspace, before codegen, before a test run: an
+            # unreachable ticket is a wrong run, not a late surprise.
+            raise FeatureRunError(f"cannot adopt {adopt_key}: {exc}", code=2) from exc
+        emit(
+            f"[jira] adopted issue: {tracker_issue.key} {tracker_issue.url}".rstrip()
+            if live
+            else f"[jira] adopted issue (safe — not verified): {tracker_issue.key}"
+        )
+    else:
+        tracker_issue = await jira.create_issue(spec_to_issue_request(spec))
+        emit(
+            f"[jira] {'created' if live else 'dry-run'} issue: "
+            f"{tracker_issue.key} {tracker_issue.url}".rstrip()
+        )
+    issue_key = tracker_issue.key
 
     # 3. worktree branch off the real repo (or a scratch repo in safe/no-repo mode).
     sdlc_id = uuid.uuid4().hex[:16]

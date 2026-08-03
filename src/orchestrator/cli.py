@@ -688,6 +688,14 @@ def sdlc_feature(
             "Default --safe stays local (branch + commit + diff, dry-run Jira, no push).",
         ),
     ] = False,
+    issue: Annotated[
+        str | None,
+        typer.Option(
+            "--issue",
+            help="Adopt an existing tracker issue (e.g. SSPN-9) instead of creating one — the "
+            "branch, PR, comment and transition all land on it.",
+        ),
+    ] = None,
     base: Annotated[
         str | None,
         typer.Option(
@@ -733,6 +741,9 @@ def sdlc_feature(
     the generated + tested code, and prints the diff. Pass --live to create the
     Jira issue, push the branch, open a real PR, and comment the PR link back on
     the issue.
+
+    Pass --issue <KEY> when the work is already tracked: the run adopts that
+    issue instead of creating a second one for the same story.
     """
     import asyncio
 
@@ -751,6 +762,7 @@ def sdlc_feature(
             model=model,
             max_refine=max_refine,
             live=live,
+            issue=issue,
             base=base,
             layout_mode=layout,
             package_name=package_name,
@@ -768,6 +780,7 @@ async def _run_sdlc_feature(
     model: str | None,
     max_refine: int,
     live: bool,
+    issue: str | None,
     base: str | None,
     layout_mode: str,
     package_name: str | None,
@@ -784,6 +797,7 @@ async def _run_sdlc_feature(
             model=model,
             max_refine=max_refine,
             live=live,
+            issue=issue,
             base_branch=base,
             layout_mode=layout_mode,
             package_name=package_name,

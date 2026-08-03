@@ -185,6 +185,29 @@ class JiraAdapter:
         browse = f"{self._config.base_url.rstrip('/')}/browse/{key}" if key else ""
         return CreatedIssue(key=key, id=str(data.get("id", "")), url=browse, dry_run=False)
 
+    async def get_issue(self, issue_key: str) -> CreatedIssue:
+        """Fetch an issue that already exists, so a run can adopt it.
+
+        The counterpart to ``create_issue`` for work that is already tracked:
+        it proves the key resolves before a caller builds a branch and a PR
+        around it. Deliberately outside ``IssueTrackerAdapter`` — like
+        ``comment_issue`` / ``transition_issue``, it operates on an issue rather
+        than producing one, and the Protocol stays the create/link seam.
+
+        Honors dry-run by returning the would-be issue without an API call: a
+        safe run must make no external call, so the key is taken on trust and
+        the run reports it as unverified.
+        """
+        key = issue_key.strip().upper()
+        if not key:
+            raise IssueTrackerError("no issue key given to adopt.")
+        if self._config.dry_run:
+            return CreatedIssue(key=key, dry_run=True)
+        data = await self._get(f"/issue/{key}?fields=summary")
+        found = str(data.get("key", "")) or key
+        browse = f"{self._config.base_url.rstrip('/')}/browse/{found}"
+        return CreatedIssue(key=found, id=str(data.get("id", "")), url=browse, dry_run=False)
+
     async def link_issues(self, link: IssueLink) -> None:
         if self._config.dry_run:
             return

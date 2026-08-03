@@ -19,12 +19,12 @@ _No database or ORM entities detected, so this is the **code's** model: the type
 | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L42) | 9 members |
 | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | 5 members · used by 18 production call-sites |
 | [`FactStore`](../src/orchestrator/pkg/store.py#L24) | 23 members · used by 2 production · 35 test call-sites |
+| [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L48) | 2 members · used by 16 production · 1 test call-sites |
 | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | 17 members · used by 2 production · 19 test call-sites |
 | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | 14 members |
 | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L532) | 6 members · used by 2 production · 25 test call-sites |
 | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L44) | 30 members · used by 1 production · 27 test call-sites |
 | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L234) | 3 members · used by 16 production call-sites |
-| [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L40) | 2 members · used by 14 production · 1 test call-sites |
 | [`AgentLoop`](../src/orchestrator/agentic/loop.py#L197) | 21 members |
 | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L84) | 7 members |
 | [`VersionedRepo`](../src/orchestrator/registry/repositories.py#L45) | 11 members · used by 11 production · 13 test call-sites |
