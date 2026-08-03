@@ -15,6 +15,7 @@ from orchestrator.intake.gaps import GapAnalyzer, GapRule, GapSeverity
 from orchestrator.intake.intents import IntentExtractor
 from orchestrator.intake.jira import CreatedIssue, IssueLink, IssueRequest
 from orchestrator.intake.service import (
+    BacklogPlan,
     BacklogService,
     SourceUriError,
     parse_source_uri,
@@ -67,10 +68,38 @@ def test_spec_to_issue_request_renders_body() -> None:
     req = spec_to_issue_request(spec, labels=("sdlc-intake",))
     assert req.summary == "Add CSV export"
     assert req.labels == ("sdlc-intake",)
-    assert "Acceptance criteria:" in req.description
+    # Markdown, so ADF renders real headings and a real checklist.
+    assert "## Acceptance criteria" in req.description
     assert "- Downloads <5s for 10k rows." in req.description
-    assert "Source intent: intent-x" in req.description
-    assert "Estimate: M" in req.description
+    assert "> As an analyst, I want CSV." in req.description
+    assert "## Technical notes" in req.description
+    assert "## Non-functional requirements" in req.description
+    assert "## Dependencies" in req.description
+    assert "**Source intent:** `intent-x`" in req.description
+    assert "**Estimate:** M" in req.description
+
+
+def test_spec_to_issue_request_accepts_a_plain_mapping() -> None:
+    """The SDLC feature runner's spec is a dict; it must yield the same body."""
+    req = spec_to_issue_request(
+        {
+            "intent_id": "intent-y",
+            "title": "Add Endpoint nodes",
+            "summary": "Routes become graph nodes.",
+            "acceptance_criteria": ["70 of 77 handlers carry EXPOSES."],
+            "technical_notes": "Prefix join in finalize().",
+        }
+    )
+    assert req.summary == "Add Endpoint nodes"
+    assert "## Acceptance criteria" in req.description
+    assert "- 70 of 77 handlers carry EXPOSES." in req.description
+    assert "## Technical notes" in req.description
+
+
+def test_spec_to_issue_request_omits_empty_sections() -> None:
+    req = spec_to_issue_request({"title": "Bare", "summary": "Only a summary."})
+    assert "##" not in req.description
+    assert req.description == "Only a summary."
 
 
 # ---- fakes ----------------------------------------------------------------
@@ -217,9 +246,65 @@ async def test_link_dependencies_when_live() -> None:
     svc = _service(docs=docs, intents_json=intents, spec_json=spec, tracker=tracker)
     plan = await svc.analyze("p1")
     await svc.create_issues(plan, link_dependencies=True)
-    # Addon (ENG-2) depends on Base (ENG-1) → one Blocks link
+    # Addon depends on Base → one Blocks link. Linking keys off intent ids, not
+    # creation order, so the epic taking ENG-1 doesn't disturb it.
     assert len(tracker.links) == 1
     assert tracker.links[0].link_type == "Blocks"
+
+
+# ---- epic grouping --------------------------------------------------------
+
+
+async def _two_spec_plan(tracker: _FakeTracker) -> tuple[BacklogService, BacklogPlan]:
+    docs = [SourceDocument(id="p1", title="Python front-end parity", body="two features", url="http://x/1")]
+    intents = jsonlib.dumps(
+        {
+            "intents": [
+                {"title": "Endpoints", "description": "Routes become graph nodes."},
+                {"title": "Entities", "description": "ORM models become entities."},
+            ]
+        }
+    )
+    svc = _service(
+        docs=docs, intents_json=intents, spec_json=jsonlib.dumps({"summary": "s"}), tracker=tracker
+    )
+    return svc, await svc.analyze("p1")
+
+
+async def test_epic_groups_stories_and_parents_them() -> None:
+    tracker = _FakeTracker(dry_run=True)
+    svc, plan = await _two_spec_plan(tracker)
+
+    issues = await svc.create_issues(plan)
+
+    epic, *stories = tracker.created
+    assert epic.issue_type == "Epic"
+    assert epic.summary == "Python front-end parity"
+    assert "http://x/1" in epic.description
+    assert [s.parent_key for s in stories] == ["ENG-1", "ENG-1"]
+    # The epic was created, so it is reported alongside the stories.
+    assert [i.key for i in issues] == ["ENG-1", "ENG-2", "ENG-3"]
+
+
+async def test_single_spec_gets_no_epic() -> None:
+    """One story under its own epic is ceremony, not structure."""
+    docs = [SourceDocument(id="p1", title="Reqs", body="one feature")]
+    intents = jsonlib.dumps({"intents": [{"title": "Only", "description": "A single capability."}]})
+    tracker = _FakeTracker(dry_run=True)
+    svc = _service(
+        docs=docs, intents_json=intents, spec_json=jsonlib.dumps({"summary": "s"}), tracker=tracker
+    )
+    await svc.create_issues(await svc.analyze("p1"))
+    assert len(tracker.created) == 1
+    assert tracker.created[0].parent_key == ""
+
+
+async def test_epic_can_be_turned_off() -> None:
+    tracker = _FakeTracker(dry_run=True)
+    svc, plan = await _two_spec_plan(tracker)
+    await svc.create_issues(plan, epic=False)
+    assert len(tracker.created) == 2
+    assert all(req.parent_key == "" for req in tracker.created)
 
 
 async def test_custom_blocker_rule_gates() -> None:

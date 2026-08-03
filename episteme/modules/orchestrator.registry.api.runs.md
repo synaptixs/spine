@@ -98,6 +98,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/registry/api/runs.py:66`](../../src/orchestrator/registry/api/runs.py#L66)
 
 - **Calls** (3): [`RunListResponse`](../../src/orchestrator/registry/api/runs.py#L59), [`_summarize`](../../src/orchestrator/registry/api/runs.py#L132), `sqlalchemy.select`
+- **Documented in**: `docs/specs/python-frontend-parity.md#1-the-evidence`, `docs/specs/python-frontend-parity.md#51-phase-1-endpoint-exposes`, `docs/specs/python-frontend-parity.md#53-phase-3-reads-writes-separate-pr`
 
 ### `run_artifacts`
 

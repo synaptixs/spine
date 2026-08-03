@@ -29,7 +29,7 @@
 [`src/orchestrator/intake/cache.py:71`](../../src/orchestrator/intake/cache.py#L71)
 
 - **Called by** (2): [`complete_by_pr`](../../src/orchestrator/intake/cache.py#L133), [`load_cached_plan`](../../src/orchestrator/intake/cache.py#L156)
-- **Calls** (6): [`BacklogPlan`](../../src/orchestrator/intake/service.py#L114), [`GapFinding`](../../src/orchestrator/intake/gaps.py#L75), [`GapSeverity`](../../src/orchestrator/intake/gaps.py#L44), [`SourceDocument`](../../src/orchestrator/intake/source.py#L35), `model_validate`, `model_validate`
+- **Calls** (6): [`BacklogPlan`](../../src/orchestrator/intake/service.py#L158), [`GapFinding`](../../src/orchestrator/intake/gaps.py#L75), [`GapSeverity`](../../src/orchestrator/intake/gaps.py#L44), [`SourceDocument`](../../src/orchestrator/intake/source.py#L35), `model_validate`, `model_validate`
 
 ### `_plan_to_dict`
 
@@ -50,7 +50,7 @@
 [`src/orchestrator/intake/cache.py:184`](../../src/orchestrator/intake/cache.py#L184)
 
 - **Called by** (3 production · 2 test): [`_run_ingest`](../../src/orchestrator/cli.py#L290), [`_run_openspec_draft`](../../src/orchestrator/cli.py#L375), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_analyze_cached_extracts_once_then_reuses`](../../tests/intake/test_cache.py#L75), [`test_refresh_forces_reextract`](../../tests/intake/test_cache.py#L83)
-- **Calls** (5): [`cache_path`](../../src/orchestrator/intake/cache.py#L45), [`load_cached_plan`](../../src/orchestrator/intake/cache.py#L156), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L38), `py:emit`, [`save_plan`](../../src/orchestrator/intake/cache.py#L170)
+- **Calls** (5): [`cache_path`](../../src/orchestrator/intake/cache.py#L45), [`load_cached_plan`](../../src/orchestrator/intake/cache.py#L156), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40), `py:emit`, [`save_plan`](../../src/orchestrator/intake/cache.py#L170)
 - **Documented in**: `docs/specs/intake-backlog-progress.md#components`
 
 ### `cache_path`

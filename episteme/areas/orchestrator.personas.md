@@ -32,7 +32,7 @@ flowchart LR
 ## Modules
 
 - [`orchestrator.personas`](../../src/orchestrator/personas/__init__.py#L1)
-- [`orchestrator.personas.auditor`](../modules/orchestrator.personas.auditor.md)
+- [`orchestrator.personas.auditor`](../../src/orchestrator/personas/auditor.py#L1)
 - [`orchestrator.personas.binding`](../../src/orchestrator/personas/binding.py#L1)
 - [`orchestrator.personas.registry`](../../src/orchestrator/personas/registry.py#L1)
 - [`orchestrator.personas.software_engineer`](../../src/orchestrator/personas/software_engineer.py#L1)
