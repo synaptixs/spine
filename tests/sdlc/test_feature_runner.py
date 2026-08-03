@@ -140,7 +140,13 @@ def _aresult(value: Any) -> Any:
     return _coro()
 
 
-def _install_pipeline(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, runner: type) -> list[_StubCodegen]:
+def _install_pipeline(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    *,
+    runner: type,
+    codegen: type[_StubCodegen] = _StubCodegen,
+) -> list[_StubCodegen]:
     """Stub everything downstream of spec resolution so run_feature drives the
     real layout/scaffold/preflight + test-loop logic against a tmp worktree.
     Returns the list that captures each constructed stub codegen."""
@@ -152,7 +158,7 @@ def _install_pipeline(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, runner
     created: list[_StubCodegen] = []
 
     def _make_codegen(*a: Any, **k: Any) -> _StubCodegen:
-        stub = _StubCodegen(*a, **k)
+        stub = codegen(*a, **k)
         created.append(stub)
         return stub
 
@@ -180,17 +186,43 @@ def _install_pipeline(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, runner
 async def test_empty_refine_ends_in_graceful_failed_verdict(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """When refine yields no edits and tests stay red, the loop must exhaust
-    ``--max-refine`` and raise the clean ``VERDICT: FAILED`` (exit 1) — never an
-    unhandled CodegenError. Locks in the integration half of the no-op-refine
-    fix; ``test_refine_tolerates_a_no_op_response`` covers the adapter half."""
+    """When refine yields no edits and tests stay red, the loop must raise the clean
+    ``VERDICT: FAILED`` (exit 1) — never an unhandled CodegenError. Locks in the
+    integration half of the no-op-refine fix; ``test_refine_tolerates_a_no_op_response``
+    covers the adapter half.
+
+    It now stops at the *first* empty refine rather than exhausting ``--max-refine``:
+    with no file changed, the next run is byte-identical to the one that just failed,
+    so further iterations only spend LLM calls to watch the same error.
+    """
     created = _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner)
 
     with pytest.raises(FeatureRunError, match="VERDICT: FAILED") as exc:
         await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3)
 
     assert exc.value.code == 1
-    # max_refine=3 → run/refine/run/refine/run: two empty refines survived.
+    assert created and created[0].refine_calls == 1
+
+
+class _EditingCodegen(_StubCodegen):
+    """Refine that actually edits something — the loop must keep going."""
+
+    async def refine(self, **kwargs: Any) -> CodeChange:
+        self.refine_calls += 1
+        return CodeChange(files=["src/x.py"], summary="edited")
+
+
+async def test_refine_that_changes_files_still_uses_the_whole_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The early stop must key on *no edits*, not on failure — a refine that edits
+    code has earned another run, however red the suite still is."""
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, codegen=_EditingCodegen)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3)
+
+    # max_refine=3 → run/refine/run/refine/run.
     assert created and created[0].refine_calls == 2
 
 

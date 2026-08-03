@@ -688,6 +688,13 @@ def sdlc_feature(
             "Default --safe stays local (branch + commit + diff, dry-run Jira, no push).",
         ),
     ] = False,
+    base: Annotated[
+        str | None,
+        typer.Option(
+            "--base",
+            help="PR target branch (default: $SDLC_PR_BASE, else the repo's default branch).",
+        ),
+    ] = None,
     layout: Annotated[
         str,
         typer.Option(
@@ -744,6 +751,7 @@ def sdlc_feature(
             model=model,
             max_refine=max_refine,
             live=live,
+            base=base,
             layout_mode=layout,
             package_name=package_name,
             refresh=refresh,
@@ -760,6 +768,7 @@ async def _run_sdlc_feature(
     model: str | None,
     max_refine: int,
     live: bool,
+    base: str | None,
     layout_mode: str,
     package_name: str | None,
     refresh: bool,
@@ -775,6 +784,7 @@ async def _run_sdlc_feature(
             model=model,
             max_refine=max_refine,
             live=live,
+            base_branch=base,
             layout_mode=layout_mode,
             package_name=package_name,
             refresh=refresh,

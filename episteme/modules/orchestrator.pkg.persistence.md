@@ -105,7 +105,7 @@
 
 [`src/orchestrator/pkg/persistence.py:133`](../../src/orchestrator/pkg/persistence.py#L133)
 
-- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L1499), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L310), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L152), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
+- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L1509), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L310), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L152), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
 - **Calls** (2): [`_git`](../../src/orchestrator/pkg/persistence.py#L126), `pathlib.Path`
 
 ### `save_facts`
@@ -121,4 +121,4 @@
 
 ## Imported by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.understand`](orchestrator.knowledge.understand.md), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`tests.pkg.test_persistence`](../../tests/pkg/test_persistence.py#L1)
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.understand`](../../src/orchestrator/knowledge/understand.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`tests.pkg.test_persistence`](../../tests/pkg/test_persistence.py#L1)

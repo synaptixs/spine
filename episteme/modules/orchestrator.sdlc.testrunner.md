@@ -30,7 +30,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:251`](../../src/orchestrator/sdlc/testrunner.py#L251)
 
-- **Called by** (1 production · 2 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_ctest_runner_passes_when_all_steps_succeed`](../../tests/sdlc/test_testenv.py#L454), [`test_ctest_runner_short_circuits_on_compile_error`](../../tests/sdlc/test_testenv.py#L470)
+- **Called by** (1 production · 2 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_ctest_runner_passes_when_all_steps_succeed`](../../tests/sdlc/test_testenv.py#L455), [`test_ctest_runner_short_circuits_on_compile_error`](../../tests/sdlc/test_testenv.py#L471)
 - **Fields**: `_cmake`, `_ctest`, `_timeout`
 - **Documented in**: `docs/specs/go-support-roadmap.md#why-go-now-and-why-it-is-cheaper-than-cc`, `docs/specs/language-support-roadmap.md#track-2-c-c-h-do-second-new-model-but-simplest-language`, `docs/specs/language-support-roadmap.md#track-3-c-cpp-cc-cxx-hpp-hh-hxx-do-third-builds-on-c`
 
@@ -38,7 +38,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:172`](../../src/orchestrator/sdlc/testrunner.py#L172)
 
-- **Called by** (1 production · 4 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_dotnet_runner_fails_and_captures_output`](../../tests/sdlc/test_testenv.py#L364), [`test_dotnet_runner_no_target_runs_at_root`](../../tests/sdlc/test_testenv.py#L397), [`test_dotnet_runner_passes_on_zero_exit`](../../tests/sdlc/test_testenv.py#L353), [`test_dotnet_runner_targets_a_nested_solution`](../../tests/sdlc/test_testenv.py#L375)
+- **Called by** (1 production · 4 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_dotnet_runner_fails_and_captures_output`](../../tests/sdlc/test_testenv.py#L365), [`test_dotnet_runner_no_target_runs_at_root`](../../tests/sdlc/test_testenv.py#L398), [`test_dotnet_runner_passes_on_zero_exit`](../../tests/sdlc/test_testenv.py#L354), [`test_dotnet_runner_targets_a_nested_solution`](../../tests/sdlc/test_testenv.py#L376)
 - **Fields**: `_dotnet`, `_timeout`
 - **Documented in**: `docs/specs/language-support-roadmap.md#track-1-c-cs-do-first-lowest-risk`
 
@@ -46,7 +46,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:310`](../../src/orchestrator/sdlc/testrunner.py#L310)
 
-- **Called by** (1 production · 7 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_go_build_and_test_pass_for_correct_code`](../../tests/sdlc/test_go_integration.py#L34), [`test_go_build_fails_for_compile_error`](../../tests/sdlc/test_go_integration.py#L58), [`test_go_runner_short_circuits_on_build_error`](../../tests/sdlc/test_testenv.py#L662), [`test_go_runner_tests_root_when_root_files_change`](../../tests/sdlc/test_testenv.py#L628), [`test_go_runner_tests_the_changed_submodule`](../../tests/sdlc/test_testenv.py#L644), [`test_go_test_fails_for_wrong_code`](../../tests/sdlc/test_go_integration.py#L46), [`test_scaffold_alone_is_green`](../../tests/sdlc/test_go_integration.py#L27)
+- **Called by** (1 production · 7 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_go_build_and_test_pass_for_correct_code`](../../tests/sdlc/test_go_integration.py#L34), [`test_go_build_fails_for_compile_error`](../../tests/sdlc/test_go_integration.py#L58), [`test_go_runner_short_circuits_on_build_error`](../../tests/sdlc/test_testenv.py#L663), [`test_go_runner_tests_root_when_root_files_change`](../../tests/sdlc/test_testenv.py#L629), [`test_go_runner_tests_the_changed_submodule`](../../tests/sdlc/test_testenv.py#L645), [`test_go_test_fails_for_wrong_code`](../../tests/sdlc/test_go_integration.py#L46), [`test_scaffold_alone_is_green`](../../tests/sdlc/test_go_integration.py#L27)
 - **Fields**: `_go`, `_timeout`
 - **Documented in**: `docs/specs/go-support-roadmap.md#design-plan-adding-go-to-the-pkg-8th-language`, `docs/specs/go-support-roadmap.md#track-4-go-go`, `docs/specs/language-expansion-roadmap.md#where-we-are-today`
 
@@ -54,7 +54,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:136`](../../src/orchestrator/sdlc/testrunner.py#L136)
 
-- **Called by** (1 production · 4 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_maven_build_fails_for_wrong_java`](../../tests/sdlc/test_java_integration.py#L50), [`test_maven_build_passes_for_correct_java`](../../tests/sdlc/test_java_integration.py#L34), [`test_maven_runner_fails_and_captures_output`](../../tests/sdlc/test_testenv.py#L205), [`test_maven_runner_passes_on_zero_exit`](../../tests/sdlc/test_testenv.py#L194)
+- **Called by** (1 production · 4 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_maven_build_fails_for_wrong_java`](../../tests/sdlc/test_java_integration.py#L50), [`test_maven_build_passes_for_correct_java`](../../tests/sdlc/test_java_integration.py#L34), [`test_maven_runner_fails_and_captures_output`](../../tests/sdlc/test_testenv.py#L206), [`test_maven_runner_passes_on_zero_exit`](../../tests/sdlc/test_testenv.py#L195)
 - **Fields**: `_mvn`, `_timeout`
 - **Documented in**: `docs/specs/java-codegen.md#build-spec-java-codegen-multi-language-slice-2`, `docs/specs/java-codegen.md#feature-runner`, `docs/specs/java-codegen.md#phasing-each-shippable`, `docs/specs/java-codegen.md#test-runner-env`, `docs/specs/multi-language-java.md#slice-2-java-codegen-follow-on`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
@@ -62,7 +62,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:282`](../../src/orchestrator/sdlc/testrunner.py#L282)
 
-- **Called by** (1 production · 2 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_meson_runner_configures_then_tests`](../../tests/sdlc/test_testenv.py#L521), [`test_meson_runner_fails_on_setup`](../../tests/sdlc/test_testenv.py#L536)
+- **Called by** (1 production · 2 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_meson_runner_configures_then_tests`](../../tests/sdlc/test_testenv.py#L522), [`test_meson_runner_fails_on_setup`](../../tests/sdlc/test_testenv.py#L537)
 - **Fields**: `_meson`, `_timeout`
 - **Documented in**: `docs/specs/language-support-roadmap.md#track-2-c-c-h-do-second-new-model-but-simplest-language`, `docs/specs/language-support-roadmap.md#track-3-c-cpp-cc-cxx-hpp-hh-hxx-do-third-builds-on-c`
 
@@ -70,7 +70,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:217`](../../src/orchestrator/sdlc/testrunner.py#L217)
 
-- **Called by** (1 production · 4 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_node_runner_fails_and_captures_output`](../../tests/sdlc/test_testenv.py#L285), [`test_node_runner_passes_on_zero_exit`](../../tests/sdlc/test_testenv.py#L274), [`test_vitest_fails_for_wrong_ts`](../../tests/sdlc/test_typescript_integration.py#L51), [`test_vitest_passes_for_correct_ts`](../../tests/sdlc/test_typescript_integration.py#L43)
+- **Called by** (1 production · 4 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_node_runner_fails_and_captures_output`](../../tests/sdlc/test_testenv.py#L286), [`test_node_runner_passes_on_zero_exit`](../../tests/sdlc/test_testenv.py#L275), [`test_vitest_fails_for_wrong_ts`](../../tests/sdlc/test_typescript_integration.py#L51), [`test_vitest_passes_for_correct_ts`](../../tests/sdlc/test_typescript_integration.py#L43)
 - **Fields**: `_pm`, `_timeout`
 - **Documented in**: `docs/specs/typescript-codegen.md#design-multi-language-support-typescript`, `docs/specs/typescript-codegen.md#feature-runner`, `docs/specs/typescript-codegen.md#phasing-each-shippable`, `docs/specs/typescript-codegen.md#test-runner-env`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
@@ -110,7 +110,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:66`](../../src/orchestrator/sdlc/testrunner.py#L66)
 
-- **Called by** (11 production · 1 test): [`_run`](../../src/orchestrator/sdlc/testrunner.py#L470), [`run`](../../src/orchestrator/sdlc/testrunner.py#L266), [`run`](../../src/orchestrator/sdlc/testrunner.py#L186), [`run`](../../src/orchestrator/sdlc/testrunner.py#L326), [`run`](../../src/orchestrator/sdlc/testrunner.py#L147), [`run`](../../src/orchestrator/sdlc/testrunner.py#L296), [`run`](../../src/orchestrator/sdlc/testrunner.py#L228), [`run`](../../src/orchestrator/sdlc/testrunner.py#L460), [`run`](../../src/orchestrator/sdlc/testrunner.py#L427), [`run`](../../src/orchestrator/sdlc/testrunner.py#L504), [`run`](../../src/orchestrator/sdlc/testrunner.py#L94), [`_fail`](../../tests/sdlc/test_testenv.py#L54)
+- **Called by** (11 production · 1 test): [`_run`](../../src/orchestrator/sdlc/testrunner.py#L470), [`run`](../../src/orchestrator/sdlc/testrunner.py#L266), [`run`](../../src/orchestrator/sdlc/testrunner.py#L186), [`run`](../../src/orchestrator/sdlc/testrunner.py#L326), [`run`](../../src/orchestrator/sdlc/testrunner.py#L147), [`run`](../../src/orchestrator/sdlc/testrunner.py#L296), [`run`](../../src/orchestrator/sdlc/testrunner.py#L228), [`run`](../../src/orchestrator/sdlc/testrunner.py#L460), [`run`](../../src/orchestrator/sdlc/testrunner.py#L427), [`run`](../../src/orchestrator/sdlc/testrunner.py#L504), [`run`](../../src/orchestrator/sdlc/testrunner.py#L94), [`_fail`](../../tests/sdlc/test_testenv.py#L55)
 - **Fields**: `__test__`, `output`, `passed`, `returncode`
 - **Documented in**: `docs/specs/java-codegen.md#test-runner-env`, `docs/specs/typescript-codegen.md#test-runner-env`
 

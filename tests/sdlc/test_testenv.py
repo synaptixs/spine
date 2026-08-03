@@ -10,6 +10,7 @@ import pytest
 from orchestrator.sdlc.testenv import (
     LocalTestEnvironment,
     VenvTestEnvironment,
+    _project_dependencies,
     make_test_environment,
     parse_missing_module,
     run_with_autoheal,
@@ -673,3 +674,86 @@ async def test_go_runner_short_circuits_on_build_error(
     result = await GoTestRunner().run(path=str(tmp_path))
     assert not result.passed and result.returncode == 2
     assert len(calls) == 1  # a build failure short-circuits before `go test`
+
+
+# ---- declared dependencies ------------------------------------------------
+
+
+def _pyproject(tmp_path: Path, body: str) -> Path:
+    (tmp_path / "pyproject.toml").write_text(body, encoding="utf-8")
+    return tmp_path
+
+
+def test_dev_extra_is_installed_alongside_runtime_deps(tmp_path: Path) -> None:
+    """Test deps live in a dev extra, and a suite that can't import dies at collection.
+
+    Runtime-only envs made every refine iteration see the same ModuleNotFoundError,
+    so the verdict was FAILED regardless of how good the generated code was.
+    """
+    root = _pyproject(
+        tmp_path,
+        """
+[project]
+name = "x"
+dependencies = ["httpx>=0.27"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "asgi-lifespan>=2.1"]
+""",
+    )
+    assert _project_dependencies(root) == ["httpx>=0.27", "pytest>=8", "asgi-lifespan>=2.1"]
+
+
+def test_heavyweight_extras_are_not_installed(tmp_path: Path) -> None:
+    """Only test-ish groups: a parser extra is a big install no test run needs."""
+    root = _pyproject(
+        tmp_path,
+        """
+[project]
+name = "x"
+dependencies = ["httpx>=0.27"]
+
+[project.optional-dependencies]
+cpp = ["tree-sitter-cpp>=0.21"]
+java = ["tree-sitter-java>=0.21"]
+""",
+    )
+    assert _project_dependencies(root) == ["httpx>=0.27"]
+
+
+def test_pep_735_dependency_groups_are_read(tmp_path: Path) -> None:
+    root = _pyproject(
+        tmp_path,
+        """
+[project]
+name = "x"
+dependencies = []
+
+[dependency-groups]
+test = ["pytest>=8"]
+docs = ["sphinx>=7"]
+""",
+    )
+    assert _project_dependencies(root) == ["pytest>=8"]
+
+
+def test_include_group_tables_are_skipped_not_crashed_on(tmp_path: Path) -> None:
+    """PEP 735 groups may hold tables, not just requirement strings."""
+    root = _pyproject(
+        tmp_path,
+        """
+[project]
+name = "x"
+dependencies = []
+
+[dependency-groups]
+base = ["httpx"]
+dev = ["pytest>=8", {include-group = "base"}]
+""",
+    )
+    assert _project_dependencies(root) == ["pytest>=8"]
+
+
+def test_unreadable_pyproject_yields_no_deps(tmp_path: Path) -> None:
+    root = _pyproject(tmp_path, "this is not valid toml [[[")
+    assert _project_dependencies(root) == []

@@ -108,3 +108,76 @@ def test_small_fixtures_are_exempt_from_rates(tmp_path: Path) -> None:
 
     report = verify_batch(batch, tmp_path)
     assert report.ok  # 100% external, but far below the population minimums
+
+
+# ---- source-parity: is the graph complete with respect to the source? ------
+
+
+def _app(root: Path, body: str, *, name: str = "api.py") -> FactBatch:
+    """A one-module repo whose source says ``body``, extracted normally."""
+    pkg = root / "app"
+    pkg.mkdir(parents=True, exist_ok=True)
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / name).write_text(body, encoding="utf-8")
+    return RepoCodeExtractor().extract(root)
+
+
+def _parity(report: object) -> list[str]:
+    return [i.message for i in report.issues if i.check == "source-parity"]  # type: ignore[attr-defined]
+
+
+def test_route_decorators_with_no_endpoint_node_warn(tmp_path: Path) -> None:
+    """The failure this check exists for: 77 routes in source, zero Endpoint nodes,
+    and every other invariant green because the graph is self-consistent."""
+    report = verify_batch(_app(tmp_path, '@router.get("/items")\ndef items():\n    return []\n'), tmp_path)
+    assert len(_parity(report)) == 1
+    assert "Endpoint" in _parity(report)[0]
+
+
+def test_tablename_with_no_entity_node_warns(tmp_path: Path) -> None:
+    body = 'class Row(Base):\n    __tablename__ = "rows"\n'
+    report = verify_batch(_app(tmp_path, body), tmp_path)
+    assert len(_parity(report)) == 1
+    assert "Entity" in _parity(report)[0]
+
+
+def test_parity_is_a_warning_never_an_error(tmp_path: Path) -> None:
+    """A front-end that hasn't learned a framework must not fail someone's build —
+    a check people switch off catches nothing."""
+    report = verify_batch(_app(tmp_path, '@app.post("/x")\ndef x():\n    return 1\n'), tmp_path)
+    assert report.ok
+    assert [i.severity for i in report.issues if i.check == "source-parity"] == ["warning"]
+
+
+def test_silent_when_the_graph_already_has_the_kind(tmp_path: Path) -> None:
+    """Once the front-end extracts endpoints, the check must go quiet."""
+    batch = _app(tmp_path, '@router.get("/items")\ndef items():\n    return []\n')
+    batch.add_node(
+        Node("py:endpoint:GET /items", NodeKind.ENDPOINT, "GET /items", "python", Provenance("app/api.py", 1))
+    )
+    assert _parity(verify_batch(batch, tmp_path)) == []
+
+
+def test_no_false_positive_on_a_plain_library(tmp_path: Path) -> None:
+    report = verify_batch(_app(tmp_path, "def add(a, b):\n    return a + b\n"), tmp_path)
+    assert _parity(report) == []
+
+
+def test_non_route_attribute_calls_are_not_routes(tmp_path: Path) -> None:
+    """``@cache.get(key)`` takes a name, not a path literal — the same precision rule
+    the extractors hold to, so the check can't cry wolf on ordinary decorators."""
+    body = "@cache.get(key)\ndef fetch():\n    return 1\n"
+    assert _parity(verify_batch(_app(tmp_path, body), tmp_path)) == []
+
+
+def test_computed_tablename_is_not_a_declaration(tmp_path: Path) -> None:
+    body = "class Row(Base):\n    __tablename__ = derive_name()\n"
+    assert _parity(verify_batch(_app(tmp_path, body), tmp_path)) == []
+
+
+def test_a_language_with_no_patterns_is_never_flagged(tmp_path: Path) -> None:
+    """Only languages with declared syntax participate; the rest are silent, not guessed at."""
+    batch = FactBatch()
+    batch.add_node(Node("go:m", NodeKind.MODULE, "m", "go", Provenance("m.go", 1)))
+    (tmp_path / "m.go").write_text("package m\n", encoding="utf-8")
+    assert _parity(verify_batch(batch, tmp_path)) == []

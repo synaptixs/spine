@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/sdlc/testenv.py`](../../src/orchestrator/sdlc/testenv.py)
 
-9 types · 21 functions · python
+9 types · 22 functions · python
 
 ## Changing this safely
 
@@ -30,7 +30,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testenv.py:240`](../../src/orchestrator/sdlc/testenv.py#L240)
 
-- **Called by** (1 production · 4 test): [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L395), [`test_c_env_install_is_noop_and_python_unavailable`](../../tests/sdlc/test_testenv.py#L428), [`test_make_test_environment_and_runner_for_cpp`](../../tests/sdlc/test_testenv.py#L554), [`test_make_test_runner_picks_ctest_for_c`](../../tests/sdlc/test_testenv.py#L421), [`test_make_test_runner_picks_meson_when_build_tool_is_meson`](../../tests/sdlc/test_testenv.py#L498)
+- **Called by** (1 production · 4 test): [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L395), [`test_c_env_install_is_noop_and_python_unavailable`](../../tests/sdlc/test_testenv.py#L429), [`test_make_test_environment_and_runner_for_cpp`](../../tests/sdlc/test_testenv.py#L555), [`test_make_test_runner_picks_ctest_for_c`](../../tests/sdlc/test_testenv.py#L422), [`test_make_test_runner_picks_meson_when_build_tool_is_meson`](../../tests/sdlc/test_testenv.py#L499)
 - **Fields**: `build_tool`, `declared`
 - **Documented in**: `docs/specs/language-support-roadmap.md#track-3-c-cpp-cc-cxx-hpp-hh-hxx-do-third-builds-on-c`
 
@@ -38,7 +38,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testenv.py:213`](../../src/orchestrator/sdlc/testenv.py#L213)
 
-- **Called by** (1 production · 2 test): [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L395), [`test_dotnet_env_install_is_noop_and_python_unavailable`](../../tests/sdlc/test_testenv.py#L312), [`test_make_test_runner_picks_dotnet_for_csharp`](../../tests/sdlc/test_testenv.py#L305)
+- **Called by** (1 production · 2 test): [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L395), [`test_dotnet_env_install_is_noop_and_python_unavailable`](../../tests/sdlc/test_testenv.py#L313), [`test_make_test_runner_picks_dotnet_for_csharp`](../../tests/sdlc/test_testenv.py#L306)
 - **Fields**: `declared`
 - **Documented in**: `docs/specs/language-support-roadmap.md#track-1-c-cs-do-first-lowest-risk`
 
@@ -46,7 +46,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testenv.py:265`](../../src/orchestrator/sdlc/testenv.py#L265)
 
-- **Called by** (1 production · 2 test): [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L395), [`test_go_env_install_is_noop_and_python_unavailable`](../../tests/sdlc/test_testenv.py#L586), [`test_make_test_environment_and_runner_for_go`](../../tests/sdlc/test_testenv.py#L578)
+- **Called by** (1 production · 2 test): [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L395), [`test_go_env_install_is_noop_and_python_unavailable`](../../tests/sdlc/test_testenv.py#L587), [`test_make_test_environment_and_runner_for_go`](../../tests/sdlc/test_testenv.py#L579)
 - **Fields**: `declared`
 - **Documented in**: `docs/specs/go-support-roadmap.md#design-plan-adding-go-to-the-pkg-8th-language`, `docs/specs/go-support-roadmap.md#track-4-go-go`, `docs/specs/language-expansion-roadmap.md#where-we-are-today`
 
@@ -54,7 +54,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testenv.py:164`](../../src/orchestrator/sdlc/testenv.py#L164)
 
-- **Called by** (1 production · 2 test): [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L395), [`test_java_env_install_is_noop_and_python_unavailable`](../../tests/sdlc/test_testenv.py#L168), [`test_make_test_runner_picks_maven_for_java`](../../tests/sdlc/test_testenv.py#L160)
+- **Called by** (1 production · 2 test): [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L395), [`test_java_env_install_is_noop_and_python_unavailable`](../../tests/sdlc/test_testenv.py#L169), [`test_make_test_runner_picks_maven_for_java`](../../tests/sdlc/test_testenv.py#L161)
 - **Fields**: `declared`
 - **Documented in**: `docs/specs/java-codegen.md#build-spec-java-codegen-multi-language-slice-2`, `docs/specs/java-codegen.md#feature-runner`, `docs/specs/java-codegen.md#phasing-each-shippable`, `docs/specs/java-codegen.md#test-runner-env`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
@@ -62,7 +62,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testenv.py:95`](../../src/orchestrator/sdlc/testenv.py#L95)
 
-- **Called by** (1 production · 2 test): [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L395), [`test_local_env_install_is_noop`](../../tests/sdlc/test_testenv.py#L136), [`test_make_test_runner_picks_maven_for_java`](../../tests/sdlc/test_testenv.py#L160)
+- **Called by** (1 production · 2 test): [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L395), [`test_local_env_install_is_noop`](../../tests/sdlc/test_testenv.py#L137), [`test_make_test_runner_picks_maven_for_java`](../../tests/sdlc/test_testenv.py#L161)
 - **Fields**: `declared`
 - **Documented in**: `docs/specs/sandboxed-test-execution.md#file-level-change-list`, `docs/specs/sandboxed-test-execution.md#new-testenvironment-sdlctestenvpy`, `docs/specs/sandboxed-test-execution.md#testing`
 
@@ -70,7 +70,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testenv.py:185`](../../src/orchestrator/sdlc/testenv.py#L185)
 
-- **Called by** (1 production · 4 test): [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L395), [`_scaffold_and_install`](../../tests/sdlc/test_typescript_integration.py#L29), [`test_make_test_runner_picks_node_for_typescript`](../../tests/sdlc/test_testenv.py#L228), [`test_node_env_ensure_runs_install`](../../tests/sdlc/test_testenv.py#L259), [`test_node_env_install_is_noop_and_python_unavailable`](../../tests/sdlc/test_testenv.py#L236)
+- **Called by** (1 production · 4 test): [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L395), [`_scaffold_and_install`](../../tests/sdlc/test_typescript_integration.py#L29), [`test_make_test_runner_picks_node_for_typescript`](../../tests/sdlc/test_testenv.py#L229), [`test_node_env_ensure_runs_install`](../../tests/sdlc/test_testenv.py#L260), [`test_node_env_install_is_noop_and_python_unavailable`](../../tests/sdlc/test_testenv.py#L237)
 - **Fields**: `declared`, `package_manager`
 - **Documented in**: `docs/specs/typescript-codegen.md#design-multi-language-support-typescript`, `docs/specs/typescript-codegen.md#feature-runner`, `docs/specs/typescript-codegen.md#phasing-each-shippable`, `docs/specs/typescript-codegen.md#test-runner-env`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
@@ -129,10 +129,10 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 ### `_project_dependencies`
 
-[`src/orchestrator/sdlc/testenv.py:544`](../../src/orchestrator/sdlc/testenv.py#L544)
+[`src/orchestrator/sdlc/testenv.py:566`](../../src/orchestrator/sdlc/testenv.py#L566)
 
-- **Called by** (1 production · 1 test): [`ensure`](../../src/orchestrator/sdlc/testenv.py#L129), [`test_project_dependencies_parsed_from_pyproject`](../../tests/sdlc/test_testenv.py#L142)
-- **Calls** (1): `loads`
+- **Called by** (1 production · 6 test): [`ensure`](../../src/orchestrator/sdlc/testenv.py#L129), [`test_dev_extra_is_installed_alongside_runtime_deps`](../../tests/sdlc/test_testenv.py#L687), [`test_heavyweight_extras_are_not_installed`](../../tests/sdlc/test_testenv.py#L707), [`test_include_group_tables_are_skipped_not_crashed_on`](../../tests/sdlc/test_testenv.py#L740), [`test_pep_735_dependency_groups_are_read`](../../tests/sdlc/test_testenv.py#L724), [`test_project_dependencies_parsed_from_pyproject`](../../tests/sdlc/test_testenv.py#L143), [`test_unreadable_pyproject_yields_no_deps`](../../tests/sdlc/test_testenv.py#L757)
+- **Calls** (2): [`_test_group_deps`](../../src/orchestrator/sdlc/testenv.py#L553), `loads`
 
 ### `_run`
 
@@ -148,6 +148,12 @@ _4 of the symbols other code depends on here have no test path the graph can see
 - **Called by** (1): [`ensure`](../../src/orchestrator/sdlc/testenv.py#L201)
 - **Calls** (1): `create_subprocess_exec`
 
+### `_test_group_deps`
+
+[`src/orchestrator/sdlc/testenv.py:553`](../../src/orchestrator/sdlc/testenv.py#L553)
+
+- **Called by** (1): [`_project_dependencies`](../../src/orchestrator/sdlc/testenv.py#L566)
+
 ### `_tests_use_mocker`
 
 [`src/orchestrator/sdlc/testenv.py:531`](../../src/orchestrator/sdlc/testenv.py#L531)
@@ -158,14 +164,14 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testenv.py:349`](../../src/orchestrator/sdlc/testenv.py#L349)
 
-- **Called by** (0 production · 1 test): [`test_c_toolchain_available`](../../tests/sdlc/test_testenv.py#L439)
+- **Called by** (0 production · 1 test): [`test_c_toolchain_available`](../../tests/sdlc/test_testenv.py#L440)
 - **Calls** (2): [`_c_compiler_available`](../../src/orchestrator/sdlc/testenv.py#L341), `which`
 
 ### `cpp_toolchain_available`
 
 [`src/orchestrator/sdlc/testenv.py:354`](../../src/orchestrator/sdlc/testenv.py#L354)
 
-- **Called by** (0 production · 1 test): [`test_cpp_toolchain_available`](../../tests/sdlc/test_testenv.py#L563)
+- **Called by** (0 production · 1 test): [`test_cpp_toolchain_available`](../../tests/sdlc/test_testenv.py#L564)
 - **Calls** (2): [`_cpp_compiler_available`](../../src/orchestrator/sdlc/testenv.py#L345), `which`
 - **Documented in**: `docs/specs/language-support-roadmap.md#track-3-c-cpp-cc-cxx-hpp-hh-hxx-do-third-builds-on-c`
 
@@ -173,21 +179,21 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testenv.py:364`](../../src/orchestrator/sdlc/testenv.py#L364)
 
-- **Called by** (1 production · 2 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_detect_dotnet_tfm`](../../tests/sdlc/test_testenv.py#L335), [`test_detect_dotnet_tfm_falls_back_without_dotnet`](../../tests/sdlc/test_testenv.py#L346)
+- **Called by** (1 production · 2 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_detect_dotnet_tfm`](../../tests/sdlc/test_testenv.py#L336), [`test_detect_dotnet_tfm_falls_back_without_dotnet`](../../tests/sdlc/test_testenv.py#L347)
 - **Calls** (3): `match`, `run`, `which`
 
 ### `dotnet_toolchain_available`
 
 [`src/orchestrator/sdlc/testenv.py:336`](../../src/orchestrator/sdlc/testenv.py#L336)
 
-- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_dotnet_toolchain_available`](../../tests/sdlc/test_testenv.py#L323)
+- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_dotnet_toolchain_available`](../../tests/sdlc/test_testenv.py#L324)
 - **Calls** (1): `which`
 
 ### `go_toolchain_available`
 
 [`src/orchestrator/sdlc/testenv.py:390`](../../src/orchestrator/sdlc/testenv.py#L390)
 
-- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_go_toolchain_available`](../../tests/sdlc/test_testenv.py#L597)
+- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_go_toolchain_available`](../../tests/sdlc/test_testenv.py#L598)
 - **Calls** (1): `which`
 - **Documented in**: `docs/specs/go-support-roadmap.md#track-4-go-go`
 
@@ -202,7 +208,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testenv.py:395`](../../src/orchestrator/sdlc/testenv.py#L395)
 
-- **Called by** (1 production · 11 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_engine_env_selects_postgres_runner`](../../tests/sdlc/test_sql_build.py#L118), [`test_factories_wire_sql_language`](../../tests/sdlc/test_sql_build.py#L88), [`test_make_test_environment_and_runner_for_cpp`](../../tests/sdlc/test_testenv.py#L554), [`test_make_test_environment_and_runner_for_go`](../../tests/sdlc/test_testenv.py#L578), [`test_make_test_environment_c`](../../tests/sdlc/test_testenv.py#L415), [`test_make_test_environment_c_carries_build_tool`](../../tests/sdlc/test_testenv.py#L489), [`test_make_test_environment_csharp`](../../tests/sdlc/test_testenv.py#L299), [`test_make_test_environment_default_is_venv`](../../tests/sdlc/test_testenv.py#L131), [`test_make_test_environment_java`](../../tests/sdlc/test_testenv.py#L154), [`test_make_test_environment_local`](../../tests/sdlc/test_testenv.py#L126), [`test_make_test_environment_typescript_threads_package_manager`](../../tests/sdlc/test_testenv.py#L219)
+- **Called by** (1 production · 11 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_engine_env_selects_postgres_runner`](../../tests/sdlc/test_sql_build.py#L118), [`test_factories_wire_sql_language`](../../tests/sdlc/test_sql_build.py#L88), [`test_make_test_environment_and_runner_for_cpp`](../../tests/sdlc/test_testenv.py#L555), [`test_make_test_environment_and_runner_for_go`](../../tests/sdlc/test_testenv.py#L579), [`test_make_test_environment_c`](../../tests/sdlc/test_testenv.py#L416), [`test_make_test_environment_c_carries_build_tool`](../../tests/sdlc/test_testenv.py#L490), [`test_make_test_environment_csharp`](../../tests/sdlc/test_testenv.py#L300), [`test_make_test_environment_default_is_venv`](../../tests/sdlc/test_testenv.py#L132), [`test_make_test_environment_java`](../../tests/sdlc/test_testenv.py#L155), [`test_make_test_environment_local`](../../tests/sdlc/test_testenv.py#L127), [`test_make_test_environment_typescript_threads_package_manager`](../../tests/sdlc/test_testenv.py#L220)
 - **Calls** (9): [`CToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L240), [`DotnetToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L213), [`GoToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L265), [`JavaToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L164), [`LocalTestEnvironment`](../../src/orchestrator/sdlc/testenv.py#L95), [`NodeToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L185), [`SqlToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L302), [`VenvTestEnvironment`](../../src/orchestrator/sdlc/testenv.py#L115), `getenv`
 - **Documented in**: `docs/specs/sandboxed-test-execution.md#wiring-sdlcfeature-runnerpy`, `docs/specs/sql-support-roadmap.md#phases`, `docs/specs/typescript-codegen.md#design-multi-language-support-typescript`, `docs/specs/typescript-codegen.md#test-runner-env`
 
@@ -210,7 +216,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testenv.py:416`](../../src/orchestrator/sdlc/testenv.py#L416)
 
-- **Called by** (1 production · 9 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_engine_env_selects_postgres_runner`](../../tests/sdlc/test_sql_build.py#L118), [`test_factories_wire_sql_language`](../../tests/sdlc/test_sql_build.py#L88), [`test_make_test_environment_and_runner_for_cpp`](../../tests/sdlc/test_testenv.py#L554), [`test_make_test_environment_and_runner_for_go`](../../tests/sdlc/test_testenv.py#L578), [`test_make_test_runner_picks_ctest_for_c`](../../tests/sdlc/test_testenv.py#L421), [`test_make_test_runner_picks_dotnet_for_csharp`](../../tests/sdlc/test_testenv.py#L305), [`test_make_test_runner_picks_maven_for_java`](../../tests/sdlc/test_testenv.py#L160), [`test_make_test_runner_picks_meson_when_build_tool_is_meson`](../../tests/sdlc/test_testenv.py#L498), [`test_make_test_runner_picks_node_for_typescript`](../../tests/sdlc/test_testenv.py#L228)
+- **Called by** (1 production · 9 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_engine_env_selects_postgres_runner`](../../tests/sdlc/test_sql_build.py#L118), [`test_factories_wire_sql_language`](../../tests/sdlc/test_sql_build.py#L88), [`test_make_test_environment_and_runner_for_cpp`](../../tests/sdlc/test_testenv.py#L555), [`test_make_test_environment_and_runner_for_go`](../../tests/sdlc/test_testenv.py#L579), [`test_make_test_runner_picks_ctest_for_c`](../../tests/sdlc/test_testenv.py#L422), [`test_make_test_runner_picks_dotnet_for_csharp`](../../tests/sdlc/test_testenv.py#L306), [`test_make_test_runner_picks_maven_for_java`](../../tests/sdlc/test_testenv.py#L161), [`test_make_test_runner_picks_meson_when_build_tool_is_meson`](../../tests/sdlc/test_testenv.py#L499), [`test_make_test_runner_picks_node_for_typescript`](../../tests/sdlc/test_testenv.py#L229)
 - **Calls** (10): [`CTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L251), [`DotnetTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L172), [`GoTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L310), [`MavenTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L136), [`MesonTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L282), [`NodeTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L217), [`PostgresSqlTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L447), [`SqlTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L413), [`SubprocessTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L83), `getenv`
 - **Documented in**: `docs/specs/java-codegen.md#build-spec-java-codegen-multi-language-slice-2`, `docs/specs/sql-support-roadmap.md#phases`, `docs/specs/typescript-codegen.md#design-multi-language-support-typescript`, `docs/specs/typescript-codegen.md#test-runner-env`
 
@@ -218,14 +224,14 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testenv.py:359`](../../src/orchestrator/sdlc/testenv.py#L359)
 
-- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_meson_toolchain_available`](../../tests/sdlc/test_testenv.py#L506)
+- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_meson_toolchain_available`](../../tests/sdlc/test_testenv.py#L507)
 - **Calls** (2): [`_c_compiler_available`](../../src/orchestrator/sdlc/testenv.py#L341), `which`
 
 ### `node_toolchain_available`
 
 [`src/orchestrator/sdlc/testenv.py:385`](../../src/orchestrator/sdlc/testenv.py#L385)
 
-- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_node_toolchain_available`](../../tests/sdlc/test_testenv.py#L247)
+- **Called by** (1 production · 1 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_node_toolchain_available`](../../tests/sdlc/test_testenv.py#L248)
 - **Calls** (1): `which`
 - **Documented in**: `docs/specs/typescript-codegen.md#design-multi-language-support-typescript`
 
@@ -233,14 +239,14 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testenv.py:457`](../../src/orchestrator/sdlc/testenv.py#L457)
 
-- **Called by** (1 production · 4 test): [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L470), [`test_dotted_takes_top_level`](../../tests/sdlc/test_testenv.py#L65), [`test_no_match`](../../tests/sdlc/test_testenv.py#L71), [`test_simple`](../../tests/sdlc/test_testenv.py#L62), [`test_underscore_module`](../../tests/sdlc/test_testenv.py#L68)
+- **Called by** (1 production · 4 test): [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L470), [`test_dotted_takes_top_level`](../../tests/sdlc/test_testenv.py#L66), [`test_no_match`](../../tests/sdlc/test_testenv.py#L72), [`test_simple`](../../tests/sdlc/test_testenv.py#L63), [`test_underscore_module`](../../tests/sdlc/test_testenv.py#L69)
 - **Documented in**: `docs/specs/sandboxed-test-execution.md#auto-heal-loop-the-killer-fix`, `docs/specs/sandboxed-test-execution.md#file-level-change-list`, `docs/specs/sandboxed-test-execution.md#testing`
 
 ### `run_with_autoheal`
 
 [`src/orchestrator/sdlc/testenv.py:470`](../../src/orchestrator/sdlc/testenv.py#L470)
 
-- **Called by** (1 production · 7 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_autoheal_installs_safe_package_then_passes`](../../tests/sdlc/test_testenv.py#L75), [`test_autoheal_maps_module_to_package`](../../tests/sdlc/test_testenv.py#L83), [`test_declared_package_installs`](../../tests/sdlc/test_testenv.py#L112), [`test_real_failure_does_not_install`](../../tests/sdlc/test_testenv.py#L90), [`test_same_missing_module_installed_at_most_once`](../../tests/sdlc/test_testenv.py#L119), [`test_unlisted_allowed_with_optin`](../../tests/sdlc/test_testenv.py#L104), [`test_unlisted_package_blocked_without_optin`](../../tests/sdlc/test_testenv.py#L97)
+- **Called by** (1 production · 7 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`test_autoheal_installs_safe_package_then_passes`](../../tests/sdlc/test_testenv.py#L76), [`test_autoheal_maps_module_to_package`](../../tests/sdlc/test_testenv.py#L84), [`test_declared_package_installs`](../../tests/sdlc/test_testenv.py#L113), [`test_real_failure_does_not_install`](../../tests/sdlc/test_testenv.py#L91), [`test_same_missing_module_installed_at_most_once`](../../tests/sdlc/test_testenv.py#L120), [`test_unlisted_allowed_with_optin`](../../tests/sdlc/test_testenv.py#L105), [`test_unlisted_package_blocked_without_optin`](../../tests/sdlc/test_testenv.py#L98)
 - **Calls** (3): [`_autoheal_allowed`](../../src/orchestrator/sdlc/testenv.py#L463), [`parse_missing_module`](../../src/orchestrator/sdlc/testenv.py#L457), `py:say`
 - **Documented in**: `docs/specs/sandboxed-test-execution.md#file-level-change-list`, `docs/specs/sandboxed-test-execution.md#testrefine-loop-calls-run-with-autohealenv-runner-path-instead-of-runnerrun`
 
