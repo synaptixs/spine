@@ -38,9 +38,9 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **SDLCWorkflow** | [`SDLCWorkflow`](../src/orchestrator/sdlc/workflows.py#L475) | `CLI_REFERENCE.md`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
 | **SDLCWorkflowInput** | [`SDLCWorkflowInput`](../src/orchestrator/sdlc/types.py#L17) | `docs/specs/archive/BLOCK-C-DESIGN.md#4-parent-sdlcworkflow`, `docs/specs/bet2c-rbac-multitenancy.md#as-built-notes` |
 | **SourceDocument** | [`SourceDocument`](../src/orchestrator/intake/source.py#L35) | `CHANGELOG.md`, `docs/specs/capability-recommendations-kg-grounded.md#c10-generalized-mcp-backed-sources-confluence-jira-any-source-effort-m-enhancement` |
-| **SubprocessTestRunner** | [`SubprocessTestRunner`](../src/orchestrator/sdlc/testrunner.py#L83) | `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout`, `docs/specs/archive/BLOCK-C-DESIGN.md#5-child-featureimplementationworkflow` |
+| **SubprocessTestRunner** | [`SubprocessTestRunner`](../src/orchestrator/sdlc/testrunner.py#L95) | `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout`, `docs/specs/archive/BLOCK-C-DESIGN.md#5-child-featureimplementationworkflow` |
 | **TargetLayout** | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L79) | `docs/specs/java-codegen.md#feature-runner`, `docs/specs/java-codegen.md#first-step` |
-| **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/testrunner.py#L66) | `docs/specs/java-codegen.md#test-runner-env`, `docs/specs/typescript-codegen.md#test-runner-env` |
+| **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/testrunner.py#L78) | `docs/specs/java-codegen.md#test-runner-env`, `docs/specs/typescript-codegen.md#test-runner-env` |
 | **Tool** | [`Tool`](../src/orchestrator/agentic/loop.py#L30) | — |
 | **VerifierFailure** | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | — |
 | **VersionedRepo** | [`VersionedRepo`](../src/orchestrator/registry/repositories.py#L45) | — |
