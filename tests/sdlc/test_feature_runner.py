@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from orchestrator.intake.factory import IntakeNotConfiguredError
+from orchestrator.intake.jira import IssueTrackerError
 from orchestrator.sdlc.codegen import CodeChange
 from orchestrator.sdlc.feature_runner import FeatureRunError, _changed_files, run_feature
 
@@ -140,12 +141,34 @@ def _aresult(value: Any) -> Any:
     return _coro()
 
 
+class _FakeJira:
+    """Records whether the run created an issue or adopted one. ``missing``
+    makes ``get_issue`` fail the way an unknown key does."""
+
+    def __init__(self, *, missing: bool = False) -> None:
+        self.created: list[Any] = []
+        self.adopted: list[str] = []
+        self._missing = missing
+
+    async def create_issue(self, request: Any) -> SimpleNamespace:
+        self.created.append(request)
+        return SimpleNamespace(key="DRY-1", url="")
+
+    async def get_issue(self, issue_key: str) -> SimpleNamespace:
+        if self._missing:
+            raise IssueTrackerError(f"GET /issue/{issue_key} failed: HTTP 404")
+        self.adopted.append(issue_key)
+        return SimpleNamespace(key=issue_key, url=f"https://acme.atlassian.net/browse/{issue_key}")
+
+
 def _install_pipeline(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     *,
     runner: type,
     codegen: type[_StubCodegen] = _StubCodegen,
+    jira: _FakeJira | None = None,
+    workspaces: list[str] | None = None,
 ) -> list[_StubCodegen]:
     """Stub everything downstream of spec resolution so run_feature drives the
     real layout/scaffold/preflight + test-loop logic against a tmp worktree.
@@ -165,18 +188,15 @@ def _install_pipeline(
     monkeypatch.setattr("orchestrator.sdlc.codegen.LLMCodegenAdapter", _make_codegen)
     monkeypatch.setattr("orchestrator.sdlc.codegen.resolve_codegen_model", lambda *a, **k: None)
     monkeypatch.setattr("orchestrator.sdlc.testrunner.SubprocessTestRunner", runner)
-    monkeypatch.setattr(
-        "orchestrator.intake.jira.JiraAdapter",
-        lambda *a, **k: SimpleNamespace(
-            create_issue=lambda req: _aresult(SimpleNamespace(key="DRY-1", url=""))
-        ),
-    )
+    monkeypatch.setattr("orchestrator.intake.jira.JiraAdapter", lambda *a, **k: jira or _FakeJira())
     monkeypatch.setattr(
         "orchestrator.sdlc.grounding.PKGCodegenGrounder",
         SimpleNamespace(from_repo=lambda path: SimpleNamespace(context_for_spec=lambda spec: "")),
     )
 
     async def _create(self_ws: Any, sdlc_id: str, issue_key: str) -> Path:
+        if workspaces is not None:
+            workspaces.append(issue_key)
         return tmp_path
 
     monkeypatch.setattr("orchestrator.sdlc.workspace.WorkspaceManager.create", _create)
@@ -251,6 +271,69 @@ async def test_greenfield_run_scaffolds_and_passes_layout_to_codegen(
     assert layout.mode == "new"
     assert layout.package_name == "example_service"
     assert layout.source_dir == "src/example_service"
+
+
+# ---- adopting an issue that already exists (--issue) -----------------------
+
+
+async def test_adopted_issue_is_used_and_nothing_is_created(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """``--issue`` points the run at work that is already tracked. Creating
+    regardless is what produced duplicate, epic-less issues (SSPN-8), so the
+    create path must not run at all — and the branch must carry the real key."""
+    jira = _FakeJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, jira=jira)
+
+    result = await run_feature(
+        "file://./spec.md", intent_id="intent-a", repo="https://x/widget", issue="sspn-9"
+    )
+
+    assert result.passed
+    assert jira.created == []  # the whole point
+    assert jira.adopted == ["SSPN-9"]  # normalized, not passed through as typed
+    assert result.issue_key == "SSPN-9"
+    assert result.branch.endswith("/SSPN-9")
+
+
+async def test_without_an_issue_the_run_still_creates_one(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Adoption is opt-in: the default path is unchanged."""
+    jira = _FakeJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, jira=jira)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+    assert len(jira.created) == 1 and jira.adopted == []
+    assert result.issue_key == "DRY-1"
+
+
+async def test_unknown_issue_key_fails_before_the_workspace(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A key that doesn't resolve is a wrong run, not a late surprise: it must
+    die before the worktree, codegen and any test run."""
+    jira = _FakeJira(missing=True)
+    workspaces: list[str] = []
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_PassingRunner, jira=jira, workspaces=workspaces
+    )
+
+    with pytest.raises(FeatureRunError, match="cannot adopt SSPN-404") as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget", issue="SSPN-404")
+
+    assert exc.value.code == 2
+    assert workspaces == []  # no worktree
+    assert created == []  # no codegen adapter constructed
+
+
+async def test_malformed_issue_key_is_rejected_before_intake() -> None:
+    """Nothing is patched here: if the shape check didn't run first, intake would
+    raise its own error instead (a different code), so this pins the ordering."""
+    with pytest.raises(FeatureRunError, match="is not an issue key") as exc:
+        await run_feature("file://./spec.md", issue="the CB epic")
+    assert exc.value.code == 2
 
 
 async def test_existing_package_is_not_scaffolded(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

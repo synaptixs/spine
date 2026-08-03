@@ -275,6 +275,63 @@ async def test_live_comment_posts_adf_to_comment_endpoint() -> None:
     assert captured["body"]["body"]["content"][0]["content"][0]["text"].startswith("PR opened")
 
 
+# ---- get (adopting an issue that already exists) --------------------------
+
+
+async def test_dry_run_get_issue_makes_no_api_call() -> None:
+    """A safe run must make no external call, so the key is taken on trust."""
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(200, json={})
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://acme.atlassian.net")
+    adapter = JiraAdapter(_config(dry_run=True), http_client=http)
+    try:
+        issue = await adapter.get_issue("eng-7")
+    finally:
+        await http.aclose()
+    assert calls["n"] == 0
+    assert issue.key == "ENG-7" and issue.dry_run
+
+
+async def test_live_get_issue_returns_key_and_browse_url() -> None:
+    captured: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["path"] = request.url.path
+        return httpx.Response(200, json={"id": "39504", "key": "ENG-42"})
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://acme.atlassian.net")
+    adapter = JiraAdapter(_config(dry_run=False), http_client=http)
+    try:
+        issue = await adapter.get_issue(" eng-42 ")
+    finally:
+        await http.aclose()
+    assert captured["path"].endswith("/issue/ENG-42")
+    assert issue.key == "ENG-42"
+    assert issue.id == "39504"
+    assert issue.url == "https://acme.atlassian.net/browse/ENG-42"
+    assert not issue.dry_run
+
+
+async def test_get_issue_surfaces_a_missing_key() -> None:
+    """A key that doesn't resolve must raise, not return an empty issue — the
+    caller builds a branch and a PR around whatever comes back."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, json={"errorMessages": ["Issue does not exist"]})
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://acme.atlassian.net")
+    adapter = JiraAdapter(_config(dry_run=False), http_client=http)
+    try:
+        with pytest.raises(IssueTrackerError, match="404"):
+            await adapter.get_issue("ENG-999")
+    finally:
+        await http.aclose()
+
+
 # ---- transitions ----------------------------------------------------------
 
 

@@ -440,6 +440,18 @@ push a branch, and open a PR:
 orchestrator sdlc feature --source confluence://<page_id> --live
 ```
 
+**If the work is already ticketed, say so** — otherwise the run files a *second*
+issue for the same story, and a run that fails partway leaves that issue behind
+describing work that never happened:
+
+```bash
+orchestrator sdlc feature --source confluence://<page_id> --issue ENG-42 --live
+```
+
+The branch, the PR title, the PR-link comment and the To Do → In Progress move all
+land on `ENG-42`, and nothing is created. A key that doesn't resolve stops the run
+before the worktree, so a typo costs you nothing.
+
 A human reviews and merges the PR (it never merges on its own). After the merge,
 close the loop so the tracker issue moves to Done:
 

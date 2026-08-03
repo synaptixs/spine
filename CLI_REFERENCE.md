@@ -650,6 +650,9 @@ the generated + tested code, and prints the diff. Pass --live to create the
 Jira issue, push the branch, open a real PR, and comment the PR link back on
 the issue.
 
+Pass --issue <KEY> when the work is already tracked: the run adopts that
+issue instead of creating a second one for the same story.
+
 ```
 orchestrator sdlc feature [OPTIONS]
 ```
@@ -662,6 +665,8 @@ orchestrator sdlc feature [OPTIONS]
 | `--model` | Codegen model (default: $SDLC_CODEGEN_MODEL or the adapter default). |
 | `--max-refine` | Max implement→test→refine iterations. (default: `3`) |
 | `--live` | Write for real: create the Jira issue, push the branch + open a PR, comment on Jira. Default --safe stays local (branch + commit + diff, dry-run Jira, no push). |
+| `--issue` | Adopt an existing tracker issue (e.g. SSPN-9) instead of creating one — the branch, PR, comment and transition all land on it. |
+| `--base` | PR target branch (default: $SDLC_PR_BASE, else the repo's default branch). |
 | `--layout` | Target structure: auto (scaffold only empty repos), new (always scaffold a src/<pkg>/ skeleton), or existing (follow the repo's layout). (default: `auto`) |
 | `--package-name` | Override the scaffold package name (default: derived from repo). |
 | `--refresh` | Re-extract intents from the source (default: reuse the cached, deterministic backlog). |
