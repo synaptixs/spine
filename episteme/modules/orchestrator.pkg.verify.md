@@ -17,7 +17,7 @@
 - [`_examples`](../../src/orchestrator/pkg/verify.py#L86) — reaches **6** symbols
 - [`_basename`](../../src/orchestrator/pkg/verify.py#L141) — reaches **3** symbols
 - [`_module_of`](../../src/orchestrator/pkg/verify.py#L171) — reaches **3** symbols
-- [`_source_signals`](../../src/orchestrator/pkg/verify.py#L255) — reaches **3** symbols
+- [`_source_signals`](../../src/orchestrator/pkg/verify.py#L269) — reaches **3** symbols
 - [`VerifyReport`](../../src/orchestrator/pkg/verify.py#L70) — reaches **2** symbols
 - [`_check_dangling_edges`](../../src/orchestrator/pkg/verify.py#L92) — reaches **2** symbols
 - [`_check_phantoms`](../../src/orchestrator/pkg/verify.py#L147) — reaches **2** symbols
@@ -28,14 +28,14 @@
 
 [`src/orchestrator/pkg/verify.py:61`](../../src/orchestrator/pkg/verify.py#L61)
 
-- **Called by** (5): [`_check_dangling_edges`](../../src/orchestrator/pkg/verify.py#L92), [`_check_phantoms`](../../src/orchestrator/pkg/verify.py#L147), [`_check_provenance`](../../src/orchestrator/pkg/verify.py#L107), [`_check_rates`](../../src/orchestrator/pkg/verify.py#L184), [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L288)
+- **Called by** (5): [`_check_dangling_edges`](../../src/orchestrator/pkg/verify.py#L92), [`_check_phantoms`](../../src/orchestrator/pkg/verify.py#L147), [`_check_provenance`](../../src/orchestrator/pkg/verify.py#L107), [`_check_rates`](../../src/orchestrator/pkg/verify.py#L184), [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L302)
 - **Fields**: `check`, `message`, `severity`
 
 ### `VerifyReport`
 
 [`src/orchestrator/pkg/verify.py:70`](../../src/orchestrator/pkg/verify.py#L70)
 
-- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L319)
+- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L333)
 - **Fields**: `issues`
 
 ## Functions
@@ -50,21 +50,21 @@
 
 [`src/orchestrator/pkg/verify.py:92`](../../src/orchestrator/pkg/verify.py#L92)
 
-- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L319)
+- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L333)
 - **Calls** (2): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L61), [`_examples`](../../src/orchestrator/pkg/verify.py#L86)
 
 ### `_check_phantoms`
 
 [`src/orchestrator/pkg/verify.py:147`](../../src/orchestrator/pkg/verify.py#L147)
 
-- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L319)
+- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L333)
 - **Calls** (3): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L61), [`_basename`](../../src/orchestrator/pkg/verify.py#L141), [`_examples`](../../src/orchestrator/pkg/verify.py#L86)
 
 ### `_check_provenance`
 
 [`src/orchestrator/pkg/verify.py:107`](../../src/orchestrator/pkg/verify.py#L107)
 
-- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L319)
+- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L333)
 - **Calls** (3): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L61), [`_examples`](../../src/orchestrator/pkg/verify.py#L86), `py:lines_in`
 - **Documented in**: `docs/specs/python-frontend-parity.md#63-a-source-vs-graph-parity-check-in-verifypy`
 
@@ -72,15 +72,15 @@
 
 [`src/orchestrator/pkg/verify.py:184`](../../src/orchestrator/pkg/verify.py#L184)
 
-- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L319)
+- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L333)
 - **Calls** (3): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L61), [`_examples`](../../src/orchestrator/pkg/verify.py#L86), [`_module_of`](../../src/orchestrator/pkg/verify.py#L171)
 
 ### `_check_source_parity`
 
-[`src/orchestrator/pkg/verify.py:288`](../../src/orchestrator/pkg/verify.py#L288)
+[`src/orchestrator/pkg/verify.py:302`](../../src/orchestrator/pkg/verify.py#L302)
 
-- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L319)
-- **Calls** (2): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L61), [`_source_signals`](../../src/orchestrator/pkg/verify.py#L255)
+- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L333)
+- **Calls** (2): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L61), [`_source_signals`](../../src/orchestrator/pkg/verify.py#L269)
 
 ### `_examples`
 
@@ -96,16 +96,16 @@
 
 ### `_source_signals`
 
-[`src/orchestrator/pkg/verify.py:255`](../../src/orchestrator/pkg/verify.py#L255)
+[`src/orchestrator/pkg/verify.py:269`](../../src/orchestrator/pkg/verify.py#L269)
 
-- **Called by** (1): [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L288)
+- **Called by** (1): [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L302)
 
 ### `verify_batch`
 
-[`src/orchestrator/pkg/verify.py:319`](../../src/orchestrator/pkg/verify.py#L319)
+[`src/orchestrator/pkg/verify.py:333`](../../src/orchestrator/pkg/verify.py#L333)
 
-- **Called by** (1 production · 14 test): [`pkg_verify`](../../src/orchestrator/cli.py#L2044), [`test_a_language_with_no_patterns_is_never_flagged`](../../tests/pkg/test_verify.py#L178), [`test_computed_tablename_is_not_a_declaration`](../../tests/pkg/test_verify.py#L173), [`test_dangling_edge_is_an_error`](../../tests/pkg/test_verify.py#L35), [`test_healthy_extracted_repo_passes`](../../tests/pkg/test_verify.py#L24), [`test_joined_import_graph_passes_the_rates`](../../tests/pkg/test_verify.py#L81), [`test_no_false_positive_on_a_plain_library`](../../tests/pkg/test_verify.py#L161), [`test_non_route_attribute_calls_are_not_routes`](../../tests/pkg/test_verify.py#L166), [`test_parity_is_a_warning_never_an_error`](../../tests/pkg/test_verify.py#L144), [`test_route_decorators_with_no_endpoint_node_warn`](../../tests/pkg/test_verify.py#L129), [`test_silent_when_the_graph_already_has_the_kind`](../../tests/pkg/test_verify.py#L152), [`test_small_fixtures_are_exempt_from_rates`](../../tests/pkg/test_verify.py#L101), [`test_stale_provenance_is_an_error`](../../tests/pkg/test_verify.py#L45), [`test_tablename_with_no_entity_node_warns`](../../tests/pkg/test_verify.py#L137), [`test_unjoined_import_graph_fails_on_orphan_rate_and_external_ratio`](../../tests/pkg/test_verify.py#L58)
-- **Calls** (7): [`VerifyReport`](../../src/orchestrator/pkg/verify.py#L70), [`_check_dangling_edges`](../../src/orchestrator/pkg/verify.py#L92), [`_check_phantoms`](../../src/orchestrator/pkg/verify.py#L147), [`_check_provenance`](../../src/orchestrator/pkg/verify.py#L107), [`_check_rates`](../../src/orchestrator/pkg/verify.py#L184), [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L288), `pathlib.Path`
+- **Called by** (1 production · 18 test): [`pkg_verify`](../../src/orchestrator/cli.py#L2044), [`test_a_language_with_no_patterns_is_never_flagged`](../../tests/pkg/test_verify.py#L190), [`test_computed_tablename_is_not_a_declaration`](../../tests/pkg/test_verify.py#L185), [`test_dangling_edge_is_an_error`](../../tests/pkg/test_verify.py#L35), [`test_healthy_extracted_repo_passes`](../../tests/pkg/test_verify.py#L24), [`test_joined_import_graph_passes_the_rates`](../../tests/pkg/test_verify.py#L81), [`test_no_false_positive_on_a_plain_library`](../../tests/pkg/test_verify.py#L173), [`test_non_route_attribute_calls_are_not_routes`](../../tests/pkg/test_verify.py#L178), [`test_parity_is_a_warning_never_an_error`](../../tests/pkg/test_verify.py#L156), [`test_route_decorators_with_no_endpoint_node_warn`](../../tests/pkg/test_verify.py#L141), [`test_silent_when_the_graph_already_has_the_kind`](../../tests/pkg/test_verify.py#L164), [`test_small_fixtures_are_exempt_from_rates`](../../tests/pkg/test_verify.py#L101), [`test_stale_provenance_is_an_error`](../../tests/pkg/test_verify.py#L45), [`test_tablename_with_no_entity_node_warns`](../../tests/pkg/test_verify.py#L149), [`test_typeorm_entity_decorator_warns`](../../tests/pkg/test_verify.py#L217), [`test_typescript_express_routes_warn`](../../tests/pkg/test_verify.py#L205), [`test_typescript_map_get_is_not_a_route`](../../tests/pkg/test_verify.py#L210), [`test_typescript_nest_decorators_warn`](../../tests/pkg/test_verify.py#L198), [`test_unjoined_import_graph_fails_on_orphan_rate_and_external_ratio`](../../tests/pkg/test_verify.py#L58)
+- **Calls** (7): [`VerifyReport`](../../src/orchestrator/pkg/verify.py#L70), [`_check_dangling_edges`](../../src/orchestrator/pkg/verify.py#L92), [`_check_phantoms`](../../src/orchestrator/pkg/verify.py#L147), [`_check_provenance`](../../src/orchestrator/pkg/verify.py#L107), [`_check_rates`](../../src/orchestrator/pkg/verify.py#L184), [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L302), `pathlib.Path`
 
 ## Imports
 

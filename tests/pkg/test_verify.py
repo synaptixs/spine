@@ -126,6 +126,18 @@ def _parity(report: object) -> list[str]:
     return [i.message for i in report.issues if i.check == "source-parity"]  # type: ignore[attr-defined]
 
 
+def _lang_repo(root: Path, lang: str, name: str, body: str) -> FactBatch:
+    """A one-module batch for ``lang`` whose source file says ``body``.
+
+    Built by hand rather than extracted so the non-Python cases don't depend on an
+    optional tree-sitter extra being installed.
+    """
+    (root / name).write_text(body, encoding="utf-8")
+    batch = FactBatch()
+    batch.add_node(Node(f"{lang}:m", NodeKind.MODULE, "m", lang, Provenance(name, 1)))
+    return batch
+
+
 def test_route_decorators_with_no_endpoint_node_warn(tmp_path: Path) -> None:
     """The failure this check exists for: 77 routes in source, zero Endpoint nodes,
     and every other invariant green because the graph is self-consistent."""
@@ -181,3 +193,29 @@ def test_a_language_with_no_patterns_is_never_flagged(tmp_path: Path) -> None:
     batch.add_node(Node("go:m", NodeKind.MODULE, "m", "go", Provenance("m.go", 1)))
     (tmp_path / "m.go").write_text("package m\n", encoding="utf-8")
     assert _parity(verify_batch(batch, tmp_path)) == []
+
+
+def test_typescript_nest_decorators_warn(tmp_path: Path) -> None:
+    """TypeScript emits no Endpoint node either, so a Nest service is just as
+    invisible as a FastAPI one — the check has to watch both front-ends, not one."""
+    batch = _lang_repo(tmp_path, "typescript", "app.ts", "@Get('/items')\nfindAll() {}\n")
+    assert len(_parity(verify_batch(batch, tmp_path))) == 1
+
+
+def test_typescript_express_routes_warn(tmp_path: Path) -> None:
+    batch = _lang_repo(tmp_path, "typescript", "server.ts", 'router.get("/users", handler)\n')
+    assert len(_parity(verify_batch(batch, tmp_path))) == 1
+
+
+def test_typescript_map_get_is_not_a_route(tmp_path: Path) -> None:
+    """The leading slash is the whole precision rule: without it every `Map.get`
+    in a TypeScript codebase would look like an HTTP route."""
+    body = 'const v = cache.get(key);\nconst w = headers.get("content-type");\n'
+    assert _parity(verify_batch(_lang_repo(tmp_path, "typescript", "u.ts", body), tmp_path)) == []
+
+
+def test_typeorm_entity_decorator_warns(tmp_path: Path) -> None:
+    batch = _lang_repo(tmp_path, "typescript", "user.entity.ts", "@Entity()\nclass User {}\n")
+    messages = _parity(verify_batch(batch, tmp_path))
+    assert len(messages) == 1
+    assert "Entity" in messages[0]

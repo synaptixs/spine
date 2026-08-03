@@ -241,14 +241,28 @@ def _check_rates(batch: FactBatch, nodes: dict[str, Node]) -> list[VerifyIssue]:
     return issues
 
 
-# Source syntax that *must* produce a node kind, per language. Both patterns require a
-# literal first argument / value, which is also the precision rule the extractors hold to:
-# `@cache.get(key)` is not a route, and a computed `__tablename__` is not a table.
+# Source syntax that *must* produce a node kind, per language. Each pattern requires a
+# literal argument / value, the same precision rule the extractors hold to: `@cache.get(key)`
+# is not a route, and a computed `__tablename__` is not a table.
+#
+# Python and TypeScript are covered because they are the two front-ends that emit **no**
+# `Endpoint` node at all, so they are where a web service goes silently unrepresented.
+# Java and C# already emit endpoints; Go, C and C++ have no route idiom common enough to
+# match without guessing. Adding a language here is a new entry, nothing else.
 _ROUTE_SYNTAX = {
     "python": re.compile(r"@\w[\w.]*\.(?:route|get|post|put|patch|delete|head|options)\s*\(\s*[\"']"),
+    # NestJS method decorators, plus Express/Fastify router calls whose path is a literal
+    # starting with "/". That leading slash is what separates `app.get("/users", h)` from
+    # the far more common `cache.get(key)` — without it this would fire on every Map.
+    "typescript": re.compile(
+        r"@(?:Get|Post|Put|Patch|Delete|Head|Options|All)\s*\("
+        r"|\.\s*(?:get|post|put|patch|delete|all|head|options)\s*\(\s*[\"'`]/"
+    ),
 }
 _ENTITY_SYNTAX = {
     "python": re.compile(r"^\s*__tablename__\s*=\s*[\"']", re.MULTILINE),
+    # TypeORM's @Entity / Sequelize's @Table — the class-level marker, not a column.
+    "typescript": re.compile(r"@(?:Entity|Table)\s*\("),
 }
 
 
@@ -300,7 +314,7 @@ def _check_source_parity(batch: FactBatch, root: Path) -> list[VerifyIssue]:
     for lang, (route_files, entity_files) in sorted(_source_signals(batch, root).items()):
         present = kinds_by_lang.get(lang, set())
         for files, kind, what in (
-            (route_files, NodeKind.ENDPOINT, "route decorator"),
+            (route_files, NodeKind.ENDPOINT, "route declaration"),
             (entity_files, NodeKind.ENTITY, "__tablename__ declaration"),
         ):
             if files and kind not in present:

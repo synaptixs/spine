@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/sdlc/codegen.py`](../../src/orchestrator/sdlc/codegen.py)
 
-8 types · 12 functions · python
+8 types · 13 functions · python
 
 ## Changing this safely
 
@@ -99,7 +99,13 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/codegen.py:1679`](../../src/orchestrator/sdlc/codegen.py#L1679)
 
 - **Called by** (1): [`_apply`](../../src/orchestrator/sdlc/codegen.py#L1335)
-- **Calls** (1): `loads`
+- **Calls** (2): [`_log_json_failure`](../../src/orchestrator/sdlc/codegen.py#L1717), `loads`
+
+### `_log_json_failure`
+
+[`src/orchestrator/sdlc/codegen.py:1717`](../../src/orchestrator/sdlc/codegen.py#L1717)
+
+- **Called by** (1): [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L1679)
 
 ### `_named_existing_files`
 

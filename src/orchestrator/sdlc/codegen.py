@@ -1686,6 +1686,13 @@ def _loads_json_object(text: str) -> dict[str, Any] | None:
     fenced (run #21: a 10k-char fenced object that wasn't truncated). Lenient
     parsing accepts the control characters verbatim — exactly what we want,
     since they become the file's real bytes.
+
+    A failure logs **why**, with the decoder's message and the text either side of
+    the offending offset. The caller used to log only the tail, on the theory that
+    "a truncated emission ends mid-string; prose ends with words" — but a payload
+    can be complete and well-formed at the tail and still fail on an invalid escape
+    thousands of characters earlier, at which point the tail proves only that the
+    model finished its sentence. The offset is the fact worth having.
     """
     stripped = text.strip()
     if stripped.startswith("```"):
@@ -1694,15 +1701,31 @@ def _loads_json_object(text: str) -> dict[str, Any] | None:
             stripped = stripped[4:]
     try:
         loaded = json.loads(stripped, strict=False)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as first:
         start, end = stripped.find("{"), stripped.rfind("}")
         if start == -1 or end <= start:
+            _log_json_failure(stripped, first)
             return None
         try:
             loaded = json.loads(stripped[start : end + 1], strict=False)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as second:
+            _log_json_failure(stripped[start : end + 1], second)
             return None
     return loaded if isinstance(loaded, dict) else None
+
+
+def _log_json_failure(text: str, exc: json.JSONDecodeError) -> None:
+    """Record the decoder's own verdict plus the bytes around the break."""
+    window = text[max(0, exc.pos - 90) : exc.pos + 90]
+    logger.warning(
+        "sdlc.codegen.json_parse_failed msg=%r line=%d col=%d pos=%d/%d near=%r",
+        exc.msg,
+        exc.lineno,
+        exc.colno,
+        exc.pos,
+        len(text),
+        window,
+    )
 
 
 __all__ = [

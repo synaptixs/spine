@@ -5,9 +5,9 @@ _No database or ORM entities detected, so this is the **code's** model: the type
 
 | Type | Why it matters |
 |---|---|
-| [`Provenance`](../src/orchestrator/pkg/facts.py#L58) | 4 members · used by 105 production · 109 test call-sites |
+| [`Provenance`](../src/orchestrator/pkg/facts.py#L58) | 4 members · used by 105 production · 110 test call-sites |
 | [`Edge`](../src/orchestrator/pkg/facts.py#L86) | 5 members · used by 73 production · 93 test call-sites |
-| [`Node`](../src/orchestrator/pkg/facts.py#L70) | 7 members · used by 65 production · 105 test call-sites |
+| [`Node`](../src/orchestrator/pkg/facts.py#L70) | 7 members · used by 65 production · 106 test call-sites |
 | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L79) | 10 members · used by 19 production · 11 test call-sites |
 | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L650) | 47 members · used by 6 production · 59 test call-sites |
 | [`TestRunResult`](../src/orchestrator/sdlc/testrunner.py#L78) | 4 members · used by 22 production · 1 test call-sites |
