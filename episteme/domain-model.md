@@ -22,7 +22,7 @@ _No database or ORM entities detected, so this is the **code's** model: the type
 | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L48) | 2 members · used by 16 production · 1 test call-sites |
 | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | 17 members · used by 2 production · 19 test call-sites |
 | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | 14 members |
-| [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L532) | 6 members · used by 2 production · 25 test call-sites |
+| [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L532) | 6 members · used by 2 production · 26 test call-sites |
 | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L44) | 30 members · used by 1 production · 27 test call-sites |
 | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L234) | 3 members · used by 16 production call-sites |
 | [`AgentLoop`](../src/orchestrator/agentic/loop.py#L197) | 21 members |
@@ -31,4 +31,4 @@ _No database or ORM entities detected, so this is the **code's** model: the type
 | [`AuditLogRow`](../src/orchestrator/registry/db/models.py#L186) | 11 members · used by 1 production · 3 test call-sites |
 | [`MemoryRow`](../src/orchestrator/registry/db/models.py#L216) | 13 members · used by 1 production call-site |
 
-_Top 25 of 556 types; the rest are in the module pages._
+_Top 25 of 558 types; the rest are in the module pages._

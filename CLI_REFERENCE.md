@@ -3,7 +3,7 @@
 > **Spine** is the product; the command is **`orchestrator`** (package `synaptixs-spine`).
 > Auto-generated from the CLI — run `orchestrator <command> --help` for the live version.
 
-**42 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
+**43 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
 
 ## Command map
 
@@ -11,7 +11,7 @@
 `init` · `doctor` · `up` · `tui` · `task submit`
 
 **Understand a codebase — the Knowledge Graph** — Extract and read the Product Knowledge Graph (PKG). Deterministic, no LLM. All accept a local path OR a git URL.  
-`understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs` · `media extract`
+`understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs` · `pkg capabilities` · `media extract`
 
 **Grounded design, debugging & RCA** — The KG-grounded engineering commands: design a change, research a ticket, and trace/analyze bugs — all anchored to real code.  
 `design` · `investigate` · `localize` · `rca` · `regression` · `audit`
@@ -327,6 +327,24 @@ denser than a naive read of the raw edges.
 before attempting any layout — and the result would be unreadable anyway. Gephi handles a graph
 this size because you filter inside it. If you are rendering a picture, slice first (one area, one
 module and its neighbours) and lay out the slice.
+
+### `orchestrator pkg capabilities`
+
+Which node/edge kinds each language front-end can emit. Read off the front-ends' own source,
+so it cannot drift from them — this is what generates the capability matrix in
+[KNOWLEDGE_GRAPH.md](KNOWLEDGE_GRAPH.md). Needs no repo and touches nothing.
+
+```
+orchestrator pkg capabilities [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `--format` | markdown (the KNOWLEDGE_GRAPH.md matrix) \| json. (default: `markdown`) |
+
+It reports **capability, not coverage**: a front-end that can emit `Endpoint` still emits none
+for a repo with no routes. For that question run `pkg verify` and read the `source-parity`
+check.
 
 ### `orchestrator pkg docs`
 
