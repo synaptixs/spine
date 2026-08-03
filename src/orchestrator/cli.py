@@ -2054,6 +2054,46 @@ def pkg_extract(
             typer.echo(f"  touches ({len(touched)}): " + ", ".join(t.id for t in touched[:12]) + tail)
 
 
+@pkg_app.command("capabilities")
+def pkg_capabilities(
+    fmt: Annotated[
+        str,
+        typer.Option("--format", help="markdown (the KNOWLEDGE_GRAPH.md matrix) | json."),
+    ] = "markdown",
+) -> None:
+    """Which node/edge kinds each language front-end can emit (read-only, no repo needed).
+
+    Read off the front-ends' own source, so it cannot drift from them. This is
+    capability — what Spine *would* see — not coverage: a front-end that emits
+    `Endpoint` still finds none in a repo without routes. For that question, run
+    `pkg verify` and read the `source-parity` check.
+    """
+    import json as _json
+
+    from orchestrator.pkg.capabilities import front_end_capabilities, render_markdown
+
+    caps = front_end_capabilities()
+    if fmt == "json":
+        typer.echo(
+            _json.dumps(
+                [
+                    {
+                        "language": c.language,
+                        "node_kinds": list(c.node_kinds),
+                        "edge_kinds": list(c.edge_kinds),
+                    }
+                    for c in caps
+                ],
+                indent=2,
+            )
+        )
+        return
+    if fmt != "markdown":
+        typer.echo(f"Unknown --format {fmt!r}. Use markdown or json.", err=True)
+        raise typer.Exit(code=2)
+    typer.echo(render_markdown(caps))
+
+
 @pkg_app.command("verify")
 def pkg_verify(
     path: Annotated[str, typer.Argument(help="Repo path or git URL to scan.")] = ".",
