@@ -111,3 +111,29 @@ async def test_git_failure_raises_prerror(tmp_path: Path) -> None:
     adapter = _FakeGhAdapter()
     with pytest.raises(PRError):
         await adapter.open_pr(issue_key="ENG-1", path=str(tmp_path), branch="feat/x", title="t", body="b")
+
+
+async def test_pr_targets_the_requested_base_branch(tmp_path: Path) -> None:
+    """``gh pr create`` with no ``--base`` targets the repo's *default* branch. For a
+    repo whose guide says "work off develop, never commit to main", that default is
+    exactly the wrong branch — and there was no way to say so from the CLI."""
+    wt, branch = await _make_worktree(tmp_path)
+    (wt / "feature.py").write_text("x = 1\n")
+
+    adapter = _FakeGhAdapter(base_branch="develop")
+    await adapter.open_pr(issue_key="ENG-9", path=str(wt), branch=branch, title="T", body="b")
+
+    create = next(c for c in adapter.gh_calls if c[:2] == ("pr", "create"))
+    assert "--base" in create
+    assert create[create.index("--base") + 1] == "develop"
+
+
+async def test_pr_without_a_base_leaves_the_repo_default(tmp_path: Path) -> None:
+    wt, branch = await _make_worktree(tmp_path)
+    (wt / "feature.py").write_text("x = 1\n")
+
+    adapter = _FakeGhAdapter()
+    await adapter.open_pr(issue_key="ENG-9", path=str(wt), branch=branch, title="T", body="b")
+
+    create = next(c for c in adapter.gh_calls if c[:2] == ("pr", "create"))
+    assert "--base" not in create

@@ -25,6 +25,18 @@ from typing import Protocol, runtime_checkable
 # Cap captured output so a chatty test run can't bloat the activity result /
 # the audit row; the tail is the most useful part for the refinement prompt.
 _MAX_OUTPUT_CHARS = 4000
+# Seconds a language's suite may run. 600 is what the Maven / dotnet / npm / CMake /
+# Meson runners below already allow; ``SDLC_TEST_TIMEOUT`` raises it for a slow suite.
+DEFAULT_TEST_TIMEOUT = 600.0
+
+
+def _timeout_from_env() -> float:
+    raw = os.getenv("SDLC_TEST_TIMEOUT")
+    try:
+        return float(raw) if raw else DEFAULT_TEST_TIMEOUT
+    except ValueError:
+        return DEFAULT_TEST_TIMEOUT
+
 
 # Env prefixes stripped before running the worktree's tests. Two reasons:
 # (1) SECURITY — generated code must never see the orchestrator's live
@@ -87,9 +99,14 @@ class SubprocessTestRunner:
     collected") is treated as a failure so an empty worktree doesn't look green.
     """
 
-    def __init__(self, python: str | None = None, *, timeout: float = 120.0) -> None:
+    def __init__(self, python: str | None = None, *, timeout: float | None = None) -> None:
         self._python = python or sys.executable
-        self._timeout = timeout
+        # Python ran on a 120s budget while every other language runner here gets 600 —
+        # an oversight that reads as a code failure, not a clock one: a repo whose own
+        # suite takes ~100s locally is slower still in a cold venv, so the run reports
+        # FAILED for work that was fine. Aligned with the rest, and overridable for a
+        # genuinely long suite.
+        self._timeout = timeout if timeout is not None else _timeout_from_env()
 
     async def run(self, *, path: str) -> TestRunResult:
         # ``-B`` (don't write ``__pycache__``) is essential for the refinement
@@ -510,6 +527,7 @@ class StubTestRunner:
 
 
 __all__ = [
+    "DEFAULT_TEST_TIMEOUT",
     "CTestRunner",
     "DotnetTestRunner",
     "GoTestRunner",

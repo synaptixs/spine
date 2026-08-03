@@ -158,6 +158,7 @@ async def run_feature(
     model: str | None = None,
     max_refine: int = 3,
     live: bool = False,
+    base_branch: str | None = None,
     layout_mode: str = "auto",
     package_name: str | None = None,
     language: str = "auto",
@@ -177,7 +178,7 @@ async def run_feature(
     from orchestrator.intake.backlog_doc import backlog_path, write_backlog
     from orchestrator.intake.cache import analyze_cached, load_progress, set_progress
     from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
-    from orchestrator.intake.jira import IssueRequest, IssueTrackerError, JiraAdapter, JiraConfig
+    from orchestrator.intake.jira import IssueTrackerError, JiraAdapter, JiraConfig
     from orchestrator.intake.service import parse_source_uri
     from orchestrator.sdlc.codegen import LLMCodegenAdapter, resolve_codegen_model
     from orchestrator.sdlc.forge import GhPRAdapter
@@ -252,14 +253,12 @@ async def run_feature(
 
     # 2. Jira issue (real only with live; otherwise a synthetic dry-run key).
     jira = JiraAdapter(JiraConfig(dry_run=not live))
-    issue = await jira.create_issue(
-        IssueRequest(
-            summary=spec["title"],
-            description=f"{spec['summary']}\n\nAcceptance:\n"
-            + "\n".join(f"- {c}" for c in spec["acceptance_criteria"]),
-            issue_type="Story",
-        )
-    )
+    # Same renderer the intake path uses, so a spec produces the same issue body
+    # whichever command created it (this used to hand-roll a summary-plus-criteria
+    # version that dropped technical notes, NFRs and dependencies on the floor).
+    from orchestrator.intake.service import spec_to_issue_request
+
+    issue = await jira.create_issue(spec_to_issue_request(spec))
     issue_key = issue.key
     emit(f"[jira] {'created' if live else 'dry-run'} issue: {issue_key} {issue.url}".rstrip())
 
@@ -422,6 +421,15 @@ async def run_feature(
                 spec=spec, path=str(path), issue_key=issue_key, failures=result.output
             )
         emit(f"[refine] {[Path(f).name for f in change.files]} - {change.summary}")
+        if not change.files:
+            # Refine only edits files. Having changed none, the next run is
+            # byte-identical to the one that just failed, so another iteration
+            # cannot change the verdict — it just spends an LLM call to watch the
+            # same error. The classic case is an environment fault the model
+            # diagnoses correctly and structurally cannot act on ("install the
+            # missing dependency"): left alone it burns every remaining iteration.
+            emit("[refine] no file changes — not fixable by editing code; stopping early")
+            break
 
     files = await _changed_files(path)
     if not passed:
@@ -440,9 +448,13 @@ async def run_feature(
         # the PR carries the updated progress ledger (the "both locations" rule).
         set_progress(source, spec["intent_id"], status="in_progress", issue_key=issue_key)
         write_backlog(path / local_backlog.name, source, plan, load_progress(source))
-        pr = await GhPRAdapter(commit_prefix=f"{issue_key}: ").open_pr(
-            issue_key=issue_key, path=str(path), branch=branch, title=title, body=body
-        )
+        # Without an explicit base, ``gh`` targets the repo's *default* branch — which
+        # for a repo whose contributing guide says "work off develop, never commit to
+        # main" is precisely the wrong branch, with no way to say so from the CLI.
+        pr = await GhPRAdapter(
+            commit_prefix=f"{issue_key}: ",
+            base_branch=base_branch or os.getenv("SDLC_PR_BASE") or None,
+        ).open_pr(issue_key=issue_key, path=str(path), branch=branch, title=title, body=body)
         pr_url = pr.url
         emit(f"[pr] opened: {pr.url}")
         # Now that the PR URL is known, record it and refresh the local ledger.

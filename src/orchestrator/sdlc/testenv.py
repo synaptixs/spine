@@ -541,8 +541,30 @@ def _tests_use_mocker(root: Path) -> bool:
     return False
 
 
+# Test dependencies rarely live in ``project.dependencies``: pytest plugins, ASGI
+# harnesses and fixture libraries sit in a dev/test extra or a PEP 735 group. An env
+# built from runtime deps alone cannot import the project's own suite — pytest dies at
+# *collection*, so every refine iteration sees the same error and the verdict is FAILED
+# no matter how good the generated code is. Only test-ish groups are pulled in: an extra
+# like ``cpp`` or ``sql`` is a heavyweight parser install no test run needs.
+_TEST_DEP_GROUPS = frozenset({"dev", "test", "tests", "testing", "dev-dependencies"})
+
+
+def _test_group_deps(table: object) -> list[str]:
+    """Requirement strings from the dev/test entries of an extras / group table."""
+    if not isinstance(table, dict):
+        return []
+    out: list[str] = []
+    for name, entries in table.items():
+        if str(name).lower() not in _TEST_DEP_GROUPS or not isinstance(entries, list):
+            continue
+        # PEP 735 groups may hold ``{include-group = "…"}`` tables; keep requirements only.
+        out += [str(entry) for entry in entries if isinstance(entry, str)]
+    return out
+
+
 def _project_dependencies(root: Path) -> list[str]:
-    """The project's declared runtime deps from pyproject / requirements (best-effort)."""
+    """The project's declared deps — runtime plus its dev/test group (best-effort)."""
     deps: list[str] = []
     pyproject = root / "pyproject.toml"
     if pyproject.is_file():
@@ -550,7 +572,10 @@ def _project_dependencies(root: Path) -> list[str]:
             import tomllib
 
             data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-            deps += [str(d) for d in data.get("project", {}).get("dependencies", []) or []]
+            project = data.get("project") or {}
+            deps += [str(d) for d in project.get("dependencies") or []]
+            deps += _test_group_deps(project.get("optional-dependencies"))
+            deps += _test_group_deps(data.get("dependency-groups"))
         except (OSError, ValueError, ModuleNotFoundError):
             pass
     for req in (*root.glob("requirements*.txt"), root / "requirements" / "base.txt"):

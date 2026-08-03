@@ -103,9 +103,121 @@ async def test_live_create_posts_fields_and_returns_key() -> None:
     assert fields["issuetype"] == {"name": "Story"}
     assert fields["labels"] == ["sdlc", "backlog"]
     assert fields["parent"] == {"key": "ENG-1"}
-    # description is ADF, two paragraphs
+    # Description is ADF. Two lines with no blank between them are one paragraph
+    # joined by a hardBreak — the author's line break survives without markdown's
+    # reflow merging them into a run-on.
     assert fields["description"]["type"] == "doc"
-    assert len(fields["description"]["content"]) == 2
+    assert len(fields["description"]["content"]) == 1
+    assert [n["type"] for n in fields["description"]["content"][0]["content"]] == [
+        "text",
+        "hardBreak",
+        "text",
+    ]
+
+
+# ---- issue type resolution ------------------------------------------------
+
+_PROJECT_TYPES = {"issueTypes": [{"id": "10302", "name": "Story"}, {"id": "10299", "name": "Epic"}]}
+
+
+def _typed_transport(
+    captured: dict[str, Any], *, createmeta: httpx.Response | None = None
+) -> httpx.MockTransport:
+    """Serves the project's create-meta, then captures the issue POST."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET" and "createmeta" in request.url.path:
+            return createmeta if createmeta is not None else httpx.Response(200, json=_PROJECT_TYPES)
+        captured["issue"] = jsonlib.loads(request.content)
+        return httpx.Response(201, json={"key": "ENG-9", "id": "9"})
+
+    return httpx.MockTransport(handler)
+
+
+async def _create(config: JiraConfig, request: IssueRequest, transport: httpx.MockTransport) -> None:
+    http = httpx.AsyncClient(transport=transport, base_url="https://acme.atlassian.net")
+    adapter = JiraAdapter(config, http_client=http)
+    try:
+        await adapter.create_issue(request)
+    finally:
+        await http.aclose()
+
+
+@pytest.mark.parametrize(
+    ("requested", "configured", "expected_id"),
+    [
+        ("", "Story", "10302"),  # nothing named → the project's configured default
+        ("Epic", "Story", "10299"),  # the caller names one → the caller wins
+    ],
+)
+async def test_issue_type_is_sent_as_a_project_scoped_id(
+    requested: str, configured: str, expected_id: str
+) -> None:
+    """Names are resolved site-wide by Jira, so a project-scoped type must go by id.
+
+    A team-managed site can hold several unrelated types called "Epic" and no global
+    one; posting the name then fails with "Specify a valid issue type" even though the
+    project has it.
+    """
+    captured: dict[str, Any] = {}
+    config = _config(dry_run=False)
+    config.issue_type = configured
+    await _create(config, IssueRequest(summary="s", issue_type=requested), _typed_transport(captured))
+    assert captured["issue"]["fields"]["issuetype"] == {"id": expected_id}
+
+
+async def test_unknown_issue_type_names_what_the_project_offers() -> None:
+    captured: dict[str, Any] = {}
+    config = _config(dry_run=False)
+    with pytest.raises(IssueTrackerError, match="does not exist in project 'ENG'.*available: epic, story"):
+        await _create(config, IssueRequest(summary="s", issue_type="Nope"), _typed_transport(captured))
+    assert "issue" not in captured  # refused before writing anything
+
+
+async def test_unreadable_create_meta_falls_back_to_the_type_name() -> None:
+    """Not being able to *verify* the type is no reason to refuse to try it."""
+    captured: dict[str, Any] = {}
+    config = _config(dry_run=False)
+    transport = _typed_transport(captured, createmeta=httpx.Response(403, json={}))
+    await _create(config, IssueRequest(summary="s", issue_type="Story"), transport)
+    assert captured["issue"]["fields"]["issuetype"] == {"name": "Story"}
+
+
+async def test_create_meta_is_fetched_once_per_adapter() -> None:
+    calls = {"meta": 0}
+    captured: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET" and "createmeta" in request.url.path:
+            calls["meta"] += 1
+            return httpx.Response(200, json=_PROJECT_TYPES)
+        captured["issue"] = jsonlib.loads(request.content)
+        return httpx.Response(201, json={"key": "ENG-9", "id": "9"})
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://acme.atlassian.net")
+    adapter = JiraAdapter(_config(dry_run=False), http_client=http)
+    try:
+        for _ in range(3):
+            await adapter.create_issue(IssueRequest(summary="s", issue_type="Story"))
+    finally:
+        await http.aclose()
+    assert calls["meta"] == 1
+
+
+async def test_dry_run_never_fetches_create_meta() -> None:
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover - must not run
+        calls["n"] += 1
+        return httpx.Response(200, json={})
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://acme.atlassian.net")
+    adapter = JiraAdapter(_config(dry_run=True), http_client=http)
+    try:
+        await adapter.create_issue(IssueRequest(summary="s", issue_type="Anything"))
+    finally:
+        await http.aclose()
+    assert calls["n"] == 0
 
 
 async def test_live_link_posts_issue_link() -> None:

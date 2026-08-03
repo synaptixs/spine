@@ -270,6 +270,7 @@
 [`src/orchestrator/knowledge/renderers.py:1676`](../../src/orchestrator/knowledge/renderers.py#L1676)
 
 - **Called by** (1 production · 2 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_api_surface_renders_routes_and_handlers`](../../tests/knowledge/test_module_briefing.py#L161), [`test_has_api_surface_false_without_endpoints`](../../tests/knowledge/test_module_briefing.py#L179)
+- **Documented in**: `docs/specs/python-frontend-parity.md#2-how-this-went-unnoticed-and-why-63-is-load-bearing`, `docs/specs/python-frontend-parity.md#8-risks`
 
 ### `module_page_slugs`
 
@@ -292,6 +293,7 @@
 
 - **Called by** (1 production · 1 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_api_surface_renders_routes_and_handlers`](../../tests/knowledge/test_module_briefing.py#L161)
 - **Calls** (3): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L114), [`_link`](../../src/orchestrator/knowledge/renderers.py#L179), `collections.defaultdict`
+- **Documented in**: `docs/specs/python-frontend-parity.md#51-phase-1-endpoint-exposes`
 
 ### `render_architecture`
 
@@ -421,4 +423,4 @@
 
 ## Imported by
 
-[`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.insights`](../../src/orchestrator/knowledge/insights.py#L1), [`orchestrator.knowledge.understand`](orchestrator.knowledge.understand.md), [`tests.knowledge.test_bank_check`](../../tests/knowledge/test_bank_check.py#L1), [`tests.knowledge.test_insights`](../../tests/knowledge/test_insights.py#L1), [`tests.knowledge.test_memory_bank`](../../tests/knowledge/test_memory_bank.py#L1), [`tests.knowledge.test_module_briefing`](../../tests/knowledge/test_module_briefing.py#L1), [`tests.knowledge.test_weak_pages`](../../tests/knowledge/test_weak_pages.py#L1)
+[`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.insights`](../../src/orchestrator/knowledge/insights.py#L1), [`orchestrator.knowledge.understand`](../../src/orchestrator/knowledge/understand.py#L1), [`tests.knowledge.test_bank_check`](../../tests/knowledge/test_bank_check.py#L1), [`tests.knowledge.test_insights`](../../tests/knowledge/test_insights.py#L1), [`tests.knowledge.test_memory_bank`](../../tests/knowledge/test_memory_bank.py#L1), [`tests.knowledge.test_module_briefing`](../../tests/knowledge/test_module_briefing.py#L1), [`tests.knowledge.test_weak_pages`](../../tests/knowledge/test_weak_pages.py#L1)

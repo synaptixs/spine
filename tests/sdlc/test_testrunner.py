@@ -9,7 +9,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from orchestrator.sdlc.testrunner import StubTestRunner, SubprocessTestRunner
+import pytest
+
+from orchestrator.sdlc.testrunner import DEFAULT_TEST_TIMEOUT, StubTestRunner, SubprocessTestRunner
 
 
 async def test_stub_scripts_outcomes_then_repeats_last() -> None:
@@ -53,3 +55,27 @@ async def test_subprocess_runner_treats_no_tests_as_failure(tmp_path: Path) -> N
     """An empty worktree (pytest exit 5) must not look green."""
     result = await SubprocessTestRunner().run(path=str(tmp_path))
     assert result.passed is False
+
+
+# ---- timeout ---------------------------------------------------------------
+
+
+def test_python_suite_gets_the_same_budget_as_every_other_language() -> None:
+    """Python ran on 120s while Maven/dotnet/npm/CMake/Meson all got 600 — a repo
+    whose own suite takes ~100s then reports FAILED for a clock, not a defect."""
+    assert SubprocessTestRunner()._timeout == DEFAULT_TEST_TIMEOUT == 600.0
+
+
+def test_timeout_is_overridable_for_a_slow_suite(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SDLC_TEST_TIMEOUT", "1800")
+    assert SubprocessTestRunner()._timeout == 1800.0
+
+
+def test_a_garbage_timeout_falls_back_to_the_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SDLC_TEST_TIMEOUT", "soon")
+    assert SubprocessTestRunner()._timeout == DEFAULT_TEST_TIMEOUT
+
+
+def test_an_explicit_timeout_still_wins(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SDLC_TEST_TIMEOUT", "1800")
+    assert SubprocessTestRunner(timeout=5.0)._timeout == 5.0

@@ -45,12 +45,16 @@ def _build_service(source: SourceAdapter, *, dry_run: bool, rules_path: str | No
     intake_model = os.getenv("ORCHESTRATOR_INTAKE_MODEL")
     model_kwargs = {"model": intake_model} if intake_model else {}
     rules = load_gap_rules(rules_path) if rules_path else None
+    jira_config = JiraConfig(dry_run=dry_run)
     return BacklogService(
         source=source,
         extractor=IntentExtractor(llm, **model_kwargs),
         analyzer=GapAnalyzer(rules),
         spec_writer=SpecWriter(llm, **model_kwargs),
-        tracker=JiraAdapter(JiraConfig(dry_run=dry_run)),
+        tracker=JiraAdapter(jira_config),
+        # The epic type is a project-scheme fact, so it travels with the tracker's
+        # config (JIRA_EPIC_ISSUE_TYPE) rather than being hardcoded in the service.
+        epic_issue_type=jira_config.epic_issue_type,
     )
 
 
