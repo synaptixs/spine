@@ -235,6 +235,20 @@ class JiraAdapter:
             {"body": _text_to_adf(body)},
         )
 
+    async def add_worklog(self, issue_key: str, *, time_spent: str, comment: str) -> None:
+        """Log time against an issue, with a body describing what the time bought.
+
+        ``time_spent`` is Jira's own duration spelling (``"2h 5m"``); Jira rejects a zero.
+        Honors dry-run, like every other write here. The body is markdown rendered to ADF,
+        so a table arrives as a table.
+        """
+        if self._config.dry_run:
+            return
+        await self._post(
+            f"/issue/{issue_key}/worklog",
+            {"timeSpent": time_spent, "comment": _text_to_adf(comment)},
+        )
+
     async def transition_issue(self, issue_key: str, target_status: str) -> str | None:
         """Move ``issue_key`` to the workflow state named ``target_status``.
 

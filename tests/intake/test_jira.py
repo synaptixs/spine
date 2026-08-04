@@ -332,6 +332,46 @@ async def test_get_issue_surfaces_a_missing_key() -> None:
         await http.aclose()
 
 
+# ---- worklog --------------------------------------------------------------
+
+
+async def test_dry_run_worklog_makes_no_api_call() -> None:
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(201, json={})
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://acme.atlassian.net")
+    adapter = JiraAdapter(_config(dry_run=True), http_client=http)
+    try:
+        await adapter.add_worklog("ENG-1", time_spent="5m", comment="## Telemetry")
+    finally:
+        await http.aclose()
+    assert calls["n"] == 0
+
+
+async def test_live_worklog_posts_duration_and_adf_body() -> None:
+    captured: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["path"] = request.url.path
+        captured["body"] = jsonlib.loads(request.content)
+        return httpx.Response(201, json={"id": "1"})
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://acme.atlassian.net")
+    adapter = JiraAdapter(_config(dry_run=False), http_client=http)
+    try:
+        await adapter.add_worklog("ENG-9", time_spent="2h 5m", comment="## Spine run telemetry")
+    finally:
+        await http.aclose()
+    assert captured["path"].endswith("/issue/ENG-9/worklog")
+    assert captured["body"]["timeSpent"] == "2h 5m"
+    # Markdown, not a wall of text: the heading survives as an ADF heading node.
+    assert captured["body"]["comment"]["type"] == "doc"
+    assert captured["body"]["comment"]["content"][0]["type"] == "heading"
+
+
 # ---- transitions ----------------------------------------------------------
 
 

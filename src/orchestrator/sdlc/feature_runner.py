@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
@@ -207,6 +208,7 @@ async def run_feature(
     from orchestrator.sdlc.grounding import PKGCodegenGrounder
     from orchestrator.sdlc.layout import is_effectively_empty, resolve_layout
     from orchestrator.sdlc.scaffold import scaffold
+    from orchestrator.sdlc.telemetry import jira_duration, render_worklog
     from orchestrator.sdlc.testenv import (
         c_toolchain_available,
         cpp_toolchain_available,
@@ -223,6 +225,7 @@ async def run_feature(
     from orchestrator.sdlc.testrunner import pytest_available
     from orchestrator.sdlc.workspace import WorkspaceManager
 
+    started_at = time.monotonic()
     load_local_env()
     # Wrap in RecordingLLMClient — the OTel chokepoint (emits an llm.complete span
     # per call) + per-stage token ledger. Drop-in (implements LLMClient), so the
@@ -303,6 +306,26 @@ async def run_feature(
             f"{tracker_issue.key} {tracker_issue.url}".rstrip()
         )
     issue_key = tracker_issue.key
+
+    async def log_run_cost(verdict: str) -> None:
+        """Post what this run spent onto the issue it was working.
+
+        Telemetry never fails the work: a tracker that rejects the worklog leaves a line in
+        the log and nothing else. Safe mode posts nothing — ``add_worklog`` honors dry-run,
+        and the guard keeps even the render off the path.
+        """
+        if not live:
+            return
+        try:
+            await jira.add_worklog(
+                issue_key,
+                time_spent=jira_duration(time.monotonic() - started_at),
+                comment=render_worklog(llm.ledger, seconds=time.monotonic() - started_at, verdict=verdict),
+            )
+            total = llm.ledger.total()
+            emit(f"[jira] worklog on {issue_key}: {total.total_tokens:,} tokens, {total.calls} call(s)")
+        except (IssueTrackerError, OSError) as exc:
+            emit(f"[jira] could not log run cost on {issue_key}: {exc}")
 
     # 3. worktree branch off the real repo (or a scratch repo in safe/no-repo mode).
     sdlc_id = uuid.uuid4().hex[:16]
@@ -475,6 +498,8 @@ async def run_feature(
 
     files = await _changed_files(path)
     if not passed:
+        # A failed run is where the spend most needs explaining — it bought no PR.
+        await log_run_cost("FAILED")
         raise FeatureRunError(f"VERDICT: FAILED after {iterations} test run(s) — not opening a PR.", code=1)
 
     # 6. commit + 7. push + PR.
@@ -510,6 +535,7 @@ async def run_feature(
                 emit(f"[jira] moved {issue_key} → {moved}")
         except IssueTrackerError as exc:
             emit(f"[jira] could not move {issue_key} to In Progress: {exc}")
+        await log_run_cost("PASSED")
     else:
         await _local_commit(path, title)
         emit("[commit] committed locally (safe mode — no push/PR)")

@@ -145,10 +145,12 @@ class _FakeJira:
     """Records whether the run created an issue or adopted one. ``missing``
     makes ``get_issue`` fail the way an unknown key does."""
 
-    def __init__(self, *, missing: bool = False) -> None:
+    def __init__(self, *, missing: bool = False, worklog_fails: bool = False) -> None:
         self.created: list[Any] = []
         self.adopted: list[str] = []
+        self.worklogs: list[tuple[str, str, str]] = []
         self._missing = missing
+        self._worklog_fails = worklog_fails
 
     async def create_issue(self, request: Any) -> SimpleNamespace:
         self.created.append(request)
@@ -159,6 +161,17 @@ class _FakeJira:
             raise IssueTrackerError(f"GET /issue/{issue_key} failed: HTTP 404")
         self.adopted.append(issue_key)
         return SimpleNamespace(key=issue_key, url=f"https://acme.atlassian.net/browse/{issue_key}")
+
+    async def add_worklog(self, issue_key: str, *, time_spent: str, comment: str) -> None:
+        if self._worklog_fails:
+            raise IssueTrackerError("POST /worklog failed: HTTP 403")
+        self.worklogs.append((issue_key, time_spent, comment))
+
+    async def comment_issue(self, issue_key: str, body: str) -> None:
+        return None
+
+    async def transition_issue(self, issue_key: str, target: str) -> str:
+        return target
 
 
 def _install_pipeline(
@@ -271,6 +284,57 @@ async def test_greenfield_run_scaffolds_and_passes_layout_to_codegen(
     assert layout.mode == "new"
     assert layout.package_name == "example_service"
     assert layout.source_dir == "src/example_service"
+
+
+# ---- run-cost telemetry (worklog) ------------------------------------------
+
+
+async def test_a_failed_live_run_still_logs_what_it_spent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The case the worklog exists for: the run bought no PR, so the spend needs explaining.
+    This path also runs before the forge, so it exercises the poster without opening a PR."""
+    jira = _FakeJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, jira=jira)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
+        )
+
+    assert len(jira.worklogs) == 1
+    issue_key, time_spent, body = jira.worklogs[0]
+    assert issue_key == "SSPN-1"
+    assert time_spent.endswith("m")  # a real duration, never zero — Jira rejects zero
+    assert "**Verdict:** FAILED" in body
+
+
+async def test_a_safe_run_logs_nothing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """``--safe`` makes no external write, and telemetry is no exception."""
+    jira = _FakeJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, jira=jira)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a")
+
+    assert jira.worklogs == []
+
+
+async def test_a_worklog_failure_never_changes_the_verdict(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Telemetry is not the work: a tracker that rejects the worklog must not decide the
+    run's outcome, nor replace the real error with its own."""
+    jira = _FakeJira(worklog_fails=True)
+    _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, jira=jira)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED") as exc:
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
+        )
+
+    assert exc.value.code == 1  # the test verdict, not a tracker error
+    assert jira.worklogs == []
 
 
 # ---- adopting an issue that already exists (--issue) -----------------------

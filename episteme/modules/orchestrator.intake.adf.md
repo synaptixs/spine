@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_inline`](../../src/orchestrator/intake/adf.py#L55) — reaches **8** symbols
-- [`_paragraph`](../../src/orchestrator/intake/adf.py#L85) — reaches **7** symbols
-- [`_is_table_start`](../../src/orchestrator/intake/adf.py#L97) — reaches **6** symbols
-- [`_build_list`](../../src/orchestrator/intake/adf.py#L181) — reaches **5** symbols
-- [`_collect_list_items`](../../src/orchestrator/intake/adf.py#L163) — reaches **5** symbols
-- [`_parse_fence`](../../src/orchestrator/intake/adf.py#L120) — reaches **5** symbols
-- [`_parse_table`](../../src/orchestrator/intake/adf.py#L139) — reaches **5** symbols
-- [`_starts_block`](../../src/orchestrator/intake/adf.py#L101) — reaches **5** symbols
+- [`_inline`](../../src/orchestrator/intake/adf.py#L55) — reaches **9** symbols
+- [`_paragraph`](../../src/orchestrator/intake/adf.py#L85) — reaches **8** symbols
+- [`_is_table_start`](../../src/orchestrator/intake/adf.py#L97) — reaches **7** symbols
+- [`_build_list`](../../src/orchestrator/intake/adf.py#L181) — reaches **6** symbols
+- [`_collect_list_items`](../../src/orchestrator/intake/adf.py#L163) — reaches **6** symbols
+- [`_parse_fence`](../../src/orchestrator/intake/adf.py#L120) — reaches **6** symbols
+- [`_parse_table`](../../src/orchestrator/intake/adf.py#L139) — reaches **6** symbols
+- [`_starts_block`](../../src/orchestrator/intake/adf.py#L101) — reaches **6** symbols
 
 ## Functions
 
