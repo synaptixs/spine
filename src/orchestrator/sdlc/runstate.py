@@ -53,6 +53,10 @@ class RunRecord:
     pr_url: str = ""
     verdict: str = ""
     parked_reason: str = ""
+    # The approval this run is waiting on, when parked. Declared rather than set ad hoc:
+    # `asdict` only serializes declared fields, so an attribute bolted on at runtime would
+    # survive in memory and vanish on save — the run would forget what it was waiting for.
+    approval_id: str = ""
     spent_usd: float = 0.0
     started_at: float = 0.0
     heartbeat_at: float = 0.0
