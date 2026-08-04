@@ -108,6 +108,10 @@ class RunContext:
         """
         from orchestrator.obs import tracing
 
+        # The phase is stamped on entry, not on result: a run that died inside `implement`
+        # reported `design` — the last stage that managed to *finish* — so the record named
+        # the wrong stage for the failure and nobody could tell where the money went.
+        self.checkpoint(phase=name)
         with tracing.span(
             "autorun.stage",
             **{"autorun.run_id": self.run_id, "autorun.stage": name, "autorun.issue": self.issue_key},
@@ -315,7 +319,10 @@ async def autorun(
             # for the reaper to find hours later, and a traceback where a verdict belongs.
             phase = ctx.record.phase if ctx.record is not None else "run"
             ctx.record_stage(phase or "run", "failed", f"unexpected {type(exc).__name__}: {exc}")
-            ctx.checkpoint(status="failed")
+            # Spend, on the way out. A run that died is exactly the one whose cost you need:
+            # the record used to say $0.00 for a run that had made three LLM calls, which
+            # makes "what does this cost" unanswerable from the thing built to answer it.
+            ctx.checkpoint(status="failed", spent_usd=_spent(budget, ctx.run_id))
             emit(f"[autorun] {type(exc).__name__}: {exc}")
             await _log_run_cost(ctx, ledger=ledger, started=started, verdict="FAILED", emit=emit)
             raise AutorunError(f"{type(exc).__name__}: {exc}", code=1) from exc

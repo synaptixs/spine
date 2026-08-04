@@ -1091,3 +1091,53 @@ async def test_the_parse_retry_does_not_stack_with_the_edit_repair(tmp_path: Pat
     await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
 
     assert len(llm.calls) == 2  # not 3
+
+
+async def test_a_parse_failure_after_an_edit_repair_still_retries(tmp_path: Path) -> None:
+    """The gap the first live-ish run fell through: failed edits took the repair path, the
+    repaired response was unparseable, and the second apply was outside the guard — so it
+    raised. One retry budget, whichever way the first attempt failed."""
+    (tmp_path / "existing.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+    edits_that_fail = json.dumps(
+        {
+            "files": [{"path": "existing.py", "edits": [{"find": "NOT PRESENT ANYWHERE", "replace": "x"}]}],
+            "summary": "edit",
+        }
+    )
+    unparseable = "definitely not json"
+
+    llm = _ScriptedLLM([edits_that_fail, unparseable])
+
+    with pytest.raises(CodegenError):
+        await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    # Two calls, not three: the repair was spent, so the parse failure raises rather than
+    # buying a third attempt.
+    assert len(llm.calls) == 2
+
+
+async def test_two_concatenated_json_documents_are_merged(tmp_path: Path) -> None:
+    """Observed twice on real runs: the model emits one document per file and concatenates
+    them, so the decoder stops at the second with `Extra data`. Every document is valid and
+    every one is a files-object — stitching them is free where a retry costs a call."""
+    two_documents = (
+        '{"files": [{"path": "src/a.py", "content": "a = 1\\n"}], "summary": "first"}, '
+        '{"files": [{"path": "src/b.py", "content": "b = 2\\n"}], "summary": "second"}'
+    )
+    llm = _ScriptedLLM([two_documents])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert sorted(Path(f).name for f in change.files) == ["a.py", "b.py"]
+    assert len(llm.calls) == 1  # no retry needed
+
+
+async def test_a_files_object_next_to_something_else_is_not_merged(tmp_path: Path) -> None:
+    """Strict on purpose: merging a files-object with anything else would be guessing."""
+    mixed = '{"files": [{"path": "src/a.py", "content": "a = 1\\n"}]}, {"notes": "hello"}'
+    good = _files_response({"src/a.py": "a = 1\n"})
+    llm = _ScriptedLLM([mixed, good])
+
+    await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert len(llm.calls) == 2  # fell back to the corrective retry
