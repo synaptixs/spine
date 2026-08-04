@@ -35,14 +35,25 @@ them on a release cadence — so opening an issue first avoids duplicated effort
    mypy src tests
    ruff format --check .
    ```
-   CI also runs the tests and `orchestrator understand . --check`, which fails if `episteme/`
-   has drifted from the code. Installing the hooks catches all of that before you push,
-   and is the only way the secret scan runs on your machine at all:
+   CI also runs the tests, `pkg verify`, and `orchestrator understand .` — which checks the
+   knowledge base still *builds*, not that it matches. Installing the hooks catches the rest
+   before you push, and is the only way the secret scan runs on your machine at all:
    ```bash
    pre-commit install
    ```
-   The episteme hook *regenerates* rather than just checking, so when it fires you will see
-   "files were modified by this hook" — `git add episteme` and commit again.
+
+   **Do not commit `episteme/`.** It is generated from the whole tree — code *and* markdown,
+   since every tracked `.md` becomes a `Doc` node — and it is regenerated automatically after
+   merge by [`.github/workflows/episteme.yml`](.github/workflows/episteme.yml). CI fails a PR
+   that carries it.
+
+   That is not fussiness. A branch cannot keep the bank current: CI checks the *merge ref*, so
+   the moment anything lands on `develop`, every open branch's committed bank is stale against
+   a tree that did not exist when it was generated — and re-running the check never helps,
+   only a rebase does. A documentation-only PR once broke a code PR that shared no files with
+   it. Regenerating after merge, where the tree is stable, removes the conflict entirely.
+
+   If you have local `episteme/` changes, drop them: `git checkout origin/develop -- episteme/`.
 4. Open the PR with a clear description of **what** and **why**, linking any issue.
 5. A maintainer reviews; the `security scan` check must pass.
 
