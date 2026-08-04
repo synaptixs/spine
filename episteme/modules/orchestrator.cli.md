@@ -171,7 +171,7 @@ _20 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:775`](../../src/orchestrator/cli.py#L775)
 
 - **Called by** (1): [`sdlc_feature`](../../src/orchestrator/cli.py#L658)
-- **Calls** (3): `Exit`, `echo`, [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L169)
+- **Calls** (3): `Exit`, `echo`, [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L170)
 
 ### `_run_sdlc_remediate`
 
@@ -382,7 +382,7 @@ _20 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/cli.py:658`](../../src/orchestrator/cli.py#L658)
 
-- **Calls** (5): `Exit`, [`_run_sdlc_feature`](../../src/orchestrator/cli.py#L775), `echo`, `run`, [`unsupported_language_error`](../../src/orchestrator/sdlc/feature_runner.py#L131)
+- **Calls** (5): `Exit`, [`_run_sdlc_feature`](../../src/orchestrator/cli.py#L775), `echo`, `run`, [`unsupported_language_error`](../../src/orchestrator/sdlc/feature_runner.py#L132)
 
 ### `sdlc_remediate`
 

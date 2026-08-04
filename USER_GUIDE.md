@@ -452,6 +452,13 @@ The branch, the PR title, the PR-link comment and the To Do → In Progress move
 land on `ENG-42`, and nothing is created. A key that doesn't resolve stops the run
 before the worktree, so a typo costs you nothing.
 
+**Every live run logs what it spent.** When it finishes — pass or fail — it posts a Jira
+worklog on the issue: the run's wall-clock as time spent, and a table of tokens per
+pipeline stage with the models used and the cost, taken from the provider's own usage
+figures rather than an estimate. A failed run logs one too; that is where the spend most
+needs explaining. `--safe` posts nothing, and a tracker that rejects the worklog leaves a
+line in the log without changing the run's verdict.
+
 A human reviews and merges the PR (it never merges on its own). After the merge,
 close the loop so the tracker issue moves to Done:
 
