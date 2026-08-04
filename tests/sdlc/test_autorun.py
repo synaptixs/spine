@@ -103,7 +103,8 @@ def test_stages_run_in_order_and_record_themselves(monkeypatch: pytest.MonkeyPat
     ctx = _run(tmp_path)
 
     assert [s.name for s in ctx.stages] == list(STAGES)
-    assert [s.status for s in ctx.stages] == ["ok", "ok", "ok", "ok", "skipped"]
+    assert [s.status for s in ctx.stages] == ["ok", "ok", "ok", "ok", "ok", "skipped"]
+    assert ctx.verdict == "PROCEED"
     assert ctx.passed
 
 
@@ -143,7 +144,7 @@ def test_artifacts_are_written_outside_the_repo(monkeypatch: pytest.MonkeyPatch,
     ctx = _run(tmp_path)
 
     written = [Path(s.artifact) for s in ctx.stages if s.artifact]
-    assert {p.name for p in written} == {"investigation.md", "design.md"}
+    assert {p.name for p in written} == {"investigation.md", "validity.md", "design.md"}
     repo = tmp_path / "repo"
     for path in written:
         assert path.is_file()

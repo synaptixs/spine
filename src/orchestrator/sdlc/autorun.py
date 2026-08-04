@@ -36,7 +36,7 @@ from typing import Any, Literal
 StageStatus = Literal["ok", "skipped", "failed"]
 
 # The order is the contract: research before design, design before code, code before review.
-STAGES: tuple[str, ...] = ("intake", "investigate", "design", "implement", "review")
+STAGES: tuple[str, ...] = ("intake", "investigate", "validity", "design", "implement", "review")
 
 
 class AutorunError(RuntimeError):
@@ -78,6 +78,10 @@ class RunContext:
     # The design, rendered — handed to codegen so the implement stage acts on what the
     # design stage decided rather than re-deriving its own view of the ticket.
     plan: str = ""
+    # Where the investigation says this ticket lands. Shared with the validity gate so the
+    # two cannot disagree about what the ticket is even about.
+    landing: list[str] = field(default_factory=list)
+    verdict: str = ""
     stages: list[StageResult] = field(default_factory=list)
     # Durable state. Written after every stage, so a crash leaves a findable run rather than
     # a mystery worktree and a ticket stuck In Progress.
@@ -139,6 +143,7 @@ async def autorun(
     max_refine: int = 3,
     base_branch: str | None = None,
     language: str = "auto",
+    issue_type: str = "",
     artifacts_dir: Path | None = None,
     resume: str | None = None,
     max_cost_usd: float | None = None,
@@ -216,6 +221,7 @@ async def autorun(
     await _stage_intake(ctx, intent_id=intent_id, emit=emit)
     store, overview = _load_graph(ctx, emit=emit)
     _stage_investigate(ctx, store=store, emit=emit)
+    _stage_validity(ctx, store=store, issue_type=issue_type, emit=emit)
     await _stage_design(ctx, store=store, overview=overview, emit=emit)
     await _stage_implement(
         ctx,
@@ -303,9 +309,49 @@ def _stage_investigate(ctx: RunContext, *, store: Any, emit: Callable[[str], Non
         root=ctx.root,
     )
     path = ctx.write_artifact("investigation.md", render_investigation_md(investigation))
+    ctx.landing = []
+    for land in getattr(investigation, "landing", []) or []:
+        where = str(getattr(land, "where", "")).split(":", 1)[0]
+        if where and where not in ctx.landing:
+            ctx.landing.append(where)
     landed = len(getattr(investigation, "landing", []) or [])
     ctx.record_stage("investigate", "ok", f"{landed} symbol(s) this ticket lands on", path)
     emit(f"[investigate] {landed} symbol(s) · {path}")
+
+
+def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Callable[[str], None]) -> None:
+    """Is this ticket worth building, and is what it says about the code true?
+
+    The only stage that can stop a run before any code is written, and the reason the agent
+    is trustworthy at all: a ticket claiming eleven entities where the source has seven
+    would otherwise be built to a false premise, pass its own tests, and be wrong.
+    """
+    from orchestrator.sdlc.validity import Verdict, assess
+
+    assessment = assess(
+        ctx.spec or {},
+        store=store,
+        landing=ctx.landing,
+        issue_type=issue_type or str((ctx.spec or {}).get("issue_type", "")),
+        issue_key=ctx.issue_key,
+        prior_runs=ctx.store.all() if ctx.store is not None else [],
+    )
+    ctx.verdict = assessment.verdict.value
+    path = ctx.write_artifact("validity.md", assessment.render())
+
+    if assessment.verdict is Verdict.PROCEED:
+        ctx.record_stage("validity", "ok", "PROCEED — nothing contradicts the code", path)
+        emit("[validity] PROCEED")
+        return
+
+    detail = "; ".join(f.detail for f in assessment.findings) or assessment.verdict.value
+    ctx.record_stage("validity", "failed", f"{assessment.verdict.value}: {detail}", path)
+    # Parked, not failed: a refused ticket is a decision waiting for a human, and the run
+    # keeps its evidence so the human is not asked to take the agent's word for it.
+    ctx.checkpoint(status="parked", verdict=ctx.verdict, parked_reason=detail)
+    emit(f"[validity] {assessment.verdict.value} — {detail}")
+    emit(f"[validity] evidence in {path}")
+    raise AutorunError(f"{assessment.verdict.value}: {detail} — run parked, nothing was built.", code=5)
 
 
 async def _stage_design(
