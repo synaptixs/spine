@@ -149,11 +149,15 @@ def test_python_route_decorators_no_longer_trip_the_check(tmp_path: Path) -> Non
     assert _parity(report) == []
 
 
-def test_tablename_with_no_entity_node_warns(tmp_path: Path) -> None:
+def test_python_tablenames_no_longer_trip_the_check(tmp_path: Path) -> None:
+    """SSPN-3 closed the other half of the gap: a declared table now yields an ``Entity``,
+    so the warning must fall silent for Python too.
+
+    The Entity warning path stays covered on TypeScript, which still has the gap —
+    see ``test_typeorm_entity_decorator_warns``.
+    """
     body = 'class Row(Base):\n    __tablename__ = "rows"\n'
-    report = verify_batch(_app(tmp_path, body), tmp_path)
-    assert len(_parity(report)) == 1
-    assert "Entity" in _parity(report)[0]
+    assert _parity(verify_batch(_app(tmp_path, body), tmp_path)) == []
 
 
 def test_parity_is_a_warning_never_an_error(tmp_path: Path) -> None:

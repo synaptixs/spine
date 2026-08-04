@@ -33,7 +33,7 @@ flowchart LR
 - [`orchestrator.evals.harness`](../../src/orchestrator/evals/harness.py#L1)
 - [`orchestrator.evals.models`](../../src/orchestrator/evals/models.py#L1)
 - [`orchestrator.evals.paths`](../../src/orchestrator/evals/paths.py#L1)
-- [`orchestrator.evals.promotion`](../modules/orchestrator.evals.promotion.md)
+- [`orchestrator.evals.promotion`](../../src/orchestrator/evals/promotion.py#L1)
 - [`orchestrator.evals.skill_ab`](../../src/orchestrator/evals/skill_ab.py#L1)
 
 ## Depends on

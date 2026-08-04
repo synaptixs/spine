@@ -22,6 +22,9 @@ from pathlib import Path
 from typing import Protocol
 
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
+from orchestrator.pkg.python_orm import OrmState
+from orchestrator.pkg.python_orm import emit as emit_orm
+from orchestrator.pkg.python_orm import scan_module as scan_orm
 from orchestrator.pkg.python_routes import RouteState, scan_module
 from orchestrator.pkg.python_routes import emit as emit_routes
 
@@ -156,6 +159,9 @@ class PythonExtractor:
         # Routes span files — ``@router.get("")`` here, ``include_router(prefix=…)`` there —
         # so they accumulate across the walk and are emitted in ``finalize``.
         self._routes = RouteState()
+        # Foreign keys name classes that usually live in another module, so entities are
+        # collected across the walk and emitted in ``finalize`` too.
+        self._orm = OrmState()
 
     def module_name(self, path: Path, root: Path) -> str:
         return module_qualname(path, root)
@@ -174,6 +180,7 @@ class PythonExtractor:
         module_names = self._collect_defs(tree.body, module_id)
         self._emit_body(tree.body, module_id, module_id, imports, module_names, {}, rel, batch)
         scan_module(tree, module_id=module_id, rel=rel, imports=imports, state=self._routes)
+        scan_orm(tree, module_id=module_id, rel=rel, state=self._orm)
         return batch
 
     def finalize(self, batch: FactBatch) -> FactBatch:
@@ -186,6 +193,8 @@ class PythonExtractor:
         """
         emit_routes(self._routes, batch)
         self._routes.clear()
+        emit_orm(self._orm, batch)
+        self._orm.clear()
         return batch
 
     # ---- pass 1: names available for call resolution --------------------

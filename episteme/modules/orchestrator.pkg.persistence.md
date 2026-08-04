@@ -105,7 +105,7 @@
 [`src/orchestrator/pkg/persistence.py:218`](../../src/orchestrator/pkg/persistence.py#L218)
 
 - **Called by** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
-- **Calls** (7): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L552), [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L211), [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L147), [`load_facts`](../../src/orchestrator/pkg/persistence.py#L116), `pathlib.Path`, [`repo_state`](../../src/orchestrator/pkg/persistence.py#L137), [`save_facts`](../../src/orchestrator/pkg/persistence.py#L109)
+- **Calls** (7): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L561), [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L211), [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L147), [`load_facts`](../../src/orchestrator/pkg/persistence.py#L116), `pathlib.Path`, [`repo_state`](../../src/orchestrator/pkg/persistence.py#L137), [`save_facts`](../../src/orchestrator/pkg/persistence.py#L109)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#phases`, `docs/specs/design-and-comprehension-milestones.md#what-it-does-all-existing-deterministic-no-llm`, `docs/specs/multi-language-java.md#slice-1-java-comprehension-this-build`, `docs/specs/project-comprehension-memory-bank.md#two-branches-same-output-shape`, `docs/specs/python-frontend-parity.md#9-explicitly-out-of-scope`, `docs/specs/typescript-codegen.md#slice-1-typescript-comprehension-ships-first-cheap`
 
 ### `repo_state`

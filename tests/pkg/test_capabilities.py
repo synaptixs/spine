@@ -81,9 +81,14 @@ def test_only_the_named_front_end_class_counts() -> None:
     assert edges == {"CALLS", "EXPOSES"}
 
 
-def test_python_still_claims_no_entity() -> None:
-    """The remaining half of the parity gap, so the matrix keeps saying so until SSPN-3."""
-    assert "Entity" not in _by_language()["python"].node_kinds
+def test_python_claims_the_node_kinds_it_now_emits() -> None:
+    """Endpoint arrived with SSPN-2, Entity with SSPN-3 — the matrix has to keep up, and
+    this is the assertion that fails when a front-end grows a kind and nobody regenerates."""
+    python = _by_language()["python"]
+    assert {"Endpoint", "Entity", "Field"} <= set(python.node_kinds)
+    assert {"EXPOSES", "REFERENCES"} <= set(python.edge_kinds)
+    # READS / WRITES are SSPN-4's, and the matrix must go on saying so until then.
+    assert "READS" not in python.edge_kinds
 
 
 # One real file per language, so the cross-check below extracts something rather than
