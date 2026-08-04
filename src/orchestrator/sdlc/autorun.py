@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -78,15 +79,37 @@ class RunContext:
     # design stage decided rather than re-deriving its own view of the ticket.
     plan: str = ""
     stages: list[StageResult] = field(default_factory=list)
+    # Durable state. Written after every stage, so a crash leaves a findable run rather than
+    # a mystery worktree and a ticket stuck In Progress.
+    record: Any = None
+    store: Any = None
 
     @property
     def passed(self) -> bool:
         return all(stage.status != "failed" for stage in self.stages)
 
-    def record(self, name: str, status: StageStatus, detail: str, artifact: str = "") -> StageResult:
+    def record_stage(self, name: str, status: StageStatus, detail: str, artifact: str = "") -> StageResult:
         result = StageResult(name=name, status=status, detail=detail, artifact=artifact)
         self.stages.append(result)
+        self.checkpoint(phase=name, status="failed" if status == "failed" else None)
         return result
+
+    def checkpoint(self, *, phase: str | None = None, status: str | None = None, **fields: Any) -> None:
+        """Persist what we know. Cheap, and the only thing standing between a kill -9 and an
+        orphaned worktree nobody can attribute."""
+        if self.record is None or self.store is None:
+            return
+        if phase is not None:
+            self.record.phase = phase
+        if status is not None:
+            self.record.status = status
+        self.record.issue_key = self.issue_key or self.record.issue_key
+        self.record.branch = self.branch or self.record.branch
+        self.record.worktree = self.worktree or self.record.worktree
+        self.record.pr_url = self.pr_url or self.record.pr_url
+        for key, value in fields.items():
+            setattr(self.record, key, value)
+        self.store.save(self.record)
 
     def write_artifact(self, name: str, body: str) -> str:
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
@@ -117,6 +140,9 @@ async def autorun(
     base_branch: str | None = None,
     language: str = "auto",
     artifacts_dir: Path | None = None,
+    resume: str | None = None,
+    max_cost_usd: float | None = None,
+    store: Any = None,
     log: Callable[[str], None] | None = None,
 ) -> RunContext:
     """Drive one ticket through the happy path. Safe mode by default.
@@ -124,9 +150,31 @@ async def autorun(
     ``--safe`` makes no external write anywhere in the chain, exactly as `sdlc feature --safe`
     does today: the brief and design are written to the run directory, the code is committed
     locally, and no tracker or forge is touched.
+
+    ``resume`` continues a run that already exists: it keeps the run id, and adopts the
+    tracker issue that run already created rather than creating a second one. ``max_cost_usd``
+    caps LLM spend for the run; exhausting it parks the run instead of shipping half a change.
     """
+    from orchestrator.core.llm import RunBudget
+    from orchestrator.sdlc.runstate import RunRecord, RunStore
+
     emit: Callable[[str], None] = log or (lambda _m: None)
-    run_id = uuid.uuid4().hex[:16]
+    store = store or RunStore()
+
+    record = store.load(resume) if resume else None
+    if resume and record is None:
+        raise AutorunError(f"no run {resume!r} to resume", code=2)
+    if record is not None:
+        emit(f"[autorun] resuming {record.run_id} · phase {record.phase or 'start'}")
+        if record.issue_key:
+            # The half that must not happen twice. A crashed run that had already created a
+            # ticket is why `--issue` adoption exists at all.
+            issue = issue or record.issue_key
+            emit(f"[autorun] adopting {record.issue_key} from the previous attempt")
+        record.status = "running"
+        record.pid = os.getpid()
+    run_id = record.run_id if record else uuid.uuid4().hex[:16]
+
     ctx = RunContext(
         run_id=run_id,
         source=source,
@@ -134,7 +182,36 @@ async def autorun(
         root=Path(root),
         artifacts_dir=artifacts_dir or default_artifacts_dir(run_id),
     )
+    if record is None:
+        record = RunRecord(
+            run_id=run_id,
+            source=source,
+            live=live,
+            started_at=time.time(),
+            pid=os.getpid(),
+            artifacts_dir=str(ctx.artifacts_dir),
+        )
+    # One run owns one ticket. A second run against a ticket someone else is driving would
+    # race it for the same branch and the same issue — the duplicate-ticket failure again,
+    # this time with two live processes.
+    if issue:
+        held = store.active_for_issue(issue)
+        if held is not None and held.run_id != run_id:
+            raise AutorunError(
+                f"{issue} is already held by run {held.run_id} ({held.status}). "
+                f"Resume it with --resume {held.run_id}, or reap it if its process is gone.",
+                code=2,
+            )
+        record.issue_key = issue
+
+    ctx.record, ctx.store = record, store
+    ctx.issue_key = record.issue_key
+    ctx.checkpoint(phase="start", status="running")
+
+    budget = RunBudget(max_cost_usd=max_cost_usd) if max_cost_usd else None
     emit(f"[autorun] run {run_id} · source {source} · {'live' if live else 'safe'}")
+    if budget is not None:
+        emit(f"[budget] cap ${max_cost_usd:.2f} for this run")
 
     await _stage_intake(ctx, intent_id=intent_id, emit=emit)
     store, overview = _load_graph(ctx, emit=emit)
@@ -148,12 +225,18 @@ async def autorun(
         max_refine=max_refine,
         base_branch=base_branch,
         language=language,
+        budget=budget,
         emit=emit,
     )
     _stage_review(ctx, emit=emit)
 
+    ctx.checkpoint(phase="done", status="done", spent_usd=_spent(budget, run_id))
     emit(f"[autorun] artifacts in {ctx.artifacts_dir}")
     return ctx
+
+
+def _spent(budget: Any, run_id: str) -> float:
+    return float(budget.spent(run_id)) if budget is not None else 0.0
 
 
 # ---- stages ----------------------------------------------------------------
@@ -176,22 +259,22 @@ async def _stage_intake(ctx: RunContext, *, intent_id: str | None, emit: Callabl
     try:
         service = build_service_for(ctx.source, dry_run=True)
     except IntakeNotConfiguredError as exc:
-        ctx.record("intake", "failed", str(exc))
+        ctx.record_stage("intake", "failed", str(exc))
         raise AutorunError(str(exc), code=2) from exc
 
     plan = await analyze_cached(service, ctx.source, refresh=False, log=emit)
     if not plan.specs:
-        ctx.record("intake", "failed", "no specs derived from the source")
+        ctx.record_stage("intake", "failed", "no specs derived from the source")
         raise AutorunError("No specs derived from the source — nothing to implement.", code=3)
 
     chosen = next((s for s in plan.specs if s.intent_id == intent_id), None) if intent_id else plan.specs[0]
     if chosen is None:
         ids = ", ".join(s.intent_id for s in plan.specs)
-        ctx.record("intake", "failed", f"intent {intent_id!r} not found")
+        ctx.record_stage("intake", "failed", f"intent {intent_id!r} not found")
         raise AutorunError(f"Intent {intent_id!r} not found. Available: {ids}", code=3)
 
     ctx.spec = chosen.model_dump()
-    ctx.record("intake", "ok", f"spec: {ctx.spec.get('title', '')}")
+    ctx.record_stage("intake", "ok", f"spec: {ctx.spec.get('title', '')}")
     emit(f"[intake] {ctx.spec.get('title', '')} (intent {ctx.spec.get('intent_id', '')})")
 
 
@@ -221,7 +304,7 @@ def _stage_investigate(ctx: RunContext, *, store: Any, emit: Callable[[str], Non
     )
     path = ctx.write_artifact("investigation.md", render_investigation_md(investigation))
     landed = len(getattr(investigation, "landing", []) or [])
-    ctx.record("investigate", "ok", f"{landed} symbol(s) this ticket lands on", path)
+    ctx.record_stage("investigate", "ok", f"{landed} symbol(s) this ticket lands on", path)
     emit(f"[investigate] {landed} symbol(s) · {path}")
 
 
@@ -241,7 +324,7 @@ async def _stage_design(
     # Carried into the implement stage. Writing an artifact nobody reads is the difference
     # between chaining commands and connecting them.
     ctx.plan = rendered
-    ctx.record("design", "ok", f"{touched} file(s) proposed", path)
+    ctx.record_stage("design", "ok", f"{touched} file(s) proposed", path)
     emit(f"[design] {touched} file(s) proposed · {path}")
 
 
@@ -254,34 +337,51 @@ async def _stage_implement(
     max_refine: int,
     base_branch: str | None,
     language: str,
+    budget: Any,
     emit: Callable[[str], None],
 ) -> None:
     """Codegen, tests and (live) the PR — `sdlc feature`, unchanged, with our spec injected."""
+    import contextlib
+
+    from orchestrator.core.llm import BudgetExceededError
     from orchestrator.sdlc.feature_runner import FeatureRunError, run_feature
 
+    # Attribute spend to this run. Without it every charge lands on the shared "unscoped"
+    # bucket, the cap is enforced against the wrong total, and the run record reports $0.00
+    # for a run that spent real money.
+    scope = budget.activate(ctx.run_id) if budget is not None else contextlib.nullcontext()
     try:
-        result = await run_feature(
-            ctx.source,
-            intent_id=intent_id,
-            repo=repo,
-            max_refine=max_refine,
-            live=ctx.live,
-            issue=issue,
-            design=ctx.plan,
-            base_branch=base_branch,
-            language=language,
-            spec=ctx.spec,
-            log=emit,
-        )
+        with scope:
+            result = await run_feature(
+                ctx.source,
+                intent_id=intent_id,
+                repo=repo,
+                max_refine=max_refine,
+                live=ctx.live,
+                issue=issue,
+                design=ctx.plan,
+                base_branch=base_branch,
+                language=language,
+                spec=ctx.spec,
+                budget=budget,
+                log=emit,
+            )
+    except BudgetExceededError as exc:
+        # Out of money mid-change. Park it: the work so far is on a branch and a human can
+        # decide whether to raise the cap or drop it. Shipping half a change would be worse.
+        ctx.record_stage("implement", "failed", f"budget exhausted: {exc}")
+        ctx.checkpoint(status="parked", parked_reason=str(exc), spent_usd=_spent(budget, ctx.run_id))
+        raise AutorunError(f"budget exhausted — run parked: {exc}", code=4) from exc
     except FeatureRunError as exc:
-        ctx.record("implement", "failed", str(exc))
+        ctx.record_stage("implement", "failed", str(exc))
+        ctx.checkpoint(status="failed")
         raise AutorunError(str(exc), code=exc.code) from exc
 
     ctx.issue_key = result.issue_key
     ctx.branch = result.branch
     ctx.worktree = result.worktree
     ctx.pr_url = result.pr_url
-    ctx.record(
+    ctx.record_stage(
         "implement",
         "ok",
         f"{len(result.files)} file(s) changed on {result.branch} after {result.iterations} test run(s)",
@@ -296,10 +396,10 @@ def _stage_review(ctx: RunContext, *, emit: Callable[[str], None]) -> None:
     this stage exists so the skeleton's shape is honest about where that loop will attach.
     """
     if not ctx.pr_url:
-        ctx.record("review", "skipped", "no PR to review (safe mode opens none)")
+        ctx.record_stage("review", "skipped", "no PR to review (safe mode opens none)")
         emit("[review] skipped — safe mode opens no PR")
         return
-    ctx.record("review", "skipped", f"review of {ctx.pr_url} not wired yet (SSPN-24)")
+    ctx.record_stage("review", "skipped", f"review of {ctx.pr_url} not wired yet (SSPN-24)")
     emit(f"[review] skipped — {ctx.pr_url} awaits the review loop (SSPN-24)")
 
 
