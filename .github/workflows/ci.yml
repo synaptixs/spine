@@ -74,8 +74,32 @@ jobs:
       - name: PKG invariants (orchestrator pkg verify)
         run: uv run orchestrator pkg verify .
 
-      # Spine's own episteme has to describe Spine's own HEAD. The product's flagship
-      # claim is detecting when docs drift from code; a knowledge base that drifts
-      # silently in our own repo is the one failure we cannot ship.
-      - name: Episteme is current (orchestrator understand --check)
-        run: uv run orchestrator understand . --check
+      # Spine's own episteme has to describe Spine's own HEAD — but it is regenerated
+      # *after* merge (.github/workflows/episteme.yml), not carried on branches. A PR
+      # cannot keep it current: CI checks the merge ref, so the moment anything lands on
+      # develop every open branch's committed bank is stale against a tree that did not
+      # exist when it was generated. A docs-only PR broke a code PR that way, sharing no
+      # files with it. Regeneration belongs where the tree is stable.
+      #
+      # What a PR still owes: the bank must *build*. This catches a change that makes
+      # `understand` crash or emit nothing, which post-merge regeneration would otherwise
+      # discover on develop.
+      - name: Episteme builds (orchestrator understand .)
+        run: uv run orchestrator understand .
+
+      # And a PR must not carry the artifact. Two branches that both regenerate conflict on
+      # every merge; that is the whole failure this design removes.
+      - name: PR does not modify episteme/
+        if: github.event_name == 'pull_request'
+        run: |
+          # Two-dot, against a freshly fetched base: the question is whether this branch's
+          # committed bank differs from the base's, which is answerable in a shallow clone.
+          # A merge base is neither available nor needed.
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          if ! git diff --quiet FETCH_HEAD HEAD -- episteme/; then
+            echo "::error::This PR modifies episteme/, which is regenerated after merge."
+            echo "Drop those files:  git checkout FETCH_HEAD -- episteme/"
+            echo "See .github/workflows/episteme.yml and CONTRIBUTING.md."
+            git diff --stat FETCH_HEAD HEAD -- episteme/
+            exit 1
+          fi

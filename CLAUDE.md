@@ -95,3 +95,9 @@ Keep new design records in here rather than in an untracked scratch directory.
 Run the gate from [CONTRIBUTING.md](CONTRIBUTING.md) — `mypy src tests` (**not** just
 `src`) and `ruff format --check .`. CI also runs the tests. Work off `develop`, never
 commit to `main`.
+
+**Never commit `episteme/`.** It is regenerated after merge by
+[`.github/workflows/episteme.yml`](.github/workflows/episteme.yml), and CI fails any PR that
+carries it. A branch *cannot* keep it current — CI checks the merge ref, so anything landing
+on `develop` stales every open branch, and only a rebase (never a re-run) clears it. Generate
+it locally all you like for reading; just don't stage it.
