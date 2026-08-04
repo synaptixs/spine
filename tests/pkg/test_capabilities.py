@@ -16,6 +16,7 @@ import pytest
 from orchestrator.pkg.capabilities import (
     FRONT_ENDS,
     Capability,
+    _kinds_in,
     front_end_capabilities,
     render_markdown,
 )
@@ -59,13 +60,30 @@ def test_reported_kinds_are_real_vocabulary() -> None:
         assert set(cap.edge_kinds) <= edge_values
 
 
-def test_the_dispatcher_is_not_attributed_to_python() -> None:
-    """``extractor.py`` holds ``RepoCodeExtractor`` beside the Python front-end. Only the
-    front-end's own class counts, or Python would inherit the whole-repo import join."""
-    python = _by_language()["python"]
-    assert "Endpoint" not in python.node_kinds
-    assert "Entity" not in python.node_kinds
-    assert "EXPOSES" not in python.edge_kinds
+def test_only_the_named_front_end_class_counts() -> None:
+    """``extractor.py`` holds ``RepoCodeExtractor`` beside the Python front-end, so the scan
+    must ignore other ``*Extractor`` classes — otherwise Python inherits the whole-repo
+    import join. Module-level helpers *do* count: Java builds its endpoints in one.
+
+    Tested on synthetic source rather than on Python's real column, because that column is
+    now a moving target — SSPN-2 gave it ``Endpoint``/``EXPOSES``, and SSPN-3 will add
+    ``Entity``. A test keyed to today's kinds would fail for the wrong reason.
+    """
+    source = (
+        "class PythonExtractor:\n"
+        "    def extract(self):\n        return NodeKind.MODULE, EdgeKind.CALLS\n\n"
+        "class RepoCodeExtractor:\n"
+        "    def extract(self):\n        return NodeKind.ENTITY, EdgeKind.READS\n\n"
+        "def _helper():\n    return NodeKind.ENDPOINT, EdgeKind.EXPOSES\n"
+    )
+    nodes, edges = _kinds_in(source, keep_class="PythonExtractor")
+    assert nodes == {"MODULE", "ENDPOINT"}
+    assert edges == {"CALLS", "EXPOSES"}
+
+
+def test_python_still_claims_no_entity() -> None:
+    """The remaining half of the parity gap, so the matrix keeps saying so until SSPN-3."""
+    assert "Entity" not in _by_language()["python"].node_kinds
 
 
 # One real file per language, so the cross-check below extracts something rather than

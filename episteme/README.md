@@ -4,11 +4,11 @@
 Code-true knowledge base for **synaptixs-spine** (brownfield), built by `orchestrator understand` from the Product Knowledge Graph + project profile.
 
 <!-- spine-stamp -->
-Generated from commit `9a62b810e3ec33642abddc590716db420f7a257c` **plus uncommitted changes** by **Spine 3.12.0**.
+Generated from commit `71f6df749f4dd2176f931933a1097ee01630993f` **plus uncommitted changes** by **Spine 3.12.0**.
 Verify it still matches the code with `orchestrator understand --check`.
 <!-- /spine-stamp -->
 
-**Graph:** 9974 grounded nodes · 29454 edges.
+**Graph:** 10090 grounded nodes · 29658 edges.
 
 > **epistēmē** (ἐπιστήμη) — knowledge grounded in evidence, as opposed to *doxa*, opinion. Everything here is derived from the code itself, not written by hand.
 
@@ -26,6 +26,7 @@ _Where execution starts, then what the most code depends on._
 - [`areas/`](areas/) — 25 area pages: what each component is, what it depends on, and a map of its neighbours
 - [`modules/`](modules/) — 50 module pages: every symbol, who calls it, and what it calls
 - [domain-model.md](domain-model.md) — tables, fields, foreign keys both ways
+- [api-surface.md](api-surface.md) — every route and the code behind it
 - [tech-context.md](tech-context.md) — languages, framework, db, tests
 - [conventions.md](conventions.md) — observed house style + lint config
 - [glossary.md](glossary.md) — domain terms

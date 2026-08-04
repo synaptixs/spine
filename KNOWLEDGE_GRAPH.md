@@ -106,7 +106,7 @@ offer in the first place.
 
 | Front-end | `Module` | `Type` | `Function` | `Field` | `Endpoint` | `Entity` | `Doc` |
 |---|---|---|---|---|---|---|---|
-| `python` | ✓ | ✓ | ✓ | ✓ | · | · | · |
+| `python` | ✓ | ✓ | ✓ | ✓ | ✓ | · | · |
 | `java` | ✓ | ✓ | ✓ | ✓ | ✓ | · | · |
 | `typescript` | ✓ | ✓ | ✓ | ✓ | · | · | · |
 | `csharp` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · |
@@ -119,7 +119,7 @@ offer in the first place.
 
 | Front-end | `IMPORTS` | `CONTAINS` | `CALLS` | `IMPLEMENTS` | `READS` | `WRITES` | `EXPOSES` | `REFERENCES` | `MENTIONS` |
 |---|---|---|---|---|---|---|---|---|---|
-| `python` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | · |
+| `python` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | · |
 | `java` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | · |
 | `typescript` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | · |
 | `csharp` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | ✓ | · |
