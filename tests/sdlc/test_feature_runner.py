@@ -145,10 +145,15 @@ class _FakeJira:
     """Records whether the run created an issue or adopted one. ``missing``
     makes ``get_issue`` fail the way an unknown key does."""
 
-    def __init__(self, *, missing: bool = False, worklog_fails: bool = False) -> None:
+    def __init__(
+        self, *, missing: bool = False, worklog_fails: bool = False, transition_fails: bool = False
+    ) -> None:
+        self._transition_fails = transition_fails
         self.created: list[Any] = []
         self.adopted: list[str] = []
         self.worklogs: list[tuple[str, str, str]] = []
+        # Ordered, because *when* a ticket moves is the thing being fixed.
+        self.transitions: list[str] = []
         self._missing = missing
         self._worklog_fails = worklog_fails
 
@@ -171,6 +176,9 @@ class _FakeJira:
         return None
 
     async def transition_issue(self, issue_key: str, target: str) -> str:
+        if self._transition_fails:
+            raise IssueTrackerError(f"no transition to {target!r} available for {issue_key}")
+        self.transitions.append(target)
         return target
 
 
@@ -202,6 +210,17 @@ def _install_pipeline(
     monkeypatch.setattr("orchestrator.sdlc.codegen.resolve_codegen_model", lambda *a, **k: None)
     monkeypatch.setattr("orchestrator.sdlc.testrunner.SubprocessTestRunner", runner)
     monkeypatch.setattr("orchestrator.intake.jira.JiraAdapter", lambda *a, **k: jira or _FakeJira())
+
+    class _Forge:
+        """A PR without a forge: the live path needs one to reach the In Review transition."""
+
+        def __init__(self, *a: Any, **k: Any) -> None:
+            pass
+
+        async def open_pr(self, **kwargs: Any) -> Any:
+            return SimpleNamespace(url="https://github.com/x/y/pull/7")
+
+    monkeypatch.setattr("orchestrator.sdlc.forge.GhPRAdapter", _Forge)
     monkeypatch.setattr(
         "orchestrator.sdlc.grounding.PKGCodegenGrounder",
         SimpleNamespace(from_repo=lambda path: SimpleNamespace(context_for_spec=lambda spec: "")),
@@ -501,3 +520,78 @@ async def test_missing_pytest_fails_fast_with_actionable_message(
     with pytest.raises(FeatureRunError, match="pytest is required") as exc:
         await run_feature("file://./spec.md", intent_id="intent-a")
     assert exc.value.code == 2
+
+
+# ---- the ticket's status follows the work (SSPN-34) -------------------------
+
+
+async def test_a_live_run_moves_the_ticket_in_progress_before_writing_code(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """It used to move to In Progress *after* the PR was opened — so a ticket sat in To Do
+    through design, codegen and the whole test loop, and a run that died at codegen left no
+    sign it had ever been picked up."""
+    jira = _FakeJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, jira=jira)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
+        )
+
+    # The run never reached a PR, and the ticket still shows that work started.
+    assert jira.transitions == ["In Progress"]
+
+
+async def test_a_safe_run_moves_nothing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    jira = _FakeJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, jira=jira)
+
+    with pytest.raises(FeatureRunError):
+        await run_feature("file://./spec.md", intent_id="intent-a")
+
+    assert jira.transitions == []
+
+
+async def test_a_workflow_without_the_status_does_not_fail_the_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A tracker's workflow is not the run's to fail on: a board with different status names
+    should still get its code."""
+    jira = _FakeJira(transition_fails=True)
+    _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, jira=jira)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):  # the test verdict, not a tracker error
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
+        )
+
+
+async def test_done_is_never_set_by_the_agent(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Done means a human looked at it. `sdlc complete` is where that lives."""
+    jira = _FakeJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner, jira=jira)
+
+    with pytest.raises(FeatureRunError):
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
+        )
+
+    assert "Done" not in jira.transitions
+
+
+async def test_a_live_run_moves_the_ticket_to_in_review_when_the_pr_opens(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The step the workflow described and the code never had: the change is written, tested
+    and waiting on a human. Order matters as much as the transitions — In Progress at the
+    start, In Review at the end."""
+    jira = _FakeJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, jira=jira)
+
+    result = await run_feature(
+        "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
+    )
+
+    assert result.pr_url == "https://github.com/x/y/pull/7"
+    assert jira.transitions == ["In Progress", "In Review"]

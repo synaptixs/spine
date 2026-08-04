@@ -459,6 +459,12 @@ figures rather than an estimate. A failed run logs one too; that is where the sp
 needs explaining. `--safe` posts nothing, and a tracker that rejects the worklog leaves a
 line in the log without changing the run's verdict.
 
+**The ticket's status follows the work.** A live run moves it to *In Progress* when it
+starts — not when it finishes, so a run that dies halfway still shows that something picked
+the ticket up — and to *In Review* when the PR opens. **Done is never set by the agent**: it
+means a human looked at the change. A board whose workflow uses different status names logs
+a line and carries on rather than failing the run.
+
 A human reviews and merges the PR (it never merges on its own). After the merge,
 close the loop so the tracker issue moves to Done:
 
