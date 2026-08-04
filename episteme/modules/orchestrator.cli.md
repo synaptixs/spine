@@ -121,7 +121,7 @@ _20 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:1523`](../../src/orchestrator/cli.py#L1523)
 
 - **Called by** (1): [`state`](../../src/orchestrator/cli.py#L1473)
-- **Calls** (5): `FactStore`, [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L835), `now`, [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L133)
+- **Calls** (5): `FactStore`, [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L835), `now`, [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L137)
 
 ### `_repo_arg`
 
