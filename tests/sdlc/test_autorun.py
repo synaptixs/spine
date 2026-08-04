@@ -64,6 +64,7 @@ class _Service:
 
 def _install(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
     *,
     specs: list[_Spec] | None = None,
     feature: Any = None,
@@ -77,7 +78,7 @@ def _install(
         lambda *a, **k: _Service(specs if specs is not None else [_Spec()]),
     )
 
-    async def _feature(source: str, **kwargs: Any) -> Any:
+    async def _feature(source: str, **kwargs: Any) -> Any:  # noqa: ARG001
         seen["feature_kwargs"] = kwargs
         if calls is not None:
             calls.append("implement")
@@ -87,10 +88,14 @@ def _install(
             passed=True,
             issue_key="SSPN-42",
             branch="feat/abc/SSPN-42",
-            worktree="/tmp/ws",
+            worktree=str(tmp_path / "repo"),
             files=["src/x.py"],
             iterations=1,
             pr_url=None,
+            # The implement stage hands its adapter and runner on, so review fixes the change
+            # with the same tools that built it. None here: these tests stub the loop out.
+            codegen=None,
+            tests=None,
         )
 
     monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _feature)
@@ -98,12 +103,14 @@ def _install(
 
 
 def test_stages_run_in_order_and_record_themselves(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    _install(monkeypatch)
+    _install(monkeypatch, tmp_path)
 
     ctx = _run(tmp_path)
 
     assert [s.name for s in ctx.stages] == list(STAGES)
-    assert [s.status for s in ctx.stages] == ["ok", "ok", "ok", "ok", "ok", "skipped"]
+    # Review runs for real now: the stub worktree is not a git repo, so there is no diff to
+    # review and the loop says so rather than pretending it reviewed something.
+    assert [s.status for s in ctx.stages] == ["ok"] * 6
     assert ctx.verdict == "PROCEED"
     assert ctx.passed
 
@@ -113,7 +120,7 @@ def test_one_spec_is_resolved_once_and_injected_downstream(
 ) -> None:
     """Intake happens here, not again inside the feature runner — otherwise the brief and
     design describe a spec the implementation might re-derive differently."""
-    seen = _install(monkeypatch)
+    seen = _install(monkeypatch, tmp_path)
 
     ctx = _run(tmp_path)
 
@@ -125,7 +132,7 @@ def test_the_design_is_handed_to_the_implement_stage(monkeypatch: pytest.MonkeyP
     """Chaining commands is not connecting them: before this the design was written to disk
     and codegen never saw it, so the agent researched, designed, then implemented as if
     neither had happened."""
-    seen = _install(monkeypatch)
+    seen = _install(monkeypatch, tmp_path)
 
     ctx = _run(tmp_path)
 
@@ -139,12 +146,17 @@ def test_the_design_is_handed_to_the_implement_stage(monkeypatch: pytest.MonkeyP
 def test_artifacts_are_written_outside_the_repo(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """``understand`` ingests markdown from disk regardless of git, so a brief written into
     the working tree would become a Doc node and change the graph the next stage reads."""
-    _install(monkeypatch)
+    _install(monkeypatch, tmp_path)
 
     ctx = _run(tmp_path)
 
     written = [Path(s.artifact) for s in ctx.stages if s.artifact]
-    assert {p.name for p in written} == {"investigation.md", "validity.md", "design.md"}
+    assert {p.name for p in written} == {
+        "investigation.md",
+        "validity.md",
+        "design.md",
+        "review.md",
+    }
     repo = tmp_path / "repo"
     for path in written:
         assert path.is_file()
@@ -158,14 +170,15 @@ def test_the_default_artifact_dir_is_not_the_repo(monkeypatch: pytest.MonkeyPatc
 
 def test_safe_mode_opens_no_pr_and_says_why(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """The skeleton must be honest about where it stops rather than quietly doing nothing."""
-    seen = _install(monkeypatch)
+    seen = _install(monkeypatch, tmp_path)
 
     ctx = _run(tmp_path)
 
     assert seen["feature_kwargs"]["live"] is False
+    # Review still runs in safe mode — it reads the worktree, not a pull request, which is
+    # the point: findings get fixed *before* anyone is asked to look at the change.
     review = next(s for s in ctx.stages if s.name == "review")
-    assert review.status == "skipped"
-    assert "safe mode" in review.detail
+    assert review.status == "ok"
     assert ctx.pr_url is None
 
 
@@ -174,7 +187,7 @@ def test_a_failing_stage_stops_the_chain(monkeypatch: pytest.MonkeyPatch, tmp_pa
     from orchestrator.sdlc.feature_runner import FeatureRunError
 
     calls: list[str] = []
-    _install(monkeypatch, feature=FeatureRunError("VERDICT: FAILED", code=1), calls=calls)
+    _install(monkeypatch, tmp_path, feature=FeatureRunError("VERDICT: FAILED", code=1), calls=calls)
 
     with pytest.raises(AutorunError, match="VERDICT: FAILED") as exc:
         _run(tmp_path)
@@ -184,7 +197,7 @@ def test_a_failing_stage_stops_the_chain(monkeypatch: pytest.MonkeyPatch, tmp_pa
 
 
 def test_no_specs_fails_before_any_graph_work(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    _install(monkeypatch, specs=[])
+    _install(monkeypatch, tmp_path, specs=[])
 
     with pytest.raises(AutorunError, match="No specs") as exc:
         _run(tmp_path)
@@ -193,7 +206,7 @@ def test_no_specs_fails_before_any_graph_work(monkeypatch: pytest.MonkeyPatch, t
 
 
 def test_an_unknown_intent_names_what_is_available(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    _install(monkeypatch, specs=[_Spec("intent-a"), _Spec("intent-b")])
+    _install(monkeypatch, tmp_path, specs=[_Spec("intent-a"), _Spec("intent-b")])
 
     with pytest.raises(AutorunError, match="intent-a, intent-b") as exc:
         _run(tmp_path, intent_id="nope")
@@ -202,7 +215,7 @@ def test_an_unknown_intent_names_what_is_available(monkeypatch: pytest.MonkeyPat
 
 
 def test_the_summary_reports_every_stage(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    _install(monkeypatch)
+    _install(monkeypatch, tmp_path)
 
     summary = render_summary(_run(tmp_path))
 
@@ -216,7 +229,7 @@ def test_the_summary_reports_every_stage(monkeypatch: pytest.MonkeyPatch, tmp_pa
 
 def test_a_run_records_itself_as_it_goes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """A kill at any point must leave a findable run, not a mystery worktree."""
-    _install(monkeypatch)
+    _install(monkeypatch, tmp_path)
     store = RunStore(root=tmp_path / "state")
 
     ctx = _run(tmp_path, store=store)
@@ -225,7 +238,8 @@ def test_a_run_records_itself_as_it_goes(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert saved is not None
     assert saved.status == "done" and saved.phase == "done"
     assert saved.issue_key == "SSPN-42"
-    assert saved.branch == "feat/abc/SSPN-42" and saved.worktree == "/tmp/ws"
+    assert saved.branch == "feat/abc/SSPN-42"
+    assert saved.worktree == str(tmp_path / "repo")
 
 
 def test_resume_adopts_the_issue_the_previous_attempt_created(
@@ -233,7 +247,7 @@ def test_resume_adopts_the_issue_the_previous_attempt_created(
 ) -> None:
     """The half that must never happen twice. A crashed run that already created a ticket is
     exactly how a duplicate got minted before `--issue` adoption existed."""
-    seen = _install(monkeypatch)
+    seen = _install(monkeypatch, tmp_path)
     store = RunStore(root=tmp_path / "state")
     store.save(RunRecord(run_id="prev", source="file://./spec.md", issue_key="SSPN-77", status="running"))
 
@@ -246,7 +260,7 @@ def test_resume_adopts_the_issue_the_previous_attempt_created(
 def test_resuming_a_run_that_does_not_exist_is_refused(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _install(monkeypatch)
+    _install(monkeypatch, tmp_path)
 
     with pytest.raises(AutorunError, match="no run 'nope'") as exc:
         _run(tmp_path, store=RunStore(root=tmp_path / "state"), resume="nope")
@@ -258,7 +272,7 @@ def test_a_second_run_cannot_take_a_held_ticket(monkeypatch: pytest.MonkeyPatch,
     """Two live runs on one ticket race for the same branch and the same issue."""
     import os
 
-    _install(monkeypatch)
+    _install(monkeypatch, tmp_path)
     store = RunStore(root=tmp_path / "state")
     store.save(RunRecord(run_id="held", source="s", issue_key="SSPN-5", status="running", pid=os.getpid()))
 
@@ -271,7 +285,7 @@ def test_a_second_run_cannot_take_a_held_ticket(monkeypatch: pytest.MonkeyPatch,
 
 def test_an_abandoned_run_does_not_block_the_ticket(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """A dead process must not hold a ticket hostage."""
-    _install(monkeypatch)
+    _install(monkeypatch, tmp_path)
     store = RunStore(root=tmp_path / "state")
     store.save(RunRecord(run_id="dead", source="s", issue_key="SSPN-5", status="running", pid=999_999))
 
@@ -285,7 +299,7 @@ def test_budget_exhaustion_parks_the_run(monkeypatch: pytest.MonkeyPatch, tmp_pa
     because the wallet ran dry is worse than stopping."""
     from orchestrator.core.llm import BudgetExceededError
 
-    _install(monkeypatch, feature=BudgetExceededError("run cap $1.00 exhausted"))
+    _install(monkeypatch, tmp_path, feature=BudgetExceededError("run cap $1.00 exhausted"))
     store = RunStore(root=tmp_path / "state")
 
     with pytest.raises(AutorunError, match="budget exhausted") as exc:
@@ -300,7 +314,7 @@ def test_budget_exhaustion_parks_the_run(monkeypatch: pytest.MonkeyPatch, tmp_pa
 def test_a_failed_run_is_recorded_as_failed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from orchestrator.sdlc.feature_runner import FeatureRunError
 
-    _install(monkeypatch, feature=FeatureRunError("VERDICT: FAILED", code=1))
+    _install(monkeypatch, tmp_path, feature=FeatureRunError("VERDICT: FAILED", code=1))
     store = RunStore(root=tmp_path / "state")
 
     with pytest.raises(AutorunError):

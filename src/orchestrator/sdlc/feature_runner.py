@@ -75,6 +75,11 @@ class FeatureRunResult:
     live: bool
     files: list[str] = field(default_factory=list)
     pr_url: str | None = None
+    # The adapter and runner that built this change, so a later stage can fix what review
+    # finds *with the same tools* — same layout, same conventions, same test environment.
+    # Rebuilding them elsewhere would review one change and fix a differently-configured one.
+    codegen: Any = None
+    tests: Any = None
 
 
 async def _local_commit(path: Path, message: str) -> None:
@@ -574,6 +579,8 @@ async def run_feature(
         live=live,
         files=files,
         pr_url=pr_url,
+        codegen=codegen,
+        tests=runner,
     )
 
 
