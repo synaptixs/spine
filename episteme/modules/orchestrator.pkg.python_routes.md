@@ -37,7 +37,7 @@ _13 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_routes.py:75`](../../src/orchestrator/pkg/python_routes.py#L75)
 
-- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L155)
+- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L158)
 - **Fields**: `local_prefixes`, `mounts`, `routes`
 
 ## Functions
@@ -105,14 +105,14 @@ _13 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_routes.py:283`](../../src/orchestrator/pkg/python_routes.py#L283)
 
-- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L179)
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L186)
 - **Calls** (3): [`Edge`](../../src/orchestrator/pkg/facts.py#L86), [`Node`](../../src/orchestrator/pkg/facts.py#L70), [`_join`](../../src/orchestrator/pkg/python_routes.py#L117)
 
 ### `scan_module`
 
 [`src/orchestrator/pkg/python_routes.py:160`](../../src/orchestrator/pkg/python_routes.py#L160)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/extractor.py#L163)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/extractor.py#L169)
 - **Calls** (3): [`_collect_django`](../../src/orchestrator/pkg/python_routes.py#L248), [`_collect_routers`](../../src/orchestrator/pkg/python_routes.py#L175), [`_collect_routes`](../../src/orchestrator/pkg/python_routes.py#L204)
 
 ## Imports

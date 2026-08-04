@@ -30,7 +30,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/typescript_extractor.py:46`](../../src/orchestrator/pkg/typescript_extractor.py#L46)
 
-- **Called by** (1 production · 2 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L505), [`_facts`](../../tests/pkg/test_typescript_extractor.py#L50), [`test_repo_extractor_dispatches_typescript_by_suffix`](../../tests/pkg/test_typescript_extractor.py#L113)
+- **Called by** (1 production · 2 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L514), [`_facts`](../../tests/pkg/test_typescript_extractor.py#L50), [`test_repo_extractor_dispatches_typescript_by_suffix`](../../tests/pkg/test_typescript_extractor.py#L113)
 - **Fields**: `language`, `suffixes`
 - **Documented in**: `docs/specs/typescript-codegen.md#slice-1-typescript-comprehension-ships-first-cheap`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 

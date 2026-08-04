@@ -31,9 +31,9 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **PKGCodegenGrounder** | [`PKGCodegenGrounder`](../src/orchestrator/sdlc/grounding.py#L30) | `KNOWLEDGE_GRAPH.md#7-how-grounding-uses-the-pkg`, `docs/specs/README.md#3-gap-taxonomy-g1g17` |
 | **PlannerError** | [`PlannerError`](../src/orchestrator/planner/v0.py#L38) | — |
 | **Provenance** | [`Provenance`](../src/orchestrator/pkg/facts.py#L58) | — |
-| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L145) | `docs/specs/python-frontend-parity.md#7-files`, `docs/specs/typescript-codegen.md#where-typescript-stands-today` |
+| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L148) | `docs/specs/python-frontend-parity.md#7-files`, `docs/specs/typescript-codegen.md#where-typescript-stands-today` |
 | **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L84) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
-| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L552) | `docs/specs/README.md#44-build-phases-per-repo-split`, `docs/specs/archive/PKG-INTEGRATION-PLAN.md#phase-1-repo-code-extractor-track-11-34-wks` |
+| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L561) | `docs/specs/README.md#44-build-phases-per-repo-split`, `docs/specs/archive/PKG-INTEGRATION-PLAN.md#phase-1-repo-code-extractor-track-11-34-wks` |
 | **SDLCActivities** | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L44) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration` |
 | **SDLCWorkflow** | [`SDLCWorkflow`](../src/orchestrator/sdlc/workflows.py#L475) | `CLI_REFERENCE.md`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
 | **SDLCWorkflowInput** | [`SDLCWorkflowInput`](../src/orchestrator/sdlc/types.py#L17) | `docs/specs/archive/BLOCK-C-DESIGN.md#4-parent-sdlcworkflow`, `docs/specs/bet2c-rbac-multitenancy.md#as-built-notes` |
@@ -46,4 +46,4 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **VersionedRepo** | [`VersionedRepo`](../src/orchestrator/registry/repositories.py#L45) | — |
 | **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
 
-_Top 40 of 535 types by graph centrality._
+_Top 40 of 546 types by graph centrality._
