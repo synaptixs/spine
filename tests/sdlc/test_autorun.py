@@ -432,6 +432,59 @@ def test_a_rejected_run_does_not_resume(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert "not worth it" in str(exc.value)
 
 
+# ---- one account of the run (SSPN-26) --------------------------------------
+
+
+def test_the_implement_stage_does_not_post_its_own_worklog(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The supervisor owns the ledger across stages and posts once at the end. Letting the
+    implement stage also post would bill the ticket twice for the same tokens — and would
+    miss the review loop's fixes, which happen after it returns."""
+    seen = _install(monkeypatch, tmp_path)
+
+    _run(tmp_path)
+
+    assert seen["feature_kwargs"]["post_worklog"] is False
+    assert seen["feature_kwargs"]["ledger"] is not None
+
+
+def test_the_run_shares_one_ledger_with_the_implement_stage(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A ledger per stage would produce a worklog per stage, or a total that is really a
+    fragment. One ledger is what makes the account whole."""
+    from orchestrator.core.llm.recording import TokenLedger
+
+    seen = _install(monkeypatch, tmp_path)
+
+    _run(tmp_path)
+
+    assert isinstance(seen["feature_kwargs"]["ledger"], TokenLedger)
+
+
+def test_a_safe_run_posts_no_worklog(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Safe mode makes no external write, and telemetry is no exception."""
+    posted: list[Any] = []
+
+    class _Jira:
+        def __init__(self, *a: Any, **k: Any) -> None:
+            pass
+
+        async def add_worklog(self, issue_key: str, **kwargs: Any) -> None:
+            posted.append(issue_key)
+
+        async def aclose(self) -> None:
+            return None
+
+    _install(monkeypatch, tmp_path)
+    monkeypatch.setattr("orchestrator.intake.jira.JiraAdapter", _Jira)
+
+    _run(tmp_path)
+
+    assert posted == []
+
+
 # ---- helper ----------------------------------------------------------------
 
 

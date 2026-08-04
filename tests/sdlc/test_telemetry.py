@@ -59,3 +59,47 @@ def test_a_run_with_no_llm_calls_says_so() -> None:
     assert "No LLM calls were recorded" in body
     assert "no LLM call was made" in body
     assert "| Stage |" not in body
+
+
+# ---- one account of a whole run (SSPN-26) ----------------------------------
+
+
+def test_a_run_worklog_covers_every_stage() -> None:
+    """`render_worklog` describes one feature run. A supervised run has stages before and
+    after it — a gate that can refuse the ticket, a review loop whose fixes are LLM calls of
+    their own — and a worklog from the middle of that bills part of the history as the total.
+    """
+    from orchestrator.sdlc.telemetry import render_run_worklog
+
+    ledger = TokenLedger()
+    ledger.record("codegen", _result("claude-opus-5", 4000, 900))
+    ledger.record("review_fix", _result("claude-opus-5", 800, 200))
+
+    body = render_run_worklog(
+        ledger,
+        seconds=600,
+        verdict="PASSED",
+        stages=[
+            ("validity", "ok", "PROCEED"),
+            ("implement", "ok", "3 file(s) changed"),
+            ("review", "ok", "review clean"),
+        ],
+        review="review clean · 1 round",
+    )
+
+    # The totals span both stages that spent tokens, not just the biggest.
+    assert "**5,900**" in body
+    assert "| validity | ok | PROCEED |" in body
+    assert "| review | ok | review clean |" in body
+    assert "## Review" in body and "1 round" in body
+
+
+def test_a_run_worklog_without_review_omits_the_section() -> None:
+    from orchestrator.sdlc.telemetry import render_run_worklog
+
+    body = render_run_worklog(
+        TokenLedger(), seconds=30, verdict="FAILED", stages=[("intake", "failed", "no specs")]
+    )
+
+    assert "## Review" not in body
+    assert "| intake | failed | no specs |" in body

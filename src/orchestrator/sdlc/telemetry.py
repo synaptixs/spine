@@ -72,4 +72,27 @@ def render_worklog(ledger: TokenLedger, *, seconds: float, verdict: str) -> str:
     return "\n".join(lines)
 
 
-__all__ = ["jira_duration", "render_worklog"]
+def render_run_worklog(
+    ledger: TokenLedger,
+    *,
+    seconds: float,
+    verdict: str,
+    stages: list[tuple[str, str, str]],
+    review: str = "",
+) -> str:
+    """One account of a whole run — every stage, not just the one that spent the most.
+
+    `render_worklog` describes a single feature run. A supervised run has stages before and
+    after it: a validity gate that can refuse the ticket outright, and a review loop whose
+    fixes are LLM calls of their own. A worklog posted from the middle of that would bill the
+    ticket for part of its own history and call it the total.
+    """
+    body = [render_worklog(ledger, seconds=seconds, verdict=verdict), "", "## Stages", ""]
+    body += ["| Stage | Result | Detail |", "|---|---|---|"]
+    body += [f"| {name} | {status} | {detail} |" for name, status, detail in stages]
+    if review:
+        body += ["", "## Review", "", review]
+    return "\n".join(body)
+
+
+__all__ = ["jira_duration", "render_run_worklog", "render_worklog"]
