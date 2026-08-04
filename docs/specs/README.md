@@ -398,6 +398,7 @@ also done (see G13).)*
 | Doc | Role |
 |---|---|
 | **`README.md`** (this) | **Single source of truth — status + roadmap + current focus** |
+| `autonomous-run-agent.md` | The agent that drives a ticket end to end, and what it does when the path deviates |
 | `models.md` | Data-model reference |
 | `archive/AI-NATIVE-PLATFORM-PLAN.md` | Full original roadmap (merged into §5 here) |
 | `archive/PKG-INTEGRATION-PLAN.md` | Full original PKG plan (merged into §4 here) |
