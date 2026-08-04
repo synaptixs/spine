@@ -18,3 +18,7 @@
 - `tags`
 - `updated_at`
 - `version`
+
+## Read by
+
+[`_list_candidates`](../../src/orchestrator/planner/v0.py#L92), [`_list_candidates`](../../src/orchestrator/planner/v1.py#L341)

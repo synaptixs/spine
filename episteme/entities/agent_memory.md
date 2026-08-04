@@ -21,3 +21,7 @@
 - `statement`
 - `tenant_id`
 - `trace_id`
+
+## Read by
+
+[`decay`](../../src/orchestrator/registry/repositories.py#L300), [`list_memory`](../../src/orchestrator/registry/api/memory.py#L82), [`search`](../../src/orchestrator/registry/repositories.py#L237)

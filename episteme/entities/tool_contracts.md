@@ -18,3 +18,7 @@
 - `tags`
 - `updated_at`
 - `version`
+
+## Read by
+
+[`load_published_tools`](../../src/orchestrator/gateway/loader.py#L55)

@@ -1,9 +1,14 @@
 # Design + Plan: Python front-end parity (`Endpoint`, `Entity`, `READS`/`WRITES`)
 
-**Status:** **Phase 1 shipped** (SSPN-2) — `Endpoint` + `EXPOSES`, in `pkg/python_routes.py`.
-On this repo all **77 of 77** decorator-declared handlers now carry an inbound `EXPOSES`
-edge, against an exit criterion of ≥70. Phase 2 (`Entity` / `Field` / `REFERENCES`, SSPN-3)
-and phase 3 are still open.
+**Status:** ✅ **COMPLETE.** All three phases shipped — `Endpoint`/`EXPOSES` (SSPN-2,
+`pkg/python_routes.py`), `Entity`/`Field`/`REFERENCES` (SSPN-3, `pkg/python_orm.py`), and
+`READS`/`WRITES` (SSPN-4). Python went from 4 of 7 node kinds and 4 of 9 edge kinds to
+**6 of 7 and 8 of 9** — everything except `Doc`/`MENTIONS`, which belong to doc ingestion and
+are no language's to emit.
+
+Measured on this repo: 77 of 77 route handlers carry an inbound `EXPOSES` edge, 7 entities
+with 78 columns, and 30 data-access edges. The chain the track existed to build is real:
+`GET /v1/runs` --EXPOSES--> `list_runs` --READS--> `audit_log` --CONTAINS--> its columns.
 
 > **One exit criterion is not met and was deliberately left alone: `impact_of` on a route
 > handler still returns `[]`.** `FactStore.impact_of` walks `callers_of`, which filters on

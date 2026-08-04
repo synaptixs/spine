@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/pkg/python_orm.py`](../../src/orchestrator/pkg/python_orm.py)
 
-4 types · 10 functions · python
+5 types · 11 functions · python
 
 ## Changing this safely
 
@@ -13,115 +13,129 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_literal_str`](../../src/orchestrator/pkg/python_orm.py#L86) — reaches **7** symbols · **no test path visible**
-- [`PendingReference`](../../src/orchestrator/pkg/python_orm.py#L58) — reaches **4** symbols · **no test path visible**
-- [`_call_name`](../../src/orchestrator/pkg/python_orm.py#L92) — reaches **4** symbols · **no test path visible**
-- [`PendingColumn`](../../src/orchestrator/pkg/python_orm.py#L52) — reaches **3** symbols · **no test path visible**
-- [`_meta_db_table`](../../src/orchestrator/pkg/python_orm.py#L113) — reaches **3** symbols · **no test path visible**
-- [`_references_in`](../../src/orchestrator/pkg/python_orm.py#L150) — reaches **3** symbols · **no test path visible**
-- [`PendingEntity`](../../src/orchestrator/pkg/python_orm.py#L67) — reaches **2** symbols · **no test path visible**
-- [`_columns_and_refs`](../../src/orchestrator/pkg/python_orm.py#L179) — reaches **2** symbols · **no test path visible**
+- [`_literal_str`](../../src/orchestrator/pkg/python_orm.py#L110) — reaches **7** symbols · **no test path visible**
+- [`_call_name`](../../src/orchestrator/pkg/python_orm.py#L116) — reaches **5** symbols · **no test path visible**
+- [`PendingReference`](../../src/orchestrator/pkg/python_orm.py#L70) — reaches **4** symbols · **no test path visible**
+- [`PendingAccess`](../../src/orchestrator/pkg/python_orm.py#L89) — reaches **3** symbols · **no test path visible**
+- [`PendingColumn`](../../src/orchestrator/pkg/python_orm.py#L64) — reaches **3** symbols · **no test path visible**
+- [`_meta_db_table`](../../src/orchestrator/pkg/python_orm.py#L137) — reaches **3** symbols · **no test path visible**
+- [`_references_in`](../../src/orchestrator/pkg/python_orm.py#L174) — reaches **3** symbols · **no test path visible**
+- [`PendingEntity`](../../src/orchestrator/pkg/python_orm.py#L79) — reaches **2** symbols · **no test path visible**
 
-_14 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_16 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Types
 
 ### `OrmState`
 
-[`src/orchestrator/pkg/python_orm.py:77`](../../src/orchestrator/pkg/python_orm.py#L77)
+[`src/orchestrator/pkg/python_orm.py:99`](../../src/orchestrator/pkg/python_orm.py#L99)
 
 - **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L158)
-- **Fields**: `entities`
+- **Fields**: `accesses`, `entities`
+
+### `PendingAccess`
+
+[`src/orchestrator/pkg/python_orm.py:89`](../../src/orchestrator/pkg/python_orm.py#L89)
+
+- **Called by** (1): [`_collect_accesses`](../../src/orchestrator/pkg/python_orm.py#L234)
+- **Fields**: `class_name`, `function_id`, `kind`, `provenance`
 
 ### `PendingColumn`
 
-[`src/orchestrator/pkg/python_orm.py:52`](../../src/orchestrator/pkg/python_orm.py#L52)
+[`src/orchestrator/pkg/python_orm.py:64`](../../src/orchestrator/pkg/python_orm.py#L64)
 
-- **Called by** (1): [`_columns_and_refs`](../../src/orchestrator/pkg/python_orm.py#L179)
+- **Called by** (1): [`_columns_and_refs`](../../src/orchestrator/pkg/python_orm.py#L203)
 - **Fields**: `name`, `provenance`
 
 ### `PendingEntity`
 
-[`src/orchestrator/pkg/python_orm.py:67`](../../src/orchestrator/pkg/python_orm.py#L67)
+[`src/orchestrator/pkg/python_orm.py:79`](../../src/orchestrator/pkg/python_orm.py#L79)
 
-- **Called by** (1): [`scan_module`](../../src/orchestrator/pkg/python_orm.py#L210)
+- **Called by** (1): [`scan_module`](../../src/orchestrator/pkg/python_orm.py#L268)
 - **Fields**: `class_name`, `columns`, `module_id`, `provenance`, `references`, `table`
 
 ### `PendingReference`
 
-[`src/orchestrator/pkg/python_orm.py:58`](../../src/orchestrator/pkg/python_orm.py#L58)
+[`src/orchestrator/pkg/python_orm.py:70`](../../src/orchestrator/pkg/python_orm.py#L70)
 
-- **Called by** (1): [`_references_in`](../../src/orchestrator/pkg/python_orm.py#L150)
+- **Called by** (1): [`_references_in`](../../src/orchestrator/pkg/python_orm.py#L174)
 - **Fields**: `class_name`, `provenance`, `table`
 
 ## Functions
 
 ### `_call_name`
 
-[`src/orchestrator/pkg/python_orm.py:92`](../../src/orchestrator/pkg/python_orm.py#L92)
+[`src/orchestrator/pkg/python_orm.py:116`](../../src/orchestrator/pkg/python_orm.py#L116)
 
-- **Called by** (2): [`_columns_and_refs`](../../src/orchestrator/pkg/python_orm.py#L179), [`_references_in`](../../src/orchestrator/pkg/python_orm.py#L150)
+- **Called by** (3): [`_collect_accesses`](../../src/orchestrator/pkg/python_orm.py#L234), [`_columns_and_refs`](../../src/orchestrator/pkg/python_orm.py#L203), [`_references_in`](../../src/orchestrator/pkg/python_orm.py#L174)
+
+### `_collect_accesses`
+
+[`src/orchestrator/pkg/python_orm.py:234`](../../src/orchestrator/pkg/python_orm.py#L234)
+
+- **Called by** (2): [`_collect_accesses`](../../src/orchestrator/pkg/python_orm.py#L234), [`scan_module`](../../src/orchestrator/pkg/python_orm.py#L268)
+- **Calls** (5): [`PendingAccess`](../../src/orchestrator/pkg/python_orm.py#L89), [`Provenance`](../../src/orchestrator/pkg/facts.py#L58), [`_call_name`](../../src/orchestrator/pkg/python_orm.py#L116), [`_collect_accesses`](../../src/orchestrator/pkg/python_orm.py#L234), `walk`
 
 ### `_columns_and_refs`
 
-[`src/orchestrator/pkg/python_orm.py:179`](../../src/orchestrator/pkg/python_orm.py#L179)
+[`src/orchestrator/pkg/python_orm.py:203`](../../src/orchestrator/pkg/python_orm.py#L203)
 
-- **Called by** (1): [`scan_module`](../../src/orchestrator/pkg/python_orm.py#L210)
-- **Calls** (6): `Pass`, [`PendingColumn`](../../src/orchestrator/pkg/python_orm.py#L52), [`Provenance`](../../src/orchestrator/pkg/facts.py#L58), [`_call_name`](../../src/orchestrator/pkg/python_orm.py#L92), [`_references_in`](../../src/orchestrator/pkg/python_orm.py#L150), `dump`
+- **Called by** (1): [`scan_module`](../../src/orchestrator/pkg/python_orm.py#L268)
+- **Calls** (6): `Pass`, [`PendingColumn`](../../src/orchestrator/pkg/python_orm.py#L64), [`Provenance`](../../src/orchestrator/pkg/facts.py#L58), [`_call_name`](../../src/orchestrator/pkg/python_orm.py#L116), [`_references_in`](../../src/orchestrator/pkg/python_orm.py#L174), `dump`
 
 ### `_django_model_base`
 
-[`src/orchestrator/pkg/python_orm.py:103`](../../src/orchestrator/pkg/python_orm.py#L103)
+[`src/orchestrator/pkg/python_orm.py:127`](../../src/orchestrator/pkg/python_orm.py#L127)
 
-- **Called by** (1): [`scan_module`](../../src/orchestrator/pkg/python_orm.py#L210)
+- **Called by** (1): [`scan_module`](../../src/orchestrator/pkg/python_orm.py#L268)
 
 ### `_django_table`
 
-[`src/orchestrator/pkg/python_orm.py:136`](../../src/orchestrator/pkg/python_orm.py#L136)
+[`src/orchestrator/pkg/python_orm.py:160`](../../src/orchestrator/pkg/python_orm.py#L160)
 
-- **Called by** (1): [`scan_module`](../../src/orchestrator/pkg/python_orm.py#L210)
-- **Calls** (1): [`_meta_db_table`](../../src/orchestrator/pkg/python_orm.py#L113)
+- **Called by** (1): [`scan_module`](../../src/orchestrator/pkg/python_orm.py#L268)
+- **Calls** (1): [`_meta_db_table`](../../src/orchestrator/pkg/python_orm.py#L137)
 
 ### `_literal_str`
 
-[`src/orchestrator/pkg/python_orm.py:86`](../../src/orchestrator/pkg/python_orm.py#L86)
+[`src/orchestrator/pkg/python_orm.py:110`](../../src/orchestrator/pkg/python_orm.py#L110)
 
-- **Called by** (3): [`_meta_db_table`](../../src/orchestrator/pkg/python_orm.py#L113), [`_references_in`](../../src/orchestrator/pkg/python_orm.py#L150), [`_tablename`](../../src/orchestrator/pkg/python_orm.py#L125)
+- **Called by** (3): [`_meta_db_table`](../../src/orchestrator/pkg/python_orm.py#L137), [`_references_in`](../../src/orchestrator/pkg/python_orm.py#L174), [`_tablename`](../../src/orchestrator/pkg/python_orm.py#L149)
 
 ### `_meta_db_table`
 
-[`src/orchestrator/pkg/python_orm.py:113`](../../src/orchestrator/pkg/python_orm.py#L113)
+[`src/orchestrator/pkg/python_orm.py:137`](../../src/orchestrator/pkg/python_orm.py#L137)
 
-- **Called by** (1): [`_django_table`](../../src/orchestrator/pkg/python_orm.py#L136)
-- **Calls** (1): [`_literal_str`](../../src/orchestrator/pkg/python_orm.py#L86)
+- **Called by** (1): [`_django_table`](../../src/orchestrator/pkg/python_orm.py#L160)
+- **Calls** (1): [`_literal_str`](../../src/orchestrator/pkg/python_orm.py#L110)
 
 ### `_references_in`
 
-[`src/orchestrator/pkg/python_orm.py:150`](../../src/orchestrator/pkg/python_orm.py#L150)
+[`src/orchestrator/pkg/python_orm.py:174`](../../src/orchestrator/pkg/python_orm.py#L174)
 
-- **Called by** (1): [`_columns_and_refs`](../../src/orchestrator/pkg/python_orm.py#L179)
-- **Calls** (5): [`PendingReference`](../../src/orchestrator/pkg/python_orm.py#L58), [`Provenance`](../../src/orchestrator/pkg/facts.py#L58), [`_call_name`](../../src/orchestrator/pkg/python_orm.py#L92), [`_literal_str`](../../src/orchestrator/pkg/python_orm.py#L86), `walk`
+- **Called by** (1): [`_columns_and_refs`](../../src/orchestrator/pkg/python_orm.py#L203)
+- **Calls** (5): [`PendingReference`](../../src/orchestrator/pkg/python_orm.py#L70), [`Provenance`](../../src/orchestrator/pkg/facts.py#L58), [`_call_name`](../../src/orchestrator/pkg/python_orm.py#L116), [`_literal_str`](../../src/orchestrator/pkg/python_orm.py#L110), `walk`
 
 ### `_tablename`
 
-[`src/orchestrator/pkg/python_orm.py:125`](../../src/orchestrator/pkg/python_orm.py#L125)
+[`src/orchestrator/pkg/python_orm.py:149`](../../src/orchestrator/pkg/python_orm.py#L149)
 
-- **Called by** (1): [`scan_module`](../../src/orchestrator/pkg/python_orm.py#L210)
-- **Calls** (1): [`_literal_str`](../../src/orchestrator/pkg/python_orm.py#L86)
+- **Called by** (1): [`scan_module`](../../src/orchestrator/pkg/python_orm.py#L268)
+- **Calls** (1): [`_literal_str`](../../src/orchestrator/pkg/python_orm.py#L110)
 
 ### `emit`
 
-[`src/orchestrator/pkg/python_orm.py:234`](../../src/orchestrator/pkg/python_orm.py#L234)
+[`src/orchestrator/pkg/python_orm.py:293`](../../src/orchestrator/pkg/python_orm.py#L293)
 
 - **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L186)
 - **Calls** (2): [`Edge`](../../src/orchestrator/pkg/facts.py#L86), [`Node`](../../src/orchestrator/pkg/facts.py#L70)
 
 ### `scan_module`
 
-[`src/orchestrator/pkg/python_orm.py:210`](../../src/orchestrator/pkg/python_orm.py#L210)
+[`src/orchestrator/pkg/python_orm.py:268`](../../src/orchestrator/pkg/python_orm.py#L268)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/extractor.py#L169)
-- **Calls** (7): [`PendingEntity`](../../src/orchestrator/pkg/python_orm.py#L67), [`Provenance`](../../src/orchestrator/pkg/facts.py#L58), [`_columns_and_refs`](../../src/orchestrator/pkg/python_orm.py#L179), [`_django_model_base`](../../src/orchestrator/pkg/python_orm.py#L103), [`_django_table`](../../src/orchestrator/pkg/python_orm.py#L136), [`_tablename`](../../src/orchestrator/pkg/python_orm.py#L125), `walk`
+- **Calls** (8): [`PendingEntity`](../../src/orchestrator/pkg/python_orm.py#L79), [`Provenance`](../../src/orchestrator/pkg/facts.py#L58), [`_collect_accesses`](../../src/orchestrator/pkg/python_orm.py#L234), [`_columns_and_refs`](../../src/orchestrator/pkg/python_orm.py#L203), [`_django_model_base`](../../src/orchestrator/pkg/python_orm.py#L127), [`_django_table`](../../src/orchestrator/pkg/python_orm.py#L160), [`_tablename`](../../src/orchestrator/pkg/python_orm.py#L149), `walk`
 
 ## Imports
 

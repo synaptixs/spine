@@ -274,6 +274,128 @@ def test_django_lazy_string_reference_resolves(tmp_path: Path) -> None:
     assert (edge.src, edge.dst) == ("py:entity:invoices", "py:entity:customers")
 
 
+# ---- data access (READS / WRITES) ------------------------------------------
+
+
+def _access(batch: FactBatch, kind: EdgeKind) -> set[tuple[str, str]]:
+    return {(e.src.rsplit(".", 1)[-1], e.dst) for e in batch.edges if e.kind is kind}
+
+
+_MODELS = (
+    "from sqlalchemy.orm import declarative_base\n\n"
+    "Base = declarative_base()\n\n\n"
+    "class OrderRow(Base):\n"
+    '    __tablename__ = "orders"\n'
+)
+
+
+def test_select_of_an_orm_class_reads_the_table(tmp_path: Path) -> None:
+    batch = _extract(
+        tmp_path,
+        {
+            "m.py": _MODELS + "\n\n"
+            "from sqlalchemy import select\n\n\n"
+            "def list_orders(session):\n"
+            "    return session.execute(select(OrderRow))\n"
+        },
+    )
+    assert _access(batch, EdgeKind.READS) == {("list_orders", "py:entity:orders")}
+
+
+def test_insert_update_delete_write_the_table(tmp_path: Path) -> None:
+    batch = _extract(
+        tmp_path,
+        {
+            "m.py": _MODELS + "\n\n"
+            "from sqlalchemy import delete, insert, update\n\n\n"
+            "def add(session):\n    session.execute(insert(OrderRow))\n\n\n"
+            "def edit(session):\n    session.execute(update(OrderRow))\n\n\n"
+            "def drop(session):\n    session.execute(delete(OrderRow))\n"
+        },
+    )
+    assert _access(batch, EdgeKind.WRITES) == {
+        ("add", "py:entity:orders"),
+        ("edit", "py:entity:orders"),
+        ("drop", "py:entity:orders"),
+    }
+    assert _access(batch, EdgeKind.READS) == set()
+
+
+def test_raw_sql_and_computed_tables_emit_nothing(tmp_path: Path) -> None:
+    """A wrong data-access edge sends a schema-change impact query to the wrong callers."""
+    batch = _extract(
+        tmp_path,
+        {
+            "m.py": _MODELS + "\n\n"
+            "from sqlalchemy import select, text\n\n\n"
+            "def raw(session):\n"
+            '    return session.execute(select(text("SELECT 1")))\n\n\n'
+            "def dynamic(session, model):\n"
+            "    return session.execute(select(model))\n\n\n"
+            "def attribute(session, registry):\n"
+            "    return session.execute(select(registry.OrderRow))\n"
+        },
+    )
+    assert _access(batch, EdgeKind.READS) == set()
+    assert _access(batch, EdgeKind.WRITES) == set()
+
+
+def test_a_name_that_is_not_an_orm_class_emits_nothing(tmp_path: Path) -> None:
+    """``select(thing)`` where ``thing`` is anything else at all."""
+    batch = _extract(
+        tmp_path,
+        {
+            "m.py": (
+                "from sqlalchemy import select\n\n"
+                "SOMETHING = 1\n\n\n"
+                "def go(session):\n    return session.execute(select(SOMETHING))\n"
+            )
+        },
+    )
+    assert _access(batch, EdgeKind.READS) == set()
+
+
+def test_the_innermost_function_owns_the_access(tmp_path: Path) -> None:
+    """A query in a nested helper is not blamed on the function that contains it."""
+    batch = _extract(
+        tmp_path,
+        {
+            "m.py": _MODELS + "\n\n"
+            "from sqlalchemy import select\n\n\n"
+            "def outer(session):\n"
+            "    def inner():\n"
+            "        return session.execute(select(OrderRow))\n\n"
+            "    return inner\n"
+        },
+    )
+    assert _access(batch, EdgeKind.READS) == {("inner", "py:entity:orders")}
+
+
+def test_a_module_level_query_is_not_attributed(tmp_path: Path) -> None:
+    """There is no symbol a reader could act on, so the edge would point nowhere useful."""
+    batch = _extract(
+        tmp_path,
+        {"m.py": _MODELS + "\n\nfrom sqlalchemy import select\n\nSTMT = select(OrderRow)\n"},
+    )
+    assert _access(batch, EdgeKind.READS) == set()
+
+
+def test_this_repo_links_the_endpoint_to_the_table() -> None:
+    """The chain the parity track exists to produce, end to end on real source:
+    ``GET /v1/runs`` -EXPOSES-> ``list_runs`` -READS-> ``audit_log`` -CONTAINS-> columns."""
+    root = Path(__file__).resolve().parents[2]
+    batch = RepoCodeExtractor().extract(root / "src")
+    handler = "py:orchestrator.registry.api.runs.list_runs"
+
+    exposes = {e.src for e in batch.edges if e.kind is EdgeKind.EXPOSES and e.dst == handler}
+    reads = {e.dst for e in batch.edges if e.kind is EdgeKind.READS and e.src == handler}
+    columns = {n.id for n in batch.nodes if n.id.startswith("py:entity:audit_log.")}
+
+    assert "py:endpoint:GET /v1/runs" in exposes
+    assert reads == {"py:entity:audit_log"}
+    assert columns
+
+
 # ---- state hygiene ---------------------------------------------------------
 
 

@@ -82,13 +82,17 @@ def test_only_the_named_front_end_class_counts() -> None:
 
 
 def test_python_claims_the_node_kinds_it_now_emits() -> None:
-    """Endpoint arrived with SSPN-2, Entity with SSPN-3 — the matrix has to keep up, and
-    this is the assertion that fails when a front-end grows a kind and nobody regenerates."""
+    """The parity track, asserted: Endpoint (SSPN-2), Entity (SSPN-3), READS/WRITES (SSPN-4).
+
+    This is the assertion that fails when a front-end grows a kind and nobody regenerates the
+    committed matrix — the drift that made a hand-authored version 22% wrong.
+    """
     python = _by_language()["python"]
-    assert {"Endpoint", "Entity", "Field"} <= set(python.node_kinds)
-    assert {"EXPOSES", "REFERENCES"} <= set(python.edge_kinds)
-    # READS / WRITES are SSPN-4's, and the matrix must go on saying so until then.
-    assert "READS" not in python.edge_kinds
+    assert {"Endpoint", "Entity", "Field", "Module", "Type", "Function"} <= set(python.node_kinds)
+    assert {"EXPOSES", "REFERENCES", "READS", "WRITES"} <= set(python.edge_kinds)
+    # Doc / MENTIONS belong to doc ingestion, which is no language's column.
+    assert "Doc" not in python.node_kinds
+    assert "MENTIONS" not in python.edge_kinds
 
 
 # One real file per language, so the cross-check below extracts something rather than

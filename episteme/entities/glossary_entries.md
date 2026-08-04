@@ -18,3 +18,7 @@
 - `tags`
 - `updated_at`
 - `version`
+
+## Read by
+
+[`_fetch_org_glossary`](../../src/orchestrator/planner/v1.py#L348)
