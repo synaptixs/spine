@@ -9,7 +9,6 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **ApprovalRequestRow** | [`ApprovalRequestRow`](../src/orchestrator/registry/db/models.py#L127) | — |
 | **AuditLogRepo** | [`AuditLogRepo`](../src/orchestrator/registry/repositories.py#L161) | `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist`, `docs/specs/bet2-trust-spine.md#why-this-stands-out` |
 | **AuditLogRow** | [`AuditLogRow`](../src/orchestrator/registry/db/models.py#L186) | `docs/specs/cross-run-semantic-memory.md#data-model`, `docs/specs/cross-run-semantic-memory.md#design-cross-run-semantic-memory-the-experience-true-layer` |
-| **BacklogService** | [`BacklogService`](../src/orchestrator/intake/service.py#L175) | `USER_GUIDE.md#bringing-diagrams-recordings-into-the-graph`, `docs/specs/archive/BLOCK-C-DESIGN.md#11-open-questions` |
 | **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L234) | — |
 | **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L118) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
 | **DocPage** | [`DocPage`](../src/orchestrator/pkg/docs.py#L51) | `docs/specs/doc-ingestion-spec.md#components-where-the-code-goes`, `docs/specs/doc-ingestion-spec.md#design-decisions` |
@@ -20,6 +19,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L24) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10`, `docs/specs/capability-recommendations-kg-grounded.md#where-we-are-today-the-honest-baseline` |
 | **FeatureImplementationWorkflow** | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
 | **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L49) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/sandboxed-test-execution.md#wiring-sdlcfeature-runnerpy` |
+| **FeatureRunResult** | [`FeatureRunResult`](../src/orchestrator/sdlc/feature_runner.py#L66) | `docs/specs/sdlc-tracking-blueprint.md#11-implementation-roadmap-incremental-each-phase-shippable`, `docs/specs/sdlc-tracking-blueprint.md#3-what-to-measure-the-metric-model` |
 | **GroundingVerifier** | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L42) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#2-what-ontomesh-produced-evidence`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
 | **JiraAdapter** | [`JiraAdapter`](../src/orchestrator/intake/jira.py#L114) | `docs/specs/capability-recommendations-kg-grounded.md#where-we-are-today-the-honest-baseline` |
@@ -46,4 +46,4 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **VersionedRepo** | [`VersionedRepo`](../src/orchestrator/registry/repositories.py#L45) | — |
 | **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
 
-_Top 40 of 555 types by graph centrality._
+_Top 40 of 560 types by graph centrality._

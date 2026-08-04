@@ -9,18 +9,18 @@
 
 ## Changing this safely
 
-**Tested by** (4): `tests.codereview.test_grounding`, `tests.codereview.test_reviewer`, `tests.codereview.test_semgrep`, `tests.codereview.test_verifiers`
+**Tested by** (5): `tests.codereview.test_grounding`, `tests.codereview.test_reviewer`, `tests.codereview.test_semgrep`, `tests.codereview.test_verifiers`, `tests.sdlc.test_reviewloop`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`Finding`](../../src/orchestrator/codereview/verifiers.py#L45) — reaches **12** symbols
+- [`SecretsVerifier`](../../src/orchestrator/codereview/verifiers.py#L95) — reaches **5** symbols
+- [`SecurityVerifier`](../../src/orchestrator/codereview/verifiers.py#L164) — reaches **5** symbols
+- [`StyleVerifier`](../../src/orchestrator/codereview/verifiers.py#L230) — reaches **5** symbols
+- [`default_code_verifiers`](../../src/orchestrator/codereview/verifiers.py#L279) — reaches **5** symbols
 - [`worst_severity`](../../src/orchestrator/codereview/verifiers.py#L293) — reaches **5** symbols
 - [`Severity`](../../src/orchestrator/codereview/verifiers.py#L34) — reaches **4** symbols · **no test path visible**
-- [`SecretsVerifier`](../../src/orchestrator/codereview/verifiers.py#L95) — reaches **3** symbols
-- [`SecurityVerifier`](../../src/orchestrator/codereview/verifiers.py#L164) — reaches **3** symbols
-- [`StyleVerifier`](../../src/orchestrator/codereview/verifiers.py#L230) — reaches **3** symbols
-- [`_is_code_file`](../../src/orchestrator/codereview/verifiers.py#L83) — reaches **2** symbols · **no test path visible**
-- [`_is_test_file`](../../src/orchestrator/codereview/verifiers.py#L87) — reaches **2** symbols · **no test path visible**
+- [`run_verifiers`](../../src/orchestrator/codereview/verifiers.py#L284) — reaches **4** symbols
 
 _3 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -37,7 +37,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/codereview/verifiers.py:45`](../../src/orchestrator/codereview/verifiers.py#L45)
 
-- **Called by** (8 production · 2 test): [`_failure_finding`](../../src/orchestrator/codereview/semgrep.py#L126), [`_finding_from_llm`](../../src/orchestrator/codereview/reviewer.py#L150), [`_findings`](../../src/orchestrator/codereview/semgrep.py#L101), [`_nit`](../../src/orchestrator/codereview/verifiers.py#L268), [`findings_for_diff`](../../src/orchestrator/codereview/grounding.py#L64), [`scan`](../../src/orchestrator/codereview/grounding.py#L130), [`scan`](../../src/orchestrator/codereview/verifiers.py#L127), [`scan`](../../src/orchestrator/codereview/verifiers.py#L206), [`test_submission_anchors_inline_vs_floating_and_blocks`](../../tests/codereview/test_reviewer.py#L121), [`test_submission_warnings_only_does_not_block`](../../tests/codereview/test_reviewer.py#L138)
+- **Called by** (8 production · 3 test): [`_failure_finding`](../../src/orchestrator/codereview/semgrep.py#L126), [`_finding_from_llm`](../../src/orchestrator/codereview/reviewer.py#L150), [`_findings`](../../src/orchestrator/codereview/semgrep.py#L101), [`_nit`](../../src/orchestrator/codereview/verifiers.py#L268), [`findings_for_diff`](../../src/orchestrator/codereview/grounding.py#L64), [`scan`](../../src/orchestrator/codereview/grounding.py#L130), [`scan`](../../src/orchestrator/codereview/verifiers.py#L127), [`scan`](../../src/orchestrator/codereview/verifiers.py#L206), [`_finding`](../../tests/sdlc/test_reviewloop.py#L43), [`test_submission_anchors_inline_vs_floating_and_blocks`](../../tests/codereview/test_reviewer.py#L121), [`test_submission_warnings_only_does_not_block`](../../tests/codereview/test_reviewer.py#L138)
 - **Fields**: `line`, `message`, `path`, `rule`, `severity`, `verifier_id`
 
 ### `SecretsVerifier`
@@ -97,7 +97,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/codereview/verifiers.py:284`](../../src/orchestrator/codereview/verifiers.py#L284)
 
-- **Called by** (0 production · 2 test): [`test_run_verifiers_concatenates_and_worst_severity`](../../tests/codereview/test_verifiers.py#L170), [`test_worst_severity_none_when_clean`](../../tests/codereview/test_verifiers.py#L177)
+- **Called by** (1 production · 2 test): [`review_and_fix`](../../src/orchestrator/sdlc/reviewloop.py#L170), [`test_run_verifiers_concatenates_and_worst_severity`](../../tests/codereview/test_verifiers.py#L170), [`test_worst_severity_none_when_clean`](../../tests/codereview/test_verifiers.py#L177)
 - **Calls** (1): [`default_code_verifiers`](../../src/orchestrator/codereview/verifiers.py#L279)
 
 ### `worst_severity`
@@ -112,4 +112,4 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.codereview.grounding`](../../src/orchestrator/codereview/grounding.py#L1), [`orchestrator.codereview.reviewer`](orchestrator.codereview.reviewer.md), [`orchestrator.codereview.semgrep`](../../src/orchestrator/codereview/semgrep.py#L1), [`tests.codereview.test_grounding`](../../tests/codereview/test_grounding.py#L1), [`tests.codereview.test_reviewer`](../../tests/codereview/test_reviewer.py#L1), [`tests.codereview.test_semgrep`](../../tests/codereview/test_semgrep.py#L1), [`tests.codereview.test_verifiers`](../../tests/codereview/test_verifiers.py#L1)
+[`orchestrator.codereview.grounding`](../../src/orchestrator/codereview/grounding.py#L1), [`orchestrator.codereview.reviewer`](orchestrator.codereview.reviewer.md), [`orchestrator.codereview.semgrep`](../../src/orchestrator/codereview/semgrep.py#L1), [`orchestrator.sdlc.reviewloop`](../../src/orchestrator/sdlc/reviewloop.py#L1), [`tests.codereview.test_grounding`](../../tests/codereview/test_grounding.py#L1), [`tests.codereview.test_reviewer`](../../tests/codereview/test_reviewer.py#L1), [`tests.codereview.test_semgrep`](../../tests/codereview/test_semgrep.py#L1), [`tests.codereview.test_verifiers`](../../tests/codereview/test_verifiers.py#L1), [`tests.sdlc.test_reviewloop`](../../tests/sdlc/test_reviewloop.py#L1)
