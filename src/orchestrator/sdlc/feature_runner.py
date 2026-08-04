@@ -176,6 +176,7 @@ async def run_feature(
     max_refine: int = 3,
     live: bool = False,
     issue: str | None = None,
+    design: str = "",
     base_branch: str | None = None,
     layout_mode: str = "auto",
     package_name: str | None = None,
@@ -192,6 +193,10 @@ async def run_feature(
     ``issue`` adopts an issue that already exists instead of creating one, so
     a run can be pointed at the ticket the work is actually for. Without it the
     issue is created as before.
+
+    ``design`` is what an earlier stage already produced (`sdlc autorun`), carried
+    into every codegen prompt. Empty by default: a standalone run builds exactly the
+    prompt it builds today.
     """
     emit: Callable[[str], None] = log or (lambda _m: None)
     adopt_key = _validated_issue_key(issue)
@@ -450,7 +455,15 @@ async def run_feature(
     emit(f"[persona] software_engineer · skills: {', '.join(capability_plan.skills) or '(none selected)'}")
 
     codegen_model = resolve_codegen_model(model)
-    codegen_kwargs: dict[str, Any] = {"grounder": grounder, "layout": layout, "persona": SOFTWARE_ENGINEER}
+    codegen_kwargs: dict[str, Any] = {
+        "grounder": grounder,
+        "layout": layout,
+        "persona": SOFTWARE_ENGINEER,
+        # Research and design are worthless to a model that never sees them.
+        "design": design,
+    }
+    if design:
+        emit(f"[design] carrying {len(design)} chars of agreed design into codegen")
     if codegen_model:
         codegen_kwargs["model"] = codegen_model
     codegen = LLMCodegenAdapter(llm, **codegen_kwargs)

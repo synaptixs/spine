@@ -119,6 +119,21 @@ def test_one_spec_is_resolved_once_and_injected_downstream(
     assert seen["feature_kwargs"]["spec"] == ctx.spec
 
 
+def test_the_design_is_handed_to_the_implement_stage(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Chaining commands is not connecting them: before this the design was written to disk
+    and codegen never saw it, so the agent researched, designed, then implemented as if
+    neither had happened."""
+    seen = _install(monkeypatch)
+
+    ctx = _run(tmp_path)
+
+    assert ctx.plan.startswith("# Design")
+    assert seen["feature_kwargs"]["design"] == ctx.plan
+    # ...and it is the same text the artifact holds, so what a human reads is what the model got.
+    design_artifact = next(s.artifact for s in ctx.stages if s.name == "design")
+    assert Path(design_artifact).read_text(encoding="utf-8") == ctx.plan
+
+
 def test_artifacts_are_written_outside_the_repo(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """``understand`` ingests markdown from disk regardless of git, so a brief written into
     the working tree would become a Doc node and change the graph the next stage reads."""

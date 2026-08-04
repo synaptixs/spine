@@ -74,6 +74,9 @@ class RunContext:
     worktree: str = ""
     pr_url: str | None = None
     spec: dict[str, Any] | None = None
+    # The design, rendered — handed to codegen so the implement stage acts on what the
+    # design stage decided rather than re-deriving its own view of the ticket.
+    plan: str = ""
     stages: list[StageResult] = field(default_factory=list)
 
     @property
@@ -232,8 +235,12 @@ async def _stage_design(
     # this stage runnable with no provider configured. Wiring the model in is phase 2 work,
     # not skeleton work.
     design = await produce_design(spec, overview=overview, store=store, llm=None)
-    path = ctx.write_artifact("design.md", render_design_md(spec, design))
+    rendered = render_design_md(spec, design)
+    path = ctx.write_artifact("design.md", rendered)
     touched = len(design.get("files_to_touch") or [])
+    # Carried into the implement stage. Writing an artifact nobody reads is the difference
+    # between chaining commands and connecting them.
+    ctx.plan = rendered
     ctx.record("design", "ok", f"{touched} file(s) proposed", path)
     emit(f"[design] {touched} file(s) proposed · {path}")
 
@@ -260,6 +267,7 @@ async def _stage_implement(
             max_refine=max_refine,
             live=ctx.live,
             issue=issue,
+            design=ctx.plan,
             base_branch=base_branch,
             language=language,
             spec=ctx.spec,
