@@ -43,7 +43,7 @@ flowchart LR
 - [`orchestrator.intake.jira_source`](../../src/orchestrator/intake/jira_source.py#L1)
 - [`orchestrator.intake.mcp_source`](../../src/orchestrator/intake/mcp_source.py#L1)
 - [`orchestrator.intake.notion`](../../src/orchestrator/intake/notion.py#L1)
-- [`orchestrator.intake.openspec_source`](../modules/orchestrator.intake.openspec_source.md)
+- [`orchestrator.intake.openspec_source`](../../src/orchestrator/intake/openspec_source.py#L1)
 - [`orchestrator.intake.openspec_writer`](../../src/orchestrator/intake/openspec_writer.py#L1)
 - [`orchestrator.intake.report`](../modules/orchestrator.intake.report.md)
 - [`orchestrator.intake.service`](../../src/orchestrator/intake/service.py#L1)

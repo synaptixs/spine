@@ -22,6 +22,8 @@ from pathlib import Path
 from typing import Protocol
 
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
+from orchestrator.pkg.python_routes import RouteState, scan_module
+from orchestrator.pkg.python_routes import emit as emit_routes
 
 _PY_BUILTINS = frozenset(
     [
@@ -150,6 +152,11 @@ class PythonExtractor:
     _module: str = ""
     _is_pkg: bool = False
 
+    def __init__(self) -> None:
+        # Routes span files — ``@router.get("")`` here, ``include_router(prefix=…)`` there —
+        # so they accumulate across the walk and are emitted in ``finalize``.
+        self._routes = RouteState()
+
     def module_name(self, path: Path, root: Path) -> str:
         return module_qualname(path, root)
 
@@ -166,6 +173,19 @@ class PythonExtractor:
         imports = self._collect_imports(tree)
         module_names = self._collect_defs(tree.body, module_id)
         self._emit_body(tree.body, module_id, module_id, imports, module_names, {}, rel, batch)
+        scan_module(tree, module_id=module_id, rel=rel, imports=imports, state=self._routes)
+        return batch
+
+    def finalize(self, batch: FactBatch) -> FactBatch:
+        """Whole-repo pass: emit routes now that every mount prefix is known.
+
+        Nothing in Python calls an HTTP handler, so without this a route handler has no
+        inbound edge at all and ``impact_of`` reports a public endpoint as safe to change.
+        Contract (shared with the Go front-end): mutate ``batch`` in place; the return value
+        is ignored. State is cleared so a second walk on the same instance starts empty.
+        """
+        emit_routes(self._routes, batch)
+        self._routes.clear()
         return batch
 
     # ---- pass 1: names available for call resolution --------------------

@@ -1,7 +1,15 @@
 # Design + Plan: Python front-end parity (`Endpoint`, `Entity`, `READS`/`WRITES`)
 
-**Status:** Proposed. No branch yet. Three phases; **phases 1–2 are the deliverable**, phase 3
-is a separate PR.
+**Status:** **Phase 1 shipped** (SSPN-2) — `Endpoint` + `EXPOSES`, in `pkg/python_routes.py`.
+On this repo all **77 of 77** decorator-declared handlers now carry an inbound `EXPOSES`
+edge, against an exit criterion of ≥70. Phase 2 (`Entity` / `Field` / `REFERENCES`, SSPN-3)
+and phase 3 are still open.
+
+> **One exit criterion is not met and was deliberately left alone: `impact_of` on a route
+> handler still returns `[]`.** `FactStore.impact_of` walks `callers_of`, which filters on
+> `EdgeKind.CALLS` only — so no `EXPOSES` edge participates, for *any* language. C# and Java
+> have emitted endpoints for releases and read the same way. Closing it is a change to shared
+> traversal behaviour, not to a front-end, so it belongs in its own ticket.
 
 Python is the PKG's v0 front-end and the only one that is always on — it needs no extra, so
 every install has it and most users never load another. It is also the **least capable of the

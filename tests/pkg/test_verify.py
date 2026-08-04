@@ -138,12 +138,15 @@ def _lang_repo(root: Path, lang: str, name: str, body: str) -> FactBatch:
     return batch
 
 
-def test_route_decorators_with_no_endpoint_node_warn(tmp_path: Path) -> None:
-    """The failure this check exists for: 77 routes in source, zero Endpoint nodes,
-    and every other invariant green because the graph is self-consistent."""
+def test_python_route_decorators_no_longer_trip_the_check(tmp_path: Path) -> None:
+    """The gap this check was written to expose — 77 routes in source, zero Endpoint nodes —
+    is closed for Python: the front-end now emits them, so the warning must fall silent.
+
+    The warning path is still exercised, on TypeScript, which has the identical gap:
+    ``test_typescript_nest_decorators_warn`` / ``test_typescript_express_routes_warn``.
+    """
     report = verify_batch(_app(tmp_path, '@router.get("/items")\ndef items():\n    return []\n'), tmp_path)
-    assert len(_parity(report)) == 1
-    assert "Endpoint" in _parity(report)[0]
+    assert _parity(report) == []
 
 
 def test_tablename_with_no_entity_node_warns(tmp_path: Path) -> None:
@@ -155,8 +158,13 @@ def test_tablename_with_no_entity_node_warns(tmp_path: Path) -> None:
 
 def test_parity_is_a_warning_never_an_error(tmp_path: Path) -> None:
     """A front-end that hasn't learned a framework must not fail someone's build —
-    a check people switch off catches nothing."""
-    report = verify_batch(_app(tmp_path, '@app.post("/x")\ndef x():\n    return 1\n'), tmp_path)
+    a check people switch off catches nothing.
+
+    On TypeScript now that Python emits endpoints; the severity rule is what's under test,
+    not which language happens to be behind.
+    """
+    batch = _lang_repo(tmp_path, "typescript", "server.ts", 'router.get("/users", handler)\n')
+    report = verify_batch(batch, tmp_path)
     assert report.ok
     assert [i.severity for i in report.issues if i.check == "source-parity"] == ["warning"]
 

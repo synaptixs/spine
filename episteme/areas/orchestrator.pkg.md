@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 31 modules — 57 types and 209 functions. Nothing here depends on other areas, but 10 areas depend on it — it's a foundation, so changes ripple outward.
+**`orchestrator.pkg`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 32 modules — 59 types and 220 functions. Nothing here depends on other areas, but 10 areas depend on it — it's a foundation, so changes ripple outward.
 
 ```mermaid
 flowchart LR
@@ -54,6 +54,7 @@ _Showing 8 of 10 neighbouring areas._
 - [`orchestrator.pkg.migrations`](../../src/orchestrator/pkg/migrations.py#L1)
 - [`orchestrator.pkg.overview`](../../src/orchestrator/pkg/overview.py#L1)
 - [`orchestrator.pkg.persistence`](../modules/orchestrator.pkg.persistence.md)
+- [`orchestrator.pkg.python_routes`](../modules/orchestrator.pkg.python_routes.md)
 - [`orchestrator.pkg.rdf`](../../src/orchestrator/pkg/rdf.py#L1)
 - [`orchestrator.pkg.retrieval`](../../src/orchestrator/pkg/retrieval.py#L1)
 - [`orchestrator.pkg.schema`](../../src/orchestrator/pkg/schema.py#L1)
