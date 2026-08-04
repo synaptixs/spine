@@ -77,3 +77,63 @@ def test_summary_counts_grounded_vs_external() -> None:
     batch.add_node(Node("py:ext", NodeKind.MODULE, "ext", external=True))
     s = FactStore(batch).summary()
     assert s["grounded_nodes"] == 1 and s["external_nodes"] == 1 and s["nodes"] == 2
+
+
+# ---- EXPOSES in blast radius (a handler's callers are outside the language) ----
+
+
+def _route_graph() -> FactBatch:
+    """``GET /v1/runs`` routes to ``list_runs``, which calls ``_summarize``.
+
+    ``list_runs`` has no in-language caller, which is the whole point: the framework
+    invokes it through the decorator.
+    """
+    b = FactBatch()
+    b.add_node(Node("py:api", NodeKind.MODULE, "api", "python", Provenance("api.py", 1)))
+    b.add_node(Node("py:api.list_runs", NodeKind.FUNCTION, "list_runs", "python", Provenance("api.py", 10)))
+    b.add_node(Node("py:api._summarize", NodeKind.FUNCTION, "_summarize", "python", Provenance("api.py", 30)))
+    b.add_node(
+        Node("py:endpoint:GET /v1/runs", NodeKind.ENDPOINT, "GET /v1/runs", "python", Provenance("api.py", 9))
+    )
+    b.add_edge(Edge("py:api", "py:api.list_runs", EdgeKind.CONTAINS))
+    b.add_edge(Edge("py:api", "py:api._summarize", EdgeKind.CONTAINS))
+    b.add_edge(
+        Edge("py:endpoint:GET /v1/runs", "py:api.list_runs", EdgeKind.EXPOSES, Provenance("api.py", 9))
+    )
+    b.add_edge(Edge("py:api.list_runs", "py:api._summarize", EdgeKind.CALLS, Provenance("api.py", 12)))
+    return b
+
+
+def test_exposers_of_returns_the_routing_endpoints() -> None:
+    store = FactStore(_route_graph())
+    assert [n.name for n in store.exposers_of("py:api.list_runs")] == ["GET /v1/runs"]
+    assert store.exposers_of("py:api._summarize") == []
+
+
+def test_impact_of_a_handler_names_its_endpoint() -> None:
+    """The regression: this returned [] and read as 'nothing depends on this handler',
+    which for a public route is the most dangerous answer the graph can give."""
+    store = FactStore(_route_graph())
+    assert [(n.name, d) for n, d in store.impact_of("py:api.list_runs")] == [("GET /v1/runs", 1)]
+
+
+def test_the_endpoint_is_transitively_reachable() -> None:
+    """Changing what the handler calls also changes what the route serves — at 2 hops."""
+    store = FactStore(_route_graph())
+    radius = {n.name: d for n, d in store.impact_of("py:api._summarize")}
+    assert radius == {"list_runs": 1, "GET /v1/runs": 2}
+
+
+def test_callers_of_still_means_call_sites() -> None:
+    """``EXPOSES`` joins blast radius, not the call graph: a handler has no call sites,
+    and anything counting call sites must keep saying zero."""
+    store = FactStore(_route_graph())
+    assert store.callers_of("py:api.list_runs") == []
+
+
+def test_impact_across_includes_exposes_by_default() -> None:
+    store = FactStore(_route_graph())
+    default = {n.name for n, _ in store.impact_across("py:api.list_runs")}
+    explicit = {n.name for n, _ in store.impact_across("py:api.list_runs", kinds=(EdgeKind.CALLS,))}
+    assert "GET /v1/runs" in default
+    assert explicit == set()  # a caller that asks for CALLS only still gets the old reading
