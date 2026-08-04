@@ -331,6 +331,23 @@ async def run_feature(
         )
     issue_key = tracker_issue.key
 
+    async def move(status: str) -> None:
+        """Drive the ticket's status. Never fatal: a tracker's workflow is not the run's to
+        fail on, and a missing status says something about the board rather than the work."""
+        if not live:
+            return
+        try:
+            moved = await jira.transition_issue(issue_key, status)
+            if moved:
+                emit(f"[jira] moved {issue_key} → {moved}")
+        except IssueTrackerError as exc:
+            emit(f"[jira] could not move {issue_key} to {status}: {exc}")
+
+    # In Progress *now*, not when the work is finished. A ticket that sits in To Do through
+    # design, codegen and the whole test loop tells nobody that anything is happening — and
+    # a run that dies at codegen leaves no sign it was ever picked up.
+    await move("In Progress")
+
     async def log_run_cost(verdict: str) -> None:
         """Post what this run spent onto the issue it was working.
 
@@ -563,12 +580,9 @@ async def run_feature(
         write_backlog(local_backlog, source, plan, load_progress(source))
         await jira.comment_issue(issue_key, f"PR opened for this story: {pr.url}")
         emit(f"[jira] commented PR link on {issue_key}")
-        try:
-            moved = await jira.transition_issue(issue_key, "In Progress")
-            if moved:
-                emit(f"[jira] moved {issue_key} → {moved}")
-        except IssueTrackerError as exc:
-            emit(f"[jira] could not move {issue_key} to In Progress: {exc}")
+        # The work is done and waiting on a human. Done is never the agent's to set —
+        # that is `sdlc complete`, after someone has actually looked at the change.
+        await move("In Review")
         await log_run_cost("PASSED")
     else:
         await _local_commit(path, title)
