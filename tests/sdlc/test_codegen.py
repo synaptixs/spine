@@ -1047,3 +1047,47 @@ async def test_the_design_also_reaches_the_refine_prompt(tmp_path: Path) -> None
     )
 
     assert "Edit cli.py, not a new package." in "\n".join(m.content for m in llm.calls[0])
+
+
+# ---- unparseable output gets one corrective retry (SSPN-33) -----------------
+
+
+async def test_malformed_json_is_retried_once_and_recovers(tmp_path: Path) -> None:
+    """The failure that killed the first real end-to-end run. The model emitted a string
+    containing an unescaped quote 2,294 characters in; there was no retry, so the run died.
+    Models routinely fix their own JSON when shown where it broke."""
+    broken = '{"files": [{"path": "src/x.py", "content": "he said "hi""}]}'
+    good = _files_response({"src/x.py": "x = 1\n"})
+    llm = _ScriptedLLM([broken, good])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert change.files == [str(tmp_path / "src" / "x.py")]
+    assert len(llm.calls) == 2
+    # The retry names the break rather than saying "try again".
+    retry_prompt = "\n".join(m.content for m in llm.calls[1])
+    assert "NOT VALID JSON" in retry_prompt
+    assert "position" in retry_prompt
+
+
+async def test_a_second_parse_failure_raises(tmp_path: Path) -> None:
+    """One retry, never a loop: a model that cannot produce JSON twice will not on the third."""
+    broken = '{"files": [{"path": "src/x.py", "content": "oops"'
+    llm = _ScriptedLLM([broken, broken])
+
+    with pytest.raises(CodegenError, match="not a JSON object"):
+        await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert len(llm.calls) == 2
+
+
+async def test_the_parse_retry_does_not_stack_with_the_edit_repair(tmp_path: Path) -> None:
+    """Two recoveries for one generation would double the cost of a bad response. A parse
+    failure carries no edit paths, so only the parse retry fires."""
+    broken = "not json at all"
+    good = _files_response({"src/x.py": "x = 1\n"})
+    llm = _ScriptedLLM([broken, good])
+
+    await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert len(llm.calls) == 2  # not 3
