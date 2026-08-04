@@ -86,6 +86,7 @@ class RunContext:
     # what review finds, so the fixer knows the repo's conventions and the layout it chose.
     fixer: Any = None
     tests: Any = None
+    approvals_dir: Path | None = None
     stages: list[StageResult] = field(default_factory=list)
     # Durable state. Written after every stage, so a crash leaves a findable run rather than
     # a mystery worktree and a ticket stuck In Progress.
@@ -101,6 +102,25 @@ class RunContext:
         self.stages.append(result)
         self.checkpoint(phase=name, status="failed" if status == "failed" else None)
         return result
+
+    def park(self, *, kind: str, title: str, reason: str) -> Any:
+        """Stop, and put the decision in front of a human.
+
+        A parked run that nobody is told about is just a stopped run, so raising the approval
+        and notifying are the same step. Notification failure never propagates: the run has
+        already stopped, and an un-notified approval is still findable in `sdlc runs list`.
+        """
+        from orchestrator.sdlc.escalate import ApprovalStore, default_approval_dir, raise_approval
+
+        approval = raise_approval(
+            run_id=self.run_id,
+            issue_key=self.issue_key,
+            title=title,
+            reason=reason,
+            store=ApprovalStore(root=self.approvals_dir or default_approval_dir()),
+        )
+        self.checkpoint(status="parked", parked_reason=reason, approval_id=approval.approval_id)
+        return approval
 
     def checkpoint(self, *, phase: str | None = None, status: str | None = None, **fields: Any) -> None:
         """Persist what we know. Cheap, and the only thing standing between a kill -9 and an
@@ -150,6 +170,7 @@ async def autorun(
     language: str = "auto",
     issue_type: str = "",
     artifacts_dir: Path | None = None,
+    approvals_dir: Path | None = None,
     resume: str | None = None,
     max_cost_usd: float | None = None,
     store: Any = None,
@@ -175,6 +196,7 @@ async def autorun(
     if resume and record is None:
         raise AutorunError(f"no run {resume!r} to resume", code=2)
     if record is not None:
+        _refuse_undecided_resume(record, approvals_dir, emit)
         emit(f"[autorun] resuming {record.run_id} · phase {record.phase or 'start'}")
         if record.issue_key:
             # The half that must not happen twice. A crashed run that had already created a
@@ -214,6 +236,7 @@ async def autorun(
             )
         record.issue_key = issue
 
+    ctx.approvals_dir = approvals_dir
     ctx.record, ctx.store = record, store
     ctx.issue_key = record.issue_key
     ctx.checkpoint(phase="start", status="running")
@@ -248,6 +271,33 @@ async def autorun(
 
 def _spent(budget: Any, run_id: str) -> float:
     return float(budget.spent(run_id)) if budget is not None else 0.0
+
+
+def _refuse_undecided_resume(record: Any, approvals_dir: Path | None, emit: Callable[[str], None]) -> None:
+    """A parked run resumes when a human has answered, and not before.
+
+    Resuming past an undecided approval would make parking decorative — the run would stop,
+    ask, and then carry on regardless the moment anyone retried it.
+    """
+    from orchestrator.sdlc.escalate import ApprovalStore, Decision, default_approval_dir
+
+    store = ApprovalStore(root=approvals_dir or default_approval_dir())
+    approval = store.for_run(record.run_id)
+    if approval is None or not approval.pending:
+        if approval is not None and approval.decision == Decision.REJECTED.value:
+            raise AutorunError(
+                f"run {record.run_id} was rejected by {approval.decided_by or 'a human'}"
+                + (f": {approval.note}" if approval.note else ""),
+                code=6,
+            )
+        return
+    overdue = " (overdue)" if approval.overdue else ""
+    raise AutorunError(
+        f"run {record.run_id} is waiting on approval {approval.approval_id}{overdue}: "
+        f"{approval.reason}. Decide it with `sdlc runs approve {approval.approval_id}` "
+        "(or --reject) before resuming.",
+        code=6,
+    )
 
 
 # ---- stages ----------------------------------------------------------------
@@ -353,8 +403,10 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
     ctx.record_stage("validity", "failed", f"{assessment.verdict.value}: {detail}", path)
     # Parked, not failed: a refused ticket is a decision waiting for a human, and the run
     # keeps its evidence so the human is not asked to take the agent's word for it.
-    ctx.checkpoint(status="parked", verdict=ctx.verdict, parked_reason=detail)
+    ctx.checkpoint(verdict=ctx.verdict)
+    approval = ctx.park(kind="verdict", title=f"{assessment.verdict.value} — build anyway?", reason=detail)
     emit(f"[validity] {assessment.verdict.value} — {detail}")
+    emit(f"[approval] {approval.approval_id} raised{' and notified' if approval.notified else ''}")
     emit(f"[validity] evidence in {path}")
     raise AutorunError(f"{assessment.verdict.value}: {detail} — run parked, nothing was built.", code=5)
 
@@ -421,7 +473,11 @@ async def _stage_implement(
         # Out of money mid-change. Park it: the work so far is on a branch and a human can
         # decide whether to raise the cap or drop it. Shipping half a change would be worse.
         ctx.record_stage("implement", "failed", f"budget exhausted: {exc}")
-        ctx.checkpoint(status="parked", parked_reason=str(exc), spent_usd=_spent(budget, ctx.run_id))
+        ctx.checkpoint(spent_usd=_spent(budget, ctx.run_id))
+        approval = ctx.park(
+            kind="budget", title="budget exhausted — raise the cap or drop the run?", reason=str(exc)
+        )
+        emit(f"[approval] {approval.approval_id} raised{' and notified' if approval.notified else ''}")
         raise AutorunError(f"budget exhausted — run parked: {exc}", code=4) from exc
     except FeatureRunError as exc:
         ctx.record_stage("implement", "failed", str(exc))

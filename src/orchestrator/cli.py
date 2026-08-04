@@ -658,9 +658,15 @@ async def _run_address_review(*, pr: str, repo: str | None, bot_login: str | Non
 @sdlc_app.command("runs")
 def sdlc_runs(
     action: Annotated[
-        str, typer.Argument(help="list | show <run-id> | reap — inspect autorun's durable state.")
+        str,
+        typer.Argument(
+            help="list | show <run-id> | reap | approvals | approve <approval-id> — inspect and "
+            "decide autorun's durable state."
+        ),
     ] = "list",
-    run_id: Annotated[str | None, typer.Argument(help="Run id, for show.")] = None,
+    run_id: Annotated[str | None, typer.Argument(help="Run id, or approval id for approve.")] = None,
+    reject: Annotated[bool, typer.Option("--reject", help="Reject rather than approve.")] = False,
+    note: Annotated[str, typer.Option("--note", help="Why — recorded on the decision.")] = "",
 ) -> None:
     """Inspect what `sdlc autorun` has running, parked or abandoned.
 
@@ -676,6 +682,30 @@ def sdlc_runs(
     if action == "list":
         typer.echo(render_runs(store.all()))
         return
+    if action == "approvals":
+        from orchestrator.sdlc.escalate import ApprovalStore, default_approval_dir, render_approvals
+
+        typer.echo(render_approvals(ApprovalStore(root=default_approval_dir()).all()))
+        return
+    if action == "approve":
+        from orchestrator.sdlc.escalate import ApprovalStore, decide, default_approval_dir
+
+        if not run_id:
+            typer.echo("approve needs an approval id (see `sdlc runs approvals`)", err=True)
+            raise typer.Exit(code=2)
+        try:
+            decided = decide(
+                run_id,
+                approved=not reject,
+                store=ApprovalStore(root=default_approval_dir()),
+                note=note,
+            )
+        except KeyError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(code=2) from exc
+        typer.echo(f"{decided.approval_id}: {decided.decision}")
+        typer.echo(f"Resume the run with: orchestrator sdlc autorun --resume {decided.run_id} …")
+        return
     if action == "reap":
         stale = store.stale()
         typer.echo(render_reap(stale))
@@ -690,7 +720,7 @@ def sdlc_runs(
             raise typer.Exit(code=2)
         typer.echo(_json.dumps(asdict(record), indent=2, sort_keys=True))
         return
-    typer.echo(f"Unknown action {action!r}. Use list, show or reap.", err=True)
+    typer.echo(f"Unknown action {action!r}. Use list, show, reap, approvals or approve.", err=True)
     raise typer.Exit(code=2)
 
 

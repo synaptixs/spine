@@ -32,15 +32,16 @@ def _isolate_intake_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
 
 
 class _Spec:
-    def __init__(self, intent_id: str = "intent-a") -> None:
+    def __init__(self, intent_id: str = "intent-a", criteria: list[str] | None = None) -> None:
         self.intent_id = intent_id
+        self.criteria = criteria if criteria is not None else ["exports a csv"]
 
     def model_dump(self) -> dict[str, Any]:
         return {
             "title": "Add CSV export",
             "intent_id": self.intent_id,
             "summary": "Users need their data out",
-            "acceptance_criteria": ["exports a csv"],
+            "acceptance_criteria": self.criteria,
         }
 
 
@@ -323,6 +324,114 @@ def test_a_failed_run_is_recorded_as_failed(monkeypatch: pytest.MonkeyPatch, tmp
     assert [r.status for r in store.all()] == ["failed"]
 
 
+# ---- parking against a human decision (SSPN-25) ----------------------------
+
+
+def test_budget_exhaustion_raises_an_approval(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from orchestrator.core.llm import BudgetExceededError
+    from orchestrator.sdlc.escalate import ApprovalStore
+
+    _install(monkeypatch, tmp_path, feature=BudgetExceededError("cap $1.00 exhausted"))
+    store = RunStore(root=tmp_path / "state")
+
+    with pytest.raises(AutorunError):
+        _run(tmp_path, store=store, max_cost_usd=1.0)
+
+    approvals = ApprovalStore(root=tmp_path / "approvals").all()
+    assert len(approvals) == 1
+    assert approvals[0].pending and "exhausted" in approvals[0].reason
+    # The run record points at the approval, so `runs list` and `runs approvals` agree.
+    assert store.all()[0].approval_id == approvals[0].approval_id
+
+
+def test_a_refused_ticket_raises_an_approval(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A verdict is a decision a human owes — it parks rather than just failing."""
+    from orchestrator.sdlc.escalate import ApprovalStore
+
+    _install(
+        monkeypatch,
+        tmp_path,
+        specs=[_Spec(criteria=["11 `Entity` nodes on this repo, one per `__tablename__`."])],
+    )
+    store = RunStore(root=tmp_path / "state")
+
+    with pytest.raises(AutorunError, match="CRITERIA_WRONG"):
+        _run(tmp_path, store=store)
+
+    (approval,) = ApprovalStore(root=tmp_path / "approvals").all()
+    assert approval.pending and "CRITERIA_WRONG" in approval.title
+
+
+def test_an_undecided_approval_blocks_a_resume(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Without this, parking is decorative: the run stops, asks, and carries on the moment
+    anyone retries it."""
+    from orchestrator.sdlc.escalate import Approval, ApprovalStore
+
+    _install(monkeypatch, tmp_path)
+    runs = RunStore(root=tmp_path / "state")
+    runs.save(RunRecord(run_id="parked", source="s", status="parked"))
+    ApprovalStore(root=tmp_path / "approvals").save(
+        Approval(approval_id="a1", run_id="parked", issue_key="", title="t", reason="budget", raised_at=1)
+    )
+
+    with pytest.raises(AutorunError, match="waiting on approval a1") as exc:
+        _run(tmp_path, store=runs, resume="parked")
+
+    assert exc.value.code == 6
+    assert "sdlc runs approve a1" in str(exc.value)  # says how to unblock it
+
+
+def test_an_approved_run_resumes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from orchestrator.sdlc.escalate import Approval, ApprovalStore, Decision
+
+    _install(monkeypatch, tmp_path)
+    runs = RunStore(root=tmp_path / "state")
+    runs.save(RunRecord(run_id="parked", source="s", status="parked"))
+    ApprovalStore(root=tmp_path / "approvals").save(
+        Approval(
+            approval_id="a1",
+            run_id="parked",
+            issue_key="",
+            title="t",
+            reason="budget",
+            raised_at=1,
+            decision=Decision.APPROVED.value,
+        )
+    )
+
+    ctx = _run(tmp_path, store=runs, resume="parked")
+
+    assert ctx.run_id == "parked" and ctx.passed
+
+
+def test_a_rejected_run_does_not_resume(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Rejected means no, not "ask again later"."""
+    from orchestrator.sdlc.escalate import Approval, ApprovalStore, Decision
+
+    _install(monkeypatch, tmp_path)
+    runs = RunStore(root=tmp_path / "state")
+    runs.save(RunRecord(run_id="parked", source="s", status="parked"))
+    ApprovalStore(root=tmp_path / "approvals").save(
+        Approval(
+            approval_id="a1",
+            run_id="parked",
+            issue_key="",
+            title="t",
+            reason="budget",
+            raised_at=1,
+            decision=Decision.REJECTED.value,
+            decided_by="alice",
+            note="not worth it",
+        )
+    )
+
+    with pytest.raises(AutorunError, match="rejected by alice") as exc:
+        _run(tmp_path, store=runs, resume="parked")
+
+    assert exc.value.code == 6
+    assert "not worth it" in str(exc.value)
+
+
 # ---- helper ----------------------------------------------------------------
 
 
@@ -351,6 +460,7 @@ def _run(
             live=live,
             artifacts_dir=tmp_path / "artifacts",
             store=store or RunStore(root=tmp_path / "state"),
+            approvals_dir=tmp_path / "approvals",
             resume=resume,
             issue=issue,
             max_cost_usd=max_cost_usd,
