@@ -668,6 +668,9 @@ class LLMCodegenAdapter:
         model: str = _DEFAULT_CODEGEN_MODEL,
         grounder: CodegenGrounder | None = None,
         grounder_factory: Callable[[Path], CodegenGrounder] | None = None,
+        # The approach an earlier stage already decided. Empty by default, so a standalone
+        # `sdlc feature` builds exactly the prompt it builds today.
+        design: str = "",
         layout: TargetLayout | None = None,
         agentic: bool = False,
         skills: list[str] | None = None,
@@ -706,6 +709,7 @@ class LLMCodegenAdapter:
         # factory builds one per worktree root, for the worker's fan-out where
         # one shared adapter serves many target clones.
         self._grounder = grounder
+        self._design = design.strip()
         self._grounder_factory = grounder_factory
         self._grounders: dict[Path, CodegenGrounder | None] = {}
         # The target layout pins where generated files go (package + dirs). When
@@ -919,6 +923,27 @@ class LLMCodegenAdapter:
     def _refine_system(self) -> str:
         return _REFINE_SYSTEMS.get(self._language(), _REFINE_SYSTEM)
 
+    def _design_block(self) -> str:
+        """The design an earlier stage produced, or ''.
+
+        Research and design are worthless to a model that never sees them: before this, the
+        pipeline investigated a ticket, designed a change, and then generated code as if
+        neither had happened. It is stated as a decision already taken, and as *guidance
+        rather than gospel* — the design was written before the code was read, so a model
+        with the file in front of it may know better, and should say so rather than
+        silently follow a plan that does not fit.
+        """
+        if not self._design:
+            return ""
+        return (
+            "PLAN ALREADY AGREED FOR THIS TICKET (from the design stage — research and a "
+            "grounded design were done before you were called; this is what they concluded):\n"
+            f"{self._design}\n\n"
+            "Follow it where it fits. It was written from the graph, not from reading every "
+            "file, so if the code contradicts it, do what the code requires and say so in "
+            "your summary — do not follow a plan you can see is wrong.\n\n"
+        )
+
     def _grounding(self, spec: dict[str, Any], root: Path) -> str:
         """The PKG context block (with trailing separator), or ''."""
         grounder = self._resolve_grounder(root)
@@ -970,7 +995,7 @@ class LLMCodegenAdapter:
     ) -> CodeChange:
         root = Path(path)
         task = (
-            f"{self._layout_block()}{self._grounding(spec, root)}Issue: {issue_key}\n\n"
+            f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}"
             f"{_named_existing_files(spec, root)}{self._convention_block(root)}"
         )
@@ -1094,7 +1119,7 @@ class LLMCodegenAdapter:
 
         root = Path(path)
         task = (
-            f"{self._layout_block()}{self._grounding(spec, root)}Issue: {issue_key}\n\n"
+            f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}"
             f"{_named_existing_files(spec, root)}{self._convention_block(root)}"
         )
@@ -1204,7 +1229,7 @@ class LLMCodegenAdapter:
         root = Path(path)
         return await self._generate(
             self._condition_system(self._tests_system(), self._skills, phase="author_tests"),
-            f"{self._layout_block()}{self._grounding(spec, root)}Issue: {issue_key}\n\n"
+            f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}\n\n"
             f"CURRENT SOURCE FILES:\n{self._session_files(root, include_tests=False)}"
             f"{self._convention_block(root)}",
@@ -1215,7 +1240,7 @@ class LLMCodegenAdapter:
         root = Path(path)
         return await self._generate(
             self._condition_system(self._refine_system(), self._skills, phase="refine"),
-            f"{self._layout_block()}{self._grounding(spec, root)}Issue: {issue_key}\n\n"
+            f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}\n\n"
             "IMPORTANT: Fix the IMPLEMENTATION files only. Do NOT modify test files to "
             "make them match a broken implementation — fix the source code so the tests "

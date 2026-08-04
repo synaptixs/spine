@@ -954,3 +954,62 @@ async def test_convention_block_injected_into_prompts(tmp_path: Path) -> None:
     prompt = llm.calls[0][-1].content
     assert "REPO CONVENTIONS" in prompt
     assert "from __future__ import annotations" in prompt
+
+
+# ---- the design reaches the prompt (SSPN-28) --------------------------------
+
+
+async def test_the_agreed_design_reaches_the_codegen_prompt(tmp_path: Path) -> None:
+    """Research and design are worthless to a model that never sees them.
+
+    Before this, `sdlc autorun` investigated a ticket, designed a change, wrote the design to
+    disk, and then generated code as if neither had happened. The assertion is on the *prompt*
+    rather than on the artifact, because writing a file nobody reads is exactly the bug.
+    """
+    llm = _ScriptedLLM([_files_response({"src/x.py": "x = 1\n"})])
+    adapter = LLMCodegenAdapter(llm, design="## Approach\nEdit cli.py, not a new package.")
+
+    await adapter.implement(
+        spec={"title": "t", "summary": "s", "acceptance_criteria": ["a"]},
+        path=str(tmp_path),
+        issue_key="ENG-1",
+    )
+
+    prompt = "\n".join(m.content for m in llm.calls[0])
+    assert "PLAN ALREADY AGREED" in prompt
+    assert "Edit cli.py, not a new package." in prompt
+    # Guidance, not gospel: the design was written before the code was read.
+    assert "do not follow a plan you can see is wrong" in prompt
+
+
+async def test_the_prompt_is_unchanged_without_a_design(tmp_path: Path) -> None:
+    """`sdlc feature` standalone must build exactly the prompt it builds today."""
+    with_design = _ScriptedLLM([_files_response({"src/x.py": "x = 1\n"})])
+    without = _ScriptedLLM([_files_response({"src/x.py": "x = 1\n"})])
+    spec = {"title": "t", "summary": "s", "acceptance_criteria": ["a"]}
+
+    # Separate worktrees: codegen observes repo conventions from the directory it is given,
+    # so a file written by the first run would change the second run's prompt for reasons
+    # that have nothing to do with the design.
+    (a := tmp_path / "a").mkdir()
+    (b := tmp_path / "b").mkdir()
+    await LLMCodegenAdapter(with_design, design="   ").implement(spec=spec, path=str(a), issue_key="ENG-1")
+    await LLMCodegenAdapter(without).implement(spec=spec, path=str(b), issue_key="ENG-1")
+
+    assert [m.content for m in with_design.calls[0]] == [m.content for m in without.calls[0]]
+    assert "PLAN ALREADY AGREED" not in "\n".join(m.content for m in without.calls[0])
+
+
+async def test_the_design_also_reaches_the_refine_prompt(tmp_path: Path) -> None:
+    """A refine that has forgotten the plan re-solves the ticket its own way."""
+    llm = _ScriptedLLM([_files_response({"src/x.py": "x = 2\n"})])
+    adapter = LLMCodegenAdapter(llm, design="## Approach\nEdit cli.py, not a new package.")
+
+    await adapter.refine(
+        spec={"title": "t", "summary": "s", "acceptance_criteria": ["a"]},
+        path=str(tmp_path),
+        issue_key="ENG-1",
+        failures="E   assert 1 == 2",
+    )
+
+    assert "Edit cli.py, not a new package." in "\n".join(m.content for m in llm.calls[0])
