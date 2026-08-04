@@ -48,8 +48,11 @@ async def test_heuristic_design_grounded_in_graph_and_persisted() -> None:
     assert out["issue_key"] == "SDLC-1" and out["llm"] is False
     d = out["design"]
     assert d["grounded"] is True
-    # files-to-touch come from the real modules in the graph overview
-    assert "report.py" in d["files_to_touch"] and "web.py" in d["files_to_touch"]
+    # Files-to-touch are matched to the *ticket*, not ranked by module size: the spec says
+    # "Export a report as CSV", so report.py is proposed and web.py — which the ticket never
+    # mentions — is not. Ranking by size is what produced designs naming the graph's biggest
+    # modules for a change that lived somewhere else entirely.
+    assert d["files_to_touch"] == ["report.py"]
     assert "Downloads a .csv" in d["test_strategy"]
     # persisted under the per-feature namespace
     assert out["artifacts"]["design.md"] == "run/R/feature/SDLC-1/design.md"
@@ -202,3 +205,82 @@ def test_render_design_md_sections() -> None:
         _SPEC, {"approach": "A", "files_to_touch": ["x.py"], "test_strategy": "T", "llm": True}
     )
     assert "## Approach" in md and "## Files to touch" in md and "x.py" in md and "## Test strategy" in md
+
+
+# --------------------------------------------------------------------------- #
+# Heuristic files-to-touch (SSPN-29)
+# --------------------------------------------------------------------------- #
+
+
+def _graph_with(*modules: str) -> Any:
+    """A store whose graph holds one function per named module."""
+    from orchestrator.pkg import FactStore
+    from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
+
+    batch = FactBatch()
+    for module in modules:
+        mid = f"py:{module.removesuffix('.py').replace('/', '.')}"
+        batch.add_node(Node(mid, NodeKind.MODULE, module, "python", Provenance(module, 1)))
+        fname = module.removesuffix(".py").split("/")[-1]
+        fid = f"{mid}.{fname}_handler"
+        batch.add_node(Node(fid, NodeKind.FUNCTION, f"{fname}_handler", "python", Provenance(module, 5)))
+        batch.add_edge(Edge(mid, fid, EdgeKind.CONTAINS))
+    return FactStore(batch)
+
+
+async def test_heuristic_files_come_from_where_the_ticket_lands() -> None:
+    """The bug this closes: the design listed the graph's biggest modules regardless of the
+    ticket, so a request to add a CLI flag came back as "touch registry/db/models.py".
+
+    Once the design is carried into codegen, a wrong file list stops being cosmetic and
+    becomes an instruction to edit the wrong files.
+    """
+    from orchestrator.sdlc.design import produce_design
+
+    store = _graph_with("src/exporter.py", "src/unrelated.py")
+    design = await produce_design(
+        {"title": "Fix the exporter", "summary": "exporter drops the header", "acceptance_criteria": []},
+        overview=None,
+        store=store,
+        llm=None,
+    )
+
+    assert design["files_to_touch"] == ["src/exporter.py"]
+    assert design["grounded"] is True
+
+
+async def test_a_design_that_cannot_tell_says_so_and_proposes_nothing() -> None:
+    """Naming none is a usable answer; naming the wrong five is not."""
+    from orchestrator.sdlc.design import produce_design
+
+    design = await produce_design(
+        {"title": "Something unrelated to any code here", "summary": "", "acceptance_criteria": []},
+        overview=None,
+        store=_graph_with("src/exporter.py"),
+        llm=None,
+    )
+
+    assert design["files_to_touch"] == []
+    assert design["grounded"] is False
+    assert any("no files are proposed" in risk for risk in design["risks"])
+
+
+async def test_the_design_agrees_with_the_investigation() -> None:
+    """Two stages answering "where does this land" differently is worse than either being
+    wrong alone — a reader cannot tell which to believe. They now share the same code."""
+    from orchestrator.sdlc.design import produce_design
+    from orchestrator.sdlc.investigate import build_investigation
+
+    store = _graph_with("src/exporter.py", "src/other.py")
+    spec: dict[str, Any] = {
+        "title": "Fix the exporter",
+        "summary": "exporter drops the header",
+        "acceptance_criteria": [],
+    }
+
+    design = await produce_design(spec, overview=None, store=store, llm=None)
+    investigation = build_investigation(str(spec["title"]), str(spec["summary"]), store=store)
+
+    landed = [land.where.split(":", 1)[0] for land in investigation.landing]
+    assert design["files_to_touch"]
+    assert all(f in landed for f in design["files_to_touch"])
