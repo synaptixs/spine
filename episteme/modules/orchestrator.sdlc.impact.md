@@ -78,20 +78,20 @@
 
 [`src/orchestrator/sdlc/impact.py:142`](../../src/orchestrator/sdlc/impact.py#L142)
 
-- **Called by** (2 production · 6 test): [`_regression_surface`](../../src/orchestrator/sdlc/rca.py#L90), [`produce_design`](../../src/orchestrator/sdlc/design.py#L162), [`test_a_route_handler_is_not_scored_as_safe_to_change`](../../tests/sdlc/test_design_impact.py#L34), [`test_blast_radius_resolves_module_importers_and_hotspots`](../../tests/sdlc/test_design_impact.py#L62), [`test_greenfield_suppresses_unverified_references`](../../tests/sdlc/test_design_impact.py#L85), [`test_no_call_graph_reports_module_impact_only`](../../tests/sdlc/test_design_impact.py#L94), [`test_render_md_includes_sections`](../../tests/sdlc/test_design_impact.py#L110), [`test_unresolved_reference_is_flagged_when_grounded`](../../tests/sdlc/test_design_impact.py#L78)
+- **Called by** (2 production · 6 test): [`_regression_surface`](../../src/orchestrator/sdlc/rca.py#L90), [`produce_design`](../../src/orchestrator/sdlc/design.py#L235), [`test_a_route_handler_is_not_scored_as_safe_to_change`](../../tests/sdlc/test_design_impact.py#L34), [`test_blast_radius_resolves_module_importers_and_hotspots`](../../tests/sdlc/test_design_impact.py#L62), [`test_greenfield_suppresses_unverified_references`](../../tests/sdlc/test_design_impact.py#L85), [`test_no_call_graph_reports_module_impact_only`](../../tests/sdlc/test_design_impact.py#L94), [`test_render_md_includes_sections`](../../tests/sdlc/test_design_impact.py#L110), [`test_unresolved_reference_is_flagged_when_grounded`](../../tests/sdlc/test_design_impact.py#L78)
 - **Calls** (5): [`BlastRadius`](../../src/orchestrator/sdlc/impact.py#L61), [`ModuleImpact`](../../src/orchestrator/sdlc/impact.py#L49), [`_hotspots`](../../src/orchestrator/sdlc/impact.py#L107), [`_match_module`](../../src/orchestrator/sdlc/impact.py#L82), [`_module_nodes`](../../src/orchestrator/sdlc/impact.py#L76)
 
 ### `render_md`
 
 [`src/orchestrator/sdlc/impact.py:216`](../../src/orchestrator/sdlc/impact.py#L216)
 
-- **Called by** (1 production · 4 test): [`render_design_md`](../../src/orchestrator/sdlc/design.py#L139), [`test_a_route_handler_is_not_scored_as_safe_to_change`](../../tests/sdlc/test_design_impact.py#L34), [`test_greenfield_suppresses_unverified_references`](../../tests/sdlc/test_design_impact.py#L85), [`test_no_call_graph_reports_module_impact_only`](../../tests/sdlc/test_design_impact.py#L94), [`test_render_md_includes_sections`](../../tests/sdlc/test_design_impact.py#L110)
+- **Called by** (1 production · 4 test): [`render_design_md`](../../src/orchestrator/sdlc/design.py#L212), [`test_a_route_handler_is_not_scored_as_safe_to_change`](../../tests/sdlc/test_design_impact.py#L34), [`test_greenfield_suppresses_unverified_references`](../../tests/sdlc/test_design_impact.py#L85), [`test_no_call_graph_reports_module_impact_only`](../../tests/sdlc/test_design_impact.py#L94), [`test_render_md_includes_sections`](../../tests/sdlc/test_design_impact.py#L110)
 
 ### `to_dict`
 
 [`src/orchestrator/sdlc/impact.py:187`](../../src/orchestrator/sdlc/impact.py#L187)
 
-- **Called by** (1 production · 4 test): [`produce_design`](../../src/orchestrator/sdlc/design.py#L162), [`test_a_route_handler_is_not_scored_as_safe_to_change`](../../tests/sdlc/test_design_impact.py#L34), [`test_greenfield_suppresses_unverified_references`](../../tests/sdlc/test_design_impact.py#L85), [`test_no_call_graph_reports_module_impact_only`](../../tests/sdlc/test_design_impact.py#L94), [`test_render_md_includes_sections`](../../tests/sdlc/test_design_impact.py#L110)
+- **Called by** (1 production · 4 test): [`produce_design`](../../src/orchestrator/sdlc/design.py#L235), [`test_a_route_handler_is_not_scored_as_safe_to_change`](../../tests/sdlc/test_design_impact.py#L34), [`test_greenfield_suppresses_unverified_references`](../../tests/sdlc/test_design_impact.py#L85), [`test_no_call_graph_reports_module_impact_only`](../../tests/sdlc/test_design_impact.py#L94), [`test_render_md_includes_sections`](../../tests/sdlc/test_design_impact.py#L110)
 - **Calls** (1): [`unverified_references`](../../src/orchestrator/sdlc/impact.py#L178)
 
 ### `unverified_references`
@@ -106,4 +106,4 @@
 
 ## Imported by
 
-[`orchestrator.sdlc.design`](../../src/orchestrator/sdlc/design.py#L1), [`orchestrator.sdlc.rca`](../../src/orchestrator/sdlc/rca.py#L1), [`tests.sdlc.test_design_impact`](../../tests/sdlc/test_design_impact.py#L1)
+[`orchestrator.sdlc.design`](orchestrator.sdlc.design.md), [`orchestrator.sdlc.rca`](../../src/orchestrator/sdlc/rca.py#L1), [`tests.sdlc.test_design_impact`](../../tests/sdlc/test_design_impact.py#L1)

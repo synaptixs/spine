@@ -121,4 +121,4 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.agentic.loop`](orchestrator.agentic.loop.md), [`orchestrator.core.llm.recording`](../../src/orchestrator/core/llm/recording.py#L1), [`orchestrator.temporal.activities`](../../src/orchestrator/temporal/activities.py#L1), [`orchestrator.temporal.config`](../../src/orchestrator/temporal/config.py#L1), [`tests.agentic.test_loop_tracing`](../../tests/agentic/test_loop_tracing.py#L1), [`tests.obs.test_tracing`](../../tests/obs/test_tracing.py#L1)
+[`orchestrator.agentic.loop`](../../src/orchestrator/agentic/loop.py#L1), [`orchestrator.core.llm.recording`](../../src/orchestrator/core/llm/recording.py#L1), [`orchestrator.temporal.activities`](../../src/orchestrator/temporal/activities.py#L1), [`orchestrator.temporal.config`](../../src/orchestrator/temporal/config.py#L1), [`tests.agentic.test_loop_tracing`](../../tests/agentic/test_loop_tracing.py#L1), [`tests.obs.test_tracing`](../../tests/obs/test_tracing.py#L1)
