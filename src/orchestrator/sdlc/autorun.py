@@ -24,6 +24,7 @@ under a run directory in the system temp dir unless ``SPINE_RUN_ARTIFACTS`` says
 
 from __future__ import annotations
 
+import contextlib
 import os
 import tempfile
 import time
@@ -96,6 +97,22 @@ class RunContext:
     @property
     def passed(self) -> bool:
         return all(stage.status != "failed" for stage in self.stages)
+
+    @contextlib.contextmanager
+    def stage_span(self, name: str) -> Any:
+        """One span per stage, under the run's own span.
+
+        Every LLM call already emits a span; what was missing is the thing that joins them.
+        Without a parent, a run that went wrong is a scatter of calls with no story — which
+        stage was slow, which one failed, and what the run was doing at the time.
+        """
+        from orchestrator.obs import tracing
+
+        with tracing.span(
+            "autorun.stage",
+            **{"autorun.run_id": self.run_id, "autorun.stage": name, "autorun.issue": self.issue_key},
+        ):
+            yield
 
     def record_stage(self, name: str, status: StageStatus, detail: str, artifact: str = "") -> StageResult:
         result = StageResult(name=name, status=status, detail=detail, artifact=artifact)
@@ -190,6 +207,7 @@ async def autorun(
     from orchestrator.sdlc.runstate import RunRecord, RunStore
 
     emit: Callable[[str], None] = log or (lambda _m: None)
+    started = time.monotonic()
     store = store or RunStore()
 
     record = store.load(resume) if resume else None
@@ -241,12 +259,18 @@ async def autorun(
     ctx.issue_key = record.issue_key
     ctx.checkpoint(phase="start", status="running")
 
+    from orchestrator.core.llm.recording import TokenLedger
+
+    # One ledger for the run. The implement stage fills most of it and the review loop adds
+    # to it afterwards, so the account is of the whole run rather than its middle.
+    ledger = TokenLedger()
     budget = RunBudget(max_cost_usd=max_cost_usd) if max_cost_usd else None
     emit(f"[autorun] run {run_id} · source {source} · {'live' if live else 'safe'}")
     if budget is not None:
         emit(f"[budget] cap ${max_cost_usd:.2f} for this run")
 
-    await _stage_intake(ctx, intent_id=intent_id, emit=emit)
+    with ctx.stage_span("intake"):
+        await _stage_intake(ctx, intent_id=intent_id, emit=emit)
     store, overview = _load_graph(ctx, emit=emit)
     _stage_investigate(ctx, store=store, emit=emit)
     _stage_validity(ctx, store=store, issue_type=issue_type, emit=emit)
@@ -260,13 +284,46 @@ async def autorun(
         base_branch=base_branch,
         language=language,
         budget=budget,
+        ledger=ledger,
         emit=emit,
     )
     await _stage_review(ctx, fixer=ctx.fixer, tests=ctx.tests, max_rounds=review_rounds, emit=emit)
 
     ctx.checkpoint(phase="done", status="done", spent_usd=_spent(budget, run_id))
+    await _log_run_cost(ctx, ledger=ledger, started=started, verdict="PASSED", emit=emit)
     emit(f"[autorun] artifacts in {ctx.artifacts_dir}")
     return ctx
+
+
+async def _log_run_cost(
+    ctx: RunContext, *, ledger: Any, started: float, verdict: str, emit: Callable[[str], None]
+) -> None:
+    """Post one worklog for the whole run. Live only, and never fatal.
+
+    Telemetry is not the work: a tracker that rejects the worklog leaves a line in the log,
+    not a failed run whose change was already built.
+    """
+    if not ctx.live or not ctx.issue_key:
+        return
+    from orchestrator.intake.jira import IssueTrackerError, JiraAdapter, JiraConfig
+    from orchestrator.sdlc.telemetry import jira_duration, render_run_worklog
+
+    elapsed = time.monotonic() - started
+    body = render_run_worklog(
+        ledger,
+        seconds=elapsed,
+        verdict=verdict,
+        stages=[(s.name, s.status, s.detail) for s in ctx.stages],
+        review=next((s.detail for s in ctx.stages if s.name == "review"), ""),
+    )
+    jira = JiraAdapter(JiraConfig(dry_run=False))
+    try:
+        await jira.add_worklog(ctx.issue_key, time_spent=jira_duration(elapsed), comment=body)
+        emit(f"[jira] worklog on {ctx.issue_key}: {ledger.total().total_tokens:,} tokens across the run")
+    except (IssueTrackerError, OSError) as exc:
+        emit(f"[jira] could not log run cost on {ctx.issue_key}: {exc}")
+    finally:
+        await jira.aclose()
 
 
 def _spent(budget: Any, run_id: str) -> float:
@@ -441,6 +498,7 @@ async def _stage_implement(
     base_branch: str | None,
     language: str,
     budget: Any,
+    ledger: Any,
     emit: Callable[[str], None],
 ) -> None:
     """Codegen, tests and (live) the PR — `sdlc feature`, unchanged, with our spec injected."""
@@ -467,6 +525,9 @@ async def _stage_implement(
                 language=language,
                 spec=ctx.spec,
                 budget=budget,
+                ledger=ledger,
+                # This run's worklog covers every stage and is posted once, at the end.
+                post_worklog=False,
                 log=emit,
             )
     except BudgetExceededError as exc:

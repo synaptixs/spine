@@ -183,6 +183,8 @@ async def run_feature(
     issue: str | None = None,
     design: str = "",
     budget: Any = None,
+    ledger: Any = None,
+    post_worklog: bool = True,
     base_branch: str | None = None,
     layout_mode: str = "auto",
     package_name: str | None = None,
@@ -249,7 +251,10 @@ async def run_feature(
         from orchestrator.core.llm import BudgetedLLMClient
 
         inner = BudgetedLLMClient(inner, budget)
-    llm = RecordingLLMClient(inner)
+    # A supervisor may own the ledger across several stages — the review loop's fixes are
+    # LLM calls too, and they happen after this function returns. Sharing the ledger is what
+    # lets one worklog account for the whole run instead of the middle of it.
+    llm = RecordingLLMClient(inner, ledger=ledger) if ledger is not None else RecordingLLMClient(inner)
 
     # 1. Obtain the spec. Normally: source → intents → specs (intake, cached +
     #    temperature-0 so a pinned --intent stays addressable). When a spec is
@@ -333,7 +338,9 @@ async def run_feature(
         the log and nothing else. Safe mode posts nothing — ``add_worklog`` honors dry-run,
         and the guard keeps even the render off the path.
         """
-        if not live:
+        if not live or not post_worklog:
+            # A supervisor that owns the ledger posts once, at the end of the whole run.
+            # Posting here as well would bill the ticket twice for the same tokens.
             return
         try:
             await jira.add_worklog(
