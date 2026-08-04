@@ -465,7 +465,7 @@ def test_the_run_shares_one_ledger_with_the_implement_stage(
 
 def test_a_safe_run_posts_no_worklog(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Safe mode makes no external write, and telemetry is no exception."""
-    posted: list[Any] = []
+    posted: list[str] = []
 
     class _Jira:
         def __init__(self, *a: Any, **k: Any) -> None:
@@ -483,6 +483,58 @@ def test_a_safe_run_posts_no_worklog(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     _run(tmp_path)
 
     assert posted == []
+
+
+# ---- a stage failure must reach the supervisor (SSPN-32) -------------------
+
+
+def test_an_unanticipated_error_is_recorded_not_lost(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The first real run died on `CodegenError`, which no handler caught: the stage was
+    never recorded, the run stayed `running` for a reaper to find hours later, and the
+    operator got a traceback where a verdict belongs.
+
+    The supervisor's promise is that a crash is recoverable. This is the case where it wasn't.
+    """
+    _install(monkeypatch, tmp_path, feature=RuntimeError("model output was not a JSON object"))
+    store = RunStore(root=tmp_path / "state")
+
+    with pytest.raises(AutorunError, match="RuntimeError: model output") as exc:
+        _run(tmp_path, store=store)
+
+    assert exc.value.code == 1
+    (record,) = store.all()
+    assert record.status == "failed"  # never left claiming to be running for a reaper to find
+
+
+def test_a_recorded_failure_names_the_phase_it_died_in(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A run that failed somewhere is far less useful than one that failed *here*."""
+    _install(monkeypatch, tmp_path, feature=RuntimeError("boom"))
+    store = RunStore(root=tmp_path / "state")
+
+    with pytest.raises(AutorunError):
+        _run(tmp_path, store=store)
+
+    (record,) = store.all()
+    assert record.phase in {"design", "implement"}  # the last stage that started
+
+
+def test_errors_that_already_carry_meaning_keep_their_handling(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The catch-all must not swallow the specific handlers: a budget exhaustion still
+    parks and still exits 4, rather than becoming a generic failure."""
+    from orchestrator.core.llm import BudgetExceededError
+
+    _install(monkeypatch, tmp_path, feature=BudgetExceededError("cap exhausted"))
+    store = RunStore(root=tmp_path / "state")
+
+    with pytest.raises(AutorunError, match="budget exhausted") as exc:
+        _run(tmp_path, store=store, max_cost_usd=1.0)
+
+    assert exc.value.code == 4
+    assert store.all()[0].status == "parked"
 
 
 # ---- helper ----------------------------------------------------------------

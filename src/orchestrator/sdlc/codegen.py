@@ -248,10 +248,15 @@ class CodegenError(RuntimeError):
         *,
         failed_edit_paths: list[str] | None = None,
         missing_edit_paths: list[str] | None = None,
+        parse_detail: str = "",
     ) -> None:
         super().__init__(message)
         self.failed_edit_paths = list(failed_edit_paths or [])
         self.missing_edit_paths = list(missing_edit_paths or [])
+        # Set when the output was not valid JSON at all. Carried explicitly rather than
+        # inferred from two empty path lists: "no edits failed" and "nothing parsed" are
+        # different failures and want different retries.
+        self.parse_detail = parse_detail
 
 
 @runtime_checkable
@@ -1277,6 +1282,14 @@ class LLMCodegenAdapter:
         try:
             return self._apply(text, root, allow_empty=allow_empty)
         except CodegenError as exc:
+            if exc.parse_detail:
+                # The model returned something that is not JSON. Models routinely fix their
+                # own JSON when shown where it broke, and this failure killed a real run
+                # outright — the edit-repair retry beside it had simply never been extended
+                # to cover it. One retry, never a loop: a second failure raises.
+                logger.warning("sdlc.codegen.parse_retry detail=%r", exc.parse_detail[:160])
+                text = await self._complete(system, f"{user}{_parse_repair_block(exc.parse_detail)}")
+                return self._apply(text, root, allow_empty=allow_empty)
             if not exc.failed_edit_paths and not exc.missing_edit_paths:
                 raise
             logger.warning(
@@ -1366,7 +1379,10 @@ class LLMCodegenAdapter:
             logger.warning("sdlc.codegen.unparseable_output len=%d tail=%r", len(text), text[-160:])
             if allow_empty:
                 return CodeChange()
-            raise CodegenError("model output was not a JSON object")
+            raise CodegenError(
+                "model output was not a JSON object",
+                parse_detail=_parse_detail(text),
+            )
         files = payload.get("files")
         if not isinstance(files, list) or not files:
             if allow_empty:
@@ -1596,6 +1612,35 @@ def _shadows_stdlib(root: Path, target: Path) -> bool:
     if target.suffix != ".py" or target.parent != root.resolve():
         return False
     return target.stem in sys.stdlib_module_names
+
+
+def _parse_detail(text: str) -> str:
+    """Why the output was not JSON, in the terms a model can act on.
+
+    The offset matters more than the message: "Expecting ',' delimiter" is useless without
+    knowing that it happened 2,294 characters in, inside a string full of backticks.
+    """
+    import json as _json
+
+    try:
+        _json.loads(text)
+    except _json.JSONDecodeError as exc:
+        start = max(0, exc.pos - 80)
+        return f"{exc.msg} at position {exc.pos} of {len(text)}, near: {text[start : exc.pos + 40]!r}"
+    except Exception as exc:  # noqa: BLE001 — any other reason is still "not usable JSON"
+        return f"the response could not be read as JSON ({type(exc).__name__}: {exc})"
+    return "the response parsed, but not as a single JSON object of files"
+
+
+def _parse_repair_block(detail: str) -> str:
+    """The corrective suffix for a parse retry. Names the break rather than saying 'try again'."""
+    return (
+        "\n\nYOUR PREVIOUS RESPONSE WAS NOT VALID JSON and could not be used.\n"
+        f"The parser failed: {detail}\n"
+        "Return the same work again as a SINGLE valid JSON object and nothing else. Escape "
+        "every quote, newline and backslash inside string values. Do not wrap the JSON in "
+        "markdown fences, and do not add commentary before or after it."
+    )
 
 
 def _shadows_first_party(root: Path, target: Path) -> Path | None:

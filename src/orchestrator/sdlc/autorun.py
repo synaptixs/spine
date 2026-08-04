@@ -269,25 +269,56 @@ async def autorun(
     if budget is not None:
         emit(f"[budget] cap ${max_cost_usd:.2f} for this run")
 
-    with ctx.stage_span("intake"):
-        await _stage_intake(ctx, intent_id=intent_id, emit=emit)
-    store, overview = _load_graph(ctx, emit=emit)
-    _stage_investigate(ctx, store=store, emit=emit)
-    _stage_validity(ctx, store=store, issue_type=issue_type, emit=emit)
-    await _stage_design(ctx, store=store, overview=overview, emit=emit)
-    await _stage_implement(
-        ctx,
-        issue=issue,
-        intent_id=intent_id,
-        repo=repo,
-        max_refine=max_refine,
-        base_branch=base_branch,
-        language=language,
-        budget=budget,
-        ledger=ledger,
-        emit=emit,
-    )
-    await _stage_review(ctx, fixer=ctx.fixer, tests=ctx.tests, max_rounds=review_rounds, emit=emit)
+    from orchestrator.obs import tracing
+
+    # One span for the run, one per stage beneath it. Every LLM call already emitted a span;
+    # what was missing was the thing that joins them — without a parent, a run that went
+    # wrong is a scatter of calls with no story.
+    with tracing.span(
+        "autorun.run", **{"autorun.run_id": run_id, "autorun.source": source, "autorun.live": live}
+    ):
+        try:
+            with ctx.stage_span("intake"):
+                await _stage_intake(ctx, intent_id=intent_id, emit=emit)
+            store_graph, overview = _load_graph(ctx, emit=emit)
+            with ctx.stage_span("investigate"):
+                _stage_investigate(ctx, store=store_graph, emit=emit)
+            with ctx.stage_span("validity"):
+                _stage_validity(ctx, store=store_graph, issue_type=issue_type, emit=emit)
+            with ctx.stage_span("design"):
+                await _stage_design(ctx, store=store_graph, overview=overview, emit=emit)
+            with ctx.stage_span("implement"):
+                await _stage_implement(
+                    ctx,
+                    issue=issue,
+                    intent_id=intent_id,
+                    repo=repo,
+                    max_refine=max_refine,
+                    base_branch=base_branch,
+                    language=language,
+                    budget=budget,
+                    ledger=ledger,
+                    emit=emit,
+                )
+            with ctx.stage_span("review"):
+                await _stage_review(
+                    ctx, fixer=ctx.fixer, tests=ctx.tests, max_rounds=review_rounds, emit=emit
+                )
+        except AutorunError:
+            # Already recorded by the stage that raised it: re-raise untouched so exit codes,
+            # parking and approvals survive.
+            raise
+        except Exception as exc:
+            # Everything nobody anticipated — a model returning unparseable JSON, a git
+            # failure, a network blip. Without this the error escapes the supervisor
+            # entirely: no stage recorded, no checkpoint, a run left claiming to be running
+            # for the reaper to find hours later, and a traceback where a verdict belongs.
+            phase = ctx.record.phase if ctx.record is not None else "run"
+            ctx.record_stage(phase or "run", "failed", f"unexpected {type(exc).__name__}: {exc}")
+            ctx.checkpoint(status="failed")
+            emit(f"[autorun] {type(exc).__name__}: {exc}")
+            await _log_run_cost(ctx, ledger=ledger, started=started, verdict="FAILED", emit=emit)
+            raise AutorunError(f"{type(exc).__name__}: {exc}", code=1) from exc
 
     ctx.checkpoint(phase="done", status="done", spent_usd=_spent(budget, run_id))
     await _log_run_cost(ctx, ledger=ledger, started=started, verdict="PASSED", emit=emit)
