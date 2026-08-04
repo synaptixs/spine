@@ -259,6 +259,13 @@ async def run_feature(
     # 1. Obtain the spec. Normally: source → intents → specs (intake, cached +
     #    temperature-0 so a pinned --intent stays addressable). When a spec is
     #    injected (Spine remediation: drift → governed run), skip intake entirely.
+    # Bound before the branch, because the live path below reads them either way. An
+    # injected spec (Spine remediation, `sdlc autorun`) skips intake entirely, so there is no
+    # backlog *plan* behind it — the ledger is an intake artifact, and refreshing it from
+    # nothing would be inventing one.
+    local_backlog = backlog_path()
+    plan: Any = None
+
     if spec is None:
         parse_source_uri(source)  # validate the source URI early
         try:
@@ -269,7 +276,6 @@ async def run_feature(
         if not plan.specs:
             raise FeatureRunError("No specs derived from the source — nothing to implement.", code=3)
         # Refresh the local canonical backlog ledger (BACKLOG.md) with progress.
-        local_backlog = backlog_path()
         write_backlog(local_backlog, source, plan, load_progress(source))
         emit(f"[backlog] {local_backlog}")
         spec_obj = (
@@ -565,7 +571,8 @@ async def run_feature(
         # Mark in-progress and drop BACKLOG.md into the worktree BEFORE open_pr so
         # the PR carries the updated progress ledger (the "both locations" rule).
         set_progress(source, spec["intent_id"], status="in_progress", issue_key=issue_key)
-        write_backlog(path / local_backlog.name, source, plan, load_progress(source))
+        if plan is not None:
+            write_backlog(path / local_backlog.name, source, plan, load_progress(source))
         # Without an explicit base, ``gh`` targets the repo's *default* branch — which
         # for a repo whose contributing guide says "work off develop, never commit to
         # main" is precisely the wrong branch, with no way to say so from the CLI.
@@ -577,7 +584,8 @@ async def run_feature(
         emit(f"[pr] opened: {pr.url}")
         # Now that the PR URL is known, record it and refresh the local ledger.
         set_progress(source, spec["intent_id"], status="in_progress", issue_key=issue_key, pr_url=pr.url)
-        write_backlog(local_backlog, source, plan, load_progress(source))
+        if plan is not None:
+            write_backlog(local_backlog, source, plan, load_progress(source))
         await jira.comment_issue(issue_key, f"PR opened for this story: {pr.url}")
         emit(f"[jira] commented PR link on {issue_key}")
         # The work is done and waiting on a human. Done is never the agent's to set —

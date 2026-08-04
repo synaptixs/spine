@@ -595,3 +595,49 @@ async def test_a_live_run_moves_the_ticket_to_in_review_when_the_pr_opens(
 
     assert result.pr_url == "https://github.com/x/y/pull/7"
     assert jira.transitions == ["In Progress", "In Review"]
+
+
+async def test_a_live_run_with_an_injected_spec_reaches_the_pr(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`autorun` always injects a spec — it does intake itself — and the live path then
+    reached for `local_backlog` and `plan`, which are only bound when this function does its
+    own intake. It fired *after* codegen and the whole test loop succeeded and immediately
+    before the PR opened: the worst possible moment, full spend and nothing to show."""
+    jira = _FakeJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, jira=jira)
+
+    result = await run_feature(
+        "file://./spec.md",
+        repo="https://x/widget",
+        live=True,
+        issue="SSPN-1",
+        spec={
+            "title": "Injected",
+            "intent_id": "intent-a",
+            "summary": "s",
+            "acceptance_criteria": ["c"],
+        },
+    )
+
+    assert result.pr_url == "https://github.com/x/y/pull/7"
+    assert jira.transitions == ["In Progress", "In Review"]
+
+
+async def test_intake_driven_runs_still_write_the_backlog_ledger(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The guard must not cost the ledger its normal case: when this function does its own
+    intake there *is* a plan, and BACKLOG.md is still written in both places."""
+    written: list[str] = []
+    jira = _FakeJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, jira=jira)
+    monkeypatch.setattr(
+        "orchestrator.intake.backlog_doc.write_backlog",
+        lambda path, *a, **k: written.append(str(path)),
+    )
+
+    await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True)
+
+    # Once for the local ledger during intake, then into the worktree and back locally.
+    assert len(written) >= 2
