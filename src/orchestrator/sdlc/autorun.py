@@ -82,6 +82,10 @@ class RunContext:
     # two cannot disagree about what the ticket is even about.
     landing: list[str] = field(default_factory=list)
     verdict: str = ""
+    # Set by the implement stage: the same adapter and runner that built the change also fix
+    # what review finds, so the fixer knows the repo's conventions and the layout it chose.
+    fixer: Any = None
+    tests: Any = None
     stages: list[StageResult] = field(default_factory=list)
     # Durable state. Written after every stage, so a crash leaves a findable run rather than
     # a mystery worktree and a ticket stuck In Progress.
@@ -141,6 +145,7 @@ async def autorun(
     root: Path | str = ".",
     live: bool = False,
     max_refine: int = 3,
+    review_rounds: int = 2,
     base_branch: str | None = None,
     language: str = "auto",
     issue_type: str = "",
@@ -234,7 +239,7 @@ async def autorun(
         budget=budget,
         emit=emit,
     )
-    _stage_review(ctx, emit=emit)
+    await _stage_review(ctx, fixer=ctx.fixer, tests=ctx.tests, max_rounds=review_rounds, emit=emit)
 
     ctx.checkpoint(phase="done", status="done", spent_usd=_spent(budget, run_id))
     emit(f"[autorun] artifacts in {ctx.artifacts_dir}")
@@ -427,6 +432,7 @@ async def _stage_implement(
     ctx.branch = result.branch
     ctx.worktree = result.worktree
     ctx.pr_url = result.pr_url
+    ctx.fixer, ctx.tests = result.codegen, result.tests
     ctx.record_stage(
         "implement",
         "ok",
@@ -434,19 +440,37 @@ async def _stage_implement(
     )
 
 
-def _stage_review(ctx: RunContext, *, emit: Callable[[str], None]) -> None:
-    """Grounded review of the change.
+async def _stage_review(
+    ctx: RunContext, *, fixer: Any, tests: Any, max_rounds: int, emit: Callable[[str], None]
+) -> None:
+    """Review the change and fix what it finds, before anyone is asked to look at it.
 
-    Skipped in safe mode with a reason rather than silently: the reviewer reads a *pull
-    request*, and safe mode opens none. Closing the review→fix→re-test loop is its own story;
-    this stage exists so the skeleton's shape is honest about where that loop will attach.
+    Runs on the worktree diff rather than a pull request: a loop that waited for a PR could
+    never fix anything *before* opening one, which is the entire point.
     """
-    if not ctx.pr_url:
-        ctx.record_stage("review", "skipped", "no PR to review (safe mode opens none)")
-        emit("[review] skipped — safe mode opens no PR")
+    from orchestrator.sdlc.reviewloop import review_and_fix
+
+    if not ctx.worktree:
+        ctx.record_stage("review", "skipped", "no worktree to review")
+        emit("[review] skipped — nothing was built")
         return
-    ctx.record_stage("review", "skipped", f"review of {ctx.pr_url} not wired yet (SSPN-24)")
-    emit(f"[review] skipped — {ctx.pr_url} awaits the review loop (SSPN-24)")
+
+    outcome = await review_and_fix(
+        path=ctx.worktree,
+        spec=ctx.spec or {},
+        issue_key=ctx.issue_key,
+        fixer=fixer,
+        tests=tests,
+        max_rounds=max_rounds,
+    )
+    path = ctx.write_artifact("review.md", outcome.render())
+    detail = f"{outcome.stopped}"
+    if outcome.remaining:
+        detail += f" · {len(outcome.remaining)} unresolved"
+    if outcome.deferred:
+        detail += f" · {len(outcome.deferred)} for a human"
+    ctx.record_stage("review", "ok" if outcome.clean else "failed", detail, path)
+    emit(f"[review] {detail}")
 
 
 def render_summary(ctx: RunContext) -> str:
