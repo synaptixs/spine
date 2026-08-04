@@ -55,7 +55,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/autorun.py:342`](../../src/orchestrator/sdlc/autorun.py#L342)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L159)
-- **Calls** (4): `FactStore`, [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), `orchestrator.pkg.load_or_extract`, `py:emit`
+- **Calls** (4): [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), `orchestrator.pkg.FactStore`, `orchestrator.pkg.load_or_extract`, `py:emit`
 
 ### `_refuse_undecided_resume`
 
@@ -116,7 +116,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/autorun.py:159`](../../src/orchestrator/sdlc/autorun.py#L159)
 
-- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L778), [`_run`](../../tests/sdlc/test_autorun.py#L438)
+- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L827), [`_run`](../../tests/sdlc/test_autorun.py#L438)
 - **Calls** (20): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L42), [`RunContext`](../../src/orchestrator/sdlc/autorun.py#L61), [`RunRecord`](../../src/orchestrator/sdlc/runstate.py#L43), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L90), [`_load_graph`](../../src/orchestrator/sdlc/autorun.py#L342), [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L276), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L272), [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L414), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L434), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L306), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L356), [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L499), [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L377), [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L149), `getpid`, `orchestrator.core.llm.RunBudget`, `pathlib.Path`, `py:emit`, `time`, `uuid4`
 
 ### `default_artifacts_dir`
@@ -130,7 +130,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/autorun.py:532`](../../src/orchestrator/sdlc/autorun.py#L532)
 
-- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L778), [`test_the_summary_reports_every_stage`](../../tests/sdlc/test_autorun.py#L218)
+- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L827), [`test_the_summary_reports_every_stage`](../../tests/sdlc/test_autorun.py#L218)
 
 ## Imports
 

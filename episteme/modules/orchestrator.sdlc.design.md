@@ -90,14 +90,14 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:235`](../../src/orchestrator/sdlc/design.py#L235)
 
-- **Called by** (3 production · 5 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L414), [`design`](../../src/orchestrator/cli.py#L1697), [`design_feature`](../../src/orchestrator/sdlc/design.py#L266), [`test_a_design_that_cannot_tell_says_so_and_proposes_nothing`](../../tests/sdlc/test_design.py#L252), [`test_heuristic_files_come_from_where_the_ticket_lands`](../../tests/sdlc/test_design.py#L231), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_the_design_agrees_with_the_investigation`](../../tests/sdlc/test_design.py#L268)
+- **Called by** (3 production · 5 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L414), [`design`](../../src/orchestrator/cli.py#L1746), [`design_feature`](../../src/orchestrator/sdlc/design.py#L266), [`test_a_design_that_cannot_tell_says_so_and_proposes_nothing`](../../tests/sdlc/test_design.py#L252), [`test_heuristic_files_come_from_where_the_ticket_lands`](../../tests/sdlc/test_design.py#L231), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_the_design_agrees_with_the_investigation`](../../tests/sdlc/test_design.py#L268)
 - **Calls** (5): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L131), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L174), [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L142), `suppress`, [`to_dict`](../../src/orchestrator/sdlc/impact.py#L187)
 
 ### `render_design_md`
 
 [`src/orchestrator/sdlc/design.py:212`](../../src/orchestrator/sdlc/design.py#L212)
 
-- **Called by** (3 production · 3 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L414), [`design`](../../src/orchestrator/cli.py#L1697), [`design_feature`](../../src/orchestrator/sdlc/design.py#L266), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_render_design_md_sections`](../../tests/sdlc/test_design.py#L203)
+- **Called by** (3 production · 3 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L414), [`design`](../../src/orchestrator/cli.py#L1746), [`design_feature`](../../src/orchestrator/sdlc/design.py#L266), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_render_design_md_sections`](../../tests/sdlc/test_design.py#L203)
 - **Calls** (2): `py:_list`, [`render_md`](../../src/orchestrator/sdlc/impact.py#L216)
 
 ## Imports

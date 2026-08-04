@@ -73,7 +73,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:166`](../../src/orchestrator/plugin/server.py#L166)
 
 - **Called by** (2): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L185), [`root_cause`](../../src/orchestrator/plugin/server.py#L381)
-- **Calls** (3): `FactStore`, [`_open_repo`](../../src/orchestrator/plugin/server.py#L154), `orchestrator.pkg.load_or_extract`
+- **Calls** (3): [`_open_repo`](../../src/orchestrator/plugin/server.py#L154), `orchestrator.pkg.FactStore`, `orchestrator.pkg.load_or_extract`
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#phases`
 
 ### `blast_radius`
