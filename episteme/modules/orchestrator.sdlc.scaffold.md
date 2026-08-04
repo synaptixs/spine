@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_c_files`](../../src/orchestrator/sdlc/scaffold.py#L346) — reaches **6** symbols
-- [`_cpp_files`](../../src/orchestrator/sdlc/scaffold.py#L412) — reaches **6** symbols
-- [`_csharp_files`](../../src/orchestrator/sdlc/scaffold.py#L229) — reaches **6** symbols
-- [`_ensure_build_ignores`](../../src/orchestrator/sdlc/scaffold.py#L113) — reaches **6** symbols
-- [`_go_files`](../../src/orchestrator/sdlc/scaffold.py#L474) — reaches **6** symbols
-- [`_go_ident`](../../src/orchestrator/sdlc/scaffold.py#L467) — reaches **6** symbols
-- [`_java_files`](../../src/orchestrator/sdlc/scaffold.py#L176) — reaches **6** symbols
-- [`_python_files`](../../src/orchestrator/sdlc/scaffold.py#L155) — reaches **6** symbols
+- [`_c_files`](../../src/orchestrator/sdlc/scaffold.py#L346) — reaches **8** symbols
+- [`_cpp_files`](../../src/orchestrator/sdlc/scaffold.py#L412) — reaches **8** symbols
+- [`_csharp_files`](../../src/orchestrator/sdlc/scaffold.py#L229) — reaches **8** symbols
+- [`_ensure_build_ignores`](../../src/orchestrator/sdlc/scaffold.py#L113) — reaches **8** symbols
+- [`_go_files`](../../src/orchestrator/sdlc/scaffold.py#L474) — reaches **8** symbols
+- [`_java_files`](../../src/orchestrator/sdlc/scaffold.py#L176) — reaches **8** symbols
+- [`_python_files`](../../src/orchestrator/sdlc/scaffold.py#L155) — reaches **8** symbols
+- [`_sql_files`](../../src/orchestrator/sdlc/scaffold.py#L138) — reaches **8** symbols
 
 ## Functions
 
@@ -117,7 +117,7 @@
 
 ## Imports
 
-`__future__.annotations`, `json`, [`orchestrator.catalog.profile`](orchestrator.catalog.profile.md), [`orchestrator.sdlc.layout`](orchestrator.sdlc.layout.md), `os`, `pathlib.Path`, `re`, `uuid`
+`__future__.annotations`, `json`, [`orchestrator.catalog.profile`](../../src/orchestrator/catalog/profile.py#L1), [`orchestrator.sdlc.layout`](orchestrator.sdlc.layout.md), `os`, `pathlib.Path`, `re`, `uuid`
 
 ## Imported by
 

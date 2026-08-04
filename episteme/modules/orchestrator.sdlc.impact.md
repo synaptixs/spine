@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`BlastRadius`](../../src/orchestrator/sdlc/impact.py#L61) — reaches **9** symbols
-- [`ModuleImpact`](../../src/orchestrator/sdlc/impact.py#L49) — reaches **9** symbols
-- [`_hotspots`](../../src/orchestrator/sdlc/impact.py#L107) — reaches **9** symbols
-- [`_match_module`](../../src/orchestrator/sdlc/impact.py#L82) — reaches **9** symbols
-- [`_module_nodes`](../../src/orchestrator/sdlc/impact.py#L76) — reaches **9** symbols
-- [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L142) — reaches **8** symbols
-- [`SymbolImpact`](../../src/orchestrator/sdlc/impact.py#L35) — reaches **7** symbols
-- [`_basename`](../../src/orchestrator/sdlc/impact.py#L72) — reaches **7** symbols
+- [`BlastRadius`](../../src/orchestrator/sdlc/impact.py#L61) — reaches **11** symbols
+- [`ModuleImpact`](../../src/orchestrator/sdlc/impact.py#L49) — reaches **11** symbols
+- [`_hotspots`](../../src/orchestrator/sdlc/impact.py#L107) — reaches **11** symbols
+- [`_match_module`](../../src/orchestrator/sdlc/impact.py#L82) — reaches **11** symbols
+- [`_module_nodes`](../../src/orchestrator/sdlc/impact.py#L76) — reaches **11** symbols
+- [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L142) — reaches **11** symbols
+- [`SymbolImpact`](../../src/orchestrator/sdlc/impact.py#L35) — reaches **8** symbols
+- [`_basename`](../../src/orchestrator/sdlc/impact.py#L72) — reaches **8** symbols
 
 ## Types
 

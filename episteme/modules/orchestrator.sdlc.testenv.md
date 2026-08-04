@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_c_compiler_available`](../../src/orchestrator/sdlc/testenv.py#L341) — reaches **7** symbols
-- [`CToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L240) — reaches **6** symbols
-- [`DotnetToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L213) — reaches **6** symbols
-- [`GoToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L265) — reaches **6** symbols
-- [`JavaToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L164) — reaches **6** symbols
-- [`LocalTestEnvironment`](../../src/orchestrator/sdlc/testenv.py#L95) — reaches **6** symbols
-- [`NodeToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L185) — reaches **6** symbols
-- [`SqlToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L302) — reaches **6** symbols
+- [`_c_compiler_available`](../../src/orchestrator/sdlc/testenv.py#L341) — reaches **9** symbols
+- [`CToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L240) — reaches **8** symbols
+- [`DotnetToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L213) — reaches **8** symbols
+- [`GoToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L265) — reaches **8** symbols
+- [`JavaToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L164) — reaches **8** symbols
+- [`LocalTestEnvironment`](../../src/orchestrator/sdlc/testenv.py#L95) — reaches **8** symbols
+- [`NodeToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L185) — reaches **8** symbols
+- [`SqlToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L302) — reaches **8** symbols
 
 _4 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 

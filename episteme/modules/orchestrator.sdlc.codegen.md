@@ -13,8 +13,8 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L42) — reaches **24** symbols
-- [`LLMCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L650) — reaches **15** symbols
+- [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L42) — reaches **28** symbols
+- [`LLMCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L650) — reaches **18** symbols
 - [`CodeChange`](../../src/orchestrator/sdlc/codegen.py#L73) — reaches **13** symbols
 - [`CodegenError`](../../src/orchestrator/sdlc/codegen.py#L234) — reaches **12** symbols
 - [`StubCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L154) — reaches **7** symbols · **no test path visible**
@@ -171,7 +171,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/codegen.py:42`](../../src/orchestrator/sdlc/codegen.py#L42)
 
-- **Called by** (10 production · 4 test): [`_build_codegen`](../../src/orchestrator/sdlc/worker.py#L87), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L101), [`_llm_enrich`](../../src/orchestrator/sdlc/rca.py#L160), [`audit`](../../src/orchestrator/cli.py#L1327), [`consolidate_memory`](../../src/orchestrator/sdlc/activities.py#L368), [`design`](../../src/orchestrator/cli.py#L1551), [`main`](../../scripts/audit_eval.py#L54), [`rca`](../../src/orchestrator/cli.py#L1790), [`root_cause`](../../src/orchestrator/plugin/server.py#L381), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L170), [`test_codegen_env_beats_intake_env`](../../tests/sdlc/test_codegen.py#L89), [`test_explicit_override_wins`](../../tests/sdlc/test_codegen.py#L84), [`test_falls_back_to_intake_model`](../../tests/sdlc/test_codegen.py#L94), [`test_none_when_nothing_set`](../../tests/sdlc/test_codegen.py#L101)
+- **Called by** (10 production · 4 test): [`_build_codegen`](../../src/orchestrator/sdlc/worker.py#L87), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L101), [`_llm_enrich`](../../src/orchestrator/sdlc/rca.py#L160), [`audit`](../../src/orchestrator/cli.py#L1393), [`consolidate_memory`](../../src/orchestrator/sdlc/activities.py#L368), [`design`](../../src/orchestrator/cli.py#L1617), [`main`](../../scripts/audit_eval.py#L54), [`rca`](../../src/orchestrator/cli.py#L1856), [`root_cause`](../../src/orchestrator/plugin/server.py#L381), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L170), [`test_codegen_env_beats_intake_env`](../../tests/sdlc/test_codegen.py#L89), [`test_explicit_override_wins`](../../tests/sdlc/test_codegen.py#L84), [`test_falls_back_to_intake_model`](../../tests/sdlc/test_codegen.py#L94), [`test_none_when_nothing_set`](../../tests/sdlc/test_codegen.py#L101)
 - **Calls** (1): `getenv`
 - **Documented in**: `CLI_REFERENCE.md`
 
