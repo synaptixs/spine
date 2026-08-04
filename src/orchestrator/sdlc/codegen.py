@@ -1453,6 +1453,17 @@ def apply_files(
                 f"refusing to create {rel!r}: it would shadow the Python "
                 f"standard-library module {target.stem!r}"
             )
+        # First-party shadow guard: the same failure one layer in. A model that wants
+        # `orchestrator.cli.regression` will happily create `orchestrator/cli/__init__.py`
+        # beside the existing `cli.py` — which does not extend the CLI, it hides it, and
+        # every command in the product stops resolving. Observed on a real run.
+        shadowed = _shadows_first_party(root, target)
+        if not target.exists() and shadowed is not None:
+            raise CodegenError(
+                f"refusing to create {rel!r}: it would shadow the existing module "
+                f"{shadowed.relative_to(root.resolve()).as_posix()!r}. Edit that module "
+                "instead of creating a package beside it."
+            )
         # Brownfield create-only guard (deterministic, not prompt-hope):
         # when grounded, the worktree is a real repo — a model "fix" that
         # rewrites a pre-existing module it didn't create this session
@@ -1585,6 +1596,36 @@ def _shadows_stdlib(root: Path, target: Path) -> bool:
     if target.suffix != ".py" or target.parent != root.resolve():
         return False
     return target.stem in sys.stdlib_module_names
+
+
+def _shadows_first_party(root: Path, target: Path) -> Path | None:
+    """The existing module ``target`` would hide, or ``None``.
+
+    Two shapes, both of which make an import resolve to the new thing and silently orphan
+    the old one:
+
+    * ``pkg/name/__init__.py`` created while ``pkg/name.py`` exists — the package wins;
+    * ``pkg/name.py`` created while ``pkg/name/__init__.py`` exists — ambiguous at best.
+
+    The stdlib guard next door catches the same mistake against Python's own modules. This
+    is the first-party half, and it is the more dangerous one: shadowing `statistics` breaks
+    a library nobody in the repo wrote, while shadowing `cli.py` breaks the product.
+    """
+    if target.suffix != ".py":
+        return None
+    # Both sides resolved before comparing: on macOS a temp root is /var/... while its
+    # resolution is /private/var/..., and an unresolved sibling then looks like it lives
+    # outside the worktree. `_safe_target` has already proven containment anyway.
+    resolved_root = root.resolve()
+    candidate = (
+        target.parent.with_suffix(".py")
+        if target.name == "__init__.py"
+        else target.with_suffix("") / "__init__.py"
+    )
+    candidate = candidate.resolve()
+    if not candidate.is_file() or not candidate.is_relative_to(resolved_root):
+        return None
+    return candidate
 
 
 def _safe_target(root: Path, rel: str) -> Path:
