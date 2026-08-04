@@ -44,6 +44,18 @@ from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Pr
 # in the direction that matters (a missing edge reads as "nothing depends on this").
 _DJANGO_RELATIONS = frozenset({"ForeignKey", "OneToOneField", "ManyToManyField"})
 
+# Data-access calls whose first argument names the table being touched. Narrow on purpose:
+# these four are the dominant SQLAlchemy 2.0 idiom, and the *bare name* argument is what makes
+# them precise. Raw ``text()`` SQL, a table chosen at runtime and lazy-loading traversals are
+# all skipped — a wrong data-access edge is worse than a missing one, because it sends a
+# schema-change impact query to the wrong callers.
+_ACCESS_KINDS = {
+    "select": EdgeKind.READS,
+    "insert": EdgeKind.WRITES,
+    "update": EdgeKind.WRITES,
+    "delete": EdgeKind.WRITES,
+}
+
 # Class-body names that describe the table rather than a column.
 _NOT_COLUMNS = frozenset({"__tablename__", "__table_args__", "__abstract__", "objects", "Meta"})
 
@@ -73,14 +85,26 @@ class PendingEntity:
     references: list[PendingReference] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class PendingAccess:
+    """A function touching a table, before the class → table map is complete."""
+
+    function_id: str
+    class_name: str
+    kind: EdgeKind
+    provenance: Provenance
+
+
 @dataclass
 class OrmState:
     """Entities found so far, across the whole walk (foreign keys span files)."""
 
     entities: list[PendingEntity] = field(default_factory=list)
+    accesses: list[PendingAccess] = field(default_factory=list)
 
     def clear(self) -> None:
         self.entities.clear()
+        self.accesses.clear()
 
 
 def _literal_str(node: ast.expr | None) -> str | None:
@@ -207,8 +231,42 @@ def _columns_and_refs(
     return columns, references
 
 
+def _collect_accesses(
+    body: list[ast.stmt], *, parent_id: str, enclosing: str, rel: str, state: OrmState
+) -> None:
+    """Attribute ``select(Model)`` and friends to the function they appear in.
+
+    The innermost enclosing function owns the access, so a query inside a nested helper is
+    not blamed on the outer one. A call outside any function (module level) is skipped: the
+    graph has no symbol to hang the edge on that a reader could act upon.
+    """
+    for stmt in body:
+        if isinstance(stmt, ast.ClassDef):
+            _collect_accesses(
+                stmt.body, parent_id=f"{parent_id}.{stmt.name}", enclosing="", rel=rel, state=state
+            )
+            continue
+        if isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef):
+            func_id = f"{parent_id}.{stmt.name}"
+            _collect_accesses(stmt.body, parent_id=func_id, enclosing=func_id, rel=rel, state=state)
+            continue
+        if not enclosing:
+            continue
+        for node in ast.walk(stmt):
+            if not isinstance(node, ast.Call) or not node.args:
+                continue
+            kind = _ACCESS_KINDS.get(_call_name(node))
+            if kind is None:
+                continue
+            target = node.args[0]
+            # A bare name, and nothing else. ``select(text("..."))`` or a computed table
+            # resolves to no class and is dropped rather than guessed at.
+            if isinstance(target, ast.Name):
+                state.accesses.append(PendingAccess(enclosing, target.id, kind, Provenance(rel, node.lineno)))
+
+
 def scan_module(tree: ast.Module, *, module_id: str, rel: str, state: OrmState) -> None:
-    """Collect this file's ORM entities into ``state``. Non-ORM classes are ignored."""
+    """Collect this file's ORM entities and data access into ``state``."""
     for stmt in ast.walk(tree):
         if not isinstance(stmt, ast.ClassDef):
             continue
@@ -229,6 +287,7 @@ def scan_module(tree: ast.Module, *, module_id: str, rel: str, state: OrmState) 
                 references=references,
             )
         )
+    _collect_accesses(tree.body, parent_id=module_id, enclosing="", rel=rel, state=state)
 
 
 def emit(state: OrmState, batch: FactBatch) -> None:
@@ -264,5 +323,11 @@ def emit(state: OrmState, batch: FactBatch) -> None:
             batch.add_node(Node(dst, NodeKind.ENTITY, table, "python", external=True))
             batch.add_edge(Edge(src, dst, EdgeKind.REFERENCES, reference.provenance))
 
+    for access in state.accesses:
+        accessed = by_class.get(access.class_name)
+        if accessed is None:
+            continue  # not an ORM class this repo declares — say nothing
+        batch.add_edge(Edge(access.function_id, f"py:entity:{accessed}", access.kind, access.provenance))
 
-__all__ = ["OrmState", "PendingEntity", "emit", "scan_module"]
+
+__all__ = ["OrmState", "PendingAccess", "PendingEntity", "emit", "scan_module"]

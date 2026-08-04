@@ -19,3 +19,7 @@
 - `tenant_id`
 - `timestamp`
 - `trace_id`
+
+## Read by
+
+[`_fetch_job_rows`](../../src/orchestrator/registry/api/jobs.py#L238), [`_fetch_new`](../../src/orchestrator/registry/api/stream.py#L82), [`_fetch_run`](../../src/orchestrator/registry/api/audit.py#L126), [`_fetch_task_audit`](../../src/orchestrator/registry/api/trace.py#L88), [`_rows`](../../tests/registry/test_capabilities_and_jobs.py#L73), [`list_jobs`](../../src/orchestrator/registry/api/jobs.py#L253), [`list_runs`](../../src/orchestrator/registry/api/runs.py#L66), [`query_audit`](../../src/orchestrator/registry/api/audit.py#L96), [`run_artifacts`](../../src/orchestrator/registry/api/runs.py#L174), [`test_end_to_end_invoke_echo`](../../tests/integration/test_gateway.py#L54), [`test_end_to_end_template_lifecycle`](../../tests/integration/test_registry_api.py#L56), [`test_golden_research_task_via_mock_llm`](../../tests/integration/test_golden_research.py#L98), [`test_handler_failure_is_audited_then_500`](../../tests/integration/test_gateway.py#L105), [`test_replan_budget_exhausted_terminates`](../../tests/integration/test_replan_loop.py#L227), [`test_replan_succeeds_on_retry`](../../tests/integration/test_replan_loop.py#L160)

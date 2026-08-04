@@ -30,3 +30,11 @@
 - `timeout_json`
 - `title`
 - `trace_id`
+
+## Read by
+
+[`_latest_hash_for_task`](../../src/orchestrator/approval/repository.py#L130), [`decide`](../../src/orchestrator/approval/repository.py#L97), [`get`](../../src/orchestrator/approval/repository.py#L52), [`list_pending`](../../src/orchestrator/approval/repository.py#L82), [`list_timed_out`](../../src/orchestrator/approval/repository.py#L62)
+
+## Written by
+
+[`test_list_timed_out_returns_only_expired_pending`](../../tests/integration/test_approvals_api.py#L199)
