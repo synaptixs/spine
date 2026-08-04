@@ -22,6 +22,7 @@ import json
 import os
 import sys
 from collections.abc import Iterator
+from dataclasses import asdict
 from datetime import UTC
 from pathlib import Path
 from typing import Annotated, Any
@@ -654,6 +655,45 @@ async def _run_address_review(*, pr: str, repo: str | None, bot_login: str | Non
     _print(result.__dict__)
 
 
+@sdlc_app.command("runs")
+def sdlc_runs(
+    action: Annotated[
+        str, typer.Argument(help="list | show <run-id> | reap — inspect autorun's durable state.")
+    ] = "list",
+    run_id: Annotated[str | None, typer.Argument(help="Run id, for show.")] = None,
+) -> None:
+    """Inspect what `sdlc autorun` has running, parked or abandoned.
+
+    `reap` reports what a dead run left behind — worktree, branch, issue — and changes
+    nothing: a worktree may hold the only copy of someone's work, and a ticket's status is
+    an outward-facing write. Cleaning up stays a human's call.
+    """
+    import json as _json
+
+    from orchestrator.sdlc.runstate import RunStore, render_reap, render_runs
+
+    store = RunStore()
+    if action == "list":
+        typer.echo(render_runs(store.all()))
+        return
+    if action == "reap":
+        stale = store.stale()
+        typer.echo(render_reap(stale))
+        raise typer.Exit(code=1 if stale else 0)
+    if action == "show":
+        if not run_id:
+            typer.echo("show needs a run id", err=True)
+            raise typer.Exit(code=2)
+        record = store.load(run_id)
+        if record is None:
+            typer.echo(f"no run {run_id!r}", err=True)
+            raise typer.Exit(code=2)
+        typer.echo(_json.dumps(asdict(record), indent=2, sort_keys=True))
+        return
+    typer.echo(f"Unknown action {action!r}. Use list, show or reap.", err=True)
+    raise typer.Exit(code=2)
+
+
 @sdlc_app.command("autorun")
 def sdlc_autorun(
     source: Annotated[
@@ -681,6 +721,14 @@ def sdlc_autorun(
     out: Annotated[
         Path | None,
         typer.Option("--out", help="Where run artifacts go (default: a run dir under the temp dir)."),
+    ] = None,
+    resume: Annotated[
+        str | None,
+        typer.Option("--resume", help="Continue a run by id — adopts the issue it already created."),
+    ] = None,
+    max_cost: Annotated[
+        float | None,
+        typer.Option("--max-cost", help="Cap LLM spend (USD) for this run; exhausting it parks it."),
     ] = None,
 ) -> None:
     """Drive ONE ticket through the whole happy path: research → design → code → tests → PR.
@@ -710,6 +758,8 @@ def sdlc_autorun(
                 base_branch=base,
                 language=language,
                 artifacts_dir=out,
+                resume=resume,
+                max_cost_usd=max_cost,
                 log=typer.echo,
             )
         except AutorunError as exc:

@@ -177,6 +177,7 @@ async def run_feature(
     live: bool = False,
     issue: str | None = None,
     design: str = "",
+    budget: Any = None,
     base_branch: str | None = None,
     layout_mode: str = "auto",
     package_name: str | None = None,
@@ -235,7 +236,15 @@ async def run_feature(
     # Wrap in RecordingLLMClient — the OTel chokepoint (emits an llm.complete span
     # per call) + per-stage token ledger. Drop-in (implements LLMClient), so the
     # linear CLI path is now traced like the worker path.
-    llm = RecordingLLMClient(LiteLLMClient())
+    # A supervisor may hand us a spend cap. Wrapping *under* the recorder keeps the ledger
+    # and the OTel spans intact — the budget refuses the call, the recorder still sees every
+    # call that happened. Without a budget this is exactly the client it always was.
+    inner: Any = LiteLLMClient()
+    if budget is not None:
+        from orchestrator.core.llm import BudgetedLLMClient
+
+        inner = BudgetedLLMClient(inner, budget)
+    llm = RecordingLLMClient(inner)
 
     # 1. Obtain the spec. Normally: source → intents → specs (intake, cached +
     #    temperature-0 so a pinned --intent stays addressable). When a spec is
