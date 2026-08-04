@@ -4,7 +4,7 @@
 ## Suggested next steps
 _Derived from the graph — untested components, oversized types, duplicate names. Advisory, and only as good as what the graph can see._
 
-- **P2** — Refactor 1 god-classes (>40 members), e.g. `LLMCodegenAdapter` (47), `CurrentState` (36).
+- **P2** — Refactor 1 god-classes (>40 members), e.g. `LLMCodegenAdapter` (49), `CurrentState` (36).
 - **P3** — De-duplicate type names: `_FakeClient`×6, `_StubSession`×6, `_FakeLLM`×5, `_Plan`×4.
 
 ## Feature tracking

@@ -15,12 +15,12 @@
 
 - [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L41) — reaches **4** symbols
 - [`RunContext`](../../src/orchestrator/sdlc/autorun.py#L60) — reaches **2** symbols
-- [`_load_graph`](../../src/orchestrator/sdlc/autorun.py#L195) — reaches **2** symbols
-- [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L225) — reaches **2** symbols
-- [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L241) — reaches **2** symbols
-- [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L159) — reaches **2** symbols
-- [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L209) — reaches **2** symbols
-- [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L283) — reaches **2** symbols
+- [`_load_graph`](../../src/orchestrator/sdlc/autorun.py#L198) — reaches **2** symbols
+- [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L228) — reaches **2** symbols
+- [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L248) — reaches **2** symbols
+- [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L162) — reaches **2** symbols
+- [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L212) — reaches **2** symbols
+- [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L291) — reaches **2** symbols
 
 _1 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -31,86 +31,86 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/autorun.py:41`](../../src/orchestrator/sdlc/autorun.py#L41)
 
 - **Extends** (1): `RuntimeError`
-- **Called by** (2): [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L241), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L159)
+- **Called by** (2): [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L248), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L162)
 - **Fields**: `code`
 
 ### `RunContext`
 
 [`src/orchestrator/sdlc/autorun.py:60`](../../src/orchestrator/sdlc/autorun.py#L60)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L105)
-- **Fields**: `artifacts_dir`, `branch`, `issue_key`, `live`, `pr_url`, `root`, `run_id`, `source`, `spec`, `stages`, `worktree`
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L108)
+- **Fields**: `artifacts_dir`, `branch`, `issue_key`, `live`, `plan`, `pr_url`, `root`, `run_id`, `source`, `spec`, `stages`, `worktree`
 
 ### `StageResult`
 
 [`src/orchestrator/sdlc/autorun.py:50`](../../src/orchestrator/sdlc/autorun.py#L50)
 
-- **Called by** (1): [`record`](../../src/orchestrator/sdlc/autorun.py#L83)
+- **Called by** (1): [`record`](../../src/orchestrator/sdlc/autorun.py#L86)
 - **Fields**: `artifact`, `detail`, `name`, `status`
 
 ## Functions
 
 ### `_load_graph`
 
-[`src/orchestrator/sdlc/autorun.py:195`](../../src/orchestrator/sdlc/autorun.py#L195)
+[`src/orchestrator/sdlc/autorun.py:198`](../../src/orchestrator/sdlc/autorun.py#L198)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L105)
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L108)
 - **Calls** (4): `FactStore`, [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), `orchestrator.pkg.load_or_extract`, `py:emit`
 
 ### `_stage_design`
 
-[`src/orchestrator/sdlc/autorun.py:225`](../../src/orchestrator/sdlc/autorun.py#L225)
+[`src/orchestrator/sdlc/autorun.py:228`](../../src/orchestrator/sdlc/autorun.py#L228)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L105)
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L108)
 - **Calls** (3): [`produce_design`](../../src/orchestrator/sdlc/design.py#L162), `py:emit`, [`render_design_md`](../../src/orchestrator/sdlc/design.py#L139)
 
 ### `_stage_implement`
 
-[`src/orchestrator/sdlc/autorun.py:241`](../../src/orchestrator/sdlc/autorun.py#L241)
+[`src/orchestrator/sdlc/autorun.py:248`](../../src/orchestrator/sdlc/autorun.py#L248)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L105)
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L108)
 - **Calls** (2): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L41), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L170)
 
 ### `_stage_intake`
 
-[`src/orchestrator/sdlc/autorun.py:159`](../../src/orchestrator/sdlc/autorun.py#L159)
+[`src/orchestrator/sdlc/autorun.py:162`](../../src/orchestrator/sdlc/autorun.py#L162)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L105)
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L108)
 - **Calls** (6): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L41), [`analyze_cached`](../../src/orchestrator/intake/cache.py#L184), [`build_service_for`](../../src/orchestrator/intake/factory.py#L272), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40), `py:emit`
 
 ### `_stage_investigate`
 
-[`src/orchestrator/sdlc/autorun.py:209`](../../src/orchestrator/sdlc/autorun.py#L209)
+[`src/orchestrator/sdlc/autorun.py:212`](../../src/orchestrator/sdlc/autorun.py#L212)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L105)
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L108)
 - **Calls** (3): [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L67), `py:emit`, [`render_investigation_md`](../../src/orchestrator/sdlc/investigate.py#L116)
 
 ### `_stage_review`
 
-[`src/orchestrator/sdlc/autorun.py:283`](../../src/orchestrator/sdlc/autorun.py#L283)
+[`src/orchestrator/sdlc/autorun.py:291`](../../src/orchestrator/sdlc/autorun.py#L291)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L105)
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L108)
 - **Calls** (1): `py:emit`
 
 ### `autorun`
 
-[`src/orchestrator/sdlc/autorun.py:105`](../../src/orchestrator/sdlc/autorun.py#L105)
+[`src/orchestrator/sdlc/autorun.py:108`](../../src/orchestrator/sdlc/autorun.py#L108)
 
-- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L700), [`_run`](../../tests/sdlc/test_autorun.py#L200)
-- **Calls** (11): [`RunContext`](../../src/orchestrator/sdlc/autorun.py#L60), [`_load_graph`](../../src/orchestrator/sdlc/autorun.py#L195), [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L225), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L241), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L159), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L209), [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L283), [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L95), `pathlib.Path`, `py:emit`, `uuid4`
+- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L700), [`_run`](../../tests/sdlc/test_autorun.py#L215)
+- **Calls** (11): [`RunContext`](../../src/orchestrator/sdlc/autorun.py#L60), [`_load_graph`](../../src/orchestrator/sdlc/autorun.py#L198), [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L228), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L248), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L162), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L212), [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L291), [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L98), `pathlib.Path`, `py:emit`, `uuid4`
 
 ### `default_artifacts_dir`
 
-[`src/orchestrator/sdlc/autorun.py:95`](../../src/orchestrator/sdlc/autorun.py#L95)
+[`src/orchestrator/sdlc/autorun.py:98`](../../src/orchestrator/sdlc/autorun.py#L98)
 
-- **Called by** (1 production · 1 test): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L105), [`test_the_default_artifact_dir_is_not_the_repo`](../../tests/sdlc/test_autorun.py#L137)
+- **Called by** (1 production · 1 test): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L108), [`test_the_default_artifact_dir_is_not_the_repo`](../../tests/sdlc/test_autorun.py#L152)
 - **Calls** (3): `getenv`, `gettempdir`, `pathlib.Path`
 
 ### `render_summary`
 
-[`src/orchestrator/sdlc/autorun.py:298`](../../src/orchestrator/sdlc/autorun.py#L298)
+[`src/orchestrator/sdlc/autorun.py:306`](../../src/orchestrator/sdlc/autorun.py#L306)
 
-- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L700), [`test_the_summary_reports_every_stage`](../../tests/sdlc/test_autorun.py#L187)
+- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L700), [`test_the_summary_reports_every_stage`](../../tests/sdlc/test_autorun.py#L202)
 
 ## Imports
 
