@@ -821,6 +821,40 @@ async def test_new_root_module_shadowing_stdlib_is_rejected(tmp_path: Path) -> N
         await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
 
 
+async def test_a_package_shadowing_an_existing_module_is_rejected(tmp_path: Path) -> None:
+    """The real case, reproduced: a run wanted `orchestrator.cli.regression`, so it created
+    `orchestrator/cli/__init__.py` beside the existing `cli.py`. That does not extend the
+    CLI — it hides it, and every command in the product stops resolving.
+
+    The stdlib guard next door never fired, because `cli` is ours.
+    """
+    (tmp_path / "orchestrator").mkdir()
+    (tmp_path / "orchestrator" / "cli.py").write_text("app = 1\n", encoding="utf-8")
+    llm = _ScriptedLLM([_files_response({"orchestrator/cli/__init__.py": "app = 2\n"})])
+
+    with pytest.raises(CodegenError, match="shadow the existing module 'orchestrator/cli.py'"):
+        await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+
+async def test_a_module_shadowing_an_existing_package_is_rejected(tmp_path: Path) -> None:
+    """The mirror image, equally ambiguous: `pkg.py` beside `pkg/__init__.py`."""
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+    llm = _ScriptedLLM([_files_response({"pkg.py": "X = 1\n"})])
+
+    with pytest.raises(CodegenError, match="shadow the existing module"):
+        await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+
+async def test_a_new_package_beside_nothing_is_fine(tmp_path: Path) -> None:
+    """The guard must not block ordinary new packages, which is most of greenfield work."""
+    llm = _ScriptedLLM([_files_response({"newpkg/__init__.py": "X = 1\n"})])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert change.files == [str(tmp_path / "newpkg" / "__init__.py")]
+
+
 async def test_stdlib_name_inside_a_package_is_fine(tmp_path: Path) -> None:
     llm = _ScriptedLLM([_files_response({"mypkg/types.py": "X = 1\n"})])
     adapter = LLMCodegenAdapter(llm)
