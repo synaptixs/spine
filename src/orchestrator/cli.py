@@ -654,6 +654,72 @@ async def _run_address_review(*, pr: str, repo: str | None, bot_login: str | Non
     _print(result.__dict__)
 
 
+@sdlc_app.command("autorun")
+def sdlc_autorun(
+    source: Annotated[
+        str,
+        typer.Option("--source", help="Source root, e.g. jira://<issue-key>, confluence://<page_id>."),
+    ],
+    issue: Annotated[
+        str | None,
+        typer.Option("--issue", help="Adopt an existing tracker issue instead of creating one."),
+    ] = None,
+    intent: Annotated[
+        str | None, typer.Option("--intent", help="Intent id to implement (default: the first).")
+    ] = None,
+    repo: Annotated[
+        str | None, typer.Option("--repo", help="Git URL to branch from (default $SDLC_REPO_URL).")
+    ] = None,
+    path: Annotated[str, typer.Option("--path", help="Repo to reason about (the graph).")] = ".",
+    live: Annotated[
+        bool,
+        typer.Option("--live/--safe", help="Write for real. Default --safe makes no external write."),
+    ] = False,
+    max_refine: Annotated[int, typer.Option("--max-refine", help="Max test→refine loops.")] = 3,
+    base: Annotated[str | None, typer.Option("--base", help="PR target branch.")] = None,
+    language: Annotated[str, typer.Option("--language", help="Target language (auto detects).")] = "auto",
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", help="Where run artifacts go (default: a run dir under the temp dir)."),
+    ] = None,
+) -> None:
+    """Drive ONE ticket through the whole happy path: research → design → code → tests → PR.
+
+    The stages are the commands you already have — `investigate`, `design`, `sdlc feature` —
+    called in order with the same spec, and each result recorded. Default --safe makes no
+    external write anywhere in the chain.
+
+    It does not yet judge whether the ticket is worth doing, enforce a budget, survive a
+    crash, or loop on review findings. Each stage says plainly when it skipped and why; see
+    docs/specs/autonomous-run-agent.md for what lands when.
+    """
+    import asyncio
+
+    from orchestrator.sdlc.autorun import AutorunError, autorun, render_summary
+
+    async def _go() -> None:
+        try:
+            ctx = await autorun(
+                source,
+                issue=issue,
+                intent_id=intent,
+                repo=repo,
+                root=path,
+                live=live,
+                max_refine=max_refine,
+                base_branch=base,
+                language=language,
+                artifacts_dir=out,
+                log=typer.echo,
+            )
+        except AutorunError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(code=exc.code) from exc
+        typer.echo("\n" + render_summary(ctx))
+
+    asyncio.run(_go())
+
+
 @sdlc_app.command("feature")
 def sdlc_feature(
     source: Annotated[
