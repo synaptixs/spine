@@ -206,6 +206,27 @@ and verify it in CI; regenerate post-merge; or serialize merges behind a queue.
 
 ---
 
+## 8a. The baseline
+
+Measured by `orchestrator sdlc baseline`, and held by `tests/evals/test_agent_corpus.py`.
+Raise these when the agent genuinely improves; **never lower one to make a change pass** —
+that edit is the whole thing this baseline exists to make uncomfortable.
+
+| Metric | Baseline | Why this bar |
+|---|---|---|
+| Validity-gate accuracy | **100%** (10/10) | Every case has an argued expected verdict; a corpus you cannot justify encodes yesterday's bugs |
+| False refusals | **0** | Refusing sound work teaches people to switch the gate off, and a gate that is off scores nothing |
+| Missed refusals | **0** | A run built on a false premise passes its own tests and is still wrong |
+
+The corpus is this board: SSPN-2, 3, 4, 9, 13 and 18, plus the two paired cases that differ
+only in what was wrong (SSPN-3 with its real number; SSPN-18 with a fault site) and two
+synthetic cases for size and for prose that merely contains digits.
+
+**Run metrics are observations, not simulations.** `score_runs` reads the durable run records
+— completion, parking, cost — so an empty store reports *nothing* rather than a zero that
+looks like a result. First-pass test success and cost per ticket fill in as real runs
+accumulate; publishing them from a handful of ad-hoc runs would dress anecdote as benchmark.
+
 ## 9. Open decisions
 
 1. **Durability.** Build the skeleton as a Temporal workflow from the start (durability and

@@ -655,6 +655,55 @@ async def _run_address_review(*, pr: str, repo: str | None, bot_login: str | Non
     _print(result.__dict__)
 
 
+@sdlc_app.command("baseline")
+def sdlc_baseline(
+    path: Annotated[str, typer.Option("--path", help="Repo whose graph the gate reads.")] = ".",
+    as_json: Annotated[bool, typer.Option("--json", help="Emit the numbers as JSON.")] = False,
+) -> None:
+    """Score the run agent against a corpus of tickets whose right answer is known.
+
+    Deterministic and free: the validity gate reads each ticket and a real graph, and every
+    case has an argued expected verdict. Run metrics come from the durable run records —
+    observations of what actually ran, not a simulation.
+
+    False refusals and missed refusals are counted separately. A single accuracy number would
+    let one hide behind the other, and they cost very different things.
+    """
+    import json as _json
+
+    from orchestrator.evals.agent_corpus import render_report, score_gate, score_runs
+    from orchestrator.pkg import FactStore, load_or_extract
+    from orchestrator.sdlc.runstate import RunStore
+
+    gate = score_gate(FactStore(load_or_extract(path)))
+    runs = score_runs(RunStore().all())
+    if as_json:
+        typer.echo(
+            _json.dumps(
+                {
+                    "gate": {
+                        "accuracy": gate.accuracy,
+                        "cases": len(gate.results),
+                        "false_refusals": gate.false_refusals,
+                        "missed_refusals": gate.missed_refusals,
+                    },
+                    "runs": {
+                        "runs": runs.runs,
+                        "completed": runs.completed,
+                        "parked": runs.parked,
+                        "failed": runs.failed,
+                        "completion_rate": runs.completion_rate,
+                        "intervention_rate": runs.intervention_rate,
+                        "mean_cost_usd": runs.mean_cost_usd,
+                    },
+                },
+                indent=2,
+            )
+        )
+        return
+    typer.echo(render_report(gate, runs))
+
+
 @sdlc_app.command("runs")
 def sdlc_runs(
     action: Annotated[
