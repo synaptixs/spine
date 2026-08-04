@@ -39,6 +39,10 @@ class SymbolImpact:
     where: str  # "file:line"
     callers: int
     transitive: int  # transitive callers (BFS over the reverse call graph)
+    # Endpoints routing to this symbol. Separate from ``callers`` because they are not
+    # call sites — nothing in the language calls a handler — but they rank the same way:
+    # a public route is a reason to be careful, not a reason to sort the symbol last.
+    exposed: int = 0
 
 
 @dataclass(frozen=True)
@@ -101,13 +105,21 @@ def _match_module(ref: str, modules: list[Node]) -> Node | None:
 
 
 def _hotspots(store: FactStore, module: Node, *, limit: int) -> list[SymbolImpact]:
-    """The most-called top-level symbols of a module (risky to change)."""
+    """The most-called top-level symbols of a module (risky to change).
+
+    A route handler has no in-language callers — the framework invokes it — so filtering
+    on ``callers_of`` alone dropped every endpoint out of the blast radius entirely, and
+    a change to public API scored as touching nothing. An inbound ``EXPOSES`` edge keeps
+    the symbol in, with ``callers`` still counting *call sites* honestly (zero) and the
+    endpoint showing up in the transitive count.
+    """
     out: list[SymbolImpact] = []
     for child in store.children_of(module.id):
         if child.kind not in (NodeKind.FUNCTION, NodeKind.TYPE):
             continue
         callers = store.callers_of(child.id)
-        if not callers:
+        exposers = store.exposers_of(child.id)
+        if not callers and not exposers:
             continue
         out.append(
             SymbolImpact(
@@ -115,9 +127,15 @@ def _hotspots(store: FactStore, module: Node, *, limit: int) -> list[SymbolImpac
                 where=str(child.provenance) if child.provenance else "",
                 callers=len(callers),
                 transitive=len(store.impact_of(child.id)),
+                exposed=len(exposers),
             )
         )
-    out.sort(key=lambda s: (-s.callers, -s.transitive, s.name))
+    # Rank on inbound edges of either kind. Ranking on call sites alone sorted every
+    # route handler to the bottom of the list and then truncated it away — present in
+    # the data, absent from the report, which is the same wrong answer one step later.
+    # Endpoints break ties ahead of equal-fan-in internals: at the same inbound count, a
+    # public route is the riskier thing to change, and the list is truncated below.
+    out.sort(key=lambda s: (-(s.callers + s.exposed), -s.exposed, -s.transitive, s.name))
     return out[:limit]
 
 
@@ -179,7 +197,13 @@ def to_dict(br: BlastRadius) -> dict[str, Any]:
                 "importers": m.importers,
                 "importer_names": list(m.importer_names),
                 "hotspots": [
-                    {"name": s.name, "where": s.where, "callers": s.callers, "transitive": s.transitive}
+                    {
+                        "name": s.name,
+                        "where": s.where,
+                        "callers": s.callers,
+                        "transitive": s.transitive,
+                        "exposed": s.exposed,
+                    }
                     for s in m.hotspots
                 ],
             }
@@ -209,8 +233,14 @@ def render_md(bd: dict[str, Any]) -> str:
             lines.append(f"- `{m['ref']}` — {imp}")
             for s in m.get("hotspots") or []:
                 extra = f", {s['transitive']} transitive" if s["transitive"] > s["callers"] else ""
+                exposed = int(s.get("exposed") or 0)
+                # Say it in words: a reader who sees "0 caller(s)" and nothing else
+                # concludes the symbol is dead, which for a public route is backwards.
+                route = f", serves {exposed} endpoint(s)" if exposed else ""
                 where = f" — {s['where']}" if s.get("where") else ""
-                lines.append(f"    - high fan-in: `{s['name']}` ({s['callers']} caller(s){extra}){where}")
+                lines.append(
+                    f"    - high fan-in: `{s['name']}` ({s['callers']} caller(s){route}{extra}){where}"
+                )
         if not bd.get("call_graph_available"):
             lines.append(
                 "\n_Call graph unavailable for this language — module-level impact only, "

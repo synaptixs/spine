@@ -31,6 +31,31 @@ def _graph() -> FactBatch:
     return b
 
 
+def test_a_route_handler_is_not_scored_as_safe_to_change() -> None:
+    """A handler has no in-language callers, so filtering hotspots on ``callers_of``
+    dropped every endpoint out of the blast radius and scored public API as touching
+    nothing. It must appear, name its endpoint, and outrank an equal-fan-in internal."""
+    b = _graph()
+    b.add_node(
+        Node(
+            id="py:endpoint:GET /rows",
+            kind=NodeKind.ENDPOINT,
+            name="GET /rows",
+            language="python",
+            provenance=Provenance("web.py", 4),
+        )
+    )
+    b.add_edge(Edge("py:endpoint:GET /rows", "py:web.handler", EdgeKind.EXPOSES, Provenance("web.py", 4)))
+
+    br = blast_radius(FactStore(b), ["web.py"])
+    hotspots = {h.name: h for m in br.modules for h in m.hotspots}
+
+    assert "handler" in hotspots
+    assert hotspots["handler"].callers == 0  # still honest: no call sites
+    assert hotspots["handler"].exposed == 1
+    assert "serves 1 endpoint(s)" in render_md(to_dict(br))
+
+
 # --------------------------------------------------------------------------- #
 # C1 — blast radius
 # --------------------------------------------------------------------------- #

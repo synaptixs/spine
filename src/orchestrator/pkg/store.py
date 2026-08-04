@@ -101,10 +101,28 @@ class FactStore:
                 related.add(e.src)
         return [self._nodes[i] for i in sorted(related) if i in self._nodes]
 
+    def exposers_of(self, node_id: str) -> list[Node]:
+        """Endpoints that route to this node — the callers that aren't in the language.
+
+        Nothing in the source *calls* an HTTP handler; the framework does, at runtime,
+        through a decorator or an attribute. So a handler's inbound ``CALLS`` set is
+        genuinely empty, and reading that as "nothing depends on this" is the most
+        dangerous answer the graph can give: the dependents of ``GET /v1/runs`` are its
+        clients, outside the repo entirely.
+        """
+        ids = [e.src for e in self._edges if e.kind is EdgeKind.EXPOSES and e.dst == node_id]
+        return [self._nodes[i] for i in ids if i in self._nodes]
+
     def impact_of(self, node_id: str, *, max_depth: int = 4) -> list[tuple[Node, int]]:
         """Transitive blast radius — every symbol that (transitively) calls this
         one, in BFS order with its hop distance. The "what breaks if I change X?"
         question the agent asks before touching a symbol.
+
+        ``EXPOSES`` counts as an inbound edge here, so a route handler reports the
+        endpoints it serves rather than nothing at all. It is followed in the same walk
+        as ``CALLS``, which keeps the transitive property honest: an endpoint shows up
+        in the blast radius of everything its handler calls, at the right hop distance,
+        not only when you ask about the handler itself.
         """
         from collections import deque
 
@@ -115,31 +133,41 @@ class FactStore:
             nid, depth = queue.popleft()
             if depth >= max_depth:
                 continue
-            for site in self.callers_of(nid):
-                cid = site.caller.id
-                if cid not in seen:
-                    seen.add(cid)
-                    out.append((site.caller, depth + 1))
-                    queue.append((cid, depth + 1))
+            inbound = [site.caller for site in self.callers_of(nid)] + self.exposers_of(nid)
+            for node in inbound:
+                if node.id not in seen:
+                    seen.add(node.id)
+                    out.append((node, depth + 1))
+                    queue.append((node.id, depth + 1))
         return out
 
     def impact_across(
         self,
         node_id: str,
         *,
-        kinds: tuple[EdgeKind, ...] = (EdgeKind.CALLS, EdgeKind.IMPORTS, EdgeKind.REFERENCES),
+        kinds: tuple[EdgeKind, ...] = (
+            EdgeKind.CALLS,
+            EdgeKind.IMPORTS,
+            EdgeKind.REFERENCES,
+            EdgeKind.EXPOSES,
+        ),
         max_depth: int = 4,
     ) -> list[tuple[Node, int]]:
         """Cross-layer transitive blast radius — every node that (transitively)
         depends on ``node_id`` via any of ``kinds``, in BFS order with hop
         distance.
 
-        Where ``impact_of`` follows only CALLS (the code layer), this unions the
-        *reverse* direction of several edge kinds — CALLS (callers), IMPORTS
-        (importers), REFERENCES (data-layer dependents) — so a change traces
-        across layers: change an entity → who references it → who imports that
-        module → … A single reverse index over the requested kinds backs the
-        walk (the per-node accessors would rescan every edge each hop).
+        Where ``impact_of`` follows CALLS and EXPOSES (the code layer plus its HTTP
+        surface), this unions the *reverse* direction of several edge kinds — CALLS
+        (callers), IMPORTS (importers), REFERENCES (data-layer dependents), EXPOSES
+        (the endpoint that routes to a handler) — so a change traces across layers:
+        change an entity → who references it → who imports that module → … A single
+        reverse index over the requested kinds backs the walk (the per-node accessors
+        would rescan every edge each hop).
+
+        ``EXPOSES`` is in the default set because leaving it out is what let a public
+        API change score as zero-impact. A caller that wants the old, code-only
+        reading passes ``kinds`` explicitly — ``sdlc/coverage.py`` already does.
         """
         from collections import deque
 
