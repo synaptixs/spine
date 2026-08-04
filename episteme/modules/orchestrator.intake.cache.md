@@ -49,7 +49,7 @@
 
 [`src/orchestrator/intake/cache.py:184`](../../src/orchestrator/intake/cache.py#L184)
 
-- **Called by** (4 production · 2 test): [`_run_ingest`](../../src/orchestrator/cli.py#L291), [`_run_openspec_draft`](../../src/orchestrator/cli.py#L376), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L306), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L175), [`test_analyze_cached_extracts_once_then_reuses`](../../tests/intake/test_cache.py#L75), [`test_refresh_forces_reextract`](../../tests/intake/test_cache.py#L83)
+- **Called by** (4 production · 2 test): [`_run_ingest`](../../src/orchestrator/cli.py#L291), [`_run_openspec_draft`](../../src/orchestrator/cli.py#L376), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L363), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L175), [`test_analyze_cached_extracts_once_then_reuses`](../../tests/intake/test_cache.py#L75), [`test_refresh_forces_reextract`](../../tests/intake/test_cache.py#L83)
 - **Calls** (5): [`cache_path`](../../src/orchestrator/intake/cache.py#L45), [`load_cached_plan`](../../src/orchestrator/intake/cache.py#L156), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40), `py:emit`, [`save_plan`](../../src/orchestrator/intake/cache.py#L170)
 - **Documented in**: `docs/specs/intake-backlog-progress.md#components`
 

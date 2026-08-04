@@ -33,7 +33,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L148) | `docs/specs/python-frontend-parity.md#7-files`, `docs/specs/typescript-codegen.md#where-typescript-stands-today` |
 | **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L84) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
 | **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L561) | `docs/specs/README.md#44-build-phases-per-repo-split`, `docs/specs/archive/PKG-INTEGRATION-PLAN.md#phase-1-repo-code-extractor-track-11-34-wks` |
-| **RunContext** | [`RunContext`](../src/orchestrator/sdlc/autorun.py#L61) | — |
+| **RunContext** | [`RunContext`](../src/orchestrator/sdlc/autorun.py#L62) | — |
 | **SDLCActivities** | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L44) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration` |
 | **SDLCWorkflow** | [`SDLCWorkflow`](../src/orchestrator/sdlc/workflows.py#L475) | `CLI_REFERENCE.md`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
 | **SDLCWorkflowInput** | [`SDLCWorkflowInput`](../src/orchestrator/sdlc/types.py#L17) | `docs/specs/archive/BLOCK-C-DESIGN.md#4-parent-sdlcworkflow`, `docs/specs/bet2c-rbac-multitenancy.md#as-built-notes` |

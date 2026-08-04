@@ -3,20 +3,22 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.obs`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 2 modules — 2 types and 11 functions. Nothing here depends on other areas, but 3 areas depend on it — it's a foundation, so changes ripple outward.
+**`orchestrator.obs`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 2 modules — 2 types and 11 functions. Nothing here depends on other areas, but 4 areas depend on it — it's a foundation, so changes ripple outward.
 
 ```mermaid
 flowchart LR
   n0["orchestrator.obs"]
   n1["orchestrator.agentic"]
   n2["orchestrator.core"]
-  n3["orchestrator.temporal"]
+  n3["orchestrator.sdlc"]
+  n4["orchestrator.temporal"]
   n1 --> n0
   n2 --> n0
   n3 --> n0
+  n4 --> n0
 ```
 
-**In the diagram:** **`orchestrator.obs`** (this area) · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.temporal`](orchestrator.temporal.md)
+**In the diagram:** **`orchestrator.obs`** (this area) · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · [`orchestrator.temporal`](orchestrator.temporal.md)
 
 ## Modules
 
@@ -25,4 +27,4 @@ flowchart LR
 
 ## Depended on by
 
-[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.core`](orchestrator.core.md), [`orchestrator.temporal`](orchestrator.temporal.md)
+[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.core`](orchestrator.core.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.temporal`](orchestrator.temporal.md)
