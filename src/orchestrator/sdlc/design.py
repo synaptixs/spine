@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import re
 from typing import TYPE_CHECKING, Any
 
 from orchestrator.runtime import ArtifactStore
@@ -65,22 +66,94 @@ def _structure_lines(overview: dict[str, Any] | None) -> list[str]:
     return lines
 
 
-def _fallback_design(spec: dict[str, Any], overview: dict[str, Any] | None) -> dict[str, Any]:
-    mods = [str(m["module"]) for m in (overview or {}).get("modules", [])[:5]]
+def _landing_files(spec: dict[str, Any], store: FactStore | None) -> list[str]:
+    """Where this *ticket* lands, from the same reading `investigate` does.
+
+    The previous heuristic listed the overview's biggest modules, which is a fact about the
+    repo rather than about the ticket: a request to add a CLI flag came back as "touch
+    registry/db/models.py, sdlc/testenv.py, sdlc/codegen.py". Plausible-looking and wrong is
+    the worst thing a design can be, and once the design is carried into codegen it is an
+    instruction to edit the wrong files.
+
+    Reusing the investigation keeps the two stages agreeing with each other instead of
+    contradicting each other — they now answer "where does this land" the same way, because
+    it is the same code answering.
+    """
+    if store is None:
+        return []
+    from orchestrator.sdlc.investigate import build_investigation
+
+    investigation = build_investigation(
+        str(spec.get("title", "")), str(spec.get("summary", "")), store=store, max_symbols=8
+    )
+    files: list[str] = []
+    for landing in investigation.landing:
+        path = landing.where.split(":", 1)[0]
+        if path and path not in files:
+            files.append(path)
+    return files[:5]
+
+
+def _overview_files(spec: dict[str, Any], overview: dict[str, Any] | None) -> list[str]:
+    """Ticket words matched against module and symbol names, for callers with no graph.
+
+    The SDLC activity path carries a persisted overview, not a ``FactStore``. Matching the
+    ticket's own words against what the overview names is weaker than the graph reading, but
+    it is still *about the ticket* — where ranking modules by size was only ever about the
+    repo. A module nothing in the ticket mentions is not proposed at all.
+    """
+    modules = (overview or {}).get("modules") or []
+    if not modules:
+        return []
+    text = " ".join(
+        [str(spec.get("title", "")), str(spec.get("summary", ""))]
+        + [str(a) for a in (spec.get("acceptance_criteria") or [])]
+    ).lower()
+    tokens = {t for t in re.split(r"[^a-z0-9]+", text) if len(t) > 3}
+    if not tokens:
+        return []
+
+    symbols_by_module: dict[str, list[str]] = {}
+    for sym in (overview or {}).get("top_symbols") or []:
+        symbols_by_module.setdefault(str(sym.get("module", "")), []).append(str(sym.get("name", "")).lower())
+
+    scored: list[tuple[int, str]] = []
+    for module in modules:
+        name = str(module.get("module", ""))
+        haystack = {*re.split(r"[^a-z0-9]+", name.lower()), *symbols_by_module.get(name, [])}
+        hits = len(tokens & haystack)
+        if hits:
+            scored.append((hits, name))
+    scored.sort(key=lambda pair: (-pair[0], pair[1]))
+    return [name for _, name in scored[:5]]
+
+
+def _fallback_design(
+    spec: dict[str, Any], overview: dict[str, Any] | None, store: FactStore | None = None
+) -> dict[str, Any]:
+    # The graph reading first; the overview's names second; nothing at all rather than a guess.
+    files = _landing_files(spec, store) or _overview_files(spec, overview)
     ac = [str(a) for a in (spec.get("acceptance_criteria") or [])]
+    # Say which it is. A consumer — a human reading design.md, or the codegen prompt now
+    # carrying it — has to be able to tell a grounded reading from a shrug.
+    risks = ["Heuristic design (no LLM) — confirm the affected files before building."]
+    if not files:
+        risks = [
+            "Heuristic design (no LLM) and nothing in the graph matched this ticket's words, "
+            "so no files are proposed. Locate the change before building rather than trusting "
+            "this list."
+        ]
     return {
         "approach": (
             f"Implement '{spec.get('title', 'the feature')}' following the repo's existing "
             "structure and conventions."
         ),
-        "files_to_touch": mods,
+        "files_to_touch": files,
         "interfaces": [],
         "data_changes": [],
-        "risks": (
-            ["Heuristic design (no LLM) — confirm the affected modules before building."] if mods else []
-        ),
+        "risks": risks,
         "test_strategy": "Add tests covering each acceptance criterion: " + "; ".join(ac[:6]),
-        "grounded": bool(overview),
+        "grounded": bool(files),
         "llm": False,
     }
 
@@ -177,9 +250,11 @@ async def produce_design(
     """
     ctx = {"overview": overview, "memory_bank": memory_bank or {}}
     try:
-        design = await _llm_design(spec, ctx, llm) if llm is not None else _fallback_design(spec, overview)
+        design = (
+            await _llm_design(spec, ctx, llm) if llm is not None else _fallback_design(spec, overview, store)
+        )
     except Exception:  # noqa: BLE001 — LLM/parse failure → deterministic design, never blocks
-        design = _fallback_design(spec, overview)
+        design = _fallback_design(spec, overview, store)
     if store is not None:
         with contextlib.suppress(Exception):  # impact is an annotation; never fail the design
             from orchestrator.sdlc.impact import blast_radius, to_dict
