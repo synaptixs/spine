@@ -35,7 +35,7 @@
 
 [`src/orchestrator/sdlc/escalate.py:83`](../../src/orchestrator/sdlc/escalate.py#L83)
 
-- **Called by** (3 production · 6 test): [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L371), [`park`](../../src/orchestrator/sdlc/autorun.py#L127), [`sdlc_runs`](../../src/orchestrator/cli.py#L708), [`_store`](../../tests/sdlc/test_escalate.py#L45), [`test_a_refused_ticket_raises_an_approval`](../../tests/sdlc/test_autorun.py#L347), [`test_a_rejected_run_does_not_resume`](../../tests/sdlc/test_autorun.py#L407), [`test_an_approved_run_resumes`](../../tests/sdlc/test_autorun.py#L384), [`test_an_undecided_approval_blocks_a_resume`](../../tests/sdlc/test_autorun.py#L365), [`test_budget_exhaustion_raises_an_approval`](../../tests/sdlc/test_autorun.py#L330)
+- **Called by** (3 production · 6 test): [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L373), [`park`](../../src/orchestrator/sdlc/autorun.py#L127), [`sdlc_runs`](../../src/orchestrator/cli.py#L708), [`_store`](../../tests/sdlc/test_escalate.py#L45), [`test_a_refused_ticket_raises_an_approval`](../../tests/sdlc/test_autorun.py#L347), [`test_a_rejected_run_does_not_resume`](../../tests/sdlc/test_autorun.py#L407), [`test_an_approved_run_resumes`](../../tests/sdlc/test_autorun.py#L384), [`test_an_undecided_approval_blocks_a_resume`](../../tests/sdlc/test_autorun.py#L365), [`test_budget_exhaustion_raises_an_approval`](../../tests/sdlc/test_autorun.py#L330)
 - **Fields**: `root`
 
 ### `Decision`
@@ -79,7 +79,7 @@
 
 [`src/orchestrator/sdlc/escalate.py:125`](../../src/orchestrator/sdlc/escalate.py#L125)
 
-- **Called by** (3 production · 1 test): [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L371), [`park`](../../src/orchestrator/sdlc/autorun.py#L127), [`sdlc_runs`](../../src/orchestrator/cli.py#L708), [`test_the_approval_dir_is_outside_the_repo`](../../tests/sdlc/test_escalate.py#L207)
+- **Called by** (3 production · 1 test): [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L373), [`park`](../../src/orchestrator/sdlc/autorun.py#L127), [`sdlc_runs`](../../src/orchestrator/cli.py#L708), [`test_the_approval_dir_is_outside_the_repo`](../../tests/sdlc/test_escalate.py#L207)
 - **Calls** (3): `getenv`, `gettempdir`, `pathlib.Path`
 
 ### `raise_approval`

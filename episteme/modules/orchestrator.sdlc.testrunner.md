@@ -86,7 +86,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:430`](../../src/orchestrator/sdlc/testrunner.py#L430)
 
-- **Called by** (1 production · 3 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_sql_generate_validate_refine_loop`](../../tests/sdlc/test_codegen.py#L316), [`test_sql_runner_fails_on_broken_ddl`](../../tests/sdlc/test_sql_build.py#L106), [`test_sql_runner_passes_on_valid_migrations`](../../tests/sdlc/test_sql_build.py#L96)
+- **Called by** (1 production · 3 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_sql_generate_validate_refine_loop`](../../tests/sdlc/test_codegen.py#L317), [`test_sql_runner_fails_on_broken_ddl`](../../tests/sdlc/test_sql_build.py#L106), [`test_sql_runner_passes_on_valid_migrations`](../../tests/sdlc/test_sql_build.py#L96)
 - **Fields**: `_dialect`
 - **Documented in**: `docs/specs/sql-support-roadmap.md#phases`
 
@@ -102,7 +102,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:95`](../../src/orchestrator/sdlc/testrunner.py#L95)
 
-- **Called by** (4 production · 9 test): [`_agentic_tools`](../../src/orchestrator/sdlc/codegen.py#L1022), [`build_codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L58), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L183), [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_a_garbage_timeout_falls_back_to_the_default`](../../tests/sdlc/test_testrunner.py#L74), [`test_an_explicit_timeout_still_wins`](../../tests/sdlc/test_testrunner.py#L79), [`test_implement_then_author_tests_runs_green`](../../tests/sdlc/test_codegen.py#L113), [`test_python_suite_gets_the_same_budget_as_every_other_language`](../../tests/sdlc/test_testrunner.py#L63), [`test_refine_fixes_a_failing_test`](../../tests/sdlc/test_codegen.py#L141), [`test_subprocess_runner_fails_on_red_test`](../../tests/sdlc/test_testrunner.py#L46), [`test_subprocess_runner_passes_on_green_test`](../../tests/sdlc/test_testrunner.py#L39), [`test_subprocess_runner_treats_no_tests_as_failure`](../../tests/sdlc/test_testrunner.py#L54), [`test_timeout_is_overridable_for_a_slow_suite`](../../tests/sdlc/test_testrunner.py#L69)
+- **Called by** (4 production · 9 test): [`_agentic_tools`](../../src/orchestrator/sdlc/codegen.py#L1138), [`build_codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L58), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L183), [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L416), [`test_a_garbage_timeout_falls_back_to_the_default`](../../tests/sdlc/test_testrunner.py#L74), [`test_an_explicit_timeout_still_wins`](../../tests/sdlc/test_testrunner.py#L79), [`test_implement_then_author_tests_runs_green`](../../tests/sdlc/test_codegen.py#L114), [`test_python_suite_gets_the_same_budget_as_every_other_language`](../../tests/sdlc/test_testrunner.py#L63), [`test_refine_fixes_a_failing_test`](../../tests/sdlc/test_codegen.py#L142), [`test_subprocess_runner_fails_on_red_test`](../../tests/sdlc/test_testrunner.py#L46), [`test_subprocess_runner_passes_on_green_test`](../../tests/sdlc/test_testrunner.py#L39), [`test_subprocess_runner_treats_no_tests_as_failure`](../../tests/sdlc/test_testrunner.py#L54), [`test_timeout_is_overridable_for_a_slow_suite`](../../tests/sdlc/test_testrunner.py#L69)
 - **Fields**: `_python`, `_timeout`
 - **Documented in**: `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout`, `docs/specs/archive/BLOCK-C-DESIGN.md#5-child-featureimplementationworkflow`, `docs/specs/archive/BLOCK-C-DESIGN.md#5a-adapter-seams-the-block-d-plug-points`, `docs/specs/phase5-agentic-codegen-loop.md#3-the-in-loop-tool-surface`, `docs/specs/sandboxed-test-execution.md#problem-root-cause`, `docs/specs/sdlc-target-layout-scaffold.md#5-pytest-runtime-gap-bundled`
 
@@ -160,7 +160,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:60`](../../src/orchestrator/sdlc/testrunner.py#L60)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L252)
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L494)
 - **Calls** (1): `create_subprocess_exec`
 - **Documented in**: `docs/specs/sandboxed-test-execution.md#runner-change-sdlctestrunnerpy`, `docs/specs/sandboxed-test-execution.md#wiring-sdlcfeature-runnerpy`
 
