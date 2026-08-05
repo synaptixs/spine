@@ -26,12 +26,12 @@ from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from orchestrator.core.llm import CompletionResult, LLMClient, Message
+from orchestrator.core.llm import CompletionResult, LLMClient, Message, catalog
 from orchestrator.intake.source import SourceDocument
 
 logger = logging.getLogger("orchestrator.intake.intents")
 
-_EXTRACTOR_MODEL = "claude-sonnet-4-6"
+_EXTRACTOR_MODEL = catalog.DEFAULT_MODEL
 # Cap how much source text we send in one call. Requirements spaces can be
 # large; the tree walk is already capped, this guards the prompt size.
 _MAX_PROMPT_CHARS = 60_000
@@ -120,9 +120,9 @@ def _slug(title: str) -> str:
 class IntentExtractor:
     """Derives ``Intent``s from source documents via one structured LLM call."""
 
-    def __init__(self, llm: LLMClient, *, model: str = _EXTRACTOR_MODEL) -> None:
+    def __init__(self, llm: LLMClient, *, model: str = "") -> None:
         self._llm = llm
-        self._model = model
+        self._model = model or catalog.resolve("intake")
 
     async def extract(self, documents: list[SourceDocument]) -> list[Intent]:
         usable = [d for d in documents if not d.is_empty]

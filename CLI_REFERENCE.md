@@ -56,6 +56,43 @@ orchestrator init [OPTIONS]
 | `--path` | Directory to scaffold the .env into. (default: `.`) |
 | `--force` | Overwrite an existing .env with a fresh template. |
 
+### `orchestrator models`
+
+What you can point the pipeline at, and what each stage is using now.
+
+Read from the installed LiteLLM's own catalog rather than a list maintained in this
+repo, so it reflects the client actually making the calls — upgrading `litellm`
+brings new models with no change here.
+
+```
+orchestrator models [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `--provider` | Filter to one vendor: `anthropic`, `openai`, `gemini`, … |
+| `--tools-only` / `--all` | Only models that support tool calling. (default: `--tools-only`) |
+
+**Tool calling is a requirement, not a preference.** Codegen forces a `submit_files`
+call and the acceptance judge forces `submit_verdict`. On a model without function
+calling both fall back to parsing prose out of a text reply — the failure the forced
+tool call was added to remove. `--all` lists the rest, marked **NO** in the Tools
+column.
+
+**Choosing a model per stage.** Each stage resolves independently: an explicit
+`--model` flag, then its own environment variable, then the global one, then the
+built-in default.
+
+| Stage | Variable | Used for |
+|---|---|---|
+| codegen | `SDLC_CODEGEN_MODEL` → `ORCHESTRATOR_INTAKE_MODEL` | implement / refine / revise / author_tests |
+| judge | `SDLC_JUDGE_MODEL` | the acceptance verdict |
+| intake | `ORCHESTRATOR_INTAKE_MODEL` | intent extraction, spec writing |
+| *(all)* | `ORCHESTRATOR_MODEL` | one knob for everything |
+
+Pointing a stage at another vendor needs that vendor's key in the environment
+(`OPENAI_API_KEY` for `gpt-*`, `ANTHROPIC_API_KEY` for `claude-*`).
+
 ### `orchestrator doctor`
 
 Check environment readiness and print a diagnostic report.
