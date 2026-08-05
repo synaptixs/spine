@@ -146,6 +146,22 @@ def test_a_ticket_a_previous_run_completed_is_a_duplicate() -> None:
     assert "pull/1" in assessment.findings[0].evidence
 
 
+def test_a_prior_run_that_opened_no_pr_does_not_block_a_retry() -> None:
+    """A safe-mode rehearsal changes nothing anyone else can see. Treating it as a duplicate
+    made a ticket unworkable after its first dry run — and did it to the first person who
+    tried to iterate on one."""
+
+    class _Record:
+        run_id = "rehearsal"
+        issue_key = "SSPN-14"
+        status = "done"
+        pr_url = ""
+
+    assessment = assess(_spec("do the thing"), store=_graph(), issue_key="SSPN-14", prior_runs=[_Record()])
+
+    assert assessment.verdict is Verdict.PROCEED
+
+
 def test_a_failed_previous_run_does_not_block_a_retry() -> None:
     class _Record:
         run_id = "earlier"
