@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/sdlc/codegen.py`](../../src/orchestrator/sdlc/codegen.py)
 
-8 types · 17 functions · python
+8 types · 18 functions · python
 
 ## Changing this safely
 
@@ -14,13 +14,13 @@
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L43) — reaches **28** symbols
-- [`LLMCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L771) — reaches **18** symbols
+- [`LLMCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L786) — reaches **18** symbols
 - [`CodeChange`](../../src/orchestrator/sdlc/codegen.py#L78) — reaches **15** symbols
-- [`CodegenError`](../../src/orchestrator/sdlc/codegen.py#L255) — reaches **13** symbols
-- [`StubCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L168) — reaches **7** symbols · **no test path visible**
-- [`_apply_edit_list`](../../src/orchestrator/sdlc/codegen.py#L1743) — reaches **7** symbols
-- [`_ruff_fix`](../../src/orchestrator/sdlc/codegen.py#L1716) — reaches **7** symbols
-- [`_safe_target`](../../src/orchestrator/sdlc/codegen.py#L1856) — reaches **7** symbols
+- [`CodegenError`](../../src/orchestrator/sdlc/codegen.py#L261) — reaches **13** symbols
+- [`StubCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L172) — reaches **7** symbols · **no test path visible**
+- [`_apply_edit_list`](../../src/orchestrator/sdlc/codegen.py#L1760) — reaches **7** symbols
+- [`_ruff_fix`](../../src/orchestrator/sdlc/codegen.py#L1733) — reaches **7** symbols
+- [`_safe_target`](../../src/orchestrator/sdlc/codegen.py#L1873) — reaches **7** symbols
 
 _3 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -30,14 +30,14 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/codegen.py:78`](../../src/orchestrator/sdlc/codegen.py#L78)
 
-- **Called by** (7 production · 11 test): [`_agentic_implement`](../../src/orchestrator/sdlc/codegen.py#L1185), [`_apply`](../../src/orchestrator/sdlc/codegen.py#L1548), [`_outcome`](../../src/orchestrator/sdlc/codegen.py#L1285), [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1576), [`author_tests`](../../src/orchestrator/sdlc/codegen.py#L199), [`implement`](../../src/orchestrator/sdlc/codegen.py#L180), [`revise`](../../src/orchestrator/sdlc/codegen.py#L219), [`author_tests`](../../tests/sdlc/test_feature_runner.py#L109), [`implement`](../../tests/sdlc/test_activities.py#L341), [`implement`](../../tests/sdlc/test_feature_runner.py#L106), [`refine`](../../tests/sdlc/test_feature_runner.py#L309), [`refine`](../../tests/sdlc/test_feature_runner.py#L842), [`refine`](../../tests/sdlc/test_feature_runner.py#L112), [`refine`](../../tests/sdlc/test_feature_runner.py#L851), [`refine`](../../tests/sdlc/test_feature_runner.py#L1027), [`revise`](../../tests/sdlc/test_feature_runner.py#L836), [`revise`](../../tests/sdlc/test_feature_runner.py#L760), [`revise`](../../tests/sdlc/test_feature_runner.py#L116)
+- **Called by** (7 production · 12 test): [`_agentic_implement`](../../src/orchestrator/sdlc/codegen.py#L1200), [`_apply`](../../src/orchestrator/sdlc/codegen.py#L1565), [`_outcome`](../../src/orchestrator/sdlc/codegen.py#L1300), [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1593), [`author_tests`](../../src/orchestrator/sdlc/codegen.py#L203), [`implement`](../../src/orchestrator/sdlc/codegen.py#L184), [`revise`](../../src/orchestrator/sdlc/codegen.py#L225), [`author_tests`](../../tests/sdlc/test_feature_runner.py#L110), [`author_tests`](../../tests/sdlc/test_feature_runner.py#L1129), [`implement`](../../tests/sdlc/test_activities.py#L341), [`implement`](../../tests/sdlc/test_feature_runner.py#L107), [`refine`](../../tests/sdlc/test_feature_runner.py#L310), [`refine`](../../tests/sdlc/test_feature_runner.py#L843), [`refine`](../../tests/sdlc/test_feature_runner.py#L113), [`refine`](../../tests/sdlc/test_feature_runner.py#L852), [`refine`](../../tests/sdlc/test_feature_runner.py#L1028), [`revise`](../../tests/sdlc/test_feature_runner.py#L837), [`revise`](../../tests/sdlc/test_feature_runner.py#L761), [`revise`](../../tests/sdlc/test_feature_runner.py#L117)
 - **Fields**: `files`, `summary`
 
 ### `CodePlan`
 
 [`src/orchestrator/sdlc/codegen.py:71`](../../src/orchestrator/sdlc/codegen.py#L71)
 
-- **Called by** (2): [`plan`](../../src/orchestrator/sdlc/codegen.py#L1093), [`plan`](../../src/orchestrator/sdlc/codegen.py#L176)
+- **Called by** (2): [`plan`](../../src/orchestrator/sdlc/codegen.py#L1108), [`plan`](../../src/orchestrator/sdlc/codegen.py#L180)
 - **Fields**: `steps`
 
 ### `CodegenAdapter`
@@ -49,15 +49,15 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ### `CodegenError`
 
-[`src/orchestrator/sdlc/codegen.py:255`](../../src/orchestrator/sdlc/codegen.py#L255)
+[`src/orchestrator/sdlc/codegen.py:261`](../../src/orchestrator/sdlc/codegen.py#L261)
 
 - **Extends** (1): `RuntimeError`
-- **Called by** (7 production · 1 test): [`_agentic_implement`](../../src/orchestrator/sdlc/codegen.py#L1185), [`_apply`](../../src/orchestrator/sdlc/codegen.py#L1548), [`_apply_edit_list`](../../src/orchestrator/sdlc/codegen.py#L1743), [`_generate`](../../src/orchestrator/sdlc/codegen.py#L1419), [`_outcome`](../../src/orchestrator/sdlc/codegen.py#L1285), [`_safe_target`](../../src/orchestrator/sdlc/codegen.py#L1856), [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1576), [`test_the_repair_block_never_promises_content_it_does_not_supply`](../../tests/sdlc/test_codegen.py#L1288)
+- **Called by** (7 production · 1 test): [`_agentic_implement`](../../src/orchestrator/sdlc/codegen.py#L1200), [`_apply`](../../src/orchestrator/sdlc/codegen.py#L1565), [`_apply_edit_list`](../../src/orchestrator/sdlc/codegen.py#L1760), [`_generate`](../../src/orchestrator/sdlc/codegen.py#L1436), [`_outcome`](../../src/orchestrator/sdlc/codegen.py#L1300), [`_safe_target`](../../src/orchestrator/sdlc/codegen.py#L1873), [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1593), [`test_the_repair_block_never_promises_content_it_does_not_supply`](../../tests/sdlc/test_codegen.py#L1288)
 - **Fields**: `failed_anchors`, `failed_edit_paths`, `missing_edit_paths`, `parse_detail`
 
 ### `CodegenGrounder`
 
-[`src/orchestrator/sdlc/codegen.py:289`](../../src/orchestrator/sdlc/codegen.py#L289)
+[`src/orchestrator/sdlc/codegen.py:295`](../../src/orchestrator/sdlc/codegen.py#L295)
 
 - **Extends** (1): `typing.Protocol`
 - **Documented in**: `docs/specs/pkg-code-grounded-understanding.md#4-grounding-integration-sdlcgroundingpy`, `docs/specs/tri-repo-integration.md#phasing-ordered-by-usable-value-gated-on-the-spine`, `docs/specs/tri-repo-integration.md#seam-1-domain-grounded-build-ontomesh-orchestrator-use-better-code-day-one`
@@ -66,21 +66,21 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/codegen.py:86`](../../src/orchestrator/sdlc/codegen.py#L86)
 
-- **Called by** (3 production · 1 test): [`_outcome`](../../src/orchestrator/sdlc/codegen.py#L1285), [`implement_governed`](../../src/orchestrator/sdlc/codegen.py#L1223), [`implement_governed`](../../src/orchestrator/sdlc/codegen.py#L226), [`implement_governed`](../../tests/sdlc/test_activities.py#L356)
+- **Called by** (3 production · 1 test): [`_outcome`](../../src/orchestrator/sdlc/codegen.py#L1300), [`implement_governed`](../../src/orchestrator/sdlc/codegen.py#L1238), [`implement_governed`](../../src/orchestrator/sdlc/codegen.py#L232), [`implement_governed`](../../tests/sdlc/test_activities.py#L356)
 - **Fields**: `change`, `checkpoint`, `needs_approval`, `pending`, `policy_blocks`, `summary`, `written`
 - **Documented in**: `docs/specs/bet2c-in-loop-approval.md#as-built-notes`
 
 ### `LLMCodegenAdapter`
 
-[`src/orchestrator/sdlc/codegen.py:771`](../../src/orchestrator/sdlc/codegen.py#L771)
+[`src/orchestrator/sdlc/codegen.py:786`](../../src/orchestrator/sdlc/codegen.py#L786)
 
-- **Called by** (5 production · 76 test): [`_build_codegen`](../../src/orchestrator/sdlc/worker.py#L87), [`main`](../../scripts/codegen_ab.py#L242), [`main`](../../scripts/live_sdlc_worker.py#L44), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L494), [`run_ticket`](../../scripts/codegen_benchmark.py#L1172), [`_adapter`](../../tests/sdlc/test_codegen_memory.py#L51), [`test_a_failure_naming_nothing_adds_no_definitions`](../../tests/sdlc/test_codegen.py#L1366), [`test_a_files_object_next_to_something_else_is_not_merged`](../../tests/sdlc/test_codegen.py#L1136), [`test_a_module_shadowing_an_existing_package_is_rejected`](../../tests/sdlc/test_codegen.py#L840), [`test_a_new_package_beside_nothing_is_fine`](../../tests/sdlc/test_codegen.py#L850), [`test_a_package_shadowing_an_existing_module_is_rejected`](../../tests/sdlc/test_codegen.py#L825), [`test_a_parse_failure_after_an_edit_repair_still_retries`](../../tests/sdlc/test_codegen.py#L1097), [`test_a_second_parse_failure_raises`](../../tests/sdlc/test_codegen.py#L1074), [`test_a_type_error_pulls_in_the_definition_it_names`](../../tests/sdlc/test_codegen.py#L1340), [`test_adapter_grounds_refine_too`](../../tests/sdlc/test_grounding.py#L166), [`test_adapter_prepends_grounding_to_implement`](../../tests/sdlc/test_grounding.py#L158), [`test_adapter_satisfies_protocol`](../../tests/sdlc/test_codegen.py#L77), [`test_adapter_without_grounder_unchanged`](../../tests/sdlc/test_grounding.py#L174), [`test_agentic_implement_can_call_an_mcp_tool`](../../tests/sdlc/test_codegen_agentic.py#L123), [`test_agentic_implement_raises_if_nothing_written`](../../tests/sdlc/test_codegen_agentic.py#L44), [`test_agentic_implement_writes_and_submits`](../../tests/sdlc/test_codegen_agentic.py#L29), [`test_ambiguous_anchor_is_atomic_per_file`](../../tests/sdlc/test_codegen.py#L621), [`test_anchor_repair_gives_up_after_one_retry`](../../tests/sdlc/test_codegen.py#L795), [`test_anchor_repair_retries_with_exact_file_content`](../../tests/sdlc/test_codegen.py#L770), [`test_author_tests_unchanged_without_phase_skills`](../../tests/sdlc/test_codegen.py#L538), +56 more
+- **Called by** (5 production · 76 test): [`_build_codegen`](../../src/orchestrator/sdlc/worker.py#L87), [`main`](../../scripts/codegen_ab.py#L242), [`main`](../../scripts/live_sdlc_worker.py#L44), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L539), [`run_ticket`](../../scripts/codegen_benchmark.py#L1172), [`_adapter`](../../tests/sdlc/test_codegen_memory.py#L51), [`test_a_failure_naming_nothing_adds_no_definitions`](../../tests/sdlc/test_codegen.py#L1366), [`test_a_files_object_next_to_something_else_is_not_merged`](../../tests/sdlc/test_codegen.py#L1136), [`test_a_module_shadowing_an_existing_package_is_rejected`](../../tests/sdlc/test_codegen.py#L840), [`test_a_new_package_beside_nothing_is_fine`](../../tests/sdlc/test_codegen.py#L850), [`test_a_package_shadowing_an_existing_module_is_rejected`](../../tests/sdlc/test_codegen.py#L825), [`test_a_parse_failure_after_an_edit_repair_still_retries`](../../tests/sdlc/test_codegen.py#L1097), [`test_a_second_parse_failure_raises`](../../tests/sdlc/test_codegen.py#L1074), [`test_a_type_error_pulls_in_the_definition_it_names`](../../tests/sdlc/test_codegen.py#L1340), [`test_adapter_grounds_refine_too`](../../tests/sdlc/test_grounding.py#L166), [`test_adapter_prepends_grounding_to_implement`](../../tests/sdlc/test_grounding.py#L158), [`test_adapter_satisfies_protocol`](../../tests/sdlc/test_codegen.py#L77), [`test_adapter_without_grounder_unchanged`](../../tests/sdlc/test_grounding.py#L174), [`test_agentic_implement_can_call_an_mcp_tool`](../../tests/sdlc/test_codegen_agentic.py#L123), [`test_agentic_implement_raises_if_nothing_written`](../../tests/sdlc/test_codegen_agentic.py#L44), [`test_agentic_implement_writes_and_submits`](../../tests/sdlc/test_codegen_agentic.py#L29), [`test_ambiguous_anchor_is_atomic_per_file`](../../tests/sdlc/test_codegen.py#L621), [`test_anchor_repair_gives_up_after_one_retry`](../../tests/sdlc/test_codegen.py#L795), [`test_anchor_repair_retries_with_exact_file_content`](../../tests/sdlc/test_codegen.py#L770), [`test_author_tests_unchanged_without_phase_skills`](../../tests/sdlc/test_codegen.py#L538), +56 more
 - **Fields**: `_agentic`, `_conventions`, `_design`, `_grounder`, `_grounder_factory`, `_grounders`, `_layout`, `_llm`, `_mcp_configs`, `_mcp_registry`, `_memory_factory`, `_memory_repo_key`, `_memory_tenant_id`, `_model`, `_persona`, `_policy`, `_skill_scores`, `_skills`, `_written`
 - **Documented in**: `docs/specs/cross-run-semantic-memory.md#design-cross-run-semantic-memory-the-experience-true-layer`, `docs/specs/cross-run-semantic-memory.md#phasing`, `docs/specs/sdlc-target-layout-scaffold.md#34-wiring-into-feature-runner`
 
 ### `StubCodegenAdapter`
 
-[`src/orchestrator/sdlc/codegen.py:168`](../../src/orchestrator/sdlc/codegen.py#L168)
+[`src/orchestrator/sdlc/codegen.py:172`](../../src/orchestrator/sdlc/codegen.py#L172)
 
 - **Called by** (1): [`_build_codegen`](../../src/orchestrator/sdlc/worker.py#L87)
 - **Documented in**: `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout`, `docs/specs/archive/BLOCK-C-DESIGN.md#5-child-featureimplementationworkflow`, `docs/specs/archive/BLOCK-C-DESIGN.md#5a-adapter-seams-the-block-d-plug-points`
@@ -89,115 +89,121 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ### `_apply_edit_list`
 
-[`src/orchestrator/sdlc/codegen.py:1743`](../../src/orchestrator/sdlc/codegen.py#L1743)
+[`src/orchestrator/sdlc/codegen.py:1760`](../../src/orchestrator/sdlc/codegen.py#L1760)
 
-- **Called by** (1): [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1576)
-- **Calls** (1): [`CodegenError`](../../src/orchestrator/sdlc/codegen.py#L255)
+- **Called by** (1): [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1593)
+- **Calls** (1): [`CodegenError`](../../src/orchestrator/sdlc/codegen.py#L261)
+
+### `_coverage_gap_block`
+
+[`src/orchestrator/sdlc/codegen.py:1889`](../../src/orchestrator/sdlc/codegen.py#L1889)
+
+- **Called by** (1): [`author_tests`](../../src/orchestrator/sdlc/codegen.py#L1364)
 
 ### `_loads_json_object`
 
-[`src/orchestrator/sdlc/codegen.py:1979`](../../src/orchestrator/sdlc/codegen.py#L1979)
+[`src/orchestrator/sdlc/codegen.py:2015`](../../src/orchestrator/sdlc/codegen.py#L2015)
 
-- **Called by** (1): [`_apply`](../../src/orchestrator/sdlc/codegen.py#L1548)
-- **Calls** (3): [`_log_json_failure`](../../src/orchestrator/sdlc/codegen.py#L2057), [`_merge_json_documents`](../../src/orchestrator/sdlc/codegen.py#L2020), `loads`
+- **Called by** (1): [`_apply`](../../src/orchestrator/sdlc/codegen.py#L1565)
+- **Calls** (3): [`_log_json_failure`](../../src/orchestrator/sdlc/codegen.py#L2093), [`_merge_json_documents`](../../src/orchestrator/sdlc/codegen.py#L2056), `loads`
 
 ### `_log_json_failure`
 
-[`src/orchestrator/sdlc/codegen.py:2057`](../../src/orchestrator/sdlc/codegen.py#L2057)
+[`src/orchestrator/sdlc/codegen.py:2093`](../../src/orchestrator/sdlc/codegen.py#L2093)
 
-- **Called by** (1): [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L1979)
+- **Called by** (1): [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L2015)
 
 ### `_merge_json_documents`
 
-[`src/orchestrator/sdlc/codegen.py:2020`](../../src/orchestrator/sdlc/codegen.py#L2020)
+[`src/orchestrator/sdlc/codegen.py:2056`](../../src/orchestrator/sdlc/codegen.py#L2056)
 
-- **Called by** (1): [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L1979)
+- **Called by** (1): [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L2015)
 - **Calls** (1): `JSONDecoder`
 
 ### `_named_existing_files`
 
-[`src/orchestrator/sdlc/codegen.py:1872`](../../src/orchestrator/sdlc/codegen.py#L1872)
+[`src/orchestrator/sdlc/codegen.py:1908`](../../src/orchestrator/sdlc/codegen.py#L1908)
 
-- **Called by** (4 production · 5 test): [`implement`](../../src/orchestrator/sdlc/codegen.py#L1108), [`implement_governed`](../../src/orchestrator/sdlc/codegen.py#L1223), [`refine`](../../src/orchestrator/sdlc/codegen.py#L1360), [`revise`](../../src/orchestrator/sdlc/codegen.py#L1400), [`test_a_spec_that_names_its_files_still_wins`](../../tests/sdlc/test_codegen.py#L1325), [`test_codegen_is_shown_the_files_the_design_names`](../../tests/sdlc/test_codegen.py#L1308), [`test_named_existing_files_empty_when_none_named`](../../tests/sdlc/test_codegen.py#L961), [`test_named_existing_files_ignores_nonexistent_and_escapes`](../../tests/sdlc/test_codegen.py#L967), [`test_named_existing_files_included_for_edit`](../../tests/sdlc/test_codegen.py#L941)
-- **Calls** (3): [`_excerpt_files`](../../src/orchestrator/sdlc/excerpt.py#L138), [`_spec_anchors`](../../src/orchestrator/sdlc/excerpt.py#L184), [`_str_list`](../../src/orchestrator/sdlc/codegen.py#L1973)
+- **Called by** (4 production · 5 test): [`implement`](../../src/orchestrator/sdlc/codegen.py#L1123), [`implement_governed`](../../src/orchestrator/sdlc/codegen.py#L1238), [`refine`](../../src/orchestrator/sdlc/codegen.py#L1377), [`revise`](../../src/orchestrator/sdlc/codegen.py#L1417), [`test_a_spec_that_names_its_files_still_wins`](../../tests/sdlc/test_codegen.py#L1325), [`test_codegen_is_shown_the_files_the_design_names`](../../tests/sdlc/test_codegen.py#L1308), [`test_named_existing_files_empty_when_none_named`](../../tests/sdlc/test_codegen.py#L961), [`test_named_existing_files_ignores_nonexistent_and_escapes`](../../tests/sdlc/test_codegen.py#L967), [`test_named_existing_files_included_for_edit`](../../tests/sdlc/test_codegen.py#L941)
+- **Calls** (3): [`_excerpt_files`](../../src/orchestrator/sdlc/excerpt.py#L138), [`_spec_anchors`](../../src/orchestrator/sdlc/excerpt.py#L184), [`_str_list`](../../src/orchestrator/sdlc/codegen.py#L2009)
 
 ### `_parse_detail`
 
-[`src/orchestrator/sdlc/codegen.py:1797`](../../src/orchestrator/sdlc/codegen.py#L1797)
+[`src/orchestrator/sdlc/codegen.py:1814`](../../src/orchestrator/sdlc/codegen.py#L1814)
 
-- **Called by** (1): [`_apply`](../../src/orchestrator/sdlc/codegen.py#L1548)
+- **Called by** (1): [`_apply`](../../src/orchestrator/sdlc/codegen.py#L1565)
 - **Calls** (1): `loads`
 
 ### `_parse_repair_block`
 
-[`src/orchestrator/sdlc/codegen.py:1815`](../../src/orchestrator/sdlc/codegen.py#L1815)
+[`src/orchestrator/sdlc/codegen.py:1832`](../../src/orchestrator/sdlc/codegen.py#L1832)
 
-- **Called by** (1): [`_corrective_suffix`](../../src/orchestrator/sdlc/codegen.py#L1453)
+- **Called by** (1): [`_corrective_suffix`](../../src/orchestrator/sdlc/codegen.py#L1470)
 
 ### `_read_worktree`
 
-[`src/orchestrator/sdlc/codegen.py:1943`](../../src/orchestrator/sdlc/codegen.py#L1943)
+[`src/orchestrator/sdlc/codegen.py:1979`](../../src/orchestrator/sdlc/codegen.py#L1979)
 
-- **Called by** (1): [`_session_files`](../../src/orchestrator/sdlc/codegen.py#L1500)
+- **Called by** (1): [`_session_files`](../../src/orchestrator/sdlc/codegen.py#L1517)
 
 ### `_ruff_fix`
 
-[`src/orchestrator/sdlc/codegen.py:1716`](../../src/orchestrator/sdlc/codegen.py#L1716)
+[`src/orchestrator/sdlc/codegen.py:1733`](../../src/orchestrator/sdlc/codegen.py#L1733)
 
-- **Called by** (1): [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1576)
+- **Called by** (1): [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1593)
 - **Calls** (1): `run`
 
 ### `_safe_target`
 
-[`src/orchestrator/sdlc/codegen.py:1856`](../../src/orchestrator/sdlc/codegen.py#L1856)
+[`src/orchestrator/sdlc/codegen.py:1873`](../../src/orchestrator/sdlc/codegen.py#L1873)
 
-- **Called by** (1): [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1576)
-- **Calls** (1): [`CodegenError`](../../src/orchestrator/sdlc/codegen.py#L255)
+- **Called by** (1): [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1593)
+- **Calls** (1): [`CodegenError`](../../src/orchestrator/sdlc/codegen.py#L261)
 - **Documented in**: `docs/specs/phase5-agentic-codegen-loop.md#governance-inside-the-loop`
 
 ### `_shadows_first_party`
 
-[`src/orchestrator/sdlc/codegen.py:1826`](../../src/orchestrator/sdlc/codegen.py#L1826)
+[`src/orchestrator/sdlc/codegen.py:1843`](../../src/orchestrator/sdlc/codegen.py#L1843)
 
-- **Called by** (1): [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1576)
+- **Called by** (1): [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1593)
 
 ### `_shadows_stdlib`
 
-[`src/orchestrator/sdlc/codegen.py:1783`](../../src/orchestrator/sdlc/codegen.py#L1783)
+[`src/orchestrator/sdlc/codegen.py:1800`](../../src/orchestrator/sdlc/codegen.py#L1800)
 
-- **Called by** (1): [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1576)
+- **Called by** (1): [`apply_files`](../../src/orchestrator/sdlc/codegen.py#L1593)
 
 ### `_spec_text`
 
-[`src/orchestrator/sdlc/codegen.py:1924`](../../src/orchestrator/sdlc/codegen.py#L1924)
+[`src/orchestrator/sdlc/codegen.py:1960`](../../src/orchestrator/sdlc/codegen.py#L1960)
 
-- **Called by** (5): [`author_tests`](../../src/orchestrator/sdlc/codegen.py#L1349), [`implement`](../../src/orchestrator/sdlc/codegen.py#L1108), [`implement_governed`](../../src/orchestrator/sdlc/codegen.py#L1223), [`refine`](../../src/orchestrator/sdlc/codegen.py#L1360), [`revise`](../../src/orchestrator/sdlc/codegen.py#L1400)
-- **Calls** (1): [`_str_list`](../../src/orchestrator/sdlc/codegen.py#L1973)
+- **Called by** (5): [`author_tests`](../../src/orchestrator/sdlc/codegen.py#L1364), [`implement`](../../src/orchestrator/sdlc/codegen.py#L1123), [`implement_governed`](../../src/orchestrator/sdlc/codegen.py#L1238), [`refine`](../../src/orchestrator/sdlc/codegen.py#L1377), [`revise`](../../src/orchestrator/sdlc/codegen.py#L1417)
+- **Calls** (1): [`_str_list`](../../src/orchestrator/sdlc/codegen.py#L2009)
 
 ### `_str_list`
 
-[`src/orchestrator/sdlc/codegen.py:1973`](../../src/orchestrator/sdlc/codegen.py#L1973)
+[`src/orchestrator/sdlc/codegen.py:2009`](../../src/orchestrator/sdlc/codegen.py#L2009)
 
-- **Called by** (3): [`_named_existing_files`](../../src/orchestrator/sdlc/codegen.py#L1872), [`_spec_text`](../../src/orchestrator/sdlc/codegen.py#L1924), [`plan`](../../src/orchestrator/sdlc/codegen.py#L1093)
+- **Called by** (3): [`_named_existing_files`](../../src/orchestrator/sdlc/codegen.py#L1908), [`_spec_text`](../../src/orchestrator/sdlc/codegen.py#L1960), [`plan`](../../src/orchestrator/sdlc/codegen.py#L1108)
 
 ### `_truncate`
 
-[`src/orchestrator/sdlc/codegen.py:1969`](../../src/orchestrator/sdlc/codegen.py#L1969)
+[`src/orchestrator/sdlc/codegen.py:2005`](../../src/orchestrator/sdlc/codegen.py#L2005)
 
-- **Called by** (1): [`refine`](../../src/orchestrator/sdlc/codegen.py#L1360)
+- **Called by** (1): [`refine`](../../src/orchestrator/sdlc/codegen.py#L1377)
 
 ### `apply_files`
 
-[`src/orchestrator/sdlc/codegen.py:1576`](../../src/orchestrator/sdlc/codegen.py#L1576)
+[`src/orchestrator/sdlc/codegen.py:1593`](../../src/orchestrator/sdlc/codegen.py#L1593)
 
-- **Called by** (2): [`_apply`](../../src/orchestrator/sdlc/codegen.py#L1548), [`_write_files`](../../src/orchestrator/agentic/codegen_tools.py#L71)
-- **Calls** (8): [`CodeChange`](../../src/orchestrator/sdlc/codegen.py#L78), [`CodegenError`](../../src/orchestrator/sdlc/codegen.py#L255), [`_apply_edit_list`](../../src/orchestrator/sdlc/codegen.py#L1743), [`_ruff_fix`](../../src/orchestrator/sdlc/codegen.py#L1716), [`_safe_target`](../../src/orchestrator/sdlc/codegen.py#L1856), [`_shadows_first_party`](../../src/orchestrator/sdlc/codegen.py#L1826), [`_shadows_stdlib`](../../src/orchestrator/sdlc/codegen.py#L1783), `pathlib.Path`
+- **Called by** (2): [`_apply`](../../src/orchestrator/sdlc/codegen.py#L1565), [`_write_files`](../../src/orchestrator/agentic/codegen_tools.py#L71)
+- **Calls** (8): [`CodeChange`](../../src/orchestrator/sdlc/codegen.py#L78), [`CodegenError`](../../src/orchestrator/sdlc/codegen.py#L261), [`_apply_edit_list`](../../src/orchestrator/sdlc/codegen.py#L1760), [`_ruff_fix`](../../src/orchestrator/sdlc/codegen.py#L1733), [`_safe_target`](../../src/orchestrator/sdlc/codegen.py#L1873), [`_shadows_first_party`](../../src/orchestrator/sdlc/codegen.py#L1843), [`_shadows_stdlib`](../../src/orchestrator/sdlc/codegen.py#L1800), `pathlib.Path`
 
 ### `resolve_codegen_model`
 
 [`src/orchestrator/sdlc/codegen.py:43`](../../src/orchestrator/sdlc/codegen.py#L43)
 
-- **Called by** (10 production · 4 test): [`_build_codegen`](../../src/orchestrator/sdlc/worker.py#L87), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L174), [`_llm_enrich`](../../src/orchestrator/sdlc/rca.py#L160), [`audit`](../../src/orchestrator/cli.py#L1569), [`consolidate_memory`](../../src/orchestrator/sdlc/activities.py#L368), [`design`](../../src/orchestrator/cli.py#L1793), [`main`](../../scripts/audit_eval.py#L54), [`rca`](../../src/orchestrator/cli.py#L2032), [`root_cause`](../../src/orchestrator/plugin/server.py#L381), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L494), [`test_codegen_env_beats_intake_env`](../../tests/sdlc/test_codegen.py#L90), [`test_explicit_override_wins`](../../tests/sdlc/test_codegen.py#L85), [`test_falls_back_to_intake_model`](../../tests/sdlc/test_codegen.py#L95), [`test_none_when_nothing_set`](../../tests/sdlc/test_codegen.py#L102)
+- **Called by** (10 production · 4 test): [`_build_codegen`](../../src/orchestrator/sdlc/worker.py#L87), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L174), [`_llm_enrich`](../../src/orchestrator/sdlc/rca.py#L160), [`audit`](../../src/orchestrator/cli.py#L1569), [`consolidate_memory`](../../src/orchestrator/sdlc/activities.py#L368), [`design`](../../src/orchestrator/cli.py#L1793), [`main`](../../scripts/audit_eval.py#L54), [`rca`](../../src/orchestrator/cli.py#L2032), [`root_cause`](../../src/orchestrator/plugin/server.py#L381), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L539), [`test_codegen_env_beats_intake_env`](../../tests/sdlc/test_codegen.py#L90), [`test_explicit_override_wins`](../../tests/sdlc/test_codegen.py#L85), [`test_falls_back_to_intake_model`](../../tests/sdlc/test_codegen.py#L95), [`test_none_when_nothing_set`](../../tests/sdlc/test_codegen.py#L102)
 - **Calls** (1): `getenv`
 - **Documented in**: `CLI_REFERENCE.md`
 
