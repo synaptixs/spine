@@ -1052,8 +1052,17 @@ class LLMCodegenAdapter:
             f"- Import source as `from {layout.package_name}.<module> import ...` "
             "(the test runner puts the source root on the path).\n"
             f"- Put tests under `{layout.tests_dir}/` as `{layout.tests_dir}/test_<name>.py`.\n"
-            f"- Do NOT create files outside `{layout.source_dir}/` and `{layout.tests_dir}/`, "
-            "and do NOT invent unrelated top-level paths.\n\n"
+            f"- Put NEW code and tests under `{layout.source_dir}/` and `{layout.tests_dir}/` "
+            "only, and do NOT invent unrelated top-level paths or parallel package trees.\n"
+            # The ban used to be absolute — "do NOT create files outside src/ and tests/" —
+            # which is right about invented paths and wrong about the repo's own docs. It
+            # made every documentation criterion unsatisfiable: the judge required a
+            # USER_GUIDE note, this line forbade touching USER_GUIDE.md, and the model
+            # obeyed and said so ("outside the allowed src/tests paths so the doc note was
+            # not added"). Editing a file the repo already has is not inventing a path.
+            "- You MAY edit files that already exist elsewhere in the repo — README, "
+            "USER_GUIDE, CHANGELOG, pyproject.toml — when the ticket calls for it. Changing "
+            "an existing file is not inventing a path; creating a new top-level one is.\n\n"
         )
 
     def _language(self) -> str:
