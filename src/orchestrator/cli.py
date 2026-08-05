@@ -1451,6 +1451,40 @@ def tui(
     run_tui(api_url, api_key)
 
 
+@app.command("models")
+def models_cmd(
+    provider: Annotated[
+        str | None,
+        typer.Option("--provider", help="Filter to one vendor: anthropic, openai, gemini, …"),
+    ] = None,
+    tools_only: Annotated[
+        bool,
+        typer.Option("--tools-only/--all", help="Only models that support tool calling."),
+    ] = True,
+) -> None:
+    """What you can point the pipeline at, and what each stage is using now.
+
+    Read from the installed LiteLLM's own catalog rather than a list maintained here,
+    so it reflects the client actually making the calls.
+
+    **Tool calling is a requirement, not a preference.** Codegen forces a
+    `submit_files` call and the acceptance judge forces `submit_verdict`; on a model
+    without it both fall back to parsing prose out of a text reply, which is exactly
+    the failure the forced-tool work removed. `--all` shows the rest, marked.
+    """
+    from orchestrator.core.llm import catalog
+
+    rows = catalog.catalog(provider)
+    if tools_only:
+        rows = [m for m in rows if m.usable]
+    typer.echo("Current per-stage models:")
+    for stage in ("codegen", "judge", "intake"):
+        chain = " → ".join(f"${v}" for v in catalog.STAGE_ENV[stage])
+        typer.echo(f"  {stage:8} {catalog.resolve(stage):24} ({chain} → built-in default)")
+    typer.echo("")
+    typer.echo(catalog.render(rows, current=catalog.resolve("codegen")))
+
+
 @app.command("doctor")
 def doctor() -> None:
     """Check environment readiness and print a diagnostic report.

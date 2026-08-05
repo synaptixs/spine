@@ -8,6 +8,7 @@ A ``MockLLMClient`` replays pre-recorded responses keyed by prompt hash so
 the test suite stays deterministic in CI.
 """
 
+from orchestrator.core.llm import catalog
 from orchestrator.core.llm.budget import BudgetedLLMClient, BudgetExceededError, RunBudget
 from orchestrator.core.llm.client import (
     CompletionResult,
@@ -37,6 +38,7 @@ __all__ = [
     "StructuredOutputError",
     "ToolCall",
     "ToolSpec",
+    "catalog",
     "TokenLedger",
     "fixture_path_for",
     "record_fixture",

@@ -34,6 +34,16 @@ useless change now fail with a reason.
   the test author by name.
 - **`sdlc autorun` is documented** in `CLI_REFERENCE.md`, including what each bracketed
   stage line means. It was the primary entry point and had no reference entry.
+- **`orchestrator models`** — every model the pipeline can be pointed at, with context
+  window, price per million tokens, and whether it supports tool calling, plus what
+  each stage is resolving to right now. Read from the installed LiteLLM's own catalog
+  rather than a list maintained here, so upgrading the client brings new models with
+  no code change and the table can't drift from what is actually making the calls.
+- **A model per stage.** `SDLC_JUDGE_MODEL` and a global `ORCHESTRATOR_MODEL` join the
+  existing `SDLC_CODEGEN_MODEL` / `ORCHESTRATOR_INTAKE_MODEL`. Three of the four
+  stages — the acceptance judge, the intent extractor and the spec writer — were
+  hardcoded constants that no environment variable could move, so a "model choice"
+  only ever applied to codegen.
 
 ### Changed
 
@@ -58,6 +68,13 @@ useless change now fail with a reason.
   constrained the output and replies arrived wrapped in prose.
 - **`--max-refine` now defaults to 5** (was 3) on `sdlc autorun` and `sdlc feature`: tests
   and type errors draw on the same budget.
+- **The default model moves to `claude-opus-5`** (from `claude-sonnet-4-6`, a
+  previous-generation Sonnet that every stage was pinned to). This costs more per
+  token — $5/$25 per Mtok against $3/$15 — so it is a deliberate change rather than a
+  silent one; set `ORCHESTRATOR_MODEL` to pin any stage back, and `orchestrator models`
+  lists the alternatives with prices. Codegen's output cap also rises 16k → 32k
+  tokens: on the current Claude models thinking is on unless disabled and shares that
+  budget, so a cap sized around the JSON payload alone truncates mid-object.
 - **A safe-mode rehearsal no longer counts as a duplicate.** The check refused any second
   run on a ticket whose first run finished, so a ticket became unworkable after its first
   dry run. Only a run that reached a PR blocks another.

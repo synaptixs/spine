@@ -99,10 +99,15 @@ class TestResolveCodegenModel:
         monkeypatch.setenv("ORCHESTRATOR_INTAKE_MODEL", "gpt-4o")
         assert resolve_codegen_model() == "gpt-4o"
 
-    def test_none_when_nothing_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("SDLC_CODEGEN_MODEL", raising=False)
-        monkeypatch.delenv("ORCHESTRATOR_INTAKE_MODEL", raising=False)
-        assert resolve_codegen_model() is None  # → adapter default
+    def test_falls_back_to_the_catalog_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Resolution now always names a model. It used to return None and let the
+        adapter's own constant decide, which meant the model in play was a fact you
+        could only discover by reading two modules."""
+        from orchestrator.core.llm import catalog
+
+        for name in ("SDLC_CODEGEN_MODEL", "ORCHESTRATOR_INTAKE_MODEL", "ORCHESTRATOR_MODEL"):
+            monkeypatch.delenv(name, raising=False)
+        assert resolve_codegen_model() == catalog.DEFAULT_MODEL
 
 
 async def test_plan_derives_steps_from_acceptance_criteria() -> None:

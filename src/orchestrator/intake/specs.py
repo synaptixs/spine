@@ -19,12 +19,12 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from orchestrator.core.llm import CompletionResult, LLMClient, Message
+from orchestrator.core.llm import CompletionResult, LLMClient, Message, catalog
 from orchestrator.intake.intents import Intent
 
 logger = logging.getLogger("orchestrator.intake.specs")
 
-_SPEC_MODEL = "claude-sonnet-4-6"
+_SPEC_MODEL = catalog.DEFAULT_MODEL
 
 _SYSTEM_PROMPT = (
     "You expand an approved product INTENT into a FEATURE SPEC ready for an "
@@ -74,9 +74,9 @@ class FeatureSpec(BaseModel):
 class SpecWriter:
     """Turns intents into feature specs via one LLM call each."""
 
-    def __init__(self, llm: LLMClient, *, model: str = _SPEC_MODEL) -> None:
+    def __init__(self, llm: LLMClient, *, model: str = "") -> None:
         self._llm = llm
-        self._model = model
+        self._model = model or catalog.resolve("intake")
 
     async def write(self, intent: Intent) -> FeatureSpec:
         messages = [

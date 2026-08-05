@@ -19,13 +19,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
-from orchestrator.core.llm import LLMClient, Message, ToolSpec
+from orchestrator.core.llm import LLMClient, Message, ToolSpec, catalog
 from orchestrator.core.prompt_safety import fence_untrusted
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 
 logger = logging.getLogger("orchestrator.sdlc.review")
 
-_JUDGE_MODEL = "claude-sonnet-4-6"
+_JUDGE_MODEL = catalog.DEFAULT_MODEL
 _MAX_SOURCE_BYTES = 60_000
 
 # What the judge is allowed to read.
@@ -185,9 +185,11 @@ class SemanticReviewAdapter:
     they fall to ``comment``/``request_changes``, never silently pass.
     """
 
-    def __init__(self, llm: LLMClient, *, model: str = _JUDGE_MODEL) -> None:
+    def __init__(self, llm: LLMClient, *, model: str = "") -> None:
         self._llm = llm
-        self._model = model
+        # Was a hardcoded constant with no override: the judge ran on whatever
+        # codegen was pinned to years ago, and no environment variable could move it.
+        self._model = model or catalog.resolve("judge")
 
     async def review(self, *, path: str, issue_key: str, spec: dict[str, Any] | None = None) -> ReviewResult:
         criteria = [str(c) for c in ((spec or {}).get("acceptance_criteria") or []) if str(c).strip()]

@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
-from orchestrator.core.llm import LLMClient, Message, ToolSpec
+from orchestrator.core.llm import LLMClient, Message, ToolSpec, catalog
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 from orchestrator.sdlc.layout import TargetLayout
 
@@ -37,7 +37,7 @@ _GENERATED_TEST = "test_generated.py"
 
 # Real LLM codegen defaults — kept conservative so a chatty model can't blow up
 # the worktree or the prompt context.
-_DEFAULT_CODEGEN_MODEL = "claude-sonnet-4-6"
+_DEFAULT_CODEGEN_MODEL = catalog.DEFAULT_MODEL
 
 
 def resolve_codegen_model(override: str | None = None) -> str | None:
@@ -49,7 +49,7 @@ def resolve_codegen_model(override: str | None = None) -> str | None:
     pipeline with it — codegen no longer silently jumps to a different provider
     (and its timeout) than the one the rest of the run is configured for.
     """
-    return override or os.getenv("SDLC_CODEGEN_MODEL") or os.getenv("ORCHESTRATOR_INTAKE_MODEL")
+    return catalog.resolve("codegen", override)
 
 
 _MAX_FILES = 20  # files the model may write in one pass
@@ -64,7 +64,12 @@ _MAX_PATCHED_FILE_BYTES = 256_000  # a patched existing file may be bigger than 
 # Without an explicit cap the provider default (~4k tokens) applies, and a
 # large generated test file gets truncated mid-JSON — the "model output was
 # not a JSON object" failures that sank author_tests in runs #16/#18.
-_MAX_COMPLETION_TOKENS = 16_000
+#
+# Raised from 16k with the move off Sonnet 4.6: on the current Claude models thinking
+# is ON unless disabled, and this cap covers thinking *plus* the reply. A budget sized
+# around the JSON payload alone now truncates mid-object — the same symptom as runs
+# #16/#18, arriving from the opposite direction.
+_MAX_COMPLETION_TOKENS = 32_000
 
 
 @dataclass(frozen=True)
