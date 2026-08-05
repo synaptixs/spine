@@ -1366,3 +1366,38 @@ async def test_a_type_error_pulls_in_the_definition_it_names(tmp_path: Path) -> 
 async def test_a_failure_naming_nothing_adds_no_definitions(tmp_path: Path) -> None:
     adapter = LLMCodegenAdapter(_ScriptedLLM([]))
     assert adapter._definitions_for("E   assert 1 == 2", tmp_path) == ""
+
+
+async def test_author_tests_is_shown_how_this_repo_tests_the_module(tmp_path: Path) -> None:
+    """Told to reach the entry point, a run reached for CliRunner — right instinct — then
+    spent its budget guessing the Typer app was named `cli`, and edited *production* cli.py
+    to add an alias so its own test would import. The answer was in tests/test_cli.py."""
+    from orchestrator.sdlc.codegen import _existing_test_examples
+
+    (tmp_path / "src" / "app").mkdir(parents=True)
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "src" / "app" / "cli.py").write_text("entry = 1\n", encoding="utf-8")
+    (tmp_path / "tests" / "test_cli.py").write_text(
+        "from app.cli import entry\n\n\ndef test_entry() -> None:\n    assert entry == 1\n",
+        encoding="utf-8",
+    )
+
+    block = _existing_test_examples({"summary": "change it"}, tmp_path, "touch src/app/cli.py")
+
+    assert "from app.cli import entry" in block
+
+
+async def test_a_file_that_only_mentions_the_module_does_not_count(tmp_path: Path) -> None:
+    """Mentioning a module is not testing it: a wikilink test naming `orchestrator.cli.md`
+    six times outranked tests/test_cli.py, which imports the app."""
+    from orchestrator.sdlc.codegen import _exercises_module
+
+    assert _exercises_module("from orchestrator.cli import app\n", "orchestrator.cli") > 0
+    assert _exercises_module('monkeypatch.setattr("orchestrator.cli.thing", x)\n', "orchestrator.cli") > 0
+    assert _exercises_module('doc = "orchestrator.cli.md"\n' * 6, "orchestrator.cli") == 0
+
+
+async def test_no_existing_tests_is_not_an_error(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import _existing_test_examples
+
+    assert _existing_test_examples({"summary": "x"}, tmp_path, "touch src/app/nothing.py") == ""

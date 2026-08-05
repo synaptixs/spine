@@ -1370,7 +1370,9 @@ class LLMCodegenAdapter:
             f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}\n\n"
             f"CURRENT SOURCE FILES:\n{self._session_files(root, include_tests=False)}"
-            f"{self._convention_block(root)}{_coverage_gap_block(gaps or [])}",
+            f"{self._convention_block(root)}"
+            f"{_existing_test_examples(spec, root, self._design)}"
+            f"{_coverage_gap_block(gaps or [])}",
             root,
         )
 
@@ -1886,6 +1888,104 @@ def _safe_target(root: Path, rel: str) -> Path:
 _PATH_RE = re.compile(r"\b((?:src/|tests/)[\w./-]+\.py)\b")
 
 
+_MAX_TEST_EXAMPLE_BYTES = 12_000  # supplementary to the source block, so a fraction of it
+
+
+def _existing_test_examples(spec: dict[str, Any], root: Path, design: str = "") -> str:
+    """Tests this repo already has for the modules this change touches, or ''.
+
+    Told to exercise a criterion through the entry point it names, a run reached for
+    ``CliRunner`` — the right instinct — and then spent its whole budget on mechanics: it
+    guessed the Typer app was called ``cli``, and when the import failed it edited *production*
+    ``cli.py`` to add a ``cli`` alias so its test would work. It also passed a ``mix_stderr``
+    kwarg Typer's runner does not take, and patched the wrong import paths.
+
+    Every one of those answers is in the repo's own suite, two files of it::
+
+        tests/test_cli.py:9       from orchestrator.cli import app
+        tests/test_launch.py:172  result = CliRunner().invoke(app, ["up", "--help"])
+
+    Nothing was showing them. Written for a specific failure and general by construction: the
+    convention for invoking *any* entry point under test is best stated by the tests that
+    already do it.
+    """
+    targets = _paths_from(spec, design)
+    if not targets:
+        return ""
+    modules = {_module_path_of(rel) for rel in targets if _module_path_of(rel)}
+    if not modules:
+        return ""
+
+    scored: list[tuple[int, str]] = []
+    for candidate in sorted(root.rglob("test_*.py")):
+        if ".git" in candidate.parts or not candidate.is_file():
+            continue
+        try:
+            body = candidate.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        hits = sum(_exercises_module(body, module) for module in modules)
+        if hits:
+            scored.append((hits, str(candidate.resolve().relative_to(root.resolve()))))
+    if not scored:
+        return ""
+    scored.sort(key=lambda pair: -pair[0])
+    chosen = [rel for _, rel in scored[:2]]
+    body = _excerpt_files(
+        root,
+        chosen,
+        budget=_MAX_TEST_EXAMPLE_BYTES,
+        anchors_by_path={rel: sorted(modules) for rel in chosen},
+        label="an existing test for this module",
+    )
+    if not body:
+        return ""
+    return (
+        "\n\nHOW THIS REPO ALREADY TESTS THESE MODULES — copy these mechanics rather than "
+        "inventing them: the import path the entry point is reached by, the runner and the "
+        "arguments it takes, and how collaborators are patched. If your test cannot import "
+        "something, the fix is in your test, never a new alias in the production module:\n" + body
+    )
+
+
+def _paths_from(spec: dict[str, Any], design: str) -> list[str]:
+    """Repo-relative source paths this ticket is about — spec first, then the design."""
+    blob = " ".join(
+        [
+            str(spec.get("summary") or ""),
+            str(spec.get("technical_notes") or ""),
+            *_str_list(spec.get("acceptance_criteria")),
+        ]
+    )
+    seen: list[str] = []
+    for rel in _PATH_RE.findall(blob) + _PATH_RE.findall(design):
+        if rel not in seen:
+            seen.append(rel)
+    return seen
+
+
+def _exercises_module(body: str, module: str) -> int:
+    """How strongly a test file reaches ``module`` — imports and patch targets only.
+
+    Counting bare occurrences ranked a wikilink test above ``tests/test_cli.py`` for
+    ``orchestrator.cli``, because it names the doc file ``orchestrator.cli.md`` six times.
+    Mentioning a module is not testing it; importing or patching it is.
+    """
+    escaped = re.escape(module)
+    imports = re.findall(rf"^\s*(?:from\s+{escaped}\s+import|import\s+{escaped})\b", body, re.MULTILINE)
+    patches = re.findall(rf"""(?:setattr|patch)\(\s*["']{escaped}[."']""", body)
+    return len(imports) * 3 + len(patches)
+
+
+def _module_path_of(rel: str) -> str:
+    """``src/orchestrator/cli.py`` → ``orchestrator.cli``; '' when it isn't a source path."""
+    parts = Path(rel).with_suffix("").parts
+    if not parts or parts[0] not in {"src", "tests"}:
+        return ""
+    trimmed = [p for p in parts[1:] if p != "__init__"]
+    return ".".join(trimmed)
+
+
 def _coverage_gap_block(gaps: list[str]) -> str:
     """Name the files whose changes no test reaches, or ''.
 
@@ -1924,6 +2024,9 @@ def _named_existing_files(spec: dict[str, Any], root: Path, design: str = "") ->
     helper it never wired in and never touched the display layer at all — not a
     judgement failure downstream, a generator working blind.
     """
+    # Spec first: when a ticket does name its files, that is the sharpest statement of
+    # intent there is. The design follows, and fills the common case where it does not.
+    seen = _paths_from(spec, design)
     blob = " ".join(
         [
             str(spec.get("summary") or ""),
@@ -1931,12 +2034,6 @@ def _named_existing_files(spec: dict[str, Any], root: Path, design: str = "") ->
             *_str_list(spec.get("acceptance_criteria")),
         ]
     )
-    seen: list[str] = []
-    # Spec first: when a ticket does name its files, that is the sharpest statement of
-    # intent there is. The design follows, and fills the common case where it does not.
-    for rel in _PATH_RE.findall(blob) + _PATH_RE.findall(design):
-        if rel not in seen:
-            seen.append(rel)
     # The spec's own words are the anchors here: a criterion naming `_type_label` or
     # `mcp contracts` says which part of a large module the ticket is about, which is
     # what decides where the window lands when the file cannot be shown whole.
