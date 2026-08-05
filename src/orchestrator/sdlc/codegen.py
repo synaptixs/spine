@@ -1279,26 +1279,35 @@ class LLMCodegenAdapter:
         nothing there is a real failure.
         """
         text = await self._complete(system, user)
-        try:
-            return self._apply(text, root, allow_empty=allow_empty)
-        except CodegenError as exc:
-            if exc.parse_detail:
-                # The model returned something that is not JSON. Models routinely fix their
-                # own JSON when shown where it broke, and this failure killed a real run
-                # outright — the edit-repair retry beside it had simply never been extended
-                # to cover it. One retry, never a loop: a second failure raises.
-                logger.warning("sdlc.codegen.parse_retry detail=%r", exc.parse_detail[:160])
-                text = await self._complete(system, f"{user}{_parse_repair_block(exc.parse_detail)}")
+        # One corrective retry, whichever way the first attempt failed. Written as a loop
+        # rather than two nested handlers because the nested form only guarded the *first*
+        # apply: a real run hit failed edits, took the repair retry, and the repaired
+        # response was unparseable JSON — which escaped, because nothing was watching the
+        # second apply. Two failure kinds, one retry budget, one guarded call site.
+        for attempt in range(2):
+            try:
                 return self._apply(text, root, allow_empty=allow_empty)
-            if not exc.failed_edit_paths and not exc.missing_edit_paths:
-                raise
+            except CodegenError as exc:
+                if attempt:  # the retry itself failed — a third attempt is a loop, not a fix
+                    raise
+                suffix = self._corrective_suffix(exc, root)
+                if suffix is None:
+                    raise
+                text = await self._complete(system, f"{user}{suffix}")
+        raise CodegenError("codegen retry did not produce a usable change")  # unreachable
+
+    def _corrective_suffix(self, exc: CodegenError, root: Path) -> str | None:
+        """What to tell the model about its last attempt, or ``None`` if nothing can help."""
+        if exc.parse_detail:
+            logger.warning("sdlc.codegen.parse_retry detail=%r", exc.parse_detail[:160])
+            return _parse_repair_block(exc.parse_detail)
+        if exc.failed_edit_paths or exc.missing_edit_paths:
             logger.warning(
                 "sdlc.codegen.repair_retry",
                 extra={"failed": exc.failed_edit_paths, "missing": exc.missing_edit_paths},
             )
-            repair = self._repair_block(exc, root)
-            text = await self._complete(system, f"{user}{repair}")
-            return self._apply(text, root, allow_empty=allow_empty)
+            return self._repair_block(exc, root)
+        return None
 
     def _repair_block(self, exc: CodegenError, root: Path) -> str:
         """The corrective prompt suffix for a repair retry. Two kinds of fix:
@@ -1813,6 +1822,9 @@ def _loads_json_object(text: str) -> dict[str, Any] | None:
     try:
         loaded = json.loads(stripped, strict=False)
     except json.JSONDecodeError as first:
+        merged = _merge_json_documents(stripped)
+        if merged is not None:
+            return merged
         start, end = stripped.find("{"), stripped.rfind("}")
         if start == -1 or end <= start:
             _log_json_failure(stripped, first)
@@ -1823,6 +1835,43 @@ def _loads_json_object(text: str) -> dict[str, Any] | None:
             _log_json_failure(stripped[start : end + 1], second)
             return None
     return loaded if isinstance(loaded, dict) else None
+
+
+def _merge_json_documents(text: str) -> dict[str, Any] | None:
+    """Several complete ``{"files": [...]}`` objects in a row → one object.
+
+    Observed twice on real runs: the model emits one JSON document per file and concatenates
+    them, so the decoder stops at the second with ``Extra data``. Every document is valid and
+    every one is a files-object — the intent is not in doubt, and stitching them is free where
+    a corrective retry costs another call.
+
+    Deliberately strict: *every* decoded document must be an object carrying a ``files`` list,
+    or this returns ``None`` and the caller falls back to retrying. Merging a files-object with
+    something else would be guessing at what the model meant.
+    """
+    decoder = json.JSONDecoder(strict=False)
+    documents: list[dict[str, Any]] = []
+    index = 0
+    while index < len(text):
+        while index < len(text) and text[index] in " \t\r\n,":
+            index += 1
+        if index >= len(text):
+            break
+        try:
+            value, index = decoder.raw_decode(text, index)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(value, dict) or not isinstance(value.get("files"), list):
+            return None
+        documents.append(value)
+    if len(documents) < 2:
+        return None
+    files: list[Any] = []
+    for document in documents:
+        files.extend(document["files"])
+    summaries = [str(d.get("summary") or "").strip() for d in documents]
+    logger.warning("sdlc.codegen.merged_json_documents count=%d files=%d", len(documents), len(files))
+    return {"files": files, "summary": " ".join(s for s in summaries if s)}
 
 
 def _log_json_failure(text: str, exc: json.JSONDecodeError) -> None:

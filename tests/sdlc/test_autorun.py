@@ -517,7 +517,9 @@ def test_a_recorded_failure_names_the_phase_it_died_in(
         _run(tmp_path, store=store)
 
     (record,) = store.all()
-    assert record.phase in {"design", "implement"}  # the last stage that started
+    # The stage it *died in*, not the last one that managed to finish. The record used to say
+    # `design` for a run that failed inside `implement`.
+    assert record.phase == "implement"
 
 
 def test_errors_that_already_carry_meaning_keep_their_handling(
