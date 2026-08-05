@@ -1449,3 +1449,50 @@ async def test_the_layout_permits_editing_the_repo_s_own_docs(tmp_path: Path) ->
     assert "USER_GUIDE" in block
     # The part that was right stays: invented paths are still refused.
     assert "do NOT invent unrelated top-level paths" in block
+
+
+# ---- generated Python that does not parse never reaches disk (SSPN-14) ----
+
+
+async def test_unparseable_generated_python_is_refused_and_repaired(tmp_path: Path) -> None:
+    """A live run wrote a test file ending in a stray `</content>` — markup that leaked
+    out of the tool payload into the file body. The only symptom was `rc=2` from pytest
+    three stages later, buried in an importlib traceback; refine spent both attempts on
+    that and never found the line."""
+    broken = _files_response({"src/a.py": "def f():\n    return 1\n</content>\n"})
+    good = _files_response({"src/a.py": "def f():\n    return 1\n"})
+    llm = _ScriptedLLM([broken, good])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-1")
+
+    assert len(llm.calls) == 2  # the syntax error bought a corrective retry
+    assert "</content>" not in (tmp_path / "src" / "a.py").read_text()
+    assert [Path(f).name for f in change.files] == ["a.py"]
+
+
+async def test_the_repair_names_the_line(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import _python_syntax_error
+
+    err = _python_syntax_error("tests/test_x.py", "def f():\n    return 1\n</content>\n")
+
+    assert "line 3" in err and "</content>" in err
+
+
+async def test_a_broken_file_is_never_written(tmp_path: Path) -> None:
+    """Not written, not left behind: an unparseable module turns the whole suite into a
+    collection error, so every later stage reads an unrelated traceback instead."""
+    llm = _ScriptedLLM([_files_response({"src/bad.py": "def f(\n"})] * 2)
+
+    with pytest.raises(CodegenError):
+        await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-2")
+
+    assert not (tmp_path / "src" / "bad.py").exists()
+
+
+async def test_non_python_files_are_not_syntax_checked(tmp_path: Path) -> None:
+    """Markdown is not Python. The doc a criterion demands must still get written."""
+    llm = _ScriptedLLM([_files_response({"USER_GUIDE.md": "# Step 9\n\nnot <<< python\n"})])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-3")
+
+    assert [Path(f).name for f in change.files] == ["USER_GUIDE.md"]

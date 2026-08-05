@@ -16,6 +16,7 @@ they may do real I/O; the workflow only ever sees the returned dataclasses.
 
 from __future__ import annotations
 
+import ast
 import json
 import logging
 import os
@@ -1651,6 +1652,7 @@ def apply_files(
     edit_failures: list[str] = []
     edit_failure_paths: list[str] = []
     attempted_anchors: dict[str, list[str]] = {}
+    syntax_failures: list[str] = []
     missing_targets: list[str] = []  # edits aimed at a file that doesn't exist yet
     tracked_now = written_tracker.get(root.resolve(), [])
     for entry in files:
@@ -1687,6 +1689,11 @@ def apply_files(
                 continue
             if len(patched.encode("utf-8")) > _MAX_PATCHED_FILE_BYTES:
                 edit_failures.append(f"{rel}: patched file exceeds {_MAX_PATCHED_FILE_BYTES} bytes")
+                continue
+            broken = _python_syntax_error(rel, patched)
+            if broken:
+                edit_failures.append(broken)
+                syntax_failures.append(rel)
                 continue
             target.write_text(patched, encoding="utf-8")
             written.append(str(target))
@@ -1725,6 +1732,14 @@ def apply_files(
             continue
         if len(content.encode("utf-8")) > _MAX_FILE_BYTES:
             raise CodegenError(f"generated file {rel!r} exceeds {_MAX_FILE_BYTES} bytes")
+        broken = _python_syntax_error(rel, content)
+        if broken:
+            # Never write it. A file that does not parse turns the whole suite into a
+            # collection error, and every later stage then reads an unrelated wall of
+            # pytest traceback instead of one line naming the problem.
+            edit_failures.append(broken)
+            syntax_failures.append(rel)
+            continue
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
         written.append(str(target))
@@ -1749,7 +1764,7 @@ def apply_files(
     # (skipped), an edit that failed to anchor, or edits aimed at a file that
     # doesn't exist yet — all trigger ONE repair retry (even when other files
     # landed), so a create+edit feature never silently ships half the change.
-    unmodified_existing = edit_failure_paths + skipped
+    unmodified_existing = edit_failure_paths + skipped + syntax_failures
     if unmodified_existing or missing_targets:
         notes = [
             f"skipped existing (use edits, not full content): {', '.join(skipped)}" if skipped else "",
@@ -2039,6 +2054,31 @@ def _coverage_gap_block(gaps: list[str]) -> str:
         "user does — through the command or public function that was changed, not through a "
         "helper it calls, or the same gap will still be there.\n"
     )
+
+
+def _python_syntax_error(rel: str, source: str) -> str:
+    """``""`` when this parses, otherwise one line naming exactly what is wrong.
+
+    Generated Python is checked before it reaches disk. A live run wrote a test file
+    ending in a stray ``</content>`` — markup that leaked out of the tool payload into
+    the file body — and the only symptom anyone saw was ``rc=2`` from pytest three
+    stages later, buried in an importlib traceback. The refine loop spent both of its
+    attempts on that and never found the line.
+
+    ``ast.parse`` costs nothing, runs no model, and turns the whole thing into a
+    sentence: file, line, and the offending text.
+    """
+    if not rel.endswith(".py"):
+        return ""
+    try:
+        ast.parse(source)
+    except SyntaxError as exc:
+        offending = (exc.text or "").strip()
+        where = f"{rel}: line {exc.lineno}"
+        return f"{where}: {exc.msg}" + (f" — {offending!r}" if offending else "")
+    except ValueError as exc:  # e.g. a NUL byte in the payload
+        return f"{rel}: not parseable as Python ({exc})"
+    return ""
 
 
 def _named_existing_files(spec: dict[str, Any], root: Path, design: str = "") -> str:
