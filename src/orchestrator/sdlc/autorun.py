@@ -185,7 +185,7 @@ async def autorun(
     repo: str | None = None,
     root: Path | str = ".",
     live: bool = False,
-    max_refine: int = 3,
+    max_refine: int = 5,
     gate: Any = None,
     review_rounds: int = 2,
     base_branch: str | None = None,

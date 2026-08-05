@@ -155,7 +155,7 @@ async def _typecheck_the_change(
     hits = [
         line
         for line in output.splitlines()
-        if ": error:" in line and _error_is_on_a_changed_line(line, touched)
+        if ": error:" in line and _error_is_on_a_changed_line(line, touched) and not _is_typing_hygiene(line)
     ]
     if not hits:
         emit("[typecheck] clean on the changed lines")
@@ -201,6 +201,29 @@ async def _changed_line_ranges(path: Path) -> dict[str, set[int]]:
                 start = int(match.group(1))
                 ranges[current].update(range(start, start + int(match.group(2) or 1)))
     return {k: v for k, v in ranges.items() if v}
+
+
+# Codes that say "this annotation could be tidier", not "this code is wrong". A worktree venv
+# has runtime deps only, so `import-*` there reports the environment rather than the change;
+# the rest are hygiene. A run spent two of its three refine passes chasing an unused
+# `type: ignore` in a generated test while the real `attr-defined` bug went unfixed.
+_TYPING_HYGIENE = frozenset(
+    {
+        "unused-ignore",
+        "no-untyped-def",
+        "no-untyped-call",
+        "no-any-return",
+        "type-arg",
+        "import-not-found",
+        "import-untyped",
+        "misc",
+    }
+)
+
+
+def _is_typing_hygiene(line: str) -> bool:
+    match = re.search(r"\[([a-z-]+)\]\s*$", line)
+    return match is not None and match.group(1) in _TYPING_HYGIENE
 
 
 def _error_is_on_a_changed_line(line: str, touched: dict[str, set[int]]) -> bool:
@@ -474,7 +497,10 @@ async def run_feature(
     intent_id: str | None = None,
     repo: str | None = None,
     model: str | None = None,
-    max_refine: int = 3,
+    # Raised from 3 when the type checker joined this loop: a red suite and a type error now
+    # draw on the same budget, and a run that fixed its tests on the first pass used to be
+    # done where it now still has the checker to satisfy. Three was exactly one short.
+    max_refine: int = 5,
     # Answering a reviewer is a smaller job than debugging a red suite, and each pass costs a
     # codegen call plus a full test run. Two is enough for the common case (one missed
     # criterion, one correction) without letting a model argue with the judge indefinitely.

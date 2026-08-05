@@ -831,7 +831,9 @@ def sdlc_autorun(
         bool,
         typer.Option("--live/--safe", help="Write for real. Default --safe makes no external write."),
     ] = False,
-    max_refine: Annotated[int, typer.Option("--max-refine", help="Max test→refine loops.")] = 3,
+    max_refine: Annotated[
+        int, typer.Option("--max-refine", help="Max test→refine loops (tests and type errors share it).")
+    ] = 5,
     review: Annotated[
         bool,
         typer.Option(

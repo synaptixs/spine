@@ -1335,3 +1335,34 @@ async def test_a_spec_that_names_its_files_still_wins(tmp_path: Path) -> None:
     block = _named_existing_files(spec, tmp_path, "also touch src/app/designed.py")
 
     assert block.index("named.py") < block.index("designed.py")
+
+
+async def test_a_type_error_pulls_in_the_definition_it_names(tmp_path: Path) -> None:
+    """The loop that could not converge: mypy said `"MCPToolHandler" has no attribute
+    "input_schema"`, the model guessed `handler.tool`, was rejected identically, and spent its
+    whole budget proposing names for a class no stage had ever shown it."""
+
+    class _Grounder:
+        def __init__(self) -> None:
+            self.asked: list[str] = []
+
+        def context_for_spec(self, spec: dict[str, Any]) -> str:
+            return ""
+
+        def context_for_symbols(self, names: list[str]) -> str:
+            self.asked = names
+            return "### Type `MCPToolHandler`\nclass MCPToolHandler:\n    self._qualified = ...\n"
+
+    grounder = _Grounder()
+    adapter = LLMCodegenAdapter(_ScriptedLLM([]), grounder=grounder)
+    errors = 'src/orchestrator/cli.py:1126: error: "MCPToolHandler" has no attribute "tool"'
+
+    block = adapter._definitions_for(errors, tmp_path)
+
+    assert "MCPToolHandler" in grounder.asked
+    assert "class MCPToolHandler" in block
+
+
+async def test_a_failure_naming_nothing_adds_no_definitions(tmp_path: Path) -> None:
+    adapter = LLMCodegenAdapter(_ScriptedLLM([]))
+    assert adapter._definitions_for("E   assert 1 == 2", tmp_path) == ""

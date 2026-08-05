@@ -55,6 +55,10 @@ def resolve_codegen_model(override: str | None = None) -> str | None:
 _MAX_FILES = 20  # files the model may write in one pass
 _MAX_FILE_BYTES = 64_000  # per generated file
 _MAX_CONTEXT_BYTES = 40_000  # cap on existing source fed back to the model
+# The subject of a type error, as mypy names it: `"MCPToolHandler" has no attribute "tool"`,
+# `Name "Any" is not defined`, `Argument 1 to "_type_label" has incompatible type`. Quoted
+# CamelCase or identifier-shaped words — the things the graph can look up.
+_SYMBOLS_IN_ERRORS = re.compile(r'"([A-Za-z_][A-Za-z0-9_]{2,})"')
 _MAX_EDITS_PER_FILE = 20  # anchored find/replace edits per file
 _MAX_PATCHED_FILE_BYTES = 256_000  # a patched existing file may be bigger than a generated one
 # Without an explicit cap the provider default (~4k tokens) applies, and a
@@ -1364,7 +1368,8 @@ class LLMCodegenAdapter:
             "pass as written.\n\n"
             f"CURRENT FILES:\n{self._session_files(root, include_tests=True)}"
             f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}\n\n"
-            f"FAILURE OUTPUT:\n{_truncate(failures, _MAX_CONTEXT_BYTES)}",
+            f"FAILURE OUTPUT:\n{_truncate(failures, _MAX_CONTEXT_BYTES)}\n\n"
+            f"{self._definitions_for(failures, root)}",
             root,
             # A refine pass that yields no applicable edits is a legitimate
             # no-op (the model judged it had nothing to change, or returned a
@@ -1373,6 +1378,24 @@ class LLMCodegenAdapter:
             # of aborting the whole run with an unhandled CodegenError.
             allow_empty=True,
         )
+
+    def _definitions_for(self, failures: str, root: Path) -> str:
+        """PKG definitions of the symbols a failure names, or ''.
+
+        A type error names its subject — *"MCPToolHandler has no attribute input_schema"* —
+        and the graph knows where that class is. Without this the model answered by guessing
+        a second attribute name (``handler.tool``), was rejected identically, and the loop
+        spent its whole budget proposing names for something it had never been shown.
+        """
+        names = _SYMBOLS_IN_ERRORS.findall(failures)
+        if not names:
+            return ""
+        grounder = self._resolve_grounder(root)
+        lookup = getattr(grounder, "context_for_symbols", None)
+        if lookup is None:
+            return ""
+        block: str = lookup(list(dict.fromkeys(names)))
+        return block
 
     async def revise(
         self, *, spec: dict[str, Any], path: str, issue_key: str, blockers: list[str]

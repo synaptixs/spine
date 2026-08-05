@@ -1039,3 +1039,27 @@ async def test_the_type_errors_are_what_refine_is_given(
     await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
 
     assert seen and "cli.py:1117" in seen[0]
+
+
+def test_typing_hygiene_is_filtered_but_real_defects_are_not() -> None:
+    """A run spent two of its three refine passes chasing an unused `type: ignore` in a
+    generated test while the `attr-defined` bug that broke the command went unfixed."""
+    from orchestrator.sdlc.feature_runner import _is_typing_hygiene
+
+    assert _is_typing_hygiene('t.py:1: error: Unused "type: ignore" comment  [unused-ignore]')
+    assert _is_typing_hygiene("t.py:1: error: Untyped decorator makes f untyped  [misc]")
+    assert not _is_typing_hygiene(
+        'c.py:1126: error: "MCPToolHandler" has no attribute "tool"  [attr-defined]'
+    )
+    assert not _is_typing_hygiene('c.py:45: error: Name "Any" is not defined  [name-defined]')
+
+
+def test_only_errors_on_changed_lines_count() -> None:
+    """A worktree venv has runtime deps only, so a whole-project run reports hundreds of
+    pre-existing errors no generated change caused. A gate that fails every run gets removed."""
+    from orchestrator.sdlc.feature_runner import _error_is_on_a_changed_line
+
+    touched = {"src/a.py": {10, 11}}
+    assert _error_is_on_a_changed_line("src/a.py:10: error: boom  [attr-defined]", touched)
+    assert not _error_is_on_a_changed_line("src/a.py:99: error: pre-existing  [attr-defined]", touched)
+    assert not _error_is_on_a_changed_line("src/other.py:10: error: untouched  [attr-defined]", touched)
