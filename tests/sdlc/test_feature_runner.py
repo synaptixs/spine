@@ -1255,3 +1255,24 @@ async def test_each_check_gets_its_own_allowance(monkeypatch: pytest.MonkeyPatch
     assert result.passed
     assert created[0].refine_calls == 2  # both type errors corrected
     assert created[0].gaps_seen == [["src/orchestrator/cli.py"]]  # and the gap still got its turn
+
+
+async def test_a_codegen_error_hands_the_ticket_back(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Releasing the ticket was wired only into the "tests stayed red" path, so a codegen
+    error — the thing most likely to end a run early — sailed past it. A live run failed
+    at author_tests and left SSPN-14 In Progress with no branch and no PR."""
+    from orchestrator.sdlc.codegen import CodegenError
+
+    class _ExplodingCodegen(_StubCodegen):
+        async def author_tests(self, **kwargs: Any) -> CodeChange:
+            raise CodegenError("model output had no 'files' list")
+
+    jira = _FakeJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_ExplodingCodegen, jira=jira)
+
+    with pytest.raises(CodegenError):
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
+        )
+
+    assert jira.transitions == ["In Progress", "To Do"]

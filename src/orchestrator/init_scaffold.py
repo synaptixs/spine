@@ -15,11 +15,23 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 
+from orchestrator.core.llm import catalog
 from orchestrator.doctor import ENV_GROUPS
 
 # Known-useful optional vars worth scaffolding as commented hints, beyond the
 # required groups doctor enforces.
 _OPTIONAL_HINTS: tuple[tuple[str, str], ...] = (
+    # Model selection was scaffolded nowhere, so the only way to learn a stage could be
+    # pointed somewhere else was to read the source — and three of the four stages could
+    # not be pointed anywhere at all. `orchestrator models` lists the ids with prices and
+    # marks the ones that cannot do the forced tool call codegen and the judge require.
+    (
+        "ORCHESTRATOR_MODEL",
+        f"Model for every stage (default {catalog.DEFAULT_MODEL}); see `orchestrator models`",
+    ),
+    ("SDLC_CODEGEN_MODEL", "Model for codegen only — implement / refine / revise / author_tests"),
+    ("SDLC_JUDGE_MODEL", "Model for the acceptance judge only"),
+    ("ORCHESTRATOR_INTAKE_MODEL", "Model for intake only — intent extraction and spec writing"),
     ("ORCHESTRATOR_DATABASE_URL", "Postgres URL (defaults to the docker-compose dev DB)"),
     ("SLACK_WEBHOOK_URL", "Slack incoming-webhook for approval-gate alerts (optional)"),
     ("SDLC_RUN_BUDGET_USD", "Per-run LLM spend cap; 0 disables enforcement (default 25)"),

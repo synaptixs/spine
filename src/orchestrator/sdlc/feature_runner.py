@@ -957,17 +957,28 @@ async def run_feature(
 
     # Attribute each leg's LLM spans + token ledger to a named stage, so the trace
     # reads implement / author_tests / refine instead of "unattributed".
-    with llm.stage("implement"):
-        impl = await codegen.implement(
-            spec=spec, path=str(path), issue_key=issue_key, skills=capability_plan.skills
-        )
-    emit(f"[implement] {[Path(f).name for f in impl.files]} - {impl.summary}")
-    # SQL is single-phase: the migration IS the artifact and is validated by applying
-    # it to an ephemeral database, so there is no separate test-authoring leg.
-    if lang != "sql":
-        with llm.stage("author_tests"):
-            tests = await codegen.author_tests(spec=spec, path=str(path), issue_key=issue_key)
-        emit(f"[author_tests] {[Path(f).name for f in tests.files]} - {tests.summary}")
+    #
+    # Everything from here to the PR runs inside the ticket-release guard. Handing the
+    # ticket back was wired only into the "tests stayed red" path, so a codegen error —
+    # the thing most likely to end a run early — sailed past it and left the ticket
+    # In Progress anyway. A live run did exactly that, twice.
+    try:
+        with llm.stage("implement"):
+            impl = await codegen.implement(
+                spec=spec, path=str(path), issue_key=issue_key, skills=capability_plan.skills
+            )
+        emit(f"[implement] {[Path(f).name for f in impl.files]} - {impl.summary}")
+        # SQL is single-phase: the migration IS the artifact and is validated by applying
+        # it to an ephemeral database, so there is no separate test-authoring leg.
+        if lang != "sql":
+            with llm.stage("author_tests"):
+                tests = await codegen.author_tests(spec=spec, path=str(path), issue_key=issue_key)
+            emit(f"[author_tests] {[Path(f).name for f in tests.files]} - {tests.summary}")
+    except Exception:
+        # Release and re-raise: the caller still sees the real failure, and the board no
+        # longer claims someone is working the ticket.
+        await _release_the_ticket(move, emit)
+        raise
 
     passed = False
     iterations = 0
