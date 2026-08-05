@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.core`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 13 modules — 28 types and 19 functions. It sits in the middle of the graph: 1 area below it, 22 above. Changes here can reach both ways.
+**`orchestrator.core`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 13 modules — 28 types and 19 functions. It sits in the middle of the graph: 1 area below it, 23 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -12,10 +12,10 @@ flowchart LR
   n2["orchestrator.cli"]
   n3["orchestrator.codereview"]
   n4["orchestrator.gateway"]
-  n5["orchestrator.intake"]
-  n6["orchestrator.knowledge"]
-  n7["orchestrator.personas"]
-  n8["orchestrator.planner"]
+  n5["orchestrator.init_scaffold"]
+  n6["orchestrator.intake"]
+  n7["orchestrator.knowledge"]
+  n8["orchestrator.personas"]
   n9["orchestrator.obs"]
   n1 --> n0
   n2 --> n0
@@ -28,9 +28,9 @@ flowchart LR
   n0 --> n9
 ```
 
-**In the diagram:** **`orchestrator.core`** (this area) · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.codereview`](orchestrator.codereview.md) · [`orchestrator.gateway`](orchestrator.gateway.md) · [`orchestrator.intake`](orchestrator.intake.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.personas`](orchestrator.personas.md) · [`orchestrator.planner`](orchestrator.planner.md) · [`orchestrator.obs`](orchestrator.obs.md)
+**In the diagram:** **`orchestrator.core`** (this area) · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.codereview`](orchestrator.codereview.md) · [`orchestrator.gateway`](orchestrator.gateway.md) · `orchestrator.init_scaffold` · [`orchestrator.intake`](orchestrator.intake.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.personas`](orchestrator.personas.md) · [`orchestrator.obs`](orchestrator.obs.md)
 
-_Showing 9 of 23 neighbouring areas._
+_Showing 9 of 24 neighbouring areas._
 
 ## Modules
 
@@ -54,4 +54,4 @@ _Showing 9 of 23 neighbouring areas._
 
 ## Depended on by
 
-[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.gateway`](orchestrator.gateway.md), [`orchestrator.intake`](orchestrator.intake.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.planner`](orchestrator.planner.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.temporal`](orchestrator.temporal.md), `scripts.agentic_eval`, `scripts.audit_eval`, `scripts.codegen_ab`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.intents_to_confluence`, `scripts.live_github_auth`, `scripts.live_review`, `scripts.live_sdlc_worker`, `scripts.skill_ab`
+[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.gateway`](orchestrator.gateway.md), `orchestrator.init_scaffold`, [`orchestrator.intake`](orchestrator.intake.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.planner`](orchestrator.planner.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.temporal`](orchestrator.temporal.md), `scripts.agentic_eval`, `scripts.audit_eval`, `scripts.codegen_ab`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.intents_to_confluence`, `scripts.live_github_auth`, `scripts.live_review`, `scripts.live_sdlc_worker`, `scripts.skill_ab`
