@@ -207,11 +207,28 @@ async def test_rejects_absolute_path(tmp_path: Path) -> None:
         await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="SDLC-1")
 
 
-async def test_rejects_output_with_no_files(tmp_path: Path) -> None:
-    llm = _ScriptedLLM(['{"summary": "I did nothing"}'])
+async def test_a_submission_with_no_files_is_retried_then_refused(tmp_path: Path) -> None:
+    """Empty is recoverable, not fatal. The forced tool call means the model answered in
+    the right shape and simply submitted nothing — the schema allows it, since `required`
+    means present, not non-empty. A live run died here after a clean implement pass
+    because author_tests came back empty and nothing asked it to try again."""
+    llm = _ScriptedLLM(['{"summary": "I did nothing"}', '{"summary": "still nothing"}'])
     adapter = LLMCodegenAdapter(llm)
+
     with pytest.raises(CodegenError):
         await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="SDLC-1")
+
+    assert len(llm.calls) == 2  # one corrective retry, then it gives up
+    assert "SUBMITTED NO FILES" in llm.calls[1][1].content
+    assert "I did nothing" in llm.calls[1][1].content  # its own words, fed back
+
+
+async def test_a_retried_empty_submission_can_succeed(tmp_path: Path) -> None:
+    llm = _ScriptedLLM(['{"summary": "nothing to do"}', _files_response({"src/a.py": "a = 1\n"})])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-1")
+
+    assert [Path(f).name for f in change.files] == ["a.py"]
 
 
 async def test_refine_tolerates_a_no_op_response(tmp_path: Path) -> None:
@@ -807,14 +824,15 @@ async def test_anchor_repair_gives_up_after_one_retry(tmp_path: Path) -> None:
     assert len(llm.calls) == 2  # initial + exactly one repair
 
 
-async def test_no_repair_for_non_edit_failures(tmp_path: Path) -> None:
-    """A response with no files at all fails immediately — repair is only for
-    anchor misses."""
-    llm = _ScriptedLLM([json.dumps({"files": [], "summary": "nothing"})])
+async def test_the_empty_retry_is_spent_once(tmp_path: Path) -> None:
+    """One corrective pass, not a loop: a model that submits nothing twice has said its
+    piece, and a third call would just pay to watch it repeat."""
+    empty = json.dumps({"files": [], "summary": "nothing"})
+    llm = _ScriptedLLM([empty, empty])
     adapter = LLMCodegenAdapter(llm)
     with pytest.raises(CodegenError, match="no 'files'"):
         await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
-    assert len(llm.calls) == 1
+    assert len(llm.calls) == 2
 
 
 async def test_new_root_module_shadowing_stdlib_is_rejected(tmp_path: Path) -> None:

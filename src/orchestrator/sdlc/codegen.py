@@ -282,6 +282,7 @@ class CodegenError(RuntimeError):
         missing_edit_paths: list[str] | None = None,
         failed_anchors: dict[str, list[str]] | None = None,
         parse_detail: str = "",
+        empty_summary: str = "",
     ) -> None:
         super().__init__(message)
         self.failed_edit_paths = list(failed_edit_paths or [])
@@ -294,6 +295,9 @@ class CodegenError(RuntimeError):
         # inferred from two empty path lists: "no edits failed" and "nothing parsed" are
         # different failures and want different retries.
         self.parse_detail = parse_detail
+        # Set when the model answered in the right shape but submitted no files. Its own
+        # summary is the useful part — it usually says why it thought nothing was needed.
+        self.empty_summary = empty_summary
 
 
 @runtime_checkable
@@ -1485,6 +1489,16 @@ class LLMCodegenAdapter:
                 extra={"failed": exc.failed_edit_paths, "missing": exc.missing_edit_paths},
             )
             return self._repair_block(exc, root)
+        if exc.empty_summary:
+            logger.warning("sdlc.codegen.empty_retry summary=%r", exc.empty_summary[:160])
+            return (
+                "\n\nYOUR PREVIOUS ATTEMPT SUBMITTED NO FILES. You said:\n"
+                f"  {exc.empty_summary}\n"
+                "That is not an answer this stage can use — it needs at least one file. If "
+                "you believe the work is already done, you are looking at the wrong thing: "
+                "say what you would write and write it. Re-emit with a non-empty `files` "
+                "list.\n"
+            )
         return None
 
     def _repair_block(self, exc: CodegenError, root: Path) -> str:
@@ -1587,7 +1601,15 @@ class LLMCodegenAdapter:
             if allow_empty:
                 logger.info("sdlc.codegen.empty_refine summary=%r", str(payload.get("summary") or "")[:160])
                 return CodeChange(summary=str(payload.get("summary") or "").strip())
-            raise CodegenError("model output had no 'files' list")
+            # Recoverable, not fatal. The forced tool call means the model *did* answer in
+            # the right shape — it just submitted zero files, which the schema allows
+            # (`required` means present, not non-empty). A live run died here after a
+            # clean implement pass because author_tests came back empty and nothing asked
+            # it to try again.
+            raise CodegenError(
+                "model output had no 'files' list",
+                empty_summary=str(payload.get("summary") or "").strip() or "(no summary given)",
+            )
         return apply_files(
             files,
             root,
