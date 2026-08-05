@@ -1230,7 +1230,8 @@ async def test_a_file_larger_than_the_budget_is_excerpted_not_dropped(tmp_path: 
     """The live failure: `cli.py` is 100 KB against a 40 KB pool, so the repair block said
     "below is the CURRENT EXACT content" and then appended nothing. Every retry re-guessed
     the anchor and the run died having never seen a byte of the file it was editing."""
-    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES, _excerpt_files
+    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
+    from orchestrator.sdlc.excerpt import _excerpt_files
 
     target = "def render_contract_types(schema: dict) -> str:"
     (tmp_path / "cli.py").write_text(_big_module(target), encoding="utf-8")
@@ -1248,7 +1249,8 @@ async def test_a_file_larger_than_the_budget_is_excerpted_not_dropped(tmp_path: 
 async def test_a_near_miss_anchor_still_finds_its_neighbourhood(tmp_path: Path) -> None:
     """A `find` fails on whitespace or a renamed identifier as easily as on being wrong.
     The window should still land where the model was reaching."""
-    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES, _excerpt_files
+    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
+    from orchestrator.sdlc.excerpt import _excerpt_files
 
     target = "def render_contract_types(schema: dict) -> str:"
     (tmp_path / "cli.py").write_text(_big_module(target), encoding="utf-8")
@@ -1265,7 +1267,7 @@ async def test_a_near_miss_anchor_still_finds_its_neighbourhood(tmp_path: Path) 
 async def test_a_small_file_hands_its_unused_budget_to_a_big_one(tmp_path: Path) -> None:
     """Smallest first, equal share of what remains: the old loop dropped whatever came
     after the first file too big to fit, whatever its size."""
-    from orchestrator.sdlc.codegen import _excerpt_files
+    from orchestrator.sdlc.excerpt import _excerpt_files
 
     target = "def needle_function() -> None:"
     (tmp_path / "small.py").write_text("x = 1\n", encoding="utf-8")

@@ -116,6 +116,100 @@ async def _prove_the_tests_test_something(
         await _git(path, "stash", "pop", "--quiet")
 
 
+async def _typecheck_the_change(
+    path: Path, testenv: Any, files: list[str], emit: Callable[[str], None]
+) -> str:
+    """Run the target repo's own type checker over the lines this change touched.
+
+    The pipeline generated code for a repo whose stated gate is ``mypy src tests`` and never
+    ran it. Two separate runs committed a file missing ``from typing import Any``, and a
+    third wired the display through ``t.handler.input_schema`` on a class that has no such
+    attribute — every one of them a single deterministic line of mypy output, and every one
+    of them shipped past green tests, because the generated tests exercise new helpers
+    directly and never import the CLI path they were supposed to change.
+
+    Scoped to **changed lines**, not the repo. A worktree's venv carries runtime deps only,
+    so a whole-project run there reports hundreds of pre-existing errors that no generated
+    change caused and no refine pass could fix — a gate that fails every run is a gate that
+    gets removed. Returns "" when the change is clean or the check cannot be made.
+    """
+    if not any(f.endswith(".py") for f in files):
+        return ""
+    ok, _ = await _exec(path, testenv.python, "-c", "import mypy")
+    if not ok:
+        # The worktree venv is built from runtime deps only, so the repo's own checker is
+        # never in it — which made the first version of this check skip on every real run
+        # and catch precisely nothing. Install it once, the way a missing test dep is
+        # installed, rather than quietly doing nothing.
+        emit("[typecheck] installing mypy into the worktree env")
+        await testenv.install(["mypy"])
+        ok, _ = await _exec(path, testenv.python, "-c", "import mypy")
+    if not ok:
+        emit("[typecheck] mypy unavailable — skipping (not failing) the check")
+        return ""
+
+    touched = await _changed_line_ranges(path)
+    if not touched:
+        return ""
+    _, output = await _exec(path, testenv.python, "-m", "mypy", *sorted(touched))
+    hits = [
+        line
+        for line in output.splitlines()
+        if ": error:" in line and _error_is_on_a_changed_line(line, touched)
+    ]
+    if not hits:
+        emit("[typecheck] clean on the changed lines")
+        return ""
+    emit(f"[typecheck] {len(hits)} error(s) introduced by this change")
+    return "TYPE ERRORS introduced by this change (fix these):\n" + "\n".join(hits)
+
+
+async def _exec(path: Path, *argv: str) -> tuple[bool, str]:
+    proc = await asyncio.create_subprocess_exec(
+        *argv, cwd=str(path), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
+    )
+    out, _ = await proc.communicate()
+    return proc.returncode == 0, out.decode("utf-8", "replace")
+
+
+async def _changed_line_ranges(path: Path) -> dict[str, set[int]]:
+    """``{relative path: {line numbers this change added}}``, from the worktree diff."""
+    await _git(path, "add", "-N", "-A")
+    proc = await asyncio.create_subprocess_exec(
+        "git",
+        "diff",
+        "-U0",
+        # Against HEAD, not the index: the proof check stashes and pops, and the gate may run
+        # after something has been staged. Plain `git diff` would see none of that and report
+        # an empty change, which reads as "nothing to check" rather than "checked nothing".
+        "HEAD",
+        cwd=str(path),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    out, _ = await proc.communicate()
+    ranges: dict[str, set[int]] = {}
+    current = ""
+    for line in out.decode("utf-8", "replace").splitlines():
+        if line.startswith("+++ b/"):
+            current = line[6:]
+            if current.endswith(".py"):
+                ranges.setdefault(current, set())
+        elif line.startswith("@@") and current in ranges:
+            match = re.search(r"\+(\d+)(?:,(\d+))?", line)
+            if match:
+                start = int(match.group(1))
+                ranges[current].update(range(start, start + int(match.group(2) or 1)))
+    return {k: v for k, v in ranges.items() if v}
+
+
+def _error_is_on_a_changed_line(line: str, touched: dict[str, set[int]]) -> bool:
+    match = re.match(r"^([^:]+):(\d+):", line)
+    if not match:
+        return False
+    return int(match.group(2)) in touched.get(match.group(1), set())
+
+
 async def _judge_against_the_criteria(
     llm: Any, *, path: Path, issue_key: str, spec: dict[str, Any], emit: Callable[[str], None]
 ) -> Any:
@@ -746,15 +840,20 @@ async def run_feature(
         result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
         iterations += 1
         emit(f"[run_tests #{iterations}] passed={result.passed} rc={result.returncode}")
+        failures = result.output
         if result.passed:
-            passed = True
-            break
+            # Green is necessary and not sufficient. The generated tests are written by the
+            # same model as the code and routinely exercise a new helper directly while never
+            # importing the module the ticket was about — so they pass over a NameError or a
+            # wrong attribute sitting on the line that matters. The type checker does not.
+            failures = await _typecheck_the_change(path, testenv, await _changed_files(path), emit)
+            if not failures:
+                passed = True
+                break
         if iterations >= max_refine:
             break
         with llm.stage("refine"):
-            change = await codegen.refine(
-                spec=spec, path=str(path), issue_key=issue_key, failures=result.output
-            )
+            change = await codegen.refine(spec=spec, path=str(path), issue_key=issue_key, failures=failures)
         emit(f"[refine] {[Path(f).name for f in change.files]} - {change.summary}")
         if not change.files:
             # Refine only edits files. Having changed none, the next run is

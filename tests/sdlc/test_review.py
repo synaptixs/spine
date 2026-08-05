@@ -202,8 +202,8 @@ async def test_a_non_python_change_is_not_judged_blind(tmp_path: Path) -> None:
 
 
 async def test_an_oversized_file_does_not_hide_the_rest_of_the_change(tmp_path: Path) -> None:
-    """One big file used to end the loop, dropping every file after it. A judge that cannot
-    see a file calls it missing, so silent truncation reads as an unmet criterion."""
+    """A judge that cannot see a file calls it missing, so silent truncation reads as an
+    unmet criterion. Nothing may vanish without the prompt saying so."""
     from orchestrator.sdlc.review import _MAX_SOURCE_BYTES
 
     (tmp_path / "aaa_huge.py").write_text("# " + "x" * (_MAX_SOURCE_BYTES + 10), encoding="utf-8")
@@ -213,9 +213,27 @@ async def test_an_oversized_file_does_not_hide_the_rest_of_the_change(tmp_path: 
     await adapter.review(path=str(tmp_path), issue_key="SDLC-1", spec=SPEC)
 
     assert "the documentation the ticket asked for" in llm.last_user
-    assert "omitted for size" in llm.last_user
     assert "aaa_huge.py" in llm.last_user
     assert "NOT evidence" in llm.last_user
+
+
+async def test_a_file_too_big_to_show_whole_is_windowed_for_the_judge(tmp_path: Path) -> None:
+    """The live blind spot: the judge reported "the critical `mcp contracts` CLI rendering
+    code is in the omitted cli.py", returned six uncertain criteria, and the change was
+    committed with a real bug on the very line it could not see."""
+    from orchestrator.sdlc.review import _MAX_SOURCE_BYTES
+
+    target = "def mcp_contracts(json_out: bool) -> None:"
+    filler = "\n".join(f"def pad_{i}() -> int:\n    return {i}\n" for i in range(_MAX_SOURCE_BYTES // 20))
+    half = len(filler) // 2
+    (tmp_path / "cli.py").write_text(filler[:half] + f"\n{target}\n" + filler[half:], encoding="utf-8")
+
+    spec = {"title": "t", "acceptance_criteria": ["`mcp_contracts` shows the argument type"]}
+    adapter, llm = _judge({"criteria": [{"criterion": "shows type", "status": "met"}]})
+    await adapter.review(path=str(tmp_path), issue_key="SDLC-1", spec=spec)
+
+    assert target in llm.last_user  # the judge can now see the code it is judging
+    assert "lines not shown" in llm.last_user
 
 
 class _ToolJudgeLLM:

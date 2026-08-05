@@ -21,6 +21,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from orchestrator.core.llm import LLMClient, Message, ToolSpec
 from orchestrator.core.prompt_safety import fence_untrusted
+from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 
 logger = logging.getLogger("orchestrator.sdlc.review")
 
@@ -195,7 +196,7 @@ class SemanticReviewAdapter:
                 verdict="comment",
                 summary="semantic review skipped: spec has no acceptance criteria",
             )
-        source = _read_source(Path(path))
+        source = _read_source(Path(path), criteria)
         if not source:
             return ReviewResult(
                 verdict="request_changes",
@@ -257,7 +258,7 @@ class SemanticReviewAdapter:
         return ReviewResult(verdict="approve", summary=summary or "all acceptance criteria met")
 
 
-def _read_source(root: Path) -> str:
+def _read_source(root: Path, criteria: list[str]) -> str:
     """This change's reviewable files as a labeled prompt block.
 
     Prefers ``git status`` to find the session's new/changed files (the
@@ -291,35 +292,20 @@ def _read_source(root: Path) -> str:
             if p.is_file() and p.suffix.lower() in _REVIEWABLE_SUFFIXES and ".git" not in p.parts
         ]
 
-    chunks: list[str] = []
-    omitted: list[str] = []
-    budget = _MAX_SOURCE_BYTES
-    for file in files:
-        rel_name = str(file.resolve().relative_to(root.resolve()))
-        try:
-            body = file.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            continue
-        block = f"--- {rel_name} ---\n{body}\n"
-        if len(block) > budget:
-            # Skip rather than stop: one oversized module used to drop every file
-            # after it, and a judge that cannot see a file reports it as missing
-            # rather than as unread. Losing the rest of the change to the first big
-            # file in it is exactly how a met criterion reads as unmet.
-            omitted.append(rel_name)
-            continue
-        budget -= len(block)
-        chunks.append(block)
-    if omitted:
-        # Bound honestly: say what was elided, and say what its absence does not mean.
-        # Silence here is indistinguishable from the file not existing.
-        chunks.append(
-            f"--- [{len(omitted)} file(s) omitted for size: {', '.join(omitted)}] ---\n"
-            "These files are part of the change but too large to include. Their absence "
-            "from this block is NOT evidence that they are missing or that a criterion "
-            "they would satisfy is unmet.\n"
-        )
-    return "".join(chunks)
+    # Windowed, not all-or-nothing. Omitting a file outright was the judge's last blind
+    # spot: it correctly reported that "the critical `mcp contracts` CLI rendering code is
+    # in the omitted cli.py" and returned six uncertain criteria, and uncertain is not a
+    # blocker, so a change with a real bug on the very line it could not see was committed.
+    # The anchors are the criteria themselves, which name the code they are about.
+    return _excerpt_files(
+        root,
+        [str(f.resolve().relative_to(root.resolve())) for f in files],
+        budget=_MAX_SOURCE_BYTES,
+        anchors_by_path={
+            str(f.resolve().relative_to(root.resolve())): _spec_anchors(" ".join(criteria)) for f in files
+        },
+        label="changed",
+    )
 
 
 def _loads_json_object(text: str) -> dict[str, Any] | None:

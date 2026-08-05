@@ -984,3 +984,58 @@ async def test_the_gate_is_not_reached_by_a_failing_change(
         await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget", gate=_gate)
 
     assert not asked
+
+
+# ---- green tests are necessary, not sufficient (SSPN-14) ----
+
+
+async def test_a_type_error_on_a_changed_line_is_not_green(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Three runs committed code the repo's own `mypy src tests` rejects — a missing
+    `from typing import Any` twice, and an attribute the class does not have once. Each was
+    one deterministic line of output, and each shipped, because the generated tests exercise
+    new helpers directly and never import the module the ticket was about."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    calls = {"n": 0}
+
+    async def _typecheck(path: Path, testenv: Any, files: list[str], emit: Any) -> str:
+        calls["n"] += 1
+        # Clean only once the refine pass has run — the loop must not call it green before.
+        return "" if calls["n"] > 1 else 'cli.py:1117: error: "MCPToolHandler" has no attribute'
+
+    monkeypatch.setattr(fr, "_typecheck_the_change", _typecheck)
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_EditingCodegen)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", _Judge("approve"))
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+    assert result.passed
+    assert created[0].refine_calls == 1  # the type error went back to refine, like a failure
+
+
+async def test_the_type_errors_are_what_refine_is_given(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Refine has to see the type errors, not the green pytest output it would learn nothing from."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    seen: list[str] = []
+
+    class _RecordingCodegen(_StubCodegen):
+        async def refine(self, **kwargs: Any) -> CodeChange:
+            self.refine_calls += 1
+            seen.append(str(kwargs.get("failures")))
+            return CodeChange(files=["src/x.py"], summary="fixed the type error")
+
+    async def _typecheck(path: Path, testenv: Any, files: list[str], emit: Any) -> str:
+        return "" if seen else "TYPE ERRORS introduced by this change (fix these):\ncli.py:1117: error: boom"
+
+    monkeypatch.setattr(fr, "_typecheck_the_change", _typecheck)
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_RecordingCodegen)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", _Judge("approve"))
+
+    await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+    assert seen and "cli.py:1117" in seen[0]
