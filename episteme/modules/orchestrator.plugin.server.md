@@ -178,7 +178,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:381`](../../src/orchestrator/plugin/server.py#L381)
 
 - **Called by** (0 production · 3 test): [`test_root_cause_deterministic_by_default`](../../tests/plugin/test_server.py#L167), [`test_root_cause_llm_without_model_errors`](../../tests/plugin/test_server.py#L185), [`test_root_cause_requires_a_bug`](../../tests/plugin/test_server.py#L181)
-- **Calls** (6): [`_repo_store`](../../src/orchestrator/plugin/server.py#L166), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L211), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `orchestrator.core.llm.LiteLLMClient`, [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L249), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L43)
+- **Calls** (6): [`_repo_store`](../../src/orchestrator/plugin/server.py#L166), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L211), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `orchestrator.core.llm.LiteLLMClient`, [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L249), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L44)
 - **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`, `docs/specs/comprehension-skill-spec.md#design-decisions`, `docs/specs/comprehension-skill-spec.md#open-questions`
 
 ### `sdlc_decide_gate`
