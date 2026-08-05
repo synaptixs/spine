@@ -121,7 +121,11 @@ class CodegenAdapter(Protocol):
         mcp_servers: list[str] | None = None,
     ) -> CodeChange: ...
 
-    async def author_tests(self, *, spec: dict[str, Any], path: str, issue_key: str) -> CodeChange: ...
+    async def author_tests(
+        self, *, spec: dict[str, Any], path: str, issue_key: str, gaps: list[str] | None = None
+    ) -> CodeChange:
+        """``gaps`` names changed files no test exercises — write tests that reach them."""
+        ...
 
     async def refine(
         self, *, spec: dict[str, Any], path: str, issue_key: str, failures: str
@@ -196,8 +200,10 @@ class StubCodegenAdapter:
         )
         return CodeChange(files=[str(module)], summary=f"wrote {_GENERATED_MODULE}")
 
-    async def author_tests(self, *, spec: dict[str, Any], path: str, issue_key: str) -> CodeChange:
-        _ = spec
+    async def author_tests(
+        self, *, spec: dict[str, Any], path: str, issue_key: str, gaps: list[str] | None = None
+    ) -> CodeChange:
+        _ = (spec, gaps)
         test = Path(path) / _GENERATED_TEST
         test.write_text(
             "from generated import feature\n\n\n"
@@ -432,8 +438,17 @@ _TESTS_SYSTEM = (
     "the SPEC names one) uses `edits` — typically anchoring on the file's "
     "final lines and appending the new test functions. Import the source by "
     "its top-level module name. Each acceptance criterion should map to at "
-    "least one assertion. Tests must pass against the given source."
+    "least one assertion. Tests must pass against the given source.\n\n"
+    "A criterion phrased as behaviour — *when the user runs `some command`, the output "
+    "shows …* — must be exercised through THAT entry point: invoke the command or "
+    "function the criterion names and assert on what it returns or prints. A test that "
+    "calls an internal helper directly does not test the criterion, however thorough it "
+    "is; the wiring between the entry point and the helper is where the bug lives."
 )
+# The rule above is not style advice. A change shipped with a correct, exhaustively tested
+# helper wired into the CLI through a guard that was always false, so every argument printed
+# `any` — and the suite was green, because every test called the helper directly and nothing
+# ever called the command. `_files_no_test_exercises` is the enforcement; this is the ask.
 
 _REFINE_SYSTEM = (
     "You are fixing failing tests. You are given the SPEC, the CURRENT FILES, "
@@ -1346,14 +1361,16 @@ class LLMCodegenAdapter:
         """The agentic implement system prompt, persona/skill-conditioned (implement phase)."""
         return self._condition_system(_AGENTIC_IMPLEMENT_SYSTEM, skills, phase="implement")
 
-    async def author_tests(self, *, spec: dict[str, Any], path: str, issue_key: str) -> CodeChange:
+    async def author_tests(
+        self, *, spec: dict[str, Any], path: str, issue_key: str, gaps: list[str] | None = None
+    ) -> CodeChange:
         root = Path(path)
         return await self._generate(
             self._condition_system(self._tests_system(), self._skills, phase="author_tests"),
             f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}\n\n"
             f"CURRENT SOURCE FILES:\n{self._session_files(root, include_tests=False)}"
-            f"{self._convention_block(root)}",
+            f"{self._convention_block(root)}{_coverage_gap_block(gaps or [])}",
             root,
         )
 
@@ -1867,6 +1884,25 @@ def _safe_target(root: Path, rel: str) -> Path:
 
 
 _PATH_RE = re.compile(r"\b((?:src/|tests/)[\w./-]+\.py)\b")
+
+
+def _coverage_gap_block(gaps: list[str]) -> str:
+    """Name the files whose changes no test reaches, or ''.
+
+    Deterministic evidence, not a hunch: each of these was reverted on its own and the suite
+    stayed green, which means nothing in it depends on the change.
+    """
+    if not gaps:
+        return ""
+    names = "\n".join(f"- {g}" for g in gaps)
+    return (
+        "\n\nNOT YET EXERCISED — each file below was reverted on its own and the tests still "
+        "passed, so nothing you have written depends on its change:\n"
+        f"{names}\n"
+        "Write tests that fail if those specific changes are reverted. Reach them the way a "
+        "user does — through the command or public function that was changed, not through a "
+        "helper it calls, or the same gap will still be there.\n"
+    )
 
 
 def _named_existing_files(spec: dict[str, Any], root: Path, design: str = "") -> str:
