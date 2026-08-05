@@ -118,7 +118,7 @@ async def _prove_the_tests_test_something(
 
 async def _judge_against_the_criteria(
     llm: Any, *, path: Path, issue_key: str, spec: dict[str, Any], emit: Callable[[str], None]
-) -> None:
+) -> Any:
     """Does the change satisfy the ticket — not merely its own tests?
 
     Regex verifiers check for secrets and style; the test suite checks the code against tests
@@ -127,7 +127,7 @@ async def _judge_against_the_criteria(
     entirely and left the requested behaviour exactly as it was.
 
     The judge reads spec and code, never the codegen conversation, so it cannot rationalise
-    the generator's choices. Any unmet criterion stops the run before a PR exists.
+    the generator's choices. Returns the verdict; acting on it is the caller's job.
     """
     from orchestrator.sdlc.review import SemanticReviewAdapter
 
@@ -136,10 +136,125 @@ async def _judge_against_the_criteria(
     if verdict.uncertain:
         emit(f"[judge] uncertain on {len(verdict.uncertain)}: {'; '.join(verdict.uncertain[:2])}")
     if verdict.verdict == "request_changes":
-        blockers = "; ".join(verdict.blockers) or verdict.summary
-        emit(f"[judge] REQUEST_CHANGES — {blockers}")
-        raise FeatureRunError(f"VERDICT: FAILED — the change does not satisfy the ticket: {blockers}", code=1)
-    emit(f"[judge] {verdict.verdict} — {verdict.summary or 'criteria met'}")
+        emit(f"[judge] REQUEST_CHANGES — {'; '.join(verdict.blockers) or verdict.summary}")
+    else:
+        emit(f"[judge] {verdict.verdict} — {verdict.summary or 'criteria met'}")
+    return verdict
+
+
+async def _satisfy_the_ticket(
+    llm: Any,
+    *,
+    codegen: Any,
+    runner: Any,
+    testenv: Any,
+    path: Path,
+    issue_key: str,
+    spec: dict[str, Any],
+    max_revisions: int,
+    max_repairs: int,
+    emit: Callable[[str], None],
+) -> None:
+    """Judge the change, and give it a bounded chance to answer.
+
+    The judge arrived able only to veto: a rejection ended the run outright. That made any
+    criterion the generator was never told to satisfy an unwinnable ticket — most visibly a
+    request for documentation, which every implement prompt forbids ("write source files
+    only") and which the judge then failed the run for missing. Re-running walked into the
+    same wall, deterministically, forever.
+
+    A red suite already had this: failures go back to ``refine``. This is the same shape for
+    the other kind of failure, with two conditions a test-failure loop does not need — the
+    suite is re-run after each revision, because a change made to satisfy a reviewer must not
+    break the code, and a revision that edits nothing stops the loop, because the next judge
+    call would be asked about byte-identical files.
+
+    A revision that *does* break the suite is repaired rather than fatal (see
+    ``_repair_after_revision``); only a break that survives repair ends the run.
+    """
+    from orchestrator.sdlc.testenv import run_with_autoheal
+
+    blockers: list[str] = []
+    for attempt in range(max_revisions + 1):
+        verdict = await _judge_against_the_criteria(llm, path=path, issue_key=issue_key, spec=spec, emit=emit)
+        if verdict.verdict != "request_changes":
+            return
+        blockers = list(verdict.blockers) or [verdict.summary]
+        if attempt >= max_revisions:
+            break
+        with llm.stage("revise"):
+            change = await codegen.revise(spec=spec, path=str(path), issue_key=issue_key, blockers=blockers)
+        emit(f"[revise] {[Path(f).name for f in change.files]} - {change.summary}")
+        if not change.files:
+            emit("[revise] no file changes — the judge's points are not answerable by editing; stopping")
+            break
+        result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
+        emit(f"[run_tests after revise] passed={result.passed} rc={result.returncode}")
+        if not result.passed:
+            # Shipping here would trade a documentation gap for broken code — but ending
+            # the run is not the only alternative. A red suite after a revision is the
+            # ordinary refine case, and refine is right there: the live failure was one
+            # stray keyword argument to a model that forbids extras, a one-line repair
+            # the run had every tool to make and no path to making.
+            repaired = await _repair_after_revision(
+                llm,
+                codegen=codegen,
+                runner=runner,
+                testenv=testenv,
+                path=path,
+                issue_key=issue_key,
+                spec=spec,
+                failures=result.output,
+                max_passes=max_repairs,
+                emit=emit,
+            )
+            if not repaired:
+                raise FeatureRunError(
+                    "VERDICT: FAILED — the revision answering the reviewer broke the test "
+                    "suite and could not be repaired.",
+                    code=1,
+                )
+    raise FeatureRunError(
+        f"VERDICT: FAILED — the change does not satisfy the ticket: {'; '.join(blockers)}", code=1
+    )
+
+
+async def _repair_after_revision(
+    llm: Any,
+    *,
+    codegen: Any,
+    runner: Any,
+    testenv: Any,
+    path: Path,
+    issue_key: str,
+    spec: dict[str, Any],
+    failures: str,
+    max_passes: int,
+    emit: Callable[[str], None],
+) -> bool:
+    """Get the suite green again after a revision broke it. True if it recovered.
+
+    Deliberately ``refine`` and not another ``revise``: the reviewer's point is already
+    addressed in the worktree, and what is wrong now is that the code does not run. Asking
+    the acceptance-criteria prompt to fix a stack trace aims the model at the wrong problem
+    — and refine already forbids editing tests to make a broken implementation look right,
+    which is the failure mode that matters when a model is under pressure to stay green.
+    """
+    from orchestrator.sdlc.testenv import run_with_autoheal
+
+    for _ in range(max_passes):
+        with llm.stage("refine"):
+            change = await codegen.refine(spec=spec, path=str(path), issue_key=issue_key, failures=failures)
+        emit(f"[repair] {[Path(f).name for f in change.files]} - {change.summary}")
+        if not change.files:
+            emit("[repair] no file changes — the break is not fixable by editing; stopping")
+            return False
+        result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
+        emit(f"[run_tests after repair] passed={result.passed} rc={result.returncode}")
+        if result.passed:
+            return True
+        failures = result.output
+    return False
 
 
 def _is_test_path(rel: str) -> bool:
@@ -256,6 +371,14 @@ async def run_feature(
     repo: str | None = None,
     model: str | None = None,
     max_refine: int = 3,
+    # Answering a reviewer is a smaller job than debugging a red suite, and each pass costs a
+    # codegen call plus a full test run. Two is enough for the common case (one missed
+    # criterion, one correction) without letting a model argue with the judge indefinitely.
+    max_judge_revisions: int = 2,
+    # A revision that reddens the suite gets a repair pass rather than ending the run. Small
+    # on purpose: this is "undo the one thing you just broke", not a second debugging budget,
+    # and it is spent inside a revision that has already cost a codegen call and a test run.
+    max_revision_repairs: int = 2,
     live: bool = False,
     issue: str | None = None,
     design: str = "",
@@ -634,7 +757,21 @@ async def run_feature(
 
     if passed:
         await _prove_the_tests_test_something(path, files, runner, emit)
-        await _judge_against_the_criteria(llm, path=path, issue_key=issue_key, spec=spec, emit=emit)
+        await _satisfy_the_ticket(
+            llm,
+            codegen=codegen,
+            runner=runner,
+            testenv=testenv,
+            path=path,
+            issue_key=issue_key,
+            spec=spec,
+            max_revisions=max_judge_revisions,
+            max_repairs=max_revision_repairs,
+            emit=emit,
+        )
+        # A revision may have added a file no earlier stage touched (a doc, most often),
+        # so the PR's file list has to be taken after the judge is satisfied, not before.
+        files = await _changed_files(path)
 
     if not passed:
         # A failed run is where the spend most needs explaining — it bought no PR.

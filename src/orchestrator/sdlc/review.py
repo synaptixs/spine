@@ -27,6 +27,49 @@ logger = logging.getLogger("orchestrator.sdlc.review")
 _JUDGE_MODEL = "claude-sonnet-4-6"
 _MAX_SOURCE_BYTES = 60_000
 
+# What the judge is allowed to read.
+#
+# This was ``.py`` and nothing else, which made a whole class of criterion not merely
+# unjudgeable but indistinguishable from unmet. A run wrote the documentation its ticket
+# demanded — twice, on two revision passes — and the judge answered "no documentation file
+# is present in the changed files" both times, correctly, because no ``.md`` ever reached
+# its prompt. The ticket could not be satisfied by any change, however right.
+#
+# The same hole covered every non-Python language the pipeline generates: a Java or Go
+# change was judged on its Python files, of which there are none.
+_REVIEWABLE_SUFFIXES = frozenset(
+    {
+        # source
+        ".py",
+        ".java",
+        ".go",
+        ".c",
+        ".h",
+        ".cc",
+        ".cpp",
+        ".hpp",
+        ".cs",
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".sql",
+        ".sh",
+        # documentation — a criterion can require these, so the judge must see them
+        ".md",
+        ".rst",
+        ".txt",
+        ".adoc",
+        # declared behaviour: deps, settings, and build config a criterion can name
+        ".toml",
+        ".cfg",
+        ".ini",
+        ".yaml",
+        ".yml",
+        ".json",
+    }
+)
+
 
 @dataclass(frozen=True)
 class ReviewResult:
@@ -159,11 +202,11 @@ class SemanticReviewAdapter:
 
 
 def _read_source(root: Path) -> str:
-    """This change's ``.py`` files as a labeled prompt block.
+    """This change's reviewable files as a labeled prompt block.
 
     Prefers ``git status`` to find the session's new/changed files (the
-    worktree is a real repo checkout); falls back to all ``.py`` files for
-    bare directories (Block C's empty-worktree mode).
+    worktree is a real repo checkout); falls back to a scan for bare
+    directories (Block C's empty-worktree mode).
     """
     import subprocess
 
@@ -183,23 +226,43 @@ def _read_source(root: Path) -> str:
         for line in proc.stdout.splitlines():
             rel = line[3:].strip().strip('"')
             candidate = root / rel
-            if candidate.suffix == ".py" and candidate.exists():
+            if candidate.suffix.lower() in _REVIEWABLE_SUFFIXES and candidate.exists():
                 files.append(candidate)
     if not files:
-        files = [p for p in sorted(root.rglob("*.py")) if ".git" not in p.parts]
+        files = [
+            p
+            for p in sorted(root.rglob("*"))
+            if p.is_file() and p.suffix.lower() in _REVIEWABLE_SUFFIXES and ".git" not in p.parts
+        ]
 
     chunks: list[str] = []
+    omitted: list[str] = []
     budget = _MAX_SOURCE_BYTES
     for file in files:
+        rel_name = str(file.resolve().relative_to(root.resolve()))
         try:
             body = file.read_text(encoding="utf-8")
-        except OSError:
+        except (OSError, UnicodeDecodeError):
             continue
-        block = f"--- {file.resolve().relative_to(root.resolve())} ---\n{body}\n"
+        block = f"--- {rel_name} ---\n{body}\n"
         if len(block) > budget:
-            break
+            # Skip rather than stop: one oversized module used to drop every file
+            # after it, and a judge that cannot see a file reports it as missing
+            # rather than as unread. Losing the rest of the change to the first big
+            # file in it is exactly how a met criterion reads as unmet.
+            omitted.append(rel_name)
+            continue
         budget -= len(block)
         chunks.append(block)
+    if omitted:
+        # Bound honestly: say what was elided, and say what its absence does not mean.
+        # Silence here is indistinguishable from the file not existing.
+        chunks.append(
+            f"--- [{len(omitted)} file(s) omitted for size: {', '.join(omitted)}] ---\n"
+            "These files are part of the change but too large to include. Their absence "
+            "from this block is NOT evidence that they are missing or that a criterion "
+            "they would satisfy is unmet.\n"
+        )
     return "".join(chunks)
 
 

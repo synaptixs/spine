@@ -61,6 +61,7 @@ class LiteLLMClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
         tools: list[ToolSpec] | None = None,
+        tool_choice: str | None = None,
     ) -> CompletionResult:
         import litellm  # imported lazily so unit tests can mock the symbol
 
@@ -76,6 +77,14 @@ class LiteLLMClient:
         }
         if tools:
             params["tools"] = [t.to_dict() for t in tools]
+            # Forcing a named tool is the one output-shape constraint every provider
+            # honors: litellm maps this to OpenAI's `tool_choice` and to Anthropic's
+            # `{"type": "tool", "name": ...}`. The model cannot answer with prose,
+            # so the arguments arrive schema-valid instead of needing to be parsed
+            # out of whatever it decided to say (see `json_object` below, which
+            # Anthropic has no equivalent for and drops).
+            if tool_choice:
+                params["tool_choice"] = {"type": "function", "function": {"name": tool_choice}}
         # Newer reasoning models (e.g. claude-opus-4-7) reject `temperature`
         # entirely. Only forward it when the caller explicitly opts in.
         if temperature is not None:

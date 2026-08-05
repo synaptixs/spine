@@ -32,6 +32,7 @@ class _JudgeLLM:
         temperature: float | None = None,
         max_tokens: int | None = None,
         tools: object = None,
+        tool_choice: str | None = None,
     ) -> CompletionResult:
         self.last_user = messages[-1].content
         text = self._payload if isinstance(self._payload, str) else json.dumps(self._payload)
@@ -163,3 +164,55 @@ async def test_new_untracked_directory_source_is_seen(tmp_path: Path) -> None:
 
     assert "src/orchestrator/notify/slack.py" in llm.last_user
     assert "class Notifier" in llm.last_user
+
+
+async def test_a_documentation_change_reaches_the_judge(tmp_path: Path) -> None:
+    """The live dead end: a ticket required a doc, the pipeline wrote the doc, and the judge
+    reported it missing — because it was shown ``.py`` files only, so the ``.md`` never
+    entered its prompt. Two revision passes wrote USER_GUIDE.md and both were judged blind."""
+    import subprocess
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    (tmp_path / "seed.txt").write_text("seed\n", encoding="utf-8")
+    subprocess.run(["git", "add", "seed.txt"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
+
+    (tmp_path / "export.py").write_text("def export_csv(rows):\n    return 'a,b'\n", encoding="utf-8")
+    (tmp_path / "USER_GUIDE.md").write_text("## Step 9\n\nArgument types are shown.\n", encoding="utf-8")
+
+    adapter, llm = _judge({"criteria": [{"criterion": "exports a CSV file", "status": "met"}]})
+    await adapter.review(path=str(tmp_path), issue_key="SDLC-1", spec=SPEC)
+
+    assert "USER_GUIDE.md" in llm.last_user
+    assert "Argument types are shown." in llm.last_user
+
+
+async def test_a_non_python_change_is_not_judged_blind(tmp_path: Path) -> None:
+    """The pipeline generates Java, Go and C too; judging those on their Python files
+    means judging an empty change."""
+    (tmp_path / "Export.java").write_text("class Export { void run() {} }\n", encoding="utf-8")
+
+    adapter, llm = _judge({"criteria": [{"criterion": "exports a CSV file", "status": "met"}]})
+    result = await adapter.review(path=str(tmp_path), issue_key="SDLC-1", spec=SPEC)
+
+    assert "Export.java" in llm.last_user
+    assert result.verdict == "approve"
+
+
+async def test_an_oversized_file_does_not_hide_the_rest_of_the_change(tmp_path: Path) -> None:
+    """One big file used to end the loop, dropping every file after it. A judge that cannot
+    see a file calls it missing, so silent truncation reads as an unmet criterion."""
+    from orchestrator.sdlc.review import _MAX_SOURCE_BYTES
+
+    (tmp_path / "aaa_huge.py").write_text("# " + "x" * (_MAX_SOURCE_BYTES + 10), encoding="utf-8")
+    (tmp_path / "zzz_small.md").write_text("the documentation the ticket asked for\n", encoding="utf-8")
+
+    adapter, llm = _judge({"criteria": [{"criterion": "exports a CSV file", "status": "met"}]})
+    await adapter.review(path=str(tmp_path), issue_key="SDLC-1", spec=SPEC)
+
+    assert "the documentation the ticket asked for" in llm.last_user
+    assert "omitted for size" in llm.last_user
+    assert "aaa_huge.py" in llm.last_user
+    assert "NOT evidence" in llm.last_user

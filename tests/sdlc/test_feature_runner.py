@@ -99,6 +99,8 @@ class _StubCodegen:
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.refine_calls = 0
+        self.revise_calls = 0
+        self.blockers_seen: list[list[str]] = []
         self.layout = kwargs.get("layout")
 
     async def implement(self, **kwargs: Any) -> CodeChange:
@@ -110,6 +112,11 @@ class _StubCodegen:
     async def refine(self, **kwargs: Any) -> CodeChange:
         self.refine_calls += 1
         return CodeChange()  # no-op refine — must NOT crash the loop
+
+    async def revise(self, **kwargs: Any) -> CodeChange:
+        self.revise_calls += 1
+        self.blockers_seen.append(list(kwargs.get("blockers") or []))
+        return CodeChange()  # answers nothing — the judge loop must stop, not spin
 
 
 class _FailingRunner:
@@ -183,18 +190,26 @@ class _FakeJira:
 
 
 class _Judge:
-    """Stands in for the semantic judge."""
+    """Stands in for the semantic judge.
 
-    def __init__(self, verdict: str = "approve", blockers: list[str] | None = None) -> None:
-        self.verdict, self.blockers = verdict, blockers or []
+    ``verdict`` may be a single verdict held for every call, or a list read in order —
+    the latter is how a reviewer that rejects once and approves the correction is
+    expressed. A list shorter than the number of calls holds on its last entry.
+    """
+
+    def __init__(self, verdict: str | list[str] = "approve", blockers: list[str] | None = None) -> None:
+        self.verdicts = [verdict] if isinstance(verdict, str) else list(verdict)
+        self.blockers = blockers or []
         self.calls = 0
 
     def __call__(self, llm: Any, **kwargs: Any) -> Any:
         return self
 
     async def review(self, *, path: str, issue_key: str, spec: Any = None) -> Any:
+        verdict = self.verdicts[min(self.calls, len(self.verdicts) - 1)]
         self.calls += 1
-        return SimpleNamespace(verdict=self.verdict, blockers=self.blockers, summary="judged", uncertain=[])
+        blockers = self.blockers if verdict == "request_changes" else []
+        return SimpleNamespace(verdict=verdict, blockers=blockers, summary="judged", uncertain=[])
 
 
 def _install_pipeline(
@@ -673,7 +688,7 @@ async def test_a_change_that_does_not_satisfy_the_ticket_is_stopped(
     suite nor the verifiers ask the only question the person who filed the ticket cares about.
     """
     judge = _Judge("request_changes", ["`mcp contracts` still shows names only"])
-    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
     monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", judge)
 
     with pytest.raises(FeatureRunError, match="does not satisfy the ticket") as exc:
@@ -681,7 +696,11 @@ async def test_a_change_that_does_not_satisfy_the_ticket_is_stopped(
 
     assert exc.value.code == 1
     assert "still shows names only" in str(exc.value)
+    # The stub's revise answers nothing, so the loop stops on the first empty revision
+    # rather than re-judging identical files.
     assert judge.calls == 1
+    assert created[0].revise_calls == 1
+    assert created[0].blockers_seen == [["`mcp contracts` still shows names only"]]
 
 
 async def test_a_satisfying_change_proceeds(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -717,3 +736,160 @@ def test_test_paths_are_recognised() -> None:
     assert _is_test_path("src/pkg/thing_test.py")
     assert not _is_test_path("src/orchestrator/mcp/contract.py")
     assert not _is_test_path("src/latest/protest.py")
+
+
+# ---- the judge must be able to ask for a correction, not only veto (SSPN-14) ----
+
+
+class _RevisingCodegen(_StubCodegen):
+    """Answers the reviewer with a real edit — a doc, the case that motivated this."""
+
+    async def revise(self, **kwargs: Any) -> CodeChange:
+        self.revise_calls += 1
+        self.blockers_seen.append(list(kwargs.get("blockers") or []))
+        return CodeChange(files=["USER_GUIDE.md"], summary="documented the new output")
+
+
+async def test_a_rejected_change_gets_a_chance_to_answer(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The live dead end: a ticket asking for documentation could never pass, because the
+    judge required a doc and every codegen prompt forbade writing one, with no path from the
+    rejection back into codegen. One rejection, one revision, one approval — and it ships."""
+    judge = _Judge(["request_changes", "approve"], ["documented in USER_GUIDE step 9"])
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_RevisingCodegen)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", judge)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+    assert result.passed
+    assert judge.calls == 2  # rejected, then asked again about the corrected change
+    assert created[0].revise_calls == 1
+    assert created[0].blockers_seen == [["documented in USER_GUIDE step 9"]]
+
+
+async def test_a_judge_that_never_relents_stops_at_its_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A reviewer that cannot be satisfied must cost a bounded number of calls, not loop."""
+    judge = _Judge("request_changes", ["still unmet"])
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_RevisingCodegen)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", judge)
+
+    with pytest.raises(FeatureRunError, match="does not satisfy the ticket"):
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", repo="https://x/widget", max_judge_revisions=2
+        )
+
+    assert judge.calls == 3  # the first verdict plus one per revision
+    assert created[0].revise_calls == 2
+
+
+async def test_a_revision_that_breaks_the_tests_does_not_ship(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Satisfying a reviewer by breaking the code is not satisfying the ticket."""
+
+    class _GoesRedAfterRevision:
+        """Green until a revision happens, red afterwards."""
+
+        runs = 0
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            pass
+
+        async def run(self, *, path: str) -> SimpleNamespace:
+            _GoesRedAfterRevision.runs += 1
+            green = _GoesRedAfterRevision.runs <= 2  # first suite run + the proof run
+            return SimpleNamespace(passed=green, returncode=0 if green else 1, output="E   boom")
+
+    judge = _Judge("request_changes", ["needs a doc"])
+    _install_pipeline(monkeypatch, tmp_path, runner=_GoesRedAfterRevision, codegen=_RevisingCodegen)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", judge)
+
+    with pytest.raises(FeatureRunError, match="broke the test suite"):
+        await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+
+# ---- a revision that breaks the suite gets repaired, not abandoned (SSPN-14) ----
+
+_BROKEN = {"yes": False}
+
+
+class _RepairableCodegen(_StubCodegen):
+    """Revises by breaking the build, then repairs it — the live shape exactly: the
+    revision added one keyword argument to a model that forbids extras."""
+
+    async def revise(self, **kwargs: Any) -> CodeChange:
+        self.revise_calls += 1
+        self.blockers_seen.append(list(kwargs.get("blockers") or []))
+        _BROKEN["yes"] = True
+        return CodeChange(files=["USER_GUIDE.md"], summary="documented it")
+
+    async def refine(self, **kwargs: Any) -> CodeChange:
+        self.refine_calls += 1
+        _BROKEN["yes"] = False
+        return CodeChange(files=["src/orchestrator/mcp/contract.py"], summary="dropped the bad kwarg")
+
+
+class _UnrepairableCodegen(_RepairableCodegen):
+    """Edits on every repair pass and never actually fixes it — the budget must bound it."""
+
+    async def refine(self, **kwargs: Any) -> CodeChange:
+        self.refine_calls += 1
+        return CodeChange(files=["src/orchestrator/mcp/contract.py"], summary="still broken")
+
+
+class _RunnerTrackingCodegen:
+    """Green unless the codegen fakes have currently broken the tree."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        broken = _BROKEN["yes"]
+        return SimpleNamespace(
+            passed=not broken,
+            returncode=1 if broken else 0,
+            output="E   ValidationError: extra_forbidden 'display_type'" if broken else "1 passed",
+        )
+
+
+async def test_a_revision_that_breaks_the_suite_is_repaired_and_ships(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The run that motivated this: revision 2 answered the reviewer correctly and passed a
+    keyword argument to a Pydantic model with extra='forbid'. Dropping it is a one-line fix
+    the run had every tool to make and, until now, no path to making."""
+    _BROKEN["yes"] = False
+    judge = _Judge(["request_changes", "approve"], ["_type_label is dead code"])
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_RunnerTrackingCodegen, codegen=_RepairableCodegen
+    )
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", judge)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+    assert result.passed
+    assert created[0].revise_calls == 1
+    assert created[0].refine_calls == 1  # one repair pass was enough
+    assert judge.calls == 2  # and the judge was asked again about the repaired change
+
+
+async def test_an_unrepairable_break_still_stops_the_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Repair is bounded: code that stays red must never reach a PR, however many passes."""
+    _BROKEN["yes"] = False
+    judge = _Judge("request_changes", ["_type_label is dead code"])
+    created = _install_pipeline(
+        monkeypatch, tmp_path, runner=_RunnerTrackingCodegen, codegen=_UnrepairableCodegen
+    )
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", judge)
+
+    with pytest.raises(FeatureRunError, match="could not be repaired"):
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", repo="https://x/widget", max_revision_repairs=2
+        )
+
+    assert created[0].refine_calls == 2  # spent the budget, then stopped

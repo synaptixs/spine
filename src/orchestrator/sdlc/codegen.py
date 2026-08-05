@@ -16,6 +16,7 @@ they may do real I/O; the workflow only ever sees the returned dataclasses.
 
 from __future__ import annotations
 
+import difflib
 import json
 import logging
 import os
@@ -26,7 +27,7 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
-from orchestrator.core.llm import LLMClient, Message
+from orchestrator.core.llm import LLMClient, Message, ToolSpec
 from orchestrator.sdlc.layout import TargetLayout
 
 logger = logging.getLogger("orchestrator.sdlc.codegen")
@@ -122,6 +123,15 @@ class CodegenAdapter(Protocol):
         self, *, spec: dict[str, Any], path: str, issue_key: str, failures: str
     ) -> CodeChange: ...
 
+    async def revise(
+        self, *, spec: dict[str, Any], path: str, issue_key: str, blockers: list[str]
+    ) -> CodeChange:
+        """Answer a judge that rejected the change against the ticket's criteria.
+
+        Distinct from ``refine``: the suite is green and the gap is in what the ticket
+        asked for, not in what the code does when run."""
+        ...
+
     async def implement_governed(
         self,
         *,
@@ -202,6 +212,13 @@ class StubCodegenAdapter:
         _ = failures
         return await self.implement(spec=spec, path=path, issue_key=issue_key)
 
+    async def revise(
+        self, *, spec: dict[str, Any], path: str, issue_key: str, blockers: list[str]
+    ) -> CodeChange:
+        """The stub has nothing to say to a judge; an empty change stops the loop."""
+        _ = (spec, path, issue_key, blockers)
+        return CodeChange()
+
     async def implement_governed(
         self,
         *,
@@ -248,11 +265,16 @@ class CodegenError(RuntimeError):
         *,
         failed_edit_paths: list[str] | None = None,
         missing_edit_paths: list[str] | None = None,
+        failed_anchors: dict[str, list[str]] | None = None,
         parse_detail: str = "",
     ) -> None:
         super().__init__(message)
         self.failed_edit_paths = list(failed_edit_paths or [])
         self.missing_edit_paths = list(missing_edit_paths or [])
+        # The ``find`` snippets that did not match, per path. Wrong text, but a correct
+        # statement of where the model thinks it is working — which is what aims the
+        # excerpt when the file is too big to show whole.
+        self.failed_anchors = {k: list(v) for k, v in (failed_anchors or {}).items()}
         # Set when the output was not valid JSON at all. Carried explicitly rather than
         # inferred from two empty path lists: "no edits failed" and "nothing parsed" are
         # different failures and want different retries.
@@ -283,6 +305,72 @@ _FILE_FORMS = (
     "enough surrounding lines to make it unique. Never use `content` for a "
     "file that already exists, and never use `edits` for a new file. Output "
     "strict JSON: no comments, no trailing commas.\n"
+)
+
+# The same contract as `_FILE_FORMS`, as a tool the provider makes the model call.
+#
+# Asking for "ONE JSON object, no prose" is a request; a forced tool call is a
+# constraint the provider enforces. `json_object=True` was doing the enforcing
+# only on providers that have a JSON mode — Anthropic has none, so on the model
+# this pipeline actually runs the request was all there was, and codegen died on
+# prose preambles ("I'll analyze the existing code..."), mid-answer changes of
+# mind ("Let me reconsider..."), and PR blurbs appended after a valid payload.
+# Four parser patches chased those shapes before the missing constraint was the
+# thing that got fixed. The prompt still spells the contract out, because the
+# schema says nothing about *which* form to pick for a given file.
+_SUBMIT_TOOL = ToolSpec(
+    name="submit_files",
+    description=(
+        "Submit the complete set of file writes for this change. Call this exactly "
+        "once, with every file you are creating or editing."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "files": {
+                "type": "array",
+                "description": "One entry per file. Empty only when nothing needs changing.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Path relative to the worktree root — no leading slash, no '..'.",
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": (
+                                "Full file content. NEW files only — never for a file that exists."
+                            ),
+                        },
+                        "edits": {
+                            "type": "array",
+                            "description": (
+                                "Anchored find/replace. EXISTING files only — never for a new file."
+                            ),
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "find": {
+                                        "type": "string",
+                                        "description": (
+                                            "Snippet copied verbatim from the file's current content, "
+                                            "occurring exactly once in it."
+                                        ),
+                                    },
+                                    "replace": {"type": "string", "description": "Text to put in its place."},
+                                },
+                                "required": ["find", "replace"],
+                            },
+                        },
+                    },
+                    "required": ["path"],
+                },
+            },
+            "summary": {"type": "string", "description": "One line describing the change."},
+        },
+        "required": ["files"],
+    },
 )
 
 _IMPLEMENT_SYSTEM = (
@@ -352,6 +440,30 @@ _REFINE_SYSTEM = (
     "`content`; any other existing file must be changed via `edits`. Make the "
     "smallest change that turns the tests green. Same path rules as before — "
     "relative, no '..'."
+)
+
+# Answering the judge is a different job from fixing a red suite, and needs its own
+# prompt rather than a reuse of `_REFINE_SYSTEM`.
+#
+# Refine's whole framing is "the tests are red, make them green, touch implementation
+# only" — which is precisely wrong here: the tests are GREEN, and the criterion that
+# went unmet is frequently one no test covers. A ticket asking for documentation was
+# unsatisfiable by construction, because every implement prompt says "write source
+# files only" and refine says "implementation files only", so nothing in the pipeline
+# was ever permitted to write the doc the judge then failed the run for not writing.
+_REVISE_SYSTEM = (
+    "A reviewer read the SPEC and the code, and found acceptance criteria the change "
+    "does not meet. The test suite is already GREEN — you are not fixing a failure, "
+    "you are completing the work the ticket asked for.\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: address every point in UNMET CRITERIA, and change nothing else. Any file "
+    "the criteria require is in scope — including documentation (`.md`), configuration, "
+    "or a file no earlier stage touched; create it if the ticket calls for one that does "
+    "not exist. Do NOT weaken, delete, or rewrite existing tests to make a criterion look "
+    "satisfied — the suite must still pass afterwards. Files you created earlier this "
+    "session may be resent in full via `content`; any other existing file must be changed "
+    "via `edits`. Same path rules as before — relative, no '..'."
 )
 
 # Java (Maven/JUnit) variants — selected when the layout's language is "java".
@@ -1262,6 +1374,25 @@ class LLMCodegenAdapter:
             allow_empty=True,
         )
 
+    async def revise(
+        self, *, spec: dict[str, Any], path: str, issue_key: str, blockers: list[str]
+    ) -> CodeChange:
+        root = Path(path)
+        unmet = "\n".join(f"- {b}" for b in blockers)
+        return await self._generate(
+            self._condition_system(_REVISE_SYSTEM, self._skills, phase="refine"),
+            f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
+            f"SPEC:\n{_spec_text(spec)}\n\n"
+            f"CURRENT FILES:\n{self._session_files(root, include_tests=True)}"
+            f"{_named_existing_files(spec, root)}{self._convention_block(root)}\n\n"
+            f"UNMET CRITERIA (from the reviewer — every one must be addressed):\n{unmet}\n",
+            root,
+            # Same reasoning as refine: a model that judges it has nothing to add
+            # returns nothing, and the caller reads that as "cannot fix" and stops
+            # rather than crashing the run.
+            allow_empty=True,
+        )
+
     async def _generate(self, system: str, user: str, root: Path, *, allow_empty: bool = False) -> CodeChange:
         """One LLM call → apply, with a single anchor-repair retry.
 
@@ -1332,17 +1463,15 @@ class LLMCodegenAdapter:
                 "these ONLY via the `edits` form, copying every `find` snippet VERBATIM from this "
                 "content (whitespace included) — never resend an existing file's full content:\n"
             )
-            budget = _MAX_CONTEXT_BYTES
-            for rel in exc.failed_edit_paths:
-                try:
-                    body = (root / rel).read_text(encoding="utf-8")
-                except OSError:
-                    continue
-                block = f"--- {rel} (current content) ---\n{body}\n"
-                if len(block) > budget:
-                    break
-                budget -= len(block)
-                chunks.append(block)
+            chunks.append(
+                _excerpt_files(
+                    root,
+                    exc.failed_edit_paths,
+                    budget=_MAX_CONTEXT_BYTES,
+                    anchors_by_path=exc.failed_anchors,
+                    label="current content",
+                )
+            )
         return "".join(chunks)
 
     def _session_files(self, root: Path, *, include_tests: bool) -> str:
@@ -1374,9 +1503,23 @@ class LLMCodegenAdapter:
         result = await self._llm.complete(
             [Message(role="system", content=system), Message(role="user", content=user)],
             model=self._model,
-            json_object=True,  # codegen output is one JSON object — enforce it (Ollama/local reliability)
+            # Both levers, because they cover disjoint providers: the forced tool
+            # constrains anything with tool support (Anthropic, OpenAI), and
+            # `json_object` remains the only one a local Ollama model honors.
+            json_object=True,
             max_tokens=_MAX_COMPLETION_TOKENS,
+            tools=[_SUBMIT_TOOL],
+            tool_choice=_SUBMIT_TOOL.name,
         )
+        for call in result.tool_calls:
+            if call.name == _SUBMIT_TOOL.name:
+                # Re-serialized so the whole parse/apply/repair path downstream stays
+                # one code path — a forced call and a hand-parsed answer arrive at
+                # `_apply` identically, and the retry logic keeps working either way.
+                return json.dumps(call.arguments)
+        # A provider that ignored the tool still answers in text. That is the old
+        # path, unchanged and still guarded — not an error, just no free schema.
+        logger.warning("sdlc.codegen.no_tool_call len=%d", len(result.text))
         return result.text
 
     def _apply(self, text: str, root: Path, *, allow_empty: bool = False) -> CodeChange:
@@ -1429,6 +1572,7 @@ def apply_files(
     skipped: list[str] = []
     edit_failures: list[str] = []
     edit_failure_paths: list[str] = []
+    attempted_anchors: dict[str, list[str]] = {}
     missing_targets: list[str] = []  # edits aimed at a file that doesn't exist yet
     tracked_now = written_tracker.get(root.resolve(), [])
     for entry in files:
@@ -1458,6 +1602,9 @@ def apply_files(
             except CodegenError as exc:
                 edit_failures.append(str(exc))
                 edit_failure_paths.append(rel)
+                attempted_anchors[rel] = [
+                    e["find"] for e in edits if isinstance(e, dict) and isinstance(e.get("find"), str)
+                ]
                 logger.warning("sdlc.codegen.edit_failed", extra={"path": rel})
                 continue
             if len(patched.encode("utf-8")) > _MAX_PATCHED_FILE_BYTES:
@@ -1535,6 +1682,7 @@ def apply_files(
             f"changes need a repair pass{detail}",
             failed_edit_paths=unmodified_existing,
             missing_edit_paths=missing_targets,
+            failed_anchors=attempted_anchors,
         )
     if not written:
         detail = f" ({'; '.join(edit_failures)})" if edit_failures else ""
@@ -1698,6 +1846,152 @@ def _safe_target(root: Path, rel: str) -> Path:
 _PATH_RE = re.compile(r"\b((?:src/|tests/)[\w./-]+\.py)\b")
 
 
+def _anchor_line(lines: list[str], anchor: str) -> int | None:
+    """The line the model was probably aiming at when its ``find`` failed to match.
+
+    A failed anchor is still the best available statement of intent — it says which part
+    of the file the model believes it is editing, even when the text is wrong. Exact match
+    on a stripped line first, then the closest match, so a snippet that differs only in
+    indentation or a renamed identifier still lands in the right neighbourhood.
+    """
+    needles = [line.strip() for line in anchor.splitlines() if line.strip()]
+    if not needles:
+        return None
+    stripped = [line.strip() for line in lines]
+    for needle in needles:
+        if needle in stripped:
+            return stripped.index(needle)
+    for needle in needles:
+        close = difflib.get_close_matches(needle, stripped, n=1, cutoff=0.6)
+        if close:
+            return stripped.index(close[0])
+    return None
+
+
+def _grow_window(lines: list[str], center: int, budget: int) -> tuple[int, int]:
+    """Widen outward from ``center`` for as long as the budget allows.
+
+    Deliberately not a fixed line count: the window is as large as there is room for, so
+    a lone target file gets most of the pool and five files each get a fifth.
+    """
+    low = high = center
+    size = len(lines[center]) + 1
+    while size < budget and (low > 0 or high < len(lines) - 1):
+        grew = False
+        if low > 0 and size + len(lines[low - 1]) + 1 < budget:
+            low -= 1
+            size += len(lines[low]) + 1
+            grew = True
+        if high < len(lines) - 1 and size + len(lines[high + 1]) + 1 < budget:
+            high += 1
+            size += len(lines[high]) + 1
+            grew = True
+        if not grew:
+            break
+    return low, high
+
+
+def _excerpt_file(rel: str, body: str, *, budget: int, anchors: list[str], label: str) -> str:
+    """``rel``'s content for a prompt: whole when it fits, windowed when it doesn't.
+
+    The version of this that broke a run said "below is the CURRENT EXACT content" and
+    then appended nothing, because a 100 KB ``cli.py`` failed a ``len(block) > budget``
+    check and the loop moved on. A model told to copy an anchor verbatim from an empty
+    block can only guess, so every retry re-failed the same way and the run died having
+    never once seen the file it was editing.
+
+    Windows are placed by anchor and sized by what is left, never by a fixed constant,
+    and whatever is not shown is stated rather than dropped in silence.
+    """
+    lines = body.splitlines()
+    if not lines:
+        return ""
+    whole = f"--- {rel} ({label}) ---\n{body}\n"
+    if len(whole) <= budget:
+        return whole
+
+    centers: list[int] = []
+    for anchor in anchors:
+        found = _anchor_line(lines, anchor)
+        if found is not None and found not in centers:
+            centers.append(found)
+    if not centers:
+        # Nothing to aim at — the head of the file is still worth more than nothing,
+        # and the note below keeps it honest about being partial.
+        centers = [0]
+
+    per_window = max(budget // (len(centers) + 1), 400)
+    spans: list[tuple[int, int]] = []
+    for center in sorted(centers):
+        low, high = _grow_window(lines, center, per_window)
+        if spans and low <= spans[-1][1] + 1:
+            spans[-1] = (spans[-1][0], max(spans[-1][1], high))
+        else:
+            spans.append((low, high))
+
+    chunks: list[str] = []
+    shown = 0
+    for low, high in spans:
+        window = "\n".join(lines[low : high + 1])
+        # Line numbers go in the header, never in a gutter: the body has to stay
+        # byte-identical to the file or a `find` copied out of it will not anchor.
+        block = f"--- {rel} ({label} — excerpt, lines {low + 1}-{high + 1} of {len(lines)}) ---\n{window}\n"
+        if len(block) > budget - sum(len(c) for c in chunks):
+            break
+        chunks.append(block)
+        shown += high - low + 1
+    if not chunks:
+        return ""
+    chunks.append(
+        f"--- {rel}: {len(lines) - shown} of {len(lines)} lines not shown ---\n"
+        "This file is too large to include whole. The excerpts above are verbatim, so "
+        "anchors copied from them will match; anything you need that is not shown, do "
+        "not guess at — say so in your summary instead of inventing an anchor.\n"
+    )
+    return "".join(chunks)
+
+
+def _excerpt_files(
+    root: Path,
+    rels: list[str],
+    *,
+    budget: int,
+    anchors_by_path: dict[str, list[str]] | None = None,
+    label: str,
+) -> str:
+    """Render several files into one prompt block, sharing ``budget`` fairly.
+
+    Smallest first, each taking an equal share of what remains: a file that fits whole
+    consumes only its own size and hands the rest back, so one oversized module gets
+    everything the small ones did not need instead of being dropped for being first
+    in line and too big.
+    """
+    anchors_by_path = anchors_by_path or {}
+    readable: list[tuple[str, str]] = []
+    for rel in rels:
+        target = (root / rel).resolve()
+        if not target.is_relative_to(root.resolve()) or not target.is_file():
+            continue
+        try:
+            readable.append((rel, target.read_text(encoding="utf-8")))
+        except (OSError, UnicodeDecodeError):
+            continue
+    if not readable:
+        return ""
+
+    readable.sort(key=lambda pair: len(pair[1]))
+    chunks: list[str] = []
+    remaining = budget
+    for index, (rel, body) in enumerate(readable):
+        share = max(remaining // (len(readable) - index), 400)
+        block = _excerpt_file(rel, body, budget=share, anchors=anchors_by_path.get(rel, []), label=label)
+        if not block:
+            continue
+        chunks.append(block)
+        remaining = max(remaining - len(block), 0)
+    return "".join(chunks)
+
+
 def _named_existing_files(spec: dict[str, Any], root: Path) -> str:
     """Full current content of existing repo files the SPEC names by path.
 
@@ -1720,25 +2014,42 @@ def _named_existing_files(spec: dict[str, Any], root: Path) -> str:
     for rel in _PATH_RE.findall(blob):
         if rel not in seen:
             seen.append(rel)
-    chunks: list[str] = []
-    budget = _MAX_CONTEXT_BYTES
-    for rel in seen:
-        target = (root / rel).resolve()
-        if not target.is_relative_to(root.resolve()) or not target.is_file():
-            continue
-        body = target.read_text(encoding="utf-8")
-        block = f"--- {rel} (current content — edit THIS via the edits form) ---\n{body}\n"
-        if len(block) > budget:
-            break
-        budget -= len(block)
-        chunks.append(block)
-    if not chunks:
+    # The spec's own words are the anchors here: a criterion naming `_type_label` or
+    # `mcp contracts` says which part of a large module the ticket is about, which is
+    # what decides where the window lands when the file cannot be shown whole.
+    anchors = {rel: _spec_anchors(blob) for rel in seen}
+    body = _excerpt_files(
+        root,
+        seen,
+        budget=_MAX_CONTEXT_BYTES,
+        anchors_by_path=anchors,
+        label="current content — edit THIS via the edits form",
+    )
+    if not body:
         return ""
     return (
         "\n\nEXISTING FILES THE SPEC NAMES — change these with the `edits` form, "
         "anchoring on snippets copied verbatim from the content below. Do NOT "
-        "re-emit them as full `content`:\n" + "".join(chunks)
+        "re-emit them as full `content`:\n" + body
     )
+
+
+# Identifier-ish words worth locating in a file: dotted/underscored names and quoted
+# phrases, which is how a criterion refers to the code it is about.
+_SPEC_ANCHOR_RE = re.compile(r"`([^`]{3,60})`|\b([A-Za-z_][A-Za-z0-9_]{3,}(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\b")
+
+
+def _spec_anchors(blob: str) -> list[str]:
+    """Terms from the spec to aim a window at, most specific first."""
+    found: list[str] = []
+    for backticked, bare in _SPEC_ANCHOR_RE.findall(blob):
+        term = (backticked or bare).strip()
+        if term and term not in found:
+            found.append(term)
+    # Backticked terms sort first: a criterion that says `_type_label` is pointing at a
+    # symbol, where a bare word may just be prose.
+    found.sort(key=lambda t: 0 if f"`{t}`" in blob else 1)
+    return found[:12]
 
 
 def _spec_text(spec: dict[str, Any]) -> str:

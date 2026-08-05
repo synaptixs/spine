@@ -25,8 +25,9 @@ class _FakeLLM:
         temperature: float | None = None,
         max_tokens: int | None = None,
         tools: object = None,
+        tool_choice: str | None = None,
     ) -> CompletionResult:
-        _ = (messages, response_format, json_object, temperature, max_tokens, tools)
+        _ = (messages, response_format, json_object, temperature, max_tokens, tools, tool_choice)
         self.calls += 1
         return self._results.pop(0)
 
