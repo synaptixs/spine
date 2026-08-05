@@ -97,6 +97,7 @@ class BudgetedLLMClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
         tools: list[ToolSpec] | None = None,
+        tool_choice: str | None = None,
     ) -> CompletionResult:
         self.budget.check()
         result = await self._inner.complete(
@@ -107,6 +108,7 @@ class BudgetedLLMClient:
             temperature=temperature,
             max_tokens=max_tokens,
             tools=tools,
+            tool_choice=tool_choice,
         )
         self.budget.charge(result.cost_usd)
         return result

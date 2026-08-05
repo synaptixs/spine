@@ -773,6 +773,43 @@ def sdlc_runs(
     raise typer.Exit(code=2)
 
 
+def _terminal_gate() -> Any:
+    """Show the diff and ask, once, before the run's first write.
+
+    Fails **closed** on a non-interactive stdin. A gate that assumes yes when nobody is
+    there is not a gate — and this one is reached by unattended runs (cron, the MCP
+    plugin, a backgrounded shell) as readily as by a person at a terminal.
+    """
+    import subprocess
+    import sys
+
+    async def gate(path: Path, files: list[str]) -> bool:
+        # `add -N` makes new files show up in `git diff` without staging their content, so
+        # the diff shown is the whole change rather than only the edits to tracked files.
+        subprocess.run(["git", "-C", str(path), "add", "-N", "-A"], capture_output=True, check=False)
+        diff = subprocess.run(
+            ["git", "-C", str(path), "diff"], capture_output=True, text=True, check=False
+        ).stdout
+        stat = subprocess.run(
+            ["git", "-C", str(path), "diff", "--stat"], capture_output=True, text=True, check=False
+        ).stdout
+        typer.echo("\n" + "=" * 70)
+        typer.echo(f"HUMAN REVIEW — {len(files)} file(s) in {path}")
+        typer.echo("=" * 70)
+        typer.echo(diff or "(no textual diff)")
+        typer.echo(stat)
+        if not sys.stdin.isatty():
+            typer.echo(
+                "[gate] --review was asked for but there is no terminal to ask on. "
+                "Refusing rather than assuming yes; nothing was committed.",
+                err=True,
+            )
+            return False
+        return bool(typer.confirm("Commit this change?", default=False))
+
+    return gate
+
+
 @sdlc_app.command("autorun")
 def sdlc_autorun(
     source: Annotated[
@@ -794,7 +831,16 @@ def sdlc_autorun(
         bool,
         typer.Option("--live/--safe", help="Write for real. Default --safe makes no external write."),
     ] = False,
-    max_refine: Annotated[int, typer.Option("--max-refine", help="Max test→refine loops.")] = 3,
+    max_refine: Annotated[
+        int, typer.Option("--max-refine", help="Max test→refine loops (tests and type errors share it).")
+    ] = 5,
+    review: Annotated[
+        bool,
+        typer.Option(
+            "--review/--no-review",
+            help="Show the diff and ask before committing or pushing anything.",
+        ),
+    ] = False,
     base: Annotated[str | None, typer.Option("--base", help="PR target branch.")] = None,
     language: Annotated[str, typer.Option("--language", help="Target language (auto detects).")] = "auto",
     out: Annotated[
@@ -834,6 +880,7 @@ def sdlc_autorun(
                 root=path,
                 live=live,
                 max_refine=max_refine,
+                gate=_terminal_gate() if review else None,
                 base_branch=base,
                 language=language,
                 artifacts_dir=out,

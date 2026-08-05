@@ -32,6 +32,7 @@ class _JudgeLLM:
         temperature: float | None = None,
         max_tokens: int | None = None,
         tools: object = None,
+        tool_choice: str | None = None,
     ) -> CompletionResult:
         self.last_user = messages[-1].content
         text = self._payload if isinstance(self._payload, str) else json.dumps(self._payload)
@@ -163,3 +164,138 @@ async def test_new_untracked_directory_source_is_seen(tmp_path: Path) -> None:
 
     assert "src/orchestrator/notify/slack.py" in llm.last_user
     assert "class Notifier" in llm.last_user
+
+
+async def test_a_documentation_change_reaches_the_judge(tmp_path: Path) -> None:
+    """The live dead end: a ticket required a doc, the pipeline wrote the doc, and the judge
+    reported it missing — because it was shown ``.py`` files only, so the ``.md`` never
+    entered its prompt. Two revision passes wrote USER_GUIDE.md and both were judged blind."""
+    import subprocess
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    (tmp_path / "seed.txt").write_text("seed\n", encoding="utf-8")
+    subprocess.run(["git", "add", "seed.txt"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
+
+    (tmp_path / "export.py").write_text("def export_csv(rows):\n    return 'a,b'\n", encoding="utf-8")
+    (tmp_path / "USER_GUIDE.md").write_text("## Step 9\n\nArgument types are shown.\n", encoding="utf-8")
+
+    adapter, llm = _judge({"criteria": [{"criterion": "exports a CSV file", "status": "met"}]})
+    await adapter.review(path=str(tmp_path), issue_key="SDLC-1", spec=SPEC)
+
+    assert "USER_GUIDE.md" in llm.last_user
+    assert "Argument types are shown." in llm.last_user
+
+
+async def test_a_non_python_change_is_not_judged_blind(tmp_path: Path) -> None:
+    """The pipeline generates Java, Go and C too; judging those on their Python files
+    means judging an empty change."""
+    (tmp_path / "Export.java").write_text("class Export { void run() {} }\n", encoding="utf-8")
+
+    adapter, llm = _judge({"criteria": [{"criterion": "exports a CSV file", "status": "met"}]})
+    result = await adapter.review(path=str(tmp_path), issue_key="SDLC-1", spec=SPEC)
+
+    assert "Export.java" in llm.last_user
+    assert result.verdict == "approve"
+
+
+async def test_an_oversized_file_does_not_hide_the_rest_of_the_change(tmp_path: Path) -> None:
+    """A judge that cannot see a file calls it missing, so silent truncation reads as an
+    unmet criterion. Nothing may vanish without the prompt saying so."""
+    from orchestrator.sdlc.review import _MAX_SOURCE_BYTES
+
+    (tmp_path / "aaa_huge.py").write_text("# " + "x" * (_MAX_SOURCE_BYTES + 10), encoding="utf-8")
+    (tmp_path / "zzz_small.md").write_text("the documentation the ticket asked for\n", encoding="utf-8")
+
+    adapter, llm = _judge({"criteria": [{"criterion": "exports a CSV file", "status": "met"}]})
+    await adapter.review(path=str(tmp_path), issue_key="SDLC-1", spec=SPEC)
+
+    assert "the documentation the ticket asked for" in llm.last_user
+    assert "aaa_huge.py" in llm.last_user
+    assert "NOT evidence" in llm.last_user
+
+
+async def test_a_file_too_big_to_show_whole_is_windowed_for_the_judge(tmp_path: Path) -> None:
+    """The live blind spot: the judge reported "the critical `mcp contracts` CLI rendering
+    code is in the omitted cli.py", returned six uncertain criteria, and the change was
+    committed with a real bug on the very line it could not see."""
+    from orchestrator.sdlc.review import _MAX_SOURCE_BYTES
+
+    target = "def mcp_contracts(json_out: bool) -> None:"
+    filler = "\n".join(f"def pad_{i}() -> int:\n    return {i}\n" for i in range(_MAX_SOURCE_BYTES // 20))
+    half = len(filler) // 2
+    (tmp_path / "cli.py").write_text(filler[:half] + f"\n{target}\n" + filler[half:], encoding="utf-8")
+
+    spec = {"title": "t", "acceptance_criteria": ["`mcp_contracts` shows the argument type"]}
+    adapter, llm = _judge({"criteria": [{"criterion": "shows type", "status": "met"}]})
+    await adapter.review(path=str(tmp_path), issue_key="SDLC-1", spec=spec)
+
+    assert target in llm.last_user  # the judge can now see the code it is judging
+    assert "lines not shown" in llm.last_user
+
+
+class _ToolJudgeLLM:
+    """Answers with a forced ``submit_verdict`` call; records how it was asked."""
+
+    def __init__(self, arguments: dict[str, Any], *, text: str = "", call_tool: bool = True) -> None:
+        self._arguments = arguments
+        self._text = text
+        self._call_tool = call_tool
+        self.tools_offered: list[Any] = []
+        self.tool_choice: str | None = None
+
+    async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResult:
+        from orchestrator.core.llm import ToolCall
+
+        self.tools_offered = list(kwargs.get("tools") or [])
+        self.tool_choice = kwargs.get("tool_choice")
+        calls = (ToolCall("c1", "submit_verdict", self._arguments),) if self._call_tool else ()
+        return CompletionResult(self._text, "m", 1, 1, 0.0, 1.0, tool_calls=calls)
+
+
+async def test_the_judge_output_is_forced_not_requested(tmp_path: Path) -> None:
+    """The judge had codegen's unconstrained-output problem with a worse failure mode:
+    codegen's unreadable reply aborts the run, the judge's used to pass the change."""
+    _worktree(tmp_path)
+    llm = _ToolJudgeLLM({"criteria": [{"criterion": "exports a CSV file", "status": "met"}]})
+
+    result = await SemanticReviewAdapter(llm).review(path=str(tmp_path), issue_key="S-1", spec=SPEC)
+
+    assert llm.tool_choice == "submit_verdict"
+    assert [t.name for t in llm.tools_offered] == ["submit_verdict"]
+    assert result.verdict == "approve"
+
+
+async def test_a_tool_verdict_wins_over_prose(tmp_path: Path) -> None:
+    """Prose alongside the call is what used to fail to parse; now it is ignored."""
+    _worktree(tmp_path)
+    llm = _ToolJudgeLLM(
+        {"criteria": [{"criterion": "exports a CSV file", "status": "unmet", "evidence": "no writer"}]},
+        text="Let me review each criterion in turn. First...",
+    )
+
+    result = await SemanticReviewAdapter(llm).review(path=str(tmp_path), issue_key="S-1", spec=SPEC)
+
+    assert result.verdict == "request_changes"
+    assert not result.unreviewed
+    assert "no writer" in result.blockers[0]
+
+
+async def test_an_unreadable_verdict_is_flagged_as_unreviewed(tmp_path: Path) -> None:
+    """The live failure: an unparseable reply mapped to `comment`, the caller read `comment`
+    as "not a blocker", and a change nothing had reviewed went on to be committed."""
+    adapter, _ = _judge("I could not complete this review.")
+    result = await adapter.review(path=str(_worktree(tmp_path)), issue_key="S-1", spec=SPEC)
+
+    assert result.unreviewed is True
+    assert result.verdict == "comment"  # unchanged for any caller that reads the verdict
+
+
+async def test_a_real_verdict_is_not_flagged_unreviewed(tmp_path: Path) -> None:
+    adapter, _ = _judge({"criteria": [{"criterion": "exports a CSV file", "status": "uncertain"}]})
+    result = await adapter.review(path=str(_worktree(tmp_path)), issue_key="S-1", spec=SPEC)
+
+    assert result.unreviewed is False  # 'I looked and cannot tell' is a judgement, not an absence
+    assert result.uncertain

@@ -191,17 +191,27 @@ def _check_size(spec: dict[str, Any], files: list[str], max_criteria: int, max_f
 
 
 def _check_prior_runs(issue_key: str, runs: list[Any]) -> list[Finding]:
-    """Another run already carried this ticket to a PR. Doing it twice produces two branches
-    and two PRs for one piece of work — the duplicate problem, one level up."""
+    """Another run already carried this ticket **to a PR**.
+
+    The PR is the whole test. A run that finished without opening one changed nothing anyone
+    else can see — a safe-mode rehearsal, or a live run that stopped short — and refusing the
+    next attempt on that basis makes a ticket unworkable after its first dry run. This check
+    was written to catch two branches and two PRs for one piece of work; without the PR
+    condition it caught iteration instead, and did it to the first person who tried.
+    """
     for record in runs:
-        if record.issue_key and record.issue_key == issue_key and record.status == "done":
-            return [
-                Finding(
-                    check="prior-run",
-                    detail=f"run {record.run_id} already completed this ticket",
-                    evidence=f"PR {record.pr_url}" if record.pr_url else "no PR recorded",
-                )
-            ]
+        if not (record.issue_key and record.issue_key == issue_key and record.status == "done"):
+            continue
+        pr_url = getattr(record, "pr_url", "")
+        if not pr_url:
+            continue
+        return [
+            Finding(
+                check="prior-run",
+                detail=f"run {record.run_id} already carried this ticket to a PR",
+                evidence=f"PR {pr_url}",
+            )
+        ]
     return []
 
 

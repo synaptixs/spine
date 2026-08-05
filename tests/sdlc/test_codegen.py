@@ -16,7 +16,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from orchestrator.core.llm import CompletionResult, Message
+from orchestrator.core.llm import CompletionResult, Message, ToolCall, ToolSpec
 from orchestrator.sdlc.codegen import (
     CodegenAdapter,
     CodegenError,
@@ -43,8 +43,9 @@ class _ScriptedLLM:
         temperature: float | None = None,
         max_tokens: int | None = None,
         tools: object = None,
+        tool_choice: str | None = None,
     ) -> CompletionResult:
-        _ = (model, response_format, json_object, temperature, max_tokens, tools)
+        _ = (model, response_format, json_object, temperature, max_tokens, tools, tool_choice)
         self.calls.append(list(messages))
         text = self._responses.pop(0)
         return CompletionResult(
@@ -1141,3 +1142,227 @@ async def test_a_files_object_next_to_something_else_is_not_merged(tmp_path: Pat
     await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
 
     assert len(llm.calls) == 2  # fell back to the corrective retry
+
+
+class _ToolCallingLLM:
+    """Answers with a forced ``submit_files`` call, and records how it was asked."""
+
+    def __init__(self, arguments: dict[str, Any], *, text: str = "", call_tool: bool = True) -> None:
+        self._arguments = arguments
+        self._text = text
+        self._call_tool = call_tool
+        self.tools_offered: list[ToolSpec] = []
+        self.tool_choice: str | None = None
+
+    async def complete(
+        self,
+        messages: list[Message],
+        *,
+        model: str,
+        response_format: type[BaseModel] | None = None,
+        json_object: bool = False,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[ToolSpec] | None = None,
+        tool_choice: str | None = None,
+    ) -> CompletionResult:
+        _ = (messages, model, response_format, json_object, temperature, max_tokens)
+        self.tools_offered = list(tools or [])
+        self.tool_choice = tool_choice
+        calls = (ToolCall("c1", "submit_files", self._arguments),) if self._call_tool else ()
+        return CompletionResult(
+            text=self._text,
+            model="fake",
+            prompt_tokens=0,
+            completion_tokens=0,
+            cost_usd=0.0,
+            latency_ms=0.0,
+            tool_calls=calls,
+        )
+
+
+async def test_codegen_forces_the_submit_files_tool(tmp_path: Path) -> None:
+    """The output contract is a tool the provider enforces, not a request in the prompt."""
+    llm = _ToolCallingLLM({"files": [{"path": "src/a.py", "content": "a = 1\n"}], "summary": "ok"})
+
+    await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="T-1")
+
+    assert llm.tool_choice == "submit_files"
+    assert [t.name for t in llm.tools_offered] == ["submit_files"]
+
+
+async def test_tool_call_arguments_win_over_prose(tmp_path: Path) -> None:
+    """The live failure this exists for: the model narrates ("I'll analyze the existing
+    code...") and appends a PR blurb after the payload. Every one of those runs died in the
+    JSON parser. With the call forced, the prose is just the text field and is ignored."""
+    llm = _ToolCallingLLM(
+        {"files": [{"path": "src/a.py", "content": "a = 1\n"}], "summary": "ok"},
+        text="I'll analyze the existing code to understand the current structure.",
+    )
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="T-2")
+
+    assert [Path(f).name for f in change.files] == ["a.py"]
+    assert change.summary == "ok"
+
+
+async def test_falls_back_to_text_when_the_tool_is_ignored(tmp_path: Path) -> None:
+    """A provider with no tool support (a local Ollama model) still answers in text, and
+    that path stays exactly as it was — the forced tool is an addition, not a replacement."""
+    llm = _ToolCallingLLM({}, text=_files_response({"src/a.py": "a = 1\n"}), call_tool=False)
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="T-3")
+
+    assert [Path(f).name for f in change.files] == ["a.py"]
+
+
+# ---- a file too big to show whole must still be shown (SSPN-14) ----
+
+
+def _big_module(target_line: str, size: int = 120_000) -> str:
+    """A module larger than the context pool, with one distinctive line in the middle."""
+    filler = "\n".join(f"def filler_{i}() -> int:\n    return {i}\n" for i in range(size // 40))
+    half = len(filler) // 2
+    return filler[:half] + f"\n{target_line}\n" + filler[half:]
+
+
+async def test_a_file_larger_than_the_budget_is_excerpted_not_dropped(tmp_path: Path) -> None:
+    """The live failure: `cli.py` is 100 KB against a 40 KB pool, so the repair block said
+    "below is the CURRENT EXACT content" and then appended nothing. Every retry re-guessed
+    the anchor and the run died having never seen a byte of the file it was editing."""
+    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
+    from orchestrator.sdlc.excerpt import _excerpt_files
+
+    target = "def render_contract_types(schema: dict) -> str:"
+    (tmp_path / "cli.py").write_text(_big_module(target), encoding="utf-8")
+
+    block = _excerpt_files(
+        tmp_path, ["cli.py"], budget=_MAX_CONTEXT_BYTES, anchors_by_path={"cli.py": [target]}, label="x"
+    )
+
+    assert block, "an oversized file must still reach the prompt"
+    assert target in block, "the window must cover the line the model was aiming at"
+    assert len(block) <= _MAX_CONTEXT_BYTES * 2  # bounded, not the whole 120 KB file
+    assert "lines not shown" in block  # and honest about being partial
+
+
+async def test_a_near_miss_anchor_still_finds_its_neighbourhood(tmp_path: Path) -> None:
+    """A `find` fails on whitespace or a renamed identifier as easily as on being wrong.
+    The window should still land where the model was reaching."""
+    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
+    from orchestrator.sdlc.excerpt import _excerpt_files
+
+    target = "def render_contract_types(schema: dict) -> str:"
+    (tmp_path / "cli.py").write_text(_big_module(target), encoding="utf-8")
+
+    # What the model guessed: right function, wrong signature.
+    guess = "def render_contract_types(schema):"
+    block = _excerpt_files(
+        tmp_path, ["cli.py"], budget=_MAX_CONTEXT_BYTES, anchors_by_path={"cli.py": [guess]}, label="x"
+    )
+
+    assert target in block
+
+
+async def test_a_small_file_hands_its_unused_budget_to_a_big_one(tmp_path: Path) -> None:
+    """Smallest first, equal share of what remains: the old loop dropped whatever came
+    after the first file too big to fit, whatever its size."""
+    from orchestrator.sdlc.excerpt import _excerpt_files
+
+    target = "def needle_function() -> None:"
+    (tmp_path / "small.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / "big.py").write_text(_big_module(target), encoding="utf-8")
+
+    block = _excerpt_files(
+        tmp_path,
+        ["big.py", "small.py"],
+        budget=30_000,
+        anchors_by_path={"big.py": [target]},
+        label="x",
+    )
+
+    assert "x = 1" in block  # the small file, whole
+    assert target in block  # and the big one still got a window
+
+
+async def test_the_repair_block_never_promises_content_it_does_not_supply(tmp_path: Path) -> None:
+    """The bug in one assertion: the prompt said "copy every `find` VERBATIM from this
+    content" above an empty block."""
+    from orchestrator.sdlc.codegen import CodegenError
+
+    target = "def render_contract_types(schema: dict) -> str:"
+    (tmp_path / "cli.py").write_text(_big_module(target), encoding="utf-8")
+    adapter = LLMCodegenAdapter(_ScriptedLLM([]))
+    exc = CodegenError(
+        "changes need a repair pass",
+        failed_edit_paths=["cli.py"],
+        failed_anchors={"cli.py": [target]},
+    )
+
+    block = adapter._repair_block(exc, tmp_path)
+
+    assert "VERBATIM" in block
+    assert target in block, "the promise of exact content must come with exact content"
+
+
+async def test_codegen_is_shown_the_files_the_design_names(tmp_path: Path) -> None:
+    """Three runs opened with "placeholder — need to read the actual file first" and it was
+    the literal truth: paths came only from the spec text, this ticket's spec named none, and
+    codegen was handed zero bytes of the code it was asked to change."""
+    from orchestrator.sdlc.codegen import _named_existing_files
+
+    pkg = tmp_path / "src" / "app"
+    pkg.mkdir(parents=True)
+    (pkg / "display.py").write_text("def render() -> str:\n    return 'names only'\n", encoding="utf-8")
+    spec = {"summary": "Show argument types in the contracts output.", "acceptance_criteria": ["shows type"]}
+    design = "Approach: add a type label in src/app/display.py at render()."
+
+    assert _named_existing_files(spec, tmp_path, "") == ""  # the bug: nothing at all
+    with_design = _named_existing_files(spec, tmp_path, design)
+    assert "def render() -> str:" in with_design
+
+
+async def test_a_spec_that_names_its_files_still_wins(tmp_path: Path) -> None:
+    """When a ticket does name its files, that is the sharpest statement of intent there is."""
+    from orchestrator.sdlc.codegen import _named_existing_files
+
+    pkg = tmp_path / "src" / "app"
+    pkg.mkdir(parents=True)
+    (pkg / "named.py").write_text("A = 1\n", encoding="utf-8")
+    (pkg / "designed.py").write_text("B = 2\n", encoding="utf-8")
+    spec = {"summary": "Change src/app/named.py.", "acceptance_criteria": []}
+
+    block = _named_existing_files(spec, tmp_path, "also touch src/app/designed.py")
+
+    assert block.index("named.py") < block.index("designed.py")
+
+
+async def test_a_type_error_pulls_in_the_definition_it_names(tmp_path: Path) -> None:
+    """The loop that could not converge: mypy said `"MCPToolHandler" has no attribute
+    "input_schema"`, the model guessed `handler.tool`, was rejected identically, and spent its
+    whole budget proposing names for a class no stage had ever shown it."""
+
+    class _Grounder:
+        def __init__(self) -> None:
+            self.asked: list[str] = []
+
+        def context_for_spec(self, spec: dict[str, Any]) -> str:
+            return ""
+
+        def context_for_symbols(self, names: list[str]) -> str:
+            self.asked = names
+            return "### Type `MCPToolHandler`\nclass MCPToolHandler:\n    self._qualified = ...\n"
+
+    grounder = _Grounder()
+    adapter = LLMCodegenAdapter(_ScriptedLLM([]), grounder=grounder)
+    errors = 'src/orchestrator/cli.py:1126: error: "MCPToolHandler" has no attribute "tool"'
+
+    block = adapter._definitions_for(errors, tmp_path)
+
+    assert "MCPToolHandler" in grounder.asked
+    assert "class MCPToolHandler" in block
+
+
+async def test_a_failure_naming_nothing_adds_no_definitions(tmp_path: Path) -> None:
+    adapter = LLMCodegenAdapter(_ScriptedLLM([]))
+    assert adapter._definitions_for("E   assert 1 == 2", tmp_path) == ""
