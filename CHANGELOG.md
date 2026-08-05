@@ -4,6 +4,72 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## Unreleased — A green suite is not a working change
+
+Found by running one ticket end to end a dozen times. Every stage of the build loop was
+working from an input it could not see, and reporting the gap as a defect in the work
+rather than in its own view. Three separate runs committed code that did nothing: a helper
+appended and never called, a file missing its `typing` import, a command wired through an
+attribute its class does not have. All three had green tests.
+
+**Behaviour change:** a run is now stopped by things that previously passed. Type errors on
+changed lines, a changed file no test exercises, and an acceptance verdict that cannot be
+read all block a commit where they used to be silent. Runs that used to finish with a
+useless change now fail with a reason.
+
+### Added
+
+- **`orchestrator sdlc autorun --review`** — prints the full diff and asks before the run's
+  first write. The last gate before anything is committed or pushed, and the only one that
+  is a person rather than a model. Fails closed when there is no terminal to ask on, so an
+  unattended run declines rather than assuming yes.
+- **The repo's own type checker runs inside the test loop.** Scoped to the lines the change
+  touched, so pre-existing errors elsewhere don't block a run, and its output goes back to
+  the refine loop exactly like a test failure. Typing-hygiene codes (`unused-ignore`,
+  `no-untyped-def`, `import-*`) are ignored — in a generated worktree those report the
+  environment, not the change.
+- **Per-file coverage proof.** The existing check reverts the whole change at once, which
+  only proves the tests depend on *some* part of it. Each changed file is now reverted on
+  its own; anything that leaves the suite green is a file nothing tests, and goes back to
+  the test author by name.
+- **`sdlc autorun` is documented** in `CLI_REFERENCE.md`, including what each bracketed
+  stage line means. It was the primary entry point and had no reference entry.
+
+### Changed
+
+- **The acceptance judge can ask for a correction, not only refuse.** A rejection used to
+  end the run, which made any criterion the generator was never told to satisfy an
+  unwinnable ticket — most visibly a documentation criterion, which every codegen prompt
+  forbids and the judge then failed the run for missing. Blockers now go back for revision,
+  bounded; a revision that breaks the suite is repaired rather than fatal.
+- **The judge reads documentation and config, not just `.py`.** A run wrote the
+  `USER_GUIDE.md` its ticket demanded, twice, and was told both times that no documentation
+  was present — true of its input, and unfixable by any change. The same hole meant a Java
+  or Go change was judged on its Python files, of which there are none.
+- **Codegen is shown the files it is changing.** Paths came only from the spec text, so a
+  ticket phrased in behaviour named none and codegen received zero bytes of existing source.
+  Paths now come from the spec *and* the design, which knew them all along.
+- **A file too large for the prompt budget is excerpted, not dropped.** It used to vanish in
+  silence, so a repair prompt could say "copy this snippet verbatim from the content below"
+  and then include nothing. Windows are placed by anchor and sized by what is left, and
+  whatever is not shown is named.
+- **Codegen and the judge both emit through a forced tool call.** `response_format`
+  is an OpenAI/Ollama concept that Anthropic drops, so on Anthropic models nothing
+  constrained the output and replies arrived wrapped in prose.
+- **`--max-refine` now defaults to 5** (was 3) on `sdlc autorun` and `sdlc feature`: tests
+  and type errors draw on the same budget.
+- **A safe-mode rehearsal no longer counts as a duplicate.** The check refused any second
+  run on a ticket whose first run finished, so a ticket became unworkable after its first
+  dry run. Only a run that reached a PR blocks another.
+
+### Known limitations
+
+- A run parked at the validity gate holds its ticket until its approval is decided; there is
+  no reaper for parked runs.
+- `--resume` re-runs its stages and builds a fresh worktree rather than continuing the
+  previous one, so approve-then-resume regenerates the change instead of committing the diff
+  that was approved.
+
 ## 3.12.0 — Read your tracker through a server, not a token
 
 **Behaviour change:** where an MCP server is onboarded that can serve them, `jira://` and

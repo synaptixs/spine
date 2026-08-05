@@ -431,6 +431,61 @@ made and read the diff.
 
 ---
 
+## Step 3.5 — What stops a bad change from shipping
+
+A model writes the code **and** the tests that judge it, so "the tests pass" only
+means its tests agree with its code. Between a green suite and a commit sit several
+checks that don't take the model's word for it. You'll see each as a bracketed line.
+
+```bash
+orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --safe --max-cost 10
+```
+
+**Before any code is written — `[validity]`.** The ticket is checked against the
+graph. A criterion asserting *"11 Entity nodes on this repo"* when the source has 7
+is a false premise, and building to it produces code that passes its own tests and
+is still wrong. Verdicts other than `PROCEED` park the run with evidence rather than
+guessing.
+
+**`[typecheck]`** runs your repo's own type checker over the lines the change
+touched, and any error goes back to the refine loop like a test failure. This is not
+redundant with the tests: generated tests routinely exercise a new helper directly
+and never import the module the ticket was about, so they sail past a missing import
+or an attribute that doesn't exist on the line that matters. Scoped to changed
+lines, so pre-existing errors elsewhere in your repo don't block the run.
+
+**`[proof]`** reverts the change and re-runs the generated tests. They must fail. A
+suite that passes *without* the change is not testing it.
+
+**`[coverage]`** reverts each changed file **on its own**. Anything that leaves the
+suite green is a file no test reaches — the classic shape being a correct, fully
+tested helper wired into a command by a line nothing ever calls. Gaps go back to the
+test author, naming the files.
+
+**`[judge]`** asks the one question the others can't: does this change satisfy the
+ticket's acceptance criteria? It reads the spec and the code, never the codegen
+conversation, so it can't rationalise the generator's choices. `REQUEST_CHANGES`
+sends the specific blockers back for revision; a reply that can't be read stops the
+run rather than passing it.
+
+### And then you
+
+```bash
+orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --safe --review
+```
+
+`--review` prints the full diff and asks, once, after every check above and before
+the first write. Declining commits nothing and pushes nothing.
+
+Everything above is a model or a heuristic. `--review` is the only gate that is a
+person, and it's the one worth using the first few times you point Spine at a repo
+you care about — and on your first `--live` run.
+
+It **fails closed**: with no terminal to ask on, it declines rather than assuming
+yes. Pass it from an interactive shell, not from cron or a background job.
+
+---
+
 ## Step 4 — Go live: a real issue + pull request
 
 When the local result looks right, let it do the real thing — file a Jira issue,

@@ -920,8 +920,11 @@ def sdlc_feature(
     ] = None,
     max_refine: Annotated[
         int,
-        typer.Option("--max-refine", help="Max implement→test→refine iterations."),
-    ] = 3,
+        # Matches `sdlc autorun`: the type checker draws on this budget too, so a run that
+        # greens its suite on the first pass still has the checker to satisfy. Left at 3, this
+        # flag silently overrode the raise and reintroduced the shortfall on this path only.
+        typer.Option("--max-refine", help="Max test→refine loops (tests and type errors share it)."),
+    ] = 5,
     live: Annotated[
         bool,
         typer.Option(
