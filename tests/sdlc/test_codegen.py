@@ -1130,14 +1130,16 @@ async def test_a_parse_failure_after_an_edit_repair_still_retries(tmp_path: Path
     )
     unparseable = "definitely not json"
 
-    llm = _ScriptedLLM([edits_that_fail, unparseable])
+    llm = _ScriptedLLM([edits_that_fail, unparseable, unparseable])
 
     with pytest.raises(CodegenError):
         await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
 
-    # Two calls, not three: the repair was spent, so the parse failure raises rather than
-    # buying a third attempt.
-    assert len(llm.calls) == 2
+    # Three calls: the anchor miss is corrected, then the parse failure gets its own
+    # correction — a different kind of wrong deserves its own attempt — and the *second*
+    # parse failure raises, because that kind is now spent. The guard the test was written
+    # for still holds: the later applies are inside it.
+    assert len(llm.calls) == 3
 
 
 async def test_two_concatenated_json_documents_are_merged(tmp_path: Path) -> None:
@@ -1496,3 +1498,39 @@ async def test_non_python_files_are_not_syntax_checked(tmp_path: Path) -> None:
     change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-3")
 
     assert [Path(f).name for f in change.files] == ["USER_GUIDE.md"]
+
+
+async def test_an_empty_retry_does_not_consume_the_syntax_retry(tmp_path: Path) -> None:
+    """The live sequence exactly: the model submitted no files, spent the one shared
+    retry recovering from that, then produced a file with a stray `</content>` — and the
+    syntax error, the very thing the retry exists for, had no attempt left."""
+    empty = '{"summary": "nothing yet"}'
+    broken = _files_response({"src/a.py": "def f():\n    return 1\n</content>\n"})
+    good = _files_response({"src/a.py": "def f():\n    return 1\n"})
+    llm = _ScriptedLLM([empty, broken, good])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-1")
+
+    assert len(llm.calls) == 3  # empty → corrected, syntax → corrected, then clean
+    assert [Path(f).name for f in change.files] == ["a.py"]
+    assert "</content>" not in (tmp_path / "src" / "a.py").read_text()
+
+
+async def test_the_same_failure_twice_still_stops(tmp_path: Path) -> None:
+    """Per-kind, not unlimited: a kind that fails twice is looping, not fixing."""
+    broken = _files_response({"src/a.py": "def f(\n"})
+    llm = _ScriptedLLM([broken, broken])
+
+    with pytest.raises(CodegenError):
+        await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-2")
+
+    assert len(llm.calls) == 2  # one correction for that kind, then it gives up
+
+
+def test_each_failure_kind_is_classified_apart() -> None:
+    from orchestrator.sdlc.codegen import _failure_kind
+
+    assert _failure_kind(CodegenError("x", parse_detail="bad json")) == "parse"
+    assert _failure_kind(CodegenError("x", syntax_errors=["a.py: line 1"])) == "syntax"
+    assert _failure_kind(CodegenError("x", failed_edit_paths=["a.py"])) == "anchors"
+    assert _failure_kind(CodegenError("x", empty_summary="did nothing")) == "empty"
