@@ -656,6 +656,61 @@ orchestrator openspec draft [OPTIONS]
 
 The autonomous build path: requirements → code → tests → reviewed PR, with human gates.
 
+### `orchestrator sdlc autorun`
+
+One ticket, all the way through: research → design → validity gate → code → tests
+→ review → PR. The stages are the commands below, called in order with the same
+spec, and each result recorded.
+
+Default `--safe` makes no external write anywhere in the chain: a local branch and
+commit, dry-run tracker, no push. `--live` creates or adopts the issue, pushes the
+branch, and opens a PR.
+
+```
+orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --safe --max-cost 10
+```
+
+| Option | Description |
+|---|---|
+| `--source` | Source root, e.g. `jira://<issue-key>`, `confluence://<page_id>`, `file://./spec.md`. **Required.** |
+| `--issue` | Adopt an existing tracker issue instead of creating one. |
+| `--intent` | Intent id to implement (default: the first). |
+| `--repo` | Git URL to branch from (default `$SDLC_REPO_URL`). |
+| `--path` | Repo to reason about — the graph the run is grounded in. (default: `.`) |
+| `--live` / `--safe` | Write for real, or make no external write. (default: `--safe`) |
+| `--max-refine` | Max test→refine loops. Tests and type errors share it. (default: `5`) |
+| `--review` / `--no-review` | Show the diff and ask before committing or pushing anything. (default: `--no-review`) |
+| `--base` | PR target branch. |
+| `--language` | Target language (auto detects). (default: `auto`) |
+| `--out` | Where run artifacts go (default: a run dir under the temp dir). |
+| `--resume` | Continue a run by id — adopts the issue it already created. |
+| `--max-cost` | Cap LLM spend (USD) for this run; exhausting it parks the run. |
+
+**Reading the output.** Each stage prints a bracketed line. The ones that decide
+whether a change ships:
+
+| Line | What it means |
+|---|---|
+| `[validity]` | The gate's verdict. Only `PROCEED` continues; `DUPLICATE`, `CRITERIA_WRONG`, `UNLOCALIZED` and `TOO_BIG` park the run with evidence. |
+| `[run_tests #N]` | A pytest run. `refine` follows a red one. |
+| `[typecheck]` | The repo's own type checker, over the lines this change touched. Errors go back to `refine` exactly like a test failure. |
+| `[proof]` | The generated tests are re-run with the change reverted. They must fail — tests that pass without the change do not exercise it. |
+| `[coverage]` | Each changed file is reverted on its own. Anything that leaves the suite green is a file no test reaches, and goes back to `author_tests`. |
+| `[judge]` | Does the change satisfy the ticket's acceptance criteria? `REQUEST_CHANGES` sends the blockers back through `revise`; a verdict that cannot be read blocks the run rather than passing it. |
+| `[gate]` | `--review` only: waiting for you. Nothing has been committed yet. |
+
+**`--review` is the last gate before the first write.** It prints the full diff,
+asks once, and defaults to no. Every other check above is a model or a heuristic;
+this one is you. It **fails closed** when there is no terminal to ask on, so an
+unattended run (cron, a background shell, the MCP server) stops rather than
+assuming yes — pass `--review` only from an interactive session.
+
+**Resuming.** A parked or failed run continues with `--resume <run-id>`, keeping
+its id and adopting the issue it already created. A run parked on an approval
+resumes only after the approval is decided (`orchestrator sdlc runs approve`).
+Note that a resumed run re-runs its stages and builds a **fresh worktree** — it
+does not continue editing the previous one.
+
 ### `orchestrator sdlc feature`
 
 Linear pipeline for ONE intent, end to end.
@@ -681,7 +736,7 @@ orchestrator sdlc feature [OPTIONS]
 | `--intent` | Intent id to implement (default: first derived intent). |
 | `--repo` | Git URL to branch from (default $SDLC_REPO_URL; scratch if unset). |
 | `--model` | Codegen model (default: $SDLC_CODEGEN_MODEL or the adapter default). |
-| `--max-refine` | Max implement→test→refine iterations. (default: `3`) |
+| `--max-refine` | Max test→refine loops. Tests and type errors share it. (default: `5`) |
 | `--live` | Write for real: create the Jira issue, push the branch + open a PR, comment on Jira. Default --safe stays local (branch + commit + diff, dry-run Jira, no push). |
 | `--issue` | Adopt an existing tracker issue (e.g. SSPN-9) instead of creating one — the branch, PR, comment and transition all land on it. |
 | `--base` | PR target branch (default: $SDLC_PR_BASE, else the repo's default branch). |
