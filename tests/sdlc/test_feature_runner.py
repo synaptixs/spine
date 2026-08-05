@@ -322,8 +322,9 @@ async def test_refine_that_changes_files_still_uses_the_whole_budget(
     with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
         await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3)
 
-    # max_refine=3 → run/refine/run/refine/run.
-    assert created and created[0].refine_calls == 2
+    # max_refine is an allowance of *correction attempts*, per kind of problem: three
+    # refines, each followed by a run, then a fourth run that finds the budget spent.
+    assert created and created[0].refine_calls == 3
 
 
 async def test_greenfield_run_scaffolds_and_passes_layout_to_codegen(
@@ -587,8 +588,9 @@ async def test_a_live_run_moves_the_ticket_in_progress_before_writing_code(
             "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
         )
 
-    # The run never reached a PR, and the ticket still shows that work started.
-    assert jira.transitions == ["In Progress"]
+    # In Progress before codegen so the board shows the work being picked up — and handed
+    # back when the run produces nothing, rather than left claiming someone is on it.
+    assert jira.transitions == ["In Progress", "To Do"]
 
 
 async def test_a_safe_run_moves_nothing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -1212,3 +1214,44 @@ async def test_an_unprobed_file_is_not_reported_as_covered(tmp_path: Path) -> No
     assert gaps == []  # nothing was proven unexercised...
     assert any("COULD NOT probe" in m for m in said)  # ...because nothing was probed
     assert not any("every changed file is exercised" in m for m in said)
+
+
+async def test_each_check_gets_its_own_allowance(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A live run spent iterations 1-2 on test failures and 3-4 on type errors, so when the
+    coverage probe found its gap on iteration 5 there was nothing left to answer it. The
+    change was fixable; the run reported FAILED because three checks shared one pool."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    types_seen = {"n": 0}
+    gaps_seen = {"n": 0}
+
+    async def _typecheck(path: Path, testenv: Any, files: list[str], emit: Any) -> str:
+        types_seen["n"] += 1
+        return "cli.py:1: error: boom  [attr-defined]" if types_seen["n"] <= 2 else ""
+
+    async def _probe(path: Path, files: list[str], runner: Any, emit: Any) -> list[str]:
+        gaps_seen["n"] += 1
+        return ["src/orchestrator/cli.py"] if gaps_seen["n"] == 1 else []
+
+    class _Covering(_StubCodegen):
+        async def refine(self, **kwargs: Any) -> CodeChange:
+            self.refine_calls += 1
+            return CodeChange(files=["src/x.py"], summary="fixed the type error")
+
+        async def author_tests(self, **kwargs: Any) -> CodeChange:
+            if kwargs.get("gaps"):
+                self.gaps_seen.append(list(kwargs["gaps"]))
+                return CodeChange(files=["tests/test_cli.py"], summary="cover the wiring")
+            return CodeChange(files=[], summary="tests")
+
+    monkeypatch.setattr(fr, "_typecheck_the_change", _typecheck)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _probe)
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_Covering)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", _Judge("approve"))
+
+    # Two type errors consume the type allowance; the coverage gap must still be answerable.
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=2)
+
+    assert result.passed
+    assert created[0].refine_calls == 2  # both type errors corrected
+    assert created[0].gaps_seen == [["src/orchestrator/cli.py"]]  # and the gap still got its turn

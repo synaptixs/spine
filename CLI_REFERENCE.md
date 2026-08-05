@@ -678,7 +678,7 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --saf
 | `--repo` | Git URL to branch from (default `$SDLC_REPO_URL`). |
 | `--path` | Repo to reason about — the graph the run is grounded in. (default: `.`) |
 | `--live` / `--safe` | Write for real, or make no external write. (default: `--safe`) |
-| `--max-refine` | Max test→refine loops. Tests and type errors share it. (default: `5`) |
+| `--max-refine` | Correction attempts allowed **per check** — a red suite, a type error and a coverage gap each get their own allowance, so one cannot starve another. (default: `5`) |
 | `--review` / `--no-review` | Show the diff and ask before committing or pushing anything. (default: `--no-review`) |
 | `--base` | PR target branch. |
 | `--language` | Target language (auto detects). (default: `auto`) |
@@ -736,7 +736,7 @@ orchestrator sdlc feature [OPTIONS]
 | `--intent` | Intent id to implement (default: first derived intent). |
 | `--repo` | Git URL to branch from (default $SDLC_REPO_URL; scratch if unset). |
 | `--model` | Codegen model (default: $SDLC_CODEGEN_MODEL or the adapter default). |
-| `--max-refine` | Max test→refine loops. Tests and type errors share it. (default: `5`) |
+| `--max-refine` | Correction attempts allowed **per check** — a red suite, a type error and a coverage gap each get their own allowance, so one cannot starve another. (default: `5`) |
 | `--live` | Write for real: create the Jira issue, push the branch + open a PR, comment on Jira. Default --safe stays local (branch + commit + diff, dry-run Jira, no push). |
 | `--issue` | Adopt an existing tracker issue (e.g. SSPN-9) instead of creating one — the branch, PR, comment and transition all land on it. |
 | `--base` | PR target branch (default: $SDLC_PR_BASE, else the repo's default branch). |

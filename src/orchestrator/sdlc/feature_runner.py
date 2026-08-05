@@ -116,7 +116,8 @@ async def _prove_the_tests_test_something(
         await _git(path, "stash", "pop", "--quiet")
 
 
-_MAX_COVERAGE_PROBES = 4  # test runs this check may spend
+_MAX_COVERAGE_PROBES = 4  # files this check may probe in one pass
+_MAX_COVERAGE_FIXES = 2  # attempts at writing the missing test before giving up
 
 
 async def _files_no_test_exercises(
@@ -167,6 +168,19 @@ async def _files_no_test_exercises(
     elif not unprobed:
         emit("[coverage] every changed file is exercised by a test")
     return unexercised
+
+
+async def _release_the_ticket(move: Callable[[str], Any], emit: Callable[[str], None]) -> None:
+    """Hand a ticket back after a run that produced nothing.
+
+    Best-effort and never fatal, like every other transition: a board that has no "To Do"
+    to return to is a fact about the board, not a reason to fail work that already failed.
+    Says plainly when it could not, so nobody assumes the ticket was tidied up.
+    """
+    try:
+        await move("To Do")
+    except Exception as exc:  # noqa: BLE001 — a tracker quirk must not mask the real failure
+        emit(f"[jira] left In Progress — could not hand the ticket back: {exc}")
 
 
 async def _typecheck_the_change(
@@ -957,11 +971,20 @@ async def run_feature(
 
     passed = False
     iterations = 0
-    while iterations < max_refine:
+    # One allowance per kind of problem, not one pool for all three. A live run spent
+    # iterations 1-2 on real test failures and 3-4 on type errors, so when the coverage
+    # probe found its gap on iteration 5 there was nothing left to answer it with — the
+    # change was fixable and the run reported FAILED. Each check now gets guaranteed room,
+    # with a hard ceiling so a pathological run still terminates.
+    spent = {"tests": 0, "types": 0, "coverage": 0}
+    budgets = {"tests": max_refine, "types": max_refine, "coverage": _MAX_COVERAGE_FIXES}
+    ceiling = sum(budgets.values()) + 1
+    while iterations < ceiling:
         result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
         iterations += 1
         emit(f"[run_tests #{iterations}] passed={result.passed} rc={result.returncode}")
         failures = result.output
+        kind = "tests"
         if result.passed:
             # Green is necessary and not sufficient. The generated tests are written by the
             # same model as the code and routinely exercise a new helper directly while never
@@ -969,6 +992,7 @@ async def run_feature(
             # wrong attribute sitting on the line that matters. The type checker does not.
             changed = await _changed_files(path)
             failures = await _typecheck_the_change(path, testenv, changed, emit)
+            kind = "types"
             if not failures:
                 # Type-clean and green still allows a change nothing tests. Probe each
                 # production file on its own; a gap is answered by writing the missing
@@ -977,8 +1001,10 @@ async def run_feature(
                 if not gaps:
                     passed = True
                     break
-                if iterations >= max_refine:
+                if spent["coverage"] >= budgets["coverage"]:
+                    emit("[cover] out of coverage attempts — the change is not proven tested")
                     break
+                spent["coverage"] += 1
                 with llm.stage("author_tests"):
                     covered = await codegen.author_tests(
                         spec=spec, path=str(path), issue_key=issue_key, gaps=gaps
@@ -988,8 +1014,10 @@ async def run_feature(
                     emit("[cover] no tests written for the gap — stopping rather than looping")
                     break
                 continue
-        if iterations >= max_refine:
+        if spent[kind] >= budgets[kind]:
+            emit(f"[refine] out of {kind} attempts — stopping")
             break
+        spent[kind] += 1
         with llm.stage("refine"):
             change = await codegen.refine(spec=spec, path=str(path), issue_key=issue_key, failures=failures)
         emit(f"[refine] {[Path(f).name for f in change.files]} - {change.summary}")
@@ -1026,6 +1054,11 @@ async def run_feature(
     if not passed:
         # A failed run is where the spend most needs explaining — it bought no PR.
         await log_run_cost("FAILED")
+        # Put the ticket back. It was moved to In Progress before codegen so the board would
+        # show the work being picked up; a run that then fails has produced no branch and no
+        # PR, and leaving the ticket In Progress tells everyone looking at the board that
+        # someone is on it. A live run did exactly this and the ticket sat there afterwards.
+        await _release_the_ticket(move, emit)
         raise FeatureRunError(f"VERDICT: FAILED after {iterations} test run(s) — not opening a PR.", code=1)
 
     # The last gate before anything is written, and the only one that is not a model. Every
