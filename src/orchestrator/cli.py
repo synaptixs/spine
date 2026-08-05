@@ -832,7 +832,11 @@ def sdlc_autorun(
         typer.Option("--live/--safe", help="Write for real. Default --safe makes no external write."),
     ] = False,
     max_refine: Annotated[
-        int, typer.Option("--max-refine", help="Max test→refine loops (tests and type errors share it).")
+        int,
+        typer.Option(
+            "--max-refine",
+            help="Correction attempts allowed per check — tests, types and coverage each get their own.",
+        ),
     ] = 5,
     review: Annotated[
         bool,
@@ -923,7 +927,10 @@ def sdlc_feature(
         # Matches `sdlc autorun`: the type checker draws on this budget too, so a run that
         # greens its suite on the first pass still has the checker to satisfy. Left at 3, this
         # flag silently overrode the raise and reintroduced the shortfall on this path only.
-        typer.Option("--max-refine", help="Max test→refine loops (tests and type errors share it)."),
+        typer.Option(
+            "--max-refine",
+            help="Correction attempts allowed per check — tests, types and coverage each get their own.",
+        ),
     ] = 5,
     live: Annotated[
         bool,
