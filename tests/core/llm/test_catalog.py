@@ -85,3 +85,22 @@ class TestToolCallingIsARequirement:
     def test_render_points_at_the_current_model(self) -> None:
         rows = [catalog.ModelInfo("a", "anthropic", 1, 1.0, 2.0, supports_tools=True)]
         assert "←" in catalog.render(rows, current="a")
+
+
+class TestTheScaffoldMentionsThem:
+    """A variable nobody can discover is not configuration. Model selection was
+    scaffolded nowhere, so `orchestrator init` produced a `.env` that never hinted a
+    stage could be pointed somewhere else."""
+
+    def test_every_stage_variable_reaches_the_env_template(self) -> None:
+        from orchestrator.init_scaffold import render_env_template
+
+        template = render_env_template({})
+        for stage, names in catalog.STAGE_ENV.items():
+            for name in names:
+                assert name in template, f"{name} ({stage}) missing from the .env scaffold"
+
+    def test_the_default_is_named_so_you_know_what_you_get(self) -> None:
+        from orchestrator.init_scaffold import render_env_template
+
+        assert catalog.DEFAULT_MODEL in render_env_template({})
