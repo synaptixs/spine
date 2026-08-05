@@ -101,6 +101,7 @@ class _StubCodegen:
         self.refine_calls = 0
         self.revise_calls = 0
         self.blockers_seen: list[list[str]] = []
+        self.gaps_seen: list[list[str]] = []
         self.layout = kwargs.get("layout")
 
     async def implement(self, **kwargs: Any) -> CodeChange:
@@ -1063,3 +1064,82 @@ def test_only_errors_on_changed_lines_count() -> None:
     assert _error_is_on_a_changed_line("src/a.py:10: error: boom  [attr-defined]", touched)
     assert not _error_is_on_a_changed_line("src/a.py:99: error: pre-existing  [attr-defined]", touched)
     assert not _error_is_on_a_changed_line("src/other.py:10: error: untouched  [attr-defined]", touched)
+
+
+# ---- a change nothing tests is not a tested change (SSPN-14) ----
+
+
+class _PerFileRunner:
+    """A suite that depends on one file's change and no other.
+
+    Stashing a tracked file reverts its *content*; it does not remove the file. So the
+    dependency is expressed the way a real test does — by what the file says.
+    """
+
+    depends_on = "src/orchestrator/mcp/contract.py"
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        changed = (Path(path) / _PerFileRunner.depends_on).read_text(encoding="utf-8").strip() == "x = 2"
+        return SimpleNamespace(passed=changed, returncode=0 if changed else 1, output="E   assert 1 == 2")
+
+
+async def test_a_file_no_test_reaches_is_reported(tmp_path: Path) -> None:
+    """The live miss: the helper in contract.py was correct and exhaustively tested, and the
+    cli.py wiring that called it passed `{}` on every call. Reverting the whole change broke
+    the helper's import so the suite went red and the old proof check "held" — while the line
+    that actually mattered was covered by nothing."""
+    from orchestrator.sdlc.feature_runner import _files_no_test_exercises
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    for rel in ("src/orchestrator/mcp/contract.py", "src/orchestrator/cli.py", "tests/test_it.py"):
+        target = tmp_path / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
+    # Both production files change; only contract.py is depended on by the suite.
+    (tmp_path / "src/orchestrator/mcp/contract.py").write_text("x = 2\n", encoding="utf-8")
+    (tmp_path / "src/orchestrator/cli.py").write_text("x = 2\n", encoding="utf-8")
+
+    files = ["src/orchestrator/mcp/contract.py", "src/orchestrator/cli.py", "tests/test_it.py"]
+    gaps = await _files_no_test_exercises(tmp_path, files, _PerFileRunner(), lambda _m: None)
+
+    assert gaps == ["src/orchestrator/cli.py"]  # the wiring, exactly
+
+
+async def test_a_coverage_gap_asks_for_tests_not_an_implementation_change(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A gap means the tests are wrong, not the code — so it goes to author_tests, and
+    refine is never asked to change an implementation that is already correct."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    probes = {"n": 0}
+
+    async def _probe(path: Path, files: list[str], runner: Any, emit: Any) -> list[str]:
+        probes["n"] += 1
+        return ["src/orchestrator/cli.py"] if probes["n"] == 1 else []
+
+    class _CoveringCodegen(_StubCodegen):
+        async def author_tests(self, **kwargs: Any) -> CodeChange:
+            gaps = kwargs.get("gaps")
+            if gaps:
+                self.gaps_seen.append(list(gaps))
+                return CodeChange(files=["tests/test_cli.py"], summary="cover the wiring")
+            return CodeChange(files=[], summary="tests")
+
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _probe)
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_CoveringCodegen)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", _Judge("approve"))
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+    assert result.passed
+    assert created[0].gaps_seen == [["src/orchestrator/cli.py"]]
+    assert created[0].refine_calls == 0  # the implementation was never blamed for a test gap

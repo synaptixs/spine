@@ -116,6 +116,51 @@ async def _prove_the_tests_test_something(
         await _git(path, "stash", "pop", "--quiet")
 
 
+_MAX_COVERAGE_PROBES = 4  # test runs this check may spend
+
+
+async def _files_no_test_exercises(
+    path: Path, files: list[str], runner: Any, emit: Callable[[str], None]
+) -> list[str]:
+    """Revert each changed production file **on its own**. Any that leaves the suite green
+    is a file nothing tests.
+
+    ``_prove_the_tests_test_something`` reverts the whole change at once, which only proves
+    the tests depend on *some* part of it. That passed on a change whose helper was correct,
+    fully tested, and wired into the CLI through ``hasattr(t.handler, "tool")`` — a guard
+    that is always False, so every argument printed ``any``. Reverting everything broke the
+    helper's import and the suite went red, so the proof "held" while the line that mattered
+    was covered by nothing.
+
+    Per-file is the version that catches it: revert ``cli.py`` alone, and if the tests still
+    pass, the wiring in ``cli.py`` is untested — which is exactly what "the criteria are
+    behavioural and nothing runs the command" looks like from the outside.
+    """
+    production = [f for f in files if not _is_test_path(f)]
+    if not production or not any(_is_test_path(f) for f in files):
+        return []
+    if len(production) > _MAX_COVERAGE_PROBES:
+        emit(f"[coverage] {len(production)} production files — probing the first {_MAX_COVERAGE_PROBES}")
+        production = production[:_MAX_COVERAGE_PROBES]
+
+    unexercised: list[str] = []
+    for target in production:
+        if not await _git(path, "stash", "push", "--include-untracked", "--quiet", "--", target):
+            continue
+        try:
+            result = await runner.run(path=str(path))
+        finally:
+            await _git(path, "stash", "pop", "--quiet")
+        if getattr(result, "passed", False):
+            unexercised.append(target)
+    if unexercised:
+        names = ", ".join(Path(f).name for f in unexercised)
+        emit(f"[coverage] nothing exercises the change in: {names}")
+    else:
+        emit("[coverage] every changed file is exercised by a test")
+    return unexercised
+
+
 async def _typecheck_the_change(
     path: Path, testenv: Any, files: list[str], emit: Callable[[str], None]
 ) -> str:
@@ -872,10 +917,27 @@ async def run_feature(
             # same model as the code and routinely exercise a new helper directly while never
             # importing the module the ticket was about — so they pass over a NameError or a
             # wrong attribute sitting on the line that matters. The type checker does not.
-            failures = await _typecheck_the_change(path, testenv, await _changed_files(path), emit)
+            changed = await _changed_files(path)
+            failures = await _typecheck_the_change(path, testenv, changed, emit)
             if not failures:
-                passed = True
-                break
+                # Type-clean and green still allows a change nothing tests. Probe each
+                # production file on its own; a gap is answered by writing the missing
+                # test, not by editing the implementation, so it goes to author_tests.
+                gaps = await _files_no_test_exercises(path, changed, runner, emit)
+                if not gaps:
+                    passed = True
+                    break
+                if iterations >= max_refine:
+                    break
+                with llm.stage("author_tests"):
+                    covered = await codegen.author_tests(
+                        spec=spec, path=str(path), issue_key=issue_key, gaps=gaps
+                    )
+                emit(f"[cover] {[Path(f).name for f in covered.files]} - {covered.summary}")
+                if not covered.files:
+                    emit("[cover] no tests written for the gap — stopping rather than looping")
+                    break
+                continue
         if iterations >= max_refine:
             break
         with llm.stage("refine"):
