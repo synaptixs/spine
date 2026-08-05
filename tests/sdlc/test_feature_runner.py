@@ -1143,3 +1143,72 @@ async def test_a_coverage_gap_asks_for_tests_not_an_implementation_change(
     assert result.passed
     assert created[0].gaps_seen == [["src/orchestrator/cli.py"]]
     assert created[0].refine_calls == 0  # the implementation was never blamed for a test gap
+
+
+# ---- a check that cannot run must not look like a check that passed (SSPN-14) ----
+
+
+def _seeded_repo(tmp_path: Path) -> Path:
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "mod.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
+    return tmp_path
+
+
+async def test_reading_the_diff_leaves_the_index_alone(tmp_path: Path) -> None:
+    """`git add -N -A` made untracked files visible to `git diff` and made every later
+    `git stash push` fail with "Entry ... not uptodate. Cannot merge." That silently
+    disabled the proof pass for three runs and made the coverage probe skip every file
+    while announcing that all of them were exercised."""
+    from orchestrator.sdlc.feature_runner import _changed_line_ranges, _git_out
+
+    root = _seeded_repo(tmp_path)
+    (root / "src" / "mod.py").write_text("x = 2\n", encoding="utf-8")
+    (root / "src" / "brand_new.py").write_text("y = 1\ny = 2\n", encoding="utf-8")
+
+    ranges = await _changed_line_ranges(root)
+
+    assert ranges["src/mod.py"] == {1}
+    assert ranges["src/brand_new.py"] == {1, 2}  # a new file has no diff; every line counts
+
+    # The check that regressed: stashing must still work afterwards.
+    stashed, why = await _git_out(root, "stash", "push", "--include-untracked", "--quiet", "--", "src/mod.py")
+    assert stashed, f"reading the diff broke the stash: {why}"
+    await _git_out(root, "stash", "pop", "--quiet")
+
+
+async def test_git_failures_say_why() -> None:
+    """ "could not set the change aside" was the entire diagnosis for three runs, because
+    stderr went to DEVNULL. Git names the cause in one line."""
+    from orchestrator.sdlc.feature_runner import _git_out
+
+    ok, why = await _git_out(Path("/"), "stash", "push", "--", "nope.py")
+
+    assert not ok
+    assert why  # whatever git said, we kept it
+
+
+async def test_an_unprobed_file_is_not_reported_as_covered(tmp_path: Path) -> None:
+    """The bug this check had itself: a failed stash `continue`d, so a run in which nothing
+    could be probed printed "every changed file is exercised by a test"."""
+    from orchestrator.sdlc.feature_runner import _files_no_test_exercises
+
+    root = _seeded_repo(tmp_path)
+    (root / "tests").mkdir()
+    (root / "tests" / "test_it.py").write_text("def test_x() -> None:\n    assert True\n", encoding="utf-8")
+    (root / "src" / "mod.py").write_text("x = 2\n", encoding="utf-8")
+    # Make the stash fail the way intent-to-add did.
+    subprocess.run(["git", "add", "-N", "-A"], cwd=root, check=True)
+
+    said: list[str] = []
+    gaps = await _files_no_test_exercises(
+        root, ["src/mod.py", "tests/test_it.py"], _PassingRunner(), said.append
+    )
+
+    assert gaps == []  # nothing was proven unexercised...
+    assert any("COULD NOT probe" in m for m in said)  # ...because nothing was probed
+    assert not any("every changed file is exercised" in m for m in said)

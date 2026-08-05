@@ -99,9 +99,9 @@ async def _prove_the_tests_test_something(
     if not production or not any(_is_test_path(f) for f in files):
         return
 
-    stashed = await _git(path, "stash", "push", "--include-untracked", "--quiet", "--", *production)
+    stashed, why = await _git_out(path, "stash", "push", "--include-untracked", "--quiet", "--", *production)
     if not stashed:
-        emit("[proof] could not set the change aside — skipping the without-it test run")
+        emit(f"[proof] could not set the change aside — skipping the without-it test run: {why}")
         return
     try:
         result = await runner.run(path=str(path))
@@ -144,8 +144,14 @@ async def _files_no_test_exercises(
         production = production[:_MAX_COVERAGE_PROBES]
 
     unexercised: list[str] = []
+    unprobed: list[str] = []
     for target in production:
-        if not await _git(path, "stash", "push", "--include-untracked", "--quiet", "--", target):
+        stashed, why = await _git_out(path, "stash", "push", "--include-untracked", "--quiet", "--", target)
+        if not stashed:
+            # Never a silent skip. This exact path reported "every changed file is
+            # exercised" for a whole run while stashing nothing, because an earlier
+            # stage had left intent-to-add entries in the index and every push failed.
+            unprobed.append(f"{Path(target).name} ({why.splitlines()[0] if why else 'stash failed'})")
             continue
         try:
             result = await runner.run(path=str(path))
@@ -153,10 +159,12 @@ async def _files_no_test_exercises(
             await _git(path, "stash", "pop", "--quiet")
         if getattr(result, "passed", False):
             unexercised.append(target)
+    if unprobed:
+        emit(f"[coverage] COULD NOT probe {len(unprobed)} file(s) — not a pass: {'; '.join(unprobed)}")
     if unexercised:
         names = ", ".join(Path(f).name for f in unexercised)
         emit(f"[coverage] nothing exercises the change in: {names}")
-    else:
+    elif not unprobed:
         emit("[coverage] every changed file is exercised by a test")
     return unexercised
 
@@ -218,8 +226,17 @@ async def _exec(path: Path, *argv: str) -> tuple[bool, str]:
 
 
 async def _changed_line_ranges(path: Path) -> dict[str, set[int]]:
-    """``{relative path: {line numbers this change added}}``, from the worktree diff."""
-    await _git(path, "add", "-N", "-A")
+    """``{relative path: {line numbers this change added}}``, from the worktree diff.
+
+    Reads the index; never writes it. The first version ran ``git add -N -A`` so untracked
+    files would appear in ``git diff``, and intent-to-add entries make every subsequent
+    ``git stash push`` fail with *"Entry ... not uptodate. Cannot merge."* That silently
+    disabled both checks that stash — the proof pass reported "could not set the change
+    aside" for three runs, and the coverage probe skipped every file and announced that all
+    of them were exercised. A check that cannot run must never look like a check that
+    passed, and the surest way to avoid it is not to touch shared state at all.
+    """
+    untracked = await _untracked_python_files(path)
     proc = await asyncio.create_subprocess_exec(
         "git",
         "diff",
@@ -245,7 +262,30 @@ async def _changed_line_ranges(path: Path) -> dict[str, set[int]]:
             if match:
                 start = int(match.group(1))
                 ranges[current].update(range(start, start + int(match.group(2) or 1)))
+    # A brand-new file has no diff against HEAD, and it is exactly where generated code
+    # lands — so every line of it counts as changed.
+    for rel in untracked:
+        try:
+            total = len((path / rel).read_text(encoding="utf-8").splitlines())
+        except (OSError, UnicodeDecodeError):
+            continue
+        if total:
+            ranges[rel] = set(range(1, total + 1))
     return {k: v for k, v in ranges.items() if v}
+
+
+async def _untracked_python_files(path: Path) -> list[str]:
+    proc = await asyncio.create_subprocess_exec(
+        "git",
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+        cwd=str(path),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    out, _ = await proc.communicate()
+    return [f for f in out.decode("utf-8", "replace").split("\n") if f.endswith(".py")]
 
 
 # Codes that say "this annotation could be tidier", not "this code is wrong". A worktree venv
@@ -435,15 +475,25 @@ def _is_test_path(rel: str) -> bool:
 
 
 async def _git(path: Path, *args: str) -> bool:
+    ok, _ = await _git_out(path, *args)
+    return ok
+
+
+async def _git_out(path: Path, *args: str) -> tuple[bool, str]:
+    """Run git, and keep what it said when it failed.
+
+    stderr used to go to ``DEVNULL``, so "could not set the change aside" was the whole
+    diagnosis for three runs. Git's own message named the cause in one line.
+    """
     proc = await asyncio.create_subprocess_exec(
         "git",
         *args,
         cwd=str(path),
         stdout=asyncio.subprocess.DEVNULL,
-        stderr=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.PIPE,
     )
-    await proc.communicate()
-    return proc.returncode == 0
+    _, err = await proc.communicate()
+    return proc.returncode == 0, err.decode("utf-8", "replace").strip()
 
 
 async def _local_commit(path: Path, message: str) -> None:
