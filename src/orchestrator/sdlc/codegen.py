@@ -1114,7 +1114,7 @@ class LLMCodegenAdapter:
         task = (
             f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}"
-            f"{_named_existing_files(spec, root)}{self._convention_block(root)}"
+            f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}"
         )
         if self._agentic:
             # Per-call plan values (from the run's capability plan) take
@@ -1238,7 +1238,7 @@ class LLMCodegenAdapter:
         task = (
             f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}"
-            f"{_named_existing_files(spec, root)}{self._convention_block(root)}"
+            f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}"
         )
         eff_skills = skills if skills is not None else self._skills
         session = CodegenSession(tracker=self._written)
@@ -1363,7 +1363,7 @@ class LLMCodegenAdapter:
             "make them match a broken implementation — fix the source code so the tests "
             "pass as written.\n\n"
             f"CURRENT FILES:\n{self._session_files(root, include_tests=True)}"
-            f"{_named_existing_files(spec, root)}{self._convention_block(root)}\n\n"
+            f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}\n\n"
             f"FAILURE OUTPUT:\n{_truncate(failures, _MAX_CONTEXT_BYTES)}",
             root,
             # A refine pass that yields no applicable edits is a legitimate
@@ -1384,7 +1384,7 @@ class LLMCodegenAdapter:
             f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}\n\n"
             f"CURRENT FILES:\n{self._session_files(root, include_tests=True)}"
-            f"{_named_existing_files(spec, root)}{self._convention_block(root)}\n\n"
+            f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}\n\n"
             f"UNMET CRITERIA (from the reviewer — every one must be addressed):\n{unmet}\n",
             root,
             # Same reasoning as refine: a model that judges it has nothing to add
@@ -1992,16 +1992,24 @@ def _excerpt_files(
     return "".join(chunks)
 
 
-def _named_existing_files(spec: dict[str, Any], root: Path) -> str:
-    """Full current content of existing repo files the SPEC names by path.
+def _named_existing_files(spec: dict[str, Any], root: Path, design: str = "") -> str:
+    """Full current content of the existing repo files this ticket is going to change.
 
     A surgical edit inside a large file (run #27: raise_approval_request in the
     ~300-line activities.py) fails when the model regenerates the whole file
     from memory — it truncates or malforms the JSON, and a full-content rewrite
     would be guard-skipped anyway. Giving it the file's EXACT content lets it
     anchor small ``edits`` against ground truth — the way an engineer opens the
-    file before changing it. Paths are read from the spec text; only existing,
-    in-worktree ``.py`` files are included, size-capped.
+    file before changing it.
+
+    Paths come from the spec **and from the design**, because a spec routinely names
+    none. Three consecutive runs on a ticket phrased entirely in behaviour ("`mcp
+    contracts` shows the argument's type") opened with the summary *"placeholder —
+    need to read the actual file first"*: the design had already named `cli.py` and
+    `contract.py`, and codegen was shown neither, because the spec text contained no
+    `.py` path to match. The model was describing its situation accurately. It wrote a
+    helper it never wired in and never touched the display layer at all — not a
+    judgement failure downstream, a generator working blind.
     """
     blob = " ".join(
         [
@@ -2011,7 +2019,9 @@ def _named_existing_files(spec: dict[str, Any], root: Path) -> str:
         ]
     )
     seen: list[str] = []
-    for rel in _PATH_RE.findall(blob):
+    # Spec first: when a ticket does name its files, that is the sharpest statement of
+    # intent there is. The design follows, and fills the common case where it does not.
+    for rel in _PATH_RE.findall(blob) + _PATH_RE.findall(design):
         if rel not in seen:
             seen.append(rel)
     # The spec's own words are the anchors here: a criterion naming `_type_label` or

@@ -1301,3 +1301,35 @@ async def test_the_repair_block_never_promises_content_it_does_not_supply(tmp_pa
 
     assert "VERBATIM" in block
     assert target in block, "the promise of exact content must come with exact content"
+
+
+async def test_codegen_is_shown_the_files_the_design_names(tmp_path: Path) -> None:
+    """Three runs opened with "placeholder — need to read the actual file first" and it was
+    the literal truth: paths came only from the spec text, this ticket's spec named none, and
+    codegen was handed zero bytes of the code it was asked to change."""
+    from orchestrator.sdlc.codegen import _named_existing_files
+
+    pkg = tmp_path / "src" / "app"
+    pkg.mkdir(parents=True)
+    (pkg / "display.py").write_text("def render() -> str:\n    return 'names only'\n", encoding="utf-8")
+    spec = {"summary": "Show argument types in the contracts output.", "acceptance_criteria": ["shows type"]}
+    design = "Approach: add a type label in src/app/display.py at render()."
+
+    assert _named_existing_files(spec, tmp_path, "") == ""  # the bug: nothing at all
+    with_design = _named_existing_files(spec, tmp_path, design)
+    assert "def render() -> str:" in with_design
+
+
+async def test_a_spec_that_names_its_files_still_wins(tmp_path: Path) -> None:
+    """When a ticket does name its files, that is the sharpest statement of intent there is."""
+    from orchestrator.sdlc.codegen import _named_existing_files
+
+    pkg = tmp_path / "src" / "app"
+    pkg.mkdir(parents=True)
+    (pkg / "named.py").write_text("A = 1\n", encoding="utf-8")
+    (pkg / "designed.py").write_text("B = 2\n", encoding="utf-8")
+    spec = {"summary": "Change src/app/named.py.", "acceptance_criteria": []}
+
+    block = _named_existing_files(spec, tmp_path, "also touch src/app/designed.py")
+
+    assert block.index("named.py") < block.index("designed.py")
