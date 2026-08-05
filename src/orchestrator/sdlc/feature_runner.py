@@ -20,7 +20,7 @@ import os
 import re
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
@@ -177,6 +177,16 @@ async def _satisfy_the_ticket(
     blockers: list[str] = []
     for attempt in range(max_revisions + 1):
         verdict = await _judge_against_the_criteria(llm, path=path, issue_key=issue_key, spec=spec, emit=emit)
+        if getattr(verdict, "unreviewed", False):
+            # No verdict at all is not a pass. This ran: the judge's reply was unreadable,
+            # mapped to `comment`, and the run committed a change whose only new function
+            # was never called. Revising cannot help — there is nothing to revise toward —
+            # so it stops here for a human rather than looping.
+            raise FeatureRunError(
+                "VERDICT: FAILED — the acceptance judge returned no readable verdict, so "
+                "this change is unreviewed. Not proceeding.",
+                code=1,
+            )
         if verdict.verdict != "request_changes":
             return
         blockers = list(verdict.blockers) or [verdict.summary]
@@ -379,6 +389,9 @@ async def run_feature(
     # on purpose: this is "undo the one thing you just broke", not a second debugging budget,
     # and it is spent inside a revision that has already cost a codegen call and a test run.
     max_revision_repairs: int = 2,
+    # Asked once, after every automatic check has passed and before the first write. Returning
+    # False stops the run with nothing committed. ``None`` keeps the pipeline unattended.
+    gate: Callable[[Path, list[str]], Awaitable[bool]] | None = None,
     live: bool = False,
     issue: str | None = None,
     design: str = "",
@@ -777,6 +790,20 @@ async def run_feature(
         # A failed run is where the spend most needs explaining — it bought no PR.
         await log_run_cost("FAILED")
         raise FeatureRunError(f"VERDICT: FAILED after {iterations} test run(s) — not opening a PR.", code=1)
+
+    # The last gate before anything is written, and the only one that is not a model. Every
+    # automatic check upstream can be satisfied by a change that does nothing — a run reached
+    # this line having committed a helper function it never called, with green tests, a passing
+    # proof check and a judge whose reply was unreadable. A person reading the diff is the one
+    # check none of that can fool.
+    if gate is not None:
+        emit("[gate] waiting for human approval — nothing has been committed yet")
+        if not await gate(path, files):
+            await log_run_cost("DECLINED")
+            raise FeatureRunError(
+                "VERDICT: DECLINED at the human gate — nothing committed, nothing pushed.", code=1
+            )
+        emit("[gate] approved")
 
     # 6. commit + 7. push + PR.
     title = f"{issue_key}: {spec['title']}"

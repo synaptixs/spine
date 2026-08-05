@@ -197,9 +197,16 @@ class _Judge:
     expressed. A list shorter than the number of calls holds on its last entry.
     """
 
-    def __init__(self, verdict: str | list[str] = "approve", blockers: list[str] | None = None) -> None:
+    def __init__(
+        self,
+        verdict: str | list[str] = "approve",
+        blockers: list[str] | None = None,
+        *,
+        unreviewed: bool = False,
+    ) -> None:
         self.verdicts = [verdict] if isinstance(verdict, str) else list(verdict)
         self.blockers = blockers or []
+        self.unreviewed = unreviewed
         self.calls = 0
 
     def __call__(self, llm: Any, **kwargs: Any) -> Any:
@@ -209,7 +216,13 @@ class _Judge:
         verdict = self.verdicts[min(self.calls, len(self.verdicts) - 1)]
         self.calls += 1
         blockers = self.blockers if verdict == "request_changes" else []
-        return SimpleNamespace(verdict=verdict, blockers=blockers, summary="judged", uncertain=[])
+        return SimpleNamespace(
+            verdict=verdict,
+            blockers=blockers,
+            summary="judged",
+            uncertain=[],
+            unreviewed=self.unreviewed,
+        )
 
 
 def _install_pipeline(
@@ -893,3 +906,81 @@ async def test_an_unrepairable_break_still_stops_the_run(
         )
 
     assert created[0].refine_calls == 2  # spent the budget, then stopped
+
+
+async def test_an_unreviewed_change_never_reaches_the_commit(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The run that made this necessary: the judge's reply was unreadable, `_parse` mapped
+    it to `comment`, the caller read `comment` as "not a blocker", and the pipeline committed
+    a change whose only new function was never called. No verdict is not a pass."""
+    judge = _Judge("comment", unreviewed=True)
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, codegen=_RevisingCodegen)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", judge)
+
+    with pytest.raises(FeatureRunError, match="unreviewed") as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+    assert exc.value.code == 1
+    assert judge.calls == 1
+    assert created[0].revise_calls == 0  # nothing to revise toward — it stops for a human
+
+
+# ---- the last gate before any write is a person, not a model (SSPN-14) ----
+
+
+async def test_a_declined_gate_commits_nothing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Every automatic check can be satisfied by a change that does nothing — one run
+    committed a helper it never called, with green tests, a passing proof check and an
+    unreadable judge. A person reading the diff is the check none of that fools."""
+    seen: dict[str, Any] = {}
+
+    async def _decline(path: Path, files: list[str]) -> bool:
+        seen["path"], seen["files"] = path, files
+        return False
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", _Judge("approve"))
+
+    with pytest.raises(FeatureRunError, match="DECLINED at the human gate") as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget", gate=_decline)
+
+    assert exc.value.code == 1
+    assert seen["path"] == tmp_path  # the gate is shown where the change actually is
+
+
+async def test_an_approved_gate_lets_the_run_finish(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    calls: list[int] = []
+
+    async def _approve(path: Path, files: list[str]) -> bool:
+        calls.append(1)
+        return True
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", _Judge("approve"))
+
+    result = await run_feature(
+        "file://./spec.md", intent_id="intent-a", repo="https://x/widget", gate=_approve
+    )
+
+    assert result.passed
+    assert len(calls) == 1  # asked exactly once, not per stage
+
+
+async def test_the_gate_is_not_reached_by_a_failing_change(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """No point asking a human to approve something the pipeline already rejected."""
+    asked = []
+
+    async def _gate(path: Path, files: list[str]) -> bool:
+        asked.append(1)
+        return True
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", _Judge("approve"))
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED after"):
+        await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget", gate=_gate)
+
+    assert not asked

@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
-from orchestrator.core.llm import LLMClient, Message
+from orchestrator.core.llm import LLMClient, Message, ToolSpec
 from orchestrator.core.prompt_safety import fence_untrusted
 
 logger = logging.getLogger("orchestrator.sdlc.review")
@@ -85,6 +85,11 @@ class ReviewResult:
     summary: str = ""
     # Criteria the judge could not confirm — the escalation policy's signal.
     uncertain: list[str] = field(default_factory=list)
+    # No verdict was obtained at all: the judge's reply could not be read. Distinct from
+    # ``uncertain``, which is a judgement ("I looked and cannot tell") and deliberately not
+    # a hard stop. This is the absence of one, and a run that treats it as a pass has no
+    # acceptance review — a live run did exactly that and committed dead code.
+    unreviewed: bool = False
 
     @property
     def has_blocker(self) -> bool:
@@ -131,6 +136,44 @@ _JUDGE_SYSTEM = (
 )
 
 
+_VERDICT_TOOL = ToolSpec(
+    name="submit_verdict",
+    description=(
+        "Submit the acceptance judgement: one entry per criterion, with the evidence "
+        "that decided it. Call this exactly once."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "criteria": {
+                "type": "array",
+                "description": "One entry per acceptance criterion given, in the order given.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "criterion": {"type": "string", "description": "The criterion, verbatim."},
+                        "status": {
+                            "type": "string",
+                            # The enum is the point: 'met' was the only word that could be
+                            # misspelled into a pass, and now it cannot be.
+                            "enum": ["met", "unmet", "uncertain"],
+                            "description": "met only if you can point at code that satisfies it.",
+                        },
+                        "evidence": {
+                            "type": "string",
+                            "description": "File/function that decided it, or why you cannot tell. One line.",
+                        },
+                    },
+                    "required": ["criterion", "status"],
+                },
+            },
+            "summary": {"type": "string", "description": "One line covering the change as a whole."},
+        },
+        "required": ["criteria"],
+    },
+)
+
+
 class SemanticReviewAdapter:
     """LLM judge: does the change satisfy the spec's acceptance criteria?
 
@@ -171,17 +214,30 @@ class SemanticReviewAdapter:
         result = await self._llm.complete(
             [Message(role="system", content=_JUDGE_SYSTEM), Message(role="user", content=user)],
             model=self._model,
+            # The judge had the same unconstrained output as codegen did, and a worse
+            # failure mode for it: codegen's unreadable reply aborts the run, where the
+            # judge's used to pass the change. A forced tool call is a schema the provider
+            # enforces, so there is no prose to fail to parse.
+            tools=[_VERDICT_TOOL],
+            tool_choice=_VERDICT_TOOL.name,
         )
+        for call in result.tool_calls:
+            if call.name == _VERDICT_TOOL.name:
+                return self._verdict_from(call.arguments)
+        # A provider that ignored the tool still answers in text — the old path, unchanged.
         return self._parse(result.text)
 
     def _parse(self, text: str) -> ReviewResult:
-        payload = _loads_json_object(text)
-        rows = (payload or {}).get("criteria")
+        return self._verdict_from(_loads_json_object(text) or {})
+
+    def _verdict_from(self, payload: dict[str, Any]) -> ReviewResult:
+        rows = payload.get("criteria")
         if not isinstance(rows, list) or not rows:
             logger.warning("sdlc.review.unparseable_judge_output")
             return ReviewResult(
                 verdict="comment",
                 summary="semantic review: judge output unparseable — needs human review",
+                unreviewed=True,
             )
         unmet = [r for r in rows if isinstance(r, dict) and r.get("status") == "unmet"]
         uncertain = [r for r in rows if isinstance(r, dict) and r.get("status") == "uncertain"]

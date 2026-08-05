@@ -216,3 +216,68 @@ async def test_an_oversized_file_does_not_hide_the_rest_of_the_change(tmp_path: 
     assert "omitted for size" in llm.last_user
     assert "aaa_huge.py" in llm.last_user
     assert "NOT evidence" in llm.last_user
+
+
+class _ToolJudgeLLM:
+    """Answers with a forced ``submit_verdict`` call; records how it was asked."""
+
+    def __init__(self, arguments: dict[str, Any], *, text: str = "", call_tool: bool = True) -> None:
+        self._arguments = arguments
+        self._text = text
+        self._call_tool = call_tool
+        self.tools_offered: list[Any] = []
+        self.tool_choice: str | None = None
+
+    async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResult:
+        from orchestrator.core.llm import ToolCall
+
+        self.tools_offered = list(kwargs.get("tools") or [])
+        self.tool_choice = kwargs.get("tool_choice")
+        calls = (ToolCall("c1", "submit_verdict", self._arguments),) if self._call_tool else ()
+        return CompletionResult(self._text, "m", 1, 1, 0.0, 1.0, tool_calls=calls)
+
+
+async def test_the_judge_output_is_forced_not_requested(tmp_path: Path) -> None:
+    """The judge had codegen's unconstrained-output problem with a worse failure mode:
+    codegen's unreadable reply aborts the run, the judge's used to pass the change."""
+    _worktree(tmp_path)
+    llm = _ToolJudgeLLM({"criteria": [{"criterion": "exports a CSV file", "status": "met"}]})
+
+    result = await SemanticReviewAdapter(llm).review(path=str(tmp_path), issue_key="S-1", spec=SPEC)
+
+    assert llm.tool_choice == "submit_verdict"
+    assert [t.name for t in llm.tools_offered] == ["submit_verdict"]
+    assert result.verdict == "approve"
+
+
+async def test_a_tool_verdict_wins_over_prose(tmp_path: Path) -> None:
+    """Prose alongside the call is what used to fail to parse; now it is ignored."""
+    _worktree(tmp_path)
+    llm = _ToolJudgeLLM(
+        {"criteria": [{"criterion": "exports a CSV file", "status": "unmet", "evidence": "no writer"}]},
+        text="Let me review each criterion in turn. First...",
+    )
+
+    result = await SemanticReviewAdapter(llm).review(path=str(tmp_path), issue_key="S-1", spec=SPEC)
+
+    assert result.verdict == "request_changes"
+    assert not result.unreviewed
+    assert "no writer" in result.blockers[0]
+
+
+async def test_an_unreadable_verdict_is_flagged_as_unreviewed(tmp_path: Path) -> None:
+    """The live failure: an unparseable reply mapped to `comment`, the caller read `comment`
+    as "not a blocker", and a change nothing had reviewed went on to be committed."""
+    adapter, _ = _judge("I could not complete this review.")
+    result = await adapter.review(path=str(_worktree(tmp_path)), issue_key="S-1", spec=SPEC)
+
+    assert result.unreviewed is True
+    assert result.verdict == "comment"  # unchanged for any caller that reads the verdict
+
+
+async def test_a_real_verdict_is_not_flagged_unreviewed(tmp_path: Path) -> None:
+    adapter, _ = _judge({"criteria": [{"criterion": "exports a CSV file", "status": "uncertain"}]})
+    result = await adapter.review(path=str(_worktree(tmp_path)), issue_key="S-1", spec=SPEC)
+
+    assert result.unreviewed is False  # 'I looked and cannot tell' is a judgement, not an absence
+    assert result.uncertain
