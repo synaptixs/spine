@@ -82,6 +82,83 @@ class FeatureRunResult:
     tests: Any = None
 
 
+async def _prove_the_tests_test_something(
+    path: Path, files: list[str], runner: Any, emit: Callable[[str], None]
+) -> None:
+    """Revert the production change and re-run the model's own tests. They must fail.
+
+    The model writes the tests that judge its work, so "tests pass" proves only that its
+    tests agree with its code. A suite that passes *without* the change proves nothing at
+    all — and a run that produced no behaviour change would sail through it.
+
+    Deterministic and free: one test run, no model call. A check that cannot be performed
+    (nothing stashable, a stash that will not apply) is reported and skipped rather than
+    failing the run — an unproven suite is a weaker claim, not a broken change.
+    """
+    production = [f for f in files if not _is_test_path(f)]
+    if not production or not any(_is_test_path(f) for f in files):
+        return
+
+    stashed = await _git(path, "stash", "push", "--include-untracked", "--quiet", "--", *production)
+    if not stashed:
+        emit("[proof] could not set the change aside — skipping the without-it test run")
+        return
+    try:
+        result = await runner.run(path=str(path))
+        if getattr(result, "passed", False):
+            emit(
+                "[proof] WARNING: the generated tests pass without the change — they do not "
+                "exercise it, so a green suite says nothing about this work"
+            )
+        else:
+            emit("[proof] the tests fail without the change, as they must")
+    finally:
+        await _git(path, "stash", "pop", "--quiet")
+
+
+async def _judge_against_the_criteria(
+    llm: Any, *, path: Path, issue_key: str, spec: dict[str, Any], emit: Callable[[str], None]
+) -> None:
+    """Does the change satisfy the ticket — not merely its own tests?
+
+    Regex verifiers check for secrets and style; the test suite checks the code against tests
+    the same model wrote. Neither asks the only question that matters to the person who filed
+    the ticket. A run once shipped a green, reviewed change that touched the wrong module
+    entirely and left the requested behaviour exactly as it was.
+
+    The judge reads spec and code, never the codegen conversation, so it cannot rationalise
+    the generator's choices. Any unmet criterion stops the run before a PR exists.
+    """
+    from orchestrator.sdlc.review import SemanticReviewAdapter
+
+    with llm.stage("semantic_review"):
+        verdict = await SemanticReviewAdapter(llm).review(path=str(path), issue_key=issue_key, spec=spec)
+    if verdict.uncertain:
+        emit(f"[judge] uncertain on {len(verdict.uncertain)}: {'; '.join(verdict.uncertain[:2])}")
+    if verdict.verdict == "request_changes":
+        blockers = "; ".join(verdict.blockers) or verdict.summary
+        emit(f"[judge] REQUEST_CHANGES — {blockers}")
+        raise FeatureRunError(f"VERDICT: FAILED — the change does not satisfy the ticket: {blockers}", code=1)
+    emit(f"[judge] {verdict.verdict} — {verdict.summary or 'criteria met'}")
+
+
+def _is_test_path(rel: str) -> bool:
+    name = Path(rel).name
+    return name.startswith("test_") or name.endswith("_test.py") or "tests/" in rel.replace("\\", "/")
+
+
+async def _git(path: Path, *args: str) -> bool:
+    proc = await asyncio.create_subprocess_exec(
+        "git",
+        *args,
+        cwd=str(path),
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    await proc.communicate()
+    return proc.returncode == 0
+
+
 async def _local_commit(path: Path, message: str) -> None:
     """Stage + commit everything in the worktree via exec (no shell)."""
     for argv in (["git", "add", "-A"], ["git", "commit", "-m", message]):
@@ -554,6 +631,11 @@ async def run_feature(
             break
 
     files = await _changed_files(path)
+
+    if passed:
+        await _prove_the_tests_test_something(path, files, runner, emit)
+        await _judge_against_the_criteria(llm, path=path, issue_key=issue_key, spec=spec, emit=emit)
+
     if not passed:
         # A failed run is where the spend most needs explaining — it bought no PR.
         await log_run_cost("FAILED")
