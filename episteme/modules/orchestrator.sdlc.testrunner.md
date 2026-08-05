@@ -160,7 +160,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:60`](../../src/orchestrator/sdlc/testrunner.py#L60)
 
-- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L175)
+- **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L252)
 - **Calls** (1): `create_subprocess_exec`
 - **Documented in**: `docs/specs/sandboxed-test-execution.md#runner-change-sdlctestrunnerpy`, `docs/specs/sandboxed-test-execution.md#wiring-sdlcfeature-runnerpy`
 
@@ -170,4 +170,4 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.agentic.codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L1), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.deps`](../../src/orchestrator/sdlc/deps.py#L1), [`orchestrator.sdlc.feature_runner`](../../src/orchestrator/sdlc/feature_runner.py#L1), [`orchestrator.sdlc.preflight`](../../src/orchestrator/sdlc/preflight.py#L1), [`orchestrator.sdlc.testenv`](orchestrator.sdlc.testenv.md), [`orchestrator.sdlc.worker`](orchestrator.sdlc.worker.md), [`tests.sdlc.test_codegen`](../../tests/sdlc/test_codegen.py#L1), [`tests.sdlc.test_go_integration`](../../tests/sdlc/test_go_integration.py#L1), [`tests.sdlc.test_java_integration`](../../tests/sdlc/test_java_integration.py#L1), [`tests.sdlc.test_sql_build`](../../tests/sdlc/test_sql_build.py#L1), [`tests.sdlc.test_testenv`](../../tests/sdlc/test_testenv.py#L1), [`tests.sdlc.test_testrunner`](../../tests/sdlc/test_testrunner.py#L1), [`tests.sdlc.test_typescript_integration`](../../tests/sdlc/test_typescript_integration.py#L1)
+[`orchestrator.agentic.codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L1), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.deps`](../../src/orchestrator/sdlc/deps.py#L1), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.preflight`](../../src/orchestrator/sdlc/preflight.py#L1), [`orchestrator.sdlc.testenv`](orchestrator.sdlc.testenv.md), [`orchestrator.sdlc.worker`](orchestrator.sdlc.worker.md), [`tests.sdlc.test_codegen`](../../tests/sdlc/test_codegen.py#L1), [`tests.sdlc.test_go_integration`](../../tests/sdlc/test_go_integration.py#L1), [`tests.sdlc.test_java_integration`](../../tests/sdlc/test_java_integration.py#L1), [`tests.sdlc.test_sql_build`](../../tests/sdlc/test_sql_build.py#L1), [`tests.sdlc.test_testenv`](../../tests/sdlc/test_testenv.py#L1), [`tests.sdlc.test_testrunner`](../../tests/sdlc/test_testrunner.py#L1), [`tests.sdlc.test_typescript_integration`](../../tests/sdlc/test_typescript_integration.py#L1)
