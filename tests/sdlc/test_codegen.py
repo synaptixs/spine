@@ -1424,3 +1424,28 @@ async def test_no_existing_tests_is_not_an_error(tmp_path: Path) -> None:
     from orchestrator.sdlc.codegen import _existing_test_examples
 
     assert _existing_test_examples({"summary": "x"}, tmp_path, "touch src/app/nothing.py") == ""
+
+
+async def test_the_layout_permits_editing_the_repo_s_own_docs(tmp_path: Path) -> None:
+    """The layout block is stamped "authoritative — overrides any default path guidance"
+    and leads every phase prompt, so its absolute ban on files outside src/ and tests/
+    beat the revise prompt's explicit permission to write documentation. A run said so in
+    its own summary: "USER_GUIDE.md is outside the allowed src/tests paths so the doc note
+    was not added" — while the judge was failing the ticket for the missing doc."""
+    from orchestrator.sdlc.codegen import LLMCodegenAdapter
+    from orchestrator.sdlc.layout import TargetLayout
+
+    layout = TargetLayout(
+        package_name="app",
+        source_dir="src/app",
+        tests_dir="tests",
+        src_layout=True,
+        mode="existing",
+        language="python",
+    )
+    block = LLMCodegenAdapter(_ScriptedLLM([]), layout=layout)._layout_block()
+
+    assert "MAY edit files that already exist" in block
+    assert "USER_GUIDE" in block
+    # The part that was right stays: invented paths are still refused.
+    assert "do NOT invent unrelated top-level paths" in block
