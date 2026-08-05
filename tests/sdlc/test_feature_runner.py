@@ -182,6 +182,21 @@ class _FakeJira:
         return target
 
 
+class _Judge:
+    """Stands in for the semantic judge."""
+
+    def __init__(self, verdict: str = "approve", blockers: list[str] | None = None) -> None:
+        self.verdict, self.blockers = verdict, blockers or []
+        self.calls = 0
+
+    def __call__(self, llm: Any, **kwargs: Any) -> Any:
+        return self
+
+    async def review(self, *, path: str, issue_key: str, spec: Any = None) -> Any:
+        self.calls += 1
+        return SimpleNamespace(verdict=self.verdict, blockers=self.blockers, summary="judged", uncertain=[])
+
+
 def _install_pipeline(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -210,6 +225,10 @@ def _install_pipeline(
     monkeypatch.setattr("orchestrator.sdlc.codegen.resolve_codegen_model", lambda *a, **k: None)
     monkeypatch.setattr("orchestrator.sdlc.testrunner.SubprocessTestRunner", runner)
     monkeypatch.setattr("orchestrator.intake.jira.JiraAdapter", lambda *a, **k: jira or _FakeJira())
+    # The semantic judge now runs on every green change. Approve by default so these tests
+    # keep testing what they were written for; the judge's own behaviour is covered where a
+    # verdict is installed deliberately.
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", _Judge("approve"))
 
     class _Forge:
         """A PR without a forge: the live path needs one to reach the In Review transition."""
@@ -641,3 +660,60 @@ async def test_intake_driven_runs_still_write_the_backlog_ledger(
 
     # Once for the local ledger during intake, then into the worktree and back locally.
     assert len(written) >= 2
+
+
+# ---- the change must satisfy the ticket, not just its own tests (SSPN-37) ---
+
+
+async def test_a_change_that_does_not_satisfy_the_ticket_is_stopped(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The failure a real run shipped: green tests, clean verifiers, and a change that
+    touched the wrong module and left the requested behaviour exactly as it was. Neither the
+    suite nor the verifiers ask the only question the person who filed the ticket cares about.
+    """
+    judge = _Judge("request_changes", ["`mcp contracts` still shows names only"])
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", judge)
+
+    with pytest.raises(FeatureRunError, match="does not satisfy the ticket") as exc:
+        await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+    assert exc.value.code == 1
+    assert "still shows names only" in str(exc.value)
+    assert judge.calls == 1
+
+
+async def test_a_satisfying_change_proceeds(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    judge = _Judge("approve")
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", judge)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+    assert result.passed and judge.calls == 1
+
+
+async def test_the_judge_is_not_asked_about_a_failing_change(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A red suite is already a verdict — paying a model to confirm it would be waste."""
+    judge = _Judge("approve")
+    _install_pipeline(monkeypatch, tmp_path, runner=_FailingRunner)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", judge)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED after"):
+        await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+    assert judge.calls == 0
+
+
+def test_test_paths_are_recognised() -> None:
+    """The proof run has to know which half of the change to set aside."""
+    from orchestrator.sdlc.feature_runner import _is_test_path
+
+    assert _is_test_path("tests/sdlc/test_thing.py")
+    assert _is_test_path("test_thing.py")
+    assert _is_test_path("src/pkg/thing_test.py")
+    assert not _is_test_path("src/orchestrator/mcp/contract.py")
+    assert not _is_test_path("src/latest/protest.py")
