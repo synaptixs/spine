@@ -46,7 +46,7 @@ def test_missing_property_and_missing_schema_fall_back_to_any() -> None:
     assert argument_type_label(_SCHEMA, "nope") == "any"
     assert argument_type_label(None, "anything") == "any"
     assert argument_type_label({}, "anything") == "any"
-    assert argument_type_label({"properties": []}, "anything") == "any"  # type: ignore[arg-type]
+    assert argument_type_label({"properties": []}, "anything") == "any"
     assert argument_type_label({"properties": {"a": "string"}}, "a") == "any"
 
 
