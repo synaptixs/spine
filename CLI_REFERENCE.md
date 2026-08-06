@@ -3,12 +3,12 @@
 > **Spine** is the product; the command is **`orchestrator`** (package `synaptixs-spine`).
 > Auto-generated from the CLI — run `orchestrator <command> --help` for the live version.
 
-**43 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
+**48 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
 
 ## Command map
 
 **Getting started & operations** — Set up your environment and run the platform.  
-`init` · `doctor` · `up` · `tui` · `task submit`
+`init` · `doctor` · `models` · `up` · `tui` · `task submit`
 
 **Understand a codebase — the Knowledge Graph** — Extract and read the Product Knowledge Graph (PKG). Deterministic, no LLM. All accept a local path OR a git URL.  
 `understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs` · `pkg capabilities` · `media extract`
@@ -20,7 +20,7 @@
 `ingest` · `backlog` · `openspec draft`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
-`sdlc feature` · `sdlc run` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
+`sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
 
 **MCP — external tools** — Consume onboarded Model Context Protocol servers (governed, audited).  
 `mcp list` · `mcp contracts` · `mcp call` · `mcp ingest-db`
@@ -892,6 +892,12 @@ orchestrator mcp list [OPTIONS]
 ### `orchestrator mcp contracts`
 
 Show the ToolContract derived for each onboarded MCP tool (governance view).
+
+Each input is rendered `name (type)`, with the type read from the server's own
+JSON Schema at display time — `string|null` for a union, and `any` when the
+schema declares no top-level type (an `anyOf`, a `$ref`, or a tool with no
+schema). A parallel `input_types` map carries the same labels keyed by argument
+name. Display-only: nothing is stored, and `mcp call` serialisation is unchanged.
 
 ```
 orchestrator mcp contracts [OPTIONS]

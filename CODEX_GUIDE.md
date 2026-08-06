@@ -111,10 +111,11 @@ generating + testing code is **one LLM key**:
 ```bash
 # .env  (the bare minimum)
 OPENAI_API_KEY=sk-...                  # or ANTHROPIC_API_KEY=sk-ant-... (or an Ollama endpoint)
-ORCHESTRATOR_INTAKE_MODEL=gpt-4o       # one model drives everything; set it explicitly
+ORCHESTRATOR_MODEL=claude-opus-5       # one model for every stage (this is the default)
 ```
 
-Use any LiteLLM‑supported model string here (e.g. `gpt-4o`, an Anthropic
+Use any LiteLLM‑supported model string here (run `orchestrator models` to list
+them with prices and tool-calling support; e.g. an Anthropic
 `claude-*` id, or `ollama/<model>` with `OLLAMA_API_BASE`) — match it to the key you set.
 
 Add more only for what you do:
@@ -202,7 +203,7 @@ Checks what's wired up. Run this first.
 // tool: doctor   (no arguments)
 {}
 ```
-**Returns:** `{ "all_passed": false, "checks": [ { "name": "llm", "passed": true, "detail": "openai/gpt-4o" }, … ] }`
+**Returns:** `{ "all_passed": false, "checks": [ { "name": "llm", "passed": true, "detail": "anthropic/claude-opus-5" }, … ] }`
 
 ---
 
