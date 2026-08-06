@@ -1402,6 +1402,7 @@ class LLMCodegenAdapter:
 
     async def refine(self, *, spec: dict[str, Any], path: str, issue_key: str, failures: str) -> CodeChange:
         root = Path(path)
+        fail_anchors = _spec_anchors(failures)
         return await self._generate(
             self._condition_system(self._refine_system(), self._skills, phase="refine"),
             f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
@@ -1409,7 +1410,9 @@ class LLMCodegenAdapter:
             "IMPORTANT: Fix the IMPLEMENTATION files only. Do NOT modify test files to "
             "make them match a broken implementation — fix the source code so the tests "
             "pass as written.\n\n"
-            f"CURRENT FILES:\n{self._session_files(root, include_tests=True)}"
+            # Aim the windows at whatever the traceback names: on a big file the excerpt
+            # should cover the line that failed, not the top of the module.
+            f"CURRENT FILES:\n{self._session_files(root, include_tests=True, anchors=fail_anchors)}"
             f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}\n\n"
             f"FAILURE OUTPUT:\n{_truncate(failures, _MAX_CONTEXT_BYTES)}\n\n"
             f"{self._definitions_for(failures, root)}",
@@ -1569,7 +1572,7 @@ class LLMCodegenAdapter:
             )
         return "".join(chunks)
 
-    def _session_files(self, root: Path, *, include_tests: bool) -> str:
+    def _session_files(self, root: Path, *, include_tests: bool, anchors: list[str] | None = None) -> str:
         """The files this adapter wrote under ``root``, as a labeled prompt block.
 
         In Block C the worktree starts empty, so "everything in the worktree"
@@ -1583,16 +1586,20 @@ class LLMCodegenAdapter:
             written = [p for p in written if not p.name.startswith("test_")]
         if not written:
             return _read_worktree(root, include_tests=include_tests)
-        chunks: list[str] = []
-        budget = _MAX_CONTEXT_BYTES
-        for file in written:
-            block = f"--- {file.resolve().relative_to(root.resolve())} ---\n"
-            block += file.read_text(encoding="utf-8") + "\n"
-            if len(block) > budget:
-                break
-            budget -= len(block)
-            chunks.append(block)
-        return "".join(chunks)
+        # Fair allocation, never a `break`. This loop used to stop at the first file that
+        # did not fit, dropping every file after it — and a live run edited `models.py`
+        # (1.8 KB), broke it, and then could not repair it because `cli.py` (91 KB) came
+        # earlier in the list and ended the loop. The model said so plainly: "that file's
+        # current content was not provided, so I have no verbatim anchor to edit it
+        # safely." It was right. Third copy of this bug; the other two were the judge's
+        # reader and the anchor-repair block.
+        return _excerpt_files(
+            root,
+            [str(f.resolve().relative_to(root.resolve())) for f in written],
+            budget=_MAX_CONTEXT_BYTES,
+            anchors_by_path={str(f.resolve().relative_to(root.resolve())): anchors or [] for f in written},
+            label="written this session",
+        )
 
     async def _complete(self, system: str, user: str) -> str:
         result = await self._llm.complete(
@@ -2199,7 +2206,10 @@ def _read_worktree(root: Path, *, include_tests: bool) -> str:
     Skips ``.git`` and (optionally) ``test_*`` files; caps the total size so a
     big worktree can't blow past the model's context.
     """
+    # Skip-don't-break, for the same reason as everywhere else in this module: one big
+    # module must not hide every file sorted after it.
     chunks: list[str] = []
+    skipped: list[str] = []
     budget = _MAX_CONTEXT_BYTES
     for file in sorted(root.rglob("*.py")):
         if ".git" in file.parts:
@@ -2213,9 +2223,12 @@ def _read_worktree(root: Path, *, include_tests: bool) -> str:
         rel = file.relative_to(root)
         block = f"--- {rel} ---\n{body}\n"
         if len(block) > budget:
-            break
+            skipped.append(str(rel))
+            continue
         budget -= len(block)
         chunks.append(block)
+    if skipped:
+        chunks.append(f"--- [{len(skipped)} file(s) omitted for size: {', '.join(skipped)}] ---\n")
     return "".join(chunks) if chunks else "(worktree is empty)"
 
 
