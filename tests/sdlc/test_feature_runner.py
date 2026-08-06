@@ -1044,13 +1044,21 @@ async def test_the_type_errors_are_what_refine_is_given(
     assert seen and "cli.py:1117" in seen[0]
 
 
-def test_typing_hygiene_is_filtered_but_real_defects_are_not() -> None:
-    """A run spent two of its three refine passes chasing an unused `type: ignore` in a
-    generated test while the `attr-defined` bug that broke the command went unfixed."""
+def test_only_environment_codes_are_filtered() -> None:
+    """The worktree venv carries runtime deps only, so a changed import line can fail here
+    and resolve fine in CI. Nothing else belongs in the filter: it used to hold
+    `unused-ignore` and `misc` as "hygiene", and a live run shipped a PR that CI rejected
+    with `Unused "type: ignore"` — the pipeline had seen it, discarded it, and printed
+    "clean on the changed lines"."""
     from orchestrator.sdlc.feature_runner import _is_typing_hygiene
 
-    assert _is_typing_hygiene('t.py:1: error: Unused "type: ignore" comment  [unused-ignore]')
-    assert _is_typing_hygiene("t.py:1: error: Untyped decorator makes f untyped  [misc]")
+    # The sandbox, not the change.
+    assert _is_typing_hygiene("t.py:1: error: Cannot find implementation for x  [import-not-found]")
+    assert _is_typing_hygiene("t.py:1: error: Library stubs not installed  [import-untyped]")
+
+    # Everything else is the target repo's policy, and CI enforces it.
+    assert not _is_typing_hygiene('t.py:1: error: Unused "type: ignore" comment  [unused-ignore]')
+    assert not _is_typing_hygiene("t.py:1: error: Untyped decorator makes f untyped  [misc]")
     assert not _is_typing_hygiene(
         'c.py:1126: error: "MCPToolHandler" has no attribute "tool"  [attr-defined]'
     )
@@ -1276,3 +1284,41 @@ async def test_a_codegen_error_hands_the_ticket_back(monkeypatch: pytest.MonkeyP
         )
 
     assert jira.transitions == ["In Progress", "To Do"]
+
+
+async def test_an_unverified_criterion_does_not_ship(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The live PR: one criterion of seven came back uncertain — "all existing output
+    fields remain unchanged in format" — on a change that had rewritten `inputs` from
+    `["name"]` to `["name (type)"]`. `comment` is not `request_changes`, so the mapping
+    sent it straight to a real PR. The doubt was the finding."""
+
+    class _UncertainJudge(_Judge):
+        async def review(self, *, path: str, issue_key: str, spec: Any = None) -> Any:
+            self.calls += 1
+            return SimpleNamespace(
+                verdict="comment",
+                blockers=["acceptance criterion unverified: output format unchanged"],
+                summary="judged",
+                uncertain=["output format unchanged"],
+                unreviewed=False,
+            )
+
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", _UncertainJudge())
+
+    with pytest.raises(FeatureRunError, match="does not satisfy the ticket"):
+        await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+    # It went to revise like any other blocker, rather than through to a PR.
+    assert created[0].revise_calls == 1
+
+
+async def test_a_fully_met_verdict_still_ships(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The gate only tightened for doubt. An approving verdict is untouched."""
+    judge = _Judge("approve")
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setattr("orchestrator.sdlc.review.SemanticReviewAdapter", judge)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", repo="https://x/widget")
+
+    assert result.passed and judge.calls == 1

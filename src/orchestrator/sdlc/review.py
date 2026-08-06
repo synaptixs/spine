@@ -252,8 +252,21 @@ class SemanticReviewAdapter:
             return ReviewResult(verdict="request_changes", blockers=blockers, summary=summary)
         if uncertain:
             names = [str(r.get("criterion")) for r in uncertain]
+            # An uncertain criterion is a judgement — "I looked and cannot tell" — and one
+            # of those among many met ones is a note for a human, not a stop. It stays a
+            # `comment`, deliberately: a gate that cries wolf gets switched off.
+            #
+            # But it is evidence, and it was ignored once too often. A run shipped a PR
+            # whose only doubt was "existing output fields remain unchanged in format" —
+            # and the change had in fact rewritten `inputs` from `["name"]` to
+            # `["name (type)"]`. The judge saw it, said so, and the verdict mapping
+            # overruled it. So the blockers list now carries the doubt: the caller decides
+            # what to do with a change whose acceptance could not be established, instead
+            # of the mapping deciding for it by returning something that is not
+            # `request_changes`.
             return ReviewResult(
                 verdict="comment",
+                blockers=[f"acceptance criterion unverified: {n}" for n in names],
                 summary=f"{summary} · uncertain: {', '.join(names)}".strip(" ·"),
                 uncertain=names,
             )

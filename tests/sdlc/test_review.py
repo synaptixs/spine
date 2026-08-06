@@ -112,7 +112,14 @@ async def test_uncertain_is_comment_not_block(tmp_path: Path) -> None:
         }
     )
     result = await adapter.review(path=str(_worktree(tmp_path)), issue_key="E-1", spec=SPEC)
-    assert result.verdict == "comment" and not result.has_blocker
+    # Still `comment` — an uncertain criterion is a judgement, not a refusal, and callers
+    # that read the verdict keep their existing behaviour. But it now carries a blocker,
+    # because a run shipped a PR whose single doubt was "existing output fields remain
+    # unchanged in format" on a change that had rewritten `inputs` from `["name"]` to
+    # `["name (type)"]`. The judge saw it and the verdict mapping overruled it.
+    assert result.verdict == "comment"
+    assert result.has_blocker
+    assert result.blockers == ["acceptance criterion unverified: handles empty input"]
     assert "uncertain" in result.summary
 
 
