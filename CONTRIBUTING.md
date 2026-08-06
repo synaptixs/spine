@@ -62,6 +62,31 @@ them on a release cadence — so opening an issue first avoids duplicated effort
 4. Open the PR with a clear description of **what** and **why**, linking any issue.
 5. A maintainer reviews; the `security scan` check must pass.
 
+### When a check fails on something you didn't change
+
+**A re-run cannot fix a failure that came from the base branch. Push to your branch
+instead.**
+
+`gh run rerun` replays a run against the commit it was created for. For a
+`pull_request` workflow that commit is the *merge ref computed when you pushed* — not
+the base branch as it stands now. So merging a fix into `develop` and re-running your
+PR re-audits the same stale tree, and reports the same failure. Only a new merge ref
+clears it, which means pushing to the branch: a rebase onto the current base, or an
+empty commit if you have nothing to change.
+
+```bash
+git fetch origin && git rebase origin/develop && git push --force-with-lease
+```
+
+This bites hardest on `dependency audit`, which resolves the dependency tree from the
+merge ref. A vulnerable version pinned on `develop` keeps failing every open PR until
+each one is rebased past the bump — re-running looks like the obvious fix and is the
+one thing that cannot work. It applies equally to any check reading state your branch
+does not own.
+
+Re-running *is* the right move for a genuinely flaky failure — a network timeout, a
+cache miss, a runner dying. The distinction is whether the failure depends on the tree.
+
 We use [Conventional Commits](https://www.conventionalcommits.org/) for commit
 messages (e.g. `fix(planner): handle empty claims list`).
 

@@ -50,9 +50,23 @@ jobs:
       # This list must only ever SHRINK. Adding an ID is a PR-review decision, never a
       # drive-by — and each addition needs a reachability/trade-off note like the above.
       - name: Audit locked dependencies (fails on any NEW advisory)
+        id: audit
         run: |
           uv run --with pip-audit pip-audit -r requirements-audit.txt \
             --ignore-vuln PYSEC-2026-2132
+
+      # This job resolves from the *merge ref computed at push time*, so a bump that has
+      # already landed on the base is not in the tree it audits. Re-running replays that
+      # same ref and reports the same advisory, which makes "merge the fix, then re-run"
+      # the natural and wrong instinct. Say so where the failure is read.
+      - name: Why a re-run will not clear this
+        if: failure() && steps.audit.outcome == 'failure'
+        run: |
+          echo "::notice::If this advisory is already fixed on the base branch, a re-run"
+          echo "::notice::cannot pick it up — this job audits the merge ref computed when"
+          echo "::notice::you pushed. Rebase to get a fresh one:"
+          echo "::notice::  git fetch origin && git rebase origin/${{ github.base_ref || 'develop' }} && git push --force-with-lease"
+          echo "::notice::See CONTRIBUTING.md — 'When a check fails on something you didn't change'."
 
       # Always visible, never blocking: the full picture including the backlog above,
       # so the ignore list can't quietly become the place findings go to die.
