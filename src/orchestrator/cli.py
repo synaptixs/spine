@@ -79,6 +79,27 @@ def _print(data: Any) -> None:
     typer.echo(json.dumps(data, indent=2, default=str))
 
 
+def _mcp_load_configs(path: str | None = None) -> Any:
+    """Load the configured MCP servers (seam kept module-level so tests can stub it)."""
+    from orchestrator.mcp.config import load_mcp_configs
+
+    return load_mcp_configs(path)
+
+
+def _mcp_build_registry(configs: Any) -> Any:
+    """Build the MCP registry for a set of server configs."""
+    from orchestrator.mcp import MCPRegistry
+
+    return MCPRegistry(configs)
+
+
+async def _mcp_build_tools(registry: Any, **kwargs: Any) -> Any:
+    """Discover the ``(contract, handler)`` pairs for every onboarded MCP tool."""
+    from orchestrator.mcp import build_mcp_tools
+
+    return await build_mcp_tools(registry, **kwargs)
+
+
 @contextlib.contextmanager
 def _repo_arg(spec: str) -> Iterator[tuple[Path, bool]]:
     """Resolve a repo argument to an on-disk path, yielding ``(path, is_remote)``.
@@ -1095,30 +1116,42 @@ def mcp_ingest_db(
 def mcp_contracts(
     config: Annotated[str | None, typer.Option("--config", help="mcpServers JSON file path.")] = None,
 ) -> None:
-    """Show the ToolContract derived for each onboarded MCP tool (governance view)."""
+    """Show the ToolContract derived for each onboarded MCP tool (governance view).
+
+    Each input is rendered ``name (type)``, with the type read from the
+    server's own JSON Schema at display time (``string|null`` for unions,
+    ``any`` when the schema declares no top-level type).
+    """
     import asyncio
 
     from orchestrator.core.env import load_local_env
-    from orchestrator.mcp import MCPRegistry, build_mcp_tools
-    from orchestrator.mcp.config import load_mcp_configs
+    from orchestrator.mcp.schema_types import argument_type_label, format_argument
 
     load_local_env()
-    configs = load_mcp_configs(config)
-    registry = MCPRegistry(configs)
-    built = asyncio.run(build_mcp_tools(registry, configs=configs))
-    _print(
-        [
+    configs = _mcp_load_configs(config)
+    registry = _mcp_build_registry(configs)
+    built = asyncio.run(_mcp_build_tools(registry, configs=configs))
+    rows: list[dict[str, Any]] = []
+    for t in built:
+        # Types come from the server's raw JSON Schema at display time; the
+        # contract's normalised inputs stay the source of truth for *which*
+        # arguments exist (and for `mcp call`).
+        schema = getattr(getattr(t.handler, "tool", None), "input_schema", None)
+        names = [f.name for f in t.contract.spec.inputs]
+        labels = {name: argument_type_label(schema, name) for name in names}
+        rows.append(
             {
                 "contract_id": t.contract.metadata.id,
                 "version": t.contract.metadata.version,
+                "description": t.contract.metadata.description,
                 "side_effects": t.contract.spec.side_effects.value,
                 "requires_approval": t.contract.spec.requires_approval.value,
                 "write_gated": not t.handler.read_only and not t.handler.write_enabled,
-                "inputs": [f.name for f in t.contract.spec.inputs],
+                "inputs": [format_argument(name, labels[name]) for name in names],
+                "input_types": labels,
             }
-            for t in built
-        ]
-    )
+        )
+    _print(rows)
 
 
 @mcp_app.command("call")

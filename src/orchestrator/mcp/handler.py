@@ -40,6 +40,9 @@ class MCPToolHandler:
     ) -> None:
         self.contract_id = contract_id_for(tool)
         self.contract_version = contract_version
+        # Kept so display-time callers (e.g. `mcp contracts`) can read the
+        # server's raw JSON Schema; invocation still goes through the registry.
+        self.tool = tool
         self.read_only = tool.read_only is True
         self.write_enabled = write_enabled
         self._registry = registry

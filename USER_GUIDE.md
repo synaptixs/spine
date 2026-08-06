@@ -682,6 +682,24 @@ You extend the catalog with new skills/tools/run-shapes via a selector
 
 ## Step 9 — Connect external tools (MCP)
 
+`orchestrator mcp contracts` shows the governed ToolContract derived for each
+onboarded MCP tool, and labels every argument with its **declared type**, read
+from the server's own JSON Schema at display time (nothing is stored, and
+`mcp call` is unaffected). A union type is joined with `|`, and an argument the
+schema doesn't give a top-level `type` (an `anyOf`, a `$ref`, or a tool with no
+schema at all) is labelled `any`:
+
+```json
+{
+  "contract_id": "mcp.atlassian.jira_search",
+  "inputs": ["additional_fields (string)", "limit (integer)", "cursor (string|null)", "payload (any)"],
+  "input_types": {"additional_fields": "string", "limit": "integer"}
+}
+```
+
+Use it to see an argument's expected shape *before* a call fails on a type
+mismatch.
+
 Spine can use external **[MCP](https://modelcontextprotocol.io)
 servers** — read Confluence/Jira through Atlassian's MCP server, introspect a
 database, and more — reusing the same `mcpServers` config you already use with
