@@ -302,20 +302,27 @@ async def _untracked_python_files(path: Path) -> list[str]:
     return [f for f in out.decode("utf-8", "replace").split("\n") if f.endswith(".py")]
 
 
-# Codes that say "this annotation could be tidier", not "this code is wrong". A worktree venv
-# has runtime deps only, so `import-*` there reports the environment rather than the change;
-# the rest are hygiene. A run spent two of its three refine passes chasing an unused
-# `type: ignore` in a generated test while the real `attr-defined` bug went unfixed.
+# Codes that report the *worktree environment* rather than the change. The generated venv
+# carries runtime deps only, so a changed import line can fail to resolve here and resolve
+# perfectly in CI — that is noise about the sandbox, not a defect.
+#
+# Nothing else belongs here. The list used to hold `unused-ignore`, `no-untyped-def`,
+# `type-arg`, `no-any-return` and `misc` as "hygiene", and the cost was immediate: a live
+# run shipped a PR that CI rejected with
+#
+#     tests/test_mcp_schema_types.py:49: error: Unused "type: ignore"  [unused-ignore]
+#
+# The pipeline had seen that error, discarded it, printed "clean on the changed lines", and
+# opened the PR. Whether a code is enforced is the target repo's policy, expressed in its
+# own mypy config; deciding here that some of its rules do not count makes green mean less
+# than CI green, which is the only definition that matters.
+#
+# The noise this list originally guarded against is already handled by scoping to changed
+# lines — pre-existing errors elsewhere never reach the filter.
 _TYPING_HYGIENE = frozenset(
     {
-        "unused-ignore",
-        "no-untyped-def",
-        "no-untyped-call",
-        "no-any-return",
-        "type-arg",
         "import-not-found",
         "import-untyped",
-        "misc",
     }
 )
 
@@ -403,7 +410,20 @@ async def _satisfy_the_ticket(
                 "this change is unreviewed. Not proceeding.",
                 code=1,
             )
-        if verdict.verdict != "request_changes":
+        # `request_changes` means a criterion is unmet. `comment` with blockers means one
+        # could not be *verified* — and that is not a pass either.
+        #
+        # A run shipped a PR whose single doubt was "all existing output fields remain
+        # unchanged in format", on a change that had rewritten `inputs` from `["name"]` to
+        # `["name (type)"]`. The judge saw it, said so, and the verdict mapping sent it
+        # straight through because `comment` is not `request_changes`. The doubt was the
+        # finding.
+        #
+        # Both now enter the same loop. An unverified criterion is usually the most
+        # actionable feedback in the run — the judge says what it could not confirm and
+        # why — so it gets the same bounded chance to be answered, and if it survives, the
+        # run stops rather than shipping acceptance nobody established.
+        if verdict.verdict != "request_changes" and not verdict.blockers:
             return
         blockers = list(verdict.blockers) or [verdict.summary]
         if attempt >= max_revisions:
