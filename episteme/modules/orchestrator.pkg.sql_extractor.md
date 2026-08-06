@@ -30,7 +30,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/sql_extractor.py:89`](../../src/orchestrator/pkg/sql_extractor.py#L89)
 
-- **Called by** (1 production · 1 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L485), [`_extract`](../../tests/pkg/test_sql_extractor.py#L31)
+- **Called by** (1 production · 1 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L514), [`_extract`](../../tests/pkg/test_sql_extractor.py#L31)
 - **Fields**: `_active_dialect`, `_dialect`, `language`, `suffixes`
 
 ### `_TableBuilder`

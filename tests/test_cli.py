@@ -69,10 +69,15 @@ def test_design_requires_a_title(runner: CliRunner, tmp_path: Path) -> None:
 
 def test_design_emits_grounded_blast_radius(runner: CliRunner, tmp_path: Path) -> None:
     """`design` grounds the spec in the repo's real modules and annotates the
-    blast radius from the knowledge graph (heuristic path — no LLM)."""
-    (tmp_path / "report.py").write_text("def render(rows):\n    return rows\n", encoding="utf-8")
+    blast radius from the knowledge graph (heuristic path — no LLM).
+
+    The fixture names something the ticket is actually about. It used to define `render` and
+    still expect a design for "Add CSV export" to propose `report.py` — which only worked
+    because the heuristic ranked modules by size rather than by relevance to the ticket.
+    """
+    (tmp_path / "report.py").write_text("def export_csv(rows):\n    return rows\n", encoding="utf-8")
     (tmp_path / "web.py").write_text(
-        "import report\n\ndef handler(rows):\n    return report.render(rows)\n", encoding="utf-8"
+        "import report\n\ndef handler(rows):\n    return report.export_csv(rows)\n", encoding="utf-8"
     )
     result = runner.invoke(app, ["design", str(tmp_path), "--title", "Add CSV export"])
     assert result.exit_code == 0, result.output

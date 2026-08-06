@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_c_files`](../../src/orchestrator/sdlc/scaffold.py#L346) — reaches **6** symbols
-- [`_cpp_files`](../../src/orchestrator/sdlc/scaffold.py#L412) — reaches **6** symbols
-- [`_csharp_files`](../../src/orchestrator/sdlc/scaffold.py#L229) — reaches **6** symbols
-- [`_ensure_build_ignores`](../../src/orchestrator/sdlc/scaffold.py#L113) — reaches **6** symbols
-- [`_go_files`](../../src/orchestrator/sdlc/scaffold.py#L474) — reaches **6** symbols
-- [`_go_ident`](../../src/orchestrator/sdlc/scaffold.py#L467) — reaches **6** symbols
-- [`_java_files`](../../src/orchestrator/sdlc/scaffold.py#L176) — reaches **6** symbols
-- [`_python_files`](../../src/orchestrator/sdlc/scaffold.py#L155) — reaches **6** symbols
+- [`_c_files`](../../src/orchestrator/sdlc/scaffold.py#L346) — reaches **8** symbols
+- [`_cpp_files`](../../src/orchestrator/sdlc/scaffold.py#L412) — reaches **8** symbols
+- [`_csharp_files`](../../src/orchestrator/sdlc/scaffold.py#L229) — reaches **8** symbols
+- [`_ensure_build_ignores`](../../src/orchestrator/sdlc/scaffold.py#L113) — reaches **8** symbols
+- [`_go_files`](../../src/orchestrator/sdlc/scaffold.py#L474) — reaches **8** symbols
+- [`_java_files`](../../src/orchestrator/sdlc/scaffold.py#L176) — reaches **8** symbols
+- [`_python_files`](../../src/orchestrator/sdlc/scaffold.py#L155) — reaches **8** symbols
+- [`_sql_files`](../../src/orchestrator/sdlc/scaffold.py#L138) — reaches **8** symbols
 
 ## Functions
 
@@ -111,14 +111,14 @@
 
 [`src/orchestrator/sdlc/scaffold.py:72`](../../src/orchestrator/sdlc/scaffold.py#L72)
 
-- **Called by** (1 production · 25 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153), [`_scaffold_and_install`](../../tests/sdlc/test_typescript_integration.py#L29), [`_scaffold_go`](../../tests/sdlc/test_go_integration.py#L22), [`_scaffold_java`](../../tests/sdlc/test_java_integration.py#L23), [`test_flat_layout_pythonpath`](../../tests/sdlc/test_scaffold.py#L273), [`test_scaffold_c_appends_build_ignore_to_existing_gitignore`](../../tests/sdlc/test_scaffold.py#L190), [`test_scaffold_c_cmake_project`](../../tests/sdlc/test_scaffold.py#L176), [`test_scaffold_c_is_idempotent`](../../tests/sdlc/test_scaffold.py#L198), [`test_scaffold_cpp_cmake_project`](../../tests/sdlc/test_scaffold.py#L214), [`test_scaffold_cpp_is_idempotent`](../../tests/sdlc/test_scaffold.py#L227), [`test_scaffold_creates_runnable_skeleton`](../../tests/sdlc/test_scaffold.py#L19), [`test_scaffold_csharp_appends_dotnet_ignores_to_existing_gitignore`](../../tests/sdlc/test_scaffold.py#L154), [`test_scaffold_csharp_guids_are_deterministic`](../../tests/sdlc/test_scaffold.py#L139), [`test_scaffold_csharp_honors_target_framework`](../../tests/sdlc/test_scaffold.py#L261), [`test_scaffold_csharp_is_idempotent`](../../tests/sdlc/test_scaffold.py#L149), [`test_scaffold_csharp_solution_project`](../../tests/sdlc/test_scaffold.py#L119), [`test_scaffold_go_is_idempotent`](../../tests/sdlc/test_scaffold.py#L256), [`test_scaffold_go_module`](../../tests/sdlc/test_scaffold.py#L243), [`test_scaffold_is_idempotent`](../../tests/sdlc/test_scaffold.py#L32), [`test_scaffold_java_is_idempotent`](../../tests/sdlc/test_scaffold.py#L70), [`test_scaffold_java_maven_project`](../../tests/sdlc/test_scaffold.py#L57), [`test_scaffold_never_clobbers_existing_files`](../../tests/sdlc/test_scaffold.py#L39), [`test_scaffold_sql_coexists_with_app_code`](../../tests/sdlc/test_scaffold.py#L292), [`test_scaffold_sql_creates_migrations_dir`](../../tests/sdlc/test_scaffold.py#L280), [`test_scaffold_typescript_is_idempotent`](../../tests/sdlc/test_scaffold.py#L103), +1 more
+- **Called by** (1 production · 25 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623), [`_scaffold_and_install`](../../tests/sdlc/test_typescript_integration.py#L29), [`_scaffold_go`](../../tests/sdlc/test_go_integration.py#L22), [`_scaffold_java`](../../tests/sdlc/test_java_integration.py#L23), [`test_flat_layout_pythonpath`](../../tests/sdlc/test_scaffold.py#L273), [`test_scaffold_c_appends_build_ignore_to_existing_gitignore`](../../tests/sdlc/test_scaffold.py#L190), [`test_scaffold_c_cmake_project`](../../tests/sdlc/test_scaffold.py#L176), [`test_scaffold_c_is_idempotent`](../../tests/sdlc/test_scaffold.py#L198), [`test_scaffold_cpp_cmake_project`](../../tests/sdlc/test_scaffold.py#L214), [`test_scaffold_cpp_is_idempotent`](../../tests/sdlc/test_scaffold.py#L227), [`test_scaffold_creates_runnable_skeleton`](../../tests/sdlc/test_scaffold.py#L19), [`test_scaffold_csharp_appends_dotnet_ignores_to_existing_gitignore`](../../tests/sdlc/test_scaffold.py#L154), [`test_scaffold_csharp_guids_are_deterministic`](../../tests/sdlc/test_scaffold.py#L139), [`test_scaffold_csharp_honors_target_framework`](../../tests/sdlc/test_scaffold.py#L261), [`test_scaffold_csharp_is_idempotent`](../../tests/sdlc/test_scaffold.py#L149), [`test_scaffold_csharp_solution_project`](../../tests/sdlc/test_scaffold.py#L119), [`test_scaffold_go_is_idempotent`](../../tests/sdlc/test_scaffold.py#L256), [`test_scaffold_go_module`](../../tests/sdlc/test_scaffold.py#L243), [`test_scaffold_is_idempotent`](../../tests/sdlc/test_scaffold.py#L32), [`test_scaffold_java_is_idempotent`](../../tests/sdlc/test_scaffold.py#L70), [`test_scaffold_java_maven_project`](../../tests/sdlc/test_scaffold.py#L57), [`test_scaffold_never_clobbers_existing_files`](../../tests/sdlc/test_scaffold.py#L39), [`test_scaffold_sql_coexists_with_app_code`](../../tests/sdlc/test_scaffold.py#L292), [`test_scaffold_sql_creates_migrations_dir`](../../tests/sdlc/test_scaffold.py#L280), [`test_scaffold_typescript_is_idempotent`](../../tests/sdlc/test_scaffold.py#L103), +1 more
 - **Calls** (10): [`_c_files`](../../src/orchestrator/sdlc/scaffold.py#L346), [`_cpp_files`](../../src/orchestrator/sdlc/scaffold.py#L412), [`_csharp_files`](../../src/orchestrator/sdlc/scaffold.py#L229), [`_ensure_build_ignores`](../../src/orchestrator/sdlc/scaffold.py#L113), [`_go_files`](../../src/orchestrator/sdlc/scaffold.py#L474), [`_java_files`](../../src/orchestrator/sdlc/scaffold.py#L176), [`_python_files`](../../src/orchestrator/sdlc/scaffold.py#L155), [`_sql_files`](../../src/orchestrator/sdlc/scaffold.py#L138), [`_typescript_files`](../../src/orchestrator/sdlc/scaffold.py#L194), `pathlib.Path`
 - **Documented in**: `docs/specs/java-codegen.md#scaffold-template-dispatch-by-language`
 
 ## Imports
 
-`__future__.annotations`, `json`, [`orchestrator.catalog.profile`](orchestrator.catalog.profile.md), [`orchestrator.sdlc.layout`](orchestrator.sdlc.layout.md), `os`, `pathlib.Path`, `re`, `uuid`
+`__future__.annotations`, `json`, [`orchestrator.catalog.profile`](../../src/orchestrator/catalog/profile.py#L1), [`orchestrator.sdlc.layout`](orchestrator.sdlc.layout.md), `os`, `pathlib.Path`, `re`, `uuid`
 
 ## Imported by
 
-[`orchestrator.sdlc.feature_runner`](../../src/orchestrator/sdlc/feature_runner.py#L1), [`tests.sdlc.test_go_integration`](../../tests/sdlc/test_go_integration.py#L1), [`tests.sdlc.test_java_integration`](../../tests/sdlc/test_java_integration.py#L1), [`tests.sdlc.test_scaffold`](../../tests/sdlc/test_scaffold.py#L1), [`tests.sdlc.test_typescript_integration`](../../tests/sdlc/test_typescript_integration.py#L1)
+[`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`tests.sdlc.test_go_integration`](../../tests/sdlc/test_go_integration.py#L1), [`tests.sdlc.test_java_integration`](../../tests/sdlc/test_java_integration.py#L1), [`tests.sdlc.test_scaffold`](../../tests/sdlc/test_scaffold.py#L1), [`tests.sdlc.test_typescript_integration`](../../tests/sdlc/test_typescript_integration.py#L1)

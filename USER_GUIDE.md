@@ -111,14 +111,37 @@ orchestrator doctor    # readiness report — tells you exactly what's set and w
 | Setting | What it's for | Needed by |
 |---|---|---|
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | Your LLM provider | Step 3 |
-| `ORCHESTRATOR_INTAKE_MODEL` | One model for everything, e.g. `gpt-4o` | Step 3 |
+| `ORCHESTRATOR_MODEL` | One model for every stage (optional — defaults to `claude-opus-5`) | Step 3 |
 | `CONFLUENCE_*`, `JIRA_*` | Read requirements / file issues | Step 4 |
 | `SDLC_REPO_URL` | The repo it builds **into** | Step 4 |
 | `GITHUB_TOKEN` *(or `GITHUB_APP_*`)* | Auth for a private target repo | Step 4 |
 
-> **Tip:** set `ORCHESTRATOR_INTAKE_MODEL` explicitly (e.g. `gpt-4o`). One model
-> then drives every stage. A heavyweight default can time out on large code
-> generations.
+### Choosing a model
+
+Every stage runs on `claude-opus-5` unless you say otherwise. To see what you can
+point it at — with context windows, prices, and which models support the tool
+calling the pipeline requires:
+
+```bash
+orchestrator models                    # everything, plus what each stage uses now
+orchestrator models --provider openai  # just one vendor
+```
+
+Set one knob for everything, or a model per stage:
+
+| Variable | Drives |
+|---|---|
+| `ORCHESTRATOR_MODEL` | every stage |
+| `SDLC_CODEGEN_MODEL` | codegen — implement, refine, revise, author_tests |
+| `SDLC_JUDGE_MODEL` | the acceptance judge |
+| `ORCHESTRATOR_INTAKE_MODEL` | intent extraction and spec writing |
+
+A stage's own variable wins over `ORCHESTRATOR_MODEL`, which wins over the default.
+Pointing a stage at another vendor needs that vendor's key in the environment.
+
+> **Tool calling is required, not preferred.** Codegen and the judge both force a
+> tool call. On a model without it they fall back to reading prose out of a text
+> reply, which is far less reliable — `orchestrator models` marks those.
 
 ---
 
@@ -431,6 +454,61 @@ made and read the diff.
 
 ---
 
+## Step 3.5 — What stops a bad change from shipping
+
+A model writes the code **and** the tests that judge it, so "the tests pass" only
+means its tests agree with its code. Between a green suite and a commit sit several
+checks that don't take the model's word for it. You'll see each as a bracketed line.
+
+```bash
+orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --safe --max-cost 10
+```
+
+**Before any code is written — `[validity]`.** The ticket is checked against the
+graph. A criterion asserting *"11 Entity nodes on this repo"* when the source has 7
+is a false premise, and building to it produces code that passes its own tests and
+is still wrong. Verdicts other than `PROCEED` park the run with evidence rather than
+guessing.
+
+**`[typecheck]`** runs your repo's own type checker over the lines the change
+touched, and any error goes back to the refine loop like a test failure. This is not
+redundant with the tests: generated tests routinely exercise a new helper directly
+and never import the module the ticket was about, so they sail past a missing import
+or an attribute that doesn't exist on the line that matters. Scoped to changed
+lines, so pre-existing errors elsewhere in your repo don't block the run.
+
+**`[proof]`** reverts the change and re-runs the generated tests. They must fail. A
+suite that passes *without* the change is not testing it.
+
+**`[coverage]`** reverts each changed file **on its own**. Anything that leaves the
+suite green is a file no test reaches — the classic shape being a correct, fully
+tested helper wired into a command by a line nothing ever calls. Gaps go back to the
+test author, naming the files.
+
+**`[judge]`** asks the one question the others can't: does this change satisfy the
+ticket's acceptance criteria? It reads the spec and the code, never the codegen
+conversation, so it can't rationalise the generator's choices. `REQUEST_CHANGES`
+sends the specific blockers back for revision; a reply that can't be read stops the
+run rather than passing it.
+
+### And then you
+
+```bash
+orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --safe --review
+```
+
+`--review` prints the full diff and asks, once, after every check above and before
+the first write. Declining commits nothing and pushes nothing.
+
+Everything above is a model or a heuristic. `--review` is the only gate that is a
+person, and it's the one worth using the first few times you point Spine at a repo
+you care about — and on your first `--live` run.
+
+It **fails closed**: with no terminal to ask on, it declines rather than assuming
+yes. Pass it from an interactive shell, not from cron or a background job.
+
+---
+
 ## Step 4 — Go live: a real issue + pull request
 
 When the local result looks right, let it do the real thing — file a Jira issue,
@@ -439,6 +517,31 @@ push a branch, and open a PR:
 ```bash
 orchestrator sdlc feature --source confluence://<page_id> --live
 ```
+
+**If the work is already ticketed, say so** — otherwise the run files a *second*
+issue for the same story, and a run that fails partway leaves that issue behind
+describing work that never happened:
+
+```bash
+orchestrator sdlc feature --source confluence://<page_id> --issue ENG-42 --live
+```
+
+The branch, the PR title, the PR-link comment and the To Do → In Progress move all
+land on `ENG-42`, and nothing is created. A key that doesn't resolve stops the run
+before the worktree, so a typo costs you nothing.
+
+**Every live run logs what it spent.** When it finishes — pass or fail — it posts a Jira
+worklog on the issue: the run's wall-clock as time spent, and a table of tokens per
+pipeline stage with the models used and the cost, taken from the provider's own usage
+figures rather than an estimate. A failed run logs one too; that is where the spend most
+needs explaining. `--safe` posts nothing, and a tracker that rejects the worklog leaves a
+line in the log without changing the run's verdict.
+
+**The ticket's status follows the work.** A live run moves it to *In Progress* when it
+starts — not when it finishes, so a run that dies halfway still shows that something picked
+the ticket up — and to *In Review* when the PR opens. **Done is never set by the agent**: it
+means a human looked at the change. A board whose workflow uses different status names logs
+a line and carries on rather than failing the run.
 
 A human reviews and merges the PR (it never merges on its own). After the merge,
 close the loop so the tracker issue moves to Done:
@@ -489,7 +592,7 @@ edits — use a **coder** model there. You can even mix local and cloud per stag
 
 ```bash
 ORCHESTRATOR_INTAKE_MODEL=ollama/qwen2.5-coder   # cheap stages, local
-SDLC_CODEGEN_MODEL=gpt-4o                         # codegen, cloud quality
+SDLC_CODEGEN_MODEL=claude-opus-5                  # codegen, cloud quality
 SDLC_REVIEW_MODEL=ollama/qwen2.5-coder            # the review judge
 ```
 
@@ -668,7 +771,7 @@ writes, runs the tests, and fixes — and (Step 9) calls approved external tools
 
 - **Off by default** — single-shot stays default until you're happy with cost
   (the loop makes several model calls per feature).
-- **Needs a tool-calling model** (`gpt-4o`, `claude-*`); otherwise it falls back
+- **Needs a tool-calling model** (`claude-*`, `gpt-5*`); otherwise it falls back
   to single-shot.
 - **Safe by construction** — a hard step cap, a per-run spend budget
   (`SDLC_RUN_BUDGET_USD`), the same write guards as single-shot, and external
@@ -681,6 +784,24 @@ You extend the catalog with new skills/tools/run-shapes via a selector
 ---
 
 ## Step 9 — Connect external tools (MCP)
+
+`orchestrator mcp contracts` shows the governed ToolContract derived for each
+onboarded MCP tool, and labels every argument with its **declared type**, read
+from the server's own JSON Schema at display time (nothing is stored, and
+`mcp call` is unaffected). A union type is joined with `|`, and an argument the
+schema doesn't give a top-level `type` (an `anyOf`, a `$ref`, or a tool with no
+schema at all) is labelled `any`:
+
+```json
+{
+  "contract_id": "mcp.atlassian.jira_search",
+  "inputs": ["additional_fields (string)", "limit (integer)", "cursor (string|null)", "payload (any)"],
+  "input_types": {"additional_fields": "string", "limit": "integer"}
+}
+```
+
+Use it to see an argument's expected shape *before* a call fails on a type
+mismatch.
 
 Spine can use external **[MCP](https://modelcontextprotocol.io)
 servers** — read Confluence/Jira through Atlassian's MCP server, introspect a
@@ -889,7 +1010,7 @@ Destructive tools stay gated regardless of auth: `sdlc_feature(live=true)` and
 | Symptom | Fix |
 |---|---|
 | `doctor` shows everything missing | Run it from the folder that has your `.env`. |
-| Codegen times out | Set `ORCHESTRATOR_INTAKE_MODEL=gpt-4o` (or another fast model). |
+| Codegen times out | Set `ORCHESTRATOR_MODEL` to a faster model (see `orchestrator models`). |
 | Private repo clone fails | Set `GITHUB_TOKEN` (PAT) or the GitHub App (`GITHUB_APP_*`). |
 | Console asks for an API key | Paste the `ORCHESTRATOR_API_KEY` you started the server with (`dev-key` above). |
 | `sdlc run` hangs at a gate | Approve it in the console or via `/v1/approvals/.../approve`. |
@@ -897,7 +1018,7 @@ Destructive tools stay gated regardless of auth: `sdlc_feature(live=true)` and
 | `mcp list` shows no servers | Add an `mcpServers` file (`--config`, `$ORCHESTRATOR_MCP_CONFIG`, or `./mcp.json`). |
 | `mcp` commands fail to import | Install the extra: `pip install 'synaptixs-spine[mcp]'` (or `uv sync --extra mcp`). |
 | An MCP tool is "not allow-listed" / write-gated | Add it to the server's `allow`; for mutating tools set `write_enabled: true`. |
-| Agentic loop falls back to single-shot | Use a tool-calling model (`gpt-4o`, `claude-*`) and set `SDLC_CODEGEN=llm`. |
+| Agentic loop falls back to single-shot | Use a tool-calling model (see `orchestrator models`) and set `SDLC_CODEGEN=llm`. |
 | `orchestrator-mcp --http` refuses to start | Set `ORCHESTRATOR_MCP_TOKEN` or `…_INTROSPECTION_URL`, bind `127.0.0.1`, or pass `--allow-unauthenticated` on a trusted net. |
 | Remote client gets 401 | Send `Authorization: Bearer <token>`; for introspection confirm the token is active and carries the required scope. |
 | `Nondeterminism error` on replay | An in-flight workflow predates a code change. Terminate the stale run (Temporal UI); new runs are unaffected. |

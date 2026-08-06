@@ -138,7 +138,6 @@ _10 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/registry/api/capabilities.py:111`](../../src/orchestrator/registry/api/capabilities.py#L111)
 
 - **Calls** (3): [`CapabilityInfo`](../../src/orchestrator/registry/api/capabilities.py#L96), [`CatalogResponse`](../../src/orchestrator/registry/api/capabilities.py#L104), [`default_catalog`](../../src/orchestrator/catalog/catalog.py#L129)
-- **Documented in**: `docs/specs/gap5-visualization-roadmap.md#phase-2-shipped-exit-criterion-met-scope-deliberately-trimmed`
 
 ### `memory_bank`
 
@@ -184,7 +183,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 
 ## Imports
 
-`__future__.annotations`, `asyncio`, `fastapi.APIRouter`, `fastapi.HTTPException`, `fastapi.Request`, `fastapi.status`, `json`, [`orchestrator.catalog.catalog`](../../src/orchestrator/catalog/catalog.py#L1), [`orchestrator.catalog.planner`](../../src/orchestrator/catalog/planner.py#L1), [`orchestrator.catalog.profile`](orchestrator.catalog.profile.md), [`orchestrator.knowledge`](../../src/orchestrator/knowledge/__init__.py#L1), [`orchestrator.knowledge.current_state`](orchestrator.knowledge.current_state.md), [`orchestrator.knowledge.understand`](orchestrator.knowledge.understand.md), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.pkg.overview`](../../src/orchestrator/pkg/overview.py#L1), [`orchestrator.registry.api.deps`](../../src/orchestrator/registry/api/deps.py#L1), [`orchestrator.registry.api.jobs`](orchestrator.registry.api.jobs.md), [`orchestrator.registry.api.workspace`](orchestrator.registry.api.workspace.md), `pathlib.Path`, `pydantic.BaseModel`, `pydantic.ConfigDict`, `pydantic.Field`, `tempfile`, `typing.Any`
+`__future__.annotations`, `asyncio`, `fastapi.APIRouter`, `fastapi.HTTPException`, `fastapi.Request`, `fastapi.status`, `json`, [`orchestrator.catalog.catalog`](../../src/orchestrator/catalog/catalog.py#L1), [`orchestrator.catalog.planner`](../../src/orchestrator/catalog/planner.py#L1), [`orchestrator.catalog.profile`](../../src/orchestrator/catalog/profile.py#L1), [`orchestrator.knowledge`](../../src/orchestrator/knowledge/__init__.py#L1), [`orchestrator.knowledge.current_state`](orchestrator.knowledge.current_state.md), [`orchestrator.knowledge.understand`](../../src/orchestrator/knowledge/understand.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.pkg.overview`](../../src/orchestrator/pkg/overview.py#L1), [`orchestrator.registry.api.deps`](../../src/orchestrator/registry/api/deps.py#L1), [`orchestrator.registry.api.jobs`](orchestrator.registry.api.jobs.md), [`orchestrator.registry.api.workspace`](orchestrator.registry.api.workspace.md), `pathlib.Path`, `pydantic.BaseModel`, `pydantic.ConfigDict`, `pydantic.Field`, `tempfile`, `typing.Any`
 
 ## Imported by
 

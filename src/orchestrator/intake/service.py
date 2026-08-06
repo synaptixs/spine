@@ -20,7 +20,9 @@ resolution is a documented future extension.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from typing import Any
 
 from orchestrator.intake.gaps import GapAnalyzer, GapFinding, blocks_approval
 from orchestrator.intake.intents import Intent, IntentExtractor, StructuredIntentSource
@@ -82,31 +84,73 @@ def parse_source_uri(uri: str) -> tuple[str, str]:
     return kind, rest
 
 
-def spec_to_issue_request(spec: FeatureSpec, *, labels: tuple[str, ...] = ()) -> IssueRequest:
-    """Render a FeatureSpec into the issue body the tracker creates."""
+def _spec_str(spec: FeatureSpec | Mapping[str, Any], name: str) -> str:
+    value = spec.get(name) if isinstance(spec, Mapping) else getattr(spec, name, None)
+    return str(value).strip() if value else ""
+
+
+def _spec_list(spec: FeatureSpec | Mapping[str, Any], name: str) -> list[str]:
+    value = spec.get(name) if isinstance(spec, Mapping) else getattr(spec, name, None)
+    if not isinstance(value, Sequence) or isinstance(value, str):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]
+
+
+def spec_to_issue_request(
+    spec: FeatureSpec | Mapping[str, Any],
+    *,
+    labels: tuple[str, ...] = (),
+    issue_type: str = "",
+    parent_key: str = "",
+) -> IssueRequest:
+    """Render a FeatureSpec into the issue body the tracker creates.
+
+    The body is **markdown**, not plain text: :mod:`orchestrator.intake.adf` turns it
+    into the ADF Jira renders, so headings stay headings and acceptance criteria stay
+    a checklist instead of arriving as a wall of hyphen-prefixed paragraphs. Every
+    spec field is carried — someone reading the issue should not have to open the
+    spec to learn what "done" means.
+
+    Accepts a plain mapping as well as a ``FeatureSpec`` so the SDLC feature runner,
+    whose spec is already a dict, emits the *same* body. It used to hand-roll a
+    thinner one (summary + criteria only), which meant an identical spec produced a
+    poorer issue depending on which command created it.
+    """
     lines: list[str] = []
-    if spec.summary:
-        lines += [spec.summary, ""]
-    if spec.user_story:
-        lines += [spec.user_story, ""]
-    if spec.acceptance_criteria:
-        lines += ["Acceptance criteria:"]
-        lines += [f"- {ac}" for ac in spec.acceptance_criteria]
-        lines += [""]
-    if spec.technical_notes:
-        lines += ["Technical notes:", spec.technical_notes, ""]
-    if spec.nfrs:
-        lines += ["NFRs:"] + [f"- {n}" for n in spec.nfrs] + [""]
-    if spec.dependencies:
-        lines += ["Dependencies:"] + [f"- {d}" for d in spec.dependencies] + [""]
-    lines += [f"Source intent: {spec.intent_id}"]
-    if spec.estimate:
-        lines += [f"Estimate: {spec.estimate}"]
+    summary = _spec_str(spec, "summary")
+    if summary:
+        lines += [summary, ""]
+    user_story = _spec_str(spec, "user_story")
+    if user_story:
+        lines += [f"> {user_story}", ""]
+
+    def section(title: str, items: list[str]) -> None:
+        if items:
+            lines.extend([f"## {title}", *(f"- {item}" for item in items), ""])
+
+    section("Acceptance criteria", _spec_list(spec, "acceptance_criteria"))
+    notes = _spec_str(spec, "technical_notes")
+    if notes:
+        lines += ["## Technical notes", notes, ""]
+    section("Non-functional requirements", _spec_list(spec, "nfrs"))
+    section("Dependencies", _spec_list(spec, "dependencies"))
+
+    footer: list[str] = []
+    intent_id = _spec_str(spec, "intent_id")
+    if intent_id:
+        footer.append(f"**Source intent:** `{intent_id}`")
+    estimate = _spec_str(spec, "estimate")
+    if estimate:
+        footer.append(f"**Estimate:** {estimate}")
+    if footer:
+        lines += ["---", " · ".join(footer)]
+
     return IssueRequest(
-        summary=spec.title,
+        summary=_spec_str(spec, "title"),
         description="\n".join(lines).strip(),
-        issue_type="Story",
+        issue_type=issue_type,
         labels=labels,
+        parent_key=parent_key,
     )
 
 
@@ -147,6 +191,7 @@ class BacklogService:
         spec_writer: SpecWriter,
         tracker: IssueTrackerAdapter,
         issue_labels: tuple[str, ...] = ("sdlc-intake",),
+        epic_issue_type: str = "Epic",
     ) -> None:
         self._source = source
         self._extractor = extractor
@@ -154,6 +199,7 @@ class BacklogService:
         self._spec_writer = spec_writer
         self._tracker = tracker
         self._labels = issue_labels
+        self._epic_issue_type = epic_issue_type
 
     async def fetch_source_documents(self, root_id: str) -> FetchTreeResult:
         """Just the source fetch — no LLM, no tracker. For read-only consumers
@@ -180,13 +226,42 @@ class BacklogService:
             truncated=tree.truncated,
         )
 
+    def _epic_request(self, plan: BacklogPlan) -> IssueRequest:
+        """The parent a backlog's stories hang from, named for the source document."""
+        doc = plan.documents[0]
+        lines = [f"Backlog derived from **{doc.title}**.", "", f"{len(plan.specs)} stories, one per intent."]
+        if doc.url:
+            lines += ["", f"Source: [{doc.title}]({doc.url})"]
+        return IssueRequest(
+            summary=doc.title,
+            description="\n".join(lines),
+            issue_type=self._epic_issue_type,
+            labels=self._labels,
+        )
+
     async def create_issues(
-        self, plan: BacklogPlan, *, link_dependencies: bool = False
+        self, plan: BacklogPlan, *, link_dependencies: bool = False, epic: bool = True
     ) -> list[CreatedIssue]:
+        """Create one issue per spec, grouped under a shared parent when it earns one.
+
+        The epic is created only when the plan holds **more than one** spec and the
+        source named a document to hang them from — a lone story under its own epic is
+        ceremony, and an epic with nothing to group is clutter. Every story is then
+        parented to it, which is what a team-managed board needs to show the work as one
+        body rather than an undifferentiated flat list. The epic is returned alongside
+        the stories because it, too, was created.
+        """
         issues: list[CreatedIssue] = []
         intent_to_key: dict[str, str] = {}
+        parent_key = ""
+        if epic and len(plan.specs) > 1 and plan.documents:
+            created_epic = await self._tracker.create_issue(self._epic_request(plan))
+            issues.append(created_epic)
+            parent_key = created_epic.key
         for spec in plan.specs:
-            created = await self._tracker.create_issue(spec_to_issue_request(spec, labels=self._labels))
+            created = await self._tracker.create_issue(
+                spec_to_issue_request(spec, labels=self._labels, parent_key=parent_key)
+            )
             issues.append(created)
             intent_to_key[spec.intent_id] = created.key
         if link_dependencies and not self._tracker.dry_run:

@@ -108,3 +108,126 @@ def test_small_fixtures_are_exempt_from_rates(tmp_path: Path) -> None:
 
     report = verify_batch(batch, tmp_path)
     assert report.ok  # 100% external, but far below the population minimums
+
+
+# ---- source-parity: is the graph complete with respect to the source? ------
+
+
+def _app(root: Path, body: str, *, name: str = "api.py") -> FactBatch:
+    """A one-module repo whose source says ``body``, extracted normally."""
+    pkg = root / "app"
+    pkg.mkdir(parents=True, exist_ok=True)
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / name).write_text(body, encoding="utf-8")
+    return RepoCodeExtractor().extract(root)
+
+
+def _parity(report: object) -> list[str]:
+    return [i.message for i in report.issues if i.check == "source-parity"]  # type: ignore[attr-defined]
+
+
+def _lang_repo(root: Path, lang: str, name: str, body: str) -> FactBatch:
+    """A one-module batch for ``lang`` whose source file says ``body``.
+
+    Built by hand rather than extracted so the non-Python cases don't depend on an
+    optional tree-sitter extra being installed.
+    """
+    (root / name).write_text(body, encoding="utf-8")
+    batch = FactBatch()
+    batch.add_node(Node(f"{lang}:m", NodeKind.MODULE, "m", lang, Provenance(name, 1)))
+    return batch
+
+
+def test_python_route_decorators_no_longer_trip_the_check(tmp_path: Path) -> None:
+    """The gap this check was written to expose — 77 routes in source, zero Endpoint nodes —
+    is closed for Python: the front-end now emits them, so the warning must fall silent.
+
+    The warning path is still exercised, on TypeScript, which has the identical gap:
+    ``test_typescript_nest_decorators_warn`` / ``test_typescript_express_routes_warn``.
+    """
+    report = verify_batch(_app(tmp_path, '@router.get("/items")\ndef items():\n    return []\n'), tmp_path)
+    assert _parity(report) == []
+
+
+def test_python_tablenames_no_longer_trip_the_check(tmp_path: Path) -> None:
+    """SSPN-3 closed the other half of the gap: a declared table now yields an ``Entity``,
+    so the warning must fall silent for Python too.
+
+    The Entity warning path stays covered on TypeScript, which still has the gap —
+    see ``test_typeorm_entity_decorator_warns``.
+    """
+    body = 'class Row(Base):\n    __tablename__ = "rows"\n'
+    assert _parity(verify_batch(_app(tmp_path, body), tmp_path)) == []
+
+
+def test_parity_is_a_warning_never_an_error(tmp_path: Path) -> None:
+    """A front-end that hasn't learned a framework must not fail someone's build —
+    a check people switch off catches nothing.
+
+    On TypeScript now that Python emits endpoints; the severity rule is what's under test,
+    not which language happens to be behind.
+    """
+    batch = _lang_repo(tmp_path, "typescript", "server.ts", 'router.get("/users", handler)\n')
+    report = verify_batch(batch, tmp_path)
+    assert report.ok
+    assert [i.severity for i in report.issues if i.check == "source-parity"] == ["warning"]
+
+
+def test_silent_when_the_graph_already_has_the_kind(tmp_path: Path) -> None:
+    """Once the front-end extracts endpoints, the check must go quiet."""
+    batch = _app(tmp_path, '@router.get("/items")\ndef items():\n    return []\n')
+    batch.add_node(
+        Node("py:endpoint:GET /items", NodeKind.ENDPOINT, "GET /items", "python", Provenance("app/api.py", 1))
+    )
+    assert _parity(verify_batch(batch, tmp_path)) == []
+
+
+def test_no_false_positive_on_a_plain_library(tmp_path: Path) -> None:
+    report = verify_batch(_app(tmp_path, "def add(a, b):\n    return a + b\n"), tmp_path)
+    assert _parity(report) == []
+
+
+def test_non_route_attribute_calls_are_not_routes(tmp_path: Path) -> None:
+    """``@cache.get(key)`` takes a name, not a path literal — the same precision rule
+    the extractors hold to, so the check can't cry wolf on ordinary decorators."""
+    body = "@cache.get(key)\ndef fetch():\n    return 1\n"
+    assert _parity(verify_batch(_app(tmp_path, body), tmp_path)) == []
+
+
+def test_computed_tablename_is_not_a_declaration(tmp_path: Path) -> None:
+    body = "class Row(Base):\n    __tablename__ = derive_name()\n"
+    assert _parity(verify_batch(_app(tmp_path, body), tmp_path)) == []
+
+
+def test_a_language_with_no_patterns_is_never_flagged(tmp_path: Path) -> None:
+    """Only languages with declared syntax participate; the rest are silent, not guessed at."""
+    batch = FactBatch()
+    batch.add_node(Node("go:m", NodeKind.MODULE, "m", "go", Provenance("m.go", 1)))
+    (tmp_path / "m.go").write_text("package m\n", encoding="utf-8")
+    assert _parity(verify_batch(batch, tmp_path)) == []
+
+
+def test_typescript_nest_decorators_warn(tmp_path: Path) -> None:
+    """TypeScript emits no Endpoint node either, so a Nest service is just as
+    invisible as a FastAPI one — the check has to watch both front-ends, not one."""
+    batch = _lang_repo(tmp_path, "typescript", "app.ts", "@Get('/items')\nfindAll() {}\n")
+    assert len(_parity(verify_batch(batch, tmp_path))) == 1
+
+
+def test_typescript_express_routes_warn(tmp_path: Path) -> None:
+    batch = _lang_repo(tmp_path, "typescript", "server.ts", 'router.get("/users", handler)\n')
+    assert len(_parity(verify_batch(batch, tmp_path))) == 1
+
+
+def test_typescript_map_get_is_not_a_route(tmp_path: Path) -> None:
+    """The leading slash is the whole precision rule: without it every `Map.get`
+    in a TypeScript codebase would look like an HTTP route."""
+    body = 'const v = cache.get(key);\nconst w = headers.get("content-type");\n'
+    assert _parity(verify_batch(_lang_repo(tmp_path, "typescript", "u.ts", body), tmp_path)) == []
+
+
+def test_typeorm_entity_decorator_warns(tmp_path: Path) -> None:
+    batch = _lang_repo(tmp_path, "typescript", "user.entity.ts", "@Entity()\nclass User {}\n")
+    messages = _parity(verify_batch(batch, tmp_path))
+    assert len(messages) == 1
+    assert "Entity" in messages[0]

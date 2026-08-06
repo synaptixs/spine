@@ -13,92 +13,92 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`BlastRadius`](../../src/orchestrator/sdlc/impact.py#L57) — reaches **9** symbols
-- [`ModuleImpact`](../../src/orchestrator/sdlc/impact.py#L45) — reaches **9** symbols
-- [`_hotspots`](../../src/orchestrator/sdlc/impact.py#L103) — reaches **9** symbols
-- [`_match_module`](../../src/orchestrator/sdlc/impact.py#L78) — reaches **9** symbols
-- [`_module_nodes`](../../src/orchestrator/sdlc/impact.py#L72) — reaches **9** symbols
-- [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L124) — reaches **8** symbols
-- [`SymbolImpact`](../../src/orchestrator/sdlc/impact.py#L35) — reaches **7** symbols
-- [`_basename`](../../src/orchestrator/sdlc/impact.py#L68) — reaches **7** symbols
+- [`BlastRadius`](../../src/orchestrator/sdlc/impact.py#L61) — reaches **11** symbols
+- [`ModuleImpact`](../../src/orchestrator/sdlc/impact.py#L49) — reaches **11** symbols
+- [`_hotspots`](../../src/orchestrator/sdlc/impact.py#L107) — reaches **11** symbols
+- [`_match_module`](../../src/orchestrator/sdlc/impact.py#L82) — reaches **11** symbols
+- [`_module_nodes`](../../src/orchestrator/sdlc/impact.py#L76) — reaches **11** symbols
+- [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L142) — reaches **11** symbols
+- [`SymbolImpact`](../../src/orchestrator/sdlc/impact.py#L35) — reaches **8** symbols
+- [`_basename`](../../src/orchestrator/sdlc/impact.py#L72) — reaches **8** symbols
 
 ## Types
 
 ### `BlastRadius`
 
-[`src/orchestrator/sdlc/impact.py:57`](../../src/orchestrator/sdlc/impact.py#L57)
+[`src/orchestrator/sdlc/impact.py:61`](../../src/orchestrator/sdlc/impact.py#L61)
 
-- **Called by** (1): [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L124)
+- **Called by** (1): [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L142)
 - **Fields**: `call_graph_available`, `grounded`, `modules`, `unresolved`
 
 ### `ModuleImpact`
 
-[`src/orchestrator/sdlc/impact.py:45`](../../src/orchestrator/sdlc/impact.py#L45)
+[`src/orchestrator/sdlc/impact.py:49`](../../src/orchestrator/sdlc/impact.py#L49)
 
-- **Called by** (1): [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L124)
+- **Called by** (1): [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L142)
 - **Fields**: `hotspots`, `importer_names`, `importers`, `module`, `ref`, `where`
 
 ### `SymbolImpact`
 
 [`src/orchestrator/sdlc/impact.py:35`](../../src/orchestrator/sdlc/impact.py#L35)
 
-- **Called by** (1): [`_hotspots`](../../src/orchestrator/sdlc/impact.py#L103)
-- **Fields**: `callers`, `name`, `transitive`, `where`
+- **Called by** (1): [`_hotspots`](../../src/orchestrator/sdlc/impact.py#L107)
+- **Fields**: `callers`, `exposed`, `name`, `transitive`, `where`
 
 ## Functions
 
 ### `_basename`
 
-[`src/orchestrator/sdlc/impact.py:68`](../../src/orchestrator/sdlc/impact.py#L68)
+[`src/orchestrator/sdlc/impact.py:72`](../../src/orchestrator/sdlc/impact.py#L72)
 
-- **Called by** (1): [`_match_module`](../../src/orchestrator/sdlc/impact.py#L78)
+- **Called by** (1): [`_match_module`](../../src/orchestrator/sdlc/impact.py#L82)
 - **Calls** (1): `pathlib.PurePosixPath`
 
 ### `_hotspots`
 
-[`src/orchestrator/sdlc/impact.py:103`](../../src/orchestrator/sdlc/impact.py#L103)
+[`src/orchestrator/sdlc/impact.py:107`](../../src/orchestrator/sdlc/impact.py#L107)
 
-- **Called by** (1): [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L124)
+- **Called by** (1): [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L142)
 - **Calls** (1): [`SymbolImpact`](../../src/orchestrator/sdlc/impact.py#L35)
 
 ### `_match_module`
 
-[`src/orchestrator/sdlc/impact.py:78`](../../src/orchestrator/sdlc/impact.py#L78)
+[`src/orchestrator/sdlc/impact.py:82`](../../src/orchestrator/sdlc/impact.py#L82)
 
-- **Called by** (1): [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L124)
-- **Calls** (1): [`_basename`](../../src/orchestrator/sdlc/impact.py#L68)
+- **Called by** (1): [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L142)
+- **Calls** (1): [`_basename`](../../src/orchestrator/sdlc/impact.py#L72)
 
 ### `_module_nodes`
 
-[`src/orchestrator/sdlc/impact.py:72`](../../src/orchestrator/sdlc/impact.py#L72)
+[`src/orchestrator/sdlc/impact.py:76`](../../src/orchestrator/sdlc/impact.py#L76)
 
-- **Called by** (1): [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L124)
+- **Called by** (1): [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L142)
 
 ### `blast_radius`
 
-[`src/orchestrator/sdlc/impact.py:124`](../../src/orchestrator/sdlc/impact.py#L124)
+[`src/orchestrator/sdlc/impact.py:142`](../../src/orchestrator/sdlc/impact.py#L142)
 
-- **Called by** (2 production · 5 test): [`_regression_surface`](../../src/orchestrator/sdlc/rca.py#L90), [`produce_design`](../../src/orchestrator/sdlc/design.py#L162), [`test_blast_radius_resolves_module_importers_and_hotspots`](../../tests/sdlc/test_design_impact.py#L37), [`test_greenfield_suppresses_unverified_references`](../../tests/sdlc/test_design_impact.py#L60), [`test_no_call_graph_reports_module_impact_only`](../../tests/sdlc/test_design_impact.py#L69), [`test_render_md_includes_sections`](../../tests/sdlc/test_design_impact.py#L85), [`test_unresolved_reference_is_flagged_when_grounded`](../../tests/sdlc/test_design_impact.py#L53)
-- **Calls** (5): [`BlastRadius`](../../src/orchestrator/sdlc/impact.py#L57), [`ModuleImpact`](../../src/orchestrator/sdlc/impact.py#L45), [`_hotspots`](../../src/orchestrator/sdlc/impact.py#L103), [`_match_module`](../../src/orchestrator/sdlc/impact.py#L78), [`_module_nodes`](../../src/orchestrator/sdlc/impact.py#L72)
+- **Called by** (2 production · 6 test): [`_regression_surface`](../../src/orchestrator/sdlc/rca.py#L90), [`produce_design`](../../src/orchestrator/sdlc/design.py#L235), [`test_a_route_handler_is_not_scored_as_safe_to_change`](../../tests/sdlc/test_design_impact.py#L34), [`test_blast_radius_resolves_module_importers_and_hotspots`](../../tests/sdlc/test_design_impact.py#L62), [`test_greenfield_suppresses_unverified_references`](../../tests/sdlc/test_design_impact.py#L85), [`test_no_call_graph_reports_module_impact_only`](../../tests/sdlc/test_design_impact.py#L94), [`test_render_md_includes_sections`](../../tests/sdlc/test_design_impact.py#L110), [`test_unresolved_reference_is_flagged_when_grounded`](../../tests/sdlc/test_design_impact.py#L78)
+- **Calls** (5): [`BlastRadius`](../../src/orchestrator/sdlc/impact.py#L61), [`ModuleImpact`](../../src/orchestrator/sdlc/impact.py#L49), [`_hotspots`](../../src/orchestrator/sdlc/impact.py#L107), [`_match_module`](../../src/orchestrator/sdlc/impact.py#L82), [`_module_nodes`](../../src/orchestrator/sdlc/impact.py#L76)
 
 ### `render_md`
 
-[`src/orchestrator/sdlc/impact.py:192`](../../src/orchestrator/sdlc/impact.py#L192)
+[`src/orchestrator/sdlc/impact.py:216`](../../src/orchestrator/sdlc/impact.py#L216)
 
-- **Called by** (1 production · 3 test): [`render_design_md`](../../src/orchestrator/sdlc/design.py#L139), [`test_greenfield_suppresses_unverified_references`](../../tests/sdlc/test_design_impact.py#L60), [`test_no_call_graph_reports_module_impact_only`](../../tests/sdlc/test_design_impact.py#L69), [`test_render_md_includes_sections`](../../tests/sdlc/test_design_impact.py#L85)
+- **Called by** (1 production · 4 test): [`render_design_md`](../../src/orchestrator/sdlc/design.py#L212), [`test_a_route_handler_is_not_scored_as_safe_to_change`](../../tests/sdlc/test_design_impact.py#L34), [`test_greenfield_suppresses_unverified_references`](../../tests/sdlc/test_design_impact.py#L85), [`test_no_call_graph_reports_module_impact_only`](../../tests/sdlc/test_design_impact.py#L94), [`test_render_md_includes_sections`](../../tests/sdlc/test_design_impact.py#L110)
 
 ### `to_dict`
 
-[`src/orchestrator/sdlc/impact.py:169`](../../src/orchestrator/sdlc/impact.py#L169)
+[`src/orchestrator/sdlc/impact.py:187`](../../src/orchestrator/sdlc/impact.py#L187)
 
-- **Called by** (1 production · 3 test): [`produce_design`](../../src/orchestrator/sdlc/design.py#L162), [`test_greenfield_suppresses_unverified_references`](../../tests/sdlc/test_design_impact.py#L60), [`test_no_call_graph_reports_module_impact_only`](../../tests/sdlc/test_design_impact.py#L69), [`test_render_md_includes_sections`](../../tests/sdlc/test_design_impact.py#L85)
-- **Calls** (1): [`unverified_references`](../../src/orchestrator/sdlc/impact.py#L160)
+- **Called by** (1 production · 4 test): [`produce_design`](../../src/orchestrator/sdlc/design.py#L235), [`test_a_route_handler_is_not_scored_as_safe_to_change`](../../tests/sdlc/test_design_impact.py#L34), [`test_greenfield_suppresses_unverified_references`](../../tests/sdlc/test_design_impact.py#L85), [`test_no_call_graph_reports_module_impact_only`](../../tests/sdlc/test_design_impact.py#L94), [`test_render_md_includes_sections`](../../tests/sdlc/test_design_impact.py#L110)
+- **Calls** (1): [`unverified_references`](../../src/orchestrator/sdlc/impact.py#L178)
 
 ### `unverified_references`
 
-[`src/orchestrator/sdlc/impact.py:160`](../../src/orchestrator/sdlc/impact.py#L160)
+[`src/orchestrator/sdlc/impact.py:178`](../../src/orchestrator/sdlc/impact.py#L178)
 
-- **Called by** (1 production · 2 test): [`to_dict`](../../src/orchestrator/sdlc/impact.py#L169), [`test_greenfield_suppresses_unverified_references`](../../tests/sdlc/test_design_impact.py#L60), [`test_unresolved_reference_is_flagged_when_grounded`](../../tests/sdlc/test_design_impact.py#L53)
+- **Called by** (1 production · 2 test): [`to_dict`](../../src/orchestrator/sdlc/impact.py#L187), [`test_greenfield_suppresses_unverified_references`](../../tests/sdlc/test_design_impact.py#L85), [`test_unresolved_reference_is_flagged_when_grounded`](../../tests/sdlc/test_design_impact.py#L78)
 
 ## Imports
 
@@ -106,4 +106,4 @@
 
 ## Imported by
 
-[`orchestrator.sdlc.design`](../../src/orchestrator/sdlc/design.py#L1), [`orchestrator.sdlc.rca`](../../src/orchestrator/sdlc/rca.py#L1), [`tests.sdlc.test_design_impact`](../../tests/sdlc/test_design_impact.py#L1)
+[`orchestrator.sdlc.design`](orchestrator.sdlc.design.md), [`orchestrator.sdlc.rca`](../../src/orchestrator/sdlc/rca.py#L1), [`tests.sdlc.test_design_impact`](../../tests/sdlc/test_design_impact.py#L1)

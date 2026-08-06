@@ -3,15 +3,15 @@
 > **Spine** is the product; the command is **`orchestrator`** (package `synaptixs-spine`).
 > Auto-generated from the CLI — run `orchestrator <command> --help` for the live version.
 
-**42 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
+**48 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
 
 ## Command map
 
 **Getting started & operations** — Set up your environment and run the platform.  
-`init` · `doctor` · `up` · `tui` · `task submit`
+`init` · `doctor` · `models` · `up` · `tui` · `task submit`
 
 **Understand a codebase — the Knowledge Graph** — Extract and read the Product Knowledge Graph (PKG). Deterministic, no LLM. All accept a local path OR a git URL.  
-`understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs` · `media extract`
+`understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs` · `pkg capabilities` · `media extract`
 
 **Grounded design, debugging & RCA** — The KG-grounded engineering commands: design a change, research a ticket, and trace/analyze bugs — all anchored to real code.  
 `design` · `investigate` · `localize` · `rca` · `regression` · `audit`
@@ -20,7 +20,7 @@
 `ingest` · `backlog` · `openspec draft`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
-`sdlc feature` · `sdlc run` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
+`sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
 
 **MCP — external tools** — Consume onboarded Model Context Protocol servers (governed, audited).  
 `mcp list` · `mcp contracts` · `mcp call` · `mcp ingest-db`
@@ -55,6 +55,43 @@ orchestrator init [OPTIONS]
 |---|---|
 | `--path` | Directory to scaffold the .env into. (default: `.`) |
 | `--force` | Overwrite an existing .env with a fresh template. |
+
+### `orchestrator models`
+
+What you can point the pipeline at, and what each stage is using now.
+
+Read from the installed LiteLLM's own catalog rather than a list maintained in this
+repo, so it reflects the client actually making the calls — upgrading `litellm`
+brings new models with no change here.
+
+```
+orchestrator models [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `--provider` | Filter to one vendor: `anthropic`, `openai`, `gemini`, … |
+| `--tools-only` / `--all` | Only models that support tool calling. (default: `--tools-only`) |
+
+**Tool calling is a requirement, not a preference.** Codegen forces a `submit_files`
+call and the acceptance judge forces `submit_verdict`. On a model without function
+calling both fall back to parsing prose out of a text reply — the failure the forced
+tool call was added to remove. `--all` lists the rest, marked **NO** in the Tools
+column.
+
+**Choosing a model per stage.** Each stage resolves independently: an explicit
+`--model` flag, then its own environment variable, then the global one, then the
+built-in default.
+
+| Stage | Variable | Used for |
+|---|---|---|
+| codegen | `SDLC_CODEGEN_MODEL` → `ORCHESTRATOR_INTAKE_MODEL` | implement / refine / revise / author_tests |
+| judge | `SDLC_JUDGE_MODEL` | the acceptance verdict |
+| intake | `ORCHESTRATOR_INTAKE_MODEL` | intent extraction, spec writing |
+| *(all)* | `ORCHESTRATOR_MODEL` | one knob for everything |
+
+Pointing a stage at another vendor needs that vendor's key in the environment
+(`OPENAI_API_KEY` for `gpt-*`, `ANTHROPIC_API_KEY` for `claude-*`).
 
 ### `orchestrator doctor`
 
@@ -327,6 +364,24 @@ denser than a naive read of the raw edges.
 before attempting any layout — and the result would be unreadable anyway. Gephi handles a graph
 this size because you filter inside it. If you are rendering a picture, slice first (one area, one
 module and its neighbours) and lay out the slice.
+
+### `orchestrator pkg capabilities`
+
+Which node/edge kinds each language front-end can emit. Read off the front-ends' own source,
+so it cannot drift from them — this is what generates the capability matrix in
+[KNOWLEDGE_GRAPH.md](KNOWLEDGE_GRAPH.md). Needs no repo and touches nothing.
+
+```
+orchestrator pkg capabilities [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `--format` | markdown (the KNOWLEDGE_GRAPH.md matrix) \| json. (default: `markdown`) |
+
+It reports **capability, not coverage**: a front-end that can emit `Endpoint` still emits none
+for a repo with no routes. For that question run `pkg verify` and read the `source-parity`
+check.
 
 ### `orchestrator pkg docs`
 
@@ -638,6 +693,61 @@ orchestrator openspec draft [OPTIONS]
 
 The autonomous build path: requirements → code → tests → reviewed PR, with human gates.
 
+### `orchestrator sdlc autorun`
+
+One ticket, all the way through: research → design → validity gate → code → tests
+→ review → PR. The stages are the commands below, called in order with the same
+spec, and each result recorded.
+
+Default `--safe` makes no external write anywhere in the chain: a local branch and
+commit, dry-run tracker, no push. `--live` creates or adopts the issue, pushes the
+branch, and opens a PR.
+
+```
+orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --safe --max-cost 10
+```
+
+| Option | Description |
+|---|---|
+| `--source` | Source root, e.g. `jira://<issue-key>`, `confluence://<page_id>`, `file://./spec.md`. **Required.** |
+| `--issue` | Adopt an existing tracker issue instead of creating one. |
+| `--intent` | Intent id to implement (default: the first). |
+| `--repo` | Git URL to branch from (default `$SDLC_REPO_URL`). |
+| `--path` | Repo to reason about — the graph the run is grounded in. (default: `.`) |
+| `--live` / `--safe` | Write for real, or make no external write. (default: `--safe`) |
+| `--max-refine` | Correction attempts allowed **per check** — a red suite, a type error and a coverage gap each get their own allowance, so one cannot starve another. (default: `5`) |
+| `--review` / `--no-review` | Show the diff and ask before committing or pushing anything. (default: `--no-review`) |
+| `--base` | PR target branch. |
+| `--language` | Target language (auto detects). (default: `auto`) |
+| `--out` | Where run artifacts go (default: a run dir under the temp dir). |
+| `--resume` | Continue a run by id — adopts the issue it already created. |
+| `--max-cost` | Cap LLM spend (USD) for this run; exhausting it parks the run. |
+
+**Reading the output.** Each stage prints a bracketed line. The ones that decide
+whether a change ships:
+
+| Line | What it means |
+|---|---|
+| `[validity]` | The gate's verdict. Only `PROCEED` continues; `DUPLICATE`, `CRITERIA_WRONG`, `UNLOCALIZED` and `TOO_BIG` park the run with evidence. |
+| `[run_tests #N]` | A pytest run. `refine` follows a red one. |
+| `[typecheck]` | The repo's own type checker, over the lines this change touched. Errors go back to `refine` exactly like a test failure. |
+| `[proof]` | The generated tests are re-run with the change reverted. They must fail — tests that pass without the change do not exercise it. |
+| `[coverage]` | Each changed file is reverted on its own. Anything that leaves the suite green is a file no test reaches, and goes back to `author_tests`. |
+| `[judge]` | Does the change satisfy the ticket's acceptance criteria? `REQUEST_CHANGES` sends the blockers back through `revise`; a verdict that cannot be read blocks the run rather than passing it. |
+| `[gate]` | `--review` only: waiting for you. Nothing has been committed yet. |
+
+**`--review` is the last gate before the first write.** It prints the full diff,
+asks once, and defaults to no. Every other check above is a model or a heuristic;
+this one is you. It **fails closed** when there is no terminal to ask on, so an
+unattended run (cron, a background shell, the MCP server) stops rather than
+assuming yes — pass `--review` only from an interactive session.
+
+**Resuming.** A parked or failed run continues with `--resume <run-id>`, keeping
+its id and adopting the issue it already created. A run parked on an approval
+resumes only after the approval is decided (`orchestrator sdlc runs approve`).
+Note that a resumed run re-runs its stages and builds a **fresh worktree** — it
+does not continue editing the previous one.
+
 ### `orchestrator sdlc feature`
 
 Linear pipeline for ONE intent, end to end.
@@ -650,6 +760,9 @@ the generated + tested code, and prints the diff. Pass --live to create the
 Jira issue, push the branch, open a real PR, and comment the PR link back on
 the issue.
 
+Pass --issue <KEY> when the work is already tracked: the run adopts that
+issue instead of creating a second one for the same story.
+
 ```
 orchestrator sdlc feature [OPTIONS]
 ```
@@ -660,8 +773,10 @@ orchestrator sdlc feature [OPTIONS]
 | `--intent` | Intent id to implement (default: first derived intent). |
 | `--repo` | Git URL to branch from (default $SDLC_REPO_URL; scratch if unset). |
 | `--model` | Codegen model (default: $SDLC_CODEGEN_MODEL or the adapter default). |
-| `--max-refine` | Max implement→test→refine iterations. (default: `3`) |
+| `--max-refine` | Correction attempts allowed **per check** — a red suite, a type error and a coverage gap each get their own allowance, so one cannot starve another. (default: `5`) |
 | `--live` | Write for real: create the Jira issue, push the branch + open a PR, comment on Jira. Default --safe stays local (branch + commit + diff, dry-run Jira, no push). |
+| `--issue` | Adopt an existing tracker issue (e.g. SSPN-9) instead of creating one — the branch, PR, comment and transition all land on it. |
+| `--base` | PR target branch (default: $SDLC_PR_BASE, else the repo's default branch). |
 | `--layout` | Target structure: auto (scaffold only empty repos), new (always scaffold a src/<pkg>/ skeleton), or existing (follow the repo's layout). (default: `auto`) |
 | `--package-name` | Override the scaffold package name (default: derived from repo). |
 | `--refresh` | Re-extract intents from the source (default: reuse the cached, deterministic backlog). |
@@ -777,6 +892,12 @@ orchestrator mcp list [OPTIONS]
 ### `orchestrator mcp contracts`
 
 Show the ToolContract derived for each onboarded MCP tool (governance view).
+
+Each input is rendered `name (type)`, with the type read from the server's own
+JSON Schema at display time — `string|null` for a union, and `any` when the
+schema declares no top-level type (an `anyOf`, a `$ref`, or a tool with no
+schema). A parallel `input_types` map carries the same labels keyed by argument
+name. Display-only: nothing is stored, and `mcp call` serialisation is unchanged.
 
 ```
 orchestrator mcp contracts [OPTIONS]

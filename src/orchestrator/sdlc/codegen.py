@@ -16,6 +16,7 @@ they may do real I/O; the workflow only ever sees the returned dataclasses.
 
 from __future__ import annotations
 
+import ast
 import json
 import logging
 import os
@@ -26,7 +27,8 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
-from orchestrator.core.llm import LLMClient, Message
+from orchestrator.core.llm import LLMClient, Message, ToolSpec, catalog
+from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 from orchestrator.sdlc.layout import TargetLayout
 
 logger = logging.getLogger("orchestrator.sdlc.codegen")
@@ -36,7 +38,7 @@ _GENERATED_TEST = "test_generated.py"
 
 # Real LLM codegen defaults — kept conservative so a chatty model can't blow up
 # the worktree or the prompt context.
-_DEFAULT_CODEGEN_MODEL = "claude-sonnet-4-6"
+_DEFAULT_CODEGEN_MODEL = catalog.DEFAULT_MODEL
 
 
 def resolve_codegen_model(override: str | None = None) -> str | None:
@@ -48,18 +50,27 @@ def resolve_codegen_model(override: str | None = None) -> str | None:
     pipeline with it — codegen no longer silently jumps to a different provider
     (and its timeout) than the one the rest of the run is configured for.
     """
-    return override or os.getenv("SDLC_CODEGEN_MODEL") or os.getenv("ORCHESTRATOR_INTAKE_MODEL")
+    return catalog.resolve("codegen", override)
 
 
 _MAX_FILES = 20  # files the model may write in one pass
 _MAX_FILE_BYTES = 64_000  # per generated file
 _MAX_CONTEXT_BYTES = 40_000  # cap on existing source fed back to the model
+# The subject of a type error, as mypy names it: `"MCPToolHandler" has no attribute "tool"`,
+# `Name "Any" is not defined`, `Argument 1 to "_type_label" has incompatible type`. Quoted
+# CamelCase or identifier-shaped words — the things the graph can look up.
+_SYMBOLS_IN_ERRORS = re.compile(r'"([A-Za-z_][A-Za-z0-9_]{2,})"')
 _MAX_EDITS_PER_FILE = 20  # anchored find/replace edits per file
 _MAX_PATCHED_FILE_BYTES = 256_000  # a patched existing file may be bigger than a generated one
 # Without an explicit cap the provider default (~4k tokens) applies, and a
 # large generated test file gets truncated mid-JSON — the "model output was
 # not a JSON object" failures that sank author_tests in runs #16/#18.
-_MAX_COMPLETION_TOKENS = 16_000
+#
+# Raised from 16k with the move off Sonnet 4.6: on the current Claude models thinking
+# is ON unless disabled, and this cap covers thinking *plus* the reply. A budget sized
+# around the JSON payload alone now truncates mid-object — the same symptom as runs
+# #16/#18, arriving from the opposite direction.
+_MAX_COMPLETION_TOKENS = 32_000
 
 
 @dataclass(frozen=True)
@@ -116,11 +127,24 @@ class CodegenAdapter(Protocol):
         mcp_servers: list[str] | None = None,
     ) -> CodeChange: ...
 
-    async def author_tests(self, *, spec: dict[str, Any], path: str, issue_key: str) -> CodeChange: ...
+    async def author_tests(
+        self, *, spec: dict[str, Any], path: str, issue_key: str, gaps: list[str] | None = None
+    ) -> CodeChange:
+        """``gaps`` names changed files no test exercises — write tests that reach them."""
+        ...
 
     async def refine(
         self, *, spec: dict[str, Any], path: str, issue_key: str, failures: str
     ) -> CodeChange: ...
+
+    async def revise(
+        self, *, spec: dict[str, Any], path: str, issue_key: str, blockers: list[str]
+    ) -> CodeChange:
+        """Answer a judge that rejected the change against the ticket's criteria.
+
+        Distinct from ``refine``: the suite is green and the gap is in what the ticket
+        asked for, not in what the code does when run."""
+        ...
 
     async def implement_governed(
         self,
@@ -182,8 +206,10 @@ class StubCodegenAdapter:
         )
         return CodeChange(files=[str(module)], summary=f"wrote {_GENERATED_MODULE}")
 
-    async def author_tests(self, *, spec: dict[str, Any], path: str, issue_key: str) -> CodeChange:
-        _ = spec
+    async def author_tests(
+        self, *, spec: dict[str, Any], path: str, issue_key: str, gaps: list[str] | None = None
+    ) -> CodeChange:
+        _ = (spec, gaps)
         test = Path(path) / _GENERATED_TEST
         test.write_text(
             "from generated import feature\n\n\n"
@@ -201,6 +227,13 @@ class StubCodegenAdapter:
         """
         _ = failures
         return await self.implement(spec=spec, path=path, issue_key=issue_key)
+
+    async def revise(
+        self, *, spec: dict[str, Any], path: str, issue_key: str, blockers: list[str]
+    ) -> CodeChange:
+        """The stub has nothing to say to a judge; an empty change stops the loop."""
+        _ = (spec, path, issue_key, blockers)
+        return CodeChange()
 
     async def implement_governed(
         self,
@@ -248,10 +281,29 @@ class CodegenError(RuntimeError):
         *,
         failed_edit_paths: list[str] | None = None,
         missing_edit_paths: list[str] | None = None,
+        failed_anchors: dict[str, list[str]] | None = None,
+        syntax_errors: list[str] | None = None,
+        parse_detail: str = "",
+        empty_summary: str = "",
     ) -> None:
         super().__init__(message)
         self.failed_edit_paths = list(failed_edit_paths or [])
         self.missing_edit_paths = list(missing_edit_paths or [])
+        # The ``find`` snippets that did not match, per path. Wrong text, but a correct
+        # statement of where the model thinks it is working — which is what aims the
+        # excerpt when the file is too big to show whole.
+        self.failed_anchors = {k: list(v) for k, v in (failed_anchors or {}).items()}
+        # Set when the output was not valid JSON at all. Carried explicitly rather than
+        # inferred from two empty path lists: "no edits failed" and "nothing parsed" are
+        # different failures and want different retries.
+        self.parse_detail = parse_detail
+        # Set when the model answered in the right shape but submitted no files. Its own
+        # summary is the useful part — it usually says why it thought nothing was needed.
+        self.empty_summary = empty_summary
+        # Generated Python that does not parse. Its own kind rather than an anchor miss:
+        # the fix is different (re-emit the file, don't re-anchor) and, more importantly,
+        # it needs its own retry — see `_generate`.
+        self.syntax_errors = list(syntax_errors or [])
 
 
 @runtime_checkable
@@ -278,6 +330,72 @@ _FILE_FORMS = (
     "enough surrounding lines to make it unique. Never use `content` for a "
     "file that already exists, and never use `edits` for a new file. Output "
     "strict JSON: no comments, no trailing commas.\n"
+)
+
+# The same contract as `_FILE_FORMS`, as a tool the provider makes the model call.
+#
+# Asking for "ONE JSON object, no prose" is a request; a forced tool call is a
+# constraint the provider enforces. `json_object=True` was doing the enforcing
+# only on providers that have a JSON mode — Anthropic has none, so on the model
+# this pipeline actually runs the request was all there was, and codegen died on
+# prose preambles ("I'll analyze the existing code..."), mid-answer changes of
+# mind ("Let me reconsider..."), and PR blurbs appended after a valid payload.
+# Four parser patches chased those shapes before the missing constraint was the
+# thing that got fixed. The prompt still spells the contract out, because the
+# schema says nothing about *which* form to pick for a given file.
+_SUBMIT_TOOL = ToolSpec(
+    name="submit_files",
+    description=(
+        "Submit the complete set of file writes for this change. Call this exactly "
+        "once, with every file you are creating or editing."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "files": {
+                "type": "array",
+                "description": "One entry per file. Empty only when nothing needs changing.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Path relative to the worktree root — no leading slash, no '..'.",
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": (
+                                "Full file content. NEW files only — never for a file that exists."
+                            ),
+                        },
+                        "edits": {
+                            "type": "array",
+                            "description": (
+                                "Anchored find/replace. EXISTING files only — never for a new file."
+                            ),
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "find": {
+                                        "type": "string",
+                                        "description": (
+                                            "Snippet copied verbatim from the file's current content, "
+                                            "occurring exactly once in it."
+                                        ),
+                                    },
+                                    "replace": {"type": "string", "description": "Text to put in its place."},
+                                },
+                                "required": ["find", "replace"],
+                            },
+                        },
+                    },
+                    "required": ["path"],
+                },
+            },
+            "summary": {"type": "string", "description": "One line describing the change."},
+        },
+        "required": ["files"],
+    },
 )
 
 _IMPLEMENT_SYSTEM = (
@@ -335,8 +453,17 @@ _TESTS_SYSTEM = (
     "the SPEC names one) uses `edits` — typically anchoring on the file's "
     "final lines and appending the new test functions. Import the source by "
     "its top-level module name. Each acceptance criterion should map to at "
-    "least one assertion. Tests must pass against the given source."
+    "least one assertion. Tests must pass against the given source.\n\n"
+    "A criterion phrased as behaviour — *when the user runs `some command`, the output "
+    "shows …* — must be exercised through THAT entry point: invoke the command or "
+    "function the criterion names and assert on what it returns or prints. A test that "
+    "calls an internal helper directly does not test the criterion, however thorough it "
+    "is; the wiring between the entry point and the helper is where the bug lives."
 )
+# The rule above is not style advice. A change shipped with a correct, exhaustively tested
+# helper wired into the CLI through a guard that was always false, so every argument printed
+# `any` — and the suite was green, because every test called the helper directly and nothing
+# ever called the command. `_files_no_test_exercises` is the enforcement; this is the ask.
 
 _REFINE_SYSTEM = (
     "You are fixing failing tests. You are given the SPEC, the CURRENT FILES, "
@@ -347,6 +474,30 @@ _REFINE_SYSTEM = (
     "`content`; any other existing file must be changed via `edits`. Make the "
     "smallest change that turns the tests green. Same path rules as before — "
     "relative, no '..'."
+)
+
+# Answering the judge is a different job from fixing a red suite, and needs its own
+# prompt rather than a reuse of `_REFINE_SYSTEM`.
+#
+# Refine's whole framing is "the tests are red, make them green, touch implementation
+# only" — which is precisely wrong here: the tests are GREEN, and the criterion that
+# went unmet is frequently one no test covers. A ticket asking for documentation was
+# unsatisfiable by construction, because every implement prompt says "write source
+# files only" and refine says "implementation files only", so nothing in the pipeline
+# was ever permitted to write the doc the judge then failed the run for not writing.
+_REVISE_SYSTEM = (
+    "A reviewer read the SPEC and the code, and found acceptance criteria the change "
+    "does not meet. The test suite is already GREEN — you are not fixing a failure, "
+    "you are completing the work the ticket asked for.\n\n"
+    "Output ONE JSON object, no prose, no code fences:\n"
+    f"{_FILE_FORMS}\n"
+    "Rules: address every point in UNMET CRITERIA, and change nothing else. Any file "
+    "the criteria require is in scope — including documentation (`.md`), configuration, "
+    "or a file no earlier stage touched; create it if the ticket calls for one that does "
+    "not exist. Do NOT weaken, delete, or rewrite existing tests to make a criterion look "
+    "satisfied — the suite must still pass afterwards. Files you created earlier this "
+    "session may be resent in full via `content`; any other existing file must be changed "
+    "via `edits`. Same path rules as before — relative, no '..'."
 )
 
 # Java (Maven/JUnit) variants — selected when the layout's language is "java".
@@ -668,6 +819,9 @@ class LLMCodegenAdapter:
         model: str = _DEFAULT_CODEGEN_MODEL,
         grounder: CodegenGrounder | None = None,
         grounder_factory: Callable[[Path], CodegenGrounder] | None = None,
+        # The approach an earlier stage already decided. Empty by default, so a standalone
+        # `sdlc feature` builds exactly the prompt it builds today.
+        design: str = "",
         layout: TargetLayout | None = None,
         agentic: bool = False,
         skills: list[str] | None = None,
@@ -706,6 +860,7 @@ class LLMCodegenAdapter:
         # factory builds one per worktree root, for the worker's fan-out where
         # one shared adapter serves many target clones.
         self._grounder = grounder
+        self._design = design.strip()
         self._grounder_factory = grounder_factory
         self._grounders: dict[Path, CodegenGrounder | None] = {}
         # The target layout pins where generated files go (package + dirs). When
@@ -903,8 +1058,17 @@ class LLMCodegenAdapter:
             f"- Import source as `from {layout.package_name}.<module> import ...` "
             "(the test runner puts the source root on the path).\n"
             f"- Put tests under `{layout.tests_dir}/` as `{layout.tests_dir}/test_<name>.py`.\n"
-            f"- Do NOT create files outside `{layout.source_dir}/` and `{layout.tests_dir}/`, "
-            "and do NOT invent unrelated top-level paths.\n\n"
+            f"- Put NEW code and tests under `{layout.source_dir}/` and `{layout.tests_dir}/` "
+            "only, and do NOT invent unrelated top-level paths or parallel package trees.\n"
+            # The ban used to be absolute — "do NOT create files outside src/ and tests/" —
+            # which is right about invented paths and wrong about the repo's own docs. It
+            # made every documentation criterion unsatisfiable: the judge required a
+            # USER_GUIDE note, this line forbade touching USER_GUIDE.md, and the model
+            # obeyed and said so ("outside the allowed src/tests paths so the doc note was
+            # not added"). Editing a file the repo already has is not inventing a path.
+            "- You MAY edit files that already exist elsewhere in the repo — README, "
+            "USER_GUIDE, CHANGELOG, pyproject.toml — when the ticket calls for it. Changing "
+            "an existing file is not inventing a path; creating a new top-level one is.\n\n"
         )
 
     def _language(self) -> str:
@@ -918,6 +1082,27 @@ class LLMCodegenAdapter:
 
     def _refine_system(self) -> str:
         return _REFINE_SYSTEMS.get(self._language(), _REFINE_SYSTEM)
+
+    def _design_block(self) -> str:
+        """The design an earlier stage produced, or ''.
+
+        Research and design are worthless to a model that never sees them: before this, the
+        pipeline investigated a ticket, designed a change, and then generated code as if
+        neither had happened. It is stated as a decision already taken, and as *guidance
+        rather than gospel* — the design was written before the code was read, so a model
+        with the file in front of it may know better, and should say so rather than
+        silently follow a plan that does not fit.
+        """
+        if not self._design:
+            return ""
+        return (
+            "PLAN ALREADY AGREED FOR THIS TICKET (from the design stage — research and a "
+            "grounded design were done before you were called; this is what they concluded):\n"
+            f"{self._design}\n\n"
+            "Follow it where it fits. It was written from the graph, not from reading every "
+            "file, so if the code contradicts it, do what the code requires and say so in "
+            "your summary — do not follow a plan you can see is wrong.\n\n"
+        )
 
     def _grounding(self, spec: dict[str, Any], root: Path) -> str:
         """The PKG context block (with trailing separator), or ''."""
@@ -970,9 +1155,9 @@ class LLMCodegenAdapter:
     ) -> CodeChange:
         root = Path(path)
         task = (
-            f"{self._layout_block()}{self._grounding(spec, root)}Issue: {issue_key}\n\n"
+            f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}"
-            f"{_named_existing_files(spec, root)}{self._convention_block(root)}"
+            f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}"
         )
         if self._agentic:
             # Per-call plan values (from the run's capability plan) take
@@ -1094,9 +1279,9 @@ class LLMCodegenAdapter:
 
         root = Path(path)
         task = (
-            f"{self._layout_block()}{self._grounding(spec, root)}Issue: {issue_key}\n\n"
+            f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}"
-            f"{_named_existing_files(spec, root)}{self._convention_block(root)}"
+            f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}"
         )
         eff_skills = skills if skills is not None else self._skills
         session = CodegenSession(tracker=self._written)
@@ -1200,35 +1385,80 @@ class LLMCodegenAdapter:
         """The agentic implement system prompt, persona/skill-conditioned (implement phase)."""
         return self._condition_system(_AGENTIC_IMPLEMENT_SYSTEM, skills, phase="implement")
 
-    async def author_tests(self, *, spec: dict[str, Any], path: str, issue_key: str) -> CodeChange:
+    async def author_tests(
+        self, *, spec: dict[str, Any], path: str, issue_key: str, gaps: list[str] | None = None
+    ) -> CodeChange:
         root = Path(path)
         return await self._generate(
             self._condition_system(self._tests_system(), self._skills, phase="author_tests"),
-            f"{self._layout_block()}{self._grounding(spec, root)}Issue: {issue_key}\n\n"
+            f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}\n\n"
             f"CURRENT SOURCE FILES:\n{self._session_files(root, include_tests=False)}"
-            f"{self._convention_block(root)}",
+            f"{self._convention_block(root)}"
+            f"{_existing_test_examples(spec, root, self._design)}"
+            f"{_coverage_gap_block(gaps or [])}",
             root,
         )
 
     async def refine(self, *, spec: dict[str, Any], path: str, issue_key: str, failures: str) -> CodeChange:
         root = Path(path)
+        fail_anchors = _spec_anchors(failures)
         return await self._generate(
             self._condition_system(self._refine_system(), self._skills, phase="refine"),
-            f"{self._layout_block()}{self._grounding(spec, root)}Issue: {issue_key}\n\n"
+            f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}\n\n"
             "IMPORTANT: Fix the IMPLEMENTATION files only. Do NOT modify test files to "
             "make them match a broken implementation — fix the source code so the tests "
             "pass as written.\n\n"
-            f"CURRENT FILES:\n{self._session_files(root, include_tests=True)}"
-            f"{_named_existing_files(spec, root)}{self._convention_block(root)}\n\n"
-            f"FAILURE OUTPUT:\n{_truncate(failures, _MAX_CONTEXT_BYTES)}",
+            # Aim the windows at whatever the traceback names: on a big file the excerpt
+            # should cover the line that failed, not the top of the module.
+            f"CURRENT FILES:\n{self._session_files(root, include_tests=True, anchors=fail_anchors)}"
+            f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}\n\n"
+            f"FAILURE OUTPUT:\n{_truncate(failures, _MAX_CONTEXT_BYTES)}\n\n"
+            f"{self._definitions_for(failures, root)}",
             root,
             # A refine pass that yields no applicable edits is a legitimate
             # no-op (the model judged it had nothing to change, or returned a
             # bare explanation), not a hard error: returning an empty change
             # lets the test/refine loop reach its normal FAILED verdict instead
             # of aborting the whole run with an unhandled CodegenError.
+            allow_empty=True,
+        )
+
+    def _definitions_for(self, failures: str, root: Path) -> str:
+        """PKG definitions of the symbols a failure names, or ''.
+
+        A type error names its subject — *"MCPToolHandler has no attribute input_schema"* —
+        and the graph knows where that class is. Without this the model answered by guessing
+        a second attribute name (``handler.tool``), was rejected identically, and the loop
+        spent its whole budget proposing names for something it had never been shown.
+        """
+        names = _SYMBOLS_IN_ERRORS.findall(failures)
+        if not names:
+            return ""
+        grounder = self._resolve_grounder(root)
+        lookup = getattr(grounder, "context_for_symbols", None)
+        if lookup is None:
+            return ""
+        block: str = lookup(list(dict.fromkeys(names)))
+        return block
+
+    async def revise(
+        self, *, spec: dict[str, Any], path: str, issue_key: str, blockers: list[str]
+    ) -> CodeChange:
+        root = Path(path)
+        unmet = "\n".join(f"- {b}" for b in blockers)
+        return await self._generate(
+            self._condition_system(_REVISE_SYSTEM, self._skills, phase="refine"),
+            f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
+            f"SPEC:\n{_spec_text(spec)}\n\n"
+            f"CURRENT FILES:\n{self._session_files(root, include_tests=True)}"
+            f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}\n\n"
+            f"UNMET CRITERIA (from the reviewer — every one must be addressed):\n{unmet}\n",
+            root,
+            # Same reasoning as refine: a model that judges it has nothing to add
+            # returns nothing, and the caller reads that as "cannot fix" and stops
+            # rather than crashing the run.
             allow_empty=True,
         )
 
@@ -1249,18 +1479,64 @@ class LLMCodegenAdapter:
         nothing there is a real failure.
         """
         text = await self._complete(system, user)
-        try:
-            return self._apply(text, root, allow_empty=allow_empty)
-        except CodegenError as exc:
-            if not exc.failed_edit_paths and not exc.missing_edit_paths:
-                raise
+        # One corrective attempt per KIND of failure, not one shared by all of them.
+        #
+        # It used to be a single retry for every kind, and a live run showed why that is
+        # too few: the model submitted no files, spent the one retry recovering from that,
+        # then produced a file with a stray `</content>` in it — and the syntax error, the
+        # very thing the retry exists for, had no attempt left. Same shape as three checks
+        # sharing one `--max-refine` pool.
+        #
+        # Per-kind also keeps the old guarantee: a kind that fails twice is looping, not
+        # fixing, so it stops. `_MAX_GENERATE_ATTEMPTS` bounds the whole thing regardless.
+        spent: set[str] = set()
+        for _ in range(_MAX_GENERATE_ATTEMPTS):
+            try:
+                return self._apply(text, root, allow_empty=allow_empty)
+            except CodegenError as exc:
+                kind = _failure_kind(exc)
+                if kind in spent:  # already corrected this once — a third go is a loop
+                    raise
+                suffix = self._corrective_suffix(exc, root)
+                if suffix is None:
+                    raise
+                spent.add(kind)
+                text = await self._complete(system, f"{user}{suffix}")
+        raise CodegenError("codegen retries did not produce a usable change")  # unreachable
+
+    def _corrective_suffix(self, exc: CodegenError, root: Path) -> str | None:
+        """What to tell the model about its last attempt, or ``None`` if nothing can help."""
+        if exc.parse_detail:
+            logger.warning("sdlc.codegen.parse_retry detail=%r", exc.parse_detail[:160])
+            return _parse_repair_block(exc.parse_detail)
+        if exc.failed_edit_paths or exc.missing_edit_paths:
             logger.warning(
                 "sdlc.codegen.repair_retry",
                 extra={"failed": exc.failed_edit_paths, "missing": exc.missing_edit_paths},
             )
-            repair = self._repair_block(exc, root)
-            text = await self._complete(system, f"{user}{repair}")
-            return self._apply(text, root, allow_empty=allow_empty)
+            return self._repair_block(exc, root)
+        if exc.syntax_errors:
+            logger.warning("sdlc.codegen.syntax_retry", extra={"errors": exc.syntax_errors[:3]})
+            listed = "\n".join(f"  - {m}" for m in exc.syntax_errors)
+            return (
+                "\n\nYOUR PREVIOUS ATTEMPT PRODUCED PYTHON THAT DOES NOT PARSE, so it was "
+                "not written:\n"
+                f"{listed}\n"
+                "Re-emit those files complete and syntactically valid. Send only the file's "
+                "own source — no XML or markup wrappers, no `<content>` tags, no fences, "
+                "nothing after the final line of code.\n"
+            )
+        if exc.empty_summary:
+            logger.warning("sdlc.codegen.empty_retry summary=%r", exc.empty_summary[:160])
+            return (
+                "\n\nYOUR PREVIOUS ATTEMPT SUBMITTED NO FILES. You said:\n"
+                f"  {exc.empty_summary}\n"
+                "That is not an answer this stage can use — it needs at least one file. If "
+                "you believe the work is already done, you are looking at the wrong thing: "
+                "say what you would write and write it. Re-emit with a non-empty `files` "
+                "list.\n"
+            )
+        return None
 
     def _repair_block(self, exc: CodegenError, root: Path) -> str:
         """The corrective prompt suffix for a repair retry. Two kinds of fix:
@@ -1285,20 +1561,18 @@ class LLMCodegenAdapter:
                 "these ONLY via the `edits` form, copying every `find` snippet VERBATIM from this "
                 "content (whitespace included) — never resend an existing file's full content:\n"
             )
-            budget = _MAX_CONTEXT_BYTES
-            for rel in exc.failed_edit_paths:
-                try:
-                    body = (root / rel).read_text(encoding="utf-8")
-                except OSError:
-                    continue
-                block = f"--- {rel} (current content) ---\n{body}\n"
-                if len(block) > budget:
-                    break
-                budget -= len(block)
-                chunks.append(block)
+            chunks.append(
+                _excerpt_files(
+                    root,
+                    exc.failed_edit_paths,
+                    budget=_MAX_CONTEXT_BYTES,
+                    anchors_by_path=exc.failed_anchors,
+                    label="current content",
+                )
+            )
         return "".join(chunks)
 
-    def _session_files(self, root: Path, *, include_tests: bool) -> str:
+    def _session_files(self, root: Path, *, include_tests: bool, anchors: list[str] | None = None) -> str:
         """The files this adapter wrote under ``root``, as a labeled prompt block.
 
         In Block C the worktree starts empty, so "everything in the worktree"
@@ -1312,24 +1586,42 @@ class LLMCodegenAdapter:
             written = [p for p in written if not p.name.startswith("test_")]
         if not written:
             return _read_worktree(root, include_tests=include_tests)
-        chunks: list[str] = []
-        budget = _MAX_CONTEXT_BYTES
-        for file in written:
-            block = f"--- {file.resolve().relative_to(root.resolve())} ---\n"
-            block += file.read_text(encoding="utf-8") + "\n"
-            if len(block) > budget:
-                break
-            budget -= len(block)
-            chunks.append(block)
-        return "".join(chunks)
+        # Fair allocation, never a `break`. This loop used to stop at the first file that
+        # did not fit, dropping every file after it — and a live run edited `models.py`
+        # (1.8 KB), broke it, and then could not repair it because `cli.py` (91 KB) came
+        # earlier in the list and ended the loop. The model said so plainly: "that file's
+        # current content was not provided, so I have no verbatim anchor to edit it
+        # safely." It was right. Third copy of this bug; the other two were the judge's
+        # reader and the anchor-repair block.
+        return _excerpt_files(
+            root,
+            [str(f.resolve().relative_to(root.resolve())) for f in written],
+            budget=_MAX_CONTEXT_BYTES,
+            anchors_by_path={str(f.resolve().relative_to(root.resolve())): anchors or [] for f in written},
+            label="written this session",
+        )
 
     async def _complete(self, system: str, user: str) -> str:
         result = await self._llm.complete(
             [Message(role="system", content=system), Message(role="user", content=user)],
             model=self._model,
-            json_object=True,  # codegen output is one JSON object — enforce it (Ollama/local reliability)
+            # Both levers, because they cover disjoint providers: the forced tool
+            # constrains anything with tool support (Anthropic, OpenAI), and
+            # `json_object` remains the only one a local Ollama model honors.
+            json_object=True,
             max_tokens=_MAX_COMPLETION_TOKENS,
+            tools=[_SUBMIT_TOOL],
+            tool_choice=_SUBMIT_TOOL.name,
         )
+        for call in result.tool_calls:
+            if call.name == _SUBMIT_TOOL.name:
+                # Re-serialized so the whole parse/apply/repair path downstream stays
+                # one code path — a forced call and a hand-parsed answer arrive at
+                # `_apply` identically, and the retry logic keeps working either way.
+                return json.dumps(call.arguments)
+        # A provider that ignored the tool still answers in text. That is the old
+        # path, unchanged and still guarded — not an error, just no free schema.
+        logger.warning("sdlc.codegen.no_tool_call len=%d", len(result.text))
         return result.text
 
     def _apply(self, text: str, root: Path, *, allow_empty: bool = False) -> CodeChange:
@@ -1341,13 +1633,24 @@ class LLMCodegenAdapter:
             logger.warning("sdlc.codegen.unparseable_output len=%d tail=%r", len(text), text[-160:])
             if allow_empty:
                 return CodeChange()
-            raise CodegenError("model output was not a JSON object")
+            raise CodegenError(
+                "model output was not a JSON object",
+                parse_detail=_parse_detail(text),
+            )
         files = payload.get("files")
         if not isinstance(files, list) or not files:
             if allow_empty:
                 logger.info("sdlc.codegen.empty_refine summary=%r", str(payload.get("summary") or "")[:160])
                 return CodeChange(summary=str(payload.get("summary") or "").strip())
-            raise CodegenError("model output had no 'files' list")
+            # Recoverable, not fatal. The forced tool call means the model *did* answer in
+            # the right shape — it just submitted zero files, which the schema allows
+            # (`required` means present, not non-empty). A live run died here after a
+            # clean implement pass because author_tests came back empty and nothing asked
+            # it to try again.
+            raise CodegenError(
+                "model output had no 'files' list",
+                empty_summary=str(payload.get("summary") or "").strip() or "(no summary given)",
+            )
         return apply_files(
             files,
             root,
@@ -1379,6 +1682,9 @@ def apply_files(
     skipped: list[str] = []
     edit_failures: list[str] = []
     edit_failure_paths: list[str] = []
+    attempted_anchors: dict[str, list[str]] = {}
+    syntax_failures: list[str] = []
+    syntax_messages: list[str] = []
     missing_targets: list[str] = []  # edits aimed at a file that doesn't exist yet
     tracked_now = written_tracker.get(root.resolve(), [])
     for entry in files:
@@ -1408,10 +1714,19 @@ def apply_files(
             except CodegenError as exc:
                 edit_failures.append(str(exc))
                 edit_failure_paths.append(rel)
+                attempted_anchors[rel] = [
+                    e["find"] for e in edits if isinstance(e, dict) and isinstance(e.get("find"), str)
+                ]
                 logger.warning("sdlc.codegen.edit_failed", extra={"path": rel})
                 continue
             if len(patched.encode("utf-8")) > _MAX_PATCHED_FILE_BYTES:
                 edit_failures.append(f"{rel}: patched file exceeds {_MAX_PATCHED_FILE_BYTES} bytes")
+                continue
+            broken = _python_syntax_error(rel, patched)
+            if broken:
+                edit_failures.append(broken)
+                syntax_failures.append(rel)
+                syntax_messages.append(broken)
                 continue
             target.write_text(patched, encoding="utf-8")
             written.append(str(target))
@@ -1428,6 +1743,17 @@ def apply_files(
                 f"refusing to create {rel!r}: it would shadow the Python "
                 f"standard-library module {target.stem!r}"
             )
+        # First-party shadow guard: the same failure one layer in. A model that wants
+        # `orchestrator.cli.regression` will happily create `orchestrator/cli/__init__.py`
+        # beside the existing `cli.py` — which does not extend the CLI, it hides it, and
+        # every command in the product stops resolving. Observed on a real run.
+        shadowed = _shadows_first_party(root, target)
+        if not target.exists() and shadowed is not None:
+            raise CodegenError(
+                f"refusing to create {rel!r}: it would shadow the existing module "
+                f"{shadowed.relative_to(root.resolve()).as_posix()!r}. Edit that module "
+                "instead of creating a package beside it."
+            )
         # Brownfield create-only guard (deterministic, not prompt-hope):
         # when grounded, the worktree is a real repo — a model "fix" that
         # rewrites a pre-existing module it didn't create this session
@@ -1439,6 +1765,15 @@ def apply_files(
             continue
         if len(content.encode("utf-8")) > _MAX_FILE_BYTES:
             raise CodegenError(f"generated file {rel!r} exceeds {_MAX_FILE_BYTES} bytes")
+        broken = _python_syntax_error(rel, content)
+        if broken:
+            # Never write it. A file that does not parse turns the whole suite into a
+            # collection error, and every later stage then reads an unrelated wall of
+            # pytest traceback instead of one line naming the problem.
+            edit_failures.append(broken)
+            syntax_failures.append(rel)
+            syntax_messages.append(broken)
+            continue
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
         written.append(str(target))
@@ -1463,7 +1798,7 @@ def apply_files(
     # (skipped), an edit that failed to anchor, or edits aimed at a file that
     # doesn't exist yet — all trigger ONE repair retry (even when other files
     # landed), so a create+edit feature never silently ships half the change.
-    unmodified_existing = edit_failure_paths + skipped
+    unmodified_existing = edit_failure_paths + skipped + syntax_failures
     if unmodified_existing or missing_targets:
         notes = [
             f"skipped existing (use edits, not full content): {', '.join(skipped)}" if skipped else "",
@@ -1474,6 +1809,8 @@ def apply_files(
             f"changes need a repair pass{detail}",
             failed_edit_paths=unmodified_existing,
             missing_edit_paths=missing_targets,
+            failed_anchors=attempted_anchors,
+            syntax_errors=syntax_messages,
         )
     if not written:
         detail = f" ({'; '.join(edit_failures)})" if edit_failures else ""
@@ -1562,6 +1899,65 @@ def _shadows_stdlib(root: Path, target: Path) -> bool:
     return target.stem in sys.stdlib_module_names
 
 
+def _parse_detail(text: str) -> str:
+    """Why the output was not JSON, in the terms a model can act on.
+
+    The offset matters more than the message: "Expecting ',' delimiter" is useless without
+    knowing that it happened 2,294 characters in, inside a string full of backticks.
+    """
+    import json as _json
+
+    try:
+        _json.loads(text)
+    except _json.JSONDecodeError as exc:
+        start = max(0, exc.pos - 80)
+        return f"{exc.msg} at position {exc.pos} of {len(text)}, near: {text[start : exc.pos + 40]!r}"
+    except Exception as exc:  # noqa: BLE001 — any other reason is still "not usable JSON"
+        return f"the response could not be read as JSON ({type(exc).__name__}: {exc})"
+    return "the response parsed, but not as a single JSON object of files"
+
+
+def _parse_repair_block(detail: str) -> str:
+    """The corrective suffix for a parse retry. Names the break rather than saying 'try again'."""
+    return (
+        "\n\nYOUR PREVIOUS RESPONSE WAS NOT VALID JSON and could not be used.\n"
+        f"The parser failed: {detail}\n"
+        "Return the same work again as a SINGLE valid JSON object and nothing else. Escape "
+        "every quote, newline and backslash inside string values. Do not wrap the JSON in "
+        "markdown fences, and do not add commentary before or after it."
+    )
+
+
+def _shadows_first_party(root: Path, target: Path) -> Path | None:
+    """The existing module ``target`` would hide, or ``None``.
+
+    Two shapes, both of which make an import resolve to the new thing and silently orphan
+    the old one:
+
+    * ``pkg/name/__init__.py`` created while ``pkg/name.py`` exists — the package wins;
+    * ``pkg/name.py`` created while ``pkg/name/__init__.py`` exists — ambiguous at best.
+
+    The stdlib guard next door catches the same mistake against Python's own modules. This
+    is the first-party half, and it is the more dangerous one: shadowing `statistics` breaks
+    a library nobody in the repo wrote, while shadowing `cli.py` breaks the product.
+    """
+    if target.suffix != ".py":
+        return None
+    # Both sides resolved before comparing: on macOS a temp root is /var/... while its
+    # resolution is /private/var/..., and an unresolved sibling then looks like it lives
+    # outside the worktree. `_safe_target` has already proven containment anyway.
+    resolved_root = root.resolve()
+    candidate = (
+        target.parent.with_suffix(".py")
+        if target.name == "__init__.py"
+        else target.with_suffix("") / "__init__.py"
+    )
+    candidate = candidate.resolve()
+    if not candidate.is_file() or not candidate.is_relative_to(resolved_root):
+        return None
+    return candidate
+
+
 def _safe_target(root: Path, rel: str) -> Path:
     """Resolve ``rel`` under ``root``, refusing any path that escapes it.
 
@@ -1578,17 +1974,68 @@ def _safe_target(root: Path, rel: str) -> Path:
 _PATH_RE = re.compile(r"\b((?:src/|tests/)[\w./-]+\.py)\b")
 
 
-def _named_existing_files(spec: dict[str, Any], root: Path) -> str:
-    """Full current content of existing repo files the SPEC names by path.
+_MAX_TEST_EXAMPLE_BYTES = 12_000  # supplementary to the source block, so a fraction of it
 
-    A surgical edit inside a large file (run #27: raise_approval_request in the
-    ~300-line activities.py) fails when the model regenerates the whole file
-    from memory — it truncates or malforms the JSON, and a full-content rewrite
-    would be guard-skipped anyway. Giving it the file's EXACT content lets it
-    anchor small ``edits`` against ground truth — the way an engineer opens the
-    file before changing it. Paths are read from the spec text; only existing,
-    in-worktree ``.py`` files are included, size-capped.
+
+def _existing_test_examples(spec: dict[str, Any], root: Path, design: str = "") -> str:
+    """Tests this repo already has for the modules this change touches, or ''.
+
+    Told to exercise a criterion through the entry point it names, a run reached for
+    ``CliRunner`` — the right instinct — and then spent its whole budget on mechanics: it
+    guessed the Typer app was called ``cli``, and when the import failed it edited *production*
+    ``cli.py`` to add a ``cli`` alias so its test would work. It also passed a ``mix_stderr``
+    kwarg Typer's runner does not take, and patched the wrong import paths.
+
+    Every one of those answers is in the repo's own suite, two files of it::
+
+        tests/test_cli.py:9       from orchestrator.cli import app
+        tests/test_launch.py:172  result = CliRunner().invoke(app, ["up", "--help"])
+
+    Nothing was showing them. Written for a specific failure and general by construction: the
+    convention for invoking *any* entry point under test is best stated by the tests that
+    already do it.
     """
+    targets = _paths_from(spec, design)
+    if not targets:
+        return ""
+    modules = {_module_path_of(rel) for rel in targets if _module_path_of(rel)}
+    if not modules:
+        return ""
+
+    scored: list[tuple[int, str]] = []
+    for candidate in sorted(root.rglob("test_*.py")):
+        if ".git" in candidate.parts or not candidate.is_file():
+            continue
+        try:
+            body = candidate.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        hits = sum(_exercises_module(body, module) for module in modules)
+        if hits:
+            scored.append((hits, str(candidate.resolve().relative_to(root.resolve()))))
+    if not scored:
+        return ""
+    scored.sort(key=lambda pair: -pair[0])
+    chosen = [rel for _, rel in scored[:2]]
+    body = _excerpt_files(
+        root,
+        chosen,
+        budget=_MAX_TEST_EXAMPLE_BYTES,
+        anchors_by_path={rel: sorted(modules) for rel in chosen},
+        label="an existing test for this module",
+    )
+    if not body:
+        return ""
+    return (
+        "\n\nHOW THIS REPO ALREADY TESTS THESE MODULES — copy these mechanics rather than "
+        "inventing them: the import path the entry point is reached by, the runner and the "
+        "arguments it takes, and how collaborators are patched. If your test cannot import "
+        "something, the fix is in your test, never a new alias in the production module:\n" + body
+    )
+
+
+def _paths_from(spec: dict[str, Any], design: str) -> list[str]:
+    """Repo-relative source paths this ticket is about — spec first, then the design."""
     blob = " ".join(
         [
             str(spec.get("summary") or ""),
@@ -1597,27 +2044,140 @@ def _named_existing_files(spec: dict[str, Any], root: Path) -> str:
         ]
     )
     seen: list[str] = []
-    for rel in _PATH_RE.findall(blob):
+    for rel in _PATH_RE.findall(blob) + _PATH_RE.findall(design):
         if rel not in seen:
             seen.append(rel)
-    chunks: list[str] = []
-    budget = _MAX_CONTEXT_BYTES
-    for rel in seen:
-        target = (root / rel).resolve()
-        if not target.is_relative_to(root.resolve()) or not target.is_file():
-            continue
-        body = target.read_text(encoding="utf-8")
-        block = f"--- {rel} (current content — edit THIS via the edits form) ---\n{body}\n"
-        if len(block) > budget:
-            break
-        budget -= len(block)
-        chunks.append(block)
-    if not chunks:
+    return seen
+
+
+def _exercises_module(body: str, module: str) -> int:
+    """How strongly a test file reaches ``module`` — imports and patch targets only.
+
+    Counting bare occurrences ranked a wikilink test above ``tests/test_cli.py`` for
+    ``orchestrator.cli``, because it names the doc file ``orchestrator.cli.md`` six times.
+    Mentioning a module is not testing it; importing or patching it is.
+    """
+    escaped = re.escape(module)
+    imports = re.findall(rf"^\s*(?:from\s+{escaped}\s+import|import\s+{escaped})\b", body, re.MULTILINE)
+    patches = re.findall(rf"""(?:setattr|patch)\(\s*["']{escaped}[."']""", body)
+    return len(imports) * 3 + len(patches)
+
+
+def _module_path_of(rel: str) -> str:
+    """``src/orchestrator/cli.py`` → ``orchestrator.cli``; '' when it isn't a source path."""
+    parts = Path(rel).with_suffix("").parts
+    if not parts or parts[0] not in {"src", "tests"}:
+        return ""
+    trimmed = [p for p in parts[1:] if p != "__init__"]
+    return ".".join(trimmed)
+
+
+def _coverage_gap_block(gaps: list[str]) -> str:
+    """Name the files whose changes no test reaches, or ''.
+
+    Deterministic evidence, not a hunch: each of these was reverted on its own and the suite
+    stayed green, which means nothing in it depends on the change.
+    """
+    if not gaps:
+        return ""
+    names = "\n".join(f"- {g}" for g in gaps)
+    return (
+        "\n\nNOT YET EXERCISED — each file below was reverted on its own and the tests still "
+        "passed, so nothing you have written depends on its change:\n"
+        f"{names}\n"
+        "Write tests that fail if those specific changes are reverted. Reach them the way a "
+        "user does — through the command or public function that was changed, not through a "
+        "helper it calls, or the same gap will still be there.\n"
+    )
+
+
+_MAX_GENERATE_ATTEMPTS = 4  # first try plus one correction per failure kind
+
+
+def _failure_kind(exc: CodegenError) -> str:
+    """Which sort of wrong this was, so each sort gets its own corrective attempt."""
+    if exc.parse_detail:
+        return "parse"
+    if exc.syntax_errors:
+        return "syntax"
+    if exc.failed_edit_paths or exc.missing_edit_paths:
+        return "anchors"
+    if exc.empty_summary:
+        return "empty"
+    return "other"
+
+
+def _python_syntax_error(rel: str, source: str) -> str:
+    """``""`` when this parses, otherwise one line naming exactly what is wrong.
+
+    Generated Python is checked before it reaches disk. A live run wrote a test file
+    ending in a stray ``</content>`` — markup that leaked out of the tool payload into
+    the file body — and the only symptom anyone saw was ``rc=2`` from pytest three
+    stages later, buried in an importlib traceback. The refine loop spent both of its
+    attempts on that and never found the line.
+
+    ``ast.parse`` costs nothing, runs no model, and turns the whole thing into a
+    sentence: file, line, and the offending text.
+    """
+    if not rel.endswith(".py"):
+        return ""
+    try:
+        ast.parse(source)
+    except SyntaxError as exc:
+        offending = (exc.text or "").strip()
+        where = f"{rel}: line {exc.lineno}"
+        return f"{where}: {exc.msg}" + (f" — {offending!r}" if offending else "")
+    except ValueError as exc:  # e.g. a NUL byte in the payload
+        return f"{rel}: not parseable as Python ({exc})"
+    return ""
+
+
+def _named_existing_files(spec: dict[str, Any], root: Path, design: str = "") -> str:
+    """Full current content of the existing repo files this ticket is going to change.
+
+    A surgical edit inside a large file (run #27: raise_approval_request in the
+    ~300-line activities.py) fails when the model regenerates the whole file
+    from memory — it truncates or malforms the JSON, and a full-content rewrite
+    would be guard-skipped anyway. Giving it the file's EXACT content lets it
+    anchor small ``edits`` against ground truth — the way an engineer opens the
+    file before changing it.
+
+    Paths come from the spec **and from the design**, because a spec routinely names
+    none. Three consecutive runs on a ticket phrased entirely in behaviour ("`mcp
+    contracts` shows the argument's type") opened with the summary *"placeholder —
+    need to read the actual file first"*: the design had already named `cli.py` and
+    `contract.py`, and codegen was shown neither, because the spec text contained no
+    `.py` path to match. The model was describing its situation accurately. It wrote a
+    helper it never wired in and never touched the display layer at all — not a
+    judgement failure downstream, a generator working blind.
+    """
+    # Spec first: when a ticket does name its files, that is the sharpest statement of
+    # intent there is. The design follows, and fills the common case where it does not.
+    seen = _paths_from(spec, design)
+    blob = " ".join(
+        [
+            str(spec.get("summary") or ""),
+            str(spec.get("technical_notes") or ""),
+            *_str_list(spec.get("acceptance_criteria")),
+        ]
+    )
+    # The spec's own words are the anchors here: a criterion naming `_type_label` or
+    # `mcp contracts` says which part of a large module the ticket is about, which is
+    # what decides where the window lands when the file cannot be shown whole.
+    anchors = {rel: _spec_anchors(blob) for rel in seen}
+    body = _excerpt_files(
+        root,
+        seen,
+        budget=_MAX_CONTEXT_BYTES,
+        anchors_by_path=anchors,
+        label="current content — edit THIS via the edits form",
+    )
+    if not body:
         return ""
     return (
         "\n\nEXISTING FILES THE SPEC NAMES — change these with the `edits` form, "
         "anchoring on snippets copied verbatim from the content below. Do NOT "
-        "re-emit them as full `content`:\n" + "".join(chunks)
+        "re-emit them as full `content`:\n" + body
     )
 
 
@@ -1646,7 +2206,10 @@ def _read_worktree(root: Path, *, include_tests: bool) -> str:
     Skips ``.git`` and (optionally) ``test_*`` files; caps the total size so a
     big worktree can't blow past the model's context.
     """
+    # Skip-don't-break, for the same reason as everywhere else in this module: one big
+    # module must not hide every file sorted after it.
     chunks: list[str] = []
+    skipped: list[str] = []
     budget = _MAX_CONTEXT_BYTES
     for file in sorted(root.rglob("*.py")):
         if ".git" in file.parts:
@@ -1660,9 +2223,12 @@ def _read_worktree(root: Path, *, include_tests: bool) -> str:
         rel = file.relative_to(root)
         block = f"--- {rel} ---\n{body}\n"
         if len(block) > budget:
-            break
+            skipped.append(str(rel))
+            continue
         budget -= len(block)
         chunks.append(block)
+    if skipped:
+        chunks.append(f"--- [{len(skipped)} file(s) omitted for size: {', '.join(skipped)}] ---\n")
     return "".join(chunks) if chunks else "(worktree is empty)"
 
 
@@ -1686,6 +2252,13 @@ def _loads_json_object(text: str) -> dict[str, Any] | None:
     fenced (run #21: a 10k-char fenced object that wasn't truncated). Lenient
     parsing accepts the control characters verbatim — exactly what we want,
     since they become the file's real bytes.
+
+    A failure logs **why**, with the decoder's message and the text either side of
+    the offending offset. The caller used to log only the tail, on the theory that
+    "a truncated emission ends mid-string; prose ends with words" — but a payload
+    can be complete and well-formed at the tail and still fail on an invalid escape
+    thousands of characters earlier, at which point the tail proves only that the
+    model finished its sentence. The offset is the fact worth having.
     """
     stripped = text.strip()
     if stripped.startswith("```"):
@@ -1694,15 +2267,71 @@ def _loads_json_object(text: str) -> dict[str, Any] | None:
             stripped = stripped[4:]
     try:
         loaded = json.loads(stripped, strict=False)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as first:
+        merged = _merge_json_documents(stripped)
+        if merged is not None:
+            return merged
         start, end = stripped.find("{"), stripped.rfind("}")
         if start == -1 or end <= start:
+            _log_json_failure(stripped, first)
             return None
         try:
             loaded = json.loads(stripped[start : end + 1], strict=False)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as second:
+            _log_json_failure(stripped[start : end + 1], second)
             return None
     return loaded if isinstance(loaded, dict) else None
+
+
+def _merge_json_documents(text: str) -> dict[str, Any] | None:
+    """Several complete ``{"files": [...]}`` objects in a row → one object.
+
+    Observed twice on real runs: the model emits one JSON document per file and concatenates
+    them, so the decoder stops at the second with ``Extra data``. Every document is valid and
+    every one is a files-object — the intent is not in doubt, and stitching them is free where
+    a corrective retry costs another call.
+
+    Deliberately strict: *every* decoded document must be an object carrying a ``files`` list,
+    or this returns ``None`` and the caller falls back to retrying. Merging a files-object with
+    something else would be guessing at what the model meant.
+    """
+    decoder = json.JSONDecoder(strict=False)
+    documents: list[dict[str, Any]] = []
+    index = 0
+    while index < len(text):
+        while index < len(text) and text[index] in " \t\r\n,":
+            index += 1
+        if index >= len(text):
+            break
+        try:
+            value, index = decoder.raw_decode(text, index)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(value, dict) or not isinstance(value.get("files"), list):
+            return None
+        documents.append(value)
+    if len(documents) < 2:
+        return None
+    files: list[Any] = []
+    for document in documents:
+        files.extend(document["files"])
+    summaries = [str(d.get("summary") or "").strip() for d in documents]
+    logger.warning("sdlc.codegen.merged_json_documents count=%d files=%d", len(documents), len(files))
+    return {"files": files, "summary": " ".join(s for s in summaries if s)}
+
+
+def _log_json_failure(text: str, exc: json.JSONDecodeError) -> None:
+    """Record the decoder's own verdict plus the bytes around the break."""
+    window = text[max(0, exc.pos - 90) : exc.pos + 90]
+    logger.warning(
+        "sdlc.codegen.json_parse_failed msg=%r line=%d col=%d pos=%d/%d near=%r",
+        exc.msg,
+        exc.lineno,
+        exc.colno,
+        exc.pos,
+        len(text),
+        window,
+    )
 
 
 __all__ = [

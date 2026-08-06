@@ -12,6 +12,7 @@ graph is a build artifact keyed to a commit, never a one-time crawl.
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import subprocess
 from pathlib import Path
@@ -27,7 +28,10 @@ from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Pr
 # the analyzed repo's HEAD, not ours, so an unchanged repo never re-extracts on
 # upgrade; a false endpoint looks exactly like a real one, so bump on any change
 # that makes previously-emitted facts wrong.
-_FORMAT_VERSION = 3
+# v4: the cache key carries an *extractor fingerprint* (below), so this constant is
+# no longer the only thing standing between an upgrade and a stale graph. Bumping
+# it by hand stays correct but is now a belt to the fingerprint's braces.
+_FORMAT_VERSION = 4
 
 
 class FactCacheError(RuntimeError):
@@ -144,9 +148,71 @@ def default_cache_dir() -> Path:
     return Path.home() / ".cache" / "orchestrator" / "pkg"
 
 
+# Grammar packages whose presence changes what the extractor set can emit. A repo
+# scanned with ``tree_sitter_java`` installed yields Java facts; the same repo at the
+# same commit without it yields none — so the *available* front-ends are part of the
+# cache key, not just the code. Probed with ``find_spec`` (no import), because this
+# runs on the cache-*hit* path where loading a grammar would be pure cost.
+_GRAMMAR_MODULES = (
+    "tree_sitter",
+    "tree_sitter_java",
+    "tree_sitter_typescript",
+    "tree_sitter_c_sharp",
+    "tree_sitter_c",
+    "tree_sitter_cpp",
+    "tree_sitter_go",
+    "sqlglot",
+)
+
+_FINGERPRINT: str | None = None
+
+
+def extractor_fingerprint(*, package_dir: Path | None = None) -> str:
+    """A stable digest of *what would be extracted*, not of the repo being scanned.
+
+    The cache is keyed on the analyzed repo's HEAD, which says nothing about the
+    extractor — so upgrading Spine over a repo that hasn't moved served the old graph
+    forever, silently. The endpoint work is the case that made this load-bearing: it
+    added 71 ``Endpoint`` nodes to this repo, and every warm cache kept answering
+    "no endpoints" while ``pkg verify`` called the cached graph healthy.
+
+    Two things go into it:
+
+    - the **source** of every module in ``pkg/`` (sorted, name + bytes), so any change
+      to a front-end, the vocabulary, or a post-pass invalidates by construction, with
+      nobody remembering to bump a constant;
+    - the **available grammars**, because the same code with a different set of
+      installed extras extracts a different graph.
+
+    Stable across processes and machines: it hashes file contents in sorted order and
+    depends on no dict/set iteration order, no path, and no timestamp. Computed once
+    per process — the source cannot change under a running interpreter.
+    """
+    global _FINGERPRINT
+    if package_dir is None and _FINGERPRINT is not None:
+        return _FINGERPRINT
+
+    root = package_dir or Path(__file__).resolve().parent
+    digest = hashlib.sha256()
+    for path in sorted(root.glob("*.py"), key=lambda p: p.name):
+        digest.update(path.name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    available = [name for name in _GRAMMAR_MODULES if importlib.util.find_spec(name) is not None]
+    digest.update(",".join(available).encode("utf-8"))
+
+    fingerprint = digest.hexdigest()[:16]
+    if package_dir is None:
+        _FINGERPRINT = fingerprint
+    return fingerprint
+
+
 def _cache_path(cache_dir: Path, root: Path, sha: str) -> Path:
     repo_key = hashlib.sha256(str(root.resolve()).encode("utf-8")).hexdigest()[:16]
-    return cache_dir / f"{repo_key}-{sha}.json"
+    # The fingerprint sits in the *filename*, so a stale entry is never read and never
+    # needs parsing to be rejected — a mismatch is simply a different file.
+    return cache_dir / f"{repo_key}-{sha}-{extractor_fingerprint()}.json"
 
 
 def load_or_extract(
@@ -181,6 +247,7 @@ def load_or_extract(
 __all__ = [
     "FactCacheError",
     "default_cache_dir",
+    "extractor_fingerprint",
     "facts_from_dict",
     "facts_to_dict",
     "load_facts",

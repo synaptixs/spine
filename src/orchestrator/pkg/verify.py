@@ -23,6 +23,13 @@ Checks, cheapest first:
   ``py:click.types``). After the import join this is usually stdlib shadowing
   — worth a human's glance, not a CI failure; the rate checks above are the
   tripwires when it's systematic.
+- **source-parity** (warning) — the source plainly declares something the graph
+  holds no node of. Every other check asks whether the graph is self-consistent;
+  this is the only one that asks whether it is *complete with respect to the
+  source*, and it is the only class of check that can catch a front-end falling
+  behind the vocabulary. A graph missing an entire node kind is perfectly
+  self-consistent — which is how this repo shipped 77 route decorators and zero
+  ``Endpoint`` nodes while ``pkg verify`` reported OK.
 
 The rate checks only apply to languages with enough modules and import edges
 to make a percentage meaningful; tiny fixtures and single-file scripts are
@@ -31,6 +38,7 @@ exempt by construction.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -233,6 +241,95 @@ def _check_rates(batch: FactBatch, nodes: dict[str, Node]) -> list[VerifyIssue]:
     return issues
 
 
+# Source syntax that *must* produce a node kind, per language. Each pattern requires a
+# literal argument / value, the same precision rule the extractors hold to: `@cache.get(key)`
+# is not a route, and a computed `__tablename__` is not a table.
+#
+# Python and TypeScript are covered because they are the two front-ends that emit **no**
+# `Endpoint` node at all, so they are where a web service goes silently unrepresented.
+# Java and C# already emit endpoints; Go, C and C++ have no route idiom common enough to
+# match without guessing. Adding a language here is a new entry, nothing else.
+_ROUTE_SYNTAX = {
+    "python": re.compile(r"@\w[\w.]*\.(?:route|get|post|put|patch|delete|head|options)\s*\(\s*[\"']"),
+    # NestJS method decorators, plus Express/Fastify router calls whose path is a literal
+    # starting with "/". That leading slash is what separates `app.get("/users", h)` from
+    # the far more common `cache.get(key)` — without it this would fire on every Map.
+    "typescript": re.compile(
+        r"@(?:Get|Post|Put|Patch|Delete|Head|Options|All)\s*\("
+        r"|\.\s*(?:get|post|put|patch|delete|all|head|options)\s*\(\s*[\"'`]/"
+    ),
+}
+_ENTITY_SYNTAX = {
+    "python": re.compile(r"^\s*__tablename__\s*=\s*[\"']", re.MULTILINE),
+    # TypeORM's @Entity / Sequelize's @Table — the class-level marker, not a column.
+    "typescript": re.compile(r"@(?:Entity|Table)\s*\("),
+}
+
+
+def _source_signals(batch: FactBatch, root: Path) -> dict[str, tuple[int, int]]:
+    """language → (files declaring routes, files declaring tables).
+
+    Only files the graph *already* knows about are read — the grounded ``Module``
+    nodes' own provenance — so this never walks the tree a second time, and it
+    regex-scans rather than re-parsing: the question is "does this source declare
+    any?", not "which ones", so an AST pass would buy precision the check has no
+    use for at several times the cost.
+    """
+    seen: set[str] = set()
+    signals: dict[str, list[int]] = {}
+    for node in batch.nodes:
+        if node.kind is not NodeKind.MODULE or not node.grounded or node.provenance is None:
+            continue
+        route_re, entity_re = _ROUTE_SYNTAX.get(node.language), _ENTITY_SYNTAX.get(node.language)
+        if route_re is None and entity_re is None:
+            continue
+        rel = node.provenance.file
+        if rel in seen or rel.startswith(_SYNTHETIC_PREFIXES):
+            continue
+        seen.add(rel)
+        try:
+            source = (root / rel).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        counts = signals.setdefault(node.language, [0, 0])
+        if route_re is not None and route_re.search(source):
+            counts[0] += 1
+        if entity_re is not None and entity_re.search(source):
+            counts[1] += 1
+    return {lang: (c[0], c[1]) for lang, c in signals.items()}
+
+
+def _check_source_parity(batch: FactBatch, root: Path) -> list[VerifyIssue]:
+    """Warn when the source declares a construct the graph holds no node of.
+
+    Warning, never error: a repo may legitimately use a framework a front-end has
+    not learned yet, and failing a build for that turns the check into something
+    people switch off. Silence is the failure mode this exists to prevent, not noise.
+    """
+    kinds_by_lang: dict[str, set[NodeKind]] = {}
+    for node in batch.nodes:
+        kinds_by_lang.setdefault(node.language, set()).add(node.kind)
+
+    issues: list[VerifyIssue] = []
+    for lang, (route_files, entity_files) in sorted(_source_signals(batch, root).items()):
+        present = kinds_by_lang.get(lang, set())
+        for files, kind, what in (
+            (route_files, NodeKind.ENDPOINT, "route declaration"),
+            (entity_files, NodeKind.ENTITY, "__tablename__ declaration"),
+        ):
+            if files and kind not in present:
+                issues.append(
+                    VerifyIssue(
+                        "source-parity",
+                        "warning",
+                        f"{lang}: {files} file(s) contain a {what} but the graph holds no "
+                        f"{kind.value} node — this front-end doesn't extract them yet, so "
+                        f"'what breaks if I change this?' under-reports.",
+                    )
+                )
+    return issues
+
+
 def verify_batch(batch: FactBatch, root: Path | str) -> VerifyReport:
     """Run every Tier-1 invariant; ``report.ok`` is False on any error."""
     nodes = {n.id: n for n in batch.nodes}
@@ -241,6 +338,7 @@ def verify_batch(batch: FactBatch, root: Path | str) -> VerifyReport:
         *_check_provenance(batch, Path(root)),
         *_check_rates(batch, nodes),
         *_check_phantoms(batch),
+        *_check_source_parity(batch, Path(root)),
     ]
     return VerifyReport(tuple(issues))
 

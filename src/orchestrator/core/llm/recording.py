@@ -123,6 +123,7 @@ class RecordingLLMClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
         tools: list[ToolSpec] | None = None,
+        tool_choice: str | None = None,
     ) -> CompletionResult:
         # One span per LLM call — the chokepoint every stage funnels through, so
         # this single insertion traces intake / codegen / review / consolidation
@@ -138,6 +139,7 @@ class RecordingLLMClient:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 tools=tools,
+                tool_choice=tool_choice,
             )
             sp.set_attribute("llm.response_model", result.model)
             sp.set_attribute("llm.prompt_tokens", result.prompt_tokens)

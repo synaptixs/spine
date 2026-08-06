@@ -19,13 +19,57 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
-from orchestrator.core.llm import LLMClient, Message
+from orchestrator.core.llm import LLMClient, Message, ToolSpec, catalog
 from orchestrator.core.prompt_safety import fence_untrusted
+from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 
 logger = logging.getLogger("orchestrator.sdlc.review")
 
-_JUDGE_MODEL = "claude-sonnet-4-6"
+_JUDGE_MODEL = catalog.DEFAULT_MODEL
 _MAX_SOURCE_BYTES = 60_000
+
+# What the judge is allowed to read.
+#
+# This was ``.py`` and nothing else, which made a whole class of criterion not merely
+# unjudgeable but indistinguishable from unmet. A run wrote the documentation its ticket
+# demanded — twice, on two revision passes — and the judge answered "no documentation file
+# is present in the changed files" both times, correctly, because no ``.md`` ever reached
+# its prompt. The ticket could not be satisfied by any change, however right.
+#
+# The same hole covered every non-Python language the pipeline generates: a Java or Go
+# change was judged on its Python files, of which there are none.
+_REVIEWABLE_SUFFIXES = frozenset(
+    {
+        # source
+        ".py",
+        ".java",
+        ".go",
+        ".c",
+        ".h",
+        ".cc",
+        ".cpp",
+        ".hpp",
+        ".cs",
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".sql",
+        ".sh",
+        # documentation — a criterion can require these, so the judge must see them
+        ".md",
+        ".rst",
+        ".txt",
+        ".adoc",
+        # declared behaviour: deps, settings, and build config a criterion can name
+        ".toml",
+        ".cfg",
+        ".ini",
+        ".yaml",
+        ".yml",
+        ".json",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -42,6 +86,11 @@ class ReviewResult:
     summary: str = ""
     # Criteria the judge could not confirm — the escalation policy's signal.
     uncertain: list[str] = field(default_factory=list)
+    # No verdict was obtained at all: the judge's reply could not be read. Distinct from
+    # ``uncertain``, which is a judgement ("I looked and cannot tell") and deliberately not
+    # a hard stop. This is the absence of one, and a run that treats it as a pass has no
+    # acceptance review — a live run did exactly that and committed dead code.
+    unreviewed: bool = False
 
     @property
     def has_blocker(self) -> bool:
@@ -88,6 +137,44 @@ _JUDGE_SYSTEM = (
 )
 
 
+_VERDICT_TOOL = ToolSpec(
+    name="submit_verdict",
+    description=(
+        "Submit the acceptance judgement: one entry per criterion, with the evidence "
+        "that decided it. Call this exactly once."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "criteria": {
+                "type": "array",
+                "description": "One entry per acceptance criterion given, in the order given.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "criterion": {"type": "string", "description": "The criterion, verbatim."},
+                        "status": {
+                            "type": "string",
+                            # The enum is the point: 'met' was the only word that could be
+                            # misspelled into a pass, and now it cannot be.
+                            "enum": ["met", "unmet", "uncertain"],
+                            "description": "met only if you can point at code that satisfies it.",
+                        },
+                        "evidence": {
+                            "type": "string",
+                            "description": "File/function that decided it, or why you cannot tell. One line.",
+                        },
+                    },
+                    "required": ["criterion", "status"],
+                },
+            },
+            "summary": {"type": "string", "description": "One line covering the change as a whole."},
+        },
+        "required": ["criteria"],
+    },
+)
+
+
 class SemanticReviewAdapter:
     """LLM judge: does the change satisfy the spec's acceptance criteria?
 
@@ -98,9 +185,11 @@ class SemanticReviewAdapter:
     they fall to ``comment``/``request_changes``, never silently pass.
     """
 
-    def __init__(self, llm: LLMClient, *, model: str = _JUDGE_MODEL) -> None:
+    def __init__(self, llm: LLMClient, *, model: str = "") -> None:
         self._llm = llm
-        self._model = model
+        # Was a hardcoded constant with no override: the judge ran on whatever
+        # codegen was pinned to years ago, and no environment variable could move it.
+        self._model = model or catalog.resolve("judge")
 
     async def review(self, *, path: str, issue_key: str, spec: dict[str, Any] | None = None) -> ReviewResult:
         criteria = [str(c) for c in ((spec or {}).get("acceptance_criteria") or []) if str(c).strip()]
@@ -109,7 +198,7 @@ class SemanticReviewAdapter:
                 verdict="comment",
                 summary="semantic review skipped: spec has no acceptance criteria",
             )
-        source = _read_source(Path(path))
+        source = _read_source(Path(path), criteria)
         if not source:
             return ReviewResult(
                 verdict="request_changes",
@@ -128,17 +217,30 @@ class SemanticReviewAdapter:
         result = await self._llm.complete(
             [Message(role="system", content=_JUDGE_SYSTEM), Message(role="user", content=user)],
             model=self._model,
+            # The judge had the same unconstrained output as codegen did, and a worse
+            # failure mode for it: codegen's unreadable reply aborts the run, where the
+            # judge's used to pass the change. A forced tool call is a schema the provider
+            # enforces, so there is no prose to fail to parse.
+            tools=[_VERDICT_TOOL],
+            tool_choice=_VERDICT_TOOL.name,
         )
+        for call in result.tool_calls:
+            if call.name == _VERDICT_TOOL.name:
+                return self._verdict_from(call.arguments)
+        # A provider that ignored the tool still answers in text — the old path, unchanged.
         return self._parse(result.text)
 
     def _parse(self, text: str) -> ReviewResult:
-        payload = _loads_json_object(text)
-        rows = (payload or {}).get("criteria")
+        return self._verdict_from(_loads_json_object(text) or {})
+
+    def _verdict_from(self, payload: dict[str, Any]) -> ReviewResult:
+        rows = payload.get("criteria")
         if not isinstance(rows, list) or not rows:
             logger.warning("sdlc.review.unparseable_judge_output")
             return ReviewResult(
                 verdict="comment",
                 summary="semantic review: judge output unparseable — needs human review",
+                unreviewed=True,
             )
         unmet = [r for r in rows if isinstance(r, dict) and r.get("status") == "unmet"]
         uncertain = [r for r in rows if isinstance(r, dict) and r.get("status") == "uncertain"]
@@ -150,20 +252,33 @@ class SemanticReviewAdapter:
             return ReviewResult(verdict="request_changes", blockers=blockers, summary=summary)
         if uncertain:
             names = [str(r.get("criterion")) for r in uncertain]
+            # An uncertain criterion is a judgement — "I looked and cannot tell" — and one
+            # of those among many met ones is a note for a human, not a stop. It stays a
+            # `comment`, deliberately: a gate that cries wolf gets switched off.
+            #
+            # But it is evidence, and it was ignored once too often. A run shipped a PR
+            # whose only doubt was "existing output fields remain unchanged in format" —
+            # and the change had in fact rewritten `inputs` from `["name"]` to
+            # `["name (type)"]`. The judge saw it, said so, and the verdict mapping
+            # overruled it. So the blockers list now carries the doubt: the caller decides
+            # what to do with a change whose acceptance could not be established, instead
+            # of the mapping deciding for it by returning something that is not
+            # `request_changes`.
             return ReviewResult(
                 verdict="comment",
+                blockers=[f"acceptance criterion unverified: {n}" for n in names],
                 summary=f"{summary} · uncertain: {', '.join(names)}".strip(" ·"),
                 uncertain=names,
             )
         return ReviewResult(verdict="approve", summary=summary or "all acceptance criteria met")
 
 
-def _read_source(root: Path) -> str:
-    """This change's ``.py`` files as a labeled prompt block.
+def _read_source(root: Path, criteria: list[str]) -> str:
+    """This change's reviewable files as a labeled prompt block.
 
     Prefers ``git status`` to find the session's new/changed files (the
-    worktree is a real repo checkout); falls back to all ``.py`` files for
-    bare directories (Block C's empty-worktree mode).
+    worktree is a real repo checkout); falls back to a scan for bare
+    directories (Block C's empty-worktree mode).
     """
     import subprocess
 
@@ -183,24 +298,29 @@ def _read_source(root: Path) -> str:
         for line in proc.stdout.splitlines():
             rel = line[3:].strip().strip('"')
             candidate = root / rel
-            if candidate.suffix == ".py" and candidate.exists():
+            if candidate.suffix.lower() in _REVIEWABLE_SUFFIXES and candidate.exists():
                 files.append(candidate)
     if not files:
-        files = [p for p in sorted(root.rglob("*.py")) if ".git" not in p.parts]
+        files = [
+            p
+            for p in sorted(root.rglob("*"))
+            if p.is_file() and p.suffix.lower() in _REVIEWABLE_SUFFIXES and ".git" not in p.parts
+        ]
 
-    chunks: list[str] = []
-    budget = _MAX_SOURCE_BYTES
-    for file in files:
-        try:
-            body = file.read_text(encoding="utf-8")
-        except OSError:
-            continue
-        block = f"--- {file.resolve().relative_to(root.resolve())} ---\n{body}\n"
-        if len(block) > budget:
-            break
-        budget -= len(block)
-        chunks.append(block)
-    return "".join(chunks)
+    # Windowed, not all-or-nothing. Omitting a file outright was the judge's last blind
+    # spot: it correctly reported that "the critical `mcp contracts` CLI rendering code is
+    # in the omitted cli.py" and returned six uncertain criteria, and uncertain is not a
+    # blocker, so a change with a real bug on the very line it could not see was committed.
+    # The anchors are the criteria themselves, which name the code they are about.
+    return _excerpt_files(
+        root,
+        [str(f.resolve().relative_to(root.resolve())) for f in files],
+        budget=_MAX_SOURCE_BYTES,
+        anchors_by_path={
+            str(f.resolve().relative_to(root.resolve())): _spec_anchors(" ".join(criteria)) for f in files
+        },
+        label="changed",
+    )
 
 
 def _loads_json_object(text: str) -> dict[str, Any] | None:

@@ -13,9 +13,9 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_ensure_configured`](../../src/orchestrator/obs/tracing.py#L61) — reaches **17** symbols
-- [`_NoopSpan`](../../src/orchestrator/obs/tracing.py#L52) — reaches **10** symbols
-- [`span`](../../src/orchestrator/obs/tracing.py#L137) — reaches **9** symbols
+- [`_ensure_configured`](../../src/orchestrator/obs/tracing.py#L61) — reaches **20** symbols
+- [`_NoopSpan`](../../src/orchestrator/obs/tracing.py#L52) — reaches **13** symbols
+- [`span`](../../src/orchestrator/obs/tracing.py#L137) — reaches **12** symbols
 - [`get_tracer`](../../src/orchestrator/obs/tracing.py#L110) — reaches **7** symbols
 - [`temporal_interceptors`](../../src/orchestrator/obs/tracing.py#L116) — reaches **6** symbols
 - [`add_event`](../../src/orchestrator/obs/tracing.py#L167) — reaches **4** symbols · **no test path visible**
@@ -97,7 +97,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/obs/tracing.py:137`](../../src/orchestrator/obs/tracing.py#L137)
 
-- **Called by** (6 production · 6 test): [`_dispatch`](../../src/orchestrator/agentic/loop.py#L444), [`_drive`](../../src/orchestrator/agentic/loop.py#L289), [`awrapper`](../../src/orchestrator/obs/tracing.py#L191), [`complete`](../../src/orchestrator/core/llm/recording.py#L116), [`execute_graph_pass`](../../src/orchestrator/temporal/activities.py#L141), [`wrapper`](../../src/orchestrator/obs/tracing.py#L198), [`test_bound_trace_id_attached_as_join_key`](../../tests/obs/test_tracing.py#L92), [`test_disabled_by_default_is_noop`](../../tests/obs/test_tracing.py#L28), [`test_disabled_span_propagates_exceptions`](../../tests/obs/test_tracing.py#L64), [`test_endpoint_set_but_extra_missing_stays_disabled`](../../tests/obs/test_tracing.py#L53), [`test_exception_marks_span_error`](../../tests/obs/test_tracing.py#L105), [`test_span_tree_and_attributes`](../../tests/obs/test_tracing.py#L72)
+- **Called by** (8 production · 6 test): [`_dispatch`](../../src/orchestrator/agentic/loop.py#L444), [`_drive`](../../src/orchestrator/agentic/loop.py#L289), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L180), [`awrapper`](../../src/orchestrator/obs/tracing.py#L191), [`complete`](../../src/orchestrator/core/llm/recording.py#L116), [`execute_graph_pass`](../../src/orchestrator/temporal/activities.py#L141), [`stage_span`](../../src/orchestrator/sdlc/autorun.py#L102), [`wrapper`](../../src/orchestrator/obs/tracing.py#L198), [`test_bound_trace_id_attached_as_join_key`](../../tests/obs/test_tracing.py#L92), [`test_disabled_by_default_is_noop`](../../tests/obs/test_tracing.py#L28), [`test_disabled_span_propagates_exceptions`](../../tests/obs/test_tracing.py#L64), [`test_endpoint_set_but_extra_missing_stays_disabled`](../../tests/obs/test_tracing.py#L53), [`test_exception_marks_span_error`](../../tests/obs/test_tracing.py#L105), [`test_span_tree_and_attributes`](../../tests/obs/test_tracing.py#L72)
 - **Calls** (3): [`_NoopSpan`](../../src/orchestrator/obs/tracing.py#L52), [`_ensure_configured`](../../src/orchestrator/obs/tracing.py#L61), `opentelemetry.trace.Status`
 - **Documented in**: `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/live-observability-otel.md#design-live-observability-opentelemetry-over-the-existing-trace-id`
 
@@ -121,4 +121,4 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.agentic.loop`](orchestrator.agentic.loop.md), [`orchestrator.core.llm.recording`](../../src/orchestrator/core/llm/recording.py#L1), [`orchestrator.temporal.activities`](../../src/orchestrator/temporal/activities.py#L1), [`orchestrator.temporal.config`](../../src/orchestrator/temporal/config.py#L1), [`tests.agentic.test_loop_tracing`](../../tests/agentic/test_loop_tracing.py#L1), [`tests.obs.test_tracing`](../../tests/obs/test_tracing.py#L1)
+[`orchestrator.agentic.loop`](../../src/orchestrator/agentic/loop.py#L1), [`orchestrator.core.llm.recording`](../../src/orchestrator/core/llm/recording.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.temporal.activities`](../../src/orchestrator/temporal/activities.py#L1), [`orchestrator.temporal.config`](../../src/orchestrator/temporal/config.py#L1), [`tests.agentic.test_loop_tracing`](../../tests/agentic/test_loop_tracing.py#L1), [`tests.obs.test_tracing`](../../tests/obs/test_tracing.py#L1)

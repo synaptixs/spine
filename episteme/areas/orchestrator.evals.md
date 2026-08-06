@@ -3,43 +3,50 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.evals`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 7 modules — 7 types and 23 functions. It sits in the middle of the graph: 1 area below it, 6 above. Changes here can reach both ways.
+**`orchestrator.evals`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 8 modules — 11 types and 26 functions. It sits in the middle of the graph: 3 areas below it, 7 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
   n0["orchestrator.evals"]
-  n1["orchestrator.personas"]
-  n2["scripts.agentic_eval"]
-  n3["scripts.audit_eval"]
-  n4["scripts.codegen_benchmark"]
-  n5["scripts.skill_ab"]
-  n6["scripts.skill_promote"]
-  n7["orchestrator.catalog"]
+  n1["orchestrator.cli"]
+  n2["orchestrator.personas"]
+  n3["scripts.agentic_eval"]
+  n4["scripts.audit_eval"]
+  n5["scripts.codegen_benchmark"]
+  n6["scripts.skill_ab"]
+  n7["scripts.skill_promote"]
+  n8["orchestrator.catalog"]
+  n9["orchestrator.pkg"]
+  n10["orchestrator.sdlc"]
   n1 --> n0
   n2 --> n0
   n3 --> n0
   n4 --> n0
   n5 --> n0
   n6 --> n0
-  n0 --> n7
+  n7 --> n0
+  n0 --> n8
+  n0 --> n9
+  n0 --> n10
 ```
 
-**In the diagram:** **`orchestrator.evals`** (this area) · [`orchestrator.personas`](orchestrator.personas.md) · `scripts.agentic_eval` · `scripts.audit_eval` · [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md) · `scripts.skill_ab` · `scripts.skill_promote` · [`orchestrator.catalog`](orchestrator.catalog.md)
+**In the diagram:** **`orchestrator.evals`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.personas`](orchestrator.personas.md) · `scripts.agentic_eval` · `scripts.audit_eval` · [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md) · `scripts.skill_ab` · `scripts.skill_promote` · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.pkg`](orchestrator.pkg.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md)
 
 ## Modules
 
 - [`orchestrator.evals`](../../src/orchestrator/evals/__init__.py#L1)
+- [`orchestrator.evals.agent_corpus`](../../src/orchestrator/evals/agent_corpus.py#L1)
 - [`orchestrator.evals.graders`](../../src/orchestrator/evals/graders.py#L1)
 - [`orchestrator.evals.harness`](../../src/orchestrator/evals/harness.py#L1)
 - [`orchestrator.evals.models`](../../src/orchestrator/evals/models.py#L1)
 - [`orchestrator.evals.paths`](../../src/orchestrator/evals/paths.py#L1)
-- [`orchestrator.evals.promotion`](../modules/orchestrator.evals.promotion.md)
+- [`orchestrator.evals.promotion`](../../src/orchestrator/evals/promotion.py#L1)
 - [`orchestrator.evals.skill_ab`](../../src/orchestrator/evals/skill_ab.py#L1)
 
 ## Depends on
 
-[`orchestrator.catalog`](orchestrator.catalog.md)
+[`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.sdlc`](orchestrator.sdlc.md)
 
 ## Depended on by
 
-[`orchestrator.personas`](orchestrator.personas.md), `scripts.agentic_eval`, `scripts.audit_eval`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.skill_ab`, `scripts.skill_promote`
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.personas`](orchestrator.personas.md), `scripts.agentic_eval`, `scripts.audit_eval`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.skill_ab`, `scripts.skill_promote`

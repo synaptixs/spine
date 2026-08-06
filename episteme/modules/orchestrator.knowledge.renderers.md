@@ -270,6 +270,7 @@
 [`src/orchestrator/knowledge/renderers.py:1676`](../../src/orchestrator/knowledge/renderers.py#L1676)
 
 - **Called by** (1 production · 2 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_api_surface_renders_routes_and_handlers`](../../tests/knowledge/test_module_briefing.py#L161), [`test_has_api_surface_false_without_endpoints`](../../tests/knowledge/test_module_briefing.py#L179)
+- **Documented in**: `docs/specs/python-frontend-parity.md#2-how-this-went-unnoticed-and-why-63-is-load-bearing`, `docs/specs/python-frontend-parity.md#8-risks`
 
 ### `module_page_slugs`
 
@@ -292,6 +293,7 @@
 
 - **Called by** (1 production · 1 test): [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_api_surface_renders_routes_and_handlers`](../../tests/knowledge/test_module_briefing.py#L161)
 - **Calls** (3): [`_doc`](../../src/orchestrator/knowledge/renderers.py#L114), [`_link`](../../src/orchestrator/knowledge/renderers.py#L179), `collections.defaultdict`
+- **Documented in**: `docs/specs/python-frontend-parity.md#51-phase-1-endpoint-exposes`
 
 ### `render_architecture`
 
@@ -417,8 +419,8 @@
 
 ## Imports
 
-`__future__.annotations`, `collections.Counter`, `collections.defaultdict`, `hashlib`, `json`, [`orchestrator.catalog.profile`](orchestrator.catalog.profile.md), [`orchestrator.knowledge.areas`](../../src/orchestrator/knowledge/areas.py#L1), [`orchestrator.knowledge.current_state`](orchestrator.knowledge.current_state.md), [`orchestrator.knowledge.insights`](../../src/orchestrator/knowledge/insights.py#L1), [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.stats`](../../src/orchestrator/pkg/stats.py#L1), [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1), [`orchestrator.sdlc.conventions`](../../src/orchestrator/sdlc/conventions.py#L1), [`orchestrator.sdlc.coverage`](../../src/orchestrator/sdlc/coverage.py#L1), `pathlib.Path`, `re`, `tomllib`, `typing.TYPE_CHECKING`, `urllib.parse.quote`
+`__future__.annotations`, `collections.Counter`, `collections.defaultdict`, `hashlib`, `json`, [`orchestrator.catalog.profile`](../../src/orchestrator/catalog/profile.py#L1), [`orchestrator.knowledge.areas`](../../src/orchestrator/knowledge/areas.py#L1), [`orchestrator.knowledge.current_state`](orchestrator.knowledge.current_state.md), [`orchestrator.knowledge.insights`](../../src/orchestrator/knowledge/insights.py#L1), [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.stats`](../../src/orchestrator/pkg/stats.py#L1), [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1), [`orchestrator.sdlc.conventions`](../../src/orchestrator/sdlc/conventions.py#L1), [`orchestrator.sdlc.coverage`](../../src/orchestrator/sdlc/coverage.py#L1), `pathlib.Path`, `re`, `tomllib`, `typing.TYPE_CHECKING`, `urllib.parse.quote`
 
 ## Imported by
 
-[`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.insights`](../../src/orchestrator/knowledge/insights.py#L1), [`orchestrator.knowledge.understand`](orchestrator.knowledge.understand.md), [`tests.knowledge.test_bank_check`](../../tests/knowledge/test_bank_check.py#L1), [`tests.knowledge.test_insights`](../../tests/knowledge/test_insights.py#L1), [`tests.knowledge.test_memory_bank`](../../tests/knowledge/test_memory_bank.py#L1), [`tests.knowledge.test_module_briefing`](../../tests/knowledge/test_module_briefing.py#L1), [`tests.knowledge.test_weak_pages`](../../tests/knowledge/test_weak_pages.py#L1)
+[`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.insights`](../../src/orchestrator/knowledge/insights.py#L1), [`orchestrator.knowledge.understand`](../../src/orchestrator/knowledge/understand.py#L1), [`tests.knowledge.test_bank_check`](../../tests/knowledge/test_bank_check.py#L1), [`tests.knowledge.test_insights`](../../tests/knowledge/test_insights.py#L1), [`tests.knowledge.test_memory_bank`](../../tests/knowledge/test_memory_bank.py#L1), [`tests.knowledge.test_module_briefing`](../../tests/knowledge/test_module_briefing.py#L1), [`tests.knowledge.test_weak_pages`](../../tests/knowledge/test_weak_pages.py#L1)

@@ -25,6 +25,7 @@ from orchestrator.pkg.docs import DocPage
 _MAX_SNIPPET_LINES = 24  # per-symbol source excerpt
 _MAX_CONTEXT_CHARS = 8_000  # total context budget
 _MAX_DOC_CHARS = 500  # per-symbol documentation excerpt
+_MAX_NAMED_SYMBOLS = 6  # definitions pulled in to answer a type error
 
 
 class PKGCodegenGrounder:
@@ -79,12 +80,22 @@ class PKGCodegenGrounder:
         symbols = self._retriever.api_surface(_spec_query(spec))
         blocks: list[str] = []
         budget = _MAX_CONTEXT_CHARS
+        # Skip what does not fit; never stop. `break` here means one oversized symbol
+        # hides every symbol ranked below it — the same silent-drop that cost three
+        # separate runs in the codegen context builders.
+        skipped = 0
         for symbol in symbols:
             block = self._symbol_block(symbol)
             if len(block) > budget:
-                break
+                skipped += 1
+                continue
             budget -= len(block)
             blocks.append(block)
+        if skipped:
+            blocks.append(
+                f"\n[{skipped} further symbol(s) omitted for size — their absence is not "
+                "evidence they do not exist.]\n"
+            )
         if blocks:
             sections.append(
                 "EXISTING CODEBASE CONTEXT (from the Product Knowledge Graph — real "
@@ -93,6 +104,40 @@ class PKGCodegenGrounder:
                 "their naming and style conventions:\n\n" + "\n".join(blocks)
             )
         return "\n\n".join(sections)
+
+    def context_for_symbols(self, names: list[str]) -> str:
+        """Definitions of specific named symbols, for when something says one is wrong.
+
+        The lexical retrieval behind ``context_for_spec`` answers "what is this ticket
+        about". This answers a narrower question the type checker asks by name: *what does
+        ``MCPToolHandler`` actually have on it?* A run wired a display through
+        ``handler.input_schema``, was told no such attribute exists, guessed ``handler.tool``,
+        and was told the same — because the class lives in a file no stage ever showed it. The
+        graph knows where it is defined; nothing was asking.
+        """
+        if self._store is None or not names:
+            return ""
+        wanted = {n for n in names if n}
+        blocks: list[str] = []
+        seen: set[str] = set()
+        for node in self._store.nodes:
+            if node.external or node.id in seen:
+                continue
+            # Match the last dotted segment: mypy reports `MCPToolHandler`, the graph may
+            # hold `orchestrator.mcp.handler.MCPToolHandler`.
+            if node.name in wanted or node.name.rsplit(".", 1)[-1] in wanted:
+                seen.add(node.id)
+                blocks.append(self._symbol_block(node))
+            if len(blocks) >= _MAX_NAMED_SYMBOLS:
+                break
+        if not blocks:
+            return ""
+        return (
+            "DEFINITIONS of the symbols named in the errors above — read these before "
+            "changing the call. If the attribute you want is not on the class, it is not "
+            "there to be reached; take a different route rather than guessing another name:\n"
+            + "\n".join(blocks)
+        )
 
     def _symbol_block(self, symbol: Node) -> str:
         prov = symbol.provenance

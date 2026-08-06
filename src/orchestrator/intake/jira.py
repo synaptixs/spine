@@ -11,9 +11,10 @@ call. The backlog service runs dry-run by default and only writes for real
 after the intent-approval bookend — so a misfire can't litter a Jira
 project.
 
-Descriptions are wrapped in minimal Atlassian Document Format (ADF), which
-v3 requires; ``_text_to_adf`` turns plain text into a paragraph-per-line
-document.
+Descriptions are rendered into Atlassian Document Format (ADF), which v3
+requires, by :mod:`orchestrator.intake.adf` — headings, lists, code, tables and
+links all survive. ``_text_to_adf`` is kept as the module-local name for that
+call because it is what every caller and test already reaches for.
 """
 
 from __future__ import annotations
@@ -24,6 +25,8 @@ from typing import Any, Protocol
 import httpx
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from orchestrator.intake.adf import markdown_to_adf
 
 
 class IssueTrackerError(RuntimeError):
@@ -36,7 +39,12 @@ class IssueRequest:
 
     summary: str
     description: str = ""
-    issue_type: str = "Story"  # Story | Task | Epic | Bug …
+    # Empty means "whatever this tracker is configured for" (``JIRA_ISSUE_TYPE``,
+    # default Story). A project's type scheme is a project-level fact, not a
+    # per-call one — a service desk has no Story at all — so the default belongs
+    # in config, and a caller only names a type when it genuinely differs (a Bug,
+    # or the Epic a set of stories hangs from).
+    issue_type: str = ""  # Story | Task | Epic | Bug …
     labels: tuple[str, ...] = ()
     parent_key: str = ""  # epic / parent issue key, if any
 
@@ -76,6 +84,14 @@ class JiraConfig(BaseSettings):
     email: str = Field(default="", description="Atlassian account email for Basic auth.")
     api_token: str = Field(default="", description="Atlassian API token for Basic auth.")
     project_key: str = Field(default="", description="Target Jira project key, e.g. ENG.")
+    issue_type: str = Field(
+        default="Story",
+        description="Issue type for created issues when the caller names none (e.g. Story, Task).",
+    )
+    epic_issue_type: str = Field(
+        default="Epic",
+        description="Issue type used for the parent an ingested backlog hangs its stories from.",
+    )
     dry_run: bool = Field(
         default=True,
         description="When true, no writes hit Jira; create/link return would-be results.",
@@ -91,13 +107,8 @@ class JiraConfig(BaseSettings):
 
 
 def _text_to_adf(text: str) -> dict[str, Any]:
-    """Wrap plain text in a minimal ADF doc (one paragraph per non-blank line)."""
-    paragraphs = [
-        {"type": "paragraph", "content": [{"type": "text", "text": line}]}
-        for line in text.splitlines()
-        if line.strip()
-    ] or [{"type": "paragraph", "content": []}]
-    return {"type": "doc", "version": 1, "content": paragraphs}
+    """Render an issue/comment body (markdown) as the ADF doc v3 requires."""
+    return markdown_to_adf(text)
 
 
 class JiraAdapter:
@@ -110,10 +121,48 @@ class JiraAdapter:
         self._client = http_client
         self._owns_client = http_client is None
         self._dry_counter = 0
+        self._type_ids: dict[str, str] | None = None
 
     @property
     def dry_run(self) -> bool:
         return self._config.dry_run
+
+    async def _issue_type_ids(self) -> dict[str, str]:
+        """Lower-cased issue-type name → id for the target project, fetched once.
+
+        **Why ids and not names.** A team-managed project's issue types are
+        *project-scoped*, so one site can hold several unrelated types called "Epic"
+        and no global one. Jira resolves ``issuetype: {"name": …}`` site-wide, so with
+        nothing global to land on it rejects the create — ``"Specify a valid issue
+        type"`` — even though the project plainly has that type. Ids are unambiguous
+        and work for team-managed and company-managed projects alike.
+
+        An unreadable create-meta (permissions, an old Jira) yields an empty map and
+        the caller falls back to sending the name: not being able to *verify* the type
+        is no reason to refuse to try it.
+        """
+        if self._type_ids is None:
+            try:
+                data = await self._get(f"/issue/createmeta/{self._config.project_key}/issuetypes")
+            except IssueTrackerError:
+                self._type_ids = {}
+            else:
+                types = data.get("issueTypes") or []
+                self._type_ids = {str(t["name"]).lower(): str(t["id"]) for t in types if t.get("name")}
+        return self._type_ids
+
+    async def _issue_type_field(self, name: str) -> dict[str, str]:
+        by_name = await self._issue_type_ids()
+        if not by_name:
+            return {"name": name}
+        type_id = by_name.get(name.lower())
+        if type_id is None:
+            available = ", ".join(sorted(by_name)) or "none"
+            raise IssueTrackerError(
+                f"issue type {name!r} does not exist in project {self._config.project_key!r} "
+                f"(available: {available}). Set JIRA_ISSUE_TYPE / JIRA_EPIC_ISSUE_TYPE to one of them."
+            )
+        return {"id": type_id}
 
     async def create_issue(self, request: IssueRequest) -> CreatedIssue:
         if self._config.dry_run:
@@ -123,7 +172,7 @@ class JiraAdapter:
         fields: dict[str, Any] = {
             "project": {"key": self._config.project_key},
             "summary": request.summary,
-            "issuetype": {"name": request.issue_type},
+            "issuetype": await self._issue_type_field(request.issue_type or self._config.issue_type),
             "description": _text_to_adf(request.description),
         }
         if request.labels:
@@ -135,6 +184,29 @@ class JiraAdapter:
         key = str(data.get("key", ""))
         browse = f"{self._config.base_url.rstrip('/')}/browse/{key}" if key else ""
         return CreatedIssue(key=key, id=str(data.get("id", "")), url=browse, dry_run=False)
+
+    async def get_issue(self, issue_key: str) -> CreatedIssue:
+        """Fetch an issue that already exists, so a run can adopt it.
+
+        The counterpart to ``create_issue`` for work that is already tracked:
+        it proves the key resolves before a caller builds a branch and a PR
+        around it. Deliberately outside ``IssueTrackerAdapter`` — like
+        ``comment_issue`` / ``transition_issue``, it operates on an issue rather
+        than producing one, and the Protocol stays the create/link seam.
+
+        Honors dry-run by returning the would-be issue without an API call: a
+        safe run must make no external call, so the key is taken on trust and
+        the run reports it as unverified.
+        """
+        key = issue_key.strip().upper()
+        if not key:
+            raise IssueTrackerError("no issue key given to adopt.")
+        if self._config.dry_run:
+            return CreatedIssue(key=key, dry_run=True)
+        data = await self._get(f"/issue/{key}?fields=summary")
+        found = str(data.get("key", "")) or key
+        browse = f"{self._config.base_url.rstrip('/')}/browse/{found}"
+        return CreatedIssue(key=found, id=str(data.get("id", "")), url=browse, dry_run=False)
 
     async def link_issues(self, link: IssueLink) -> None:
         if self._config.dry_run:
@@ -161,6 +233,20 @@ class JiraAdapter:
         await self._post(
             f"/issue/{issue_key}/comment",
             {"body": _text_to_adf(body)},
+        )
+
+    async def add_worklog(self, issue_key: str, *, time_spent: str, comment: str) -> None:
+        """Log time against an issue, with a body describing what the time bought.
+
+        ``time_spent`` is Jira's own duration spelling (``"2h 5m"``); Jira rejects a zero.
+        Honors dry-run, like every other write here. The body is markdown rendered to ADF,
+        so a table arrives as a table.
+        """
+        if self._config.dry_run:
+            return
+        await self._post(
+            f"/issue/{issue_key}/worklog",
+            {"timeSpent": time_spent, "comment": _text_to_adf(comment)},
         )
 
     async def transition_issue(self, issue_key: str, target_status: str) -> str | None:

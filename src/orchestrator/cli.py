@@ -22,6 +22,7 @@ import json
 import os
 import sys
 from collections.abc import Iterator
+from dataclasses import asdict
 from datetime import UTC
 from pathlib import Path
 from typing import Annotated, Any
@@ -77,6 +78,27 @@ def _load_payload(path: Path) -> dict[str, Any]:
 
 def _print(data: Any) -> None:
     typer.echo(json.dumps(data, indent=2, default=str))
+
+
+def _mcp_load_configs(path: str | None = None) -> Any:
+    """Load the configured MCP servers (seam kept module-level so tests can stub it)."""
+    from orchestrator.mcp.config import load_mcp_configs
+
+    return load_mcp_configs(path)
+
+
+def _mcp_build_registry(configs: Any) -> Any:
+    """Build the MCP registry for a set of server configs."""
+    from orchestrator.mcp import MCPRegistry
+
+    return MCPRegistry(configs)
+
+
+async def _mcp_build_tools(registry: Any, **kwargs: Any) -> Any:
+    """Discover the ``(contract, handler)`` pairs for every onboarded MCP tool."""
+    from orchestrator.mcp import build_mcp_tools
+
+    return await build_mcp_tools(registry, **kwargs)
 
 
 @contextlib.contextmanager
@@ -654,6 +676,251 @@ async def _run_address_review(*, pr: str, repo: str | None, bot_login: str | Non
     _print(result.__dict__)
 
 
+@sdlc_app.command("baseline")
+def sdlc_baseline(
+    path: Annotated[str, typer.Option("--path", help="Repo whose graph the gate reads.")] = ".",
+    as_json: Annotated[bool, typer.Option("--json", help="Emit the numbers as JSON.")] = False,
+) -> None:
+    """Score the run agent against a corpus of tickets whose right answer is known.
+
+    Deterministic and free: the validity gate reads each ticket and a real graph, and every
+    case has an argued expected verdict. Run metrics come from the durable run records —
+    observations of what actually ran, not a simulation.
+
+    False refusals and missed refusals are counted separately. A single accuracy number would
+    let one hide behind the other, and they cost very different things.
+    """
+    import json as _json
+
+    from orchestrator.evals.agent_corpus import render_report, score_gate, score_runs
+    from orchestrator.pkg import FactStore, load_or_extract
+    from orchestrator.sdlc.runstate import RunStore
+
+    gate = score_gate(FactStore(load_or_extract(path)))
+    runs = score_runs(RunStore().all())
+    if as_json:
+        typer.echo(
+            _json.dumps(
+                {
+                    "gate": {
+                        "accuracy": gate.accuracy,
+                        "cases": len(gate.results),
+                        "false_refusals": gate.false_refusals,
+                        "missed_refusals": gate.missed_refusals,
+                    },
+                    "runs": {
+                        "runs": runs.runs,
+                        "completed": runs.completed,
+                        "parked": runs.parked,
+                        "failed": runs.failed,
+                        "completion_rate": runs.completion_rate,
+                        "intervention_rate": runs.intervention_rate,
+                        "mean_cost_usd": runs.mean_cost_usd,
+                    },
+                },
+                indent=2,
+            )
+        )
+        return
+    typer.echo(render_report(gate, runs))
+
+
+@sdlc_app.command("runs")
+def sdlc_runs(
+    action: Annotated[
+        str,
+        typer.Argument(
+            help="list | show <run-id> | reap | approvals | approve <approval-id> — inspect and "
+            "decide autorun's durable state."
+        ),
+    ] = "list",
+    run_id: Annotated[str | None, typer.Argument(help="Run id, or approval id for approve.")] = None,
+    reject: Annotated[bool, typer.Option("--reject", help="Reject rather than approve.")] = False,
+    note: Annotated[str, typer.Option("--note", help="Why — recorded on the decision.")] = "",
+) -> None:
+    """Inspect what `sdlc autorun` has running, parked or abandoned.
+
+    `reap` reports what a dead run left behind — worktree, branch, issue — and changes
+    nothing: a worktree may hold the only copy of someone's work, and a ticket's status is
+    an outward-facing write. Cleaning up stays a human's call.
+    """
+    import json as _json
+
+    from orchestrator.sdlc.runstate import RunStore, render_reap, render_runs
+
+    store = RunStore()
+    if action == "list":
+        typer.echo(render_runs(store.all()))
+        return
+    if action == "approvals":
+        from orchestrator.sdlc.escalate import ApprovalStore, default_approval_dir, render_approvals
+
+        typer.echo(render_approvals(ApprovalStore(root=default_approval_dir()).all()))
+        return
+    if action == "approve":
+        from orchestrator.sdlc.escalate import ApprovalStore, decide, default_approval_dir
+
+        if not run_id:
+            typer.echo("approve needs an approval id (see `sdlc runs approvals`)", err=True)
+            raise typer.Exit(code=2)
+        try:
+            decided = decide(
+                run_id,
+                approved=not reject,
+                store=ApprovalStore(root=default_approval_dir()),
+                note=note,
+            )
+        except KeyError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(code=2) from exc
+        typer.echo(f"{decided.approval_id}: {decided.decision}")
+        typer.echo(f"Resume the run with: orchestrator sdlc autorun --resume {decided.run_id} …")
+        return
+    if action == "reap":
+        stale = store.stale()
+        typer.echo(render_reap(stale))
+        raise typer.Exit(code=1 if stale else 0)
+    if action == "show":
+        if not run_id:
+            typer.echo("show needs a run id", err=True)
+            raise typer.Exit(code=2)
+        record = store.load(run_id)
+        if record is None:
+            typer.echo(f"no run {run_id!r}", err=True)
+            raise typer.Exit(code=2)
+        typer.echo(_json.dumps(asdict(record), indent=2, sort_keys=True))
+        return
+    typer.echo(f"Unknown action {action!r}. Use list, show, reap, approvals or approve.", err=True)
+    raise typer.Exit(code=2)
+
+
+def _terminal_gate() -> Any:
+    """Show the diff and ask, once, before the run's first write.
+
+    Fails **closed** on a non-interactive stdin. A gate that assumes yes when nobody is
+    there is not a gate — and this one is reached by unattended runs (cron, the MCP
+    plugin, a backgrounded shell) as readily as by a person at a terminal.
+    """
+    import subprocess
+    import sys
+
+    async def gate(path: Path, files: list[str]) -> bool:
+        # `add -N` makes new files show up in `git diff` without staging their content, so
+        # the diff shown is the whole change rather than only the edits to tracked files.
+        subprocess.run(["git", "-C", str(path), "add", "-N", "-A"], capture_output=True, check=False)
+        diff = subprocess.run(
+            ["git", "-C", str(path), "diff"], capture_output=True, text=True, check=False
+        ).stdout
+        stat = subprocess.run(
+            ["git", "-C", str(path), "diff", "--stat"], capture_output=True, text=True, check=False
+        ).stdout
+        typer.echo("\n" + "=" * 70)
+        typer.echo(f"HUMAN REVIEW — {len(files)} file(s) in {path}")
+        typer.echo("=" * 70)
+        typer.echo(diff or "(no textual diff)")
+        typer.echo(stat)
+        if not sys.stdin.isatty():
+            typer.echo(
+                "[gate] --review was asked for but there is no terminal to ask on. "
+                "Refusing rather than assuming yes; nothing was committed.",
+                err=True,
+            )
+            return False
+        return bool(typer.confirm("Commit this change?", default=False))
+
+    return gate
+
+
+@sdlc_app.command("autorun")
+def sdlc_autorun(
+    source: Annotated[
+        str,
+        typer.Option("--source", help="Source root, e.g. jira://<issue-key>, confluence://<page_id>."),
+    ],
+    issue: Annotated[
+        str | None,
+        typer.Option("--issue", help="Adopt an existing tracker issue instead of creating one."),
+    ] = None,
+    intent: Annotated[
+        str | None, typer.Option("--intent", help="Intent id to implement (default: the first).")
+    ] = None,
+    repo: Annotated[
+        str | None, typer.Option("--repo", help="Git URL to branch from (default $SDLC_REPO_URL).")
+    ] = None,
+    path: Annotated[str, typer.Option("--path", help="Repo to reason about (the graph).")] = ".",
+    live: Annotated[
+        bool,
+        typer.Option("--live/--safe", help="Write for real. Default --safe makes no external write."),
+    ] = False,
+    max_refine: Annotated[
+        int,
+        typer.Option(
+            "--max-refine",
+            help="Correction attempts allowed per check — tests, types and coverage each get their own.",
+        ),
+    ] = 5,
+    review: Annotated[
+        bool,
+        typer.Option(
+            "--review/--no-review",
+            help="Show the diff and ask before committing or pushing anything.",
+        ),
+    ] = False,
+    base: Annotated[str | None, typer.Option("--base", help="PR target branch.")] = None,
+    language: Annotated[str, typer.Option("--language", help="Target language (auto detects).")] = "auto",
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", help="Where run artifacts go (default: a run dir under the temp dir)."),
+    ] = None,
+    resume: Annotated[
+        str | None,
+        typer.Option("--resume", help="Continue a run by id — adopts the issue it already created."),
+    ] = None,
+    max_cost: Annotated[
+        float | None,
+        typer.Option("--max-cost", help="Cap LLM spend (USD) for this run; exhausting it parks it."),
+    ] = None,
+) -> None:
+    """Drive ONE ticket through the whole happy path: research → design → code → tests → PR.
+
+    The stages are the commands you already have — `investigate`, `design`, `sdlc feature` —
+    called in order with the same spec, and each result recorded. Default --safe makes no
+    external write anywhere in the chain.
+
+    It does not yet judge whether the ticket is worth doing, enforce a budget, survive a
+    crash, or loop on review findings. Each stage says plainly when it skipped and why; see
+    docs/specs/autonomous-run-agent.md for what lands when.
+    """
+    import asyncio
+
+    from orchestrator.sdlc.autorun import AutorunError, autorun, render_summary
+
+    async def _go() -> None:
+        try:
+            ctx = await autorun(
+                source,
+                issue=issue,
+                intent_id=intent,
+                repo=repo,
+                root=path,
+                live=live,
+                max_refine=max_refine,
+                gate=_terminal_gate() if review else None,
+                base_branch=base,
+                language=language,
+                artifacts_dir=out,
+                resume=resume,
+                max_cost_usd=max_cost,
+                log=typer.echo,
+            )
+        except AutorunError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(code=exc.code) from exc
+        typer.echo("\n" + render_summary(ctx))
+
+    asyncio.run(_go())
+
+
 @sdlc_app.command("feature")
 def sdlc_feature(
     source: Annotated[
@@ -678,8 +945,14 @@ def sdlc_feature(
     ] = None,
     max_refine: Annotated[
         int,
-        typer.Option("--max-refine", help="Max implement→test→refine iterations."),
-    ] = 3,
+        # Matches `sdlc autorun`: the type checker draws on this budget too, so a run that
+        # greens its suite on the first pass still has the checker to satisfy. Left at 3, this
+        # flag silently overrode the raise and reintroduced the shortfall on this path only.
+        typer.Option(
+            "--max-refine",
+            help="Correction attempts allowed per check — tests, types and coverage each get their own.",
+        ),
+    ] = 5,
     live: Annotated[
         bool,
         typer.Option(
@@ -688,6 +961,21 @@ def sdlc_feature(
             "Default --safe stays local (branch + commit + diff, dry-run Jira, no push).",
         ),
     ] = False,
+    issue: Annotated[
+        str | None,
+        typer.Option(
+            "--issue",
+            help="Adopt an existing tracker issue (e.g. SSPN-9) instead of creating one — the "
+            "branch, PR, comment and transition all land on it.",
+        ),
+    ] = None,
+    base: Annotated[
+        str | None,
+        typer.Option(
+            "--base",
+            help="PR target branch (default: $SDLC_PR_BASE, else the repo's default branch).",
+        ),
+    ] = None,
     layout: Annotated[
         str,
         typer.Option(
@@ -726,6 +1014,9 @@ def sdlc_feature(
     the generated + tested code, and prints the diff. Pass --live to create the
     Jira issue, push the branch, open a real PR, and comment the PR link back on
     the issue.
+
+    Pass --issue <KEY> when the work is already tracked: the run adopts that
+    issue instead of creating a second one for the same story.
     """
     import asyncio
 
@@ -744,6 +1035,8 @@ def sdlc_feature(
             model=model,
             max_refine=max_refine,
             live=live,
+            issue=issue,
+            base=base,
             layout_mode=layout,
             package_name=package_name,
             refresh=refresh,
@@ -760,6 +1053,8 @@ async def _run_sdlc_feature(
     model: str | None,
     max_refine: int,
     live: bool,
+    issue: str | None,
+    base: str | None,
     layout_mode: str,
     package_name: str | None,
     refresh: bool,
@@ -775,6 +1070,8 @@ async def _run_sdlc_feature(
             model=model,
             max_refine=max_refine,
             live=live,
+            issue=issue,
+            base_branch=base,
             layout_mode=layout_mode,
             package_name=package_name,
             refresh=refresh,
@@ -1095,30 +1392,42 @@ def mcp_ingest_db(
 def mcp_contracts(
     config: Annotated[str | None, typer.Option("--config", help="mcpServers JSON file path.")] = None,
 ) -> None:
-    """Show the ToolContract derived for each onboarded MCP tool (governance view)."""
+    """Show the ToolContract derived for each onboarded MCP tool (governance view).
+
+    Each input is rendered ``name (type)``, with the type read from the
+    server's own JSON Schema at display time (``string|null`` for unions,
+    ``any`` when the schema declares no top-level type).
+    """
     import asyncio
 
     from orchestrator.core.env import load_local_env
-    from orchestrator.mcp import MCPRegistry, build_mcp_tools
-    from orchestrator.mcp.config import load_mcp_configs
+    from orchestrator.mcp.schema_types import argument_type_label, format_argument
 
     load_local_env()
-    configs = load_mcp_configs(config)
-    registry = MCPRegistry(configs)
-    built = asyncio.run(build_mcp_tools(registry, configs=configs))
-    _print(
-        [
+    configs = _mcp_load_configs(config)
+    registry = _mcp_build_registry(configs)
+    built = asyncio.run(_mcp_build_tools(registry, configs=configs))
+    rows: list[dict[str, Any]] = []
+    for t in built:
+        # Types come from the server's raw JSON Schema at display time; the
+        # contract's normalised inputs stay the source of truth for *which*
+        # arguments exist (and for `mcp call`).
+        schema = getattr(getattr(t.handler, "tool", None), "input_schema", None)
+        names = [f.name for f in t.contract.spec.inputs]
+        labels = {name: argument_type_label(schema, name) for name in names}
+        rows.append(
             {
                 "contract_id": t.contract.metadata.id,
                 "version": t.contract.metadata.version,
+                "description": t.contract.metadata.description,
                 "side_effects": t.contract.spec.side_effects.value,
                 "requires_approval": t.contract.spec.requires_approval.value,
                 "write_gated": not t.handler.read_only and not t.handler.write_enabled,
-                "inputs": [f.name for f in t.contract.spec.inputs],
+                "inputs": [format_argument(name, labels[name]) for name in names],
+                "input_types": labels,
             }
-            for t in built
-        ]
-    )
+        )
+    _print(rows)
 
 
 @mcp_app.command("call")
@@ -1180,6 +1489,40 @@ def tui(
         typer.echo("The TUI needs the 'tui' extra. Install it: pip install 'synaptixs-spine[tui]'.", err=True)
         raise typer.Exit(code=2) from exc
     run_tui(api_url, api_key)
+
+
+@app.command("models")
+def models_cmd(
+    provider: Annotated[
+        str | None,
+        typer.Option("--provider", help="Filter to one vendor: anthropic, openai, gemini, …"),
+    ] = None,
+    tools_only: Annotated[
+        bool,
+        typer.Option("--tools-only/--all", help="Only models that support tool calling."),
+    ] = True,
+) -> None:
+    """What you can point the pipeline at, and what each stage is using now.
+
+    Read from the installed LiteLLM's own catalog rather than a list maintained here,
+    so it reflects the client actually making the calls.
+
+    **Tool calling is a requirement, not a preference.** Codegen forces a
+    `submit_files` call and the acceptance judge forces `submit_verdict`; on a model
+    without it both fall back to parsing prose out of a text reply, which is exactly
+    the failure the forced-tool work removed. `--all` shows the rest, marked.
+    """
+    from orchestrator.core.llm import catalog
+
+    rows = catalog.catalog(provider)
+    if tools_only:
+        rows = [m for m in rows if m.usable]
+    typer.echo("Current per-stage models:")
+    for stage in ("codegen", "judge", "intake"):
+        chain = " → ".join(f"${v}" for v in catalog.STAGE_ENV[stage])
+        typer.echo(f"  {stage:8} {catalog.resolve(stage):24} ({chain} → built-in default)")
+    typer.echo("")
+    typer.echo(catalog.render(rows, current=catalog.resolve("codegen")))
 
 
 @app.command("doctor")
@@ -2028,6 +2371,46 @@ def pkg_extract(
             touched = store.touches(node.id)
             tail = "…" if len(touched) > 12 else ""
             typer.echo(f"  touches ({len(touched)}): " + ", ".join(t.id for t in touched[:12]) + tail)
+
+
+@pkg_app.command("capabilities")
+def pkg_capabilities(
+    fmt: Annotated[
+        str,
+        typer.Option("--format", help="markdown (the KNOWLEDGE_GRAPH.md matrix) | json."),
+    ] = "markdown",
+) -> None:
+    """Which node/edge kinds each language front-end can emit (read-only, no repo needed).
+
+    Read off the front-ends' own source, so it cannot drift from them. This is
+    capability — what Spine *would* see — not coverage: a front-end that emits
+    `Endpoint` still finds none in a repo without routes. For that question, run
+    `pkg verify` and read the `source-parity` check.
+    """
+    import json as _json
+
+    from orchestrator.pkg.capabilities import front_end_capabilities, render_markdown
+
+    caps = front_end_capabilities()
+    if fmt == "json":
+        typer.echo(
+            _json.dumps(
+                [
+                    {
+                        "language": c.language,
+                        "node_kinds": list(c.node_kinds),
+                        "edge_kinds": list(c.edge_kinds),
+                    }
+                    for c in caps
+                ],
+                indent=2,
+            )
+        )
+        return
+    if fmt != "markdown":
+        typer.echo(f"Unknown --format {fmt!r}. Use markdown or json.", err=True)
+        raise typer.Exit(code=2)
+    typer.echo(render_markdown(caps))
 
 
 @pkg_app.command("verify")

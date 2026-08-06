@@ -73,7 +73,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:166`](../../src/orchestrator/plugin/server.py#L166)
 
 - **Called by** (2): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L185), [`root_cause`](../../src/orchestrator/plugin/server.py#L381)
-- **Calls** (3): `FactStore`, [`_open_repo`](../../src/orchestrator/plugin/server.py#L154), `orchestrator.pkg.load_or_extract`
+- **Calls** (3): [`_open_repo`](../../src/orchestrator/plugin/server.py#L154), `orchestrator.pkg.FactStore`, `orchestrator.pkg.load_or_extract`
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#phases`
 
 ### `blast_radius`
@@ -126,7 +126,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:38`](../../src/orchestrator/plugin/server.py#L38)
 
 - **Called by** (0 production · 1 test): [`test_ingest_preview_summarizes_a_dry_run`](../../tests/plugin/test_server.py#L219)
-- **Calls** (2): [`build_service_for`](../../src/orchestrator/intake/factory.py#L268), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L38)
+- **Calls** (2): [`build_service_for`](../../src/orchestrator/intake/factory.py#L272), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40)
 - **Documented in**: `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#ingest-preview`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `CODEX_GUIDE.md#ingest-preview`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`, `codex-marketplace/README.md#2-add-this-marketplace-install-the-plugin`
 
 ### `investigate`
@@ -156,7 +156,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:119`](../../src/orchestrator/plugin/server.py#L119)
 
 - **Called by** (0 production · 2 test): [`test_pkg_grounding_empty_for_unrelated_repo`](../../tests/plugin/test_server.py#L57), [`test_pkg_grounding_surfaces_existing_symbols`](../../tests/plugin/test_server.py#L50)
-- **Calls** (1): [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L47)
+- **Calls** (1): [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L48)
 - **Documented in**: `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#8-walkthrough-brownfield`, `CLAUDE_GUIDE.md#env-the-bare-minimum`, `CLAUDE_GUIDE.md#pkg-grounding`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `CODEX_GUIDE.md#8-walkthrough-brownfield`
 
 ### `read_memory_bank`
@@ -178,7 +178,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:381`](../../src/orchestrator/plugin/server.py#L381)
 
 - **Called by** (0 production · 3 test): [`test_root_cause_deterministic_by_default`](../../tests/plugin/test_server.py#L167), [`test_root_cause_llm_without_model_errors`](../../tests/plugin/test_server.py#L185), [`test_root_cause_requires_a_bug`](../../tests/plugin/test_server.py#L181)
-- **Calls** (6): [`_repo_store`](../../src/orchestrator/plugin/server.py#L166), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L211), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `orchestrator.core.llm.LiteLLMClient`, [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L249), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L42)
+- **Calls** (6): [`_repo_store`](../../src/orchestrator/plugin/server.py#L166), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L211), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `orchestrator.core.llm.LiteLLMClient`, [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L249), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L44)
 - **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`, `docs/specs/comprehension-skill-spec.md#design-decisions`, `docs/specs/comprehension-skill-spec.md#open-questions`
 
 ### `sdlc_decide_gate`
@@ -194,7 +194,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:59`](../../src/orchestrator/plugin/server.py#L59)
 
 - **Called by** (0 production · 4 test): [`test_sdlc_feature_live_requires_confirm`](../../tests/plugin/test_server.py#L244), [`test_sdlc_feature_maps_run_error`](../../tests/plugin/test_server.py#L309), [`test_sdlc_feature_passes_greenfield_brownfield_params`](../../tests/plugin/test_server.py#L273), [`test_sdlc_feature_safe_maps_result`](../../tests/plugin/test_server.py#L250)
-- **Calls** (2): `py:PermissionError`, [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L153)
+- **Calls** (2): `py:PermissionError`, [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623)
 
 ### `sdlc_run_result`
 
@@ -222,7 +222,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 ## Imports
 
-`__future__.annotations`, `collections.abc.Callable`, `collections.abc.Iterator`, `contextlib.contextmanager`, `mcp.server.fastmcp.FastMCP`, [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1), [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), [`orchestrator.doctor`](../../src/orchestrator/doctor.py#L1), [`orchestrator.intake.factory`](orchestrator.intake.factory.md), [`orchestrator.intake.service`](../../src/orchestrator/intake/service.py#L1), [`orchestrator.knowledge.access`](../../src/orchestrator/knowledge/access.py#L1), [`orchestrator.knowledge.current_state`](orchestrator.knowledge.current_state.md), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.plugin.auth`](../../src/orchestrator/plugin/auth.py#L1), [`orchestrator.registry.api.config`](../../src/orchestrator/registry/api/config.py#L1), [`orchestrator.registry.api.workspace`](orchestrator.registry.api.workspace.md), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.coverage`](../../src/orchestrator/sdlc/coverage.py#L1), [`orchestrator.sdlc.feature_runner`](../../src/orchestrator/sdlc/feature_runner.py#L1), [`orchestrator.sdlc.grounding`](../../src/orchestrator/sdlc/grounding.py#L1), [`orchestrator.sdlc.investigate`](../../src/orchestrator/sdlc/investigate.py#L1), [`orchestrator.sdlc.localize`](../../src/orchestrator/sdlc/localize.py#L1), [`orchestrator.sdlc.rca`](../../src/orchestrator/sdlc/rca.py#L1), [`orchestrator.sdlc.run_control`](../../src/orchestrator/sdlc/run_control.py#L1), `typing.Any`
+`__future__.annotations`, `collections.abc.Callable`, `collections.abc.Iterator`, `contextlib.contextmanager`, `mcp.server.fastmcp.FastMCP`, [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1), [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), [`orchestrator.doctor`](../../src/orchestrator/doctor.py#L1), [`orchestrator.intake.factory`](orchestrator.intake.factory.md), [`orchestrator.intake.service`](../../src/orchestrator/intake/service.py#L1), [`orchestrator.knowledge.access`](../../src/orchestrator/knowledge/access.py#L1), [`orchestrator.knowledge.current_state`](orchestrator.knowledge.current_state.md), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.plugin.auth`](../../src/orchestrator/plugin/auth.py#L1), [`orchestrator.registry.api.config`](../../src/orchestrator/registry/api/config.py#L1), [`orchestrator.registry.api.workspace`](orchestrator.registry.api.workspace.md), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.coverage`](../../src/orchestrator/sdlc/coverage.py#L1), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.grounding`](../../src/orchestrator/sdlc/grounding.py#L1), [`orchestrator.sdlc.investigate`](../../src/orchestrator/sdlc/investigate.py#L1), [`orchestrator.sdlc.localize`](../../src/orchestrator/sdlc/localize.py#L1), [`orchestrator.sdlc.rca`](../../src/orchestrator/sdlc/rca.py#L1), [`orchestrator.sdlc.run_control`](../../src/orchestrator/sdlc/run_control.py#L1), `typing.Any`
 
 ## Imported by
 

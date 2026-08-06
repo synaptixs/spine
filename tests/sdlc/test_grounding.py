@@ -137,6 +137,7 @@ class _CapturingLLM:
         temperature: float | None = None,
         max_tokens: int | None = None,
         tools: object = None,
+        tool_choice: str | None = None,
     ) -> CompletionResult:
         self.last_user = messages[-1].content
         return CompletionResult(

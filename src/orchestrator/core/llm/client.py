@@ -86,7 +86,13 @@ class CompletionResult:
 
 
 class LLMClient(Protocol):
-    """Minimum surface every concrete client must implement."""
+    """Minimum surface every concrete client must implement.
+
+    ``tool_choice`` names a tool in ``tools`` the model *must* call. That turns a
+    tool into a schema the provider enforces — the only constraint on output shape
+    that works on every provider, since ``json_object`` is an OpenAI/Ollama concept
+    that Anthropic has no equivalent for and silently ignores.
+    """
 
     async def complete(
         self,
@@ -98,6 +104,7 @@ class LLMClient(Protocol):
         temperature: float | None = None,
         max_tokens: int | None = None,
         tools: list[ToolSpec] | None = None,
+        tool_choice: str | None = None,
     ) -> CompletionResult: ...
 
 

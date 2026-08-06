@@ -94,8 +94,9 @@ class MockLLMClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
         tools: list[ToolSpec] | None = None,
+        tool_choice: str | None = None,
     ) -> CompletionResult:
-        _ = (response_format, json_object, temperature, max_tokens, tools)
+        _ = (response_format, json_object, temperature, max_tokens, tools, tool_choice)
         self.calls.append((model, list(messages)))
         if self._script:
             return self._script.pop(0)

@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.intake`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 20 modules — 42 types and 82 functions. It sits in the middle of the graph: 2 areas below it, 6 above. Changes here can reach both ways.
+**`orchestrator.intake`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 21 modules — 42 types and 95 functions. It sits in the middle of the graph: 2 areas below it, 6 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -31,6 +31,7 @@ flowchart LR
 ## Modules
 
 - [`orchestrator.intake`](../../src/orchestrator/intake/__init__.py#L1)
+- [`orchestrator.intake.adf`](../modules/orchestrator.intake.adf.md)
 - [`orchestrator.intake.backlog_doc`](../../src/orchestrator/intake/backlog_doc.py#L1)
 - [`orchestrator.intake.cache`](../modules/orchestrator.intake.cache.md)
 - [`orchestrator.intake.confluence`](../../src/orchestrator/intake/confluence.py#L1)
@@ -42,7 +43,7 @@ flowchart LR
 - [`orchestrator.intake.jira_source`](../../src/orchestrator/intake/jira_source.py#L1)
 - [`orchestrator.intake.mcp_source`](../../src/orchestrator/intake/mcp_source.py#L1)
 - [`orchestrator.intake.notion`](../../src/orchestrator/intake/notion.py#L1)
-- [`orchestrator.intake.openspec_source`](../modules/orchestrator.intake.openspec_source.md)
+- [`orchestrator.intake.openspec_source`](../../src/orchestrator/intake/openspec_source.py#L1)
 - [`orchestrator.intake.openspec_writer`](../../src/orchestrator/intake/openspec_writer.py#L1)
 - [`orchestrator.intake.report`](../modules/orchestrator.intake.report.md)
 - [`orchestrator.intake.service`](../../src/orchestrator/intake/service.py#L1)

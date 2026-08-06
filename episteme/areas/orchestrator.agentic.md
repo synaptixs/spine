@@ -32,7 +32,7 @@ flowchart LR
 - [`orchestrator.agentic`](../../src/orchestrator/agentic/__init__.py#L1)
 - [`orchestrator.agentic.codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L1)
 - [`orchestrator.agentic.export`](../../src/orchestrator/agentic/export.py#L1)
-- [`orchestrator.agentic.loop`](../modules/orchestrator.agentic.loop.md)
+- [`orchestrator.agentic.loop`](../../src/orchestrator/agentic/loop.py#L1)
 - [`orchestrator.agentic.mcp_tools`](../../src/orchestrator/agentic/mcp_tools.py#L1)
 - [`orchestrator.agentic.memory_tools`](../../src/orchestrator/agentic/memory_tools.py#L1)
 - [`orchestrator.agentic.policy`](../../src/orchestrator/agentic/policy.py#L1)

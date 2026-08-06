@@ -16,7 +16,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from orchestrator.core.llm import CompletionResult, Message
+from orchestrator.core.llm import CompletionResult, Message, ToolCall, ToolSpec
 from orchestrator.sdlc.codegen import (
     CodegenAdapter,
     CodegenError,
@@ -43,8 +43,9 @@ class _ScriptedLLM:
         temperature: float | None = None,
         max_tokens: int | None = None,
         tools: object = None,
+        tool_choice: str | None = None,
     ) -> CompletionResult:
-        _ = (model, response_format, json_object, temperature, max_tokens, tools)
+        _ = (model, response_format, json_object, temperature, max_tokens, tools, tool_choice)
         self.calls.append(list(messages))
         text = self._responses.pop(0)
         return CompletionResult(
@@ -98,10 +99,15 @@ class TestResolveCodegenModel:
         monkeypatch.setenv("ORCHESTRATOR_INTAKE_MODEL", "gpt-4o")
         assert resolve_codegen_model() == "gpt-4o"
 
-    def test_none_when_nothing_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("SDLC_CODEGEN_MODEL", raising=False)
-        monkeypatch.delenv("ORCHESTRATOR_INTAKE_MODEL", raising=False)
-        assert resolve_codegen_model() is None  # → adapter default
+    def test_falls_back_to_the_catalog_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Resolution now always names a model. It used to return None and let the
+        adapter's own constant decide, which meant the model in play was a fact you
+        could only discover by reading two modules."""
+        from orchestrator.core.llm import catalog
+
+        for name in ("SDLC_CODEGEN_MODEL", "ORCHESTRATOR_INTAKE_MODEL", "ORCHESTRATOR_MODEL"):
+            monkeypatch.delenv(name, raising=False)
+        assert resolve_codegen_model() == catalog.DEFAULT_MODEL
 
 
 async def test_plan_derives_steps_from_acceptance_criteria() -> None:
@@ -201,11 +207,28 @@ async def test_rejects_absolute_path(tmp_path: Path) -> None:
         await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="SDLC-1")
 
 
-async def test_rejects_output_with_no_files(tmp_path: Path) -> None:
-    llm = _ScriptedLLM(['{"summary": "I did nothing"}'])
+async def test_a_submission_with_no_files_is_retried_then_refused(tmp_path: Path) -> None:
+    """Empty is recoverable, not fatal. The forced tool call means the model answered in
+    the right shape and simply submitted nothing — the schema allows it, since `required`
+    means present, not non-empty. A live run died here after a clean implement pass
+    because author_tests came back empty and nothing asked it to try again."""
+    llm = _ScriptedLLM(['{"summary": "I did nothing"}', '{"summary": "still nothing"}'])
     adapter = LLMCodegenAdapter(llm)
+
     with pytest.raises(CodegenError):
         await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="SDLC-1")
+
+    assert len(llm.calls) == 2  # one corrective retry, then it gives up
+    assert "SUBMITTED NO FILES" in llm.calls[1][1].content
+    assert "I did nothing" in llm.calls[1][1].content  # its own words, fed back
+
+
+async def test_a_retried_empty_submission_can_succeed(tmp_path: Path) -> None:
+    llm = _ScriptedLLM(['{"summary": "nothing to do"}', _files_response({"src/a.py": "a = 1\n"})])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-1")
+
+    assert [Path(f).name for f in change.files] == ["a.py"]
 
 
 async def test_refine_tolerates_a_no_op_response(tmp_path: Path) -> None:
@@ -801,14 +824,15 @@ async def test_anchor_repair_gives_up_after_one_retry(tmp_path: Path) -> None:
     assert len(llm.calls) == 2  # initial + exactly one repair
 
 
-async def test_no_repair_for_non_edit_failures(tmp_path: Path) -> None:
-    """A response with no files at all fails immediately — repair is only for
-    anchor misses."""
-    llm = _ScriptedLLM([json.dumps({"files": [], "summary": "nothing"})])
+async def test_the_empty_retry_is_spent_once(tmp_path: Path) -> None:
+    """One corrective pass, not a loop: a model that submits nothing twice has said its
+    piece, and a third call would just pay to watch it repeat."""
+    empty = json.dumps({"files": [], "summary": "nothing"})
+    llm = _ScriptedLLM([empty, empty])
     adapter = LLMCodegenAdapter(llm)
     with pytest.raises(CodegenError, match="no 'files'"):
         await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
-    assert len(llm.calls) == 1
+    assert len(llm.calls) == 2
 
 
 async def test_new_root_module_shadowing_stdlib_is_rejected(tmp_path: Path) -> None:
@@ -819,6 +843,40 @@ async def test_new_root_module_shadowing_stdlib_is_rejected(tmp_path: Path) -> N
     adapter = LLMCodegenAdapter(llm)
     with pytest.raises(CodegenError, match="shadow the Python standard-library"):
         await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+
+async def test_a_package_shadowing_an_existing_module_is_rejected(tmp_path: Path) -> None:
+    """The real case, reproduced: a run wanted `orchestrator.cli.regression`, so it created
+    `orchestrator/cli/__init__.py` beside the existing `cli.py`. That does not extend the
+    CLI — it hides it, and every command in the product stops resolving.
+
+    The stdlib guard next door never fired, because `cli` is ours.
+    """
+    (tmp_path / "orchestrator").mkdir()
+    (tmp_path / "orchestrator" / "cli.py").write_text("app = 1\n", encoding="utf-8")
+    llm = _ScriptedLLM([_files_response({"orchestrator/cli/__init__.py": "app = 2\n"})])
+
+    with pytest.raises(CodegenError, match="shadow the existing module 'orchestrator/cli.py'"):
+        await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+
+async def test_a_module_shadowing_an_existing_package_is_rejected(tmp_path: Path) -> None:
+    """The mirror image, equally ambiguous: `pkg.py` beside `pkg/__init__.py`."""
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+    llm = _ScriptedLLM([_files_response({"pkg.py": "X = 1\n"})])
+
+    with pytest.raises(CodegenError, match="shadow the existing module"):
+        await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+
+async def test_a_new_package_beside_nothing_is_fine(tmp_path: Path) -> None:
+    """The guard must not block ordinary new packages, which is most of greenfield work."""
+    llm = _ScriptedLLM([_files_response({"newpkg/__init__.py": "X = 1\n"})])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert change.files == [str(tmp_path / "newpkg" / "__init__.py")]
 
 
 async def test_stdlib_name_inside_a_package_is_fine(tmp_path: Path) -> None:
@@ -954,3 +1012,572 @@ async def test_convention_block_injected_into_prompts(tmp_path: Path) -> None:
     prompt = llm.calls[0][-1].content
     assert "REPO CONVENTIONS" in prompt
     assert "from __future__ import annotations" in prompt
+
+
+# ---- the design reaches the prompt (SSPN-28) --------------------------------
+
+
+async def test_the_agreed_design_reaches_the_codegen_prompt(tmp_path: Path) -> None:
+    """Research and design are worthless to a model that never sees them.
+
+    Before this, `sdlc autorun` investigated a ticket, designed a change, wrote the design to
+    disk, and then generated code as if neither had happened. The assertion is on the *prompt*
+    rather than on the artifact, because writing a file nobody reads is exactly the bug.
+    """
+    llm = _ScriptedLLM([_files_response({"src/x.py": "x = 1\n"})])
+    adapter = LLMCodegenAdapter(llm, design="## Approach\nEdit cli.py, not a new package.")
+
+    await adapter.implement(
+        spec={"title": "t", "summary": "s", "acceptance_criteria": ["a"]},
+        path=str(tmp_path),
+        issue_key="ENG-1",
+    )
+
+    prompt = "\n".join(m.content for m in llm.calls[0])
+    assert "PLAN ALREADY AGREED" in prompt
+    assert "Edit cli.py, not a new package." in prompt
+    # Guidance, not gospel: the design was written before the code was read.
+    assert "do not follow a plan you can see is wrong" in prompt
+
+
+async def test_the_prompt_is_unchanged_without_a_design(tmp_path: Path) -> None:
+    """`sdlc feature` standalone must build exactly the prompt it builds today."""
+    with_design = _ScriptedLLM([_files_response({"src/x.py": "x = 1\n"})])
+    without = _ScriptedLLM([_files_response({"src/x.py": "x = 1\n"})])
+    spec = {"title": "t", "summary": "s", "acceptance_criteria": ["a"]}
+
+    # Separate worktrees: codegen observes repo conventions from the directory it is given,
+    # so a file written by the first run would change the second run's prompt for reasons
+    # that have nothing to do with the design.
+    (a := tmp_path / "a").mkdir()
+    (b := tmp_path / "b").mkdir()
+    await LLMCodegenAdapter(with_design, design="   ").implement(spec=spec, path=str(a), issue_key="ENG-1")
+    await LLMCodegenAdapter(without).implement(spec=spec, path=str(b), issue_key="ENG-1")
+
+    assert [m.content for m in with_design.calls[0]] == [m.content for m in without.calls[0]]
+    assert "PLAN ALREADY AGREED" not in "\n".join(m.content for m in without.calls[0])
+
+
+async def test_the_design_also_reaches_the_refine_prompt(tmp_path: Path) -> None:
+    """A refine that has forgotten the plan re-solves the ticket its own way."""
+    llm = _ScriptedLLM([_files_response({"src/x.py": "x = 2\n"})])
+    adapter = LLMCodegenAdapter(llm, design="## Approach\nEdit cli.py, not a new package.")
+
+    await adapter.refine(
+        spec={"title": "t", "summary": "s", "acceptance_criteria": ["a"]},
+        path=str(tmp_path),
+        issue_key="ENG-1",
+        failures="E   assert 1 == 2",
+    )
+
+    assert "Edit cli.py, not a new package." in "\n".join(m.content for m in llm.calls[0])
+
+
+# ---- unparseable output gets one corrective retry (SSPN-33) -----------------
+
+
+async def test_malformed_json_is_retried_once_and_recovers(tmp_path: Path) -> None:
+    """The failure that killed the first real end-to-end run. The model emitted a string
+    containing an unescaped quote 2,294 characters in; there was no retry, so the run died.
+    Models routinely fix their own JSON when shown where it broke."""
+    broken = '{"files": [{"path": "src/x.py", "content": "he said "hi""}]}'
+    good = _files_response({"src/x.py": "x = 1\n"})
+    llm = _ScriptedLLM([broken, good])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert change.files == [str(tmp_path / "src" / "x.py")]
+    assert len(llm.calls) == 2
+    # The retry names the break rather than saying "try again".
+    retry_prompt = "\n".join(m.content for m in llm.calls[1])
+    assert "NOT VALID JSON" in retry_prompt
+    assert "position" in retry_prompt
+
+
+async def test_a_second_parse_failure_raises(tmp_path: Path) -> None:
+    """One retry, never a loop: a model that cannot produce JSON twice will not on the third."""
+    broken = '{"files": [{"path": "src/x.py", "content": "oops"'
+    llm = _ScriptedLLM([broken, broken])
+
+    with pytest.raises(CodegenError, match="not a JSON object"):
+        await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert len(llm.calls) == 2
+
+
+async def test_the_parse_retry_does_not_stack_with_the_edit_repair(tmp_path: Path) -> None:
+    """Two recoveries for one generation would double the cost of a bad response. A parse
+    failure carries no edit paths, so only the parse retry fires."""
+    broken = "not json at all"
+    good = _files_response({"src/x.py": "x = 1\n"})
+    llm = _ScriptedLLM([broken, good])
+
+    await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert len(llm.calls) == 2  # not 3
+
+
+async def test_a_parse_failure_after_an_edit_repair_still_retries(tmp_path: Path) -> None:
+    """The gap the first live-ish run fell through: failed edits took the repair path, the
+    repaired response was unparseable, and the second apply was outside the guard — so it
+    raised. One retry budget, whichever way the first attempt failed."""
+    (tmp_path / "existing.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+    edits_that_fail = json.dumps(
+        {
+            "files": [{"path": "existing.py", "edits": [{"find": "NOT PRESENT ANYWHERE", "replace": "x"}]}],
+            "summary": "edit",
+        }
+    )
+    unparseable = "definitely not json"
+
+    llm = _ScriptedLLM([edits_that_fail, unparseable, unparseable])
+
+    with pytest.raises(CodegenError):
+        await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    # Three calls: the anchor miss is corrected, then the parse failure gets its own
+    # correction — a different kind of wrong deserves its own attempt — and the *second*
+    # parse failure raises, because that kind is now spent. The guard the test was written
+    # for still holds: the later applies are inside it.
+    assert len(llm.calls) == 3
+
+
+async def test_two_concatenated_json_documents_are_merged(tmp_path: Path) -> None:
+    """Observed twice on real runs: the model emits one document per file and concatenates
+    them, so the decoder stops at the second with `Extra data`. Every document is valid and
+    every one is a files-object — stitching them is free where a retry costs a call."""
+    two_documents = (
+        '{"files": [{"path": "src/a.py", "content": "a = 1\\n"}], "summary": "first"}, '
+        '{"files": [{"path": "src/b.py", "content": "b = 2\\n"}], "summary": "second"}'
+    )
+    llm = _ScriptedLLM([two_documents])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert sorted(Path(f).name for f in change.files) == ["a.py", "b.py"]
+    assert len(llm.calls) == 1  # no retry needed
+
+
+async def test_a_files_object_next_to_something_else_is_not_merged(tmp_path: Path) -> None:
+    """Strict on purpose: merging a files-object with anything else would be guessing."""
+    mixed = '{"files": [{"path": "src/a.py", "content": "a = 1\\n"}]}, {"notes": "hello"}'
+    good = _files_response({"src/a.py": "a = 1\n"})
+    llm = _ScriptedLLM([mixed, good])
+
+    await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert len(llm.calls) == 2  # fell back to the corrective retry
+
+
+class _ToolCallingLLM:
+    """Answers with a forced ``submit_files`` call, and records how it was asked."""
+
+    def __init__(self, arguments: dict[str, Any], *, text: str = "", call_tool: bool = True) -> None:
+        self._arguments = arguments
+        self._text = text
+        self._call_tool = call_tool
+        self.tools_offered: list[ToolSpec] = []
+        self.tool_choice: str | None = None
+
+    async def complete(
+        self,
+        messages: list[Message],
+        *,
+        model: str,
+        response_format: type[BaseModel] | None = None,
+        json_object: bool = False,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[ToolSpec] | None = None,
+        tool_choice: str | None = None,
+    ) -> CompletionResult:
+        _ = (messages, model, response_format, json_object, temperature, max_tokens)
+        self.tools_offered = list(tools or [])
+        self.tool_choice = tool_choice
+        calls = (ToolCall("c1", "submit_files", self._arguments),) if self._call_tool else ()
+        return CompletionResult(
+            text=self._text,
+            model="fake",
+            prompt_tokens=0,
+            completion_tokens=0,
+            cost_usd=0.0,
+            latency_ms=0.0,
+            tool_calls=calls,
+        )
+
+
+async def test_codegen_forces_the_submit_files_tool(tmp_path: Path) -> None:
+    """The output contract is a tool the provider enforces, not a request in the prompt."""
+    llm = _ToolCallingLLM({"files": [{"path": "src/a.py", "content": "a = 1\n"}], "summary": "ok"})
+
+    await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="T-1")
+
+    assert llm.tool_choice == "submit_files"
+    assert [t.name for t in llm.tools_offered] == ["submit_files"]
+
+
+async def test_tool_call_arguments_win_over_prose(tmp_path: Path) -> None:
+    """The live failure this exists for: the model narrates ("I'll analyze the existing
+    code...") and appends a PR blurb after the payload. Every one of those runs died in the
+    JSON parser. With the call forced, the prose is just the text field and is ignored."""
+    llm = _ToolCallingLLM(
+        {"files": [{"path": "src/a.py", "content": "a = 1\n"}], "summary": "ok"},
+        text="I'll analyze the existing code to understand the current structure.",
+    )
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="T-2")
+
+    assert [Path(f).name for f in change.files] == ["a.py"]
+    assert change.summary == "ok"
+
+
+async def test_falls_back_to_text_when_the_tool_is_ignored(tmp_path: Path) -> None:
+    """A provider with no tool support (a local Ollama model) still answers in text, and
+    that path stays exactly as it was — the forced tool is an addition, not a replacement."""
+    llm = _ToolCallingLLM({}, text=_files_response({"src/a.py": "a = 1\n"}), call_tool=False)
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="T-3")
+
+    assert [Path(f).name for f in change.files] == ["a.py"]
+
+
+# ---- a file too big to show whole must still be shown (SSPN-14) ----
+
+
+def _big_module(target_line: str, size: int = 120_000) -> str:
+    """A module larger than the context pool, with one distinctive line in the middle."""
+    filler = "\n".join(f"def filler_{i}() -> int:\n    return {i}\n" for i in range(size // 40))
+    half = len(filler) // 2
+    return filler[:half] + f"\n{target_line}\n" + filler[half:]
+
+
+async def test_a_file_larger_than_the_budget_is_excerpted_not_dropped(tmp_path: Path) -> None:
+    """The live failure: `cli.py` is 100 KB against a 40 KB pool, so the repair block said
+    "below is the CURRENT EXACT content" and then appended nothing. Every retry re-guessed
+    the anchor and the run died having never seen a byte of the file it was editing."""
+    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
+    from orchestrator.sdlc.excerpt import _excerpt_files
+
+    target = "def render_contract_types(schema: dict) -> str:"
+    (tmp_path / "cli.py").write_text(_big_module(target), encoding="utf-8")
+
+    block = _excerpt_files(
+        tmp_path, ["cli.py"], budget=_MAX_CONTEXT_BYTES, anchors_by_path={"cli.py": [target]}, label="x"
+    )
+
+    assert block, "an oversized file must still reach the prompt"
+    assert target in block, "the window must cover the line the model was aiming at"
+    assert len(block) <= _MAX_CONTEXT_BYTES * 2  # bounded, not the whole 120 KB file
+    assert "lines not shown" in block  # and honest about being partial
+
+
+async def test_a_near_miss_anchor_still_finds_its_neighbourhood(tmp_path: Path) -> None:
+    """A `find` fails on whitespace or a renamed identifier as easily as on being wrong.
+    The window should still land where the model was reaching."""
+    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
+    from orchestrator.sdlc.excerpt import _excerpt_files
+
+    target = "def render_contract_types(schema: dict) -> str:"
+    (tmp_path / "cli.py").write_text(_big_module(target), encoding="utf-8")
+
+    # What the model guessed: right function, wrong signature.
+    guess = "def render_contract_types(schema):"
+    block = _excerpt_files(
+        tmp_path, ["cli.py"], budget=_MAX_CONTEXT_BYTES, anchors_by_path={"cli.py": [guess]}, label="x"
+    )
+
+    assert target in block
+
+
+async def test_a_small_file_hands_its_unused_budget_to_a_big_one(tmp_path: Path) -> None:
+    """Smallest first, equal share of what remains: the old loop dropped whatever came
+    after the first file too big to fit, whatever its size."""
+    from orchestrator.sdlc.excerpt import _excerpt_files
+
+    target = "def needle_function() -> None:"
+    (tmp_path / "small.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / "big.py").write_text(_big_module(target), encoding="utf-8")
+
+    block = _excerpt_files(
+        tmp_path,
+        ["big.py", "small.py"],
+        budget=30_000,
+        anchors_by_path={"big.py": [target]},
+        label="x",
+    )
+
+    assert "x = 1" in block  # the small file, whole
+    assert target in block  # and the big one still got a window
+
+
+async def test_the_repair_block_never_promises_content_it_does_not_supply(tmp_path: Path) -> None:
+    """The bug in one assertion: the prompt said "copy every `find` VERBATIM from this
+    content" above an empty block."""
+    from orchestrator.sdlc.codegen import CodegenError
+
+    target = "def render_contract_types(schema: dict) -> str:"
+    (tmp_path / "cli.py").write_text(_big_module(target), encoding="utf-8")
+    adapter = LLMCodegenAdapter(_ScriptedLLM([]))
+    exc = CodegenError(
+        "changes need a repair pass",
+        failed_edit_paths=["cli.py"],
+        failed_anchors={"cli.py": [target]},
+    )
+
+    block = adapter._repair_block(exc, tmp_path)
+
+    assert "VERBATIM" in block
+    assert target in block, "the promise of exact content must come with exact content"
+
+
+async def test_codegen_is_shown_the_files_the_design_names(tmp_path: Path) -> None:
+    """Three runs opened with "placeholder — need to read the actual file first" and it was
+    the literal truth: paths came only from the spec text, this ticket's spec named none, and
+    codegen was handed zero bytes of the code it was asked to change."""
+    from orchestrator.sdlc.codegen import _named_existing_files
+
+    pkg = tmp_path / "src" / "app"
+    pkg.mkdir(parents=True)
+    (pkg / "display.py").write_text("def render() -> str:\n    return 'names only'\n", encoding="utf-8")
+    spec = {"summary": "Show argument types in the contracts output.", "acceptance_criteria": ["shows type"]}
+    design = "Approach: add a type label in src/app/display.py at render()."
+
+    assert _named_existing_files(spec, tmp_path, "") == ""  # the bug: nothing at all
+    with_design = _named_existing_files(spec, tmp_path, design)
+    assert "def render() -> str:" in with_design
+
+
+async def test_a_spec_that_names_its_files_still_wins(tmp_path: Path) -> None:
+    """When a ticket does name its files, that is the sharpest statement of intent there is."""
+    from orchestrator.sdlc.codegen import _named_existing_files
+
+    pkg = tmp_path / "src" / "app"
+    pkg.mkdir(parents=True)
+    (pkg / "named.py").write_text("A = 1\n", encoding="utf-8")
+    (pkg / "designed.py").write_text("B = 2\n", encoding="utf-8")
+    spec = {"summary": "Change src/app/named.py.", "acceptance_criteria": []}
+
+    block = _named_existing_files(spec, tmp_path, "also touch src/app/designed.py")
+
+    assert block.index("named.py") < block.index("designed.py")
+
+
+async def test_a_type_error_pulls_in_the_definition_it_names(tmp_path: Path) -> None:
+    """The loop that could not converge: mypy said `"MCPToolHandler" has no attribute
+    "input_schema"`, the model guessed `handler.tool`, was rejected identically, and spent its
+    whole budget proposing names for a class no stage had ever shown it."""
+
+    class _Grounder:
+        def __init__(self) -> None:
+            self.asked: list[str] = []
+
+        def context_for_spec(self, spec: dict[str, Any]) -> str:
+            return ""
+
+        def context_for_symbols(self, names: list[str]) -> str:
+            self.asked = names
+            return "### Type `MCPToolHandler`\nclass MCPToolHandler:\n    self._qualified = ...\n"
+
+    grounder = _Grounder()
+    adapter = LLMCodegenAdapter(_ScriptedLLM([]), grounder=grounder)
+    errors = 'src/orchestrator/cli.py:1126: error: "MCPToolHandler" has no attribute "tool"'
+
+    block = adapter._definitions_for(errors, tmp_path)
+
+    assert "MCPToolHandler" in grounder.asked
+    assert "class MCPToolHandler" in block
+
+
+async def test_a_failure_naming_nothing_adds_no_definitions(tmp_path: Path) -> None:
+    adapter = LLMCodegenAdapter(_ScriptedLLM([]))
+    assert adapter._definitions_for("E   assert 1 == 2", tmp_path) == ""
+
+
+async def test_author_tests_is_shown_how_this_repo_tests_the_module(tmp_path: Path) -> None:
+    """Told to reach the entry point, a run reached for CliRunner — right instinct — then
+    spent its budget guessing the Typer app was named `cli`, and edited *production* cli.py
+    to add an alias so its own test would import. The answer was in tests/test_cli.py."""
+    from orchestrator.sdlc.codegen import _existing_test_examples
+
+    (tmp_path / "src" / "app").mkdir(parents=True)
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "src" / "app" / "cli.py").write_text("entry = 1\n", encoding="utf-8")
+    (tmp_path / "tests" / "test_cli.py").write_text(
+        "from app.cli import entry\n\n\ndef test_entry() -> None:\n    assert entry == 1\n",
+        encoding="utf-8",
+    )
+
+    block = _existing_test_examples({"summary": "change it"}, tmp_path, "touch src/app/cli.py")
+
+    assert "from app.cli import entry" in block
+
+
+async def test_a_file_that_only_mentions_the_module_does_not_count(tmp_path: Path) -> None:
+    """Mentioning a module is not testing it: a wikilink test naming `orchestrator.cli.md`
+    six times outranked tests/test_cli.py, which imports the app."""
+    from orchestrator.sdlc.codegen import _exercises_module
+
+    assert _exercises_module("from orchestrator.cli import app\n", "orchestrator.cli") > 0
+    assert _exercises_module('monkeypatch.setattr("orchestrator.cli.thing", x)\n', "orchestrator.cli") > 0
+    assert _exercises_module('doc = "orchestrator.cli.md"\n' * 6, "orchestrator.cli") == 0
+
+
+async def test_no_existing_tests_is_not_an_error(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import _existing_test_examples
+
+    assert _existing_test_examples({"summary": "x"}, tmp_path, "touch src/app/nothing.py") == ""
+
+
+async def test_the_layout_permits_editing_the_repo_s_own_docs(tmp_path: Path) -> None:
+    """The layout block is stamped "authoritative — overrides any default path guidance"
+    and leads every phase prompt, so its absolute ban on files outside src/ and tests/
+    beat the revise prompt's explicit permission to write documentation. A run said so in
+    its own summary: "USER_GUIDE.md is outside the allowed src/tests paths so the doc note
+    was not added" — while the judge was failing the ticket for the missing doc."""
+    from orchestrator.sdlc.codegen import LLMCodegenAdapter
+    from orchestrator.sdlc.layout import TargetLayout
+
+    layout = TargetLayout(
+        package_name="app",
+        source_dir="src/app",
+        tests_dir="tests",
+        src_layout=True,
+        mode="existing",
+        language="python",
+    )
+    block = LLMCodegenAdapter(_ScriptedLLM([]), layout=layout)._layout_block()
+
+    assert "MAY edit files that already exist" in block
+    assert "USER_GUIDE" in block
+    # The part that was right stays: invented paths are still refused.
+    assert "do NOT invent unrelated top-level paths" in block
+
+
+# ---- generated Python that does not parse never reaches disk (SSPN-14) ----
+
+
+async def test_unparseable_generated_python_is_refused_and_repaired(tmp_path: Path) -> None:
+    """A live run wrote a test file ending in a stray `</content>` — markup that leaked
+    out of the tool payload into the file body. The only symptom was `rc=2` from pytest
+    three stages later, buried in an importlib traceback; refine spent both attempts on
+    that and never found the line."""
+    broken = _files_response({"src/a.py": "def f():\n    return 1\n</content>\n"})
+    good = _files_response({"src/a.py": "def f():\n    return 1\n"})
+    llm = _ScriptedLLM([broken, good])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-1")
+
+    assert len(llm.calls) == 2  # the syntax error bought a corrective retry
+    assert "</content>" not in (tmp_path / "src" / "a.py").read_text()
+    assert [Path(f).name for f in change.files] == ["a.py"]
+
+
+async def test_the_repair_names_the_line(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import _python_syntax_error
+
+    err = _python_syntax_error("tests/test_x.py", "def f():\n    return 1\n</content>\n")
+
+    assert "line 3" in err and "</content>" in err
+
+
+async def test_a_broken_file_is_never_written(tmp_path: Path) -> None:
+    """Not written, not left behind: an unparseable module turns the whole suite into a
+    collection error, so every later stage reads an unrelated traceback instead."""
+    llm = _ScriptedLLM([_files_response({"src/bad.py": "def f(\n"})] * 2)
+
+    with pytest.raises(CodegenError):
+        await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-2")
+
+    assert not (tmp_path / "src" / "bad.py").exists()
+
+
+async def test_non_python_files_are_not_syntax_checked(tmp_path: Path) -> None:
+    """Markdown is not Python. The doc a criterion demands must still get written."""
+    llm = _ScriptedLLM([_files_response({"USER_GUIDE.md": "# Step 9\n\nnot <<< python\n"})])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-3")
+
+    assert [Path(f).name for f in change.files] == ["USER_GUIDE.md"]
+
+
+async def test_an_empty_retry_does_not_consume_the_syntax_retry(tmp_path: Path) -> None:
+    """The live sequence exactly: the model submitted no files, spent the one shared
+    retry recovering from that, then produced a file with a stray `</content>` — and the
+    syntax error, the very thing the retry exists for, had no attempt left."""
+    empty = '{"summary": "nothing yet"}'
+    broken = _files_response({"src/a.py": "def f():\n    return 1\n</content>\n"})
+    good = _files_response({"src/a.py": "def f():\n    return 1\n"})
+    llm = _ScriptedLLM([empty, broken, good])
+
+    change = await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-1")
+
+    assert len(llm.calls) == 3  # empty → corrected, syntax → corrected, then clean
+    assert [Path(f).name for f in change.files] == ["a.py"]
+    assert "</content>" not in (tmp_path / "src" / "a.py").read_text()
+
+
+async def test_the_same_failure_twice_still_stops(tmp_path: Path) -> None:
+    """Per-kind, not unlimited: a kind that fails twice is looping, not fixing."""
+    broken = _files_response({"src/a.py": "def f(\n"})
+    llm = _ScriptedLLM([broken, broken])
+
+    with pytest.raises(CodegenError):
+        await LLMCodegenAdapter(llm).implement(spec=_SPEC, path=str(tmp_path), issue_key="S-2")
+
+    assert len(llm.calls) == 2  # one correction for that kind, then it gives up
+
+
+def test_each_failure_kind_is_classified_apart() -> None:
+    from orchestrator.sdlc.codegen import _failure_kind
+
+    assert _failure_kind(CodegenError("x", parse_detail="bad json")) == "parse"
+    assert _failure_kind(CodegenError("x", syntax_errors=["a.py: line 1"])) == "syntax"
+    assert _failure_kind(CodegenError("x", failed_edit_paths=["a.py"])) == "anchors"
+    assert _failure_kind(CodegenError("x", empty_summary="did nothing")) == "empty"
+
+
+async def test_a_big_file_no_longer_hides_the_small_ones_from_refine(tmp_path: Path) -> None:
+    """The live failure, stated by the model itself: "the failure is in models.py … but
+    that file's current content was not provided, so I have no verbatim anchor to edit it
+    safely." It was right — `cli.py` was 91 KB against a 40 KB budget, the loop hit
+    `break`, and every file after it was dropped. `models.py` was 1.8 KB."""
+    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
+
+    for rel, body in (
+        ("small_first.py", "a = 1\n"),
+        ("huge.py", "# " + "x" * (_MAX_CONTEXT_BYTES + 5_000)),
+        ("tiny_last.py", "class MCPTool:\n    server: str\n"),
+    ):
+        target = tmp_path / rel
+        target.write_text(body, encoding="utf-8")
+
+    adapter = LLMCodegenAdapter(_ScriptedLLM([]))
+    adapter._written[tmp_path.resolve()] = [
+        tmp_path / r for r in ("small_first.py", "huge.py", "tiny_last.py")
+    ]
+
+    block = adapter._session_files(tmp_path, include_tests=True)
+
+    # The file *after* the oversized one is the whole point.
+    assert "tiny_last.py" in block
+    assert "class MCPTool" in block
+    assert "small_first.py" in block
+    assert "huge.py" in block  # windowed, not dropped
+
+
+async def test_refine_windows_land_on_what_the_traceback_names(tmp_path: Path) -> None:
+    """On a file too big to show whole, the excerpt should cover the failing line rather
+    than the top of the module."""
+    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
+
+    needle = "def the_function_that_broke() -> None:"
+    filler = "\n".join(f"def pad_{i}() -> int:\n    return {i}\n" for i in range(_MAX_CONTEXT_BYTES // 18))
+    half = len(filler) // 2
+    (tmp_path / "big.py").write_text(filler[:half] + f"\n{needle}\n" + filler[half:], encoding="utf-8")
+
+    adapter = LLMCodegenAdapter(_ScriptedLLM([]))
+    adapter._written[tmp_path.resolve()] = [tmp_path / "big.py"]
+
+    block = adapter._session_files(tmp_path, include_tests=True, anchors=["the_function_that_broke"])
+
+    assert needle in block

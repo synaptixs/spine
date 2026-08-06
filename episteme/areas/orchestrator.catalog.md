@@ -32,7 +32,7 @@ flowchart LR
 - [`orchestrator.catalog.catalog`](../../src/orchestrator/catalog/catalog.py#L1)
 - [`orchestrator.catalog.models`](../../src/orchestrator/catalog/models.py#L1)
 - [`orchestrator.catalog.planner`](../../src/orchestrator/catalog/planner.py#L1)
-- [`orchestrator.catalog.profile`](../modules/orchestrator.catalog.profile.md)
+- [`orchestrator.catalog.profile`](../../src/orchestrator/catalog/profile.py#L1)
 - [`orchestrator.catalog.skill_import`](../../src/orchestrator/catalog/skill_import.py#L1)
 - [`orchestrator.catalog.skills`](../../src/orchestrator/catalog/skills.py#L1)
 - [`orchestrator.catalog.vetting`](../../src/orchestrator/catalog/vetting.py#L1)
