@@ -111,14 +111,37 @@ orchestrator doctor    # readiness report — tells you exactly what's set and w
 | Setting | What it's for | Needed by |
 |---|---|---|
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | Your LLM provider | Step 3 |
-| `ORCHESTRATOR_INTAKE_MODEL` | One model for everything, e.g. `gpt-4o` | Step 3 |
+| `ORCHESTRATOR_MODEL` | One model for every stage (optional — defaults to `claude-opus-5`) | Step 3 |
 | `CONFLUENCE_*`, `JIRA_*` | Read requirements / file issues | Step 4 |
 | `SDLC_REPO_URL` | The repo it builds **into** | Step 4 |
 | `GITHUB_TOKEN` *(or `GITHUB_APP_*`)* | Auth for a private target repo | Step 4 |
 
-> **Tip:** set `ORCHESTRATOR_INTAKE_MODEL` explicitly (e.g. `gpt-4o`). One model
-> then drives every stage. A heavyweight default can time out on large code
-> generations.
+### Choosing a model
+
+Every stage runs on `claude-opus-5` unless you say otherwise. To see what you can
+point it at — with context windows, prices, and which models support the tool
+calling the pipeline requires:
+
+```bash
+orchestrator models                    # everything, plus what each stage uses now
+orchestrator models --provider openai  # just one vendor
+```
+
+Set one knob for everything, or a model per stage:
+
+| Variable | Drives |
+|---|---|
+| `ORCHESTRATOR_MODEL` | every stage |
+| `SDLC_CODEGEN_MODEL` | codegen — implement, refine, revise, author_tests |
+| `SDLC_JUDGE_MODEL` | the acceptance judge |
+| `ORCHESTRATOR_INTAKE_MODEL` | intent extraction and spec writing |
+
+A stage's own variable wins over `ORCHESTRATOR_MODEL`, which wins over the default.
+Pointing a stage at another vendor needs that vendor's key in the environment.
+
+> **Tool calling is required, not preferred.** Codegen and the judge both force a
+> tool call. On a model without it they fall back to reading prose out of a text
+> reply, which is far less reliable — `orchestrator models` marks those.
 
 ---
 
@@ -569,7 +592,7 @@ edits — use a **coder** model there. You can even mix local and cloud per stag
 
 ```bash
 ORCHESTRATOR_INTAKE_MODEL=ollama/qwen2.5-coder   # cheap stages, local
-SDLC_CODEGEN_MODEL=gpt-4o                         # codegen, cloud quality
+SDLC_CODEGEN_MODEL=claude-opus-5                  # codegen, cloud quality
 SDLC_REVIEW_MODEL=ollama/qwen2.5-coder            # the review judge
 ```
 
@@ -748,7 +771,7 @@ writes, runs the tests, and fixes — and (Step 9) calls approved external tools
 
 - **Off by default** — single-shot stays default until you're happy with cost
   (the loop makes several model calls per feature).
-- **Needs a tool-calling model** (`gpt-4o`, `claude-*`); otherwise it falls back
+- **Needs a tool-calling model** (`claude-*`, `gpt-5*`); otherwise it falls back
   to single-shot.
 - **Safe by construction** — a hard step cap, a per-run spend budget
   (`SDLC_RUN_BUDGET_USD`), the same write guards as single-shot, and external
@@ -987,7 +1010,7 @@ Destructive tools stay gated regardless of auth: `sdlc_feature(live=true)` and
 | Symptom | Fix |
 |---|---|
 | `doctor` shows everything missing | Run it from the folder that has your `.env`. |
-| Codegen times out | Set `ORCHESTRATOR_INTAKE_MODEL=gpt-4o` (or another fast model). |
+| Codegen times out | Set `ORCHESTRATOR_MODEL` to a faster model (see `orchestrator models`). |
 | Private repo clone fails | Set `GITHUB_TOKEN` (PAT) or the GitHub App (`GITHUB_APP_*`). |
 | Console asks for an API key | Paste the `ORCHESTRATOR_API_KEY` you started the server with (`dev-key` above). |
 | `sdlc run` hangs at a gate | Approve it in the console or via `/v1/approvals/.../approve`. |
@@ -995,7 +1018,7 @@ Destructive tools stay gated regardless of auth: `sdlc_feature(live=true)` and
 | `mcp list` shows no servers | Add an `mcpServers` file (`--config`, `$ORCHESTRATOR_MCP_CONFIG`, or `./mcp.json`). |
 | `mcp` commands fail to import | Install the extra: `pip install 'synaptixs-spine[mcp]'` (or `uv sync --extra mcp`). |
 | An MCP tool is "not allow-listed" / write-gated | Add it to the server's `allow`; for mutating tools set `write_enabled: true`. |
-| Agentic loop falls back to single-shot | Use a tool-calling model (`gpt-4o`, `claude-*`) and set `SDLC_CODEGEN=llm`. |
+| Agentic loop falls back to single-shot | Use a tool-calling model (see `orchestrator models`) and set `SDLC_CODEGEN=llm`. |
 | `orchestrator-mcp --http` refuses to start | Set `ORCHESTRATOR_MCP_TOKEN` or `…_INTROSPECTION_URL`, bind `127.0.0.1`, or pass `--allow-unauthenticated` on a trusted net. |
 | Remote client gets 401 | Send `Authorization: Bearer <token>`; for introspection confirm the token is active and carries the required scope. |
 | `Nondeterminism error` on replay | An in-flight workflow predates a code change. Terminate the stale run (Temporal UI); new runs are unaffected. |

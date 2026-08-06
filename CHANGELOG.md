@@ -4,7 +4,7 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
-## Unreleased — A green suite is not a working change
+## 3.13.0 — A green suite is not a working change
 
 Found by running one ticket end to end a dozen times. Every stage of the build loop was
 working from an input it could not see, and reporting the gap as a defect in the work
@@ -34,6 +34,12 @@ useless change now fail with a reason.
   the test author by name.
 - **`sdlc autorun` is documented** in `CLI_REFERENCE.md`, including what each bracketed
   stage line means. It was the primary entry point and had no reference entry.
+- **`orchestrator mcp contracts` labels every argument with its declared type**, read from
+  the server's own JSON Schema at display time — `string`, `string|null` for a union, and
+  `any` when the schema gives no top-level type (`anyOf`, `$ref`, or no schema at all). A
+  parallel `input_types` map carries the same labels keyed by name. Display-only: nothing is
+  stored and `mcp call` is unaffected. **Note:** the existing `inputs` field changed shape
+  from `["name"]` to `["name (type)"]` — if you parse that output, this is a break.
 - **`orchestrator models`** — every model the pipeline can be pointed at, with context
   window, price per million tokens, and whether it supports tool calling, plus what
   each stage is resolving to right now. Read from the installed LiteLLM's own catalog
@@ -75,6 +81,29 @@ useless change now fail with a reason.
   lists the alternatives with prices. Codegen's output cap also rises 16k → 32k
   tokens: on the current Claude models thinking is on unless disabled and shares that
   budget, so a cap sized around the JSON payload alone truncates mid-object.
+- **Generated Python is parsed before it is written.** A file that does not compile used to
+  reach disk and surface three stages later as an opaque pytest `rc=2`, with the real
+  `SyntaxError` buried in an importlib traceback. It is now refused at the write with the
+  file, line, and offending text, and takes a corrective retry.
+- **Each kind of failure gets its own corrective attempt.** Unparseable JSON, a failed edit
+  anchor, an empty submission and unparseable Python previously shared a single retry, so
+  whichever failed first consumed it. A kind that fails twice still stops.
+- **No context builder drops a file silently.** Four separate loops — the files fed to
+  refine, the acceptance judge's reader, the anchor-repair block, and PKG grounding — stopped
+  at the first item too large for the budget and dropped everything after it. A 91 KB
+  `cli.py` could hide a 1.8 KB module the model then edited blind and could not repair. All
+  four now allocate fairly and name what they omit.
+- **Editing the repo's own docs is not inventing a path.** The layout guidance banned every
+  file outside the source and test directories, which made any documentation criterion
+  impossible to satisfy. New code and tests are still confined; changing a file the repo
+  already has — README, USER_GUIDE, CHANGELOG, pyproject.toml — is allowed.
+- **A criterion the judge cannot verify no longer ships.** An `uncertain` verdict stays a
+  comment, but now carries a blocker and enters the revision loop like any other, instead of
+  passing straight through because it was not `request_changes`.
+- **The type check no longer discards codes the target repo enforces.** Only `import-not-found`
+  and `import-untyped` are filtered, since a generated worktree carries runtime deps only.
+  Everything else is the repo's own mypy policy — filtering it made "clean" mean less than
+  CI clean.
 - **A safe-mode rehearsal no longer counts as a duplicate.** The check refused any second
   run on a ticket whose first run finished, so a ticket became unworkable after its first
   dry run. Only a run that reached a PR blocks another.
