@@ -722,6 +722,36 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --saf
 | `--out` | Where run artifacts go (default: a run dir under the temp dir). |
 | `--resume` | Continue a run by id — adopts the issue it already created. |
 | `--max-cost` | Cap LLM spend (USD) for this run; exhausting it parks the run. |
+| `--spec` | Implement a hand-written spec (JSON) instead of deriving one from the source. Intake is skipped entirely and recorded as `skipped`. |
+
+**Implementing a spec you wrote (`--spec`).** Normally intake derives the spec from
+the source document. Pass `--spec path.json` to supply it directly — the pipeline
+builds exactly what the file says, and the `[intake]` line reports `skipped` rather
+than implying a document was read.
+
+Use it when the spec is already settled (a remediation, something agreed in review),
+or when intake itself is what the ticket is about — letting a defective stage write
+the specification for its own repair is circular.
+
+```json
+{
+  "title": "Keep invented criteria separable",
+  "intent_id": "SSPN-31",
+  "summary": "Intake appends inferred criteria to the stated ones, losing provenance.",
+  "acceptance_criteria": [
+    "A criterion the source did not state is emitted as proposed, not as fact."
+  ],
+  "technical_notes": "FeatureSpec gains a proposed_criteria field."
+}
+```
+
+Only `title` and `acceptance_criteria` are required; `intent_id` defaults to the
+filename stem. The file is JSON rather than markdown on purpose — it is validated
+strictly, so a misspelled `acceptance-criteria` is an error naming the valid fields
+instead of a run that proceeds with no criteria and passes by default. An empty
+criteria list is refused for the same reason.
+
+The `--source` argument is still required and still what the run is filed against.
 
 **Reading the output.** Each stage prints a bracketed line. The ones that decide
 whether a change ships:
@@ -779,6 +809,7 @@ orchestrator sdlc feature [OPTIONS]
 | `--base` | PR target branch (default: $SDLC_PR_BASE, else the repo's default branch). |
 | `--layout` | Target structure: auto (scaffold only empty repos), new (always scaffold a src/<pkg>/ skeleton), or existing (follow the repo's layout). (default: `auto`) |
 | `--package-name` | Override the scaffold package name (default: derived from repo). |
+| `--spec` | Implement a hand-written spec (JSON) instead of deriving one from the source — see `sdlc autorun` above for the format. |
 | `--refresh` | Re-extract intents from the source (default: reuse the cached, deterministic backlog). |
 | `--language` | Target language: auto (detect), python, java, typescript, csharp, c, cpp, go, or sql. (default: `auto`) |
 

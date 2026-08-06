@@ -551,6 +551,7 @@ def _run(
     resume: str | None = None,
     issue: str | None = None,
     max_cost_usd: float | None = None,
+    spec: dict[str, Any] | None = None,
 ) -> RunContext:
     """Run the skeleton against a tiny real repo, so the graph stages do real work."""
     import asyncio
@@ -571,5 +572,71 @@ def _run(
             resume=resume,
             issue=issue,
             max_cost_usd=max_cost_usd,
+            spec=spec,
         )
     )
+
+
+# --- A hand-written spec replaces intake (--spec) -----------------------------------
+#
+# Intake derives a spec from a source document. When the ticket's repair is a defect in
+# intake itself, letting it write the specification for its own fix is circular — so the
+# stage has to be skippable, and visibly so.
+
+_INJECTED = {
+    "title": "Keep invented criteria separable",
+    "intent_id": "SSPN-31",
+    "summary": "Intake appends inferred criteria to the stated ones.",
+    "acceptance_criteria": ["A criterion the source did not state is emitted as proposed."],
+}
+
+
+def test_an_injected_spec_is_what_every_later_stage_sees(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    seen = _install(monkeypatch, tmp_path)
+
+    ctx = _run(tmp_path, spec=dict(_INJECTED))
+
+    assert ctx.spec is not None and ctx.spec["title"] == _INJECTED["title"]
+    assert ctx.spec["acceptance_criteria"] == _INJECTED["acceptance_criteria"]
+    assert seen["feature_kwargs"]["spec"] == ctx.spec, "the implement stage gets the same spec"
+
+
+def test_an_injected_spec_records_intake_as_skipped_not_ok(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A run summary must never imply a source document was read when none was."""
+    _install(monkeypatch, tmp_path)
+
+    ctx = _run(tmp_path, spec=dict(_INJECTED))
+
+    intake = next(s for s in ctx.stages if s.name == "intake")
+    assert intake.status == "skipped"
+    assert "spec supplied" in (intake.detail or "")
+
+
+def test_intake_does_not_run_at_all_when_a_spec_is_given(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The point of --spec for SSPN-31: the defective stage must not execute."""
+    _install(monkeypatch, tmp_path)
+
+    def _boom(*a: Any, **k: Any) -> Any:
+        raise AssertionError("intake ran despite an injected spec")
+
+    monkeypatch.setattr("orchestrator.intake.cache.analyze_cached", _boom)
+
+    ctx = _run(tmp_path, spec=dict(_INJECTED))
+    assert ctx.passed
+
+
+def test_an_injected_spec_without_an_intent_id_still_gets_one(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install(monkeypatch, tmp_path)
+    spec = {k: v for k, v in _INJECTED.items() if k != "intent_id"}
+
+    ctx = _run(tmp_path, spec=spec)
+
+    assert ctx.spec is not None and ctx.spec["intent_id"] == "injected"
