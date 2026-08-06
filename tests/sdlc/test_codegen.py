@@ -1534,3 +1534,50 @@ def test_each_failure_kind_is_classified_apart() -> None:
     assert _failure_kind(CodegenError("x", syntax_errors=["a.py: line 1"])) == "syntax"
     assert _failure_kind(CodegenError("x", failed_edit_paths=["a.py"])) == "anchors"
     assert _failure_kind(CodegenError("x", empty_summary="did nothing")) == "empty"
+
+
+async def test_a_big_file_no_longer_hides_the_small_ones_from_refine(tmp_path: Path) -> None:
+    """The live failure, stated by the model itself: "the failure is in models.py … but
+    that file's current content was not provided, so I have no verbatim anchor to edit it
+    safely." It was right — `cli.py` was 91 KB against a 40 KB budget, the loop hit
+    `break`, and every file after it was dropped. `models.py` was 1.8 KB."""
+    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
+
+    for rel, body in (
+        ("small_first.py", "a = 1\n"),
+        ("huge.py", "# " + "x" * (_MAX_CONTEXT_BYTES + 5_000)),
+        ("tiny_last.py", "class MCPTool:\n    server: str\n"),
+    ):
+        target = tmp_path / rel
+        target.write_text(body, encoding="utf-8")
+
+    adapter = LLMCodegenAdapter(_ScriptedLLM([]))
+    adapter._written[tmp_path.resolve()] = [
+        tmp_path / r for r in ("small_first.py", "huge.py", "tiny_last.py")
+    ]
+
+    block = adapter._session_files(tmp_path, include_tests=True)
+
+    # The file *after* the oversized one is the whole point.
+    assert "tiny_last.py" in block
+    assert "class MCPTool" in block
+    assert "small_first.py" in block
+    assert "huge.py" in block  # windowed, not dropped
+
+
+async def test_refine_windows_land_on_what_the_traceback_names(tmp_path: Path) -> None:
+    """On a file too big to show whole, the excerpt should cover the failing line rather
+    than the top of the module."""
+    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
+
+    needle = "def the_function_that_broke() -> None:"
+    filler = "\n".join(f"def pad_{i}() -> int:\n    return {i}\n" for i in range(_MAX_CONTEXT_BYTES // 18))
+    half = len(filler) // 2
+    (tmp_path / "big.py").write_text(filler[:half] + f"\n{needle}\n" + filler[half:], encoding="utf-8")
+
+    adapter = LLMCodegenAdapter(_ScriptedLLM([]))
+    adapter._written[tmp_path.resolve()] = [tmp_path / "big.py"]
+
+    block = adapter._session_files(tmp_path, include_tests=True, anchors=["the_function_that_broke"])
+
+    assert needle in block

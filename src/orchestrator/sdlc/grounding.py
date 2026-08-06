@@ -80,12 +80,22 @@ class PKGCodegenGrounder:
         symbols = self._retriever.api_surface(_spec_query(spec))
         blocks: list[str] = []
         budget = _MAX_CONTEXT_CHARS
+        # Skip what does not fit; never stop. `break` here means one oversized symbol
+        # hides every symbol ranked below it — the same silent-drop that cost three
+        # separate runs in the codegen context builders.
+        skipped = 0
         for symbol in symbols:
             block = self._symbol_block(symbol)
             if len(block) > budget:
-                break
+                skipped += 1
+                continue
             budget -= len(block)
             blocks.append(block)
+        if skipped:
+            blocks.append(
+                f"\n[{skipped} further symbol(s) omitted for size — their absence is not "
+                "evidence they do not exist.]\n"
+            )
         if blocks:
             sections.append(
                 "EXISTING CODEBASE CONTEXT (from the Product Knowledge Graph — real "
