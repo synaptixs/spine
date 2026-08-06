@@ -6,6 +6,17 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Added
+
+- **`--spec` on `sdlc autorun` and `sdlc feature`** — implement a spec you wrote instead of
+  one derived from the source. Intake is skipped entirely and the `[intake]` line reports
+  `skipped`, so a run summary never implies a source document was read when none was. For a
+  settled spec (a remediation, something agreed in review) — or when intake itself is what
+  the ticket is about, where letting a defective stage specify its own repair is circular.
+  The file is JSON validated against `FeatureSpec` rather than markdown: a misspelled
+  `acceptance-criteria` is an error naming the valid fields, not a run that proceeds with no
+  criteria and passes by default. An empty criteria list is refused for the same reason.
+
 ### Fixed
 
 - **A server that declares a structured argument as a JSON string now gets one.**

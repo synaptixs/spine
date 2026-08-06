@@ -195,6 +195,7 @@ async def autorun(
     approvals_dir: Path | None = None,
     resume: str | None = None,
     max_cost_usd: float | None = None,
+    spec: dict[str, Any] | None = None,
     store: Any = None,
     log: Callable[[str], None] | None = None,
 ) -> RunContext:
@@ -284,7 +285,7 @@ async def autorun(
     ):
         try:
             with ctx.stage_span("intake"):
-                await _stage_intake(ctx, intent_id=intent_id, emit=emit)
+                await _stage_intake(ctx, intent_id=intent_id, spec=spec, emit=emit)
             store_graph, overview = _load_graph(ctx, emit=emit)
             with ctx.stage_span("investigate"):
                 _stage_investigate(ctx, store=store_graph, emit=emit)
@@ -400,13 +401,30 @@ def _refuse_undecided_resume(record: Any, approvals_dir: Path | None, emit: Call
 # ---- stages ----------------------------------------------------------------
 
 
-async def _stage_intake(ctx: RunContext, *, intent_id: str | None, emit: Callable[[str], None]) -> None:
+async def _stage_intake(
+    ctx: RunContext,
+    *,
+    intent_id: str | None,
+    spec: dict[str, Any] | None = None,
+    emit: Callable[[str], None],
+) -> None:
     """Resolve the source to one spec, once, and hand it to every later stage.
 
     ``run_feature`` can do its own intake, but then the brief and design would be written for
     a spec the implementation stage might re-derive differently. Resolving here and injecting
     it keeps all four stages talking about the same thing.
+
+    A caller-supplied ``spec`` replaces that derivation outright: intake does not run, and
+    the stage records *skipped* rather than *ok*, so the summary never implies a source
+    document was read. The source URI is still what the run is filed against.
     """
+    if spec is not None:
+        ctx.spec = dict(spec)
+        ctx.spec.setdefault("intent_id", intent_id or "injected")
+        ctx.record_stage("intake", "skipped", "spec supplied by the caller")
+        emit(f"[intake] skipped — spec supplied: {ctx.spec.get('title', '')}")
+        return
+
     from orchestrator.core.env import load_local_env
     from orchestrator.intake.cache import analyze_cached
     from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
