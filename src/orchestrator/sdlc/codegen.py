@@ -282,6 +282,7 @@ class CodegenError(RuntimeError):
         failed_edit_paths: list[str] | None = None,
         missing_edit_paths: list[str] | None = None,
         failed_anchors: dict[str, list[str]] | None = None,
+        syntax_errors: list[str] | None = None,
         parse_detail: str = "",
         empty_summary: str = "",
     ) -> None:
@@ -299,6 +300,10 @@ class CodegenError(RuntimeError):
         # Set when the model answered in the right shape but submitted no files. Its own
         # summary is the useful part — it usually says why it thought nothing was needed.
         self.empty_summary = empty_summary
+        # Generated Python that does not parse. Its own kind rather than an anchor miss:
+        # the fix is different (re-emit the file, don't re-anchor) and, more importantly,
+        # it needs its own retry — see `_generate`.
+        self.syntax_errors = list(syntax_errors or [])
 
 
 @runtime_checkable
@@ -1471,22 +1476,30 @@ class LLMCodegenAdapter:
         nothing there is a real failure.
         """
         text = await self._complete(system, user)
-        # One corrective retry, whichever way the first attempt failed. Written as a loop
-        # rather than two nested handlers because the nested form only guarded the *first*
-        # apply: a real run hit failed edits, took the repair retry, and the repaired
-        # response was unparseable JSON — which escaped, because nothing was watching the
-        # second apply. Two failure kinds, one retry budget, one guarded call site.
-        for attempt in range(2):
+        # One corrective attempt per KIND of failure, not one shared by all of them.
+        #
+        # It used to be a single retry for every kind, and a live run showed why that is
+        # too few: the model submitted no files, spent the one retry recovering from that,
+        # then produced a file with a stray `</content>` in it — and the syntax error, the
+        # very thing the retry exists for, had no attempt left. Same shape as three checks
+        # sharing one `--max-refine` pool.
+        #
+        # Per-kind also keeps the old guarantee: a kind that fails twice is looping, not
+        # fixing, so it stops. `_MAX_GENERATE_ATTEMPTS` bounds the whole thing regardless.
+        spent: set[str] = set()
+        for _ in range(_MAX_GENERATE_ATTEMPTS):
             try:
                 return self._apply(text, root, allow_empty=allow_empty)
             except CodegenError as exc:
-                if attempt:  # the retry itself failed — a third attempt is a loop, not a fix
+                kind = _failure_kind(exc)
+                if kind in spent:  # already corrected this once — a third go is a loop
                     raise
                 suffix = self._corrective_suffix(exc, root)
                 if suffix is None:
                     raise
+                spent.add(kind)
                 text = await self._complete(system, f"{user}{suffix}")
-        raise CodegenError("codegen retry did not produce a usable change")  # unreachable
+        raise CodegenError("codegen retries did not produce a usable change")  # unreachable
 
     def _corrective_suffix(self, exc: CodegenError, root: Path) -> str | None:
         """What to tell the model about its last attempt, or ``None`` if nothing can help."""
@@ -1499,6 +1512,17 @@ class LLMCodegenAdapter:
                 extra={"failed": exc.failed_edit_paths, "missing": exc.missing_edit_paths},
             )
             return self._repair_block(exc, root)
+        if exc.syntax_errors:
+            logger.warning("sdlc.codegen.syntax_retry", extra={"errors": exc.syntax_errors[:3]})
+            listed = "\n".join(f"  - {m}" for m in exc.syntax_errors)
+            return (
+                "\n\nYOUR PREVIOUS ATTEMPT PRODUCED PYTHON THAT DOES NOT PARSE, so it was "
+                "not written:\n"
+                f"{listed}\n"
+                "Re-emit those files complete and syntactically valid. Send only the file's "
+                "own source — no XML or markup wrappers, no `<content>` tags, no fences, "
+                "nothing after the final line of code.\n"
+            )
         if exc.empty_summary:
             logger.warning("sdlc.codegen.empty_retry summary=%r", exc.empty_summary[:160])
             return (
@@ -1653,6 +1677,7 @@ def apply_files(
     edit_failure_paths: list[str] = []
     attempted_anchors: dict[str, list[str]] = {}
     syntax_failures: list[str] = []
+    syntax_messages: list[str] = []
     missing_targets: list[str] = []  # edits aimed at a file that doesn't exist yet
     tracked_now = written_tracker.get(root.resolve(), [])
     for entry in files:
@@ -1694,6 +1719,7 @@ def apply_files(
             if broken:
                 edit_failures.append(broken)
                 syntax_failures.append(rel)
+                syntax_messages.append(broken)
                 continue
             target.write_text(patched, encoding="utf-8")
             written.append(str(target))
@@ -1739,6 +1765,7 @@ def apply_files(
             # pytest traceback instead of one line naming the problem.
             edit_failures.append(broken)
             syntax_failures.append(rel)
+            syntax_messages.append(broken)
             continue
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
@@ -1776,6 +1803,7 @@ def apply_files(
             failed_edit_paths=unmodified_existing,
             missing_edit_paths=missing_targets,
             failed_anchors=attempted_anchors,
+            syntax_errors=syntax_messages,
         )
     if not written:
         detail = f" ({'; '.join(edit_failures)})" if edit_failures else ""
@@ -2054,6 +2082,22 @@ def _coverage_gap_block(gaps: list[str]) -> str:
         "user does — through the command or public function that was changed, not through a "
         "helper it calls, or the same gap will still be there.\n"
     )
+
+
+_MAX_GENERATE_ATTEMPTS = 4  # first try plus one correction per failure kind
+
+
+def _failure_kind(exc: CodegenError) -> str:
+    """Which sort of wrong this was, so each sort gets its own corrective attempt."""
+    if exc.parse_detail:
+        return "parse"
+    if exc.syntax_errors:
+        return "syntax"
+    if exc.failed_edit_paths or exc.missing_edit_paths:
+        return "anchors"
+    if exc.empty_summary:
+        return "empty"
+    return "other"
 
 
 def _python_syntax_error(rel: str, source: str) -> str:
