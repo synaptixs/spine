@@ -26,7 +26,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from orchestrator.core.llm import CompletionResult, LLMClient, Message, catalog
+from orchestrator.core.llm import CompletionResult, LLMClient, Message, ToolSpec, catalog
 from orchestrator.intake.source import SourceDocument
 
 logger = logging.getLogger("orchestrator.intake.intents")
@@ -72,6 +72,50 @@ _SYSTEM_PROMPT = (
     "of 'async notify_approval_raised(...) -> bool returns True on 2xx' lets "
     "the implementation invent its own API. Leave the array empty only when "
     "the document states no criteria."
+)
+
+# The same contract as the prompt, as a tool the provider makes the model call.
+#
+# `json_object=True` was doing the constraining here, and `response_format` is an
+# OpenAI/Ollama-only lever — Anthropic drops it, and the default intake model is an
+# Anthropic one, so extraction ran completely unconstrained and leaned on the
+# brace-scanning salvage in `_loads_json_object`. Codegen and the acceptance judge
+# were converted to a forced tool call for exactly this; intake was not. The prompt
+# still spells the contract out, because the schema says nothing about fidelity.
+_SUBMIT_TOOL = ToolSpec(
+    name="submit_intents",
+    description=(
+        "Submit the discrete, buildable intents derived from the source documents. "
+        "Call this exactly once, with every intent you found."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "intents": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string", "description": "Short imperative capability name."},
+                        "description": {"type": "string"},
+                        "scope": {"type": "string"},
+                        "acceptance_criteria": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Criteria the document states, copied VERBATIM.",
+                        },
+                        "dependencies": {"type": "array", "items": {"type": "string"}},
+                        "nfrs": {"type": "array", "items": {"type": "string"}},
+                        "open_questions": {"type": "array", "items": {"type": "string"}},
+                        "source_titles": {"type": "array", "items": {"type": "string"}},
+                        "confidence": {"type": "number"},
+                    },
+                    "required": ["title", "description"],
+                },
+            }
+        },
+        "required": ["intents"],
+    },
 )
 
 
@@ -136,9 +180,20 @@ class IntentExtractor:
         # temperature=0: intent extraction must be deterministic so a pinned
         # --intent id stays addressable across runs (paired with the intake cache).
         result: CompletionResult = await self._llm.complete(
-            messages, model=self._model, json_object=True, temperature=0.0
+            messages,
+            model=self._model,
+            temperature=0.0,
+            tools=[_SUBMIT_TOOL],
+            tool_choice=_SUBMIT_TOOL.name,
         )
-        return self._parse(result.text, title_to_id, fallback_doc_ids=[d.id for d in usable])
+        fallback_doc_ids = [d.id for d in usable]
+        for call in result.tool_calls:
+            if call.name == _SUBMIT_TOOL.name:
+                # Re-serialized so a forced call and a hand-parsed answer reach the same
+                # parser — the graceful-degradation path below stays the only one.
+                return self._parse(json.dumps(call.arguments), title_to_id, fallback_doc_ids=fallback_doc_ids)
+        # A provider that ignored the tool still answers in text — the old path, unchanged.
+        return self._parse(result.text, title_to_id, fallback_doc_ids=fallback_doc_ids)
 
     def _build_user_message(self, documents: list[SourceDocument]) -> str:
         parts: list[str] = []

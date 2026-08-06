@@ -19,7 +19,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from orchestrator.core.llm import CompletionResult, LLMClient, Message, catalog
+from orchestrator.core.llm import CompletionResult, LLMClient, Message, ToolSpec, catalog
 from orchestrator.intake.intents import Intent
 
 logger = logging.getLogger("orchestrator.intake.specs")
@@ -54,6 +54,39 @@ _SYSTEM_PROMPT = (
     "'src/orchestrator/pkg/stats.py' makes it guess."
 )
 
+# The same contract as the prompt, as a tool the provider makes the model call.
+#
+# `json_object=True` only constrains providers that have a JSON mode; Anthropic
+# drops `response_format`, and the default intake model is an Anthropic one — so the
+# spec arrived as whatever the model felt like emitting and `_loads_json_object`
+# salvaged it. Codegen and the acceptance judge already force a tool call for this;
+# spec writing now does the same. The prompt still states the fidelity rules, which
+# no schema can express.
+_SUBMIT_TOOL = ToolSpec(
+    name="submit_feature_spec",
+    description=("Submit the implementation-ready feature spec for this intent. Call this exactly once."),
+    parameters={
+        "type": "object",
+        "properties": {
+            "summary": {"type": "string", "description": "2-4 sentence what + why."},
+            "user_story": {
+                "type": "string",
+                "description": "As a <role>, I want <capability>, so that <benefit>.",
+            },
+            "acceptance_criteria": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Testable criteria; stated ones copied VERBATIM and first.",
+            },
+            "technical_notes": {"type": "string"},
+            "nfrs": {"type": "array", "items": {"type": "string"}},
+            "dependencies": {"type": "array", "items": {"type": "string"}},
+            "estimate": {"type": "string", "enum": ["S", "M", "L", "XL"]},
+        },
+        "required": ["summary", "acceptance_criteria"],
+    },
+)
+
 
 class FeatureSpec(BaseModel):
     """An implementation-ready spec derived from one intent → one Jira issue."""
@@ -86,8 +119,18 @@ class SpecWriter:
         # temperature=0: a spec must be stable for a given intent so the same
         # --intent yields the same acceptance criteria (and cached) run to run.
         result: CompletionResult = await self._llm.complete(
-            messages, model=self._model, json_object=True, temperature=0.0
+            messages,
+            model=self._model,
+            temperature=0.0,
+            tools=[_SUBMIT_TOOL],
+            tool_choice=_SUBMIT_TOOL.name,
         )
+        for call in result.tool_calls:
+            if call.name == _SUBMIT_TOOL.name:
+                # Re-serialized so the forced call and a text answer share one parser,
+                # keeping the minimal-spec degradation path the only fallback.
+                return self._parse(json.dumps(call.arguments), intent)
+        # A provider that ignored the tool still answers in text — the old path, unchanged.
         return self._parse(result.text, intent)
 
     async def write_all(self, intents: list[Intent]) -> list[FeatureSpec]:
