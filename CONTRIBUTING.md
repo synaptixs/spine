@@ -54,6 +54,11 @@ them on a release cadence — so opening an issue first avoids duplicated effort
    it. Regenerating after merge, where the tree is stable, removes the conflict entirely.
 
    If you have local `episteme/` changes, drop them: `git checkout origin/develop -- episteme/`.
+
+   The one exemption is a **release promotion** — a `develop` → `main` PR. Its `episteme/`
+   diff is every bot commit made on `develop` since `main` last moved, which is the design
+   working rather than a contributor carrying the artifact, so the check skips when the base
+   is `main`. `main` regenerates from its own tree after the merge either way.
 4. Open the PR with a clear description of **what** and **why**, linking any issue.
 5. A maintainer reviews; the `security scan` check must pass.
 

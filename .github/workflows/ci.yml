@@ -89,8 +89,16 @@ jobs:
 
       # And a PR must not carry the artifact. Two branches that both regenerate conflict on
       # every merge; that is the whole failure this design removes.
+      #
+      # Except when promoting develop to main. That PR's episteme/ diff is nothing *but*
+      # this design working: every one of those commits is the bot's, made on develop after
+      # a merge, and the two-dot diff against a main that is behind shows all of them at
+      # once. The guard asks "did a contributor carry the artifact?" — on a promotion the
+      # answer is structurally no, and there is no way to make it pass without reverting
+      # the bank main is owed. Regeneration runs on main too, so main rebuilds from its own
+      # tree after this lands regardless.
       - name: PR does not modify episteme/
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.base_ref != 'main'
         run: |
           # Two-dot, against a freshly fetched base: the question is whether this branch's
           # committed bank differs from the base's, which is answerable in a shallow clone.
