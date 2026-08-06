@@ -4,6 +4,21 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## Unreleased
+
+### Fixed
+
+- **A server that declares a structured argument as a JSON string now gets one.**
+  `mcp-atlassian` types `jira_create_issue.additional_fields` as `string` rather than
+  `object`, so every caller had to `json.dumps` it first and a governed create encoded
+  twice — once for the field, once for the transport. `MCPRegistry.call` reads the tool's
+  declared type and encodes on the caller's behalf. Narrow on purpose: only when the
+  declared type is exactly `string` (or `string|null`) *and* the value is an object or
+  array. A declared `object`, an undeclared argument, or an unreadable schema passes
+  through untouched, and a caller that already encoded still works. The schema round-trip
+  is skipped entirely when every argument is a scalar, and a discovery failure falls back
+  to the raw call rather than becoming a new way to fail.
+
 ## 3.13.0 — A green suite is not a working change
 
 Found by running one ticket end to end a dozen times. Every stage of the build loop was

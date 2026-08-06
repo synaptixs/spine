@@ -20,6 +20,7 @@ from typing import Any
 from orchestrator.mcp.client import MCPClient, SessionMCPClient
 from orchestrator.mcp.config import MCPServerConfig, load_mcp_configs
 from orchestrator.mcp.models import MCPServerStatus, MCPTool, MCPToolResult
+from orchestrator.mcp.schema_types import encode_for_schema, needs_schema_lookup
 
 logger = logging.getLogger("orchestrator.mcp")
 
@@ -112,7 +113,25 @@ class MCPRegistry:
             raise KeyError(f"unknown MCP server {server!r} (known: {known})")
         if not tool or not cfg.allows(tool):
             raise PermissionError(f"tool {qualified_name!r} is not allow-listed on server {server!r}")
-        return await self._factory(cfg).call_tool(tool, arguments)
+        client = self._factory(cfg)
+        return await client.call_tool(tool, await self._encoded(client, tool, arguments))
+
+    async def _encoded(self, client: MCPClient, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        """Honour a server that declares a structured argument as a JSON string.
+
+        Skipped entirely unless some argument is a ``dict``/``list``, so the common
+        all-scalar call pays nothing for the schema round-trip. A discovery failure
+        passes the arguments through untouched: this is a convenience over the raw
+        call, and it must never be the reason one fails.
+        """
+        if not needs_schema_lookup(arguments):
+            return arguments
+        try:
+            schema = next((t.input_schema for t in await client.list_tools() if t.name == tool), None)
+        except Exception as exc:  # noqa: BLE001 — the call itself is still worth attempting
+            logger.warning("mcp.schema_lookup_failed", extra={"tool": tool, "error": str(exc)[:200]})
+            return arguments
+        return encode_for_schema(schema, arguments)
 
 
 __all__ = ["ClientFactory", "MCPRegistry"]
