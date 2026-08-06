@@ -35,7 +35,7 @@
 
 [`src/orchestrator/sdlc/escalate.py:83`](../../src/orchestrator/sdlc/escalate.py#L83)
 
-- **Called by** (3 production · 6 test): [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L373), [`park`](../../src/orchestrator/sdlc/autorun.py#L127), [`sdlc_runs`](../../src/orchestrator/cli.py#L708), [`_store`](../../tests/sdlc/test_escalate.py#L45), [`test_a_refused_ticket_raises_an_approval`](../../tests/sdlc/test_autorun.py#L347), [`test_a_rejected_run_does_not_resume`](../../tests/sdlc/test_autorun.py#L407), [`test_an_approved_run_resumes`](../../tests/sdlc/test_autorun.py#L384), [`test_an_undecided_approval_blocks_a_resume`](../../tests/sdlc/test_autorun.py#L365), [`test_budget_exhaustion_raises_an_approval`](../../tests/sdlc/test_autorun.py#L330)
+- **Called by** (3 production · 6 test): [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L373), [`park`](../../src/orchestrator/sdlc/autorun.py#L127), [`sdlc_runs`](../../src/orchestrator/cli.py#L729), [`_store`](../../tests/sdlc/test_escalate.py#L45), [`test_a_refused_ticket_raises_an_approval`](../../tests/sdlc/test_autorun.py#L347), [`test_a_rejected_run_does_not_resume`](../../tests/sdlc/test_autorun.py#L407), [`test_an_approved_run_resumes`](../../tests/sdlc/test_autorun.py#L384), [`test_an_undecided_approval_blocks_a_resume`](../../tests/sdlc/test_autorun.py#L365), [`test_budget_exhaustion_raises_an_approval`](../../tests/sdlc/test_autorun.py#L330)
 - **Fields**: `root`
 
 ### `Decision`
@@ -72,14 +72,14 @@
 
 [`src/orchestrator/sdlc/escalate.py:208`](../../src/orchestrator/sdlc/escalate.py#L208)
 
-- **Called by** (1 production · 3 test): [`sdlc_runs`](../../src/orchestrator/cli.py#L708), [`test_approving_records_who_and_why`](../../tests/sdlc/test_escalate.py#L113), [`test_deciding_something_that_does_not_exist_is_an_error`](../../tests/sdlc/test_escalate.py#L139), [`test_deciding_twice_keeps_the_first_answer`](../../tests/sdlc/test_escalate.py#L126)
+- **Called by** (1 production · 3 test): [`sdlc_runs`](../../src/orchestrator/cli.py#L729), [`test_approving_records_who_and_why`](../../tests/sdlc/test_escalate.py#L113), [`test_deciding_something_that_does_not_exist_is_an_error`](../../tests/sdlc/test_escalate.py#L139), [`test_deciding_twice_keeps_the_first_answer`](../../tests/sdlc/test_escalate.py#L126)
 - **Calls** (2): `py:KeyError`, `time`
 
 ### `default_approval_dir`
 
 [`src/orchestrator/sdlc/escalate.py:125`](../../src/orchestrator/sdlc/escalate.py#L125)
 
-- **Called by** (3 production · 1 test): [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L373), [`park`](../../src/orchestrator/sdlc/autorun.py#L127), [`sdlc_runs`](../../src/orchestrator/cli.py#L708), [`test_the_approval_dir_is_outside_the_repo`](../../tests/sdlc/test_escalate.py#L207)
+- **Called by** (3 production · 1 test): [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L373), [`park`](../../src/orchestrator/sdlc/autorun.py#L127), [`sdlc_runs`](../../src/orchestrator/cli.py#L729), [`test_the_approval_dir_is_outside_the_repo`](../../tests/sdlc/test_escalate.py#L207)
 - **Calls** (3): `getenv`, `gettempdir`, `pathlib.Path`
 
 ### `raise_approval`
@@ -93,7 +93,7 @@
 
 [`src/orchestrator/sdlc/escalate.py:225`](../../src/orchestrator/sdlc/escalate.py#L225)
 
-- **Called by** (1 production · 1 test): [`sdlc_runs`](../../src/orchestrator/cli.py#L708), [`test_an_unanswered_approval_goes_overdue_but_is_never_auto_approved`](../../tests/sdlc/test_escalate.py#L147)
+- **Called by** (1 production · 1 test): [`sdlc_runs`](../../src/orchestrator/cli.py#L729), [`test_an_unanswered_approval_goes_overdue_but_is_never_auto_approved`](../../tests/sdlc/test_escalate.py#L147)
 - **Calls** (2): `localtime`, `strftime`
 
 ### `tier_for`
