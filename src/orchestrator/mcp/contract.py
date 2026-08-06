@@ -52,7 +52,11 @@ def _inputs_from_schema(schema: dict[str, object]) -> list[FieldSchema]:
     for name, raw in properties.items():
         spec = raw if isinstance(raw, dict) else {}
         json_type = spec.get("type")
-        field_type = json_type if json_type in _JSON_TYPES else "string"
+        # ``type`` may be a list (``["string", "null"]``) or an unhashable/absent
+        # value; the registry field takes a single simple type, so normalise here.
+        if isinstance(json_type, list):
+            json_type = next((t for t in json_type if t in _JSON_TYPES), None)
+        field_type = json_type if isinstance(json_type, str) and json_type in _JSON_TYPES else "string"
         fields.append(
             FieldSchema(
                 name=str(name),
