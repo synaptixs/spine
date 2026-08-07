@@ -20,7 +20,7 @@ flowchart LR
 
 ## Modules
 
-- [`scripts.codegen_benchmark`](../modules/scripts.codegen_benchmark.md)
+- [`scripts.codegen_benchmark`](../../scripts/codegen_benchmark.py#L1)
 
 ## Depends on
 
