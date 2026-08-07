@@ -35,8 +35,13 @@ jobs:
         with:
           node-version: "20"
 
+      # `mcp` too, not just `dev`. Without it every MCP test skips, so a dependency bump
+      # that breaks the client transport or the plugin server passes clean: the mcp 2.0.0
+      # bump did exactly that, and the breakage — three renamed APIs — was only visible to
+      # someone who had installed the extra locally. An optional extra the repo ships code
+      # for is not optional to test.
       - name: Install project
-        run: uv sync --extra dev
+        run: uv sync --extra dev --extra mcp
 
       - name: Lint (ruff)
         run: uv run ruff check .
