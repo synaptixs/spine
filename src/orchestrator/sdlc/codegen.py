@@ -1422,6 +1422,11 @@ class LLMCodegenAdapter:
             f"{self._definitions_for_tests(root)}"
             f"{_coverage_gap_block(gaps or [])}",
             root,
+            # "No tests" is a real answer when the change touched no testable source, and a
+            # skipped job when it did. Treating it as always-invalid made a documentation-only
+            # change retry until it invented a test module for a paragraph — and a live run
+            # died on the markup in that module, discarding a change that was already correct.
+            allow_empty=not _has_testable_source(self._written.get(root.resolve(), [])),
         )
 
     async def refine(self, *, spec: dict[str, Any], path: str, issue_key: str, failures: str) -> CodeChange:
@@ -1750,6 +1755,39 @@ def _is_placeholder(rel: str, content: str) -> bool:
     if name in _LEGITIMATELY_EMPTY:
         return False
     return len(content.strip()) < 3
+
+
+# The source half of `review._REVIEWABLE_SUFFIXES`. Documentation and config are reviewable
+# — a criterion can require them — but nothing writes a unit test against a paragraph.
+_TESTABLE_SUFFIXES = frozenset(
+    {
+        ".py",
+        ".java",
+        ".go",
+        ".c",
+        ".h",
+        ".cc",
+        ".cpp",
+        ".hpp",
+        ".cs",
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".sql",
+        ".sh",
+    }
+)
+
+
+def _has_testable_source(written: list[Path]) -> bool:
+    """Whether this change touched anything a generated test could exercise.
+
+    The question `author_tests` needs answered before it decides that submitting nothing is
+    a failure. A change that only edits README.md has nothing to test; a change that edits a
+    module and submits no tests has skipped its job.
+    """
+    return any(p.suffix.lower() in _TESTABLE_SUFFIXES and not _is_test_file(p) for p in written)
 
 
 def _is_test_file(path: Path) -> bool:

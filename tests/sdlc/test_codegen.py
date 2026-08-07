@@ -1824,3 +1824,66 @@ def test_test_files_are_not_mined_for_their_own_imports(tmp_path: Path) -> None:
     assert _is_test_file(Path("tests/sdlc/test_codegen.py"))
     assert _is_test_file(Path("src/pkg/thing_test.py"))
     assert not _is_test_file(Path("src/orchestrator/intake/specs.py"))
+
+
+# --- "no tests" is an answer, or a skipped job, depending on the change (SSPN-47) ----
+#
+# author_tests is unconditional and no spec can turn it off. On a documentation-only change
+# it first answered correctly — "no tests submitted: this is a prose edit" — and that was
+# treated as an empty submission and retried, and the retry invented a test module for a
+# paragraph and corrupted it with markup. A finished, correct change was discarded.
+#
+# The rule has to hold both ways: empty is valid with no testable source, and a skipped job
+# with one.
+
+
+@pytest.mark.parametrize(
+    "written,expected",
+    [
+        ([Path("README.md")], False),
+        ([Path("docs/guide.rst"), Path("pyproject.toml")], False),
+        ([Path("src/pkg/thing.py")], True),
+        ([Path("README.md"), Path("src/pkg/thing.py")], True),
+        ([Path("tests/test_thing.py")], False),
+        ([], False),
+    ],
+)
+def test_testable_source_is_recognised(written: list[Path], expected: bool) -> None:
+    from orchestrator.sdlc.codegen import _has_testable_source
+
+    assert _has_testable_source(written) is expected
+
+
+def test_a_test_file_alone_is_not_testable_source() -> None:
+    """Otherwise author_tests would demand tests for the tests it just wrote."""
+    from orchestrator.sdlc.codegen import _has_testable_source
+
+    assert not _has_testable_source([Path("tests/sdlc/test_codegen.py")])
+
+
+async def test_a_docs_only_change_may_submit_no_tests(tmp_path: Path) -> None:
+    """The SSPN-46 case: a README edit that correctly has nothing to test."""
+    from orchestrator.sdlc.codegen import LLMCodegenAdapter
+
+    (tmp_path / "README.md").write_text("# Doc\n", encoding="utf-8")
+    llm = _ScriptedLLM([json.dumps({"summary": "documentation-only; nothing to test", "files": []})])
+    adapter = LLMCodegenAdapter(llm)
+    adapter._written[tmp_path.resolve()] = [tmp_path / "README.md"]
+
+    change = await adapter.author_tests(spec={"title": "t"}, path=str(tmp_path), issue_key="S-1")
+
+    assert change.files == []
+    assert "nothing to test" in change.summary
+
+
+async def test_a_source_change_that_submits_no_tests_is_still_refused(tmp_path: Path) -> None:
+    """The rule must not have loosened for real code."""
+    from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter
+
+    (tmp_path / "thing.py").write_text("X = 1\n", encoding="utf-8")
+    llm = _ScriptedLLM([json.dumps({"summary": "nothing to do", "files": []})] * 6)
+    adapter = LLMCodegenAdapter(llm)
+    adapter._written[tmp_path.resolve()] = [tmp_path / "thing.py"]
+
+    with pytest.raises(CodegenError):
+        await adapter.author_tests(spec={"title": "t"}, path=str(tmp_path), issue_key="S-1")
