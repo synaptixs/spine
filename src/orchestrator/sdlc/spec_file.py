@@ -13,6 +13,10 @@ to trust: a criterion the parser silently misses is indistinguishable from one y
 never wrote, which is the failure this pipeline keeps having. ``FeatureSpec`` forbids
 extra keys, so ``acceptance-criteria`` or ``acceptanceCriteria`` is an error naming
 the valid fields rather than a run that quietly proceeds with none.
+
+``proposed_criteria`` is optional and defaults to empty: a file may carry criteria
+nobody stated (clearly marked as such), and a file that only supplies
+``acceptance_criteria`` keeps validating exactly as before.
 """
 
 from __future__ import annotations
@@ -60,6 +64,8 @@ def load_spec_file(path: Path | str) -> dict[str, Any]:
     if not spec.acceptance_criteria:
         # Not fatal upstream, but a spec with nothing to satisfy gives the judge
         # nothing to judge — the run would report success having proved nothing.
+        # 'proposed_criteria' deliberately doesn't count: unsourced criteria are
+        # suggestions, not a contract to pass a run against.
         raise SpecFileError(
             f"{p}: 'acceptance_criteria' is empty — there would be nothing for the "
             "acceptance judge to verify, and the run would pass by default."

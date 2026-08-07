@@ -98,6 +98,10 @@ class FeatureSpec(BaseModel):
     summary: str = ""
     user_story: str = ""
     acceptance_criteria: list[str] = Field(default_factory=list)
+    # Criteria the model produced that the source never stated. Kept apart from
+    # acceptance_criteria so a reader (and, later, the judge) can tell a contract
+    # the ticket signed from a suggestion the spec writer inferred.
+    proposed_criteria: list[str] = Field(default_factory=list)
     technical_notes: str = ""
     nfrs: list[str] = Field(default_factory=list)
     dependencies: list[str] = Field(default_factory=list)
@@ -168,15 +172,18 @@ class SpecWriter:
                 nfrs=list(intent.nfrs),
                 dependencies=list(intent.dependencies),
             )
-        # Stated criteria are the contract: keep them even if the model dropped
-        # them, and ensure they lead (verbatim) before any the model inferred.
-        criteria = _merge_criteria(intent.acceptance_criteria, _str_list(payload.get("acceptance_criteria")))
+        # Stated criteria are the contract: keep them verbatim and alone in
+        # acceptance_criteria; whatever the model added lands in proposed_criteria.
+        stated, proposed = _merge_criteria(
+            intent.acceptance_criteria, _str_list(payload.get("acceptance_criteria"))
+        )
         return FeatureSpec(
             intent_id=intent.id,
             title=intent.title,
             summary=str(payload.get("summary") or intent.description).strip(),
             user_story=str(payload.get("user_story") or "").strip(),
-            acceptance_criteria=criteria,
+            acceptance_criteria=stated,
+            proposed_criteria=proposed,
             technical_notes=str(payload.get("technical_notes") or "").strip(),
             nfrs=_str_list(payload.get("nfrs")) or list(intent.nfrs),
             dependencies=_str_list(payload.get("dependencies")) or list(intent.dependencies),
@@ -184,21 +191,29 @@ class SpecWriter:
         )
 
 
-def _merge_criteria(stated: list[str], produced: list[str]) -> list[str]:
-    """Stated criteria lead (verbatim); the model's extras follow, de-duped.
+def _merge_criteria(stated: list[str], produced: list[str]) -> tuple[list[str], list[str]]:
+    """Partition criteria by provenance: ``(stated, proposed)``.
 
-    Guarantees a contract the source stated survives even if the spec writer
-    paraphrased or dropped it — the failure that let run #23 ship the wrong
-    API. Comparison is whitespace-insensitive so a re-emitted criterion isn't
-    double-listed.
+    The stated list is returned verbatim and in its original order — a contract
+    the source stated survives even if the spec writer paraphrased or dropped
+    it (the failure that let run #23 ship the wrong API). Everything the model
+    produced that isn't one of them is *proposed*, not accepted: concatenating
+    the two is how a three-criterion ticket became a nine-criterion spec with
+    nobody able to tell which three were real.
+
+    Comparison stays whitespace-insensitive, so a criterion the model re-emits
+    in a different whitespace form is recognised as the stated one rather than
+    listed a second time as proposed.
     """
-    out = list(stated)
+    stated_out = list(stated)
     seen = {" ".join(c.split()) for c in stated}
+    proposed: list[str] = []
     for c in produced:
-        if " ".join(c.split()) not in seen:
-            out.append(c)
-            seen.add(" ".join(c.split()))
-    return out
+        key = " ".join(c.split())
+        if key not in seen:
+            proposed.append(c)
+            seen.add(key)
+    return stated_out, proposed
 
 
 def _str_list(value: Any) -> list[str]:

@@ -161,9 +161,10 @@ async def test_spec_comes_from_the_forced_call_arguments() -> None:
     assert spec.summary == "Export invoices as CSV."
     assert spec.technical_notes == "streams the response"
     assert spec.estimate == "M"
-    # Stated criteria still lead, verbatim, ahead of anything the model added.
-    assert spec.acceptance_criteria[0] == _intent().acceptance_criteria[0]
-    assert "headers are written first" in spec.acceptance_criteria
+    # Stated criteria are kept verbatim; what the model added is proposed, so the
+    # forced-tool-call path partitions exactly as the text path does.
+    assert spec.acceptance_criteria == _intent().acceptance_criteria
+    assert "headers are written first" in spec.proposed_criteria
 
 
 # ---- a provider that ignores the tool still answers in text ----
@@ -237,15 +238,19 @@ async def test_a_stated_criterion_survives_a_model_that_drops_or_paraphrases_it(
     spec = await SpecWriter(llm).write(intent)
 
     assert spec.acceptance_criteria[0] == stated
+    # The model's own criteria are kept, but as *proposed* — not silently promoted
+    # to the contract. Whichever list a produced criterion lands in, it survives.
     for c in produced:
-        assert c in spec.acceptance_criteria
+        assert c in spec.acceptance_criteria or c in spec.proposed_criteria
 
 
 def test_merge_criteria_leads_with_stated_and_dedupes_on_whitespace() -> None:
     stated = ["add(2, 3) returns 5", "raises TypeError on strings"]
     produced = ["add(2,  3)   returns 5", "logs the call"]
 
-    merged = _merge_criteria(stated, produced)
+    kept, proposed = _merge_criteria(stated, produced)
 
-    assert merged[: len(stated)] == stated
-    assert merged == [*stated, "logs the call"]
+    assert kept == stated, "stated criteria are returned verbatim and alone"
+    # 'add(2,  3)   returns 5' is the first stated criterion re-spaced, so it is
+    # recognised rather than proposed a second time.
+    assert proposed == ["logs the call"]
