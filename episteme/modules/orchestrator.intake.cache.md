@@ -29,7 +29,7 @@
 [`src/orchestrator/intake/cache.py:71`](../../src/orchestrator/intake/cache.py#L71)
 
 - **Called by** (2): [`complete_by_pr`](../../src/orchestrator/intake/cache.py#L133), [`load_cached_plan`](../../src/orchestrator/intake/cache.py#L156)
-- **Calls** (6): [`BacklogPlan`](../../src/orchestrator/intake/service.py#L158), [`GapFinding`](../../src/orchestrator/intake/gaps.py#L75), [`GapSeverity`](../../src/orchestrator/intake/gaps.py#L44), [`SourceDocument`](../../src/orchestrator/intake/source.py#L35), `model_validate`, `model_validate`
+- **Calls** (6): [`BacklogPlan`](../../src/orchestrator/intake/service.py#L162), [`GapFinding`](../../src/orchestrator/intake/gaps.py#L75), [`GapSeverity`](../../src/orchestrator/intake/gaps.py#L44), [`SourceDocument`](../../src/orchestrator/intake/source.py#L35), `model_validate`, `model_validate`
 
 ### `_plan_to_dict`
 
