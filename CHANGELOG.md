@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.15.0 — Everything that reports success has to be able to report failure
 
 ### Added
 
