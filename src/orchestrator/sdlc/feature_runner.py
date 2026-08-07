@@ -841,7 +841,13 @@ async def run_feature(
     # 3. worktree branch off the real repo (or a scratch repo in safe/no-repo mode).
     sdlc_id = uuid.uuid4().hex[:16]
     ws_root = Path(os.getenv("SDLC_WORKSPACE_ROOT", "/tmp/sdlc-workspaces"))
-    path = await WorkspaceManager(root=ws_root, repo_url=repo_url).create(sdlc_id, issue_key)
+    # Branch from the PR target, not the remote's default: a run opening a PR into
+    # `develop` must build on `develop`, or it is written against a tree that predates
+    # everything merged there since the last release.
+    work_base = base_branch or os.getenv("SDLC_PR_BASE") or None
+    path = await WorkspaceManager(root=ws_root, repo_url=repo_url, base_branch=work_base).create(
+        sdlc_id, issue_key
+    )
     branch = f"feat/{sdlc_id}/{issue_key}"
     emit(f"[workspace] worktree {path} on {branch}")
 
