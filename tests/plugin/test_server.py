@@ -388,8 +388,8 @@ def test_http_server_loopback_unauthenticated_is_allowed(monkeypatch: pytest.Mon
 
     monkeypatch.delenv("ORCHESTRATOR_MCP_TOKEN", raising=False)
     monkeypatch.delenv("ORCHESTRATOR_MCP_INTROSPECTION_URL", raising=False)
-    server = build_http_server(host="127.0.0.1", port=8080)
-    assert server.settings.auth is None
+    built = build_http_server(host="127.0.0.1", port=8080)
+    assert built.server.settings.auth is None
 
 
 @pytest.mark.skipif(importlib.util.find_spec("mcp") is None, reason="needs the 'mcp' extra")
@@ -399,10 +399,10 @@ def test_http_server_wires_static_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ORCHESTRATOR_MCP_TOKEN", "s3cret")
     monkeypatch.setenv("ORCHESTRATOR_MCP_RESOURCE_URL", "https://mcp.example.com")
     monkeypatch.delenv("ORCHESTRATOR_MCP_INTROSPECTION_URL", raising=False)
-    server = build_http_server(host="0.0.0.0", port=8080, path="/mcp")
+    built = build_http_server(host="0.0.0.0", port=8080, path="/mcp")
     # Auth is configured, so a public bind is permitted and the tools are registered.
-    assert server.settings.auth is not None
-    assert server.settings.port == 8080 and server.settings.host == "0.0.0.0"
+    assert built.server.settings.auth is not None
+    assert built.transport["port"] == 8080 and built.transport["host"] == "0.0.0.0"
 
 
 # ---- dogfood: drive the real stdio server (needs the `mcp` extra) -----------
@@ -428,4 +428,4 @@ async def test_plugin_serves_tools_over_stdio() -> None:
             "sdlc_run_result",
         } <= {t.name for t in tools.tools}
         result = await session.call_tool("doctor", {})
-        assert result.isError is False
+        assert result.is_error is False

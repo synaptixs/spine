@@ -101,12 +101,11 @@ office = [
 # Onboard external MCP servers (DBs, Atlassian, …) as orchestrator tools. The
 # MCP client lazy-imports this, so the base install stays MCP-free.
 mcp = [
-    # <2 until the v2 migration lands. v2 renames what this package actually uses:
-    # `streamablehttp_client` -> `streamable_http_client`, `CallToolResult.isError` ->
-    # `is_error`, and `mcp.server.fastmcp` is gone (FastMCP became MCPServer). The bump
-    # to 2.0.0 passed CI because CI installs `--extra dev` only, so every mcp test skips
-    # and the breakage is invisible until someone installs the extra.
-    "mcp>=1.28,<2",
+    # v2+: the client transport is `streamable_http_client`, the result flag is
+    # `is_error`, and the server class is `mcp.server.MCPServer`. v1 spelled all three
+    # differently, so there is no both-versions shim worth carrying — v1.x is on security
+    # fixes only.
+    "mcp>=2",
 ]
 # Media ingestion (G3) — local OCR for images. Tesseract via pytesseract + Pillow, lazy-imported by
 # pkg/media_extract.py, used ONLY by the opt-in `media extract` command. The deterministic reader

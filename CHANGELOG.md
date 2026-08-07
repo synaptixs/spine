@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Changed
+
+- **Migrated to the MCP Python SDK v2** (`mcp>=2`). v1 spelled three things differently:
+  the client transport is now `streamable_http_client` (and takes a configured
+  `http_client` rather than `headers`, yielding two streams not three), the result flag is
+  `is_error`, and the server class is `mcp.server.MCPServer` — `mcp.server.fastmcp` is
+  gone. Transport settings moved off the server constructor onto the run call, so
+  `build_http_server` returns an `HttpServer` carrying both. Reading the error flag with
+  `getattr(result, "isError", False)` is also fixed: under v2 that silently reported every
+  tool error as a success, which is worse than the AttributeError the default was avoiding.
+
 ### Fixed
 
 - **A partially-applied codegen attempt can now be repaired.** `apply_files` is per-file
