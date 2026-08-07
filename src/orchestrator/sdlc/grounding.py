@@ -105,7 +105,7 @@ class PKGCodegenGrounder:
             )
         return "\n\n".join(sections)
 
-    def context_for_symbols(self, names: list[str]) -> str:
+    def context_for_symbols(self, names: list[str], *, intro: str = "") -> str:
         """Definitions of specific named symbols, for when something says one is wrong.
 
         The lexical retrieval behind ``context_for_spec`` answers "what is this ticket
@@ -133,11 +133,14 @@ class PKGCodegenGrounder:
         if not blocks:
             return ""
         return (
-            "DEFINITIONS of the symbols named in the errors above — read these before "
-            "changing the call. If the attribute you want is not on the class, it is not "
-            "there to be reached; take a different route rather than guessing another name:\n"
-            + "\n".join(blocks)
-        )
+            intro
+            or (
+                "DEFINITIONS of the symbols named in the errors above — read these before "
+                "changing the call. If the attribute you want is not on the class, it is not "
+                "there to be reached; take a different route rather than guessing another "
+                "name:\n"
+            )
+        ) + "\n".join(blocks)
 
     def _symbol_block(self, symbol: Node) -> str:
         prov = symbol.provenance
