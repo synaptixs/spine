@@ -42,7 +42,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/worker.py:87`](../../src/orchestrator/sdlc/worker.py#L87)
 
 - **Called by** (1): [`build_deps`](../../src/orchestrator/sdlc/worker.py#L183)
-- **Calls** (7): [`LLMCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L824), [`StubCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L194), [`compose_factory_with_ontomesh`](../../src/orchestrator/spine/grounder.py#L118), `from_file`, `getenv`, `py:llm`, [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L44)
+- **Calls** (7): [`LLMCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L826), [`StubCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L194), [`compose_factory_with_ontomesh`](../../src/orchestrator/spine/grounder.py#L118), `from_file`, `getenv`, `py:llm`, [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L44)
 - **Documented in**: `docs/specs/bet2c-in-loop-approval.md#as-built-notes`
 
 ### `_build_llm`

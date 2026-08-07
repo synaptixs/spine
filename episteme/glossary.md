@@ -24,7 +24,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
 | **JiraAdapter** | [`JiraAdapter`](../src/orchestrator/intake/jira.py#L114) | `docs/specs/capability-recommendations-kg-grounded.md#where-we-are-today-the-honest-baseline` |
 | **LineageIndex** | [`LineageIndex`](../src/orchestrator/spine/lineage.py#L95) | `docs/specs/spine-vignette-runbook.md#6-inspect-the-lineage-provenance-phase-4`, `docs/specs/tri-repo-integration.md#phasing-ordered-by-usable-value-gated-on-the-spine` |
-| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L824) | `docs/specs/cross-run-semantic-memory.md#design-cross-run-semantic-memory-the-experience-true-layer`, `docs/specs/cross-run-semantic-memory.md#phasing` |
+| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L826) | `docs/specs/cross-run-semantic-memory.md#design-cross-run-semantic-memory-the-experience-true-layer`, `docs/specs/cross-run-semantic-memory.md#phasing` |
 | **MediaExtractorUnavailableError** | [`MediaExtractorUnavailableError`](../src/orchestrator/pkg/media_extract.py#L55) | — |
 | **MemoryRow** | [`MemoryRow`](../src/orchestrator/registry/db/models.py#L216) | `KNOWLEDGE_GRAPH.md#where-each-artifact-is-persisted`, `docs/specs/README.md#autonomous-agent-scorecard` |
 | **Node** | [`Node`](../src/orchestrator/pkg/facts.py#L70) | — |
