@@ -100,7 +100,9 @@ everyday workflow in about ten minutes.
 It extracts a backlog of intents, writes a spec, generates the implementation and
 tests, gets them green, and opens a PR — with **two human gates** (before building,
 before merging). A safe mode builds entirely locally (branch + diff, no external
-writes) so you can inspect everything first.
+writes) so you can inspect everything first. Already written the spec yourself? Hand
+it straight to `orchestrator sdlc autorun --spec <file>` instead of deriving one from
+a source.
 
 **Code-grounded understanding.** Before generating, it builds a **Product Knowledge
 Graph** of your repo — modules, types, functions, call sites, blast radius — and
@@ -134,7 +136,10 @@ directions — consume external MCP tools, or expose the whole pipeline *as* an 
 server to Claude Code, Codex, or your IDE.
 
 **Bring your own model.** Multi-provider via LiteLLM (Anthropic, OpenAI, Bedrock),
-or run fully offline on a local model (Ollama). Mix models per stage.
+or run fully offline on a local model (Ollama). Mix models per stage. Run
+`orchestrator models` to see which models are available — each id with its context
+window, price, and whether it supports the tool calling codegen and the judge need.
+The default is `claude-opus-5`.
 
 **Durable.** Long-running pipelines are checkpointed (Temporal + Postgres) — they
 survive restarts and resume across human approval pauses.
