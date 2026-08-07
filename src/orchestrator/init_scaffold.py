@@ -32,6 +32,14 @@ _OPTIONAL_HINTS: tuple[tuple[str, str], ...] = (
     ("SDLC_CODEGEN_MODEL", "Model for codegen only — implement / refine / revise / author_tests"),
     ("SDLC_JUDGE_MODEL", "Model for the acceptance judge only"),
     ("ORCHESTRATOR_INTAKE_MODEL", "Model for intake only — intent extraction and spec writing"),
+    # Not just the PR target: an SDLC run *branches from* this, so leaving it unset builds
+    # the work on the remote's default branch (usually main) while opening the PR into
+    # develop — a change written against a tree that predates everything merged since the
+    # last release. It was documented nowhere until that bit someone.
+    (
+        "SDLC_PR_BASE",
+        "Branch a run builds on AND opens its PR into (default: the remote's default branch)",
+    ),
     ("ORCHESTRATOR_DATABASE_URL", "Postgres URL (defaults to the docker-compose dev DB)"),
     ("SLACK_WEBHOOK_URL", "Slack incoming-webhook for approval-gate alerts (optional)"),
     ("SDLC_RUN_BUDGET_USD", "Per-run LLM spend cap; 0 disables enforcement (default 25)"),

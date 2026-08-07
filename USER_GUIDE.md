@@ -114,6 +114,7 @@ orchestrator doctor    # readiness report — tells you exactly what's set and w
 | `ORCHESTRATOR_MODEL` | One model for every stage (optional — defaults to `claude-opus-5`) | Step 3 |
 | `CONFLUENCE_*`, `JIRA_*` | Read requirements / file issues | Step 4 |
 | `SDLC_REPO_URL` | The repo it builds **into** | Step 4 |
+| `SDLC_PR_BASE` | The branch a run builds **on** and opens its PR into — set this to `develop` if that is where you merge, or runs are written against `main` | Step 4 |
 | `GITHUB_TOKEN` *(or `GITHUB_APP_*`)* | Auth for a private target repo | Step 4 |
 
 ### Choosing a model

@@ -717,7 +717,7 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --saf
 | `--live` / `--safe` | Write for real, or make no external write. (default: `--safe`) |
 | `--max-refine` | Correction attempts allowed **per check** — a red suite, a type error and a coverage gap each get their own allowance, so one cannot starve another. (default: `5`) |
 | `--review` / `--no-review` | Show the diff and ask before committing or pushing anything. (default: `--no-review`) |
-| `--base` | PR target branch. |
+| `--base` | Branch to build on **and** open the PR into (default `$SDLC_PR_BASE`, else the remote's default branch). The run's worktree is cut from this, so on a repo that merges to `develop`, leaving it unset builds the change on `main`. |
 | `--language` | Target language (auto detects). (default: `auto`) |
 | `--out` | Where run artifacts go (default: a run dir under the temp dir). |
 | `--resume` | Continue a run by id — adopts the issue it already created. |
@@ -806,7 +806,7 @@ orchestrator sdlc feature [OPTIONS]
 | `--max-refine` | Correction attempts allowed **per check** — a red suite, a type error and a coverage gap each get their own allowance, so one cannot starve another. (default: `5`) |
 | `--live` | Write for real: create the Jira issue, push the branch + open a PR, comment on Jira. Default --safe stays local (branch + commit + diff, dry-run Jira, no push). |
 | `--issue` | Adopt an existing tracker issue (e.g. SSPN-9) instead of creating one — the branch, PR, comment and transition all land on it. |
-| `--base` | PR target branch (default: $SDLC_PR_BASE, else the repo's default branch). |
+| `--base` | Branch to build on **and** open the PR into (default `$SDLC_PR_BASE`, else the repo's default branch). The worktree is cut from this — see `sdlc autorun` above. |
 | `--layout` | Target structure: auto (scaffold only empty repos), new (always scaffold a src/<pkg>/ skeleton), or existing (follow the repo's layout). (default: `auto`) |
 | `--package-name` | Override the scaffold package name (default: derived from repo). |
 | `--spec` | Implement a hand-written spec (JSON) instead of deriving one from the source — see `sdlc autorun` above for the format. |
