@@ -1579,3 +1579,51 @@ async def test_refine_windows_land_on_what_the_traceback_names(tmp_path: Path) -
     block = adapter._session_files(tmp_path, include_tests=True, anchors=["the_function_that_broke"])
 
     assert needle in block
+
+
+# --- the classifier and the corrector must agree on priority ------------------------
+#
+# `_failure_kind` decides which kind's one correction is being spent; `_corrective_suffix`
+# decides what the model is actually told. When they disagree, an attempt is charged to one
+# kind and spent advising about another. A live run died that way: a stray `</content>` in a
+# new file arrived alongside an edit whose anchor missed, the kind was recorded as "syntax",
+# and the model was handed the anchor-repair block — so it was never told to stop emitting
+# markup wrappers, and by the next failure "syntax" was already marked used.
+
+
+async def test_a_syntax_error_gets_syntax_advice_even_alongside_a_failed_edit(
+    tmp_path: Path,
+) -> None:
+    from orchestrator.sdlc.codegen import CodegenError, _failure_kind
+
+    exc = CodegenError(
+        "both at once",
+        syntax_errors=["t.py: line 219: invalid syntax — '</content>'"],
+        failed_edit_paths=["src/a.py"],
+    )
+    assert _failure_kind(exc) == "syntax"
+
+    gen = LLMCodegenAdapter(_ScriptedLLM([]))
+    suffix = gen._corrective_suffix(exc, tmp_path)
+
+    assert suffix is not None
+    assert "DOES NOT PARSE" in suffix, "the advice must address the kind that was charged"
+    assert "</content>" in suffix or "`<content>` tags" in suffix
+
+
+def test_every_failure_kind_has_advice_that_matches_it(tmp_path: Path) -> None:
+    """Each kind, alone, must produce advice — and the same kind the classifier names."""
+    from orchestrator.sdlc.codegen import CodegenError, _failure_kind
+
+    gen = LLMCodegenAdapter(_ScriptedLLM([]))
+    cases = [
+        ("parse", CodegenError("x", parse_detail="not an object"), "JSON"),
+        ("syntax", CodegenError("x", syntax_errors=["a.py: line 1: bad"]), "DOES NOT PARSE"),
+        ("anchors", CodegenError("x", failed_edit_paths=["a.py"]), "CURRENT"),
+        ("empty", CodegenError("x", empty_summary="nothing submitted"), "submit"),
+    ]
+    for expected_kind, exc, marker in cases:
+        assert _failure_kind(exc) == expected_kind
+        suffix = gen._corrective_suffix(exc, tmp_path)
+        assert suffix is not None, f"{expected_kind} has no advice"
+        assert marker.lower() in suffix.lower(), f"{expected_kind} advice does not address it"

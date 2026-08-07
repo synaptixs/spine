@@ -1525,12 +1525,12 @@ class LLMCodegenAdapter:
         if exc.parse_detail:
             logger.warning("sdlc.codegen.parse_retry detail=%r", exc.parse_detail[:160])
             return _parse_repair_block(exc.parse_detail)
-        if exc.failed_edit_paths or exc.missing_edit_paths:
-            logger.warning(
-                "sdlc.codegen.repair_retry",
-                extra={"failed": exc.failed_edit_paths, "missing": exc.missing_edit_paths},
-            )
-            return self._repair_block(exc, root)
+        # Syntax before anchors, matching `_failure_kind`. When one attempt produces both —
+        # a stray `</content>` in a new file *and* an edit whose anchor missed — the kind is
+        # recorded as "syntax", so handing back the anchor-repair block spends that kind's
+        # one correction on advice about something else. A live run died that way: the model
+        # was told its anchors failed, never told to stop emitting markup wrappers, and the
+        # retry it needed was already marked used. The two orderings must not drift again.
         if exc.syntax_errors:
             logger.warning("sdlc.codegen.syntax_retry", extra={"errors": exc.syntax_errors[:3]})
             listed = "\n".join(f"  - {m}" for m in exc.syntax_errors)
@@ -1542,6 +1542,12 @@ class LLMCodegenAdapter:
                 "own source — no XML or markup wrappers, no `<content>` tags, no fences, "
                 "nothing after the final line of code.\n"
             )
+        if exc.failed_edit_paths or exc.missing_edit_paths:
+            logger.warning(
+                "sdlc.codegen.repair_retry",
+                extra={"failed": exc.failed_edit_paths, "missing": exc.missing_edit_paths},
+            )
+            return self._repair_block(exc, root)
         if exc.empty_summary:
             logger.warning("sdlc.codegen.empty_retry summary=%r", exc.empty_summary[:160])
             return (
