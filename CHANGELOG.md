@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Added
+
+- **The validity gate refuses a criterion that contradicts a documented invariant.** The run
+  that started SSPN-31 produced a criterion requiring an ISO-8601 `meta.generated_at`
+  timestamp in a comprehension command's JSON — nobody asked for it, and it breaks CLAUDE.md
+  invariant 2 (`understand` / `state` are deterministic; never a clock, an LLM call, or
+  randomness). An agent building to it would have shipped non-diffable output and passed its
+  own tests. `assess()` now returns `CRITERIA_WRONG` with evidence naming the invariant.
+  Deterministic string matching, no LLM call — an LLM asked whether an LLM invented a
+  requirement is not an answer. Proposed criteria are checked too, since an invented
+  criterion is the kind most likely to break a rule. A timestamp in a log line, an HTTP
+  header or a tracker comment is untouched: determinism is a property of specific outputs,
+  not a ban on the word.
+
 ### Fixed
 
 - **A failure kind is now advised about the thing it was charged for.** `_failure_kind`
