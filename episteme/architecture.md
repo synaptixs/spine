@@ -154,19 +154,19 @@ _The repo's own prose folded into the graph (`Doc` nodes + `MENTIONS` edges). A 
 
 **1001 docs** ingested, naming **488 of 7407 symbols** (7% doc coverage).
 
-**612 potential drift** — the docs name code the graph doesn't have (renamed or removed symbols, or prose the binder can't resolve).
+**616 potential drift** — the docs name code the graph doesn't have (renamed or removed symbols, or prose the binder can't resolve).
 
 | The docs claim… | …in |
 |---|---|
+| `streamablehttp_client` | CHANGELOG.md |
+| `streamable_http_client` | CHANGELOG.md |
+| `CallToolResult.isError` | CHANGELOG.md |
+| `mcp.server.fastmcp` | CHANGELOG.md |
 | `meta.generated_at` | CHANGELOG.md |
 | `response_format` | CHANGELOG.md |
 | `jira_create_issue.additional_fields` | CHANGELOG.md |
 | `json.dumps` | CHANGELOG.md |
-| `anyOf` | CHANGELOG.md |
-| `input_types` | CHANGELOG.md |
-| `SyntaxError` | CHANGELOG.md |
-| `isLast` | CHANGELOG.md |
-| … | _+604 more_ |
+| … | _+608 more_ |
 
 ## Possibly unused
 _**115 of 1078 internal symbols** have no caller, subclass or doc reference in the graph. **Candidates, not verdicts**: calls through an attribute chain are skipped rather than guessed at, and dynamic dispatch, registries and reflection are invisible. Public symbols are excluded — having no in-repo caller is what being an API looks like._
