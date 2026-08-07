@@ -1790,6 +1790,28 @@ def _has_testable_source(written: list[Path]) -> bool:
     return any(p.suffix.lower() in _TESTABLE_SUFFIXES and not _is_test_file(p) for p in written)
 
 
+def _relative_paths(written: list[str], root: Path) -> list[str]:
+    """Written paths relative to ``root``, tolerating symlinks and surprises.
+
+    This runs on the *error* path, naming what already landed so the repair retry knows not
+    to resend it. A bare ``Path.relative_to`` raised there and killed the whole run: on macOS
+    ``/tmp`` is a symlink to ``/private/tmp``, the written paths come back resolved and
+    ``root`` does not, so nothing is "in the subpath of" anything. The crash fired only when
+    an attempt partially succeeded — precisely the case this information exists to rescue.
+
+    Resolve both sides, and fall back to the raw string rather than raising: a path that is
+    genuinely outside the worktree is worth reporting, not worth losing the run over.
+    """
+    base = root.resolve()
+    out: list[str] = []
+    for w in written:
+        try:
+            out.append(str(Path(w).resolve().relative_to(base)))
+        except (ValueError, OSError):
+            out.append(str(w))
+    return out
+
+
 def _is_test_file(path: Path) -> bool:
     """Mirror of ``feature_runner._is_test_path``, kept here to avoid a circular import.
 
@@ -1987,7 +2009,7 @@ def apply_files(
             missing_edit_paths=missing_targets,
             failed_anchors=attempted_anchors,
             syntax_errors=syntax_messages,
-            applied_paths=[str(Path(w).relative_to(root)) for w in written],
+            applied_paths=_relative_paths(written, root),
         )
     if not written:
         if placeholders and not edit_failures:

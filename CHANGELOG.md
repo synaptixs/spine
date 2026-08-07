@@ -12,6 +12,19 @@
   worth reading, and a missing key looks like a question nobody asked. Existing keys are
   unchanged, so the ten callers of `summary()` are unaffected.
 
+## Unreleased
+
+### Fixed
+
+- **The repair path no longer crashes on a symlinked worktree.** `applied_paths` names the
+  files an attempt already wrote so the repair retry knows not to resend them — computed
+  with a bare `Path.relative_to`, which raised on macOS, where `/tmp` is a symlink to
+  `/private/tmp`: the written paths come back resolved and the worktree root does not, so
+  nothing is "in the subpath of" anything. The `ValueError` killed the whole run, and fired
+  only when an attempt partially succeeded, which is the exact case the information exists
+  to rescue. Both sides are resolved now, and a path genuinely outside the worktree is
+  reported rather than raised.
+
 ## 3.15.0 — Everything that reports success has to be able to report failure
 
 ### Added

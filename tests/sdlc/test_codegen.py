@@ -1887,3 +1887,48 @@ async def test_a_source_change_that_submits_no_tests_is_still_refused(tmp_path: 
 
     with pytest.raises(CodegenError):
         await adapter.author_tests(spec={"title": "t"}, path=str(tmp_path), issue_key="S-1")
+
+
+# --- the repair path must not crash (regression from #150) --------------------------
+#
+# `applied_paths` names what already landed so the repair retry knows not to resend it.
+# Computing it with a bare `Path.relative_to` raised on macOS, where /tmp is a symlink to
+# /private/tmp: the written paths come back resolved and the worktree root does not, so
+# nothing is "in the subpath of" anything. The ValueError killed the whole run — and it
+# fired only when an attempt partially succeeded, which is the exact case this information
+# exists to rescue.
+
+
+def test_written_paths_survive_a_symlinked_root(tmp_path: Path) -> None:
+    """The macOS /tmp -> /private/tmp shape, built explicitly rather than assumed."""
+    from orchestrator.sdlc.codegen import _relative_paths
+
+    real = tmp_path / "real"
+    (real / "src").mkdir(parents=True)
+    (real / "src" / "a.py").write_text("X = 1\n", encoding="utf-8")
+    link = tmp_path / "link"
+    link.symlink_to(real)
+
+    # root as the symlink, the written path as the resolved location — the failing shape.
+    assert _relative_paths([str(real / "src" / "a.py")], link) == ["src/a.py"]
+
+
+def test_a_path_outside_the_root_is_reported_not_raised(tmp_path: Path) -> None:
+    """Worth reporting; never worth losing the run over."""
+    from orchestrator.sdlc.codegen import _relative_paths
+
+    outside = tmp_path.parent / "elsewhere.py"
+
+    result = _relative_paths([str(outside)], tmp_path)
+
+    assert result == [str(outside)]
+
+
+def test_ordinary_paths_are_relative(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import _relative_paths
+
+    (tmp_path / "pkg").mkdir()
+    target = tmp_path / "pkg" / "thing.py"
+    target.write_text("Y = 2\n", encoding="utf-8")
+
+    assert _relative_paths([str(target)], tmp_path) == ["pkg/thing.py"]
