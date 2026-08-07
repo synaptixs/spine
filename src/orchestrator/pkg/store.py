@@ -8,6 +8,7 @@ backs a Postgres/graph store without changing callers.
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node
@@ -233,13 +234,28 @@ class FactStore:
         return [self._nodes[i] for i in ids if i in self._nodes]
 
     def summary(self) -> dict[str, int]:
+        """Counts of what was extracted, including edges **per kind**.
+
+        One total is not enough to notice a front-end that stopped emitting something.
+        ``edges: 31073`` reads identically whether the call graph resolved or collapsed to
+        zero while imports doubled — and a kind that silently goes missing is exactly the
+        completeness failure ``pkg verify`` exists for, arriving from the other direction:
+        the edge is not dangling, it was simply never emitted. A per-kind line makes
+        ``REFERENCES: 0`` on a repo with entities something you can see.
+
+        Kinds with no edges are included rather than omitted. "Zero" is the answer worth
+        reading; a missing key looks like a field that was never asked about.
+        """
         grounded = sum(1 for n in self._nodes.values() if n.grounded)
-        return {
+        out = {
             "nodes": len(self._nodes),
             "grounded_nodes": grounded,
             "external_nodes": len(self._nodes) - grounded,
             "edges": len(self._edges),
         }
+        counts = Counter(e.kind.value for e in self._edges)
+        out.update({f"edges_{kind.value.lower()}": counts.get(kind.value, 0) for kind in EdgeKind})
+        return out
 
 
 __all__ = ["CallSite", "FactStore"]

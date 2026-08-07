@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **`pkg extract` counts edges by kind.** One total cannot show a kind that stopped being
+  emitted: `edges: 31073` reads identically whether the call graph resolved or collapsed to
+  zero while imports doubled. `FactStore.summary()` now carries an `edges_<kind>` count for
+  every kind, printed under the scan line and included in `--json`. Kinds with no edges
+  report `0` rather than being omitted — `REFERENCES 0` on a repo with entities is the line
+  worth reading, and a missing key looks like a question nobody asked. Existing keys are
+  unchanged, so the ten callers of `summary()` are unaffected.
+
 ## 3.15.0 — Everything that reports success has to be able to report failure
 
 ### Added

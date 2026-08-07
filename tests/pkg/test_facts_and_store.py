@@ -137,3 +137,46 @@ def test_impact_across_includes_exposes_by_default() -> None:
     explicit = {n.name for n, _ in store.impact_across("py:api.list_runs", kinds=(EdgeKind.CALLS,))}
     assert "GET /v1/runs" in default
     assert explicit == set()  # a caller that asks for CALLS only still gets the old reading
+
+
+def test_summary_counts_edges_by_kind() -> None:
+    """One total cannot show a kind that stopped being emitted.
+
+    `edges: 31073` reads identically whether the call graph resolved or collapsed to zero
+    while imports doubled. A kind silently going missing is the completeness failure
+    `pkg verify` exists for, arriving from the other side: the edge is not dangling, it was
+    never emitted at all.
+    """
+    batch = FactBatch()
+    a = Node("py:mod:a", NodeKind.MODULE, "a", "python", Provenance("a.py", 1))
+    b = Node("py:mod:b", NodeKind.MODULE, "b", "python", Provenance("b.py", 1))
+    batch.add_node(a)
+    batch.add_node(b)
+    c = Node("py:mod:c", NodeKind.MODULE, "c", "python", Provenance("c.py", 1))
+    batch.add_node(c)
+    batch.add_edge(Edge(a.id, b.id, EdgeKind.IMPORTS))
+    batch.add_edge(Edge(a.id, b.id, EdgeKind.CALLS))
+    # A distinct pair, since `FactBatch.add_edge` de-duplicates on (src, dst, kind).
+    batch.add_edge(Edge(a.id, c.id, EdgeKind.CALLS))
+
+    summary = FactStore(batch).summary()
+
+    assert summary["edges"] == 3
+    assert summary["edges_calls"] == 2
+    assert summary["edges_imports"] == 1
+    assert summary["edges_reads"] == 0
+
+
+def test_summary_reports_a_kind_with_no_edges_as_zero() -> None:
+    """`REFERENCES: 0` is the line worth reading; a missing key looks unasked."""
+    summary = FactStore(FactBatch()).summary()
+
+    for kind in EdgeKind:
+        assert summary[f"edges_{kind.value.lower()}"] == 0, f"{kind.value} should report zero"
+
+
+def test_summary_keeps_its_existing_keys() -> None:
+    """Ten callers read this dict; adding keys must not move the ones already there."""
+    summary = FactStore(FactBatch()).summary()
+
+    assert set(summary) >= {"nodes", "grounded_nodes", "external_nodes", "edges"}

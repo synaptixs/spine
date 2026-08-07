@@ -2387,6 +2387,12 @@ def pkg_extract(
         f"Scanned {path} — {summary['grounded_nodes']} grounded nodes, "
         f"{summary['external_nodes']} external, {summary['edges']} edges."
     )
+    # Per kind, because one total cannot show a kind that stopped being emitted. Zeros are
+    # printed rather than skipped: `REFERENCES 0` on a repo with entities is the line worth
+    # reading, and omitting it looks like a question nobody asked.
+    per_kind = {k[len("edges_") :]: v for k, v in summary.items() if k.startswith("edges_")}
+    if per_kind:
+        typer.echo("  " + "  ".join(f"{k.upper()} {v}" for k, v in per_kind.items()))
     if extractor.skipped:
         typer.echo(f"  (skipped {len(extractor.skipped)} unparseable file(s))")
 
