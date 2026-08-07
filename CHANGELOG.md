@@ -6,6 +6,17 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Changed
+
+- **`FeatureSpec.acceptance_criteria` has narrowed to the criteria the source actually
+  stated.** Anything the spec writer inferred now lands in a new `proposed_criteria` field
+  instead of being appended to the same list. Readers of `acceptance_criteria` will see
+  fewer entries than before — that is the point: they were previously indistinguishable, so
+  a run could be held to a requirement nobody asked for. `_merge_criteria` returns
+  `(stated, proposed)` rather than one merged list. The judge, the codegen prompt and the
+  spec views still read the stated set; carrying the distinction through to them is
+  separate work.
+
 ### Fixed
 
 - **A run branches from the branch it will open a PR into.** A clone with no `--branch`
