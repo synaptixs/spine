@@ -82,7 +82,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/autorun.py:535`](../../src/orchestrator/sdlc/autorun.py#L535)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L180)
-- **Calls** (3): [`produce_design`](../../src/orchestrator/sdlc/design.py#L235), `py:emit`, [`render_design_md`](../../src/orchestrator/sdlc/design.py#L212)
+- **Calls** (3): [`produce_design`](../../src/orchestrator/sdlc/design.py#L285), `py:emit`, [`render_design_md`](../../src/orchestrator/sdlc/design.py#L262)
 
 ### `_stage_implement`
 
