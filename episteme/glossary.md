@@ -16,7 +16,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **EdgeKind** | [`EdgeKind`](../src/orchestrator/pkg/facts.py#L43) | `CLAUDE.md#layout-where-things-live`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#the-coercion-kind-per-table-projection` |
 | **EntityKey** | [`EntityKey`](../src/orchestrator/spine/entity_key.py#L27) | `FEATURES.md#the-semantic-spine-ontomesh-spine-infodrift`, `OPERATIONS.md#the-semantic-spine` |
 | **FactBatch** | [`FactBatch`](../src/orchestrator/pkg/facts.py#L99) | `CLAUDE.md#layout-where-things-live`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#the-coercion-kind-per-table-projection` |
-| **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L24) | `CHANGELOG.md`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
+| **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L25) | `CHANGELOG.md`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
 | **FeatureImplementationWorkflow** | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
 | **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L49) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/sandboxed-test-execution.md#wiring-sdlcfeature-runnerpy` |
 | **FeatureRunResult** | [`FeatureRunResult`](../src/orchestrator/sdlc/feature_runner.py#L66) | `docs/specs/sdlc-tracking-blueprint.md#11-implementation-roadmap-incremental-each-phase-shippable`, `docs/specs/sdlc-tracking-blueprint.md#3-what-to-measure-the-metric-model` |

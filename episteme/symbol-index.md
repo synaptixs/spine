@@ -1269,11 +1269,11 @@ _Every first-party symbol, A–Z, and the page that describes it. 2934 symbols; 
 | `call` | `orchestrator.mcp.registry` | [`call`](../src/orchestrator/mcp/registry.py#L107) |
 | `call_tool` | `orchestrator.mcp.client` | [`call_tool`](../src/orchestrator/mcp/client.py#L30) |
 | `call_tool` | `orchestrator.mcp.client` | [`call_tool`](../src/orchestrator/mcp/client.py#L44) |
-| `callees_of` | `orchestrator.pkg.store` | [`callees_of`](../src/orchestrator/pkg/store.py#L53) |
+| `callees_of` | `orchestrator.pkg.store` | [`callees_of`](../src/orchestrator/pkg/store.py#L54) |
 | `caller_split` | [`orchestrator.knowledge.renderers`](modules/orchestrator.knowledge.renderers.md#caller_split) | [`caller_split`](../src/orchestrator/knowledge/renderers.py#L273) |
 | `callers` | `scripts.security_verify` | [`callers`](../scripts/security_verify.py#L168) |
-| `callers_of` | `orchestrator.pkg.store` | [`callers_of`](../src/orchestrator/pkg/store.py#L43) |
-| `CallSite` | `orchestrator.pkg.store` | [`CallSite`](../src/orchestrator/pkg/store.py#L17) |
+| `callers_of` | `orchestrator.pkg.store` | [`callers_of`](../src/orchestrator/pkg/store.py#L44) |
+| `CallSite` | `orchestrator.pkg.store` | [`CallSite`](../src/orchestrator/pkg/store.py#L18) |
 | `candidates` | `scripts.security_verify` | [`candidates`](../scripts/security_verify.py#L113) |
 | `Capability` | `orchestrator.catalog.models` | [`Capability`](../src/orchestrator/catalog/models.py#L50) |
 | `Capability` | `orchestrator.pkg.capabilities` | [`Capability`](../src/orchestrator/pkg/capabilities.py#L66) |
@@ -1310,7 +1310,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 2934 symbols; 
 | `checkpoint` | [`orchestrator.sdlc.autorun`](modules/orchestrator.sdlc.autorun.md#checkpoint) | [`checkpoint`](../src/orchestrator/sdlc/autorun.py#L146) |
 | `CheckResult` | `orchestrator.doctor` | [`CheckResult`](../src/orchestrator/doctor.py#L90) |
 | `CheckRun` | `orchestrator.codereview.github_client` | [`CheckRun`](../src/orchestrator/codereview/github_client.py#L77) |
-| `children_of` | `orchestrator.pkg.store` | [`children_of`](../src/orchestrator/pkg/store.py#L58) |
+| `children_of` | `orchestrator.pkg.store` | [`children_of`](../src/orchestrator/pkg/store.py#L59) |
 | `CIAdapter` | `orchestrator.sdlc.ci` | [`CIAdapter`](../src/orchestrator/sdlc/ci.py#L37) |
 | `CIResult` | `orchestrator.sdlc.ci` | [`CIResult`](../src/orchestrator/sdlc/ci.py#L28) |
 | `Citation` | `orchestrator.spine.grounding` | [`Citation`](../src/orchestrator/spine/grounding.py#L18) |
@@ -1450,7 +1450,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 2934 symbols; 
 | `default_state_dir` | `orchestrator.sdlc.runstate` | [`default_state_dir`](../src/orchestrator/sdlc/runstate.py#L146) |
 | `delta` | `orchestrator.evals.promotion` | [`delta`](../src/orchestrator/evals/promotion.py#L52) |
 | `delta` | `orchestrator.evals.skill_ab` | [`delta`](../src/orchestrator/evals/skill_ab.py#L113) |
-| `dependents_of` | `orchestrator.pkg.store` | [`dependents_of`](../src/orchestrator/pkg/store.py#L201) |
+| `dependents_of` | `orchestrator.pkg.store` | [`dependents_of`](../src/orchestrator/pkg/store.py#L202) |
 | `DeployTopology` | `orchestrator.spine.shipment` | [`DeployTopology`](../src/orchestrator/spine/shipment.py#L79) |
 | `deprecate` | `orchestrator.registry.api.routes` | [`deprecate`](../src/orchestrator/registry/api/routes.py#L228) |
 | `derive_csharp_namespace` | [`orchestrator.sdlc.layout`](modules/orchestrator.sdlc.layout.md#derive_csharp_namespace) | [`derive_csharp_namespace`](../src/orchestrator/sdlc/layout.py#L283) |
@@ -1499,7 +1499,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 2934 symbols; 
 | `DocReader` | [`orchestrator.pkg.doc_source`](modules/orchestrator.pkg.doc_source.md#docreader) | [`DocReader`](../src/orchestrator/pkg/doc_source.py#L51) |
 | `DocReconciler` | `orchestrator.pkg.docs` | [`DocReconciler`](../src/orchestrator/pkg/docs.py#L135) |
 | `docs_for` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#docs_for) | [`docs_for`](../src/orchestrator/plugin/server.py#L421) |
-| `docs_for` | `orchestrator.pkg.store` | [`docs_for`](../src/orchestrator/pkg/store.py#L224) |
+| `docs_for` | `orchestrator.pkg.store` | [`docs_for`](../src/orchestrator/pkg/store.py#L225) |
 | `doctor` | [`orchestrator.cli`](modules/orchestrator.cli.md#doctor) | [`doctor`](../src/orchestrator/cli.py#L1563) |
 | `doctor` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#doctor) | [`doctor`](../src/orchestrator/plugin/server.py#L28) |
 | `dominant` | [`orchestrator.knowledge.renderers`](modules/orchestrator.knowledge.renderers.md#dominant) | [`dominant`](../src/orchestrator/knowledge/renderers.py#L1452) |
