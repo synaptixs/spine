@@ -8,6 +8,13 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Changed
 
+- **Codegen's source-context budget goes from 40 KB to 200 KB.** 40 KB is ~10k tokens —
+  about 1% of the default model's window, and a leftover rather than a limit. It shaped
+  work instead of bounding it: a change spanning five files totalled 113 KB, so every file
+  was excerpted and codegen quoted an edit anchor from a region it had only partly seen.
+  Failure output stays at 40 KB under its own constant — a pytest dump is not source, and
+  refine re-sends context every attempt.
+
 - **`FeatureSpec.acceptance_criteria` has narrowed to the criteria the source actually
   stated.** Anything the spec writer inferred now lands in a new `proposed_criteria` field
   instead of being appended to the same list. Readers of `acceptance_criteria` will see
