@@ -49,7 +49,9 @@ async def test_write_parses_spec_fields() -> None:
     assert spec.intent_id == "intent-add-export"
     assert spec.title == "Add CSV export"  # carried from intent, not LLM
     assert spec.summary == "Export grid data to CSV."
-    assert spec.acceptance_criteria[0].startswith("Given 10k rows")
+    # The intent states no criteria, so everything the model produced is proposed.
+    assert spec.acceptance_criteria == []
+    assert spec.proposed_criteria[0].startswith("Given 10k rows")
     assert spec.estimate == "M"  # upper-cased
 
 
@@ -100,9 +102,10 @@ async def test_stated_criteria_survive_when_llm_drops_them() -> None:
     payload = {"summary": "s", "acceptance_criteria": ["sends a notification"]}
     writer = SpecWriter(_llm_returning(jsonlib.dumps(payload)))
     spec = await writer.write(_intent_with_criteria())
-    # Stated criteria lead, verbatim; the model's extra follows.
-    assert spec.acceptance_criteria[:2] == _intent_with_criteria().acceptance_criteria
-    assert "sends a notification" in spec.acceptance_criteria
+    # Stated criteria are kept verbatim and alone; the model's extra is proposed,
+    # not presented as something the source asked for.
+    assert spec.acceptance_criteria == _intent_with_criteria().acceptance_criteria
+    assert spec.proposed_criteria == ["sends a notification"]
 
 
 async def test_stated_criteria_not_double_listed() -> None:

@@ -1255,36 +1255,34 @@ async def test_a_file_larger_than_the_budget_is_excerpted_not_dropped(tmp_path: 
     """The live failure: `cli.py` is 100 KB against a 40 KB pool, so the repair block said
     "below is the CURRENT EXACT content" and then appended nothing. Every retry re-guessed
     the anchor and the run died having never seen a byte of the file it was editing."""
-    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
     from orchestrator.sdlc.excerpt import _excerpt_files
 
+    # An explicit pool, not the global cap: this test is about what happens when a file
+    # exceeds its budget, and it must keep testing that however large the cap becomes.
+    pool = 40_000
     target = "def render_contract_types(schema: dict) -> str:"
     (tmp_path / "cli.py").write_text(_big_module(target), encoding="utf-8")
 
-    block = _excerpt_files(
-        tmp_path, ["cli.py"], budget=_MAX_CONTEXT_BYTES, anchors_by_path={"cli.py": [target]}, label="x"
-    )
+    block = _excerpt_files(tmp_path, ["cli.py"], budget=pool, anchors_by_path={"cli.py": [target]}, label="x")
 
     assert block, "an oversized file must still reach the prompt"
     assert target in block, "the window must cover the line the model was aiming at"
-    assert len(block) <= _MAX_CONTEXT_BYTES * 2  # bounded, not the whole 120 KB file
+    assert len(block) <= pool * 2  # bounded by the pool it was given
     assert "lines not shown" in block  # and honest about being partial
 
 
 async def test_a_near_miss_anchor_still_finds_its_neighbourhood(tmp_path: Path) -> None:
     """A `find` fails on whitespace or a renamed identifier as easily as on being wrong.
     The window should still land where the model was reaching."""
-    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
     from orchestrator.sdlc.excerpt import _excerpt_files
 
+    pool = 40_000  # explicit, so the global cap can move without disarming this
     target = "def render_contract_types(schema: dict) -> str:"
     (tmp_path / "cli.py").write_text(_big_module(target), encoding="utf-8")
 
     # What the model guessed: right function, wrong signature.
     guess = "def render_contract_types(schema):"
-    block = _excerpt_files(
-        tmp_path, ["cli.py"], budget=_MAX_CONTEXT_BYTES, anchors_by_path={"cli.py": [guess]}, label="x"
-    )
+    block = _excerpt_files(tmp_path, ["cli.py"], budget=pool, anchors_by_path={"cli.py": [guess]}, label="x")
 
     assert target in block
 
@@ -1581,3 +1579,51 @@ async def test_refine_windows_land_on_what_the_traceback_names(tmp_path: Path) -
     block = adapter._session_files(tmp_path, include_tests=True, anchors=["the_function_that_broke"])
 
     assert needle in block
+
+
+# --- the classifier and the corrector must agree on priority ------------------------
+#
+# `_failure_kind` decides which kind's one correction is being spent; `_corrective_suffix`
+# decides what the model is actually told. When they disagree, an attempt is charged to one
+# kind and spent advising about another. A live run died that way: a stray `</content>` in a
+# new file arrived alongside an edit whose anchor missed, the kind was recorded as "syntax",
+# and the model was handed the anchor-repair block — so it was never told to stop emitting
+# markup wrappers, and by the next failure "syntax" was already marked used.
+
+
+async def test_a_syntax_error_gets_syntax_advice_even_alongside_a_failed_edit(
+    tmp_path: Path,
+) -> None:
+    from orchestrator.sdlc.codegen import CodegenError, _failure_kind
+
+    exc = CodegenError(
+        "both at once",
+        syntax_errors=["t.py: line 219: invalid syntax — '</content>'"],
+        failed_edit_paths=["src/a.py"],
+    )
+    assert _failure_kind(exc) == "syntax"
+
+    gen = LLMCodegenAdapter(_ScriptedLLM([]))
+    suffix = gen._corrective_suffix(exc, tmp_path)
+
+    assert suffix is not None
+    assert "DOES NOT PARSE" in suffix, "the advice must address the kind that was charged"
+    assert "</content>" in suffix or "`<content>` tags" in suffix
+
+
+def test_every_failure_kind_has_advice_that_matches_it(tmp_path: Path) -> None:
+    """Each kind, alone, must produce advice — and the same kind the classifier names."""
+    from orchestrator.sdlc.codegen import CodegenError, _failure_kind
+
+    gen = LLMCodegenAdapter(_ScriptedLLM([]))
+    cases = [
+        ("parse", CodegenError("x", parse_detail="not an object"), "JSON"),
+        ("syntax", CodegenError("x", syntax_errors=["a.py: line 1: bad"]), "DOES NOT PARSE"),
+        ("anchors", CodegenError("x", failed_edit_paths=["a.py"]), "CURRENT"),
+        ("empty", CodegenError("x", empty_summary="nothing submitted"), "submit"),
+    ]
+    for expected_kind, exc, marker in cases:
+        assert _failure_kind(exc) == expected_kind
+        suffix = gen._corrective_suffix(exc, tmp_path)
+        assert suffix is not None, f"{expected_kind} has no advice"
+        assert marker.lower() in suffix.lower(), f"{expected_kind} advice does not address it"

@@ -787,10 +787,10 @@ You extend the catalog with new skills/tools/run-shapes via a selector
 
 `orchestrator mcp contracts` shows the governed ToolContract derived for each
 onboarded MCP tool, and labels every argument with its **declared type**, read
-from the server's own JSON Schema at display time (nothing is stored, and
-`mcp call` is unaffected). A union type is joined with `|`, and an argument the
-schema doesn't give a top-level `type` (an `anyOf`, a `$ref`, or a tool with no
-schema at all) is labelled `any`:
+from the server's own JSON Schema (nothing is stored — the labels are derived on
+every read). A union type is joined with `|`, and an argument the schema doesn't
+give a top-level `type` (an `anyOf`, a `$ref`, or a tool with no schema at all)
+is labelled `any`:
 
 ```json
 {
@@ -802,6 +802,24 @@ schema at all) is labelled `any`:
 
 Use it to see an argument's expected shape *before* a call fails on a type
 mismatch.
+
+**Stringly-typed arguments are encoded for you.** Some servers type a structured
+argument as a *string of JSON* rather than an object — Atlassian's
+`jira_create_issue.additional_fields` is the one you'll hit first. Pass the
+natural object; `mcp call` reads the declared type and encodes it:
+
+```bash
+orchestrator mcp call atlassian:jira_create_issue --args '{"project_key":"SSPN","additional_fields":{"labels":["dogfood"]}}'
+```
+
+Without this you'd have to embed a JSON document inside a JSON document. If you
+already encode it yourself, that still works — both spellings are accepted.
+
+The coercion is deliberately narrow: it applies only where the schema says
+`string` (or `string|null`) and you passed an object or array. An argument the
+server declares as `object`, one it doesn't declare at all, or a tool whose
+schema can't be read is sent exactly as you wrote it — Spine won't guess at a
+type the server never stated.
 
 Spine can use external **[MCP](https://modelcontextprotocol.io)
 servers** — read Confluence/Jira through Atlassian's MCP server, introspect a

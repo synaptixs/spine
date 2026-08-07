@@ -6,7 +6,7 @@
 | Route | Handler | Declared at |
 |---|---|---|
 | `DELETE /v1/connections/servers/{name}` | [`remove_server`](../src/orchestrator/registry/api/connections.py#L221) | [`src/orchestrator/registry/api/connections.py:220`](../src/orchestrator/registry/api/connections.py#L220) |
-| `GET /` | [`index`](../src/orchestrator/intake/web/app.py#L137), [`list_entities`](../src/orchestrator/registry/api/routes.py#L156), [`root`](../src/orchestrator/registry/api/web/home.py#L23) | [`src/orchestrator/intake/web/app.py:136`](../src/orchestrator/intake/web/app.py#L136) |
+| `GET /` | [`index`](../src/orchestrator/intake/web/app.py#L140), [`list_entities`](../src/orchestrator/registry/api/routes.py#L156), [`root`](../src/orchestrator/registry/api/web/home.py#L23) | [`src/orchestrator/intake/web/app.py:139`](../src/orchestrator/intake/web/app.py#L139) |
 | `GET /app` | [`home`](../src/orchestrator/registry/api/web/home.py#L125) | [`src/orchestrator/registry/api/web/home.py:124`](../src/orchestrator/registry/api/web/home.py#L124) |
 | `GET /app/advanced` | [`advanced_page`](../src/orchestrator/registry/api/web/advanced.py#L22) | [`src/orchestrator/registry/api/web/advanced.py:21`](../src/orchestrator/registry/api/web/advanced.py#L21) |
 | `GET /app/audit` | [`audit_page`](../src/orchestrator/registry/api/web/governance.py#L21) | [`src/orchestrator/registry/api/web/governance.py:20`](../src/orchestrator/registry/api/web/governance.py#L20) |
@@ -27,7 +27,7 @@
 | `GET /app/understand` | [`understand_page`](../src/orchestrator/registry/api/web/intelligence.py#L65) | [`src/orchestrator/registry/api/web/intelligence.py:64`](../src/orchestrator/registry/api/web/intelligence.py#L64) |
 | `GET /console` | [`console`](../src/orchestrator/registry/api/console.py#L60) | [`src/orchestrator/registry/api/console.py:59`](../src/orchestrator/registry/api/console.py#L59) |
 | `GET /favicon.ico` | [`favicon`](../src/orchestrator/registry/api/web/home.py#L29) | [`src/orchestrator/registry/api/web/home.py:28`](../src/orchestrator/registry/api/web/home.py#L28) |
-| `GET /healthz` | [`healthz`](../src/orchestrator/gateway/api/app.py#L83), [`healthz`](../src/orchestrator/intake/web/app.py#L133), [`healthz`](../src/orchestrator/registry/api/app.py#L111) | [`src/orchestrator/gateway/api/app.py:82`](../src/orchestrator/gateway/api/app.py#L82) |
+| `GET /healthz` | [`healthz`](../src/orchestrator/gateway/api/app.py#L83), [`healthz`](../src/orchestrator/intake/web/app.py#L136), [`healthz`](../src/orchestrator/registry/api/app.py#L111) | [`src/orchestrator/gateway/api/app.py:82`](../src/orchestrator/gateway/api/app.py#L82) |
 | `GET /login` | [`login_page`](../src/orchestrator/registry/api/web/auth.py#L100) | [`src/orchestrator/registry/api/web/auth.py:99`](../src/orchestrator/registry/api/web/auth.py#L99) |
 | `GET /logout` | [`logout`](../src/orchestrator/registry/api/web/auth.py#L121) | [`src/orchestrator/registry/api/web/auth.py:120`](../src/orchestrator/registry/api/web/auth.py#L120) |
 | `GET /readyz` | [`readyz`](../src/orchestrator/gateway/api/app.py#L87), [`readyz`](../src/orchestrator/registry/api/app.py#L115) | [`src/orchestrator/gateway/api/app.py:86`](../src/orchestrator/gateway/api/app.py#L86) |
@@ -70,7 +70,7 @@
 | `POST /v1/capabilities/understand` | [`understand`](../src/orchestrator/registry/api/capabilities.py#L214) | [`src/orchestrator/registry/api/capabilities.py:213`](../src/orchestrator/registry/api/capabilities.py#L213) |
 | `POST /v1/connections/servers` | [`add_server`](../src/orchestrator/registry/api/connections.py#L187) | [`src/orchestrator/registry/api/connections.py:186`](../src/orchestrator/registry/api/connections.py#L186) |
 | `POST /v1/github/webhook` | [`github_webhook`](../src/orchestrator/codereview/webhook.py#L61) | [`src/orchestrator/codereview/webhook.py:52`](../src/orchestrator/codereview/webhook.py#L52) |
-| `POST /v1/intake/preview` | [`preview`](../src/orchestrator/intake/web/app.py#L141), [`preview`](../src/orchestrator/registry/api/backlog.py#L56) | [`src/orchestrator/intake/web/app.py:140`](../src/orchestrator/intake/web/app.py#L140) |
+| `POST /v1/intake/preview` | [`preview`](../src/orchestrator/intake/web/app.py#L144), [`preview`](../src/orchestrator/registry/api/backlog.py#L56) | [`src/orchestrator/intake/web/app.py:143`](../src/orchestrator/intake/web/app.py#L143) |
 | `POST /v1/runs/start` | [`start_run`](../src/orchestrator/registry/api/runs.py#L107) | [`src/orchestrator/registry/api/runs.py:106`](../src/orchestrator/registry/api/runs.py#L106) |
 | `POST /v1/tasks` | [`submit_task`](../src/orchestrator/registry/api/tasks.py#L113) | [`src/orchestrator/registry/api/tasks.py:103`](../src/orchestrator/registry/api/tasks.py#L103) |
 | `POST /v1/tools/{tool_id}/{version}/invoke` | [`invoke`](../src/orchestrator/gateway/api/routes.py#L51) | [`src/orchestrator/gateway/api/routes.py:41`](../src/orchestrator/gateway/api/routes.py#L41) |

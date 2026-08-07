@@ -19,7 +19,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from orchestrator.core.llm import CompletionResult, LLMClient, Message, catalog
+from orchestrator.core.llm import CompletionResult, LLMClient, Message, ToolSpec, catalog
 from orchestrator.intake.intents import Intent
 
 logger = logging.getLogger("orchestrator.intake.specs")
@@ -54,6 +54,39 @@ _SYSTEM_PROMPT = (
     "'src/orchestrator/pkg/stats.py' makes it guess."
 )
 
+# The same contract as the prompt, as a tool the provider makes the model call.
+#
+# `json_object=True` only constrains providers that have a JSON mode; Anthropic
+# drops `response_format`, and the default intake model is an Anthropic one — so the
+# spec arrived as whatever the model felt like emitting and `_loads_json_object`
+# salvaged it. Codegen and the acceptance judge already force a tool call for this;
+# spec writing now does the same. The prompt still states the fidelity rules, which
+# no schema can express.
+_SUBMIT_TOOL = ToolSpec(
+    name="submit_feature_spec",
+    description=("Submit the implementation-ready feature spec for this intent. Call this exactly once."),
+    parameters={
+        "type": "object",
+        "properties": {
+            "summary": {"type": "string", "description": "2-4 sentence what + why."},
+            "user_story": {
+                "type": "string",
+                "description": "As a <role>, I want <capability>, so that <benefit>.",
+            },
+            "acceptance_criteria": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Testable criteria; stated ones copied VERBATIM and first.",
+            },
+            "technical_notes": {"type": "string"},
+            "nfrs": {"type": "array", "items": {"type": "string"}},
+            "dependencies": {"type": "array", "items": {"type": "string"}},
+            "estimate": {"type": "string", "enum": ["S", "M", "L", "XL"]},
+        },
+        "required": ["summary", "acceptance_criteria"],
+    },
+)
+
 
 class FeatureSpec(BaseModel):
     """An implementation-ready spec derived from one intent → one Jira issue."""
@@ -65,6 +98,10 @@ class FeatureSpec(BaseModel):
     summary: str = ""
     user_story: str = ""
     acceptance_criteria: list[str] = Field(default_factory=list)
+    # Criteria the model produced that the source never stated. Kept apart from
+    # acceptance_criteria so a reader (and, later, the judge) can tell a contract
+    # the ticket signed from a suggestion the spec writer inferred.
+    proposed_criteria: list[str] = Field(default_factory=list)
     technical_notes: str = ""
     nfrs: list[str] = Field(default_factory=list)
     dependencies: list[str] = Field(default_factory=list)
@@ -86,8 +123,18 @@ class SpecWriter:
         # temperature=0: a spec must be stable for a given intent so the same
         # --intent yields the same acceptance criteria (and cached) run to run.
         result: CompletionResult = await self._llm.complete(
-            messages, model=self._model, json_object=True, temperature=0.0
+            messages,
+            model=self._model,
+            temperature=0.0,
+            tools=[_SUBMIT_TOOL],
+            tool_choice=_SUBMIT_TOOL.name,
         )
+        for call in result.tool_calls:
+            if call.name == _SUBMIT_TOOL.name:
+                # Re-serialized so the forced call and a text answer share one parser,
+                # keeping the minimal-spec degradation path the only fallback.
+                return self._parse(json.dumps(call.arguments), intent)
+        # A provider that ignored the tool still answers in text — the old path, unchanged.
         return self._parse(result.text, intent)
 
     async def write_all(self, intents: list[Intent]) -> list[FeatureSpec]:
@@ -125,15 +172,18 @@ class SpecWriter:
                 nfrs=list(intent.nfrs),
                 dependencies=list(intent.dependencies),
             )
-        # Stated criteria are the contract: keep them even if the model dropped
-        # them, and ensure they lead (verbatim) before any the model inferred.
-        criteria = _merge_criteria(intent.acceptance_criteria, _str_list(payload.get("acceptance_criteria")))
+        # Stated criteria are the contract: keep them verbatim and alone in
+        # acceptance_criteria; whatever the model added lands in proposed_criteria.
+        stated, proposed = _merge_criteria(
+            intent.acceptance_criteria, _str_list(payload.get("acceptance_criteria"))
+        )
         return FeatureSpec(
             intent_id=intent.id,
             title=intent.title,
             summary=str(payload.get("summary") or intent.description).strip(),
             user_story=str(payload.get("user_story") or "").strip(),
-            acceptance_criteria=criteria,
+            acceptance_criteria=stated,
+            proposed_criteria=proposed,
             technical_notes=str(payload.get("technical_notes") or "").strip(),
             nfrs=_str_list(payload.get("nfrs")) or list(intent.nfrs),
             dependencies=_str_list(payload.get("dependencies")) or list(intent.dependencies),
@@ -141,21 +191,29 @@ class SpecWriter:
         )
 
 
-def _merge_criteria(stated: list[str], produced: list[str]) -> list[str]:
-    """Stated criteria lead (verbatim); the model's extras follow, de-duped.
+def _merge_criteria(stated: list[str], produced: list[str]) -> tuple[list[str], list[str]]:
+    """Partition criteria by provenance: ``(stated, proposed)``.
 
-    Guarantees a contract the source stated survives even if the spec writer
-    paraphrased or dropped it — the failure that let run #23 ship the wrong
-    API. Comparison is whitespace-insensitive so a re-emitted criterion isn't
-    double-listed.
+    The stated list is returned verbatim and in its original order — a contract
+    the source stated survives even if the spec writer paraphrased or dropped
+    it (the failure that let run #23 ship the wrong API). Everything the model
+    produced that isn't one of them is *proposed*, not accepted: concatenating
+    the two is how a three-criterion ticket became a nine-criterion spec with
+    nobody able to tell which three were real.
+
+    Comparison stays whitespace-insensitive, so a criterion the model re-emits
+    in a different whitespace form is recognised as the stated one rather than
+    listed a second time as proposed.
     """
-    out = list(stated)
+    stated_out = list(stated)
     seen = {" ".join(c.split()) for c in stated}
+    proposed: list[str] = []
     for c in produced:
-        if " ".join(c.split()) not in seen:
-            out.append(c)
-            seen.add(" ".join(c.split()))
-    return out
+        key = " ".join(c.split())
+        if key not in seen:
+            proposed.append(c)
+            seen.add(key)
+    return stated_out, proposed
 
 
 def _str_list(value: Any) -> list[str]:

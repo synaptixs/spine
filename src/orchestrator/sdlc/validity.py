@@ -112,6 +112,24 @@ def _criteria_text(spec: dict[str, Any]) -> list[str]:
     return [str(a) for a in (spec.get("acceptance_criteria") or [])]
 
 
+def _all_criteria_text(spec: dict[str, Any]) -> list[str]:
+    """Stated criteria **and** proposed ones (``proposed_criteria``, #137).
+
+    A proposed criterion is the kind most likely to contradict an invariant — nobody asked
+    for it — and it is still handed to codegen, so the gate has to read it too.
+    """
+    criteria = _criteria_text(spec)
+    for proposed in spec.get("proposed_criteria") or []:
+        # A proposal may be a plain string or a {"criterion": ..., "why": ...} record.
+        if isinstance(proposed, dict):
+            text = str(proposed.get("criterion") or proposed.get("text") or "").strip()
+        else:
+            text = str(proposed).strip()
+        if text:
+            criteria.append(text)
+    return criteria
+
+
 def _count_of(store: FactStore, kind: NodeKind) -> int:
     """Grounded nodes only: an external placeholder is a table someone else owns, not one
     this repo has."""
@@ -149,6 +167,103 @@ def _check_countable_claims(spec: dict[str, Any], store: FactStore) -> list[Find
                     evidence=criterion.strip(),
                 )
             )
+    return findings
+
+
+# --- documented invariants -------------------------------------------------------------
+# Hand-maintained on purpose. Parsing CLAUDE.md at runtime would make the gate depend on
+# prose formatting — a worse contract than a short explicit list that a reviewer can read.
+# Keep in sync with CLAUDE.md "Invariants" (invariant 2: `understand` / `state` and the
+# episteme knowledge base are deterministic — no LLM call, no clock, no randomness).
+_DETERMINISTIC_SURFACES: tuple[tuple[str, ...], ...] = (
+    ("understand",),
+    ("state",),
+    ("episteme",),
+    ("memory bank", "memory-bank"),
+    ("knowledge base", "knowledge-base"),
+    ("comprehension",),
+    ("regression",),
+)
+
+_INVARIANT_REF = (
+    "CLAUDE.md invariant 2: `understand` / `state` and the episteme knowledge base are "
+    "deterministic — never add an LLM call, a clock read, or randomness to their output"
+)
+
+# Words that mean "read the clock" or "roll a die" in an output. Matched on word boundaries
+# so `generated_at` and `uuid4` hit while `timestamped log line` only hits via `timestamp`.
+_NONDETERMINISM = re.compile(
+    r"\b("
+    r"timestamps?|timestamped|generated_at|created_at|updated_at|generation[_ ]time"
+    r"|iso[- ]?8601|utcnow|datetime\.now|time\.time|current time|wall[- ]clock|clock read"
+    r"|random(?:ly|ness|ised|ized)?|uuid4?|nondeterministic|non-deterministic"
+    r")\b",
+    re.IGNORECASE,
+)
+
+# Places a timestamp is perfectly fine: they are not the deterministic artifacts. A log line,
+# an HTTP header, or a tracker comment may carry a clock read without breaking anything.
+_EXEMPT_SINKS = re.compile(
+    r"\b(log(?:s|ged|ging|ger|-line|\sline|\smessage|\srecord)?|stderr|stdout\slog"
+    r"|http\s*(?:response\s*)?header|response\s*header|header|audit\s*(?:log|row|record)"
+    r"|jira|tracker|issue\s*comment|pr\s*(?:comment|body|description)|slack|notification"
+    r"|database\s*(?:row|column)|db\s*row|metric|telemetry|trace)\b",
+    re.IGNORECASE,
+)
+
+# Words that mean "this lands in what the surface emits" — the part invariant 2 pins down.
+_OUTPUT_WORDS = re.compile(
+    r"\b(output|outputs|json|report|artifact|artifacts|payload|meta|manifest|markdown|md"
+    r"|file|files|document|snapshot|response|result|emit|emits|emitted|render|rendered"
+    r"|write|writes|written|include|includes|including|contains?|carry|carries)\b",
+    re.IGNORECASE,
+)
+
+
+def _named_surface(text: str) -> str | None:
+    """The deterministic surface a criterion talks about, if any."""
+    lowered = text.lower()
+    for aliases in _DETERMINISTIC_SURFACES:
+        for alias in aliases:
+            if re.search(rf"(?<![a-z0-9_]){re.escape(alias)}(?![a-z0-9_])", lowered):
+                return aliases[0]
+    return None
+
+
+def _check_invariants(spec: dict[str, Any]) -> list[Finding]:
+    """A criterion that contradicts a documented repo invariant (SSPN-31).
+
+    The run that produced this check invented *"`meta.generated_at` as an ISO-8601 UTC
+    timestamp in the JSON output of `orchestrator regression --format json`"*. Nobody asked
+    for it, and it contradicts invariant 2: those surfaces are byte-stable so their output can
+    be diffed. An agent building to it would have shipped non-diffable output and passed its
+    own tests. Provenance makes an invented criterion visible; this makes a dangerous one stop.
+
+    Deterministic string matching, like every other check here — no LLM, no network. Asking a
+    model whether a model invented a requirement is not an answer.
+    """
+    findings: list[Finding] = []
+    for criterion in _all_criteria_text(spec):
+        match = _NONDETERMINISM.search(criterion)
+        if match is None:
+            continue
+        surface = _named_surface(criterion)
+        if surface is None:
+            continue
+        # Determinism is a property of these outputs, not a ban on the word: a log line, an
+        # HTTP header, or a tracker comment may carry a clock read.
+        if _EXEMPT_SINKS.search(criterion) or not _OUTPUT_WORDS.search(criterion):
+            continue
+        findings.append(
+            Finding(
+                check="repo-invariant",
+                detail=(
+                    f"the criterion puts {match.group(0)!r} in {surface!r} output, which is a "
+                    "deterministic surface — its output must be byte-stable so it can be diffed"
+                ),
+                evidence=f"{_INVARIANT_REF} — criterion: {criterion.strip()}",
+            )
+        )
     return findings
 
 
@@ -237,6 +352,12 @@ def assess(
     duplicate = _check_prior_runs(issue_key, prior_runs or [])
     if duplicate:
         return Assessment(verdict=Verdict.DUPLICATE, findings=duplicate)
+
+    breaks_invariant = _check_invariants(spec)
+    if breaks_invariant:
+        # Same reason as a false countable claim: code built to a criterion that contradicts
+        # the repo's own rules passes its own tests and is still wrong.
+        return Assessment(verdict=Verdict.CRITERIA_WRONG, findings=breaks_invariant)
 
     wrong = _check_countable_claims(spec, store)
     if wrong:

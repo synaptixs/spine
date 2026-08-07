@@ -129,6 +129,10 @@ def spec_to_issue_request(
             lines.extend([f"## {title}", *(f"- {item}" for item in items), ""])
 
     section("Acceptance criteria", _spec_list(spec, "acceptance_criteria"))
+    # Kept visible but kept apart: a criterion the spec writer inferred is a suggestion,
+    # not something the ticket signed up to. Dropping it would lose work; merging it would
+    # make the reader unable to tell which half the source actually asked for.
+    section("Proposed criteria (inferred, not stated by the source)", _spec_list(spec, "proposed_criteria"))
     notes = _spec_str(spec, "technical_notes")
     if notes:
         lines += ["## Technical notes", notes, ""]

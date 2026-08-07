@@ -880,6 +880,13 @@ def sdlc_autorun(
         float | None,
         typer.Option("--max-cost", help="Cap LLM spend (USD) for this run; exhausting it parks it."),
     ] = None,
+    spec: Annotated[
+        Path | None,
+        typer.Option(
+            "--spec",
+            help="Implement a hand-written spec (JSON) instead of deriving one from the source.",
+        ),
+    ] = None,
 ) -> None:
     """Drive ONE ticket through the whole happy path: research → design → code → tests → PR.
 
@@ -894,6 +901,14 @@ def sdlc_autorun(
     import asyncio
 
     from orchestrator.sdlc.autorun import AutorunError, autorun, render_summary
+    from orchestrator.sdlc.spec_file import SpecFileError, load_spec_file
+
+    # Before any work starts: a bad spec file should cost nothing to discover.
+    try:
+        injected = load_spec_file(spec) if spec else None
+    except SpecFileError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
 
     async def _go() -> None:
         try:
@@ -911,6 +926,7 @@ def sdlc_autorun(
                 artifacts_dir=out,
                 resume=resume,
                 max_cost_usd=max_cost,
+                spec=injected,
                 log=typer.echo,
             )
         except AutorunError as exc:
@@ -1004,6 +1020,13 @@ def sdlc_feature(
             help="Target language: auto (detect), python, java, typescript, csharp, c, cpp, go, or sql.",
         ),
     ] = "auto",
+    spec: Annotated[
+        Path | None,
+        typer.Option(
+            "--spec",
+            help="Implement a hand-written spec (JSON) instead of deriving one from the source.",
+        ),
+    ] = None,
 ) -> None:
     """Linear pipeline for ONE intent, end to end.
 
@@ -1021,15 +1044,24 @@ def sdlc_feature(
     import asyncio
 
     from orchestrator.sdlc.feature_runner import unsupported_language_error
+    from orchestrator.sdlc.spec_file import SpecFileError, load_spec_file
 
     lang_error = unsupported_language_error(language)
     if lang_error is not None:
         typer.echo(f"ERROR: {lang_error}", err=True)
         raise typer.Exit(code=2)
 
+    # Before any work starts: a bad spec file should cost nothing to discover.
+    try:
+        injected = load_spec_file(spec) if spec else None
+    except SpecFileError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+
     asyncio.run(
         _run_sdlc_feature(
             source,
+            spec=injected,
             intent_id=intent,
             repo=repo,
             model=model,
@@ -1059,12 +1091,14 @@ async def _run_sdlc_feature(
     package_name: str | None,
     refresh: bool,
     language: str,
+    spec: dict[str, Any] | None = None,
 ) -> None:
     from orchestrator.sdlc.feature_runner import FeatureRunError, run_feature
 
     try:
         result = await run_feature(
             source,
+            spec=spec,
             intent_id=intent_id,
             repo=repo,
             model=model,

@@ -766,6 +766,14 @@ async def run_feature(
     emit(f"  summary: {spec['summary']}")
     for criterion in spec["acceptance_criteria"]:
         emit(f"    - {criterion}")
+    # Proposed criteria are still built — printing only the stated set would silently
+    # shrink what a run delivers — but they are labelled, so the reader can tell the
+    # contract from what the spec writer inferred. No heading when there are none.
+    proposed_criteria = [str(c) for c in (spec.get("proposed_criteria") or []) if str(c).strip()]
+    if proposed_criteria:
+        emit("  proposed (inferred by the spec writer, not stated by the source):")
+        for criterion in proposed_criteria:
+            emit(f"    - {criterion}")
     emit("=" * 70)
 
     # 2. Jira issue (real only with live; otherwise a synthetic dry-run key).
@@ -841,7 +849,13 @@ async def run_feature(
     # 3. worktree branch off the real repo (or a scratch repo in safe/no-repo mode).
     sdlc_id = uuid.uuid4().hex[:16]
     ws_root = Path(os.getenv("SDLC_WORKSPACE_ROOT", "/tmp/sdlc-workspaces"))
-    path = await WorkspaceManager(root=ws_root, repo_url=repo_url).create(sdlc_id, issue_key)
+    # Branch from the PR target, not the remote's default: a run opening a PR into
+    # `develop` must build on `develop`, or it is written against a tree that predates
+    # everything merged there since the last release.
+    work_base = base_branch or os.getenv("SDLC_PR_BASE") or None
+    path = await WorkspaceManager(root=ws_root, repo_url=repo_url, base_branch=work_base).create(
+        sdlc_id, issue_key
+    )
     branch = f"feat/{sdlc_id}/{issue_key}"
     emit(f"[workspace] worktree {path} on {branch}")
 

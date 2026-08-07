@@ -1,8 +1,94 @@
 # Changelog
 
+## 3.14.0 — The pipeline can be trusted about its own output
+
+### Added
+
+- **The validity gate refuses a criterion that contradicts a documented invariant.** The run
+  that started SSPN-31 produced a criterion requiring an ISO-8601 `meta.generated_at`
+  timestamp in a comprehension command's JSON — nobody asked for it, and it breaks CLAUDE.md
+  invariant 2 (`understand` / `state` are deterministic; never a clock, an LLM call, or
+  randomness). An agent building to it would have shipped non-diffable output and passed its
+  own tests. `assess()` now returns `CRITERIA_WRONG` with evidence naming the invariant.
+  Deterministic string matching, no LLM call — an LLM asked whether an LLM invented a
+  requirement is not an answer. Proposed criteria are checked too, since an invented
+  criterion is the kind most likely to break a rule. A timestamp in a log line, an HTTP
+  header or a tracker comment is untouched: determinism is a property of specific outputs,
+  not a ban on the word.
+
+- **`--spec` on `sdlc autorun` and `sdlc feature`** — implement a spec you wrote instead of
+  one derived from the source. Intake is skipped entirely and the `[intake]` line reports
+  `skipped`, so a run summary never implies a source document was read when none was. For a
+  settled spec (a remediation, something agreed in review) — or when intake itself is what
+  the ticket is about, where letting a defective stage specify its own repair is circular.
+  The file is JSON validated against `FeatureSpec` rather than markdown: a misspelled
+  `acceptance-criteria` is an error naming the valid fields, not a run that proceeds with no
+  criteria and passes by default. An empty criteria list is refused for the same reason.
+
+### Changed
+
+- **`FeatureSpec.acceptance_criteria` has narrowed to the criteria the source
+  *stated*.** Criteria the spec writer infers now go to `FeatureSpec.proposed_criteria`
+  instead of being concatenated into `acceptance_criteria`, so anything reading that
+  field sees **fewer entries than before**. The acceptance judge
+  (`orchestrator.sdlc.review.SemanticReviewAdapter`) verifies only the stated set — a
+  change can no longer be rejected for failing a criterion nobody asked for — while the
+  codegen SPEC banner (`orchestrator.sdlc.feature_runner.run_feature`) and every human
+  render surface (`intake.service.spec_to_issue_request`, `intake.report`,
+  `intake.web.app`) show the proposed set under its own label rather than dropping it.
+  Specs with no proposed criteria render exactly as before.
+
 All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
+
+## Unreleased
+
+- **Codegen's source-context budget goes from 40 KB to 200 KB.** 40 KB is ~10k tokens —
+  about 1% of the default model's window, and a leftover rather than a limit. It shaped
+  work instead of bounding it: a change spanning five files totalled 113 KB, so every file
+  was excerpted and codegen quoted an edit anchor from a region it had only partly seen.
+  Failure output stays at 40 KB under its own constant — a pytest dump is not source, and
+  refine re-sends context every attempt.
+
+### Fixed
+
+- **A failure kind is now advised about the thing it was charged for.** `_failure_kind`
+  ordered syntax before anchors; `_corrective_suffix` ordered anchors before syntax. An
+  attempt producing both — a stray `</content>` in a new file *and* an edit whose anchor
+  missed — was recorded as `syntax` while the model was handed the anchor-repair block, so
+  the syntax kind's one correction was spent on advice about something else and the next
+  failure had nothing left. The same shape as the shared-retry-pool bug the per-kind budget
+  replaced, arriving through misclassification instead. A test now fails if the two
+  orderings drift again.
+
+- **A run branches from the branch it will open a PR into.** A clone with no `--branch`
+  checks out the remote's *default* branch, so a run targeting `develop` still built on
+  `main` — the generated change was written against a tree predating everything merged to
+  develop since the last release, and could revert it with nothing noticing. Found when a
+  run silently reverted a fix merged two hours earlier. The base branch is now part of the
+  cached base repo's identity too, so a base cloned for `main` is rebuilt rather than reused
+  for a `develop` run. With no target given, the default branch is still used — this is not
+  a silent switch.
+
+- **Intake constrains its output the way codegen and the judge do.** Intent extraction and
+  spec writing both asked for JSON with `json_object=True`. `response_format` is
+  OpenAI/Ollama-only — Anthropic drops it, and the default model is `claude-opus-5`, so both
+  stages ran completely unconstrained and relied on brace-scanning salvage. 3.13.0 fixed
+  exactly this for codegen and the acceptance judge; intake was never converted. Both now
+  emit through a forced tool call. The text path remains as the degradation route, since a
+  forced call constrains shape but a provider can still answer in prose.
+
+- **A server that declares a structured argument as a JSON string now gets one.**
+  `mcp-atlassian` types `jira_create_issue.additional_fields` as `string` rather than
+  `object`, so every caller had to `json.dumps` it first and a governed create encoded
+  twice — once for the field, once for the transport. `MCPRegistry.call` reads the tool's
+  declared type and encodes on the caller's behalf. Narrow on purpose: only when the
+  declared type is exactly `string` (or `string|null`) *and* the value is an object or
+  array. A declared `object`, an undeclared argument, or an unreadable schema passes
+  through untouched, and a caller that already encoded still works. The schema round-trip
+  is skipped entirely when every argument is a scalar, and a discovery failure falls back
+  to the raw call rather than becoming a new way to fail.
 
 ## 3.13.0 — A green suite is not a working change
 

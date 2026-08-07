@@ -64,9 +64,14 @@ class WorkspaceManager:
     initialised scratch repo; otherwise Block D clones ``repo_url``.
     """
 
-    def __init__(self, root: Path, repo_url: str | None = None) -> None:
+    def __init__(self, root: Path, repo_url: str | None = None, base_branch: str | None = None) -> None:
         self._root = Path(root)
         self._repo_url = repo_url
+        # Branch the work from here. Without it a clone checks out the remote's
+        # *default* branch, so a run targeting `develop` still built on `main` —
+        # the generated change was written against code that predated everything
+        # merged to develop since the last release, and could silently revert it.
+        self._base_branch = base_branch or None
         self._base = self._root / "_base"
         self._marker = self._root / _BASE_MARKER
         self._init_lock = asyncio.Lock()
@@ -86,8 +91,14 @@ class WorkspaceManager:
         return self._base
 
     def _desired_source(self) -> str:
-        """Identity of the base this manager wants — the repo URL, or scratch."""
-        return self._repo_url or "(scratch)"
+        """Identity of the base this manager wants — repo URL + branch, or scratch.
+
+        The branch is part of the identity: a base cloned for ``main`` cannot be
+        reused for a run branching from ``develop``, and reusing it is exactly how
+        a run silently built on the wrong tree.
+        """
+        source = self._repo_url or "(scratch)"
+        return f"{source}#{self._base_branch}" if self._base_branch else source
 
     def _base_matches(self) -> bool:
         """True when an existing base was built for the source we want now."""
@@ -123,7 +134,11 @@ class WorkspaceManager:
                 # against a private repo without an ambient credential helper.
                 # Falls back to the bare URL when no token is configured.
                 clone_url = await authenticate_repo_url(self._repo_url)
-                await _run_git("clone", clone_url or self._repo_url, str(self._base))
+                clone_args = ["clone"]
+                if self._base_branch:
+                    clone_args += ["--branch", self._base_branch]
+                clone_args += [clone_url or self._repo_url, str(self._base)]
+                await _run_git(*clone_args)
                 # Same neutral identity as the scratch path: worktrees inherit
                 # the clone's local config, and without this the feature
                 # commits pick up the machine's global email — which GitHub

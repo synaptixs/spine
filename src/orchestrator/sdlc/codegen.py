@@ -55,7 +55,23 @@ def resolve_codegen_model(override: str | None = None) -> str | None:
 
 _MAX_FILES = 20  # files the model may write in one pass
 _MAX_FILE_BYTES = 64_000  # per generated file
-_MAX_CONTEXT_BYTES = 40_000  # cap on existing source fed back to the model
+# Cap on existing source fed back to the model.
+#
+# Was 40_000 — about 10k tokens, or ~1% of the 1M-token window the default model has.
+# That is not a model limit, it is a leftover, and it shaped work rather than bounding
+# it: a change spanning `review.py`, `feature_runner.py` and three render surfaces
+# totalled 113 KB, so every file was excerpted, and codegen quoted an edit anchor from a
+# region it had only seen part of — `'find' text not found`. The change was then split
+# four ways to fit, which is designing around a constant nobody had justified.
+#
+# 200 KB is ~50k tokens: comfortable for the current models, and still a real bound.
+# It stays bounded on purpose — refine re-sends context on every attempt, so an
+# uncapped budget multiplies across a loop rather than being paid once.
+_MAX_CONTEXT_BYTES = 200_000
+# Pytest output is not source: a failing suite prints tracebacks, not the code that must
+# be read whole to be edited safely. It keeps the old bound so raising the *source* budget
+# does not quietly multiply every refine prompt by five.
+_MAX_FAILURE_BYTES = 40_000
 # The subject of a type error, as mypy names it: `"MCPToolHandler" has no attribute "tool"`,
 # `Name "Any" is not defined`, `Argument 1 to "_type_label" has incompatible type`. Quoted
 # CamelCase or identifier-shaped words — the things the graph can look up.
@@ -1414,7 +1430,7 @@ class LLMCodegenAdapter:
             # should cover the line that failed, not the top of the module.
             f"CURRENT FILES:\n{self._session_files(root, include_tests=True, anchors=fail_anchors)}"
             f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}\n\n"
-            f"FAILURE OUTPUT:\n{_truncate(failures, _MAX_CONTEXT_BYTES)}\n\n"
+            f"FAILURE OUTPUT:\n{_truncate(failures, _MAX_FAILURE_BYTES)}\n\n"
             f"{self._definitions_for(failures, root)}",
             root,
             # A refine pass that yields no applicable edits is a legitimate
@@ -1509,12 +1525,12 @@ class LLMCodegenAdapter:
         if exc.parse_detail:
             logger.warning("sdlc.codegen.parse_retry detail=%r", exc.parse_detail[:160])
             return _parse_repair_block(exc.parse_detail)
-        if exc.failed_edit_paths or exc.missing_edit_paths:
-            logger.warning(
-                "sdlc.codegen.repair_retry",
-                extra={"failed": exc.failed_edit_paths, "missing": exc.missing_edit_paths},
-            )
-            return self._repair_block(exc, root)
+        # Syntax before anchors, matching `_failure_kind`. When one attempt produces both —
+        # a stray `</content>` in a new file *and* an edit whose anchor missed — the kind is
+        # recorded as "syntax", so handing back the anchor-repair block spends that kind's
+        # one correction on advice about something else. A live run died that way: the model
+        # was told its anchors failed, never told to stop emitting markup wrappers, and the
+        # retry it needed was already marked used. The two orderings must not drift again.
         if exc.syntax_errors:
             logger.warning("sdlc.codegen.syntax_retry", extra={"errors": exc.syntax_errors[:3]})
             listed = "\n".join(f"  - {m}" for m in exc.syntax_errors)
@@ -1526,6 +1542,12 @@ class LLMCodegenAdapter:
                 "own source — no XML or markup wrappers, no `<content>` tags, no fences, "
                 "nothing after the final line of code.\n"
             )
+        if exc.failed_edit_paths or exc.missing_edit_paths:
+            logger.warning(
+                "sdlc.codegen.repair_retry",
+                extra={"failed": exc.failed_edit_paths, "missing": exc.missing_edit_paths},
+            )
+            return self._repair_block(exc, root)
         if exc.empty_summary:
             logger.warning("sdlc.codegen.empty_retry summary=%r", exc.empty_summary[:160])
             return (

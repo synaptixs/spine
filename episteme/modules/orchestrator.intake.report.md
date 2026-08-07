@@ -5,98 +5,109 @@
 
 **Source:** [`src/orchestrator/intake/report.py`](../../src/orchestrator/intake/report.py)
 
-0 types · 11 functions · python
+0 types · 12 functions · python
 
 ## Changing this safely
 
-**Tested by** (1): `tests.intake.test_report`
+**Tested by** (2): `tests.intake.test_report`, `tests.sdlc.test_criteria_provenance`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_esc`](../../src/orchestrator/intake/report.py#L27) — reaches **7** symbols
-- [`intent_number`](../../src/orchestrator/intake/report.py#L36) — reaches **4** symbols
-- [`_ul`](../../src/orchestrator/intake/report.py#L31) — reaches **3** symbols
-- [`requirement_number`](../../src/orchestrator/intake/report.py#L40) — reaches **3** symbols
-- [`spec_number`](../../src/orchestrator/intake/report.py#L44) — reaches **2** symbols
-- [`_audit_table`](../../src/orchestrator/intake/report.py#L130) — reaches **1** symbol
-- [`_design_specs_table`](../../src/orchestrator/intake/report.py#L85) — reaches **1** symbol
-- [`_intents_table`](../../src/orchestrator/intake/report.py#L54) — reaches **1** symbol
+- [`_esc`](../../src/orchestrator/intake/report.py#L27) — reaches **8** symbols
+- [`_ul`](../../src/orchestrator/intake/report.py#L31) — reaches **4** symbols
+- [`intent_number`](../../src/orchestrator/intake/report.py#L50) — reaches **4** symbols
+- [`requirement_number`](../../src/orchestrator/intake/report.py#L54) — reaches **3** symbols
+- [`_criteria_cell`](../../src/orchestrator/intake/report.py#L36) — reaches **2** symbols
+- [`spec_number`](../../src/orchestrator/intake/report.py#L58) — reaches **2** symbols
+- [`_audit_table`](../../src/orchestrator/intake/report.py#L144) — reaches **1** symbol
+- [`_design_specs_table`](../../src/orchestrator/intake/report.py#L99) — reaches **1** symbol
+
+## Documented in
+
+`CHANGELOG.md`
 
 ## Functions
 
 ### `_audit_table`
 
-[`src/orchestrator/intake/report.py:130`](../../src/orchestrator/intake/report.py#L130)
+[`src/orchestrator/intake/report.py:144`](../../src/orchestrator/intake/report.py#L144)
 
-- **Called by** (1): [`render_traceability_report`](../../src/orchestrator/intake/report.py#L156)
+- **Called by** (1): [`render_traceability_report`](../../src/orchestrator/intake/report.py#L170)
 - **Calls** (1): [`_esc`](../../src/orchestrator/intake/report.py#L27)
+
+### `_criteria_cell`
+
+[`src/orchestrator/intake/report.py:36`](../../src/orchestrator/intake/report.py#L36)
+
+- **Called by** (1 production · 2 test): [`_design_specs_table`](../../src/orchestrator/intake/report.py#L99), [`test_the_report_cell_is_unchanged_without_proposed_criteria`](../../tests/sdlc/test_criteria_provenance.py#L150), [`test_the_report_cell_labels_proposed_criteria`](../../tests/sdlc/test_criteria_provenance.py#L141)
+- **Calls** (1): [`_ul`](../../src/orchestrator/intake/report.py#L31)
 
 ### `_design_specs_table`
 
-[`src/orchestrator/intake/report.py:85`](../../src/orchestrator/intake/report.py#L85)
+[`src/orchestrator/intake/report.py:99`](../../src/orchestrator/intake/report.py#L99)
 
-- **Called by** (1): [`render_traceability_report`](../../src/orchestrator/intake/report.py#L156)
-- **Calls** (5): [`_esc`](../../src/orchestrator/intake/report.py#L27), [`_ul`](../../src/orchestrator/intake/report.py#L31), [`intent_number`](../../src/orchestrator/intake/report.py#L36), [`requirement_number`](../../src/orchestrator/intake/report.py#L40), [`spec_number`](../../src/orchestrator/intake/report.py#L44)
+- **Called by** (1): [`render_traceability_report`](../../src/orchestrator/intake/report.py#L170)
+- **Calls** (5): [`_criteria_cell`](../../src/orchestrator/intake/report.py#L36), [`_esc`](../../src/orchestrator/intake/report.py#L27), [`intent_number`](../../src/orchestrator/intake/report.py#L50), [`requirement_number`](../../src/orchestrator/intake/report.py#L54), [`spec_number`](../../src/orchestrator/intake/report.py#L58)
 
 ### `_esc`
 
 [`src/orchestrator/intake/report.py:27`](../../src/orchestrator/intake/report.py#L27)
 
-- **Called by** (6): [`_audit_table`](../../src/orchestrator/intake/report.py#L130), [`_design_specs_table`](../../src/orchestrator/intake/report.py#L85), [`_intents_table`](../../src/orchestrator/intake/report.py#L54), [`_requirements_table`](../../src/orchestrator/intake/report.py#L68), [`_source_link`](../../src/orchestrator/intake/report.py#L48), [`_ul`](../../src/orchestrator/intake/report.py#L31)
+- **Called by** (6): [`_audit_table`](../../src/orchestrator/intake/report.py#L144), [`_design_specs_table`](../../src/orchestrator/intake/report.py#L99), [`_intents_table`](../../src/orchestrator/intake/report.py#L68), [`_requirements_table`](../../src/orchestrator/intake/report.py#L82), [`_source_link`](../../src/orchestrator/intake/report.py#L62), [`_ul`](../../src/orchestrator/intake/report.py#L31)
 - **Calls** (1): `escape`
 
 ### `_intents_table`
 
-[`src/orchestrator/intake/report.py:54`](../../src/orchestrator/intake/report.py#L54)
+[`src/orchestrator/intake/report.py:68`](../../src/orchestrator/intake/report.py#L68)
 
-- **Called by** (1): [`render_traceability_report`](../../src/orchestrator/intake/report.py#L156)
-- **Calls** (3): [`_esc`](../../src/orchestrator/intake/report.py#L27), [`_ul`](../../src/orchestrator/intake/report.py#L31), [`intent_number`](../../src/orchestrator/intake/report.py#L36)
+- **Called by** (1): [`render_traceability_report`](../../src/orchestrator/intake/report.py#L170)
+- **Calls** (3): [`_esc`](../../src/orchestrator/intake/report.py#L27), [`_ul`](../../src/orchestrator/intake/report.py#L31), [`intent_number`](../../src/orchestrator/intake/report.py#L50)
 
 ### `_requirements_table`
 
-[`src/orchestrator/intake/report.py:68`](../../src/orchestrator/intake/report.py#L68)
+[`src/orchestrator/intake/report.py:82`](../../src/orchestrator/intake/report.py#L82)
 
-- **Called by** (1): [`render_traceability_report`](../../src/orchestrator/intake/report.py#L156)
-- **Calls** (3): [`_esc`](../../src/orchestrator/intake/report.py#L27), [`intent_number`](../../src/orchestrator/intake/report.py#L36), [`requirement_number`](../../src/orchestrator/intake/report.py#L40)
+- **Called by** (1): [`render_traceability_report`](../../src/orchestrator/intake/report.py#L170)
+- **Calls** (3): [`_esc`](../../src/orchestrator/intake/report.py#L27), [`intent_number`](../../src/orchestrator/intake/report.py#L50), [`requirement_number`](../../src/orchestrator/intake/report.py#L54)
 
 ### `_source_link`
 
-[`src/orchestrator/intake/report.py:48`](../../src/orchestrator/intake/report.py#L48)
+[`src/orchestrator/intake/report.py:62`](../../src/orchestrator/intake/report.py#L62)
 
-- **Called by** (1): [`render_traceability_report`](../../src/orchestrator/intake/report.py#L156)
+- **Called by** (1): [`render_traceability_report`](../../src/orchestrator/intake/report.py#L170)
 - **Calls** (1): [`_esc`](../../src/orchestrator/intake/report.py#L27)
 
 ### `_ul`
 
 [`src/orchestrator/intake/report.py:31`](../../src/orchestrator/intake/report.py#L31)
 
-- **Called by** (2): [`_design_specs_table`](../../src/orchestrator/intake/report.py#L85), [`_intents_table`](../../src/orchestrator/intake/report.py#L54)
+- **Called by** (2): [`_criteria_cell`](../../src/orchestrator/intake/report.py#L36), [`_intents_table`](../../src/orchestrator/intake/report.py#L68)
 - **Calls** (1): [`_esc`](../../src/orchestrator/intake/report.py#L27)
 
 ### `intent_number`
 
-[`src/orchestrator/intake/report.py:36`](../../src/orchestrator/intake/report.py#L36)
+[`src/orchestrator/intake/report.py:50`](../../src/orchestrator/intake/report.py#L50)
 
-- **Called by** (3 production · 1 test): [`_design_specs_table`](../../src/orchestrator/intake/report.py#L85), [`_intents_table`](../../src/orchestrator/intake/report.py#L54), [`_requirements_table`](../../src/orchestrator/intake/report.py#L68), [`test_numbering_helpers`](../../tests/intake/test_report.py#L86)
+- **Called by** (3 production · 1 test): [`_design_specs_table`](../../src/orchestrator/intake/report.py#L99), [`_intents_table`](../../src/orchestrator/intake/report.py#L68), [`_requirements_table`](../../src/orchestrator/intake/report.py#L82), [`test_numbering_helpers`](../../tests/intake/test_report.py#L86)
 
 ### `render_traceability_report`
 
-[`src/orchestrator/intake/report.py:156`](../../src/orchestrator/intake/report.py#L156)
+[`src/orchestrator/intake/report.py:170`](../../src/orchestrator/intake/report.py#L170)
 
 - **Called by** (0 production · 3 test): [`test_audit_total_row_present`](../../tests/intake/test_report.py#L136), [`test_only_buildable_specs_appear_in_design_table`](../../tests/intake/test_report.py#L118), [`test_report_has_four_tables_and_traces`](../../tests/intake/test_report.py#L92)
-- **Calls** (5): [`_audit_table`](../../src/orchestrator/intake/report.py#L130), [`_design_specs_table`](../../src/orchestrator/intake/report.py#L85), [`_intents_table`](../../src/orchestrator/intake/report.py#L54), [`_requirements_table`](../../src/orchestrator/intake/report.py#L68), [`_source_link`](../../src/orchestrator/intake/report.py#L48)
+- **Calls** (5): [`_audit_table`](../../src/orchestrator/intake/report.py#L144), [`_design_specs_table`](../../src/orchestrator/intake/report.py#L99), [`_intents_table`](../../src/orchestrator/intake/report.py#L68), [`_requirements_table`](../../src/orchestrator/intake/report.py#L82), [`_source_link`](../../src/orchestrator/intake/report.py#L62)
 
 ### `requirement_number`
 
-[`src/orchestrator/intake/report.py:40`](../../src/orchestrator/intake/report.py#L40)
+[`src/orchestrator/intake/report.py:54`](../../src/orchestrator/intake/report.py#L54)
 
-- **Called by** (2 production · 1 test): [`_design_specs_table`](../../src/orchestrator/intake/report.py#L85), [`_requirements_table`](../../src/orchestrator/intake/report.py#L68), [`test_numbering_helpers`](../../tests/intake/test_report.py#L86)
+- **Called by** (2 production · 1 test): [`_design_specs_table`](../../src/orchestrator/intake/report.py#L99), [`_requirements_table`](../../src/orchestrator/intake/report.py#L82), [`test_numbering_helpers`](../../tests/intake/test_report.py#L86)
 
 ### `spec_number`
 
-[`src/orchestrator/intake/report.py:44`](../../src/orchestrator/intake/report.py#L44)
+[`src/orchestrator/intake/report.py:58`](../../src/orchestrator/intake/report.py#L58)
 
-- **Called by** (1 production · 1 test): [`_design_specs_table`](../../src/orchestrator/intake/report.py#L85), [`test_numbering_helpers`](../../tests/intake/test_report.py#L86)
+- **Called by** (1 production · 1 test): [`_design_specs_table`](../../src/orchestrator/intake/report.py#L99), [`test_numbering_helpers`](../../tests/intake/test_report.py#L86)
 
 ## Imports
 
@@ -104,4 +115,4 @@
 
 ## Imported by
 
-[`tests.intake.test_report`](../../tests/intake/test_report.py#L1)
+[`tests.intake.test_report`](../../tests/intake/test_report.py#L1), [`tests.sdlc.test_criteria_provenance`](../../tests/sdlc/test_criteria_provenance.py#L1)
