@@ -16,6 +16,15 @@
 
 ### Fixed
 
+- **A new module is not a "parallel module".** The implement prompt said *"when the SPEC
+  names existing files, change THOSE files; do not create a parallel module instead"* — a
+  rule added after a run wrote a helper beside a file and never wired it in. As written it
+  also forbade the ordinary shape of an extract-a-wrapper refactor, so a spec asking for
+  "one place that wraps the request" left the model choosing between its instructions; three
+  runs submitted zero files. The prohibition is now on the outcome it was protecting
+  against: the named files must appear with `edits`, and a new module alongside them is
+  allowed.
+
 - **A design honours the paths its spec names.** The heuristic design read only the ticket's
   title and summary, matching those words against the graph — so a ticket about "the
   registry API" whose acceptance criteria named `src/orchestrator/cli.py` twice came back
