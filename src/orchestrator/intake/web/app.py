@@ -71,6 +71,9 @@ def _plan_to_dict(plan: BacklogPlan) -> dict[str, object]:
                 "summary": s.summary,
                 "user_story": s.user_story,
                 "acceptance_criteria": list(s.acceptance_criteria),
+                # Carried separately, not merged: the preview labels them so a reader can
+                # tell the source's contract from the spec writer's inference.
+                "proposed_criteria": list(s.proposed_criteria),
                 "technical_notes": s.technical_notes,
                 "nfrs": list(s.nfrs),
                 "dependencies": list(s.dependencies),
@@ -235,6 +238,8 @@ function render(d) {
     if (s.summary) h += '<p>' + esc(s.summary) + '</p>';
     if (s.user_story) h += '<p><em>' + esc(s.user_story) + '</em></p>';
     if (s.acceptance_criteria.length) h += '<p>Acceptance criteria:</p>' + list(s.acceptance_criteria);
+    if (s.proposed_criteria && s.proposed_criteria.length)
+      h += '<p>Proposed criteria (inferred, not stated by the source):</p>' + list(s.proposed_criteria);
     if (s.dependencies.length) h += '<p>Dependencies:</p>' + list(s.dependencies);
     h += '</div>';
   }

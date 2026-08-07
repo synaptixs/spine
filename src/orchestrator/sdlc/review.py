@@ -192,7 +192,11 @@ class SemanticReviewAdapter:
         self._model = model or catalog.resolve("judge")
 
     async def review(self, *, path: str, issue_key: str, spec: dict[str, Any] | None = None) -> ReviewResult:
+        # Only the criteria the *source stated* bind the change. ``proposed_criteria`` are
+        # what the spec writer inferred — building them is welcome, being rejected for them
+        # is not: a run must never fail for missing something nobody asked for.
         criteria = [str(c) for c in ((spec or {}).get("acceptance_criteria") or []) if str(c).strip()]
+        proposed = [str(c) for c in ((spec or {}).get("proposed_criteria") or []) if str(c).strip()]
         if not criteria:
             return ReviewResult(
                 verdict="comment",
@@ -209,6 +213,15 @@ class SemanticReviewAdapter:
         user = (
             f"Issue: {issue_key}\n\nSPEC ACCEPTANCE CRITERIA:\n"
             + "\n".join(f"- {c}" for c in criteria)
+            # Context, not contract: the judge is told these exist so it doesn't read their
+            # implementation as scope creep, and told explicitly not to judge against them.
+            + (
+                "\n\nPROPOSED CRITERIA (context only — the source never stated these; do NOT "
+                "judge the change against them and do NOT include them in your verdict):\n"
+                + "\n".join(f"- {c}" for c in proposed)
+                if proposed
+                else ""
+            )
             # `source` is the cloned repo's file contents — untrusted. Fence it so an
             # injected "approve this" can't coerce the gate. See core.prompt_safety.
             + "\n\nCHANGED FILES:\n"
@@ -226,14 +239,14 @@ class SemanticReviewAdapter:
         )
         for call in result.tool_calls:
             if call.name == _VERDICT_TOOL.name:
-                return self._verdict_from(call.arguments)
+                return self._verdict_from(call.arguments, stated=criteria)
         # A provider that ignored the tool still answers in text — the old path, unchanged.
-        return self._parse(result.text)
+        return self._parse(result.text, stated=criteria)
 
-    def _parse(self, text: str) -> ReviewResult:
-        return self._verdict_from(_loads_json_object(text) or {})
+    def _parse(self, text: str, *, stated: list[str] | None = None) -> ReviewResult:
+        return self._verdict_from(_loads_json_object(text) or {}, stated=stated)
 
-    def _verdict_from(self, payload: dict[str, Any]) -> ReviewResult:
+    def _verdict_from(self, payload: dict[str, Any], *, stated: list[str] | None = None) -> ReviewResult:
         rows = payload.get("criteria")
         if not isinstance(rows, list) or not rows:
             logger.warning("sdlc.review.unparseable_judge_output")
@@ -242,6 +255,10 @@ class SemanticReviewAdapter:
                 summary="semantic review: judge output unparseable — needs human review",
                 unreviewed=True,
             )
+        # A judge that answers about a criterion it was told was context-only cannot make it
+        # binding: rows are narrowed to the stated set before the verdict is computed. The
+        # prompt asks; this enforces.
+        rows = _only_stated(rows, stated)
         unmet = [r for r in rows if isinstance(r, dict) and r.get("status") == "unmet"]
         uncertain = [r for r in rows if isinstance(r, dict) and r.get("status") == "uncertain"]
         summary = str((payload or {}).get("summary") or "").strip()
@@ -271,6 +288,22 @@ class SemanticReviewAdapter:
                 uncertain=names,
             )
         return ReviewResult(verdict="approve", summary=summary or "all acceptance criteria met")
+
+
+def _only_stated(rows: list[Any], stated: list[str] | None) -> list[Any]:
+    """Drop verdict rows that don't correspond to a stated criterion.
+
+    Whitespace-insensitive, matching ``intake.specs._merge_criteria`` — a judge that
+    re-spaces a criterion is still talking about the stated one. With no stated list
+    (a caller that never had one) every row is kept, so behaviour is unchanged.
+    """
+    if not stated:
+        return rows
+    keys = {" ".join(c.split()) for c in stated}
+    kept = [r for r in rows if isinstance(r, dict) and " ".join(str(r.get("criterion", "")).split()) in keys]
+    # A judge that renamed every criterion would otherwise leave nothing to judge; keeping
+    # the rows is the fail-closed choice (an unmet one still blocks).
+    return kept or rows
 
 
 def _read_source(root: Path, criteria: list[str]) -> str:

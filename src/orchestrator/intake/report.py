@@ -33,6 +33,20 @@ def _ul(items: Sequence[Any]) -> str:
     return "<ul>" + "".join(rows) + "</ul>" if rows else ""
 
 
+def _criteria_cell(spec: Mapping[str, Any]) -> str:
+    """Stated criteria, then any the spec writer proposed — labelled, never merged.
+
+    ``acceptance_criteria`` now holds only what the source stated; the inferred ones live
+    in ``proposed_criteria``. Rendering the stated list alone would drop them silently, so
+    they get their own labelled block — and no label at all when there are none.
+    """
+    cell = _ul(spec.get("acceptance_criteria") or [])
+    proposed = _ul(spec.get("proposed_criteria") or [])
+    if proposed:
+        cell += "<p><em>Proposed (inferred, not stated by the source):</em></p>" + proposed
+    return cell
+
+
 def intent_number(index: int) -> str:
     return f"I-{index:02d}"
 
@@ -113,7 +127,7 @@ def _design_specs_table(
             f"<td><strong>{_esc(spec.get('title') or it.get('title'))}</strong></td>"
             f"<td>{intent_number(idx)}, {requirement_number(idx)}</td>"
             f"<td>{_esc(spec.get('summary'))}</td>"
-            f"<td>{_ul(spec.get('acceptance_criteria') or [])}</td>"
+            f"<td>{_criteria_cell(spec)}</td>"
             f"<td>{_esc(spec.get('estimate') or '—')}</td>"
             f"<td>{jira_cell}</td></tr>"
         )
