@@ -1692,3 +1692,62 @@ def test_no_already_written_note_when_nothing_landed(tmp_path: Path) -> None:
     block = LLMCodegenAdapter(_ScriptedLLM([]))._repair_block(exc, tmp_path)
 
     assert "ALREADY WRITTEN" not in block
+
+
+# --- a stub is not progress (SSPN-45) -----------------------------------------------
+#
+# A run wrote a file literally named PLACEHOLDER containing `x`, and the refine loop
+# counted it as a file change. Its stop condition is "no file changes", so a model with
+# nothing to say kept the loop alive and spent two of three attempts on it while the real
+# failure went unfixed. Dropping the stub at the write is enough: the loop needs no change.
+
+
+def test_a_placeholder_file_is_not_written(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import apply_files
+
+    change = apply_files(
+        [
+            {"path": "PLACEHOLDER", "content": "x"},
+            {"path": "real.py", "content": "VALUE = 1\n"},
+        ],
+        tmp_path,
+        written_tracker={},
+        grounded=False,
+    )
+
+    assert not (tmp_path / "PLACEHOLDER").exists()
+    assert [Path(f).name for f in change.files] == ["real.py"]
+
+
+@pytest.mark.parametrize("rel", ["PLACEHOLDER", "placeholder.py", "TODO.md", "src/pkg/stub.py"])
+def test_placeholder_names_are_rejected_whatever_they_contain(tmp_path: Path, rel: str) -> None:
+    from orchestrator.sdlc.codegen import _is_placeholder
+
+    assert _is_placeholder(rel, "def real_looking_code() -> int:\n    return 1\n")
+
+
+@pytest.mark.parametrize("rel", ["__init__.py", "src/pkg/__init__.py", "py.typed", ".gitkeep"])
+def test_legitimately_empty_files_are_kept(tmp_path: Path, rel: str) -> None:
+    """An empty __init__.py is a real file — the size rule must never catch it."""
+    from orchestrator.sdlc.codegen import _is_placeholder
+
+    assert not _is_placeholder(rel, "")
+
+
+def test_a_trivially_short_body_is_a_placeholder() -> None:
+    from orchestrator.sdlc.codegen import _is_placeholder
+
+    assert _is_placeholder("thing.py", "x")
+    assert _is_placeholder("thing.py", "  \n ")
+    assert not _is_placeholder("thing.py", "X = 1\n")
+
+
+def test_placeholders_only_is_recoverable_not_a_dead_end(tmp_path: Path) -> None:
+    """It is the same shape as submitting nothing, so it gets the same corrective retry."""
+    from orchestrator.sdlc.codegen import CodegenError, apply_files
+
+    with pytest.raises(CodegenError) as exc:
+        apply_files([{"path": "PLACEHOLDER", "content": "x"}], tmp_path, written_tracker={}, grounded=False)
+
+    assert "placeholder" in str(exc.value).lower()
+    assert exc.value.empty_summary, "must route to the empty-submission retry"
