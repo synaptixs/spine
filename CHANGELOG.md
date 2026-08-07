@@ -26,6 +26,15 @@
 
 ### Fixed
 
+- **v2 renamed `Tool.inputSchema` and `readOnlyHint` too, and the defaulted reads hid it.**
+  `_to_tool` fetched both with `getattr(..., None)`, so the rename did not raise —
+  `input_schema` silently became `None` and every tool lost its argument types. That took
+  the `mcp contracts` type labels with it and stopped `MCPRegistry.call` coercing a
+  structured argument a server declares as a string, so a governed `jira_create_issue`
+  started failing validation again. Nothing went red, because every existing test builds an
+  `MCPTool` directly and never exercises the translation from the SDK's own type. A new test
+  module builds a real `mcp.types.Tool`, so the next rename fails a test instead of a run.
+
 - **Generated test fixtures are shown the types they construct.** `author_tests` was given
   the source under test but not the definitions of the types that source imports — so a
   fixture building a fake LLM client or a graph store wrote the constructor from inference.
