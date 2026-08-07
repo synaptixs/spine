@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -284,3 +285,94 @@ async def test_the_design_agrees_with_the_investigation() -> None:
     landed = [land.where.split(":", 1)[0] for land in investigation.landing]
     assert design["files_to_touch"]
     assert all(f in landed for f in design["files_to_touch"])
+
+
+# --- a path the spec names outranks a path inferred from its words (SSPN-49) --------
+#
+# `_landing_files` reads only the title and summary, matching the ticket's language against
+# the graph. SSPN-49's ticket is about "the registry API" and its criteria name
+# src/orchestrator/cli.py twice — so the design proposed the registry *server* modules and
+# omitted the one file the spec named. Codegen was handed a design contradicting its own
+# spec and submitted nothing at all rather than choose between them.
+
+
+def _spec_naming(*paths: str, **extra: Any) -> dict[str, Any]:
+    return {
+        "title": "CLI commands crash when the registry API is down",
+        "summary": "Every CLI command that talks to the registry API crashes.",
+        "acceptance_criteria": [f"The fix lives in {p}." for p in paths],
+        **extra,
+    }
+
+
+def test_a_path_the_spec_names_is_used(tmp_path: Path) -> None:
+    from orchestrator.sdlc.design import _fallback_design
+
+    (tmp_path / "src" / "orchestrator").mkdir(parents=True)
+    (tmp_path / "src" / "orchestrator" / "cli.py").write_text("X = 1\n", encoding="utf-8")
+
+    design = _fallback_design(_spec_naming("src/orchestrator/cli.py"), None, None, tmp_path)
+
+    assert design["files_to_touch"] == ["src/orchestrator/cli.py"]
+
+
+def test_technical_notes_are_read_too(tmp_path: Path) -> None:
+    """Where a spec most often says which file it means."""
+    from orchestrator.sdlc.design import _stated_paths
+
+    spec = {"technical_notes": "`_client()` is at src/orchestrator/cli.py:61."}
+
+    assert _stated_paths(spec) == ["src/orchestrator/cli.py"]
+
+
+def test_a_stated_path_that_does_not_exist_is_dropped(tmp_path: Path) -> None:
+    """Naming a file to create belongs in the approach, not a list of files to open."""
+    from orchestrator.sdlc.design import _stated_paths
+
+    spec = _spec_naming("src/orchestrator/nope.py")
+
+    assert _stated_paths(spec, tmp_path) == []
+
+
+def test_stated_paths_are_taken_as_written_without_a_root() -> None:
+    """Callers with no repo on disk still get the spec's own paths."""
+    from orchestrator.sdlc.design import _stated_paths
+
+    assert _stated_paths(_spec_naming("src/a.py", "tests/test_a.py")) == ["src/a.py", "tests/test_a.py"]
+
+
+def test_duplicate_mentions_are_listed_once() -> None:
+    from orchestrator.sdlc.design import _stated_paths
+
+    spec = {
+        "summary": "Fix src/orchestrator/cli.py",
+        "technical_notes": "src/orchestrator/cli.py again",
+        "acceptance_criteria": ["and src/orchestrator/cli.py once more"],
+    }
+
+    assert _stated_paths(spec) == ["src/orchestrator/cli.py"]
+
+
+def test_the_risks_say_which_reading_produced_the_files(tmp_path: Path) -> None:
+    """A reader should not second-guess a path the ticket itself named."""
+    from orchestrator.sdlc.design import _fallback_design
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "a.py").write_text("X = 1\n", encoding="utf-8")
+
+    design = _fallback_design(_spec_naming("src/a.py"), None, None, tmp_path)
+
+    assert any("names" in r for r in design["risks"])
+    assert not any("confirm the affected files" in r for r in design["risks"])
+
+
+def test_a_spec_naming_nothing_still_falls_back_to_the_overview() -> None:
+    """The existing behaviour must survive: this adds a preference, not a replacement."""
+    from orchestrator.sdlc.design import _fallback_design
+
+    spec = {"title": "add csv export", "summary": "users need data out", "acceptance_criteria": []}
+    overview = {"modules": [{"name": "exporter", "path": "src/exporter.py"}]}
+
+    design = _fallback_design(spec, overview, None, None)
+
+    assert "Heuristic design (no LLM)" in design["risks"][0]

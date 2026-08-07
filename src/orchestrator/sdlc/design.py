@@ -13,6 +13,7 @@ from __future__ import annotations
 import contextlib
 import json
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from orchestrator.runtime import ArtifactStore
@@ -64,6 +65,44 @@ def _structure_lines(overview: dict[str, Any] | None) -> list[str]:
             "Most-connected symbols: " + ", ".join(f"{s['name']} in {s.get('module', '?')}" for s in syms[:8])
         )
     return lines
+
+
+# Repo-relative source paths, matching `codegen._PATH_RE`. Duplicated rather than shared:
+# a six-character regex is cheaper to repeat than a new coupling between two modules that
+# otherwise do not know about each other.
+_PATH_RE = re.compile(r"\b((?:src/|tests/)[\w./-]+\.py)\b")
+
+
+def _stated_paths(spec: dict[str, Any], root: Path | None = None) -> list[str]:
+    """Paths the spec *states*, which outrank paths inferred from its words.
+
+    ``_landing_files`` reads only the title and summary, matching the ticket's language
+    against the graph. A ticket about "the registry API" whose criteria name
+    ``src/orchestrator/cli.py`` therefore came back proposing the registry *server* modules
+    — the wrong side of the wire — while the file the spec named twice was absent. Codegen
+    is then handed a design that contradicts its own spec, and on SSPN-49 it submitted
+    nothing at all rather than choose between them.
+
+    The criteria and technical notes are where a spec says which file it means, so they are
+    read here for the same reason ``codegen._paths_from`` reads them. A stated path that
+    does not exist is dropped: naming a file to create is a job for the approach, not for a
+    list of files to open.
+    """
+    blob = " ".join(
+        [
+            str(spec.get("summary") or ""),
+            str(spec.get("technical_notes") or ""),
+            *[str(a) for a in (spec.get("acceptance_criteria") or [])],
+        ]
+    )
+    out: list[str] = []
+    for rel in _PATH_RE.findall(blob):
+        if rel in out:
+            continue
+        if root is not None and not (root / rel).is_file():
+            continue
+        out.append(rel)
+    return out
 
 
 def _landing_files(spec: dict[str, Any], store: FactStore | None) -> list[str]:
@@ -129,14 +168,25 @@ def _overview_files(spec: dict[str, Any], overview: dict[str, Any] | None) -> li
 
 
 def _fallback_design(
-    spec: dict[str, Any], overview: dict[str, Any] | None, store: FactStore | None = None
+    spec: dict[str, Any],
+    overview: dict[str, Any] | None,
+    store: FactStore | None = None,
+    root: Path | None = None,
 ) -> dict[str, Any]:
-    # The graph reading first; the overview's names second; nothing at all rather than a guess.
-    files = _landing_files(spec, store) or _overview_files(spec, overview)
+    # What the spec *says* first; then the graph reading; then the overview's names; nothing
+    # at all rather than a guess. A path the ticket names is not a heuristic — inferring
+    # around it is how a design ends up contradicting the spec it was built from.
+    stated = _stated_paths(spec, root)
+    files = stated or _landing_files(spec, store) or _overview_files(spec, overview)
     ac = [str(a) for a in (spec.get("acceptance_criteria") or [])]
     # Say which it is. A consumer — a human reading design.md, or the codegen prompt now
     # carrying it — has to be able to tell a grounded reading from a shrug.
     risks = ["Heuristic design (no LLM) — confirm the affected files before building."]
+    if stated:
+        # Worth saying which reading produced the list: a reader who knows these paths came
+        # from the ticket itself does not need to second-guess them the way a keyword match
+        # deserves to be second-guessed.
+        risks = ["Files taken from the paths this ticket names, not inferred from its words."]
     if not files:
         risks = [
             "Heuristic design (no LLM) and nothing in the graph matched this ticket's words, "
@@ -239,8 +289,13 @@ async def produce_design(
     memory_bank: dict[str, str] | None = None,
     store: FactStore | None = None,
     llm: Any = None,
+    root: Path | None = None,
 ) -> dict[str, Any]:
     """Produce a grounded design dict for one spec — the pure core, no I/O.
+
+    ``root`` is the repo the design is for. It is used only to drop a path the spec names
+    that does not exist — naming a file to *create* belongs in the approach, not in a list
+    of files to open. Without it, stated paths are taken as written.
 
     An LLM writes it when configured, else a deterministic heuristic from the
     graph overview + acceptance criteria. When a ``FactStore`` is supplied, the
@@ -251,10 +306,12 @@ async def produce_design(
     ctx = {"overview": overview, "memory_bank": memory_bank or {}}
     try:
         design = (
-            await _llm_design(spec, ctx, llm) if llm is not None else _fallback_design(spec, overview, store)
+            await _llm_design(spec, ctx, llm)
+            if llm is not None
+            else _fallback_design(spec, overview, store, root)
         )
     except Exception:  # noqa: BLE001 — LLM/parse failure → deterministic design, never blocks
-        design = _fallback_design(spec, overview, store)
+        design = _fallback_design(spec, overview, store, root)
     if store is not None:
         with contextlib.suppress(Exception):  # impact is an annotation; never fail the design
             from orchestrator.sdlc.impact import blast_radius, to_dict

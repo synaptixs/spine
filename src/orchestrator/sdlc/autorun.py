@@ -541,7 +541,7 @@ async def _stage_design(
     # No LLM here yet: the deterministic design is the honest skeleton default, and it keeps
     # this stage runnable with no provider configured. Wiring the model in is phase 2 work,
     # not skeleton work.
-    design = await produce_design(spec, overview=overview, store=store, llm=None)
+    design = await produce_design(spec, overview=overview, store=store, llm=None, root=ctx.root)
     rendered = render_design_md(spec, design)
     path = ctx.write_artifact("design.md", rendered)
     touched = len(design.get("files_to_touch") or [])
