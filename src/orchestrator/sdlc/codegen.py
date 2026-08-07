@@ -1700,6 +1700,31 @@ class LLMCodegenAdapter:
         )
 
 
+# Names and bodies that mean "I had nothing to say", not "here is a file". A run wrote a
+# file literally called PLACEHOLDER containing the single character `x`, and the refine
+# loop counted it as a file change — its stop condition is "no file changes", so a model
+# with nothing useful to offer kept the loop alive and spent two of three attempts on it
+# while a real failure went unfixed.
+_PLACEHOLDER_STEMS = frozenset({"placeholder", "todo", "fixme", "tbd", "xxx", "stub"})
+# Legitimately (near-)empty files, which the size rule must not catch.
+_LEGITIMATELY_EMPTY = frozenset({"__init__.py", "py.typed", ".gitkeep", ".gitignore"})
+
+
+def _is_placeholder(rel: str, content: str) -> bool:
+    """Whether this submission is a stub standing in for work, rather than work.
+
+    Two signals, deliberately narrow. A name that *is* a placeholder token is one
+    regardless of content. Otherwise only a body with essentially nothing in it counts,
+    and never for the files that are legitimately empty.
+    """
+    name = Path(rel).name
+    if Path(rel).stem.lower() in _PLACEHOLDER_STEMS:
+        return True
+    if name in _LEGITIMATELY_EMPTY:
+        return False
+    return len(content.strip()) < 3
+
+
 def apply_files(
     files: list[Any],
     root: Path,
@@ -1726,6 +1751,7 @@ def apply_files(
     syntax_failures: list[str] = []
     syntax_messages: list[str] = []
     missing_targets: list[str] = []  # edits aimed at a file that doesn't exist yet
+    placeholders: list[str] = []  # stub submissions dropped before they counted as work
     tracked_now = written_tracker.get(root.resolve(), [])
     for entry in files:
         if not isinstance(entry, dict):
@@ -1773,6 +1799,13 @@ def apply_files(
             continue
 
         if not isinstance(content, str):
+            continue
+        # Not a file, a shrug. Dropped before it can count as progress: the refine loop
+        # stops on "no file changes", so letting a stub through keeps the loop alive
+        # while nothing is fixed.
+        if _is_placeholder(rel, content):
+            logger.warning("sdlc.codegen.placeholder_skipped", extra={"path": rel})
+            placeholders.append(rel)
             continue
         # Stdlib-shadow guard: a new top-level module named like a Python
         # standard-library module (statistics.py, json.py, ...) hijacks
@@ -1854,6 +1887,17 @@ def apply_files(
             applied_paths=[str(Path(w).relative_to(root)) for w in written],
         )
     if not written:
+        if placeholders and not edit_failures:
+            # Recoverable, and the same shape as submitting nothing: the model answered but
+            # said nothing. Carrying `empty_summary` routes it to the corrective retry that
+            # tells it an answer this stage can use needs at least one real file.
+            raise CodegenError(
+                f"model output was only placeholder file(s): {', '.join(placeholders)}",
+                empty_summary=(
+                    f"submitted {len(placeholders)} placeholder file(s) and no real ones: "
+                    f"{', '.join(placeholders)}"
+                ),
+            )
         detail = f" ({'; '.join(edit_failures)})" if edit_failures else ""
         raise CodegenError(f"model output produced no writable files{detail}")
     return CodeChange(files=written, summary=summary)

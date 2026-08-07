@@ -26,6 +26,16 @@
 
 ### Fixed
 
+- **A stub submission no longer counts as progress.** A run wrote a file literally named
+  `PLACEHOLDER` containing `x`, and the refine loop treated it as a file change — its stop
+  condition is "no file changes", so a model with nothing to say kept the loop alive and
+  spent two of three attempts on it while the real failure went unfixed. Placeholder names
+  (`PLACEHOLDER`, `TODO`, `FIXME`, `TBD`, `XXX`, `stub`) and essentially-empty bodies are
+  dropped at the write, so the loop's existing stop condition works. `__init__.py`,
+  `py.typed` and `.gitkeep` are exempt — they are legitimately empty. A submission that is
+  *only* placeholders is recoverable and routes to the same corrective retry as submitting
+  nothing at all.
+
 - **A partially-applied codegen attempt can now be repaired.** `apply_files` is per-file
   atomic, not per-batch: a successful file is written before the rest are attempted, so a
   later failure leaves earlier ones on disk. The repair then said "re-emit the full JSON
