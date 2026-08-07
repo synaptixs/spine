@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -577,14 +578,19 @@ _TOOLS = (
 )
 
 
-def _import_fastmcp() -> Any:
+def _import_server_class() -> Any:
+    """The SDK's server class — ``MCPServer`` since v2 (was ``mcp.server.fastmcp.FastMCP``).
+
+    It keeps the same surface this plugin uses: ``.tool()`` to register, ``.run()`` to
+    serve. What moved is transport configuration — see :class:`HttpServer`.
+    """
     try:
-        from mcp.server.fastmcp import FastMCP
+        from mcp.server import MCPServer
     except ImportError as exc:  # pragma: no cover - only without the extra
         raise RuntimeError(
             "The orchestrator MCP plugin needs the 'mcp' extra: pip install 'synaptixs-spine[mcp]'"
         ) from exc
-    return FastMCP
+    return MCPServer
 
 
 def _register_tools(server: Any) -> Any:
@@ -599,7 +605,23 @@ def build_server() -> Any:
     Stdio transport (Phase A): the local plugin a desktop host launches as a
     subprocess. For the remote HTTP transport see ``build_http_server``.
     """
-    return _register_tools(_import_fastmcp()("synaptixs-spine"))
+    return _register_tools(_import_server_class()("synaptixs-spine"))
+
+
+@dataclass(frozen=True)
+class HttpServer:
+    """A built server plus the transport settings the SDK takes at run time.
+
+    v1 accepted ``host``/``port``/``streamable_http_path``/``stateless_http`` on the
+    constructor, so a built server was self-contained. v2 moved them to
+    ``run_streamable_http_async``, so they have to travel with it.
+    """
+
+    server: Any
+    transport: dict[str, Any]
+
+    def run(self) -> None:
+        self.server.run("streamable-http", **self.transport)
 
 
 def build_http_server(
@@ -609,7 +631,7 @@ def build_http_server(
     path: str = "/mcp",
     stateless: bool = False,
     allow_unauthenticated: bool = False,
-) -> Any:
+) -> HttpServer:
     """Build the FastMCP server for the remote ``streamable-http`` transport (Phase C).
 
     Auth is derived from env (``orchestrator.plugin.auth.build_auth_from_env``):
@@ -619,7 +641,7 @@ def build_http_server(
     """
     from orchestrator.plugin.auth import build_auth_from_env
 
-    fastmcp = _import_fastmcp()
+    server_cls = _import_server_class()
     auth_settings, verifier = build_auth_from_env()
 
     is_loopback = host in ("127.0.0.1", "localhost", "::1")
@@ -630,19 +652,23 @@ def build_http_server(
             "127.0.0.1, or pass --allow-unauthenticated for a trusted private network."
         )
 
-    server = fastmcp(
-        "synaptixs-spine",
-        host=host,
-        port=port,
-        streamable_http_path=path,
-        stateless_http=stateless,
-        auth=auth_settings,
-        token_verifier=verifier,
+    # SDK v2 takes transport settings at *run* time, not on the constructor — only auth
+    # stays on the server object. Carrying them together keeps the binding rule enforced
+    # here (where the refusal above lives) rather than at the call site.
+    server = server_cls("synaptixs-spine", auth=auth_settings, token_verifier=verifier)
+    return HttpServer(
+        server=_register_tools(server),
+        transport={
+            "host": host,
+            "port": port,
+            "streamable_http_path": path,
+            "stateless_http": stateless,
+        },
     )
-    return _register_tools(server)
 
 
 __all__ = [
+    "HttpServer",
     "blast_radius",
     "build_http_server",
     "build_server",
