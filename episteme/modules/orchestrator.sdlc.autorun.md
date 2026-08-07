@@ -117,7 +117,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/autorun.py:492`](../../src/orchestrator/sdlc/autorun.py#L492)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L180)
-- **Calls** (3): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L43), [`assess`](../../src/orchestrator/sdlc/validity.py#L333), `py:emit`
+- **Calls** (3): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L43), [`assess`](../../src/orchestrator/sdlc/validity.py#L350), `py:emit`
 
 ### `autorun`
 
