@@ -98,9 +98,15 @@ class SessionMCPClient:
             raise MCPError(f"MCP server {cfg.name!r} ({cfg.transport}) failed: {exc}") from exc
 
     def _to_tool(self, raw: Any) -> MCPTool:
+        # v2 renamed these to snake_case along with everything else. They were read with a
+        # defaulted `getattr`, so the rename did not raise — `input_schema` silently became
+        # None and every tool lost its argument types, which took the `mcp contracts` labels
+        # with it and stopped `MCPRegistry.call` coercing a structured argument the server
+        # declares as a string. A default that hides a rename is the same trap as
+        # `getattr(result, "isError", False)`; both are gone.
         annotations = getattr(raw, "annotations", None)
-        read_only = getattr(annotations, "readOnlyHint", None) if annotations is not None else None
-        schema = getattr(raw, "inputSchema", None)
+        read_only = getattr(annotations, "read_only_hint", None) if annotations is not None else None
+        schema = getattr(raw, "input_schema", None)
         return MCPTool(
             server=self._config.name,
             name=raw.name,
