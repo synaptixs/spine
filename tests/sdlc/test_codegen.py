@@ -1255,36 +1255,34 @@ async def test_a_file_larger_than_the_budget_is_excerpted_not_dropped(tmp_path: 
     """The live failure: `cli.py` is 100 KB against a 40 KB pool, so the repair block said
     "below is the CURRENT EXACT content" and then appended nothing. Every retry re-guessed
     the anchor and the run died having never seen a byte of the file it was editing."""
-    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
     from orchestrator.sdlc.excerpt import _excerpt_files
 
+    # An explicit pool, not the global cap: this test is about what happens when a file
+    # exceeds its budget, and it must keep testing that however large the cap becomes.
+    pool = 40_000
     target = "def render_contract_types(schema: dict) -> str:"
     (tmp_path / "cli.py").write_text(_big_module(target), encoding="utf-8")
 
-    block = _excerpt_files(
-        tmp_path, ["cli.py"], budget=_MAX_CONTEXT_BYTES, anchors_by_path={"cli.py": [target]}, label="x"
-    )
+    block = _excerpt_files(tmp_path, ["cli.py"], budget=pool, anchors_by_path={"cli.py": [target]}, label="x")
 
     assert block, "an oversized file must still reach the prompt"
     assert target in block, "the window must cover the line the model was aiming at"
-    assert len(block) <= _MAX_CONTEXT_BYTES * 2  # bounded, not the whole 120 KB file
+    assert len(block) <= pool * 2  # bounded by the pool it was given
     assert "lines not shown" in block  # and honest about being partial
 
 
 async def test_a_near_miss_anchor_still_finds_its_neighbourhood(tmp_path: Path) -> None:
     """A `find` fails on whitespace or a renamed identifier as easily as on being wrong.
     The window should still land where the model was reaching."""
-    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
     from orchestrator.sdlc.excerpt import _excerpt_files
 
+    pool = 40_000  # explicit, so the global cap can move without disarming this
     target = "def render_contract_types(schema: dict) -> str:"
     (tmp_path / "cli.py").write_text(_big_module(target), encoding="utf-8")
 
     # What the model guessed: right function, wrong signature.
     guess = "def render_contract_types(schema):"
-    block = _excerpt_files(
-        tmp_path, ["cli.py"], budget=_MAX_CONTEXT_BYTES, anchors_by_path={"cli.py": [guess]}, label="x"
-    )
+    block = _excerpt_files(tmp_path, ["cli.py"], budget=pool, anchors_by_path={"cli.py": [guess]}, label="x")
 
     assert target in block
 
