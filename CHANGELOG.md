@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Fixed
+
+- **A failure kind is now advised about the thing it was charged for.** `_failure_kind`
+  ordered syntax before anchors; `_corrective_suffix` ordered anchors before syntax. An
+  attempt producing both — a stray `</content>` in a new file *and* an edit whose anchor
+  missed — was recorded as `syntax` while the model was handed the anchor-repair block, so
+  the syntax kind's one correction was spent on advice about something else and the next
+  failure had nothing left. The same shape as the shared-retry-pool bug the per-kind budget
+  replaced, arriving through misclassification instead. A test now fails if the two
+  orderings drift again.
+
 ### Changed
 
 - **`FeatureSpec.acceptance_criteria` has narrowed to the criteria the source
