@@ -2,7 +2,76 @@
 
 ## Unreleased
 
+### Added
+
+- **The validity gate weighs codegen's context budget.** A spec can be right-sized by every
+  other measure and still not fit in front of the model: `_check_size` counts criteria and
+  modules, and neither correlates with bytes — one 56 KB file passes the module count and
+  exceeds the whole budget alone. The gate now sums the files a change names and compares
+  them to `codegen._MAX_CONTEXT_BYTES`. Past 1.5x it returns `TOO_BIG`; in the margin below
+  it warns and still proceeds, because anchor-located excerpting copes there and refusing
+  would block runs that work. Inert without a repo root, so callers that cannot measure get
+  exactly the verdicts they got before.
+
+### Changed
+
+- **Migrated to the MCP Python SDK v2** (`mcp>=2`). v1 spelled three things differently:
+  the client transport is now `streamable_http_client` (and takes a configured
+  `http_client` rather than `headers`, yielding two streams not three), the result flag is
+  `is_error`, and the server class is `mcp.server.MCPServer` — `mcp.server.fastmcp` is
+  gone. Transport settings moved off the server constructor onto the run call, so
+  `build_http_server` returns an `HttpServer` carrying both. Reading the error flag with
+  `getattr(result, "isError", False)` is also fixed: under v2 that silently reported every
+  tool error as a success, which is worse than the AttributeError the default was avoiding.
+
 ### Fixed
+
+- **`author_tests` may answer "nothing to test" — but only when that is true.** The stage is
+  unconditional and no spec can turn it off, and an empty submission was always treated as a
+  skipped job and retried. On a documentation-only change it answered correctly first
+  ("no tests submitted: this is a prose edit"), was retried anyway, and the retry invented a
+  test module for a paragraph and corrupted it with markup — discarding a change that was
+  already complete and correct. Empty is now valid when the change touched no testable
+  source, and still refused when it did, so a source change that skips its tests is caught
+  exactly as before.
+
+- **v2 renamed `Tool.inputSchema` and `readOnlyHint` too, and the defaulted reads hid it.**
+  `_to_tool` fetched both with `getattr(..., None)`, so the rename did not raise —
+  `input_schema` silently became `None` and every tool lost its argument types. That took
+  the `mcp contracts` type labels with it and stopped `MCPRegistry.call` coercing a
+  structured argument a server declares as a string, so a governed `jira_create_issue`
+  started failing validation again. Nothing went red, because every existing test builds an
+  `MCPTool` directly and never exercises the translation from the SDK's own type. A new test
+  module builds a real `mcp.types.Tool`, so the next rename fails a test instead of a run.
+
+- **Generated test fixtures are shown the types they construct.** `author_tests` was given
+  the source under test but not the definitions of the types that source imports — so a
+  fixture building a fake LLM client or a graph store wrote the constructor from inference.
+  Three consecutive runs produced correct source and a broken test module that way:
+  `CompletionResult` with an invented `usage` kwarg, then `CompletionResult` missing four
+  required fields, then `FactStore()` without its `batch`. Writing one signature into the
+  spec did not help — the next run failed on a different type. The stage now reads the
+  class-shaped names the code under test imports and pulls their definitions from the
+  graph, which covers all three.
+
+- **A stub submission no longer counts as progress.** A run wrote a file literally named
+  `PLACEHOLDER` containing `x`, and the refine loop treated it as a file change — its stop
+  condition is "no file changes", so a model with nothing to say kept the loop alive and
+  spent two of three attempts on it while the real failure went unfixed. Placeholder names
+  (`PLACEHOLDER`, `TODO`, `FIXME`, `TBD`, `XXX`, `stub`) and essentially-empty bodies are
+  dropped at the write, so the loop's existing stop condition works. `__init__.py`,
+  `py.typed` and `.gitkeep` are exempt — they are legitimately empty. A submission that is
+  *only* placeholders is recoverable and routes to the same corrective retry as submitting
+  nothing at all.
+
+- **A partially-applied codegen attempt can now be repaired.** `apply_files` is per-file
+  atomic, not per-batch: a successful file is written before the rest are attempted, so a
+  later failure leaves earlier ones on disk. The repair then said "re-emit the full JSON
+  object" while showing current content only for the files that *failed* — so the model
+  resent edits whose `find` text its own previous attempt had replaced, and the retry could
+  not succeed. A live run produced a complete, correct change and failed anyway on `edit 0
+  'find' text not found`. The error now carries which files landed, and the repair tells the
+  model to omit them.
 
 - **`mcp` pinned below 2.0 until the v2 migration lands, and CI now installs the extra.**
   v2 renames what this package uses — `streamablehttp_client` → `streamable_http_client`,

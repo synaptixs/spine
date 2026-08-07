@@ -301,8 +301,15 @@ class CodegenError(RuntimeError):
         syntax_errors: list[str] | None = None,
         parse_detail: str = "",
         empty_summary: str = "",
+        applied_paths: list[str] | None = None,
     ) -> None:
         super().__init__(message)
+        # Files this attempt already wrote before it failed. `apply_files` is per-file
+        # atomic, not per-batch, so a later file's failure leaves earlier ones on disk —
+        # and the repair used to say "re-emit the full JSON object" without saying which.
+        # The model resent edits whose `find` text its own previous attempt had replaced,
+        # so a partially-successful attempt could never be repaired.
+        self.applied_paths = list(applied_paths or [])
         self.failed_edit_paths = list(failed_edit_paths or [])
         self.missing_edit_paths = list(missing_edit_paths or [])
         # The ``find`` snippets that did not match, per path. Wrong text, but a correct
@@ -1412,8 +1419,14 @@ class LLMCodegenAdapter:
             f"CURRENT SOURCE FILES:\n{self._session_files(root, include_tests=False)}"
             f"{self._convention_block(root)}"
             f"{_existing_test_examples(spec, root, self._design)}"
+            f"{self._definitions_for_tests(root)}"
             f"{_coverage_gap_block(gaps or [])}",
             root,
+            # "No tests" is a real answer when the change touched no testable source, and a
+            # skipped job when it did. Treating it as always-invalid made a documentation-only
+            # change retry until it invented a test module for a paragraph — and a live run
+            # died on the markup in that module, discarding a change that was already correct.
+            allow_empty=not _has_testable_source(self._written.get(root.resolve(), [])),
         )
 
     async def refine(self, *, spec: dict[str, Any], path: str, issue_key: str, failures: str) -> CodeChange:
@@ -1440,6 +1453,32 @@ class LLMCodegenAdapter:
             # of aborting the whole run with an unhandled CodegenError.
             allow_empty=True,
         )
+
+    def _definitions_for_tests(self, root: Path) -> str:
+        """Definitions of the types the code under test imports, for the fixtures.
+
+        The failure-driven ``_definitions_for`` cannot help here: ``author_tests`` runs
+        before anything has failed. The source's own imports are the deterministic signal
+        for what a fixture is about to construct.
+        """
+        written = self._written.get(root.resolve(), [])
+        sources = [p for p in written if p.suffix == ".py" and not _is_test_file(p)]
+        names = _imported_type_names(root, sources)
+        if not names:
+            return ""
+        grounder = self._resolve_grounder(root)
+        lookup = getattr(grounder, "context_for_symbols", None)
+        if lookup is None:
+            return ""
+        block: str = lookup(
+            names,
+            intro=(
+                "DEFINITIONS of types the code under test imports. A fixture that builds one "
+                "of these must match the real signature — every required field, no invented "
+                "keyword. Copy the constructor from here rather than inferring it:\n"
+            ),
+        )
+        return f"\n\n{block}" if block else ""
 
     def _definitions_for(self, failures: str, root: Path) -> str:
         """PKG definitions of the symbols a failure names, or ''.
@@ -1570,6 +1609,17 @@ class LLMCodegenAdapter:
           exact current content so the model re-anchors via ``edits``.
         """
         chunks: list[str] = [f"\n\nYOUR PREVIOUS ATTEMPT FAILED: {exc}\nRe-emit the full JSON object.\n"]
+        if exc.applied_paths:
+            # Without this the re-emission is guaranteed to fail: those files are already
+            # patched, so the `find` snippets from the previous attempt no longer occur in
+            # them. The model cannot know that from the failure message alone.
+            names = ", ".join(exc.applied_paths)
+            chunks.append(
+                f"These file(s) were ALREADY WRITTEN successfully by that attempt: {names}. "
+                "Do NOT include them again — their content has changed, so your previous "
+                "`find` snippets no longer match and re-sending them will fail. Emit only "
+                "the file(s) that did not land.\n"
+            )
         if exc.missing_edit_paths:
             names = ", ".join(exc.missing_edit_paths)
             chunks.append(
@@ -1682,6 +1732,102 @@ class LLMCodegenAdapter:
         )
 
 
+# Names and bodies that mean "I had nothing to say", not "here is a file". A run wrote a
+# file literally called PLACEHOLDER containing the single character `x`, and the refine
+# loop counted it as a file change — its stop condition is "no file changes", so a model
+# with nothing useful to offer kept the loop alive and spent two of three attempts on it
+# while a real failure went unfixed.
+_PLACEHOLDER_STEMS = frozenset({"placeholder", "todo", "fixme", "tbd", "xxx", "stub"})
+# Legitimately (near-)empty files, which the size rule must not catch.
+_LEGITIMATELY_EMPTY = frozenset({"__init__.py", "py.typed", ".gitkeep", ".gitignore"})
+
+
+def _is_placeholder(rel: str, content: str) -> bool:
+    """Whether this submission is a stub standing in for work, rather than work.
+
+    Two signals, deliberately narrow. A name that *is* a placeholder token is one
+    regardless of content. Otherwise only a body with essentially nothing in it counts,
+    and never for the files that are legitimately empty.
+    """
+    name = Path(rel).name
+    if Path(rel).stem.lower() in _PLACEHOLDER_STEMS:
+        return True
+    if name in _LEGITIMATELY_EMPTY:
+        return False
+    return len(content.strip()) < 3
+
+
+# The source half of `review._REVIEWABLE_SUFFIXES`. Documentation and config are reviewable
+# — a criterion can require them — but nothing writes a unit test against a paragraph.
+_TESTABLE_SUFFIXES = frozenset(
+    {
+        ".py",
+        ".java",
+        ".go",
+        ".c",
+        ".h",
+        ".cc",
+        ".cpp",
+        ".hpp",
+        ".cs",
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".sql",
+        ".sh",
+    }
+)
+
+
+def _has_testable_source(written: list[Path]) -> bool:
+    """Whether this change touched anything a generated test could exercise.
+
+    The question `author_tests` needs answered before it decides that submitting nothing is
+    a failure. A change that only edits README.md has nothing to test; a change that edits a
+    module and submits no tests has skipped its job.
+    """
+    return any(p.suffix.lower() in _TESTABLE_SUFFIXES and not _is_test_file(p) for p in written)
+
+
+def _is_test_file(path: Path) -> bool:
+    """Mirror of ``feature_runner._is_test_path``, kept here to avoid a circular import.
+
+    ``feature_runner`` imports this module, so it cannot be imported back. The rule is
+    small enough that duplicating it beats moving it; if it grows, move it to a shared spot.
+    """
+    name = path.name
+    return name.startswith("test_") or name.endswith("_test.py") or "tests" in path.parts
+
+
+def _imported_type_names(root: Path, files: list[Path]) -> list[str]:
+    """Class-shaped names the files under test import from elsewhere in the repo.
+
+    A test fixture almost always *constructs* something: a fake LLM client returning a
+    ``CompletionResult``, a graph store built from a ``FactBatch``. Those types live in
+    modules the spec never names, so ``author_tests`` was writing constructors for classes
+    it had never been shown — and got them wrong three runs running (``CompletionResult``
+    with an invented kwarg, then missing four required fields, then ``FactStore()`` without
+    its ``batch``). Every one of those names is right here in the source's own imports.
+
+    CamelCase only: a type is what gets constructed, and pulling in every imported function
+    would swamp the definitions budget with things no fixture builds.
+    """
+    names: list[str] = []
+    for path in files:
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError):
+            continue  # unreadable or mid-edit: no reason to fail the stage
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                for alias in node.names:
+                    name = alias.asname or alias.name
+                    if name[:1].isupper() and name.isidentifier():
+                        names.append(name)
+    return list(dict.fromkeys(names))
+
+
 def apply_files(
     files: list[Any],
     root: Path,
@@ -1708,6 +1854,7 @@ def apply_files(
     syntax_failures: list[str] = []
     syntax_messages: list[str] = []
     missing_targets: list[str] = []  # edits aimed at a file that doesn't exist yet
+    placeholders: list[str] = []  # stub submissions dropped before they counted as work
     tracked_now = written_tracker.get(root.resolve(), [])
     for entry in files:
         if not isinstance(entry, dict):
@@ -1755,6 +1902,13 @@ def apply_files(
             continue
 
         if not isinstance(content, str):
+            continue
+        # Not a file, a shrug. Dropped before it can count as progress: the refine loop
+        # stops on "no file changes", so letting a stub through keeps the loop alive
+        # while nothing is fixed.
+        if _is_placeholder(rel, content):
+            logger.warning("sdlc.codegen.placeholder_skipped", extra={"path": rel})
+            placeholders.append(rel)
             continue
         # Stdlib-shadow guard: a new top-level module named like a Python
         # standard-library module (statistics.py, json.py, ...) hijacks
@@ -1833,8 +1987,20 @@ def apply_files(
             missing_edit_paths=missing_targets,
             failed_anchors=attempted_anchors,
             syntax_errors=syntax_messages,
+            applied_paths=[str(Path(w).relative_to(root)) for w in written],
         )
     if not written:
+        if placeholders and not edit_failures:
+            # Recoverable, and the same shape as submitting nothing: the model answered but
+            # said nothing. Carrying `empty_summary` routes it to the corrective retry that
+            # tells it an answer this stage can use needs at least one real file.
+            raise CodegenError(
+                f"model output was only placeholder file(s): {', '.join(placeholders)}",
+                empty_summary=(
+                    f"submitted {len(placeholders)} placeholder file(s) and no real ones: "
+                    f"{', '.join(placeholders)}"
+                ),
+            )
         detail = f" ({'; '.join(edit_failures)})" if edit_failures else ""
         raise CodegenError(f"model output produced no writable files{detail}")
     return CodeChange(files=written, summary=summary)

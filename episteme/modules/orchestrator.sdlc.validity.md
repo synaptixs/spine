@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/sdlc/validity.py`](../../src/orchestrator/sdlc/validity.py)
 
-3 types · 11 functions · python
+3 types · 13 functions · python
 
 ## Changing this safely
 
@@ -13,34 +13,34 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`Finding`](../../src/orchestrator/sdlc/validity.py#L82) — reaches **10** symbols
-- [`_criteria_text`](../../src/orchestrator/sdlc/validity.py#L111) — reaches **9** symbols
-- [`Assessment`](../../src/orchestrator/sdlc/validity.py#L91) — reaches **6** symbols
-- [`_all_criteria_text`](../../src/orchestrator/sdlc/validity.py#L115) — reaches **6** symbols
-- [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L139) — reaches **6** symbols
-- [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L250) — reaches **6** symbols
-- [`_check_localization`](../../src/orchestrator/sdlc/validity.py#L287) — reaches **6** symbols
-- [`_check_prior_runs`](../../src/orchestrator/sdlc/validity.py#L325) — reaches **6** symbols
+- [`Finding`](../../src/orchestrator/sdlc/validity.py#L83) — reaches **11** symbols
+- [`_criteria_text`](../../src/orchestrator/sdlc/validity.py#L112) — reaches **9** symbols
+- [`Assessment`](../../src/orchestrator/sdlc/validity.py#L92) — reaches **6** symbols
+- [`_all_criteria_text`](../../src/orchestrator/sdlc/validity.py#L116) — reaches **6** symbols
+- [`_check_context_budget`](../../src/orchestrator/sdlc/validity.py#L354) — reaches **6** symbols
+- [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L140) — reaches **6** symbols
+- [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L251) — reaches **6** symbols
+- [`_check_localization`](../../src/orchestrator/sdlc/validity.py#L288) — reaches **6** symbols
 
 ## Types
 
 ### `Assessment`
 
-[`src/orchestrator/sdlc/validity.py:91`](../../src/orchestrator/sdlc/validity.py#L91)
+[`src/orchestrator/sdlc/validity.py:92`](../../src/orchestrator/sdlc/validity.py#L92)
 
-- **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L350)
+- **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L418)
 - **Fields**: `findings`, `verdict`
 
 ### `Finding`
 
-[`src/orchestrator/sdlc/validity.py:82`](../../src/orchestrator/sdlc/validity.py#L82)
+[`src/orchestrator/sdlc/validity.py:83`](../../src/orchestrator/sdlc/validity.py#L83)
 
-- **Called by** (5): [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L139), [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L250), [`_check_localization`](../../src/orchestrator/sdlc/validity.py#L287), [`_check_prior_runs`](../../src/orchestrator/sdlc/validity.py#L325), [`_check_size`](../../src/orchestrator/sdlc/validity.py#L303)
+- **Called by** (6): [`_check_context_budget`](../../src/orchestrator/sdlc/validity.py#L354), [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L140), [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L251), [`_check_localization`](../../src/orchestrator/sdlc/validity.py#L288), [`_check_prior_runs`](../../src/orchestrator/sdlc/validity.py#L393), [`_check_size`](../../src/orchestrator/sdlc/validity.py#L304)
 - **Fields**: `check`, `detail`, `evidence`
 
 ### `Verdict`
 
-[`src/orchestrator/sdlc/validity.py:35`](../../src/orchestrator/sdlc/validity.py#L35)
+[`src/orchestrator/sdlc/validity.py:36`](../../src/orchestrator/sdlc/validity.py#L36)
 
 - **Extends** (2): `enum.Enum`, `str`
 - **Fields**: `ALREADY_DONE`, `CRITERIA_WRONG`, `DUPLICATE`, `PROCEED`, `TOO_BIG`, `UNLOCALIZED`
@@ -49,83 +49,97 @@
 
 ### `_all_criteria_text`
 
-[`src/orchestrator/sdlc/validity.py:115`](../../src/orchestrator/sdlc/validity.py#L115)
+[`src/orchestrator/sdlc/validity.py:116`](../../src/orchestrator/sdlc/validity.py#L116)
 
-- **Called by** (1): [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L250)
-- **Calls** (1): [`_criteria_text`](../../src/orchestrator/sdlc/validity.py#L111)
+- **Called by** (1): [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L251)
+- **Calls** (1): [`_criteria_text`](../../src/orchestrator/sdlc/validity.py#L112)
+
+### `_check_context_budget`
+
+[`src/orchestrator/sdlc/validity.py:354`](../../src/orchestrator/sdlc/validity.py#L354)
+
+- **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L418)
+- **Calls** (2): [`Finding`](../../src/orchestrator/sdlc/validity.py#L83), [`_named_file_bytes`](../../src/orchestrator/sdlc/validity.py#L340)
 
 ### `_check_countable_claims`
 
-[`src/orchestrator/sdlc/validity.py:139`](../../src/orchestrator/sdlc/validity.py#L139)
+[`src/orchestrator/sdlc/validity.py:140`](../../src/orchestrator/sdlc/validity.py#L140)
 
-- **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L350)
-- **Calls** (4): [`Finding`](../../src/orchestrator/sdlc/validity.py#L82), [`_count_of`](../../src/orchestrator/sdlc/validity.py#L133), [`_criteria_text`](../../src/orchestrator/sdlc/validity.py#L111), `search`
+- **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L418)
+- **Calls** (4): [`Finding`](../../src/orchestrator/sdlc/validity.py#L83), [`_count_of`](../../src/orchestrator/sdlc/validity.py#L134), [`_criteria_text`](../../src/orchestrator/sdlc/validity.py#L112), `search`
 
 ### `_check_invariants`
 
-[`src/orchestrator/sdlc/validity.py:250`](../../src/orchestrator/sdlc/validity.py#L250)
+[`src/orchestrator/sdlc/validity.py:251`](../../src/orchestrator/sdlc/validity.py#L251)
 
-- **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L350)
-- **Calls** (3): [`Finding`](../../src/orchestrator/sdlc/validity.py#L82), [`_all_criteria_text`](../../src/orchestrator/sdlc/validity.py#L115), [`_named_surface`](../../src/orchestrator/sdlc/validity.py#L236)
+- **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L418)
+- **Calls** (3): [`Finding`](../../src/orchestrator/sdlc/validity.py#L83), [`_all_criteria_text`](../../src/orchestrator/sdlc/validity.py#L116), [`_named_surface`](../../src/orchestrator/sdlc/validity.py#L237)
 
 ### `_check_localization`
 
-[`src/orchestrator/sdlc/validity.py:287`](../../src/orchestrator/sdlc/validity.py#L287)
+[`src/orchestrator/sdlc/validity.py:288`](../../src/orchestrator/sdlc/validity.py#L288)
 
-- **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L350)
-- **Calls** (1): [`Finding`](../../src/orchestrator/sdlc/validity.py#L82)
+- **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L418)
+- **Calls** (1): [`Finding`](../../src/orchestrator/sdlc/validity.py#L83)
 
 ### `_check_prior_runs`
 
-[`src/orchestrator/sdlc/validity.py:325`](../../src/orchestrator/sdlc/validity.py#L325)
+[`src/orchestrator/sdlc/validity.py:393`](../../src/orchestrator/sdlc/validity.py#L393)
 
-- **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L350)
-- **Calls** (1): [`Finding`](../../src/orchestrator/sdlc/validity.py#L82)
+- **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L418)
+- **Calls** (1): [`Finding`](../../src/orchestrator/sdlc/validity.py#L83)
 
 ### `_check_size`
 
-[`src/orchestrator/sdlc/validity.py:303`](../../src/orchestrator/sdlc/validity.py#L303)
+[`src/orchestrator/sdlc/validity.py:304`](../../src/orchestrator/sdlc/validity.py#L304)
 
-- **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L350)
-- **Calls** (2): [`Finding`](../../src/orchestrator/sdlc/validity.py#L82), [`_criteria_text`](../../src/orchestrator/sdlc/validity.py#L111)
+- **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L418)
+- **Calls** (2): [`Finding`](../../src/orchestrator/sdlc/validity.py#L83), [`_criteria_text`](../../src/orchestrator/sdlc/validity.py#L112)
+- **Documented in**: `CHANGELOG.md`
 
 ### `_count_of`
 
-[`src/orchestrator/sdlc/validity.py:133`](../../src/orchestrator/sdlc/validity.py#L133)
+[`src/orchestrator/sdlc/validity.py:134`](../../src/orchestrator/sdlc/validity.py#L134)
 
-- **Called by** (1): [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L139)
+- **Called by** (1): [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L140)
 
 ### `_criteria_text`
 
-[`src/orchestrator/sdlc/validity.py:111`](../../src/orchestrator/sdlc/validity.py#L111)
+[`src/orchestrator/sdlc/validity.py:112`](../../src/orchestrator/sdlc/validity.py#L112)
 
-- **Called by** (3): [`_all_criteria_text`](../../src/orchestrator/sdlc/validity.py#L115), [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L139), [`_check_size`](../../src/orchestrator/sdlc/validity.py#L303)
+- **Called by** (3): [`_all_criteria_text`](../../src/orchestrator/sdlc/validity.py#L116), [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L140), [`_check_size`](../../src/orchestrator/sdlc/validity.py#L304)
+
+### `_named_file_bytes`
+
+[`src/orchestrator/sdlc/validity.py:340`](../../src/orchestrator/sdlc/validity.py#L340)
+
+- **Called by** (1): [`_check_context_budget`](../../src/orchestrator/sdlc/validity.py#L354)
 
 ### `_named_surface`
 
-[`src/orchestrator/sdlc/validity.py:236`](../../src/orchestrator/sdlc/validity.py#L236)
+[`src/orchestrator/sdlc/validity.py:237`](../../src/orchestrator/sdlc/validity.py#L237)
 
-- **Called by** (1): [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L250)
-- **Calls** (2): [`_surface_pattern`](../../src/orchestrator/sdlc/validity.py#L223), `search`
+- **Called by** (1): [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L251)
+- **Calls** (2): [`_surface_pattern`](../../src/orchestrator/sdlc/validity.py#L224), `search`
 
 ### `_surface_pattern`
 
-[`src/orchestrator/sdlc/validity.py:223`](../../src/orchestrator/sdlc/validity.py#L223)
+[`src/orchestrator/sdlc/validity.py:224`](../../src/orchestrator/sdlc/validity.py#L224)
 
-- **Called by** (1): [`_named_surface`](../../src/orchestrator/sdlc/validity.py#L236)
+- **Called by** (1): [`_named_surface`](../../src/orchestrator/sdlc/validity.py#L237)
 - **Calls** (1): `escape`
 
 ### `assess`
 
-[`src/orchestrator/sdlc/validity.py:350`](../../src/orchestrator/sdlc/validity.py#L350)
+[`src/orchestrator/sdlc/validity.py:418`](../../src/orchestrator/sdlc/validity.py#L418)
 
-- **Called by** (2 production · 30 test): [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L492), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`test_a_bug_that_lands_nowhere_is_refused`](../../tests/sdlc/test_validity.py#L94), [`test_a_bug_that_lands_somewhere_proceeds`](../../tests/sdlc/test_validity.py#L102), [`test_a_failed_previous_run_does_not_block_a_retry`](../../tests/sdlc/test_validity.py#L165), [`test_a_met_at_least_target_proceeds`](../../tests/sdlc/test_validity.py#L69), [`test_a_nondeterminism_word_alone_still_proceeds`](../../tests/sdlc/test_validity_invariants.py#L77), [`test_a_number_that_is_a_target_not_a_claim_proceeds`](../../tests/sdlc/test_validity.py#L88), [`test_a_prior_run_that_opened_no_pr_does_not_block_a_retry`](../../tests/sdlc/test_validity.py#L149), [`test_a_story_that_lands_nowhere_still_proceeds`](../../tests/sdlc/test_validity.py#L112), [`test_a_ticket_a_previous_run_completed_is_a_duplicate`](../../tests/sdlc/test_validity.py#L134), [`test_a_ticket_landing_in_too_many_modules_is_refused`](../../tests/sdlc/test_validity.py#L129), [`test_a_ticket_with_too_many_criteria_is_refused`](../../tests/sdlc/test_validity.py#L122), [`test_an_empty_ticket_proceeds`](../../tests/sdlc/test_validity.py#L192), [`test_an_unmet_at_least_target_is_refused`](../../tests/sdlc/test_validity.py#L79), [`test_check_makes_no_network_call`](../../tests/sdlc/test_validity_invariants.py#L171), [`test_clean_spec_still_proceeds_with_no_findings`](../../tests/sdlc/test_validity_invariants.py#L157), [`test_deterministic_surfaces_reject_clock_and_randomness`](../../tests/sdlc/test_validity_invariants.py#L105), [`test_finding_evidence_names_the_invariant_it_breaks`](../../tests/sdlc/test_validity_invariants.py#L85), [`test_generated_at_criterion_is_refused_as_criteria_wrong`](../../tests/sdlc/test_validity_invariants.py#L47), [`test_invariant_check_runs_before_the_size_gate`](../../tests/sdlc/test_validity_invariants.py#L204), [`test_non_deterministic_sinks_are_not_flagged`](../../tests/sdlc/test_validity_invariants.py#L121), [`test_proposed_criteria_are_checked_too`](../../tests/sdlc/test_validity_invariants.py#L137), [`test_proposed_criteria_may_be_plain_strings`](../../tests/sdlc/test_validity_invariants.py#L149), [`test_prose_with_numbers_in_it_is_not_a_claim`](../../tests/sdlc/test_validity.py#L179), +7 more
-- **Calls** (6): [`Assessment`](../../src/orchestrator/sdlc/validity.py#L91), [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L139), [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L250), [`_check_localization`](../../src/orchestrator/sdlc/validity.py#L287), [`_check_prior_runs`](../../src/orchestrator/sdlc/validity.py#L325), [`_check_size`](../../src/orchestrator/sdlc/validity.py#L303)
+- **Called by** (2 production · 35 test): [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L492), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`test_a_bug_that_lands_nowhere_is_refused`](../../tests/sdlc/test_validity.py#L94), [`test_a_bug_that_lands_somewhere_proceeds`](../../tests/sdlc/test_validity.py#L102), [`test_a_failed_previous_run_does_not_block_a_retry`](../../tests/sdlc/test_validity.py#L165), [`test_a_met_at_least_target_proceeds`](../../tests/sdlc/test_validity.py#L69), [`test_a_nondeterminism_word_alone_still_proceeds`](../../tests/sdlc/test_validity_invariants.py#L78), [`test_a_number_that_is_a_target_not_a_claim_proceeds`](../../tests/sdlc/test_validity.py#L88), [`test_a_prior_run_that_opened_no_pr_does_not_block_a_retry`](../../tests/sdlc/test_validity.py#L149), [`test_a_spec_far_over_the_budget_is_refused`](../../tests/sdlc/test_validity_invariants.py#L230), [`test_a_spec_inside_the_budget_says_nothing`](../../tests/sdlc/test_validity_invariants.py#L255), [`test_a_spec_just_over_the_budget_warns_but_proceeds`](../../tests/sdlc/test_validity_invariants.py#L242), [`test_a_story_that_lands_nowhere_still_proceeds`](../../tests/sdlc/test_validity.py#L112), [`test_a_ticket_a_previous_run_completed_is_a_duplicate`](../../tests/sdlc/test_validity.py#L134), [`test_a_ticket_landing_in_too_many_modules_is_refused`](../../tests/sdlc/test_validity.py#L129), [`test_a_ticket_with_too_many_criteria_is_refused`](../../tests/sdlc/test_validity.py#L122), [`test_an_empty_ticket_proceeds`](../../tests/sdlc/test_validity.py#L192), [`test_an_unmet_at_least_target_is_refused`](../../tests/sdlc/test_validity.py#L79), [`test_an_unreadable_file_does_not_block_a_run`](../../tests/sdlc/test_validity_invariants.py#L274), [`test_check_makes_no_network_call`](../../tests/sdlc/test_validity_invariants.py#L172), [`test_clean_spec_still_proceeds_with_no_findings`](../../tests/sdlc/test_validity_invariants.py#L158), [`test_deterministic_surfaces_reject_clock_and_randomness`](../../tests/sdlc/test_validity_invariants.py#L106), [`test_finding_evidence_names_the_invariant_it_breaks`](../../tests/sdlc/test_validity_invariants.py#L86), [`test_generated_at_criterion_is_refused_as_criteria_wrong`](../../tests/sdlc/test_validity_invariants.py#L48), [`test_invariant_check_runs_before_the_size_gate`](../../tests/sdlc/test_validity_invariants.py#L205), +12 more
+- **Calls** (8): [`Assessment`](../../src/orchestrator/sdlc/validity.py#L92), [`_check_context_budget`](../../src/orchestrator/sdlc/validity.py#L354), [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L140), [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L251), [`_check_localization`](../../src/orchestrator/sdlc/validity.py#L288), [`_check_prior_runs`](../../src/orchestrator/sdlc/validity.py#L393), [`_check_size`](../../src/orchestrator/sdlc/validity.py#L304), `pathlib.Path`
 - **Documented in**: `CHANGELOG.md`
 
 ## Imports
 
-`__future__.annotations`, `dataclasses.dataclass`, `dataclasses.field`, `enum.Enum`, [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), `re`, `typing.Any`
+`__future__.annotations`, `dataclasses.dataclass`, `dataclasses.field`, `enum.Enum`, [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), `pathlib.Path`, `re`, `typing.Any`
 
 ## Imported by
 

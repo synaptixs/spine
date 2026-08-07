@@ -45,7 +45,10 @@ class SessionMCPClient:
         async with self._session() as session:
             result = await session.call_tool(name, arguments)
             text = "".join(getattr(c, "text", "") or "" for c in (result.content or []))
-            return MCPToolResult(text=text, is_error=bool(getattr(result, "isError", False)))
+            # Read the flag, don't `getattr(..., False)` it. v1 spelled this `isError`; a
+            # defaulted lookup silently reported every tool error as a success when the name
+            # changed, which is worse than the AttributeError it was written to avoid.
+            return MCPToolResult(text=text, is_error=bool(result.is_error))
 
     @contextlib.asynccontextmanager
     async def _session(self) -> AsyncIterator[Any]:
@@ -74,10 +77,17 @@ class SessionMCPClient:
                     await session.initialize()
                     yield session
             else:
-                from mcp.client.streamable_http import streamablehttp_client
+                # v2 takes a configured http client rather than a `headers` kwarg, and
+                # yields two streams rather than three. `create_mcp_http_client` is the
+                # SDK's own factory, so MCP's recommended timeouts still apply.
+                from mcp.client.streamable_http import (  # type: ignore[attr-defined]
+                    create_mcp_http_client,  # re-exported here, but absent from __all__
+                    streamable_http_client,
+                )
 
+                http_client = create_mcp_http_client(headers=cfg.headers or None)
                 async with (
-                    streamablehttp_client(cfg.url or "", headers=cfg.headers or None) as (read, write, _),
+                    streamable_http_client(cfg.url or "", http_client=http_client) as (read, write),
                     ClientSession(read, write) as session,
                 ):
                     await session.initialize()
@@ -88,9 +98,15 @@ class SessionMCPClient:
             raise MCPError(f"MCP server {cfg.name!r} ({cfg.transport}) failed: {exc}") from exc
 
     def _to_tool(self, raw: Any) -> MCPTool:
+        # v2 renamed these to snake_case along with everything else. They were read with a
+        # defaulted `getattr`, so the rename did not raise — `input_schema` silently became
+        # None and every tool lost its argument types, which took the `mcp contracts` labels
+        # with it and stopped `MCPRegistry.call` coercing a structured argument the server
+        # declares as a string. A default that hides a rename is the same trap as
+        # `getattr(result, "isError", False)`; both are gone.
         annotations = getattr(raw, "annotations", None)
-        read_only = getattr(annotations, "readOnlyHint", None) if annotations is not None else None
-        schema = getattr(raw, "inputSchema", None)
+        read_only = getattr(annotations, "read_only_hint", None) if annotations is not None else None
+        schema = getattr(raw, "input_schema", None)
         return MCPTool(
             server=self._config.name,
             name=raw.name,

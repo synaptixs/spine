@@ -1627,3 +1627,263 @@ def test_every_failure_kind_has_advice_that_matches_it(tmp_path: Path) -> None:
         suffix = gen._corrective_suffix(exc, tmp_path)
         assert suffix is not None, f"{expected_kind} has no advice"
         assert marker.lower() in suffix.lower(), f"{expected_kind} advice does not address it"
+
+
+# --- a partially-applied attempt can be repaired (SSPN-40) --------------------------
+#
+# `apply_files` is per-file atomic, not per-batch: a successful file is written before the
+# rest are attempted. When a later file fails, the earlier ones are already on disk — so a
+# repair that says "re-emit the full JSON object" without saying which landed guarantees the
+# model resends `find` snippets its own previous attempt replaced. A live run (SSPN-39)
+# produced a complete, correct change and failed anyway on `edit 0 'find' text not found`.
+
+
+def _one_file(rel: str, find: str, replace: str) -> dict[str, Any]:
+    return {"path": rel, "edits": [{"find": find, "replace": replace}]}
+
+
+def test_a_failure_reports_which_files_already_landed(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import CodegenError, apply_files
+
+    (tmp_path / "good.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (tmp_path / "bad.py").write_text("OTHER = 2\n", encoding="utf-8")
+
+    with pytest.raises(CodegenError) as exc:
+        apply_files(
+            [
+                _one_file("good.py", "VALUE = 1", "VALUE = 99"),
+                _one_file("bad.py", "TEXT THAT IS NOT THERE", "x"),
+            ],
+            tmp_path,
+            written_tracker={},
+            grounded=False,
+        )
+
+    assert exc.value.applied_paths == ["good.py"]
+    assert exc.value.failed_edit_paths == ["bad.py"]
+    # And it really is on disk — which is exactly why the retry must not resend it.
+    assert (tmp_path / "good.py").read_text() == "VALUE = 99\n"
+
+
+def test_the_repair_tells_the_model_not_to_resend_what_landed(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import CodegenError
+
+    (tmp_path / "bad.py").write_text("OTHER = 2\n", encoding="utf-8")
+    exc = CodegenError(
+        "changes need a repair pass",
+        failed_edit_paths=["bad.py"],
+        applied_paths=["good.py"],
+    )
+
+    block = LLMCodegenAdapter(_ScriptedLLM([]))._repair_block(exc, tmp_path)
+
+    assert "ALREADY WRITTEN" in block
+    assert "good.py" in block
+    assert "Do NOT include them again" in block
+
+
+def test_no_already_written_note_when_nothing_landed(tmp_path: Path) -> None:
+    """The common case is unchanged — no confusing note about an empty set."""
+    from orchestrator.sdlc.codegen import CodegenError
+
+    (tmp_path / "bad.py").write_text("OTHER = 2\n", encoding="utf-8")
+    exc = CodegenError("changes need a repair pass", failed_edit_paths=["bad.py"])
+
+    block = LLMCodegenAdapter(_ScriptedLLM([]))._repair_block(exc, tmp_path)
+
+    assert "ALREADY WRITTEN" not in block
+
+
+# --- a stub is not progress (SSPN-45) -----------------------------------------------
+#
+# A run wrote a file literally named PLACEHOLDER containing `x`, and the refine loop
+# counted it as a file change. Its stop condition is "no file changes", so a model with
+# nothing to say kept the loop alive and spent two of three attempts on it while the real
+# failure went unfixed. Dropping the stub at the write is enough: the loop needs no change.
+
+
+def test_a_placeholder_file_is_not_written(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import apply_files
+
+    change = apply_files(
+        [
+            {"path": "PLACEHOLDER", "content": "x"},
+            {"path": "real.py", "content": "VALUE = 1\n"},
+        ],
+        tmp_path,
+        written_tracker={},
+        grounded=False,
+    )
+
+    assert not (tmp_path / "PLACEHOLDER").exists()
+    assert [Path(f).name for f in change.files] == ["real.py"]
+
+
+@pytest.mark.parametrize("rel", ["PLACEHOLDER", "placeholder.py", "TODO.md", "src/pkg/stub.py"])
+def test_placeholder_names_are_rejected_whatever_they_contain(tmp_path: Path, rel: str) -> None:
+    from orchestrator.sdlc.codegen import _is_placeholder
+
+    assert _is_placeholder(rel, "def real_looking_code() -> int:\n    return 1\n")
+
+
+@pytest.mark.parametrize("rel", ["__init__.py", "src/pkg/__init__.py", "py.typed", ".gitkeep"])
+def test_legitimately_empty_files_are_kept(tmp_path: Path, rel: str) -> None:
+    """An empty __init__.py is a real file — the size rule must never catch it."""
+    from orchestrator.sdlc.codegen import _is_placeholder
+
+    assert not _is_placeholder(rel, "")
+
+
+def test_a_trivially_short_body_is_a_placeholder() -> None:
+    from orchestrator.sdlc.codegen import _is_placeholder
+
+    assert _is_placeholder("thing.py", "x")
+    assert _is_placeholder("thing.py", "  \n ")
+    assert not _is_placeholder("thing.py", "X = 1\n")
+
+
+def test_placeholders_only_is_recoverable_not_a_dead_end(tmp_path: Path) -> None:
+    """It is the same shape as submitting nothing, so it gets the same corrective retry."""
+    from orchestrator.sdlc.codegen import CodegenError, apply_files
+
+    with pytest.raises(CodegenError) as exc:
+        apply_files([{"path": "PLACEHOLDER", "content": "x"}], tmp_path, written_tracker={}, grounded=False)
+
+    assert "placeholder" in str(exc.value).lower()
+    assert exc.value.empty_summary, "must route to the empty-submission retry"
+
+
+# --- the fixtures see the types they construct (SSPN-42) ----------------------------
+#
+# Three consecutive runs produced correct source and a broken test module, each time by
+# constructing a type the spec never named: CompletionResult with an invented `usage`
+# kwarg, then CompletionResult missing its four required fields, then FactStore() without
+# `batch`. Writing one signature into the spec did not help — the next run failed on a
+# different type. The names were always right there in the source's own imports.
+
+
+def test_imported_type_names_finds_what_a_fixture_would_build(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import _imported_type_names
+
+    src = tmp_path / "specs.py"
+    src.write_text(
+        "from orchestrator.core.llm import CompletionResult, LLMClient, Message, ToolSpec\n"
+        "from orchestrator.pkg.store import FactStore\n"
+        "from pathlib import Path\n"
+        "import json\n"
+        "\n"
+        "def helper() -> int:\n    return 1\n",
+        encoding="utf-8",
+    )
+
+    names = _imported_type_names(tmp_path, [src])
+
+    # Exactly the three that bit us, plus the other imported classes.
+    assert "CompletionResult" in names
+    assert "FactStore" in names
+    assert "ToolSpec" in names
+    # Not the module-level noise a fixture never constructs.
+    assert "json" not in names
+
+
+def test_lowercase_imports_are_left_out(tmp_path: Path) -> None:
+    """A fixture builds types; pulling in every imported function would swamp the budget."""
+    from orchestrator.sdlc.codegen import _imported_type_names
+
+    src = tmp_path / "m.py"
+    src.write_text("from orchestrator.util import load_thing, save_thing\n", encoding="utf-8")
+
+    assert _imported_type_names(tmp_path, [src]) == []
+
+
+def test_an_unparseable_source_does_not_break_the_stage(tmp_path: Path) -> None:
+    """author_tests runs while files may be mid-edit; a syntax error is not fatal here."""
+    from orchestrator.sdlc.codegen import _imported_type_names
+
+    bad = tmp_path / "broken.py"
+    bad.write_text("from x import (\n", encoding="utf-8")
+    good = tmp_path / "ok.py"
+    good.write_text("from a.b import Thing\n", encoding="utf-8")
+
+    assert _imported_type_names(tmp_path, [bad, good]) == ["Thing"]
+
+
+def test_aliased_imports_use_the_local_name(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import _imported_type_names
+
+    src = tmp_path / "m.py"
+    src.write_text("from a.b import Thing as Renamed\n", encoding="utf-8")
+
+    assert _imported_type_names(tmp_path, [src]) == ["Renamed"]
+
+
+def test_test_files_are_not_mined_for_their_own_imports(tmp_path: Path) -> None:
+    """The question is what the code *under test* builds, not what an existing test built."""
+    from orchestrator.sdlc.codegen import _is_test_file
+
+    assert _is_test_file(Path("tests/sdlc/test_codegen.py"))
+    assert _is_test_file(Path("src/pkg/thing_test.py"))
+    assert not _is_test_file(Path("src/orchestrator/intake/specs.py"))
+
+
+# --- "no tests" is an answer, or a skipped job, depending on the change (SSPN-47) ----
+#
+# author_tests is unconditional and no spec can turn it off. On a documentation-only change
+# it first answered correctly — "no tests submitted: this is a prose edit" — and that was
+# treated as an empty submission and retried, and the retry invented a test module for a
+# paragraph and corrupted it with markup. A finished, correct change was discarded.
+#
+# The rule has to hold both ways: empty is valid with no testable source, and a skipped job
+# with one.
+
+
+@pytest.mark.parametrize(
+    "written,expected",
+    [
+        ([Path("README.md")], False),
+        ([Path("docs/guide.rst"), Path("pyproject.toml")], False),
+        ([Path("src/pkg/thing.py")], True),
+        ([Path("README.md"), Path("src/pkg/thing.py")], True),
+        ([Path("tests/test_thing.py")], False),
+        ([], False),
+    ],
+)
+def test_testable_source_is_recognised(written: list[Path], expected: bool) -> None:
+    from orchestrator.sdlc.codegen import _has_testable_source
+
+    assert _has_testable_source(written) is expected
+
+
+def test_a_test_file_alone_is_not_testable_source() -> None:
+    """Otherwise author_tests would demand tests for the tests it just wrote."""
+    from orchestrator.sdlc.codegen import _has_testable_source
+
+    assert not _has_testable_source([Path("tests/sdlc/test_codegen.py")])
+
+
+async def test_a_docs_only_change_may_submit_no_tests(tmp_path: Path) -> None:
+    """The SSPN-46 case: a README edit that correctly has nothing to test."""
+    from orchestrator.sdlc.codegen import LLMCodegenAdapter
+
+    (tmp_path / "README.md").write_text("# Doc\n", encoding="utf-8")
+    llm = _ScriptedLLM([json.dumps({"summary": "documentation-only; nothing to test", "files": []})])
+    adapter = LLMCodegenAdapter(llm)
+    adapter._written[tmp_path.resolve()] = [tmp_path / "README.md"]
+
+    change = await adapter.author_tests(spec={"title": "t"}, path=str(tmp_path), issue_key="S-1")
+
+    assert change.files == []
+    assert "nothing to test" in change.summary
+
+
+async def test_a_source_change_that_submits_no_tests_is_still_refused(tmp_path: Path) -> None:
+    """The rule must not have loosened for real code."""
+    from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter
+
+    (tmp_path / "thing.py").write_text("X = 1\n", encoding="utf-8")
+    llm = _ScriptedLLM([json.dumps({"summary": "nothing to do", "files": []})] * 6)
+    adapter = LLMCodegenAdapter(llm)
+    adapter._written[tmp_path.resolve()] = [tmp_path / "thing.py"]
+
+    with pytest.raises(CodegenError):
+        await adapter.author_tests(spec={"title": "t"}, path=str(tmp_path), issue_key="S-1")

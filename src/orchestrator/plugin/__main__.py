@@ -66,14 +66,13 @@ def main(argv: list[str] | None = None) -> None:
     if args.http:
         from orchestrator.plugin.server import build_http_server
 
-        server = build_http_server(
+        build_http_server(
             host=args.host,
             port=args.port,
             path=args.path,
             stateless=args.stateless,
             allow_unauthenticated=args.allow_unauthenticated,
-        )
-        server.run("streamable-http")
+        ).run()
     else:
         from orchestrator.plugin.server import build_server
 
