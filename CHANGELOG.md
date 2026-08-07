@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+
+- **The validity gate weighs codegen's context budget.** A spec can be right-sized by every
+  other measure and still not fit in front of the model: `_check_size` counts criteria and
+  modules, and neither correlates with bytes — one 56 KB file passes the module count and
+  exceeds the whole budget alone. The gate now sums the files a change names and compares
+  them to `codegen._MAX_CONTEXT_BYTES`. Past 1.5x it returns `TOO_BIG`; in the margin below
+  it warns and still proceeds, because anchor-located excerpting copes there and refusing
+  would block runs that work. Inert without a repo root, so callers that cannot measure get
+  exactly the verdicts they got before.
+
 ### Changed
 
 - **Migrated to the MCP Python SDK v2** (`mcp>=2`). v1 spelled three things differently:

@@ -496,6 +496,7 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
     is trustworthy at all: a ticket claiming eleven entities where the source has seven
     would otherwise be built to a false premise, pass its own tests, and be wrong.
     """
+    from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
     from orchestrator.sdlc.validity import Verdict, assess
 
     assessment = assess(
@@ -505,6 +506,11 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
         issue_type=issue_type or str((ctx.spec or {}).get("issue_type", "")),
         issue_key=ctx.issue_key,
         prior_runs=ctx.store.all() if ctx.store is not None else [],
+        # The gate can only weigh the context budget if it can measure the files. Passing
+        # codegen's own constant keeps the two from drifting: raise the budget there and
+        # the gate follows.
+        root=ctx.root,
+        context_budget=_MAX_CONTEXT_BYTES,
     )
     ctx.verdict = assessment.verdict.value
     path = ctx.write_artifact("validity.md", assessment.render())

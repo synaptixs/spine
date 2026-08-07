@@ -26,6 +26,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 from orchestrator.pkg import FactStore
@@ -322,6 +323,73 @@ def _check_size(spec: dict[str, Any], files: list[str], max_criteria: int, max_f
     return findings
 
 
+# Codegen shows the model the files a change names, capped by
+# ``codegen._MAX_CONTEXT_BYTES``. Past that cap files are excerpted, and a model editing a
+# file it has only partly seen quotes an anchor that does not exist — "edit 0 'find' text
+# not found". A spec can be perfectly well-scoped by every other measure and still be
+# unbuildable: `_check_size` counts criteria and modules, and neither correlates with bytes.
+# One 56 KB file passes the module count and exceeds the whole budget alone.
+#
+# Two thresholds, because excerpting is not useless. Anchor-located windows handle a modest
+# overflow, so the margin is a warning that rides along with PROCEED. Well past it, the
+# excerpting is doing more guessing than showing, and that is worth refusing before a paid
+# codegen cycle rather than after three failed runs.
+_CONTEXT_REFUSE_RATIO = 1.5
+
+
+def _named_file_bytes(root: Path, files: list[str]) -> tuple[int, list[str]]:
+    """Total size of the files a change names, and the ones that could be measured."""
+    total, seen = 0, []
+    for ref in files:
+        candidate = (root / ref).resolve()
+        try:
+            if candidate.is_file():
+                total += candidate.stat().st_size
+                seen.append(ref)
+        except OSError:  # unreadable is not a reason to block a run
+            continue
+    return total, seen
+
+
+def _check_context_budget(files: list[str], root: Path | None, budget: int) -> tuple[list[Finding], bool]:
+    """Whether the files this change names can actually be shown to codegen.
+
+    Skipped entirely without a ``root``: measuring needs the tree, and a caller that has
+    not got one should get exactly the verdicts it got before.
+    """
+    if root is None or not files or budget <= 0:
+        return [], False
+    total, measured = _named_file_bytes(root, files)
+    if not measured or total <= budget:
+        return [], False
+    over = total / budget
+    detail = (
+        f"the {len(measured)} file(s) this change names total {total:,} bytes against "
+        f"codegen's {budget:,}-byte context budget"
+    )
+    if over >= _CONTEXT_REFUSE_RATIO:
+        return [
+            Finding(
+                check="context-budget",
+                detail=f"{detail} — {over:.1f}x over",
+                evidence=(
+                    "codegen would see only part of each file and quote edit anchors from "
+                    "text it was never shown; split the change so its files fit"
+                ),
+            )
+        ], True
+    return [
+        Finding(
+            check="context-budget",
+            detail=f"{detail} — {over:.1f}x over, so files will be excerpted",
+            evidence=(
+                "anchor-located windows usually cope at this margin; a failed edit anchor "
+                "is the symptom if they do not"
+            ),
+        )
+    ], False
+
+
 def _check_prior_runs(issue_key: str, runs: list[Any]) -> list[Finding]:
     """Another run already carried this ticket **to a PR**.
 
@@ -357,6 +425,8 @@ def assess(
     prior_runs: list[Any] | None = None,
     max_criteria: int = DEFAULT_MAX_CRITERIA,
     max_files: int = DEFAULT_MAX_FILES,
+    root: Path | str | None = None,
+    context_budget: int = 0,
 ) -> Assessment:
     """Judge one ticket against the code. Deterministic; the graph answers, not a model.
 
@@ -390,7 +460,14 @@ def assess(
     if oversized:
         return Assessment(verdict=Verdict.TOO_BIG, findings=oversized)
 
-    return Assessment(verdict=Verdict.PROCEED, findings=findings)
+    # Last, and only sometimes fatal: a change can be right-sized by every other measure and
+    # still not fit in front of the model. Under the refuse ratio this rides along with
+    # PROCEED so a run that would have worked still runs.
+    over_budget, unbuildable = _check_context_budget(landing, Path(root) if root else None, context_budget)
+    if unbuildable:
+        return Assessment(verdict=Verdict.TOO_BIG, findings=over_budget)
+
+    return Assessment(verdict=Verdict.PROCEED, findings=findings + over_budget)
 
 
 __all__ = [

@@ -7,6 +7,7 @@ between the new ``_check_invariants`` check and the verdict is exercised, not ju
 from __future__ import annotations
 
 import socket
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -210,3 +211,73 @@ def test_invariant_check_runs_before_the_size_gate() -> None:
 
     assert result.verdict is Verdict.CRITERIA_WRONG
     assert result.findings[0].check == "repo-invariant"
+
+
+# --- a spec can be right-sized and still not fit in front of the model (SSPN-43) -----
+#
+# `_check_size` counts criteria and modules; neither correlates with bytes. A spec naming
+# six files totalling 113 KB passed PROCEED against a 40 KB budget, every file was
+# excerpted, and codegen quoted an edit anchor from text it had never seen. Three runs were
+# spent finding that out.
+
+
+def _repo(tmp_path: Path, **sizes: int) -> Path:
+    for name, size in sizes.items():
+        (tmp_path / f"{name}.py").write_text("# " + "x" * max(size - 3, 1) + "\n", encoding="utf-8")
+    return tmp_path
+
+
+def test_a_spec_far_over_the_budget_is_refused(tmp_path: Path) -> None:
+    root = _repo(tmp_path, big=90_000)
+
+    result = assess(
+        _spec("exports a CSV"), store=_store(), landing=["big.py"], root=root, context_budget=40_000
+    )
+
+    assert result.verdict is Verdict.TOO_BIG
+    assert result.findings[0].check == "context-budget"
+    assert "2.2x over" in result.findings[0].detail
+
+
+def test_a_spec_just_over_the_budget_warns_but_proceeds(tmp_path: Path) -> None:
+    """Anchor-located excerpting copes at this margin; refusing would block working runs."""
+    root = _repo(tmp_path, med=48_000)
+
+    result = assess(
+        _spec("exports a CSV"), store=_store(), landing=["med.py"], root=root, context_budget=40_000
+    )
+
+    assert result.verdict is Verdict.PROCEED
+    assert [f.check for f in result.findings] == ["context-budget"]
+    assert "excerpted" in result.findings[0].detail
+
+
+def test_a_spec_inside_the_budget_says_nothing(tmp_path: Path) -> None:
+    root = _repo(tmp_path, small=1_000)
+
+    result = assess(
+        _spec("exports a CSV"), store=_store(), landing=["small.py"], root=root, context_budget=40_000
+    )
+
+    assert result.verdict is Verdict.PROCEED
+    assert result.findings == []
+
+
+def test_the_check_is_inert_without_a_root() -> None:
+    """A caller that cannot measure gets exactly the verdicts it got before."""
+    result = assess(_spec("exports a CSV"), store=_store(), landing=["anything.py"])
+
+    assert result.verdict is Verdict.PROCEED
+    assert result.findings == []
+
+
+def test_an_unreadable_file_does_not_block_a_run(tmp_path: Path) -> None:
+    result = assess(
+        _spec("exports a CSV"),
+        store=_store(),
+        landing=["does-not-exist.py"],
+        root=tmp_path,
+        context_budget=40_000,
+    )
+
+    assert result.verdict is Verdict.PROCEED
