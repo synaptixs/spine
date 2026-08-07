@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **The repo-invariant check now catches the criterion it was built from.** It needed both a
+  nondeterminism word and a named deterministic surface; SSPN-31's own criterion is phrased
+  entirely as output shape, naming the JSON key `"regressions"` and never the `regression`
+  command, so no surface matched and the gate returned `PROCEED`. Surface names now match a
+  trailing `s`/`es` and a possessive. The corpus fixture asserts the verbatim criterion
+  rather than a reworded one that names the command — a fixture easier than the real case
+  makes a check read as working while doing less.
+
 ## 3.14.0 — The pipeline can be trusted about its own output
 
 ### Added

@@ -220,12 +220,29 @@ _OUTPUT_WORDS = re.compile(
 )
 
 
+def _surface_pattern(alias: str) -> str:
+    """A regex for one surface alias, tolerating a plural ``s`` and a possessive.
+
+    SSPN-31's own criterion is phrased entirely as output shape — it names the JSON key
+    ``"regressions"`` and never the ``regression`` command — so an exact-word match found no
+    surface and the check that was written for it returned PROCEED. The inflection rule is
+    deliberately tiny (an optional ``'``/``’`` possessive, an optional trailing ``s``): a
+    stemmer would start matching words nobody wrote, and the two-signal design (a
+    nondeterminism word **and** a named surface) is what keeps `timestamp` alone harmless.
+    """
+    return rf"(?<![a-z0-9_]){re.escape(alias)}(?:['\u2019]s|s|es)?(?![a-z0-9_])"
+
+
 def _named_surface(text: str) -> str | None:
-    """The deterministic surface a criterion talks about, if any."""
+    """The deterministic surface a criterion talks about, if any.
+
+    Matches simple inflections of each alias, so ``regressions`` and ``the regression's
+    output`` both resolve to the ``regression`` surface.
+    """
     lowered = text.lower()
     for aliases in _DETERMINISTIC_SURFACES:
         for alias in aliases:
-            if re.search(rf"(?<![a-z0-9_]){re.escape(alias)}(?![a-z0-9_])", lowered):
+            if re.search(_surface_pattern(alias), lowered):
                 return aliases[0]
     return None
 
