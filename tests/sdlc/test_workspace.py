@@ -106,6 +106,23 @@ async def _seed_remote(remote: Path) -> None:
     await _run_git("commit", "-m", "seed", cwd=remote)
 
 
+async def _seed_origin_with_branch(origin: Path, *, branch: str, marker: str) -> None:
+    """A remote whose default branch is `main`, plus a second branch that has moved on."""
+    origin.mkdir()
+    await _run_git("init", "--initial-branch", "main", cwd=origin)
+    await _run_git("config", "user.email", "seed@example.com", cwd=origin)
+    await _run_git("config", "user.name", "Seed", cwd=origin)
+    (origin / "marker.txt").write_text("on-main\n", encoding="utf-8")
+    await _run_git("add", "marker.txt", cwd=origin)
+    await _run_git("commit", "-m", "main", cwd=origin)
+    await _run_git("checkout", "-b", branch, cwd=origin)
+    (origin / "marker.txt").write_text(f"{marker}\n", encoding="utf-8")
+    await _run_git("add", "marker.txt", cwd=origin)
+    await _run_git("commit", "-m", branch, cwd=origin)
+    # Leave the remote's HEAD on main, so a plain clone gets main.
+    await _run_git("checkout", "main", cwd=origin)
+
+
 async def test_stale_scratch_base_is_rebuilt_for_clone(tmp_path: Path) -> None:
     """A scratch base left by a --safe run must NOT be reused for a clone run:
     the reused base has no `origin`, so the eventual push fails. The manager
@@ -161,3 +178,47 @@ async def test_matching_base_is_reused_not_rebuilt(tmp_path: Path) -> None:
     # Second create with the same source must not rebuild (sentinel survives).
     await WorkspaceManager(root=root, repo_url=str(remote)).create("s2", "ISSUE-2")
     assert sentinel.exists()
+
+
+# --- The work branches from the PR target, not the remote's default -----------------
+#
+# A clone with no --branch checks out the remote's *default* branch. A run opening a PR
+# into `develop` therefore built on `main`, so the generated change was written against a
+# tree predating everything merged to develop since the last release — and could revert it
+# without anything noticing. Caught when a run reverted the change merged two hours earlier.
+
+
+async def test_the_base_is_cloned_at_the_requested_branch(tmp_path: Path) -> None:
+    origin = tmp_path / "origin"
+    await _seed_origin_with_branch(origin, branch="develop", marker="on-develop")
+
+    mgr = WorkspaceManager(root=tmp_path / "ws", repo_url=str(origin), base_branch="develop")
+    work = await mgr.create("sdlc1", "KEY-1")
+
+    assert (work / "marker.txt").read_text().strip() == "on-develop"
+
+
+async def test_without_a_base_branch_the_default_is_used(tmp_path: Path) -> None:
+    """Unchanged behaviour when no target is given — this is not a silent switch."""
+    origin = tmp_path / "origin"
+    await _seed_origin_with_branch(origin, branch="develop", marker="on-develop")
+
+    mgr = WorkspaceManager(root=tmp_path / "ws", repo_url=str(origin))
+    work = await mgr.create("sdlc1", "KEY-1")
+
+    assert (work / "marker.txt").read_text().strip() == "on-main"
+
+
+async def test_a_base_built_for_another_branch_is_not_reused(tmp_path: Path) -> None:
+    """The branch is part of the base's identity; reuse is how a run builds on the wrong tree."""
+    origin = tmp_path / "origin"
+    await _seed_origin_with_branch(origin, branch="develop", marker="on-develop")
+    root = tmp_path / "ws"
+
+    first = await WorkspaceManager(root=root, repo_url=str(origin)).create("sdlc1", "KEY-1")
+    assert (first / "marker.txt").read_text().strip() == "on-main"
+
+    second = await WorkspaceManager(root=root, repo_url=str(origin), base_branch="develop").create(
+        "sdlc2", "KEY-2"
+    )
+    assert (second / "marker.txt").read_text().strip() == "on-develop"

@@ -8,6 +8,15 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **A run branches from the branch it will open a PR into.** A clone with no `--branch`
+  checks out the remote's *default* branch, so a run targeting `develop` still built on
+  `main` — the generated change was written against a tree predating everything merged to
+  develop since the last release, and could revert it with nothing noticing. Found when a
+  run silently reverted a fix merged two hours earlier. The base branch is now part of the
+  cached base repo's identity too, so a base cloned for `main` is rebuilt rather than reused
+  for a `develop` run. With no target given, the default branch is still used — this is not
+  a silent switch.
+
 - **Intake constrains its output the way codegen and the judge do.** Intent extraction and
   spec writing both asked for JSON with `json_object=True`. `response_format` is
   OpenAI/Ollama-only — Anthropic drops it, and the default model is `claude-opus-5`, so both
