@@ -171,8 +171,15 @@ def test_summary_reports_a_kind_with_no_edges_as_zero() -> None:
     """`REFERENCES: 0` is the line worth reading; a missing key looks unasked."""
     summary = FactStore(FactBatch()).summary()
 
-    for kind in EdgeKind:
-        assert summary[f"edges_{kind.value.lower()}"] == 0, f"{kind.value} should report zero"
+    # Asserted over the summary's own keys rather than by looping the enum: `EdgeKind` is
+    # `(str, Enum)`, and CodeQL reads the `str` base without seeing that the Enum metaclass
+    # supplies `__iter__` — a false positive, but an error-severity one. Checking the keys
+    # the method actually produced is the better assertion anyway: it catches a kind that
+    # was dropped from the output, which looping the enum and indexing would too, and also
+    # catches a stray extra key, which it would not.
+    per_kind = {k: v for k, v in summary.items() if k.startswith("edges_")}
+    assert len(per_kind) == len(EdgeKind.__members__), "one count per kind, no more, no less"
+    assert set(per_kind.values()) == {0}, f"an empty graph has no edges of any kind: {per_kind}"
 
 
 def test_summary_keeps_its_existing_keys() -> None:
