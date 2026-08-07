@@ -1751,3 +1751,76 @@ def test_placeholders_only_is_recoverable_not_a_dead_end(tmp_path: Path) -> None
 
     assert "placeholder" in str(exc.value).lower()
     assert exc.value.empty_summary, "must route to the empty-submission retry"
+
+
+# --- the fixtures see the types they construct (SSPN-42) ----------------------------
+#
+# Three consecutive runs produced correct source and a broken test module, each time by
+# constructing a type the spec never named: CompletionResult with an invented `usage`
+# kwarg, then CompletionResult missing its four required fields, then FactStore() without
+# `batch`. Writing one signature into the spec did not help — the next run failed on a
+# different type. The names were always right there in the source's own imports.
+
+
+def test_imported_type_names_finds_what_a_fixture_would_build(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import _imported_type_names
+
+    src = tmp_path / "specs.py"
+    src.write_text(
+        "from orchestrator.core.llm import CompletionResult, LLMClient, Message, ToolSpec\n"
+        "from orchestrator.pkg.store import FactStore\n"
+        "from pathlib import Path\n"
+        "import json\n"
+        "\n"
+        "def helper() -> int:\n    return 1\n",
+        encoding="utf-8",
+    )
+
+    names = _imported_type_names(tmp_path, [src])
+
+    # Exactly the three that bit us, plus the other imported classes.
+    assert "CompletionResult" in names
+    assert "FactStore" in names
+    assert "ToolSpec" in names
+    # Not the module-level noise a fixture never constructs.
+    assert "json" not in names
+
+
+def test_lowercase_imports_are_left_out(tmp_path: Path) -> None:
+    """A fixture builds types; pulling in every imported function would swamp the budget."""
+    from orchestrator.sdlc.codegen import _imported_type_names
+
+    src = tmp_path / "m.py"
+    src.write_text("from orchestrator.util import load_thing, save_thing\n", encoding="utf-8")
+
+    assert _imported_type_names(tmp_path, [src]) == []
+
+
+def test_an_unparseable_source_does_not_break_the_stage(tmp_path: Path) -> None:
+    """author_tests runs while files may be mid-edit; a syntax error is not fatal here."""
+    from orchestrator.sdlc.codegen import _imported_type_names
+
+    bad = tmp_path / "broken.py"
+    bad.write_text("from x import (\n", encoding="utf-8")
+    good = tmp_path / "ok.py"
+    good.write_text("from a.b import Thing\n", encoding="utf-8")
+
+    assert _imported_type_names(tmp_path, [bad, good]) == ["Thing"]
+
+
+def test_aliased_imports_use_the_local_name(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import _imported_type_names
+
+    src = tmp_path / "m.py"
+    src.write_text("from a.b import Thing as Renamed\n", encoding="utf-8")
+
+    assert _imported_type_names(tmp_path, [src]) == ["Renamed"]
+
+
+def test_test_files_are_not_mined_for_their_own_imports(tmp_path: Path) -> None:
+    """The question is what the code *under test* builds, not what an existing test built."""
+    from orchestrator.sdlc.codegen import _is_test_file
+
+    assert _is_test_file(Path("tests/sdlc/test_codegen.py"))
+    assert _is_test_file(Path("src/pkg/thing_test.py"))
+    assert not _is_test_file(Path("src/orchestrator/intake/specs.py"))

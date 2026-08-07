@@ -26,6 +26,16 @@
 
 ### Fixed
 
+- **Generated test fixtures are shown the types they construct.** `author_tests` was given
+  the source under test but not the definitions of the types that source imports — so a
+  fixture building a fake LLM client or a graph store wrote the constructor from inference.
+  Three consecutive runs produced correct source and a broken test module that way:
+  `CompletionResult` with an invented `usage` kwarg, then `CompletionResult` missing four
+  required fields, then `FactStore()` without its `batch`. Writing one signature into the
+  spec did not help — the next run failed on a different type. The stage now reads the
+  class-shaped names the code under test imports and pulls their definitions from the
+  graph, which covers all three.
+
 - **A stub submission no longer counts as progress.** A run wrote a file literally named
   `PLACEHOLDER` containing `x`, and the refine loop treated it as a file change — its stop
   condition is "no file changes", so a model with nothing to say kept the loop alive and
