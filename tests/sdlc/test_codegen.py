@@ -1932,3 +1932,52 @@ def test_ordinary_paths_are_relative(tmp_path: Path) -> None:
     target.write_text("Y = 2\n", encoding="utf-8")
 
     assert _relative_paths([str(target)], tmp_path) == ["pkg/thing.py"]
+
+
+# --- a new module is not a "parallel module" (SSPN-49) -------------------------------
+#
+# The rule read "when the SPEC names existing files, change THOSE files; do not create a
+# parallel module instead." It was added after a run wrote a helper beside a file and never
+# wired it in — a real failure. But as written it forbids the ordinary shape of an
+# extract-a-wrapper refactor, and SSPN-49's spec asks for exactly that ("one place that
+# wraps the request"). Three runs on that ticket submitted zero files rather than choose
+# between the spec and the rule.
+#
+# These assert on prompt *content*, which is a weak test of a real change: a model's
+# behaviour cannot be unit-tested. What they do catch is the prohibition coming back, or the
+# obligation it was protecting being dropped.
+
+
+def test_the_prompt_still_requires_the_named_files_to_be_edited() -> None:
+    """The obligation the old rule was really protecting: do not leave them untouched."""
+    from orchestrator.sdlc.codegen import _IMPLEMENT_SYSTEM
+
+    assert "MUST appear in your `files` with `edits`" in _IMPLEMENT_SYSTEM
+    assert "leaving the named files untouched" in _IMPLEMENT_SYSTEM
+
+
+def test_the_prompt_no_longer_forbids_a_new_module_outright() -> None:
+    from orchestrator.sdlc.codegen import _IMPLEMENT_SYSTEM
+
+    assert "do not create a parallel module instead" not in _IMPLEMENT_SYSTEM
+    assert "MAY add a new module" in _IMPLEMENT_SYSTEM
+
+
+def test_the_stdlib_shadow_rule_is_untouched() -> None:
+    """Adjacent in the same string, and a genuine guard — it must survive the edit."""
+    from orchestrator.sdlc.codegen import _IMPLEMENT_SYSTEM
+
+    assert "Never name a new top-level module after a Python standard-library module" in _IMPLEMENT_SYSTEM
+    assert "Every new file must be complete and syntactically valid" in _IMPLEMENT_SYSTEM
+
+
+def test_only_the_python_prompt_carries_this_rule() -> None:
+    """No other language prompt has it, so none should grow it by copy-paste."""
+    from orchestrator.sdlc import codegen
+
+    others = [
+        v for k, v in vars(codegen).items() if k.startswith("_IMPLEMENT_SYSTEM_") and isinstance(v, str)
+    ]
+    assert others, "expected the per-language prompts to exist"
+    for prompt in others:
+        assert "parallel module" not in prompt

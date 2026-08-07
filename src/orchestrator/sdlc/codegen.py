@@ -432,9 +432,11 @@ _IMPLEMENT_SYSTEM = (
     "run`). Prefer the standard library; only add a dependency the SPEC names. "
     "Never name a new top-level module after a Python standard-library module "
     "(statistics, json, types, ...) — it shadows the real one. When the SPEC "
-    "names existing files, change THOSE files (with `edits`); do not create a "
-    "parallel module instead. Every new file must be complete and "
-    "syntactically valid."
+    "names existing files, those files MUST appear in your `files` with `edits` — "
+    "a helper written beside a file and never wired into it is not the change. You "
+    "MAY add a new module as well when the work genuinely belongs in one; what is "
+    "forbidden is leaving the named files untouched. Every new file must be "
+    "complete and syntactically valid."
 )
 
 _AGENTIC_MAX_STEPS = 16
