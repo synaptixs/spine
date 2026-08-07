@@ -26,6 +26,15 @@
 
 ### Fixed
 
+- **`author_tests` may answer "nothing to test" — but only when that is true.** The stage is
+  unconditional and no spec can turn it off, and an empty submission was always treated as a
+  skipped job and retried. On a documentation-only change it answered correctly first
+  ("no tests submitted: this is a prose edit"), was retried anyway, and the retry invented a
+  test module for a paragraph and corrupted it with markup — discarding a change that was
+  already complete and correct. Empty is now valid when the change touched no testable
+  source, and still refused when it did, so a source change that skips its tests is caught
+  exactly as before.
+
 - **v2 renamed `Tool.inputSchema` and `readOnlyHint` too, and the defaulted reads hid it.**
   `_to_tool` fetched both with `getattr(..., None)`, so the rename did not raise —
   `input_schema` silently became `None` and every tool lost its argument types. That took
