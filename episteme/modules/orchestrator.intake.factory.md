@@ -43,7 +43,7 @@
 [`src/orchestrator/intake/factory.py:40`](../../src/orchestrator/intake/factory.py#L40)
 
 - **Called by** (6): [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L196), [`build_confluence_service`](../../src/orchestrator/intake/factory.py#L107), [`build_file_service`](../../src/orchestrator/intake/factory.py#L173), [`build_jira_service`](../../src/orchestrator/intake/factory.py#L134), [`build_notion_service`](../../src/orchestrator/intake/factory.py#L162), [`build_openspec_service`](../../src/orchestrator/intake/factory.py#L183)
-- **Calls** (9): [`BacklogService`](../../src/orchestrator/intake/service.py#L175), [`GapAnalyzer`](../../src/orchestrator/intake/gaps.py#L124), [`IntentExtractor`](../../src/orchestrator/intake/intents.py#L164), [`JiraAdapter`](../../src/orchestrator/intake/jira.py#L114), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L80), [`SpecWriter`](../../src/orchestrator/intake/specs.py#L107), `getenv`, [`load_gap_rules`](../../src/orchestrator/intake/gaps.py#L118), `orchestrator.core.llm.LiteLLMClient`
+- **Calls** (9): [`BacklogService`](../../src/orchestrator/intake/service.py#L175), [`GapAnalyzer`](../../src/orchestrator/intake/gaps.py#L124), [`IntentExtractor`](../../src/orchestrator/intake/intents.py#L164), [`JiraAdapter`](../../src/orchestrator/intake/jira.py#L114), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L80), [`SpecWriter`](../../src/orchestrator/intake/specs.py#L111), `getenv`, [`load_gap_rules`](../../src/orchestrator/intake/gaps.py#L118), `orchestrator.core.llm.LiteLLMClient`
 
 ### `_with_server`
 
