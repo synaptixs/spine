@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Fixed
+
+- **Intake constrains its output the way codegen and the judge do.** Intent extraction and
+  spec writing both asked for JSON with `json_object=True`. `response_format` is
+  OpenAI/Ollama-only — Anthropic drops it, and the default model is `claude-opus-5`, so both
+  stages ran completely unconstrained and relied on brace-scanning salvage. 3.13.0 fixed
+  exactly this for codegen and the acceptance judge; intake was never converted. Both now
+  emit through a forced tool call. The text path remains as the degradation route, since a
+  forced call constrains shape but a provider can still answer in prose.
+
 ### Added
 
 - **`--spec` on `sdlc autorun` and `sdlc feature`** — implement a spec you wrote instead of
