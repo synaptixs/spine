@@ -301,8 +301,15 @@ class CodegenError(RuntimeError):
         syntax_errors: list[str] | None = None,
         parse_detail: str = "",
         empty_summary: str = "",
+        applied_paths: list[str] | None = None,
     ) -> None:
         super().__init__(message)
+        # Files this attempt already wrote before it failed. `apply_files` is per-file
+        # atomic, not per-batch, so a later file's failure leaves earlier ones on disk —
+        # and the repair used to say "re-emit the full JSON object" without saying which.
+        # The model resent edits whose `find` text its own previous attempt had replaced,
+        # so a partially-successful attempt could never be repaired.
+        self.applied_paths = list(applied_paths or [])
         self.failed_edit_paths = list(failed_edit_paths or [])
         self.missing_edit_paths = list(missing_edit_paths or [])
         # The ``find`` snippets that did not match, per path. Wrong text, but a correct
@@ -1570,6 +1577,17 @@ class LLMCodegenAdapter:
           exact current content so the model re-anchors via ``edits``.
         """
         chunks: list[str] = [f"\n\nYOUR PREVIOUS ATTEMPT FAILED: {exc}\nRe-emit the full JSON object.\n"]
+        if exc.applied_paths:
+            # Without this the re-emission is guaranteed to fail: those files are already
+            # patched, so the `find` snippets from the previous attempt no longer occur in
+            # them. The model cannot know that from the failure message alone.
+            names = ", ".join(exc.applied_paths)
+            chunks.append(
+                f"These file(s) were ALREADY WRITTEN successfully by that attempt: {names}. "
+                "Do NOT include them again — their content has changed, so your previous "
+                "`find` snippets no longer match and re-sending them will fail. Emit only "
+                "the file(s) that did not land.\n"
+            )
         if exc.missing_edit_paths:
             names = ", ".join(exc.missing_edit_paths)
             chunks.append(
@@ -1833,6 +1851,7 @@ def apply_files(
             missing_edit_paths=missing_targets,
             failed_anchors=attempted_anchors,
             syntax_errors=syntax_messages,
+            applied_paths=[str(Path(w).relative_to(root)) for w in written],
         )
     if not written:
         detail = f" ({'; '.join(edit_failures)})" if edit_failures else ""
