@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **`FeatureSpec.acceptance_criteria` has narrowed to the criteria the source
+  *stated*.** Criteria the spec writer infers now go to `FeatureSpec.proposed_criteria`
+  instead of being concatenated into `acceptance_criteria`, so anything reading that
+  field sees **fewer entries than before**. The acceptance judge
+  (`orchestrator.sdlc.review.SemanticReviewAdapter`) verifies only the stated set — a
+  change can no longer be rejected for failing a criterion nobody asked for — while the
+  codegen SPEC banner (`orchestrator.sdlc.feature_runner.run_feature`) and every human
+  render surface (`intake.service.spec_to_issue_request`, `intake.report`,
+  `intake.web.app`) show the proposed set under its own label rather than dropping it.
+  Specs with no proposed criteria render exactly as before.
+
 All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).

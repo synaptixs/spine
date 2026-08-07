@@ -766,6 +766,14 @@ async def run_feature(
     emit(f"  summary: {spec['summary']}")
     for criterion in spec["acceptance_criteria"]:
         emit(f"    - {criterion}")
+    # Proposed criteria are still built — printing only the stated set would silently
+    # shrink what a run delivers — but they are labelled, so the reader can tell the
+    # contract from what the spec writer inferred. No heading when there are none.
+    proposed_criteria = [str(c) for c in (spec.get("proposed_criteria") or []) if str(c).strip()]
+    if proposed_criteria:
+        emit("  proposed (inferred by the spec writer, not stated by the source):")
+        for criterion in proposed_criteria:
+            emit(f"    - {criterion}")
     emit("=" * 70)
 
     # 2. Jira issue (real only with live; otherwise a synthetic dry-run key).
