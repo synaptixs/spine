@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.14.0 — The pipeline can be trusted about its own output
 
 ### Added
 
@@ -16,16 +16,14 @@
   header or a tracker comment is untouched: determinism is a property of specific outputs,
   not a ban on the word.
 
-### Fixed
-
-- **A failure kind is now advised about the thing it was charged for.** `_failure_kind`
-  ordered syntax before anchors; `_corrective_suffix` ordered anchors before syntax. An
-  attempt producing both — a stray `</content>` in a new file *and* an edit whose anchor
-  missed — was recorded as `syntax` while the model was handed the anchor-repair block, so
-  the syntax kind's one correction was spent on advice about something else and the next
-  failure had nothing left. The same shape as the shared-retry-pool bug the per-kind budget
-  replaced, arriving through misclassification instead. A test now fails if the two
-  orderings drift again.
+- **`--spec` on `sdlc autorun` and `sdlc feature`** — implement a spec you wrote instead of
+  one derived from the source. Intake is skipped entirely and the `[intake]` line reports
+  `skipped`, so a run summary never implies a source document was read when none was. For a
+  settled spec (a remediation, something agreed in review) — or when intake itself is what
+  the ticket is about, where letting a defective stage specify its own repair is circular.
+  The file is JSON validated against `FeatureSpec` rather than markdown: a misspelled
+  `acceptance-criteria` is an error naming the valid fields, not a run that proceeds with no
+  criteria and passes by default. An empty criteria list is refused for the same reason.
 
 ### Changed
 
@@ -46,8 +44,6 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
-### Changed
-
 - **Codegen's source-context budget goes from 40 KB to 200 KB.** 40 KB is ~10k tokens —
   about 1% of the default model's window, and a leftover rather than a limit. It shaped
   work instead of bounding it: a change spanning five files totalled 113 KB, so every file
@@ -55,16 +51,16 @@ All notable changes to this project are documented here. Format loosely follows
   Failure output stays at 40 KB under its own constant — a pytest dump is not source, and
   refine re-sends context every attempt.
 
-- **`FeatureSpec.acceptance_criteria` has narrowed to the criteria the source actually
-  stated.** Anything the spec writer inferred now lands in a new `proposed_criteria` field
-  instead of being appended to the same list. Readers of `acceptance_criteria` will see
-  fewer entries than before — that is the point: they were previously indistinguishable, so
-  a run could be held to a requirement nobody asked for. `_merge_criteria` returns
-  `(stated, proposed)` rather than one merged list. The judge, the codegen prompt and the
-  spec views still read the stated set; carrying the distinction through to them is
-  separate work.
-
 ### Fixed
+
+- **A failure kind is now advised about the thing it was charged for.** `_failure_kind`
+  ordered syntax before anchors; `_corrective_suffix` ordered anchors before syntax. An
+  attempt producing both — a stray `</content>` in a new file *and* an edit whose anchor
+  missed — was recorded as `syntax` while the model was handed the anchor-repair block, so
+  the syntax kind's one correction was spent on advice about something else and the next
+  failure had nothing left. The same shape as the shared-retry-pool bug the per-kind budget
+  replaced, arriving through misclassification instead. A test now fails if the two
+  orderings drift again.
 
 - **A run branches from the branch it will open a PR into.** A clone with no `--branch`
   checks out the remote's *default* branch, so a run targeting `develop` still built on
@@ -82,19 +78,6 @@ All notable changes to this project are documented here. Format loosely follows
   exactly this for codegen and the acceptance judge; intake was never converted. Both now
   emit through a forced tool call. The text path remains as the degradation route, since a
   forced call constrains shape but a provider can still answer in prose.
-
-### Added
-
-- **`--spec` on `sdlc autorun` and `sdlc feature`** — implement a spec you wrote instead of
-  one derived from the source. Intake is skipped entirely and the `[intake]` line reports
-  `skipped`, so a run summary never implies a source document was read when none was. For a
-  settled spec (a remediation, something agreed in review) — or when intake itself is what
-  the ticket is about, where letting a defective stage specify its own repair is circular.
-  The file is JSON validated against `FeatureSpec` rather than markdown: a misspelled
-  `acceptance-criteria` is an error naming the valid fields, not a run that proceeds with no
-  criteria and passes by default. An empty criteria list is refused for the same reason.
-
-### Fixed
 
 - **A server that declares a structured argument as a JSON string now gets one.**
   `mcp-atlassian` types `jira_create_issue.additional_fields` as `string` rather than
