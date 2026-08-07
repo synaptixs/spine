@@ -16,6 +16,16 @@
 
 ### Fixed
 
+- **A design honours the paths its spec names.** The heuristic design read only the ticket's
+  title and summary, matching those words against the graph — so a ticket about "the
+  registry API" whose acceptance criteria named `src/orchestrator/cli.py` twice came back
+  proposing the registry *server* modules, and omitted the one file the spec named. Codegen
+  is handed that design as an instruction, and on a live run it submitted nothing at all
+  rather than choose between a spec and a design that disagreed. Paths stated in the
+  criteria and technical notes now come first; the graph reading and the overview remain as
+  fallbacks. A stated path that does not exist is dropped — naming a file to *create*
+  belongs in the approach, not in a list of files to open.
+
 - **The repair path no longer crashes on a symlinked worktree.** `applied_paths` names the
   files an attempt already wrote so the repair retry knows not to resend them — computed
   with a bare `Path.relative_to`, which raised on macOS, where `/tmp` is a symlink to
