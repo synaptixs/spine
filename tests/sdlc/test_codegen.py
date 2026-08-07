@@ -1665,10 +1665,18 @@ def test_a_failure_reports_which_files_already_landed(tmp_path: Path) -> None:
     assert (tmp_path / "good.py").read_text() == "VALUE = 99\n"
 
 
-def test_the_repair_tells_the_model_not_to_resend_what_landed(tmp_path: Path) -> None:
+def test_the_repair_names_what_landed_and_why_the_old_anchors_fail(tmp_path: Path) -> None:
+    """Was `..._tells_the_model_not_to_resend_what_landed`, asserting a blanket ban.
+
+    That ban was too absolute: it also forbade *revising* an applied file, and a run needed
+    exactly that when it renamed helpers in one file and could not update the other. The
+    obligation that survives is narrower — name the files, and say why the previous
+    attempt's anchors no longer match.
+    """
     from orchestrator.sdlc.codegen import CodegenError
 
     (tmp_path / "bad.py").write_text("OTHER = 2\n", encoding="utf-8")
+    (tmp_path / "good.py").write_text("VALUE = 1\n", encoding="utf-8")
     exc = CodegenError(
         "changes need a repair pass",
         failed_edit_paths=["bad.py"],
@@ -1679,7 +1687,7 @@ def test_the_repair_tells_the_model_not_to_resend_what_landed(tmp_path: Path) ->
 
     assert "ALREADY WRITTEN" in block
     assert "good.py" in block
-    assert "Do NOT include them again" in block
+    assert "no longer match" in block
 
 
 def test_no_already_written_note_when_nothing_landed(tmp_path: Path) -> None:
@@ -1981,3 +1989,92 @@ def test_only_the_python_prompt_carries_this_rule() -> None:
     assert others, "expected the per-language prompts to exist"
     for prompt in others:
         assert "parallel module" not in prompt
+
+
+# --- recovery can revise what it wrote, and cannot claim without sending -------------
+#
+# Two defects that trapped one run between them. Attempt 1 wrote api_errors.py; attempt 2
+# rewrote cli.py against renamed helpers and was told "do NOT include [api_errors.py]
+# again", so the module could not be renamed to match and the import failed. refine then
+# diagnosed it exactly — "Rewrote orchestrator/api_errors.py to export api_call/..." — and
+# submitted no files, which `allow_empty=True` read as "nothing to change", stopping the
+# loop. Each rule was individually right.
+
+
+def test_the_repair_permits_revising_a_file_that_landed(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import CodegenError
+
+    (tmp_path / "api_errors.py").write_text("def old_name() -> None: ...\n", encoding="utf-8")
+    (tmp_path / "bad.py").write_text("OTHER = 2\n", encoding="utf-8")
+    exc = CodegenError(
+        "changes need a repair pass",
+        failed_edit_paths=["bad.py"],
+        applied_paths=["api_errors.py"],
+    )
+
+    block = LLMCodegenAdapter(_ScriptedLLM([]))._repair_block(exc, tmp_path)
+
+    assert "ALREADY WRITTEN" in block
+    assert "now needs changing" in block, "revising an applied file must be permitted"
+    assert "do not include them again" not in block.lower()
+    # And it must be re-anchorable: the current content has to be in front of the model.
+    assert "def old_name" in block
+
+
+def test_the_repair_still_warns_against_stale_anchors(tmp_path: Path) -> None:
+    """The original point of #150 survives: do not resend the edits that already applied."""
+    from orchestrator.sdlc.codegen import CodegenError
+
+    (tmp_path / "a.py").write_text("X = 1\n", encoding="utf-8")
+    (tmp_path / "bad.py").write_text("Y = 2\n", encoding="utf-8")
+    exc = CodegenError("x", failed_edit_paths=["bad.py"], applied_paths=["a.py"])
+
+    block = LLMCodegenAdapter(_ScriptedLLM([]))._repair_block(exc, tmp_path)
+
+    assert "no longer match" in block
+    assert "CURRENT content" in block
+
+
+@pytest.mark.parametrize(
+    "summary,claims",
+    [
+        ("Rewrote orchestrator/api_errors.py to export api_call and explain_status", False),
+        ("Rewrote src/orchestrator/api_errors.py to export api_call", True),
+        ("Added tests/test_cli.py covering the timeout path", True),
+        ("No changes needed — src/orchestrator/cli.py already handles this", False),
+        ("The implementation is already correct; nothing to change", False),
+        ("Updated the docstring", False),
+        ("", False),
+    ],
+)
+def test_a_claim_needs_a_verb_and_a_path(summary: str, claims: bool) -> None:
+    """Both halves, so a real no-op that mentions a file stays a no-op."""
+    from orchestrator.sdlc.codegen import _claims_a_change
+
+    assert _claims_a_change(summary) is claims
+
+
+async def test_refine_that_describes_an_unsent_change_is_refused(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter
+
+    claim = "Rewrote src/orchestrator/api_errors.py to export api_call and explain_status"
+    llm = _ScriptedLLM([json.dumps({"summary": claim, "files": []})] * 6)
+
+    with pytest.raises(CodegenError):
+        await LLMCodegenAdapter(llm).refine(
+            spec={"title": "t"}, path=str(tmp_path), issue_key="S-1", failures="ImportError"
+        )
+
+
+async def test_refine_with_nothing_to_do_is_still_a_no_op(tmp_path: Path) -> None:
+    """The behaviour `allow_empty` exists for must survive."""
+    from orchestrator.sdlc.codegen import LLMCodegenAdapter
+
+    llm = _ScriptedLLM([json.dumps({"summary": "nothing to change here", "files": []})])
+
+    change = await LLMCodegenAdapter(llm).refine(
+        spec={"title": "t"}, path=str(tmp_path), issue_key="S-1", failures="boom"
+    )
+
+    assert change.files == []
+    assert "nothing to change" in change.summary

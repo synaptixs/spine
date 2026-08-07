@@ -16,6 +16,19 @@
 
 ### Fixed
 
+- **The repair pass can revise a file it already wrote.** It was told *"do NOT include them
+  again"*, which is right about stale anchors and wrong about everything else: a run wrote
+  `api_errors.py` on one attempt, rewrote `cli.py` against renamed helpers on the next, and
+  could not rename the module to match. The import failed and no later stage could reach
+  the file. The instruction now says what it means — leave them out if they are correct,
+  and re-anchor against the current content, which is shown, if one needs changing.
+- **A refine that describes a change it did not send is refused.** `refine` and `revise`
+  allow an empty submission, because a pass with nothing to change is a legitimate no-op.
+  One answered *"Rewrote orchestrator/api_errors.py to export api_call…"* and sent no files;
+  that read as "nothing to change", the loop stopped, and a run that had correctly diagnosed
+  its own failure ended without fixing it. A claim now needs a past-tense change verb **and**
+  a path before it counts as one, so "no changes needed in cli.py" stays a no-op.
+
 - **A new module is not a "parallel module".** The implement prompt said *"when the SPEC
   names existing files, change THOSE files; do not create a parallel module instead"* — a
   rule added after a run wrote a helper beside a file and never wired it in. As written it
