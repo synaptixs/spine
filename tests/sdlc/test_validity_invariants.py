@@ -27,8 +27,18 @@ def _spec(*criteria: str, proposed: list[Any] | None = None) -> dict[str, Any]:
     return spec
 
 
-# The criterion that started the ticket, verbatim in spirit.
+# The criterion that started the ticket, VERBATIM — phrased entirely as output shape, so it
+# names the JSON key "regressions" and never the `regression` command. This is the case the
+# check must refuse; the reworded one below is kept as an extra, never as the only case.
 _GENERATED_AT = (
+    "Given `--format json` is passed, the JSON output is a top-level object with two keys: "
+    '"meta" (object containing at minimum "generated_at" as an ISO-8601 UTC timestamp string) '
+    'and "regressions" (array of objects)'
+)
+
+# The same requirement reworded to name the command — the fixture the check used to be tested
+# against. Kept so both phrasings stay covered.
+_GENERATED_AT_NAMING_THE_COMMAND = (
     "`orchestrator regression --format json` includes `meta.generated_at` as an "
     "ISO-8601 UTC timestamp in its JSON output"
 )
@@ -42,8 +52,38 @@ def test_generated_at_criterion_is_refused_as_criteria_wrong() -> None:
     assert [f.check for f in result.findings] == ["repo-invariant"]
 
 
+def test_the_reworded_criterion_naming_the_command_is_refused_too() -> None:
+    result = assess(_spec(_GENERATED_AT_NAMING_THE_COMMAND), store=_store())
+
+    assert result.verdict is Verdict.CRITERIA_WRONG
+    assert [f.check for f in result.findings] == ["repo-invariant"]
+
+
+@pytest.mark.parametrize(
+    "criterion",
+    [
+        'the JSON output lists the "regressions" array with a generated_at timestamp',
+        "the regression's JSON report carries a generated_at timestamp",
+        "the regressions' report payload includes the current time",
+    ],
+)
+def test_surface_names_match_plural_and_possessive_inflections(criterion: str) -> None:
+    result = assess(_spec(criterion), store=_store())
+
+    assert result.verdict is Verdict.CRITERIA_WRONG
+    assert result.findings[0].check == "repo-invariant"
+
+
+def test_a_nondeterminism_word_alone_still_proceeds() -> None:
+    """The two-signal design stays: 'timestamp' with no named surface is not a breach."""
+    result = assess(_spec("the JSON output includes a generated_at timestamp"), store=_store())
+
+    assert result.verdict is Verdict.PROCEED
+    assert result.findings == []
+
+
 def test_finding_evidence_names_the_invariant_it_breaks() -> None:
-    result = assess(_spec(_GENERATED_AT), store=_store())
+    result = assess(_spec(_GENERATED_AT_NAMING_THE_COMMAND), store=_store())
 
     evidence = result.findings[0].evidence
     assert "CLAUDE.md invariant 2" in evidence
@@ -103,7 +143,7 @@ def test_proposed_criteria_are_checked_too() -> None:
     result = assess(spec, store=_store())
 
     assert result.verdict is Verdict.CRITERIA_WRONG
-    assert "meta.generated_at" in result.findings[0].evidence
+    assert "generated_at" in result.findings[0].evidence
 
 
 def test_proposed_criteria_may_be_plain_strings() -> None:

@@ -23,7 +23,7 @@ jobs:
       # JDK for the Java-codegen integration tests (Maven is pre-installed on the
       # runner). The tests skip cleanly when the toolchain is absent.
       - name: Set up JDK
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: "17"
@@ -35,8 +35,13 @@ jobs:
         with:
           node-version: "20"
 
+      # `mcp` too, not just `dev`. Without it every MCP test skips, so a dependency bump
+      # that breaks the client transport or the plugin server passes clean: the mcp 2.0.0
+      # bump did exactly that, and the breakage — three renamed APIs — was only visible to
+      # someone who had installed the extra locally. An optional extra the repo ships code
+      # for is not optional to test.
       - name: Install project
-        run: uv sync --extra dev
+        run: uv sync --extra dev --extra mcp
 
       - name: Lint (ruff)
         run: uv run ruff check .
