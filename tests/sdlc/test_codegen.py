@@ -1627,3 +1627,68 @@ def test_every_failure_kind_has_advice_that_matches_it(tmp_path: Path) -> None:
         suffix = gen._corrective_suffix(exc, tmp_path)
         assert suffix is not None, f"{expected_kind} has no advice"
         assert marker.lower() in suffix.lower(), f"{expected_kind} advice does not address it"
+
+
+# --- a partially-applied attempt can be repaired (SSPN-40) --------------------------
+#
+# `apply_files` is per-file atomic, not per-batch: a successful file is written before the
+# rest are attempted. When a later file fails, the earlier ones are already on disk — so a
+# repair that says "re-emit the full JSON object" without saying which landed guarantees the
+# model resends `find` snippets its own previous attempt replaced. A live run (SSPN-39)
+# produced a complete, correct change and failed anyway on `edit 0 'find' text not found`.
+
+
+def _one_file(rel: str, find: str, replace: str) -> dict[str, Any]:
+    return {"path": rel, "edits": [{"find": find, "replace": replace}]}
+
+
+def test_a_failure_reports_which_files_already_landed(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import CodegenError, apply_files
+
+    (tmp_path / "good.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (tmp_path / "bad.py").write_text("OTHER = 2\n", encoding="utf-8")
+
+    with pytest.raises(CodegenError) as exc:
+        apply_files(
+            [
+                _one_file("good.py", "VALUE = 1", "VALUE = 99"),
+                _one_file("bad.py", "TEXT THAT IS NOT THERE", "x"),
+            ],
+            tmp_path,
+            written_tracker={},
+            grounded=False,
+        )
+
+    assert exc.value.applied_paths == ["good.py"]
+    assert exc.value.failed_edit_paths == ["bad.py"]
+    # And it really is on disk — which is exactly why the retry must not resend it.
+    assert (tmp_path / "good.py").read_text() == "VALUE = 99\n"
+
+
+def test_the_repair_tells_the_model_not_to_resend_what_landed(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import CodegenError
+
+    (tmp_path / "bad.py").write_text("OTHER = 2\n", encoding="utf-8")
+    exc = CodegenError(
+        "changes need a repair pass",
+        failed_edit_paths=["bad.py"],
+        applied_paths=["good.py"],
+    )
+
+    block = LLMCodegenAdapter(_ScriptedLLM([]))._repair_block(exc, tmp_path)
+
+    assert "ALREADY WRITTEN" in block
+    assert "good.py" in block
+    assert "Do NOT include them again" in block
+
+
+def test_no_already_written_note_when_nothing_landed(tmp_path: Path) -> None:
+    """The common case is unchanged — no confusing note about an empty set."""
+    from orchestrator.sdlc.codegen import CodegenError
+
+    (tmp_path / "bad.py").write_text("OTHER = 2\n", encoding="utf-8")
+    exc = CodegenError("changes need a repair pass", failed_edit_paths=["bad.py"])
+
+    block = LLMCodegenAdapter(_ScriptedLLM([]))._repair_block(exc, tmp_path)
+
+    assert "ALREADY WRITTEN" not in block

@@ -4,6 +4,15 @@
 
 ### Fixed
 
+- **A partially-applied codegen attempt can now be repaired.** `apply_files` is per-file
+  atomic, not per-batch: a successful file is written before the rest are attempted, so a
+  later failure leaves earlier ones on disk. The repair then said "re-emit the full JSON
+  object" while showing current content only for the files that *failed* — so the model
+  resent edits whose `find` text its own previous attempt had replaced, and the retry could
+  not succeed. A live run produced a complete, correct change and failed anyway on `edit 0
+  'find' text not found`. The error now carries which files landed, and the repair tells the
+  model to omit them.
+
 - **`mcp` pinned below 2.0 until the v2 migration lands, and CI now installs the extra.**
   v2 renames what this package uses — `streamablehttp_client` → `streamable_http_client`,
   `CallToolResult.isError` → `is_error` — and drops `mcp.server.fastmcp` entirely. The bump
