@@ -32,6 +32,7 @@ _24 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (6): [`_deprecate`](../../src/orchestrator/cli.py#L173), [`_list`](../../src/orchestrator/cli.py#L152), [`_publish`](../../src/orchestrator/cli.py#L168), [`_register`](../../src/orchestrator/cli.py#L146), [`_show`](../../src/orchestrator/cli.py#L162), [`task_submit`](../../src/orchestrator/cli.py#L245)
 - **Calls** (3): `Exit`, `dumps`, `echo`
+- **Documented in**: `docs/specs/build-document.md#6-worked-example`
 
 ### `_client`
 
