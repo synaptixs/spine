@@ -196,6 +196,7 @@ async def autorun(
     resume: str | None = None,
     max_cost_usd: float | None = None,
     spec: dict[str, Any] | None = None,
+    plan_gate: bool = True,
     store: Any = None,
     log: Callable[[str], None] | None = None,
 ) -> RunContext:
@@ -208,6 +209,10 @@ async def autorun(
     ``resume`` continues a run that already exists: it keeps the run id, and adopts the
     tracker issue that run already created rather than creating a second one. ``max_cost_usd``
     caps LLM spend for the run; exhausting it parks the run instead of shipping half a change.
+
+    ``plan_gate`` refuses to build a ticket whose build document nobody approved. On by
+    default: the whole point of the document is that it is read *before* code, and a gate
+    that must be switched on is one nobody switches on.
     """
     from orchestrator.core.llm import RunBudget
     from orchestrator.sdlc.runstate import RunRecord, RunStore
@@ -286,6 +291,10 @@ async def autorun(
         try:
             with ctx.stage_span("intake"):
                 await _stage_intake(ctx, intent_id=intent_id, spec=spec, emit=emit)
+            # Before the graph, before any spend: was this plan read and approved? The gate
+            # is here rather than before intake because it needs the spec to know which plan
+            # it is asking about.
+            await _require_plan(ctx, enabled=plan_gate, emit=emit)
             store_graph, overview = _load_graph(ctx, emit=emit)
             with ctx.stage_span("investigate"):
                 _stage_investigate(ctx, store=store_graph, emit=emit)
@@ -396,6 +405,33 @@ def _refuse_undecided_resume(record: Any, approvals_dir: Path | None, emit: Call
         "(or --reject) before resuming.",
         code=6,
     )
+
+
+async def _require_plan(ctx: RunContext, *, enabled: bool, emit: Callable[[str], None]) -> None:
+    """Refuse to build a ticket whose plan nobody approved.
+
+    On by default, because a gate that has to be switched on is one nobody switches on.
+    ``--no-plan-gate`` exists for the flows that predate it and for a repo that has not
+    adopted plans yet; skipping is said out loud rather than passing in silence.
+
+    A refusal parks rather than fails: the ticket is fine, the review has not happened.
+    """
+    from orchestrator.sdlc.builddoc import PlanNotApprovedError, require_approved_plan
+
+    if not enabled:
+        # Said, not recorded: a skipped gate is not a stage that ran, and putting it in the
+        # stage list would misreport the shape of every run that opts out.
+        emit("[plan] gate skipped (--no-plan-gate) — nothing was reviewed before this run")
+        return
+    try:
+        approval = await require_approved_plan(ctx.spec or {}, root=ctx.root)
+    except PlanNotApprovedError as exc:
+        ctx.record_stage("plan", "failed", str(exc))
+        ctx.checkpoint(status="parked", parked_reason=str(exc))
+        emit(f"[plan] {exc}")
+        raise AutorunError(str(exc), code=6) from exc
+    ctx.record_stage("plan", "ok", f"approved by {approval.decided_by} on {approval.decided_at}")
+    emit(f"[plan] approved by {approval.decided_by or 'a human'} on {approval.decided_at}")
 
 
 # ---- stages ----------------------------------------------------------------

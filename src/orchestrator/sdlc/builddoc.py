@@ -26,8 +26,10 @@ see reads as a section with nothing to say.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import subprocess
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +47,11 @@ _MAX_MODULES = 6
 
 _ID_UNSAFE = re.compile(r"[^0-9A-Za-z_]")
 _DERIVED_AT = re.compile(r"\*\*Derived at:\*\* `([^`]+)`")
+
+# Substituted after the body exists, because the status depends on a digest of the body.
+_STATUS_PLACEHOLDER = "\x00status\x00"  # noqa: S105 — a render placeholder, not a secret
+# Everything after this is what a reviewer read — see :func:`plan_digest`.
+_BODY_SEP = "\n---\n"
 
 
 # ---- provenance ------------------------------------------------------------
@@ -95,6 +102,97 @@ def derived_at(root: Path | str = ".") -> str:
         return f"{commit}-dirty" if dirty.returncode == 0 and dirty.stdout.strip() else commit
     except (OSError, subprocess.SubprocessError):
         return "unknown"
+
+
+# ---- approval --------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PlanApproval:
+    """One human decision about one plan, durable and beside it.
+
+    ``escalate.Approval`` is the run-scoped equivalent and the wrong shape here: it is
+    keyed by run, and it lives under the temp dir because a parked run does not outlive
+    the work. An approved plan is evidence about a *ticket* and has to outlive every run
+    of it. The vocabulary is deliberately the same so the two read alike.
+    """
+
+    intent_id: str
+    decision: str  # APPROVED | REJECTED
+    decided_by: str
+    decided_at: str  # ISO date — a decision without a date is a rumour
+    digest: str  # of the document body that was read
+    commit: str  # what it was derived at
+    note: str = ""
+
+
+def plan_digest(document: str) -> str:
+    """A fingerprint of what a reviewer actually read.
+
+    Only the body — everything after the first ``---`` — because approving rewrites the
+    status in the header. Hashing the whole document would invalidate an approval at the
+    instant it was granted.
+    """
+    _, sep, body = document.partition(_BODY_SEP)
+    return hashlib.sha256((body if sep else document).encode("utf-8")).hexdigest()[:16]
+
+
+def approval_path(intent_id: str, *, root: Path | str = ".", out: Path | str | None = None) -> Path:
+    return (Path(out) if out else plan_dir(root)) / f"{intent_id}-approval.json"
+
+
+def load_approval(
+    intent_id: str, *, root: Path | str = ".", out: Path | str | None = None
+) -> PlanApproval | None:
+    path = approval_path(intent_id, root=root, out=out)
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return PlanApproval(**payload)
+    except (OSError, ValueError, TypeError):
+        # A corrupt approval is not an approval. Refusing to read it fails closed, which
+        # is the only safe direction for a gate.
+        return None
+
+
+def save_approval(approval: PlanApproval, *, root: Path | str = ".", out: Path | str | None = None) -> Path:
+    path = approval_path(approval.intent_id, root=root, out=out)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(asdict(approval), indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def decided_by_default(root: Path | str = ".") -> str:
+    """Who is approving, from git. An approval that is tedious to attribute says "me"."""
+    try:
+        result = subprocess.run(
+            ["git", "config", "user.name"],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+        return result.stdout.strip() if result.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _status_line(approval: PlanApproval | None, digest: str) -> str:
+    if approval is None:
+        return "proposed"
+    who = approval.decided_by or "someone"
+    when = approval.decided_at
+    note = f" — {approval.note}" if approval.note else ""
+    if approval.decision == "REJECTED":
+        return f"**rejected** by {who} on {when}{note} *(human)*"
+    if approval.digest != digest:
+        return (
+            f"**stale** — approved by {who} on {when}, but the plan has changed since. "
+            "Re-read it and approve again *(human)*"
+        )
+    return f"**approved** by {who} on {when}{note} *(human)*"
 
 
 # ---- section 3: root cause -------------------------------------------------
@@ -501,6 +599,7 @@ def render_build_md(
     language: str = "python",
     evidence: dict[str, Any] | None = None,
     rca: Any = None,
+    approval: PlanApproval | None = None,
 ) -> str:
     """Assemble the twelve sections. Pure — no I/O beyond stat-ing the named files."""
     title = str(spec.get("title") or "untitled")
@@ -517,7 +616,7 @@ def render_build_md(
     add = out.append
 
     add(f"# {intent} — build document\n")
-    add(f"**Spec:** `{intent}` · **Derived at:** `{commit}` · **Status:** proposed\n")
+    add(f"**Spec:** `{intent}` · **Derived at:** `{commit}` · **Status:** {_STATUS_PLACEHOLDER}\n")
     # .value first: str-Enum stringifies as "Verdict.PROCEED", which is a Python repr
     # leaking onto a page a human is meant to read.
     raw_verdict = getattr(validity, "verdict", "")
@@ -631,7 +730,13 @@ def render_build_md(
     add("## 10. Codegen prompt")
     add(_label(DETERMINISTIC, "`sdlc/codegen.py` — prompt assembly"))
     add(f"**System:** `_IMPLEMENT_SYSTEM` ({language})\n")
-    add("**User payload:** sections 1, 3, 6, 8 and 9 of this document, plus the files below whole.\n")
+    # Only the sections that exist. A manifest promising section 9 while section 9 says it
+    # was never established describes a prompt nobody could assemble.
+    carried_sections = [
+        n for n, present in ((1, True), (3, bool(root_cause)), (6, True), (8, True)) if present
+    ]
+    listed = ", ".join(str(n) for n in carried_sections[:-1]) + f" and {carried_sections[-1]}"
+    add(f"**User payload:** sections {listed} of this document, plus the files below whole.\n")
     pct = (carried / context_budget * 100) if context_budget else 0.0
     add(f"**Context:** {carried:,} b of {context_budget:,} — {pct:.0f}%.\n")
     if carried > context_budget:
@@ -643,7 +748,9 @@ def render_build_md(
     add("## 12. Confidence")
     add(_pending("what the plan could and could not establish, scored as two numbers — Phase 6"))
 
-    return "\n".join(out).rstrip() + "\n"
+    # The status is written last because it depends on a digest of everything above it.
+    document = "\n".join(out).rstrip() + "\n"
+    return document.replace(_STATUS_PLACEHOLDER, _status_line(approval, plan_digest(document)))
 
 
 async def build_plan(
@@ -651,6 +758,7 @@ async def build_plan(
     *,
     root: Path | str = ".",
     language: str = "python",
+    approval: PlanApproval | None = None,
 ) -> str:
     """Run the four cheap stages and render the document. No worktree, no codegen.
 
@@ -715,7 +823,47 @@ async def build_plan(
             store, files=[str(f) for f in (design.get("files_to_touch") or [])], root=root_path
         ),
         rca=report,
+        approval=approval,
     )
+
+
+# ---- the gate --------------------------------------------------------------
+
+
+class PlanNotApprovedError(Exception):
+    """No current, approved plan for this spec — nothing should be built."""
+
+
+async def require_approved_plan(spec: dict[str, Any], *, root: Path | str = ".") -> PlanApproval:
+    """Refuse unless a human approved *this* plan, and it is still this plan.
+
+    The check is a re-derivation, not a lookup: the plan is regenerated and its body
+    re-digested. An approval that only proved a file once existed would keep approving a
+    document nobody has read since the code moved underneath it — and determinism is
+    exactly what makes the comparison meaningful.
+    """
+    intent = str(spec.get("intent_id") or "")
+    approval = load_approval(intent, root=root)
+    if approval is None:
+        raise PlanNotApprovedError(
+            f"no approved plan for {intent}. Produce one with "
+            f"`orchestrator sdlc plan --spec <file>`, read it, then "
+            f"`orchestrator sdlc approve {intent}`."
+        )
+    if approval.decision == "REJECTED":
+        note = f": {approval.note}" if approval.note else ""
+        raise PlanNotApprovedError(
+            f"the plan for {intent} was rejected by {approval.decided_by or 'a human'}{note}."
+        )
+
+    current = plan_digest(await build_plan(spec, root=root))
+    if current != approval.digest:
+        raise PlanNotApprovedError(
+            f"the plan for {intent} has changed since {approval.decided_by or 'it'} approved it "
+            f"at `{approval.commit}` — re-read it and approve again "
+            f"(`orchestrator sdlc plan --spec <file>` then `sdlc approve {intent}`)."
+        )
+    return approval
 
 
 # ---- persistence -----------------------------------------------------------
@@ -782,9 +930,17 @@ __all__ = [
     "HUMAN",
     "MODEL",
     "STATED",
+    "PlanApproval",
+    "PlanNotApprovedError",
+    "approval_path",
     "build_plan",
     "collect_evidence",
+    "decided_by_default",
     "derived_at",
+    "load_approval",
+    "plan_digest",
+    "require_approved_plan",
+    "save_approval",
     "persist",
     "plan_dir",
     "render_build_md",

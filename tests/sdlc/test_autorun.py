@@ -573,6 +573,8 @@ def _run(
             issue=issue,
             max_cost_usd=max_cost_usd,
             spec=spec,
+            # These tests exercise the rest of the run; the plan gate has its own below.
+            plan_gate=False,
         )
     )
 

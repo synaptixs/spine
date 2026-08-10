@@ -1,6 +1,6 @@
 # The build document — plan before code
 
-**Status:** Phases 1–3 built (`orchestrator sdlc plan`) · Phases 4–6 proposed
+**Status:** Phases 1–4 built (`orchestrator sdlc plan` · `sdlc approve`) · Phases 5–6 proposed
 **Supersedes nothing.** Changes what `sdlc autorun` *is*.
 
 Today a run spends roughly $1.19 before anyone sees anything, and its first
@@ -318,16 +318,35 @@ recently-changed flag, its regression surface, and two ranked hypotheses.
 **Still unassigned:** section 9 (*facts the generator needs*) belongs to no phase. It
 renders as unestablished and says so.
 
-### Phase 4 — approval gate and handoff contract *(~3 days)*
+### Phase 4 — approval gate and handoff contract — **built**
 
-- A plan is *approved*, recorded with who and when, as a *human* section.
-- `autorun` refuses to build without an approved plan for that spec.
-- Implement reads section 10 as its payload, not the whole document.
+`orchestrator sdlc approve <INTENT>` (and `--reject`) records a decision beside the plan:
+who, when, why, the commit it was derived at, and a **digest of the document body**. The
+header then renders `**Status:** approved by X on DATE *(human)*`.
 
-**Open question:** does `build` take the plan, or the spec plus an approval
-record? Prefer the second — the spec stays the contract, the plan is the reviewed
-evidence that the contract is sound. Otherwise the plan becomes a second source
-of truth and the two can disagree.
+**The open question is settled the way the record preferred:** the spec stays the
+contract, and the approval is evidence that the contract was read. `autorun` takes the
+spec, not the plan; the plan is never a second source of truth that could disagree with
+it.
+
+**The digest is what makes an approval mean anything.** `autorun` re-derives the plan and
+re-digests it. Same spec and same tree → same digest → the approval still stands. Anything
+else and the run refuses, because an approval that survives the code moving underneath it
+approves a document nobody has read. Determinism is not a nicety here; it is the mechanism.
+
+Only the body is hashed — everything after the `---`. Hashing the header would invalidate
+an approval at the instant it was granted, since granting it rewrites the status.
+
+**The gate is on by default**, with `--no-plan-gate` to escape. A gate that must be
+switched on is one nobody switches on; skipping it is said out loud rather than passing
+in silence. A refusal *parks* — the ticket is fine, the review has not happened.
+
+Fail-closed throughout: a corrupt approval file is not an approval, and a rejected plan
+names who rejected it and why.
+
+Also here, because it is this phase's handoff bullet: section 10's payload manifest now
+lists only the sections that exist. It had been promising section 9 while section 9 said
+it was never established — a prompt nobody could assemble.
 
 ### Phase 5 — the journey *(~3 days)*
 

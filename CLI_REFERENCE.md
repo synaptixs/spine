@@ -20,7 +20,7 @@
 `ingest` · `backlog` · `openspec draft`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
-`sdlc plan` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
+`sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
 
 **MCP — external tools** — Consume onboarded Model Context Protocol servers (governed, audited).  
 `mcp list` · `mcp contracts` · `mcp call` · `mcp ingest-db`
@@ -730,6 +730,29 @@ a stated criterion's exact text to the evidence that it is *already* satisfied
 stay on the page, marked, rather than being quietly dropped — a run that reports
 them met having changed nothing is the failure the document exists to catch.
 
+### `orchestrator sdlc approve`
+
+Record that a human read the build document and decided. Writes
+`.spine/plans/<INTENT>-approval.json` beside the plan.
+
+```
+orchestrator sdlc approve SSPN-49 --note "criteria reconciliation checked"
+```
+
+| Option | Description |
+|---|---|
+| `INTENT` | Intent id whose plan you are deciding, e.g. `SSPN-49`. **Required.** |
+| `--path` | Repo the plan was written for. (default: `.`) |
+| `--by` | Who is deciding. (default: `git config user.name`) |
+| `--note` | Why — recorded with the decision. |
+| `--reject` | Record a rejection instead of an approval. |
+| `--out` | Where the plan lives. (default: `<repo>/.spine/plans`) |
+
+The decision is bound to a **digest of the document body**, so a plan that changes
+afterwards reads as *stale* rather than silently still approved. `sdlc autorun`
+re-derives the plan and refuses when the digest no longer matches — an approval that
+survives the code moving underneath it approves a document nobody has read.
+
 ### `orchestrator sdlc autorun`
 
 One ticket, all the way through: research → design → validity gate → code → tests
@@ -760,6 +783,7 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --saf
 | `--resume` | Continue a run by id — adopts the issue it already created. |
 | `--max-cost` | Cap LLM spend (USD) for this run; exhausting it parks the run. |
 | `--spec` | Implement a hand-written spec (JSON) instead of deriving one from the source. Intake is skipped entirely and recorded as `skipped`. |
+| `--plan-gate` / `--no-plan-gate` | Refuse to build unless a human approved this ticket's build document (see `sdlc approve`). The plan is re-derived and re-digested, so an approval that no longer matches the code refuses too. (default: `--plan-gate`) |
 
 **Implementing a spec you wrote (`--spec`).** Normally intake derives the spec from
 the source document. Pass `--spec path.json` to supply it directly — the pipeline

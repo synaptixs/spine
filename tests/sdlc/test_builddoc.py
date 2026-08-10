@@ -430,6 +430,130 @@ def test_a_changed_document_keeps_what_it_replaced_keyed_by_commit(tmp_path: Pat
     assert "old" in superseded.read_text(encoding="utf-8")
 
 
+# ---- the approval gate -----------------------------------------------------
+
+
+def _approval(digest: str, **over: Any) -> Any:
+    from orchestrator.sdlc.builddoc import PlanApproval
+
+    fields = {
+        "intent_id": "TCK-1",
+        "decision": "APPROVED",
+        "decided_by": "falcon",
+        "decided_at": "2026-08-10",
+        "digest": digest,
+        "commit": "abc1234",
+        "note": "",
+    }
+    fields.update(over)
+    return PlanApproval(**fields)
+
+
+def test_a_plan_is_proposed_until_somebody_decides(tmp_path: Path) -> None:
+    assert "**Status:** proposed" in _render(tmp_path)
+
+
+def test_an_approval_names_who_and_when(tmp_path: Path) -> None:
+    from orchestrator.sdlc.builddoc import plan_digest
+
+    digest = plan_digest(_render(tmp_path))
+    md = _render(tmp_path, approval=_approval(digest))
+    assert "**approved** by falcon on 2026-08-10" in md
+    assert "*(human)*" in md
+
+
+def test_approving_does_not_change_what_was_approved(tmp_path: Path) -> None:
+    """The digest covers the body only — otherwise the status line invalidates itself."""
+    from orchestrator.sdlc.builddoc import plan_digest
+
+    before = plan_digest(_render(tmp_path))
+    after = plan_digest(_render(tmp_path, approval=_approval(before)))
+    assert before == after
+
+
+def test_a_plan_that_changed_since_approval_reads_as_stale(tmp_path: Path) -> None:
+    md = _render(tmp_path, approval=_approval("a-digest-of-something-else"))
+    assert "**stale**" in md and "changed since" in md
+
+
+def test_a_rejection_is_rendered_with_its_reason(tmp_path: Path) -> None:
+    from orchestrator.sdlc.builddoc import plan_digest
+
+    digest = plan_digest(_render(tmp_path))
+    md = _render(tmp_path, approval=_approval(digest, decision="REJECTED", note="wrong files"))
+    assert "**rejected** by falcon" in md and "wrong files" in md
+
+
+def test_an_approval_round_trips_through_disk(tmp_path: Path) -> None:
+    from orchestrator.sdlc.builddoc import load_approval, save_approval
+
+    save_approval(_approval("d1"), root=tmp_path)
+    loaded = load_approval("TCK-1", root=tmp_path)
+    assert loaded is not None and loaded.decided_by == "falcon" and loaded.digest == "d1"
+
+
+def test_a_corrupt_approval_is_not_an_approval(tmp_path: Path) -> None:
+    """A gate must fail closed: unreadable evidence is no evidence."""
+    from orchestrator.sdlc.builddoc import approval_path, load_approval
+
+    path = approval_path("TCK-1", root=tmp_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("{not json", encoding="utf-8")
+    assert load_approval("TCK-1", root=tmp_path) is None
+
+
+@pytest.mark.asyncio
+async def test_the_gate_refuses_when_no_plan_was_approved(tmp_path: Path) -> None:
+    from orchestrator.sdlc.builddoc import PlanNotApprovedError, require_approved_plan
+
+    (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    with pytest.raises(PlanNotApprovedError, match="no approved plan"):
+        await require_approved_plan(_spec(), root=tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_the_gate_refuses_a_rejected_plan(tmp_path: Path) -> None:
+    from orchestrator.sdlc.builddoc import PlanNotApprovedError, require_approved_plan, save_approval
+
+    (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    save_approval(_approval("whatever", decision="REJECTED", note="not yet"), root=tmp_path)
+    with pytest.raises(PlanNotApprovedError, match="rejected"):
+        await require_approved_plan(_spec(), root=tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_the_gate_passes_for_the_plan_that_was_read(tmp_path: Path) -> None:
+    from orchestrator.sdlc.builddoc import build_plan, plan_digest, require_approved_plan, save_approval
+
+    (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    digest = plan_digest(await build_plan(_spec(), root=tmp_path))
+    save_approval(_approval(digest), root=tmp_path)
+    assert (await require_approved_plan(_spec(), root=tmp_path)).decided_by == "falcon"
+
+
+@pytest.mark.asyncio
+async def test_the_gate_refuses_once_the_plan_has_moved_underneath_it(tmp_path: Path) -> None:
+    """An approval that survives the code changing approves a document nobody read."""
+    from orchestrator.sdlc.builddoc import (
+        PlanNotApprovedError,
+        build_plan,
+        plan_digest,
+        require_approved_plan,
+        save_approval,
+    )
+
+    src = tmp_path / "src.py"
+    src.write_text("def helper():\n    return 1\n", encoding="utf-8")
+    # The spec has to name the file, or the plan does not depend on it and nothing about
+    # the code could make the document stale.
+    spec = _spec(summary="Something is broken in src.py.")
+    save_approval(_approval(plan_digest(await build_plan(spec, root=tmp_path))), root=tmp_path)
+
+    src.write_text("def helper():\n    return 1\n\n\ndef added():\n    return 2\n", encoding="utf-8")
+    with pytest.raises(PlanNotApprovedError, match="changed since"):
+        await require_approved_plan(spec, root=tmp_path)
+
+
 # ---- the whole path --------------------------------------------------------
 
 
