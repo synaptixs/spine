@@ -418,7 +418,7 @@ _24 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/cli.py:835`](../../src/orchestrator/cli.py#L835)
 
-- **Calls** (9): `Exit`, [`PlanApproval`](../../src/orchestrator/sdlc/builddoc.py#L114), [`decided_by_default`](../../src/orchestrator/sdlc/builddoc.py#L173), [`derived_at`](../../src/orchestrator/sdlc/builddoc.py#L78), `echo`, `pathlib.Path`, [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L132), [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L1191), [`save_approval`](../../src/orchestrator/sdlc/builddoc.py#L166)
+- **Calls** (9): `Exit`, [`PlanApproval`](../../src/orchestrator/sdlc/builddoc.py#L114), [`decided_by_default`](../../src/orchestrator/sdlc/builddoc.py#L173), [`derived_at`](../../src/orchestrator/sdlc/builddoc.py#L78), `echo`, `pathlib.Path`, [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L132), [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L1212), [`save_approval`](../../src/orchestrator/sdlc/builddoc.py#L166)
 
 ### `sdlc_autorun`
 

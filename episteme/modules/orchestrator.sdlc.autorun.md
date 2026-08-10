@@ -83,7 +83,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/autorun.py:468`](../../src/orchestrator/sdlc/autorun.py#L468)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L215)
-- **Calls** (3): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L43), `py:emit`, [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1156)
+- **Calls** (3): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L43), `py:emit`, [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1177)
 
 ### `_spent`
 
