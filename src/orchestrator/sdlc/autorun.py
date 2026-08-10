@@ -82,6 +82,9 @@ class RunContext:
     # Where the investigation says this ticket lands. Shared with the validity gate so the
     # two cannot disagree about what the ticket is even about.
     landing: list[str] = field(default_factory=list)
+    # What the design said to touch — kept structured so implement can be compared against
+    # it. The rendered design (``plan``) is prose and cannot be diffed.
+    design_files: list[str] = field(default_factory=list)
     verdict: str = ""
     # Set by the implement stage: the same adapter and runner that built the change also fix
     # what review finds, so the fixer knows the repo's conventions and the layout it chose.
@@ -122,7 +125,39 @@ class RunContext:
         result = StageResult(name=name, status=status, detail=detail, artifact=artifact)
         self.stages.append(result)
         self.checkpoint(phase=name, status="failed" if status == "failed" else None)
+        self.journal(name, status, detail)
         return result
+
+    def journal(self, stage: str, status: str, detail: str, *, tokens: int = 0, usd: float = 0.0) -> None:
+        """Append one line to this ticket's journey, beside its plan.
+
+        Never fatal. A run that failed because it could not write its own diary would be
+        the diary costing more than it is worth — and the run record already holds the
+        same facts for the length of the process.
+        """
+        intent = str((self.spec or {}).get("intent_id") or "")
+        if not intent:
+            return
+        try:
+            from datetime import UTC, datetime
+
+            from orchestrator.sdlc.builddoc import JourneyEntry, append_journey
+
+            append_journey(
+                JourneyEntry(
+                    run_id=self.run_id,
+                    stage=stage,
+                    status=status,
+                    detail=detail,
+                    at=datetime.now(UTC).isoformat(timespec="seconds"),
+                    tokens=tokens,
+                    usd=usd,
+                ),
+                intent_id=intent,
+                root=self.root,
+            )
+        except (OSError, ValueError):
+            return
 
     def park(self, *, kind: str, title: str, reason: str) -> Any:
         """Stop, and put the decision in front of a human.
@@ -337,12 +372,35 @@ async def autorun(
             ctx.checkpoint(status="failed", spent_usd=_spent(budget, ctx.run_id))
             emit(f"[autorun] {type(exc).__name__}: {exc}")
             await _log_run_cost(ctx, ledger=ledger, started=started, verdict="FAILED", emit=emit)
+            _journal_outcome(ctx, ledger=ledger, budget=budget, verdict="FAILED")
             raise AutorunError(f"{type(exc).__name__}: {exc}", code=1) from exc
 
     ctx.checkpoint(phase="done", status="done", spent_usd=_spent(budget, run_id))
     await _log_run_cost(ctx, ledger=ledger, started=started, verdict="PASSED", emit=emit)
+    _journal_outcome(ctx, ledger=ledger, budget=budget, verdict="PASSED")
     emit(f"[autorun] artifacts in {ctx.artifacts_dir}")
     return ctx
+
+
+def _journal_outcome(ctx: RunContext, *, ledger: Any, budget: Any, verdict: str) -> None:
+    """The line the estimate is eventually judged against: what this run cost, and where it got.
+
+    Section 11 promises a cost *estimate*; this is the actual, recorded per run so the two
+    can be compared later instead of the estimate being graded by the thing that produced it.
+    """
+    spent = _spent(budget, ctx.run_id)
+    try:
+        tokens = ledger.total().total_tokens
+    except (AttributeError, TypeError):  # pragma: no cover — a ledger that cannot total
+        tokens = 0
+    where = f" · {ctx.pr_url}" if ctx.pr_url else (f" · {ctx.branch}" if ctx.branch else "")
+    ctx.journal(
+        "run",
+        "ok" if verdict == "PASSED" else "failed",
+        f"{verdict} — {tokens:,} tokens, ${spent:.2f}{where}",
+        tokens=tokens,
+        usd=spent,
+    )
 
 
 async def _log_run_cost(
@@ -580,6 +638,7 @@ async def _stage_design(
     design = await produce_design(spec, overview=overview, store=store, llm=None, root=ctx.root)
     rendered = render_design_md(spec, design)
     path = ctx.write_artifact("design.md", rendered)
+    ctx.design_files = [str(f) for f in (design.get("files_to_touch") or [])]
     touched = len(design.get("files_to_touch") or [])
     # Carried into the implement stage. Writing an artifact nobody reads is the difference
     # between chaining commands and connecting them.
@@ -657,6 +716,15 @@ async def _stage_implement(
         "ok",
         f"{len(result.files)} file(s) changed on {result.branch} after {result.iterations} test run(s)",
     )
+    # The disagreement, if there is one, is the most valuable line in the journey: a run
+    # that quietly edited three files nobody planned is visible today only by reading the
+    # diff. It is journalled, never used to fail the run — implement may well be right.
+    from orchestrator.sdlc.builddoc import design_disagreement
+
+    drift = design_disagreement(ctx.design_files, [str(f) for f in result.files])
+    if drift:
+        ctx.journal("implement", "ok", drift)
+        emit(f"[implement] {drift}")
 
 
 async def _stage_review(

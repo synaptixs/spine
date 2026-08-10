@@ -120,8 +120,9 @@ def test_every_section_carries_a_provenance_label(tmp_path: Path) -> None:
 
 
 def test_unbuilt_sections_say_so_rather_than_vanishing(tmp_path: Path) -> None:
+    """Section 9 has no phase, and section 3 has nothing to localize in this fixture."""
     md = _render(tmp_path)
-    for section in ("3. Root cause", "9. Facts", "11. Token usage", "12. Confidence"):
+    for section in ("3. Root cause", "9. Facts"):
         body = md.split(f"## {section}", 1)[1].split("\n## ", 1)[0]
         assert "not established" in body
 
@@ -552,6 +553,188 @@ async def test_the_gate_refuses_once_the_plan_has_moved_underneath_it(tmp_path: 
     src.write_text("def helper():\n    return 1\n\n\ndef added():\n    return 2\n", encoding="utf-8")
     with pytest.raises(PlanNotApprovedError, match="changed since"):
         await require_approved_plan(spec, root=tmp_path)
+
+
+# ---- the journey -----------------------------------------------------------
+
+
+def _entry(**over: Any) -> Any:
+    from orchestrator.sdlc.builddoc import JourneyEntry
+
+    fields: dict[str, Any] = {
+        "run_id": "run-1",
+        "stage": "design",
+        "status": "ok",
+        "detail": "2 file(s) proposed",
+        "at": "2026-08-10T09:00:00+00:00",
+    }
+    fields.update(over)
+    return JourneyEntry(**fields)
+
+
+def test_the_journey_renders_below_the_twelve_sections(tmp_path: Path) -> None:
+    md = _render(tmp_path, journey=[_entry()])
+    assert md.index("## 12. Confidence") < md.index("## Journey")
+    assert "**design** — 2 file(s) proposed" in md
+
+
+def test_a_run_appending_does_not_invalidate_its_own_approval(tmp_path: Path) -> None:
+    """The gate would otherwise refuse the very next run after the one it permitted."""
+    from orchestrator.sdlc.builddoc import plan_digest
+
+    before = plan_digest(_render(tmp_path))
+    after = plan_digest(_render(tmp_path, journey=[_entry(), _entry(stage="implement")]))
+    assert before == after
+
+
+def test_entries_are_grouped_by_run(tmp_path: Path) -> None:
+    md = _render(tmp_path, journey=[_entry(), _entry(run_id="run-2", stage="implement")])
+    assert "**Run `run-1`**" in md and "**Run `run-2`**" in md
+
+
+def test_a_failure_is_marked_as_one(tmp_path: Path) -> None:
+    md = _render(tmp_path, journey=[_entry(status="failed", detail="tests red")])
+    assert "✗ **design** — tests red" in md
+
+
+def test_no_journey_no_section(tmp_path: Path) -> None:
+    assert "## Journey" not in _render(tmp_path)
+
+
+def test_the_journey_is_append_only_on_disk(tmp_path: Path) -> None:
+    """No update, no delete: a later stage that could tidy an earlier one removes evidence."""
+    from orchestrator.sdlc import builddoc
+    from orchestrator.sdlc.builddoc import append_journey, load_journey
+
+    append_journey(_entry(), intent_id="TCK-1", root=tmp_path)
+    append_journey(_entry(stage="implement", detail="3 files"), intent_id="TCK-1", root=tmp_path)
+    entries = load_journey("TCK-1", root=tmp_path)
+    assert [e.stage for e in entries] == ["design", "implement"]
+    assert not any(name.startswith(("update_", "delete_", "rewrite_")) for name in dir(builddoc))
+
+
+def test_a_malformed_journey_line_is_skipped_not_fatal(tmp_path: Path) -> None:
+    from orchestrator.sdlc.builddoc import append_journey, journey_path, load_journey
+
+    append_journey(_entry(), intent_id="TCK-1", root=tmp_path)
+    with journey_path("TCK-1", root=tmp_path).open("a", encoding="utf-8") as handle:
+        handle.write("{not json\n")
+    assert len(load_journey("TCK-1", root=tmp_path)) == 1
+
+
+def test_disagreement_names_both_directions() -> None:
+    from orchestrator.sdlc.builddoc import design_disagreement
+
+    drift = design_disagreement(["a.py", "b.py"], ["a.py", "c.py"])
+    assert "changed but not planned: `c.py`" in drift
+    assert "planned but not changed: `b.py`" in drift
+
+
+def test_agreement_says_nothing() -> None:
+    from orchestrator.sdlc.builddoc import design_disagreement
+
+    assert design_disagreement(["a.py"], ["a.py"]) == ""
+
+
+# ---- sections 11 and 12: cost and confidence -------------------------------
+
+
+def _run_entry(**over: Any) -> Any:
+    fields: dict[str, Any] = {
+        "stage": "run",
+        "status": "ok",
+        "detail": "PASSED",
+        "tokens": 100_000,
+        "usd": 1.10,
+    }
+    fields.update(over)
+    return _entry(**fields)
+
+
+def test_cost_says_it_is_an_estimate_when_nothing_has_run(tmp_path: Path) -> None:
+    md = _render(tmp_path)
+    assert "No measured history for this ticket" in md
+    assert "(estimate)" in md
+
+
+def test_cost_uses_measured_runs_when_there_are_any(tmp_path: Path) -> None:
+    md = _render(tmp_path, journey=[_run_entry(), _run_entry(tokens=200_000, usd=2.20)])
+    assert "Measured** over 2 run(s)" in md
+    assert "150,000 tokens mean" in md
+    assert "$3.30 across all runs" in md
+
+
+def test_a_failed_run_is_reported_as_costing_the_same(tmp_path: Path) -> None:
+    md = _render(tmp_path, journey=[_run_entry(status="failed", detail="FAILED")])
+    assert "1 of 1 run(s) produced nothing, and cost the same" in md
+
+
+def test_the_estimate_is_a_band_not_a_number(tmp_path: Path) -> None:
+    """The output cap is the honest width: nobody has measured this ticket yet."""
+    md = _render(tmp_path)
+    assert "between 0 and 32,000 output" in md
+    assert re.search(r"\$\d+\.\d\d–\d+\.\d\d", md)
+
+
+def test_the_model_table_names_the_resolved_model_once(tmp_path: Path) -> None:
+    md = _render(tmp_path)
+    assert md.count("*(resolved)*") == 1
+
+
+def test_confidence_is_a_band_with_its_basis(tmp_path: Path) -> None:
+    md = _render(tmp_path)
+    assert re.search(r"\*\*Is the analysis right\? — (high|medium|low)\*\*", md)
+    assert "A band, not a percentage" in md
+    assert "| what the plan established | reading | weight |" in md
+
+
+def test_a_plan_that_established_everything_scores_high(tmp_path: Path) -> None:
+    from orchestrator.sdlc.validity import Verdict
+
+    inv = _Investigation([_Landing("helper", "src/a.py:10")])
+    md = _render(
+        tmp_path,
+        investigation=inv,
+        validity=_Assessment(Verdict.PROCEED),
+        rca=_RCA(fault_site="f at src/a.py:10"),
+    )
+    assert "**Is the analysis right? — high** (5 of 5" in md
+
+
+def test_a_plan_that_established_little_scores_low(tmp_path: Path) -> None:
+    md = _render(
+        tmp_path,
+        investigation=_Investigation([_Landing("elsewhere", "src/zzz.py:1")]),
+        validity=_Assessment("REFUSE"),
+        design=_design(
+            blast_radius={
+                "grounded": True,
+                "call_graph_available": True,
+                "modules": [],
+                "unverified_references": ["src/ghost.py"],
+            }
+        ),
+    )
+    assert re.search(r"\*\*Is the analysis right\? — low\*\* \([012] of 5", md)
+
+
+def test_the_completion_number_is_a_base_rate_not_a_guess(tmp_path: Path) -> None:
+    md = _render(tmp_path, journey=[_run_entry(status="failed"), _run_entry(status="failed")])
+    assert "**0 of 2 run(s)** of this ticket completed" in md
+    assert "**Will an unattended run complete? — low.**" in md
+
+
+def test_no_runs_means_unestablished_not_optimistic(tmp_path: Path) -> None:
+    md = _render(tmp_path)
+    assert "**Will an unattended run complete? — unestablished.**" in md
+    assert "should be read as optimism" in md
+
+
+def test_confidence_does_not_move_the_digest_between_renders(tmp_path: Path) -> None:
+    """A model-written score would restamp the digest and stale every approval."""
+    from orchestrator.sdlc.builddoc import plan_digest
+
+    assert plan_digest(_render(tmp_path)) == plan_digest(_render(tmp_path))
 
 
 # ---- the whole path --------------------------------------------------------

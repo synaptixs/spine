@@ -52,6 +52,9 @@ _DERIVED_AT = re.compile(r"\*\*Derived at:\*\* `([^`]+)`")
 _STATUS_PLACEHOLDER = "\x00status\x00"  # noqa: S105 — a render placeholder, not a secret
 # Everything after this is what a reviewer read — see :func:`plan_digest`.
 _BODY_SEP = "\n---\n"
+# …and everything after *this* is what happened afterwards, which nobody approved and which
+# must not invalidate the approval. The digest stops here.
+_JOURNEY_MARKER = "\n## Journey\n"
 
 
 # ---- provenance ------------------------------------------------------------
@@ -127,14 +130,18 @@ class PlanApproval:
 
 
 def plan_digest(document: str) -> str:
-    """A fingerprint of what a reviewer actually read.
+    """A fingerprint of what a reviewer actually read — the twelve sections, and nothing else.
 
-    Only the body — everything after the first ``---`` — because approving rewrites the
-    status in the header. Hashing the whole document would invalidate an approval at the
-    instant it was granted.
+    Bounded at both ends. The header is excluded because approving rewrites the status, and
+    hashing it would invalidate an approval at the instant it was granted. The journey is
+    excluded because runs append to it: a digest that covered it would refuse the very next
+    run after the one it permitted.
     """
     _, sep, body = document.partition(_BODY_SEP)
-    return hashlib.sha256((body if sep else document).encode("utf-8")).hexdigest()[:16]
+    # rstrip because appending a journey adds blank lines *before* the marker, and a digest
+    # that changed on trailing whitespace would refuse a document nothing had happened to.
+    reviewed = (body if sep else document).partition(_JOURNEY_MARKER)[0].rstrip()
+    return hashlib.sha256(reviewed.encode("utf-8")).hexdigest()[:16]
 
 
 def approval_path(intent_id: str, *, root: Path | str = ".", out: Path | str | None = None) -> Path:
@@ -193,6 +200,287 @@ def _status_line(approval: PlanApproval | None, digest: str) -> str:
             "Re-read it and approve again *(human)*"
         )
     return f"**approved** by {who} on {when}{note} *(human)*"
+
+
+# ---- the journey -----------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class JourneyEntry:
+    """One thing that happened to this ticket, stamped with the stage and the time.
+
+    **Append-only by construction** — this module offers no way to update or delete one.
+    That is the point of the phase: when implement disagrees with the design, the
+    disagreement is the most valuable thing on the page, and a later stage that could
+    tidy an earlier one away would remove exactly the evidence worth keeping.
+    """
+
+    run_id: str
+    stage: str
+    status: str  # ok | skipped | failed
+    detail: str
+    at: str  # ISO seconds, UTC
+    # Structured actuals on the run-outcome entry. Section 11 reads these rather than
+    # parsing them back out of ``detail`` — a cost history recovered by regex is one that
+    # breaks the first time somebody rewords a log line. Defaulted so entries written
+    # before this existed still load.
+    tokens: int = 0
+    usd: float = 0.0
+
+
+def journey_path(intent_id: str, *, root: Path | str = ".", out: Path | str | None = None) -> Path:
+    return (Path(out) if out else plan_dir(root)) / f"{intent_id}-journey.jsonl"
+
+
+def append_journey(
+    entry: JourneyEntry,
+    *,
+    intent_id: str,
+    root: Path | str = ".",
+    out: Path | str | None = None,
+) -> Path:
+    """Add one line. JSONL because appending must never rewrite what is already there."""
+    path = journey_path(intent_id, root=root, out=out)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(asdict(entry)) + "\n")
+    return path
+
+
+def load_journey(
+    intent_id: str, *, root: Path | str = ".", out: Path | str | None = None
+) -> list[JourneyEntry]:
+    """Every entry, in the order it happened. A malformed line is skipped, not fatal."""
+    path = journey_path(intent_id, root=root, out=out)
+    if not path.is_file():
+        return []
+    entries: list[JourneyEntry] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            entries.append(JourneyEntry(**json.loads(line)))
+        except (ValueError, TypeError):
+            continue
+    return entries
+
+
+def design_disagreement(planned: list[str], touched: list[str]) -> str:
+    """What implement did that the design did not say, and vice versa.
+
+    Deterministic, and the reason this section earns its place: a run that quietly edited
+    three files nobody planned is the single most useful thing a reader can be told, and
+    today it is visible only by reading the diff.
+    """
+    want, got = {p.strip() for p in planned if p.strip()}, {t.strip() for t in touched if t.strip()}
+    unplanned, untouched = sorted(got - want), sorted(want - got)
+    if not unplanned and not untouched:
+        return ""
+    parts = []
+    if unplanned:
+        parts.append("changed but not planned: " + ", ".join(f"`{f}`" for f in unplanned))
+    if untouched:
+        parts.append("planned but not changed: " + ", ".join(f"`{f}`" for f in untouched))
+    return "implement disagreed with the design — " + "; ".join(parts)
+
+
+def _journey_block(entries: list[JourneyEntry]) -> str:
+    """The journey, grouped by run, oldest first. Rendered below the twelve sections."""
+    if not entries:
+        return ""
+    lines = [_JOURNEY_MARKER.strip(), ""]
+    lines.append(_label(HUMAN + " + machine", "what happened after the plan was written"))
+    seen: list[str] = []
+    for entry in entries:
+        if entry.run_id not in seen:
+            seen.append(entry.run_id)
+            lines.append(f"\n**Run `{entry.run_id}`**\n")
+        mark = {"ok": "✓", "failed": "✗", "skipped": "·"}.get(entry.status, "·")
+        lines.append(f"- {mark} **{entry.stage}** — {entry.detail} _({entry.at})_")
+    return "\n".join(lines) + "\n"
+
+
+# ---- sections 11 and 12: cost and confidence -------------------------------
+
+# Roughly four characters to a token for source. Used only to turn bytes we already
+# measured into an order of magnitude, and said out loud wherever it is shown.
+_BYTES_PER_TOKEN = 4
+# Codegen's own ceiling: output covers thinking plus reply. The gap between "no output"
+# and "all of it" is the honest width of an estimate nobody has measured yet.
+_OUTPUT_CAP_TOKENS = 32_000
+_MAX_MODEL_ROWS = 6
+
+
+def _measured_runs(journey: list[JourneyEntry]) -> list[JourneyEntry]:
+    return [e for e in journey if e.stage == "run" and e.tokens]
+
+
+def _cost_block(*, carried_bytes: int, journey: list[JourneyEntry]) -> str:
+    """Section 11. Measured where there is history, estimated where there is not — labelled."""
+    from orchestrator.core.llm import catalog
+
+    model_id = catalog.resolve("codegen")
+    info = catalog.describe(model_id)
+    measured = _measured_runs(journey)
+
+    lines: list[str] = []
+    if measured:
+        totals = sorted(e.tokens for e in measured)
+        spend = [e.usd for e in measured if e.usd]
+        completed = sum(1 for e in measured if e.status == "ok")
+        lines.append(
+            f"**Measured** over {len(measured)} run(s) of this ticket: "
+            f"{sum(totals) // len(totals):,} tokens mean, {totals[0]:,} lightest, {totals[-1]:,} heaviest."
+        )
+        if spend:
+            lines.append(
+                f"Actual spend: ${sum(spend):.2f} across all runs, ${sum(spend) / len(spend):.2f} mean.\n"
+            )
+        else:
+            lines.append("")
+        if completed < len(measured):
+            lines.append(
+                f"**{len(measured) - completed} of {len(measured)} run(s) produced nothing, and cost the "
+                "same as the ones that did.** A failed run is not a cheap run.\n"
+            )
+    else:
+        lines.append(
+            "**No measured history for this ticket** — nothing has been run yet, so the "
+            "below is an estimate.\n"
+        )
+
+    est_in = carried_bytes // _BYTES_PER_TOKEN
+    lines.append(
+        f"**Estimated** from the {carried_bytes:,} b this prompt carries: ~{est_in:,} input tokens "
+        f"(at ~{_BYTES_PER_TOKEN} chars/token), and between 0 and {_OUTPUT_CAP_TOKENS:,} output — "
+        "codegen's cap covers thinking plus reply, and the width of that band *is* the uncertainty.\n"
+    )
+
+    rows = ["| model | $/Mtok in | $/Mtok out | this prompt, low–high |", "|---|---|---|---|"]
+    priced = [m for m in catalog.catalog() if m.input_usd_per_mtok or m.output_usd_per_mtok]
+    resolved = [m for m in priced if m.id == model_id]
+    # Alternatives from the same provider, not the first few alphabetically. The catalog
+    # holds ~1700 models; five arbitrary ones are noise a reader has to skip, and the
+    # comparison anyone actually makes is against the neighbours of what they are using.
+    family = resolved[0].provider if resolved else ""
+    siblings = [m for m in priced if m.id != model_id and family and m.provider == family]
+    # Deduped by id: the installed catalog lists some models twice (bare and
+    # provider-qualified), and the same row printed twice reads as a rendering bug.
+    seen_ids: set[str] = set()
+    shown = []
+    for candidate in resolved + siblings:
+        if candidate.id not in seen_ids:
+            seen_ids.add(candidate.id)
+            shown.append(candidate)
+    for m in shown[:_MAX_MODEL_ROWS]:
+        rate_in = float(m.input_usd_per_mtok or 0.0)
+        rate_out = float(m.output_usd_per_mtok or 0.0)
+        low = est_in * rate_in / 1_000_000
+        high = low + _OUTPUT_CAP_TOKENS * rate_out / 1_000_000
+        mark = " *(resolved)*" if m.id == model_id else ""
+        rows.append(f"| `{m.id}`{mark} | {rate_in:.2f} | {rate_out:.2f} | ${low:.2f}–{high:.2f} |")
+    if len(shown) > _MAX_MODEL_ROWS:
+        rows.append(
+            f"\n_{_MAX_MODEL_ROWS} of {len(shown)} `{family}` models; {len(priced)} priced in all — "
+            "`orchestrator models` lists them._"
+        )
+    if info is None:
+        rows.append(
+            f"\n_`{model_id}` is not in the installed catalog — its own price is unknown, and the "
+            "estimate above cannot be made for it._"
+        )
+    lines.append("\n".join(rows) + "\n")
+
+    lines.append(
+        "**A failed run costs what a successful one costs.** The prompt is resent on every "
+        "corrective attempt, so the bill scales with attempts, not with outcomes.\n"
+    )
+    return "\n".join(lines)
+
+
+def _confidence_block(
+    *,
+    signals: dict[str, Any],
+    journey: list[JourneyEntry],
+) -> str:
+    """Section 12. Two numbers, never one — each a band with the basis under it.
+
+    **Deterministic on purpose, and not a preference.** Phase 4 binds an approval to a
+    digest of this document. A model-written confidence score would move on every render,
+    the digest with it, and every approval would be stale the moment it was granted. So the
+    score is computed from what the plan could and could not establish, and shown as a band
+    with its basis — never a bare number that invites more trust than a band would.
+    """
+    rows = [
+        "| what the plan established | reading | weight |",
+        "|---|---|---|",
+    ]
+    score = 0
+    for label, ok, good, bad in (
+        (
+            "Validity gate",
+            signals.get("verdict") == "PROCEED",
+            "PROCEED — nothing contradicts the code",
+            f"{signals.get('verdict') or 'unknown'} — the ticket disagrees with the code",
+        ),
+        (
+            "Where it lands",
+            bool(signals.get("brief_agrees")),
+            "the brief and the design name the same files",
+            "the brief names none of the files being changed",
+        ),
+        (
+            "Root cause",
+            bool(signals.get("fault_site")),
+            "localized to a symbol",
+            "a file at best — no line established",
+        ),
+        (
+            "Named paths",
+            not signals.get("unverified"),
+            "every path the design names is in the graph",
+            "the design names paths the graph has never seen",
+        ),
+        (
+            "Context budget",
+            not signals.get("over_budget"),
+            "the named files fit the window whole",
+            "over budget — codegen will excerpt",
+        ),
+    ):
+        score += 1 if ok else 0
+        rows.append(f"| {label} | {good if ok else bad} | {'+' if ok else '−'} |")
+
+    band = "high" if score >= 5 else "medium" if score >= 3 else "low"
+    out = [
+        f"**Is the analysis right? — {band}** ({score} of 5 checks positive). "
+        "A band, not a percentage: nothing here measures correctness, only how much the "
+        "plan managed to establish.\n",
+        "\n".join(rows) + "\n",
+    ]
+
+    runs = _measured_runs(journey)
+    if runs:
+        done = sum(1 for e in runs if e.status == "ok")
+        rate = "high" if done == len(runs) else "low" if done == 0 else "medium"
+        out.append(
+            f"**Will an unattended run complete? — {rate}.** Measured, not guessed: "
+            f"**{done} of {len(runs)} run(s)** of this ticket completed. That is the base rate, "
+            "and it is the only honest input anyone has.\n"
+        )
+    else:
+        out.append(
+            "**Will an unattended run complete? — unestablished.** No run of this ticket has "
+            "happened, so there is no base rate. Nothing here should be read as optimism.\n"
+        )
+
+    untested = signals.get("untested") or 0
+    if untested:
+        out.append(
+            f"**And the plan raises its own bar:** {untested} symbol(s) in the files being "
+            "changed have no test, so the delivery is larger than the spec implies.\n"
+        )
+    return "\n".join(out)
 
 
 # ---- section 3: root cause -------------------------------------------------
@@ -600,6 +888,7 @@ def render_build_md(
     evidence: dict[str, Any] | None = None,
     rca: Any = None,
     approval: PlanApproval | None = None,
+    journey: list[JourneyEntry] | None = None,
 ) -> str:
     """Assemble the twelve sections. Pure — no I/O beyond stat-ing the named files."""
     title = str(spec.get("title") or "untitled")
@@ -742,11 +1031,39 @@ def render_build_md(
     if carried > context_budget:
         add("**Over budget.** Codegen will excerpt; the model will not see these files whole.\n")
 
+    entries = list(journey or [])
+
     add("## 11. Token usage & cost")
-    add(_pending("the model catalog and this ticket's measured worklog history — Phase 6"))
+    measured = bool(_measured_runs(entries))
+    add(
+        _label(
+            DETERMINISTIC if measured else f"{DETERMINISTIC} (estimate)",
+            "the installed model catalog" + (" and this ticket's measured runs" if measured else ""),
+        )
+    )
+    add(_cost_block(carried_bytes=carried, journey=entries))
 
     add("## 12. Confidence")
-    add(_pending("what the plan could and could not establish, scored as two numbers — Phase 6"))
+    add(_label(DETERMINISTIC, "what the plan could and could not establish — a band, never a score"))
+    add(
+        _confidence_block(
+            signals={
+                "verdict": getattr(raw_verdict, "value", raw_verdict),
+                "brief_agrees": bool(agreed),
+                "fault_site": bool(getattr(rca, "fault_site", "")),
+                "unverified": bool(blast.get("unverified_references")),
+                "over_budget": carried > context_budget,
+                "untested": len((evidence or {}).get("uncovered") or []),
+            },
+            journey=entries,
+        )
+    )
+
+    # The journey goes below the twelve sections, never inside them: it is what happened
+    # after the plan was read, and the digest deliberately stops before it.
+    block = _journey_block(entries)
+    if block:
+        out.extend(["", block])
 
     # The status is written last because it depends on a digest of everything above it.
     document = "\n".join(out).rstrip() + "\n"
@@ -759,6 +1076,7 @@ async def build_plan(
     root: Path | str = ".",
     language: str = "python",
     approval: PlanApproval | None = None,
+    journey: list[JourneyEntry] | None = None,
 ) -> str:
     """Run the four cheap stages and render the document. No worktree, no codegen.
 
@@ -824,6 +1142,7 @@ async def build_plan(
         ),
         rca=report,
         approval=approval,
+        journey=journey,
     )
 
 
@@ -930,9 +1249,14 @@ __all__ = [
     "HUMAN",
     "MODEL",
     "STATED",
+    "JourneyEntry",
     "PlanApproval",
     "PlanNotApprovedError",
+    "append_journey",
     "approval_path",
+    "design_disagreement",
+    "journey_path",
+    "load_journey",
     "build_plan",
     "collect_evidence",
     "decided_by_default",

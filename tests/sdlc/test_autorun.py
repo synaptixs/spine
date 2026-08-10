@@ -642,3 +642,45 @@ def test_an_injected_spec_without_an_intent_id_still_gets_one(
     ctx = _run(tmp_path, spec=spec)
 
     assert ctx.spec is not None and ctx.spec["intent_id"] == "injected"
+
+
+# --- the journey: what happened, appended beside the plan --------------------------
+
+
+def test_every_stage_appends_to_the_ticket_journey(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The run record dies with the process; the journey is what outlives it."""
+    from orchestrator.sdlc.builddoc import load_journey
+
+    _install(monkeypatch, tmp_path)
+    _run(tmp_path, spec=dict(_INJECTED))
+
+    entries = load_journey(str(_INJECTED["intent_id"]), root=tmp_path / "repo")
+    stages = [e.stage for e in entries]
+    assert "investigate" in stages and "design" in stages
+    assert all(e.at and e.run_id for e in entries)
+
+
+def test_a_second_run_appends_rather_than_replacing_the_first(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc.builddoc import load_journey
+
+    _install(monkeypatch, tmp_path)
+    _run(tmp_path, spec=dict(_INJECTED))
+    first = len(load_journey(str(_INJECTED["intent_id"]), root=tmp_path / "repo"))
+    _run(tmp_path, spec=dict(_INJECTED))
+    entries = load_journey(str(_INJECTED["intent_id"]), root=tmp_path / "repo")
+
+    assert len(entries) > first
+    assert len({e.run_id for e in entries}) == 2
+
+
+def test_a_ticket_with_no_intent_id_journals_nothing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Nothing to key it by, so nothing is written — rather than a file called '-journey'."""
+    from orchestrator.sdlc.builddoc import plan_dir
+
+    _install(monkeypatch, tmp_path)
+    _run(tmp_path, spec={k: v for k, v in _INJECTED.items() if k != "intent_id"})
+
+    written = list(plan_dir(tmp_path / "repo").glob("*-journey.jsonl"))
+    assert [p.name for p in written] == ["injected-journey.jsonl"]

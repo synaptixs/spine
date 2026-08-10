@@ -1,6 +1,6 @@
 # The build document — plan before code
 
-**Status:** Phases 1–4 built (`orchestrator sdlc plan` · `sdlc approve`) · Phases 5–6 proposed
+**Status:** all six phases built — `orchestrator sdlc plan` · `sdlc approve`
 **Supersedes nothing.** Changes what `sdlc autorun` *is*.
 
 Today a run spends roughly $1.19 before anyone sees anything, and its first
@@ -94,6 +94,7 @@ a stable shape.
 | 10 | Codegen prompt | System prompt by name. User payload as a list of *which sections of this document*. Context budget in bytes **and** percent of the window. | never |
 | 11 | Token usage & cost | Measured token stats, then the per-model table, then the flat statement that a failed run costs what a successful one costs. | no measured history — state that, do not estimate silently |
 | 12 | Confidence | **Two numbers, never one** — is the analysis right, and will the pipeline complete — each with a basis table. | never |
+| — | Journey | *Below* the twelve, never inside them. Append-only, one line per stage per run, stamped with stage and time. Excluded from the approval digest, because runs append to it after it is approved. | no run has happened yet |
 
 **The mermaid in section 5 must render.** `md.js` implements a ~90-line subset;
 anything outside it falls back to `<pre>` in our own UI while still looking fine
@@ -348,19 +349,66 @@ Also here, because it is this phase's handoff bullet: section 10's payload manif
 lists only the sections that exist. It had been promising section 9 while section 9 said
 it was never established — a prompt nobody could assemble.
 
-### Phase 5 — the journey *(~3 days)*
+### Phase 5 — the journey — **built**
 
-Each stage appends its own section, stamped with stage and time. **No stage
-rewrites an earlier one.** When implement disagrees with the design, that
-disagreement is the most valuable thing on the page.
+Each stage appends, stamped with stage and time. **No stage rewrites an earlier one** —
+the module offers no update and no delete, so a later stage cannot tidy away the evidence
+worth keeping. Entries live append-only in `.spine/plans/<INTENT>-journey.jsonl` and are
+rendered into the document **below the twelve sections**, under `## Journey`.
 
-**Ships:** run outcome, diffs, judge verdict, cost actuals against estimate.
+**The journey collides with Phase 4, and the digest boundary is the resolution.** An
+approval is bound to a digest of what was read. Naively appending would invalidate every
+approval on the first run — the gate refusing the very run it had just permitted. So
+`plan_digest` is bounded at both ends: it starts after the header (which approving
+rewrites) and stops at the journey marker (which runs append to). Verified from the
+command line: a run appended after approval, and the gate still passed.
 
-### Phase 6 — cost and confidence *(~2 days)*
+**The disagreement is the point.** `design_disagreement` compares what implement actually
+touched against what section 7 named, in both directions — *changed but not planned* and
+*planned but not changed*. Deterministic, journalled, and never used to fail a run:
+implement may well be right, and the reader is the one who should decide.
 
-Estimate from the catalog and measured history; score confidence from what the
-plan could and could not establish. Both model-flavoured — present as a range
-with its basis, never a bare number.
+Also journalled: the run outcome with tokens and actual spend, which is what section 11's
+estimate will eventually be judged against — rather than the estimate being graded by
+whatever produced it.
+
+**Written against no real usage.** The record's own advice was to resist this until 1–4
+had run on ten tickets, and that advice was overridden deliberately. The mitigation was to
+build the mechanism and not the content: entries are `(run, stage, status, detail, time)`
+and nothing more. What the journey should actually hold is still an open question, and the
+shape above is cheap to fill differently once tickets answer it.
+
+### Phase 6 — cost and confidence — **built**
+
+**Both are deterministic, and that is forced rather than chosen.** The record called them
+"model-flavoured". They cannot be: Phase 4 binds an approval to a digest of this document,
+so a model-written score would move on every render, take the digest with it, and stale
+every approval at the instant it was granted. Phases 4 and 5 make Phase 6's determinism a
+requirement, not a preference.
+
+**Section 11.** Measured where there is history — Phase 5's journey carries tokens and
+actual spend per run, structurally rather than parsed back out of a log line. Estimated
+where there is not, from the bytes section 10 already counts, at ~4 characters to a token,
+said out loud. The band is *0 to codegen's 32k output cap*: the width of that band is the
+uncertainty, and it is honest precisely because nobody has measured this ticket yet. The
+per-model table shows the resolved model and its provider siblings — not the first six of
+1,718 alphabetically, which is noise a reader has to skip.
+
+**Section 12. Two numbers, never one.**
+
+*Is the analysis right?* — a band over five checks the plan either did or did not
+establish: the validity verdict, whether the brief and design agree, whether root cause
+reached a symbol, whether every named path is in the graph, whether the files fit the
+window. A band and a basis table, never a percentage — nothing here measures correctness,
+only how much the plan managed to establish, and a number would invite more trust than
+that deserves.
+
+*Will an unattended run complete?* — the base rate from the journey: **n of m runs of this
+ticket completed**. Measured, not guessed. With no history it says *unestablished*, and
+says explicitly that this is not optimism.
+
+Where the plan raises its own bar — untested symbols in the files being changed — it says
+so, because that is the delivery being larger than the spec implies.
 
 ---
 
@@ -373,6 +421,14 @@ Everything after it is refinement.
 **Resist** building phases 5 and 6 before 1–4 are in use. A journey nobody reads
 and a confidence score nobody trusts are both easy to build and hard to remove.
 Ship the plan, use it on ten tickets, then decide what the journey needs to hold.
+
+> **This advice was overridden.** All six phases were built in one sitting, on zero real
+> tickets. That was a deliberate decision, and the risk it warned about is unchanged: the
+> journey's content and the confidence bands were designed against no evidence of what a
+> reader wants. The mitigation was to build mechanism rather than content — an entry is
+> `(run, stage, status, detail, time)`, and a band is five checks and a table. Both are
+> cheap to fill differently. **The ten tickets are still owed**, and until they happen,
+> nothing here has been validated by use.
 
 **What this does not fix.** Every failure of the last week was *downstream* of
 everything a plan covers — in implement and the recovery machinery. This makes

@@ -1038,7 +1038,7 @@ def sdlc_plan(
     """
     import asyncio
 
-    from orchestrator.sdlc.builddoc import build_plan, load_approval, persist
+    from orchestrator.sdlc.builddoc import build_plan, load_approval, load_journey, persist
     from orchestrator.sdlc.spec_file import SpecFileError, load_spec_file
 
     if not spec and not source:
@@ -1087,6 +1087,9 @@ def sdlc_plan(
             # Rendered, never stored in the document: a plan that changed since it was
             # approved shows as stale rather than carrying an approval it outgrew.
             approval=load_approval(intent_key, root=path, out=out),
+            # What every run of this ticket did, appended beneath the plan. Regenerating
+            # is what refreshes the view; the entries themselves are never rewritten.
+            journey=load_journey(intent_key, root=path, out=out),
         )
         written, superseded = persist(document, intent_id=intent_key, root=path, out=out)
         if not quiet:
