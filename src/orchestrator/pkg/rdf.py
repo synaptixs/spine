@@ -37,6 +37,7 @@ _PROPERTY_BY_EDGE = {
     EdgeKind.READS: "reads",
     EdgeKind.WRITES: "writes",
     EdgeKind.EXPOSES: "exposes",
+    EdgeKind.CONSUMES: "consumes",
     EdgeKind.REFERENCES: "references",
 }
 

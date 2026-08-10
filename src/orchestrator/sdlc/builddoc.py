@@ -229,6 +229,135 @@ def _blast_prose(bd: dict[str, Any]) -> str:
     return f"{reading}\n\n{containment}\n\n{caveat}\n"
 
 
+# ---- section 5, fourth block: the evidence ---------------------------------
+
+
+def collect_evidence(store: Any, *, files: list[str], root: Path) -> dict[str, Any]:
+    """The deterministic facts about the neighbourhood that the diagram cannot draw.
+
+    Computed here rather than in the renderer because it needs the graph, and a renderer
+    that re-derives facts from paths is the thing invariant 1 forbids. Everything is
+    bounded and records what it elided.
+    """
+    from orchestrator.pkg.facts import NodeKind
+    from orchestrator.sdlc.coverage import CoverageIndex, is_test_node
+
+    wanted = {f.strip() for f in files if f.strip()}
+    in_scope = [n for n in store.nodes if getattr(n.provenance, "file", "") in wanted]
+    modules = [n for n in in_scope if n.kind is NodeKind.MODULE]
+    symbols = [n for n in in_scope if n.kind in (NodeKind.FUNCTION, NodeKind.TYPE)]
+
+    index = CoverageIndex(store)
+    covered: list[Any] = []
+    uncovered: list[Any] = []
+    for node in sorted(symbols, key=lambda n: n.name):
+        (covered if index.is_covered(node.id) else uncovered).append(node)
+
+    endpoints: list[tuple[str, str]] = []
+    for node in in_scope:
+        for ep in store.endpoints_called_by(node.id):
+            endpoints.append((node.name, f"calls {ep.name}"))
+        for ep in store.exposers_of(node.id):
+            endpoints.append((node.name, f"serves {ep.name}"))
+
+    regression = sorted(
+        {imp.name for mod in modules for imp in store.importers_of(mod.id) if is_test_node(imp)}
+    )
+    docs = sorted({doc.name for node in in_scope for doc in store.docs_for(node.id)})
+
+    return {
+        "call_graph_available": index.call_graph_available,
+        "symbols": len(symbols),
+        "covered": [n.name for n in covered],
+        "uncovered": [n.name for n in uncovered],
+        "endpoints": endpoints,
+        "regression": regression,
+        "docs": docs,
+        "history": _recent_history(sorted(wanted), root=root),
+    }
+
+
+def _recent_history(files: list[str], *, root: Path, commits: int = 5) -> list[str]:
+    """What has recently happened to the files being changed.
+
+    A file nobody has touched in a year and a file touched three times last week carry
+    different risk, and neither is visible in the graph.
+    """
+    if not files:
+        return []
+    try:
+        result = subprocess.run(
+            ["git", "log", f"-{commits}", "--format=%h %ad %s", "--date=short", "--", *files],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return [line for line in result.stdout.splitlines() if line.strip()] if result.returncode == 0 else []
+
+
+def _evidence_block(ev: dict[str, Any]) -> str:
+    """The fourth block of section 5 — five findings, each saying what it does not know."""
+    if not ev:
+        return ""
+    lines = ["**Evidence:**\n"]
+
+    covered, uncovered = ev.get("covered") or [], ev.get("uncovered") or []
+    total = len(covered) + len(uncovered)
+    if not ev.get("call_graph_available"):
+        lines.append("- *Coverage today:* no call graph for this language — unknown, not zero.\n")
+    elif total:
+        # Distinct names for the display list — two nested functions can share a name, and
+        # "`_go`, `_go`" reads as a rendering bug. The counts stay per-symbol, which is what
+        # is actually true.
+        names = list(dict.fromkeys(uncovered))
+        listed = ", ".join(f"`{n}`" for n in names[:8])
+        elided = f" (+{len(uncovered) - 8} more)" if len(uncovered) > 8 else ""
+        detail = f" — untested: {listed}{elided}" if uncovered else ""
+        lines.append(
+            f"- *Coverage today:* {len(uncovered)} of {total} symbol(s) in the files this ticket "
+            f"changes are reached by no test{detail}. Reached by a test means exercised, not "
+            "asserted correct.\n"
+        )
+
+    endpoints = ev.get("endpoints") or []
+    if endpoints:
+        shown = "; ".join(f"`{sym}` {what}" for sym, what in endpoints[:6])
+        more = f" (+{len(endpoints) - 6} more)" if len(endpoints) > 6 else ""
+        lines.append(f"- *Endpoints crossed:* {shown}{more}.\n")
+    else:
+        lines.append(
+            "- *Endpoints crossed:* none joined. A path built from an f-string or a variable "
+            "yields no edge, so this is silence rather than absence.\n"
+        )
+
+    regression = ev.get("regression") or []
+    if regression:
+        shown = ", ".join(f"`{t}`" for t in regression[:8])
+        more = f" (+{len(regression) - 8} more)" if len(regression) > 8 else ""
+        lines.append(f"- *Regression surface:* {shown}{more} import what changes — run these.\n")
+    else:
+        lines.append("- *Regression surface:* no test module imports what changes.\n")
+
+    history = ev.get("history") or []
+    if history:
+        lines.append("- *Recent history:*\n")
+        # A commit subject in this repo routinely contains backticks; wrapping the whole
+        # line in one more closes the span early and the rest renders as prose.
+        lines.extend(f"    - {line.replace('`', '')}\n" for line in history)
+
+    docs = ev.get("docs") or []
+    if docs:
+        shown = ", ".join(f"`{d}`" for d in docs[:6])
+        more = f" (+{len(docs) - 6} more)" if len(docs) > 6 else ""
+        lines.append(f"- *Docs affected:* {shown}{more} mention what changes.\n")
+
+    return "".join(lines)
+
+
 # ---- section 8: criteria, in three states ----------------------------------
 
 
@@ -317,6 +446,7 @@ def render_build_md(
     commit: str,
     context_budget: int,
     language: str = "python",
+    evidence: dict[str, Any] | None = None,
 ) -> str:
     """Assemble the twelve sections. Pure — no I/O beyond stat-ing the named files."""
     title = str(spec.get("title") or "untitled")
@@ -403,6 +533,7 @@ def render_build_md(
     else:
         add("_Nothing to draw — no module in the graph matched the files being changed._\n")
     add(_blast_prose(blast))
+    add(_evidence_block(evidence or {}))
 
     add("## 6. Design")
     origin = "an LLM" if design.get("llm") else "the deterministic heuristic (no LLM)"
@@ -514,6 +645,9 @@ async def build_plan(
         commit=derived_at(root_path),
         context_budget=_MAX_CONTEXT_BYTES,
         language=language,
+        evidence=collect_evidence(
+            store, files=[str(f) for f in (design.get("files_to_touch") or [])], root=root_path
+        ),
     )
 
 
@@ -582,6 +716,7 @@ __all__ = [
     "MODEL",
     "STATED",
     "build_plan",
+    "collect_evidence",
     "derived_at",
     "persist",
     "plan_dir",

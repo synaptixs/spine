@@ -1,6 +1,6 @@
 # The build document — plan before code
 
-**Status:** proposed · not built
+**Status:** Phases 1–2 built (`orchestrator sdlc plan`) · Phases 3–6 proposed
 **Supersedes nothing.** Changes what `sdlc autorun` *is*.
 
 Today a run spends roughly $1.19 before anyone sees anything, and its first
@@ -86,7 +86,7 @@ a stable shape.
 | 2 | Intent | One paragraph: what should happen instead. | never |
 | 3 | Root cause | Names the function and `file:line`. Ends with a **Consequence:** line stating what is therefore *out* of scope. | ticket is not a bug — omitted, not padded |
 | 4 | PKG | Module + byte size. Importers **by name**. Imports counted, first-party listed. Symbols ranked by callers, as a table. Ends with a verdict on whether the investigation brief is trustworthy for this ticket. | graph unavailable for the language |
-| 5 | Blast radius | A mermaid `flowchart TD`, then three prose blocks in order — **Reading it**, **Containment**, **Caveat**. | never |
+| 5 | Blast radius | A mermaid `flowchart TD`, then four blocks in order — **Reading it**, **Containment**, **Caveat**, **Evidence**. Evidence carries the five deterministic findings the diagram cannot draw: coverage today, endpoints crossed, regression surface, recent history, docs affected. | never |
 | 6 | Design | The chosen shape as a code snippet. The rejected alternative in italics beneath it. | never |
 | 7 | Files | Two tables. **Changed:** file, scope with line numbers. **Created:** file, contents, size. | never |
 | 8 | Acceptance criteria | Numbered, independently checkable, each traceable to the spec — see §4. | never |
@@ -226,31 +226,62 @@ composed path so nothing in use today breaks.
 
 ## 7. Build phases
 
-### Phase 1 — `orchestrator sdlc plan` *(~2 days)*
+### Phase 1 — `orchestrator sdlc plan` — **built**
 
-Run intake → investigate → validity → design, render the document, **stop**. No
-worktree, no codegen, no cost beyond intake.
+Runs intake → investigate → validity → design, renders the document, **stops**. No
+worktree, no codegen, nothing spent, and the tracker untouched. Lives in
+[`sdlc/builddoc.py`](../../src/orchestrator/sdlc/builddoc.py); `autorun.py` was not
+modified.
 
-Six markdown renderers already exist and are reusable as-is —
-`render_investigation_md`, `render_design_md`, `render_localization_md`,
-`render_regression_plan_md`, `render_md` (impact/blast radius) and
-`render_rca_md`. This is assembly, a header block, provenance labelling, and a
-document renderer.
+**Shipped:** sections 1, 2, 4, 5, 6, 7, 8 and 10, with the labels of §3, the header
+block of §5 and the three criteria states of §4. Sections 3, 9, 11 and 12 render as
+headings naming what would establish them.
 
-**Ships:** sections 1, 2, 4, 5, 6, 7, 8, 10 — with the labels of §3 and the
-header block of §5, and the three criteria states of §4.
+Three things worth recording, because they were not obvious when this was written:
 
-### Phase 2 — close the deterministic gaps *(~3 days)*
+- **The builders are called directly, not through `autorun`'s `_stage_*` wrappers.**
+  Those carry run records, checkpoints, approval parking and Jira worklogs. A plan
+  must touch none of that, and reusing them would have meant either gutting the path
+  that works or passing it a fake context.
+- **Section 4's verdict on the brief turned out to be deterministic.** Whether the
+  investigation names any file the design will change is a set intersection. It fires
+  on SSPN-49 today, which is the failure that made this record necessary.
+- **`--spec` makes the whole path LLM-free**, so the same commit and spec produce a
+  byte-identical document. That is what makes the kept history readable as a diff.
 
-- **Link `/v1` routes to their callers.** 77 `EXPOSES` edges, none under `/v1` —
-  the client/server join is missing, and its absence is why `investigate` pointed
-  at the registry server on SSPN-49.
-- **Surface coverage per changed symbol** from `CoverageIndex`. On SSPN-49 this
-  revealed 10 of 11 commands untested, which changes the delivery bar.
-- **Recent history** on the touched files, from git.
+**Where the plans live:** `.spine/plans/<INTENT_ID>-build.md`, with a replaced
+document snapshotted under `history/` keyed by the commit it was derived at. The
+dot-directory is load-bearing — `doc_source` skips dirnames starting with ".", so a
+live plan never becomes a `Doc` node in the graph the next stage reads.
+
+### Phase 2 — close the deterministic gaps — **built**
+
+All five land in section 5's **Evidence** block, deterministic.
+
+- **The client/server join now exists.** A new `CONSUMES` edge kind —
+  [`pkg/python_client.py`](../../src/orchestrator/pkg/python_client.py) — joins a
+  caller to the endpoint it calls, and `impact_of` follows it, so changing a handler
+  reaches the code that calls it.
+- **Coverage today** per symbol in the changed files, from `CoverageIndex`.
 - **Regression surface** — the test modules importing what is changing.
+- **Recent history** on the touched files, from git.
+- **Docs affected** — `MENTIONS`, via `store.docs_for`.
 
-**Ships:** section 05b, all deterministic.
+**This record's own stated fact was wrong, and measuring it changed the work.** It
+said *"77 `EXPOSES` edges, none under `/v1`."* Measured: 71 Endpoint nodes, 77
+`EXPOSES` edges, **39 of them under `/v1`** — and the actual gap was worse than
+described. Zero edges pointed *at* an endpoint at all: `EXPOSES` runs endpoint→handler,
+the server half, and nothing represented a client. So this was not a linking bug to
+fix but a fact that did not exist, which per invariant 1 is a change to `facts.py` and
+a front-end, not to a renderer.
+
+**What the join does not reach, by construction.** Paths are resolved only when
+literal. `cli.py`'s template/contract group builds them as `f"/v1/{entity}"`, so five
+of its six call sites emit nothing — the repo yields 120 `CONSUMES` edges and one of
+them is from `cli.py`. Resolving an f-string against its call sites would be
+inter-procedural constant propagation, which is a guess, and a wrong edge is worse
+than an absent one. The Evidence block says "silence rather than absence" for exactly
+this reason.
 
 ### Phase 3 — wire RCA into the plan *(~2 days)*
 

@@ -50,6 +50,7 @@ class EdgeKind(str, Enum):
     READS = "READS"
     WRITES = "WRITES"
     EXPOSES = "EXPOSES"  # route→handler
+    CONSUMES = "CONSUMES"  # caller→the endpoint it calls (the other half of EXPOSES)
     REFERENCES = "REFERENCES"  # entity→entity foreign key
     MENTIONS = "MENTIONS"  # doc→the code symbol it describes
 

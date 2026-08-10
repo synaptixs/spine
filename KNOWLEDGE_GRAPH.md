@@ -117,16 +117,16 @@ offer in the first place.
 
 **Edges**
 
-| Front-end | `IMPORTS` | `CONTAINS` | `CALLS` | `IMPLEMENTS` | `READS` | `WRITES` | `EXPOSES` | `REFERENCES` | `MENTIONS` |
-|---|---|---|---|---|---|---|---|---|---|
-| `python` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · |
-| `java` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | · |
-| `typescript` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | · |
-| `csharp` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | ✓ | · |
-| `c` | ✓ | ✓ | ✓ | · | · | · | · | ✓ | · |
-| `cpp` | ✓ | ✓ | ✓ | ✓ | · | · | · | ✓ | · |
-| `go` | ✓ | ✓ | ✓ | ✓ | · | · | · | ✓ | · |
-| `sql` | · | ✓ | ✓ | · | ✓ | ✓ | · | ✓ | · |
+| Front-end | `IMPORTS` | `CONTAINS` | `CALLS` | `IMPLEMENTS` | `READS` | `WRITES` | `EXPOSES` | `CONSUMES` | `REFERENCES` | `MENTIONS` |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `python` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · |
+| `java` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | · | · |
+| `typescript` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | · | · |
+| `csharp` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · |
+| `c` | ✓ | ✓ | ✓ | · | · | · | · | · | ✓ | · |
+| `cpp` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | ✓ | · |
+| `go` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | ✓ | · |
+| `sql` | · | ✓ | ✓ | · | ✓ | ✓ | · | · | ✓ | · |
 
 Read a `·` as *this front-end has no code that emits that kind* — not as *your repo
 has none*. A front-end that can emit `Endpoint` still emits none for a repo without

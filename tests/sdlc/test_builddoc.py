@@ -101,6 +101,7 @@ def _render(tmp_path: Path, spec: dict[str, Any] | None = None, **over: Any) -> 
         root=tmp_path,
         commit="abc1234",
         context_budget=200_000,
+        **over,
     )
 
 
@@ -241,6 +242,87 @@ def test_missing_call_graph_is_stated_not_implied_zero(tmp_path: Path) -> None:
         ),
     )
     assert "module-level impact only" in md
+
+
+# ---- section 5, fourth block: the evidence --------------------------------
+
+
+def _evidence(**over: Any) -> dict[str, Any]:
+    ev = {
+        "call_graph_available": True,
+        "symbols": 3,
+        "covered": ["kept"],
+        "uncovered": ["gap_a", "gap_b"],
+        "endpoints": [("fetch", "calls GET /v1/runs")],
+        "regression": ["tests.test_a"],
+        "docs": ["README.md"],
+        "history": ["abc1234 2026-08-01 did a thing"],
+    }
+    ev.update(over)
+    return ev
+
+
+def test_evidence_reports_coverage_endpoints_regression_history_and_docs(tmp_path: Path) -> None:
+    md = _render(tmp_path, evidence=_evidence())
+    assert "2 of 3 symbol(s) in the files this ticket changes are reached by no test" in md
+    assert "calls GET /v1/runs" in md
+    assert "`tests.test_a`" in md
+    assert "did a thing" in md
+    assert "`README.md`" in md
+
+
+def test_evidence_lands_inside_section_5(tmp_path: Path) -> None:
+    """05b is part of the blast radius, not a thirteenth section."""
+    md = _render(tmp_path, evidence=_evidence())
+    section5 = md.split("## 5. Blast radius", 1)[1].split("\n## ", 1)[0]
+    assert "**Evidence:**" in section5
+
+
+def test_evidence_comes_after_the_three_prose_blocks(tmp_path: Path) -> None:
+    md = _render(tmp_path, evidence=_evidence())
+    order = [md.index(m) for m in ("**Reading it:**", "**Containment:**", "**Caveat:**", "**Evidence:**")]
+    assert order == sorted(order)
+
+
+def test_missing_call_graph_makes_coverage_unknown_not_zero(tmp_path: Path) -> None:
+    md = _render(tmp_path, evidence=_evidence(call_graph_available=False, covered=[], uncovered=[]))
+    assert "unknown, not zero" in md
+
+
+def test_no_joined_endpoint_is_reported_as_silence(tmp_path: Path) -> None:
+    """An f-string path yields no edge; that is not the same as calling nothing."""
+    md = _render(tmp_path, evidence=_evidence(endpoints=[]))
+    assert "silence rather than absence" in md
+
+
+def test_repeated_symbol_names_are_shown_once(tmp_path: Path) -> None:
+    md = _render(tmp_path, evidence=_evidence(uncovered=["_go", "_go", "other"]))
+    assert md.count("`_go`") == 1
+    assert "3 of 4 symbol(s)" in md
+
+
+def test_backticks_in_a_commit_subject_do_not_break_the_list(tmp_path: Path) -> None:
+    md = _render(tmp_path, evidence=_evidence(history=["abc1234 2026-08-01 feat: `sdlc plan` ships"]))
+    assert "feat: sdlc plan ships" in md
+
+
+def test_evidence_is_absent_when_nothing_was_collected(tmp_path: Path) -> None:
+    assert "**Evidence:**" not in _render(tmp_path)
+
+
+def test_collect_evidence_reads_the_graph_for_the_changed_files(tmp_path: Path) -> None:
+    from orchestrator.pkg import FactStore
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+    from orchestrator.sdlc.builddoc import collect_evidence
+
+    (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    (tmp_path / "test_src.py").write_text(
+        "import src\n\n\ndef test_helper():\n    assert src.helper() == 1\n", encoding="utf-8"
+    )
+    store = FactStore(RepoCodeExtractor().extract(tmp_path))
+    ev = collect_evidence(store, files=["src.py"], root=tmp_path)
+    assert "test_src" in " ".join(ev["regression"])
+    assert ev["covered"] or ev["uncovered"]
 
 
 # ---- sections 7 and 10 -----------------------------------------------------
