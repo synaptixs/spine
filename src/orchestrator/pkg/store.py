@@ -114,6 +114,22 @@ class FactStore:
         ids = [e.src for e in self._edges if e.kind is EdgeKind.EXPOSES and e.dst == node_id]
         return [self._nodes[i] for i in ids if i in self._nodes]
 
+    def consumers_of(self, node_id: str) -> list[Node]:
+        """What calls this endpoint — the other half of :meth:`exposers_of`.
+
+        ``exposers_of`` said the dependents of ``GET /v1/runs`` were "its clients, outside
+        the repo entirely". For a repo that ships both halves — a CLI and the service it
+        talks to — they are not outside it, and the graph now knows: the client function
+        holding a literal path is joined to the endpoint it calls.
+        """
+        ids = [e.src for e in self._edges if e.kind is EdgeKind.CONSUMES and e.dst == node_id]
+        return [self._nodes[i] for i in ids if i in self._nodes]
+
+    def endpoints_called_by(self, node_id: str) -> list[Node]:
+        """The endpoints this symbol calls — the forward direction of ``CONSUMES``."""
+        ids = [e.dst for e in self._edges if e.kind is EdgeKind.CONSUMES and e.src == node_id]
+        return [self._nodes[i] for i in ids if i in self._nodes]
+
     def impact_of(self, node_id: str, *, max_depth: int = 4) -> list[tuple[Node, int]]:
         """Transitive blast radius — every symbol that (transitively) calls this
         one, in BFS order with its hop distance. The "what breaks if I change X?"
@@ -124,6 +140,10 @@ class FactStore:
         as ``CALLS``, which keeps the transitive property honest: an endpoint shows up
         in the blast radius of everything its handler calls, at the right hop distance,
         not only when you ask about the handler itself.
+
+        ``CONSUMES`` continues that walk one hop further, to the client. Changing a
+        handler reaches the endpoint it serves and then the code that calls it — which is
+        the whole point of the join, and useless if only the first hop is followed.
         """
         from collections import deque
 
@@ -134,7 +154,11 @@ class FactStore:
             nid, depth = queue.popleft()
             if depth >= max_depth:
                 continue
-            inbound = [site.caller for site in self.callers_of(nid)] + self.exposers_of(nid)
+            inbound = (
+                [site.caller for site in self.callers_of(nid)]
+                + self.exposers_of(nid)
+                + self.consumers_of(nid)
+            )
             for node in inbound:
                 if node.id not in seen:
                     seen.add(node.id)
@@ -151,6 +175,7 @@ class FactStore:
             EdgeKind.IMPORTS,
             EdgeKind.REFERENCES,
             EdgeKind.EXPOSES,
+            EdgeKind.CONSUMES,
         ),
         max_depth: int = 4,
     ) -> list[tuple[Node, int]]:
@@ -167,7 +192,9 @@ class FactStore:
         would rescan every edge each hop).
 
         ``EXPOSES`` is in the default set because leaving it out is what let a public
-        API change score as zero-impact. A caller that wants the old, code-only
+        API change score as zero-impact. ``CONSUMES`` is there for the same reason one
+        hop later: with EXPOSES alone the walk stops at the endpoint, and the client that
+        would actually break is still missing. A caller that wants the old, code-only
         reading passes ``kinds`` explicitly — ``sdlc/coverage.py`` already does.
         """
         from collections import deque

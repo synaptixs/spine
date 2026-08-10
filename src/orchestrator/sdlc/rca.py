@@ -131,7 +131,21 @@ def _deterministic_hypotheses(
                 confidence="medium",
             )
         )
-    if loc.fault is None:
+    if loc.fault is None and loc.stated_files:
+        # A ticket is not a traceback. It names a file and describes a symptom, and saying
+        # "nothing resolved" for that is wrong twice over: something *was* established (the
+        # file, by the ticket itself), and what is missing is only the line.
+        named = ", ".join(f"`{f}`" for f in loc.stated_files[:3])
+        them = "it" if len(loc.stated_files) == 1 else "them"
+        hyps.append(
+            Hypothesis(
+                claim=f"The fault is in {named} — named by the ticket, not localized to a line. "
+                "Read the file before assuming where.",
+                evidence=(f"The text names {named}, and the graph knows {them}.",),
+                confidence="medium",
+            )
+        )
+    elif loc.fault is None:
         hyps.append(
             Hypothesis(
                 claim="No trace frame resolved to a repo symbol — the fault may be in a dependency, "
@@ -218,7 +232,11 @@ async def build_rca(
     """Localize + ground a bug into an RCA report. Deterministic unless ``llm`` is given."""
     loc = localize_trace(problem, store=store)
     fault = loc.fault
-    fault_file = fault.where.split(":", 1)[0] if fault else ""
+    # A resolved frame first; failing that, a file the text itself named. The second is
+    # weaker — a module, not a line — but it is what turns "nothing resolved" into a
+    # regression surface and a recently-changed check for the majority of bug tickets,
+    # which arrive as prose and not as tracebacks.
+    fault_file = fault.where.split(":", 1)[0] if fault else (loc.stated_files[0] if loc.stated_files else "")
     changed = _recently_changed_files(root)
     recently_changed = bool(
         fault_file and any(c == fault_file or c.endswith("/" + fault_file) for c in changed)
@@ -228,10 +246,15 @@ async def build_rca(
         problem=problem.strip(),
         exception=loc.exception,
         fault_site=f"{fault.func} at {fault.where}" if fault else "",
-        fault_module=fault.module if fault else "",
+        fault_module=fault.module if fault else fault_file,
         callers=loc.callers,
         hypotheses=_deterministic_hypotheses(
-            loc, recently_changed=recently_changed, fault_module=fault.module if fault else ""
+            # The resolved module, not the frame's: with only a stated file the report still
+            # says "changed recently", and a banner whose hypothesis is missing from the
+            # ranked list below it reads as a bug in the report.
+            loc,
+            recently_changed=recently_changed,
+            fault_module=fault.module if fault else fault_file,
         ),
         regression_surface=_regression_surface(store, fault_file) if fault_file else [],
         recently_changed=recently_changed,

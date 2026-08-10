@@ -20,6 +20,8 @@ tests, get them green, open a PR — with **two human gates** (before building, 
 |---|---|---|
 | Intake — Confluence / Notion / Markdown → specs → backlog | ✅ | `orchestrator ingest --source <uri>`, `orchestrator backlog` |
 | Spec-driven intake — [OpenSpec](https://openspec.dev) changes → deterministic intents (no LLM guessing); write-back drafts OpenSpec from a wiki for review | ✅ | `--source openspec://<change-id>`, `orchestrator openspec draft --source <uri>` |
+| **Plan before code** — one reviewable build document per ticket, assembled from the graph, git and the tests; no model call, nothing spent | ✅ | `orchestrator sdlc plan --spec ./TCK-1.json` |
+| Approve a plan, and refuse to build without one — bound to a digest of what was read, so a plan that changed since reads as stale | ✅ | `orchestrator sdlc approve TCK-1`, `sdlc autorun --no-plan-gate` to skip |
 | Single feature build (local & safe by default) | ✅ | `orchestrator sdlc feature --source file://./spec.md --safe` |
 | Full orchestrated run (backlog → many features) | ✅ | `orchestrator sdlc run --source <uri>` |
 | Open / complete a PR (live) | ✅ | `orchestrator sdlc feature … --live`, `orchestrator sdlc complete` |

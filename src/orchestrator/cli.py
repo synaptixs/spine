@@ -831,6 +831,68 @@ def _terminal_gate() -> Any:
     return gate
 
 
+@sdlc_app.command("approve")
+def sdlc_approve(
+    intent: Annotated[str, typer.Argument(help="Intent id whose plan you are deciding, e.g. SSPN-49.")],
+    path: Annotated[str, typer.Option("--path", help="Repo the plan was written for.")] = ".",
+    by: Annotated[
+        str | None, typer.Option("--by", help="Who is deciding (default: git config user.name).")
+    ] = None,
+    note: Annotated[str, typer.Option("--note", help="Why — recorded with the decision.")] = "",
+    reject: Annotated[
+        bool, typer.Option("--reject", help="Record a rejection instead of an approval.")
+    ] = False,
+    out: Annotated[
+        Path | None, typer.Option("--out", help="Where the plan lives (default: <repo>/.spine/plans).")
+    ] = None,
+) -> None:
+    """Record that a human read this build document and decided.
+
+    The decision is bound to the document body it was made against, so a plan that changes
+    afterwards is *stale* rather than silently still approved. `sdlc autorun` refuses to
+    build without a current approval.
+    """
+    import datetime as _dt
+
+    from orchestrator.sdlc.builddoc import (
+        PlanApproval,
+        decided_by_default,
+        derived_at,
+        plan_digest,
+        plan_dir,
+        save_approval,
+    )
+
+    plan_file = (Path(out) if out else plan_dir(path)) / f"{intent}-build.md"
+    if not plan_file.is_file():
+        typer.echo(
+            f"No plan at {plan_file}. Produce one first: orchestrator sdlc plan --spec <file>",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    who = by or decided_by_default(path)
+    if not who:
+        typer.echo("Cannot tell who is approving — set git config user.name or pass --by.", err=True)
+        raise typer.Exit(code=2)
+
+    document = plan_file.read_text(encoding="utf-8")
+    approval = PlanApproval(
+        intent_id=intent,
+        decision="REJECTED" if reject else "APPROVED",
+        decided_by=who,
+        # The date the human decided, not a derivation input — the document itself stays
+        # deterministic because this lives beside it rather than inside it.
+        decided_at=_dt.date.today().isoformat(),
+        digest=plan_digest(document),
+        commit=derived_at(path),
+        note=note,
+    )
+    written = save_approval(approval, root=path, out=out)
+    typer.echo(f"[plan] {approval.decision.lower()} by {who} — {written}")
+    typer.echo("[plan] re-run `orchestrator sdlc plan` to see the status on the document itself.")
+
+
 @sdlc_app.command("autorun")
 def sdlc_autorun(
     source: Annotated[
@@ -887,6 +949,13 @@ def sdlc_autorun(
             help="Implement a hand-written spec (JSON) instead of deriving one from the source.",
         ),
     ] = None,
+    plan_gate: Annotated[
+        bool,
+        typer.Option(
+            "--plan-gate/--no-plan-gate",
+            help="Refuse to build unless a human approved this ticket's build document.",
+        ),
+    ] = True,
 ) -> None:
     """Drive ONE ticket through the whole happy path: research → design → code → tests → PR.
 
@@ -927,12 +996,107 @@ def sdlc_autorun(
                 resume=resume,
                 max_cost_usd=max_cost,
                 spec=injected,
+                plan_gate=plan_gate,
                 log=typer.echo,
             )
         except AutorunError as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(code=exc.code) from exc
         typer.echo("\n" + render_summary(ctx))
+
+    asyncio.run(_go())
+
+
+@sdlc_app.command("plan")
+def sdlc_plan(
+    spec: Annotated[
+        Path | None,
+        typer.Option("--spec", help="A hand-written spec (JSON). Skips intake entirely."),
+    ] = None,
+    source: Annotated[
+        str | None,
+        typer.Option("--source", help="Derive the spec instead, e.g. jira://<issue-key>."),
+    ] = None,
+    intent: Annotated[
+        str | None, typer.Option("--intent", help="Intent id to plan (default: the first).")
+    ] = None,
+    path: Annotated[str, typer.Option("--path", help="Repo to reason about (the graph).")] = ".",
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", help="Where the document goes (default: <repo>/.spine/plans)."),
+    ] = None,
+    language: Annotated[str, typer.Option("--language", help="Target language for the prompt.")] = "python",
+    quiet: Annotated[bool, typer.Option("--quiet", help="Write the document without printing it.")] = False,
+) -> None:
+    """Produce the build document for ONE ticket and stop. No worktree, no code, no spend.
+
+    Runs intake → investigate → validity → design, renders the twelve sections of
+    docs/specs/build-document.md, and persists it to `.spine/plans/<INTENT>-build.md`.
+    With `--spec` there is no LLM anywhere in this path: same commit in, same document out.
+
+    This is the gate that comes *before* code exists. `--review` still gates the diff.
+    """
+    import asyncio
+
+    from orchestrator.sdlc.builddoc import build_plan, load_approval, load_journey, persist
+    from orchestrator.sdlc.spec_file import SpecFileError, load_spec_file
+
+    if not spec and not source:
+        typer.echo("Give --spec <file.json> or --source <uri>.", err=True)
+        raise typer.Exit(code=2)
+
+    try:
+        injected = load_spec_file(spec) if spec else None
+    except SpecFileError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+
+    async def _go() -> None:
+        resolved = injected
+        if resolved is None:
+            from orchestrator.core.env import load_local_env
+            from orchestrator.intake.cache import analyze_cached
+            from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
+
+            load_local_env()
+            try:
+                service = build_service_for(str(source), dry_run=True)
+            except IntakeNotConfiguredError as exc:
+                typer.echo(str(exc), err=True)
+                raise typer.Exit(code=2) from exc
+            plan_result = await analyze_cached(service, str(source), refresh=False, log=lambda _m: None)
+            if not plan_result.specs:
+                typer.echo("No specs derived from the source — nothing to plan.", err=True)
+                raise typer.Exit(code=3)
+            chosen = (
+                next((s for s in plan_result.specs if s.intent_id == intent), None)
+                if intent
+                else plan_result.specs[0]
+            )
+            if chosen is None:
+                ids = ", ".join(s.intent_id for s in plan_result.specs)
+                typer.echo(f"Intent {intent!r} not found. Available: {ids}", err=True)
+                raise typer.Exit(code=3)
+            resolved = chosen.model_dump()
+
+        intent_key = str(resolved.get("intent_id") or "spec")
+        document = await build_plan(
+            resolved,
+            root=path,
+            language=language,
+            # Rendered, never stored in the document: a plan that changed since it was
+            # approved shows as stale rather than carrying an approval it outgrew.
+            approval=load_approval(intent_key, root=path, out=out),
+            # What every run of this ticket did, appended beneath the plan. Regenerating
+            # is what refreshes the view; the entries themselves are never rewritten.
+            journey=load_journey(intent_key, root=path, out=out),
+        )
+        written, superseded = persist(document, intent_id=intent_key, root=path, out=out)
+        if not quiet:
+            typer.echo(document)
+        typer.echo(f"[plan] {written}", err=True)
+        if superseded is not None:
+            typer.echo(f"[plan] superseded document kept at {superseded}", err=True)
 
     asyncio.run(_go())
 

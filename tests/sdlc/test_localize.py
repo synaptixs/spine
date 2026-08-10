@@ -81,3 +81,41 @@ def test_greenfield_is_honest() -> None:
     loc = localize_trace(_TRACEBACK, store=FactStore(FactBatch()))
     assert loc.grounded is False and loc.fault is None
     assert all(not f.resolved for f in loc.frames)
+
+
+# ---- a ticket is not a traceback ------------------------------------------
+
+_TICKET = (
+    "Commands crash with a raw traceback when the API is down. `orchestrator template list` "
+    "ends in `ConnectError: [Errno 61] Connection refused` and exits 1. `authenticate()` in "
+    "auth.py has six call sites. See README.md for the intended behaviour."
+)
+
+
+def test_an_exception_named_in_prose_is_read() -> None:
+    """A bug ticket describes the error in a sentence; the anchored form never matches it."""
+    loc = localize_trace(_TICKET, store=FactStore(_graph()))
+    assert loc.exception == "ConnectError: [Errno 61] Connection refused"
+
+
+def test_a_real_traceback_still_wins_over_prose() -> None:
+    loc = localize_trace(_TRACEBACK + "\n" + _TICKET, store=FactStore(_graph()))
+    assert loc.exception == "ValueError: empty token"
+
+
+def test_files_the_text_names_are_resolved_against_the_graph() -> None:
+    loc = localize_trace(_TICKET, store=FactStore(_graph()))
+    assert loc.stated_files == ["auth.py"]  # README.md is not in the graph
+
+
+def test_a_stated_file_is_not_a_fault_site() -> None:
+    """The ticket establishes the file. The line is still unknown, and saying otherwise lies."""
+    loc = localize_trace(_TICKET, store=FactStore(_graph()))
+    assert loc.fault is None
+    assert "at a line nobody has stated" in render_localization_md(loc)
+
+
+def test_prose_without_a_colon_is_not_an_exception() -> None:
+    """'this Error handling is poor' is a complaint, not a failure."""
+    loc = localize_trace("The Error handling here is poor and should be improved.", store=FactStore(_graph()))
+    assert loc.exception == ""
