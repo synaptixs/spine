@@ -455,6 +455,68 @@ made and read the diff.
 
 ---
 
+## Step 3.4 — Read the plan before anything is built
+
+A run's first output used to be a pull request or a traceback, and both arrive after the
+money is spent. `sdlc plan` puts a **build document** in front of you first — assembled
+from the ticket, the graph, git and your repo's own tests, and costing nothing.
+
+```bash
+orchestrator sdlc plan --spec ./SSPN-49.json --path .
+```
+
+With `--spec` there is **no model call anywhere** in this path, so the same commit and the
+same spec produce the same document every time. It lands at
+`.spine/plans/<INTENT>-build.md`; re-running overwrites it and keeps what it replaced under
+`history/`, keyed by the commit it was derived at.
+
+Twelve sections, always the same, in the same order. What they are for:
+
+| | |
+|---|---|
+| **1–2** | the requirement as filed, and what should happen instead |
+| **3** | root cause — the exception, the fault site, ranked hypotheses. Omitted entirely when there is nothing to localize, rather than padded |
+| **4** | what the graph knows, ending with a verdict on whether the investigation brief can be trusted for *this* ticket |
+| **5** | blast radius — a diagram, then what imports it, what it is contained by, what the counts do not know, and the evidence: coverage today, endpoints crossed, the tests to run, recent history, docs affected |
+| **6–7** | the design, and the files it names with their sizes |
+| **8** | acceptance criteria in **three states**: stated, *stated but already met by code that exists*, and proposed |
+| **9–10** | what the generator needs, and exactly what the codegen prompt will carry — in bytes and percent of the window |
+| **11–12** | what it costs, and two confidence numbers that are never conflated |
+
+**Every section says where it came from** — quoted from the ticket, computed from the
+graph, inferred by a model, or decided by a person. A document that mixes a quoted
+requirement with an inference and does not say which is which lends the authority of the
+first to the second.
+
+**Section 8 is the one that pays for itself.** On the ticket this was built for, one of six
+criteria described behaviour the code already had. A run would have reported it met having
+changed nothing. To mark one, add `met_criteria` to your spec JSON — the criterion's exact
+text mapped to the evidence:
+
+```json
+"met_criteria": {
+  "Any other non-success HTTP status surfaces the status code…":
+    "src/orchestrator/cli.py:134 — _check() already does this"
+}
+```
+
+It stays on the page, marked, rather than quietly disappearing from the list.
+
+### Approve it, and only then build
+
+```bash
+orchestrator sdlc approve SSPN-49 --note "checked the criteria reconciliation"
+```
+
+The decision records who, when, why, and a **digest of what you read**. `sdlc autorun`
+re-derives the plan and compares: same tree, same digest, and your approval stands. Change
+the code underneath it and the run refuses, because an approval that survives the code
+moving approves a document nobody has read.
+
+The gate is on by default. `--no-plan-gate` skips it, and says out loud that it did.
+
+---
+
 ## Step 3.5 — What stops a bad change from shipping
 
 A model writes the code **and** the tests that judge it, so "the tests pass" only
@@ -464,6 +526,10 @@ checks that don't take the model's word for it. You'll see each as a bracketed l
 ```bash
 orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --safe --max-cost 10
 ```
+
+**Before the run starts at all — `[plan]`.** Unless you passed `--no-plan-gate`, the run
+refuses without an approved build document for this ticket (Step 3.4). It parks rather
+than fails: the ticket is fine, the review has not happened.
 
 **Before any code is written — `[validity]`.** The ticket is checked against the
 graph. A criterion asserting *"11 Entity nodes on this repo"* when the source has 7
@@ -501,9 +567,12 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --safe --revie
 `--review` prints the full diff and asks, once, after every check above and before
 the first write. Declining commits nothing and pushes nothing.
 
-Everything above is a model or a heuristic. `--review` is the only gate that is a
-person, and it's the one worth using the first few times you point Spine at a repo
-you care about — and on your first `--live` run.
+Everything between `[validity]` and `[judge]` is a model or a heuristic. **Two gates are
+a person, and they catch different failures.** The plan gate (Step 3.4) asks whether the
+work is the right work, before a line is written or a cent is spent. `--review` asks
+whether the diff is the right diff, after everything above has run. Neither replaces the
+other, and both are worth using the first few times you point Spine at a repo you care
+about — and on your first `--live` run.
 
 It **fails closed**: with no terminal to ask on, it declines rather than assuming
 yes. Pass it from an interactive shell, not from cron or a background job.

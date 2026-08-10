@@ -702,8 +702,24 @@ validity → design, renders the twelve sections of
 is not touched — the ticket moves when work begins, not when someone thinks about it.
 
 This is the gate *before* code exists; `--review` on `autorun` still gates the diff
-after. Every section carries where it came from — quoted, computed, inferred or
-human — and the four it cannot yet establish say so instead of vanishing.
+after. Every section carries where it came from — quoted, computed, inferred or human —
+and a section it cannot establish says so instead of vanishing.
+
+What each section is made of:
+
+| # | Section | From |
+|---|---|---|
+| 1–2 | Requirement, Intent | the ticket, quoted; the spec writer |
+| 3 | Root cause | `sdlc/rca.py` — the exception, the fault site, ranked hypotheses. **Omitted** when nothing localizes |
+| 4 | PKG | `FactStore`, ending with a verdict on whether the investigation brief is trustworthy for this ticket |
+| 5 | Blast radius | `sdlc/impact.py` — a diagram, then *Reading it* / *Containment* / *Caveat* / *Evidence* (coverage today, endpoints crossed, regression surface, recent history, docs affected) |
+| 6–7 | Design, Files | `sdlc/design.py` and the paths the spec states |
+| 8 | Acceptance criteria | the spec, in three states — see below |
+| 9 | Facts the generator needs | not established; no phase owns it yet |
+| 10 | Codegen prompt | the system prompt, the payload manifest, and the context budget in bytes and percent |
+| 11 | Token usage & cost | measured from this ticket's own runs where there are any, estimated from the installed catalog where there are not |
+| 12 | Confidence | two bands with their basis — *is the analysis right* (five checks) and *will a run complete* (the base rate from the journey) |
+| — | Journey | appended by each run, below the twelve. See `sdlc autorun` |
 
 With `--spec` there is no LLM anywhere in this path: the same commit and the same
 spec produce a byte-identical document, which is what makes the kept history
@@ -724,11 +740,16 @@ orchestrator sdlc plan --spec ./SSPN-49.json --path .
 | `--language` | Target language named in the codegen-prompt section. (default: `python`) |
 | `--quiet` | Write the document without printing it. |
 
-The spec accepts one field beyond `sdlc autorun --spec`: `met_criteria`, a map from
-a stated criterion's exact text to the evidence that it is *already* satisfied
-(`"src/orchestrator/cli.py:134 — _check() already handles this"`). Those criteria
-stay on the page, marked, rather than being quietly dropped — a run that reports
-them met having changed nothing is the failure the document exists to catch.
+**Section 8 takes one extra spec field.** `met_criteria` maps a stated criterion's exact
+text to the evidence that it is *already* satisfied
+(`"src/orchestrator/cli.py:134 — _check() already handles this"`). Those criteria stay on
+the page, marked, rather than being quietly dropped — a run that reports them met having
+changed nothing is the failure the document exists to catch. A key matching no criterion
+is reported as a mismatch, not silently ignored.
+
+**Nothing here is a model call** when `--spec` is used. That is what makes the digest in
+`sdlc approve` meaningful, and it is why section 12 is a band with its basis rather than a
+score: a model-written number would move on every render and stale every approval.
 
 ### `orchestrator sdlc approve`
 
@@ -762,6 +783,19 @@ spec, and each result recorded.
 Default `--safe` makes no external write anywhere in the chain: a local branch and
 commit, dry-run tracker, no push. `--live` creates or adopts the issue, pushes the
 branch, and opens a PR.
+
+**It refuses to start without an approved build document** for the ticket (`sdlc plan`,
+then `sdlc approve`). The plan is re-derived and re-digested, so an approval whose document
+no longer matches the code refuses too. `--no-plan-gate` skips the check and says so.
+
+**Each stage appends to the ticket's journey** — `.spine/plans/<INTENT>-journey.jsonl`,
+rendered beneath the twelve sections the next time `sdlc plan` runs. Append-only: no stage
+rewrites an earlier one, and when implement touches files the design did not name, that
+disagreement is recorded rather than smoothed over. The run outcome carries the tokens and
+the actual spend, which is what section 11's estimate is eventually judged against.
+
+`--source` is required even when `--spec` supplies the spec; with `--spec` it is only the
+URI the run is filed against, and intake never reads it.
 
 ```
 orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --safe --max-cost 10
