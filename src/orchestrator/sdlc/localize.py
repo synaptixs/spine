@@ -28,6 +28,14 @@ _PYTEST_FRAME_RE = re.compile(r"(?P<file>[^\s:][^:]*\.[A-Za-z0-9_]+):(?P<line>\d
 _EXC_RE = re.compile(
     r"^(?:E\s+)?(?P<exc>[A-Za-z_][\w.]*(?:Error|Exception|Warning|Exit|Interrupt|Iteration|Timeout|Failure)\b.*)$"
 )
+# The same exception, named *inside* a sentence — how a ticket reports one. The colon is
+# required so "this Error handling is poor" does not read as a failure, and the message
+# stops at a backtick because a ticket routinely quotes the error in code marks.
+_INLINE_EXC_RE = re.compile(
+    r"\b(?P<cls>[A-Za-z_][\w.]*(?:Error|Exception|Timeout|Failure))\s*:\s*(?P<msg>[^\n`]{0,120})"
+)
+# A source path named in prose: `_client()` in src/orchestrator/cli.py has six call sites.
+_PATH_RE = re.compile(r"(?<![\w/])(?P<path>[\w][\w./-]*\.[A-Za-z][A-Za-z0-9+#]{0,3})\b")
 
 
 @dataclass(frozen=True)
@@ -53,6 +61,11 @@ class Localization:
     fault: Frame | None = None  # innermost in-repo frame — the best fault-site candidate
     callers: list[str] = field(default_factory=list)  # who calls the fault symbol ("id @ file:line")
     grounded: bool = False
+    # Repo files the *text* names that exist in the graph, in order of appearance. A ticket
+    # is not a traceback: it says "`_client()` in src/orchestrator/cli.py has six call sites"
+    # and carries no frames at all. That path is stated, not inferred — the weakest useful
+    # form of localization, and the only one most bug tickets support.
+    stated_files: list[str] = field(default_factory=list)
 
 
 def _basename(path: str) -> str:
@@ -71,7 +84,38 @@ def _extract_frames(text: str) -> tuple[list[tuple[str, int, str]], str]:
         em = _EXC_RE.match(raw)
         if em:
             exception = em.group("exc").strip()  # keep the last one (innermost)
+    if not exception:
+        # No traceback — read the exception out of prose. Only reached when the anchored
+        # form found nothing, so a real trace still wins.
+        im = _INLINE_EXC_RE.search(text)
+        if im:
+            exception = f"{im.group('cls')}: {im.group('msg')}".strip().rstrip(".,;")
     return frames, exception
+
+
+def _stated_files(text: str, store: FactStore) -> list[str]:
+    """Source paths named in ``text`` that the graph actually knows, deduped, in order.
+
+    Filtered against the graph on purpose: a ticket mentions ``README.md`` and
+    ``package.json`` too, and a "fault module" the extractor has never seen is a path
+    with nothing behind it.
+    """
+    known: dict[str, str] = {}
+    for node in store.nodes:
+        prov = node.provenance
+        if prov is None or not prov.file:
+            continue
+        pf = prov.file.replace("\\", "/")
+        known.setdefault(pf, pf)
+        known.setdefault(_basename(pf), pf)
+
+    out: list[str] = []
+    for match in _PATH_RE.finditer(text):
+        raw = match.group("path").replace("\\", "/")
+        resolved = known.get(raw) or known.get(_basename(raw))
+        if resolved and resolved not in out:
+            out.append(resolved)
+    return out
 
 
 def _owning_module(store: FactStore, node_id: str, parents: dict[str, str]) -> str:
@@ -151,6 +195,7 @@ def localize_trace(text: str, *, store: FactStore) -> Localization:
         fault=fault,
         callers=callers,
         grounded=store.summary().get("grounded_nodes", 0) > 0,
+        stated_files=_stated_files(text, store),
     )
 
 
@@ -187,6 +232,12 @@ def render_localization_md(loc: Localization) -> str:
                 out.append(f"- …and {len(loc.callers) - 15} more")
         else:
             out.append("\n_No in-repo callers — likely an entry point or only externally invoked._")
+    elif loc.stated_files:
+        out.append(
+            "_No frame resolved, but the text names these repo files — the fault is somewhere "
+            "in them, at a line nobody has stated:_\n"
+        )
+        out.extend(f"- `{f}`" for f in loc.stated_files[:10])
     else:
         out.append(
             "_No trace frame resolved to a repo symbol — the fault may be in a dependency, "

@@ -9,18 +9,18 @@
 
 ## Changing this safely
 
-**Tested by** (3): `tests.evals.test_agent_corpus`, `tests.sdlc.test_validity`, `tests.sdlc.test_validity_invariants`
+**Tested by** (4): `tests.evals.test_agent_corpus`, `tests.sdlc.test_builddoc`, `tests.sdlc.test_validity`, `tests.sdlc.test_validity_invariants`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`Finding`](../../src/orchestrator/sdlc/validity.py#L83) — reaches **11** symbols
-- [`_criteria_text`](../../src/orchestrator/sdlc/validity.py#L112) — reaches **9** symbols
-- [`Assessment`](../../src/orchestrator/sdlc/validity.py#L92) — reaches **6** symbols
-- [`_all_criteria_text`](../../src/orchestrator/sdlc/validity.py#L116) — reaches **6** symbols
-- [`_check_context_budget`](../../src/orchestrator/sdlc/validity.py#L354) — reaches **6** symbols
-- [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L140) — reaches **6** symbols
-- [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L251) — reaches **6** symbols
-- [`_check_localization`](../../src/orchestrator/sdlc/validity.py#L288) — reaches **6** symbols
+- [`Finding`](../../src/orchestrator/sdlc/validity.py#L83) — reaches **14** symbols
+- [`_criteria_text`](../../src/orchestrator/sdlc/validity.py#L112) — reaches **12** symbols
+- [`Assessment`](../../src/orchestrator/sdlc/validity.py#L92) — reaches **10** symbols
+- [`_check_context_budget`](../../src/orchestrator/sdlc/validity.py#L354) — reaches **10** symbols
+- [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L140) — reaches **10** symbols
+- [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L251) — reaches **10** symbols
+- [`_check_localization`](../../src/orchestrator/sdlc/validity.py#L288) — reaches **10** symbols
+- [`_check_prior_runs`](../../src/orchestrator/sdlc/validity.py#L393) — reaches **10** symbols
 
 ## Types
 
@@ -133,7 +133,7 @@
 
 [`src/orchestrator/sdlc/validity.py:418`](../../src/orchestrator/sdlc/validity.py#L418)
 
-- **Called by** (2 production · 35 test): [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L492), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`test_a_bug_that_lands_nowhere_is_refused`](../../tests/sdlc/test_validity.py#L94), [`test_a_bug_that_lands_somewhere_proceeds`](../../tests/sdlc/test_validity.py#L102), [`test_a_failed_previous_run_does_not_block_a_retry`](../../tests/sdlc/test_validity.py#L165), [`test_a_met_at_least_target_proceeds`](../../tests/sdlc/test_validity.py#L69), [`test_a_nondeterminism_word_alone_still_proceeds`](../../tests/sdlc/test_validity_invariants.py#L78), [`test_a_number_that_is_a_target_not_a_claim_proceeds`](../../tests/sdlc/test_validity.py#L88), [`test_a_prior_run_that_opened_no_pr_does_not_block_a_retry`](../../tests/sdlc/test_validity.py#L149), [`test_a_spec_far_over_the_budget_is_refused`](../../tests/sdlc/test_validity_invariants.py#L230), [`test_a_spec_inside_the_budget_says_nothing`](../../tests/sdlc/test_validity_invariants.py#L255), [`test_a_spec_just_over_the_budget_warns_but_proceeds`](../../tests/sdlc/test_validity_invariants.py#L242), [`test_a_story_that_lands_nowhere_still_proceeds`](../../tests/sdlc/test_validity.py#L112), [`test_a_ticket_a_previous_run_completed_is_a_duplicate`](../../tests/sdlc/test_validity.py#L134), [`test_a_ticket_landing_in_too_many_modules_is_refused`](../../tests/sdlc/test_validity.py#L129), [`test_a_ticket_with_too_many_criteria_is_refused`](../../tests/sdlc/test_validity.py#L122), [`test_an_empty_ticket_proceeds`](../../tests/sdlc/test_validity.py#L192), [`test_an_unmet_at_least_target_is_refused`](../../tests/sdlc/test_validity.py#L79), [`test_an_unreadable_file_does_not_block_a_run`](../../tests/sdlc/test_validity_invariants.py#L274), [`test_check_makes_no_network_call`](../../tests/sdlc/test_validity_invariants.py#L172), [`test_clean_spec_still_proceeds_with_no_findings`](../../tests/sdlc/test_validity_invariants.py#L158), [`test_deterministic_surfaces_reject_clock_and_randomness`](../../tests/sdlc/test_validity_invariants.py#L106), [`test_finding_evidence_names_the_invariant_it_breaks`](../../tests/sdlc/test_validity_invariants.py#L86), [`test_generated_at_criterion_is_refused_as_criteria_wrong`](../../tests/sdlc/test_validity_invariants.py#L48), [`test_invariant_check_runs_before_the_size_gate`](../../tests/sdlc/test_validity_invariants.py#L205), +12 more
+- **Called by** (3 production · 35 test): [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L586), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1073), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`test_a_bug_that_lands_nowhere_is_refused`](../../tests/sdlc/test_validity.py#L94), [`test_a_bug_that_lands_somewhere_proceeds`](../../tests/sdlc/test_validity.py#L102), [`test_a_failed_previous_run_does_not_block_a_retry`](../../tests/sdlc/test_validity.py#L165), [`test_a_met_at_least_target_proceeds`](../../tests/sdlc/test_validity.py#L69), [`test_a_nondeterminism_word_alone_still_proceeds`](../../tests/sdlc/test_validity_invariants.py#L78), [`test_a_number_that_is_a_target_not_a_claim_proceeds`](../../tests/sdlc/test_validity.py#L88), [`test_a_prior_run_that_opened_no_pr_does_not_block_a_retry`](../../tests/sdlc/test_validity.py#L149), [`test_a_spec_far_over_the_budget_is_refused`](../../tests/sdlc/test_validity_invariants.py#L230), [`test_a_spec_inside_the_budget_says_nothing`](../../tests/sdlc/test_validity_invariants.py#L255), [`test_a_spec_just_over_the_budget_warns_but_proceeds`](../../tests/sdlc/test_validity_invariants.py#L242), [`test_a_story_that_lands_nowhere_still_proceeds`](../../tests/sdlc/test_validity.py#L112), [`test_a_ticket_a_previous_run_completed_is_a_duplicate`](../../tests/sdlc/test_validity.py#L134), [`test_a_ticket_landing_in_too_many_modules_is_refused`](../../tests/sdlc/test_validity.py#L129), [`test_a_ticket_with_too_many_criteria_is_refused`](../../tests/sdlc/test_validity.py#L122), [`test_an_empty_ticket_proceeds`](../../tests/sdlc/test_validity.py#L192), [`test_an_unmet_at_least_target_is_refused`](../../tests/sdlc/test_validity.py#L79), [`test_an_unreadable_file_does_not_block_a_run`](../../tests/sdlc/test_validity_invariants.py#L274), [`test_check_makes_no_network_call`](../../tests/sdlc/test_validity_invariants.py#L172), [`test_clean_spec_still_proceeds_with_no_findings`](../../tests/sdlc/test_validity_invariants.py#L158), [`test_deterministic_surfaces_reject_clock_and_randomness`](../../tests/sdlc/test_validity_invariants.py#L106), [`test_finding_evidence_names_the_invariant_it_breaks`](../../tests/sdlc/test_validity_invariants.py#L86), [`test_generated_at_criterion_is_refused_as_criteria_wrong`](../../tests/sdlc/test_validity_invariants.py#L48), +13 more
 - **Calls** (8): [`Assessment`](../../src/orchestrator/sdlc/validity.py#L92), [`_check_context_budget`](../../src/orchestrator/sdlc/validity.py#L354), [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L140), [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L251), [`_check_localization`](../../src/orchestrator/sdlc/validity.py#L288), [`_check_prior_runs`](../../src/orchestrator/sdlc/validity.py#L393), [`_check_size`](../../src/orchestrator/sdlc/validity.py#L304), `pathlib.Path`
 - **Documented in**: `CHANGELOG.md`
 
@@ -143,4 +143,4 @@
 
 ## Imported by
 
-[`orchestrator.evals.agent_corpus`](../../src/orchestrator/evals/agent_corpus.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`tests.evals.test_agent_corpus`](../../tests/evals/test_agent_corpus.py#L1), [`tests.sdlc.test_validity`](../../tests/sdlc/test_validity.py#L1), [`tests.sdlc.test_validity_invariants`](../../tests/sdlc/test_validity_invariants.py#L1)
+[`orchestrator.evals.agent_corpus`](../../src/orchestrator/evals/agent_corpus.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`tests.evals.test_agent_corpus`](../../tests/evals/test_agent_corpus.py#L1), [`tests.sdlc.test_builddoc`](../../tests/sdlc/test_builddoc.py#L1), [`tests.sdlc.test_validity`](../../tests/sdlc/test_validity.py#L1), [`tests.sdlc.test_validity_invariants`](../../tests/sdlc/test_validity_invariants.py#L1)

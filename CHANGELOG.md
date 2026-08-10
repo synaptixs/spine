@@ -1,5 +1,119 @@
 # Changelog
 
+All notable changes to this project are documented here. Format loosely follows
+[Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
+(import/CLI stay `orchestrator`).
+
+## 3.16.0 — Nothing gets built that nobody read
+
+### Added
+
+- **Plan before code: `orchestrator sdlc plan` renders a build document, and
+  `sdlc approve` gates on it.** Six live runs on one ticket produced usable source most
+  times and completed zero times, at roughly $4.75 — and every failure was a decision made
+  silently: a design naming the wrong files, a prompt rule forbidding the shape the spec
+  asked for, and two acceptance criteria describing behaviour the code already had. All
+  three were visible in a document that costs nothing to produce. One ticket now yields
+  twelve fixed sections — requirement, intent, root cause, what the graph knows, blast
+  radius, design, files, criteria, facts for the generator, the codegen prompt, cost and
+  confidence — assembled from the ticket, the graph, git and the repo's own tests. **Every
+  section carries where it came from**: quoted, computed, inferred, or decided by a person.
+  A document that mixes a quoted requirement with an inference and does not say which is
+  which lends the authority of the first to the second. See
+  [`docs/specs/build-document.md`](docs/specs/build-document.md).
+
+- **Acceptance criteria have three states, not one.** Stated, *stated but already met by
+  code that exists*, and proposed. The ticket this was built for filed six criteria of
+  which two described behaviour `_check()` already had; a run would have reported them met
+  having changed nothing. `FeatureSpec.met_criteria` maps a criterion's exact text to the
+  evidence that satisfies it, and the criterion stays on the page marked rather than
+  quietly disappearing from the list. A key matching no criterion is reported as a
+  mismatch rather than silently ignored.
+
+- **`CONSUMES` — the client half of the route join.** `EXPOSES` gave a route its handler
+  and nothing pointed *at* an endpoint, so a public route was a leaf: something the server
+  declared that nothing in the repo appeared to want. That is why a ticket about "the
+  registry API" retrieved the server modules and never reached the CLI that calls them.
+  Python source now yields `CONSUMES` edges from a caller to the endpoint it calls, and
+  `impact_of` follows them, so changing a handler reaches the code that would break.
+  Literal paths only — a request built from an f-string yields nothing, because a wrong
+  edge is worse than an absent one.
+
+- **A plan is approved against a digest of what was read.** `sdlc approve` records who,
+  when, why, and the commit it was derived at. `sdlc autorun` re-derives the plan and
+  compares: same tree, same digest, approval stands; anything else refuses, because an
+  approval that survives the code moving underneath it approves a document nobody has
+  read. The gate is on by default (`--no-plan-gate` to skip, and it says so out loud), and
+  a refusal parks rather than fails — the ticket is fine, the review has not happened.
+
+- **The journey: each run appends, no run rewrites.** Stage results, the run outcome with
+  measured tokens and spend, and — the reason it earns its place — the disagreement between
+  what implement touched and what the design named, in both directions. Append-only by
+  construction: there is no update and no delete, because a later stage that could tidy an
+  earlier one away removes exactly the evidence worth keeping.
+
+### Changed
+
+- **A bug ticket is not a traceback.** Fault localization read anchored exception lines and
+  `File "x.py", line N` frames, so a ticket carrying `ConnectError: [Errno 61] Connection
+  refused` in plain prose localized to nothing at all. An exception named anywhere in the
+  text is now read — still requiring the `SomeError: …` colon form, so "this Error handling
+  is poor" stays a complaint — and source paths the text names are resolved against the
+  graph. A stated file is a *module*, never a fault site, and the two are never presented
+  as each other. `orchestrator rca` and `orchestrator localize` were blind the same way and
+  both improve.
+
+- **`pkg extract` counts edges by kind.** One total cannot show a kind that stopped being
+  emitted: `edges: 31073` reads identically whether the call graph resolved or collapsed to
+  zero while imports doubled. `FactStore.summary()` now carries an `edges_<kind>` count for
+  every kind, printed under the scan line and included in `--json`. Kinds with no edges
+  report `0` rather than being omitted — `REFERENCES 0` on a repo with entities is the line
+  worth reading, and a missing key looks like a question nobody asked. Existing keys are
+  unchanged, so the ten callers of `summary()` are unaffected.
+
+### Fixed
+
+- **The repair pass can revise a file it already wrote.** It was told *"do NOT include them
+  again"*, which is right about stale anchors and wrong about everything else: a run wrote
+  `api_errors.py` on one attempt, rewrote `cli.py` against renamed helpers on the next, and
+  could not rename the module to match. The import failed and no later stage could reach
+  the file. The instruction now says what it means — leave them out if they are correct,
+  and re-anchor against the current content, which is shown, if one needs changing.
+- **A refine that describes a change it did not send is refused.** `refine` and `revise`
+  allow an empty submission, because a pass with nothing to change is a legitimate no-op.
+  One answered *"Rewrote orchestrator/api_errors.py to export api_call…"* and sent no files;
+  that read as "nothing to change", the loop stopped, and a run that had correctly diagnosed
+  its own failure ended without fixing it. A claim now needs a past-tense change verb **and**
+  a path before it counts as one, so "no changes needed in cli.py" stays a no-op.
+
+- **A new module is not a "parallel module".** The implement prompt said *"when the SPEC
+  names existing files, change THOSE files; do not create a parallel module instead"* — a
+  rule added after a run wrote a helper beside a file and never wired it in. As written it
+  also forbade the ordinary shape of an extract-a-wrapper refactor, so a spec asking for
+  "one place that wraps the request" left the model choosing between its instructions; three
+  runs submitted zero files. The prohibition is now on the outcome it was protecting
+  against: the named files must appear with `edits`, and a new module alongside them is
+  allowed.
+
+- **A design honours the paths its spec names.** The heuristic design read only the ticket's
+  title and summary, matching those words against the graph — so a ticket about "the
+  registry API" whose acceptance criteria named `src/orchestrator/cli.py` twice came back
+  proposing the registry *server* modules, and omitted the one file the spec named. Codegen
+  is handed that design as an instruction, and on a live run it submitted nothing at all
+  rather than choose between a spec and a design that disagreed. Paths stated in the
+  criteria and technical notes now come first; the graph reading and the overview remain as
+  fallbacks. A stated path that does not exist is dropped — naming a file to *create*
+  belongs in the approach, not in a list of files to open.
+
+- **The repair path no longer crashes on a symlinked worktree.** `applied_paths` names the
+  files an attempt already wrote so the repair retry knows not to resend them — computed
+  with a bare `Path.relative_to`, which raised on macOS, where `/tmp` is a symlink to
+  `/private/tmp`: the written paths come back resolved and the worktree root does not, so
+  nothing is "in the subpath of" anything. The `ValueError` killed the whole run, and fired
+  only when an attempt partially succeeded, which is the exact case the information exists
+  to rescue. Both sides are resolved now, and a path genuinely outside the worktree is
+  reported rather than raised.
+
 ## 3.15.0 — Everything that reports success has to be able to report failure
 
 ### Added
@@ -125,10 +239,6 @@
   render surface (`intake.service.spec_to_issue_request`, `intake.report`,
   `intake.web.app`) show the proposed set under its own label rather than dropping it.
   Specs with no proposed criteria render exactly as before.
-
-All notable changes to this project are documented here. Format loosely follows
-[Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
-(import/CLI stay `orchestrator`).
 
 ## Unreleased
 

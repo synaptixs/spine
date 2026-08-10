@@ -22,6 +22,9 @@ from pathlib import Path
 from typing import Protocol
 
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
+from orchestrator.pkg.python_client import ClientState
+from orchestrator.pkg.python_client import emit as emit_calls
+from orchestrator.pkg.python_client import scan_module as scan_calls
 from orchestrator.pkg.python_orm import OrmState
 from orchestrator.pkg.python_orm import emit as emit_orm
 from orchestrator.pkg.python_orm import scan_module as scan_orm
@@ -162,6 +165,9 @@ class PythonExtractor:
         # Foreign keys name classes that usually live in another module, so entities are
         # collected across the walk and emitted in ``finalize`` too.
         self._orm = OrmState()
+        # HTTP calls join to endpoints that may not exist until every file is walked, so
+        # they wait for ``finalize`` as well — and are emitted *after* routes.
+        self._calls = ClientState()
 
     def module_name(self, path: Path, root: Path) -> str:
         return module_qualname(path, root)
@@ -181,6 +187,7 @@ class PythonExtractor:
         self._emit_body(tree.body, module_id, module_id, imports, module_names, {}, rel, batch)
         scan_module(tree, module_id=module_id, rel=rel, imports=imports, state=self._routes)
         scan_orm(tree, module_id=module_id, rel=rel, state=self._orm)
+        scan_calls(tree, module_id=module_id, rel=rel, state=self._calls)
         return batch
 
     def finalize(self, batch: FactBatch) -> FactBatch:
@@ -195,6 +202,10 @@ class PythonExtractor:
         self._routes.clear()
         emit_orm(self._orm, batch)
         self._orm.clear()
+        # After routes, never before: a call is joined to an endpoint that exists, so the
+        # endpoints have to be in the batch already or every call would be dropped.
+        emit_calls(self._calls, batch)
+        self._calls.clear()
         return batch
 
     # ---- pass 1: names available for call resolution --------------------

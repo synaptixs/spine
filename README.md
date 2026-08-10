@@ -104,6 +104,14 @@ writes) so you can inspect everything first. Already written the spec yourself? 
 it straight to `orchestrator sdlc autorun --spec <file>` instead of deriving one from
 a source.
 
+**Plan before code.** Before a run spends anything, `orchestrator sdlc plan` assembles a
+**build document** for the ticket — the requirement, the root cause, what the graph knows,
+the blast radius, the files, the acceptance criteria reconciled against code that already
+satisfies them, and what the codegen prompt will carry. Twelve sections, always the same,
+each labelled with where it came from: quoted, computed, inferred, or decided by a person.
+No model call, so the same commit produces the same document. `sdlc approve` records the
+decision against a digest of what you read, and a run refuses if the plan has changed since.
+
 **Code-grounded understanding.** Before generating, it builds a **Product Knowledge
 Graph** of your repo — modules, types, functions, call sites, blast radius — and
 grounds new code in what already exists, so output reads like your team wrote it.

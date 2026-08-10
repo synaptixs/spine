@@ -20,7 +20,7 @@
 `ingest` · `backlog` · `openspec draft`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
-`sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
+`sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
 
 **MCP — external tools** — Consume onboarded Model Context Protocol servers (governed, audited).  
 `mcp list` · `mcp contracts` · `mcp call` · `mcp ingest-db`
@@ -693,6 +693,87 @@ orchestrator openspec draft [OPTIONS]
 
 The autonomous build path: requirements → code → tests → reviewed PR, with human gates.
 
+### `orchestrator sdlc plan`
+
+The build document for one ticket, and then it stops. Runs intake → investigate →
+validity → design, renders the twelve sections of
+[`docs/specs/build-document.md`](docs/specs/build-document.md), and writes it to
+`.spine/plans/<INTENT>-build.md`. No worktree, no codegen, no spend, and the tracker
+is not touched — the ticket moves when work begins, not when someone thinks about it.
+
+This is the gate *before* code exists; `--review` on `autorun` still gates the diff
+after. Every section carries where it came from — quoted, computed, inferred or human —
+and a section it cannot establish says so instead of vanishing.
+
+What each section is made of:
+
+| # | Section | From |
+|---|---|---|
+| 1–2 | Requirement, Intent | the ticket, quoted; the spec writer |
+| 3 | Root cause | `sdlc/rca.py` — the exception, the fault site, ranked hypotheses. **Omitted** when nothing localizes |
+| 4 | PKG | `FactStore`, ending with a verdict on whether the investigation brief is trustworthy for this ticket |
+| 5 | Blast radius | `sdlc/impact.py` — a diagram, then *Reading it* / *Containment* / *Caveat* / *Evidence* (coverage today, endpoints crossed, regression surface, recent history, docs affected) |
+| 6–7 | Design, Files | `sdlc/design.py` and the paths the spec states |
+| 8 | Acceptance criteria | the spec, in three states — see below |
+| 9 | Facts the generator needs | not established; no phase owns it yet |
+| 10 | Codegen prompt | the system prompt, the payload manifest, and the context budget in bytes and percent |
+| 11 | Token usage & cost | measured from this ticket's own runs where there are any, estimated from the installed catalog where there are not |
+| 12 | Confidence | two bands with their basis — *is the analysis right* (five checks) and *will a run complete* (the base rate from the journey) |
+| — | Journey | appended by each run, below the twelve. See `sdlc autorun` |
+
+With `--spec` there is no LLM anywhere in this path: the same commit and the same
+spec produce a byte-identical document, which is what makes the kept history
+meaningful. Re-running overwrites in place; a document it replaces is snapshotted
+under `history/`, keyed by the commit it was derived at.
+
+```
+orchestrator sdlc plan --spec ./SSPN-49.json --path .
+```
+
+| Option | Description |
+|---|---|
+| `--spec` | A hand-written spec (JSON). Skips intake entirely, and makes the run LLM-free. |
+| `--source` | Derive the spec instead, e.g. `jira://<issue-key>`. One of `--spec`/`--source` is required. |
+| `--intent` | Intent id to plan (default: the first). |
+| `--path` | Repo to reason about — the graph the plan is grounded in. (default: `.`) |
+| `--out` | Where the document goes (default: `<repo>/.spine/plans`). |
+| `--language` | Target language named in the codegen-prompt section. (default: `python`) |
+| `--quiet` | Write the document without printing it. |
+
+**Section 8 takes one extra spec field.** `met_criteria` maps a stated criterion's exact
+text to the evidence that it is *already* satisfied
+(`"src/orchestrator/cli.py:134 — _check() already handles this"`). Those criteria stay on
+the page, marked, rather than being quietly dropped — a run that reports them met having
+changed nothing is the failure the document exists to catch. A key matching no criterion
+is reported as a mismatch, not silently ignored.
+
+**Nothing here is a model call** when `--spec` is used. That is what makes the digest in
+`sdlc approve` meaningful, and it is why section 12 is a band with its basis rather than a
+score: a model-written number would move on every render and stale every approval.
+
+### `orchestrator sdlc approve`
+
+Record that a human read the build document and decided. Writes
+`.spine/plans/<INTENT>-approval.json` beside the plan.
+
+```
+orchestrator sdlc approve SSPN-49 --note "criteria reconciliation checked"
+```
+
+| Option | Description |
+|---|---|
+| `INTENT` | Intent id whose plan you are deciding, e.g. `SSPN-49`. **Required.** |
+| `--path` | Repo the plan was written for. (default: `.`) |
+| `--by` | Who is deciding. (default: `git config user.name`) |
+| `--note` | Why — recorded with the decision. |
+| `--reject` | Record a rejection instead of an approval. |
+| `--out` | Where the plan lives. (default: `<repo>/.spine/plans`) |
+
+The decision is bound to a **digest of the document body**, so a plan that changes
+afterwards reads as *stale* rather than silently still approved. `sdlc autorun`
+re-derives the plan and refuses when the digest no longer matches — an approval that
+survives the code moving underneath it approves a document nobody has read.
+
 ### `orchestrator sdlc autorun`
 
 One ticket, all the way through: research → design → validity gate → code → tests
@@ -702,6 +783,19 @@ spec, and each result recorded.
 Default `--safe` makes no external write anywhere in the chain: a local branch and
 commit, dry-run tracker, no push. `--live` creates or adopts the issue, pushes the
 branch, and opens a PR.
+
+**It refuses to start without an approved build document** for the ticket (`sdlc plan`,
+then `sdlc approve`). The plan is re-derived and re-digested, so an approval whose document
+no longer matches the code refuses too. `--no-plan-gate` skips the check and says so.
+
+**Each stage appends to the ticket's journey** — `.spine/plans/<INTENT>-journey.jsonl`,
+rendered beneath the twelve sections the next time `sdlc plan` runs. Append-only: no stage
+rewrites an earlier one, and when implement touches files the design did not name, that
+disagreement is recorded rather than smoothed over. The run outcome carries the tokens and
+the actual spend, which is what section 11's estimate is eventually judged against.
+
+`--source` is required even when `--spec` supplies the spec; with `--spec` it is only the
+URI the run is filed against, and intake never reads it.
 
 ```
 orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --safe --max-cost 10
@@ -723,6 +817,7 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --saf
 | `--resume` | Continue a run by id — adopts the issue it already created. |
 | `--max-cost` | Cap LLM spend (USD) for this run; exhausting it parks the run. |
 | `--spec` | Implement a hand-written spec (JSON) instead of deriving one from the source. Intake is skipped entirely and recorded as `skipped`. |
+| `--plan-gate` / `--no-plan-gate` | Refuse to build unless a human approved this ticket's build document (see `sdlc approve`). The plan is re-derived and re-digested, so an approval that no longer matches the code refuses too. (default: `--plan-gate`) |
 
 **Implementing a spec you wrote (`--spec`).** Normally intake derives the spec from
 the source document. Pass `--spec path.json` to supply it directly — the pipeline

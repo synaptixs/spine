@@ -432,9 +432,11 @@ _IMPLEMENT_SYSTEM = (
     "run`). Prefer the standard library; only add a dependency the SPEC names. "
     "Never name a new top-level module after a Python standard-library module "
     "(statistics, json, types, ...) — it shadows the real one. When the SPEC "
-    "names existing files, change THOSE files (with `edits`); do not create a "
-    "parallel module instead. Every new file must be complete and "
-    "syntactically valid."
+    "names existing files, those files MUST appear in your `files` with `edits` — "
+    "a helper written beside a file and never wired into it is not the change. You "
+    "MAY add a new module as well when the work genuinely belongs in one; what is "
+    "forbidden is leaving the named files untouched. Every new file must be "
+    "complete and syntactically valid."
 )
 
 _AGENTIC_MAX_STEPS = 16
@@ -1610,15 +1612,29 @@ class LLMCodegenAdapter:
         """
         chunks: list[str] = [f"\n\nYOUR PREVIOUS ATTEMPT FAILED: {exc}\nRe-emit the full JSON object.\n"]
         if exc.applied_paths:
-            # Without this the re-emission is guaranteed to fail: those files are already
-            # patched, so the `find` snippets from the previous attempt no longer occur in
-            # them. The model cannot know that from the failure message alone.
+            # Two things have to be true at once, and the first version of this said only the
+            # first. Resending an already-applied file's *original* edits is guaranteed to
+            # fail — those `find` snippets no longer occur. But a blanket "do not include
+            # them again" forbids *revising* one, and a run needed exactly that: attempt 1
+            # wrote api_errors.py, attempt 2 rewrote cli.py against renamed helpers, and the
+            # module it had to rename was off limits. The import failed and no later stage
+            # could reach the file either.
             names = ", ".join(exc.applied_paths)
             chunks.append(
-                f"These file(s) were ALREADY WRITTEN successfully by that attempt: {names}. "
-                "Do NOT include them again — their content has changed, so your previous "
-                "`find` snippets no longer match and re-sending them will fail. Emit only "
-                "the file(s) that did not land.\n"
+                f"These file(s) were ALREADY WRITTEN by that attempt: {names}. Their content "
+                "has changed, so the `find` snippets you used before no longer match. If they "
+                "are correct as they stand, leave them out. If one now needs changing — you "
+                "renamed something, or another file expects a different shape — include it "
+                "with `edits` anchored against the CURRENT content shown below, never against "
+                "what you sent last time.\n"
+            )
+            chunks.append(
+                _excerpt_files(
+                    root,
+                    exc.applied_paths,
+                    budget=_MAX_CONTEXT_BYTES,
+                    label="current content (already applied)",
+                )
             )
         if exc.missing_edit_paths:
             names = ", ".join(exc.missing_edit_paths)
@@ -1711,9 +1727,15 @@ class LLMCodegenAdapter:
             )
         files = payload.get("files")
         if not isinstance(files, list) or not files:
+            summary_text = str(payload.get("summary") or "").strip()
+            # A no-op is allowed here; a *described* change that was not sent is not. See
+            # `_claims_a_change` — accepting one stopped a run that had already worked out
+            # its own fix.
+            if allow_empty and not _claims_a_change(summary_text):
+                logger.info("sdlc.codegen.empty_refine summary=%r", summary_text[:160])
+                return CodeChange(summary=summary_text)
             if allow_empty:
-                logger.info("sdlc.codegen.empty_refine summary=%r", str(payload.get("summary") or "")[:160])
-                return CodeChange(summary=str(payload.get("summary") or "").strip())
+                logger.warning("sdlc.codegen.claimed_but_unsent summary=%r", summary_text[:160])
             # Recoverable, not fatal. The forced tool call means the model *did* answer in
             # the right shape — it just submitted zero files, which the schema allows
             # (`required` means present, not non-empty). A live run died here after a
@@ -1788,6 +1810,55 @@ def _has_testable_source(written: list[Path]) -> bool:
     module and submits no tests has skipped its job.
     """
     return any(p.suffix.lower() in _TESTABLE_SUFFIXES and not _is_test_file(p) for p in written)
+
+
+def _relative_paths(written: list[str], root: Path) -> list[str]:
+    """Written paths relative to ``root``, tolerating symlinks and surprises.
+
+    This runs on the *error* path, naming what already landed so the repair retry knows not
+    to resend it. A bare ``Path.relative_to`` raised there and killed the whole run: on macOS
+    ``/tmp`` is a symlink to ``/private/tmp``, the written paths come back resolved and
+    ``root`` does not, so nothing is "in the subpath of" anything. The crash fired only when
+    an attempt partially succeeded — precisely the case this information exists to rescue.
+
+    Resolve both sides, and fall back to the raw string rather than raising: a path that is
+    genuinely outside the worktree is worth reporting, not worth losing the run over.
+    """
+    base = root.resolve()
+    out: list[str] = []
+    for w in written:
+        try:
+            out.append(str(Path(w).resolve().relative_to(base)))
+        except (ValueError, OSError):
+            out.append(str(w))
+    return out
+
+
+# Past-tense change verbs. A refine that genuinely has nothing to do says so ("no changes
+# needed", "the implementation is already correct"); one that *describes an edit it did not
+# submit* uses these.
+_CHANGE_CLAIM = re.compile(
+    r"\b(rewrote|rewritten|added|updated|changed|fixed|created|wired|replaced|renamed|removed|moved)\b",
+    re.IGNORECASE,
+)
+
+
+def _claims_a_change(summary: str) -> bool:
+    """Whether an empty submission's summary describes work it did not send.
+
+    ``refine`` and ``revise`` run with ``allow_empty=True``, because a pass that judges it
+    has nothing to change is a legitimate no-op rather than an error. But a live run
+    answered *"Rewrote orchestrator/api_errors.py to export api_call/explain_api_error/
+    explain_status"* — and submitted no files. That was read as "nothing to change", the
+    loop stopped early, and a run that had correctly diagnosed its own failure ended
+    without fixing it.
+
+    A claim needs both halves: a past-tense change verb *and* a path it claims to have
+    changed. "No changes needed in cli.py" names a path and claims nothing; "rewrote the
+    docstring" claims something but names no file this stage can check. Requiring both keeps
+    a real no-op a no-op.
+    """
+    return bool(_CHANGE_CLAIM.search(summary)) and bool(_PATH_RE.search(summary))
 
 
 def _is_test_file(path: Path) -> bool:
@@ -1987,7 +2058,7 @@ def apply_files(
             missing_edit_paths=missing_targets,
             failed_anchors=attempted_anchors,
             syntax_errors=syntax_messages,
-            applied_paths=[str(Path(w).relative_to(root)) for w in written],
+            applied_paths=_relative_paths(written, root),
         )
     if not written:
         if placeholders and not edit_failures:

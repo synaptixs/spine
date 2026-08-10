@@ -1665,10 +1665,18 @@ def test_a_failure_reports_which_files_already_landed(tmp_path: Path) -> None:
     assert (tmp_path / "good.py").read_text() == "VALUE = 99\n"
 
 
-def test_the_repair_tells_the_model_not_to_resend_what_landed(tmp_path: Path) -> None:
+def test_the_repair_names_what_landed_and_why_the_old_anchors_fail(tmp_path: Path) -> None:
+    """Was `..._tells_the_model_not_to_resend_what_landed`, asserting a blanket ban.
+
+    That ban was too absolute: it also forbade *revising* an applied file, and a run needed
+    exactly that when it renamed helpers in one file and could not update the other. The
+    obligation that survives is narrower — name the files, and say why the previous
+    attempt's anchors no longer match.
+    """
     from orchestrator.sdlc.codegen import CodegenError
 
     (tmp_path / "bad.py").write_text("OTHER = 2\n", encoding="utf-8")
+    (tmp_path / "good.py").write_text("VALUE = 1\n", encoding="utf-8")
     exc = CodegenError(
         "changes need a repair pass",
         failed_edit_paths=["bad.py"],
@@ -1679,7 +1687,7 @@ def test_the_repair_tells_the_model_not_to_resend_what_landed(tmp_path: Path) ->
 
     assert "ALREADY WRITTEN" in block
     assert "good.py" in block
-    assert "Do NOT include them again" in block
+    assert "no longer match" in block
 
 
 def test_no_already_written_note_when_nothing_landed(tmp_path: Path) -> None:
@@ -1887,3 +1895,186 @@ async def test_a_source_change_that_submits_no_tests_is_still_refused(tmp_path: 
 
     with pytest.raises(CodegenError):
         await adapter.author_tests(spec={"title": "t"}, path=str(tmp_path), issue_key="S-1")
+
+
+# --- the repair path must not crash (regression from #150) --------------------------
+#
+# `applied_paths` names what already landed so the repair retry knows not to resend it.
+# Computing it with a bare `Path.relative_to` raised on macOS, where /tmp is a symlink to
+# /private/tmp: the written paths come back resolved and the worktree root does not, so
+# nothing is "in the subpath of" anything. The ValueError killed the whole run — and it
+# fired only when an attempt partially succeeded, which is the exact case this information
+# exists to rescue.
+
+
+def test_written_paths_survive_a_symlinked_root(tmp_path: Path) -> None:
+    """The macOS /tmp -> /private/tmp shape, built explicitly rather than assumed."""
+    from orchestrator.sdlc.codegen import _relative_paths
+
+    real = tmp_path / "real"
+    (real / "src").mkdir(parents=True)
+    (real / "src" / "a.py").write_text("X = 1\n", encoding="utf-8")
+    link = tmp_path / "link"
+    link.symlink_to(real)
+
+    # root as the symlink, the written path as the resolved location — the failing shape.
+    assert _relative_paths([str(real / "src" / "a.py")], link) == ["src/a.py"]
+
+
+def test_a_path_outside_the_root_is_reported_not_raised(tmp_path: Path) -> None:
+    """Worth reporting; never worth losing the run over."""
+    from orchestrator.sdlc.codegen import _relative_paths
+
+    outside = tmp_path.parent / "elsewhere.py"
+
+    result = _relative_paths([str(outside)], tmp_path)
+
+    assert result == [str(outside)]
+
+
+def test_ordinary_paths_are_relative(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import _relative_paths
+
+    (tmp_path / "pkg").mkdir()
+    target = tmp_path / "pkg" / "thing.py"
+    target.write_text("Y = 2\n", encoding="utf-8")
+
+    assert _relative_paths([str(target)], tmp_path) == ["pkg/thing.py"]
+
+
+# --- a new module is not a "parallel module" (SSPN-49) -------------------------------
+#
+# The rule read "when the SPEC names existing files, change THOSE files; do not create a
+# parallel module instead." It was added after a run wrote a helper beside a file and never
+# wired it in — a real failure. But as written it forbids the ordinary shape of an
+# extract-a-wrapper refactor, and SSPN-49's spec asks for exactly that ("one place that
+# wraps the request"). Three runs on that ticket submitted zero files rather than choose
+# between the spec and the rule.
+#
+# These assert on prompt *content*, which is a weak test of a real change: a model's
+# behaviour cannot be unit-tested. What they do catch is the prohibition coming back, or the
+# obligation it was protecting being dropped.
+
+
+def test_the_prompt_still_requires_the_named_files_to_be_edited() -> None:
+    """The obligation the old rule was really protecting: do not leave them untouched."""
+    from orchestrator.sdlc.codegen import _IMPLEMENT_SYSTEM
+
+    assert "MUST appear in your `files` with `edits`" in _IMPLEMENT_SYSTEM
+    assert "leaving the named files untouched" in _IMPLEMENT_SYSTEM
+
+
+def test_the_prompt_no_longer_forbids_a_new_module_outright() -> None:
+    from orchestrator.sdlc.codegen import _IMPLEMENT_SYSTEM
+
+    assert "do not create a parallel module instead" not in _IMPLEMENT_SYSTEM
+    assert "MAY add a new module" in _IMPLEMENT_SYSTEM
+
+
+def test_the_stdlib_shadow_rule_is_untouched() -> None:
+    """Adjacent in the same string, and a genuine guard — it must survive the edit."""
+    from orchestrator.sdlc.codegen import _IMPLEMENT_SYSTEM
+
+    assert "Never name a new top-level module after a Python standard-library module" in _IMPLEMENT_SYSTEM
+    assert "Every new file must be complete and syntactically valid" in _IMPLEMENT_SYSTEM
+
+
+def test_only_the_python_prompt_carries_this_rule() -> None:
+    """No other language prompt has it, so none should grow it by copy-paste."""
+    from orchestrator.sdlc import codegen
+
+    others = [
+        v for k, v in vars(codegen).items() if k.startswith("_IMPLEMENT_SYSTEM_") and isinstance(v, str)
+    ]
+    assert others, "expected the per-language prompts to exist"
+    for prompt in others:
+        assert "parallel module" not in prompt
+
+
+# --- recovery can revise what it wrote, and cannot claim without sending -------------
+#
+# Two defects that trapped one run between them. Attempt 1 wrote api_errors.py; attempt 2
+# rewrote cli.py against renamed helpers and was told "do NOT include [api_errors.py]
+# again", so the module could not be renamed to match and the import failed. refine then
+# diagnosed it exactly — "Rewrote orchestrator/api_errors.py to export api_call/..." — and
+# submitted no files, which `allow_empty=True` read as "nothing to change", stopping the
+# loop. Each rule was individually right.
+
+
+def test_the_repair_permits_revising_a_file_that_landed(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import CodegenError
+
+    (tmp_path / "api_errors.py").write_text("def old_name() -> None: ...\n", encoding="utf-8")
+    (tmp_path / "bad.py").write_text("OTHER = 2\n", encoding="utf-8")
+    exc = CodegenError(
+        "changes need a repair pass",
+        failed_edit_paths=["bad.py"],
+        applied_paths=["api_errors.py"],
+    )
+
+    block = LLMCodegenAdapter(_ScriptedLLM([]))._repair_block(exc, tmp_path)
+
+    assert "ALREADY WRITTEN" in block
+    assert "now needs changing" in block, "revising an applied file must be permitted"
+    assert "do not include them again" not in block.lower()
+    # And it must be re-anchorable: the current content has to be in front of the model.
+    assert "def old_name" in block
+
+
+def test_the_repair_still_warns_against_stale_anchors(tmp_path: Path) -> None:
+    """The original point of #150 survives: do not resend the edits that already applied."""
+    from orchestrator.sdlc.codegen import CodegenError
+
+    (tmp_path / "a.py").write_text("X = 1\n", encoding="utf-8")
+    (tmp_path / "bad.py").write_text("Y = 2\n", encoding="utf-8")
+    exc = CodegenError("x", failed_edit_paths=["bad.py"], applied_paths=["a.py"])
+
+    block = LLMCodegenAdapter(_ScriptedLLM([]))._repair_block(exc, tmp_path)
+
+    assert "no longer match" in block
+    assert "CURRENT content" in block
+
+
+@pytest.mark.parametrize(
+    "summary,claims",
+    [
+        ("Rewrote orchestrator/api_errors.py to export api_call and explain_status", False),
+        ("Rewrote src/orchestrator/api_errors.py to export api_call", True),
+        ("Added tests/test_cli.py covering the timeout path", True),
+        ("No changes needed — src/orchestrator/cli.py already handles this", False),
+        ("The implementation is already correct; nothing to change", False),
+        ("Updated the docstring", False),
+        ("", False),
+    ],
+)
+def test_a_claim_needs_a_verb_and_a_path(summary: str, claims: bool) -> None:
+    """Both halves, so a real no-op that mentions a file stays a no-op."""
+    from orchestrator.sdlc.codegen import _claims_a_change
+
+    assert _claims_a_change(summary) is claims
+
+
+async def test_refine_that_describes_an_unsent_change_is_refused(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter
+
+    claim = "Rewrote src/orchestrator/api_errors.py to export api_call and explain_status"
+    llm = _ScriptedLLM([json.dumps({"summary": claim, "files": []})] * 6)
+
+    with pytest.raises(CodegenError):
+        await LLMCodegenAdapter(llm).refine(
+            spec={"title": "t"}, path=str(tmp_path), issue_key="S-1", failures="ImportError"
+        )
+
+
+async def test_refine_with_nothing_to_do_is_still_a_no_op(tmp_path: Path) -> None:
+    """The behaviour `allow_empty` exists for must survive."""
+    from orchestrator.sdlc.codegen import LLMCodegenAdapter
+
+    llm = _ScriptedLLM([json.dumps({"summary": "nothing to change here", "files": []})])
+
+    change = await LLMCodegenAdapter(llm).refine(
+        spec={"title": "t"}, path=str(tmp_path), issue_key="S-1", failures="boom"
+    )
+
+    assert change.files == []
+    assert "nothing to change" in change.summary

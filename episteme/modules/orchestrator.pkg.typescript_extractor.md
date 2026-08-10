@@ -30,7 +30,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/typescript_extractor.py:46`](../../src/orchestrator/pkg/typescript_extractor.py#L46)
 
-- **Called by** (1 production · 2 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L514), [`_facts`](../../tests/pkg/test_typescript_extractor.py#L50), [`test_repo_extractor_dispatches_typescript_by_suffix`](../../tests/pkg/test_typescript_extractor.py#L113)
+- **Called by** (1 production · 2 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L525), [`_facts`](../../tests/pkg/test_typescript_extractor.py#L50), [`test_repo_extractor_dispatches_typescript_by_suffix`](../../tests/pkg/test_typescript_extractor.py#L113)
 - **Fields**: `language`, `suffixes`
 - **Documented in**: `docs/specs/typescript-codegen.md#slice-1-typescript-comprehension-ships-first-cheap`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
@@ -41,14 +41,14 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/typescript_extractor.py:253`](../../src/orchestrator/pkg/typescript_extractor.py#L253)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L67)
-- **Calls** (3): [`Edge`](../../src/orchestrator/pkg/facts.py#L86), [`Provenance`](../../src/orchestrator/pkg/facts.py#L58), [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L279)
+- **Calls** (3): [`Edge`](../../src/orchestrator/pkg/facts.py#L87), [`Provenance`](../../src/orchestrator/pkg/facts.py#L59), [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L279)
 
 ### `_emit_function`
 
 [`src/orchestrator/pkg/typescript_extractor.py:198`](../../src/orchestrator/pkg/typescript_extractor.py#L198)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L67)
-- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L86), [`Node`](../../src/orchestrator/pkg/facts.py#L70), [`Provenance`](../../src/orchestrator/pkg/facts.py#L58), [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L382)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L87), [`Node`](../../src/orchestrator/pkg/facts.py#L71), [`Provenance`](../../src/orchestrator/pkg/facts.py#L59), [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L382)
 
 ### `_field_text`
 
