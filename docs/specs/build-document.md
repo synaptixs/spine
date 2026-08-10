@@ -1,6 +1,6 @@
 # The build document — plan before code
 
-**Status:** Phases 1–2 built (`orchestrator sdlc plan`) · Phases 3–6 proposed
+**Status:** Phases 1–3 built (`orchestrator sdlc plan`) · Phases 4–6 proposed
 **Supersedes nothing.** Changes what `sdlc autorun` *is*.
 
 Today a run spends roughly $1.19 before anyone sees anything, and its first
@@ -84,7 +84,7 @@ a stable shape.
 |---|---|---|---|
 | 1 | Requirement | The symptom as filed, including the verbatim error text in a fenced block. How it was found. | never |
 | 2 | Intent | One paragraph: what should happen instead. | never |
-| 3 | Root cause | Names the function and `file:line`. Ends with a **Consequence:** line stating what is therefore *out* of scope. | ticket is not a bug — omitted, not padded |
+| 3 | Root cause | The exception, the fault site (a function at `file:line`, or a file the ticket named — never one presented as the other), ranked hypotheses with evidence, and a **Consequence:** line stating what is therefore *out* of scope. It rules nothing out when only a file was named. | nothing localized — no exception and no file. Omitted, not padded |
 | 4 | PKG | Module + byte size. Importers **by name**. Imports counted, first-party listed. Symbols ranked by callers, as a table. Ends with a verdict on whether the investigation brief is trustworthy for this ticket. | graph unavailable for the language |
 | 5 | Blast radius | A mermaid `flowchart TD`, then four blocks in order — **Reading it**, **Containment**, **Caveat**, **Evidence**. Evidence carries the five deterministic findings the diagram cannot draw: coverage today, endpoints crossed, regression surface, recent history, docs affected. | never |
 | 6 | Design | The chosen shape as a code snippet. The rejected alternative in italics beneath it. | never |
@@ -283,13 +283,40 @@ inter-procedural constant propagation, which is a guess, and a wrong edge is wor
 than an absent one. The Evidence block says "silence rather than absence" for exactly
 this reason.
 
-### Phase 3 — wire RCA into the plan *(~2 days)*
+### Phase 3 — RCA in the plan — **built**
 
-`orchestrator rca` already produces a grounded root-cause report with ranked
-hypotheses. Wire it in for bug-type tickets, labelled *model*. For features the
-section is omitted rather than padded.
+**Ships:** section 3. Two things the record got wrong, both found by running it first.
 
-**Ships:** section 3.
+**It is deterministic, not *model*.** `build_rca` has a deterministic core and calls a
+model only when handed one. Passing `llm=None` keeps `sdlc plan` free of a model call —
+a property worth more than the enrichment — so the section is labelled
+*derived · deterministic* and its hypotheses stay labelled hypotheses.
+
+**Wiring it in unchanged would have shipped padding.** Run against SSPN-49 before any
+change, RCA returned no exception, no fault site, and one low-confidence *"nothing
+resolved"*, despite the ticket containing `ConnectError: [Errno 61] Connection refused`
+in plain sight. [`localize.py`](../../src/orchestrator/sdlc/localize.py) reads
+tracebacks: its exception pattern is anchored to the start of a line, and its frames
+need `File "x.py", line N`. **A bug ticket is not a traceback.** It names the error in
+a sentence and names the file in prose, and neither was legible.
+
+So the fix was in fact extraction, not in the renderer:
+
+- an exception named *anywhere* in the text, still requiring the `SomeError: …` colon
+  form so "this Error handling is poor" does not read as a failure
+- source paths named in the text **that the graph knows**, as `stated_files` — the
+  weakest useful localization and the only one most bug tickets support
+
+A stated file is a *module*, never a fault site. The document says so in those words,
+and its **Consequence:** line rules nothing out when only a file was named — narrowing
+scope on the strength of a guess is the failure this record exists to prevent.
+
+On SSPN-49 that now yields the exception, `src/orchestrator/cli.py`, a
+recently-changed flag, its regression surface, and two ranked hypotheses.
+`orchestrator rca` and `orchestrator localize` get the same reading for free.
+
+**Still unassigned:** section 9 (*facts the generator needs*) belongs to no phase. It
+renders as unestablished and says so.
 
 ### Phase 4 — approval gate and handoff contract *(~3 days)*
 

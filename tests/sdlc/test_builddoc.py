@@ -244,6 +244,56 @@ def test_missing_call_graph_is_stated_not_implied_zero(tmp_path: Path) -> None:
     assert "module-level impact only" in md
 
 
+# ---- section 3: root cause -------------------------------------------------
+
+
+class _Hypothesis:
+    def __init__(self, claim: str, confidence: str = "medium") -> None:
+        self.claim, self.confidence, self.evidence = claim, confidence, ("because",)
+
+
+class _RCA:
+    def __init__(self, **over: Any) -> None:
+        self.exception = over.get("exception", "ConnectError: refused")
+        self.fault_site = over.get("fault_site", "")
+        self.fault_module = over.get("fault_module", "src/a.py")
+        self.recently_changed = over.get("recently_changed", False)
+        self.hypotheses = over.get("hypotheses", [_Hypothesis("something broke")])
+
+
+def test_root_cause_renders_the_exception_and_ranked_hypotheses(tmp_path: Path) -> None:
+    md = _render(tmp_path, rca=_RCA())
+    assert "`ConnectError: refused`" in md
+    assert "**[medium]** something broke" in md
+    assert "hypotheses, not a verdict" in md
+
+
+def test_root_cause_is_omitted_when_nothing_localized(tmp_path: Path) -> None:
+    """A feature ticket, or a bug with no failure text — omitted rather than padded."""
+    md = _render(tmp_path, rca=_RCA(exception="", fault_module="", hypotheses=[]))
+    body = md.split("## 3. Root cause", 1)[1].split("\n## ", 1)[0]
+    assert "not established" in body
+    assert "Hypotheses" not in body
+
+
+def test_a_stated_file_does_not_claim_a_fault_site(tmp_path: Path) -> None:
+    md = _render(tmp_path, rca=_RCA())
+    assert "named by the ticket, not localized to a line" in md
+
+
+def test_consequence_rules_things_out_only_when_a_site_resolved(tmp_path: Path) -> None:
+    """The template requires a Consequence line; narrowing scope on a guess is worse."""
+    located = _render(tmp_path, rca=_RCA(fault_site="f at src/a.py:10"))
+    assert "A change elsewhere is out of scope" in located
+
+    named_only = _render(tmp_path, rca=_RCA())
+    assert "nothing inside `src/a.py` is ruled out yet" in named_only
+
+
+def test_recent_change_is_flagged(tmp_path: Path) -> None:
+    assert "changed recently" in _render(tmp_path, rca=_RCA(recently_changed=True))
+
+
 # ---- section 5, fourth block: the evidence --------------------------------
 
 

@@ -97,6 +97,59 @@ def derived_at(root: Path | str = ".") -> str:
         return "unknown"
 
 
+# ---- section 3: root cause -------------------------------------------------
+
+
+def _root_cause_block(report: Any) -> str:
+    """Section 3, or "" when there is nothing grounded to say.
+
+    The record's rule is that a feature's root-cause section is *omitted rather than
+    padded*. The same applies to a bug reported with no failure text: a section whose
+    only content is "nothing resolved" is padding that a reader has to read to discover
+    is empty. The test is evidence, not ticket type — an exception or a fault module.
+    """
+    if report is None:
+        return ""
+    exception = str(getattr(report, "exception", "") or "")
+    site = str(getattr(report, "fault_site", "") or "")
+    module = str(getattr(report, "fault_module", "") or "")
+    if not exception and not module:
+        return ""
+
+    lines: list[str] = []
+    if exception:
+        lines.append(f"**Exception:** `{exception}`\n")
+    if site:
+        lines.append(f"**Fault site:** {site}" + (f" (in `{module}`)" if module else "") + "\n")
+    elif module:
+        lines.append(f"**Fault site:** `{module}` — named by the ticket, not localized to a line.\n")
+    if getattr(report, "recently_changed", False):
+        lines.append("⚠ This module changed recently — a regression is the leading hypothesis.\n")
+
+    hypotheses = list(getattr(report, "hypotheses", []) or [])
+    if hypotheses:
+        lines.append("**Hypotheses, ranked — evidence, not a verdict:**\n")
+        for i, hyp in enumerate(hypotheses, 1):
+            lines.append(f"{i}. **[{getattr(hyp, 'confidence', 'medium')}]** {getattr(hyp, 'claim', '')}")
+            lines.extend(f"    - {e}" for e in (getattr(hyp, "evidence", ()) or ()))
+        lines.append("")
+
+    # The template requires this line: what the root cause puts *out* of scope. It is only
+    # honest when something was actually localized — a file named by a ticket rules nothing
+    # out, and saying otherwise would narrow the work on the strength of a guess.
+    if site:
+        lines.append(
+            f"**Consequence:** the failure is at {site}. A change elsewhere is out of scope "
+            "until this is disproved.\n"
+        )
+    else:
+        lines.append(
+            f"**Consequence:** the ticket establishes the file, not the line — nothing inside "
+            f"`{module}` is ruled out yet.\n"
+        )
+    return "\n".join(lines)
+
+
 # ---- section 5: the diagram ------------------------------------------------
 
 
@@ -447,6 +500,7 @@ def render_build_md(
     context_budget: int,
     language: str = "python",
     evidence: dict[str, Any] | None = None,
+    rca: Any = None,
 ) -> str:
     """Assemble the twelve sections. Pure — no I/O beyond stat-ing the named files."""
     title = str(spec.get("title") or "untitled")
@@ -487,7 +541,12 @@ def render_build_md(
     add(str(spec.get("user_story") or "_No user story on the spec._") + "\n")
 
     add("## 3. Root cause")
-    add(_pending("`orchestrator rca` produces this; wiring it in is Phase 3"))
+    root_cause = _root_cause_block(rca)
+    if root_cause:
+        add(_label(DETERMINISTIC, f"`sdlc/rca.py` @ `{commit}` — hypotheses, not a verdict"))
+        add(root_cause)
+    else:
+        add(_pending("no exception and no file named — nothing to localize, so nothing is claimed"))
 
     add("## 4. PKG — what the graph knows")
     add(_label(DETERMINISTIC, f"`FactStore` @ `{commit}`"))
@@ -567,7 +626,7 @@ def render_build_md(
     add(_criteria_block(spec))
 
     add("## 9. Facts the generator needs")
-    add(_pending("reading the named source and writing down what must not be duplicated — Phase 3"))
+    add(_pending("reading the named source for what must not be duplicated — no phase owns this yet"))
 
     add("## 10. Codegen prompt")
     add(_label(DETERMINISTIC, "`sdlc/codegen.py` — prompt assembly"))
@@ -605,6 +664,7 @@ async def build_plan(
     from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
     from orchestrator.sdlc.design import produce_design
     from orchestrator.sdlc.investigate import build_investigation
+    from orchestrator.sdlc.rca import build_rca
     from orchestrator.sdlc.validity import assess
 
     root_path = Path(root)
@@ -635,6 +695,12 @@ async def build_plan(
         context_budget=_MAX_CONTEXT_BYTES,
     )
     design = await produce_design(spec, overview=overview, store=store, llm=None, root=root_path)
+    # llm=None keeps this whole path free of a model call. `build_rca` enriches with one
+    # when given it; the deterministic core is what section 3 renders, and the section is
+    # labelled accordingly rather than borrowing the authority of a report it did not run.
+    report = await build_rca(
+        f"{spec.get('title', '')}\n{spec.get('summary', '')}", store=store, root=root_path, llm=None
+    )
 
     return render_build_md(
         spec,
@@ -648,6 +714,7 @@ async def build_plan(
         evidence=collect_evidence(
             store, files=[str(f) for f in (design.get("files_to_touch") or [])], root=root_path
         ),
+        rca=report,
     )
 
 
