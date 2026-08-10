@@ -30,7 +30,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/sql_extractor.py:89`](../../src/orchestrator/pkg/sql_extractor.py#L89)
 
-- **Called by** (1 production · 1 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L514), [`_extract`](../../tests/pkg/test_sql_extractor.py#L31)
+- **Called by** (1 production · 1 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L525), [`_extract`](../../tests/pkg/test_sql_extractor.py#L31)
 - **Fields**: `_active_dialect`, `_dialect`, `language`, `suffixes`
 
 ### `_TableBuilder`
@@ -92,14 +92,14 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/sql_extractor.py:311`](../../src/orchestrator/pkg/sql_extractor.py#L311)
 
 - **Called by** (2): [`_emit_data_access`](../../src/orchestrator/pkg/sql_extractor.py#L264), [`_handle_create_view`](../../src/orchestrator/pkg/sql_extractor.py#L193)
-- **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L70)
+- **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L71)
 
 ### `_touch_function`
 
 [`src/orchestrator/pkg/sql_extractor.py:316`](../../src/orchestrator/pkg/sql_extractor.py#L316)
 
 - **Called by** (1): [`_handle_create_routine`](../../src/orchestrator/pkg/sql_extractor.py#L238)
-- **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L70)
+- **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L71)
 
 ### `_type_sql`
 

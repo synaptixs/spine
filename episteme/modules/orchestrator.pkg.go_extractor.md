@@ -30,7 +30,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/go_extractor.py:99`](../../src/orchestrator/pkg/go_extractor.py#L99)
 
-- **Called by** (1 production · 1 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L514), [`_facts`](../../tests/pkg/test_go_extractor.py#L53)
+- **Called by** (1 production · 1 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L525), [`_facts`](../../tests/pkg/test_go_extractor.py#L53)
 - **Fields**: `_concrete_sigs`, `_interfaces`, `language`, `suffixes`
 - **Documented in**: `docs/specs/go-support-roadmap.md#track-4-go-go`, `docs/specs/language-expansion-roadmap.md#where-we-are-today`
 

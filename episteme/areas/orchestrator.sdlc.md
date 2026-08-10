@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.sdlc`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 39 modules — 101 types and 282 functions. It sits in the middle of the graph: 16 areas below it, 12 above. Changes here can reach both ways.
+**`orchestrator.sdlc`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 40 modules — 104 types and 316 functions. It sits in the middle of the graph: 16 areas below it, 12 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -49,6 +49,7 @@ _Showing 16 of 28 neighbouring areas._
 - [`orchestrator.sdlc`](../../src/orchestrator/sdlc/__init__.py#L1)
 - [`orchestrator.sdlc.activities`](../../src/orchestrator/sdlc/activities.py#L1)
 - [`orchestrator.sdlc.autorun`](../modules/orchestrator.sdlc.autorun.md)
+- [`orchestrator.sdlc.builddoc`](../modules/orchestrator.sdlc.builddoc.md)
 - [`orchestrator.sdlc.ci`](../../src/orchestrator/sdlc/ci.py#L1)
 - [`orchestrator.sdlc.codegen`](../modules/orchestrator.sdlc.codegen.md)
 - [`orchestrator.sdlc.comprehension`](../../src/orchestrator/sdlc/comprehension.py#L1)
@@ -63,7 +64,7 @@ _Showing 16 of 28 neighbouring areas._
 - [`orchestrator.sdlc.forge`](../../src/orchestrator/sdlc/forge.py#L1)
 - [`orchestrator.sdlc.gitauth`](../../src/orchestrator/sdlc/gitauth.py#L1)
 - [`orchestrator.sdlc.grounding`](../../src/orchestrator/sdlc/grounding.py#L1)
-- [`orchestrator.sdlc.impact`](../modules/orchestrator.sdlc.impact.md)
+- [`orchestrator.sdlc.impact`](../../src/orchestrator/sdlc/impact.py#L1)
 - [`orchestrator.sdlc.investigate`](../../src/orchestrator/sdlc/investigate.py#L1)
 - [`orchestrator.sdlc.layout`](../modules/orchestrator.sdlc.layout.md)
 - [`orchestrator.sdlc.localize`](../../src/orchestrator/sdlc/localize.py#L1)

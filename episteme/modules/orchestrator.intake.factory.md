@@ -13,12 +13,16 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36) — reaches **30** symbols
-- [`build_service_for`](../../src/orchestrator/intake/factory.py#L272) — reaches **22** symbols
+- [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36) — reaches **31** symbols
+- [`build_service_for`](../../src/orchestrator/intake/factory.py#L272) — reaches **23** symbols
 - [`_build_service`](../../src/orchestrator/intake/factory.py#L40) — reaches **9** symbols
 - [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L196) — reaches **5** symbols
 - [`_with_server`](../../src/orchestrator/intake/factory.py#L100) — reaches **2** symbols
 - [`mcp_server_for`](../../src/orchestrator/intake/factory.py#L61) — reaches **2** symbols
+
+## Documented in
+
+`docs/specs/build-documents/SSPN-49-build.md#4-pkg-what-the-graph-knows`
 
 ## Types
 
@@ -43,7 +47,7 @@
 [`src/orchestrator/intake/factory.py:40`](../../src/orchestrator/intake/factory.py#L40)
 
 - **Called by** (6): [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L196), [`build_confluence_service`](../../src/orchestrator/intake/factory.py#L107), [`build_file_service`](../../src/orchestrator/intake/factory.py#L173), [`build_jira_service`](../../src/orchestrator/intake/factory.py#L134), [`build_notion_service`](../../src/orchestrator/intake/factory.py#L162), [`build_openspec_service`](../../src/orchestrator/intake/factory.py#L183)
-- **Calls** (9): [`BacklogService`](../../src/orchestrator/intake/service.py#L179), [`GapAnalyzer`](../../src/orchestrator/intake/gaps.py#L124), [`IntentExtractor`](../../src/orchestrator/intake/intents.py#L164), [`JiraAdapter`](../../src/orchestrator/intake/jira.py#L114), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L80), [`SpecWriter`](../../src/orchestrator/intake/specs.py#L111), `getenv`, [`load_gap_rules`](../../src/orchestrator/intake/gaps.py#L118), `orchestrator.core.llm.LiteLLMClient`
+- **Calls** (9): [`BacklogService`](../../src/orchestrator/intake/service.py#L179), [`GapAnalyzer`](../../src/orchestrator/intake/gaps.py#L124), [`IntentExtractor`](../../src/orchestrator/intake/intents.py#L164), [`JiraAdapter`](../../src/orchestrator/intake/jira.py#L114), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L80), [`SpecWriter`](../../src/orchestrator/intake/specs.py#L119), `getenv`, [`load_gap_rules`](../../src/orchestrator/intake/gaps.py#L118), `orchestrator.core.llm.LiteLLMClient`
 
 ### `_with_server`
 
@@ -106,7 +110,7 @@
 
 [`src/orchestrator/intake/factory.py:272`](../../src/orchestrator/intake/factory.py#L272)
 
-- **Called by** (8 production · 12 test): [`_load_ticket`](../../src/orchestrator/cli.py#L2067), [`_run_ingest`](../../src/orchestrator/cli.py#L312), [`_run_openspec_draft`](../../src/orchestrator/cli.py#L397), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L404), [`ingest_preview`](../../src/orchestrator/plugin/server.py#L39), [`intake_analyze`](../../src/orchestrator/sdlc/activities.py#L177), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623), [`run_preview`](../../src/orchestrator/intake/web/app.py#L88), [`test_configured_mcp_confluence_builds`](../../tests/intake/test_mcp_source.py#L176), [`test_confluence_builder_configured_wires_confluence_source`](../../tests/intake/test_factory.py#L106), [`test_confluence_builder_unconfigured_raises`](../../tests/intake/test_factory.py#L86), [`test_dispatch_routes_to_kind_builder`](../../tests/intake/test_factory.py#L44), [`test_file_builder_needs_no_credentials`](../../tests/intake/test_factory.py#L100), [`test_generic_mcp_unconfigured_raises`](../../tests/intake/test_mcp_source.py#L159), [`test_malformed_uri_propagates_source_uri_error`](../../tests/intake/test_factory.py#L74), [`test_notion_builder_configured_wires_notion_source`](../../tests/intake/test_factory.py#L94), [`test_notion_builder_unconfigured_raises`](../../tests/intake/test_factory.py#L80), [`test_openspec_is_a_supported_kind`](../../tests/intake/test_openspec_source.py#L143), [`test_unconfigured_mcp_confluence_raises`](../../tests/intake/test_mcp_source.py#L170), [`test_unsupported_kind_raises_with_supported_list`](../../tests/intake/test_factory.py#L66)
+- **Called by** (9 production · 12 test): [`_go`](../../src/orchestrator/cli.py#L1054), [`_load_ticket`](../../src/orchestrator/cli.py#L2231), [`_run_ingest`](../../src/orchestrator/cli.py#L312), [`_run_openspec_draft`](../../src/orchestrator/cli.py#L397), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L498), [`ingest_preview`](../../src/orchestrator/plugin/server.py#L39), [`intake_analyze`](../../src/orchestrator/sdlc/activities.py#L177), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623), [`run_preview`](../../src/orchestrator/intake/web/app.py#L88), [`test_configured_mcp_confluence_builds`](../../tests/intake/test_mcp_source.py#L176), [`test_confluence_builder_configured_wires_confluence_source`](../../tests/intake/test_factory.py#L106), [`test_confluence_builder_unconfigured_raises`](../../tests/intake/test_factory.py#L86), [`test_dispatch_routes_to_kind_builder`](../../tests/intake/test_factory.py#L44), [`test_file_builder_needs_no_credentials`](../../tests/intake/test_factory.py#L100), [`test_generic_mcp_unconfigured_raises`](../../tests/intake/test_mcp_source.py#L159), [`test_malformed_uri_propagates_source_uri_error`](../../tests/intake/test_factory.py#L74), [`test_notion_builder_configured_wires_notion_source`](../../tests/intake/test_factory.py#L94), [`test_notion_builder_unconfigured_raises`](../../tests/intake/test_factory.py#L80), [`test_openspec_is_a_supported_kind`](../../tests/intake/test_openspec_source.py#L143), [`test_unconfigured_mcp_confluence_raises`](../../tests/intake/test_mcp_source.py#L170), [`test_unsupported_kind_raises_with_supported_list`](../../tests/intake/test_factory.py#L66)
 - **Calls** (3): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40), `py:builder`
 
 ### `mcp_server_for`

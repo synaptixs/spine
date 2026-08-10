@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L170) — reaches **7** symbols
-- [`_landing_files`](../../src/orchestrator/sdlc/design.py#L108) — reaches **7** symbols
-- [`_llm_design`](../../src/orchestrator/sdlc/design.py#L224) — reaches **7** symbols
-- [`_normalise`](../../src/orchestrator/sdlc/design.py#L211) — reaches **7** symbols
-- [`_overview_files`](../../src/orchestrator/sdlc/design.py#L136) — reaches **7** symbols
-- [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L76) — reaches **7** symbols
-- [`_structure_lines`](../../src/orchestrator/sdlc/design.py#L50) — reaches **7** symbols
-- [`produce_design`](../../src/orchestrator/sdlc/design.py#L285) — reaches **6** symbols
+- [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L170) — reaches **11** symbols
+- [`_llm_design`](../../src/orchestrator/sdlc/design.py#L224) — reaches **11** symbols
+- [`_landing_files`](../../src/orchestrator/sdlc/design.py#L108) — reaches **10** symbols
+- [`_normalise`](../../src/orchestrator/sdlc/design.py#L211) — reaches **10** symbols
+- [`_overview_files`](../../src/orchestrator/sdlc/design.py#L136) — reaches **10** symbols
+- [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L76) — reaches **10** symbols
+- [`_structure_lines`](../../src/orchestrator/sdlc/design.py#L50) — reaches **10** symbols
+- [`produce_design`](../../src/orchestrator/sdlc/design.py#L285) — reaches **10** symbols
 
 _1 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -96,20 +96,20 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:285`](../../src/orchestrator/sdlc/design.py#L285)
 
-- **Called by** (3 production · 5 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L535), [`design`](../../src/orchestrator/cli.py#L1904), [`design_feature`](../../src/orchestrator/sdlc/design.py#L323), [`test_a_design_that_cannot_tell_says_so_and_proposes_nothing`](../../tests/sdlc/test_design.py#L253), [`test_heuristic_files_come_from_where_the_ticket_lands`](../../tests/sdlc/test_design.py#L232), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_the_design_agrees_with_the_investigation`](../../tests/sdlc/test_design.py#L269)
+- **Called by** (4 production · 5 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L629), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1073), [`design`](../../src/orchestrator/cli.py#L2068), [`design_feature`](../../src/orchestrator/sdlc/design.py#L323), [`test_a_design_that_cannot_tell_says_so_and_proposes_nothing`](../../tests/sdlc/test_design.py#L253), [`test_heuristic_files_come_from_where_the_ticket_lands`](../../tests/sdlc/test_design.py#L232), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_the_design_agrees_with_the_investigation`](../../tests/sdlc/test_design.py#L269)
 - **Calls** (5): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L170), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L224), [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L142), `suppress`, [`to_dict`](../../src/orchestrator/sdlc/impact.py#L187)
 
 ### `render_design_md`
 
 [`src/orchestrator/sdlc/design.py:262`](../../src/orchestrator/sdlc/design.py#L262)
 
-- **Called by** (3 production · 3 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L535), [`design`](../../src/orchestrator/cli.py#L1904), [`design_feature`](../../src/orchestrator/sdlc/design.py#L323), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_render_design_md_sections`](../../tests/sdlc/test_design.py#L204)
+- **Called by** (3 production · 3 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L629), [`design`](../../src/orchestrator/cli.py#L2068), [`design_feature`](../../src/orchestrator/sdlc/design.py#L323), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_render_design_md_sections`](../../tests/sdlc/test_design.py#L204)
 - **Calls** (2): `py:_list`, [`render_md`](../../src/orchestrator/sdlc/impact.py#L216)
 
 ## Imports
 
-`__future__.annotations`, `contextlib`, `json`, [`orchestrator.core.llm.client`](../../src/orchestrator/core/llm/client.py#L1), [`orchestrator.core.prompt_safety`](../../src/orchestrator/core/prompt_safety.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.runtime`](../../src/orchestrator/runtime/__init__.py#L1), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.impact`](orchestrator.sdlc.impact.md), [`orchestrator.sdlc.investigate`](../../src/orchestrator/sdlc/investigate.py#L1), `pathlib.Path`, `re`, `typing.Any`, `typing.TYPE_CHECKING`
+`__future__.annotations`, `contextlib`, `json`, [`orchestrator.core.llm.client`](../../src/orchestrator/core/llm/client.py#L1), [`orchestrator.core.prompt_safety`](../../src/orchestrator/core/prompt_safety.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.runtime`](../../src/orchestrator/runtime/__init__.py#L1), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.impact`](../../src/orchestrator/sdlc/impact.py#L1), [`orchestrator.sdlc.investigate`](../../src/orchestrator/sdlc/investigate.py#L1), `pathlib.Path`, `re`, `typing.Any`, `typing.TYPE_CHECKING`
 
 ## Imported by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.sdlc.activities`](../../src/orchestrator/sdlc/activities.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`tests.sdlc.test_design`](../../tests/sdlc/test_design.py#L1), [`tests.sdlc.test_design_impact`](../../tests/sdlc/test_design_impact.py#L1)
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.sdlc.activities`](../../src/orchestrator/sdlc/activities.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`tests.sdlc.test_design`](../../tests/sdlc/test_design.py#L1), [`tests.sdlc.test_design_impact`](../../tests/sdlc/test_design_impact.py#L1)

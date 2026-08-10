@@ -30,7 +30,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/launch.py:86`](../../src/orchestrator/launch.py#L86)
 
-- **Called by** (1 production · 8 test): [`up`](../../src/orchestrator/cli.py#L1635), [`test_api_command`](../../tests/test_launch.py#L78), [`test_app_url_keeps_real_host`](../../tests/test_launch.py#L26), [`test_app_url_shows_localhost_for_loopback`](../../tests/test_launch.py#L23), [`test_existing_values_win`](../../tests/test_launch.py#L64), [`test_explicit_file_wins`](../../tests/test_launch.py#L152), [`test_fills_defaults_when_unset`](../../tests/test_launch.py#L55), [`test_health_urls_bind_to_host`](../../tests/test_launch.py#L29), [`test_writes_embedded_when_none_found`](../../tests/test_launch.py#L158)
+- **Called by** (1 production · 8 test): [`up`](../../src/orchestrator/cli.py#L1799), [`test_api_command`](../../tests/test_launch.py#L78), [`test_app_url_keeps_real_host`](../../tests/test_launch.py#L26), [`test_app_url_shows_localhost_for_loopback`](../../tests/test_launch.py#L23), [`test_existing_values_win`](../../tests/test_launch.py#L64), [`test_explicit_file_wins`](../../tests/test_launch.py#L152), [`test_fills_defaults_when_unset`](../../tests/test_launch.py#L55), [`test_health_urls_bind_to_host`](../../tests/test_launch.py#L29), [`test_writes_embedded_when_none_found`](../../tests/test_launch.py#L158)
 - **Fields**: `api_key`, `compose_file`, `env`, `host`, `port`, `postgres_port`, `session_secret`, `start_worker`, `temporal_port`, `use_docker`
 
 ### `LaunchError`
@@ -109,6 +109,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/launch.py:170`](../../src/orchestrator/launch.py#L170)
 
 - **Called by** (1 production · 1 test): [`run_up`](../../src/orchestrator/launch.py#L307), [`test_api_command`](../../tests/test_launch.py#L78)
+- **Documented in**: `docs/specs/build-documents/SSPN-49-plan.md#3-pkg-understanding-and-where-it-misleads`
 
 ### `build_child_env`
 
@@ -134,7 +135,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/launch.py:307`](../../src/orchestrator/launch.py#L307)
 
-- **Called by** (1): [`up`](../../src/orchestrator/cli.py#L1635)
+- **Called by** (1): [`up`](../../src/orchestrator/cli.py#L1799)
 - **Calls** (14): [`LaunchError`](../../src/orchestrator/launch.py#L303), `Popen`, [`_block_until_interrupted`](../../src/orchestrator/launch.py#L369), [`_bring_up_docker`](../../src/orchestrator/launch.py#L260), [`_has_llm_key`](../../src/orchestrator/launch.py#L299), [`_print_ready_banner`](../../src/orchestrator/launch.py#L358), [`_run_migrations`](../../src/orchestrator/launch.py#L277), [`_teardown`](../../src/orchestrator/launch.py#L383), [`api_command`](../../src/orchestrator/launch.py#L170), [`build_child_env`](../../src/orchestrator/launch.py#L150), `py:echo`, [`wait_for_http`](../../src/orchestrator/launch.py#L218), [`wait_for_tcp`](../../src/orchestrator/launch.py#L206), [`worker_command`](../../src/orchestrator/launch.py#L185)
 
 ### `wait_for_http`
