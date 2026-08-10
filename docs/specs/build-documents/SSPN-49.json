@@ -11,6 +11,9 @@
     "On the happy path nothing changes: the same output, the same exit code, and the same parsed response as before.",
     "Every command routed through _client() gets this behaviour, not only `template list` and `contract list`."
   ],
+  "met_criteria": {
+    "Any other non-success HTTP status surfaces the status code and the server's own message, with no traceback.": "src/orchestrator/cli.py:134 — _check() already prints `Error {status}: {detail}` for any status >= 400 and exits 1, with no traceback."
+  },
   "technical_notes": "`_client()` is at src/orchestrator/cli.py:61 and returns an `httpx.Client` used as a context manager at six call sites (lines 148, 158, 164, 169, 174, 263). Prefer one place that wraps the request over editing six call sites by hand — an httpx event hook, a small wrapper, or a context manager around the existing `with _client() as client:` blocks. The three exception types to distinguish are `httpx.ConnectError`, `httpx.TimeoutException` and `httpx.HTTPStatusError`; `httpx.RequestError` is their common base if a catch-all is needed. Exit non-zero via `typer.Exit(code=...)` — do not swallow the failure.\n\nThe base URL and timeout are already read from `ORCHESTRATOR_API_URL` (default http://localhost:8000) and `ORCHESTRATOR_API_TIMEOUT_SECONDS`, so the message can name real values rather than guesses.\n\nWRITING TESTS: build fakes from the real types. `httpx.ConnectError(\"...\")` takes a message; `httpx.HTTPStatusError(\"...\", request=..., response=...)` requires both `request` and `response` keyword arguments, built as `httpx.Request(\"GET\", \"http://localhost:8000/x\")` and `httpx.Response(401, request=req)`. Typer commands are exercised with `typer.testing.CliRunner` — tests/test_cli.py shows the working shape; copy it rather than inferring one. Do not create files named PLACEHOLDER or any other stub.",
   "nfrs": [
     "No new dependency: httpx is already a direct dependency.",

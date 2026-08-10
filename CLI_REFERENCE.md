@@ -20,7 +20,7 @@
 `ingest` · `backlog` · `openspec draft`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
-`sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
+`sdlc plan` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
 
 **MCP — external tools** — Consume onboarded Model Context Protocol servers (governed, audited).  
 `mcp list` · `mcp contracts` · `mcp call` · `mcp ingest-db`
@@ -692,6 +692,43 @@ orchestrator openspec draft [OPTIONS]
 ## The SDLC pipeline — build features
 
 The autonomous build path: requirements → code → tests → reviewed PR, with human gates.
+
+### `orchestrator sdlc plan`
+
+The build document for one ticket, and then it stops. Runs intake → investigate →
+validity → design, renders the twelve sections of
+[`docs/specs/build-document.md`](docs/specs/build-document.md), and writes it to
+`.spine/plans/<INTENT>-build.md`. No worktree, no codegen, no spend, and the tracker
+is not touched — the ticket moves when work begins, not when someone thinks about it.
+
+This is the gate *before* code exists; `--review` on `autorun` still gates the diff
+after. Every section carries where it came from — quoted, computed, inferred or
+human — and the four it cannot yet establish say so instead of vanishing.
+
+With `--spec` there is no LLM anywhere in this path: the same commit and the same
+spec produce a byte-identical document, which is what makes the kept history
+meaningful. Re-running overwrites in place; a document it replaces is snapshotted
+under `history/`, keyed by the commit it was derived at.
+
+```
+orchestrator sdlc plan --spec ./SSPN-49.json --path .
+```
+
+| Option | Description |
+|---|---|
+| `--spec` | A hand-written spec (JSON). Skips intake entirely, and makes the run LLM-free. |
+| `--source` | Derive the spec instead, e.g. `jira://<issue-key>`. One of `--spec`/`--source` is required. |
+| `--intent` | Intent id to plan (default: the first). |
+| `--path` | Repo to reason about — the graph the plan is grounded in. (default: `.`) |
+| `--out` | Where the document goes (default: `<repo>/.spine/plans`). |
+| `--language` | Target language named in the codegen-prompt section. (default: `python`) |
+| `--quiet` | Write the document without printing it. |
+
+The spec accepts one field beyond `sdlc autorun --spec`: `met_criteria`, a map from
+a stated criterion's exact text to the evidence that it is *already* satisfied
+(`"src/orchestrator/cli.py:134 — _check() already handles this"`). Those criteria
+stay on the page, marked, rather than being quietly dropped — a run that reports
+them met having changed nothing is the failure the document exists to catch.
 
 ### `orchestrator sdlc autorun`
 

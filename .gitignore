@@ -54,3 +54,6 @@ build/
 # MCP client config — machine-specific paths, and the file people paste tokens into.
 # The tracked `.mcp.json` is the OTHER direction (how Claude Code launches Spine).
 mcp.json
+
+# Build documents — permanent, per-ticket, and deliberately not ingested.
+.spine/

@@ -102,6 +102,14 @@ class FeatureSpec(BaseModel):
     # acceptance_criteria so a reader (and, later, the judge) can tell a contract
     # the ticket signed from a suggestion the spec writer inferred.
     proposed_criteria: list[str] = Field(default_factory=list)
+    # Stated criteria the code *already* satisfies, mapped to the evidence that says so
+    # ("src/orchestrator/cli.py:134 — _check() already prints Error {status} and exits 1").
+    # The third state, and the one that costs a run: SSPN-49 filed six criteria of which
+    # two described behaviour that already existed, so a run would have reported them met
+    # having changed nothing. Keyed by the criterion's exact text — a key that matches
+    # nothing is surfaced as a mismatch rather than silently dropped. Human-supplied; no
+    # deterministic pass can make this judgement.
+    met_criteria: dict[str, str] = Field(default_factory=dict)
     technical_notes: str = ""
     nfrs: list[str] = Field(default_factory=list)
     dependencies: list[str] = Field(default_factory=list)

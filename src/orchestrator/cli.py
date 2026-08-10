@@ -937,6 +937,91 @@ def sdlc_autorun(
     asyncio.run(_go())
 
 
+@sdlc_app.command("plan")
+def sdlc_plan(
+    spec: Annotated[
+        Path | None,
+        typer.Option("--spec", help="A hand-written spec (JSON). Skips intake entirely."),
+    ] = None,
+    source: Annotated[
+        str | None,
+        typer.Option("--source", help="Derive the spec instead, e.g. jira://<issue-key>."),
+    ] = None,
+    intent: Annotated[
+        str | None, typer.Option("--intent", help="Intent id to plan (default: the first).")
+    ] = None,
+    path: Annotated[str, typer.Option("--path", help="Repo to reason about (the graph).")] = ".",
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", help="Where the document goes (default: <repo>/.spine/plans)."),
+    ] = None,
+    language: Annotated[str, typer.Option("--language", help="Target language for the prompt.")] = "python",
+    quiet: Annotated[bool, typer.Option("--quiet", help="Write the document without printing it.")] = False,
+) -> None:
+    """Produce the build document for ONE ticket and stop. No worktree, no code, no spend.
+
+    Runs intake → investigate → validity → design, renders the twelve sections of
+    docs/specs/build-document.md, and persists it to `.spine/plans/<INTENT>-build.md`.
+    With `--spec` there is no LLM anywhere in this path: same commit in, same document out.
+
+    This is the gate that comes *before* code exists. `--review` still gates the diff.
+    """
+    import asyncio
+
+    from orchestrator.sdlc.builddoc import build_plan, persist
+    from orchestrator.sdlc.spec_file import SpecFileError, load_spec_file
+
+    if not spec and not source:
+        typer.echo("Give --spec <file.json> or --source <uri>.", err=True)
+        raise typer.Exit(code=2)
+
+    try:
+        injected = load_spec_file(spec) if spec else None
+    except SpecFileError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+
+    async def _go() -> None:
+        resolved = injected
+        if resolved is None:
+            from orchestrator.core.env import load_local_env
+            from orchestrator.intake.cache import analyze_cached
+            from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
+
+            load_local_env()
+            try:
+                service = build_service_for(str(source), dry_run=True)
+            except IntakeNotConfiguredError as exc:
+                typer.echo(str(exc), err=True)
+                raise typer.Exit(code=2) from exc
+            plan_result = await analyze_cached(service, str(source), refresh=False, log=lambda _m: None)
+            if not plan_result.specs:
+                typer.echo("No specs derived from the source — nothing to plan.", err=True)
+                raise typer.Exit(code=3)
+            chosen = (
+                next((s for s in plan_result.specs if s.intent_id == intent), None)
+                if intent
+                else plan_result.specs[0]
+            )
+            if chosen is None:
+                ids = ", ".join(s.intent_id for s in plan_result.specs)
+                typer.echo(f"Intent {intent!r} not found. Available: {ids}", err=True)
+                raise typer.Exit(code=3)
+            resolved = chosen.model_dump()
+
+        document = await build_plan(resolved, root=path, language=language)
+        written, superseded = persist(
+            document, intent_id=str(resolved.get("intent_id") or "spec"), root=path, out=out
+        )
+        if not quiet:
+            typer.echo(document)
+        typer.echo(f"[plan] {written}", err=True)
+        if superseded is not None:
+            typer.echo(f"[plan] superseded document kept at {superseded}", err=True)
+
+    asyncio.run(_go())
+
+
 @sdlc_app.command("feature")
 def sdlc_feature(
     source: Annotated[
