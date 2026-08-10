@@ -415,47 +415,66 @@ def _confidence_block(
         "| what the plan established | reading | weight |",
         "|---|---|---|",
     ]
+    # A check that cannot apply to this ticket is not a check this ticket failed. Root
+    # cause is the case: a feature has none to establish, and scoring its absence capped
+    # every enhancement a point below every bug while telling the reader nothing.
+    # ``applies`` drops such a row out of the denominator instead.
     score = 0
-    for label, ok, good, bad in (
+    possible = 0
+    for label, applies, ok, good, bad, na in (
         (
             "Validity gate",
+            True,
             signals.get("verdict") == "PROCEED",
             "PROCEED — nothing contradicts the code",
             f"{signals.get('verdict') or 'unknown'} — the ticket disagrees with the code",
+            "",
         ),
         (
             "Where it lands",
+            True,
             bool(signals.get("brief_agrees")),
             "the brief and the design name the same files",
             "the brief names none of the files being changed",
+            "",
         ),
         (
             "Root cause",
+            bool(signals.get("root_cause")),
             bool(signals.get("fault_site")),
             "localized to a symbol",
             "a file at best — no line established",
+            "nothing to localize — not a bug, so nothing is owed",
         ),
         (
             "Named paths",
+            True,
             not signals.get("unverified"),
             "every path the design names is in the graph",
             "the design names paths the graph has never seen",
+            "",
         ),
         (
             "Context budget",
+            True,
             not signals.get("over_budget"),
             "the named files fit the window whole",
             "over budget — codegen will excerpt",
+            "",
         ),
     ):
+        if not applies:
+            rows.append(f"| {label} | {na} | n/a |")
+            continue
+        possible += 1
         score += 1 if ok else 0
         rows.append(f"| {label} | {good if ok else bad} | {'+' if ok else '−'} |")
 
-    band = "high" if score >= 5 else "medium" if score >= 3 else "low"
+    band = "high" if score == possible else "medium" if score * 2 >= possible else "low"
     out = [
-        f"**Is the analysis right? — {band}** ({score} of 5 checks positive). "
-        "A band, not a percentage: nothing here measures correctness, only how much the "
-        "plan managed to establish.\n",
+        f"**Is the analysis right? — {band}** ({score} of {possible} applicable checks "
+        "positive). A band, not a percentage: nothing here measures correctness, only how "
+        "much the plan managed to establish.\n",
         "\n".join(rows) + "\n",
     ]
 
@@ -1050,6 +1069,8 @@ def render_build_md(
             signals={
                 "verdict": getattr(raw_verdict, "value", raw_verdict),
                 "brief_agrees": bool(agreed),
+                # Whether section 3 rendered at all — not whether it localized well.
+                "root_cause": bool(root_cause),
                 "fault_site": bool(getattr(rca, "fault_site", "")),
                 "unverified": bool(blast.get("unverified_references")),
                 "over_budget": carried > context_budget,

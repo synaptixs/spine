@@ -698,7 +698,7 @@ def test_a_plan_that_established_everything_scores_high(tmp_path: Path) -> None:
         validity=_Assessment(Verdict.PROCEED),
         rca=_RCA(fault_site="f at src/a.py:10"),
     )
-    assert "**Is the analysis right? — high** (5 of 5" in md
+    assert "**Is the analysis right? — high** (5 of 5 applicable checks" in md
 
 
 def test_a_plan_that_established_little_scores_low(tmp_path: Path) -> None:
@@ -715,7 +715,19 @@ def test_a_plan_that_established_little_scores_low(tmp_path: Path) -> None:
             }
         ),
     )
-    assert re.search(r"\*\*Is the analysis right\? — low\*\* \([012] of 5", md)
+    assert re.search(r"\*\*Is the analysis right\? — low\*\* \([012] of \d applicable", md)
+
+
+def test_a_feature_is_not_docked_for_having_no_root_cause(tmp_path: Path) -> None:
+    """A check that cannot apply is not a check this ticket failed.
+
+    Scoring an omitted section 3 as a failure capped every enhancement a point below
+    every bug, and said "a file at best" about a ticket that named no file at all.
+    """
+    md = _render(tmp_path, rca=_RCA(exception="", fault_module="", hypotheses=[]))
+    assert "| Root cause | nothing to localize — not a bug, so nothing is owed | n/a |" in md
+    assert "of 4 applicable checks" in md
+    assert "a file at best" not in md
 
 
 def test_the_completion_number_is_a_base_rate_not_a_guess(tmp_path: Path) -> None:
