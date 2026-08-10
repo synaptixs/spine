@@ -1,8 +1,67 @@
 # Changelog
 
-## Unreleased
+All notable changes to this project are documented here. Format loosely follows
+[Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
+(import/CLI stay `orchestrator`).
+
+## 3.16.0 — Nothing gets built that nobody read
 
 ### Added
+
+- **Plan before code: `orchestrator sdlc plan` renders a build document, and
+  `sdlc approve` gates on it.** Six live runs on one ticket produced usable source most
+  times and completed zero times, at roughly $4.75 — and every failure was a decision made
+  silently: a design naming the wrong files, a prompt rule forbidding the shape the spec
+  asked for, and two acceptance criteria describing behaviour the code already had. All
+  three were visible in a document that costs nothing to produce. One ticket now yields
+  twelve fixed sections — requirement, intent, root cause, what the graph knows, blast
+  radius, design, files, criteria, facts for the generator, the codegen prompt, cost and
+  confidence — assembled from the ticket, the graph, git and the repo's own tests. **Every
+  section carries where it came from**: quoted, computed, inferred, or decided by a person.
+  A document that mixes a quoted requirement with an inference and does not say which is
+  which lends the authority of the first to the second. See
+  [`docs/specs/build-document.md`](docs/specs/build-document.md).
+
+- **Acceptance criteria have three states, not one.** Stated, *stated but already met by
+  code that exists*, and proposed. The ticket this was built for filed six criteria of
+  which two described behaviour `_check()` already had; a run would have reported them met
+  having changed nothing. `FeatureSpec.met_criteria` maps a criterion's exact text to the
+  evidence that satisfies it, and the criterion stays on the page marked rather than
+  quietly disappearing from the list. A key matching no criterion is reported as a
+  mismatch rather than silently ignored.
+
+- **`CONSUMES` — the client half of the route join.** `EXPOSES` gave a route its handler
+  and nothing pointed *at* an endpoint, so a public route was a leaf: something the server
+  declared that nothing in the repo appeared to want. That is why a ticket about "the
+  registry API" retrieved the server modules and never reached the CLI that calls them.
+  Python source now yields `CONSUMES` edges from a caller to the endpoint it calls, and
+  `impact_of` follows them, so changing a handler reaches the code that would break.
+  Literal paths only — a request built from an f-string yields nothing, because a wrong
+  edge is worse than an absent one.
+
+- **A plan is approved against a digest of what was read.** `sdlc approve` records who,
+  when, why, and the commit it was derived at. `sdlc autorun` re-derives the plan and
+  compares: same tree, same digest, approval stands; anything else refuses, because an
+  approval that survives the code moving underneath it approves a document nobody has
+  read. The gate is on by default (`--no-plan-gate` to skip, and it says so out loud), and
+  a refusal parks rather than fails — the ticket is fine, the review has not happened.
+
+- **The journey: each run appends, no run rewrites.** Stage results, the run outcome with
+  measured tokens and spend, and — the reason it earns its place — the disagreement between
+  what implement touched and what the design named, in both directions. Append-only by
+  construction: there is no update and no delete, because a later stage that could tidy an
+  earlier one away removes exactly the evidence worth keeping.
+
+### Changed
+
+- **A bug ticket is not a traceback.** Fault localization read anchored exception lines and
+  `File "x.py", line N` frames, so a ticket carrying `ConnectError: [Errno 61] Connection
+  refused` in plain prose localized to nothing at all. An exception named anywhere in the
+  text is now read — still requiring the `SomeError: …` colon form, so "this Error handling
+  is poor" stays a complaint — and source paths the text names are resolved against the
+  graph. A stated file is a *module*, never a fault site, and the two are never presented
+  as each other. `orchestrator rca` and `orchestrator localize` were blind the same way and
+  both improve.
 
 - **`pkg extract` counts edges by kind.** One total cannot show a kind that stopped being
   emitted: `edges: 31073` reads identically whether the call graph resolved or collapsed to
@@ -11,8 +70,6 @@
   report `0` rather than being omitted — `REFERENCES 0` on a repo with entities is the line
   worth reading, and a missing key looks like a question nobody asked. Existing keys are
   unchanged, so the ten callers of `summary()` are unaffected.
-
-## Unreleased
 
 ### Fixed
 
@@ -182,10 +239,6 @@
   render surface (`intake.service.spec_to_issue_request`, `intake.report`,
   `intake.web.app`) show the proposed set under its own label rather than dropping it.
   Specs with no proposed criteria render exactly as before.
-
-All notable changes to this project are documented here. Format loosely follows
-[Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
-(import/CLI stay `orchestrator`).
 
 ## Unreleased
 
