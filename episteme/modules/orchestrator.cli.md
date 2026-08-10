@@ -36,7 +36,7 @@ _24 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (6): [`_deprecate`](../../src/orchestrator/cli.py#L173), [`_list`](../../src/orchestrator/cli.py#L152), [`_publish`](../../src/orchestrator/cli.py#L168), [`_register`](../../src/orchestrator/cli.py#L146), [`_show`](../../src/orchestrator/cli.py#L162), [`task_submit`](../../src/orchestrator/cli.py#L245)
 - **Calls** (3): `Exit`, `dumps`, `echo`
-- **Documented in**: `docs/specs/build-document.md#4-acceptance-criteria-have-three-states-not-one`, `docs/specs/build-document.md#9-worked-example`, `docs/specs/build-documents/SSPN-49-build.md#3-root-cause`, `docs/specs/build-documents/SSPN-49-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/SSPN-49-build.md#5-blast-radius-impact-neighbourhood`, `docs/specs/build-documents/SSPN-49-build.md#6-design`
+- **Documented in**: `CHANGELOG.md`, `docs/specs/build-document.md#4-acceptance-criteria-have-three-states-not-one`, `docs/specs/build-document.md#9-worked-example`, `docs/specs/build-documents/SSPN-49-build.md#3-root-cause`, `docs/specs/build-documents/SSPN-49-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/SSPN-49-build.md#5-blast-radius-impact-neighbourhood`
 
 ### `_client`
 
