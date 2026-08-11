@@ -4,6 +4,48 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.16.1 — The paths nobody ran
+
+Everything in 3.16.0 was exercised through `--spec`, which makes no model call. The first
+run through `--source` found that path broken, and the sweep that found it is now written
+down.
+
+### Fixed
+
+- **A model that refuses our temperature no longer kills the run.** Intake pins
+  `temperature=0.0` so a spec is stable for a given intent; `claude-opus-5` — the default
+  for every stage — accepts the parameter but only at `1`. Every `--source` path therefore
+  died on its first model call: `ingest`, `sdlc plan --source`, and `autorun` without
+  `--spec`, each with a forty-line traceback where one line belongs. A refused temperature
+  is retried once without it, matched on the message rather than the exception type,
+  because litellm raises `UnsupportedParamsError` for several unrelated parameters and
+  retrying an unrelated failure turns one clear error into two. **The determinism the pin
+  buys is gone when this fires, so it is logged rather than swallowed.**
+
+- **A confidence check that cannot apply is no longer scored as a failure.** Section 12
+  read "Root cause: a file at best — no line established" for every feature ticket, capping
+  each enhancement a point below every bug and asserting a file had been named when section
+  3 said none was. Inapplicable rows now render `n/a` and leave the denominator, so an
+  enhancement reads "3 of 4 applicable checks" against a bug's "3 of 5".
+
+### Changed
+
+- **Section 11 prices a swap across providers.** The cost table listed the resolved model
+  and its provider siblings, which cannot answer what switching costs. It now shows the
+  nearest three by input price from anthropic, openai and gemini, with a provider column.
+  By price tier, not recency — the catalog carries no release date, so "the latest model"
+  is not a fact available to the renderer, and a hardcoded list of latest ids goes stale
+  silently.
+
+### Documentation
+
+- **`docs/specs/cli-test-plan.md`** — every one of the 50 CLI commands with prerequisites
+  and acceptance criteria, tiered by blast radius, with per-sweep result recording. Four
+  known defects are marked as currently failing rather than written as if they pass.
+- **`.env.example` restructured** so its blocks read in the order they are configured, and
+  seven variables already in use gain documentation — including that MCP is preferred for
+  reads and is not a path for writes at all.
+
 ## 3.16.0 — Nothing gets built that nobody read
 
 ### Added
