@@ -401,6 +401,7 @@ also done (see G13).)*
 | `autonomous-run-agent.md` | The agent that drives a ticket end to end, and what it does when the path deviates |
 | `build-document.md` | Plan before code: every ticket produces a reviewable build document, and what each part of it is made of |
 | `build-documents/` | The build documents themselves — `SSPN-49-build.md` is the template all future ones follow |
+| `cli-test-plan.md` | Every CLI command with acceptance criteria, tiered by blast radius — the repeatable version of the sweep that found SSPN-49 |
 | `models.md` | Data-model reference |
 | `archive/AI-NATIVE-PLATFORM-PLAN.md` | Full original roadmap (merged into §5 here) |
 | `archive/PKG-INTEGRATION-PLAN.md` | Full original PKG plan (merged into §4 here) |
