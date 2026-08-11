@@ -21,6 +21,17 @@ from orchestrator.core.llm.client import (
 logger = logging.getLogger("orchestrator.core.llm")
 
 
+def _rejects_temperature(exc: Exception) -> bool:
+    """Whether this failure is the provider refusing the temperature we asked for.
+
+    Matched on the message because litellm raises ``UnsupportedParamsError`` for several
+    unrelated parameters, and retrying a prompt that failed for another reason would turn
+    one clear error into two.
+    """
+    text = str(exc).lower()
+    return "temperature" in text and ("unsupported" in text or "only temperature" in text)
+
+
 class LiteLLMClient:
     """Thin async wrapper over ``litellm.acompletion``.
 
@@ -107,7 +118,25 @@ class LiteLLMClient:
         try:
             response = await litellm.acompletion(**params)
         except Exception as exc:  # litellm raises a wide variety of exceptions
-            raise LLMError(f"{type(exc).__name__}: {exc}") from exc
+            # Some models accept `temperature` but only at their own fixed value —
+            # `claude-opus-5` takes 1 and rejects everything else. Intake pins 0.0 for
+            # determinism, so on those models every `--source` run died on the first
+            # call. Retry once without the parameter rather than fail the run.
+            #
+            # **The determinism the pin buys is lost when this fires**, so it is said out
+            # loud rather than swallowed: the caller asked for a stable temperature and
+            # did not get one, and a spec that silently varies between runs is worse than
+            # a warning nobody reads.
+            if "temperature" not in params or not _rejects_temperature(exc):
+                raise LLMError(f"{type(exc).__name__}: {exc}") from exc
+            logger.warning(
+                "llm.temperature_unsupported",
+                extra={"model": model, "temperature": params.pop("temperature")},
+            )
+            try:
+                response = await litellm.acompletion(**params)
+            except Exception as retry_exc:
+                raise LLMError(f"{type(retry_exc).__name__}: {retry_exc}") from retry_exc
         latency_ms = (time.perf_counter() - start) * 1000.0
 
         text, prompt_tokens, completion_tokens = _extract(response)
