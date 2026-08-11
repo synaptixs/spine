@@ -15,9 +15,9 @@
 
 
 **Naming**
-- **Functions** are `snake_case` (100% of 2556).
+- **Functions** are `snake_case` (100% of 2557).
 - **Types** are `PascalCase` (100% of 594).
-- **1052 of 2556 functions** are underscore-private — the public surface is the rest.
+- **1053 of 2557 functions** are underscore-private — the public surface is the rest.
 
 **Tests**
 
@@ -26,4 +26,4 @@
 
 **Errors**
 
-- **51 exception types** of its own, rooted at `TaskOrchestrationError`, `GatewayError`, `LLMError`, `ObjectStoreError`. Failure is signalled by raising these, not by return codes.
+- **51 exception types** of its own, rooted at `TaskOrchestrationError`, `LLMError`, `GatewayError`, `ObjectStoreError`. Failure is signalled by raising these, not by return codes.

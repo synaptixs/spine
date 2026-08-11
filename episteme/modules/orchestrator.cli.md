@@ -234,7 +234,7 @@ _24 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:441`](../../src/orchestrator/cli.py#L441)
 
 - **Calls** (6): `Exit`, `echo`, [`load_cached_plan`](../../src/orchestrator/intake/cache.py#L156), [`load_progress`](../../src/orchestrator/intake/cache.py#L102), [`render_markdown`](../../src/orchestrator/pkg/capabilities.py#L189), [`write_backlog`](../../src/orchestrator/intake/backlog_doc.py#L49)
-- **Documented in**: `CLI_REFERENCE.md`, `docs/specs/intake-backlog-progress.md#rollout`
+- **Documented in**: `CLI_REFERENCE.md`, `docs/specs/cli-test-plan.md`, `docs/specs/intake-backlog-progress.md#rollout`
 
 ### `catalog_list`
 
@@ -295,7 +295,7 @@ _24 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:268`](../../src/orchestrator/cli.py#L268)
 
 - **Calls** (2): [`_run_ingest`](../../src/orchestrator/cli.py#L312), `run`
-- **Documented in**: `CLI_REFERENCE.md`, `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/project-comprehension-memory-bank.md#reframe`
+- **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/cli-test-plan.md`, `docs/specs/project-comprehension-memory-bank.md#reframe`
 
 ### `init`
 
@@ -399,14 +399,14 @@ _24 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:2307`](../../src/orchestrator/cli.py#L2307)
 
 - **Calls** (13): `Exit`, [`_load_bug_text`](../../src/orchestrator/cli.py#L2380), [`_repo_arg`](../../src/orchestrator/cli.py#L105), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L225), `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), `orchestrator.core.llm.LiteLLMClient`, `orchestrator.pkg.FactStore`, `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.load_or_extract`, [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L272), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L44), `run`
-- **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `USER_GUIDE.md#bringing-diagrams-recordings-into-the-graph`, `docs/specs/autonomous-run-agent.md#2-what-already-exists-build-on-this-do-not-rebuild`, `docs/specs/comprehension-skill-spec.md#design-decisions`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
+- **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `USER_GUIDE.md#bringing-diagrams-recordings-into-the-graph`, `docs/specs/autonomous-run-agent.md#2-what-already-exists-build-on-this-do-not-rebuild`, `docs/specs/cli-test-plan.md`, `docs/specs/comprehension-skill-spec.md#design-decisions`
 
 ### `regression`
 
 [`src/orchestrator/cli.py:2395`](../../src/orchestrator/cli.py#L2395)
 
 - **Calls** (10): `Exit`, [`_repo_arg`](../../src/orchestrator/cli.py#L105), [`build_regression_plan`](../../src/orchestrator/sdlc/coverage.py#L137), `echo`, [`localize_trace`](../../src/orchestrator/sdlc/localize.py#L161), `orchestrator.pkg.FactStore`, `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.load_or_extract`, [`render_regression_plan_md`](../../src/orchestrator/sdlc/coverage.py#L180), [`resolve_target`](../../src/orchestrator/sdlc/coverage.py#L170)
-- **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `USER_GUIDE.md#bringing-diagrams-recordings-into-the-graph`, `docs/specs/autonomous-run-agent.md#2-what-already-exists-build-on-this-do-not-rebuild`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/graphify-vs-spine-comparison.md#side-by-side`
+- **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `USER_GUIDE.md#bringing-diagrams-recordings-into-the-graph`, `docs/specs/autonomous-run-agent.md#2-what-already-exists-build-on-this-do-not-rebuild`, `docs/specs/cli-test-plan.md`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `sdlc_address_review`
 
@@ -418,7 +418,7 @@ _24 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/cli.py:835`](../../src/orchestrator/cli.py#L835)
 
-- **Calls** (9): `Exit`, [`PlanApproval`](../../src/orchestrator/sdlc/builddoc.py#L114), [`decided_by_default`](../../src/orchestrator/sdlc/builddoc.py#L173), [`derived_at`](../../src/orchestrator/sdlc/builddoc.py#L78), `echo`, `pathlib.Path`, [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L132), [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L1212), [`save_approval`](../../src/orchestrator/sdlc/builddoc.py#L166)
+- **Calls** (9): `Exit`, [`PlanApproval`](../../src/orchestrator/sdlc/builddoc.py#L114), [`decided_by_default`](../../src/orchestrator/sdlc/builddoc.py#L173), [`derived_at`](../../src/orchestrator/sdlc/builddoc.py#L78), `echo`, `pathlib.Path`, [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L132), [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L1223), [`save_approval`](../../src/orchestrator/sdlc/builddoc.py#L166)
 
 ### `sdlc_autorun`
 
@@ -516,7 +516,7 @@ _24 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:1671`](../../src/orchestrator/cli.py#L1671)
 
 - **Calls** (3): `Exit`, `echo`, [`run_tui`](../../src/orchestrator/tui/app.py#L125)
-- **Documented in**: `CLI_REFERENCE.md`
+- **Documented in**: `CLI_REFERENCE.md`, `docs/specs/cli-test-plan.md`
 
 ### `understand`
 
@@ -529,7 +529,7 @@ _24 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:1799`](../../src/orchestrator/cli.py#L1799)
 
 - **Calls** (6): `Exit`, [`LaunchConfig`](../../src/orchestrator/launch.py#L86), `echo`, `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`run_up`](../../src/orchestrator/launch.py#L307)
-- **Documented in**: `CLI_REFERENCE.md`, `USER_GUIDE.md#plus-sdlc-id-2-designs-when-the-design-gate-is-enabled-see-73a`
+- **Documented in**: `CLI_REFERENCE.md`, `USER_GUIDE.md#plus-sdlc-id-2-designs-when-the-design-gate-is-enabled-see-73a`, `docs/specs/cli-test-plan.md`
 
 ## Imports
 
