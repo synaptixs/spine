@@ -308,7 +308,11 @@ _BYTES_PER_TOKEN = 4
 # Codegen's own ceiling: output covers thinking plus reply. The gap between "no output"
 # and "all of it" is the honest width of an estimate nobody has measured yet.
 _OUTPUT_CAP_TOKENS = 32_000
-_MAX_MODEL_ROWS = 6
+# Providers worth pricing a swap against. Deliberately short: the catalog holds ~1,700
+# priced models across 40-odd providers, and a table nobody reads to the end bounds
+# nothing. Add a provider here when someone actually runs the pipeline on it.
+_COMPARE_PROVIDERS = ("anthropic", "openai", "gemini")
+_MAX_MODELS_PER_PROVIDER = 3
 
 
 def _measured_runs(journey: list[JourneyEntry]) -> list[JourneyEntry]:
@@ -356,34 +360,41 @@ def _cost_block(*, carried_bytes: int, journey: list[JourneyEntry]) -> str:
         "codegen's cap covers thinking plus reply, and the width of that band *is* the uncertainty.\n"
     )
 
-    rows = ["| model | $/Mtok in | $/Mtok out | this prompt, low–high |", "|---|---|---|---|"]
+    rows = ["| model | provider | $/Mtok in | $/Mtok out | this prompt, low–high |", "|---|---|---|---|---|"]
     priced = [m for m in catalog.catalog() if m.input_usd_per_mtok or m.output_usd_per_mtok]
-    resolved = [m for m in priced if m.id == model_id]
-    # Alternatives from the same provider, not the first few alphabetically. The catalog
-    # holds ~1700 models; five arbitrary ones are noise a reader has to skip, and the
-    # comparison anyone actually makes is against the neighbours of what they are using.
-    family = resolved[0].provider if resolved else ""
-    siblings = [m for m in priced if m.id != model_id and family and m.provider == family]
-    # Deduped by id: the installed catalog lists some models twice (bare and
-    # provider-qualified), and the same row printed twice reads as a rendering bug.
-    seen_ids: set[str] = set()
-    shown = []
-    for candidate in resolved + siblings:
-        if candidate.id not in seen_ids:
+    resolved = next((m for m in priced if m.id == model_id), None)
+
+    # Comparison spans providers, because the question a reader has is "what would
+    # switching cost", and the answer is useless if it only lists neighbours of what they
+    # already run. Selection is by *price tier*, not by recency: the catalog carries no
+    # release date, so "the latest model" is not a fact available here — and a hardcoded
+    # list of latest ids goes stale silently, which is worse than not claiming it.
+    anchor = float(resolved.input_usd_per_mtok or 0.0) if resolved else 0.0
+    shown: list[Any] = [resolved] if resolved else []
+    seen_ids: set[str] = {m.id for m in shown}
+    for provider in _COMPARE_PROVIDERS:
+        family = [m for m in priced if m.provider == provider and m.id not in seen_ids and m.supports_tools]
+        # Nearest the resolved model's input price first — a like-for-like swap — then by
+        # id so the same commit always renders the same table.
+        family.sort(key=lambda m: (abs(float(m.input_usd_per_mtok or 0.0) - anchor), m.id))
+        for candidate in family[:_MAX_MODELS_PER_PROVIDER]:
             seen_ids.add(candidate.id)
             shown.append(candidate)
-    for m in shown[:_MAX_MODEL_ROWS]:
+
+    for m in shown:
         rate_in = float(m.input_usd_per_mtok or 0.0)
         rate_out = float(m.output_usd_per_mtok or 0.0)
         low = est_in * rate_in / 1_000_000
         high = low + _OUTPUT_CAP_TOKENS * rate_out / 1_000_000
         mark = " *(resolved)*" if m.id == model_id else ""
-        rows.append(f"| `{m.id}`{mark} | {rate_in:.2f} | {rate_out:.2f} | ${low:.2f}–{high:.2f} |")
-    if len(shown) > _MAX_MODEL_ROWS:
         rows.append(
-            f"\n_{_MAX_MODEL_ROWS} of {len(shown)} `{family}` models; {len(priced)} priced in all — "
-            "`orchestrator models` lists them._"
+            f"| `{m.id}`{mark} | {m.provider} | {rate_in:.2f} | {rate_out:.2f} | ${low:.2f}–{high:.2f} |"
         )
+    rows.append(
+        f"\n_Nearest {_MAX_MODELS_PER_PROVIDER} by input price per provider, of {len(priced):,} "
+        "priced models — a like-for-like swap, not a ranking. `orchestrator models --provider "
+        "<name>` lists them all._"
+    )
     if info is None:
         rows.append(
             f"\n_`{model_id}` is not in the installed catalog — its own price is unknown, and the "
@@ -415,47 +426,66 @@ def _confidence_block(
         "| what the plan established | reading | weight |",
         "|---|---|---|",
     ]
+    # A check that cannot apply to this ticket is not a check this ticket failed. Root
+    # cause is the case: a feature has none to establish, and scoring its absence capped
+    # every enhancement a point below every bug while telling the reader nothing.
+    # ``applies`` drops such a row out of the denominator instead.
     score = 0
-    for label, ok, good, bad in (
+    possible = 0
+    for label, applies, ok, good, bad, na in (
         (
             "Validity gate",
+            True,
             signals.get("verdict") == "PROCEED",
             "PROCEED — nothing contradicts the code",
             f"{signals.get('verdict') or 'unknown'} — the ticket disagrees with the code",
+            "",
         ),
         (
             "Where it lands",
+            True,
             bool(signals.get("brief_agrees")),
             "the brief and the design name the same files",
             "the brief names none of the files being changed",
+            "",
         ),
         (
             "Root cause",
+            bool(signals.get("root_cause")),
             bool(signals.get("fault_site")),
             "localized to a symbol",
             "a file at best — no line established",
+            "nothing to localize — not a bug, so nothing is owed",
         ),
         (
             "Named paths",
+            True,
             not signals.get("unverified"),
             "every path the design names is in the graph",
             "the design names paths the graph has never seen",
+            "",
         ),
         (
             "Context budget",
+            True,
             not signals.get("over_budget"),
             "the named files fit the window whole",
             "over budget — codegen will excerpt",
+            "",
         ),
     ):
+        if not applies:
+            rows.append(f"| {label} | {na} | n/a |")
+            continue
+        possible += 1
         score += 1 if ok else 0
         rows.append(f"| {label} | {good if ok else bad} | {'+' if ok else '−'} |")
 
-    band = "high" if score >= 5 else "medium" if score >= 3 else "low"
+    band = "high" if score == possible else "medium" if score * 2 >= possible else "low"
     out = [
-        f"**Is the analysis right? — {band}** ({score} of 5 checks positive). "
-        "A band, not a percentage: nothing here measures correctness, only how much the "
-        "plan managed to establish.\n",
+        f"**Is the analysis right? — {band}** ({score} of {possible} applicable checks "
+        "positive). A band, not a percentage: nothing here measures correctness, only how "
+        "much the plan managed to establish.\n",
         "\n".join(rows) + "\n",
     ]
 
@@ -1050,6 +1080,8 @@ def render_build_md(
             signals={
                 "verdict": getattr(raw_verdict, "value", raw_verdict),
                 "brief_agrees": bool(agreed),
+                # Whether section 3 rendered at all — not whether it localized well.
+                "root_cause": bool(root_cause),
                 "fault_site": bool(getattr(rca, "fault_site", "")),
                 "unverified": bool(blast.get("unverified_references")),
                 "over_budget": carried > context_budget,

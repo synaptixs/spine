@@ -681,6 +681,25 @@ def test_the_model_table_names_the_resolved_model_once(tmp_path: Path) -> None:
     assert md.count("*(resolved)*") == 1
 
 
+def test_the_cost_table_prices_a_swap_across_providers(tmp_path: Path) -> None:
+    """ "What would switching cost" is unanswerable from the resolved model's neighbours."""
+    from orchestrator.sdlc.builddoc import _COMPARE_PROVIDERS
+
+    md = _render(tmp_path)
+    table = md.split("| model | provider |", 1)[1].split("\n\n", 1)[0]
+    assert {p for p in _COMPARE_PROVIDERS if f"| {p} |" in table} == set(_COMPARE_PROVIDERS)
+
+
+def test_the_cost_table_does_not_claim_recency(tmp_path: Path) -> None:
+    """The catalog carries no release date, so "latest" is not a fact available here."""
+    md = _render(tmp_path)
+    assert "like-for-like swap, not a ranking" in md
+    # Prose only: `chatgpt-4o-latest` is a model id, not a claim about recency.
+    section = md.split("## 11.", 1)[1].split("## 12.", 1)[0]
+    prose = " ".join(line for line in section.splitlines() if not line.startswith("|"))
+    assert "latest" not in prose and "newest" not in prose
+
+
 def test_confidence_is_a_band_with_its_basis(tmp_path: Path) -> None:
     md = _render(tmp_path)
     assert re.search(r"\*\*Is the analysis right\? — (high|medium|low)\*\*", md)
@@ -698,7 +717,7 @@ def test_a_plan_that_established_everything_scores_high(tmp_path: Path) -> None:
         validity=_Assessment(Verdict.PROCEED),
         rca=_RCA(fault_site="f at src/a.py:10"),
     )
-    assert "**Is the analysis right? — high** (5 of 5" in md
+    assert "**Is the analysis right? — high** (5 of 5 applicable checks" in md
 
 
 def test_a_plan_that_established_little_scores_low(tmp_path: Path) -> None:
@@ -715,7 +734,19 @@ def test_a_plan_that_established_little_scores_low(tmp_path: Path) -> None:
             }
         ),
     )
-    assert re.search(r"\*\*Is the analysis right\? — low\*\* \([012] of 5", md)
+    assert re.search(r"\*\*Is the analysis right\? — low\*\* \([012] of \d applicable", md)
+
+
+def test_a_feature_is_not_docked_for_having_no_root_cause(tmp_path: Path) -> None:
+    """A check that cannot apply is not a check this ticket failed.
+
+    Scoring an omitted section 3 as a failure capped every enhancement a point below
+    every bug, and said "a file at best" about a ticket that named no file at all.
+    """
+    md = _render(tmp_path, rca=_RCA(exception="", fault_module="", hypotheses=[]))
+    assert "| Root cause | nothing to localize — not a bug, so nothing is owed | n/a |" in md
+    assert "of 4 applicable checks" in md
+    assert "a file at best" not in md
 
 
 def test_the_completion_number_is_a_base_rate_not_a_guess(tmp_path: Path) -> None:
