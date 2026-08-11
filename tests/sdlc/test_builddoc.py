@@ -681,6 +681,25 @@ def test_the_model_table_names_the_resolved_model_once(tmp_path: Path) -> None:
     assert md.count("*(resolved)*") == 1
 
 
+def test_the_cost_table_prices_a_swap_across_providers(tmp_path: Path) -> None:
+    """ "What would switching cost" is unanswerable from the resolved model's neighbours."""
+    from orchestrator.sdlc.builddoc import _COMPARE_PROVIDERS
+
+    md = _render(tmp_path)
+    table = md.split("| model | provider |", 1)[1].split("\n\n", 1)[0]
+    assert {p for p in _COMPARE_PROVIDERS if f"| {p} |" in table} == set(_COMPARE_PROVIDERS)
+
+
+def test_the_cost_table_does_not_claim_recency(tmp_path: Path) -> None:
+    """The catalog carries no release date, so "latest" is not a fact available here."""
+    md = _render(tmp_path)
+    assert "like-for-like swap, not a ranking" in md
+    # Prose only: `chatgpt-4o-latest` is a model id, not a claim about recency.
+    section = md.split("## 11.", 1)[1].split("## 12.", 1)[0]
+    prose = " ".join(line for line in section.splitlines() if not line.startswith("|"))
+    assert "latest" not in prose and "newest" not in prose
+
+
 def test_confidence_is_a_band_with_its_basis(tmp_path: Path) -> None:
     md = _render(tmp_path)
     assert re.search(r"\*\*Is the analysis right\? — (high|medium|low)\*\*", md)

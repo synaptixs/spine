@@ -57,3 +57,6 @@ mcp.json
 
 # Build documents — permanent, per-ticket, and deliberately not ingested.
 .spine/
+
+# Machine-specific MCP server config (internal hostnames, tokens) — never commit.
+mcp_server.json
