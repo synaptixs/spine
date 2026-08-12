@@ -115,7 +115,12 @@ async def test_the_lost_determinism_is_logged(
         await LiteLLMClient().complete(
             [Message(role="user", content="hi")], model="claude-opus-5", temperature=0.0
         )
-    assert "llm.temperature_unsupported" in caplog.text
+    # The event name is a structured field, not part of the sentence a human reads —
+    # log parsers key off this, and the message is free to be prose.
+    assert any(
+        getattr(r, "event", "") == "llm.temperature_unsupported" and getattr(r, "temperature", None) == 0.0
+        for r in caplog.records
+    )
 
 
 async def test_an_unrelated_failure_is_not_retried(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -138,3 +143,56 @@ async def test_an_unrelated_failure_is_not_retried(monkeypatch: pytest.MonkeyPat
             [Message(role="user", content="hi")], model="claude-opus-5", temperature=0.0
         )
     assert len(calls) == 1
+
+
+async def test_no_credentials_says_which_model_and_how_to_fix(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The key and the model are separate settings; the error must connect them."""
+    from orchestrator.core.llm.client import LLMError
+
+    mod = types.ModuleType("litellm")
+
+    async def acompletion(**_: Any) -> dict[str, Any]:
+        raise ValueError(
+            "litellm.AuthenticationError: Missing Anthropic API Key - A call is being made to "
+            "anthropic but no key is set"
+        )
+
+    mod.acompletion = acompletion  # type: ignore[attr-defined]
+    mod.completion_cost = lambda **_: 0.0  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "litellm", mod)
+
+    with pytest.raises(LLMError) as caught:
+        await LiteLLMClient().complete(
+            [Message(role="user", content="hi")], model="claude-opus-5", temperature=0.0
+        )
+
+    message = str(caught.value)
+    assert "claude-opus-5" in message
+    assert "ORCHESTRATOR_MODEL" in message
+    # Not the provider's own wording — that is what named Anthropic at someone who had
+    # configured OpenAI.
+    assert "Missing Anthropic API Key" not in message
+
+
+async def test_litellms_console_banner_is_suppressed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """It prints on every mapped exception, including ones we catch and recover from."""
+    captured: dict[str, Any] = {}
+    _install_fake_litellm(monkeypatch, captured)
+    mod = sys.modules["litellm"]
+    mod.suppress_debug_info = False  # type: ignore[attr-defined]
+
+    await LiteLLMClient().complete([Message(role="user", content="hi")], model="gpt-5.4")
+
+    assert mod.suppress_debug_info is True
+
+
+async def test_the_temperature_warning_reads_as_a_sentence(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _install_temperature_refusing_litellm(monkeypatch, [])
+    with caplog.at_level("WARNING", logger="orchestrator.core.llm"):
+        await LiteLLMClient().complete(
+            [Message(role="user", content="hi")], model="claude-opus-5", temperature=0.0
+        )
+    assert "not deterministic" in caplog.text
+    assert "claude-opus-5 rejected temperature=0.0" in caplog.text
