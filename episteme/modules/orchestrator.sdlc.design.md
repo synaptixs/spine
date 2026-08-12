@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L170) — reaches **11** symbols
-- [`_llm_design`](../../src/orchestrator/sdlc/design.py#L224) — reaches **11** symbols
-- [`_landing_files`](../../src/orchestrator/sdlc/design.py#L108) — reaches **10** symbols
-- [`_normalise`](../../src/orchestrator/sdlc/design.py#L211) — reaches **10** symbols
-- [`_overview_files`](../../src/orchestrator/sdlc/design.py#L136) — reaches **10** symbols
-- [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L76) — reaches **10** symbols
-- [`_structure_lines`](../../src/orchestrator/sdlc/design.py#L50) — reaches **10** symbols
-- [`produce_design`](../../src/orchestrator/sdlc/design.py#L285) — reaches **10** symbols
+- [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L170) — reaches **12** symbols
+- [`_llm_design`](../../src/orchestrator/sdlc/design.py#L224) — reaches **12** symbols
+- [`_landing_files`](../../src/orchestrator/sdlc/design.py#L108) — reaches **11** symbols
+- [`_normalise`](../../src/orchestrator/sdlc/design.py#L211) — reaches **11** symbols
+- [`_overview_files`](../../src/orchestrator/sdlc/design.py#L136) — reaches **11** symbols
+- [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L76) — reaches **11** symbols
+- [`_structure_lines`](../../src/orchestrator/sdlc/design.py#L50) — reaches **11** symbols
+- [`produce_design`](../../src/orchestrator/sdlc/design.py#L285) — reaches **11** symbols
 
 _1 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
