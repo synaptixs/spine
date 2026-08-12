@@ -468,6 +468,60 @@ async def sdlc_plan(repo_path: str, spec: dict[str, Any], persist_plan: bool = T
         return {"error": str(exc)}
 
 
+def sdlc_approve(
+    repo_path: str,
+    intent_id: str,
+    decided_by: str = "",
+    note: str = "",
+    reject: bool = False,
+) -> dict[str, Any]:
+    """Record that a **human** read a build document and decided. Binds the decision to a
+    digest of the document body, so a plan that changes afterwards reads as *stale* rather
+    than silently still approved — and `sdlc autorun` refuses to build without a current one.
+    Needs `sdlc_plan` to have produced the document first. ``decided_by`` defaults to the
+    repo's git identity; a decision nobody is named for is not recorded."""
+    import datetime as _dt
+
+    from orchestrator.sdlc.builddoc import (
+        PlanApproval,
+        decided_by_default,
+        derived_at,
+        plan_digest,
+        plan_dir,
+        save_approval,
+    )
+
+    def run(repo: Any) -> dict[str, Any]:
+        document = plan_dir(repo) / f"{intent_id}-build.md"
+        if not document.is_file():
+            return {
+                "error": f"no plan at {document} — run sdlc_plan for {intent_id} first",
+            }
+        # The tool cannot invent an approver. A host may know who its user is, but this
+        # process does not, and an approval attributed to nobody is a rumour.
+        who = decided_by or decided_by_default(repo)
+        if not who:
+            return {"error": "cannot tell who is approving — pass decided_by"}
+        approval = PlanApproval(
+            intent_id=intent_id,
+            decision="REJECTED" if reject else "APPROVED",
+            decided_by=who,
+            decided_at=_dt.date.today().isoformat(),
+            digest=plan_digest(document.read_text(encoding="utf-8")),
+            commit=derived_at(repo),
+            note=note,
+        )
+        return {
+            "intent_id": intent_id,
+            "decision": approval.decision,
+            "decided_by": who,
+            "decided_at": approval.decided_at,
+            "path": str(save_approval(approval, root=repo)),
+        }
+
+    return _in_repo(repo_path, run)
+
+
 def docs_for(repo_path: str, symbol: str = "") -> dict[str, Any]:
     """Which docs describe the code — the doc-ingestion surface. With a ``symbol``, the doc pages
     that **MENTION** it (grounded to the repo's docs). Without one, a doc-coverage summary: how many
@@ -619,6 +673,7 @@ _TOOLS = (
     regression_gaps,
     root_cause,
     sdlc_plan,
+    sdlc_approve,
     docs_for,
     # gated codegen / run control
     sdlc_feature,

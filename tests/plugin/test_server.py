@@ -531,3 +531,54 @@ def test_sdlc_plan_is_registered() -> None:
     from orchestrator.plugin.server import _TOOLS, sdlc_plan
 
     assert sdlc_plan in _TOOLS
+
+
+# ---- sdlc_approve: the gate, non-interactively -----------------------------
+
+
+async def test_approving_binds_the_decision_to_the_document(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+
+    result = sdlc_approve(str(repo), "TCK-9", decided_by="falcon", note="read it")
+
+    assert result["decision"] == "APPROVED" and result["decided_by"] == "falcon"
+    after = await sdlc_plan(str(repo), _plan_spec())
+    assert "**approved** by falcon" in after["document"]
+
+
+async def test_a_rejection_says_who_and_why(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+
+    sdlc_approve(str(repo), "TCK-9", decided_by="falcon", note="wrong files", reject=True)
+
+    after = await sdlc_plan(str(repo), _plan_spec())
+    assert "**rejected** by falcon" in after["document"] and "wrong files" in after["document"]
+
+
+def test_approving_a_plan_that_does_not_exist_is_refused(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_approve
+
+    result = sdlc_approve(str(_tiny_repo(tmp_path)), "TCK-9", decided_by="falcon")
+
+    assert "no plan at" in result["error"]
+
+
+async def test_an_approval_nobody_is_named_for_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A host may know its user; this process does not, and must not invent one."""
+    from orchestrator.plugin import server as mod
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    monkeypatch.setattr("orchestrator.sdlc.builddoc.decided_by_default", lambda _root="": "")
+
+    assert "cannot tell who is approving" in sdlc_approve(str(repo), "TCK-9")["error"]
+    assert mod.sdlc_approve in mod._TOOLS
