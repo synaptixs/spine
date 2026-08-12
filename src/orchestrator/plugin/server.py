@@ -5,16 +5,36 @@ here the orchestrator is the server, so Claude Code / Codex / Claude Desktop can
 call its capabilities as tools. The MCP server is a thin façade — each tool runs
 the real engine (intake, PKG grounding, readiness).
 
-Two tiers of tools. **Read-only comprehension** (no writes) — ``doctor``, ``pkg_grounding``,
-``read_memory_bank``, ``ingest_preview`` (dry-run), and the graph-query set ``map_repo`` /
-``blast_radius`` / ``explain_symbol`` / ``investigate`` / ``localize`` / ``regression_gaps`` /
-``root_cause`` — hands an assistant Spine's *engineering decisions* (what breaks, what's
-untested, where a change lands) with ``file:line`` provenance. All deterministic + no
-credentials, except ``root_cause``'s opt-in ``use_llm`` enrichment. The graph-query tools take
-a local path **or a git URL** (shallow-cloned behind the CLI's SSRF/host-allow-list guard). The
-heavy **gated ``sdlc``** run (real writes → PR) is the second tier. Tool *implementations* are
-module-level functions (unit-testable without the ``mcp`` extra); ``build_server`` lazy-imports
-``FastMCP`` and registers them.
+**Three tiers, separated by what a tool can cost you if it is wrong.**
+
+**1. Read-only comprehension** — ``doctor``, ``pkg_grounding``, ``read_memory_bank``,
+``ingest_preview`` (dry-run), and the graph-query set ``map_repo`` / ``blast_radius`` /
+``explain_symbol`` / ``investigate`` / ``localize`` / ``regression_gaps`` / ``root_cause``.
+Hands an assistant Spine's *engineering decisions* (what breaks, what's untested, where a
+change lands) with ``file:line`` provenance. Deterministic, no credentials — except
+``root_cause``'s opt-in ``use_llm`` enrichment. These take a local path **or a git URL**
+(shallow-cloned behind the CLI's SSRF/host-allow-list guard).
+
+**2. Plan and decide** — ``sdlc_plan`` and ``sdlc_approve``. These *write*, but only under
+``.spine/`` in the repo, and they still need no model and no credentials: ``build_plan``
+passes ``llm=None`` throughout, so the twelve-section document is rendered from the graph,
+git and the tree alone. That property is the point of this tier rather than an accident of
+it — it is what lets a host with its own model and its own tracker credentials drive Spine
+on a machine where Spine itself has neither.
+
+**3. The gated ``sdlc`` run** — ``sdlc_feature`` and the ``sdlc_start_run`` / ``_status`` /
+``_decide_gate`` / ``_result`` set. **Gated means two things, and both matter.** It spends
+real money: every call drives a model through codegen, tests and review. And with
+``live=true`` it writes where you cannot take it back — a tracker issue, a pushed branch, an
+open PR — which is why ``live`` additionally requires ``confirm=true``, an explicit human
+authorization on top of whatever confirmation the host already asks for. Safe mode
+(``live=false``) still costs tokens; it just keeps every write local.
+
+An assistant should work down the tiers, not up: comprehend, then plan and get the plan
+approved, then build. A run that starts at tier 3 is one nobody reviewed.
+
+Tool *implementations* are module-level functions (unit-testable without the ``mcp``
+extra); ``build_server`` lazy-imports ``FastMCP`` and registers them.
 """
 
 from __future__ import annotations
