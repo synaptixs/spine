@@ -418,6 +418,56 @@ async def root_cause(repo_path: str, bug: str, use_llm: bool = False) -> dict[st
     }
 
 
+async def sdlc_plan(repo_path: str, spec: dict[str, Any], persist_plan: bool = True) -> dict[str, Any]:
+    """The twelve-section **build document** for one ticket: requirement, intent, root cause,
+    what the graph knows, blast radius, design, files, acceptance criteria, the codegen prompt,
+    cost and confidence. **Deterministic — no LLM, no credentials, nothing spent.** Every
+    section says where it came from. Hand it a ``spec`` object (title, summary,
+    acceptance_criteria, and optionally met_criteria mapping a criterion already satisfied by
+    existing code to the evidence). Stops at the document — it never changes code."""
+    from orchestrator.intake.specs import FeatureSpec
+    from orchestrator.sdlc.spec_file import SpecFileError, validate_spec
+
+    if not isinstance(spec, dict):
+        return {"error": f"spec must be an object, got {type(spec).__name__}"}
+    try:
+        # The same validator the CLI uses. A host's model drafts this spec, and
+        # ``FeatureSpec`` forbids extra keys — so an invented field is refused here, naming
+        # the valid ones, rather than rendering a document from a spec that is wrong.
+        resolved = validate_spec(spec, where="spec")
+    except SpecFileError as exc:
+        # Returned rather than raised: the caller is a model that can read this and fix the
+        # spec, which a stack trace on the host's side does not let it do.
+        return {"error": str(exc), "valid_fields": sorted(FeatureSpec.model_fields)}
+
+    from orchestrator.sdlc.builddoc import build_plan, load_approval, load_journey, persist
+
+    intent = str(resolved.get("intent_id") or "spec")
+
+    async def run(repo: Any) -> dict[str, Any]:
+        document = await build_plan(
+            resolved,
+            root=repo,
+            approval=load_approval(intent, root=repo),
+            journey=load_journey(intent, root=repo),
+        )
+        out: dict[str, Any] = {"intent_id": intent, "document": document}
+        if persist_plan:
+            written, superseded = persist(document, intent_id=intent, root=repo)
+            out["path"] = str(written)
+            if superseded is not None:
+                out["superseded"] = str(superseded)
+        return out
+
+    from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
+
+    try:
+        with _open_repo(repo_path) as repo:
+            return await run(repo)
+    except (RepoSourceError, RepoPathError) as exc:
+        return {"error": str(exc)}
+
+
 def docs_for(repo_path: str, symbol: str = "") -> dict[str, Any]:
     """Which docs describe the code — the doc-ingestion surface. With a ``symbol``, the doc pages
     that **MENTION** it (grounded to the repo's docs). Without one, a doc-coverage summary: how many
@@ -568,6 +618,7 @@ _TOOLS = (
     localize,
     regression_gaps,
     root_cause,
+    sdlc_plan,
     docs_for,
     # gated codegen / run control
     sdlc_feature,

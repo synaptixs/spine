@@ -429,3 +429,105 @@ async def test_plugin_serves_tools_over_stdio() -> None:
         } <= {t.name for t in tools.tools}
         result = await session.call_tool("doctor", {})
         assert result.is_error is False
+
+
+# ---- sdlc_plan: the build document, for a host that has the model ----------
+
+
+def _plan_spec(**over: Any) -> dict[str, Any]:
+    spec = {
+        "intent_id": "TCK-9",
+        "title": "A ticket",
+        "summary": "Something is broken in src/a.py.",
+        "acceptance_criteria": ["It stops crashing."],
+    }
+    spec.update(over)
+    return spec
+
+
+def _tiny_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "a.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    return repo
+
+
+async def test_sdlc_plan_returns_the_document_and_where_it_was_written(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_plan
+
+    result = await sdlc_plan(str(_tiny_repo(tmp_path)), _plan_spec())
+
+    assert result["document"].startswith("# TCK-9 — build document")
+    assert result["document"].count("\n## ") >= 12
+    assert Path(result["path"]).is_file()
+
+
+async def test_sdlc_plan_needs_no_model_and_no_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The whole point on a machine whose only model lives in the host app."""
+    for var in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "ORCHESTRATOR_MODEL", "JIRA_API_TOKEN"):
+        monkeypatch.delenv(var, raising=False)
+    from orchestrator.plugin.server import sdlc_plan
+
+    result = await sdlc_plan(str(_tiny_repo(tmp_path)), _plan_spec())
+
+    assert "error" not in result
+    assert "## 12. Confidence" in result["document"]
+
+
+async def test_an_invented_field_is_refused_with_the_valid_ones(tmp_path: Path) -> None:
+    """A host's model drafts this spec; a key it made up must not render a document."""
+    from orchestrator.plugin.server import sdlc_plan
+
+    result = await sdlc_plan(str(_tiny_repo(tmp_path)), _plan_spec(notes="invented"))
+
+    assert "document" not in result
+    assert "notes" in result["error"]
+    assert "acceptance_criteria" in result["valid_fields"]
+
+
+async def test_a_spec_with_nothing_to_satisfy_is_refused(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_plan
+
+    result = await sdlc_plan(str(_tiny_repo(tmp_path)), _plan_spec(acceptance_criteria=[]))
+
+    assert "nothing for the acceptance judge" in result["error"]
+
+
+async def test_persist_can_be_turned_off(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_plan
+    from orchestrator.sdlc.builddoc import plan_dir
+
+    repo = _tiny_repo(tmp_path)
+    result = await sdlc_plan(str(repo), _plan_spec(), persist_plan=False)
+
+    assert "path" not in result and result["document"]
+    assert not plan_dir(repo).exists()
+
+
+async def test_a_bad_repo_path_is_reported_not_raised(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_plan
+
+    result = await sdlc_plan(str(tmp_path / "nope"), _plan_spec())
+
+    assert "error" in result and "document" not in result
+
+
+async def test_the_plugin_and_the_cli_render_the_same_document(tmp_path: Path) -> None:
+    """Two surfaces over one renderer must not be able to disagree."""
+    from orchestrator.plugin.server import sdlc_plan
+    from orchestrator.sdlc.builddoc import build_plan
+
+    repo = _tiny_repo(tmp_path)
+    spec = _plan_spec()
+    via_tool = await sdlc_plan(str(repo), spec, persist_plan=False)
+    via_cli = await build_plan(spec, root=repo)
+
+    assert via_tool["document"] == via_cli
+
+
+def test_sdlc_plan_is_registered() -> None:
+    from orchestrator.plugin.server import _TOOLS, sdlc_plan
+
+    assert sdlc_plan in _TOOLS
