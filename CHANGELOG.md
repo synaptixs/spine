@@ -4,6 +4,64 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.16.2 — A host that owns the model, and four failures that read as crashes
+
+### Added
+
+- **The build document as an MCP tool.** `sdlc_plan` renders the twelve sections for a
+  host that has its own model and its own tracker credentials — **no key on Spine's side,
+  no credentials, nothing spent.** The case it exists for: an enterprise machine whose
+  only model lives in the desktop app and whose Jira sits behind a Server/DC personal
+  access token that Spine's own adapter cannot speak to. The answer was not to teach Spine
+  to reach that Jira but to invert the dependency — the host reads the ticket, drafts the
+  spec, and hands it over; Spine has the graph and the twelve sections. `build_plan` was
+  already free of both, so exposing it cost a wrapper.
+
+  A spec arriving from a model is validated before anything renders, and the refusal is
+  **returned rather than raised** — the caller is a model that can read the error and fix
+  the spec, which an exception on the host's side does not let it do. A test asserts the
+  tool and the CLI render byte-identical documents: two surfaces over one renderer must
+  not be able to disagree.
+
+- **`sdlc_approve` as an MCP tool**, so the gate has a path on a machine driven entirely
+  through the plugin. It binds to a digest of the document exactly as the CLI does, and
+  **refuses to invent an approver** — a host may know its user; this process does not, and
+  an approval attributed to nobody is a rumour rather than a record.
+
+### Fixed
+
+Four expected conditions printed tracebacks where one line belongs. **Every one was found
+by someone running a command, not by a test.**
+
+- **A mistyped `--source` printed forty lines.** `SourceUriError` was uncaught in `ingest`,
+  `openspec draft` and `sdlc plan`, while `investigate` had caught it since before any of
+  them existed. One line, exit 2.
+- **Missing credentials printed sixty, and named the wrong provider** — someone with
+  `OPENAI_API_KEY` set was told the *Anthropic* key was missing, because the key and the
+  model are separate settings and nothing connected them. The message now names the model
+  that actually resolved and the variable that changes it.
+- **litellm's "Give Feedback / Get Help" banner is suppressed.** It printed on every
+  exception litellm *mapped*, including ones we catch and recover from, so a successful run
+  emitted six blocks that read as six failures.
+- **The temperature warning reads as a sentence** rather than a bare event name, and says
+  what it costs: a spec derived on that model may differ between runs.
+
+### Changed
+
+- **The plugin's tiers are three, not two, and "gated" says what it costs.** It means two
+  separate things — every call spends real money whether or not it succeeds, and `live=true`
+  writes where you cannot take it back. **Safe mode still costs tokens**; it keeps writes
+  local. Between comprehension and the gated run sits a tier that costs nothing and writes
+  only under `.spine/`: plan, and approve. Both guides carry the table and the rule — work
+  down the tiers, never up.
+
+### Documentation
+
+- Both guides gain `sdlc_plan` and `sdlc_approve`, including the thing an assistant cannot
+  infer from a docstring: **`met_criteria` is where the integration earns its place.** A
+  host has read the ticket *and* can call `explain_symbol`, so it can spot a criterion the
+  code already satisfies — the one judgement no deterministic pass can make.
+
 ## 3.16.1 — The paths nobody ran
 
 Everything in 3.16.0 was exercised through `--spec`, which makes no model call. The first
