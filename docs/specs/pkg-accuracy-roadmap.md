@@ -119,14 +119,18 @@ questions, and only the first has an implementation.
 
 ## 1. Two questions, and which one is answered
 
+*Updated 2026-08-13, after phases 1–4.*
+
 | | question | needs an oracle? | exists |
 |---|---|---|---|
-| **Soundness** | Is what the graph asserts true? | yes | partly |
-| **Completeness** | Is what's true in the code asserted? | yes | barely |
-| **Consistency** | Does the graph contradict itself? | no | **yes** |
+| **Soundness** | Is what the graph asserts true? | yes | **yes** — corpus precision, and an exact invention detector |
+| **Completeness** | Is what's true in the code asserted? | yes | **yes** — corpus recall, runtime tracing, per-construct parity |
+| **Consistency** | Does the graph contradict itself? | no | **yes** — seven invariants |
 
 Consistency is cheap — it runs on any repo with nothing to compare against. Soundness and
-completeness need something that already knows the answer. That is the gap.
+completeness need something that already knows the answer, and phases 1–4 built four such
+oracles. **The gap this document opened is closed; what remains is keeping it closed** —
+recording the numbers over time and failing a build when they fall. That is phase 5.
 
 ### What exists today
 
@@ -140,7 +144,8 @@ six checks, no oracle needed:
 | `orphan-rate` | error | are first-party modules implausibly unimported? |
 | `external-ratio` | error | are `IMPORTS` implausibly all-external? |
 | `phantom-module` | warning | does an `external` module shadow a first-party one? |
-| `source-parity` | warning | does the source declare a construct the graph holds *no* node of? |
+| `source-parity` | warning | **per file:** does the source declare more of a construct than the graph holds? *(phase 3)* |
+| `invented-call` | warning | does a `CALLS` edge target a name bound in the caller's own scope? *(phase 4)* |
 
 Its own docstring is honest about why it exists: the dangling-import bug "survived 204
 tests because every existing assertion checked *soundness* — what we assert is true — and
@@ -155,31 +160,43 @@ command.
 front-ends' own source and asserted byte-equal against `KNOWLEDGE_GRAPH.md`. Capability,
 explicitly not coverage.
 
+**`orchestrator pkg accuracy`** — four oracles, all built by phases 1–4:
+
+| oracle | needs | answers |
+|---|---|---|
+| `corpus` *(default)* | hand-labelled fixtures | precision **and** recall, per kind, per language |
+| `--oracle runtime` | a test suite to run | `CALLS` recall from real execution, any repo |
+| `--oracle parity` | only the source | declared-vs-emitted routes and tables, per file |
+| `--oracle invention` | only the source | `CALLS` edges that are fiction, exactly |
+
 **Determinism** — `understand --check` fails when a fresh generation differs from the
 committed bank. Same input, same output; it says nothing about whether the output is right.
 
 ### What does not exist
 
-*Revised 2026-08-13. Three entries here were closed by phase 1 and are struck through rather
-than deleted — the point of the list is what changed, not just what remains.*
+*Revised 2026-08-13 after phase 4. Closed entries are struck through rather than deleted —
+the point of the list is what changed, not only what remains.*
 
-- ~~**No ground truth.**~~ **Closed.** `corpus/` holds 7 hand-labelled fixture repositories
-  across 2 languages, with the method published alongside.
-- ~~**No precision or recall, for any edge kind, ever measured.**~~ **Closed for Python and
-  TypeScript.** `CALLS` is 0.80/0.73 and 1.00/0.50 respectively; every other kind is 1.00.
+- ~~**No ground truth.**~~ **Closed (phase 1).** `corpus/` holds 7 hand-labelled fixture
+  repositories across 2 languages, with the method published alongside.
+- ~~**No precision or recall, for any edge kind, ever measured.**~~ **Closed (phase 1) for
+  Python and TypeScript.** `CALLS` is 0.80/0.73 and 1.00/0.50; every other kind is 1.00.
   Still absent for the other six front-ends.
-- ~~**No false-positive measurement.**~~ **Partly closed.** Precision is now measured, and it
-  found a systematic phantom-node defect in the Python front-end. What is still missing is a
-  *sample of a real repository* — the corpus can only find what a fixture was written to
-  contain. That remains phase 4.
-- **No number about real code.** Every figure above describes 7 fixtures deliberately built
-  around hard shapes. They are pessimistic by construction and say nothing about any actual
-  repository. **This is what phase 2 exists to fix**, and it is now the largest gap.
-- **`source-parity` is per-language and binary.** It fires when a language has *zero* nodes
-  of a kind while the source declares one. A repo with 40 routes and 3 `Endpoint` nodes
-  passes it silently.
-- **No trend.** Accuracy could halve between releases and nothing would say so. `pkg
-  accuracy` reports; nothing records or gates.
+- ~~**No false-positive measurement.**~~ **Closed (phase 4).** 496 `CALLS` edges — 3.16% of
+  the call graph — target a name bound in the caller's own scope. Exactly detected, not
+  sampled.
+- ~~**No number about real code.**~~ **Closed (phase 2).** Runtime tracing gives `CALLS`
+  recall 0.70 on this repo from real execution, with no labelling. It also corrected this
+  document: the fixtures were *optimistic*, not pessimistic as originally claimed here.
+- ~~**`source-parity` is per-language and binary.**~~ **Closed (phase 3).** It now counts per
+  file, and immediately found two live routes (`GET /healthz`, `GET /readyz`) that the graph
+  does not hold at all.
+- **No trend.** Accuracy could halve between releases and nothing would say so. All four
+  oracles report; nothing records or gates. **This is now the only remaining gap in the
+  original list, and it is phase 5.**
+- **Nothing is fixed.** Every phase so far *measures*. The 496 invented edges and the 5
+  missing endpoints are still in the graph, deliberately — each fix is its own ticket, with
+  a number to prove itself against.
 
 ---
 
@@ -191,12 +208,13 @@ and none survives the only question a serious evaluator asks — **"how do you k
 
 Consider the difference in these three sentences, all describing the same feature:
 
-| today | after phase 1 | after phase 5 |
+| before phase 1 | today, measured | after phase 5 |
 |---|---|---|
-| "Blast radius is grounded in the call graph." | "`CALLS` recall is 0.83 on Python; this list is a lower bound." | "0.83, up from 0.71 last release, and CI fails below 0.80." |
+| "Blast radius is grounded in the call graph." | "`CALLS` recall is 0.70 traced on this repo, and 3.16% of call edges are invented." | "0.70, up from 0.61 last release, and CI fails below 0.65." |
 
-The first is marketing. The second is engineering. The third is a **guarantee**, and it is
-the only one a regulated buyer, a platform team, or a due-diligence process can act on.
+The first is marketing. The second is engineering — **and it is where this project now
+stands**; both figures in it are measured, not illustrative. The third is a **guarantee**, and
+it is the only one a regulated buyer, a platform team, or a due-diligence process can act on.
 
 **What each phase unlocks, concretely:**
 
@@ -229,14 +247,17 @@ either.
 Ordered so each phase makes the next one cheap, and so the first one is worth having alone.
 Effort is one engineer, and deliberately front-loaded: the expensive thinking is in phase 1.
 
-| phase | ships | effort | the number it produces |
-|---|---|---|---|
-| 1 | labelled corpus + `pkg accuracy` | ~1 week | precision and recall per kind, per language |
-| 2 | oracle-based checks | ~2 weeks | recall lower bound on *any* repo, unlabelled |
-| 3 | per-construct parity | ~2 days | per-file recall for routes and tables |
-| 4 | sampled fact audit | ~3 days | false-positive rate on the joins |
-| 5 | scoreboard + CI gate | ~3 days | the derivative — accuracy over time |
-| 6 | numbers in the document | ~2 days | the caveat a reader can reason with |
+*Estimates are the originals; actuals added as phases land. Every one overshot, and the
+reason is consistent — see the Progress table's footnote.*
+
+| phase | ships | estimate | actual | the number it produces |
+|---|---|---|---|---|
+| 1 ✅ | labelled corpus + `pkg accuracy` | ~1 week | **~10.5 h** | precision and recall per kind, per language |
+| 2 ✅ | ~~oracle-based checks~~ **the runtime oracle** *(4 others deferred)* | ~2 weeks | **~1 h** | recall lower bound on *any* repo, unlabelled |
+| 3 ✅ | per-construct parity | ~2 days | **~8 min** | per-file recall for routes and tables |
+| 4 ✅ | ~~sampled fact audit~~ **an exact invention detector**, plus a sampler | ~3 days | **~18 min** | false-positive rate — 3.16% here |
+| 5 | scoreboard + CI gate | ~3 days | — | the derivative — accuracy over time |
+| 6 | numbers in the document | ~2 days | — | the caveat a reader can reason with |
 
 ### Phase 1 — a labelled corpus, and the two numbers ✅ SHIPPED 2026-08-13
 
@@ -457,23 +478,34 @@ properties. But neither is accuracy. A deterministic extractor can be reliably w
 Two live examples from this codebase:
 
 - **`CONSUMES` resolves only literal paths.** `cli.py`'s template/contract group builds
-  `f"/v1/{entity}"`, so five of six call sites emit nothing. The graph is not wrong — it is
-  *incomplete in a way nobody can quantify*, and the build document has to say "silence
-  rather than absence" because no number exists to say more.
+  `f"/v1/{entity}"`, so five of six call sites emit nothing. ~~The graph is not wrong — it is
+  *incomplete in a way nobody can quantify*, and the build document has to say "silence rather
+  than absence" because no number exists to say more.~~ **A number exists now:** the same
+  computed-path shape is counted for routes by `--oracle parity`, and `--sample N --kind
+  CONSUMES` puts the join itself in front of a reviewer. The phrasing "silence rather than
+  absence" was written when it could not be quantified; it can.
 - **Pointing `sdlc plan` at `/tmp`** produced a well-formed document about leftover build
   copies and reported "the brief agrees with the design on 5 file(s)". Every section was
   correctly labelled and every one was useless. Nothing in the pipeline notices it is
   grounded in garbage.
 
 **Phase 1 alone changes the conversation**, and it is a week's work rather than a quarter's.
-Everything after it is refinement — and, as with the build document's own roadmap, the
-temptation will be to build the scoreboard before there is anything true to put in it.
+*(It took ~10.5 hours. Phases 1–4 together took under a day.)* Everything after it is
+refinement — and the temptation will be to build the scoreboard before there is anything true
+to put in it. **Phases 1–4 are now that "anything true", so phase 5 is no longer premature.**
 
 **Two phases stand apart from the rest.** Phase 2's runtime oracle is the only one that
 scales to a customer's repository without anyone labelling anything — point it at a repo
-with tests and it returns a recall floor from real execution. Phase 7's recorded tier is
-the only one that adds *meaning* rather than confidence, and it needs no model at all.
-If only two things are built, build those.
+with tests and it returns a recall floor from real execution. *(Built. 0.70 on this repo,
+no labelling.)* Phase 7's recorded tier is the only one that adds *meaning* rather than
+confidence, and it needs no model at all. *(Not built — phases run in sequence.)*
+
+**A pattern worth carrying into phases 5–7.** Every one of the four so far was re-scoped by a
+twenty-minute prototype run *before* the plan was written: phase 2 found that a trace observes
+pairs where the graph holds per-call-site edges; phase 3 found that counting the existing
+regex produces a fabricated 0.74; phase 4 found that the "human sampling chore" was exactly
+detectable. In each case the roadmap's one-line description was wrong in a way no amount of
+thinking would have surfaced. **Measure first, then plan.**
 
 **What would make this credible rather than merely measured:** publish the corpus and the
 method alongside the numbers. A recall figure nobody can reproduce is an assertion with a
