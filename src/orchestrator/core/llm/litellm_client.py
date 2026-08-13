@@ -21,6 +21,18 @@ from orchestrator.core.llm.client import (
 logger = logging.getLogger("orchestrator.core.llm")
 
 
+def _auth_failure(exc: Exception) -> bool:
+    """Whether this failure is "no usable credentials for that model".
+
+    Keyed off the failure itself rather than a pre-flight check, because
+    ``litellm.validate_environment`` proved unreliable in-process — it reported a missing
+    key standalone and reported the same environment fine once the CLI was imported. A
+    gate that silently never fires is worse than no gate.
+    """
+    text = str(exc).lower()
+    return "authenticationerror" in text or "no key is set" in text or "missing" in text and "api key" in text
+
+
 def _rejects_temperature(exc: Exception) -> bool:
     """Whether this failure is the provider refusing the temperature we asked for.
 
@@ -76,6 +88,12 @@ class LiteLLMClient:
     ) -> CompletionResult:
         import litellm  # imported lazily so unit tests can mock the symbol
 
+        # litellm prints a "Give Feedback / Get Help" banner to the console every time it
+        # *maps* an exception — including ones we catch and recover from. A run that
+        # succeeded after the temperature retry below emitted six of those blocks, which
+        # reads as six failures. The exceptions still propagate; only the banner is off.
+        litellm.suppress_debug_info = True
+
         params: dict[str, Any] = {
             "model": model,
             "messages": [m.to_dict() for m in messages],
@@ -127,11 +145,27 @@ class LiteLLMClient:
             # loud rather than swallowed: the caller asked for a stable temperature and
             # did not get one, and a spec that silently varies between runs is worse than
             # a warning nobody reads.
+            if _auth_failure(exc):
+                # Say which model, because the key and the model are separate settings and
+                # the mismatch is the confusing case: someone with OPENAI_API_KEY set is
+                # told the *Anthropic* key is missing, and nothing connects the two.
+                raise LLMError(
+                    f"no usable credentials for `{model}` — set the API key for its provider, "
+                    "or point ORCHESTRATOR_MODEL at a model you have access to "
+                    "(`orchestrator models` lists them)."
+                ) from exc
             if "temperature" not in params or not _rejects_temperature(exc):
                 raise LLMError(f"{type(exc).__name__}: {exc}") from exc
+            refused = params.pop("temperature")
+            # A sentence, not an event name: this is printed at a human on a terminal, and
+            # what it costs them (a spec that may differ between runs) is the part worth
+            # reading. The structured fields stay for whoever is parsing logs.
             logger.warning(
-                "llm.temperature_unsupported",
-                extra={"model": model, "temperature": params.pop("temperature")},
+                "%s rejected temperature=%s — retried without it, so this call is not "
+                "deterministic. A spec derived here may differ between runs.",
+                model,
+                refused,
+                extra={"event": "llm.temperature_unsupported", "model": model, "temperature": refused},
             )
             try:
                 response = await litellm.acompletion(**params)
