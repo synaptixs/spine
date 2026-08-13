@@ -2841,6 +2841,70 @@ def _invention_oracle(repo: str, sample: int, kind: str, as_json: bool) -> None:
         )
 
 
+SCOREBOARD_FILE = "corpus/scoreboard.json"
+
+
+def _scoreboard(repo: str, write: bool, as_json: bool) -> None:
+    """`--scoreboard` writes the committed baseline; `--check` compares against it."""
+    import json as _json
+
+    from orchestrator.pkg.accuracy import build_scoreboard, compare_scoreboard, scoreboard_improvements
+
+    root = Path(repo)
+    path = root / SCOREBOARD_FILE
+    current = build_scoreboard(root / "corpus", root)
+    rendered = _json.dumps(current, indent=2, sort_keys=True) + "\n"
+
+    if write:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(rendered, encoding="utf-8")
+        typer.echo(f"wrote {path}")
+        return
+
+    if not path.is_file():
+        typer.echo(f"pkg accuracy: no baseline at {path} — run `pkg accuracy --scoreboard` first")
+        raise typer.Exit(code=1)
+    baseline = _json.loads(path.read_text(encoding="utf-8"))
+
+    regressions = compare_scoreboard(baseline, current)
+    improvements = scoreboard_improvements(baseline, current)
+
+    if as_json:
+        _print(
+            {
+                "ok": not regressions,
+                "regressions": [
+                    {"metric": r.metric, "detail": r.detail, "was": r.was, "now": r.now} for r in regressions
+                ],
+                "improvements": improvements,
+            }
+        )
+    else:
+        for r in regressions:
+            typer.echo(f"[REGRESSION] {r}")
+        for i in improvements:
+            typer.echo(f"[improved]   {i}")
+
+        # Ungated metrics move on ordinary commits, so they are reported and never fail.
+        was_inv = baseline.get("metrics", {}).get("invention", {}).get("count")
+        now_inv = current["metrics"]["invention"]["count"]
+        if was_inv is not None and was_inv != now_inv:
+            typer.echo(
+                f"[trend]      invention: {was_inv} -> {now_inv} (ungated — moves with ordinary commits)"
+            )
+
+        if improvements and not regressions:
+            typer.echo(
+                "\n  The baseline is stale in the good direction. Re-run with --scoreboard to record it."
+            )
+        typer.echo(
+            f"\npkg accuracy --check: {'FAILED' if regressions else 'OK'} — "
+            f"{len(regressions)} gated regression(s), {len(improvements)} improvement(s)."
+        )
+    if regressions:
+        raise typer.Exit(code=1)
+
+
 @pkg_app.command("accuracy")
 def pkg_accuracy(
     path: Annotated[
@@ -2867,6 +2931,12 @@ def pkg_accuracy(
         str,
         typer.Option("--kind", help="Edge kind to sample (CONSUMES, EXPOSES, REFERENCES, CALLS)."),
     ] = "CONSUMES",
+    scoreboard: Annotated[
+        bool, typer.Option("--scoreboard", help="Write the committed accuracy baseline.")
+    ] = False,
+    check: Annotated[
+        bool, typer.Option("--check", help="Compare against the baseline; exit non-zero on a GATED drop.")
+    ] = False,
     language: Annotated[str | None, typer.Option("--language", help="Score only this language.")] = None,
     as_json: Annotated[bool, typer.Option("--json", help="Emit the report as JSON.")] = False,
     dialect: Annotated[
@@ -2890,6 +2960,10 @@ def pkg_accuracy(
     cannot be run — never because a score is low.
     """
     from orchestrator.pkg.accuracy import CorpusError, score_corpus
+
+    if scoreboard or check:
+        _scoreboard(path or ".", scoreboard, as_json)
+        return
 
     if oracle is not None:
         if oracle == "parity":

@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -323,8 +324,181 @@ def score_parity(repo: Path | str, *, sql_dialect: str | None = None) -> ParityR
     return ParityReport(tuple(source_parity_counts(batch, root)))
 
 
+# ---- the scoreboard --------------------------------------------------------
+
+SCOREBOARD_VERSION = 1
+
+# What each metric is gated on, and it is recorded in the file so the artefact explains its
+# own contract rather than leaving a reader to infer it from CI behaviour.
+#
+#   strict  — any drop fails. Only safe for metrics measured against COMMITTED FIXTURES,
+#             which repo churn cannot move.
+#   ratchet — an increase fails. For a metric that rises only when the graph falls behind.
+#   false   — recorded, never fails.
+#
+# Invention is deliberately ungated. It is measured against the repository itself, so it
+# moves whenever anyone writes ordinary code: adding `def handler(cb): return cb()` moved it
+# from 496 to 497 and shifted the rate. A metric measured against a moving population cannot
+# be gated on equality, and a tolerance band would be an arbitrary number that eventually
+# fires on something legitimate and gets widened until it means nothing.
+#
+# The cost is stated rather than hidden: nothing here would catch a front-end change that
+# adds thousands of phantom edges. Corpus precision catches it only if the corpus happens to
+# contain that shape.
+GATES = {"corpus": "strict", "parity": "ratchet", "invention": False, "runtime": False}
+
+
+@dataclass(frozen=True)
+class Regression:
+    """A gated metric that moved the wrong way."""
+
+    metric: str
+    detail: str
+    was: str
+    now: str
+
+    def __str__(self) -> str:
+        return f"{self.metric}: {self.detail} — was {self.was}, now {self.now}"
+
+
+def _ratio(matched: int, total: int) -> Fraction | None:
+    """Exact, from the integer counts. Floats are for display only (§9)."""
+    return Fraction(matched, total) if total else None
+
+
+def _score_entry(s: KindScore) -> dict[str, int]:
+    return {"expected": s.expected, "emitted": s.emitted, "matched": s.matched}
+
+
+def build_scoreboard(
+    corpus_root: Path | str = "corpus", repo: Path | str = ".", *, runtime: bool = False
+) -> dict[str, Any]:
+    """The committed baseline: every oracle's numbers, and whether each one is gated.
+
+    Deterministic — no timestamps, no paths, no ordering that depends on the filesystem — so
+    the same tree produces a byte-identical file.
+
+    ``runtime`` is opt-in because the runtime oracle *executes the repository's test suite*,
+    and a command CI runs by default must not do that.
+    """
+    from orchestrator.pkg.invention import score_invention
+
+    corpus = score_corpus(corpus_root)
+    parity = score_parity(repo)
+    invention = score_invention(repo)
+
+    languages: dict[str, Any] = {}
+    for lang, groups in corpus.totals().items():
+        languages[lang] = {
+            group: {s.kind: _score_entry(s) for s in scores} for group, scores in groups.items()
+        }
+
+    board: dict[str, Any] = {
+        "version": SCOREBOARD_VERSION,
+        "metrics": {
+            "corpus": {"gated": GATES["corpus"], "languages": languages},
+            "parity": {
+                "gated": GATES["parity"],
+                "shortfall": parity.shortfall,
+                "surplus": parity.surplus,
+                "declared": parity.declared,
+                "in_graph": parity.in_graph,
+            },
+            "invention": {
+                "gated": GATES["invention"],
+                "count": len(invention.invented),
+                "total_calls": invention.total_calls,
+                "note": "moves with ordinary commits — recorded as a trend, never gated",
+            },
+        },
+    }
+    if runtime:
+        from orchestrator.pkg.runtime_oracle import score_runtime
+
+        report = score_runtime(repo)
+        board["metrics"]["runtime"] = {
+            "gated": GATES["runtime"],
+            "observed": report.observed,
+            "matched": report.matched,
+            "note": "non-deterministic: moved 0.61 -> 0.70 purely because the suite grew",
+        }
+    return board
+
+
+def compare_scoreboard(baseline: dict[str, Any], current: dict[str, Any]) -> list[Regression]:
+    """Gated metrics that moved the wrong way. Empty means the build passes."""
+    out: list[Regression] = []
+
+    base_langs = baseline.get("metrics", {}).get("corpus", {}).get("languages", {})
+    cur_langs = current.get("metrics", {}).get("corpus", {}).get("languages", {})
+    for lang, groups in base_langs.items():
+        for group, kinds in groups.items():
+            for kind, was in kinds.items():
+                now = cur_langs.get(lang, {}).get(group, {}).get(kind)
+                if now is None:
+                    # The whole kind vanished. Not "unchanged", and not zero — it is a
+                    # population that used to exist and does not (§9).
+                    out.append(
+                        Regression("corpus", f"{lang}/{group}/{kind} disappeared", "present", "absent")
+                    )
+                    continue
+                for label, total_key in (("precision", "emitted"), ("recall", "expected")):
+                    before = _ratio(was["matched"], was[total_key])
+                    after = _ratio(now["matched"], now[total_key])
+                    if before is None or after is None:
+                        continue  # undefined is not a drop from undefined
+                    if after < before:
+                        out.append(
+                            Regression(
+                                "corpus",
+                                f"{lang}/{group}/{kind} {label}",
+                                f"{float(before):.4f}",
+                                f"{float(after):.4f}",
+                            )
+                        )
+
+    was_short = baseline.get("metrics", {}).get("parity", {}).get("shortfall")
+    now_short = current.get("metrics", {}).get("parity", {}).get("shortfall")
+    if was_short is not None and now_short is not None and now_short > was_short:
+        out.append(Regression("parity", "shortfall increased", str(was_short), str(now_short)))
+
+    return out
+
+
+def scoreboard_improvements(baseline: dict[str, Any], current: dict[str, Any]) -> list[str]:
+    """Gated metrics that moved the *right* way — the baseline is stale and should be rewritten."""
+    out: list[str] = []
+    base_langs = baseline.get("metrics", {}).get("corpus", {}).get("languages", {})
+    cur_langs = current.get("metrics", {}).get("corpus", {}).get("languages", {})
+    for lang, groups in base_langs.items():
+        for group, kinds in groups.items():
+            for kind, was in kinds.items():
+                now = cur_langs.get(lang, {}).get(group, {}).get(kind)
+                if now is None:
+                    continue
+                for label, total_key in (("precision", "emitted"), ("recall", "expected")):
+                    before, after = (
+                        _ratio(was["matched"], was[total_key]),
+                        _ratio(now["matched"], now[total_key]),
+                    )
+                    if before is not None and after is not None and after > before:
+                        out.append(
+                            f"corpus {lang}/{group}/{kind} {label}: {float(before):.4f} -> {float(after):.4f}"
+                        )
+    b, c = baseline.get("metrics", {}).get("parity", {}), current.get("metrics", {}).get("parity", {})
+    if b.get("shortfall") is not None and c.get("shortfall") is not None and c["shortfall"] < b["shortfall"]:
+        out.append(f"parity shortfall: {b['shortfall']} -> {c['shortfall']}")
+    return out
+
+
 __all__ = [
     "CASE_FILE",
+    "GATES",
+    "SCOREBOARD_VERSION",
+    "Regression",
+    "build_scoreboard",
+    "compare_scoreboard",
+    "scoreboard_improvements",
     "AccuracyReport",
     "CaseReport",
     "CorpusError",

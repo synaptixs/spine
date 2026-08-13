@@ -1,7 +1,7 @@
 # Is the graph right? — validating and verifying PKG accuracy
 
-**Status:** **phases 1–4 complete** · phases 5–7 not started
-**Written:** 2026-08-11, against 3.16.1 · **last updated:** 2026-08-13 11:16 EDT
+**Status:** **phases 1–5 complete** · phases 6–7 not started
+**Written:** 2026-08-11, against 3.16.1 · **last updated:** 2026-08-13 12:36 EDT
 
 ## Progress
 
@@ -14,7 +14,7 @@ against what the work actually took rather than staying guesses.
 | 2 — runtime oracle *(scope cut from 5 oracles to 1)* | ~2 days † | 2026-08-13 08:37 EDT | 2026-08-13 09:36 EDT | **~1 h** | **complete** |
 | 3 — per-construct parity | ~1 day ‡ | 2026-08-13 10:23 EDT | 2026-08-13 10:31 EDT | **~8 min** | **complete** |
 | 4 — invention detector + sampler | ~1 day | 2026-08-13 10:58 EDT | 2026-08-13 11:16 EDT | **~18 min** | **complete** |
-| 5 — scoreboard + CI gate | ~3 days | — | — | — | not started |
+| 5 — scoreboard + CI gate | ~3 days | 2026-08-13 12:28 EDT | 2026-08-13 12:36 EDT | **~8 min** | **complete** |
 | 6 — numbers in the document | ~2 days | — | — | — | not started |
 | 7 — the intent layer | — | — | — | — | not started |
 
@@ -191,9 +191,10 @@ the point of the list is what changed, not only what remains.*
 - ~~**`source-parity` is per-language and binary.**~~ **Closed (phase 3).** It now counts per
   file, and immediately found two live routes (`GET /healthz`, `GET /readyz`) that the graph
   does not hold at all.
-- **No trend.** Accuracy could halve between releases and nothing would say so. All four
-  oracles report; nothing records or gates. **This is now the only remaining gap in the
-  original list, and it is phase 5.**
+- ~~**No trend.**~~ **Closed (phase 5).** `corpus/scoreboard.json` is the committed baseline
+  and `pkg accuracy --check` is in the quality gate. Corpus scores are gated strictly, parity
+  shortfall ratchets one way, and invention is recorded but never gated — it is measured
+  against the repository itself, so one ordinary new file moved it 496 → 497.
 - **Nothing is fixed.** Every phase so far *measures*. The 496 invented edges and the 5
   missing endpoints are still in the graph, deliberately — each fix is its own ticket, with
   a number to prove itself against.
@@ -256,7 +257,7 @@ reason is consistent — see the Progress table's footnote.*
 | 2 ✅ | ~~oracle-based checks~~ **the runtime oracle** *(4 others deferred)* | ~2 weeks | **~1 h** | recall lower bound on *any* repo, unlabelled |
 | 3 ✅ | per-construct parity | ~2 days | **~8 min** | per-file recall for routes and tables |
 | 4 ✅ | ~~sampled fact audit~~ **an exact invention detector**, plus a sampler | ~3 days | **~18 min** | false-positive rate — 3.16% here |
-| 5 | scoreboard + CI gate | ~3 days | — | the derivative — accuracy over time |
+| 5 ✅ | scoreboard + CI gate | ~3 days | **~8 min** | the derivative — accuracy over time |
 | 6 | numbers in the document | ~2 days | — | the caveat a reader can reason with |
 
 ### Phase 1 — a labelled corpus, and the two numbers ✅ SHIPPED 2026-08-13
@@ -405,7 +406,37 @@ as grounded.
 A sampled audit costs a person twenty minutes per release and is the only thing that would
 catch a systematically wrong join.
 
-### Phase 5 — a scoreboard, and a regression gate
+### Phase 5 — a scoreboard, and a regression gate ✅ SHIPPED 2026-08-13
+
+**Shipped.** `pkg accuracy --check` is in the quality gate and exits non-zero on a gated
+regression; `corpus/scoreboard.json` is the committed baseline.
+
+**The design turns on one distinction this section did not draw: what each number is measured
+*against*.** All four oracles are deterministic run-to-run — that was never the problem.
+Corpus scores are measured against committed fixtures, so repo churn cannot move them.
+Invention is measured against the repository, so it moves whenever anyone writes code: adding
+`def handler(cb): return cb()` took it from 496 to 497 and shifted the rate. **A metric
+measured against a moving population cannot be gated on equality**, and a tolerance band would
+be an arbitrary number that eventually fires on something legitimate and gets widened until it
+means nothing.
+
+| metric | gate |
+|---|---|
+| corpus precision & recall | strict — any drop fails |
+| parity shortfall | ratchet — must not increase |
+| invention | recorded, never gated |
+| runtime recall | recorded, never gated, and absent unless `--tests` is passed |
+
+**The stated cost:** nothing catches a front-end change that adds thousands of phantom edges
+unless the corpus happens to contain that shape. That is a real limitation, chosen over a
+threshold that would fail blameless PRs.
+
+Today's 496 invented edges and 5 missing endpoints are **baselined in**. The gate stops things
+getting worse; it does not demand they already be perfect. Plan:
+[`build-documents/PKG-ACC-5-build.md`](build-documents/PKG-ACC-5-build.md).
+
+*Original text follows, unedited.*
+
 
 **Ships:** accuracy numbers per release, committed, and CI failing on a drop.
 

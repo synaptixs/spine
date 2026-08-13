@@ -19,6 +19,7 @@ should read the same page every time — so a section is added or reordered for
 | `PKG-ACC-2-build.md` | Phase 2 — the runtime oracle: `CALLS` recall from a repo's own test suite, no labelling. **Shipped** |
 | `PKG-ACC-3-build.md` | Phase 3 — per-construct parity: declared routes/tables against the graph, per file. **Shipped** |
 | `PKG-ACC-4-build.md` | Phase 4 — invention: CALLS edges to names bound in the caller's own scope, plus a sampler. **Shipped** |
+| `PKG-ACC-5-build.md` | Phase 5 — the scoreboard and CI gate: what may be gated, and what only recorded. **Shipped** |
 
 These are tracked on purpose. `understand` ingests markdown from disk whether or
 not git tracks it, so a build document that exists locally but not in the repo
