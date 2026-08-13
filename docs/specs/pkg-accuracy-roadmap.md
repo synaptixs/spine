@@ -1,7 +1,7 @@
 # Is the graph right? — validating and verifying PKG accuracy
 
-**Status:** **phases 1–6 complete** · phase 7 not started
-**Written:** 2026-08-11, against 3.16.1 · **last updated:** 2026-08-13 12:49 EDT
+**Status:** phases 1–6 complete · **phase 7 in progress**
+**Written:** 2026-08-11, against 3.16.1 · **last updated:** 2026-08-13 14:39 EDT
 
 ## Progress
 
@@ -16,7 +16,7 @@ against what the work actually took rather than staying guesses.
 | 4 — invention detector + sampler | ~1 day | 2026-08-13 10:58 EDT | 2026-08-13 11:16 EDT | **~18 min** | **complete** |
 | 5 — scoreboard + CI gate | ~3 days | 2026-08-13 12:28 EDT | 2026-08-13 12:36 EDT | **~8 min** | **complete** |
 | 6 — numbers in the document | ~2 days | 2026-08-13 12:42 EDT | 2026-08-13 12:49 EDT | **~7 min** | **complete** |
-| 7 — the intent layer | — | — | — | — | not started |
+| 7 — the intent layer *(split: 7a vocabulary, 7b scan)* | ~2 days | 2026-08-13 12:56 EDT | — | — | **in progress** — 7a shipped 14:39 |
 
 \* Reconstructed from file timestamps, not recorded at the time — this convention began
 mid-phase. Every later start time is stamped before the work begins.
@@ -491,7 +491,36 @@ reason with.
 
 ---
 
-### Phase 7 — from mechanism to meaning: the intent layer
+### Phase 7 — from mechanism to meaning: the intent layer 🔵 IN PROGRESS
+
+**Split into two tickets** — this is the first phase that changes the vocabulary rather than
+reading it, and `facts.py` has 46 non-test importers.
+
+- **7a — the vocabulary** ✅ shipped 2026-08-13. `NodeKind.INTENT` and `EdgeKind.SERVES` exist;
+  nothing emits them, so every graph is byte-identical. Exactly one downstream consequence
+  across 46 importers: the committed capability matrix in `KNOWLEDGE_GRAPH.md`, regenerated.
+- **7b — the scan** — git history → `Intent` nodes and `SERVES` edges. Not started.
+
+**This section's stated mechanism is wrong for real repositories, and measurement caught it.**
+It says the recorded tier is *"the free win"* because Spine creates branch names of the form
+`feat/<sdlc_id>/<ISSUE-KEY>` and `_issue_key_from_branch` already parses them. Measured against
+this repository's own history:
+
+| | count |
+|---|---|
+| commits | 465 |
+| carrying an issue key **in the commit message** | **102**, across **45 distinct intents** |
+| merges whose **branch** matches `feat/<id>/<KEY>` | **1** |
+
+The branch mechanism is right for branches the pipeline *generates* and irrelevant to how the
+repository is actually developed — humans write descriptive slugs. **Commit messages carry the
+keys; branch names do not.** A generator following this section's text faithfully would build
+correct code and produce one node.
+
+Plan: [`build-documents/PKG-ACC-7-build.md`](build-documents/PKG-ACC-7-build.md).
+
+*Original text follows, unedited.*
+
 
 **Ships:** `Intent` nodes and a `SERVES` edge, so `explain_symbol` can answer *"what is this
 for"* rather than only *"what calls it"*.

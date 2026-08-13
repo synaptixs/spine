@@ -21,6 +21,7 @@ should read the same page every time — so a section is added or reordered for
 | `PKG-ACC-4-build.md` | Phase 4 — invention: CALLS edges to names bound in the caller's own scope, plus a sampler. **Shipped** |
 | `PKG-ACC-5-build.md` | Phase 5 — the scoreboard and CI gate: what may be gated, and what only recorded. **Shipped** |
 | `PKG-ACC-6-build.md` | Phase 6 — the measured recall carried into the build document's caveat. **Shipped** |
+| `PKG-ACC-7-build.md` | Phase 7 — the intent layer, split into vocabulary (shipped) and git scan (pending). **In progress** |
 
 These are tracked on purpose. `understand` ingests markdown from disk whether or
 not git tracks it, so a build document that exists locally but not in the repo
