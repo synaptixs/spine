@@ -2841,7 +2841,9 @@ def _invention_oracle(repo: str, sample: int, kind: str, as_json: bool) -> None:
         )
 
 
-SCOREBOARD_FILE = "corpus/scoreboard.json"
+# Inside the package, not at the repo root: the wheel ships `src/orchestrator` only, and
+# the build document quotes this number at generation time on installed Spines too.
+SCOREBOARD_FILE = "src/orchestrator/pkg/scoreboard.json"
 
 
 def _scoreboard(repo: str, write: bool, as_json: bool) -> None:

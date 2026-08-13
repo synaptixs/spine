@@ -328,6 +328,12 @@ def score_parity(repo: Path | str, *, sql_dialect: str | None = None) -> ParityR
 
 SCOREBOARD_VERSION = 1
 
+# The baseline lives *inside the package* so it ships in the wheel. `pyproject.toml` builds
+# `src/orchestrator` only, so a copy at the repo root would be invisible to a pip-installed
+# Spine — and the build document, which quotes this number, runs there. The corpus fixtures
+# stay outside: they are needed to regenerate the baseline, never to read it.
+BASELINE = Path(__file__).with_name("scoreboard.json")
+
 # What each metric is gated on, and it is recorded in the file so the artefact explains its
 # own contract rather than leaving a reader to infer it from CI behaviour.
 #
@@ -425,6 +431,34 @@ def build_scoreboard(
     return board
 
 
+def measured_recall(language: str, kind: str = "CALLS", *, group: str = "edges") -> float | None:
+    """The committed corpus recall for one language and kind, or ``None`` if unmeasured.
+
+    ``None`` is not zero. Six of the eight front-ends have no corpus, and a language nobody
+    measured has not scored badly — it has not been scored. Callers must render the difference.
+
+    This is deliberately the **corpus** number, not the runtime one. Corpus recall is measured
+    against committed fixtures, so it is a property of this extractor version and travels with
+    it. Runtime recall describes one repository's test suite, is non-deterministic, and has no
+    place in anything labelled deterministic.
+    """
+    try:
+        board = json.loads(BASELINE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    entry = (
+        board.get("metrics", {})
+        .get("corpus", {})
+        .get("languages", {})
+        .get(language, {})
+        .get(group, {})
+        .get(kind)
+    )
+    if not entry or not entry.get("expected"):
+        return None
+    return int(entry["matched"]) / int(entry["expected"])
+
+
 def compare_scoreboard(baseline: dict[str, Any], current: dict[str, Any]) -> list[Regression]:
     """Gated metrics that moved the wrong way. Empty means the build passes."""
     out: list[Regression] = []
@@ -493,11 +527,13 @@ def scoreboard_improvements(baseline: dict[str, Any], current: dict[str, Any]) -
 
 __all__ = [
     "CASE_FILE",
+    "BASELINE",
     "GATES",
     "SCOREBOARD_VERSION",
     "Regression",
     "build_scoreboard",
     "compare_scoreboard",
+    "measured_recall",
     "scoreboard_improvements",
     "AccuracyReport",
     "CaseReport",

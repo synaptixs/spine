@@ -1,7 +1,7 @@
 # Is the graph right? — validating and verifying PKG accuracy
 
-**Status:** **phases 1–5 complete** · phases 6–7 not started
-**Written:** 2026-08-11, against 3.16.1 · **last updated:** 2026-08-13 12:36 EDT
+**Status:** **phases 1–6 complete** · phase 7 not started
+**Written:** 2026-08-11, against 3.16.1 · **last updated:** 2026-08-13 12:49 EDT
 
 ## Progress
 
@@ -15,7 +15,7 @@ against what the work actually took rather than staying guesses.
 | 3 — per-construct parity | ~1 day ‡ | 2026-08-13 10:23 EDT | 2026-08-13 10:31 EDT | **~8 min** | **complete** |
 | 4 — invention detector + sampler | ~1 day | 2026-08-13 10:58 EDT | 2026-08-13 11:16 EDT | **~18 min** | **complete** |
 | 5 — scoreboard + CI gate | ~3 days | 2026-08-13 12:28 EDT | 2026-08-13 12:36 EDT | **~8 min** | **complete** |
-| 6 — numbers in the document | ~2 days | — | — | — | not started |
+| 6 — numbers in the document | ~2 days | 2026-08-13 12:42 EDT | 2026-08-13 12:49 EDT | **~7 min** | **complete** |
 | 7 — the intent layer | — | — | — | — | not started |
 
 \* Reconstructed from file timestamps, not recorded at the time — this convention began
@@ -131,8 +131,10 @@ Consistency is cheap — it runs on any repo with nothing to compare against. So
 completeness need something that already knows the answer, and phases 1–4 built four such
 oracles. **The gap this document opened is closed, and phase 5 keeps it closed** —
 `corpus/scoreboard.json` records the numbers and `pkg accuracy --check` fails a build when a
-gated one falls. What remains is not measurement at all: phases 6 and 7 are about carrying
-the numbers to a reader, and adding *meaning* to a vocabulary that is entirely mechanical.
+gated one falls. What remains is not measurement at all. Phase 6 carried the numbers to the
+reader — the build document's blast radius now states the measured recall for its language.
+Phase 7 is the only one left, and it is a different kind of work: adding *meaning* to a
+vocabulary that is entirely mechanical.
 
 ### What exists today
 
@@ -265,7 +267,7 @@ reason is consistent — see the Progress table's footnote.*
 | 3 ✅ | per-construct parity | ~2 days | **~8 min** | per-file recall for routes and tables |
 | 4 ✅ | ~~sampled fact audit~~ **an exact invention detector**, plus a sampler | ~3 days | **~18 min** | false-positive rate — 3.16% here |
 | 5 ✅ | scoreboard + CI gate | ~3 days | **~8 min** | the derivative — accuracy over time |
-| 6 | numbers in the document | ~2 days | — | the caveat a reader can reason with |
+| 6 ✅ | numbers in the document | ~2 days | **~7 min** | the caveat a reader can reason with |
 
 ### Phase 1 — a labelled corpus, and the two numbers ✅ SHIPPED 2026-08-13
 
@@ -451,7 +453,32 @@ One table per language per edge kind, versioned. The point is not the absolute n
 it is the derivative. A front-end that silently stops resolving something should fail a
 build, exactly as `understand --check` does for determinism today.
 
-### Phase 6 — carry the number into what people read
+### Phase 6 — carry the number into what people read ✅ SHIPPED 2026-08-13
+
+**Shipped.** `sdlc/builddoc.py`'s blast-radius caveat now states the measured `CALLS` recall
+for the language it describes. For Python: *"Measured `CALLS` recall for python is 0.73
+(against the extractor's own test corpus, not this repository) — treat this list as a lower
+bound."*
+
+**Two things this section did not anticipate.**
+
+The baseline **did not ship**. `pyproject.toml` builds `src/orchestrator` only, and
+`corpus/scoreboard.json` sat at the repository root — so a pip-installed Spine had no number
+to quote, and the build document would have fallen back to the qualitative caveat in exactly
+the deployment where a reader cannot go and measure it themselves. The baseline now lives at
+`src/orchestrator/pkg/scoreboard.json`, with a test asserting it stays inside the package.
+
+And **the right number is the corpus one, not the largest one.** Corpus recall is measured
+against committed fixtures, so it is a property of *this extractor version* and travels with
+it. Runtime recall (0.70) describes one repository's test suite, is non-deterministic, and has
+no place in a document labelled deterministic.
+
+**The parenthetical is the deliverable.** "0.73" alone invites a reader to think it describes
+*their* repository. It does not — and if they believe it does, we misled them. Plan:
+[`build-documents/PKG-ACC-6-build.md`](build-documents/PKG-ACC-6-build.md).
+
+*Original text follows, unedited.*
+
 
 **Ships:** the build document's sections 4 and 5 stating the measured recall for the
 language they are describing.

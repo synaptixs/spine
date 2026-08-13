@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from orchestrator.pkg.accuracy import (
+    BASELINE,
     GATES,
     build_scoreboard,
     compare_scoreboard,
@@ -127,7 +128,7 @@ def test_the_committed_baseline_matches_the_tree() -> None:
     Today's 496 invented edges and 5 missing endpoints are baselined IN. The gate stops
     things getting worse; it does not demand they already be perfect.
     """
-    committed = json.loads((REPO / "corpus/scoreboard.json").read_text(encoding="utf-8"))
+    committed = json.loads((REPO / "src/orchestrator/pkg/scoreboard.json").read_text(encoding="utf-8"))
     assert compare_scoreboard(committed, build_scoreboard(REPO / "corpus", REPO)) == []
 
 
@@ -136,3 +137,20 @@ def test_undefined_scores_are_not_treated_as_drops() -> None:
     empty = _board(matched=0, emitted=0, expected=0)
     assert compare_scoreboard(empty, empty) == []
     assert scoreboard_improvements(empty, empty) == []
+
+
+# ---- the baseline must travel with the wheel (phase 6) --------------------
+
+
+def test_the_baseline_lives_inside_the_package() -> None:
+    """It is quoted by the build document, which runs on installed Spines too.
+
+    `pyproject.toml` builds `src/orchestrator` only, so a copy at the repo root would be
+    invisible to a pip install — and the build document would fall back to a qualitative
+    caveat in exactly the deployment where the reader cannot go and measure it themselves.
+    """
+    import orchestrator
+
+    package_root = Path(orchestrator.__file__).resolve().parent
+    assert BASELINE.is_file()
+    assert BASELINE.is_relative_to(package_root), f"{BASELINE} would not ship in the wheel"
