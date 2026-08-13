@@ -100,13 +100,14 @@
             }
           }
         }
-      }
+      },
+      "skipped_languages": []
     },
     "invention": {
-      "count": 496,
+      "count": 497,
       "gated": false,
       "note": "moves with ordinary commits \u2014 recorded as a trend, never gated",
-      "total_calls": 15781
+      "total_calls": 15844
     },
     "parity": {
       "declared": 75,

@@ -39,7 +39,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
-from orchestrator.pkg.extractor import RepoCodeExtractor
+from orchestrator.pkg.extractor import RepoCodeExtractor, default_extractors
 from orchestrator.pkg.facts import EdgeKind, NodeKind
 from orchestrator.pkg.verify import ParityCount, source_parity_counts
 
@@ -94,9 +94,19 @@ class CaseReport:
 
 @dataclass(frozen=True)
 class AccuracyReport:
-    """Every case, plus the per-language totals."""
+    """Every case, plus the per-language totals.
+
+    ``skipped`` names cases whose language front-end is not installed. They are **not** scored
+    zero: an optional extra being absent is not a regression, and conflating the two is how a
+    green build turns red for a reason nobody changed.
+    """
 
     cases: tuple[CaseReport, ...]
+    skipped: tuple[str, ...] = ()
+
+    @property
+    def skipped_languages(self) -> tuple[str, ...]:
+        return tuple(sorted({c.split("/")[0] for c in self.skipped}))
 
     def totals(self) -> dict[str, dict[str, tuple[KindScore, ...]]]:
         """``{language: {"nodes": (...), "edges": (...)}}`` — summed across cases."""
@@ -268,12 +278,23 @@ def score_corpus(
     if not case_dirs:
         raise CorpusError(f"{root}: no {CASE_FILE} found under this path")
 
+    # A front-end whose optional extra is not installed emits nothing, which would score its
+    # cases at 0.00 and read as a total regression. `default_extractors()` returns only the
+    # front-ends that actually imported, so an unavailable language is skipped and said so.
+    available = {ex.language for ex in default_extractors(sql_dialect=sql_dialect)}
+
     reports = []
+    skipped: list[str] = []
     for case_dir in case_dirs:
-        report = score_case(case_dir, sql_dialect=sql_dialect)
-        if language is None or report.language == language:
-            reports.append(report)
-    return AccuracyReport(tuple(reports))
+        spec, _ = _load_case(case_dir)
+        case_language = str(spec["language"])
+        if language is not None and case_language != language:
+            continue
+        if case_language not in available:
+            skipped.append(f"{case_language}/{spec['case']}")
+            continue
+        reports.append(score_case(case_dir, sql_dialect=sql_dialect))
+    return AccuracyReport(tuple(reports), tuple(skipped))
 
 
 @dataclass(frozen=True)
@@ -409,7 +430,15 @@ def build_scoreboard(
     board: dict[str, Any] = {
         "version": SCOREBOARD_VERSION,
         "metrics": {
-            "corpus": {"gated": GATES["corpus"], "languages": languages},
+            "corpus": {
+                "gated": GATES["corpus"],
+                "languages": languages,
+                # Recorded so `--check` can tell "this language was not measured here" from
+                # "this language collapsed to zero". Without it, running the gate on a machine
+                # without an optional extra reports a catastrophic regression that is really an
+                # absent dependency.
+                "skipped_languages": list(corpus.skipped_languages) if corpus is not None else [],
+            },
             "parity": {
                 "gated": GATES["parity"],
                 "shortfall": parity.shortfall,
@@ -471,8 +500,12 @@ def compare_scoreboard(baseline: dict[str, Any], current: dict[str, Any]) -> lis
     out: list[Regression] = []
 
     base_langs = baseline.get("metrics", {}).get("corpus", {}).get("languages", {})
-    cur_langs = current.get("metrics", {}).get("corpus", {}).get("languages", {})
+    cur_corpus = current.get("metrics", {}).get("corpus", {})
+    cur_langs = cur_corpus.get("languages", {})
+    unmeasured = set(cur_corpus.get("skipped_languages", []))
     for lang, groups in base_langs.items():
+        if lang in unmeasured:
+            continue  # not measured here, so nothing to compare — see build_scoreboard
         for group, kinds in groups.items():
             for kind, was in kinds.items():
                 now = cur_langs.get(lang, {}).get(group, {}).get(kind)
@@ -510,8 +543,12 @@ def scoreboard_improvements(baseline: dict[str, Any], current: dict[str, Any]) -
     """Gated metrics that moved the *right* way — the baseline is stale and should be rewritten."""
     out: list[str] = []
     base_langs = baseline.get("metrics", {}).get("corpus", {}).get("languages", {})
-    cur_langs = current.get("metrics", {}).get("corpus", {}).get("languages", {})
+    cur_corpus = current.get("metrics", {}).get("corpus", {})
+    cur_langs = cur_corpus.get("languages", {})
+    unmeasured = set(cur_corpus.get("skipped_languages", []))
     for lang, groups in base_langs.items():
+        if lang in unmeasured:
+            continue  # not measured here, so nothing to compare — see build_scoreboard
         for group, kinds in groups.items():
             for kind, was in kinds.items():
                 now = cur_langs.get(lang, {}).get(group, {}).get(kind)

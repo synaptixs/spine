@@ -212,12 +212,51 @@ def test_provenance_is_checked_only_where_a_label_opts_in(tmp_path: Path) -> Non
 
 
 def test_corpus_walks_every_case_and_filters_by_language(tmp_path: Path) -> None:
-    _case(tmp_path, language="python")
-    _case(tmp_path, language="other")
+    _case(tmp_path / "a", language="python")
+    _case(tmp_path / "b", language="python")
 
     assert len(score_corpus(tmp_path).cases) == 2
     only = score_corpus(tmp_path, language="python")
-    assert [c.language for c in only.cases] == ["python"]
+    assert [c.language for c in only.cases] == ["python", "python"]
+    assert score_corpus(tmp_path, language="nothing-here").cases == ()
+
+
+def test_a_case_whose_front_end_is_missing_is_skipped_not_scored_zero(tmp_path: Path) -> None:
+    """The bug that failed CI: an absent optional extra is not a regression.
+
+    A front-end whose extra is not installed emits nothing, so its cases would score 0.00 on
+    every kind — indistinguishable from the graph collapsing. CI has no `typescript` extra, so
+    a baseline generated on a machine that does would fail every build on a machine that does
+    not, for a reason nobody changed.
+    """
+    _case(tmp_path, language="typescript-but-not-installed")
+    report = score_corpus(tmp_path)
+
+    assert report.cases == (), "an unavailable front-end must not be scored"
+    assert report.skipped == ("typescript-but-not-installed/c1",)
+    assert report.skipped_languages == ("typescript-but-not-installed",)
+
+
+def test_the_gate_ignores_a_language_the_current_run_could_not_measure(tmp_path: Path) -> None:
+    """The other half: a baseline richer than the current environment is not a regression."""
+    from orchestrator.pkg.accuracy import compare_scoreboard
+
+    baseline: dict[str, Any] = {
+        "metrics": {
+            "corpus": {
+                "languages": {
+                    "typescript": {"edges": {"CALLS": {"expected": 4, "emitted": 4, "matched": 4}}}
+                },
+                "skipped_languages": [],
+            }
+        }
+    }
+    current: dict[str, Any] = {"metrics": {"corpus": {"languages": {}, "skipped_languages": ["typescript"]}}}
+    assert compare_scoreboard(baseline, current) == []
+
+    # …but a language that vanished for any *other* reason is still a regression.
+    current_no_skip: dict[str, Any] = {"metrics": {"corpus": {"languages": {}, "skipped_languages": []}}}
+    assert compare_scoreboard(baseline, current_no_skip) != []
 
 
 def test_totals_sum_across_cases(tmp_path: Path) -> None:

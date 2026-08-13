@@ -3065,6 +3065,14 @@ def pkg_accuracy(
             for s in scores:
                 typer.echo(f"  {group[:-1]} {s.kind:<10} P {_pct(s.precision)}  R {_pct(s.recall)}")
 
+    if report.skipped:
+        # Never silently drop: scoring 4 of 7 cases and printing only the 4 reads as a full
+        # picture. The extras that are missing are the reason, and naming them is the fix.
+        typer.echo(
+            f"\n  SKIPPED {len(report.skipped)} case(s) — no front-end installed for "
+            f"{', '.join(report.skipped_languages)}: {', '.join(report.skipped)}"
+        )
+        typer.echo("  Not scored zero: an absent optional extra is not a regression.")
     typer.echo(f"\npkg accuracy: {len(report.cases)} case(s) scored. Reporting only — nothing gated.")
 
 
