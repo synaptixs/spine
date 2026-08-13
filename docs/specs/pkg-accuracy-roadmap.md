@@ -1,7 +1,7 @@
 # Is the graph right? — validating and verifying PKG accuracy
 
-**Status:** **phases 1, 2 and 3 complete** · phases 4–7 not started
-**Written:** 2026-08-11, against 3.16.1 · **last updated:** 2026-08-13 10:31 EDT
+**Status:** **phases 1–4 complete** · phases 5–7 not started
+**Written:** 2026-08-11, against 3.16.1 · **last updated:** 2026-08-13 11:16 EDT
 
 ## Progress
 
@@ -13,7 +13,7 @@ against what the work actually took rather than staying guesses.
 | 1 — labelled corpus + `pkg accuracy` | ~1 week | 2026-08-12 21:55 EDT * | 2026-08-13 08:27 EDT | **~10.5 h** | **complete** |
 | 2 — runtime oracle *(scope cut from 5 oracles to 1)* | ~2 days † | 2026-08-13 08:37 EDT | 2026-08-13 09:36 EDT | **~1 h** | **complete** |
 | 3 — per-construct parity | ~1 day ‡ | 2026-08-13 10:23 EDT | 2026-08-13 10:31 EDT | **~8 min** | **complete** |
-| 4 — sampled fact audit | ~3 days | — | — | — | not started |
+| 4 — invention detector + sampler | ~1 day | 2026-08-13 10:58 EDT | 2026-08-13 11:16 EDT | **~18 min** | **complete** |
 | 5 — scoreboard + CI gate | ~3 days | — | — | — | not started |
 | 6 — numbers in the document | ~2 days | — | — | — | not started |
 | 7 — the intent layer | — | — | — | — | not started |
@@ -346,7 +346,31 @@ file with `file:line`.
 Cheap, needs no corpus, and turns a coarse tripwire into a usable recall estimate for the
 constructs that matter most.
 
-### Phase 4 — the false-positive side
+### Phase 4 — the false-positive side ✅ SHIPPED 2026-08-13
+
+**Shipped, and this section under-scoped it.** It framed phase 4 as a human chore — *"a
+sampled audit costs a person twenty minutes per release"*. The largest invention class turns
+out to be **exactly detectable**, no human involved: a `CALLS` edge whose target is a
+single-segment external id where that name is *bound in the caller's own scope* is not a call
+outside the tree at all.
+
+**496 such edges on this repo — 3.16% of all `CALLS`.** Verified by hand in three shapes: a
+parameter (`launch.py:237`, `echo: Echo`), a positional-only parameter
+(`codegen_benchmark.py:1080`, `call`), and a nested `def` called by name
+(`intents_to_confluence.py:68`, `esc`). Each asserts a module outside the tree that does not
+exist. This is the whole gap between Python's 0.80 corpus precision and TypeScript's 1.00.
+
+The sampler still ships, for the classes no detector reaches — `CONSUMES` matched on
+`(verb, path)`, `EXPOSES` composed from mount prefixes, ORM `REFERENCES` guessing a class
+name. It is deterministic rather than random, so two people auditing the same commit review
+the same facts. But it is no longer the phase.
+
+**Measured, not fixed.** The graph's output is byte-identical; the front-end fix is a separate
+ticket, which this number exists to prove. Plan:
+[`build-documents/PKG-ACC-4-build.md`](build-documents/PKG-ACC-4-build.md).
+
+*Original text follows, unedited.*
+
 
 **Ships:** `pkg accuracy --sample N` — a reviewable sample of emitted facts with the source
 line each was derived from.

@@ -476,6 +476,30 @@ def _check_source_parity(batch: FactBatch, root: Path) -> list[VerifyIssue]:
     return issues
 
 
+def _check_invention(batch: FactBatch, root: Path) -> list[VerifyIssue]:
+    """Warn when the graph calls a name that is bound in the caller's own scope.
+
+    The only check here that hunts for *invention* rather than absence. A warning rather than
+    an error for the same reason as ``source-parity``: this is a front-end limitation with a
+    known size, and failing a build for it turns the check into something people switch off.
+    """
+    from orchestrator.pkg.invention import find_invented_calls
+
+    report = find_invented_calls(batch, root)
+    if not report.invented:
+        return []
+    rate = f"{report.rate:.1%}" if report.rate is not None else "?"
+    return [
+        VerifyIssue(
+            "invented-call",
+            "warning",
+            f"{len(report.invented)} CALLS edge(s) ({rate} of all calls) target a name bound in "
+            f"the caller's own scope — a parameter or local, not a module outside the tree: "
+            f"{_examples(list(report.examples))}",
+        )
+    ]
+
+
 def verify_batch(batch: FactBatch, root: Path | str) -> VerifyReport:
     """Run every Tier-1 invariant; ``report.ok`` is False on any error."""
     nodes = {n.id: n for n in batch.nodes}
@@ -485,6 +509,7 @@ def verify_batch(batch: FactBatch, root: Path | str) -> VerifyReport:
         *_check_rates(batch, nodes),
         *_check_phantoms(batch),
         *_check_source_parity(batch, Path(root)),
+        *_check_invention(batch, Path(root)),
     ]
     return VerifyReport(tuple(issues))
 

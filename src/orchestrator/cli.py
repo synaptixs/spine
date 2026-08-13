@@ -2785,6 +2785,62 @@ def _parity_oracle(repo: str, as_json: bool) -> None:
     )
 
 
+def _invention_oracle(repo: str, sample: int, kind: str, as_json: bool) -> None:
+    """`--oracle invention`: CALLS edges targeting a name bound in the caller's own scope."""
+    from orchestrator.pkg.facts import EdgeKind
+    from orchestrator.pkg.invention import sample_edges, score_invention
+
+    try:
+        report = score_invention(repo)
+    except ValueError as exc:
+        typer.echo(f"pkg accuracy: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if as_json:
+        _print(
+            {
+                "oracle": "invention",
+                "invented": len(report.invented),
+                "rate": report.rate,
+                "total_calls": report.total_calls,
+                "external_calls": report.external_calls,
+                "candidates": report.candidates,
+                "unexamined": report.unexamined,
+                "examples": list(report.examples),
+            }
+        )
+        return
+
+    rate = "—" if report.rate is None else f"{report.rate:.2%}"
+    typer.echo(f"\ninvented CALLS edges — {len(report.invented)} ({rate} of all calls)")
+    typer.echo(f"  {report.total_calls} CALLS, {report.external_calls} to external targets")
+    typer.echo(f"  {report.candidates} candidate(s) examined, {report.unexamined} unexaminable")
+    for line in report.examples:
+        typer.echo(f"    {line}")
+    typer.echo(
+        "\n  Each of these asserts a module outside the tree that does not exist.\n"
+        "  Exactly detected, not sampled: a name bound in the caller's scope cannot be one."
+    )
+
+    if sample:
+        try:
+            edge_kind = EdgeKind(kind)
+        except ValueError:
+            typer.echo(f"pkg accuracy: unknown edge kind {kind!r}")
+            raise typer.Exit(code=1) from None
+        from orchestrator.pkg import RepoCodeExtractor
+
+        batch = RepoCodeExtractor().extract(Path(repo))
+        typer.echo(f"\n{sample} sampled {kind} edge(s) for review — deterministic for this commit:")
+        for line in sample_edges(batch, edge_kind, sample):
+            typer.echo(f"    {line}")
+        typer.echo(
+            "\n  No detector reaches these: CONSUMES matches on (verb, path), EXPOSES composes\n"
+            "  mount prefixes, REFERENCES guesses a class name. Only a person reading the\n"
+            "  source can say whether each is real."
+        )
+
+
 @pkg_app.command("accuracy")
 def pkg_accuracy(
     path: Annotated[
@@ -2803,6 +2859,14 @@ def pkg_accuracy(
         str | None,
         typer.Option("--tests", help="Test target(s) for --oracle runtime; default: the repo's own."),
     ] = None,
+    sample: Annotated[
+        int,
+        typer.Option("--sample", help="With --oracle invention: also list N edges for human review."),
+    ] = 0,
+    kind: Annotated[
+        str,
+        typer.Option("--kind", help="Edge kind to sample (CONSUMES, EXPOSES, REFERENCES, CALLS)."),
+    ] = "CONSUMES",
     language: Annotated[str | None, typer.Option("--language", help="Score only this language.")] = None,
     as_json: Annotated[bool, typer.Option("--json", help="Emit the report as JSON.")] = False,
     dialect: Annotated[
@@ -2831,8 +2895,13 @@ def pkg_accuracy(
         if oracle == "parity":
             _parity_oracle(path or ".", as_json)
             return
+        if oracle == "invention":
+            _invention_oracle(path or ".", sample, kind, as_json)
+            return
         if oracle != "runtime":
-            typer.echo(f"pkg accuracy: unknown oracle {oracle!r} — known oracles: corpus, runtime, parity")
+            typer.echo(
+                f"pkg accuracy: unknown oracle {oracle!r} — known oracles: corpus, runtime, parity, invention"
+            )
             raise typer.Exit(code=1)
         _runtime_oracle(path or ".", tests, as_json)
         return
