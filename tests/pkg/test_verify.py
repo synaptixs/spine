@@ -231,3 +231,78 @@ def test_typeorm_entity_decorator_warns(tmp_path: Path) -> None:
     messages = _parity(verify_batch(batch, tmp_path))
     assert len(messages) == 1
     assert "Entity" in messages[0]
+
+
+# ---- per-construct parity (phase 3) --------------------------------------
+
+
+def test_a_route_decorator_inside_a_string_is_not_counted(tmp_path: Path) -> None:
+    """The false-signal class that made counting necessary in the first place.
+
+    Existence-checking tolerated these — one real node anywhere in the language silenced the
+    warning. Counting turns each one into a phantom missing route: measured on this repo, the
+    regex found 96 "routes" against 71 real ones, and 19 of the 25 apparent misses were
+    decorators quoted in test fixtures and docstrings. To an AST, a decorator in a string is
+    a string.
+    """
+    body = 'FIXTURE = """\n@router.get("/items")\ndef items():\n    return []\n"""\n'
+    assert _parity(verify_batch(_app(tmp_path, body), tmp_path)) == []
+
+
+def test_a_computed_path_is_counted_as_declared(tmp_path: Path) -> None:
+    """The counter is deliberately WIDER than the extractor, and that gap is the measurement.
+
+    `python_routes` skips an f-string path on purpose — silence rather than a guessed route.
+    Counting it here is what turns that documented silence into a number.
+    """
+    body = 'import x\n\n\n@router.get(f"/items/{x}")\ndef items():\n    return []\n'
+    messages = _parity(verify_batch(_app(tmp_path, body), tmp_path))
+    assert len(messages) == 1
+    assert "declares 1 route declaration(s)" in messages[0]
+    assert "under-reports by 1" in messages[0]
+
+
+def test_the_warning_names_the_file_and_line(tmp_path: Path) -> None:
+    body = 'import x\n\n\n@router.get(f"/a/{x}")\ndef a():\n    return []\n'
+    (message,) = _parity(verify_batch(_app(tmp_path, body), tmp_path))
+    assert "app/api.py:4" in message
+
+
+def test_more_nodes_than_declarations_never_warns(tmp_path: Path) -> None:
+    """A router mounted twice yields two Endpoints from one decorator — correct, not a defect.
+
+    Warning on it would cry wolf on right answers, which is how a check gets switched off.
+    """
+    batch = _app(tmp_path, '@router.get("/items")\ndef items():\n    return []\n')
+    batch.add_node(
+        Node(
+            "py:endpoint:GET /v2/items",
+            NodeKind.ENDPOINT,
+            "GET /v2/items",
+            "python",
+            Provenance("app/api.py", 1),
+        )
+    )
+    assert _parity(verify_batch(batch, tmp_path)) == []
+
+
+def test_regex_counted_languages_are_labelled_approximate(tmp_path: Path) -> None:
+    """A pattern-derived count is a weaker claim than a parsed one and says so."""
+    batch = _lang_repo(tmp_path, "typescript", "app.ts", "@Get('/items')\nfindAll() {}\n")
+    (message,) = _parity(verify_batch(batch, tmp_path))
+    assert "approximate" in message
+
+
+def test_counts_are_per_file_not_per_language(tmp_path: Path) -> None:
+    """The whole point of the phase: two files, only the deficient one is named."""
+    pkg = tmp_path / "app"
+    pkg.mkdir(parents=True, exist_ok=True)
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "good.py").write_text('@router.get("/ok")\ndef ok():\n    return []\n', encoding="utf-8")
+    (pkg / "bad.py").write_text(
+        'import x\n\n\n@router.get(f"/no/{x}")\ndef no():\n    return []\n', encoding="utf-8"
+    )
+
+    messages = _parity(verify_batch(RepoCodeExtractor().extract(tmp_path), tmp_path))
+    assert len(messages) == 1
+    assert "app/bad.py" in messages[0]

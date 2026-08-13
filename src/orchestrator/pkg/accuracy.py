@@ -40,6 +40,7 @@ from typing import Any
 
 from orchestrator.pkg.extractor import RepoCodeExtractor
 from orchestrator.pkg.facts import EdgeKind, NodeKind
+from orchestrator.pkg.verify import ParityCount, source_parity_counts
 
 CASE_FILE = "expected.json"
 
@@ -274,12 +275,62 @@ def score_corpus(
     return AccuracyReport(tuple(reports))
 
 
+@dataclass(frozen=True)
+class ParityReport:
+    """Declared-vs-emitted counts for routes and tables, per file.
+
+    Deliberately **not** a single ratio. This repo's routes score 68 declared against 70
+    emitted — a naive ratio reads 1.03, which is not a recall figure and not a bug: a router
+    mounted twice yields two ``Endpoint`` nodes from one decorator. Shortfall and surplus are
+    different phenomena and are reported apart, because averaging them hides both.
+    """
+
+    counts: tuple[ParityCount, ...]
+
+    @property
+    def declared(self) -> int:
+        return sum(c.declared for c in self.counts)
+
+    @property
+    def in_graph(self) -> int:
+        return sum(c.in_graph for c in self.counts)
+
+    @property
+    def shortfall(self) -> int:
+        """Constructs the source declares and the graph does not hold. The number that matters."""
+        return sum(c.shortfall for c in self.counts)
+
+    @property
+    def surplus(self) -> int:
+        """Nodes beyond what is declared — expected where a router is mounted more than once."""
+        return sum(max(0, c.in_graph - c.declared) for c in self.counts)
+
+    @property
+    def short_files(self) -> tuple[ParityCount, ...]:
+        return tuple(c for c in self.counts if c.shortfall)
+
+
+def score_parity(repo: Path | str, *, sql_dialect: str | None = None) -> ParityReport:
+    """Per-construct parity for ``repo`` — needs no corpus, no test suite, no execution.
+
+    The third oracle. ``corpus`` needs hand-labelled fixtures and ``runtime`` needs a test
+    suite to run; this needs only the source, so it works on a repository that has neither.
+    """
+    root = Path(repo)
+    if not root.is_dir():
+        raise CorpusError(f"{root}: not a directory")
+    batch = RepoCodeExtractor(sql_dialect=sql_dialect).extract(root)
+    return ParityReport(tuple(source_parity_counts(batch, root)))
+
+
 __all__ = [
     "CASE_FILE",
     "AccuracyReport",
     "CaseReport",
     "CorpusError",
     "KindScore",
+    "ParityReport",
     "score_case",
+    "score_parity",
     "score_corpus",
 ]

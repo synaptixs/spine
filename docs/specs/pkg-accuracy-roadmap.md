@@ -1,7 +1,7 @@
 # Is the graph right? — validating and verifying PKG accuracy
 
-**Status:** **phases 1 and 2 complete** · phases 3–7 not started
-**Written:** 2026-08-11, against 3.16.1 · **last updated:** 2026-08-13 09:36 EDT
+**Status:** **phases 1, 2 and 3 complete** · phases 4–7 not started
+**Written:** 2026-08-11, against 3.16.1 · **last updated:** 2026-08-13 10:31 EDT
 
 ## Progress
 
@@ -12,7 +12,7 @@ against what the work actually took rather than staying guesses.
 |---|---|---|---|---|---|
 | 1 — labelled corpus + `pkg accuracy` | ~1 week | 2026-08-12 21:55 EDT * | 2026-08-13 08:27 EDT | **~10.5 h** | **complete** |
 | 2 — runtime oracle *(scope cut from 5 oracles to 1)* | ~2 days † | 2026-08-13 08:37 EDT | 2026-08-13 09:36 EDT | **~1 h** | **complete** |
-| 3 — per-construct parity | ~2 days | — | — | — | not started |
+| 3 — per-construct parity | ~1 day ‡ | 2026-08-13 10:23 EDT | 2026-08-13 10:31 EDT | **~8 min** | **complete** |
 | 4 — sampled fact audit | ~3 days | — | — | — | not started |
 | 5 — scoreboard + CI gate | ~3 days | — | — | — | not started |
 | 6 — numbers in the document | ~2 days | — | — | — | not started |
@@ -20,6 +20,12 @@ against what the work actually took rather than staying guesses.
 
 \* Reconstructed from file timestamps, not recorded at the time — this convention began
 mid-phase. Every later start time is stamped before the work begins.
+
+‡ Phase 3's estimate was revised from ~2 days to ~1 day after a 20-minute prototype, and
+then took 8 minutes. The pattern across all three phases is the same: the estimates priced
+in *discovering* something that measuring handed over immediately. The lesson is about the
+estimates, not the work — a phase whose risk is "we do not know what we will find" is
+cheap to de-risk and expensive to guess at.
 
 † Phase 2's estimate was revised down from ~2 weeks after two decisions: the scope was cut
 from five oracles to one (the other four become separate tickets), and a half-day spike
@@ -302,7 +308,33 @@ Hand-labelling does not scale past a few thousand lines. These do:
 Runtime tracing is the highest-value one: it produces a **lower bound on recall from real
 execution**, with no labelling at all, on any repo with tests.
 
-### Phase 3 — parity per construct, not per language
+### Phase 3 — parity per construct, not per language ✅ SHIPPED 2026-08-13
+
+**Shipped**, and the roadmap's one-line plan for it was wrong. This section said *"same
+regex signals already in `_source_signals`, counted instead of tested for non-emptiness"*.
+Counting the regex produces **0.74**, and it is a fabrication: 19 of the 25 apparent misses
+were route decorators quoted inside test fixtures and the route extractor's own docstrings.
+
+**The regex was correct for the question it was asked.** `_source_signals`' docstring says
+so — *"the question is 'does this source declare any?', not 'which ones'"*. Existence-
+checking tolerates a false signal because one real node anywhere in the language silences
+the check. Counting turns every false signal into a phantom missing route, so the
+justification for regex expires exactly when this phase begins. It is an AST ticket.
+
+With AST counting: **68 declared, 70 in graph — shortfall 5, surplus 7.** Reported apart,
+never averaged: a doubly-mounted router legitimately yields more nodes than decorators, so
+a combined ratio (1.03 here) reads as recall while hiding both halves.
+
+**It immediately found two invisible production routes.** `registry/api/app.py:110`
+declares `GET /healthz` and `GET /readyz` inside the `create_app()` factory; the router is
+a local variable the extractor cannot resolve, so the graph holds nothing. Blast radius,
+impact analysis and the build document all believe those endpoints do not exist — and the
+previous check could never have said so, because Python *does* have `Endpoint` nodes.
+
+Plan: [`build-documents/PKG-ACC-3-build.md`](build-documents/PKG-ACC-3-build.md).
+
+*Original text follows, unedited.*
+
 
 **Ships:** `source-parity` counting rather than existence-checking.
 

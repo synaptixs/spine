@@ -232,3 +232,56 @@ def test_totals_sum_across_cases(tmp_path: Path) -> None:
 def test_an_empty_corpus_is_an_error(tmp_path: Path) -> None:
     with pytest.raises(CorpusError, match="no expected.json found"):
         score_corpus(tmp_path)
+
+
+# ---- the parity oracle (phase 3) -----------------------------------------
+
+
+def _repo_with_routes(root: Path, body: str) -> Path:
+    pkg = root / "app"
+    pkg.mkdir(parents=True, exist_ok=True)
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "api.py").write_text(body, encoding="utf-8")
+    return root
+
+
+def test_parity_reports_shortfall_when_the_graph_misses_a_route(tmp_path: Path) -> None:
+    from orchestrator.pkg.accuracy import score_parity
+
+    _repo_with_routes(tmp_path, 'import x\n\n\n@router.get(f"/a/{x}")\ndef a():\n    return []\n')
+    report = score_parity(tmp_path)
+
+    assert report.declared == 1
+    assert report.in_graph == 0
+    assert report.shortfall == 1
+    assert [c.file for c in report.short_files] == ["app/api.py"]
+
+
+def test_parity_separates_surplus_from_shortfall(tmp_path: Path) -> None:
+    """Never averaged into one ratio — this repo scores 68 declared against 70 emitted, and
+    a combined 1.03 would read as a recall figure while hiding both phenomena."""
+    from orchestrator.pkg.accuracy import score_parity
+
+    _repo_with_routes(tmp_path, '@router.get("/ok")\ndef ok():\n    return []\n')
+    report = score_parity(tmp_path)
+
+    assert report.shortfall == 0
+    assert report.surplus == 0
+    assert report.declared == report.in_graph == 1
+
+
+def test_parity_needs_no_corpus_and_no_tests(tmp_path: Path) -> None:
+    """The third oracle's whole reason to exist: source only."""
+    from orchestrator.pkg.accuracy import score_parity
+
+    _repo_with_routes(tmp_path, "def plain() -> int:\n    return 1\n")
+    report = score_parity(tmp_path)
+    assert report.counts == ()
+    assert report.shortfall == 0
+
+
+def test_parity_on_a_missing_repo_is_an_error() -> None:
+    from orchestrator.pkg.accuracy import score_parity
+
+    with pytest.raises(CorpusError, match="not a directory"):
+        score_parity("/nope/does/not/exist")

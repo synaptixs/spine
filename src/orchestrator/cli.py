@@ -2735,6 +2735,56 @@ def _runtime_oracle(repo: str, tests: str | None, as_json: bool) -> None:
         typer.echo(f"\n  NOTE: the test suite exited {report.pytest_exit}; recall is over what still ran.")
 
 
+def _parity_oracle(repo: str, as_json: bool) -> None:
+    """`--oracle parity`: what the source declares against what the graph holds, per file."""
+    from orchestrator.pkg.accuracy import CorpusError, score_parity
+
+    try:
+        report = score_parity(repo)
+    except CorpusError as exc:
+        typer.echo(f"pkg accuracy: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if as_json:
+        _print(
+            {
+                "oracle": "parity",
+                "declared": report.declared,
+                "in_graph": report.in_graph,
+                "shortfall": report.shortfall,
+                "surplus": report.surplus,
+                "files": [
+                    {
+                        "file": c.file,
+                        "line": c.first_line,
+                        "language": c.language,
+                        "kind": c.kind.value,
+                        "declared": c.declared,
+                        "in_graph": c.in_graph,
+                        "approximate": c.approximate,
+                    }
+                    for c in report.counts
+                ],
+            }
+        )
+        return
+
+    typer.echo(f"\nper-construct parity — {report.declared} declared, {report.in_graph} in graph")
+    typer.echo(f"  shortfall {report.shortfall} — declared in source, absent from the graph")
+    typer.echo(f"  surplus   {report.surplus} — expected where a router is mounted more than once")
+    for c in report.short_files:
+        where = f"{c.file}:{c.first_line}" if c.first_line else c.file
+        hedge = "  (approximate)" if c.approximate else ""
+        typer.echo(
+            f"    short: {where} declares {c.declared} {c.kind.value}, graph holds {c.in_graph}{hedge}"
+        )
+    typer.echo(
+        "\n  Needs no corpus and no test run — only the source.\n"
+        "  Shortfall and surplus are NOT averaged into one ratio: a doubly-mounted router\n"
+        "  legitimately yields more nodes than decorators, so a combined figure hides both."
+    )
+
+
 @pkg_app.command("accuracy")
 def pkg_accuracy(
     path: Annotated[
@@ -2745,7 +2795,8 @@ def pkg_accuracy(
         str | None,
         typer.Option(
             "--oracle",
-            help="'runtime' — EXECUTES THE REPO'S TEST SUITE in a subprocess to measure CALLS recall.",
+            help="'runtime' EXECUTES THE REPO'S TEST SUITE to measure CALLS recall; "
+            "'parity' compares declared routes/tables against the graph, reading only source.",
         ),
     ] = None,
     tests: Annotated[
@@ -2777,8 +2828,11 @@ def pkg_accuracy(
     from orchestrator.pkg.accuracy import CorpusError, score_corpus
 
     if oracle is not None:
+        if oracle == "parity":
+            _parity_oracle(path or ".", as_json)
+            return
         if oracle != "runtime":
-            typer.echo(f"pkg accuracy: unknown oracle {oracle!r} — known oracles: runtime")
+            typer.echo(f"pkg accuracy: unknown oracle {oracle!r} — known oracles: corpus, runtime, parity")
             raise typer.Exit(code=1)
         _runtime_oracle(path or ".", tests, as_json)
         return
