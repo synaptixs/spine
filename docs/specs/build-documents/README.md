@@ -15,6 +15,8 @@ should read the same page every time — so a section is added or reordered for
 | `SSPN-49-build.md` | The canonical build document — the template |
 | `SSPN-49-plan.md` | The earlier pre-code plan, kept because it records the reconciliation between the filed criteria and the code |
 | `SSPN-49.json` | The `FeatureSpec` it was built from — the input shape |
+| `PKG-ACC-1-build.md` | Phase 1 of the PKG accuracy roadmap — a labelled corpus and the two numbers (precision, recall). **Shipped** |
+| `PKG-ACC-2-build.md` | Phase 2 — the runtime oracle: `CALLS` recall from a repo's own test suite, no labelling. **Plan** |
 
 These are tracked on purpose. `understand` ingests markdown from disk whether or
 not git tracks it, so a build document that exists locally but not in the repo

@@ -1,0 +1,35 @@
+{
+  "language": "python",
+  "case": "relative_imports",
+  "why": "The shape of the incident that made `pkg verify` exist: relative imports across a package. One dot from a sibling, two dots climbing out of a nested package. When this broke in the real repo, 91% of a package looked unimported and 204 passing tests said nothing — so this case is the standing regression guard for import resolution, and the only one where a drop to zero has already happened once in production.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "py:pkg", "kind": "Module"},
+    {"id": "py:pkg.util", "kind": "Module"},
+    {"id": "py:pkg.core", "kind": "Module"},
+    {"id": "py:pkg.sub", "kind": "Module"},
+    {"id": "py:pkg.sub.deep", "kind": "Module"},
+
+    {"id": "py:pkg.util.helper", "kind": "Function"},
+    {"id": "py:pkg.core.use", "kind": "Function"},
+    {"id": "py:pkg.sub.deep.reach", "kind": "Function"}
+  ],
+  "edges": [
+    {"src": "py:pkg", "dst": "py:pkg.core", "kind": "IMPORTS"},
+    {"src": "py:pkg.core", "dst": "py:pkg.util.helper", "kind": "IMPORTS"},
+    {"src": "py:pkg.sub.deep", "dst": "py:pkg.util.helper", "kind": "IMPORTS"},
+
+    {"src": "py:pkg.util", "dst": "py:pkg.util.helper", "kind": "CONTAINS"},
+    {"src": "py:pkg.core", "dst": "py:pkg.core.use", "kind": "CONTAINS"},
+    {"src": "py:pkg.sub.deep", "dst": "py:pkg.sub.deep.reach", "kind": "CONTAINS"},
+
+    {"src": "py:pkg.core.use", "dst": "py:pkg.util.helper", "kind": "CALLS"},
+    {"src": "py:pkg.sub.deep.reach", "dst": "py:pkg.util.helper", "kind": "CALLS"}
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "Nothing. This case is deliberately free of hard shapes — every fact in it should resolve, and any miss is a regression rather than a known limit."
+  ],
+  "open_questions": []
+}

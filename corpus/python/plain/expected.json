@@ -1,0 +1,48 @@
+{
+  "language": "python",
+  "case": "plain",
+  "why": "The control. Plain declarations and calls resolved by name, with no indirection. If this does not score near 1.0, something is badly wrong upstream of every other case.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "py:shop", "kind": "Module"},
+    {"id": "py:shop.cart", "kind": "Module"},
+    {"id": "py:shop.tax", "kind": "Module"},
+
+    {"id": "py:shop.cart.Cart", "kind": "Type"},
+
+    {"id": "py:shop.cart.Cart.__init__", "kind": "Function"},
+    {"id": "py:shop.cart.Cart.add", "kind": "Function"},
+    {"id": "py:shop.cart.Cart.subtotal", "kind": "Function"},
+    {"id": "py:shop.cart.Cart.total", "kind": "Function"},
+    {"id": "py:shop.cart.apply_tax", "kind": "Function"},
+    {"id": "py:shop.tax.rate", "kind": "Function"},
+
+    {"id": "py:shop.cart.Cart.currency", "kind": "Field"},
+    {"id": "py:shop.cart.Cart.items", "kind": "Field"}
+  ],
+  "edges": [
+    {"src": "py:shop.cart", "dst": "py:shop.tax.rate", "kind": "IMPORTS"},
+
+    {"src": "py:shop.cart", "dst": "py:shop.cart.Cart", "kind": "CONTAINS"},
+    {"src": "py:shop.cart", "dst": "py:shop.cart.apply_tax", "kind": "CONTAINS"},
+    {"src": "py:shop.cart.Cart", "dst": "py:shop.cart.Cart.__init__", "kind": "CONTAINS"},
+    {"src": "py:shop.cart.Cart", "dst": "py:shop.cart.Cart.add", "kind": "CONTAINS"},
+    {"src": "py:shop.cart.Cart", "dst": "py:shop.cart.Cart.subtotal", "kind": "CONTAINS"},
+    {"src": "py:shop.cart.Cart", "dst": "py:shop.cart.Cart.total", "kind": "CONTAINS"},
+    {"src": "py:shop.cart.Cart", "dst": "py:shop.cart.Cart.currency", "kind": "CONTAINS"},
+    {"src": "py:shop.cart.Cart", "dst": "py:shop.cart.Cart.items", "kind": "CONTAINS"},
+    {"src": "py:shop.tax", "dst": "py:shop.tax.rate", "kind": "CONTAINS"},
+
+    {"src": "py:shop.cart.Cart.total", "dst": "py:shop.cart.apply_tax", "kind": "CALLS"},
+    {"src": "py:shop.cart.Cart.total", "dst": "py:shop.cart.Cart.subtotal", "kind": "CALLS"},
+    {"src": "py:shop.cart.apply_tax", "dst": "py:shop.tax.rate", "kind": "CALLS"}
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "Calls to builtins and to methods on builtin types (`sum(...)`, `self.items.append(...)`) — measured: this fixture produces ZERO external nodes and no edge of any kind for them. The graph has no id for a stdlib method target, so there is nothing to label; labelling `py:list.append` would invent a vocabulary the graph does not use.",
+    "Module-level constants (shop.tax.DEFAULT) — DECIDED 2026-08-12: not a Field. A Field belongs to a Type in this vocabulary; module constants are not modelled, so labelling them would be a category error rather than a recall miss."
+  ],
+  "open_questions": [],
+  "note": "This case scores 1.0/1.0 deliberately. It is the control — the signal is any future run where it does not."
+}
