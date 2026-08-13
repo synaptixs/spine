@@ -178,7 +178,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:853`](../../src/orchestrator/knowledge/current_state.py#L853)
 
-- **Called by** (3 production · 2 test): [`_compute`](../../src/orchestrator/sdlc/comprehension.py#L31), [`adapter`](../../src/orchestrator/registry/api/capabilities.py#L261), [`state`](../../src/orchestrator/cli.py#L1990), [`test_build_current_state_end_to_end_python`](../../tests/knowledge/test_current_state.py#L193), [`test_infrastructure_section_from_real_repo`](../../tests/knowledge/test_current_state.py#L108)
+- **Called by** (3 production · 2 test): [`_compute`](../../src/orchestrator/sdlc/comprehension.py#L31), [`adapter`](../../src/orchestrator/registry/api/capabilities.py#L261), [`state`](../../src/orchestrator/cli.py#L2007), [`test_build_current_state_end_to_end_python`](../../tests/knowledge/test_current_state.py#L193), [`test_infrastructure_section_from_real_repo`](../../tests/knowledge/test_current_state.py#L108)
 - **Calls** (2): [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L835), [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L569)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
@@ -200,7 +200,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:835`](../../src/orchestrator/knowledge/current_state.py#L835)
 
-- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L2040), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L853), [`run`](../../src/orchestrator/plugin/server.py#L552), [`run`](../../src/orchestrator/plugin/server.py#L225)
+- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L2057), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L853), [`run`](../../src/orchestrator/plugin/server.py#L552), [`run`](../../src/orchestrator/plugin/server.py#L225)
 - **Calls** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
