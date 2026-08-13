@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`Finding`](../../src/orchestrator/sdlc/validity.py#L83) — reaches **14** symbols
-- [`_criteria_text`](../../src/orchestrator/sdlc/validity.py#L112) — reaches **12** symbols
-- [`Assessment`](../../src/orchestrator/sdlc/validity.py#L92) — reaches **10** symbols
-- [`_check_context_budget`](../../src/orchestrator/sdlc/validity.py#L354) — reaches **10** symbols
-- [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L140) — reaches **10** symbols
-- [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L251) — reaches **10** symbols
-- [`_check_localization`](../../src/orchestrator/sdlc/validity.py#L288) — reaches **10** symbols
-- [`_check_prior_runs`](../../src/orchestrator/sdlc/validity.py#L393) — reaches **10** symbols
+- [`Finding`](../../src/orchestrator/sdlc/validity.py#L83) — reaches **15** symbols
+- [`_criteria_text`](../../src/orchestrator/sdlc/validity.py#L112) — reaches **13** symbols
+- [`Assessment`](../../src/orchestrator/sdlc/validity.py#L92) — reaches **11** symbols
+- [`_check_context_budget`](../../src/orchestrator/sdlc/validity.py#L354) — reaches **11** symbols
+- [`_check_countable_claims`](../../src/orchestrator/sdlc/validity.py#L140) — reaches **11** symbols
+- [`_check_invariants`](../../src/orchestrator/sdlc/validity.py#L251) — reaches **11** symbols
+- [`_check_localization`](../../src/orchestrator/sdlc/validity.py#L288) — reaches **11** symbols
+- [`_check_prior_runs`](../../src/orchestrator/sdlc/validity.py#L393) — reaches **11** symbols
 
 ## Types
 

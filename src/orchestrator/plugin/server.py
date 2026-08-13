@@ -5,16 +5,36 @@ here the orchestrator is the server, so Claude Code / Codex / Claude Desktop can
 call its capabilities as tools. The MCP server is a thin façade — each tool runs
 the real engine (intake, PKG grounding, readiness).
 
-Two tiers of tools. **Read-only comprehension** (no writes) — ``doctor``, ``pkg_grounding``,
-``read_memory_bank``, ``ingest_preview`` (dry-run), and the graph-query set ``map_repo`` /
-``blast_radius`` / ``explain_symbol`` / ``investigate`` / ``localize`` / ``regression_gaps`` /
-``root_cause`` — hands an assistant Spine's *engineering decisions* (what breaks, what's
-untested, where a change lands) with ``file:line`` provenance. All deterministic + no
-credentials, except ``root_cause``'s opt-in ``use_llm`` enrichment. The graph-query tools take
-a local path **or a git URL** (shallow-cloned behind the CLI's SSRF/host-allow-list guard). The
-heavy **gated ``sdlc``** run (real writes → PR) is the second tier. Tool *implementations* are
-module-level functions (unit-testable without the ``mcp`` extra); ``build_server`` lazy-imports
-``FastMCP`` and registers them.
+**Three tiers, separated by what a tool can cost you if it is wrong.**
+
+**1. Read-only comprehension** — ``doctor``, ``pkg_grounding``, ``read_memory_bank``,
+``ingest_preview`` (dry-run), and the graph-query set ``map_repo`` / ``blast_radius`` /
+``explain_symbol`` / ``investigate`` / ``localize`` / ``regression_gaps`` / ``root_cause``.
+Hands an assistant Spine's *engineering decisions* (what breaks, what's untested, where a
+change lands) with ``file:line`` provenance. Deterministic, no credentials — except
+``root_cause``'s opt-in ``use_llm`` enrichment. These take a local path **or a git URL**
+(shallow-cloned behind the CLI's SSRF/host-allow-list guard).
+
+**2. Plan and decide** — ``sdlc_plan`` and ``sdlc_approve``. These *write*, but only under
+``.spine/`` in the repo, and they still need no model and no credentials: ``build_plan``
+passes ``llm=None`` throughout, so the twelve-section document is rendered from the graph,
+git and the tree alone. That property is the point of this tier rather than an accident of
+it — it is what lets a host with its own model and its own tracker credentials drive Spine
+on a machine where Spine itself has neither.
+
+**3. The gated ``sdlc`` run** — ``sdlc_feature`` and the ``sdlc_start_run`` / ``_status`` /
+``_decide_gate`` / ``_result`` set. **Gated means two things, and both matter.** It spends
+real money: every call drives a model through codegen, tests and review. And with
+``live=true`` it writes where you cannot take it back — a tracker issue, a pushed branch, an
+open PR — which is why ``live`` additionally requires ``confirm=true``, an explicit human
+authorization on top of whatever confirmation the host already asks for. Safe mode
+(``live=false``) still costs tokens; it just keeps every write local.
+
+An assistant should work down the tiers, not up: comprehend, then plan and get the plan
+approved, then build. A run that starts at tier 3 is one nobody reviewed.
+
+Tool *implementations* are module-level functions (unit-testable without the ``mcp``
+extra); ``build_server`` lazy-imports ``FastMCP`` and registers them.
 """
 
 from __future__ import annotations
@@ -418,6 +438,110 @@ async def root_cause(repo_path: str, bug: str, use_llm: bool = False) -> dict[st
     }
 
 
+async def sdlc_plan(repo_path: str, spec: dict[str, Any], persist_plan: bool = True) -> dict[str, Any]:
+    """The twelve-section **build document** for one ticket: requirement, intent, root cause,
+    what the graph knows, blast radius, design, files, acceptance criteria, the codegen prompt,
+    cost and confidence. **Deterministic — no LLM, no credentials, nothing spent.** Every
+    section says where it came from. Hand it a ``spec`` object (title, summary,
+    acceptance_criteria, and optionally met_criteria mapping a criterion already satisfied by
+    existing code to the evidence). Stops at the document — it never changes code."""
+    from orchestrator.intake.specs import FeatureSpec
+    from orchestrator.sdlc.spec_file import SpecFileError, validate_spec
+
+    if not isinstance(spec, dict):
+        return {"error": f"spec must be an object, got {type(spec).__name__}"}
+    try:
+        # The same validator the CLI uses. A host's model drafts this spec, and
+        # ``FeatureSpec`` forbids extra keys — so an invented field is refused here, naming
+        # the valid ones, rather than rendering a document from a spec that is wrong.
+        resolved = validate_spec(spec, where="spec")
+    except SpecFileError as exc:
+        # Returned rather than raised: the caller is a model that can read this and fix the
+        # spec, which a stack trace on the host's side does not let it do.
+        return {"error": str(exc), "valid_fields": sorted(FeatureSpec.model_fields)}
+
+    from orchestrator.sdlc.builddoc import build_plan, load_approval, load_journey, persist
+
+    intent = str(resolved.get("intent_id") or "spec")
+
+    async def run(repo: Any) -> dict[str, Any]:
+        document = await build_plan(
+            resolved,
+            root=repo,
+            approval=load_approval(intent, root=repo),
+            journey=load_journey(intent, root=repo),
+        )
+        out: dict[str, Any] = {"intent_id": intent, "document": document}
+        if persist_plan:
+            written, superseded = persist(document, intent_id=intent, root=repo)
+            out["path"] = str(written)
+            if superseded is not None:
+                out["superseded"] = str(superseded)
+        return out
+
+    from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
+
+    try:
+        with _open_repo(repo_path) as repo:
+            return await run(repo)
+    except (RepoSourceError, RepoPathError) as exc:
+        return {"error": str(exc)}
+
+
+def sdlc_approve(
+    repo_path: str,
+    intent_id: str,
+    decided_by: str = "",
+    note: str = "",
+    reject: bool = False,
+) -> dict[str, Any]:
+    """Record that a **human** read a build document and decided. Binds the decision to a
+    digest of the document body, so a plan that changes afterwards reads as *stale* rather
+    than silently still approved — and `sdlc autorun` refuses to build without a current one.
+    Needs `sdlc_plan` to have produced the document first. ``decided_by`` defaults to the
+    repo's git identity; a decision nobody is named for is not recorded."""
+    import datetime as _dt
+
+    from orchestrator.sdlc.builddoc import (
+        PlanApproval,
+        decided_by_default,
+        derived_at,
+        plan_digest,
+        plan_dir,
+        save_approval,
+    )
+
+    def run(repo: Any) -> dict[str, Any]:
+        document = plan_dir(repo) / f"{intent_id}-build.md"
+        if not document.is_file():
+            return {
+                "error": f"no plan at {document} — run sdlc_plan for {intent_id} first",
+            }
+        # The tool cannot invent an approver. A host may know who its user is, but this
+        # process does not, and an approval attributed to nobody is a rumour.
+        who = decided_by or decided_by_default(repo)
+        if not who:
+            return {"error": "cannot tell who is approving — pass decided_by"}
+        approval = PlanApproval(
+            intent_id=intent_id,
+            decision="REJECTED" if reject else "APPROVED",
+            decided_by=who,
+            decided_at=_dt.date.today().isoformat(),
+            digest=plan_digest(document.read_text(encoding="utf-8")),
+            commit=derived_at(repo),
+            note=note,
+        )
+        return {
+            "intent_id": intent_id,
+            "decision": approval.decision,
+            "decided_by": who,
+            "decided_at": approval.decided_at,
+            "path": str(save_approval(approval, root=repo)),
+        }
+
+    return _in_repo(repo_path, run)
+
+
 def docs_for(repo_path: str, symbol: str = "") -> dict[str, Any]:
     """Which docs describe the code — the doc-ingestion surface. With a ``symbol``, the doc pages
     that **MENTION** it (grounded to the repo's docs). Without one, a doc-coverage summary: how many
@@ -568,6 +692,8 @@ _TOOLS = (
     localize,
     regression_gaps,
     root_cause,
+    sdlc_plan,
+    sdlc_approve,
     docs_for,
     # gated codegen / run control
     sdlc_feature,

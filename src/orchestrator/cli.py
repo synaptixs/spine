@@ -317,19 +317,25 @@ async def _run_ingest(
     # Bridge .env → os.environ so LiteLLM sees the provider key and the
     # ORCHESTRATOR_INTAKE_MODEL override is visible to the factory.
     load_local_env()
+    from orchestrator.core.llm.client import LLMError
     from orchestrator.intake.cache import analyze_cached
     from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
-    from orchestrator.intake.service import parse_source_uri, spec_to_issue_request
-
-    parse_source_uri(source)  # validate the source URI early
+    from orchestrator.intake.service import SourceUriError, parse_source_uri, spec_to_issue_request
 
     try:
+        parse_source_uri(source)  # validate the source URI early
         service = build_service_for(source, dry_run=not create, rules_path=rules_path)
-    except IntakeNotConfiguredError as exc:
-        typer.echo(str(exc), err=True)
+    except (SourceUriError, IntakeNotConfiguredError) as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=2) from exc
 
-    plan = await analyze_cached(service, source, refresh=refresh, log=lambda m: typer.echo(m, err=True))
+    try:
+        plan = await analyze_cached(service, source, refresh=refresh, log=lambda m: typer.echo(m, err=True))
+    except LLMError as exc:
+        # Deriving a spec needs a model. A provider that will not answer is an expected
+        # condition, and the message already names the model and the way out.
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
     _print(
         {
             "documents": len(plan.documents),
@@ -400,19 +406,24 @@ async def _run_openspec_draft(source: str, *, out: str, refresh: bool, overwrite
     from orchestrator.core.env import load_local_env
 
     load_local_env()
+    from orchestrator.core.llm.client import LLMError
     from orchestrator.intake.cache import analyze_cached
     from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
     from orchestrator.intake.openspec_writer import change_id_for, render_change, write_change
-    from orchestrator.intake.service import parse_source_uri
+    from orchestrator.intake.service import SourceUriError, parse_source_uri
 
-    parse_source_uri(source)  # validate early
     try:
+        parse_source_uri(source)  # validate early
         service = build_service_for(source, dry_run=True, rules_path=None)
-    except IntakeNotConfiguredError as exc:
-        typer.echo(str(exc), err=True)
+    except (SourceUriError, IntakeNotConfiguredError) as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=2) from exc
 
-    plan = await analyze_cached(service, source, refresh=refresh, log=lambda m: typer.echo(m, err=True))
+    try:
+        plan = await analyze_cached(service, source, refresh=refresh, log=lambda m: typer.echo(m, err=True))
+    except LLMError as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
     root = Path(out)
     intents_by_id = {i.id: i for i in plan.intents}
     drafted: list[dict[str, object]] = []
@@ -1055,16 +1066,22 @@ def sdlc_plan(
         resolved = injected
         if resolved is None:
             from orchestrator.core.env import load_local_env
+            from orchestrator.core.llm.client import LLMError
             from orchestrator.intake.cache import analyze_cached
             from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
+            from orchestrator.intake.service import SourceUriError
 
             load_local_env()
             try:
                 service = build_service_for(str(source), dry_run=True)
-            except IntakeNotConfiguredError as exc:
-                typer.echo(str(exc), err=True)
+            except (SourceUriError, IntakeNotConfiguredError) as exc:
+                typer.echo(f"ERROR: {exc}", err=True)
                 raise typer.Exit(code=2) from exc
-            plan_result = await analyze_cached(service, str(source), refresh=False, log=lambda _m: None)
+            try:
+                plan_result = await analyze_cached(service, str(source), refresh=False, log=lambda _m: None)
+            except LLMError as exc:
+                typer.echo(f"ERROR: {exc}", err=True)
+                raise typer.Exit(code=2) from exc
             if not plan_result.specs:
                 typer.echo("No specs derived from the source — nothing to plan.", err=True)
                 raise typer.Exit(code=3)

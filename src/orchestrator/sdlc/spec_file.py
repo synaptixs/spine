@@ -54,23 +54,36 @@ def load_spec_file(path: Path | str) -> dict[str, Any]:
         raise SpecFileError(f"{p} must contain a JSON object, got {type(payload).__name__}")
 
     payload.setdefault("intent_id", p.stem)
+    return validate_spec(payload, where=str(p))
+
+
+def validate_spec(payload: dict[str, Any], *, where: str = "spec") -> dict[str, Any]:
+    """Validate a spec **already parsed** and return the dict the pipeline expects.
+
+    Split out from :func:`load_spec_file` so every surface that accepts a spec validates
+    it the same way. The plugin takes one from a host's model rather than from disk, and a
+    second validator would eventually disagree with this one about what a spec is.
+
+    ``where`` names the thing being validated in the error, since the caller may have no
+    file to point at.
+    """
     try:
         spec = FeatureSpec.model_validate(payload)
     except Exception as exc:  # pydantic ValidationError — reported, not re-raised raw
-        raise SpecFileError(f"{p} is not a valid spec:\n{exc}") from exc
+        raise SpecFileError(f"{where} is not a valid spec:\n{exc}") from exc
 
     if not spec.title.strip():
-        raise SpecFileError(f"{p}: 'title' is required and cannot be empty")
+        raise SpecFileError(f"{where}: 'title' is required and cannot be empty")
     if not spec.acceptance_criteria:
         # Not fatal upstream, but a spec with nothing to satisfy gives the judge
         # nothing to judge — the run would report success having proved nothing.
         # 'proposed_criteria' deliberately doesn't count: unsourced criteria are
         # suggestions, not a contract to pass a run against.
         raise SpecFileError(
-            f"{p}: 'acceptance_criteria' is empty — there would be nothing for the "
+            f"{where}: 'acceptance_criteria' is empty — there would be nothing for the "
             "acceptance judge to verify, and the run would pass by default."
         )
     return spec.model_dump()
 
 
-__all__ = ["SpecFileError", "load_spec_file"]
+__all__ = ["SpecFileError", "load_spec_file", "validate_spec"]

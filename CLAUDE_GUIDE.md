@@ -189,6 +189,9 @@ At a glance:
 | [`read_memory_bank`](#read_memory_bank) | Read a repo's committed `episteme/` (code‑true project knowledge). | no |
 | [`pkg_grounding`](#pkg_grounding) | The existing‑code context a repo's Product Knowledge Graph surfaces for a spec — real APIs/types Spine would reuse, with `file:line`. | no |
 | [`ingest_preview`](#ingest_preview) | Preview the backlog (derived intents + gaps) for a requirements source — dry‑run. | no |
+| **Plan it, then decide — before anything is built** | | |
+| [`sdlc_plan`](#sdlc_plan) | **The build document.** Twelve grounded sections for one ticket: requirement, intent, root cause, what the graph knows, blast radius, design, files, acceptance criteria, the codegen prompt, cost and confidence — each labelled with where it came from. **No model, no credentials, nothing spent.** | `.spine/` |
+| [`sdlc_approve`](#sdlc_approve) | Record that a **human** read that document and decided. Binds to a digest of it, so a plan that changes afterwards reads as *stale* rather than still approved. | `.spine/` |
 | [`sdlc_feature`](#sdlc_feature) | **Ship it.** One intent end‑to‑end: spec → grounded codegen → tests → branch → *(optionally)* PR. | gated |
 | [`sdlc_start_run` + gate tools](#the-autonomous-run-sdlc_start_run--friends) | Drive the long, autonomous, gated run as a job (needs the Mode‑B backend). | gated |
 
@@ -297,10 +300,72 @@ Spine derives and any gaps, before running a feature.
 
 ---
 
+#### `sdlc_plan`
+
+**The build document for one ticket, before anything is built.** Twelve sections in fixed
+order, each labelled with where it came from — quoted from the ticket, computed from the
+graph, inferred by a model, or decided by a person. **No model call, no credentials,
+nothing spent.**
+
+```jsonc
+// tool: sdlc_plan
+{
+  "repo_path": ".",                  // local path or git URL
+  "spec": {
+    "intent_id": "PROJ-14",
+    "title": "CLI crashes when the registry API is down",
+    "summary": "Quote the actual error and name the real files — the root-cause section
+                reads an exception named anywhere here, and a path the graph knows becomes
+                the fault module.",
+    "acceptance_criteria": ["…one independently checkable statement per entry…"],
+    "met_criteria": {
+      "Any other non-success HTTP status surfaces the status code…":
+        "src/orchestrator/cli.py:134 — _check() already does this"
+    }
+  }
+}
+```
+
+**Returns** the rendered `document` **and** the `path` it was persisted to
+(`.spine/plans/<INTENT>-build.md`), plus `superseded` when it replaced an older version.
+
+**A spec it cannot validate is refused**, with the specific problem and the valid field
+names — so if you drafted the spec, read the error and fix it rather than working around it.
+
+> **`met_criteria` is the field worth your attention.** It maps a stated criterion to the
+> evidence that existing code *already satisfies it*. No deterministic pass can make that
+> call — but you can: read the ticket, then check with `explain_symbol` or `blast_radius`
+> before filling it in. On the ticket this was built from, two of six criteria described
+> behaviour that already existed, and a run would have reported them met having changed
+> nothing. That is the single most valuable thing you can add to a plan.
+
+**Where this matters most:** a machine with no model API key. You have the model and the
+tracker credentials; Spine has the graph. Read the ticket yourself, draft the spec, and call
+this — the document comes back grounded, and Spine never needed a key.
+
+#### `sdlc_approve`
+
+Records that a **human** read the document and decided. Binds to a digest of it, so a plan
+that changes afterwards reads as *stale* rather than still approved, and `sdlc autorun`
+refuses to build without a current one.
+
+```jsonc
+// tool: sdlc_approve
+{ "repo_path": ".", "intent_id": "PROJ-14", "decided_by": "alice", "note": "why" }
+// add "reject": true to record a rejection instead
+```
+
+**Do not call this on the user's behalf without being asked.** It records a human decision;
+`decided_by` defaults to the repo's git identity, and the tool refuses rather than inventing
+an approver when it cannot tell who decided.
+
+---
+
 #### `sdlc_feature`
 
 **The main tool** — builds one intent end to end. Safe by default (local branch + diff, no
-external writes). Parameters:
+external writes). **Prefer `sdlc_plan` first**: it costs nothing, and it is the only way the
+user sees what would be built before the money is spent. Parameters:
 
 | Param | Meaning |
 |---|---|
@@ -495,6 +560,22 @@ generates code that fits, runs the repo's tests, and commits locally — no push
 ---
 
 ## 9. Safe vs. live (the write gate)
+
+**Three tiers, separated by what a tool costs you if it is wrong** — work down them, never up.
+
+| Tier | Tools | Costs | Writes |
+|---|---|---|---|
+| **Comprehend** | `map_repo`, `blast_radius`, `investigate`, `localize`, `root_cause`, … | nothing | nothing |
+| **Plan and decide** | `sdlc_plan`, `sdlc_approve` | nothing | `.spine/` only |
+| **Build** — *gated* | `sdlc_feature`, `sdlc_start_run` + gate tools | **real money, every call** | local, or a PR with `live=true` |
+
+**"Gated" means two separate things.** It spends: every call drives a model through codegen,
+tests and review, and a failed run costs what a successful one costs. And with `live=true` it
+writes where you cannot take it back — a tracker issue, a pushed branch, an open PR.
+
+**Safe mode still costs tokens.** `live=false` keeps every write local; it does not make the
+run free. The tier above it — `sdlc_plan` — is the one that costs nothing at all, which is
+why it belongs before anything is built rather than after.
 
 Spine is **safe by default**. `sdlc_feature` with `live` unset only ever creates a *local*
 branch, commits, and shows a diff — **no external writes**, Jira runs dry.

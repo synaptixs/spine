@@ -60,3 +60,6 @@ mcp.json
 
 # Machine-specific MCP server config (internal hostnames, tokens) — never commit.
 mcp_server.json
+
+# Working spec files — per-ticket scratch, not repo content.
+/spec.json
