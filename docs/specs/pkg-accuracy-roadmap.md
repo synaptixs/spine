@@ -129,8 +129,10 @@ questions, and only the first has an implementation.
 
 Consistency is cheap — it runs on any repo with nothing to compare against. Soundness and
 completeness need something that already knows the answer, and phases 1–4 built four such
-oracles. **The gap this document opened is closed; what remains is keeping it closed** —
-recording the numbers over time and failing a build when they fall. That is phase 5.
+oracles. **The gap this document opened is closed, and phase 5 keeps it closed** —
+`corpus/scoreboard.json` records the numbers and `pkg accuracy --check` fails a build when a
+gated one falls. What remains is not measurement at all: phases 6 and 7 are about carrying
+the numbers to a reader, and adding *meaning* to a vocabulary that is entirely mechanical.
 
 ### What exists today
 
@@ -160,7 +162,8 @@ command.
 front-ends' own source and asserted byte-equal against `KNOWLEDGE_GRAPH.md`. Capability,
 explicitly not coverage.
 
-**`orchestrator pkg accuracy`** — four oracles, all built by phases 1–4:
+**`orchestrator pkg accuracy`** — four oracles (phases 1–4), plus a committed baseline and a
+CI gate (phase 5):
 
 | oracle | needs | answers |
 |---|---|---|
@@ -168,6 +171,7 @@ explicitly not coverage.
 | `--oracle runtime` | a test suite to run | `CALLS` recall from real execution, any repo |
 | `--oracle parity` | only the source | declared-vs-emitted routes and tables, per file |
 | `--oracle invention` | only the source | `CALLS` edges that are fiction, exactly |
+| `--scoreboard` / `--check` | the committed baseline | whether a **gated** number has dropped — in the quality gate |
 
 **Determinism** — `understand --check` fails when a fresh generation differs from the
 committed bank. Same input, same output; it says nothing about whether the output is right.
@@ -209,13 +213,16 @@ and none survives the only question a serious evaluator asks — **"how do you k
 
 Consider the difference in these three sentences, all describing the same feature:
 
-| before phase 1 | today, measured | after phase 5 |
+| before phase 1 | after phases 1–4 | after phase 5 — **today** |
 |---|---|---|
-| "Blast radius is grounded in the call graph." | "`CALLS` recall is 0.70 traced on this repo, and 3.16% of call edges are invented." | "0.70, up from 0.61 last release, and CI fails below 0.65." |
+| "Blast radius is grounded in the call graph." | "`CALLS` recall is 0.70 traced on this repo, and 3.16% of call edges are invented." | "0.70, recorded in a committed baseline, and CI fails if it drops." |
 
-The first is marketing. The second is engineering — **and it is where this project now
-stands**; both figures in it are measured, not illustrative. The third is a **guarantee**, and
-it is the only one a regulated buyer, a platform team, or a due-diligence process can act on.
+The first is marketing. The second is engineering. The third is a **guarantee** — the only one
+a regulated buyer, a platform team, or a due-diligence process can act on — and **it is where
+this project now stands**. Every figure in all three columns is measured, not illustrative.
+
+What phase 5 does *not* guarantee is stated with it: the gate covers corpus scores and parity,
+not the invention count. See the phase 5 section for why, and what that leaves uncovered.
 
 **What each phase unlocks, concretely:**
 
@@ -521,9 +528,10 @@ Two live examples from this codebase:
   grounded in garbage.
 
 **Phase 1 alone changes the conversation**, and it is a week's work rather than a quarter's.
-*(It took ~10.5 hours. Phases 1–4 together took under a day.)* Everything after it is
+*(It took ~10.5 hours. Phases 1–5 together took under a day.)* Everything after it is
 refinement — and the temptation will be to build the scoreboard before there is anything true
-to put in it. **Phases 1–4 are now that "anything true", so phase 5 is no longer premature.**
+to put in it. **That temptation was resisted in order:** phases 1–4 produced the numbers, and
+phase 5 built the scoreboard on top of them rather than ahead of them.
 
 **Two phases stand apart from the rest.** Phase 2's runtime oracle is the only one that
 scales to a customer's repository without anyone labelling anything — point it at a repo
