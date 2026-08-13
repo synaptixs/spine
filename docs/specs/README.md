@@ -402,6 +402,8 @@ also done (see G13).)*
 | `build-document.md` | Plan before code: every ticket produces a reviewable build document, and what each part of it is made of |
 | `build-documents/` | The build documents themselves — `SSPN-49-build.md` is the template all future ones follow |
 | `cli-test-plan.md` | Every CLI command with acceptance criteria, tiered by blast radius — the repeatable version of the sweep that found SSPN-49 |
+| `pkg-accuracy-roadmap.md` | Is the graph right? What verifies the PKG today (consistency), what does not exist (precision and recall), and the seven phases that would close it — including the intent layer that turns mechanism into meaning |
+| `executive-brief-plan-before-code.md` | One page for leadership: the six-run experiment, a worked example, and where the build document earns its place |
 | `models.md` | Data-model reference |
 | `archive/AI-NATIVE-PLATFORM-PLAN.md` | Full original roadmap (merged into §5 here) |
 | `archive/PKG-INTEGRATION-PLAN.md` | Full original PKG plan (merged into §4 here) |

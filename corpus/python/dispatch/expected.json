@@ -1,0 +1,60 @@
+{
+  "language": "python",
+  "case": "dispatch",
+  "why": "Calls reached through a variable rather than a name — an annotated parameter, a chained call on a return value, and a class fetched from a lookup table. These are the shapes the extractors document as skipped, and this case exists to put a number on how much is lost.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "py:svc", "kind": "Module"},
+    {"id": "py:svc.handlers", "kind": "Module"},
+    {"id": "py:svc.registry", "kind": "Module"},
+
+    {"id": "py:svc.handlers.Handler", "kind": "Type"},
+
+    {"id": "py:svc.handlers.Handler.run", "kind": "Function"},
+    {"id": "py:svc.handlers.Handler.format", "kind": "Function"},
+    {"id": "py:svc.handlers.dispatch", "kind": "Function"},
+    {"id": "py:svc.registry.build", "kind": "Function"},
+    {"id": "py:svc.registry.invoke", "kind": "Function"}
+  ],
+  "edges": [
+    {"src": "py:svc.registry", "dst": "py:svc.handlers.Handler", "kind": "IMPORTS"},
+
+    {"src": "py:svc.handlers", "dst": "py:svc.handlers.Handler", "kind": "CONTAINS"},
+    {"src": "py:svc.handlers", "dst": "py:svc.handlers.dispatch", "kind": "CONTAINS"},
+    {"src": "py:svc.handlers.Handler", "dst": "py:svc.handlers.Handler.run", "kind": "CONTAINS"},
+    {"src": "py:svc.handlers.Handler", "dst": "py:svc.handlers.Handler.format", "kind": "CONTAINS"},
+    {"src": "py:svc.registry", "dst": "py:svc.registry.build", "kind": "CONTAINS"},
+    {"src": "py:svc.registry", "dst": "py:svc.registry.invoke", "kind": "CONTAINS"},
+
+    {"src": "py:svc.handlers.Handler.run", "dst": "py:svc.handlers.Handler.format", "kind": "CALLS"},
+    {"src": "py:svc.handlers.dispatch", "dst": "py:svc.handlers.Handler.run", "kind": "CALLS"},
+    {"src": "py:svc.registry.invoke", "dst": "py:svc.registry.build", "kind": "CALLS"},
+    {"src": "py:svc.registry.invoke", "dst": "py:svc.handlers.Handler.run", "kind": "CALLS"},
+    {"src": "py:svc.registry.build", "dst": "py:svc.handlers.Handler", "kind": "CALLS"}
+  ],
+  "known_gaps": [
+    {
+      "edge": {"src": "py:svc.handlers.dispatch", "dst": "py:svc.handlers.Handler.run", "kind": "CALLS"},
+      "why": "`handler.run(payload)` on an annotated parameter. Resolving it needs type inference; the front-ends document this skip deliberately (typescript_extractor.py:20 states the equivalent for TS). Counted as a recall miss, not exempted."
+    },
+    {
+      "edge": {"src": "py:svc.registry.invoke", "dst": "py:svc.handlers.Handler.run", "kind": "CALLS"},
+      "why": "`build(name).run(payload)` — a method call on the return value of another call. Needs the return type of `build`. Counted as a recall miss, not exempted."
+    },
+    {
+      "edge": {"src": "py:svc.registry.build", "dst": "py:svc.handlers.Handler", "kind": "CALLS"},
+      "why": "`cls()` where `cls` came from a lookup table — construction through a variable. FOUND BY MEASUREMENT, NOT PREDICTED: the first scoring run emitted `build -> py:cls` instead. Recorded here after the fact and labelled as such, per the corpus rule that a gap noticed after seeing output is weaker evidence than one predicted before."
+    }
+  ],
+  "false_positives": [
+    {
+      "edge": {"src": "py:svc.registry.build", "dst": "py:cls", "kind": "CALLS"},
+      "why": "`cls` is a LOCAL VARIABLE. The graph asserts a function named `cls` exists outside the scanned tree and that `build` calls it; both are false. This is invention, not incompleteness — the case exists partly to hold this defect visible. It costs CALLS precision (0.9 on this case) and should stay costing it until the extractor stops emitting it."
+    }
+  ],
+  "excluded": [
+    "Module-level constants (svc.registry.TABLE) — DECIDED 2026-08-12: not a Field. A Field belongs to a Type in this vocabulary; module constants are not modelled, so labelling them would be a category error rather than a recall miss.",
+    "Calls to builtins (str) — the graph emits no node or edge for them at all, so there is no id to label."
+  ],
+  "open_questions": []
+}

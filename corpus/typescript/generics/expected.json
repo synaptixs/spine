@@ -1,0 +1,37 @@
+{
+  "language": "typescript",
+  "case": "generics",
+  "why": "Type parameters everywhere: a generic interface, a generic class implementing it at the same parameter, a generic method, and a generic free function. The question is whether the parameter list changes the identity of what is emitted — a node id carrying `<T>`, or an IMPLEMENTS edge lost because the interface is written `Repo<T>` at the implements site rather than `Repo`.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "ts:app/repo", "kind": "Module"},
+
+    {"id": "ts:app/repo.Repo", "kind": "Type"},
+    {"id": "ts:app/repo.MemoryRepo", "kind": "Type"},
+
+    {"id": "ts:app/repo.Repo.get", "kind": "Function"},
+    {"id": "ts:app/repo.MemoryRepo.get", "kind": "Function"},
+    {"id": "ts:app/repo.firstOf", "kind": "Function"},
+
+    {"id": "ts:app/repo.MemoryRepo.items", "kind": "Field"}
+  ],
+  "edges": [
+    {"src": "ts:app/repo", "dst": "ts:app/repo.Repo", "kind": "CONTAINS"},
+    {"src": "ts:app/repo", "dst": "ts:app/repo.MemoryRepo", "kind": "CONTAINS"},
+    {"src": "ts:app/repo", "dst": "ts:app/repo.firstOf", "kind": "CONTAINS"},
+    {"src": "ts:app/repo.Repo", "dst": "ts:app/repo.Repo.get", "kind": "CONTAINS"},
+    {"src": "ts:app/repo.MemoryRepo", "dst": "ts:app/repo.MemoryRepo.get", "kind": "CONTAINS"},
+    {"src": "ts:app/repo.MemoryRepo", "dst": "ts:app/repo.MemoryRepo.items", "kind": "CONTAINS"},
+
+    {"src": "ts:app/repo.MemoryRepo", "dst": "ts:app/repo.Repo", "kind": "IMPLEMENTS"}
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "`this.items.get(id)` — a method call on a class property, which needs the property's type. The front-end documents instance calls on a typed variable as skipped; `instance_calls` is the case that measures that directly.",
+    "`new Map()` — construction of a built-in with no node in the scanned tree."
+  ],
+  "open_questions": [
+    "Do generic type parameters appear in node ids (`ts:app/repo.Repo<T>`) or are they stripped (`ts:app/repo.Repo`)? Stripped is predicted, because the id scheme is `{module}.{name}` and a type parameter is not part of the declared name — but if the front-end takes the whole declaration text, every id in this case is wrong and the case will read as 0.0 recall rather than as a vocabulary error."
+  ]
+}

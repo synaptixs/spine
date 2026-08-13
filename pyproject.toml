@@ -187,7 +187,17 @@ target-version = "py312"
 # with `...`, and aligned for reading. Formatting them collapses deliberate comment alignment
 # and injects PEP 8 blank lines into fragments that were never meant to be PEP 8, changing
 # documentation for no correctness gain. Keep the formatter to real Python.
-extend-exclude = ["*.md"]
+# `corpus/` is ground truth for `pkg accuracy`, not project source. Its fixtures are written
+# to contain shapes that are awkward on purpose — a re-export the linter reads as an unused
+# import, a decorator chain, a call through a variable — and `expected.json` records what the
+# extractor should make of them, to the line. Linting or reformatting a fixture silently
+# changes what is being measured, and F401 on a deliberate `from . import core` blocks the
+# commit outright. Excluded so the measurement stays stable.
+extend-exclude = ["*.md", "corpus"]
+# Exclusions normally do not apply to paths passed explicitly, and the pre-commit hooks pass
+# changed filenames one by one (`uv run ruff check --fix <files>`) — so without this, editing
+# a corpus fixture routes it straight past the exclusion above and blocks the commit.
+force-exclude = true
 
 [tool.ruff.lint]
 # "S" = flake8-bandit. Security linting runs in the normal `ruff check` gate rather

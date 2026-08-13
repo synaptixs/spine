@@ -4,6 +4,58 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## Unreleased — Is the graph right?
+
+### Added
+
+- **Measured graph accuracy.** Every claim Spine makes about a codebase is a claim about
+  the PKG, and until now those claims were adjectives — "grounded", "deterministic",
+  "precision-first" — none of which survives *"how do you know?"*. `orchestrator pkg
+  accuracy` answers it with four oracles, each a different trade of cost against reach:
+
+  | oracle | needs | answers |
+  |---|---|---|
+  | corpus *(default)* | hand-labelled fixtures | precision **and** recall, per kind, per language |
+  | `--oracle runtime` | a test suite to run | `CALLS` recall from real execution, on any repo |
+  | `--oracle parity` | only the source | declared-vs-emitted routes and tables, per file |
+  | `--oracle invention` | only the source | `CALLS` edges that are fiction, exactly |
+
+  The corpus is published alongside the numbers, in `corpus/`, with the labelling method —
+  a recall figure nobody can reproduce is an assertion with a decimal point in it.
+
+- **An accuracy regression gate.** `pkg accuracy --check` compares against a committed
+  baseline and fails a build when a *gated* number drops. It is now in the quality gate
+  next to `mypy` and `ruff`. What may be gated depends on what a number is measured
+  against: corpus scores come from committed fixtures and are gated strictly; per-file
+  parity ratchets one way; the invention count is recorded and never gated, because it is
+  measured against the repository itself and moves whenever anyone writes ordinary code.
+
+- **The number where a person will actually see it.** The build document's blast radius now
+  states the measured recall for its language — *"Measured `CALLS` recall for python is 0.73
+  (against the extractor's own test corpus, not this repository) — treat this list as a
+  lower bound."* The parenthetical is not decoration: a reader who takes that figure as a
+  statement about their own repository has been misled.
+
+- **The intent layer — `Intent` nodes and `SERVES` edges.** The graph's vocabulary was
+  entirely mechanical: what calls what, what contains what. It now records *what a symbol
+  was last changed for*, joining `git blame` to the issue key in each commit's message.
+  Deterministic, no model, and it reports its own coverage — which depends on the
+  repository's history, not on the method.
+
+### Fixed
+
+- **A systematic false-positive class in the Python front-end, now measured.** A call
+  through a parameter, a local variable, or a nested function emits a `CALLS` edge to an
+  `external` node that does not exist — `py:echo` where `echo` is a callback argument.
+  **496 such edges here, 3.16% of the call graph.** Detected exactly rather than sampled;
+  the front-end fix is its own ticket, with this number to prove itself against.
+
+- **`source-parity` counts instead of testing for presence.** It asked *"does this language
+  have **any** `Endpoint` node?"*; it now asks, per file and with `file:line`, *"this
+  declares 4 route decorators and the graph holds 1 — where did 3 go?"*. It found two live
+  routes invisible to the graph: `GET /healthz` and `GET /readyz`, declared inside an app
+  factory whose router the extractor could not resolve.
+
 ## 3.16.2 — A host that owns the model, and four failures that read as crashes
 
 ### Added

@@ -782,3 +782,41 @@ async def test_build_plan_is_deterministic_and_touches_no_tracker(tmp_path: Path
     second = await build_plan(spec, root=tmp_path)
     assert first == second
     assert re.findall(r"^## (.+)$", first, flags=re.MULTILINE) == SECTIONS
+
+
+# ---- the measured caveat (phase 6) ---------------------------------------
+
+
+def test_the_caveat_states_measured_recall_for_a_measured_language() -> None:
+    """Five phases of measurement only change an outcome if a reader sees the number.
+
+    "counts under-report" tells a reader to be vaguely careful. "recall is 0.73" tells them
+    roughly one call in four is missing, and lets them judge whether that matters here.
+    """
+    from orchestrator.sdlc.builddoc import _blast_prose
+
+    prose = _blast_prose({"call_graph_available": True, "modules": []}, "python")
+    assert "Measured `CALLS` recall for python is" in prose
+    assert "lower bound" in prose
+
+
+def test_the_caveat_says_what_the_number_was_measured_against() -> None:
+    """Load-bearing: the figure comes from the extractor's fixtures, not the repo described.
+
+    A reader who takes it as a statement about their own code has been misled by us.
+    """
+    from orchestrator.sdlc.builddoc import _blast_prose
+
+    prose = _blast_prose({"call_graph_available": True, "modules": []}, "python")
+    assert "not this repository" in prose
+
+
+def test_an_unmeasured_language_keeps_the_original_wording() -> None:
+    """None is not zero. Six of eight front-ends have no corpus, and a language nobody
+    measured has not scored badly — it has not been scored."""
+    from orchestrator.sdlc.builddoc import _blast_prose
+
+    prose = _blast_prose({"call_graph_available": True, "modules": []}, "go")
+    assert "per-method counts under-report" in prose
+    assert "Measured `CALLS` recall" not in prose
+    assert "0.00" not in prose
