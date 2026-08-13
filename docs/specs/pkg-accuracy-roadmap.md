@@ -112,8 +112,15 @@ blast radius, `investigate`'s landing symbols, `regression`'s coverage gaps, cod
 grounding — all of it inherits the graph's mistakes without inheriting any way to notice
 them. So: how do we know the graph is right?
 
-**Today: we know it is *consistent*. We do not know it is *right*.** Those are different
-questions, and only the first has an implementation.
+**When this was written: we knew it was *consistent*. We did not know it was *right*.** Those
+are different questions, and only the first had an implementation.
+
+**All seven phases have now shipped.** The graph is measured — precision and recall per kind
+per language, `CALLS` recall from real execution, per-file route parity, an exact
+false-positive count — recorded in a committed baseline, gated in CI, carried into the
+document a human reads, and joined to the tickets its symbols serve. The sections below are
+kept as written, with outcomes marked against them, because the most useful thing in this
+document is where measurement contradicted the plan.
 
 ---
 
@@ -268,6 +275,7 @@ reason is consistent — see the Progress table's footnote.*
 | 4 ✅ | ~~sampled fact audit~~ **an exact invention detector**, plus a sampler | ~3 days | **~18 min** | false-positive rate — 3.16% here |
 | 5 ✅ | scoreboard + CI gate | ~3 days | **~8 min** | the derivative — accuracy over time |
 | 6 ✅ | numbers in the document | ~2 days | **~7 min** | the caveat a reader can reason with |
+| 7 ✅ | the intent layer *(7a vocabulary, 7b scan)* | ~2 days | **~2 h** | not a number — *meaning*: which ticket a symbol serves |
 
 ### Phase 1 — a labelled corpus, and the two numbers ✅ SHIPPED 2026-08-13
 
@@ -491,7 +499,7 @@ reason with.
 
 ---
 
-### Phase 7 — from mechanism to meaning: the intent layer 🔵 IN PROGRESS
+### Phase 7 — from mechanism to meaning: the intent layer ✅ SHIPPED 2026-08-13
 
 **Split into two tickets** — this is the first phase that changes the vocabulary rather than
 reading it, and `facts.py` has 46 non-test importers.
@@ -599,7 +607,8 @@ phase 5 built the scoreboard on top of them rather than ahead of them.
 scales to a customer's repository without anyone labelling anything — point it at a repo
 with tests and it returns a recall floor from real execution. *(Built. 0.70 on this repo,
 no labelling.)* Phase 7's recorded tier is the only one that adds *meaning* rather than
-confidence, and it needs no model at all. *(Not built — phases run in sequence.)*
+confidence, and it needs no model at all. *(Built. 11.8% of symbols attributed here — low
+because this repository's history was squashed on import, not because the method is weak.)*
 
 **A pattern worth carrying into phases 5–7.** Every one of the four so far was re-scoped by a
 twenty-minute prototype run *before* the plan was written: phase 2 found that a trace observes

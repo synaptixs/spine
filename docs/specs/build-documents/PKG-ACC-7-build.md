@@ -3,7 +3,7 @@
 Phase 7 of [`../pkg-accuracy-roadmap.md`](../pkg-accuracy-roadmap.md): from mechanism to
 meaning — the intent layer. Self-contained.
 
-**Status:** 🔵 **in progress** · started 2026-08-13 12:56 EDT · **split into two tickets**
+**Status:** ✅ **shipped 2026-08-13 14:53 EDT** · started 12:56 · elapsed ~2 h · **landed as two tickets**
 
 Per §12's recommendation, this phase lands in two parts so a downstream failure has one
 possible cause rather than two:
