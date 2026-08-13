@@ -389,15 +389,22 @@ def build_scoreboard(
     """
     from orchestrator.pkg.invention import score_invention
 
-    corpus = score_corpus(corpus_root)
+    # A corpus is Spine's own ground truth and most repositories have none. That is not an
+    # error: parity and invention need only the source, so a scoreboard is still worth having
+    # — it just has no corpus section, and therefore nothing gated strictly.
+    languages: dict[str, Any] = {}
+    try:
+        corpus = score_corpus(corpus_root)
+    except CorpusError:
+        corpus = None
+    if corpus is not None:
+        for lang, groups in corpus.totals().items():
+            languages[lang] = {
+                group: {s.kind: _score_entry(s) for s in scores} for group, scores in groups.items()
+            }
+
     parity = score_parity(repo)
     invention = score_invention(repo)
-
-    languages: dict[str, Any] = {}
-    for lang, groups in corpus.totals().items():
-        languages[lang] = {
-            group: {s.kind: _score_entry(s) for s in scores} for group, scores in groups.items()
-        }
 
     board: dict[str, Any] = {
         "version": SCOREBOARD_VERSION,

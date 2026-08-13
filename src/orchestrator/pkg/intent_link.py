@@ -43,7 +43,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind
+from orchestrator.pkg.facts import SYMBOL_KINDS, Edge, EdgeKind, FactBatch, Node, NodeKind
 
 # Deliberately generic: `SSPN-49`, `PROJ-1`, `AB1-23`. No repository outside this one uses this
 # project's prefix, so a hard-coded key pattern would make the feature useless everywhere else.
@@ -116,13 +116,7 @@ def link_intents(
 
     # Only symbols carry intent. A Module is a file, and attributing a whole file to whichever
     # ticket last touched line 1 of it would be noise wearing a provenance label.
-    symbols = [
-        n
-        for n in batch.nodes
-        if n.grounded
-        and n.provenance is not None
-        and n.kind in (NodeKind.FUNCTION, NodeKind.TYPE, NodeKind.FIELD, NodeKind.ENDPOINT)
-    ]
+    symbols = [n for n in batch.nodes if n.grounded and n.provenance is not None and n.kind in SYMBOL_KINDS]
 
     attributed = 0
     intents: dict[str, Node] = {}

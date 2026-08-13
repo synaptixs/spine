@@ -70,6 +70,13 @@ class EdgeKind(str, Enum):
     SERVES = "SERVES"
 
 
+# The kinds that are *symbols* — a named thing inside a file — as opposed to a container
+# (`Module`), a document (`Doc`), or a reason (`Intent`). Named here because more than one
+# pass needs "everything you could point at in source", and spelling the members out at each
+# site both duplicates the concept and makes `pkg capabilities` read a *filter* as an *emit*.
+SYMBOL_KINDS = frozenset({NodeKind.TYPE, NodeKind.FUNCTION, NodeKind.FIELD, NodeKind.ENDPOINT})
+
+
 @dataclass(frozen=True)
 class Provenance:
     """Where a fact came from, to line precision."""
@@ -153,4 +160,4 @@ class FactBatch:
         return by_kind
 
 
-__all__ = ["Edge", "EdgeKind", "FactBatch", "Node", "NodeKind", "Provenance"]
+__all__ = ["SYMBOL_KINDS", "Edge", "EdgeKind", "FactBatch", "Node", "NodeKind", "Provenance"]

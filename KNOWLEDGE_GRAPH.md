@@ -76,6 +76,7 @@ claim is traceable back to source.
 | `Endpoint` | An HTTP route or RPC |
 | `Entity` | An ORM model / data entity |
 | `Doc` | A documentation page or section (README, design doc, PDF) — section-granular, e.g. `doc:README.md#usage`, with provenance at the heading line |
+| `Intent` | A ticket a symbol was changed for, e.g. `intent:SSPN-49`. The one node kind that is a *reason* rather than an artefact, so it carries **no provenance** — an intent is not a place in a file |
 
 Each node has a stable, language-prefixed id (e.g. `py:billing.invoice.Invoice`), a
 `name`, its `language`, and `provenance` (`file:line`). Nodes referenced but not defined
@@ -94,8 +95,14 @@ in-repo (e.g. a third-party class) are marked `external`.
 | `CONSUMES` | caller → the endpoint it calls (the client half) |
 | `REFERENCES` | entity → entity (foreign key) |
 | `MENTIONS` | doc → the code symbol/module it describes (bound, `file:line`-grounded) |
+| `SERVES` | symbol → the intent it was last changed for (from git blame + the commit's issue key) |
 
 ### Front-end capability matrix
+
+Nine of the ten edge kinds are **mechanical** — they say what calls what, what contains what.
+`MENTIONS` and `SERVES` are the two that carry *meaning*: what a symbol is documented by, and
+what it was built for. Everything else in the graph answers *"what happens"*; those two answer
+*"why"*.
 
 The vocabulary above is universal; the **front-ends are not**. Python emits four of the seven
 node kinds, C# emits six. That gap changes how an answer should be read: `impact_of(handler)`
@@ -147,6 +154,7 @@ do, for every language, and they are why the matrix is not the full picture:
 | `pkg/doc_link.py` | documentation ingestion — runs for every language | `Doc`, `MENTIONS` |
 | `pkg/import_link.py` | the whole-repo import join | `Module`, `IMPORTS` |
 | `pkg/data_layer_link.py` | a live database, via `mcp ingest-db` | `Entity`, `CONTAINS`, `REFERENCES` |
+| `pkg/intent_link.py` | git history — blame joined to the commit's issue key | `Intent`, `SERVES` |
 <!-- END capability-matrix -->
 
 The table is generated from the front-ends' own source and checked by
@@ -168,6 +176,7 @@ flowchart LR
     EN["Entity"]
     EN2["Entity"]
     D["Doc"]
+    I["Intent"]
     M -->|CONTAINS| T
     M -->|IMPORTS| M2
     T -->|CONTAINS| F
@@ -177,6 +186,7 @@ flowchart LR
     EP -->|EXPOSES| F
     EN -->|REFERENCES| EN2
     D -->|MENTIONS| F
+    F -->|SERVES| I
 ```
 
 This is what lets Spine answer questions like *"what calls this function?"*, *"what's the
