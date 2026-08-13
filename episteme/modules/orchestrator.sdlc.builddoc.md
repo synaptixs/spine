@@ -166,6 +166,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (3 production · 4 test): [`_go`](../../src/orchestrator/cli.py#L1065), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1188), [`run`](../../src/orchestrator/plugin/server.py#L467), [`test_build_plan_is_deterministic_and_touches_no_tracker`](../../tests/sdlc/test_builddoc.py#L775), [`test_the_gate_passes_for_the_plan_that_was_read`](../../tests/sdlc/test_builddoc.py#L526), [`test_the_gate_refuses_once_the_plan_has_moved_underneath_it`](../../tests/sdlc/test_builddoc.py#L536), [`test_the_plugin_and_the_cli_render_the_same_document`](../../tests/plugin/test_server.py#L517)
 - **Calls** (11): [`assess`](../../src/orchestrator/sdlc/validity.py#L418), [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L67), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L225), [`collect_evidence`](../../src/orchestrator/sdlc/builddoc.py#L704), [`derived_at`](../../src/orchestrator/sdlc/builddoc.py#L78), `orchestrator.pkg.FactStore`, `orchestrator.pkg.load_or_extract`, `pathlib.Path`, [`produce_design`](../../src/orchestrator/sdlc/design.py#L285), [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L908)
+- **Documented in**: `CHANGELOG.md`
 
 ### `collect_evidence`
 
