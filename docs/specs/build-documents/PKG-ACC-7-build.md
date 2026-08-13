@@ -11,7 +11,26 @@ possible cause rather than two:
 | | ships | state |
 |---|---|---|
 | **7a — the vocabulary** | `NodeKind.INTENT`, `EdgeKind.SERVES` in `facts.py`; nothing emits them | ✅ **shipped 2026-08-13 14:39 EDT** |
-| **7b — the scan** | `pkg/intent_link.py`: git history → `Intent` nodes and `SERVES` edges | not started |
+| **7b — the scan** | `pkg/intent_link.py`: git history → `Intent` nodes and `SERVES` edges | ✅ **shipped 2026-08-13 14:53 EDT** |
+
+**7b, as built.** On this repository: **1,172 of 9,969 symbols attributed (11.8%)**, 34
+`Intent` nodes, 1,319 `SERVES` edges, 27s. 10 tests, all against real git repositories built in
+`tmp_path` rather than mocked subprocess output — the feature is entirely an assertion about
+what git says, and a fake `git blame` would only assert what its author believed.
+
+**§6.2 of this document was wrong, and prototyping caught it.** It specified "symbols whose
+provenance falls inside the changed line ranges". That join runs the wrong way: a commit's line
+numbers are as-of-that-commit while provenance is against today's tree, and lines drift with
+every edit above them. `git blame` maps *current* lines to the commits that last touched them,
+which is the direction the join needs. Implemented with blame.
+
+**Why 11.8% and not more, stated plainly.** The line-level rate is 2.8%; the symbol rate is
+higher because a symbol counts as attributed when any keyed commit touched any line of its
+span, which is the right semantics. Neither is a limit of the method — this repository's
+history was squashed on import from a private one, and `git blame` names those import commits
+for most surviving lines. `"Spine — governed, provenance-grounded autonomous software
+delivery"` alone owns 2,278 lines of the sample. A repository developed in the open attributes
+far more.
 
 **7a, as built.** Two enum members and a docstring. The point was never the diff — it was the
 verification surface: `facts.py` has 92 importers, 46 non-test, and this is the first change in

@@ -1,7 +1,7 @@
 # Is the graph right? — validating and verifying PKG accuracy
 
-**Status:** phases 1–6 complete · **phase 7 in progress**
-**Written:** 2026-08-11, against 3.16.1 · **last updated:** 2026-08-13 14:39 EDT
+**Status:** ✅ **phases 1–7 complete** — the roadmap is done
+**Written:** 2026-08-11, against 3.16.1 · **last updated:** 2026-08-13 14:53 EDT
 
 ## Progress
 
@@ -16,7 +16,7 @@ against what the work actually took rather than staying guesses.
 | 4 — invention detector + sampler | ~1 day | 2026-08-13 10:58 EDT | 2026-08-13 11:16 EDT | **~18 min** | **complete** |
 | 5 — scoreboard + CI gate | ~3 days | 2026-08-13 12:28 EDT | 2026-08-13 12:36 EDT | **~8 min** | **complete** |
 | 6 — numbers in the document | ~2 days | 2026-08-13 12:42 EDT | 2026-08-13 12:49 EDT | **~7 min** | **complete** |
-| 7 — the intent layer *(split: 7a vocabulary, 7b scan)* | ~2 days | 2026-08-13 12:56 EDT | — | — | **in progress** — 7a shipped 14:39 |
+| 7 — the intent layer *(split: 7a vocabulary, 7b scan)* | ~2 days | 2026-08-13 12:56 EDT | 2026-08-13 14:53 EDT | **~2 h** | **complete** |
 
 \* Reconstructed from file timestamps, not recorded at the time — this convention began
 mid-phase. Every later start time is stamped before the work begins.
@@ -499,7 +499,13 @@ reading it, and `facts.py` has 46 non-test importers.
 - **7a — the vocabulary** ✅ shipped 2026-08-13. `NodeKind.INTENT` and `EdgeKind.SERVES` exist;
   nothing emits them, so every graph is byte-identical. Exactly one downstream consequence
   across 46 importers: the committed capability matrix in `KNOWLEDGE_GRAPH.md`, regenerated.
-- **7b — the scan** — git history → `Intent` nodes and `SERVES` edges. Not started.
+- **7b — the scan** ✅ shipped 2026-08-13. `pkg/intent_link.py` joins git blame to symbol
+  provenance: **1,172 of 9,969 symbols attributed (11.8%)**, 34 `Intent` nodes, 1,319 `SERVES`
+  edges. The join is **blame, not hunk ranges** — a commit's line numbers are as-of-that-commit
+  while provenance is against today's tree, so the obvious implementation runs the wrong way.
+  Coverage is low here because this repository's history was squashed on import from a private
+  one; that is a property of the repository, not the method, and the rate is reported on every
+  run rather than hidden.
 
 **This section's stated mechanism is wrong for real repositories, and measurement caught it.**
 It says the recorded tier is *"the free win"* because Spine creates branch names of the form
