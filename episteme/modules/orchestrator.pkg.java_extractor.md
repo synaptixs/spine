@@ -15,12 +15,12 @@
 
 - [`_text`](../../src/orchestrator/pkg/java_extractor.py#L418) — reaches **14** symbols · **no test path visible**
 - [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L413) — reaches **7** symbols · **no test path visible**
+- [`JavaExtractor`](../../src/orchestrator/pkg/java_extractor.py#L52) — reaches **6** symbols
 - [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L314) — reaches **5** symbols · **no test path visible**
 - [`_string_literal`](../../src/orchestrator/pkg/java_extractor.py#L342) — reaches **5** symbols · **no test path visible**
 - [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L330) — reaches **4** symbols · **no test path visible**
 - [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L299) — reaches **4** symbols · **no test path visible**
 - [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L319) — reaches **4** symbols · **no test path visible**
-- [`_join_path`](../../src/orchestrator/pkg/java_extractor.py#L373) — reaches **3** symbols · **no test path visible**
 
 _15 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -90,7 +90,7 @@ _15 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/java_extractor.py:229`](../../src/orchestrator/pkg/java_extractor.py#L229)
 
 - **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L110)
-- **Calls** (8): [`Edge`](../../src/orchestrator/pkg/facts.py#L87), [`Node`](../../src/orchestrator/pkg/facts.py#L71), [`Provenance`](../../src/orchestrator/pkg/facts.py#L59), [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L330), [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L299), [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L319), [`_join_path`](../../src/orchestrator/pkg/java_extractor.py#L373), [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L314)
+- **Calls** (8): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Node`](../../src/orchestrator/pkg/facts.py#L93), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L330), [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L299), [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L319), [`_join_path`](../../src/orchestrator/pkg/java_extractor.py#L373), [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L314)
 
 ### `_join_path`
 

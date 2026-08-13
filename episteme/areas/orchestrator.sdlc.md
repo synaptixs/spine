@@ -57,7 +57,7 @@ _Showing 16 of 28 neighbouring areas._
 - [`orchestrator.sdlc.coverage`](../../src/orchestrator/sdlc/coverage.py#L1)
 - [`orchestrator.sdlc.deps`](../../src/orchestrator/sdlc/deps.py#L1)
 - [`orchestrator.sdlc.design`](../modules/orchestrator.sdlc.design.md)
-- [`orchestrator.sdlc.escalate`](../modules/orchestrator.sdlc.escalate.md)
+- [`orchestrator.sdlc.escalate`](../../src/orchestrator/sdlc/escalate.py#L1)
 - [`orchestrator.sdlc.escalation`](../../src/orchestrator/sdlc/escalation.py#L1)
 - [`orchestrator.sdlc.excerpt`](../../src/orchestrator/sdlc/excerpt.py#L1)
 - [`orchestrator.sdlc.feature_runner`](../modules/orchestrator.sdlc.feature_runner.md)

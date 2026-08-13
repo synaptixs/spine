@@ -14,9 +14,9 @@
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L387) — reaches **10** symbols · **no test path visible**
+- [`TypeScriptExtractor`](../../src/orchestrator/pkg/typescript_extractor.py#L46) — reaches **6** symbols
 - [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L382) — reaches **4** symbols · **no test path visible**
 - [`_import_target`](../../src/orchestrator/pkg/typescript_extractor.py#L228) — reaches **3** symbols · **no test path visible**
-- [`TypeScriptExtractor`](../../src/orchestrator/pkg/typescript_extractor.py#L46) — reaches **2** symbols
 - [`_imported_locals`](../../src/orchestrator/pkg/typescript_extractor.py#L330) — reaches **2** symbols · **no test path visible**
 - [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L279) — reaches **2** symbols · **no test path visible**
 - [`_resolve_type`](../../src/orchestrator/pkg/typescript_extractor.py#L370) — reaches **2** symbols · **no test path visible**
@@ -41,14 +41,14 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/typescript_extractor.py:253`](../../src/orchestrator/pkg/typescript_extractor.py#L253)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L67)
-- **Calls** (3): [`Edge`](../../src/orchestrator/pkg/facts.py#L87), [`Provenance`](../../src/orchestrator/pkg/facts.py#L59), [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L279)
+- **Calls** (3): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L279)
 
 ### `_emit_function`
 
 [`src/orchestrator/pkg/typescript_extractor.py:198`](../../src/orchestrator/pkg/typescript_extractor.py#L198)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L67)
-- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L87), [`Node`](../../src/orchestrator/pkg/facts.py#L71), [`Provenance`](../../src/orchestrator/pkg/facts.py#L59), [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L382)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Node`](../../src/orchestrator/pkg/facts.py#L93), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L382)
 
 ### `_field_text`
 
@@ -103,6 +103,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L67)
 - **Calls** (5): `RuntimeError`, `language_tsx`, `language_typescript`, `tree_sitter.Language`, `tree_sitter.Parser`
+- **Documented in**: `docs/specs/build-documents/PKG-ACC-1-build.md#9-facts-the-generator-needs`
 
 ### `_unwrap`
 

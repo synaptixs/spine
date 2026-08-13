@@ -124,7 +124,7 @@ _13 of the symbols other code depends on here have no test path the graph can se
 
 ## Imports
 
-`__future__.annotations`, [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), [`orchestrator.ir.graph`](../../src/orchestrator/ir/graph.py#L1), [`orchestrator.registry._common`](../../src/orchestrator/registry/_common.py#L1), [`orchestrator.registry.agent_template`](../../src/orchestrator/registry/agent_template.py#L1), [`orchestrator.registry.db.models`](../../src/orchestrator/registry/db/models.py#L1), [`orchestrator.registry.repositories`](../../src/orchestrator/registry/repositories.py#L1), [`orchestrator.runtime`](../../src/orchestrator/runtime/__init__.py#L1), [`orchestrator.runtime.artifacts`](../../src/orchestrator/runtime/artifacts.py#L1), [`orchestrator.runtime.post_conditions`](orchestrator.runtime.post_conditions.md), `typing.Any`
+`__future__.annotations`, [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), [`orchestrator.ir.graph`](../../src/orchestrator/ir/graph.py#L1), [`orchestrator.registry._common`](../../src/orchestrator/registry/_common.py#L1), [`orchestrator.registry.agent_template`](../../src/orchestrator/registry/agent_template.py#L1), [`orchestrator.registry.db.models`](../../src/orchestrator/registry/db/models.py#L1), [`orchestrator.registry.repositories`](../../src/orchestrator/registry/repositories.py#L1), [`orchestrator.runtime`](../../src/orchestrator/runtime/__init__.py#L1), [`orchestrator.runtime.artifacts`](../../src/orchestrator/runtime/artifacts.py#L1), [`orchestrator.runtime.post_conditions`](../../src/orchestrator/runtime/post_conditions.py#L1), `typing.Any`
 
 ## Imported by
 

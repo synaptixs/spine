@@ -74,14 +74,14 @@ _16 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/python_orm.py:234`](../../src/orchestrator/pkg/python_orm.py#L234)
 
 - **Called by** (2): [`_collect_accesses`](../../src/orchestrator/pkg/python_orm.py#L234), [`scan_module`](../../src/orchestrator/pkg/python_orm.py#L268)
-- **Calls** (5): [`PendingAccess`](../../src/orchestrator/pkg/python_orm.py#L89), [`Provenance`](../../src/orchestrator/pkg/facts.py#L59), [`_call_name`](../../src/orchestrator/pkg/python_orm.py#L116), [`_collect_accesses`](../../src/orchestrator/pkg/python_orm.py#L234), `walk`
+- **Calls** (5): [`PendingAccess`](../../src/orchestrator/pkg/python_orm.py#L89), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_call_name`](../../src/orchestrator/pkg/python_orm.py#L116), [`_collect_accesses`](../../src/orchestrator/pkg/python_orm.py#L234), `walk`
 
 ### `_columns_and_refs`
 
 [`src/orchestrator/pkg/python_orm.py:203`](../../src/orchestrator/pkg/python_orm.py#L203)
 
 - **Called by** (1): [`scan_module`](../../src/orchestrator/pkg/python_orm.py#L268)
-- **Calls** (6): `Pass`, [`PendingColumn`](../../src/orchestrator/pkg/python_orm.py#L64), [`Provenance`](../../src/orchestrator/pkg/facts.py#L59), [`_call_name`](../../src/orchestrator/pkg/python_orm.py#L116), [`_references_in`](../../src/orchestrator/pkg/python_orm.py#L174), `dump`
+- **Calls** (6): `Pass`, [`PendingColumn`](../../src/orchestrator/pkg/python_orm.py#L64), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_call_name`](../../src/orchestrator/pkg/python_orm.py#L116), [`_references_in`](../../src/orchestrator/pkg/python_orm.py#L174), `dump`
 
 ### `_django_model_base`
 
@@ -114,7 +114,7 @@ _16 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/python_orm.py:174`](../../src/orchestrator/pkg/python_orm.py#L174)
 
 - **Called by** (1): [`_columns_and_refs`](../../src/orchestrator/pkg/python_orm.py#L203)
-- **Calls** (5): [`PendingReference`](../../src/orchestrator/pkg/python_orm.py#L70), [`Provenance`](../../src/orchestrator/pkg/facts.py#L59), [`_call_name`](../../src/orchestrator/pkg/python_orm.py#L116), [`_literal_str`](../../src/orchestrator/pkg/python_orm.py#L110), `walk`
+- **Calls** (5): [`PendingReference`](../../src/orchestrator/pkg/python_orm.py#L70), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_call_name`](../../src/orchestrator/pkg/python_orm.py#L116), [`_literal_str`](../../src/orchestrator/pkg/python_orm.py#L110), `walk`
 
 ### `_tablename`
 
@@ -128,14 +128,14 @@ _16 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/python_orm.py:293`](../../src/orchestrator/pkg/python_orm.py#L293)
 
 - **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L193)
-- **Calls** (2): [`Edge`](../../src/orchestrator/pkg/facts.py#L87), [`Node`](../../src/orchestrator/pkg/facts.py#L71)
+- **Calls** (2): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Node`](../../src/orchestrator/pkg/facts.py#L93)
 
 ### `scan_module`
 
 [`src/orchestrator/pkg/python_orm.py:268`](../../src/orchestrator/pkg/python_orm.py#L268)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/extractor.py#L175)
-- **Calls** (8): [`PendingEntity`](../../src/orchestrator/pkg/python_orm.py#L79), [`Provenance`](../../src/orchestrator/pkg/facts.py#L59), [`_collect_accesses`](../../src/orchestrator/pkg/python_orm.py#L234), [`_columns_and_refs`](../../src/orchestrator/pkg/python_orm.py#L203), [`_django_model_base`](../../src/orchestrator/pkg/python_orm.py#L127), [`_django_table`](../../src/orchestrator/pkg/python_orm.py#L160), [`_tablename`](../../src/orchestrator/pkg/python_orm.py#L149), `walk`
+- **Calls** (8): [`PendingEntity`](../../src/orchestrator/pkg/python_orm.py#L79), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_collect_accesses`](../../src/orchestrator/pkg/python_orm.py#L234), [`_columns_and_refs`](../../src/orchestrator/pkg/python_orm.py#L203), [`_django_model_base`](../../src/orchestrator/pkg/python_orm.py#L127), [`_django_table`](../../src/orchestrator/pkg/python_orm.py#L160), [`_tablename`](../../src/orchestrator/pkg/python_orm.py#L149), `walk`
 
 ## Imports
 
