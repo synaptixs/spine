@@ -19,12 +19,13 @@ in `test_python_routes.py` fixtures, the 5 in the route extractor's own docstrin
 in test strings. What remains is 4 files genuinely short and 7 files legitimately over
 (doubly-mounted routers, as §9 predicted).
 
-**And it found two live production routes that are invisible to the graph.**
-`registry/api/app.py:110` declares `GET /healthz` and `GET /readyz` inside the `create_app()`
-factory, on a local `app` variable — the extractor descends into the factory body but cannot
-resolve the router, so it emits nothing. Every downstream surface — blast radius, impact,
-the build document — believes those endpoints do not exist. Nothing in the previous check
-could see it: Python *has* `Endpoint` nodes, so the language-level test stayed silent.
+**Correction (2026-08-14).** The claim below that `GET /healthz` and `GET /readyz` were *invisible to the graph* was wrong, and it is kept rather than deleted because the way it was wrong is the useful part. Both routes were always extracted, and `EXPOSES` always reached all three handlers. What was true is narrower: `Endpoint` ids are keyed on verb+path, so three services each serving `/healthz` collapse into one node provenanced to whichever file was walked first — and per-file parity counted endpoints by node provenance, so every other declaring file read as short. **The entire shortfall of 5 was that artifact.** The measurement produced a false finding, and no route was ever missing.
+
+~~**And it found two live production routes that are invisible to the graph.**~~
+*(Original text: "`registry/api/app.py:110` declares `GET /healthz` and `GET /readyz` inside
+the `create_app()` factory … the extractor cannot resolve the router, so it emits nothing.")*
+It resolves the router fine. The routes are extracted, and three services share one node.
+What the check really found was its own attribution rule.
 
 Every acceptance criterion is met except one deviation, stated rather than quietly dropped:
 

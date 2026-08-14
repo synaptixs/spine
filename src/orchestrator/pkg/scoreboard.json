@@ -348,14 +348,14 @@
       "count": 0,
       "gated": false,
       "note": "moves with ordinary commits \u2014 recorded as a trend, never gated",
-      "total_calls": 15205
+      "total_calls": 15212
     },
     "parity": {
       "declared": 75,
       "gated": "ratchet",
-      "in_graph": 77,
-      "shortfall": 5,
-      "surplus": 7
+      "in_graph": 83,
+      "shortfall": 0,
+      "surplus": 8
     }
   },
   "version": 1

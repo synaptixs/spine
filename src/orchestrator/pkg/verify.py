@@ -358,9 +358,22 @@ def source_parity_counts(batch: FactBatch, root: Path) -> list[ParityCount]:
     Reads only files the graph already knows about — the grounded ``Module`` nodes' own
     provenance — so it never walks the tree a second time.
     """
+    # An Endpoint is attributed to every file whose handler it EXPOSES, not to its own
+    # provenance — because the id is keyed on verb+path (`py:endpoint:GET /healthz`), so three
+    # services each serving /healthz collapse into ONE node, provenanced to whichever file was
+    # walked first. Counting by node provenance credited that file and reported every other
+    # declaring file as short. On this repository that artifact was the ENTIRE shortfall: 5
+    # "missing" routes, all of them extracted, none of them missing. The EXPOSES edge already
+    # carries the handler's file, so the right attribution needed no new fact — only the
+    # question asked correctly.
     per_file: dict[tuple[str, NodeKind], int] = {}
+    for edge in batch.edges:
+        if edge.kind is EdgeKind.EXPOSES and edge.provenance:
+            key = (edge.provenance.file, NodeKind.ENDPOINT)
+            per_file[key] = per_file.get(key, 0) + 1
+    # Entities have no equivalent join, and no observed collision: a table is declared once.
     for node in batch.nodes:
-        if node.kind in (NodeKind.ENDPOINT, NodeKind.ENTITY) and node.provenance and not node.external:
+        if node.kind is NodeKind.ENTITY and node.provenance and not node.external:
             key = (node.provenance.file, node.kind)
             per_file[key] = per_file.get(key, 0) + 1
 
