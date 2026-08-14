@@ -125,6 +125,15 @@ understand` writes a committed, code-true `episteme/` your whole team (and any A
 can read — *epistēmē*, knowledge grounded in evidence, because every word of it is derived
 from the code rather than written by hand.
 
+**And the graph's accuracy is a number, not an adjective.** `orchestrator pkg accuracy`
+scores it against a committed corpus of 19 hand-labelled repositories covering **all eight
+front-ends**: **precision is 1.00 on every node kind and every edge kind, in every language.**
+Nothing in the graph is invented — every edge Spine emits is one that exists in your source.
+The remaining gap is *silence*, not fiction: some calls whose receiver is a variable rather
+than a name are not emitted (`CALLS` recall runs 1.00 for C and SQL down to 0.50 for
+TypeScript). For an agent reasoning over the graph, a missing edge is survivable in a way a
+fabricated one is not. See [KNOWLEDGE_GRAPH.md §10](https://github.com/synaptixs/spine/blob/main/KNOWLEDGE_GRAPH.md#10-how-right-is-it--measured-not-asserted).
+
 **Governed autonomy.** The workflow itself is a typed, validated artifact. A planner
 decomposes the objective, a runtime executes it, and **per-edge verifiers** check
 every step against schemas, evidence, and policy. Failures trigger replan, a human

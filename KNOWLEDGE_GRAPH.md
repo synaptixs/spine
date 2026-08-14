@@ -19,10 +19,15 @@ pip install synaptixs-spine
 
 orchestrator understand .          # build the PKG → write a committed episteme/
 orchestrator pkg extract . -q User # inspect: callers + blast radius of a symbol
+orchestrator pkg accuracy          # how right is it? precision & recall, per kind, per language
 ```
 
 The PKG is built **from your code** (deterministic, no LLM). Spine reads it before it
 writes anything, so generated code matches your repo's real structure and conventions.
+
+Its accuracy is measured rather than asserted: **precision 1.00 on every node and edge kind
+across all 8 front-ends** — nothing in the graph is invented — with the remaining gap being
+missing `CALLS` edges, not wrong ones (§10).
 
 ---
 
@@ -280,6 +285,8 @@ Builds the PKG and renders a committed, human- and AI-readable **episteme**:
 ```bash
 orchestrator understand .                 # writes ./episteme/*.md
 orchestrator understand . --refresh       # re-extract instead of using the commit cache
+orchestrator understand . --check         # writes nothing; non-zero exit if episteme is stale
+orchestrator understand . --intents       # opt-in: also record Intent/SERVES (see §10 caveat)
 ```
 
 It produces: `architecture.md`, `domain-model.md`, `tech-context.md`, `conventions.md`,
@@ -310,7 +317,13 @@ is today and how healthy it looks*:
 orchestrator state .                       # developer view (architecture, components, hotspots)
 orchestrator state . --lens stakeholder    # plain-language view
 orchestrator state . --out STATE.md        # write to a file (otherwise printed)
+orchestrator state . --out report.html     # one self-contained, shareable HTML file
+orchestrator state . --no-timestamp        # omit generated-at, for byte-stable CI diffs
 ```
+
+> **Known issue:** `state` is not byte-stable across runs — components tying on their symbol
+> counts can swap order, so identical runs can differ. Pin `PYTHONHASHSEED=0` when diffing.
+> `understand` is unaffected.
 
 It renders a plain-language **overview**, an **infrastructure & runtime** breakdown (the
 datastores, queues, cloud, container services and external APIs the repo *declares* it
@@ -506,7 +519,7 @@ reviews honest.
 
 - **Quick CLI:** `orchestrator pkg extract . -q <Symbol>` → callers + blast radius.
 - **Full graph:** `orchestrator pkg extract . --json` → every node and edge.
-- **SQL:** `orchestrator pkg export . --db pkg-facts.db` → a kind-per-table SQLite DB you
+- **SQL:** `orchestrator pkg export . --out pkg-facts.db` → a kind-per-table SQLite DB you
   can query directly, e.g.:
   ```sql
   -- which endpoints expose handlers that write to a given column's table?
@@ -521,8 +534,9 @@ reviews honest.
 
 - **Static, not runtime.** The PKG is built from source structure; it doesn't capture
   runtime behavior, dynamic dispatch it can't see, or values only known at execution.
-- **Parser coverage.** Python/Java/TypeScript/C#/C/C++ and **SQL** today. Other languages
-  aren't extracted yet (their files are simply not represented). For C, parsing is
+- **Parser coverage.** Python/Java/TypeScript/C#/C/C++/**Go** and **SQL** today — eight
+  front-ends. Other languages aren't extracted yet (their files are simply not
+  represented). For C, parsing is
   pre-preprocessor — heavy macro use yields partial facts (we never run `cpp`). For SQL, the
   dialect is auto-detected (override with `--dialect`); stored-procedure bodies are re-parsed
   best-effort — exotic procedural PL/pgSQL / T-SQL constructs degrade to partial facts;
@@ -532,6 +546,55 @@ reviews honest.
   is treated as **authoritative** and those FKs become ground truth (see §4).
 - **Domain meaning is separate.** The PKG knows *structure*, not business intent — that's
   ontomesh's job, and it's optional.
+- **The `Intent` tier has no reader.** `Intent` nodes and `SERVES` edges are produced only
+  under the opt-in `--intents` flag, and **nothing renders or queries them** — not
+  `understand`, not `state`, not the web UI, and no export format. They are a graph-level
+  capability with no presentation yet (see §10).
+
+---
+
+## 10. How right is it? — measured, not asserted
+
+"Grounded" is an adjective; this is a number. `orchestrator pkg accuracy` scores the graph
+against a committed corpus of **19 hand-labelled fixture repositories across all 8
+front-ends**, and the baseline lives in `src/orchestrator/pkg/scoreboard.json`.
+
+**Precision is 1.00 on every node kind and every edge kind, in all 8 languages.** Recall is
+1.00 on every kind except `CALLS`:
+
+| language | `CALLS` recall |
+|---|---|
+| `c` `sql` | 1.00 |
+| `python` | 0.73 |
+| `cpp` `csharp` `go` `java` | 0.67 |
+| `typescript` | 0.50 |
+
+Read the precision row carefully, because it is the load-bearing claim: **nothing in the graph
+is invented.** Every edge Spine emits is one that exists in the source. The entire remaining
+gap is *silence* — calls that exist and are not emitted — and all of it is one shape, a call
+whose receiver is a variable rather than a name (`h.run()` where `h` is a parameter or local).
+For an agent reasoning over the graph, a missing edge and a fabricated edge are not equally
+bad, and the PKG has only the survivable one. Invention currently stands at **0 invented
+targets across 15,212 call edges**; parity shortfall is **0**.
+
+Three further oracles measure a *real* repository rather than fixtures — `parity` (declared
+routes/tables vs the graph), `invention` (calls to names that do not exist), and `runtime`
+(`CALLS` recall from executing the repo's own test suite). Their limits are worth stating:
+
+- **`runtime` and `invention` are Python-only.** `runtime` uses `sys.monitoring` (PEP 669);
+  `invention` resolves caller-scope bindings with Python's `ast`. On a C or Go repository the
+  invention oracle reports every candidate as *unexaminable*, which prints as `0` — that means
+  "not measured", **not** "clean".
+- **`pkg verify` cannot substitute for it.** `verify` catches self-contradiction — dangling
+  edges, missing provenance. It cannot catch a fabricated edge whose target node was fabricated
+  alongside it, because such a graph is perfectly self-consistent.
+- **The corpus is fixtures.** It describes this extractor's behaviour on shapes we chose, not
+  on your codebase. `--oracle parity` and `--oracle invention` are how you measure yours.
+
+Gating differs by what each number is measured against: corpus precision/recall is **strict**
+(any drop fails), parity shortfall is a **ratchet** (must not increase), and invention and
+runtime recall are **recorded as trends, never gated** — they move whenever anyone writes
+ordinary code.
 
 ---
 
@@ -540,4 +603,4 @@ reviews honest.
 - [USER_GUIDE.md](USER_GUIDE.md) — the everyday workflow (the Understand step uses the PKG).
 - [FEATURES.md](FEATURES.md) — where the PKG sits among Spine's capabilities.
 - [OPERATIONS.md](OPERATIONS.md#the-semantic-spine) — the optional ontomesh domain layer.
-</content>
+- [CLI_REFERENCE.md](CLI_REFERENCE.md) — every flag on `understand`, `state` and `pkg *`.

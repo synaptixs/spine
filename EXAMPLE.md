@@ -165,6 +165,38 @@ sections now lie about it. That's where the "250 potential drift" in step 2 come
 
 ---
 
+## Step 6.5 — But is any of this actually right?
+
+Every step above trusted the graph. That trust should be earned with a number, not an adjective:
+
+```bash
+orchestrator pkg accuracy
+```
+
+It scores the extractor against a committed corpus of 19 hand-labelled repositories covering all
+eight front-ends. **Precision is 1.00 on every node kind and every edge kind, in every language** —
+so nothing you saw in steps 3–6 was invented. Recall is 1.00 on everything except `CALLS`:
+
+| language | `CALLS` recall |
+|---|---|
+| `c` `sql` | 1.00 |
+| `python` | 0.73 |
+| `cpp` `csharp` `go` `java` | 0.67 |
+| `typescript` | 0.50 |
+
+That asymmetry is the point. The blast radius in step 4 may be **incomplete**, but it is not
+**wrong** — every caller it named is a real caller. A missing edge makes you look further; a
+fabricated one sends you somewhere that does not exist.
+
+To measure *this* repo rather than the fixtures:
+
+```bash
+orchestrator pkg accuracy . --oracle parity      # declared routes/tables vs the graph
+orchestrator pkg accuracy . --oracle invention   # calls to names that don't exist (Python only)
+```
+
+---
+
 ## Step 7 — Build the fix
 
 Everything so far was read-only. Now Spine writes code — grounded in the structure it just mapped,

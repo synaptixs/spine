@@ -161,6 +161,17 @@ there; greenfield repos get a stub that fills in as features land. Re-run anytim
 to refresh (`--refresh` re-extracts instead of using the commit cache). Commit
 `episteme/` so your team — and any AI tool — reads the same project truth.
 
+**Keep it provably current in CI**, rather than hopefully current:
+
+```bash
+orchestrator understand . --check     # writes nothing; exits non-zero if episteme is stale
+```
+
+`--check` re-renders and diffs against the committed bank. One thing to know before you wire it
+into CI: docs are read **from disk regardless of git**, so an untracked or gitignored Markdown
+file in your working tree still becomes a `Doc` node — and `--check` will report the bank stale
+over a difference CI cannot reproduce. Commit your docs, or keep them outside the repo.
+
 Your repo's **documentation** is folded in at the same time: Markdown, reST, and plain-text
 docs and **HTML** (plus **PDF** with `[docs]`, and **Word/Excel** with `[office]`) become
 `Doc` nodes linked to the code they
@@ -213,7 +224,17 @@ the Current State report (also no LLM — synthesized from the same graph):
 orchestrator state .                       # developer view, to stdout
 orchestrator state . --lens stakeholder    # plain-language view
 orchestrator state . --out STATE.md        # write it to a file
+orchestrator state . --out report.html     # single self-contained HTML report you can email
+orchestrator state . --no-timestamp        # omit generated-at, for byte-stable CI diffs
 ```
+
+`--out report.html` emits a **self-contained** page — CSS and diagrams inlined, nothing fetched
+— so a saved or emailed copy still renders. Any other extension emits markdown.
+
+> **Known issue:** `state` output is not byte-stable across runs. Components that tie on their
+> symbol counts can swap position, so five identical runs may produce two or three different
+> files. If you diff `state` output or check it into CI, set `PYTHONHASHSEED=0` on both sides
+> until this is fixed. `understand` is unaffected and is byte-identical run to run.
 
 It renders a plain-language **overview**, an **infrastructure & runtime** breakdown (the
 datastores, queues, cloud, container services and external APIs the repo declares it needs —
@@ -376,6 +397,61 @@ accumulates its own code-true memory as it grows.
 > can compose *business-domain* knowledge on top of the code-true grounding (Spine
 > Seam 1, `SPINE_ONTOMESH_URL`) — see [OPERATIONS.md](OPERATIONS.md#the-semantic-spine).
 > It augments comprehension; it never replaces the PKG.
+
+### Is the graph actually right?
+
+Grounding is only worth as much as the graph under it, so the accuracy is a number you can
+check rather than an adjective in a README.
+
+```bash
+orchestrator pkg verify .        # does the graph contradict itself? (dangling edges, provenance)
+orchestrator pkg accuracy        # precision & recall per kind, per language, vs a labelled corpus
+```
+
+Against the committed corpus of 19 fixture repositories across 8 front-ends, **precision is
+1.00 on every node kind and every edge kind in all 8 languages**, and recall is 1.00 on every
+kind except `CALLS`:
+
+| language | `CALLS` recall |
+|---|---|
+| `c` `sql` | 1.00 |
+| `python` | 0.73 |
+| `cpp` `csharp` `go` `java` | 0.67 |
+| `typescript` | 0.50 |
+
+What that means in practice: **nothing in the graph is invented** — every edge Spine emits is
+one that exists in your source. The remaining gap is *silence*, calls that exist and are not
+emitted, all of them the same shape (a call whose receiver is a variable rather than a name).
+For grounding an agent, those two failure modes are not equally bad, and Spine has only the
+survivable one.
+
+Three further oracles measure a real repository rather than fixtures:
+
+```bash
+orchestrator pkg accuracy . --oracle parity      # declared routes/tables vs what the graph holds
+orchestrator pkg accuracy . --oracle invention   # calls to names that don't exist
+orchestrator pkg accuracy . --oracle runtime     # CALLS recall from actually running your tests
+```
+
+`--oracle runtime` **executes your test suite** — it is never implied, always echoes the command
+first, and measures recall only. Both `runtime` and `invention` are **Python-only**: on other
+languages `invention` reports every candidate as *unexaminable*, which prints as `0` and means
+"not measured", not "clean". `pkg verify` is the complement — it catches self-contradiction, but
+it cannot catch a fabricated edge whose target node was fabricated alongside it.
+
+### Which ticket was this code written for? (opt-in)
+
+`understand` and `state` both accept `--intents`, which records the ticket each symbol was last
+changed for as `Intent` nodes and `SERVES` edges, read from `git blame` plus commit messages.
+
+```bash
+orchestrator understand . --intents
+```
+
+> **It is opt-in because nothing reads it yet.** The facts land in the graph, but no surface
+> renders them — the only visible effect is a count in the graph-size line (`· 34 intents`), and
+> `pkg export` / `pkg extract` have no `--intents` flag, so you cannot read the mapping back
+> out. It costs roughly **3× the CPU** of a plain run. Leave it off until a surface consumes it.
 
 ---
 

@@ -48,16 +48,16 @@ radius) and grounds new code in what already exists. Full guide:
 | Image OCR — architecture diagrams → box/edge labels bound to symbols (local Tesseract, diagram-oriented) | ✅ | `pip install 'synaptixs-spine[media]'` + a `tesseract` binary |
 | Audio/video ASR — recorded design reviews → searchable, timestamped transcripts; local Whisper or a remote API (off-machine only with explicit `--allow-remote`) | ✅ | `pip install 'synaptixs-spine[asr]'` (local) or `--asr api` |
 | Doc-grounded codegen — a reused symbol's documenting prose rides into the codegen context | ✅ | automatic in `sdlc feature` grounding when the repo has docs |
-| Committed `episteme/` for humans + any AI tool | ✅ | `orchestrator understand --out episteme` |
+| Committed `episteme/` for humans + any AI tool, with a CI currency gate | ✅ | `orchestrator understand --out episteme`; `orchestrator understand . --check` writes nothing and exits non-zero when the bank no longer matches the code |
 | Current State report — overview, infrastructure/runtime, code structure, **documentation coverage + doc drift**, architecture diagrams (no LLM) | ✅ | `orchestrator state . --lens developer\|stakeholder` |
 | PKG extraction / export | ✅ | `orchestrator pkg extract`, `orchestrator pkg export` |
 | **Measured graph accuracy** — precision and recall per node/edge kind, for **all 8 front-ends**, against a published hand-labelled corpus. Not "grounded" as an adjective; a number you can check | ✅ | `orchestrator pkg accuracy` |
-| Runtime oracle — `CALLS` recall from **real execution**, by tracing a repo's own test suite. No labelling, works on any repo with tests | ✅ | `orchestrator pkg accuracy --oracle runtime` |
+| Runtime oracle — `CALLS` recall from **real execution**, by tracing a repo's own test suite. No labelling needed | 🟡 Python only | `orchestrator pkg accuracy --oracle runtime`. Uses `sys.monitoring` (PEP 669); the other seven front-ends have no equivalent, so "runtime-verified" means "for Python" |
 | Per-file route/table parity — where the source declares more than the graph holds, with `file:line` | ✅ | `orchestrator pkg accuracy --oracle parity` |
-| Invention detection — `CALLS` edges targeting a name bound in the caller's own scope. Every other check hunts for absence; this hunts for **fiction** | ✅ | `orchestrator pkg accuracy --oracle invention` |
+| Invention detection — `CALLS` edges targeting a name bound in the caller's own scope. Every other check hunts for absence; this hunts for **fiction** | 🟡 Python only | `orchestrator pkg accuracy --oracle invention`. Resolves bindings with Python's `ast`; on other languages every candidate is reported *unexaminable*, which prints as `0` and means "not measured", not "clean" |
 | Accuracy regression gate — a committed baseline, and CI failing when a gated number drops | ✅ | `orchestrator pkg accuracy --check` (in the quality gate) |
 | Measured caveats in the build document — the blast radius states the recall for its language, so a reader gets a bound rather than a hedge | ✅ | automatic in `sdlc plan` |
-| **Intent layer** — `Intent` nodes + `SERVES` edges: which ticket a symbol was last changed for, from git blame and the commit's issue key. Deterministic, no model | 🟡 opt-in | `orchestrator understand . --intents` / `state --intents`. Adds ~8s (one `git blame` per file, run concurrently). Off by default because nothing renders these facts yet — it becomes a default when something reads them |
+| **Intent layer** — `Intent` nodes + `SERVES` edges: which ticket a symbol was last changed for, from git blame and the commit's issue key. Deterministic, no model | 🟡 opt-in, no reader | `orchestrator understand . --intents` / `state --intents`. Costs roughly **3× CPU** (one `git blame` per file, 8 workers). Off by default because **nothing renders or exports these facts** — the only visible effect is a count in the graph-size line, and `pkg export`/`extract` have no `--intents` flag, so the mapping cannot be read back out |
 | Repo profile / audit | ✅ | `orchestrator profile <repo>`, `orchestrator audit <repo>` |
 
 ## Governed autonomy

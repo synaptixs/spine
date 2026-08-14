@@ -55,8 +55,25 @@ All behavior is configured by environment variables (`orchestrator init` scaffol
 ```bash
 orchestrator understand --out episteme            # commit-cached PKG
 orchestrator understand --out episteme --refresh  # force re-extraction
+orchestrator understand . --check                 # CI: non-zero exit if episteme is stale
 ```
 Commit `episteme/` so the team (and any AI tool) shares grounded context.
+
+**Wire `--check` into CI** to make the bank provably current rather than hopefully current. It
+writes nothing. Two operational notes: it reads docs **from disk regardless of git**, so an
+untracked or gitignored Markdown file makes it report stale over a diff CI cannot reproduce; and
+the commit-keyed cache is only trusted on a **clean tree**, so a dirty checkout re-extracts the
+whole repo every run.
+
+**Graph accuracy in the gate:**
+```bash
+orchestrator pkg verify .                  # self-consistency: dangling edges, provenance
+orchestrator pkg accuracy --check          # gated regression against the committed baseline
+orchestrator pkg accuracy . --oracle parity     # declared routes/tables vs the graph
+orchestrator pkg accuracy . --oracle invention  # calls to names that don't exist (Python only)
+```
+Corpus precision/recall is gated **strict**; parity shortfall is a **ratchet**; invention and
+runtime recall are recorded as trends and never gated, because they move with ordinary commits.
 
 **Agentic codegen loop** (off by default):
 ```bash
