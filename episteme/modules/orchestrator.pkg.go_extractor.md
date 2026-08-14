@@ -15,12 +15,12 @@
 
 - [`_text`](../../src/orchestrator/pkg/go_extractor.py#L436) — reaches **11** symbols · **no test path visible**
 - [`_field_text`](../../src/orchestrator/pkg/go_extractor.py#L431) — reaches **7** symbols · **no test path visible**
+- [`GoExtractor`](../../src/orchestrator/pkg/go_extractor.py#L99) — reaches **6** symbols
 - [`_base_type_name`](../../src/orchestrator/pkg/go_extractor.py#L388) — reaches **6** symbols · **no test path visible**
 - [`_field_children`](../../src/orchestrator/pkg/go_extractor.py#L426) — reaches **6** symbols · **no test path visible**
 - [`_arity`](../../src/orchestrator/pkg/go_extractor.py#L363) — reaches **4** symbols · **no test path visible**
 - [`_descendants`](../../src/orchestrator/pkg/go_extractor.py#L401) — reaches **4** symbols · **no test path visible**
 - [`_Body`](../../src/orchestrator/pkg/go_extractor.py#L90) — reaches **3** symbols · **no test path visible**
-- [`_Iface`](../../src/orchestrator/pkg/go_extractor.py#L82) — reaches **3** symbols · **no test path visible**
 
 _11 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 

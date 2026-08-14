@@ -2677,6 +2677,405 @@ def pkg_verify(
         raise typer.Exit(code=1)
 
 
+def _pct(value: float | None) -> str:
+    """A score, or an em dash — never a 1.0 standing in for 'nothing was expected'."""
+    return "—   " if value is None else f"{value:.2f}"
+
+
+def _runtime_oracle(repo: str, tests: str | None, as_json: bool) -> None:
+    """`--oracle runtime`: trace the repo's own test suite and score CALLS recall."""
+    from orchestrator.pkg.runtime_oracle import OracleError, score_runtime
+
+    try:
+        report = score_runtime(repo, targets=tests.split() if tests else None)
+    except OracleError as exc:
+        typer.echo(f"pkg accuracy: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if as_json:
+        _print(
+            {
+                "oracle": "runtime",
+                "observed": report.observed,
+                "matched": report.matched,
+                "unmapped": report.unmapped,
+                "calls_recall_lower_bound": report.recall,
+                "coverage_pct": report.coverage_pct,
+                "precision": None,
+                "precision_note": "not measurable from a trace",
+                "missing": list(report.missing),
+                "unmapped_examples": list(report.unmapped_examples),
+                "dropped": report.dropped,
+                "pytest_exit": report.pytest_exit,
+                "command": report.command,
+            }
+        )
+        return
+
+    typer.echo(f"traced: {report.command}")
+    typer.echo(f"\nCALLS recall (runtime oracle) — {_pct(report.recall)} lower bound")
+    typer.echo(f"  observed  {report.observed} first-party call pair(s) whose ends are both graph nodes")
+    typer.echo(f"  matched   {report.matched} have a CALLS edge · {report.observed - report.matched} do not")
+    typer.echo(f"  unmapped  {report.unmapped} observed pair(s) had no node for one end")
+    cov = "unavailable" if report.coverage_pct is None else f"{report.coverage_pct:.1f}% of statements"
+    typer.echo(f"  coverage  these tests reach {cov} — the number is bounded by this")
+    if report.dropped:
+        typer.echo(f"  filtered  {report.dropped} (never the graph's job)")
+    for item in report.missing:
+        typer.echo(f"    missing: {item}")
+    for item in report.unmapped_examples:
+        typer.echo(f"    unmapped: {item}")
+    typer.echo(
+        "\n  A LOWER BOUND: it counts only what these tests executed.\n"
+        "  PRECISION IS NOT MEASURABLE from a trace — an edge the tests never exercised is\n"
+        "  untested, not wrong. Use the corpus oracle for precision.\n"
+        "  Not deterministic: never write this into episteme/."
+    )
+    if report.pytest_exit != 0:
+        typer.echo(f"\n  NOTE: the test suite exited {report.pytest_exit}; recall is over what still ran.")
+
+
+def _parity_oracle(repo: str, as_json: bool) -> None:
+    """`--oracle parity`: what the source declares against what the graph holds, per file."""
+    from orchestrator.pkg.accuracy import CorpusError, score_parity
+
+    try:
+        report = score_parity(repo)
+    except CorpusError as exc:
+        typer.echo(f"pkg accuracy: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if as_json:
+        _print(
+            {
+                "oracle": "parity",
+                "declared": report.declared,
+                "in_graph": report.in_graph,
+                "shortfall": report.shortfall,
+                "surplus": report.surplus,
+                "files": [
+                    {
+                        "file": c.file,
+                        "line": c.first_line,
+                        "language": c.language,
+                        "kind": c.kind.value,
+                        "declared": c.declared,
+                        "in_graph": c.in_graph,
+                        "approximate": c.approximate,
+                    }
+                    for c in report.counts
+                ],
+            }
+        )
+        return
+
+    typer.echo(f"\nper-construct parity — {report.declared} declared, {report.in_graph} in graph")
+    typer.echo(f"  shortfall {report.shortfall} — declared in source, absent from the graph")
+    typer.echo(f"  surplus   {report.surplus} — expected where a router is mounted more than once")
+    for c in report.short_files:
+        where = f"{c.file}:{c.first_line}" if c.first_line else c.file
+        hedge = "  (approximate)" if c.approximate else ""
+        typer.echo(
+            f"    short: {where} declares {c.declared} {c.kind.value}, graph holds {c.in_graph}{hedge}"
+        )
+    typer.echo(
+        "\n  Needs no corpus and no test run — only the source.\n"
+        "  Shortfall and surplus are NOT averaged into one ratio: a doubly-mounted router\n"
+        "  legitimately yields more nodes than decorators, so a combined figure hides both."
+    )
+
+
+def _invention_oracle(repo: str, sample: int, kind: str, as_json: bool) -> None:
+    """`--oracle invention`: CALLS edges targeting a name bound in the caller's own scope."""
+    from orchestrator.pkg.facts import EdgeKind
+    from orchestrator.pkg.invention import sample_edges, score_invention
+
+    try:
+        report = score_invention(repo)
+    except ValueError as exc:
+        typer.echo(f"pkg accuracy: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if as_json:
+        _print(
+            {
+                "oracle": "invention",
+                "invented": len(report.invented),
+                "rate": report.rate,
+                "total_calls": report.total_calls,
+                "external_calls": report.external_calls,
+                "candidates": report.candidates,
+                "unexamined": report.unexamined,
+                "examples": list(report.examples),
+            }
+        )
+        return
+
+    rate = "—" if report.rate is None else f"{report.rate:.2%}"
+    typer.echo(f"\ninvented CALLS edges — {len(report.invented)} ({rate} of all calls)")
+    typer.echo(f"  {report.total_calls} CALLS, {report.external_calls} to external targets")
+    typer.echo(f"  {report.candidates} candidate(s) examined, {report.unexamined} unexaminable")
+    for line in report.examples:
+        typer.echo(f"    {line}")
+    typer.echo(
+        "\n  Each of these asserts a module outside the tree that does not exist.\n"
+        "  Exactly detected, not sampled: a name bound in the caller's scope cannot be one."
+    )
+
+    if sample:
+        try:
+            edge_kind = EdgeKind(kind)
+        except ValueError:
+            typer.echo(f"pkg accuracy: unknown edge kind {kind!r}")
+            raise typer.Exit(code=1) from None
+        from orchestrator.pkg import RepoCodeExtractor
+
+        batch = RepoCodeExtractor().extract(Path(repo))
+        typer.echo(f"\n{sample} sampled {kind} edge(s) for review — deterministic for this commit:")
+        for line in sample_edges(batch, edge_kind, sample):
+            typer.echo(f"    {line}")
+        typer.echo(
+            "\n  No detector reaches these: CONSUMES matches on (verb, path), EXPOSES composes\n"
+            "  mount prefixes, REFERENCES guesses a class name. Only a person reading the\n"
+            "  source can say whether each is real."
+        )
+
+
+# Inside the package, not at the repo root: the wheel ships `src/orchestrator` only, and
+# the build document quotes this number at generation time on installed Spines too.
+SCOREBOARD_FILE = "src/orchestrator/pkg/scoreboard.json"
+
+
+def _scoreboard(repo: str, write: bool, as_json: bool) -> None:
+    """`--scoreboard` writes the committed baseline; `--check` compares against it."""
+    import json as _json
+
+    from orchestrator.pkg.accuracy import build_scoreboard, compare_scoreboard, scoreboard_improvements
+
+    root = Path(repo)
+    path = root / SCOREBOARD_FILE
+    current = build_scoreboard(root / "corpus", root)
+    rendered = _json.dumps(current, indent=2, sort_keys=True) + "\n"
+
+    if write:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(rendered, encoding="utf-8")
+        typer.echo(f"wrote {path}")
+        return
+
+    if not path.is_file():
+        typer.echo(f"pkg accuracy: no baseline at {path} — run `pkg accuracy --scoreboard` first")
+        raise typer.Exit(code=1)
+    baseline = _json.loads(path.read_text(encoding="utf-8"))
+
+    regressions = compare_scoreboard(baseline, current)
+    improvements = scoreboard_improvements(baseline, current)
+
+    if as_json:
+        _print(
+            {
+                "ok": not regressions,
+                "regressions": [
+                    {"metric": r.metric, "detail": r.detail, "was": r.was, "now": r.now} for r in regressions
+                ],
+                "improvements": improvements,
+            }
+        )
+    else:
+        for r in regressions:
+            typer.echo(f"[REGRESSION] {r}")
+        for i in improvements:
+            typer.echo(f"[improved]   {i}")
+
+        # Ungated metrics move on ordinary commits, so they are reported and never fail.
+        was_inv = baseline.get("metrics", {}).get("invention", {}).get("count")
+        now_inv = current["metrics"]["invention"]["count"]
+        if was_inv is not None and was_inv != now_inv:
+            typer.echo(
+                f"[trend]      invention: {was_inv} -> {now_inv} (ungated — moves with ordinary commits)"
+            )
+
+        if improvements and not regressions:
+            typer.echo(
+                "\n  The baseline is stale in the good direction. Re-run with --scoreboard to record it."
+            )
+        typer.echo(
+            f"\npkg accuracy --check: {'FAILED' if regressions else 'OK'} — "
+            f"{len(regressions)} gated regression(s), {len(improvements)} improvement(s)."
+        )
+    if regressions:
+        raise typer.Exit(code=1)
+
+
+@pkg_app.command("accuracy")
+def pkg_accuracy(
+    path: Annotated[
+        str | None,
+        typer.Argument(help="Corpus root (default 'corpus'), or the repo to trace with --oracle."),
+    ] = None,
+    oracle: Annotated[
+        str | None,
+        typer.Option(
+            "--oracle",
+            help="'runtime' EXECUTES THE REPO'S TEST SUITE to measure CALLS recall; "
+            "'parity' compares declared routes/tables against the graph, reading only source.",
+        ),
+    ] = None,
+    tests: Annotated[
+        str | None,
+        typer.Option("--tests", help="Test target(s) for --oracle runtime; default: the repo's own."),
+    ] = None,
+    sample: Annotated[
+        int,
+        typer.Option("--sample", help="With --oracle invention: also list N edges for human review."),
+    ] = 0,
+    kind: Annotated[
+        str,
+        typer.Option("--kind", help="Edge kind to sample (CONSUMES, EXPOSES, REFERENCES, CALLS)."),
+    ] = "CONSUMES",
+    scoreboard: Annotated[
+        bool, typer.Option("--scoreboard", help="Write the committed accuracy baseline.")
+    ] = False,
+    check: Annotated[
+        bool, typer.Option("--check", help="Compare against the baseline; exit non-zero on a GATED drop.")
+    ] = False,
+    language: Annotated[str | None, typer.Option("--language", help="Score only this language.")] = None,
+    as_json: Annotated[bool, typer.Option("--json", help="Emit the report as JSON.")] = False,
+    dialect: Annotated[
+        str | None,
+        typer.Option("--dialect", help="SQL dialect (postgres|mysql|tsql|oracle|…); default: auto-detect."),
+    ] = None,
+) -> None:
+    """Precision and recall per kind, against a hand-labelled corpus (read-only).
+
+    `pkg verify` asks whether the graph contradicts itself, which needs no oracle. This asks
+    whether the graph is *right*, which does — so it scores extraction against fixture
+    repositories whose facts a human wrote down by hand (see `corpus/README.md`).
+
+    With `--oracle runtime` it instead **runs the repository's own test suite** under a call
+    tracer and reports what fraction of calls that demonstrably happened have a `CALLS` edge.
+    That needs no labelling and works on any repo — but it *executes that repo's code*, which
+    no other command here does, so it is never implied and the command is echoed first. It
+    measures recall only: a call the tests never made is untested, not wrong.
+
+    Reports; does not gate. Exits non-zero only when a corpus case is malformed or the suite
+    cannot be run — never because a score is low.
+    """
+    from orchestrator.pkg.accuracy import CorpusError, score_corpus
+
+    if scoreboard or check:
+        _scoreboard(path or ".", scoreboard, as_json)
+        return
+
+    if oracle is not None:
+        if oracle == "parity":
+            _parity_oracle(path or ".", as_json)
+            return
+        if oracle == "invention":
+            _invention_oracle(path or ".", sample, kind, as_json)
+            return
+        if oracle != "runtime":
+            typer.echo(
+                f"pkg accuracy: unknown oracle {oracle!r} — known oracles: corpus, runtime, parity, invention"
+            )
+            raise typer.Exit(code=1)
+        _runtime_oracle(path or ".", tests, as_json)
+        return
+
+    corpus = path or "corpus"
+    try:
+        report = score_corpus(corpus, language=language, sql_dialect=dialect)
+    except CorpusError as exc:
+        typer.echo(f"pkg accuracy: corpus error — {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if as_json:
+        _print(
+            {
+                "cases": [
+                    {
+                        "language": c.language,
+                        "case": c.case,
+                        "nodes": [
+                            {
+                                "kind": s.kind,
+                                "precision": s.precision,
+                                "recall": s.recall,
+                                "expected": s.expected,
+                                "emitted": s.emitted,
+                                "matched": s.matched,
+                            }
+                            for s in c.nodes
+                        ],
+                        "edges": [
+                            {
+                                "kind": s.kind,
+                                "precision": s.precision,
+                                "recall": s.recall,
+                                "expected": s.expected,
+                                "emitted": s.emitted,
+                                "matched": s.matched,
+                            }
+                            for s in c.edges
+                        ],
+                        "missing": list(c.missing),
+                        "unlabelled": list(c.unlabelled),
+                        "known_gaps": c.known_gaps,
+                        "declared_false_positives": c.declared_false_positives,
+                        "provenance_checked": c.provenance_checked,
+                        "provenance_drift": list(c.provenance_drift),
+                    }
+                    for c in report.cases
+                ],
+                "totals": {
+                    lang: {
+                        group: [
+                            {"kind": s.kind, "precision": s.precision, "recall": s.recall} for s in scores
+                        ]
+                        for group, scores in groups.items()
+                    }
+                    for lang, groups in report.totals().items()
+                },
+            }
+        )
+        return
+
+    for case in report.cases:
+        typer.echo(f"\n{case.language}/{case.case}")
+        for group, scores in (("node", case.nodes), ("edge", case.edges)):
+            for s in scores:
+                typer.echo(
+                    f"  {group} {s.kind:<10} P {_pct(s.precision)}  R {_pct(s.recall)}"
+                    f"   (expected {s.expected}, emitted {s.emitted}, matched {s.matched})"
+                )
+        for label, items in (("missing", case.missing), ("unlabelled", case.unlabelled)):
+            for item in items:
+                typer.echo(f"    {label}: {item}")
+        for item in case.provenance_drift:
+            typer.echo(f"    provenance: {item}")
+        if case.known_gaps or case.declared_false_positives:
+            typer.echo(
+                f"    annotated: {case.known_gaps} known gap(s), "
+                f"{case.declared_false_positives} declared false positive(s) — neither changes a score"
+            )
+
+    for lang, groups in report.totals().items():
+        typer.echo(f"\n{lang} — all cases")
+        for group, scores in groups.items():
+            for s in scores:
+                typer.echo(f"  {group[:-1]} {s.kind:<10} P {_pct(s.precision)}  R {_pct(s.recall)}")
+
+    if report.skipped:
+        # Never silently drop: scoring 4 of 7 cases and printing only the 4 reads as a full
+        # picture. The extras that are missing are the reason, and naming them is the fix.
+        typer.echo(
+            f"\n  SKIPPED {len(report.skipped)} case(s) — no front-end installed for "
+            f"{', '.join(report.skipped_languages)}: {', '.join(report.skipped)}"
+        )
+        typer.echo("  Not scored zero: an absent optional extra is not a regression.")
+    typer.echo(f"\npkg accuracy: {len(report.cases)} case(s) scored. Reporting only — nothing gated.")
+
+
 @pkg_app.command("export")
 def pkg_export(
     path: Annotated[str, typer.Argument(help="Repo path or git URL to scan.")] = ".",

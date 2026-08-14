@@ -11,7 +11,7 @@
 `init` · `doctor` · `models` · `up` · `tui` · `task submit`
 
 **Understand a codebase — the Knowledge Graph** — Extract and read the Product Knowledge Graph (PKG). Deterministic, no LLM. All accept a local path OR a git URL.  
-`understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs` · `pkg capabilities` · `media extract`
+`understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs` · `pkg capabilities` · `pkg verify` · `pkg accuracy` · `media extract`
 
 **Grounded design, debugging & RCA** — The KG-grounded engineering commands: design a change, research a ticket, and trace/analyze bugs — all anchored to real code.  
 `design` · `investigate` · `localize` · `rca` · `regression` · `audit`
@@ -401,6 +401,67 @@ orchestrator pkg docs [REPO] [OPTIONS]
 | Option | Description |
 |---|---|
 | `--doc`, `-d` | Markdown/text doc(s) to reconcile. (default: `[]`) |
+
+### `orchestrator pkg verify`
+
+Tier-1 graph invariants — self-consistency checks that need no ground truth, so they run on
+any repo. Exits non-zero on any **error**, so it can stand guard in CI.
+
+```
+orchestrator pkg verify [PATH] [OPTIONS]
+```
+
+| Check | Severity | Asks |
+|---|---|---|
+| `dangling-edge` | error | does every edge endpoint exist as a node? |
+| `stale-provenance` | error | does every `file:line` resolve to a real line? |
+| `orphan-rate` | error | are first-party modules implausibly unimported? |
+| `external-ratio` | error | are `IMPORTS` implausibly all-external? |
+| `phantom-module` | warning | does an `external` module shadow a first-party one? |
+| `source-parity` | warning | does a file declare more routes/tables than the graph holds? |
+| `invented-call` | warning | does a `CALLS` edge target a name bound in the caller's own scope? |
+
+Consistency is not accuracy: a graph can be perfectly self-consistent and still wrong. For
+that, see `pkg accuracy`.
+
+### `orchestrator pkg accuracy`
+
+**How right is the graph?** `pkg verify` asks whether the graph contradicts itself, which needs
+no oracle. This asks whether it is *correct*, which does — so it carries four, each answering a
+different question at a different cost.
+
+```
+orchestrator pkg accuracy [PATH] [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| *(none)* | Score the hand-labelled corpus: precision **and** recall per node/edge kind, per language. |
+| `--oracle runtime` | **Executes the repo's test suite** under a call tracer and reports `CALLS` recall from real execution. Needs no labelling; works on any repo with tests. |
+| `--oracle parity` | Per-file declared-vs-emitted counts for routes and tables. Reads only source — no corpus, no test run. |
+| `--oracle invention` | `CALLS` edges targeting a name bound in the caller's own scope. Exactly detected, not sampled. |
+| `--sample N --kind K` | With `--oracle invention`: also list N edges of kind K for human review, for the joins no detector reaches (`CONSUMES`, `EXPOSES`, `REFERENCES`). Deterministic, so two reviewers see the same facts. |
+| `--scoreboard` | Write the committed baseline to `src/orchestrator/pkg/scoreboard.json`. |
+| `--check` | Compare against that baseline and **exit non-zero on a gated regression**. This is the accuracy gate in the quality gate. |
+| `--language` | Score only one language. |
+| `--json` | Emit the report as structured data. |
+| `--tests` | Test target(s) for `--oracle runtime`; defaults to the repo's own. |
+
+**What is gated, and what is only recorded.** Not everything can be gated on equality, and the
+distinction is what each number is measured *against*:
+
+| metric | gate | why |
+|---|---|---|
+| corpus precision & recall | **strict** — any drop fails | measured against committed fixtures; repo churn cannot move it |
+| parity shortfall | **ratchet** — must not increase | rises only when the graph falls behind the source |
+| invention count | **recorded, never gated** | measured against the repo, so it moves whenever anyone writes ordinary code |
+| runtime recall | **recorded, never gated** | non-deterministic — it moves when the test suite grows |
+
+**`--oracle runtime` runs the repository's code.** No other command here does. It is never
+implied, always echoes the command first, and runs in a subprocess.
+
+**It measures recall only.** A call the tests never made is *untested*, not *wrong*; precision
+is not computable from a trace, and the report says so on every run.
 
 ### `orchestrator media extract`
 

@@ -59,6 +59,7 @@ SHARED_PASSES: tuple[tuple[str, str], ...] = (
     ("doc_link.py", "documentation ingestion — runs for every language"),
     ("import_link.py", "the whole-repo import join"),
     ("data_layer_link.py", "a live database, via `mcp ingest-db`"),
+    ("intent_link.py", "git history — blame joined to the commit's issue key"),
 )
 
 

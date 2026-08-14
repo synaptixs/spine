@@ -33,6 +33,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from orchestrator.pkg.accuracy import measured_recall
+
 # The four provenance labels of docs/specs/build-document.md §1.
 STATED = "stated"
 DETERMINISTIC = "derived · deterministic"
@@ -644,7 +646,7 @@ def _is_test_module(name: str) -> bool:
     return n.startswith("test") or n.startswith("tests.") or ".test" in n or "_test" in n
 
 
-def _blast_prose(bd: dict[str, Any]) -> str:
+def _blast_prose(bd: dict[str, Any], language: str = "python") -> str:
     """The three blocks the template requires, in order: reading, containment, caveat."""
     modules = bd.get("modules") or []
     shown = modules[:_MAX_MODULES]
@@ -688,6 +690,22 @@ def _blast_prose(bd: dict[str, Any]) -> str:
             "**Caveat:** method calls through an instance emit no `CALLS` edge (SSPN-48), so "
             "per-method counts under-report. Module-function counts are exact."
         )
+        # The measured version of the same caveat. "Counts under-report" tells a reader to be
+        # vaguely careful; "recall is 0.73" tells them roughly one call in four is missing and
+        # lets them decide whether that matters for this ticket.
+        #
+        # The parenthetical is load-bearing: this is measured against the extractor's own
+        # fixtures, NOT against the repository being described. A reader who takes it as a
+        # statement about their own code has been misled by us. None means the language was
+        # never measured — six of eight front-ends have no corpus — and an unmeasured language
+        # has not scored zero, so it gets no clause at all.
+        recall = measured_recall(language)
+        if recall is not None:
+            caveat += (
+                f" Measured `CALLS` recall for {language} is **{recall:.2f}** "
+                "(against the extractor's own test corpus, not this repository) — "
+                "treat this list as a lower bound."
+            )
 
     unverified = bd.get("unverified_references") or []
     if unverified:
@@ -920,7 +938,11 @@ def render_build_md(
     approval: PlanApproval | None = None,
     journey: list[JourneyEntry] | None = None,
 ) -> str:
-    """Assemble the twelve sections. Pure — no I/O beyond stat-ing the named files."""
+    """Assemble the twelve sections.
+
+    Near-pure: no I/O beyond stat-ing the named files and reading the packaged accuracy
+    baseline (a committed constant, so the output stays deterministic).
+    """
     title = str(spec.get("title") or "untitled")
     intent = str(spec.get("intent_id") or "unknown")
     files = [str(f) for f in (design.get("files_to_touch") or [])]
@@ -1009,7 +1031,7 @@ def render_build_md(
         add(diagram + "\n")
     else:
         add("_Nothing to draw — no module in the graph matched the files being changed._\n")
-    add(_blast_prose(blast))
+    add(_blast_prose(blast, language))
     add(_evidence_block(evidence or {}))
 
     add("## 6. Design")

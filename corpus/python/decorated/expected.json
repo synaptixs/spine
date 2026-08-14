@@ -1,0 +1,58 @@
+{
+  "language": "python",
+  "case": "decorated",
+  "why": "Decorators as the declaration mechanism: routes declared by decorator and mounted under a prefix elsewhere, a handler behind a second wrapping decorator, a nested closure, and a decorated class. Exercises Endpoint/EXPOSES — the one join that composes a value (the mount prefix) rather than resolving a name.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "py:api.routes", "kind": "Module"},
+    {"id": "py:api.main", "kind": "Module"},
+
+    {"id": "py:api.routes.Item", "kind": "Type"},
+    {"id": "py:api.routes.Item.name", "kind": "Field"},
+
+    {"id": "py:api.routes.audited", "kind": "Function"},
+    {"id": "py:api.routes.audited.inner", "kind": "Function"},
+    {"id": "py:api.routes.list_items", "kind": "Function"},
+    {"id": "py:api.routes.create_item", "kind": "Function"},
+
+    {"id": "py:endpoint:GET /v1/items", "kind": "Endpoint"},
+    {"id": "py:endpoint:POST /v1/items", "kind": "Endpoint"}
+  ],
+  "edges": [
+    {"src": "py:api.routes", "dst": "py:dataclasses.dataclass", "kind": "IMPORTS"},
+    {"src": "py:api.routes", "dst": "py:functools.wraps", "kind": "IMPORTS"},
+    {"src": "py:api.routes", "dst": "py:fastapi.APIRouter", "kind": "IMPORTS"},
+    {"src": "py:api.main", "dst": "py:fastapi.FastAPI", "kind": "IMPORTS"},
+    {"src": "py:api.main", "dst": "py:api.routes", "kind": "IMPORTS"},
+
+    {"src": "py:api.routes", "dst": "py:api.routes.Item", "kind": "CONTAINS"},
+    {"src": "py:api.routes", "dst": "py:api.routes.audited", "kind": "CONTAINS"},
+    {"src": "py:api.routes", "dst": "py:api.routes.list_items", "kind": "CONTAINS"},
+    {"src": "py:api.routes", "dst": "py:api.routes.create_item", "kind": "CONTAINS"},
+    {"src": "py:api.routes.Item", "dst": "py:api.routes.Item.name", "kind": "CONTAINS"},
+    {"src": "py:api.routes.audited", "dst": "py:api.routes.audited.inner", "kind": "CONTAINS"},
+
+    {"src": "py:endpoint:GET /v1/items", "dst": "py:api.routes.list_items", "kind": "EXPOSES"},
+    {"src": "py:endpoint:POST /v1/items", "dst": "py:api.routes.create_item", "kind": "EXPOSES"},
+
+    {"src": "py:api.routes.create_item", "dst": "py:api.routes.Item", "kind": "CALLS"}
+  ],
+  "known_gaps": [],
+  "false_positives": [
+    {
+      "edge": {"src": "py:api.routes.audited.inner", "dst": "py:fn", "kind": "CALLS"},
+      "why": "`fn` is a PARAMETER of the enclosing `audited`. The graph asserts a function named `fn` exists outside the tree and that `inner` calls it; both are false. This is the SECOND instance of the same defect the corpus found with `py:cls` in the dispatch case — an unresolvable local name becoming a phantom external node plus an edge to it. Two independent instances make it systematic rather than a one-off, and it is the strongest evidence so far for a false-positive audit."
+    }
+  ],
+  "excluded": [
+    "Module-level variables (`router`, `app`) — DECIDED 2026-08-12: not a Field.",
+    "`app.include_router(...)` — a method call on a module-level variable; its *effect* is labelled instead (the /v1 prefix composed into both endpoint paths)."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": [
+    "Decoration is NOT modelled as a CALLS edge. Neither `@audited` nor `@router.get(...)` emitted one; the decorators' effects (the Endpoint nodes) are the whole of what the graph records. This was an open question before the first run and is now settled for every decorated symbol in the corpus.",
+    "Nested functions ARE emitted, as a Function node plus a CONTAINS edge from the enclosing function. `audited.inner` was labelled as a node but its CONTAINS edge was missed — a label omission, corrected.",
+    "`Item(name)` construction IS emitted as CALLS to the Type node, confirming the decision taken on the dispatch case against a name that resolves locally.",
+    "`from api.routes import router` targets the MODULE `py:api.routes`, not `py:api.routes.router` — because `router` is a module-level variable with no node of its own. See the id vocabulary table in ../../README.md: the symbol-level target only holds when the symbol exists."
+  ]
+}

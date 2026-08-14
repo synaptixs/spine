@@ -13,6 +13,7 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
+- [`SqlExtractor`](../../src/orchestrator/pkg/sql_extractor.py#L89) — reaches **6** symbols
 - [`detect_dialect`](../../src/orchestrator/pkg/sql_extractor.py#L78) — reaches **6** symbols
 - [`_TableBuilder`](../../src/orchestrator/pkg/sql_extractor.py#L276) — reaches **5** symbols · **no test path visible**
 - [`_touch_entity`](../../src/orchestrator/pkg/sql_extractor.py#L311) — reaches **5** symbols · **no test path visible**
@@ -20,7 +21,6 @@
 - [`_type_sql`](../../src/orchestrator/pkg/sql_extractor.py#L306) — reaches **4** symbols · **no test path visible**
 - [`_reparse_body`](../../src/orchestrator/pkg/sql_extractor.py#L355) — reaches **3** symbols · **no test path visible**
 - [`_routine_body`](../../src/orchestrator/pkg/sql_extractor.py#L338) — reaches **3** symbols · **no test path visible**
-- [`_select_tables`](../../src/orchestrator/pkg/sql_extractor.py#L320) — reaches **3** symbols · **no test path visible**
 
 _11 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -92,14 +92,14 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/sql_extractor.py:311`](../../src/orchestrator/pkg/sql_extractor.py#L311)
 
 - **Called by** (2): [`_emit_data_access`](../../src/orchestrator/pkg/sql_extractor.py#L264), [`_handle_create_view`](../../src/orchestrator/pkg/sql_extractor.py#L193)
-- **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L71)
+- **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L93)
 
 ### `_touch_function`
 
 [`src/orchestrator/pkg/sql_extractor.py:316`](../../src/orchestrator/pkg/sql_extractor.py#L316)
 
 - **Called by** (1): [`_handle_create_routine`](../../src/orchestrator/pkg/sql_extractor.py#L238)
-- **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L71)
+- **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L93)
 
 ### `_type_sql`
 

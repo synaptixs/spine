@@ -1,0 +1,54 @@
+{
+  "language": "typescript",
+  "case": "plain",
+  "why": "The TypeScript control, and the first measurement of the tree-sitter parse path rather than Python's `ast`. Covers the declaration subset the front-end states it emits: class, interface, type alias, class properties, interface members, an exported arrow const, and the two CALLS shapes it says resolve — a bare call to a module-level binding, and `this.method()` to a sibling.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "ts:app/models", "kind": "Module"},
+    {"id": "ts:app/cart", "kind": "Module"},
+
+    {"id": "ts:app/models.Priced", "kind": "Type"},
+    {"id": "ts:app/models.Currency", "kind": "Type"},
+    {"id": "ts:app/models.Item", "kind": "Type"},
+
+    {"id": "ts:app/models.Priced.price", "kind": "Field"},
+    {"id": "ts:app/models.Item.price", "kind": "Field"},
+    {"id": "ts:app/models.Item.currency", "kind": "Field"},
+
+    {"id": "ts:app/models.Item.constructor", "kind": "Function"},
+    {"id": "ts:app/models.Item.describe", "kind": "Function"},
+    {"id": "ts:app/models.Item.label", "kind": "Function"},
+    {"id": "ts:app/cart.rate", "kind": "Function"},
+    {"id": "ts:app/cart.total", "kind": "Function"}
+  ],
+  "edges": [
+    {"src": "ts:app/cart", "dst": "ts:app/models", "kind": "IMPORTS"},
+
+    {"src": "ts:app/models", "dst": "ts:app/models.Priced", "kind": "CONTAINS"},
+    {"src": "ts:app/models", "dst": "ts:app/models.Currency", "kind": "CONTAINS"},
+    {"src": "ts:app/models", "dst": "ts:app/models.Item", "kind": "CONTAINS"},
+    {"src": "ts:app/models.Priced", "dst": "ts:app/models.Priced.price", "kind": "CONTAINS"},
+    {"src": "ts:app/models.Item", "dst": "ts:app/models.Item.price", "kind": "CONTAINS"},
+    {"src": "ts:app/models.Item", "dst": "ts:app/models.Item.currency", "kind": "CONTAINS"},
+    {"src": "ts:app/models.Item", "dst": "ts:app/models.Item.constructor", "kind": "CONTAINS"},
+    {"src": "ts:app/models.Item", "dst": "ts:app/models.Item.describe", "kind": "CONTAINS"},
+    {"src": "ts:app/models.Item", "dst": "ts:app/models.Item.label", "kind": "CONTAINS"},
+    {"src": "ts:app/cart", "dst": "ts:app/cart.rate", "kind": "CONTAINS"},
+    {"src": "ts:app/cart", "dst": "ts:app/cart.total", "kind": "CONTAINS"},
+
+    {"src": "ts:app/models.Item", "dst": "ts:app/models.Priced", "kind": "IMPLEMENTS"},
+
+    {"src": "ts:app/models.Item.describe", "dst": "ts:app/models.Item.label", "kind": "CALLS"},
+    {"src": "ts:app/cart.total", "dst": "ts:app/cart.rate", "kind": "CALLS"}
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "`item.price` property access in `total` — a read through a parameter, not a call, and READS is not in the TypeScript front-end's emit set."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": [
+    "A TypeScript import targets the MODULE (`ts:app/cart -IMPORTS-> ts:app/models`), not the imported binding — unlike Python, where the target is the symbol when the symbol has a node. TS import placeholders are paths, so there is no symbol in the id to resolve against. Predicted correctly before the run.",
+    "`constructor` IS emitted, as a Function node plus a CONTAINS edge from the class. Left unlabelled on the first run as an admitted uncertainty; added afterwards as a label omission, not a hedge — a constructor is a function in the source whatever the front-end does with it."
+  ]
+}

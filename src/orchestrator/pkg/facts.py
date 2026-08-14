@@ -10,6 +10,13 @@ Every grounded node carries ``Provenance`` (``file:line``) so any answer can be
 traced back to source. Nodes referenced but not defined in the scanned tree
 (imported symbols, builtins) are marked ``external=True`` and have no provenance.
 
+**Intent is the one node kind that is not an artefact.** Every other kind is something you can
+point at in a file. An ``Intent`` is a reason — the ticket or requirement a symbol serves — and
+its evidence is git history, not source text. It is added here as vocabulary only: nothing
+emits ``Intent`` or ``SERVES`` yet, so every graph is byte-identical until the scanner lands.
+That split is deliberate — this module has 46 non-test importers, and a vocabulary change that
+arrives together with the facts it enables leaves a downstream failure with two possible causes.
+
 **Media (G3) reuses ``DOC`` — it does not get its own node kind.** An extracted
 image/audio/video transcript enters the graph as a ``Doc`` whose ``source_file``
 is the media file (``.png``/``.mp4``/…). This is a deliberate Phase-0 decision:
@@ -38,6 +45,11 @@ class NodeKind(str, Enum):
     ENDPOINT = "Endpoint"  # HTTP route / RPC
     ENTITY = "Entity"  # ORM model / data entity
     DOC = "Doc"  # a documentation page (README, design doc, ADR, …) — and media transcripts (G3)
+    # The only node kind that is not a physical artefact. Everything above is something you
+    # can point at in a file; an Intent is a *reason* — the ticket, requirement or capability
+    # a symbol exists to serve. Added by the intent layer (phase 7 of the accuracy roadmap)
+    # so the graph can answer "what is this for", not only "what calls it".
+    INTENT = "Intent"
 
 
 class EdgeKind(str, Enum):
@@ -53,6 +65,16 @@ class EdgeKind(str, Enum):
     CONSUMES = "CONSUMES"  # caller→the endpoint it calls (the other half of EXPOSES)
     REFERENCES = "REFERENCES"  # entity→entity foreign key
     MENTIONS = "MENTIONS"  # doc→the code symbol it describes
+    # symbol→the Intent it was built for. The second edge kind carrying meaning rather than
+    # mechanism, and the only one whose evidence is git history rather than source text.
+    SERVES = "SERVES"
+
+
+# The kinds that are *symbols* — a named thing inside a file — as opposed to a container
+# (`Module`), a document (`Doc`), or a reason (`Intent`). Named here because more than one
+# pass needs "everything you could point at in source", and spelling the members out at each
+# site both duplicates the concept and makes `pkg capabilities` read a *filter* as an *emit*.
+SYMBOL_KINDS = frozenset({NodeKind.TYPE, NodeKind.FUNCTION, NodeKind.FIELD, NodeKind.ENDPOINT})
 
 
 @dataclass(frozen=True)
@@ -138,4 +160,4 @@ class FactBatch:
         return by_kind
 
 
-__all__ = ["Edge", "EdgeKind", "FactBatch", "Node", "NodeKind", "Provenance"]
+__all__ = ["SYMBOL_KINDS", "Edge", "EdgeKind", "FactBatch", "Node", "NodeKind", "Provenance"]

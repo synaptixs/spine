@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 34 modules — 66 types and 239 functions. Nothing here depends on other areas, but 11 areas depend on it — it's a foundation, so changes ripple outward.
+**`orchestrator.pkg`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 38 modules — 79 types and 277 functions. Nothing here depends on other areas, but 11 areas depend on it — it's a foundation, so changes ripple outward.
 
 ```mermaid
 flowchart LR
@@ -33,6 +33,7 @@ _Showing 8 of 11 neighbouring areas._
 ## Modules
 
 - [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1)
+- [`orchestrator.pkg.accuracy`](../modules/orchestrator.pkg.accuracy.md)
 - [`orchestrator.pkg.c_extractor`](../modules/orchestrator.pkg.c_extractor.md)
 - [`orchestrator.pkg.capabilities`](../../src/orchestrator/pkg/capabilities.py#L1)
 - [`orchestrator.pkg.cpp_extractor`](../../src/orchestrator/pkg/cpp_extractor.py#L1)
@@ -47,6 +48,8 @@ _Showing 8 of 11 neighbouring areas._
 - [`orchestrator.pkg.go_extractor`](../modules/orchestrator.pkg.go_extractor.md)
 - [`orchestrator.pkg.graph_export`](../../src/orchestrator/pkg/graph_export.py#L1)
 - [`orchestrator.pkg.import_link`](../../src/orchestrator/pkg/import_link.py#L1)
+- [`orchestrator.pkg.intent_link`](../../src/orchestrator/pkg/intent_link.py#L1)
+- [`orchestrator.pkg.invention`](../../src/orchestrator/pkg/invention.py#L1)
 - [`orchestrator.pkg.java_extractor`](../modules/orchestrator.pkg.java_extractor.md)
 - [`orchestrator.pkg.media`](../../src/orchestrator/pkg/media.py#L1)
 - [`orchestrator.pkg.media_asr`](../modules/orchestrator.pkg.media_asr.md)
@@ -59,6 +62,7 @@ _Showing 8 of 11 neighbouring areas._
 - [`orchestrator.pkg.python_routes`](../modules/orchestrator.pkg.python_routes.md)
 - [`orchestrator.pkg.rdf`](../../src/orchestrator/pkg/rdf.py#L1)
 - [`orchestrator.pkg.retrieval`](../../src/orchestrator/pkg/retrieval.py#L1)
+- [`orchestrator.pkg.runtime_oracle`](../modules/orchestrator.pkg.runtime_oracle.md)
 - [`orchestrator.pkg.schema`](../../src/orchestrator/pkg/schema.py#L1)
 - [`orchestrator.pkg.sql_extractor`](../modules/orchestrator.pkg.sql_extractor.md)
 - [`orchestrator.pkg.stats`](../../src/orchestrator/pkg/stats.py#L1)

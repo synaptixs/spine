@@ -1,0 +1,53 @@
+{
+  "language": "typescript",
+  "case": "instance_calls",
+  "why": "The documented skip, measured. `typescript_extractor.py` states that instance calls on a typed variable are deliberately not emitted because they would need type inference, and that a guessed edge poisons grounding. This case puts a recall number on that stance, across both shapes it applies to: a call through an annotated parameter, and a call through a local whose type is obvious from `new`.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "ts:app/handler", "kind": "Module"},
+    {"id": "ts:app/dispatch", "kind": "Module"},
+
+    {"id": "ts:app/handler.Handler", "kind": "Type"},
+
+    {"id": "ts:app/handler.Handler.run", "kind": "Function"},
+    {"id": "ts:app/handler.Handler.format", "kind": "Function"},
+    {"id": "ts:app/dispatch.viaParameter", "kind": "Function"},
+    {"id": "ts:app/dispatch.viaLocal", "kind": "Function"}
+  ],
+  "edges": [
+    {"src": "ts:app/dispatch", "dst": "ts:app/handler", "kind": "IMPORTS"},
+
+    {"src": "ts:app/handler", "dst": "ts:app/handler.Handler", "kind": "CONTAINS"},
+    {"src": "ts:app/handler.Handler", "dst": "ts:app/handler.Handler.run", "kind": "CONTAINS"},
+    {"src": "ts:app/handler.Handler", "dst": "ts:app/handler.Handler.format", "kind": "CONTAINS"},
+    {"src": "ts:app/dispatch", "dst": "ts:app/dispatch.viaParameter", "kind": "CONTAINS"},
+    {"src": "ts:app/dispatch", "dst": "ts:app/dispatch.viaLocal", "kind": "CONTAINS"},
+
+    {"src": "ts:app/handler.Handler.run", "dst": "ts:app/handler.Handler.format", "kind": "CALLS"},
+    {"src": "ts:app/dispatch.viaParameter", "dst": "ts:app/handler.Handler.run", "kind": "CALLS"},
+    {"src": "ts:app/dispatch.viaLocal", "dst": "ts:app/handler.Handler.run", "kind": "CALLS"},
+    {"src": "ts:app/dispatch.viaLocal", "dst": "ts:app/handler.Handler", "kind": "CALLS"}
+  ],
+  "known_gaps": [
+    {
+      "edge": {"src": "ts:app/dispatch.viaParameter", "dst": "ts:app/handler.Handler.run", "kind": "CALLS"},
+      "why": "PREDICTED BEFORE SCORING. `h.run()` on an annotated parameter. typescript_extractor.py's module docstring states this skip explicitly: 'Instance calls on a typed variable (obj.method()) are skipped — they'd need type inference, and a guessed edge poisons grounding.' Counted as a recall miss, not exempted."
+    },
+    {
+      "edge": {"src": "ts:app/dispatch.viaLocal", "dst": "ts:app/handler.Handler.run", "kind": "CALLS"},
+      "why": "PREDICTED BEFORE SCORING. Same skip, weaker excuse: `const h = new Handler()` makes the type locally obvious without whole-program inference, so this is the shape most likely to be recoverable later. Recording it separately from the parameter case is what would let a future improvement show up as a measured recall gain."
+    },
+    {
+      "edge": {"src": "ts:app/dispatch.viaLocal", "dst": "ts:app/handler.Handler", "kind": "CALLS"},
+      "why": "FOUND BY MEASUREMENT, NOT PREDICTED — it was filed as an open question. `new Handler()` emits no edge in TypeScript, while the equivalent `Item(name)` does in Python. A front-end gap, not a vocabulary difference: same CALLS kind, same Type node, one front-end behind the other."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [
+    "`this.format()` inside `run` is NOT excluded — the front-end documents `this.method()` to a sibling as resolved, so it is labelled and expected to match. It is the control within this case."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": [
+    "Construction is a CROSS-LANGUAGE INCONSISTENCY, and this is a real recall gap rather than a vocabulary error. Python emits `caller -CALLS-> Type` for `Item(name)`; TypeScript emits nothing for `new Handler()`. The vocabulary supports the edge — the same `CALLS` kind, the same `Type` node — so the TS front-end is behind Python here, not modelling something different. Kept in `edges` as a miss and moved into `known_gaps` below."
+  ]
+}

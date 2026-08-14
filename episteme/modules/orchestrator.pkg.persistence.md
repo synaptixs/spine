@@ -57,7 +57,7 @@
 [`src/orchestrator/pkg/persistence.py:50`](../../src/orchestrator/pkg/persistence.py#L50)
 
 - **Called by** (1): [`facts_from_dict`](../../src/orchestrator/pkg/persistence.py#L82)
-- **Calls** (1): [`Provenance`](../../src/orchestrator/pkg/facts.py#L59)
+- **Calls** (1): [`Provenance`](../../src/orchestrator/pkg/facts.py#L81)
 
 ### `_prov_to_dict`
 
@@ -84,7 +84,7 @@
 [`src/orchestrator/pkg/persistence.py:82`](../../src/orchestrator/pkg/persistence.py#L82)
 
 - **Called by** (1): [`load_facts`](../../src/orchestrator/pkg/persistence.py#L116)
-- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L87), [`EdgeKind`](../../src/orchestrator/pkg/facts.py#L43), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L100), [`FactCacheError`](../../src/orchestrator/pkg/persistence.py#L37), [`Node`](../../src/orchestrator/pkg/facts.py#L71), [`NodeKind`](../../src/orchestrator/pkg/facts.py#L31), [`_prov_from_dict`](../../src/orchestrator/pkg/persistence.py#L50)
+- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`EdgeKind`](../../src/orchestrator/pkg/facts.py#L55), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L122), [`FactCacheError`](../../src/orchestrator/pkg/persistence.py#L37), [`Node`](../../src/orchestrator/pkg/facts.py#L93), [`NodeKind`](../../src/orchestrator/pkg/facts.py#L38), [`_prov_from_dict`](../../src/orchestrator/pkg/persistence.py#L50)
 
 ### `facts_to_dict`
 

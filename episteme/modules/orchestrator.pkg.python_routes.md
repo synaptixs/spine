@@ -47,7 +47,7 @@ _13 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/python_routes.py:248`](../../src/orchestrator/pkg/python_routes.py#L248)
 
 - **Called by** (1): [`scan_module`](../../src/orchestrator/pkg/python_routes.py#L160)
-- **Calls** (5): [`PendingRoute`](../../src/orchestrator/pkg/python_routes.py#L64), [`Provenance`](../../src/orchestrator/pkg/facts.py#L59), [`_literal_path`](../../src/orchestrator/pkg/python_routes.py#L94), [`_resolve_router`](../../src/orchestrator/pkg/python_routes.py#L145), `walk`
+- **Calls** (5): [`PendingRoute`](../../src/orchestrator/pkg/python_routes.py#L64), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_literal_path`](../../src/orchestrator/pkg/python_routes.py#L94), [`_resolve_router`](../../src/orchestrator/pkg/python_routes.py#L145), `walk`
 
 ### `_collect_routers`
 
@@ -61,7 +61,7 @@ _13 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/python_routes.py:204`](../../src/orchestrator/pkg/python_routes.py#L204)
 
 - **Called by** (2): [`_collect_routes`](../../src/orchestrator/pkg/python_routes.py#L204), [`scan_module`](../../src/orchestrator/pkg/python_routes.py#L160)
-- **Calls** (6): [`PendingRoute`](../../src/orchestrator/pkg/python_routes.py#L64), [`Provenance`](../../src/orchestrator/pkg/facts.py#L59), [`_collect_routes`](../../src/orchestrator/pkg/python_routes.py#L204), [`_literal_path`](../../src/orchestrator/pkg/python_routes.py#L94), [`_receiver`](../../src/orchestrator/pkg/python_routes.py#L138), [`_verbs_from_methods`](../../src/orchestrator/pkg/python_routes.py#L125)
+- **Calls** (6): [`PendingRoute`](../../src/orchestrator/pkg/python_routes.py#L64), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_collect_routes`](../../src/orchestrator/pkg/python_routes.py#L204), [`_literal_path`](../../src/orchestrator/pkg/python_routes.py#L94), [`_receiver`](../../src/orchestrator/pkg/python_routes.py#L138), [`_verbs_from_methods`](../../src/orchestrator/pkg/python_routes.py#L125)
 
 ### `_join`
 
@@ -106,7 +106,8 @@ _13 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/python_routes.py:283`](../../src/orchestrator/pkg/python_routes.py#L283)
 
 - **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L193)
-- **Calls** (3): [`Edge`](../../src/orchestrator/pkg/facts.py#L87), [`Node`](../../src/orchestrator/pkg/facts.py#L71), [`_join`](../../src/orchestrator/pkg/python_routes.py#L117)
+- **Calls** (3): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Node`](../../src/orchestrator/pkg/facts.py#L93), [`_join`](../../src/orchestrator/pkg/python_routes.py#L117)
+- **Documented in**: `docs/specs/build-documents/PKG-ACC-3-build.md#9-facts-the-generator-needs`, `docs/specs/build-documents/PKG-ACC-3-build.md#why-the-analysis-is-90`
 
 ### `scan_module`
 
@@ -114,6 +115,7 @@ _13 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/extractor.py#L175)
 - **Calls** (3): [`_collect_django`](../../src/orchestrator/pkg/python_routes.py#L248), [`_collect_routers`](../../src/orchestrator/pkg/python_routes.py#L175), [`_collect_routes`](../../src/orchestrator/pkg/python_routes.py#L204)
+- **Documented in**: `docs/specs/build-documents/PKG-ACC-3-build.md#61-count-with-the-ast-not-the-regex`, `docs/specs/build-documents/PKG-ACC-3-build.md#9-facts-the-generator-needs`
 
 ## Imports
 

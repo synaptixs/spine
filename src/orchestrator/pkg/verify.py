@@ -38,6 +38,7 @@ exempt by construction.
 
 from __future__ import annotations
 
+import ast
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -266,6 +267,152 @@ _ENTITY_SYNTAX = {
 }
 
 
+_ROUTE_ATTRS = frozenset(
+    {"get", "post", "put", "patch", "delete", "head", "options", "trace", "route", "add_url_rule"}
+)
+
+
+@dataclass(frozen=True)
+class ParityCount:
+    """How many of a construct one file declares, against how many the graph holds.
+
+    ``approximate`` marks a count derived by regex rather than by parsing — true for every
+    language with no AST front-end here. An approximate count is a different kind of claim and
+    is labelled rather than mixed in with the parsed ones.
+    """
+
+    file: str
+    language: str
+    kind: NodeKind
+    declared: int
+    in_graph: int
+    approximate: bool
+    first_line: int | None = None
+
+    @property
+    def shortfall(self) -> int:
+        return max(0, self.declared - self.in_graph)
+
+
+def _path_shaped(node: ast.expr | None) -> bool:
+    """Is this argument a URL path — literal or interpolated?
+
+    Deliberately **wider than the extractor's** ``_literal_path``, and that difference is the
+    entire measurement. ``python_routes`` skips a computed path (``f"/v1/{entity}"``) on
+    purpose, emitting silence rather than a guessed route; counting it here is what turns that
+    documented silence into a number.
+
+    Still narrow enough to exclude ``@cache.get(key)`` — an ordinary decorator whose argument
+    is a name, not a path. Counting that would recreate the false-signal class this whole
+    phase exists to remove.
+    """
+    if isinstance(node, ast.Constant):
+        return isinstance(node.value, str) and node.value.startswith("/")
+    if isinstance(node, ast.JoinedStr):  # an f-string
+        head = node.values[0] if node.values else None
+        return isinstance(head, ast.Constant) and isinstance(head.value, str) and head.value.startswith("/")
+    return False
+
+
+def _count_python_constructs(source: str) -> tuple[list[int], list[int]]:
+    """``(route decorator lines, __tablename__ lines)`` for one Python file, via the AST.
+
+    The regex this replaces was right for the question it was asked — *does this file declare
+    any?* — where a false positive costs nothing, because one real node anywhere in the
+    language silences the check. Counting changes the question, and a decorator quoted inside
+    a docstring or a test fixture becomes a phantom missing route. Measured on this repo, the
+    regex found 96 "routes" against 71 real ones, and 19 of the 25 apparent misses were
+    strings. To an AST, a decorator inside a string is a string.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return [], []
+
+    routes: list[int] = []
+    tables: list[int] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            for dec in node.decorator_list:
+                if not isinstance(dec, ast.Call) or not isinstance(dec.func, ast.Attribute):
+                    continue
+                if dec.func.attr in _ROUTE_ATTRS and dec.args and _path_shaped(dec.args[0]):
+                    routes.append(dec.lineno)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                # A computed name (`__tablename__ = derive()`) is not a declaration — the
+                # same precision rule the ORM front-end holds to.
+                if (
+                    isinstance(target, ast.Name)
+                    and target.id == "__tablename__"
+                    and isinstance(node.value, ast.Constant)
+                    and isinstance(node.value.value, str)
+                ):
+                    tables.append(node.lineno)
+    return routes, tables
+
+
+def source_parity_counts(batch: FactBatch, root: Path) -> list[ParityCount]:
+    """Per-file declared-vs-emitted counts for routes and tables.
+
+    Reads only files the graph already knows about — the grounded ``Module`` nodes' own
+    provenance — so it never walks the tree a second time.
+    """
+    per_file: dict[tuple[str, NodeKind], int] = {}
+    for node in batch.nodes:
+        if node.kind in (NodeKind.ENDPOINT, NodeKind.ENTITY) and node.provenance and not node.external:
+            key = (node.provenance.file, node.kind)
+            per_file[key] = per_file.get(key, 0) + 1
+
+    seen: set[str] = set()
+    counts: list[ParityCount] = []
+    for node in batch.nodes:
+        if node.kind is not NodeKind.MODULE or not node.grounded or node.provenance is None:
+            continue
+        lang = node.language
+        route_re, entity_re = _ROUTE_SYNTAX.get(lang), _ENTITY_SYNTAX.get(lang)
+        if lang != "python" and route_re is None and entity_re is None:
+            continue
+        rel = node.provenance.file
+        if rel in seen or rel.startswith(_SYNTHETIC_PREFIXES):
+            continue
+        seen.add(rel)
+        try:
+            source = (root / rel).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+
+        if lang == "python":
+            route_lines, table_lines = _count_python_constructs(source)
+            found: list[tuple[NodeKind, list[int]]] = [
+                (NodeKind.ENDPOINT, route_lines),
+                (NodeKind.ENTITY, table_lines),
+            ]
+            approximate = False
+        else:
+            found = [
+                (NodeKind.ENDPOINT, [m.start() for m in route_re.finditer(source)] if route_re else []),
+                (NodeKind.ENTITY, [m.start() for m in entity_re.finditer(source)] if entity_re else []),
+            ]
+            approximate = True
+
+        for kind, hits in found:
+            if not hits:
+                continue
+            counts.append(
+                ParityCount(
+                    file=rel,
+                    language=lang,
+                    kind=kind,
+                    declared=len(hits),
+                    in_graph=per_file.get((rel, kind), 0),
+                    approximate=approximate,
+                    first_line=hits[0] if not approximate else None,
+                )
+            )
+    return sorted(counts, key=lambda c: (c.file, c.kind.value))
+
+
 def _source_signals(batch: FactBatch, root: Path) -> dict[str, tuple[int, int]]:
     """language → (files declaring routes, files declaring tables).
 
@@ -306,28 +453,51 @@ def _check_source_parity(batch: FactBatch, root: Path) -> list[VerifyIssue]:
     not learned yet, and failing a build for that turns the check into something
     people switch off. Silence is the failure mode this exists to prevent, not noise.
     """
-    kinds_by_lang: dict[str, set[NodeKind]] = {}
-    for node in batch.nodes:
-        kinds_by_lang.setdefault(node.language, set()).add(node.kind)
-
+    what = {NodeKind.ENDPOINT: "route declaration", NodeKind.ENTITY: "__tablename__ declaration"}
     issues: list[VerifyIssue] = []
-    for lang, (route_files, entity_files) in sorted(_source_signals(batch, root).items()):
-        present = kinds_by_lang.get(lang, set())
-        for files, kind, what in (
-            (route_files, NodeKind.ENDPOINT, "route declaration"),
-            (entity_files, NodeKind.ENTITY, "__tablename__ declaration"),
-        ):
-            if files and kind not in present:
-                issues.append(
-                    VerifyIssue(
-                        "source-parity",
-                        "warning",
-                        f"{lang}: {files} file(s) contain a {what} but the graph holds no "
-                        f"{kind.value} node — this front-end doesn't extract them yet, so "
-                        f"'what breaks if I change this?' under-reports.",
-                    )
-                )
+    for count in source_parity_counts(batch, root):
+        # Only under-extraction warns. `in_graph > declared` is legitimate and common: a
+        # router mounted twice yields two Endpoints from one decorator (python_routes.emit),
+        # so warning on it would cry wolf on correct output. The surplus is still reported by
+        # `pkg accuracy --oracle parity`, where it is a number rather than an alarm.
+        if count.shortfall == 0:
+            continue
+        where = f"{count.file}:{count.first_line}" if count.first_line else count.file
+        hedge = " (approximate — counted by pattern, not parsed)" if count.approximate else ""
+        issues.append(
+            VerifyIssue(
+                "source-parity",
+                "warning",
+                f"{where} declares {count.declared} {what[count.kind]}(s) but the graph holds "
+                f"{count.in_graph} {count.kind.value} node(s){hedge} — "
+                f"'what breaks if I change this?' under-reports by {count.shortfall}.",
+            )
+        )
     return issues
+
+
+def _check_invention(batch: FactBatch, root: Path) -> list[VerifyIssue]:
+    """Warn when the graph calls a name that is bound in the caller's own scope.
+
+    The only check here that hunts for *invention* rather than absence. A warning rather than
+    an error for the same reason as ``source-parity``: this is a front-end limitation with a
+    known size, and failing a build for it turns the check into something people switch off.
+    """
+    from orchestrator.pkg.invention import find_invented_calls
+
+    report = find_invented_calls(batch, root)
+    if not report.invented:
+        return []
+    rate = f"{report.rate:.1%}" if report.rate is not None else "?"
+    return [
+        VerifyIssue(
+            "invented-call",
+            "warning",
+            f"{len(report.invented)} CALLS edge(s) ({rate} of all calls) target a name bound in "
+            f"the caller's own scope — a parameter or local, not a module outside the tree: "
+            f"{_examples(list(report.examples))}",
+        )
+    ]
 
 
 def verify_batch(batch: FactBatch, root: Path | str) -> VerifyReport:
@@ -339,6 +509,7 @@ def verify_batch(batch: FactBatch, root: Path | str) -> VerifyReport:
         *_check_rates(batch, nodes),
         *_check_phantoms(batch),
         *_check_source_parity(batch, Path(root)),
+        *_check_invention(batch, Path(root)),
     ]
     return VerifyReport(tuple(issues))
 
@@ -348,7 +519,9 @@ __all__ = [
     "MIN_IMPORT_EDGES",
     "MIN_MODULES",
     "ORPHAN_RATE_LIMIT",
+    "ParityCount",
     "VerifyIssue",
     "VerifyReport",
+    "source_parity_counts",
     "verify_batch",
 ]

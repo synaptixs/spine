@@ -1,0 +1,121 @@
+{
+  "metrics": {
+    "corpus": {
+      "gated": "strict",
+      "languages": {
+        "python": {
+          "edges": {
+            "CALLS": {
+              "emitted": 10,
+              "expected": 11,
+              "matched": 8
+            },
+            "CONTAINS": {
+              "emitted": 24,
+              "expected": 24,
+              "matched": 24
+            },
+            "EXPOSES": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "IMPORTS": {
+              "emitted": 10,
+              "expected": 10,
+              "matched": 10
+            }
+          },
+          "nodes": {
+            "Endpoint": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "Field": {
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
+            },
+            "Function": {
+              "emitted": 18,
+              "expected": 18,
+              "matched": 18
+            },
+            "Module": {
+              "emitted": 13,
+              "expected": 13,
+              "matched": 13
+            },
+            "Type": {
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
+            }
+          }
+        },
+        "typescript": {
+          "edges": {
+            "CALLS": {
+              "emitted": 3,
+              "expected": 6,
+              "matched": 3
+            },
+            "CONTAINS": {
+              "emitted": 22,
+              "expected": 22,
+              "matched": 22
+            },
+            "IMPLEMENTS": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "IMPORTS": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            }
+          },
+          "nodes": {
+            "Field": {
+              "emitted": 4,
+              "expected": 4,
+              "matched": 4
+            },
+            "Function": {
+              "emitted": 12,
+              "expected": 12,
+              "matched": 12
+            },
+            "Module": {
+              "emitted": 5,
+              "expected": 5,
+              "matched": 5
+            },
+            "Type": {
+              "emitted": 6,
+              "expected": 6,
+              "matched": 6
+            }
+          }
+        }
+      },
+      "skipped_languages": []
+    },
+    "invention": {
+      "count": 497,
+      "gated": false,
+      "note": "moves with ordinary commits \u2014 recorded as a trend, never gated",
+      "total_calls": 15844
+    },
+    "parity": {
+      "declared": 75,
+      "gated": "ratchet",
+      "in_graph": 77,
+      "shortfall": 5,
+      "surplus": 7
+    }
+  },
+  "version": 1
+}

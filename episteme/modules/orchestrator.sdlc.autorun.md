@@ -83,7 +83,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/autorun.py:468`](../../src/orchestrator/sdlc/autorun.py#L468)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L215)
-- **Calls** (3): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L43), `py:emit`, [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1188)
+- **Calls** (3): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L43), `py:emit`, [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1210)
 
 ### `_spent`
 
@@ -103,7 +103,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/autorun.py:650`](../../src/orchestrator/sdlc/autorun.py#L650)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L215)
-- **Calls** (6): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L43), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L437), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L268), `nullcontext`, `py:emit`, [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623)
+- **Calls** (6): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L43), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L437), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L270), `nullcontext`, `py:emit`, [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623)
 
 ### `_stage_intake`
 
@@ -157,7 +157,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ## Imports
 
-`__future__.annotations`, `collections.abc.Callable`, `contextlib`, `dataclasses.dataclass`, `dataclasses.field`, `datetime.UTC`, `datetime.datetime`, [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1), [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), [`orchestrator.core.llm.recording`](../../src/orchestrator/core/llm/recording.py#L1), [`orchestrator.intake.cache`](orchestrator.intake.cache.md), [`orchestrator.intake.factory`](orchestrator.intake.factory.md), [`orchestrator.intake.jira`](../../src/orchestrator/intake/jira.py#L1), [`orchestrator.intake.service`](../../src/orchestrator/intake/service.py#L1), [`orchestrator.obs.tracing`](orchestrator.obs.tracing.md), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.pkg.overview`](../../src/orchestrator/pkg/overview.py#L1), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.design`](orchestrator.sdlc.design.md), [`orchestrator.sdlc.escalate`](orchestrator.sdlc.escalate.md), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.investigate`](../../src/orchestrator/sdlc/investigate.py#L1), [`orchestrator.sdlc.reviewloop`](../../src/orchestrator/sdlc/reviewloop.py#L1), [`orchestrator.sdlc.runstate`](../../src/orchestrator/sdlc/runstate.py#L1), [`orchestrator.sdlc.telemetry`](../../src/orchestrator/sdlc/telemetry.py#L1), [`orchestrator.sdlc.validity`](orchestrator.sdlc.validity.md), `os`, `pathlib.Path`, `tempfile`, `time`, `typing.Any`, `typing.Literal`, `uuid`
+`__future__.annotations`, `collections.abc.Callable`, `contextlib`, `dataclasses.dataclass`, `dataclasses.field`, `datetime.UTC`, `datetime.datetime`, [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1), [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), [`orchestrator.core.llm.recording`](../../src/orchestrator/core/llm/recording.py#L1), [`orchestrator.intake.cache`](orchestrator.intake.cache.md), [`orchestrator.intake.factory`](orchestrator.intake.factory.md), [`orchestrator.intake.jira`](../../src/orchestrator/intake/jira.py#L1), [`orchestrator.intake.service`](../../src/orchestrator/intake/service.py#L1), [`orchestrator.obs.tracing`](orchestrator.obs.tracing.md), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.pkg.overview`](../../src/orchestrator/pkg/overview.py#L1), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.design`](orchestrator.sdlc.design.md), [`orchestrator.sdlc.escalate`](../../src/orchestrator/sdlc/escalate.py#L1), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.investigate`](../../src/orchestrator/sdlc/investigate.py#L1), [`orchestrator.sdlc.reviewloop`](../../src/orchestrator/sdlc/reviewloop.py#L1), [`orchestrator.sdlc.runstate`](../../src/orchestrator/sdlc/runstate.py#L1), [`orchestrator.sdlc.telemetry`](../../src/orchestrator/sdlc/telemetry.py#L1), [`orchestrator.sdlc.validity`](orchestrator.sdlc.validity.md), `os`, `pathlib.Path`, `tempfile`, `time`, `typing.Any`, `typing.Literal`, `uuid`
 
 ## Imported by
 

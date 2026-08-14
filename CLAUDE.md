@@ -78,6 +78,15 @@ Keep new design records in here rather than in an untracked scratch directory.
   nodes first, then edges, and verify rather than eyeball:
   `node scripts/check-mermaid.js *.md` (runs the real `md.js`; non-zero on any fallback).
 - **`pkg extract --json` omits edges** — nodes + summary only.
+- **Fixture source inside this repo lands in this repo's own graph.** The accuracy corpus
+  under `corpus/` holds real `.py` files, and a repo-wide `pkg extract` walks them like any
+  other source — measured at **73 phantom nodes** from two cases, with
+  `py:corpus.python.plain.repo.shop.cart.Cart` presented as part of Spine and carried into
+  `episteme/`. Both walkers (`extractor.py`'s `DEFAULT_IGNORE_DIRS` filter and
+  `doc_source.py`'s) skip directories starting with `.`, so every fixture root is
+  **`.repo/`** and the leading dot is load-bearing — see `corpus/README.md`. `pkg verify`
+  does *not* catch this: fixture modules are perfectly self-consistent, so nothing will
+  remind you. Same trap for any future on-disk fixture tree, not just this corpus.
 - **`--language` is not validated in `cli.py`** — an unsupported language silently
   scaffolds a *Python* project (every dispatch chain falls through to the Python branch).
   Detection (`catalog/profile.py`) and extraction (`pkg/`) are independent systems; a
