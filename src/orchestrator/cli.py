@@ -1955,6 +1955,14 @@ def understand(
         str | None,
         typer.Option("--dialect", help="SQL dialect (postgres|mysql|tsql|oracle|…); default: auto-detect."),
     ] = None,
+    intents: Annotated[
+        bool,
+        typer.Option(
+            "--intents",
+            help="Also record which ticket each symbol was last changed for (Intent/SERVES). "
+            "Adds ~8s: one `git blame` per file. Opt-in — nothing renders these facts yet.",
+        ),
+    ] = False,
 ) -> None:
     """Build a committed `episteme/` — a code-true project knowledge base.
 
@@ -1973,7 +1981,9 @@ def understand(
 
     if check:
         with _repo_arg(path) as (repo, _):
-            report = check_memory_bank(repo, out_dir=out, sql_dialect=dialect, log=typer.echo)
+            report = check_memory_bank(
+                repo, out_dir=out, sql_dialect=dialect, intents=intents, log=typer.echo
+            )
         typer.echo(report.summary_line())
         for label, names in (
             ("out of date", report.stale),
@@ -1991,7 +2001,7 @@ def understand(
     with _repo_arg(path) as (repo, is_remote):
         out_dir = out or (Path(BANK_DIRNAME) if is_remote else memory_bank_dir(repo))
         result = build_memory_bank(
-            repo, out_dir=out_dir, refresh=refresh, sql_dialect=dialect, log=typer.echo
+            repo, out_dir=out_dir, refresh=refresh, sql_dialect=dialect, intents=intents, log=typer.echo
         )
     _print(
         {
@@ -2022,6 +2032,14 @@ def state(
         bool,
         typer.Option("--no-timestamp", help="Omit the generated-at time (byte-stable HTML for CI diffs)."),
     ] = False,
+    intents: Annotated[
+        bool,
+        typer.Option(
+            "--intents",
+            help="Also record which ticket each symbol was last changed for (Intent/SERVES). "
+            "Adds ~8s: one `git blame` per file. Opt-in — nothing renders these facts yet.",
+        ),
+    ] = False,
 ) -> None:
     """Current State — a team-facing snapshot of what a repo is today and how healthy it looks.
 
@@ -2041,12 +2059,14 @@ def state(
     with _repo_arg(path) as (repo, _):
         if want_html:
             content = _render_state_html(
-                repo, lens=lens, refresh=refresh, dialect=dialect, no_timestamp=no_timestamp
+                repo, lens=lens, refresh=refresh, dialect=dialect, no_timestamp=no_timestamp, intents=intents
             )
         else:
             from orchestrator.knowledge.current_state import build_current_state
 
-            content = build_current_state(repo, lens=lens, refresh=refresh, sql_dialect=dialect)
+            content = build_current_state(
+                repo, lens=lens, refresh=refresh, sql_dialect=dialect, intents=intents
+            )
     if out is not None:
         out.write_text(content, encoding="utf-8")
         typer.echo(f"wrote {out}")
@@ -2055,7 +2075,13 @@ def state(
 
 
 def _render_state_html(
-    repo: Path, *, lens: str, refresh: bool, dialect: str | None, no_timestamp: bool
+    repo: Path,
+    *,
+    lens: str,
+    refresh: bool,
+    dialect: str | None,
+    no_timestamp: bool,
+    intents: bool = False,
 ) -> str:
     """Build a `CurrentState` and render the self-contained shareable HTML report."""
     from datetime import datetime
@@ -2065,7 +2091,7 @@ def _render_state_html(
     from orchestrator.pkg.persistence import repo_state
     from orchestrator.pkg.store import FactStore
 
-    state, batch = load_current_state(repo, refresh=refresh, sql_dialect=dialect)
+    state, batch = load_current_state(repo, refresh=refresh, sql_dialect=dialect, intents=intents)
     sha, _dirty = repo_state(repo)
     grounded = sum(1 for n in batch.nodes if n.grounded)
     timestamp = None if no_timestamp else datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")

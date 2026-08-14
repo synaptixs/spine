@@ -125,6 +125,7 @@ def render_memory_bank(
     out_dir: Path | str | None = None,
     refresh: bool = False,
     sql_dialect: str | None = None,
+    intents: bool = False,
     log: Callable[[str], None] | None = None,
 ) -> RenderedBank:
     """Render every page of the knowledge base in memory (no writes)."""
@@ -138,7 +139,7 @@ def render_memory_bank(
 
     # One analysis layer, two renderings: `state` computes exactly this and prints it
     # (see `knowledge/analysis.py`). Everything below is rendering.
-    analysis = analyse(root_path, refresh=refresh, sql_dialect=sql_dialect)
+    analysis = analyse(root_path, refresh=refresh, sql_dialect=sql_dialect, intents=intents)
     store, stats, profile = analysis.store, analysis.stats, analysis.profile
     greenfield = analysis.greenfield
     kind = "greenfield" if greenfield else "brownfield"
@@ -246,11 +247,14 @@ def build_memory_bank(
     out_dir: Path | str | None = None,
     refresh: bool = False,
     sql_dialect: str | None = None,
+    intents: bool = False,
     log: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     """Render + write the memory bank; return a summary dict."""
     emit = log or (lambda _m: None)
-    bank = render_memory_bank(root, out_dir=out_dir, refresh=refresh, sql_dialect=sql_dialect, log=log)
+    bank = render_memory_bank(
+        root, out_dir=out_dir, refresh=refresh, sql_dialect=sql_dialect, intents=intents, log=log
+    )
     target = bank.target
     target.mkdir(parents=True, exist_ok=True)
     for name, content in bank.files.items():
@@ -313,6 +317,7 @@ def check_memory_bank(
     out_dir: Path | str | None = None,
     refresh: bool = False,
     sql_dialect: str | None = None,
+    intents: bool = False,
     log: Callable[[str], None] | None = None,
 ) -> BankCheck:
     """Compare the committed knowledge base against what the code says now.
@@ -332,7 +337,7 @@ def check_memory_bank(
         return BankCheck(bank_dir=bank_dir, absent=True, commit=sha, dirty=dirty)
 
     rendered = render_memory_bank(
-        root_path, out_dir=bank_dir, refresh=refresh, sql_dialect=sql_dialect, log=log
+        root_path, out_dir=bank_dir, refresh=refresh, sql_dialect=sql_dialect, intents=intents, log=log
     )
     missing: list[str] = []
     stale: list[str] = []

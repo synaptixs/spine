@@ -52,6 +52,7 @@ def analyse(
     *,
     refresh: bool = False,
     sql_dialect: str | None = None,
+    intents: bool = False,
 ) -> Analysis:
     """Build the graph and compute every metric both surfaces render from."""
     from orchestrator.catalog.profile import ProjectProfile
@@ -60,6 +61,7 @@ def analyse(
     from orchestrator.pkg.data_layer_link import link_data_layer
     from orchestrator.pkg.doc_link import link_docs
     from orchestrator.pkg.extractor import RepoCodeExtractor
+    from orchestrator.pkg.intent_link import link_intents
     from orchestrator.pkg.migrations import apply_migrations
     from orchestrator.pkg.persistence import load_or_extract
     from orchestrator.pkg.stats import summarise_store
@@ -79,6 +81,19 @@ def analyse(
     batch = link_data_layer(batch)
     # Fold the repo's text docs into the graph (Doc nodes + MENTIONS edges); no-op with no docs.
     batch = link_docs(batch, root_path)
+    # Which ticket each symbol was last changed for (Intent nodes + SERVES edges), from git
+    # blame joined to the issue key in each commit message. Opt-in, and deliberately so.
+    #
+    # Not in `RepoCodeExtractor`: the scan costs ~7.6s against extraction's ~2s, so putting it
+    # there would make `pkg extract`, `pkg verify` and the accuracy gate four times slower.
+    #
+    # Not on by default here either, and that reverses an earlier decision on evidence that
+    # decision did not have: nothing renders or queries these facts yet. `understand` writes
+    # eight files and none mention intent. Default-on would cost every user 10s per build —
+    # 17.8s to 28.0s — for output that is byte-identical. It becomes a default when something
+    # reads it.
+    if intents:
+        link_intents(batch, root_path)
 
     store = FactStore(batch)
     profile = ProjectProfile.from_repo(root_path)
