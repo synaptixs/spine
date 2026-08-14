@@ -102,7 +102,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/typescript_extractor.py:393`](../../src/orchestrator/pkg/typescript_extractor.py#L393)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L67)
-- **Calls** (5): `RuntimeError`, `language_tsx`, `language_typescript`, `tree_sitter.Language`, `tree_sitter.Parser`
+- **Calls** (4): `language_tsx`, `language_typescript`, `tree_sitter.Language`, `tree_sitter.Parser`
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-1-build.md#9-facts-the-generator-needs`
 
 ### `_unwrap`

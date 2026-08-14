@@ -42,7 +42,6 @@
 [`src/orchestrator/intake/adf.py:55`](../../src/orchestrator/intake/adf.py#L55)
 
 - **Called by** (2): [`_paragraph`](../../src/orchestrator/intake/adf.py#L85), [`_parse_blocks`](../../src/orchestrator/intake/adf.py#L198)
-- **Calls** (1): `py:push`
 
 ### `_is_table_start`
 
@@ -75,7 +74,7 @@
 [`src/orchestrator/intake/adf.py:139`](../../src/orchestrator/intake/adf.py#L139)
 
 - **Called by** (1): [`_parse_blocks`](../../src/orchestrator/intake/adf.py#L198)
-- **Calls** (2): [`_split_row`](../../src/orchestrator/intake/adf.py#L115), `py:row`
+- **Calls** (1): [`_split_row`](../../src/orchestrator/intake/adf.py#L115)
 
 ### `_split_row`
 

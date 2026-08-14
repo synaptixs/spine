@@ -155,7 +155,7 @@
 [`src/orchestrator/sdlc/layout.py:400`](../../src/orchestrator/sdlc/layout.py#L400)
 
 - **Called by** (2): [`_resolve_c_layout`](../../src/orchestrator/sdlc/layout.py#L430), [`_resolve_cpp_layout`](../../src/orchestrator/sdlc/layout.py#L467)
-- **Calls** (4): [`TargetLayout`](../../src/orchestrator/sdlc/layout.py#L79), [`_detect_c_build_tool`](../../src/orchestrator/sdlc/layout.py#L354), [`derive_package_name`](../../src/orchestrator/sdlc/layout.py#L106), `py:detect`
+- **Calls** (3): [`TargetLayout`](../../src/orchestrator/sdlc/layout.py#L79), [`_detect_c_build_tool`](../../src/orchestrator/sdlc/layout.py#L354), [`derive_package_name`](../../src/orchestrator/sdlc/layout.py#L106)
 
 ### `_resolve_sql_layout`
 

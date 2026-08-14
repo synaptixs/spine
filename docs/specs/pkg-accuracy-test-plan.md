@@ -67,9 +67,13 @@ per-construct parity — 2 declared, 1 in graph
     short: svc/api.py:7 declares 2 Endpoint, graph holds 1
 ```
 
-The f-string route is declared and unextractable. This is the class that hid `GET /healthz`
-and `GET /readyz` in Spine's own `registry/api/app.py` — real routes, no nodes, invisible to
-blast radius.
+The f-string route is declared and unextractable — a real shortfall, and this fixture is the
+one place it is guaranteed to appear.
+
+*(An earlier version of this document said this class "hid `GET /healthz` and `GET /readyz` in
+Spine's own registry". It did not: those routes were always extracted, and the shortfall
+reported against them was per-file parity attributing a shared `Endpoint` node to one file.
+Fixed — attribution now follows the `EXPOSES` edge.)*
 
 **Why shortfall and surplus are never averaged:** a router mounted twice legitimately yields
 more `Endpoint` nodes than decorators. A single ratio would read as recall while hiding both.

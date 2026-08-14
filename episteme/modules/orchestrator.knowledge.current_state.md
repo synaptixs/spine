@@ -45,7 +45,6 @@
 [`src/orchestrator/knowledge/current_state.py:633`](../../src/orchestrator/knowledge/current_state.py#L633)
 
 - **Called by** (1): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L708)
-- **Calls** (1): `py:_zone`
 
 ### `_documentation_section`
 
@@ -164,7 +163,6 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 [`src/orchestrator/knowledge/current_state.py:461`](../../src/orchestrator/knowledge/current_state.py#L461)
 
 - **Called by** (3): [`_architecture_section`](../../src/orchestrator/knowledge/report_html.py#L100), [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L526), [`architecture_svg`](../../src/orchestrator/knowledge/report_svg.py#L73)
-- **Calls** (2): `py:_is_test_area`, `py:add`
 - **Documented in**: `CHANGELOG.md`, `docs/specs/gap5-visualization-roadmap.md#phase-2-shipped-exit-criterion-met-scope-deliberately-trimmed`
 
 ### `architecture_mermaid`
@@ -172,13 +170,13 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 [`src/orchestrator/knowledge/current_state.py:526`](../../src/orchestrator/knowledge/current_state.py#L526)
 
 - **Called by** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L708), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1014)
-- **Calls** (5): [`_mid`](../../src/orchestrator/knowledge/current_state.py#L444), [`architecture_clusters`](../../src/orchestrator/knowledge/current_state.py#L496), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L461), `collections.defaultdict`, `py:_weight`
+- **Calls** (4): [`_mid`](../../src/orchestrator/knowledge/current_state.py#L444), [`architecture_clusters`](../../src/orchestrator/knowledge/current_state.py#L496), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L461), `collections.defaultdict`
 
 ### `build_current_state`
 
 [`src/orchestrator/knowledge/current_state.py:853`](../../src/orchestrator/knowledge/current_state.py#L853)
 
-- **Called by** (3 production · 2 test): [`_compute`](../../src/orchestrator/sdlc/comprehension.py#L31), [`adapter`](../../src/orchestrator/registry/api/capabilities.py#L261), [`state`](../../src/orchestrator/cli.py#L2007), [`test_build_current_state_end_to_end_python`](../../tests/knowledge/test_current_state.py#L193), [`test_infrastructure_section_from_real_repo`](../../tests/knowledge/test_current_state.py#L108)
+- **Called by** (3 production · 2 test): [`_compute`](../../src/orchestrator/sdlc/comprehension.py#L31), [`adapter`](../../src/orchestrator/registry/api/capabilities.py#L261), [`state`](../../src/orchestrator/cli.py#L2017), [`test_build_current_state_end_to_end_python`](../../tests/knowledge/test_current_state.py#L193), [`test_infrastructure_section_from_real_repo`](../../tests/knowledge/test_current_state.py#L108)
 - **Calls** (2): [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L835), [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L569)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
@@ -187,7 +185,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 [`src/orchestrator/knowledge/current_state.py:195`](../../src/orchestrator/knowledge/current_state.py#L195)
 
 - **Called by** (1 production · 13 test): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50), [`_many_area_state`](../../tests/knowledge/test_report_svg.py#L24), [`_state`](../../tests/knowledge/test_report_html.py#L50), [`test_auth_surface_and_recency_degrade`](../../tests/knowledge/test_current_state.py#L183), [`test_blast_radius_coverage_gaps`](../../tests/knowledge/test_report_html.py#L154), [`test_call_graph_hotspots_rendered`](../../tests/knowledge/test_current_state.py#L158), [`test_compute_metrics`](../../tests/knowledge/test_current_state.py#L53), [`test_developer_lens_renders_sections`](../../tests/knowledge/test_current_state.py#L91), [`test_documentation_metrics_and_section`](../../tests/knowledge/test_current_state.py#L64), [`test_function_areas_group_by_owning_module_not_symbol_id`](../../tests/knowledge/test_current_state.py#L134), [`test_no_documentation_section_without_docs`](../../tests/knowledge/test_current_state.py#L77), [`test_recommendations_flag_tests_and_fat_controller`](../../tests/knowledge/test_current_state.py#L83), [`test_spotlight_uses_graph_when_store_given`](../../tests/knowledge/test_report_html.py#L144), [`test_stakeholder_lens_is_plain_language`](../../tests/knowledge/test_current_state.py#L175)
-- **Calls** (15): [`CurrentState`](../../src/orchestrator/knowledge/current_state.py#L118), [`_entry_points`](../../src/orchestrator/knowledge/current_state.py#L384), [`_is_framework`](../../src/orchestrator/knowledge/current_state.py#L91), [`_is_generated`](../../src/orchestrator/knowledge/current_state.py#L87), [`_is_interface`](../../src/orchestrator/knowledge/current_state.py#L95), [`_layer`](../../src/orchestrator/knowledge/current_state.py#L100), [`_recent_areas`](../../src/orchestrator/knowledge/current_state.py#L169), [`_recommend`](../../src/orchestrator/knowledge/current_state.py#L416), `collections.Counter`, [`detect_infrastructure`](../../src/orchestrator/knowledge/infrastructure.py#L170), [`doc_drift`](../../src/orchestrator/pkg/doc_link.py#L69), [`is_test_area`](../../src/orchestrator/knowledge/current_state.py#L71), `py:_area`, `py:_area_of`, `py:_symbolish_drift`
+- **Calls** (12): [`CurrentState`](../../src/orchestrator/knowledge/current_state.py#L118), [`_entry_points`](../../src/orchestrator/knowledge/current_state.py#L384), [`_is_framework`](../../src/orchestrator/knowledge/current_state.py#L91), [`_is_generated`](../../src/orchestrator/knowledge/current_state.py#L87), [`_is_interface`](../../src/orchestrator/knowledge/current_state.py#L95), [`_layer`](../../src/orchestrator/knowledge/current_state.py#L100), [`_recent_areas`](../../src/orchestrator/knowledge/current_state.py#L169), [`_recommend`](../../src/orchestrator/knowledge/current_state.py#L416), `collections.Counter`, [`detect_infrastructure`](../../src/orchestrator/knowledge/infrastructure.py#L170), [`doc_drift`](../../src/orchestrator/pkg/doc_link.py#L69), [`is_test_area`](../../src/orchestrator/knowledge/current_state.py#L71)
 
 ### `is_test_area`
 
@@ -200,7 +198,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:835`](../../src/orchestrator/knowledge/current_state.py#L835)
 
-- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L2057), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L853), [`run`](../../src/orchestrator/plugin/server.py#L552), [`run`](../../src/orchestrator/plugin/server.py#L225)
+- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L2077), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L853), [`run`](../../src/orchestrator/plugin/server.py#L552), [`run`](../../src/orchestrator/plugin/server.py#L225)
 - **Calls** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 

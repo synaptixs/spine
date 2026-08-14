@@ -306,3 +306,30 @@ def test_counts_are_per_file_not_per_language(tmp_path: Path) -> None:
     messages = _parity(verify_batch(RepoCodeExtractor().extract(tmp_path), tmp_path))
     assert len(messages) == 1
     assert "app/bad.py" in messages[0]
+
+
+def test_an_endpoint_declared_in_two_files_is_credited_to_both(tmp_path: Path) -> None:
+    """The artifact that made this repo report 5 missing routes that were never missing.
+
+    `Endpoint` ids are keyed on verb+path, so two services each serving `/healthz` collapse
+    into ONE node, provenanced to whichever file was walked first. Counting endpoints by node
+    provenance credited that file and reported the other as short. Attribution follows the
+    EXPOSES edge instead, which carries each handler's own file.
+    """
+    pkg = tmp_path / "app"
+    pkg.mkdir(parents=True, exist_ok=True)
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    for name in ("one.py", "two.py"):
+        (pkg / name).write_text(
+            "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n"
+            '@router.get("/healthz")\ndef healthz() -> dict:\n    return {}\n',
+            encoding="utf-8",
+        )
+
+    batch = RepoCodeExtractor().extract(tmp_path)
+    endpoints = [n for n in batch.nodes if n.kind is NodeKind.ENDPOINT]
+    assert len(endpoints) == 1, "verb+path keying collapses them — that is the premise"
+
+    assert _parity(verify_batch(batch, tmp_path)) == [], (
+        "both files declare the route and both expose a handler; neither is short"
+    )

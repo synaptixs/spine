@@ -47,21 +47,20 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:707`](../../src/orchestrator/plugin/server.py#L707)
 
 - **Called by** (2): [`build_http_server`](../../src/orchestrator/plugin/server.py#L753), [`build_server`](../../src/orchestrator/plugin/server.py#L728)
-- **Calls** (1): `RuntimeError`
 
 ### `_in_repo`
 
 [`src/orchestrator/plugin/server.py:195`](../../src/orchestrator/plugin/server.py#L195)
 
 - **Called by** (3): [`docs_for`](../../src/orchestrator/plugin/server.py#L545), [`map_repo`](../../src/orchestrator/plugin/server.py#L217), [`sdlc_approve`](../../src/orchestrator/plugin/server.py#L491)
-- **Calls** (2): [`_open_repo`](../../src/orchestrator/plugin/server.py#L175), `py:fn`
+- **Calls** (1): [`_open_repo`](../../src/orchestrator/plugin/server.py#L175)
 
 ### `_in_repo_store`
 
 [`src/orchestrator/plugin/server.py:206`](../../src/orchestrator/plugin/server.py#L206)
 
 - **Called by** (5): [`blast_radius`](../../src/orchestrator/plugin/server.py#L248), [`explain_symbol`](../../src/orchestrator/plugin/server.py#L279), [`investigate`](../../src/orchestrator/plugin/server.py#L305), [`localize`](../../src/orchestrator/plugin/server.py#L329), [`regression_gaps`](../../src/orchestrator/plugin/server.py#L364)
-- **Calls** (2): [`_repo_store`](../../src/orchestrator/plugin/server.py#L187), `py:fn`
+- **Calls** (1): [`_repo_store`](../../src/orchestrator/plugin/server.py#L187)
 
 ### `_open_repo`
 
@@ -98,7 +97,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:753`](../../src/orchestrator/plugin/server.py#L753)
 
 - **Called by** (1 production · 3 test): [`main`](../../src/orchestrator/plugin/__main__.py#L52), [`test_http_server_loopback_unauthenticated_is_allowed`](../../tests/plugin/test_server.py#L386), [`test_http_server_refuses_public_bind_without_auth`](../../tests/plugin/test_server.py#L376), [`test_http_server_wires_static_auth`](../../tests/plugin/test_server.py#L396)
-- **Calls** (6): [`HttpServer`](../../src/orchestrator/plugin/server.py#L738), `RuntimeError`, [`_import_server_class`](../../src/orchestrator/plugin/server.py#L707), [`_register_tools`](../../src/orchestrator/plugin/server.py#L722), [`build_auth_from_env`](../../src/orchestrator/plugin/auth.py#L122), `py:server_cls`
+- **Calls** (4): [`HttpServer`](../../src/orchestrator/plugin/server.py#L738), [`_import_server_class`](../../src/orchestrator/plugin/server.py#L707), [`_register_tools`](../../src/orchestrator/plugin/server.py#L722), [`build_auth_from_env`](../../src/orchestrator/plugin/auth.py#L122)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `build_server`
@@ -211,14 +210,14 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:80`](../../src/orchestrator/plugin/server.py#L80)
 
 - **Called by** (0 production · 4 test): [`test_sdlc_feature_live_requires_confirm`](../../tests/plugin/test_server.py#L244), [`test_sdlc_feature_maps_run_error`](../../tests/plugin/test_server.py#L309), [`test_sdlc_feature_passes_greenfield_brownfield_params`](../../tests/plugin/test_server.py#L273), [`test_sdlc_feature_safe_maps_result`](../../tests/plugin/test_server.py#L250)
-- **Calls** (2): `py:PermissionError`, [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623)
+- **Calls** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623)
 
 ### `sdlc_plan`
 
 [`src/orchestrator/plugin/server.py:441`](../../src/orchestrator/plugin/server.py#L441)
 
 - **Called by** (0 production · 10 test): [`test_a_bad_repo_path_is_reported_not_raised`](../../tests/plugin/test_server.py#L509), [`test_a_rejection_says_who_and_why`](../../tests/plugin/test_server.py#L552), [`test_a_spec_with_nothing_to_satisfy_is_refused`](../../tests/plugin/test_server.py#L490), [`test_an_approval_nobody_is_named_for_is_refused`](../../tests/plugin/test_server.py#L572), [`test_an_invented_field_is_refused_with_the_valid_ones`](../../tests/plugin/test_server.py#L479), [`test_approving_binds_the_decision_to_the_document`](../../tests/plugin/test_server.py#L539), [`test_persist_can_be_turned_off`](../../tests/plugin/test_server.py#L498), [`test_sdlc_plan_needs_no_model_and_no_credentials`](../../tests/plugin/test_server.py#L465), [`test_sdlc_plan_returns_the_document_and_where_it_was_written`](../../tests/plugin/test_server.py#L455), [`test_the_plugin_and_the_cli_render_the_same_document`](../../tests/plugin/test_server.py#L517)
-- **Calls** (3): [`_open_repo`](../../src/orchestrator/plugin/server.py#L175), `py:run`, [`validate_spec`](../../src/orchestrator/sdlc/spec_file.py#L60)
+- **Calls** (2): [`_open_repo`](../../src/orchestrator/plugin/server.py#L175), [`validate_spec`](../../src/orchestrator/sdlc/spec_file.py#L60)
 
 ### `sdlc_run_result`
 
@@ -241,7 +240,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:625`](../../src/orchestrator/plugin/server.py#L625)
 
 - **Called by** (0 production · 2 test): [`test_sdlc_start_run_create_jira_requires_confirm`](../../tests/plugin/test_server.py#L323), [`test_sdlc_start_run_delegates_to_run_control`](../../tests/plugin/test_server.py#L330)
-- **Calls** (2): `py:PermissionError`, [`start_run`](../../src/orchestrator/sdlc/run_control.py#L49)
+- **Calls** (1): [`start_run`](../../src/orchestrator/sdlc/run_control.py#L49)
 - **Documented in**: `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#9-safe-vs-live-the-write-gate`, `CLAUDE_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `CODEX_GUIDE.md#9-safe-vs-live-the-write-gate`, `CODEX_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`
 
 ## Imports

@@ -4,6 +4,77 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.18.0 — Every front-end, and one finding withdrawn
+
+**Scope, first.** 3.17.0 measured two of the eight front-ends. This measures **all eight** —
+and that sentence needs a boundary drawn around it, because it is easy to read as more than it
+is. The numbers come from **19 hand-written fixture repositories**, two cases per language. They
+describe *this extractor's behaviour on shapes we chose*, not anyone's real codebase. The one
+oracle that measures real code — the runtime tracer — still covers Python only.
+
+### Added
+
+- **A corpus for every front-end Spine supports.** `java`, `csharp`, `c`, `cpp`, `go` and `sql`
+  each gain a control case and one hard shape. Every node kind and every edge kind except
+  `CALLS` scores 1.00/1.00 in every language.
+
+  | language | `CALLS` precision / recall |
+  |---|---|
+  | `c` `sql` | 1.00 / 1.00 |
+  | `python` | 1.00 / 0.73 |
+  | `cpp` `csharp` `go` `java` | 1.00 / 0.67 |
+  | `typescript` | 1.00 / 0.50 |
+
+  `CALLS` is the only kind needing *resolution* rather than parsing, and the only one that
+  loses anything. Every language's remaining loss is the documented instance-dispatch skip.
+
+- **CI measures every front-end it ships code for.** The six tree-sitter extras are now
+  installed in CI. Before this, only `python` and `sql` front-ends registered there — so 89
+  tests skipped, and the TypeScript figures in the committed baseline had been measured once on
+  a developer machine and skipped by every run since. A TypeScript regression could not have
+  failed a build.
+
+- **`--intents` on `understand` and `state`.** The intent scan is 3× faster (23.0s → 7.6s):
+  `git blame` runs concurrently at 8 workers, and the commit lookup is one `git log` instead of
+  one per commit. It stays **opt-in** — nothing renders or queries `Intent` facts yet, so
+  default-on would cost 10s per build for byte-identical output. It becomes a default when
+  something reads it.
+
+### Fixed
+
+- **The graph no longer asserts a call to anything that does not exist — in any language.**
+  Two front-ends invented call targets for a name they could not resolve:
+
+  - **Python** emitted `py:{name}` for any bare call that was not a builtin, an import, or a
+    module-level def — every parameter, local and nested function. **497 edges here, 3.16% of
+    the call graph.** The resolver already stated the right rule for ambiguous attribute
+    chains — *skip rather than guess* — three lines below; it simply was not applied to names.
+  - **C** emitted `c:{name}` for a call through a function-pointer parameter. C could not take
+    Python's fix: an unresolved callee in C is usually a function declared in a header and
+    linked from another translation unit, and skipping those would silence every
+    cross-translation-unit call in every C repository. The test is *"did this function bind the
+    name"*, not *"can we resolve it"*.
+
+  Python `CALLS` precision 0.80 → 1.00, C 0.67 → 1.00, with recall unchanged in both — the
+  evidence that nothing true was removed.
+
+- **Per-file parity credits an endpoint to every file that declares it.** `Endpoint` ids are
+  keyed on verb+path, so services sharing a route collapse into one node; counting by node
+  provenance credited one file and reported every other as short. Attribution now follows the
+  `EXPOSES` edge. Shortfall 5 → 0.
+
+### Withdrawn
+
+- **"Two live routes invisible to the graph" (3.17.0) was false.** `GET /healthz` and
+  `GET /readyz` were always extracted and `EXPOSES` always reached every handler. The finding
+  came from reading *"this file declares 2, graph holds 0"* and not checking whether the nodes
+  existed elsewhere — they did. The entire shortfall was the artifact described above.
+
+  It is recorded rather than deleted, here and in the design records, because of what it is: a
+  measurement built to catch under-reporting produced a false finding, and nothing in the check
+  could tell the difference. That is the failure this work exists to prevent, occurring inside
+  it.
+
 ## 3.17.0 — Is the graph right?
 
 **Scope, stated first so nothing below is read as more than it is.** This release makes the
@@ -70,9 +141,15 @@ The other six (`java`, `csharp`, `c`, `cpp`, `go`, `sql`) gain the machinery and
 
 - **`source-parity` counts instead of testing for presence.** It asked *"does this language
   have **any** `Endpoint` node?"*; it now asks, per file and with `file:line`, *"this
-  declares 4 route decorators and the graph holds 1 — where did 3 go?"*. It found two live
-  routes invisible to the graph: `GET /healthz` and `GET /readyz`, declared inside an app
-  factory whose router the extractor could not resolve.
+  declares 4 route decorators and the graph holds 1 — where did 3 go?"*.
+
+  ~~It found two live routes invisible to the graph: `GET /healthz` and `GET /readyz`.~~
+  **Corrected after release:** that finding was false. Both routes were always extracted and
+  `EXPOSES` always reached every handler. `Endpoint` ids are keyed on verb+path, so services
+  sharing a route collapse into one node, and per-file parity counted by node provenance — so
+  every other declaring file read as short. The shortfall was the metric's own artifact. Fixed
+  in the next release; the claim is struck rather than deleted because a measurement that
+  produced a false finding is worth recording.
 
 ## 3.16.2 — A host that owns the model, and four failures that read as crashes
 

@@ -112,7 +112,7 @@
 
 [`src/orchestrator/pkg/persistence.py:137`](../../src/orchestrator/pkg/persistence.py#L137)
 
-- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L2057), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L310), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L218), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
+- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L2077), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L314), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L218), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
 - **Calls** (2): [`_git`](../../src/orchestrator/pkg/persistence.py#L130), `pathlib.Path`
 
 ### `save_facts`

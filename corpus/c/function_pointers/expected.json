@@ -1,0 +1,53 @@
+{
+  "language": "c",
+  "case": "function_pointers",
+  "root": ".repo",
+  "why": "A call through a function pointer \u2014 C's version of the shape that is a parameter in Python, TypeScript, Go, Java and C#. It is here because it found something: the front-end did not skip it, it INVENTED a target. Now fixed, and this case is the guard.",
+  "nodes": [
+    {
+      "id": "c:src/dispatch.c",
+      "kind": "Module"
+    },
+    {
+      "id": "c:handle",
+      "kind": "Function"
+    },
+    {
+      "id": "c:run",
+      "kind": "Function"
+    },
+    {
+      "id": "c:direct",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "c:src/dispatch.c",
+      "dst": "c:handle",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:src/dispatch.c",
+      "dst": "c:run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:src/dispatch.c",
+      "dst": "c:direct",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:direct",
+      "dst": "c:handle",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": [],
+  "resolved_by_measurement": [
+    "`c:run -CALLS-> c:cb` was emitted for a function-pointer parameter \u2014 the same invention class as py:cls, py:fn and py:echo, in a second front-end. Fixed by skipping callees the function itself binds. The test is deliberately 'did this function bind the name', not 'can we resolve it': in C an unresolved callee is usually a function declared in a header and linked from another translation unit, which is the normal case and keeps its `c:name` id. A Python-style 'skip anything unresolved' fix would have silenced every cross-translation-unit call in every C repository."
+  ]
+}

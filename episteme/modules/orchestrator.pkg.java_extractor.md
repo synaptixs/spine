@@ -83,7 +83,7 @@ _15 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/java_extractor.py:424`](../../src/orchestrator/pkg/java_extractor.py#L424)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/java_extractor.py#L67)
-- **Calls** (4): `RuntimeError`, `language`, `tree_sitter.Language`, `tree_sitter.Parser`
+- **Calls** (3): `language`, `tree_sitter.Language`, `tree_sitter.Parser`
 
 ### `_jax_rs_endpoints`
 

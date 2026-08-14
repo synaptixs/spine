@@ -511,7 +511,7 @@ class PythonExtractor:
                 return imports[func.id]
             if func.id in names:
                 return names[func.id]
-            return f"py:{func.id}"
+            return None
         if isinstance(func, ast.Attribute):
             value = func.value
             if isinstance(value, ast.Name):

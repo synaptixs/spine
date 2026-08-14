@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/pkg/c_extractor.py`](../../src/orchestrator/pkg/c_extractor.py)
 
-1 types · 16 functions · python
+1 types · 18 functions · python
 
 ## Changing this safely
 
@@ -13,16 +13,16 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_text`](../../src/orchestrator/pkg/c_extractor.py#L433) — reaches **29** symbols · **no test path visible**
-- [`_declarator_name`](../../src/orchestrator/pkg/c_extractor.py#L360) — reaches **14** symbols · **no test path visible**
-- [`_function_declarator`](../../src/orchestrator/pkg/c_extractor.py#L348) — reaches **11** symbols · **no test path visible**
-- [`_field_text`](../../src/orchestrator/pkg/c_extractor.py#L428) — reaches **10** symbols · **no test path visible**
-- [`_declared_names`](../../src/orchestrator/pkg/c_extractor.py#L374) — reaches **9** symbols · **no test path visible**
-- [`_member_type_name`](../../src/orchestrator/pkg/c_extractor.py#L387) — reaches **9** symbols · **no test path visible**
-- [`_has_body`](../../src/orchestrator/pkg/c_extractor.py#L407) — reaches **7** symbols · **no test path visible**
-- [`_header_index`](../../src/orchestrator/pkg/c_extractor.py#L314) — reaches **7** symbols · **no test path visible**
+- [`_text`](../../src/orchestrator/pkg/c_extractor.py#L491) — reaches **31** symbols · **no test path visible**
+- [`_declarator_name`](../../src/orchestrator/pkg/c_extractor.py#L418) — reaches **14** symbols · **no test path visible**
+- [`_function_declarator`](../../src/orchestrator/pkg/c_extractor.py#L406) — reaches **11** symbols · **no test path visible**
+- [`_field_text`](../../src/orchestrator/pkg/c_extractor.py#L486) — reaches **10** symbols · **no test path visible**
+- [`_declared_names`](../../src/orchestrator/pkg/c_extractor.py#L432) — reaches **9** symbols · **no test path visible**
+- [`_member_type_name`](../../src/orchestrator/pkg/c_extractor.py#L445) — reaches **9** symbols · **no test path visible**
+- [`_has_body`](../../src/orchestrator/pkg/c_extractor.py#L465) — reaches **7** symbols · **no test path visible**
+- [`_header_index`](../../src/orchestrator/pkg/c_extractor.py#L325) — reaches **7** symbols · **no test path visible**
 
-_16 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_18 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Types
 
@@ -36,113 +36,127 @@ _16 of the symbols other code depends on here have no test path the graph can se
 
 ## Functions
 
+### `_bound_names`
+
+[`src/orchestrator/pkg/c_extractor.py:361`](../../src/orchestrator/pkg/c_extractor.py#L361)
+
+- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/c_extractor.py#L255)
+- **Calls** (1): [`_identifiers_in`](../../src/orchestrator/pkg/c_extractor.py#L345)
+
 ### `_c_parser`
 
-[`src/orchestrator/pkg/c_extractor.py:439`](../../src/orchestrator/pkg/c_extractor.py#L439)
+[`src/orchestrator/pkg/c_extractor.py:497`](../../src/orchestrator/pkg/c_extractor.py#L497)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/c_extractor.py#L73)
-- **Calls** (4): `RuntimeError`, `language`, `tree_sitter.Language`, `tree_sitter.Parser`
+- **Calls** (3): `language`, `tree_sitter.Language`, `tree_sitter.Parser`
 
 ### `_calls_in`
 
-[`src/orchestrator/pkg/c_extractor.py:334`](../../src/orchestrator/pkg/c_extractor.py#L334)
+[`src/orchestrator/pkg/c_extractor.py:392`](../../src/orchestrator/pkg/c_extractor.py#L392)
 
 - **Called by** (1): [`_calls`](../../src/orchestrator/pkg/c_extractor.py#L255)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/c_extractor.py#L433)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/c_extractor.py#L491)
 
 ### `_declarator_name`
 
-[`src/orchestrator/pkg/c_extractor.py:360`](../../src/orchestrator/pkg/c_extractor.py#L360)
+[`src/orchestrator/pkg/c_extractor.py:418`](../../src/orchestrator/pkg/c_extractor.py#L418)
 
-- **Called by** (7): [`_calls`](../../src/orchestrator/pkg/c_extractor.py#L255), [`_declaration`](../../src/orchestrator/pkg/c_extractor.py#L222), [`_declaration`](../../src/orchestrator/pkg/cpp_extractor.py#L247), [`_declared_names`](../../src/orchestrator/pkg/c_extractor.py#L374), [`_function`](../../src/orchestrator/pkg/c_extractor.py#L193), [`_function_def`](../../src/orchestrator/pkg/cpp_extractor.py#L214), [`_member_function`](../../src/orchestrator/pkg/cpp_extractor.py#L193)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/c_extractor.py#L433)
+- **Called by** (7): [`_calls`](../../src/orchestrator/pkg/c_extractor.py#L255), [`_declaration`](../../src/orchestrator/pkg/c_extractor.py#L222), [`_declaration`](../../src/orchestrator/pkg/cpp_extractor.py#L247), [`_declared_names`](../../src/orchestrator/pkg/c_extractor.py#L432), [`_function`](../../src/orchestrator/pkg/c_extractor.py#L193), [`_function_def`](../../src/orchestrator/pkg/cpp_extractor.py#L214), [`_member_function`](../../src/orchestrator/pkg/cpp_extractor.py#L193)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/c_extractor.py#L491)
 
 ### `_declared_names`
 
-[`src/orchestrator/pkg/c_extractor.py:374`](../../src/orchestrator/pkg/c_extractor.py#L374)
+[`src/orchestrator/pkg/c_extractor.py:432`](../../src/orchestrator/pkg/c_extractor.py#L432)
 
 - **Called by** (2): [`_emit_type`](../../src/orchestrator/pkg/c_extractor.py#L156), [`_emit_type`](../../src/orchestrator/pkg/cpp_extractor.py#L148)
-- **Calls** (2): [`_declarator_name`](../../src/orchestrator/pkg/c_extractor.py#L360), [`_text`](../../src/orchestrator/pkg/c_extractor.py#L433)
+- **Calls** (2): [`_declarator_name`](../../src/orchestrator/pkg/c_extractor.py#L418), [`_text`](../../src/orchestrator/pkg/c_extractor.py#L491)
 
 ### `_field_text`
 
-[`src/orchestrator/pkg/c_extractor.py:428`](../../src/orchestrator/pkg/c_extractor.py#L428)
+[`src/orchestrator/pkg/c_extractor.py:486`](../../src/orchestrator/pkg/c_extractor.py#L486)
 
-- **Called by** (8): [`_declaration`](../../src/orchestrator/pkg/c_extractor.py#L222), [`_declaration`](../../src/orchestrator/pkg/cpp_extractor.py#L247), [`_emit_type`](../../src/orchestrator/pkg/c_extractor.py#L156), [`_emit_type`](../../src/orchestrator/pkg/cpp_extractor.py#L148), [`_member_type_name`](../../src/orchestrator/pkg/c_extractor.py#L387), [`_top_level`](../../src/orchestrator/pkg/c_extractor.py#L95), [`_typedef`](../../src/orchestrator/pkg/c_extractor.py#L148), [`_walk`](../../src/orchestrator/pkg/cpp_extractor.py#L88)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/c_extractor.py#L433)
+- **Called by** (8): [`_declaration`](../../src/orchestrator/pkg/c_extractor.py#L222), [`_declaration`](../../src/orchestrator/pkg/cpp_extractor.py#L247), [`_emit_type`](../../src/orchestrator/pkg/c_extractor.py#L156), [`_emit_type`](../../src/orchestrator/pkg/cpp_extractor.py#L148), [`_member_type_name`](../../src/orchestrator/pkg/c_extractor.py#L445), [`_top_level`](../../src/orchestrator/pkg/c_extractor.py#L95), [`_typedef`](../../src/orchestrator/pkg/c_extractor.py#L148), [`_walk`](../../src/orchestrator/pkg/cpp_extractor.py#L88)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/c_extractor.py#L491)
 
 ### `_function_declarator`
 
-[`src/orchestrator/pkg/c_extractor.py:348`](../../src/orchestrator/pkg/c_extractor.py#L348)
+[`src/orchestrator/pkg/c_extractor.py:406`](../../src/orchestrator/pkg/c_extractor.py#L406)
 
 - **Called by** (7): [`_calls`](../../src/orchestrator/pkg/c_extractor.py#L255), [`_declaration`](../../src/orchestrator/pkg/c_extractor.py#L222), [`_declaration`](../../src/orchestrator/pkg/cpp_extractor.py#L247), [`_emit_type`](../../src/orchestrator/pkg/cpp_extractor.py#L148), [`_function`](../../src/orchestrator/pkg/c_extractor.py#L193), [`_function_def`](../../src/orchestrator/pkg/cpp_extractor.py#L214), [`_member_function`](../../src/orchestrator/pkg/cpp_extractor.py#L193)
 
 ### `_has_body`
 
-[`src/orchestrator/pkg/c_extractor.py:407`](../../src/orchestrator/pkg/c_extractor.py#L407)
+[`src/orchestrator/pkg/c_extractor.py:465`](../../src/orchestrator/pkg/c_extractor.py#L465)
 
 - **Called by** (5): [`_declaration`](../../src/orchestrator/pkg/c_extractor.py#L222), [`_declaration`](../../src/orchestrator/pkg/cpp_extractor.py#L247), [`_emit_type`](../../src/orchestrator/pkg/cpp_extractor.py#L148), [`_top_level`](../../src/orchestrator/pkg/c_extractor.py#L95), [`_walk`](../../src/orchestrator/pkg/cpp_extractor.py#L88)
 
 ### `_has_storage`
 
-[`src/orchestrator/pkg/c_extractor.py:415`](../../src/orchestrator/pkg/c_extractor.py#L415)
+[`src/orchestrator/pkg/c_extractor.py:473`](../../src/orchestrator/pkg/c_extractor.py#L473)
 
-- **Called by** (2): [`_declaration`](../../src/orchestrator/pkg/c_extractor.py#L222), [`_is_static`](../../src/orchestrator/pkg/c_extractor.py#L411)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/c_extractor.py#L433)
+- **Called by** (2): [`_declaration`](../../src/orchestrator/pkg/c_extractor.py#L222), [`_is_static`](../../src/orchestrator/pkg/c_extractor.py#L469)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/c_extractor.py#L491)
 
 ### `_header_index`
 
-[`src/orchestrator/pkg/c_extractor.py:314`](../../src/orchestrator/pkg/c_extractor.py#L314)
+[`src/orchestrator/pkg/c_extractor.py:325`](../../src/orchestrator/pkg/c_extractor.py#L325)
 
-- **Called by** (1): [`_resolve_include`](../../src/orchestrator/pkg/c_extractor.py#L289)
+- **Called by** (1): [`_resolve_include`](../../src/orchestrator/pkg/c_extractor.py#L300)
+
+### `_identifiers_in`
+
+[`src/orchestrator/pkg/c_extractor.py:345`](../../src/orchestrator/pkg/c_extractor.py#L345)
+
+- **Called by** (1): [`_bound_names`](../../src/orchestrator/pkg/c_extractor.py#L361)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/c_extractor.py#L491)
 
 ### `_is_static`
 
-[`src/orchestrator/pkg/c_extractor.py:411`](../../src/orchestrator/pkg/c_extractor.py#L411)
+[`src/orchestrator/pkg/c_extractor.py:469`](../../src/orchestrator/pkg/c_extractor.py#L469)
 
 - **Called by** (2): [`_declaration`](../../src/orchestrator/pkg/c_extractor.py#L222), [`_function`](../../src/orchestrator/pkg/c_extractor.py#L193)
-- **Calls** (1): [`_has_storage`](../../src/orchestrator/pkg/c_extractor.py#L415)
+- **Calls** (1): [`_has_storage`](../../src/orchestrator/pkg/c_extractor.py#L473)
 
 ### `_iter_top_level`
 
-[`src/orchestrator/pkg/c_extractor.py:277`](../../src/orchestrator/pkg/c_extractor.py#L277)
+[`src/orchestrator/pkg/c_extractor.py:288`](../../src/orchestrator/pkg/c_extractor.py#L288)
 
-- **Called by** (2): [`_iter_top_level`](../../src/orchestrator/pkg/c_extractor.py#L277), [`extract`](../../src/orchestrator/pkg/c_extractor.py#L73)
-- **Calls** (1): [`_iter_top_level`](../../src/orchestrator/pkg/c_extractor.py#L277)
+- **Called by** (2): [`_iter_top_level`](../../src/orchestrator/pkg/c_extractor.py#L288), [`extract`](../../src/orchestrator/pkg/c_extractor.py#L73)
+- **Calls** (1): [`_iter_top_level`](../../src/orchestrator/pkg/c_extractor.py#L288)
 
 ### `_last_type_identifier`
 
-[`src/orchestrator/pkg/c_extractor.py:401`](../../src/orchestrator/pkg/c_extractor.py#L401)
+[`src/orchestrator/pkg/c_extractor.py:459`](../../src/orchestrator/pkg/c_extractor.py#L459)
 
 - **Called by** (1): [`_typedef`](../../src/orchestrator/pkg/c_extractor.py#L148)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/c_extractor.py#L433)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/c_extractor.py#L491)
 
 ### `_member_type_name`
 
-[`src/orchestrator/pkg/c_extractor.py:387`](../../src/orchestrator/pkg/c_extractor.py#L387)
+[`src/orchestrator/pkg/c_extractor.py:445`](../../src/orchestrator/pkg/c_extractor.py#L445)
 
 - **Called by** (2): [`_emit_type`](../../src/orchestrator/pkg/c_extractor.py#L156), [`_emit_type`](../../src/orchestrator/pkg/cpp_extractor.py#L148)
-- **Calls** (2): [`_field_text`](../../src/orchestrator/pkg/c_extractor.py#L428), [`_text`](../../src/orchestrator/pkg/c_extractor.py#L433)
+- **Calls** (2): [`_field_text`](../../src/orchestrator/pkg/c_extractor.py#L486), [`_text`](../../src/orchestrator/pkg/c_extractor.py#L491)
 
 ### `_resolve_include`
 
-[`src/orchestrator/pkg/c_extractor.py:289`](../../src/orchestrator/pkg/c_extractor.py#L289)
+[`src/orchestrator/pkg/c_extractor.py:300`](../../src/orchestrator/pkg/c_extractor.py#L300)
 
 - **Called by** (2): [`_include`](../../src/orchestrator/pkg/c_extractor.py#L120), [`_include`](../../src/orchestrator/pkg/cpp_extractor.py#L122)
-- **Calls** (2): [`_header_index`](../../src/orchestrator/pkg/c_extractor.py#L314), `pathlib.Path`
+- **Calls** (2): [`_header_index`](../../src/orchestrator/pkg/c_extractor.py#L325), `pathlib.Path`
 
 ### `_string_content`
 
-[`src/orchestrator/pkg/c_extractor.py:421`](../../src/orchestrator/pkg/c_extractor.py#L421)
+[`src/orchestrator/pkg/c_extractor.py:479`](../../src/orchestrator/pkg/c_extractor.py#L479)
 
 - **Called by** (2): [`_include`](../../src/orchestrator/pkg/c_extractor.py#L120), [`_include`](../../src/orchestrator/pkg/cpp_extractor.py#L122)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/c_extractor.py#L433)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/c_extractor.py#L491)
 
 ### `_text`
 
-[`src/orchestrator/pkg/c_extractor.py:433`](../../src/orchestrator/pkg/c_extractor.py#L433)
+[`src/orchestrator/pkg/c_extractor.py:491`](../../src/orchestrator/pkg/c_extractor.py#L491)
 
-- **Called by** (13): [`_calls_in`](../../src/orchestrator/pkg/c_extractor.py#L334), [`_declarator_name`](../../src/orchestrator/pkg/c_extractor.py#L360), [`_declared_names`](../../src/orchestrator/pkg/c_extractor.py#L374), [`_field_text`](../../src/orchestrator/pkg/c_extractor.py#L428), [`_has_storage`](../../src/orchestrator/pkg/c_extractor.py#L415), [`_include`](../../src/orchestrator/pkg/c_extractor.py#L120), [`_include`](../../src/orchestrator/pkg/cpp_extractor.py#L122), [`_last_type_identifier`](../../src/orchestrator/pkg/c_extractor.py#L401), [`_member_type_name`](../../src/orchestrator/pkg/c_extractor.py#L387), [`_qualified_text`](../../src/orchestrator/pkg/cpp_extractor.py#L359), [`_resolve_callee`](../../src/orchestrator/pkg/cpp_extractor.py#L335), [`_string_content`](../../src/orchestrator/pkg/c_extractor.py#L421), [`_template_params`](../../src/orchestrator/pkg/cpp_extractor.py#L367)
+- **Called by** (14): [`_calls_in`](../../src/orchestrator/pkg/c_extractor.py#L392), [`_declarator_name`](../../src/orchestrator/pkg/c_extractor.py#L418), [`_declared_names`](../../src/orchestrator/pkg/c_extractor.py#L432), [`_field_text`](../../src/orchestrator/pkg/c_extractor.py#L486), [`_has_storage`](../../src/orchestrator/pkg/c_extractor.py#L473), [`_identifiers_in`](../../src/orchestrator/pkg/c_extractor.py#L345), [`_include`](../../src/orchestrator/pkg/c_extractor.py#L120), [`_include`](../../src/orchestrator/pkg/cpp_extractor.py#L122), [`_last_type_identifier`](../../src/orchestrator/pkg/c_extractor.py#L459), [`_member_type_name`](../../src/orchestrator/pkg/c_extractor.py#L445), [`_qualified_text`](../../src/orchestrator/pkg/cpp_extractor.py#L359), [`_resolve_callee`](../../src/orchestrator/pkg/cpp_extractor.py#L335), [`_string_content`](../../src/orchestrator/pkg/c_extractor.py#L479), [`_template_params`](../../src/orchestrator/pkg/cpp_extractor.py#L367)
 
 ## Imports
 

@@ -28,7 +28,7 @@
 
 [`src/orchestrator/registry/api/workspace.py:38`](../../src/orchestrator/registry/api/workspace.py#L38)
 
-- **Extends** (1): `py:ValueError`
+- **Extends** (1): `ValueError`
 - **Called by** (2): [`_resolve_local`](../../src/orchestrator/registry/api/workspace.py#L155), [`resolve_repo_path`](../../src/orchestrator/registry/api/workspace.py#L53)
 
 ### `RepoSource`
@@ -42,7 +42,7 @@
 
 [`src/orchestrator/registry/api/workspace.py:42`](../../src/orchestrator/registry/api/workspace.py#L42)
 
-- **Extends** (1): `py:ValueError`
+- **Extends** (1): `ValueError`
 - **Called by** (2): [`_git_clone`](../../src/orchestrator/registry/api/workspace.py#L188), [`_validate_git_url`](../../src/orchestrator/registry/api/workspace.py#L132)
 
 ## Functions
@@ -111,7 +111,7 @@
 [`src/orchestrator/registry/api/workspace.py:216`](../../src/orchestrator/registry/api/workspace.py#L216)
 
 - **Called by** (7 production · 3 test): [`_open_repo`](../../src/orchestrator/plugin/server.py#L175), [`_repo_arg`](../../src/orchestrator/cli.py#L105), [`_run`](../../src/orchestrator/registry/api/capabilities.py#L59), [`adapter`](../../src/orchestrator/registry/api/capabilities.py#L325), [`adapter`](../../src/orchestrator/registry/api/capabilities.py#L295), [`adapter`](../../src/orchestrator/registry/api/capabilities.py#L261), [`adapter`](../../src/orchestrator/registry/api/capabilities.py#L218), [`test_clone_failure_is_sanitized_error`](../../tests/registry/test_repo_sources.py#L125), [`test_materialize_git_clones_then_cleans_up`](../../tests/registry/test_repo_sources.py#L108), [`test_materialize_local_yields_path_no_clone`](../../tests/registry/test_repo_sources.py#L119)
-- **Calls** (5): [`_git_clone`](../../src/orchestrator/registry/api/workspace.py#L188), `mkdtemp`, `pathlib.Path`, `py:log`, `rmtree`
+- **Calls** (4): [`_git_clone`](../../src/orchestrator/registry/api/workspace.py#L188), `mkdtemp`, `pathlib.Path`, `rmtree`
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#phases`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `resolve_repo_path`

@@ -85,7 +85,7 @@ _9 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/registry/api/connections.py:90`](../../src/orchestrator/registry/api/connections.py#L90)
 
 - **Called by** (2): [`add_server`](../../src/orchestrator/registry/api/connections.py#L187), [`connections`](../../src/orchestrator/registry/api/connections.py#L116)
-- **Calls** (5): [`ServerInfo`](../../src/orchestrator/registry/api/connections.py#L40), [`ToolInfo`](../../src/orchestrator/registry/api/connections.py#L32), [`_transport`](../../src/orchestrator/registry/api/connections.py#L83), `py:factory`, `wait_for`
+- **Calls** (4): [`ServerInfo`](../../src/orchestrator/registry/api/connections.py#L40), [`ToolInfo`](../../src/orchestrator/registry/api/connections.py#L32), [`_transport`](../../src/orchestrator/registry/api/connections.py#L83), `wait_for`
 
 ### `_transport`
 

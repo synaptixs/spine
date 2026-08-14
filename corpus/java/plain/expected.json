@@ -1,0 +1,82 @@
+{
+  "language": "java",
+  "case": "plain",
+  "why": "The java control. An interface implemented by name \u2014 unlike Go, where satisfaction is structural \u2014 plus a field and a call to a sibling method through implicit `this`.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "java:app",
+      "kind": "Module"
+    },
+    {
+      "id": "java:app.Pricer",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.Cart",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.Pricer.subtotal",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.Cart.subtotal",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.Cart.compute",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.Cart.total",
+      "kind": "Field"
+    }
+  ],
+  "edges": [
+    {
+      "src": "java:app",
+      "dst": "java:app.Pricer",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app",
+      "dst": "java:app.Cart",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.Pricer",
+      "dst": "java:app.Pricer.subtotal",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.Cart",
+      "dst": "java:app.Cart.total",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.Cart",
+      "dst": "java:app.Cart.subtotal",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.Cart",
+      "dst": "java:app.Cart.compute",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.Cart",
+      "dst": "java:app.Pricer",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "java:app.Cart.compute",
+      "dst": "java:app.Cart.subtotal",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": []
+}

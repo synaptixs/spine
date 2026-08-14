@@ -109,9 +109,10 @@ mapped and the tool says so. It does not quietly fall back to guessing. This is 
 principle as the document declining to fill a section it cannot establish — applied one
 layer down, where nobody would have checked.
 
-**One exception, named rather than buried:** database schema files are still read by
-pattern-matching. It is the oldest corner of the map and the least trustworthy, and it is
-the reason this claim carries an asterisk rather than none.
+*(An earlier version of this brief claimed database schema files were the exception — read by
+pattern-matching rather than parsed. That was wrong, and the correction belongs here rather
+than in a silent edit: SQL is parsed by a real multi-dialect parser like every other language.
+The claim above has no asterisk.)*
 
 This is the foundation under the honest limit stated below. We can say the map is built
 correctly. We cannot yet say it is complete — and those are different claims.

@@ -364,11 +364,12 @@ With AST counting: **68 declared, 70 in graph — shortfall 5, surplus 7.** Repo
 never averaged: a doubly-mounted router legitimately yields more nodes than decorators, so
 a combined ratio (1.03 here) reads as recall while hiding both halves.
 
-**It immediately found two invisible production routes.** `registry/api/app.py:110`
-declares `GET /healthz` and `GET /readyz` inside the `create_app()` factory; the router is
-a local variable the extractor cannot resolve, so the graph holds nothing. Blast radius,
-impact analysis and the build document all believe those endpoints do not exist — and the
-previous check could never have said so, because Python *does* have `Endpoint` nodes.
+**Correction (2026-08-14).** The claim below that `GET /healthz` and `GET /readyz` were *invisible to the graph* was wrong, and it is kept rather than deleted because the way it was wrong is the useful part. Both routes were always extracted, and `EXPOSES` always reached all three handlers. What was true is narrower: `Endpoint` ids are keyed on verb+path, so three services each serving `/healthz` collapse into one node provenanced to whichever file was walked first — and per-file parity counted endpoints by node provenance, so every other declaring file read as short. **The entire shortfall of 5 was that artifact.** The measurement produced a false finding, and no route was ever missing.
+
+~~**It immediately found two invisible production routes.**~~ *(Original text: "`registry/api/app.py:110`
+declares `GET /healthz` and `GET /readyz` … the router is a local variable the extractor
+cannot resolve, so the graph holds nothing.")* The router resolves. Both routes are in the
+graph. What the check found was its own attribution rule counting a shared node once.
 
 Plan: [`build-documents/PKG-ACC-3-build.md`](build-documents/PKG-ACC-3-build.md).
 

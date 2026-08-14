@@ -43,11 +43,17 @@ def repo(tmp_path: Path) -> Path:
 
 
 def test_the_invention_oracle_reports_and_exits_zero(runner: CliRunner, repo: Path) -> None:
-    """A low score is a finding, not a build failure. Only `--check` gates."""
+    """A low score is a finding, not a build failure. Only `--check` gates.
+
+    The count is now zero, and that is the point: the fixture's `through(cb)` used to make the
+    Python front-end emit `py:cb`, and it no longer does. The oracle stays because C still
+    invents for the equivalent shape and because Python could regress — a guard is worth
+    keeping precisely when it is reporting nothing.
+    """
     result = runner.invoke(app, ["pkg", "accuracy", "--oracle", "invention", str(repo)])
     assert result.exit_code == 0, result.output
-    assert "invented CALLS edges" in result.output
-    assert "py:cb" in result.output, "the call through a parameter must be detected"
+    assert "invented CALLS edges — 0" in result.output
+    assert "py:cb" not in result.output, "a call through a parameter must no longer be invented"
 
 
 def test_the_parity_oracle_separates_shortfall_from_surplus(runner: CliRunner, repo: Path) -> None:
@@ -118,7 +124,7 @@ def test_the_json_report_is_machine_readable(runner: CliRunner, repo: Path) -> N
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload["oracle"] == "invention"
-    assert payload["invented"] >= 1
-    assert 0.0 <= payload["rate"] <= 1.0
+    assert payload["invented"] == 0
+    assert payload["rate"] == 0.0
     assert payload["unexamined"] == 0
-    assert any("py:cb" in e for e in payload["examples"])
+    assert payload["examples"] == []

@@ -1,0 +1,33 @@
+{
+  "language": "sql",
+  "case": "routines",
+  "why": "The hard shape for SQL, and it turned out not to be hard. A routine body is opaque to sqlglot — it parses as a single Command node — so the front-end re-parses it best-effort to recover what happens inside. This case exists to measure how much survives that: an INSERT inside a function body, and CALL between two routines.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "sql:routines.sql", "kind": "Module"},
+    {"id": "sql:audit_log", "kind": "Entity"},
+    {"id": "sql:audit_log.id", "kind": "Field"},
+    {"id": "sql:audit_log.note", "kind": "Field"},
+    {"id": "sql:log_note", "kind": "Function"},
+    {"id": "sql:record_twice", "kind": "Function"}
+  ],
+  "edges": [
+    {"src": "sql:routines.sql", "dst": "sql:audit_log", "kind": "CONTAINS"},
+    {"src": "sql:routines.sql", "dst": "sql:log_note", "kind": "CONTAINS"},
+    {"src": "sql:routines.sql", "dst": "sql:record_twice", "kind": "CONTAINS"},
+    {"src": "sql:audit_log", "dst": "sql:audit_log.id", "kind": "CONTAINS"},
+    {"src": "sql:audit_log", "dst": "sql:audit_log.note", "kind": "CONTAINS"},
+
+    {"src": "sql:log_note", "dst": "sql:audit_log", "kind": "WRITES"},
+    {"src": "sql:record_twice", "dst": "sql:log_note", "kind": "CALLS"}
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "Routine parameters (`n`) — the vocabulary has no node kind for a parameter, in SQL or any other language."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": [
+    "The routine body survives re-parsing. Both the INSERT (WRITES) and the CALL between routines are recovered, even though sqlglot hands the body over as an opaque Command. This case was written expecting SQL to be the weakest front-end and it scores like the strongest."
+  ]
+}

@@ -48,6 +48,23 @@ this rule exists to prevent.
 Labels must use the exact ids the graph emits, or precision and recall both collapse for
 reasons that have nothing to do with accuracy.
 
+**Every front-end has its own id scheme, and two of them are not what you would guess.**
+Labelling in the wrong vocabulary scores 0.00 and reads as a catastrophic front-end failure.
+
+| front-end | module id | type id | method separator |
+|---|---|---|---|
+| `python` | `py:dotted.path` | `py:mod.Cls` | `.` |
+| `typescript` | `ts:path/to/file` | `ts:path/f.Cls` | `.` |
+| `java` | `java:package` | `java:app.Cart` | `.` |
+| `csharp` | `csharp:Namespace` | `csharp:App.Cart` | `.` |
+| `go` | `go:package` | `go:cart.Cart` | `.` |
+| **`c`** | `c:src/cart.c` *(a path)* | — | **bare symbol: `c:subtotal`** |
+| **`cpp`** | `cpp:src/cart.cpp` *(a path)* | **bare: `cpp:Cart`** | **`::`** |
+| `sql` | `sql:schema.sql` | `sql:customer` *(an Entity)* | `.` |
+
+C and C++ ids are **bare symbols, not module-qualified** — a symbol, not a location. Python's
+scheme applied to either scores zero.
+
 | | form | example |
 |---|---|---|
 | module | `py:{dotted.path}` — `src/` stripped, `__init__` collapsed to its package | `py:shop.cart` |

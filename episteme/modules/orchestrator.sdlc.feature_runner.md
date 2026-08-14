@@ -78,7 +78,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:123`](../../src/orchestrator/sdlc/feature_runner.py#L123)
 
 - **Called by** (1 production · 2 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623), [`test_a_file_no_test_reaches_is_reported`](../../tests/sdlc/test_feature_runner.py#L1099), [`test_an_unprobed_file_is_not_reported_as_covered`](../../tests/sdlc/test_feature_runner.py#L1205)
-- **Calls** (5): [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L511), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L516), [`_is_test_path`](../../src/orchestrator/sdlc/feature_runner.py#L506), `pathlib.Path`, `py:emit`
+- **Calls** (4): [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L511), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L516), [`_is_test_path`](../../src/orchestrator/sdlc/feature_runner.py#L506), `pathlib.Path`
 
 ### `_git`
 
@@ -113,7 +113,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:342`](../../src/orchestrator/sdlc/feature_runner.py#L342)
 
 - **Called by** (1): [`_satisfy_the_ticket`](../../src/orchestrator/sdlc/feature_runner.py#L368)
-- **Calls** (2): [`SemanticReviewAdapter`](../../src/orchestrator/sdlc/review.py#L178), `py:emit`
+- **Calls** (1): [`SemanticReviewAdapter`](../../src/orchestrator/sdlc/review.py#L178)
 
 ### `_local_commit`
 
@@ -127,21 +127,20 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:85`](../../src/orchestrator/sdlc/feature_runner.py#L85)
 
 - **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623)
-- **Calls** (4): [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L511), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L516), [`_is_test_path`](../../src/orchestrator/sdlc/feature_runner.py#L506), `py:emit`
+- **Calls** (3): [`_git`](../../src/orchestrator/sdlc/feature_runner.py#L511), [`_git_out`](../../src/orchestrator/sdlc/feature_runner.py#L516), [`_is_test_path`](../../src/orchestrator/sdlc/feature_runner.py#L506)
 
 ### `_release_the_ticket`
 
 [`src/orchestrator/sdlc/feature_runner.py:173`](../../src/orchestrator/sdlc/feature_runner.py#L173)
 
 - **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623)
-- **Calls** (2): `py:emit`, `py:move`
 
 ### `_repair_after_revision`
 
 [`src/orchestrator/sdlc/feature_runner.py:468`](../../src/orchestrator/sdlc/feature_runner.py#L468)
 
 - **Called by** (1): [`_satisfy_the_ticket`](../../src/orchestrator/sdlc/feature_runner.py#L368)
-- **Calls** (3): `pathlib.Path`, `py:emit`, [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L470)
+- **Calls** (2): `pathlib.Path`, [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L470)
 
 ### `_resolve_language`
 
@@ -156,14 +155,14 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:368`](../../src/orchestrator/sdlc/feature_runner.py#L368)
 
 - **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623)
-- **Calls** (6): [`FeatureRunError`](../../src/orchestrator/sdlc/feature_runner.py#L49), [`_judge_against_the_criteria`](../../src/orchestrator/sdlc/feature_runner.py#L342), [`_repair_after_revision`](../../src/orchestrator/sdlc/feature_runner.py#L468), `pathlib.Path`, `py:emit`, [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L470)
+- **Calls** (5): [`FeatureRunError`](../../src/orchestrator/sdlc/feature_runner.py#L49), [`_judge_against_the_criteria`](../../src/orchestrator/sdlc/feature_runner.py#L342), [`_repair_after_revision`](../../src/orchestrator/sdlc/feature_runner.py#L468), `pathlib.Path`, [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L470)
 
 ### `_typecheck_the_change`
 
 [`src/orchestrator/sdlc/feature_runner.py:186`](../../src/orchestrator/sdlc/feature_runner.py#L186)
 
 - **Called by** (1): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623)
-- **Calls** (5): [`_changed_line_ranges`](../../src/orchestrator/sdlc/feature_runner.py#L242), [`_error_is_on_a_changed_line`](../../src/orchestrator/sdlc/feature_runner.py#L335), [`_exec`](../../src/orchestrator/sdlc/feature_runner.py#L234), [`_is_typing_hygiene`](../../src/orchestrator/sdlc/feature_runner.py#L330), `py:emit`
+- **Calls** (4): [`_changed_line_ranges`](../../src/orchestrator/sdlc/feature_runner.py#L242), [`_error_is_on_a_changed_line`](../../src/orchestrator/sdlc/feature_runner.py#L335), [`_exec`](../../src/orchestrator/sdlc/feature_runner.py#L234), [`_is_typing_hygiene`](../../src/orchestrator/sdlc/feature_runner.py#L330)
 
 ### `_untracked_python_files`
 
@@ -184,7 +183,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/feature_runner.py:623`](../../src/orchestrator/sdlc/feature_runner.py#L623)
 
 - **Called by** (4 production · 45 test): [`_run_sdlc_feature`](../../src/orchestrator/cli.py#L1261), [`_runner`](../../src/orchestrator/cli.py#L1374), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L650), [`sdlc_feature`](../../src/orchestrator/plugin/server.py#L80), [`test_a_change_that_does_not_satisfy_the_ticket_is_stopped`](../../tests/sdlc/test_feature_runner.py#L699), [`test_a_codegen_error_hands_the_ticket_back`](../../tests/sdlc/test_feature_runner.py#L1268), [`test_a_coverage_gap_asks_for_tests_not_an_implementation_change`](../../tests/sdlc/test_feature_runner.py#L1125), [`test_a_declined_gate_commits_nothing`](../../tests/sdlc/test_feature_runner.py#L935), [`test_a_failed_live_run_still_logs_what_it_spent`](../../tests/sdlc/test_feature_runner.py#L360), [`test_a_fully_met_verdict_still_ships`](../../tests/sdlc/test_feature_runner.py#L1316), [`test_a_judge_that_never_relents_stops_at_its_budget`](../../tests/sdlc/test_feature_runner.py#L787), [`test_a_live_run_moves_the_ticket_in_progress_before_writing_code`](../../tests/sdlc/test_feature_runner.py#L577), [`test_a_live_run_moves_the_ticket_to_in_review_when_the_pr_opens`](../../tests/sdlc/test_feature_runner.py#L633), [`test_a_live_run_with_an_injected_spec_reaches_the_pr`](../../tests/sdlc/test_feature_runner.py#L650), [`test_a_rejected_change_gets_a_chance_to_answer`](../../tests/sdlc/test_feature_runner.py#L769), [`test_a_revision_that_breaks_the_suite_is_repaired_and_ships`](../../tests/sdlc/test_feature_runner.py#L874), [`test_a_revision_that_breaks_the_tests_does_not_ship`](../../tests/sdlc/test_feature_runner.py#L804), [`test_a_safe_run_logs_nothing`](../../tests/sdlc/test_feature_runner.py#L380), [`test_a_safe_run_moves_nothing`](../../tests/sdlc/test_feature_runner.py#L596), [`test_a_satisfying_change_proceeds`](../../tests/sdlc/test_feature_runner.py#L722), [`test_a_type_error_on_a_changed_line_is_not_green`](../../tests/sdlc/test_feature_runner.py#L995), [`test_a_workflow_without_the_status_does_not_fail_the_run`](../../tests/sdlc/test_feature_runner.py#L606), [`test_a_worklog_failure_never_changes_the_verdict`](../../tests/sdlc/test_feature_runner.py#L391), [`test_adopted_issue_is_used_and_nothing_is_created`](../../tests/sdlc/test_feature_runner.py#L411), [`test_an_approved_gate_lets_the_run_finish`](../../tests/sdlc/test_feature_runner.py#L955), +24 more
-- **Calls** (56): [`FeatureRunError`](../../src/orchestrator/sdlc/feature_runner.py#L49), [`FeatureRunResult`](../../src/orchestrator/sdlc/feature_runner.py#L66), [`GhPRAdapter`](../../src/orchestrator/sdlc/forge.py#L91), [`JiraAdapter`](../../src/orchestrator/intake/jira.py#L114), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L80), [`LLMCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L826), [`WorkspaceManager`](../../src/orchestrator/sdlc/workspace.py#L59), [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L542), [`_files_no_test_exercises`](../../src/orchestrator/sdlc/feature_runner.py#L123), [`_local_commit`](../../src/orchestrator/sdlc/feature_runner.py#L533), [`_prove_the_tests_test_something`](../../src/orchestrator/sdlc/feature_runner.py#L85), [`_release_the_ticket`](../../src/orchestrator/sdlc/feature_runner.py#L173), [`_resolve_language`](../../src/orchestrator/sdlc/feature_runner.py#L597), [`_satisfy_the_ticket`](../../src/orchestrator/sdlc/feature_runner.py#L368), [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L186), [`_validated_issue_key`](../../src/orchestrator/sdlc/feature_runner.py#L57), [`analyze_cached`](../../src/orchestrator/intake/cache.py#L184), [`backlog_path`](../../src/orchestrator/intake/backlog_doc.py#L21), [`build_service_for`](../../src/orchestrator/intake/factory.py#L272), [`compose_with_ontomesh`](../../src/orchestrator/spine/grounder.py#L111), [`detect_dotnet_tfm`](../../src/orchestrator/sdlc/testenv.py#L364), [`dotnet_toolchain_available`](../../src/orchestrator/sdlc/testenv.py#L336), `from_repo`, [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L48), `getenv`, +31 more
+- **Calls** (51): [`FeatureRunError`](../../src/orchestrator/sdlc/feature_runner.py#L49), [`FeatureRunResult`](../../src/orchestrator/sdlc/feature_runner.py#L66), [`GhPRAdapter`](../../src/orchestrator/sdlc/forge.py#L91), [`JiraAdapter`](../../src/orchestrator/intake/jira.py#L114), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L80), [`LLMCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L826), [`WorkspaceManager`](../../src/orchestrator/sdlc/workspace.py#L59), [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L542), [`_files_no_test_exercises`](../../src/orchestrator/sdlc/feature_runner.py#L123), [`_local_commit`](../../src/orchestrator/sdlc/feature_runner.py#L533), [`_prove_the_tests_test_something`](../../src/orchestrator/sdlc/feature_runner.py#L85), [`_release_the_ticket`](../../src/orchestrator/sdlc/feature_runner.py#L173), [`_resolve_language`](../../src/orchestrator/sdlc/feature_runner.py#L597), [`_satisfy_the_ticket`](../../src/orchestrator/sdlc/feature_runner.py#L368), [`_typecheck_the_change`](../../src/orchestrator/sdlc/feature_runner.py#L186), [`_validated_issue_key`](../../src/orchestrator/sdlc/feature_runner.py#L57), [`analyze_cached`](../../src/orchestrator/intake/cache.py#L184), [`backlog_path`](../../src/orchestrator/intake/backlog_doc.py#L21), [`build_service_for`](../../src/orchestrator/intake/factory.py#L272), [`compose_with_ontomesh`](../../src/orchestrator/spine/grounder.py#L111), [`detect_dotnet_tfm`](../../src/orchestrator/sdlc/testenv.py#L364), [`dotnet_toolchain_available`](../../src/orchestrator/sdlc/testenv.py#L336), `from_repo`, [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L48), `getenv`, +26 more
 - **Documented in**: `CHANGELOG.md`, `docs/specs/sdlc-tracking-blueprint.md#12-complete-automation-triggering-the-sdlc-without-a-human-kickoff`, `docs/specs/sdlc-tracking-blueprint.md#121-the-trigger-surface-events-work`, `docs/specs/sdlc-tracking-blueprint.md#125-automation-roadmap-layers-on-11`, `docs/specs/tri-repo-integration.md#phasing-ordered-by-usable-value-gated-on-the-spine`, `docs/specs/unified-ui.md#3-face-a-delegation-inbox-home`
 
 ### `unsupported_language_error`

@@ -94,7 +94,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/go_extractor.py:442`](../../src/orchestrator/pkg/go_extractor.py#L442)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/go_extractor.py#L121)
-- **Calls** (4): `RuntimeError`, `language`, `tree_sitter.Language`, `tree_sitter.Parser`
+- **Calls** (3): `language`, `tree_sitter.Language`, `tree_sitter.Parser`
 - **Documented in**: `docs/specs/go-support-roadmap.md#track-4-go-go`
 
 ### `_receiver`

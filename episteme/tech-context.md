@@ -9,7 +9,7 @@
 | Migrations | yes |
 | Test runner | pytest |
 | Task type (default) | feature |
-| Version | `3.17.0` |
+| Version | `3.18.0` |
 | Requires Python | `>=3.12` |
 
 ## Infrastructure & runtime
@@ -54,4 +54,4 @@ _Everything imported from outside this codebase, by how often — standard libra
 - `asyncio` — imported 74 times
 - `httpx` — imported 73 times
 
-_Top 10 of 198._
+_Top 10 of 199._

@@ -53,7 +53,6 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/media_extract.py:219`](../../src/orchestrator/pkg/media_extract.py#L219)
 
 - **Called by** (2): [`iter_image_files`](../../src/orchestrator/pkg/media_extract.py#L240), [`iter_media_files`](../../src/orchestrator/pkg/media_extract.py#L245)
-- **Calls** (1): `py:_add`
 
 ### `_load_pytesseract`
 
@@ -73,13 +72,13 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/media_extract.py:140`](../../src/orchestrator/pkg/media_extract.py#L140)
 
 - **Called by** (1 production · 3 test): [`extract_image`](../../src/orchestrator/pkg/media_extract.py#L186), [`test_build_image_artifact_is_schema_conformant`](../../tests/pkg/test_media_extract.py#L87), [`test_build_records_hash_matching_the_file`](../../tests/pkg/test_media_extract.py#L99), [`test_too_many_labels_are_truncated_and_recorded`](../../tests/pkg/test_media_extract.py#L157)
-- **Calls** (5): [`MediaExtractorUnavailableError`](../../src/orchestrator/pkg/media_extract.py#L55), [`_file_sha256`](../../src/orchestrator/pkg/media.py#L52), [`labels_from_ocr`](../../src/orchestrator/pkg/media_extract.py#L120), `py:run_ocr`, [`tesseract_version`](../../src/orchestrator/pkg/media_extract.py#L85)
+- **Calls** (4): [`MediaExtractorUnavailableError`](../../src/orchestrator/pkg/media_extract.py#L55), [`_file_sha256`](../../src/orchestrator/pkg/media.py#L52), [`labels_from_ocr`](../../src/orchestrator/pkg/media_extract.py#L120), [`tesseract_version`](../../src/orchestrator/pkg/media_extract.py#L85)
 
 ### `extract_image`
 
 [`src/orchestrator/pkg/media_extract.py:186`](../../src/orchestrator/pkg/media_extract.py#L186)
 
-- **Called by** (1 production · 7 test): [`media_extract`](../../src/orchestrator/cli.py#L3204), [`test_extract_image_is_noop_when_artifact_exists`](../../tests/pkg/test_media_extract.py#L120), [`test_extract_image_writes_artifact_the_reader_round_trips`](../../tests/pkg/test_media_extract.py#L110), [`test_extract_is_deterministic_for_a_pinned_version`](../../tests/pkg/test_media_extract.py#L137), [`test_extracted_labels_bind_to_real_symbols`](../../tests/pkg/test_media_extract.py#L195), [`test_extractor_unavailable_propagates`](../../tests/pkg/test_media_extract.py#L183), [`test_oversized_image_is_skipped_not_extracted`](../../tests/pkg/test_media_extract.py#L150), [`test_real_tesseract_produces_a_valid_artifact`](../../tests/pkg/test_media_extract.py#L211)
+- **Called by** (1 production · 7 test): [`media_extract`](../../src/orchestrator/cli.py#L3230), [`test_extract_image_is_noop_when_artifact_exists`](../../tests/pkg/test_media_extract.py#L120), [`test_extract_image_writes_artifact_the_reader_round_trips`](../../tests/pkg/test_media_extract.py#L110), [`test_extract_is_deterministic_for_a_pinned_version`](../../tests/pkg/test_media_extract.py#L137), [`test_extracted_labels_bind_to_real_symbols`](../../tests/pkg/test_media_extract.py#L195), [`test_extractor_unavailable_propagates`](../../tests/pkg/test_media_extract.py#L183), [`test_oversized_image_is_skipped_not_extracted`](../../tests/pkg/test_media_extract.py#L150), [`test_real_tesseract_produces_a_valid_artifact`](../../tests/pkg/test_media_extract.py#L211)
 - **Calls** (6): [`ExtractResult`](../../src/orchestrator/pkg/media_extract.py#L64), [`MediaExtractorUnavailableError`](../../src/orchestrator/pkg/media_extract.py#L55), [`_file_sha256`](../../src/orchestrator/pkg/media.py#L52), [`artifact_path`](../../src/orchestrator/pkg/media.py#L64), [`build_image_artifact`](../../src/orchestrator/pkg/media_extract.py#L140), [`write_artifact`](../../src/orchestrator/pkg/media_extract.py#L174)
 
 ### `iter_image_files`
@@ -93,7 +92,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/pkg/media_extract.py:245`](../../src/orchestrator/pkg/media_extract.py#L245)
 
-- **Called by** (1): [`media_extract`](../../src/orchestrator/cli.py#L3204)
+- **Called by** (1): [`media_extract`](../../src/orchestrator/cli.py#L3230)
 - **Calls** (1): [`_iter_files`](../../src/orchestrator/pkg/media_extract.py#L219)
 
 ### `labels_from_ocr`
