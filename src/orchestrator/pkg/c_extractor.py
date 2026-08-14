@@ -265,7 +265,18 @@ class CExtractor:
         body = fdef.child_by_field_name("body")
         if body is None:
             return
+        # Names the function itself binds — parameters and locals. A call through one of
+        # those is a call through a *function pointer*, and the callee is not knowable from
+        # this translation unit. Emitting `c:cb` for it asserts a global function named `cb`
+        # that does not exist, which is the same invention the Python front-end made for
+        # `py:echo`. C differs from Python in one way that matters: an unresolved name here is
+        # usually NOT a defect — it is a function declared in a header and linked from another
+        # translation unit, which is the normal case and must keep its `c:name` id. So the
+        # test is "did this function bind the name", not "can we resolve it".
+        bound = _bound_names(fdeclr, body, source)
         for callee, line in _calls_in(body, source):
+            if callee in bound:
+                continue
             # A local static callee keeps its file-scoped id; everything else is global.
             target = local_funcs.get(callee, f"c:{callee}")
             batch.add_edge(Edge(caller, target, EdgeKind.CALLS, Provenance(rel, line)))
@@ -329,6 +340,53 @@ def _header_index(root: Path) -> dict[str, str]:
     idx = {b: r for b, r in seen.items() if r is not None}
     _HEADER_INDEX_CACHE[key] = idx
     return idx
+
+
+def _identifiers_in(node: TSNode | None, source: bytes) -> set[str]:
+    """Every ``identifier`` under ``node``. Type names are `primitive_type`/`type_identifier`,
+    so a declarator yields exactly the name(s) it binds — through any depth of pointer,
+    array or function-pointer nesting, which is why this walks rather than navigates."""
+    if node is None:
+        return set()
+    out: set[str] = set()
+    stack = [node]
+    while stack:
+        n = stack.pop()
+        if n.type == "identifier":
+            out.add(_text(n, source))
+        stack.extend(n.named_children)
+    return out
+
+
+def _bound_names(fdeclr: TSNode, body: TSNode, source: bytes) -> set[str]:
+    """Parameter and local-variable names a function binds.
+
+    A callee in this set is reached through a function pointer, so the target is decided at
+    run time and no id can name it. Kept deliberately narrow — a name this function does not
+    bind is left alone, because in C that is usually an ordinary cross-translation-unit call.
+
+    Only the *declarator* side of a local declaration counts. `int y = f();` binds `y`, and
+    `f` in the initializer is a call, not a binding; taking every identifier under the
+    declaration would silence that call.
+    """
+    names: set[str] = set()
+
+    for child in fdeclr.named_children:
+        if child.type == "parameter_list":
+            for param in child.named_children:
+                if param.type == "parameter_declaration":
+                    names |= _identifiers_in(param.child_by_field_name("declarator"), source)
+
+    stack = list(body.named_children)
+    while stack:
+        n = stack.pop()
+        if n.type == "declaration":
+            for d in n.named_children:
+                target = d.child_by_field_name("declarator") if d.type == "init_declarator" else d
+                if target is not None and target.type not in ("primitive_type", "type_identifier"):
+                    names |= _identifiers_in(target, source)
+        stack.extend(n.named_children)
+    return names
 
 
 def _calls_in(node: TSNode, source: bytes) -> list[tuple[str, int]]:

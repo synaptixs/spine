@@ -2,7 +2,7 @@
   "language": "c",
   "case": "function_pointers",
   "root": ".repo",
-  "why": "A call through a function pointer \u2014 C's version of the shape that is a parameter in Python, TypeScript, Go, Java and C#. It is here because it found something: the front-end does not skip it, it INVENTS a target.",
+  "why": "A call through a function pointer \u2014 C's version of the shape that is a parameter in Python, TypeScript, Go, Java and C#. It is here because it found something: the front-end did not skip it, it INVENTED a target. Now fixed, and this case is the guard.",
   "nodes": [
     {
       "id": "c:src/dispatch.c",
@@ -44,16 +44,10 @@
     }
   ],
   "known_gaps": [],
-  "false_positives": [
-    {
-      "edge": {
-        "src": "c:run",
-        "dst": "c:cb",
-        "kind": "CALLS"
-      },
-      "why": "FOUND BY MEASUREMENT. `cb` is a function-pointer PARAMETER of `run`, and the graph asserts a function named `cb` exists outside the tree. This is the same invention class as py:cls, py:fn and py:echo \u2014 so the defect is NOT Python-only, as phase 4 concluded. It also cannot be caught by the current detector, which resolves bindings with Python's `ast` and therefore only examines Python callers. Recorded here so the corpus holds the evidence the detector cannot."
-    }
-  ],
+  "false_positives": [],
   "excluded": [],
-  "open_questions": []
+  "open_questions": [],
+  "resolved_by_measurement": [
+    "`c:run -CALLS-> c:cb` was emitted for a function-pointer parameter \u2014 the same invention class as py:cls, py:fn and py:echo, in a second front-end. Fixed by skipping callees the function itself binds. The test is deliberately 'did this function bind the name', not 'can we resolve it': in C an unresolved callee is usually a function declared in a header and linked from another translation unit, which is the normal case and keeps its `c:name` id. A Python-style 'skip anything unresolved' fix would have silenced every cross-translation-unit call in every C repository."
+  ]
 }

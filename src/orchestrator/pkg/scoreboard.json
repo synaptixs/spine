@@ -6,7 +6,7 @@
         "c": {
           "edges": {
             "CALLS": {
-              "emitted": 3,
+              "emitted": 2,
               "expected": 2,
               "matched": 2
             },
@@ -348,7 +348,7 @@
       "count": 0,
       "gated": false,
       "note": "moves with ordinary commits \u2014 recorded as a trend, never gated",
-      "total_calls": 15201
+      "total_calls": 15205
     },
     "parity": {
       "declared": 75,

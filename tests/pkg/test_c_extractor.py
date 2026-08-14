@@ -152,3 +152,49 @@ def test_union_and_anonymous_typedef(tmp_path: Path) -> None:
     assert by_id["c:Value"].kind is NodeKind.TYPE  # typedef of anonymous union
     assert by_id["c:Value.i"].kind is NodeKind.FIELD
     assert by_id["c:Widget"].kind is NodeKind.TYPE  # typedef of anonymous struct
+
+
+def test_a_call_through_a_function_pointer_invents_nothing(tmp_path: Path) -> None:
+    """`cb()` where `cb` is a parameter used to emit `c:cb` — a global function that does not
+    exist. The same invention the Python front-end made for `py:echo`, in a second front-end.
+    """
+    _write(
+        tmp_path,
+        "src/a.c",
+        "int handle(void) { return 1; }\n\n"
+        "int run(int (*cb)(void)) { return cb(); }\n\n"
+        "int direct(void) { return handle(); }\n",
+    )
+    batch = _extract(tmp_path, "src/a.c")
+    targets = {e.dst for e in batch.edges if e.kind is EdgeKind.CALLS}
+
+    assert "c:cb" not in targets, "a function-pointer parameter is not a global function"
+    assert "c:handle" in targets, "a direct call must survive"
+
+
+def test_a_cross_translation_unit_call_still_resolves(tmp_path: Path) -> None:
+    """The regression the fix had to avoid, and why C could not copy Python's one-liner.
+
+    In C an unresolved callee is usually NOT a defect — it is declared in a header and linked
+    from another translation unit, which is the normal case. Skipping everything unresolved,
+    as Python now does, would silence every cross-TU call in every C repository. The test is
+    "did this function bind the name", not "can we resolve it".
+    """
+    _write(
+        tmp_path,
+        "src/a.c",
+        "#include <stdio.h>\n\n"
+        "int helper(void) { return 1; }\n\n"
+        "int go(int (*cb)(void), int n) {\n"
+        "    int y = helper();\n"
+        '    printf("%d", y);\n'
+        "    other_tu_function(n);\n"
+        "    return cb();\n"
+        "}\n",
+    )
+    batch = _extract(tmp_path, "src/a.c")
+    targets = {e.dst for e in batch.edges if e.kind is EdgeKind.CALLS}
+
+    assert {"c:helper", "c:printf", "c:other_tu_function"} <= targets
+    assert "c:cb" not in targets
+    assert "c:y" not in targets, "an initializer binds y; the call inside it is still a call"
