@@ -4,7 +4,14 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
-## Unreleased — Is the graph right?
+## 3.17.0 — Is the graph right?
+
+**Scope, stated first so nothing below is read as more than it is.** This release makes the
+PKG *measurable* and measures **two of the eight front-ends** — `python` and `typescript`.
+The other six (`java`, `csharp`, `c`, `cpp`, `go`, `sql`) gain the machinery and no numbers:
+`pkg accuracy` will score them the moment a corpus exists for them, and reports them as
+**skipped** rather than zero until it does. The capability matrix still says what a front-end
+*can* emit; only Python and TypeScript now also say how well.
 
 ### Added
 
@@ -41,6 +48,17 @@ All notable changes to this project are documented here. Format loosely follows
   was last changed for*, joining `git blame` to the issue key in each commit's message.
   Deterministic, no model, and it reports its own coverage — which depends on the
   repository's history, not on the method.
+
+  **Library only in this release.** `orchestrator.pkg.intent_link.link_intents(batch, root)`
+  is not wired into any command, because the scan costs about 11× an extraction (2.0s → 23.0s
+  on this repository) and `git blame` runs once per file. Making it default-on needs a
+  commit-keyed cache or a single `git log --numstat` walk; that is its own change.
+
+- **CI measures every front-end it ships code for.** Previously CI installed neither the
+  `typescript` extra nor the five other tree-sitter ones, so only `python` and `sql`
+  front-ends registered — 89 tests skipped, and the TypeScript figures in the committed
+  baseline were measured once on a developer machine and skipped by every run since. A
+  TypeScript regression could not have failed a build. All six extras are now installed.
 
 ### Fixed
 
