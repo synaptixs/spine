@@ -11,7 +11,7 @@ import ast
 from pathlib import Path
 
 from orchestrator.pkg import RepoCodeExtractor
-from orchestrator.pkg.facts import EdgeKind
+from orchestrator.pkg.facts import Edge, EdgeKind, Node, NodeKind, Provenance
 from orchestrator.pkg.invention import _scopes, _visible_names, find_invented_calls, sample_edges
 
 
@@ -111,11 +111,22 @@ def _repo(root: Path, body: str) -> Path:
     return root
 
 
-def test_a_call_through_a_parameter_is_detected(tmp_path: Path) -> None:
-    """The shape verified by hand at launch.py:237 — `echo: Echo` is a parameter, and the
-    graph asserts a module named `echo` exists outside the tree."""
+def test_an_invented_edge_is_detected(tmp_path: Path) -> None:
+    """The shape found at launch.py:237 — `echo: Echo` is a parameter, and the graph asserts
+    a module named `echo` exists outside the tree.
+
+    The edge is built by hand rather than extracted. The Python front-end no longer emits it
+    (it returns None instead of inventing `py:{name}`), so a fixture cannot produce one — and
+    a detector that can only be tested by a broken front-end stops being a regression guard
+    the moment the defect is fixed. This asserts what the detector does, not what the
+    extractor happens to do.
+    """
     _repo(tmp_path, "def run(echo):\n    echo('hi')\n")
-    report = find_invented_calls(RepoCodeExtractor().extract(tmp_path), tmp_path)
+    batch = RepoCodeExtractor().extract(tmp_path)
+    batch.add_node(Node("py:echo", NodeKind.FUNCTION, "echo", "python", external=True))
+    batch.add_edge(Edge("py:app.mod.run", "py:echo", EdgeKind.CALLS, Provenance("app/mod.py", 2)))
+
+    report = find_invented_calls(batch, tmp_path)
 
     assert len(report.invented) == 1
     found = report.invented[0]
@@ -123,6 +134,19 @@ def test_a_call_through_a_parameter_is_detected(tmp_path: Path) -> None:
     assert found.name == "echo"
     assert found.file == "app/mod.py"
     assert "echo is local" in str(found)
+
+
+def test_the_python_front_end_no_longer_invents(tmp_path: Path) -> None:
+    """The fix, asserted where it will be noticed if it regresses.
+
+    A call through a parameter used to emit `py:echo`; it now emits nothing, because an
+    unresolvable bare name is skipped rather than guessed at — the rule the resolver already
+    applied to ambiguous attribute chains.
+    """
+    _repo(tmp_path, "def run(echo):\n    echo('hi')\n")
+    report = find_invented_calls(RepoCodeExtractor().extract(tmp_path), tmp_path)
+    assert report.invented == ()
+    assert report.candidates == 0
 
 
 def test_a_genuine_external_call_is_not_flagged(tmp_path: Path) -> None:
@@ -139,8 +163,12 @@ def test_a_resolved_local_call_is_not_flagged(tmp_path: Path) -> None:
 
 
 def test_the_rate_is_over_all_calls_not_just_candidates(tmp_path: Path) -> None:
-    _repo(tmp_path, "def run(echo):\n    echo('hi')\n")
-    report = find_invented_calls(RepoCodeExtractor().extract(tmp_path), tmp_path)
+    _repo(tmp_path, "def helper():\n    return 1\n\n\ndef run():\n    return helper()\n")
+    batch = RepoCodeExtractor().extract(tmp_path)
+    batch.add_node(Node("py:ghost", NodeKind.FUNCTION, "ghost", "python", external=True))
+    batch.add_edge(Edge("py:app.mod.run", "py:ghost", EdgeKind.CALLS, Provenance("app/mod.py", 5)))
+
+    report = find_invented_calls(batch, tmp_path)
     assert report.rate == len(report.invented) / report.total_calls
     assert report.unexamined == 0
 
