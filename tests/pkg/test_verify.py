@@ -321,7 +321,7 @@ def test_an_endpoint_declared_in_two_files_is_credited_to_both(tmp_path: Path) -
     (pkg / "__init__.py").write_text("", encoding="utf-8")
     for name in ("one.py", "two.py"):
         (pkg / name).write_text(
-            'from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n'
+            "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n"
             '@router.get("/healthz")\ndef healthz() -> dict:\n    return {}\n',
             encoding="utf-8",
         )
