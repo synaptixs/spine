@@ -415,7 +415,7 @@
 
 [`src/orchestrator/knowledge/renderers.py:141`](../../src/orchestrator/knowledge/renderers.py#L141)
 
-- **Called by** (1 production · 1 test): [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L310), [`test_strip_stamp_removes_the_block_and_nothing_else`](../../tests/knowledge/test_bank_check.py#L93)
+- **Called by** (1 production · 1 test): [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L314), [`test_strip_stamp_removes_the_block_and_nothing_else`](../../tests/knowledge/test_bank_check.py#L93)
 
 ## Imports
 
