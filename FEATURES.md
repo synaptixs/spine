@@ -57,7 +57,7 @@ radius) and grounds new code in what already exists. Full guide:
 | Invention detection — `CALLS` edges targeting a name bound in the caller's own scope. Every other check hunts for absence; this hunts for **fiction** | ✅ | `orchestrator pkg accuracy --oracle invention` |
 | Accuracy regression gate — a committed baseline, and CI failing when a gated number drops | ✅ | `orchestrator pkg accuracy --check` (in the quality gate) |
 | Measured caveats in the build document — the blast radius states the recall for its language, so a reader gets a bound rather than a hedge | ✅ | automatic in `sdlc plan` |
-| **Intent layer** — `Intent` nodes + `SERVES` edges: which ticket a symbol was last changed for, from git blame and the commit's issue key. Deterministic, no model | ✅ | automatic where commits carry issue keys |
+| **Intent layer** — `Intent` nodes + `SERVES` edges: which ticket a symbol was last changed for, from git blame and the commit's issue key. Deterministic, no model | 🟡 library | `orchestrator.pkg.intent_link.link_intents(batch, root)` — not yet wired into any command: the scan costs ~11× an extraction, so making it default-on needs its own design |
 | Repo profile / audit | ✅ | `orchestrator profile <repo>`, `orchestrator audit <repo>` |
 
 ## Governed autonomy

@@ -34,7 +34,7 @@ them on a release cadence — so opening an issue first avoids duplicated effort
    ```bash
    mypy src tests
    ruff format --check .
-   orchestrator pkg accuracy --check
+   uv run orchestrator pkg accuracy --check
    ```
    That last one is the **accuracy gate**: it re-measures the graph and fails if a *gated*
    number has dropped. Only metrics scored against the committed fixtures in `corpus/` are
@@ -42,8 +42,12 @@ them on a release cadence — so opening an issue first avoids duplicated effort
    and never gated — it is measured against this repository, so it moves whenever anyone
    writes ordinary code, and gating it would fail blameless PRs. `src/orchestrator/pkg/scoreboard.json` is
    the committed baseline — inside the package, so it ships in the wheel and the build
-   document can quote it; regenerate it with `pkg accuracy --scoreboard` when you have
-   genuinely *improved* a number, and say so in the PR.
+   document can quote it; regenerate it with `uv run orchestrator pkg accuracy
+   --scoreboard` when you have genuinely *improved* a number, and say so in the PR.
+
+   `uv run` rather than a bare `orchestrator`, for the same reason the hooks use it: a bare
+   command resolves to whichever install is on your PATH, which may be an older release that
+   has no `pkg accuracy` at all.
 
    CI also runs the tests, `pkg verify`, and `orchestrator understand .` — which checks the
    knowledge base still *builds*, not that it matches. Installing the hooks catches the rest
