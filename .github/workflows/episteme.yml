@@ -109,6 +109,20 @@ jobs:
             printf 'CI'"'"'s "PR does not modify episteme/" guard exempts `base_ref == main`, the\n'
             printf 'same rule that lets a release promotion carry the artifact.\n'
           } > /tmp/episteme-pr-body.md
-          gh pr create --base main --head "$branch" \
-            --title "chore(episteme): regenerate for ${FOR_SHA}" \
-            --body-file /tmp/episteme-pr-body.md
+          # `gh pr create` can be refused by a setting no workflow permission overrides:
+          # "Allow GitHub Actions to create and approve pull requests". When it is off the
+          # call fails with `GitHub Actions is not permitted to create or approve pull
+          # requests`, which is what happened on the 3.18.0 promotion.
+          #
+          # The branch is already pushed at that point, so nothing is lost and failing the run
+          # says otherwise. Print the one-click URL and exit 0: a human opens it in a moment,
+          # and if the setting is ever enabled this starts opening PRs by itself with no
+          # further change.
+          if ! gh pr create --base main --head "$branch" \
+              --title "chore(episteme): regenerate for ${FOR_SHA}" \
+              --body-file /tmp/episteme-pr-body.md; then
+            echo "::warning::Could not open the PR automatically — the branch is pushed and waiting."
+            echo "Open it here: ${{ github.server_url }}/${{ github.repository }}/pull/new/$branch"
+            echo "If this is the 'Actions is not permitted to create pull requests' refusal, the"
+            echo "fix is Settings -> Actions -> General -> Workflow permissions."
+          fi
