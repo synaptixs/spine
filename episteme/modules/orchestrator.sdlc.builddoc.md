@@ -26,7 +26,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ## Documented in
 
-`docs/specs/build-documents/PKG-ACC-6-build.md#4-pkg-what-the-graph-knows`
+`docs/specs/build-documents/PKG-ACC-6-build.md#4-pkg-what-the-graph-knows`, `docs/specs/pkg-accuracy-test-plan.md#8-the-measured-caveat-a-reader-actually-sees`
 
 ## Types
 
