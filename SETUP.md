@@ -49,6 +49,12 @@ uv run alembic upgrade head
 > ingestion), so `understand`/`state` handle PDFs out of the box here. End users add feature
 > extras à la carte — e.g. `pip install 'synaptixs-spine[docs]'` for PDF ingestion, `[sql]`
 > for SQL comprehension (see [USER_GUIDE.md](USER_GUIDE.md#step-1--install)).
+>
+> **The six tree-sitter language front-ends are extras too** — `[java]`, `[typescript]`,
+> `[csharp]`, `[c]`, `[cpp]`, `[go]`. Without them those languages are *unmeasured*, not
+> scored zero: `pkg accuracy` skips a front-end it cannot import, so a local run with fewer
+> extras than CI reports fewer languages. Install all of them before comparing your numbers
+> against the committed scoreboard.
 
 What just came up:
 

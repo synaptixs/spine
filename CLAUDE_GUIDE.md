@@ -595,8 +595,8 @@ approval — Spine refuses a live write without it. `live=true` needs a reachabl
 
 ## 10. Language support & toolchains
 
-Comprehension + codegen cover seven languages. Spine only needs a language's toolchain when
-it **builds/tests** generated code in that language:
+Comprehension covers **eight front-ends**. Spine only needs a language's toolchain when it
+**builds/tests** generated code in that language:
 
 | Language | Build/test needs on PATH |
 |---|---|
@@ -606,11 +606,25 @@ it **builds/tests** generated code in that language:
 | C# | the **.NET SDK** (`dotnet`) |
 | C | **CMake** (or **Meson + Ninja**) + a C compiler |
 | C++ | **CMake** (or **Meson + Ninja**) + a C++ compiler |
-| Go | the **`go`** toolchain (`go build` / `go test`) |
+| Go | the **`go`** toolchain (`go build` / `go test`); multi-module aware |
+| SQL | nothing extra — schema, queries, stored procedures, ordered-migration folding |
+
+Comprehension front-ends beyond Python install as extras, e.g.
+`pip install 'synaptixs-spine[go]'`.
 
 `language=auto` detects from the repo. For C#, Spine additionally lifts ASP.NET Core
 endpoints and EF Core entities into the graph; for C/C++ it builds the `#include` graph and
-merges header declarations with their definitions.
+merges header declarations with their definitions; for Go it computes **interface
+satisfaction** (`IMPLEMENTS`) by matching method sets.
+
+**How accurate is the graph these tools read?** Measured against a committed corpus covering
+all eight front-ends: **precision 1.00 on every node and edge kind, in every language** —
+nothing is invented. Recall is 1.00 on everything except `CALLS`, which ranges from 1.00
+(C, SQL) to 0.50 (TypeScript); the gap is calls whose receiver is a variable rather than a
+name. Run `orchestrator pkg accuracy` to see the current numbers yourself.
+
+> **`--language` is not validated.** An unsupported value silently scaffolds a *Python*
+> project rather than erroring, so check your spelling.
 
 ---
 

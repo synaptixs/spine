@@ -337,7 +337,7 @@ user sees what would be built before the money is spent. Parameters:
 | `intent_id` | Which derived intent to build (default: the first one). |
 | `repo` | Git URL or `owner/repo` to branch from. Omit for a throwaway scratch repo (pure demo). |
 | `layout` | `new` = **greenfield** (scaffold a fresh structure), `existing` = **brownfield** (follow the repo), `auto` = scaffold only if the repo is empty. |
-| `language` | `auto` (detect) or `python` / `java` / `typescript` / `csharp` / `c` / `cpp`. |
+| `language` | `auto` (detect) or `python` / `java` / `typescript` / `csharp` / `c` / `cpp` / `go` / `sql`. |
 | `package_name` | Override the scaffold package name (greenfield). |
 | `live` | `false` (default) = local branch + diff, no external writes. `true` = real Jira + push + PR. |
 | `confirm` | Must be `true` alongside `live=true` — the explicit authorization for writes. |
@@ -559,8 +559,8 @@ approval — Spine refuses a live write without it. `live=true` needs a reachabl
 
 ## 10. Language support & toolchains
 
-Comprehension + codegen cover six languages. Spine only needs a language's toolchain when
-it **builds/tests** generated code in that language:
+Comprehension covers **eight front-ends**. Spine only needs a language's toolchain when it
+**builds/tests** generated code in that language:
 
 | Language | Build/test needs on PATH |
 |---|---|
@@ -570,10 +570,19 @@ it **builds/tests** generated code in that language:
 | C# | the **.NET SDK** (`dotnet`) |
 | C | **CMake** (or **Meson + Ninja**) + a C compiler |
 | C++ | **CMake** (or **Meson + Ninja**) + a C++ compiler |
+| Go | the **`go` toolchain** (`go build` / `go test`); multi-module aware |
+| SQL | nothing extra — schema, queries, stored procedures, ordered-migration folding |
+
+Comprehension front-ends beyond Python install as extras, e.g.
+`pip install 'synaptixs-spine[go]'`.
 
 `language=auto` detects from the repo. For C#, Spine additionally lifts ASP.NET Core
 endpoints and EF Core entities into the graph; for C/C++ it builds the `#include` graph and
-merges header declarations with their definitions.
+merges header declarations with their definitions; for Go it computes **interface
+satisfaction** (`IMPLEMENTS`) by matching method sets.
+
+> **`--language` is not validated.** An unsupported value silently scaffolds a *Python*
+> project rather than erroring, so check your spelling.
 
 ---
 

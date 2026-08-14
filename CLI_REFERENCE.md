@@ -1,9 +1,10 @@
 # Orchestrator (Spine) — CLI Reference
 
 > **Spine** is the product; the command is **`orchestrator`** (package `synaptixs-spine`).
-> Auto-generated from the CLI — run `orchestrator <command> --help` for the live version.
+> Maintained by hand against the CLI — run `orchestrator <command> --help` for the
+> authoritative version. If the two disagree, `--help` is right and this file is a bug.
 
-**48 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
+**51 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
 
 ## Command map
 
@@ -20,7 +21,7 @@
 `ingest` · `backlog` · `openspec draft`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
-`sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
+`sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
 
 **MCP — external tools** — Consume onboarded Model Context Protocol servers (governed, audited).  
 `mcp list` · `mcp contracts` · `mcp call` · `mcp ingest-db`
@@ -195,7 +196,22 @@ orchestrator understand [PATH] [OPTIONS]
 |---|---|
 | `--out` | Knowledge-base dir (default: <repo>/episteme; ./episteme for a URL). |
 | `--refresh` | Re-extract the PKG instead of using the commit cache. |
+| `--check` | Verify the committed episteme still matches the code; write nothing, exit non-zero if not. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
+| `--intents` | Also record which ticket each symbol was last changed for (`Intent`/`SERVES`). Opt-in — see the caveat below. |
+
+`--check` writes nothing: it re-renders and diffs against the committed bank, exiting non-zero
+when they disagree. That makes `episteme/` *provably* current in CI rather than hopefully
+current. Note it reads docs **from disk regardless of git** — an untracked or gitignored
+Markdown file under a scanned directory still becomes a `Doc` node, and `--check` will report
+the bank stale for a diff CI cannot reproduce.
+
+> **`--intents` is opt-in because nothing reads its output yet.** It adds `Intent` nodes and
+> `SERVES` edges to the graph, but no surface renders them — the only visible effect is a
+> count in the graph-size line of `README.md` and `architecture.md` (e.g. `· 34 intents`). No
+> page tells you which ticket a symbol serves, and `pkg export` / `pkg extract` have no
+> `--intents` flag, so the facts cannot be read back out. Cost is roughly **3× CPU** (one
+> `git blame` per file, 8 workers). It becomes a default when something renders it.
 
 ### `orchestrator state`
 
@@ -221,6 +237,17 @@ orchestrator state [PATH] [OPTIONS]
 | `--out` | Write the report to this file (default: print to stdout). |
 | `--refresh` | Re-extract the PKG instead of using the commit cache. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
+| `--no-timestamp` | Omit the generated-at time (byte-stable HTML for CI diffs). |
+| `--intents` | Also record which ticket each symbol was last changed for (`Intent`/`SERVES`). Opt-in — same caveat as `understand` above; adds one count to the size line and nothing else. |
+
+Output format follows `--out`'s extension: `--out report.html` emits a single self-contained,
+shareable HTML report; any other extension (or stdout) emits markdown.
+
+> **Known issue — `state` output is not byte-stable across runs.** Components that tie on
+> their symbol counts can swap order between runs, because the area list is sorted from a
+> `set` with a non-total key and Python randomizes string hashing per process. Five identical
+> runs can produce two or three different outputs. If you diff `state` output, pin
+> `PYTHONHASHSEED=0` on both sides until this is fixed. `understand` is unaffected.
 
 ### `orchestrator profile`
 
@@ -446,6 +473,21 @@ orchestrator pkg accuracy [PATH] [OPTIONS]
 | `--language` | Score only one language. |
 | `--json` | Emit the report as structured data. |
 | `--tests` | Test target(s) for `--oracle runtime`; defaults to the repo's own. |
+| `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
+
+**Current corpus results** (19 fixture cases, 8 front-ends). Precision is **1.00 on every node
+kind and every edge kind in all 8 languages**; recall is 1.00 on every kind except `CALLS`:
+
+| language | `CALLS` recall |
+|---|---|
+| `c` `sql` | 1.00 |
+| `python` | 0.73 |
+| `cpp` `csharp` `go` `java` | 0.67 |
+| `typescript` | 0.50 |
+
+Every remaining loss is the documented instance-dispatch skip — a call whose receiver is a
+variable rather than a name. Invention stands at **0 invented targets across 15,212 call
+edges**; parity shortfall is **0**.
 
 **What is gated, and what is only recorded.** Not everything can be gated on equality, and the
 distinction is what each number is measured *against*:
@@ -462,6 +504,17 @@ implied, always echoes the command first, and runs in a subprocess.
 
 **It measures recall only.** A call the tests never made is *untested*, not *wrong*; precision
 is not computable from a trace, and the report says so on every run.
+
+**Two coverage limits worth knowing before you quote a number:**
+
+- **`--oracle runtime` is Python-only.** It uses `sys.monitoring` (PEP 669), which has no
+  equivalent in the other seven front-ends. "Runtime-verified" means "runtime-verified for
+  Python".
+- **`--oracle invention` only examines Python.** It resolves caller-scope bindings with
+  Python's `ast`, so calls in other languages are counted as *unexaminable* rather than
+  scored. On a C repository it reports `0 (0.00% of all calls)` with every candidate
+  unexaminable — that is "not measured", not "clean". The corpus catches invention in the
+  other front-ends; this repo-scale oracle does not.
 
 ### `orchestrator media extract`
 
@@ -1015,6 +1068,48 @@ orchestrator sdlc complete [OPTIONS]
 | `--issue` | Issue key (default: derived from the PR branch feat/<id>/<KEY>). |
 | `--status` | Target Jira status to move the issue to. (default: `Done`) |
 | `--allow-unmerged` | Transition even if the PR is not merged yet. |
+
+### `orchestrator sdlc runs`
+
+Inspect what `sdlc autorun` has running, parked or abandoned.
+
+`reap` reports what a dead run left behind — worktree, branch, issue — and changes nothing: a
+worktree may hold the only copy of someone's work, and a ticket's status is an outward-facing
+write. Cleaning up stays a human's call.
+
+```
+orchestrator sdlc runs [ACTION] [RUN_ID] [OPTIONS]
+```
+
+**Arguments**
+
+- `ACTION` — `list` | `show <run-id>` | `reap` | `approvals` | `approve <approval-id>` — inspect and decide autorun's durable state. _(default: `list`)_
+- `RUN_ID` — Run id, or approval id for `approve`.
+
+| Option | Description |
+|---|---|
+| `--reject` | Reject rather than approve. |
+| `--note` | Why — recorded on the decision. |
+
+### `orchestrator sdlc baseline`
+
+Score the run agent against a corpus of tickets whose right answer is known.
+
+Deterministic and free: the validity gate reads each ticket and a real graph, and every case
+has an argued expected verdict. Run metrics come from the durable run records — observations
+of what actually ran, not a simulation.
+
+False refusals and missed refusals are counted separately. A single accuracy number would let
+one hide behind the other, and they cost very different things.
+
+```
+orchestrator sdlc baseline [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `--path` | Repo whose graph the gate reads. (default: `.`) |
+| `--json` | Emit the numbers as JSON. |
 
 ### `orchestrator sdlc address-review`
 

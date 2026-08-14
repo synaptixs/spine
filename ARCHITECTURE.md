@@ -37,11 +37,18 @@ truth, and an **observability + audit** rail that records every step.
 | Knowledge synthesis | `knowledge/` | `understand` (→ committed `episteme/`) and `state`, built on top of the graph |
 
 ### The Product Knowledge Graph — the substrate, not a box
-`pkg/` turns code **and** docs into a deterministic, `file:line`-grounded graph — **7 node kinds**
-(Module, Type, Function, Field, Endpoint, Entity, Doc) and **9 edge kinds** (IMPORTS, CONTAINS,
-CALLS, IMPLEMENTS, READS, WRITES, EXPOSES, REFERENCES, MENTIONS). It is the **source of truth** every
-comprehension and delivery surface reads from — so in the diagram it's drawn as a foundation band
-spanning the middle, not a peer in a row.
+`pkg/` turns code **and** docs into a deterministic, `file:line`-grounded graph — **8 node kinds**
+(Module, Type, Function, Field, Endpoint, Entity, Doc, Intent) and **11 edge kinds** (IMPORTS,
+CONTAINS, CALLS, IMPLEMENTS, READS, WRITES, EXPOSES, CONSUMES, REFERENCES, MENTIONS, SERVES),
+across **8 language front-ends**. It is the **source of truth** every comprehension and delivery
+surface reads from — so in the diagram it's drawn as a foundation band spanning the middle, not a
+peer in a row.
+
+Its accuracy is measured, not asserted: `pkg accuracy` scores it against a committed corpus of 19
+hand-labelled fixture repositories, and the baseline is gated in CI. **Precision is 1.00 on every
+node kind and every edge kind in all 8 languages** — the graph asserts nothing that does not
+exist. The only shortfall is `CALLS` recall (1.00 for C/SQL down to 0.50 for TypeScript), i.e.
+silence rather than fiction. See [KNOWLEDGE_GRAPH.md §10](KNOWLEDGE_GRAPH.md).
 
 ### C · Planning — the plan as a typed artifact
 | Component | Package | Role |
@@ -87,9 +94,12 @@ PR** — deployment is out of scope by design.
 
 ## Two properties worth calling out
 
-- **Comprehension is deterministic and no-LLM.** `understand` / `state` and the PKG produce
+- **Comprehension is deterministic and no-LLM.** `understand` and the PKG produce
   byte-identical output for the same commit. The LLM lives in the *execution loop* (codegen) and
   *intake* extraction — never in comprehension.
+  *Known exception:* `state` is not currently byte-stable — components tying on their symbol
+  counts can swap order between runs, because the area list is sorted from a `set` with a
+  non-total key. Pin `PYTHONHASHSEED=0` when diffing until it is fixed.
 - **Everything is grounded and audited.** Every fact carries `file:line` provenance; every tool
   call, approval and decision is recorded in an append-only audit trail.
 

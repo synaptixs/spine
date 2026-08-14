@@ -114,6 +114,7 @@
 
 - **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L2077), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L314), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L218), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
 - **Calls** (2): [`_git`](../../src/orchestrator/pkg/persistence.py#L130), `pathlib.Path`
+- **Documented in**: `docs/specs/pkg-accuracy-gaps.md#6-operational-open-right-now`
 
 ### `save_facts`
 
