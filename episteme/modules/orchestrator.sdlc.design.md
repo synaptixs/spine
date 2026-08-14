@@ -90,7 +90,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/design.py:323`](../../src/orchestrator/sdlc/design.py#L323)
 
 - **Called by** (1 production · 3 test): [`design_feature`](../../src/orchestrator/sdlc/activities.py#L278), [`test_heuristic_design_grounded_in_graph_and_persisted`](../../tests/sdlc/test_design.py#L44), [`test_llm_design_used_when_client_present`](../../tests/sdlc/test_design.py#L115), [`test_llm_failure_falls_back_to_heuristic`](../../tests/sdlc/test_design.py#L132)
-- **Calls** (5): [`_load_context`](../../src/orchestrator/sdlc/design.py#L32), `dumps`, [`produce_design`](../../src/orchestrator/sdlc/design.py#L285), `py:_put`, [`render_design_md`](../../src/orchestrator/sdlc/design.py#L262)
+- **Calls** (4): [`_load_context`](../../src/orchestrator/sdlc/design.py#L32), `dumps`, [`produce_design`](../../src/orchestrator/sdlc/design.py#L285), [`render_design_md`](../../src/orchestrator/sdlc/design.py#L262)
 
 ### `produce_design`
 
@@ -104,7 +104,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/design.py:262`](../../src/orchestrator/sdlc/design.py#L262)
 
 - **Called by** (3 production · 3 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L629), [`design`](../../src/orchestrator/cli.py#L2085), [`design_feature`](../../src/orchestrator/sdlc/design.py#L323), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_render_design_md_sections`](../../tests/sdlc/test_design.py#L204)
-- **Calls** (2): `py:_list`, [`render_md`](../../src/orchestrator/sdlc/impact.py#L216)
+- **Calls** (1): [`render_md`](../../src/orchestrator/sdlc/impact.py#L216)
 
 ## Imports
 

@@ -103,7 +103,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/runtime/manager_graph.py:88`](../../src/orchestrator/runtime/manager_graph.py#L88)
 
-- **Calls** (7): [`InMemoryArtifactStore`](../../src/orchestrator/runtime/artifacts.py#L79), [`SchemaVerifierNode`](../../src/orchestrator/runtime/verifier.py#L146), [`_ManagerDispatchNode`](../../src/orchestrator/runtime/manager_graph.py#L139), [`_ManagerSynthesizeNode`](../../src/orchestrator/runtime/manager_graph.py#L285), [`_RunSpecialistsNode`](../../src/orchestrator/runtime/manager_graph.py#L205), `langgraph.graph.StateGraph`, `py:ValueError`
+- **Calls** (6): [`InMemoryArtifactStore`](../../src/orchestrator/runtime/artifacts.py#L79), [`SchemaVerifierNode`](../../src/orchestrator/runtime/verifier.py#L146), [`_ManagerDispatchNode`](../../src/orchestrator/runtime/manager_graph.py#L139), [`_ManagerSynthesizeNode`](../../src/orchestrator/runtime/manager_graph.py#L285), [`_RunSpecialistsNode`](../../src/orchestrator/runtime/manager_graph.py#L205), `langgraph.graph.StateGraph`
 
 ## Imports
 

@@ -123,7 +123,6 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/builddoc.py:574`](../../src/orchestrator/sdlc/builddoc.py#L574)
 
 - **Called by** (1 production · 3 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L926), [`test_mermaid_declares_every_node_before_its_edges`](../../tests/sdlc/test_builddoc.py#L197), [`test_mermaid_keeps_paths_readable`](../../tests/sdlc/test_builddoc.py#L190), [`test_no_diagram_rather_than_a_wrong_one`](../../tests/sdlc/test_builddoc.py#L212)
-- **Calls** (2): `py:_id`, `py:_safe`
 
 ### `_pending`
 
@@ -249,7 +248,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/builddoc.py:926`](../../src/orchestrator/sdlc/builddoc.py#L926)
 
 - **Called by** (1 production · 1 test): [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1127), [`_render`](../../tests/sdlc/test_builddoc.py#L95)
-- **Calls** (15): [`_blast_prose`](../../src/orchestrator/sdlc/builddoc.py#L649), [`_confidence_block`](../../src/orchestrator/sdlc/builddoc.py#L414), [`_cost_block`](../../src/orchestrator/sdlc/builddoc.py#L324), [`_criteria_block`](../../src/orchestrator/sdlc/builddoc.py#L851), [`_evidence_block`](../../src/orchestrator/sdlc/builddoc.py#L789), [`_file_rows`](../../src/orchestrator/sdlc/builddoc.py#L901), [`_journey_block`](../../src/orchestrator/sdlc/builddoc.py#L289), [`_label`](../../src/orchestrator/sdlc/builddoc.py#L65), [`_measured_runs`](../../src/orchestrator/sdlc/builddoc.py#L320), [`_mermaid_blast`](../../src/orchestrator/sdlc/builddoc.py#L574), [`_pending`](../../src/orchestrator/sdlc/builddoc.py#L75), [`_root_cause_block`](../../src/orchestrator/sdlc/builddoc.py#L521), [`_status_line`](../../src/orchestrator/sdlc/builddoc.py#L191), [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L134), `py:add`
+- **Calls** (14): [`_blast_prose`](../../src/orchestrator/sdlc/builddoc.py#L649), [`_confidence_block`](../../src/orchestrator/sdlc/builddoc.py#L414), [`_cost_block`](../../src/orchestrator/sdlc/builddoc.py#L324), [`_criteria_block`](../../src/orchestrator/sdlc/builddoc.py#L851), [`_evidence_block`](../../src/orchestrator/sdlc/builddoc.py#L789), [`_file_rows`](../../src/orchestrator/sdlc/builddoc.py#L901), [`_journey_block`](../../src/orchestrator/sdlc/builddoc.py#L289), [`_label`](../../src/orchestrator/sdlc/builddoc.py#L65), [`_measured_runs`](../../src/orchestrator/sdlc/builddoc.py#L320), [`_mermaid_blast`](../../src/orchestrator/sdlc/builddoc.py#L574), [`_pending`](../../src/orchestrator/sdlc/builddoc.py#L75), [`_root_cause_block`](../../src/orchestrator/sdlc/builddoc.py#L521), [`_status_line`](../../src/orchestrator/sdlc/builddoc.py#L191), [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L134)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-6-build.md#pkg-acc-6-build-document`
 
 ### `require_approved_plan`

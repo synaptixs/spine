@@ -83,7 +83,7 @@
 [`src/orchestrator/pkg/verify.py:108`](../../src/orchestrator/pkg/verify.py#L108)
 
 - **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L503)
-- **Calls** (3): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L62), [`_examples`](../../src/orchestrator/pkg/verify.py#L87), `py:lines_in`
+- **Calls** (2): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L62), [`_examples`](../../src/orchestrator/pkg/verify.py#L87)
 - **Documented in**: `docs/specs/python-frontend-parity.md#63-a-source-vs-graph-parity-check-in-verifypy`
 
 ### `_check_rates`

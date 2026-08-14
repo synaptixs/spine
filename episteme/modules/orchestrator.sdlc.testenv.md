@@ -247,7 +247,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/testenv.py:470`](../../src/orchestrator/sdlc/testenv.py#L470)
 
 - **Called by** (3 production · 7 test): [`_repair_after_revision`](../../src/orchestrator/sdlc/feature_runner.py#L468), [`_satisfy_the_ticket`](../../src/orchestrator/sdlc/feature_runner.py#L368), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623), [`test_autoheal_installs_safe_package_then_passes`](../../tests/sdlc/test_testenv.py#L76), [`test_autoheal_maps_module_to_package`](../../tests/sdlc/test_testenv.py#L84), [`test_declared_package_installs`](../../tests/sdlc/test_testenv.py#L113), [`test_real_failure_does_not_install`](../../tests/sdlc/test_testenv.py#L91), [`test_same_missing_module_installed_at_most_once`](../../tests/sdlc/test_testenv.py#L120), [`test_unlisted_allowed_with_optin`](../../tests/sdlc/test_testenv.py#L105), [`test_unlisted_package_blocked_without_optin`](../../tests/sdlc/test_testenv.py#L98)
-- **Calls** (3): [`_autoheal_allowed`](../../src/orchestrator/sdlc/testenv.py#L463), [`parse_missing_module`](../../src/orchestrator/sdlc/testenv.py#L457), `py:say`
+- **Calls** (2): [`_autoheal_allowed`](../../src/orchestrator/sdlc/testenv.py#L463), [`parse_missing_module`](../../src/orchestrator/sdlc/testenv.py#L457)
 - **Documented in**: `docs/specs/sandboxed-test-execution.md#file-level-change-list`, `docs/specs/sandboxed-test-execution.md#testrefine-loop-calls-run-with-autohealenv-runner-path-instead-of-runnerrun`
 
 ### `sql_toolchain_available`

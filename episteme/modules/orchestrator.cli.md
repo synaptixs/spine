@@ -185,7 +185,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:646`](../../src/orchestrator/cli.py#L646)
 
 - **Called by** (1): [`sdlc_address_review`](../../src/orchestrator/cli.py#L621)
-- **Calls** (10): `Exit`, [`_print`](../../src/orchestrator/cli.py#L79), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L183), `echo`, `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), `mkdtemp`, `pathlib.Path`, `py:_run`, [`respond_to_pr_feedback`](../../src/orchestrator/sdlc/review_response.py#L38)
+- **Calls** (9): `Exit`, [`_print`](../../src/orchestrator/cli.py#L79), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L183), `echo`, `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), `mkdtemp`, `pathlib.Path`, [`respond_to_pr_feedback`](../../src/orchestrator/sdlc/review_response.py#L38)
 
 ### `_run_ingest`
 
@@ -464,7 +464,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/cli.py:908`](../../src/orchestrator/cli.py#L908)
 
-- **Calls** (5): `Exit`, `echo`, [`load_spec_file`](../../src/orchestrator/sdlc/spec_file.py#L35), `py:_go`, `run`
+- **Calls** (4): `Exit`, `echo`, [`load_spec_file`](../../src/orchestrator/sdlc/spec_file.py#L35), `run`
 
 ### `sdlc_baseline`
 
@@ -488,7 +488,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/cli.py:1022`](../../src/orchestrator/cli.py#L1022)
 
-- **Calls** (5): `Exit`, `echo`, [`load_spec_file`](../../src/orchestrator/sdlc/spec_file.py#L35), `py:_go`, `run`
+- **Calls** (4): `Exit`, `echo`, [`load_spec_file`](../../src/orchestrator/sdlc/spec_file.py#L35), `run`
 
 ### `sdlc_remediate`
 

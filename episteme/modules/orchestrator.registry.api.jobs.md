@@ -63,7 +63,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/registry/api/jobs.py:74`](../../src/orchestrator/registry/api/jobs.py#L74)
 
 - **Called by** (3 production · 1 test): [`_run`](../../src/orchestrator/registry/api/jobs.py#L113), [`drain`](../../src/orchestrator/registry/api/jobs.py#L124), [`start_capability_job`](../../src/orchestrator/registry/api/jobs.py#L90), [`test_artifact_409_before_completion`](../../tests/registry/test_capabilities_and_jobs.py#L147)
-- **Calls** (2): [`AuditLogRepo`](../../src/orchestrator/registry/repositories.py#L161), `py:factory`
+- **Calls** (1): [`AuditLogRepo`](../../src/orchestrator/registry/repositories.py#L161)
 
 ### `_fetch_job_rows`
 
@@ -83,7 +83,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/registry/api/jobs.py:113`](../../src/orchestrator/registry/api/jobs.py#L113)
 
 - **Called by** (1): [`start_capability_job`](../../src/orchestrator/registry/api/jobs.py#L90)
-- **Calls** (7): `Queue`, [`_audit`](../../src/orchestrator/registry/api/jobs.py#L74), `create_task`, `orchestrator.runtime.make_job_artifact_id`, `py:drain`, `suppress`, `to_thread`
+- **Calls** (6): `Queue`, [`_audit`](../../src/orchestrator/registry/api/jobs.py#L74), `create_task`, `orchestrator.runtime.make_job_artifact_id`, `suppress`, `to_thread`
 
 ### `_summarize`
 

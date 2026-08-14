@@ -47,14 +47,14 @@ _10 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/launch.py:369`](../../src/orchestrator/launch.py#L369)
 
 - **Called by** (1): [`run_up`](../../src/orchestrator/launch.py#L307)
-- **Calls** (2): `py:echo`, `sleep`
+- **Calls** (1): `sleep`
 
 ### `_bring_up_docker`
 
 [`src/orchestrator/launch.py:260`](../../src/orchestrator/launch.py#L260)
 
 - **Called by** (1): [`run_up`](../../src/orchestrator/launch.py#L307)
-- **Calls** (5): [`LaunchError`](../../src/orchestrator/launch.py#L303), [`_resolve_compose_file`](../../src/orchestrator/launch.py#L246), [`_run`](../../src/orchestrator/launch.py#L235), `py:echo`, [`resolve_compose_base`](../../src/orchestrator/launch.py#L129)
+- **Calls** (4): [`LaunchError`](../../src/orchestrator/launch.py#L303), [`_resolve_compose_file`](../../src/orchestrator/launch.py#L246), [`_run`](../../src/orchestrator/launch.py#L235), [`resolve_compose_base`](../../src/orchestrator/launch.py#L129)
 
 ### `_has_llm_key`
 
@@ -67,35 +67,33 @@ _10 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/launch.py:358`](../../src/orchestrator/launch.py#L358)
 
 - **Called by** (1): [`run_up`](../../src/orchestrator/launch.py#L307)
-- **Calls** (1): `py:echo`
 
 ### `_resolve_compose_file`
 
 [`src/orchestrator/launch.py:246`](../../src/orchestrator/launch.py#L246)
 
 - **Called by** (1 production · 2 test): [`_bring_up_docker`](../../src/orchestrator/launch.py#L260), [`test_explicit_file_wins`](../../tests/test_launch.py#L152), [`test_writes_embedded_when_none_found`](../../tests/test_launch.py#L158)
-- **Calls** (3): `cwd`, [`find_project_file`](../../src/orchestrator/launch.py#L119), `py:echo`
+- **Calls** (2): `cwd`, [`find_project_file`](../../src/orchestrator/launch.py#L119)
 
 ### `_run`
 
 [`src/orchestrator/launch.py:235`](../../src/orchestrator/launch.py#L235)
 
 - **Called by** (2): [`_bring_up_docker`](../../src/orchestrator/launch.py#L260), [`_run_migrations`](../../src/orchestrator/launch.py#L277)
-- **Calls** (2): `py:echo`, `run`
+- **Calls** (1): `run`
 
 ### `_run_migrations`
 
 [`src/orchestrator/launch.py:277`](../../src/orchestrator/launch.py#L277)
 
 - **Called by** (1): [`run_up`](../../src/orchestrator/launch.py#L307)
-- **Calls** (7): [`LaunchError`](../../src/orchestrator/launch.py#L303), [`_run`](../../src/orchestrator/launch.py#L235), [`alembic_command`](../../src/orchestrator/launch.py#L196), [`build_child_env`](../../src/orchestrator/launch.py#L150), [`find_project_file`](../../src/orchestrator/launch.py#L119), `py:echo`, `sleep`
+- **Calls** (6): [`LaunchError`](../../src/orchestrator/launch.py#L303), [`_run`](../../src/orchestrator/launch.py#L235), [`alembic_command`](../../src/orchestrator/launch.py#L196), [`build_child_env`](../../src/orchestrator/launch.py#L150), [`find_project_file`](../../src/orchestrator/launch.py#L119), `sleep`
 
 ### `_teardown`
 
 [`src/orchestrator/launch.py:383`](../../src/orchestrator/launch.py#L383)
 
 - **Called by** (1): [`run_up`](../../src/orchestrator/launch.py#L307)
-- **Calls** (1): `py:echo`
 
 ### `alembic_command`
 
@@ -136,7 +134,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/launch.py:307`](../../src/orchestrator/launch.py#L307)
 
 - **Called by** (1): [`up`](../../src/orchestrator/cli.py#L1816)
-- **Calls** (14): [`LaunchError`](../../src/orchestrator/launch.py#L303), `Popen`, [`_block_until_interrupted`](../../src/orchestrator/launch.py#L369), [`_bring_up_docker`](../../src/orchestrator/launch.py#L260), [`_has_llm_key`](../../src/orchestrator/launch.py#L299), [`_print_ready_banner`](../../src/orchestrator/launch.py#L358), [`_run_migrations`](../../src/orchestrator/launch.py#L277), [`_teardown`](../../src/orchestrator/launch.py#L383), [`api_command`](../../src/orchestrator/launch.py#L170), [`build_child_env`](../../src/orchestrator/launch.py#L150), `py:echo`, [`wait_for_http`](../../src/orchestrator/launch.py#L218), [`wait_for_tcp`](../../src/orchestrator/launch.py#L206), [`worker_command`](../../src/orchestrator/launch.py#L185)
+- **Calls** (13): [`LaunchError`](../../src/orchestrator/launch.py#L303), `Popen`, [`_block_until_interrupted`](../../src/orchestrator/launch.py#L369), [`_bring_up_docker`](../../src/orchestrator/launch.py#L260), [`_has_llm_key`](../../src/orchestrator/launch.py#L299), [`_print_ready_banner`](../../src/orchestrator/launch.py#L358), [`_run_migrations`](../../src/orchestrator/launch.py#L277), [`_teardown`](../../src/orchestrator/launch.py#L383), [`api_command`](../../src/orchestrator/launch.py#L170), [`build_child_env`](../../src/orchestrator/launch.py#L150), [`wait_for_http`](../../src/orchestrator/launch.py#L218), [`wait_for_tcp`](../../src/orchestrator/launch.py#L206), [`worker_command`](../../src/orchestrator/launch.py#L185)
 
 ### `wait_for_http`
 

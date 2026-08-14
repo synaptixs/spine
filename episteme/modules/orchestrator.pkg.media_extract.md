@@ -53,7 +53,6 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/media_extract.py:219`](../../src/orchestrator/pkg/media_extract.py#L219)
 
 - **Called by** (2): [`iter_image_files`](../../src/orchestrator/pkg/media_extract.py#L240), [`iter_media_files`](../../src/orchestrator/pkg/media_extract.py#L245)
-- **Calls** (1): `py:_add`
 
 ### `_load_pytesseract`
 
@@ -73,7 +72,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/media_extract.py:140`](../../src/orchestrator/pkg/media_extract.py#L140)
 
 - **Called by** (1 production · 3 test): [`extract_image`](../../src/orchestrator/pkg/media_extract.py#L186), [`test_build_image_artifact_is_schema_conformant`](../../tests/pkg/test_media_extract.py#L87), [`test_build_records_hash_matching_the_file`](../../tests/pkg/test_media_extract.py#L99), [`test_too_many_labels_are_truncated_and_recorded`](../../tests/pkg/test_media_extract.py#L157)
-- **Calls** (5): [`MediaExtractorUnavailableError`](../../src/orchestrator/pkg/media_extract.py#L55), [`_file_sha256`](../../src/orchestrator/pkg/media.py#L52), [`labels_from_ocr`](../../src/orchestrator/pkg/media_extract.py#L120), `py:run_ocr`, [`tesseract_version`](../../src/orchestrator/pkg/media_extract.py#L85)
+- **Calls** (4): [`MediaExtractorUnavailableError`](../../src/orchestrator/pkg/media_extract.py#L55), [`_file_sha256`](../../src/orchestrator/pkg/media.py#L52), [`labels_from_ocr`](../../src/orchestrator/pkg/media_extract.py#L120), [`tesseract_version`](../../src/orchestrator/pkg/media_extract.py#L85)
 
 ### `extract_image`
 

@@ -83,7 +83,7 @@ _26 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/csharp_extractor.py:622`](../../src/orchestrator/pkg/csharp_extractor.py#L622)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/csharp_extractor.py#L109)
-- **Calls** (4): `RuntimeError`, `language`, `tree_sitter.Language`, `tree_sitter.Parser`
+- **Calls** (3): `language`, `tree_sitter.Language`, `tree_sitter.Parser`
 
 ### `_endpoint_edges`
 
@@ -97,7 +97,7 @@ _26 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/csharp_extractor.py:370`](../../src/orchestrator/pkg/csharp_extractor.py#L370)
 
 - **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L262)
-- **Calls** (11): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Node`](../../src/orchestrator/pkg/facts.py#L93), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L500), [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L476), [`_entity_id`](../../src/orchestrator/pkg/csharp_extractor.py#L445), [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L578), [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L461), [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L595), [`_type_arg_names`](../../src/orchestrator/pkg/csharp_extractor.py#L586), `py:resolve`
+- **Calls** (10): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Node`](../../src/orchestrator/pkg/facts.py#L93), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L500), [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L476), [`_entity_id`](../../src/orchestrator/pkg/csharp_extractor.py#L445), [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L578), [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L461), [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L595), [`_type_arg_names`](../../src/orchestrator/pkg/csharp_extractor.py#L586)
 
 ### `_entity_id`
 

@@ -41,7 +41,7 @@ _16 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/c_extractor.py:439`](../../src/orchestrator/pkg/c_extractor.py#L439)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/c_extractor.py#L73)
-- **Calls** (4): `RuntimeError`, `language`, `tree_sitter.Language`, `tree_sitter.Parser`
+- **Calls** (3): `language`, `tree_sitter.Language`, `tree_sitter.Parser`
 
 ### `_calls_in`
 
