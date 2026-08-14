@@ -1,5 +1,21 @@
 name: "Spine CodeQL config"
 
+# `corpus/` is ground truth for `pkg accuracy`, not application code. Its fixtures are tiny
+# hand-written programs in eight languages whose *shape* is the measurement — a call through a
+# parameter, a route with a computed path — and scanning them for vulnerabilities says nothing
+# about Spine.
+#
+# It also broke the build. CodeQL detects languages from repository contents, so adding C#,
+# Java, C, C++ and Go fixtures made it try to build a C# database, find nothing buildable, and
+# fail the run outright:
+#
+#     CodeQL could not process any code written in C#.
+#     Encountered a fatal error ... Exit code was 32
+#
+# The workflow matrix names only python and javascript-typescript; detection happens anyway.
+paths-ignore:
+  - corpus
+
 # Keeps the full security-and-quality suite and drops only the quality queries that
 # misread idiomatic typed Python. Every security query stays enabled.
 queries:
