@@ -148,7 +148,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 3076 symbols; 
 | `_check_dag` | `orchestrator.ir.validator` | [`_check_dag`](../src/orchestrator/ir/validator.py#L89) |
 | `_check_dangling_edges` | [`orchestrator.pkg.verify`](modules/orchestrator.pkg.verify.md#_check_dangling_edges) | [`_check_dangling_edges`](../src/orchestrator/pkg/verify.py#L93) |
 | `_check_invariants` | [`orchestrator.sdlc.validity`](modules/orchestrator.sdlc.validity.md#_check_invariants) | [`_check_invariants`](../src/orchestrator/sdlc/validity.py#L251) |
-| `_check_invention` | [`orchestrator.pkg.verify`](modules/orchestrator.pkg.verify.md#_check_invention) | [`_check_invention`](../src/orchestrator/pkg/verify.py#L479) |
+| `_check_invention` | [`orchestrator.pkg.verify`](modules/orchestrator.pkg.verify.md#_check_invention) | [`_check_invention`](../src/orchestrator/pkg/verify.py#L492) |
 | `_check_localization` | [`orchestrator.sdlc.validity`](modules/orchestrator.sdlc.validity.md#_check_localization) | [`_check_localization`](../src/orchestrator/sdlc/validity.py#L288) |
 | `_check_manager_specialists_shape` | `orchestrator.ir.validator` | [`_check_manager_specialists_shape`](../src/orchestrator/ir/validator.py#L186) |
 | `_check_pattern_coherence` | `orchestrator.ir.validator` | [`_check_pattern_coherence`](../src/orchestrator/ir/validator.py#L166) |
@@ -161,7 +161,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 3076 symbols; 
 | `_check_references` | `orchestrator.ir.validator` | [`_check_references`](../src/orchestrator/ir/validator.py#L278) |
 | `_check_sequential_shape` | `orchestrator.ir.validator` | [`_check_sequential_shape`](../src/orchestrator/ir/validator.py#L215) |
 | `_check_size` | [`orchestrator.sdlc.validity`](modules/orchestrator.sdlc.validity.md#_check_size) | [`_check_size`](../src/orchestrator/sdlc/validity.py#L304) |
-| `_check_source_parity` | [`orchestrator.pkg.verify`](modules/orchestrator.pkg.verify.md#_check_source_parity) | [`_check_source_parity`](../src/orchestrator/pkg/verify.py#L449) |
+| `_check_source_parity` | [`orchestrator.pkg.verify`](modules/orchestrator.pkg.verify.md#_check_source_parity) | [`_check_source_parity`](../src/orchestrator/pkg/verify.py#L462) |
 | `_check_supporting_artifacts_present` | `orchestrator.runtime.verifiers.evidence` | [`_check_supporting_artifacts_present`](../src/orchestrator/runtime/verifiers/evidence.py#L68) |
 | `_checkpoint` | `orchestrator.agentic.loop` | [`_checkpoint`](../src/orchestrator/agentic/loop.py#L426) |
 | `_child_main` | [`orchestrator.pkg.runtime_oracle`](modules/orchestrator.pkg.runtime_oracle.md#_child_main) | [`_child_main`](../src/orchestrator/pkg/runtime_oracle.py#L206) |
@@ -963,7 +963,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 3076 symbols; 
 | `_source` | [`orchestrator.registry.api.capabilities`](modules/orchestrator.registry.api.capabilities.md#_source) | [`_source`](../src/orchestrator/registry/api/capabilities.py#L46) |
 | `_source_link` | [`orchestrator.intake.report`](modules/orchestrator.intake.report.md#_source_link) | [`_source_link`](../src/orchestrator/intake/report.py#L62) |
 | `_source_prefix` | `orchestrator.knowledge.understand` | [`_source_prefix`](../src/orchestrator/knowledge/understand.py#L65) |
-| `_source_signals` | [`orchestrator.pkg.verify`](modules/orchestrator.pkg.verify.md#_source_signals) | [`_source_signals`](../src/orchestrator/pkg/verify.py#L416) |
+| `_source_signals` | [`orchestrator.pkg.verify`](modules/orchestrator.pkg.verify.md#_source_signals) | [`_source_signals`](../src/orchestrator/pkg/verify.py#L429) |
 | `_sourced_from` | `orchestrator.pkg.migrations` | [`_sourced_from`](../src/orchestrator/pkg/migrations.py#L222) |
 | `_spec_anchors` | `orchestrator.sdlc.excerpt` | [`_spec_anchors`](../src/orchestrator/sdlc/excerpt.py#L184) |
 | `_spec_list` | `orchestrator.intake.service` | [`_spec_list`](../src/orchestrator/intake/service.py#L92) |
