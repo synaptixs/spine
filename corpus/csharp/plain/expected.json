@@ -1,0 +1,82 @@
+{
+  "language": "csharp",
+  "case": "plain",
+  "why": "The csharp control. An interface implemented by name \u2014 unlike Go, where satisfaction is structural \u2014 plus a field and a call to a sibling method through implicit `this`.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "csharp:App",
+      "kind": "Module"
+    },
+    {
+      "id": "csharp:App.IPricer",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Cart",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.IPricer.Subtotal",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Cart.Subtotal",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Cart.Compute",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Cart.Currency",
+      "kind": "Field"
+    }
+  ],
+  "edges": [
+    {
+      "src": "csharp:App",
+      "dst": "csharp:App.IPricer",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App",
+      "dst": "csharp:App.Cart",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.IPricer",
+      "dst": "csharp:App.IPricer.Subtotal",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Cart",
+      "dst": "csharp:App.Cart.Currency",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Cart",
+      "dst": "csharp:App.Cart.Subtotal",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Cart",
+      "dst": "csharp:App.Cart.Compute",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Cart",
+      "dst": "csharp:App.IPricer",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "csharp:App.Cart.Compute",
+      "dst": "csharp:App.Cart.Subtotal",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": []
+}

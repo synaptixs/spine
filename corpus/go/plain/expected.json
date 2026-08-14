@@ -1,0 +1,40 @@
+{
+  "language": "go",
+  "case": "plain",
+  "why": "The Go control, and the one shape no other front-end has: interface satisfaction is structural. `Cart` never says it implements `Pricer` — it simply has the method set, and the front-end must work that out. Also covers package-scoped ids, an unexported field, and a plain call by name.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "go:shop", "kind": "Module"},
+
+    {"id": "go:shop.Pricer", "kind": "Type"},
+    {"id": "go:shop.Cart", "kind": "Type"},
+
+    {"id": "go:shop.Pricer.Subtotal", "kind": "Function"},
+    {"id": "go:shop.Cart.Subtotal", "kind": "Function"},
+    {"id": "go:shop.Rate", "kind": "Function"},
+    {"id": "go:shop.Total", "kind": "Function"},
+
+    {"id": "go:shop.Cart.Currency", "kind": "Field"},
+    {"id": "go:shop.Cart.items", "kind": "Field"}
+  ],
+  "edges": [
+    {"src": "go:shop", "dst": "go:shop.Pricer", "kind": "CONTAINS"},
+    {"src": "go:shop", "dst": "go:shop.Cart", "kind": "CONTAINS"},
+    {"src": "go:shop", "dst": "go:shop.Rate", "kind": "CONTAINS"},
+    {"src": "go:shop", "dst": "go:shop.Total", "kind": "CONTAINS"},
+    {"src": "go:shop.Pricer", "dst": "go:shop.Pricer.Subtotal", "kind": "CONTAINS"},
+    {"src": "go:shop.Cart", "dst": "go:shop.Cart.Currency", "kind": "CONTAINS"},
+    {"src": "go:shop.Cart", "dst": "go:shop.Cart.items", "kind": "CONTAINS"},
+    {"src": "go:shop.Cart", "dst": "go:shop.Cart.Subtotal", "kind": "CONTAINS"},
+
+    {"src": "go:shop.Cart", "dst": "go:shop.Pricer", "kind": "IMPLEMENTS"},
+
+    {"src": "go:shop.Total", "dst": "go:shop.Rate", "kind": "CALLS"}
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "`len(c.items)` — a builtin, with no node in the scanned tree and no id to label."
+  ],
+  "open_questions": []
+}

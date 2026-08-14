@@ -1,0 +1,82 @@
+{
+  "language": "csharp",
+  "case": "instance_calls",
+  "why": "The documented skip, in this language's spelling. A call to a sibling through implicit `this` resolves; the same call through a parameter of that type does not, because the parameter's type is not carried to the call site. The identical shape exists in the python, typescript and go cases, which is what makes the per-language CALLS figures comparable rather than incidental.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "csharp:Svc",
+      "kind": "Module"
+    },
+    {
+      "id": "csharp:Svc.Handler",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:Svc.Dispatch",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:Svc.Handler.Format",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:Svc.Handler.Run",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:Svc.Dispatch.ViaParameter",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "csharp:Svc",
+      "dst": "csharp:Svc.Handler",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc",
+      "dst": "csharp:Svc.Dispatch",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Handler",
+      "dst": "csharp:Svc.Handler.Format",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Handler",
+      "dst": "csharp:Svc.Handler.Run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Dispatch",
+      "dst": "csharp:Svc.Dispatch.ViaParameter",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Handler.Run",
+      "dst": "csharp:Svc.Handler.Format",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:Svc.Dispatch.ViaParameter",
+      "dst": "csharp:Svc.Handler.Run",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "csharp:Svc.Dispatch.ViaParameter",
+        "dst": "csharp:Svc.Handler.Run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. A call through a parameter needs that parameter's declared type resolved at the call site. Counted as a recall miss, not exempted."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": []
+}

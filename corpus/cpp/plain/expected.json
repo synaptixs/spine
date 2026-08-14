@@ -1,0 +1,59 @@
+{
+  "language": "cpp",
+  "case": "plain",
+  "root": ".repo",
+  "why": "The C++ control. Ids are bare and methods use `::` (`cpp:Cart::subtotal`) \u2014 the only front-end with that separator, and the second where a Python-style label would score zero.",
+  "nodes": [
+    {
+      "id": "cpp:src/cart.cpp",
+      "kind": "Module"
+    },
+    {
+      "id": "cpp:Cart",
+      "kind": "Type"
+    },
+    {
+      "id": "cpp:Cart::subtotal",
+      "kind": "Function"
+    },
+    {
+      "id": "cpp:Cart::compute",
+      "kind": "Function"
+    },
+    {
+      "id": "cpp:Cart::currency",
+      "kind": "Field"
+    }
+  ],
+  "edges": [
+    {
+      "src": "cpp:src/cart.cpp",
+      "dst": "cpp:Cart",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:Cart",
+      "dst": "cpp:Cart::currency",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:Cart",
+      "dst": "cpp:Cart::subtotal",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:Cart",
+      "dst": "cpp:Cart::compute",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:Cart::compute",
+      "dst": "cpp:Cart::subtotal",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": []
+}
