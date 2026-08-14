@@ -833,7 +833,7 @@ def _render_developer(s: CurrentState) -> str:
 
 
 def load_current_state(
-    root: Path | str, *, refresh: bool = False, sql_dialect: str | None = None
+    root: Path | str, *, refresh: bool = False, sql_dialect: str | None = None, intents: bool = False
 ) -> tuple[CurrentState, FactBatch]:
     """Extract the PKG + profile for ``root`` and return the structured ``CurrentState``.
 
@@ -846,15 +846,20 @@ def load_current_state(
     """
     from orchestrator.knowledge.analysis import analyse
 
-    result = analyse(root, refresh=refresh, sql_dialect=sql_dialect)
+    result = analyse(root, refresh=refresh, sql_dialect=sql_dialect, intents=intents)
     return result.state, result.batch
 
 
 def build_current_state(
-    root: Path | str, *, lens: str = "developer", refresh: bool = False, sql_dialect: str | None = None
+    root: Path | str,
+    *,
+    lens: str = "developer",
+    refresh: bool = False,
+    sql_dialect: str | None = None,
+    intents: bool = False,
 ) -> str:
     """Extract the PKG + profile for ``root`` and render the current-state markdown."""
-    state, _batch = load_current_state(root, refresh=refresh, sql_dialect=sql_dialect)
+    state, _batch = load_current_state(root, refresh=refresh, sql_dialect=sql_dialect, intents=intents)
     return render_current_state(state, lens=lens)
 
 

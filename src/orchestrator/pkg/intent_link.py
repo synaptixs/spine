@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -51,6 +52,13 @@ DEFAULT_KEY_PATTERN = r"\b[A-Z][A-Z0-9]{1,9}-\d+\b"
 
 _BLAME_LINE = re.compile(r"^([0-9a-f]{40}) \d+ (\d+)", re.M)
 _GIT_TIMEOUT = 120
+
+# `git blame` is one subprocess per file and dominates the scan: 23.3s of 25s on this
+# repository, 587 files at ~40ms each. The work is I/O-bound — a process starting, git
+# reading, the GIL released throughout — so threads help where they usually would not.
+# Measured: 8 workers takes it to 8.1s; 16 is *worse* (13.8 vs 16.6 ms/file) because the
+# contention costs more than the extra concurrency buys.
+_BLAME_WORKERS = 8
 
 
 @dataclass(frozen=True)
@@ -83,14 +91,24 @@ def _git(root: Path, *args: str) -> str | None:
     return proc.stdout if proc.returncode == 0 else None
 
 
-def _key_for_commit(
-    root: Path, sha: str, pattern: re.Pattern[str], cache: dict[str, str | None]
-) -> str | None:
-    if sha not in cache:
-        message = _git(root, "log", "-1", "--format=%s%n%b", sha)
-        found = pattern.search(message) if message else None
-        cache[sha] = found.group(0) if found else None
-    return cache[sha]
+def _all_commit_keys(root: Path, pattern: re.Pattern[str]) -> dict[str, str | None]:
+    """``{sha: issue key or None}`` for the whole history, in one subprocess.
+
+    Was one `git log -1` per distinct commit — 137 of them here, ~14ms each, 1.9s. Small
+    beside blame, but it is a subprocess per commit for information one command already
+    returns in full.
+    """
+    out = _git(root, "log", "--format=%H%x1f%s%n%b%x1e")
+    if not out:
+        return {}
+    keys: dict[str, str | None] = {}
+    for record in out.split("\x1e"):
+        sha, sep, message = record.strip().partition("\x1f")
+        if not sep or len(sha) != 40:
+            continue
+        found = pattern.search(message)
+        keys[sha] = found.group(0) if found else None
+    return keys
 
 
 def _blame(root: Path, rel: str) -> dict[int, str]:
@@ -111,12 +129,17 @@ def link_intents(
     """
     base = Path(root)
     pattern = re.compile(key_pattern)
-    key_cache: dict[str, str | None] = {}
-    blame_cache: dict[str, dict[int, str]] = {}
+    key_cache = _all_commit_keys(base, pattern)
 
     # Only symbols carry intent. A Module is a file, and attributing a whole file to whichever
     # ticket last touched line 1 of it would be noise wearing a provenance label.
     symbols = [n for n in batch.nodes if n.grounded and n.provenance is not None and n.kind in SYMBOL_KINDS]
+
+    # Blame every file holding a symbol, concurrently, before the join. Doing it inside the
+    # per-symbol loop serialised 587 subprocesses behind each other for no reason.
+    wanted = sorted({n.provenance.file for n in symbols if n.provenance})
+    with ThreadPoolExecutor(max_workers=_BLAME_WORKERS) as pool:
+        blame_cache = dict(zip(wanted, pool.map(lambda rel: _blame(base, rel), wanted), strict=True))
 
     attributed = 0
     intents: dict[str, Node] = {}
@@ -124,21 +147,14 @@ def link_intents(
         prov = node.provenance
         if prov is None:  # pragma: no cover - excluded by the filter above
             continue
-        rel = prov.file
-        if rel not in blame_cache:
-            blame_cache[rel] = _blame(base, rel)
-        lines = blame_cache[rel]
+        lines = blame_cache.get(prov.file) or {}
         if not lines:
             continue
 
         # The symbol's own span, so a function is attributed to the tickets that touched its
         # body — not only to whatever last edited its `def` line.
         span = range(prov.line, (prov.end_line or prov.line) + 1)
-        keys = {
-            key
-            for line in span
-            if (sha := lines.get(line)) and (key := _key_for_commit(base, sha, pattern, key_cache))
-        }
+        keys = {key for line in span if (sha := lines.get(line)) and (key := key_cache.get(sha))}
         if keys:
             attributed += 1
         for key in sorted(keys):

@@ -144,3 +144,28 @@ def test_verify_passes_with_intent_facts_present(tmp_path: Path) -> None:
     link_intents(batch, root)
     report = verify_batch(batch, root)
     assert not [i for i in report.issues if i.check in {"dangling-edge", "stale-provenance"}]
+
+
+# ---- opt-in wiring ---------------------------------------------------------
+
+
+def test_analysis_does_not_scan_intents_by_default(tmp_path: Path) -> None:
+    """`understand` and `state` cost ~8s more with the scan, and nothing renders the facts.
+
+    Default-on would charge every user for output that is byte-identical. It becomes a
+    default when something reads it — see `analysis.py`.
+    """
+    from orchestrator.knowledge.analysis import analyse
+
+    _repo(tmp_path, message="feat: x (SSPN-9)")
+    result = analyse(tmp_path)
+    assert [n for n in result.batch.nodes if n.kind is NodeKind.INTENT] == []
+
+
+def test_analysis_scans_intents_when_asked(tmp_path: Path) -> None:
+    from orchestrator.knowledge.analysis import analyse
+
+    _repo(tmp_path, message="feat: x (SSPN-9)")
+    result = analyse(tmp_path, intents=True)
+    assert [n.id for n in result.batch.nodes if n.kind is NodeKind.INTENT] == ["intent:SSPN-9"]
+    assert any(e.kind is EdgeKind.SERVES for e in result.batch.edges)
