@@ -196,7 +196,7 @@
         "python": {
           "edges": {
             "CALLS": {
-              "emitted": 10,
+              "emitted": 8,
               "expected": 11,
               "matched": 8
             },
@@ -345,10 +345,10 @@
       "skipped_languages": []
     },
     "invention": {
-      "count": 497,
+      "count": 0,
       "gated": false,
       "note": "moves with ordinary commits \u2014 recorded as a trend, never gated",
-      "total_calls": 15844
+      "total_calls": 15201
     },
     "parity": {
       "declared": 75,
