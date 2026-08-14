@@ -40,8 +40,22 @@ jobs:
       # bump did exactly that, and the breakage — three renamed APIs — was only visible to
       # someone who had installed the extra locally. An optional extra the repo ships code
       # for is not optional to test.
+      #
+      # The six language extras, for the same reason and one sharper one. Without them only
+      # `python` and `sql` front-ends register, so:
+      #   * 89 tree-sitter tests skip — a tree-sitter API change lands green;
+      #   * and `pkg accuracy` cannot score any corpus case for those languages. The
+      #     TypeScript figures in the committed baseline were measured on a developer's
+      #     machine and skipped by every CI run since, which means a TypeScript regression
+      #     could not fail a build. A number nothing re-checks is not a gate.
+      # Measured before adding: all 8 front-ends registered takes the suite from 2,747
+      # passing / 25 skipped to 2,836 passing / 4 skipped, with no new failures, and this
+      # repo's own graph is unchanged (it is pure Python outside the corpus fixtures).
       - name: Install project
-        run: uv sync --extra dev --extra mcp
+        run: >-
+          uv sync --extra dev --extra mcp
+          --extra typescript --extra java --extra csharp
+          --extra c --extra cpp --extra go
 
       - name: Lint (ruff)
         run: uv run ruff check .
