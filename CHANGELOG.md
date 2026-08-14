@@ -70,9 +70,15 @@ The other six (`java`, `csharp`, `c`, `cpp`, `go`, `sql`) gain the machinery and
 
 - **`source-parity` counts instead of testing for presence.** It asked *"does this language
   have **any** `Endpoint` node?"*; it now asks, per file and with `file:line`, *"this
-  declares 4 route decorators and the graph holds 1 — where did 3 go?"*. It found two live
-  routes invisible to the graph: `GET /healthz` and `GET /readyz`, declared inside an app
-  factory whose router the extractor could not resolve.
+  declares 4 route decorators and the graph holds 1 — where did 3 go?"*.
+
+  ~~It found two live routes invisible to the graph: `GET /healthz` and `GET /readyz`.~~
+  **Corrected after release:** that finding was false. Both routes were always extracted and
+  `EXPOSES` always reached every handler. `Endpoint` ids are keyed on verb+path, so services
+  sharing a route collapse into one node, and per-file parity counted by node provenance — so
+  every other declaring file read as short. The shortfall was the metric's own artifact. Fixed
+  in the next release; the claim is struck rather than deleted because a measurement that
+  produced a false finding is worth recording.
 
 ## 3.16.2 — A host that owns the model, and four failures that read as crashes
 
