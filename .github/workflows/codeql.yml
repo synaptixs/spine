@@ -51,7 +51,15 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
         with:
-          language: ${{ matrix.language }}
+          # `languages`, PLURAL. The input was `language` until the corpus landed, and
+          # codeql-action silently ignores an unrecognised input — so the matrix value was
+          # never applied and CodeQL autodetected instead. That was invisible while the repo
+          # held only Python and JavaScript, because autodetection produced the same answer
+          # the matrix intended. Adding C#, Java, C, C++ and Go fixtures made it produce a
+          # different one: it set up tracing for all four compiled languages
+          # (CODEQL_TRACER_LANGUAGES: cpp:csharp:go:java), found no C# to build, and failed
+          # the run. The matrix was decorative for as long as it agreed with the guess.
+          languages: ${{ matrix.language }}
           # Query selection lives in the config file, not here — it also carries the
           # query-filters that drop two quality queries which can't read typed-Python
           # idiom. Setting `queries:` here as well would ADD to the config, not replace it.
