@@ -4,6 +4,63 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.18.1 — The documentation catches up, and corrects itself
+
+No code changes. 3.17.0 and 3.18.0 shipped two releases of PKG work without the user-facing
+documentation following, and this is that sweep across all eleven documents. It **corrects more
+than it adds**, because auditing the docs against the CLI and the fact vocabulary turned up
+claims that were simply untrue.
+
+### Fixed — documentation that was wrong, not merely incomplete
+
+- **`CLI_REFERENCE.md` was missing four flags and two whole commands.** `--check` and
+  `--intents` on `understand`, `--no-timestamp` and `--intents` on `state`, and the commands
+  `sdlc baseline` and `sdlc runs` appeared nowhere. The command count read 48; it is **51**.
+  The file also claimed to be *"auto-generated from the CLI"* — **there is no generator**, and
+  that false claim is precisely how it drifted this far without anyone checking. It now says it
+  is maintained by hand, and that `--help` wins any disagreement.
+- **`ARCHITECTURE.md` undercounted the fact vocabulary** — "7 node kinds and 9 edge kinds"
+  against an actual **8 and 11**. `Intent`, `CONSUMES` and `SERVES` had been shipping
+  unmentioned.
+- **`KNOWLEDGE_GRAPH.md` carried a literal `</content>` tag at end of file**, omitted Go from
+  its parser list, and documented the deprecated `--db` flag instead of `--out`.
+- **`CODEX_GUIDE.md`'s `language` parameter listed six values**, missing `go` and `sql`;
+  `CLAUDE_GUIDE.md` still said "seven languages".
+- **`FEATURES.md` marked the runtime and invention oracles as fully shipped.** Both are
+  **Python-only**, which is a material qualification on any accuracy claim made from them.
+
+### Added
+
+- **Measured accuracy, stated wherever the graph is described** — precision **1.00 on every
+  node kind and every edge kind across all eight front-ends**, with `CALLS` recall from 1.00
+  (C, SQL) to 0.50 (TypeScript). README, USER_GUIDE, KNOWLEDGE_GRAPH (a new §10), ARCHITECTURE
+  and EXAMPLE now carry the numbers rather than the adjective "grounded".
+- **The four oracles, the `--check` currency gate, and the language extras** documented in the
+  guides and OPERATIONS, including that a missing tree-sitter extra makes a language
+  *unmeasured* rather than scored zero.
+
+### Documented as limits, rather than smoothed over
+
+Each of these would otherwise be read as a guarantee it does not make:
+
+- **`state` is not byte-stable.** Components tying on their symbol counts sort out of a `set`
+  with a non-total key, so identical runs differ — five runs produced three distinct outputs.
+  `PYTHONHASHSEED=0` is the workaround. `ARCHITECTURE.md`'s determinism claim now carries the
+  exception instead of overstating it; `understand` is unaffected.
+- **`--intents` has no reader.** Not merely opt-in: nothing renders the facts, no export format
+  emits them, and the only visible effect is a count in the graph-size line. Saying "opt-in"
+  alone implied a payoff that is not there.
+- **`invention` and `runtime` reporting `0` on a non-Python repository means *not measured*,
+  not *clean*.** Every candidate returns unexaminable and the total prints as zero.
+
+### Note on the design records
+
+`docs/specs/pkg-accuracy-gaps.md` and `docs/specs/comprehension-test-plan.md` are committed
+rather than left untracked. `understand` ingests markdown from disk regardless of git, so an
+untracked *or gitignored* file still becomes a `Doc` node and makes the local knowledge base
+disagree with CI's — verified: gitignoring them changed nothing and `--check` still failed on
+the same three files. Tracking them is what makes local and CI agree.
+
 ## 3.18.0 — Every front-end, and one finding withdrawn
 
 **Scope, first.** 3.17.0 measured two of the eight front-ends. This measures **all eight** —
