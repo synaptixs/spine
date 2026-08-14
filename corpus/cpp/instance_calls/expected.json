@@ -1,0 +1,73 @@
+{
+  "language": "cpp",
+  "case": "instance_calls",
+  "root": ".repo",
+  "why": "The documented skip in C++: a call to a sibling method resolves, a call through a reference parameter does not. C++ skips it silently where C invents a target for the equivalent shape \u2014 two front-ends, same question, opposite failure modes.",
+  "nodes": [
+    {
+      "id": "cpp:src/dispatch.cpp",
+      "kind": "Module"
+    },
+    {
+      "id": "cpp:Handler",
+      "kind": "Type"
+    },
+    {
+      "id": "cpp:Handler::format",
+      "kind": "Function"
+    },
+    {
+      "id": "cpp:Handler::run",
+      "kind": "Function"
+    },
+    {
+      "id": "cpp:viaParameter",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "cpp:src/dispatch.cpp",
+      "dst": "cpp:Handler",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:src/dispatch.cpp",
+      "dst": "cpp:viaParameter",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:Handler",
+      "dst": "cpp:Handler::format",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:Handler",
+      "dst": "cpp:Handler::run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:Handler::run",
+      "dst": "cpp:Handler::format",
+      "kind": "CALLS"
+    },
+    {
+      "src": "cpp:viaParameter",
+      "dst": "cpp:Handler::run",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "cpp:viaParameter",
+        "dst": "cpp:Handler::run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `h.run()` where `h` is a `Handler&` parameter. Counted as a recall miss, not exempted."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": []
+}

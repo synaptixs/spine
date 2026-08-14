@@ -812,11 +812,16 @@ def test_the_caveat_says_what_the_number_was_measured_against() -> None:
 
 
 def test_an_unmeasured_language_keeps_the_original_wording() -> None:
-    """None is not zero. Six of eight front-ends have no corpus, and a language nobody
-    measured has not scored badly — it has not been scored."""
+    """None is not zero — a language nobody measured has not scored badly, it has not scored.
+
+    This used `go` until the corpus grew to cover all eight front-ends, at which point the
+    test's premise disappeared and it failed. That is the corpus working. The stand-in is now
+    a language Spine has no front-end for at all, which keeps the None path covered however
+    far corpus coverage extends.
+    """
     from orchestrator.sdlc.builddoc import _blast_prose
 
-    prose = _blast_prose({"call_graph_available": True, "modules": []}, "go")
+    prose = _blast_prose({"call_graph_available": True, "modules": []}, "rust")
     assert "per-method counts under-report" in prose
     assert "Measured `CALLS` recall" not in prose
     assert "0.00" not in prose

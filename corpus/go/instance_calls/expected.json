@@ -1,0 +1,31 @@
+{
+  "language": "go",
+  "case": "instance_calls",
+  "why": "The same documented skip Python and TypeScript have, in Go's spelling. A call through the method's own receiver resolves; a call through a parameter of the same type does not, because it needs the parameter's type carried to the call site. Having the identical shape in three languages is what makes the per-language CALLS numbers comparable.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "go:svc", "kind": "Module"},
+    {"id": "go:svc.Handler", "kind": "Type"},
+    {"id": "go:svc.Handler.Format", "kind": "Function"},
+    {"id": "go:svc.Handler.Run", "kind": "Function"},
+    {"id": "go:svc.Dispatch", "kind": "Function"}
+  ],
+  "edges": [
+    {"src": "go:svc", "dst": "go:svc.Handler", "kind": "CONTAINS"},
+    {"src": "go:svc", "dst": "go:svc.Dispatch", "kind": "CONTAINS"},
+    {"src": "go:svc.Handler", "dst": "go:svc.Handler.Format", "kind": "CONTAINS"},
+    {"src": "go:svc.Handler", "dst": "go:svc.Handler.Run", "kind": "CONTAINS"},
+
+    {"src": "go:svc.Handler.Run", "dst": "go:svc.Handler.Format", "kind": "CALLS"},
+    {"src": "go:svc.Dispatch", "dst": "go:svc.Handler.Run", "kind": "CALLS"}
+  ],
+  "known_gaps": [
+    {
+      "edge": {"src": "go:svc.Dispatch", "dst": "go:svc.Handler.Run", "kind": "CALLS"},
+      "why": "PREDICTED BEFORE SCORING. `h.Run()` where `h` is a parameter of type Handler. The receiver call inside `Run` resolves because the receiver's type is on the method itself; a parameter's type is not carried to the call site. Counted as a recall miss, not exempted."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": []
+}

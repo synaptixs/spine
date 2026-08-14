@@ -1,0 +1,36 @@
+{
+  "language": "sql",
+  "case": "plain",
+  "why": "The SQL control: two tables, a column-level foreign key, and a view. Covers the shapes that make the data layer joinable to code — Entity, Field, REFERENCES from an FK, and READS from a view body.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "sql:schema.sql", "kind": "Module"},
+    {"id": "sql:customer", "kind": "Entity"},
+    {"id": "sql:orders", "kind": "Entity"},
+    {"id": "sql:active_orders", "kind": "Entity"},
+    {"id": "sql:customer.id", "kind": "Field"},
+    {"id": "sql:customer.email", "kind": "Field"},
+    {"id": "sql:orders.id", "kind": "Field"},
+    {"id": "sql:orders.customer_id", "kind": "Field"},
+    {"id": "sql:orders.total", "kind": "Field"}
+  ],
+  "edges": [
+    {"src": "sql:schema.sql", "dst": "sql:customer", "kind": "CONTAINS"},
+    {"src": "sql:schema.sql", "dst": "sql:orders", "kind": "CONTAINS"},
+    {"src": "sql:schema.sql", "dst": "sql:active_orders", "kind": "CONTAINS"},
+    {"src": "sql:customer", "dst": "sql:customer.id", "kind": "CONTAINS"},
+    {"src": "sql:customer", "dst": "sql:customer.email", "kind": "CONTAINS"},
+    {"src": "sql:orders", "dst": "sql:orders.id", "kind": "CONTAINS"},
+    {"src": "sql:orders", "dst": "sql:orders.customer_id", "kind": "CONTAINS"},
+    {"src": "sql:orders", "dst": "sql:orders.total", "kind": "CONTAINS"},
+
+    {"src": "sql:orders", "dst": "sql:customer", "kind": "REFERENCES"},
+    {"src": "sql:active_orders", "dst": "sql:orders", "kind": "READS"}
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "A view's own columns — the front-end emits the view as an Entity and its READS edge, not a Field per projected column."
+  ],
+  "open_questions": []
+}

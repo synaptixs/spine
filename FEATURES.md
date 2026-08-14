@@ -51,7 +51,7 @@ radius) and grounds new code in what already exists. Full guide:
 | Committed `episteme/` for humans + any AI tool | ✅ | `orchestrator understand --out episteme` |
 | Current State report — overview, infrastructure/runtime, code structure, **documentation coverage + doc drift**, architecture diagrams (no LLM) | ✅ | `orchestrator state . --lens developer\|stakeholder` |
 | PKG extraction / export | ✅ | `orchestrator pkg extract`, `orchestrator pkg export` |
-| **Measured graph accuracy** — precision and recall per node/edge kind per language, against a published hand-labelled corpus. Not "grounded" as an adjective; a number you can check | ✅ | `orchestrator pkg accuracy` |
+| **Measured graph accuracy** — precision and recall per node/edge kind, for **all 8 front-ends**, against a published hand-labelled corpus. Not "grounded" as an adjective; a number you can check | ✅ | `orchestrator pkg accuracy` |
 | Runtime oracle — `CALLS` recall from **real execution**, by tracing a repo's own test suite. No labelling, works on any repo with tests | ✅ | `orchestrator pkg accuracy --oracle runtime` |
 | Per-file route/table parity — where the source declares more than the graph holds, with `file:line` | ✅ | `orchestrator pkg accuracy --oracle parity` |
 | Invention detection — `CALLS` edges targeting a name bound in the caller's own scope. Every other check hunts for absence; this hunts for **fiction** | ✅ | `orchestrator pkg accuracy --oracle invention` |

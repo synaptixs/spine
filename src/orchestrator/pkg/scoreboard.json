@@ -3,6 +3,196 @@
     "corpus": {
       "gated": "strict",
       "languages": {
+        "c": {
+          "edges": {
+            "CALLS": {
+              "emitted": 3,
+              "expected": 2,
+              "matched": 2
+            },
+            "CONTAINS": {
+              "emitted": 7,
+              "expected": 7,
+              "matched": 7
+            },
+            "IMPORTS": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            }
+          },
+          "nodes": {
+            "Function": {
+              "emitted": 5,
+              "expected": 5,
+              "matched": 5
+            },
+            "Module": {
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
+            }
+          }
+        },
+        "cpp": {
+          "edges": {
+            "CALLS": {
+              "emitted": 2,
+              "expected": 3,
+              "matched": 2
+            },
+            "CONTAINS": {
+              "emitted": 8,
+              "expected": 8,
+              "matched": 8
+            }
+          },
+          "nodes": {
+            "Field": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            },
+            "Function": {
+              "emitted": 5,
+              "expected": 5,
+              "matched": 5
+            },
+            "Module": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "Type": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            }
+          }
+        },
+        "csharp": {
+          "edges": {
+            "CALLS": {
+              "emitted": 2,
+              "expected": 3,
+              "matched": 2
+            },
+            "CONTAINS": {
+              "emitted": 11,
+              "expected": 11,
+              "matched": 11
+            },
+            "IMPLEMENTS": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            }
+          },
+          "nodes": {
+            "Field": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            },
+            "Function": {
+              "emitted": 6,
+              "expected": 6,
+              "matched": 6
+            },
+            "Module": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "Type": {
+              "emitted": 4,
+              "expected": 4,
+              "matched": 4
+            }
+          }
+        },
+        "go": {
+          "edges": {
+            "CALLS": {
+              "emitted": 2,
+              "expected": 3,
+              "matched": 2
+            },
+            "CONTAINS": {
+              "emitted": 12,
+              "expected": 12,
+              "matched": 12
+            },
+            "IMPLEMENTS": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            }
+          },
+          "nodes": {
+            "Field": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "Function": {
+              "emitted": 7,
+              "expected": 7,
+              "matched": 7
+            },
+            "Module": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "Type": {
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
+            }
+          }
+        },
+        "java": {
+          "edges": {
+            "CALLS": {
+              "emitted": 2,
+              "expected": 3,
+              "matched": 2
+            },
+            "CONTAINS": {
+              "emitted": 11,
+              "expected": 11,
+              "matched": 11
+            },
+            "IMPLEMENTS": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            }
+          },
+          "nodes": {
+            "Field": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            },
+            "Function": {
+              "emitted": 6,
+              "expected": 6,
+              "matched": 6
+            },
+            "Module": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "Type": {
+              "emitted": 4,
+              "expected": 4,
+              "matched": 4
+            }
+          }
+        },
         "python": {
           "edges": {
             "CALLS": {
@@ -51,6 +241,57 @@
               "emitted": 3,
               "expected": 3,
               "matched": 3
+            }
+          }
+        },
+        "sql": {
+          "edges": {
+            "CALLS": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            },
+            "CONTAINS": {
+              "emitted": 13,
+              "expected": 13,
+              "matched": 13
+            },
+            "READS": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            },
+            "REFERENCES": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            },
+            "WRITES": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            }
+          },
+          "nodes": {
+            "Entity": {
+              "emitted": 4,
+              "expected": 4,
+              "matched": 4
+            },
+            "Field": {
+              "emitted": 7,
+              "expected": 7,
+              "matched": 7
+            },
+            "Function": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "Module": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
             }
           }
         },

@@ -1,0 +1,60 @@
+{
+  "language": "c",
+  "case": "plain",
+  "root": ".repo",
+  "why": "The C control, and the one structural feature no other front-end has: a header and its source are MERGED. `subtotal` is declared in cart.h and defined in cart.c, and the same symbol is CONTAINS'd by both modules \u2014 that is the design, not a duplicate. Also note C ids are bare symbols (`c:subtotal`), not module-qualified: a label written in the Python style scores zero here.",
+  "nodes": [
+    {
+      "id": "c:src/cart.c",
+      "kind": "Module"
+    },
+    {
+      "id": "c:src/cart.h",
+      "kind": "Module"
+    },
+    {
+      "id": "c:subtotal",
+      "kind": "Function"
+    },
+    {
+      "id": "c:total",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "c:src/cart.c",
+      "dst": "c:subtotal",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:src/cart.c",
+      "dst": "c:total",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:src/cart.h",
+      "dst": "c:subtotal",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:src/cart.h",
+      "dst": "c:total",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:src/cart.c",
+      "dst": "c:src/cart.h",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "c:total",
+      "dst": "c:subtotal",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": []
+}
