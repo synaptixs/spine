@@ -17,11 +17,13 @@ prerequisites, invariants, phases and exit criteria. This page exists only to sa
 | Spec | What it covers | Status |
 |---|---|---|
 | **G2** — [document modality](gap2-document-modality-roadmap.md) | HTML + Office (`.docx`/`.xlsx`) ingestion | ✅ **Shipped in 3.8.2** |
-| **G3** — [media ingestion](gap3-media-ingestion-roadmap.md) | Images, audio, video (OCR / transcription) | Not started — **no prerequisites** |
+| **G3** — [media ingestion](gap3-media-ingestion-roadmap.md) | Images, audio, video (OCR / transcription) | ✅ **Shipped in 3.10.0** — all three phases |
 | **G4** — [adoption & distribution](gap4-adoption-distribution-roadmap.md) | Install friction, channels, proof assets | Not started — **no prerequisites** (Phase 3 excepted) |
-| **G5** — [visualization](gap5-visualization-roadmap.md) | Graph exports + richer deterministic visuals | Not started — **no prerequisites** |
-| **G6** — [benchmarks](gap6-benchmarks-roadmap.md) | Retrieval/localization measurement + publication | Not started — **no prerequisites; best done first** |
-| **WI** — [watch-items](watch-items-roadmap.md) | PR-workflow defense; doc-drift durability | Not started — **no prerequisites** |
+| **G5** — [visualization](gap5-visualization-roadmap.md) | Graph exports + richer deterministic visuals | ✅ **Shipped in 3.11.0** — Phases 1–2; **Phase 3 deliberately dropped** (Gephi does it better on our export) |
+| **G6** — [benchmarks](gap6-benchmarks-roadmap.md) | Retrieval/localization measurement + publication | Not started — **no prerequisites; best done first**. Rewritten 2026-08-15 against 3.18.1 |
+| **CB** — [codegen benchmark](codegen-benchmark-roadmap.md) | SWE-bench comparability, then the `resolved`-vs-`mergeable` delta | Not started — **no prerequisites**. Explicit non-goal of G6; it had no home before |
+| **KL** — [codex plugin keyless](codex-plugin-keyless-roadmap.md) | Remove the API-key requirement via MCP sampling / Ollama | Not started — **Phase 0 is a blocking spike** (does Codex support sampling?) |
+| **WI** — watch-items | PR-workflow defense; doc-drift durability | ⚠️ **Spec missing.** `watch-items-roadmap.md` does not exist in `docs/specs/` or `archive/` — this row linked a file that was never written or was deleted. Write it or drop the row |
 
 **Gap 1 (language breadth — 36 grammars vs our 8) is deliberately not in this program.** We are not
 chasing language count without a concrete need. If that changes it gets its own spec; the queue
@@ -52,7 +54,8 @@ tracks meet is append-only.**
 | **G3** | new `media/` package, `media extract` CLI | reader registry, `pyproject` extras, `pkg/facts.py` *(only if it adds a `Media` kind)* |
 | **G4** | docs, `plugins/`, packaging | `plugin/_TOOLS` |
 | **G5** | `pkg/export.py`, `knowledge/report_*.py`, `web/static/` | `pkg/facts.py` — **read-only** |
-| **G6** | `evals/` | none |
+| **G6** | `evals/`, a new `comprehension` key in `pkg/scoreboard.json` | `pkg/accuracy` CLI — **extend the existing gate, never a second baseline** |
+| **CB** | `scripts/` (new SWE-bench harness), `evals/` | `scripts/codegen_benchmark.py` and the SDLC preflight — **read-only**; the strict gate must stay production code, not benchmark code |
 | **WI-1** | `sdlc/` | `plugin/_TOOLS` |
 | **WI-2** | `pkg/doc_link.py`, `pkg/verifier.py`, `knowledge/current_state.py` | none |
 

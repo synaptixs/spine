@@ -115,6 +115,23 @@ decision against a digest of what you read, and a run refuses if the plan has ch
 **Code-grounded understanding.** Before generating, it builds a **Product Knowledge
 Graph** of your repo — modules, types, functions, call sites, blast radius — and
 grounds new code in what already exists, so output reads like your team wrote it.
+
+**And that grounding is measured, not asserted** — it is the difference between code that
+*looks* right and code that *fits*.
+
+Across 200 runs on two frontier models (Anthropic's and OpenAI's current top models, five
+passes each), **every new module that integrated correctly with the existing codebase came
+from a grounded run** — 29 of 50, each clearing a gate that demanded `mypy --strict` and
+correct placement, not merely a passing test. The same tickets run without the graph
+produced none.
+
+What makes this a mechanism rather than "more context helps": on tickets that already named
+the file to change, both arms scored the same, 98 of 100. **The graph earns its keep exactly
+where the model cannot see** — which is what a knowledge graph is for.
+
+Measured on this repository, so read it as a ceiling rather than a promise about yours. The
+harness ships with the package: point it at your own code and get your own number.
+
 Works across **Python, Java, TypeScript, C#, C, C++, and Go**, plus **SQL** data-layer
 comprehension (schema, queries, stored procedures, migration folding). Java JAX-RS and
 Jakarta REST resources are captured as grounded API endpoints. It even reads your
