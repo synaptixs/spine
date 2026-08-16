@@ -51,7 +51,12 @@ from orchestrator.evals.graders import (  # noqa: E402
 )
 from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter  # noqa: E402
 from orchestrator.sdlc.grounding import PKGCodegenGrounder  # noqa: E402
-from orchestrator.sdlc.preflight import SubprocessPreflightRunner  # noqa: E402
+from orchestrator.sdlc.preflight import (  # noqa: E402
+    _JSON_CHECKS,
+    Baseline,
+    PreflightBaselineError,
+    SubprocessPreflightRunner,
+)
 
 
 @dataclass(frozen=True)
@@ -955,6 +960,15 @@ _CONV_USAGELINE = (
 )
 
 
+# External-repo task set (see scripts/bench_tickets_ontomesh.py). Kept in its own module
+# because it targets a codebase Spine did not write: the tickets, and the held-out suites
+# that grade them, are specific to ontomesh and must not be mistaken for the G2 set.
+def _ontomesh_tickets() -> list[Ticket]:
+    from bench_tickets_ontomesh import build
+
+    return list(build(Ticket))
+
+
 SKILL_TASKSETS: dict[str, list[Ticket]] = {
     # test-strategy: edge-heavy pure functions. A demanding contract (empty, zero,
     # negative, boundary, ordering, non-mutation, error paths) leaves headroom a
@@ -1422,7 +1436,13 @@ SKILL_TASKSETS: dict[str, list[Ticket]] = {
 
 
 def taskset(skill_id: str) -> list[Ticket]:
-    """The signal-bearing tickets for ``skill_id`` (P1), or empty if unknown."""
+    """The signal-bearing tickets for ``skill_id`` (P1), or empty if unknown.
+
+    ``ontomesh`` is the external-repo set and is loaded lazily: its held-out suites import
+    that repository's modules, so it is only meaningful with ``BENCH_REPO`` pointing there.
+    """
+    if skill_id == "ontomesh":
+        return _ontomesh_tickets()
     return SKILL_TASKSETS.get(skill_id, [])
 
 
@@ -1496,6 +1516,55 @@ def _modified_tracked(root: Path) -> list[str]:
     return [line[3:] for line in status.splitlines() if line[:2].strip().startswith("M")]
 
 
+def _package_roots(root: Path) -> list[str]:
+    """Directory prefixes that count as "inside the package", for THIS repo.
+
+    Was hardcoded to `src/orchestrator/`, which is correct for Spine and silently
+    unsatisfiable anywhere else. On `synaptixs/ontomesh` — flat modules under `src/` — every
+    `create` ticket failed this check in BOTH arms, so grounded and ungrounded looked
+    identical and the run read as "grounding has no effect on an external repo". That was
+    the harness, not the models.
+
+    Derived from layout: `src/<pkg>/` when the repo nests a package under src, `src/` when
+    it keeps modules flat there, plus any top-level package directory.
+    """
+    roots: list[str] = []
+    src = root / "src"
+    if src.is_dir():
+        roots.extend(f"src/{d.name}/" for d in src.iterdir() if d.is_dir() and (d / "__init__.py").exists())
+        # `src/` itself counts whenever the repo also keeps modules flat there. ontomesh has
+        # BOTH nested packages and flat modules; listing only the packages would reject a
+        # module placed beside `db_introspector.py`, which is where its tickets belong.
+        if any(src.glob("*.py")):
+            roots.append("src/")
+    roots.extend(
+        f"{d.name}/"
+        for d in root.iterdir()
+        if d.is_dir() and (d / "__init__.py").exists() and d.name not in {"tests", "test"}
+    )
+    return list(dict.fromkeys(roots)) or ["src/"]
+
+
+def _importable_names(root: Path) -> set[str]:
+    """Module names this repo actually defines — the thing a new module must import.
+
+    Replaces a regex for `from orchestrator\\.`, which asserted Spine's own package name.
+    Reading the target's real module names means "did it reuse what exists" is answered from
+    the repository rather than from an assumption about it.
+    """
+    names: set[str] = set()
+    for base in (root / "src", root):
+        if not base.is_dir():
+            continue
+        for p in base.glob("*.py"):
+            if not p.name.startswith("_"):
+                names.add(p.stem)
+        for d in base.iterdir():
+            if d.is_dir() and (d / "__init__.py").exists():
+                names.add(d.name)
+    return names - {"tests", "test", "setup", "conftest"}
+
+
 def grade(ticket: Ticket, written: list[str], root: Path) -> tuple[bool, dict[str, bool]]:
     """Objective fit checks. Returns (fit, per-check breakdown)."""
     rel = _rel([f for f in written if Path(f).exists()], root)
@@ -1515,11 +1584,16 @@ def grade(ticket: Ticket, written: list[str], root: Path) -> tuple[bool, dict[st
             ),
         }
     else:
+        pkg_roots = _package_roots(root)
+        known = _importable_names(root)
+        imported = set(re.findall(r"^\s*(?:from|import)\s+([A-Za-z_][\w.]*)", source, re.M))
+        # A relative import (`from .x`) is by definition inside the package.
+        reuses_repo_code = bool(re.search(r"^\s*from\s+\.", source, re.M)) or any(
+            name.split(".")[0] in known for name in imported
+        )
         checks = {
-            "placed inside the package": any(p.startswith("src/orchestrator/") for p in new_non_test_modules),
-            "imports the real model": bool(
-                re.search(r"from orchestrator\.|import orchestrator\.|^from \.\w*", source, re.M)
-            ),
+            "placed inside the package": any(p.startswith(tuple(pkg_roots)) for p in new_non_test_modules),
+            "imports the real model": reuses_repo_code,
             "no tracked file clobbered": not modified,
         }
     return all(checks.values()), checks
@@ -1534,6 +1608,7 @@ async def run_ticket(
     repo_root: Path = REPO,
     model: str | None = None,
     eval_skill: str | None = None,
+    baseline: Baseline | None = None,
 ) -> dict[str, Any]:
     # Skill A/B hook (persona+skill measurement): the candidate skill's guidance is
     # injected into the conditioning seam, which is phase-aware (Skill.phases) — the
@@ -1570,7 +1645,7 @@ async def run_ticket(
             refines = 0
             while refines <= MAX_REFINES:
                 if passed:
-                    pre = await preflight.run(path=str(workdir))
+                    pre = await preflight.run(path=str(workdir), baseline=baseline)
                     pre_ok = pre.passed
                     if pre_ok:
                         break
@@ -1745,10 +1820,37 @@ async def main() -> None:
             raise SystemExit(f"BENCH_REPO={bench_repo} is not a git repository (worktrees are required)")
         print(f"target repo: {bench_repo}  [EXTERNAL — tickets must be authored for it]")
 
+    # Preflight baseline: what the target repo's own tools already report, captured once.
+    #
+    # Without it the gate asks "is this repository clean?" instead of "is this change
+    # clean?" — and on any codebase carrying a lint/type backlog every ticket fails before
+    # the model contributes a line. Measured on `synaptixs/ontomesh`: 3,378 pre-existing
+    # findings, which would have produced 0/50 in *both* arms and a run that cost money and
+    # measured nothing.
+    #
+    # A failure here stops the run. A missing baseline does not weaken the gate, it makes
+    # every downstream number meaningless — and a silent pass reads exactly like a result.
+    try:
+        baseline = await SubprocessPreflightRunner().capture_baseline(path=str(bench_repo))
+    except PreflightBaselineError as exc:
+        raise SystemExit(
+            f"\n*** STOPPING — preflight baseline could not be captured for {bench_repo}:\n"
+            f"    {exc}\n"
+            "    Without a baseline, `mergeable` cannot distinguish the model's errors from\n"
+            "    the repo's own. This is not a result. Fix the cause and re-run."
+        ) from exc
+    print(f"preflight baseline: {baseline.describe()}")
+    if baseline.skipped:
+        print(
+            f"  !! gate is WEAKER here — {', '.join(baseline.skipped)} could not run in this repo.\n"
+            "     `mergeable` below means the remaining checks only; do not compare it to a\n"
+            "     run where every tool participated."
+        )
+
     print("\ngrounding: OFF (BENCH_NO_GROUNDING)" if ungrounded else "\nbuilding PKG …")
     grounder = None if ungrounded else PKGCodegenGrounder.from_repo(bench_repo)
 
-    results = [await run_ticket(t, llm, grounder, repo_root=bench_repo) for t in tickets]
+    results = [await run_ticket(t, llm, grounder, repo_root=bench_repo, baseline=baseline) for t in tickets]
 
     print("\n=== G2 acceptance summary ===")
     print(
@@ -1796,7 +1898,9 @@ async def main() -> None:
     # (b) What `mergeable` MEANT here. Acceptance folds in this repo's own preflight
     #     config, so the bar is not portable: the same patch can be mergeable in one
     #     repo and not another. Cross-repo comparison needs this stated, not assumed.
-    print(f"  acceptance gate: tests + preflight (ruff, format, mypy --strict @ {REPO.name}) + fit")
+    gate_tools = ", ".join(t for t, _ in _JSON_CHECKS if t not in baseline.skipped)
+    print(f"  acceptance gate: tests + preflight ({gate_tools} @ {bench_repo.name}) + fit")
+    print(f"  preflight baseline: {baseline.describe()}  [only NEW findings fail a ticket]")
 
     # (c) Temperature is NOT pinned, and cannot be. `claude-opus-5` accepts only its own
     #     fixed value and rejects every other (see litellm_client's retry path), so a
