@@ -115,6 +115,15 @@ decision against a digest of what you read, and a run refuses if the plan has ch
 **Code-grounded understanding.** Before generating, it builds a **Product Knowledge
 Graph** of your repo — modules, types, functions, call sites, blast radius — and
 grounds new code in what already exists, so output reads like your team wrote it.
+
+**And that grounding is measured, not asserted.** Across 200 runs on two frontier models
+(Anthropic's and OpenAI's current top models, five passes each): **without the graph,
+neither model produced a single new module that integrated correctly — 0 of 50. With it,
+29 of 50.** On tickets that named the file to change, the graph made no difference at all —
+98 of 100 either way. That contrast is the point: grounding is worth nothing when the model
+is told where to look, and decisive when it has to discover what already exists. Measured on
+this repository, so treat it as a ceiling rather than a promise about yours — the harness
+ships, so point it at your own code.
 Works across **Python, Java, TypeScript, C#, C, C++, and Go**, plus **SQL** data-layer
 comprehension (schema, queries, stored procedures, migration folding). Java JAX-RS and
 Jakarta REST resources are captured as grounded API endpoints. It even reads your
