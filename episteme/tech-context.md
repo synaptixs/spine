@@ -37,21 +37,21 @@ _How this system starts._
 - `main()` @ scripts/audit_eval.py:54
 - `main()` @ scripts/bench_aggregate.py:89
 - `main()` @ scripts/codegen_ab.py:242
-- `main()` @ scripts/codegen_benchmark.py:1683
+- `main()` @ scripts/codegen_benchmark.py:1758
 - `main()` @ scripts/live_sdlc_worker.py:44
 
 ## Most-used external imports
 _Everything imported from outside this codebase, by how often — standard library and test dependencies included, so this is wider than the install list._
 
-- `__future__.annotations` — imported 595 times
+- `__future__.annotations` — imported 596 times
 - `pathlib.Path` — imported 237 times
 - `typing.Any` — imported 225 times
-- `pytest` — imported 167 times
-- `json` — imported 125 times
+- `pytest` — imported 168 times
+- `json` — imported 126 times
 - `dataclasses.dataclass` — imported 122 times
-- `collections.abc` — imported 103 times
+- `collections.abc` — imported 104 times
 - `os` — imported 95 times
 - `asyncio` — imported 75 times
 - `httpx` — imported 73 times
 
-_Top 10 of 200._
+_Top 10 of 201._

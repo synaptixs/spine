@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.plugin`** is one of 47 areas in this repo, in the `orchestrator` zone. It holds 4 modules — 3 types and 32 functions. No other area imports it, and it draws on 7 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
+**`orchestrator.plugin`** is one of 48 areas in this repo, in the `orchestrator` zone. It holds 4 modules — 3 types and 32 functions. No other area imports it, and it draws on 7 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
 
 ```mermaid
 flowchart LR
