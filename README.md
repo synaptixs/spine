@@ -116,17 +116,18 @@ decision against a digest of what you read, and a run refuses if the plan has ch
 Graph** of your repo — modules, types, functions, call sites, blast radius — and
 grounds new code in what already exists, so output reads like your team wrote it.
 
-**And that grounding is measured, not asserted.** Across 200 runs on two frontier models
-(Anthropic's and OpenAI's current top models, five passes each): **every new module that
-integrated correctly with the existing codebase required the graph.** Without it, not one
-succeeded in 50 attempts — the models wrote plausible code that imported nothing real. With
-the graph, 29 of 50 cleared a gate that also demanded `mypy --strict` and correct placement,
-not merely a passing test.
+**And that grounding is measured, not asserted** — it is the difference between code that
+*looks* right and code that *fits*.
 
-The control that makes this a mechanism rather than "more context helps": on tickets that
-already named the file to change, both arms scored the same (98 of 100). The graph is
-supplying what the model cannot otherwise know — where the code lives and what it may
-reuse — not padding a prompt.
+Across 200 runs on two frontier models (Anthropic's and OpenAI's current top models, five
+passes each), **every new module that integrated correctly with the existing codebase came
+from a grounded run** — 29 of 50, each clearing a gate that demanded `mypy --strict` and
+correct placement, not merely a passing test. The same tickets run without the graph
+produced none.
+
+What makes this a mechanism rather than "more context helps": on tickets that already named
+the file to change, both arms scored the same, 98 of 100. **The graph earns its keep exactly
+where the model cannot see** — which is what a knowledge graph is for.
 
 Measured on this repository, so read it as a ceiling rather than a promise about yours. The
 harness ships with the package: point it at your own code and get your own number.

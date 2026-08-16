@@ -183,9 +183,10 @@ gitignored, kept out of history (verified).
 - With the finished substrate (~35–40% of total effort) weighted in: **~65% toward
   the full platform vision.**
 - **Phases 5 AND 6 complete, live-proven**: PKG v0 · grounded codegen (**superseded
-  2026-08-16: the 3/3 A/B is replaced by 200 runs across two frontier models —
-  0/50 `create` tickets accepted ungrounded vs 29/50 grounded, with 98/100 `edit`
-  tickets accepted either way as the control. See
+  2026-08-16: the 3/3 A/B is replaced by 200 runs across two frontier models — every
+  `create` ticket that was accepted came from a grounded run (29/50); the same tickets
+  ungrounded produced none. `edit` tickets tie at 98/100, the control showing the graph
+  pays where the model cannot see. See
   [`codegen-model-comparison-results.md`](codegen-model-comparison-results.md)**;
   one real feature merged) · semantic judge · Semgrep · calibrated escalation ·
   preflight CI-parity · merge-on-green — all exercised in run #12's green E2E.
