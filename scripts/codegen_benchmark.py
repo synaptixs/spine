@@ -51,7 +51,12 @@ from orchestrator.evals.graders import (  # noqa: E402
 )
 from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter  # noqa: E402
 from orchestrator.sdlc.grounding import PKGCodegenGrounder  # noqa: E402
-from orchestrator.sdlc.preflight import SubprocessPreflightRunner  # noqa: E402
+from orchestrator.sdlc.preflight import (  # noqa: E402
+    _JSON_CHECKS,
+    Baseline,
+    PreflightBaselineError,
+    SubprocessPreflightRunner,
+)
 
 
 @dataclass(frozen=True)
@@ -1534,6 +1539,7 @@ async def run_ticket(
     repo_root: Path = REPO,
     model: str | None = None,
     eval_skill: str | None = None,
+    baseline: Baseline | None = None,
 ) -> dict[str, Any]:
     # Skill A/B hook (persona+skill measurement): the candidate skill's guidance is
     # injected into the conditioning seam, which is phase-aware (Skill.phases) — the
@@ -1570,7 +1576,7 @@ async def run_ticket(
             refines = 0
             while refines <= MAX_REFINES:
                 if passed:
-                    pre = await preflight.run(path=str(workdir))
+                    pre = await preflight.run(path=str(workdir), baseline=baseline)
                     pre_ok = pre.passed
                     if pre_ok:
                         break
@@ -1745,10 +1751,37 @@ async def main() -> None:
             raise SystemExit(f"BENCH_REPO={bench_repo} is not a git repository (worktrees are required)")
         print(f"target repo: {bench_repo}  [EXTERNAL — tickets must be authored for it]")
 
+    # Preflight baseline: what the target repo's own tools already report, captured once.
+    #
+    # Without it the gate asks "is this repository clean?" instead of "is this change
+    # clean?" — and on any codebase carrying a lint/type backlog every ticket fails before
+    # the model contributes a line. Measured on `synaptixs/ontomesh`: 3,378 pre-existing
+    # findings, which would have produced 0/50 in *both* arms and a run that cost money and
+    # measured nothing.
+    #
+    # A failure here stops the run. A missing baseline does not weaken the gate, it makes
+    # every downstream number meaningless — and a silent pass reads exactly like a result.
+    try:
+        baseline = await SubprocessPreflightRunner().capture_baseline(path=str(bench_repo))
+    except PreflightBaselineError as exc:
+        raise SystemExit(
+            f"\n*** STOPPING — preflight baseline could not be captured for {bench_repo}:\n"
+            f"    {exc}\n"
+            "    Without a baseline, `mergeable` cannot distinguish the model's errors from\n"
+            "    the repo's own. This is not a result. Fix the cause and re-run."
+        ) from exc
+    print(f"preflight baseline: {baseline.describe()}")
+    if baseline.skipped:
+        print(
+            f"  !! gate is WEAKER here — {', '.join(baseline.skipped)} could not run in this repo.\n"
+            "     `mergeable` below means the remaining checks only; do not compare it to a\n"
+            "     run where every tool participated."
+        )
+
     print("\ngrounding: OFF (BENCH_NO_GROUNDING)" if ungrounded else "\nbuilding PKG …")
     grounder = None if ungrounded else PKGCodegenGrounder.from_repo(bench_repo)
 
-    results = [await run_ticket(t, llm, grounder, repo_root=bench_repo) for t in tickets]
+    results = [await run_ticket(t, llm, grounder, repo_root=bench_repo, baseline=baseline) for t in tickets]
 
     print("\n=== G2 acceptance summary ===")
     print(
@@ -1796,7 +1829,9 @@ async def main() -> None:
     # (b) What `mergeable` MEANT here. Acceptance folds in this repo's own preflight
     #     config, so the bar is not portable: the same patch can be mergeable in one
     #     repo and not another. Cross-repo comparison needs this stated, not assumed.
-    print(f"  acceptance gate: tests + preflight (ruff, format, mypy --strict @ {REPO.name}) + fit")
+    gate_tools = ", ".join(t for t, _ in _JSON_CHECKS if t not in baseline.skipped)
+    print(f"  acceptance gate: tests + preflight ({gate_tools} @ {bench_repo.name}) + fit")
+    print(f"  preflight baseline: {baseline.describe()}  [only NEW findings fail a ticket]")
 
     # (c) Temperature is NOT pinned, and cannot be. `claude-opus-5` accepts only its own
     #     fixed value and rejects every other (see litellm_client's retry path), so a

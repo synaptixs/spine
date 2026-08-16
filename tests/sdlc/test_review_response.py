@@ -55,8 +55,8 @@ class _Preflight:
     def __init__(self, passed: bool) -> None:
         self._passed = passed
 
-    async def run(self, *, path: str) -> Any:
-        _ = path
+    async def run(self, *, path: str, baseline: Any = None) -> Any:
+        _ = (path, baseline)
         return type("P", (), {"passed": self._passed, "output": "stub"})()
 
 
