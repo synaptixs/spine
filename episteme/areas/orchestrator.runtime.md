@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.runtime`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 19 modules — 49 types and 44 functions. It sits in the middle of the graph: 4 areas below it, 3 above. Changes here can reach both ways.
+**`orchestrator.runtime`** is one of 47 areas in this repo, in the `orchestrator` zone. It holds 19 modules — 49 types and 44 functions. It sits in the middle of the graph: 4 areas below it, 3 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR

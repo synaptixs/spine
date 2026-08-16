@@ -180,7 +180,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 2 test): [`test_regression_gaps_flags_untested_caller`](../../tests/plugin/test_server.py#L156), [`test_regression_gaps_needs_symbol_or_trace`](../../tests/plugin/test_server.py#L163)
 - **Calls** (1): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L206)
-- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#using-the-understand-codebase-skill`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`, `docs/specs/comprehension-skill-spec.md#phases`
+- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#using-the-understand-codebase-skill`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`, `docs/specs/codex-plugin-keyless-roadmap.md#tools-needing-no-credentials-at-all-17-of-19`
 
 ### `root_cause`
 
@@ -203,7 +203,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 1 test): [`test_sdlc_decide_gate_delegates`](../../tests/plugin/test_server.py#L344)
 - **Calls** (1): [`decide_gate`](../../src/orchestrator/sdlc/run_control.py#L130)
-- **Documented in**: `CLAUDE_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `CODEX_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`
+- **Documented in**: `CLAUDE_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `CODEX_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `docs/specs/codex-plugin-keyless-roadmap.md#tools-needing-no-credentials-at-all-17-of-19`
 
 ### `sdlc_feature`
 
@@ -225,7 +225,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 1 test): [`test_sdlc_run_status_and_result_delegate`](../../tests/plugin/test_server.py#L357)
 - **Calls** (1): [`run_result`](../../src/orchestrator/sdlc/run_control.py#L181)
-- **Documented in**: `CLAUDE_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `CODEX_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `docs/specs/sdlc-tracking-blueprint.md#10-surfacing-where-the-numbers-show-up`
+- **Documented in**: `CLAUDE_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `CODEX_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `docs/specs/codex-plugin-keyless-roadmap.md#tools-needing-no-credentials-at-all-17-of-19`, `docs/specs/sdlc-tracking-blueprint.md#10-surfacing-where-the-numbers-show-up`
 
 ### `sdlc_run_status`
 
@@ -233,7 +233,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 1 test): [`test_sdlc_run_status_and_result_delegate`](../../tests/plugin/test_server.py#L357)
 - **Calls** (1): [`run_status`](../../src/orchestrator/sdlc/run_control.py#L102)
-- **Documented in**: `CLAUDE_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `CODEX_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`
+- **Documented in**: `CLAUDE_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `CODEX_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `docs/specs/codex-plugin-keyless-roadmap.md#tools-needing-no-credentials-at-all-17-of-19`
 
 ### `sdlc_start_run`
 

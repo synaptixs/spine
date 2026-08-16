@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.obs`** is one of 46 areas in this repo, in the `orchestrator` zone. It holds 2 modules — 2 types and 11 functions. Nothing here depends on other areas, but 4 areas depend on it — it's a foundation, so changes ripple outward.
+**`orchestrator.obs`** is one of 47 areas in this repo, in the `orchestrator` zone. It holds 2 modules — 2 types and 11 functions. Nothing here depends on other areas, but 4 areas depend on it — it's a foundation, so changes ripple outward.
 
 ```mermaid
 flowchart LR

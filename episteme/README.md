@@ -4,11 +4,11 @@
 Code-true knowledge base for **synaptixs-spine** (brownfield), built by `orchestrator understand` from the Product Knowledge Graph + project profile.
 
 <!-- spine-stamp -->
-Generated from commit `06d514d68eccaf71798446c77eb877d072f87b64` **plus uncommitted changes** by **Spine 3.18.1**.
+Generated from commit `9fc59481c54bcbaa4f9c8a6eb09d0756ec16c9fc` **plus uncommitted changes** by **Spine 3.18.1**.
 Verify it still matches the code with `orchestrator understand --check`.
 <!-- /spine-stamp -->
 
-**Graph:** 11918 grounded nodes · 34436 edges.
+**Graph:** 11970 grounded nodes · 34509 edges.
 
 > **epistēmē** (ἐπιστήμη) — knowledge grounded in evidence, as opposed to *doxa*, opinion. Everything here is derived from the code itself, not written by hand.
 
@@ -17,9 +17,9 @@ _Where execution starts, then what the most code depends on._
 
 1. [`scripts.agentic_eval`](../scripts/agentic_eval.py#L1) — where execution starts
 2. [`scripts.audit_eval`](../scripts/audit_eval.py#L1) — where execution starts
-3. [`scripts.codegen_ab`](../scripts/codegen_ab.py#L1) — where execution starts
-4. [`scripts.codegen_benchmark`](../scripts/codegen_benchmark.py#L1) — where execution starts
-5. [`scripts.live_sdlc_worker`](../scripts/live_sdlc_worker.py#L1) — where execution starts
+3. [`scripts.bench_aggregate`](../scripts/bench_aggregate.py#L1) — where execution starts
+4. [`scripts.codegen_ab`](../scripts/codegen_ab.py#L1) — where execution starts
+5. [`scripts.codegen_benchmark`](../scripts/codegen_benchmark.py#L1) — where execution starts
 
 ## Files
 - [architecture.md](architecture.md) — module map, node kinds, call hotspots
