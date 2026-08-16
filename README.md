@@ -117,13 +117,20 @@ Graph** of your repo — modules, types, functions, call sites, blast radius —
 grounds new code in what already exists, so output reads like your team wrote it.
 
 **And that grounding is measured, not asserted.** Across 200 runs on two frontier models
-(Anthropic's and OpenAI's current top models, five passes each): **without the graph,
-neither model produced a single new module that integrated correctly — 0 of 50. With it,
-29 of 50.** On tickets that named the file to change, the graph made no difference at all —
-98 of 100 either way. That contrast is the point: grounding is worth nothing when the model
-is told where to look, and decisive when it has to discover what already exists. Measured on
-this repository, so treat it as a ceiling rather than a promise about yours — the harness
-ships, so point it at your own code.
+(Anthropic's and OpenAI's current top models, five passes each): **every new module that
+integrated correctly with the existing codebase required the graph.** Without it, not one
+succeeded in 50 attempts — the models wrote plausible code that imported nothing real. With
+the graph, 29 of 50 cleared a gate that also demanded `mypy --strict` and correct placement,
+not merely a passing test.
+
+The control that makes this a mechanism rather than "more context helps": on tickets that
+already named the file to change, both arms scored the same (98 of 100). The graph is
+supplying what the model cannot otherwise know — where the code lives and what it may
+reuse — not padding a prompt.
+
+Measured on this repository, so read it as a ceiling rather than a promise about yours. The
+harness ships with the package: point it at your own code and get your own number.
+
 Works across **Python, Java, TypeScript, C#, C, C++, and Go**, plus **SQL** data-layer
 comprehension (schema, queries, stored procedures, migration folding). Java JAX-RS and
 Jakarta REST resources are captured as grounded API endpoints. It even reads your
