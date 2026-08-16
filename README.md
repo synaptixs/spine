@@ -119,18 +119,27 @@ grounds new code in what already exists, so output reads like your team wrote it
 **And that grounding is measured, not asserted** — it is the difference between code that
 *looks* right and code that *fits*.
 
-Across 200 runs on two frontier models (Anthropic's and OpenAI's current top models, five
-passes each), **every new module that integrated correctly with the existing codebase came
-from a grounded run** — 29 of 50, each clearing a gate that demanded `mypy --strict` and
-correct placement, not merely a passing test. The same tickets run without the graph
-produced none.
+Across **260 runs on two frontier models** (Anthropic's and OpenAI's current top models),
+asked to add a new module that had to integrate with code it did not write: **47 of 68
+succeeded with the graph. Without it, 3 of 68.** Success meant more than a passing test — the
+change also had to clear that repository's own lint and type gate and land where it belonged.
 
 What makes this a mechanism rather than "more context helps": on tickets that already named
-the file to change, both arms scored the same, 98 of 100. **The graph earns its keep exactly
-where the model cannot see** — which is what a knowledge graph is for.
+the file to change, both arms scored the same — **122 of 124, with or without the graph**.
+**The graph earns its keep exactly where the model cannot see**, which is what a knowledge
+graph is for.
 
-Measured on this repository, so read it as a ceiling rather than a promise about yours. The
-harness ships with the package: point it at your own code and get your own number.
+**It holds on code we didn't write.** The result was measured twice — once on this repository,
+then replicated on an unrelated open-source codebase with different authors, a different
+layout, and types Spine had never seen. Same shape both times. The failure without the graph
+is consistent and specific: models write working code that quietly reinvents the types that
+already exist, instead of importing them.
+
+Absolute rates stay repo-specific — yours will differ, and the second repository's gate was
+weaker than this one's. But the harness ships with the package, so you can point it at your
+own code and get your own number. Method and bounds:
+[measured on Spine](https://github.com/synaptixs/spine/blob/main/docs/specs/codegen-model-comparison-results.md)
+· [replicated externally](https://github.com/synaptixs/spine/blob/main/docs/specs/external-repo-grounding-results.md)
 
 Works across **Python, Java, TypeScript, C#, C, C++, and Go**, plus **SQL** data-layer
 comprehension (schema, queries, stored procedures, migration folding). Java JAX-RS and
