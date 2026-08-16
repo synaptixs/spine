@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -44,6 +45,22 @@ def _rejects_temperature(exc: Exception) -> bool:
     return "temperature" in text and ("unsupported" in text or "only temperature" in text)
 
 
+def _supports_reasoning(model: str) -> bool:
+    """Does litellm report this model as reasoning-capable?
+
+    Read from ``litellm.model_cost`` rather than a hardcoded list, for the same reason
+    ``catalog.py`` does: a new frontier model then arrives with a ``litellm`` upgrade and
+    no edit here. An unknown model answers ``False`` — the conservative direction, because
+    sending the parameter to a model that rejects it would break a path that works today.
+    """
+    try:
+        import litellm
+
+        return bool(litellm.model_cost.get(model, {}).get("supports_reasoning"))
+    except Exception:
+        return False
+
+
 class LiteLLMClient:
     """Thin async wrapper over ``litellm.acompletion``.
 
@@ -73,6 +90,10 @@ class LiteLLMClient:
             else float(os.getenv("ORCHESTRATOR_LLM_TIMEOUT_SECONDS", "300"))
         )
         self._fallbacks = fallbacks
+        # Reasoning level sent to reasoning-capable models when tools are in play (see
+        # `complete`). `high` preserves the reasoning these models are chosen for;
+        # override to trade quality for latency/cost, never to `none` unless you mean it.
+        self._reasoning_effort = os.getenv("ORCHESTRATOR_REASONING_EFFORT", "high")
 
     async def complete(
         self,
@@ -114,6 +135,17 @@ class LiteLLMClient:
             # Anthropic has no equivalent for and drops).
             if tool_choice:
                 params["tool_choice"] = {"type": "function", "function": {"name": tool_choice}}
+            # A reasoning model must be told its reasoning level *explicitly* when tools
+            # are present. OpenAI rejects function tools alongside the model's own default
+            # reasoning mode on `/v1/chat/completions` — verified on `gpt-5.6-sol`, where
+            # omitting the parameter fails every call while `low`/`medium`/`high` all
+            # succeed and return schema-valid tool arguments. Naming a level is therefore
+            # *not* a trade of reasoning for tool-calling: the error text suggests
+            # `reasoning_effort='none'`, which would disable the reasoning that makes these
+            # models good at codegen, and that is the wrong fix. Anthropic accepts the
+            # parameter either way, so this is safe to send to any reasoning model.
+            if _supports_reasoning(model):
+                params["reasoning_effort"] = self._reasoning_effort
         # Newer reasoning models (e.g. claude-opus-4-7) reject `temperature`
         # entirely. Only forward it when the caller explicitly opts in.
         if temperature is not None:
@@ -129,12 +161,47 @@ class LiteLLMClient:
         # codegen + intake stages.
         if response_format is not None:
             params["response_format"] = response_format
-        elif json_object:
+        elif json_object and not tools:
+            # `json_object` is the fallback for providers with no tool-calling — it is
+            # redundant whenever a tool is forced, because `tool_choice` above already
+            # guarantees schema-valid arguments rather than prose.
+            #
+            # It is also actively harmful on OpenAI: sending `tools` *and* `json_object`
+            # together routes the call to the Responses API, which rejects it with
+            # *"Response input messages must contain the word 'json' in some form to use
+            # 'text.format' of type 'json_object'."* — and unlike the chat-completions
+            # form of that rule, adding the word to a system message does **not** satisfy
+            # it. Verified on `gpt-5.6-sol`: tools+tool_choice+reasoning succeeds, and the
+            # same call plus `json_object` fails however the prompt is worded. Untreated,
+            # this aborted 6-8 of every 10 codegen tickets.
             params["response_format"] = {"type": "json_object"}
+
+        # `timeout`/`request_timeout` are passed to litellm above, but they are honoured by
+        # the provider path litellm picks — and it does not pick the same one for every
+        # request. A `gpt-5.6-sol` call carrying tools is routed to OpenAI's Responses API,
+        # where neither parameter took effect: a stalled request hung with no timeout and no
+        # error. Measured 2026-08-16 — one benchmark arm sat for **4h16m at 0% CPU with no
+        # child processes**, blocked on a single call, then resumed as if nothing happened.
+        #
+        # That is worse in production than in a benchmark: an `sdlc` run would hang for
+        # hours with nothing in the logs and the run budget never tripping, because a call
+        # that never returns never bills.
+        #
+        # `asyncio.wait_for` enforces the timeout in *our* process, so it holds regardless of
+        # which endpoint litellm chooses or whether that endpoint honours its own parameter.
+        # The litellm-level values stay: they let the provider fail fast when it can.
+        async def _call() -> Any:
+            return await asyncio.wait_for(litellm.acompletion(**params), timeout=self._request_timeout)
 
         start = time.perf_counter()
         try:
-            response = await litellm.acompletion(**params)
+            response = await _call()
+        except TimeoutError as exc:
+            raise LLMError(
+                f"`{model}` did not respond within {self._request_timeout:.0f}s "
+                "(client-side timeout; the provider path may not enforce its own). "
+                "Raise ORCHESTRATOR_LLM_TIMEOUT_SECONDS if this model is legitimately slow."
+            ) from exc
         except Exception as exc:  # litellm raises a wide variety of exceptions
             # Some models accept `temperature` but only at their own fixed value —
             # `claude-opus-5` takes 1 and rejects everything else. Intake pins 0.0 for
@@ -168,7 +235,12 @@ class LiteLLMClient:
                 extra={"event": "llm.temperature_unsupported", "model": model, "temperature": refused},
             )
             try:
-                response = await litellm.acompletion(**params)
+                response = await _call()
+            except TimeoutError as retry_exc:
+                raise LLMError(
+                    f"`{model}` did not respond within {self._request_timeout:.0f}s on the "
+                    "temperature retry (client-side timeout)."
+                ) from retry_exc
             except Exception as retry_exc:
                 raise LLMError(f"{type(retry_exc).__name__}: {retry_exc}") from retry_exc
         latency_ms = (time.perf_counter() - start) * 1000.0
@@ -180,9 +252,20 @@ class LiteLLMClient:
         except Exception:  # cost lookup is best-effort
             cost_usd = 0.0
 
+        # The model that *answered*, not the one we asked for — so a fallback, a router, or
+        # a provider substitution shows up in the ledger instead of being recorded as the
+        # model we requested.
+        #
+        # It does **not** pin a snapshot, and that limit is worth stating rather than
+        # discovering later: probed 2026-08-15, both `claude-opus-5` and `gpt-5.6-sol` echo
+        # the *alias* back rather than a dated id, so the weights behind a benchmark number
+        # can still move without anything here changing. Pair a published figure with its
+        # run date; the response alone will not reproduce it.
+        served_model = str(getattr(response, "model", "") or model)
+
         return CompletionResult(
             text=text,
-            model=model,
+            model=served_model,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             cost_usd=cost_usd,

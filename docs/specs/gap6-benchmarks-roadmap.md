@@ -3,30 +3,41 @@
 > **"G6" is a label, not a position in a queue.** It's gap #6 in the Graphify comparison. The specs
 > are not ordered and do not run in sequence.
 
-**Status:** Not started.
+**Status:** Not started. **Rewritten 2026-08-15 against 3.18.1.**
 **Owner:** _unassigned_
 
-## Before you start
-
-**Prerequisites: none. You can start today — and this is the track to start first.**
-
-| What this track needs | State |
-|---|---|
-| A measurement package to extend | ✅ Exists — `evals/`; this track owns it outright |
-| A repo corpus to measure against | ✅ Exists — the validation repos already used for live proofs |
-| Anything from G2, G3, G4, G5 or the watch-items | Nothing. No shared files at all. |
-
-**Why first:** G2 already shipped (3.8.2) with **no baseline**, so we cannot say whether it improved
-comprehension. Every track after it inherits that problem, and it compounds — the longer this waits,
-the less "before" the baseline actually represents. It blocks nothing, so it runs alongside anything.
+> **What changed in this rewrite.** The original opened with *"we make strong claims and publish
+> **zero** evidence."* That was true when written and is **false now** — 3.17.0 and 3.18.0 shipped
+> a labelled corpus, `scoreboard.json`, four oracles, and a strict CI accuracy gate. The original
+> Phase 1 ("build a harness, record a baseline, commit it") therefore described machinery that
+> already exists, and following it would produce **a second baseline that can disagree with the
+> first**. This version extends the shipped measurement surface instead of duplicating it.
+>
+> The claim→metric table and the refusal to chase LOCOMO are unchanged. They were right.
 
 **Gap:** #6 in [graphify-vs-spine-comparison.md](graphify-vs-spine-comparison.md).
 
-**One-liner:** we make strong claims — "grounded", "file:line-accurate", "finds where a ticket
-lands" — and publish **zero** evidence. Build the harness that measures those claims, get a
-baseline before the other tracks start, then publish.
+**One-liner:** we measure whether *the graph* is right; we do not measure whether *the answers* are
+right. Extend the existing scoreboard to comprehension metrics on pinned **public** repos, gate
+them, publish.
 
 ---
+
+## What 3.18.1 already measures — do not rebuild any of this
+
+| Shipped | What it gives us |
+|---|---|
+| `corpus/` — 19 labelled fixtures, 8 front-ends | Precision **1.00** on every node and edge kind; recall 1.00 except `CALLS` |
+| `pkg accuracy --oracle invention` | 0 invented targets / 15,212 call edges. **Python-only** |
+| `pkg accuracy --oracle parity` | Declared-vs-extracted routes/tables. Shortfall 0 |
+| `pkg accuracy --oracle runtime` | `CALLS` recall by executing a repo's own tests. **Python-only** |
+| `src/orchestrator/pkg/scoreboard.json` | Committed baseline; keys today: `corpus`, `invention`, `parity` |
+| `pkg accuracy --check` | The CI gate: strict on corpus, ratchet on parity, trend-only elsewhere |
+| `understand --check` | Currency gate — the bank provably matches the code |
+
+**The hole this spec fills.** Every row above answers *"is the graph right?"* on **fixtures we
+wrote**. None answers *"does it give the right answer to a real engineering question on a real
+repository?"* That second question is the one a buyer asks, and it is unmeasured.
 
 ## Why, and why *not* their benchmark
 
@@ -46,30 +57,51 @@ an irrelevant axis, or good numbers that prove nothing a buyer cares about.
 | "grounded, `file:line`" | **Provenance validity** — sampled facts still resolve to the claimed line |
 
 The last one is the differentiator nobody else reports, and we can already compute it
-(`GroundingVerifier.stale_findings` is most of it).
-
-## Why Phase 1 should go first
-
-Every other track in this program will claim it improved comprehension. Without a baseline
-captured **before** they start, none of those claims are checkable, and regressions land silently.
-Phase 1 is small and unblocks honest reporting for the whole program.
+(`GroundingVerifier.stale_findings`, `pkg/verifier.py:122`, is most of it). A competitive sweep in
+August 2026 confirmed it: **every published benchmark in the code-intelligence category is an
+efficiency metric** — token savings, tool-call reduction — and none reports correctness.
 
 ## What already exists (reuse, don't rebuild)
 
-| Piece | Gives us |
-|---|---|
-| `evals/` | An existing measurement package — extend it, don't start a new one |
-| `pkg/verifier.py` | `stale_findings` / `doc_findings` — provenance validity is nearly free |
-| `sdlc/localize.py`, `investigate.py`, `coverage.py` | The functions under test |
-| Validation repos (private, ephemeral) | `synaptixs/NN`, `open5gs`, `dlib`, the Go mirror — real corpora already used for live proofs |
+| Piece | Gives us | Verified |
+|---|---|---|
+| `pkg/scoreboard.json` + `pkg accuracy --check` | Baseline **and** gate. Add a `comprehension` key; do not start a second baseline | ✅ |
+| `evals/` — `harness.py`, `graders.py`, `models.py`, `paths.py` | The measurement package to extend | ✅ |
+| `pkg/verifier.py` — `stale_findings`, `doc_findings` | Provenance validity, nearly free | ✅ `:92`, `:122` |
+| `sdlc/localize.py`, `sdlc/investigate.py`, `sdlc/coverage.py` | The functions under test | ✅ |
+| `evals/agent_corpus.py` | The precedent for asymmetric scoring — copy its discipline | ✅ |
+
+## Corpus: public only, pinned by commit
+
+**Open question 1 in the previous draft is closed: public repos only.** Under the invariant
+*"never publish a number we can't reproduce on demand"*, a private or ephemeral repo cannot back a
+published figure. `synaptixs/NN` is therefore excluded from anything published, though it remains
+useful privately.
+
+Two of the four validation repos are already public OSS and should be pinned as-is:
+
+| Repo | Language | Why it earns a slot |
+|---|---|---|
+| **open5gs** | C | Large, real, and C is where `invention` cannot see |
+| **dlib** | C++ | Heavy templates — the hardest extraction shape we ship |
+| **flask**, **httpx** | Python | Small, fast, already exercised against 3.17/3.18 in Aug 2026 |
+| a Go and a TypeScript repo, TBD | Go, TS | TS has the weakest `CALLS` recall (0.50) — measure it or it hides |
+
+**The corpus must not be Python-heavy.** The `runtime` and `invention` oracles are Python-only, so
+a Python-dominated corpus would report health it has not measured. Non-Python repos are what make
+that limit visible rather than invisible.
 
 ## Phases
 
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
-| **1 — Harness + baseline** | A fixed, versioned corpus (pin commits) + ground truth mined from **merged PRs and closed bug issues** (the PR's changed files = truth for impact; the fixing commit = truth for localization). Metrics: top-k localization, impact recall/precision, provenance validity. Deterministic, no LLM in scoring. Record baseline numbers. | ~5–7 d | `orchestrator evals run` (or equivalent) prints a metrics table; **baseline committed** so later work diffs against it |
-| **2 — Regression gate + trend** | Wire the harness into CI on a small corpus subset; fail (or warn) on a material metric drop. Track a trend series across releases. | ~3–4 d | A PR that degrades localization accuracy is visible before merge |
-| **3 — Publish** | A public methodology + results doc: corpus, ground-truth derivation, metrics, numbers, and a **reproducible** command. Honest framing: state what we did *not* measure (we are not a memory system) rather than implying broader coverage. | ~3–4 d | Public benchmark page + reproducible harness; a proof asset G4 can point at |
+| **1 — Comprehension metrics into the existing scoreboard** | Ground truth mined from **merged PRs and closed bug issues** (the PR's changed files = truth for impact; the fixing commit = truth for localization) on the pinned public corpus. Metrics: top-k localization, fault-site top-1, impact recall/precision, provenance validity. Deterministic, no LLM in scoring. Land them as a **`comprehension` key in `scoreboard.json`**, written by `pkg accuracy --scoreboard`. | ~5–7 d | `pkg accuracy` prints comprehension alongside corpus/invention/parity; one baseline, one file |
+| **2 — Gate + trend** | Extend `pkg accuracy --check` to the new key. Ratchet, not strict — these move with repo churn, like parity. Track a trend series across releases. | ~2–3 d | A PR that degrades localization is visible before merge, using the gate that already exists |
+| **3 — Publish** | Public methodology + results: corpus (with commit SHAs), ground-truth derivation, metrics, numbers, and a **reproducible command**. State what we did *not* measure — the Python-only oracles especially — rather than implying broader coverage. | ~3–4 d | A public benchmark page and a command an outsider can run |
+
+**Which phase buys what.** Phases 1–2 make the claim *checkable*; Phase 3 makes it *a market
+position*. Phase 3 is not optional polish — an unpublished benchmark changes nothing outside the
+repo, and "measured correctness" is the only axis on which Spine currently leads.
 
 ## Invariants you must not break
 
@@ -78,21 +110,26 @@ Phase 1 is small and unblocks honest reporting for the whole program.
 - **Pin the corpus.** Commit SHAs, not branch names — otherwise the numbers move under you.
 - **Bound honestly.** Report corpus size, and what was excluded and why. No cherry-picked repos.
 - **Never publish a number we can't reproduce on demand.** The command must be in the doc.
+- **One baseline.** Comprehension metrics live in `scoreboard.json` next to the rest. Two baselines
+  is how a project ends up quoting whichever is kinder.
 
 ## Non-goals
 
 - LOCOMO / LongMemEval / conversational-memory benchmarks (wrong product — see above).
 - Beating Graphify on *their* axis.
-- Benchmarking codegen quality (SWE-bench-style) — a different, much larger program; this spec is
-  about **comprehension/retrieval** only.
+- **Benchmarking codegen quality (SWE-bench-style)** — a different, much larger program. It now has
+  its own record: [`codegen-benchmark-roadmap.md`](codegen-benchmark-roadmap.md). This spec is about
+  **comprehension/retrieval** only.
 - Marketing spin. If a number is bad, it gets published or the claim gets dropped.
 
 ## Open questions
 
-1. Public corpus or private? Public repos make results reproducible by outsiders; our existing
-   validation repos are private/ephemeral. (Lean: **public repos only** for anything published.)
-2. Ground truth from merged PRs is noisy (PRs touch unrelated files). Do we hand-curate a small
-   gold set instead? (Lean: **both** — a curated gold set of ~50 for headline numbers, mined PRs
-   for volume/trend.)
+1. ~~Public corpus or private?~~ **Closed: public only** for anything published (see Corpus above).
+2. Ground truth from merged PRs is noisy (PRs touch unrelated files). Do we hand-curate a small gold
+   set instead? (Lean: **both** — a curated gold set of ~50 for headline numbers, mined PRs for
+   volume/trend.)
 3. Do we publish before or after G3/G5 land? (Lean: **baseline privately now, publish once they
    land**, so the numbers reflect the improved product.)
+4. **New:** does a comprehension regression gate belong on the `strict` tier or the `ratchet` tier?
+   Leaning ratchet — the corpus is real repos, so churn moves it, and the invention metric is
+   ungated for exactly this reason.
