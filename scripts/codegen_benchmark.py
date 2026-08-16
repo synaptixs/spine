@@ -960,6 +960,15 @@ _CONV_USAGELINE = (
 )
 
 
+# External-repo task set (see scripts/bench_tickets_ontomesh.py). Kept in its own module
+# because it targets a codebase Spine did not write: the tickets, and the held-out suites
+# that grade them, are specific to ontomesh and must not be mistaken for the G2 set.
+def _ontomesh_tickets() -> list[Ticket]:
+    from bench_tickets_ontomesh import build
+
+    return list(build(Ticket))
+
+
 SKILL_TASKSETS: dict[str, list[Ticket]] = {
     # test-strategy: edge-heavy pure functions. A demanding contract (empty, zero,
     # negative, boundary, ordering, non-mutation, error paths) leaves headroom a
@@ -1427,7 +1436,13 @@ SKILL_TASKSETS: dict[str, list[Ticket]] = {
 
 
 def taskset(skill_id: str) -> list[Ticket]:
-    """The signal-bearing tickets for ``skill_id`` (P1), or empty if unknown."""
+    """The signal-bearing tickets for ``skill_id`` (P1), or empty if unknown.
+
+    ``ontomesh`` is the external-repo set and is loaded lazily: its held-out suites import
+    that repository's modules, so it is only meaningful with ``BENCH_REPO`` pointing there.
+    """
+    if skill_id == "ontomesh":
+        return _ontomesh_tickets()
     return SKILL_TASKSETS.get(skill_id, [])
 
 
