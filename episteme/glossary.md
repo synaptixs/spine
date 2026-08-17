@@ -31,7 +31,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **PKGCodegenGrounder** | [`PKGCodegenGrounder`](../src/orchestrator/sdlc/grounding.py#L31) | `KNOWLEDGE_GRAPH.md#7-how-grounding-uses-the-pkg`, `docs/specs/README.md#3-gap-taxonomy-g1g17` |
 | **PlannerError** | [`PlannerError`](../src/orchestrator/planner/v0.py#L38) | — |
 | **Provenance** | [`Provenance`](../src/orchestrator/pkg/facts.py#L81) | — |
-| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L151) | `docs/specs/python-frontend-parity.md#7-files`, `docs/specs/typescript-codegen.md#where-typescript-stands-today` |
+| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L151) | `docs/specs/parsing-and-the-pkg.md#2-what-actually-happens-to-a-file`, `docs/specs/python-frontend-parity.md#7-files` |
 | **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L84) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
 | **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L572) | `docs/specs/README.md#44-build-phases-per-repo-split`, `docs/specs/archive/PKG-INTEGRATION-PLAN.md#phase-1-repo-code-extractor-track-11-34-wks` |
 | **RunBudget** | [`RunBudget`](../src/orchestrator/core/llm/budget.py#L42) | `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/README.md#autonomous-agent-scorecard` |
