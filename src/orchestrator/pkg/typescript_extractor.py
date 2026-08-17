@@ -141,6 +141,9 @@ class TypeScriptExtractor:
         for base in _supertypes(node, source):
             target = _resolve_type(base, imports, local_types, parent_id)
             if target is not None:
+                # A base type from a package (`implements OnInit` from @angular/core) needs
+                # the same external node a call target does, or the edge dangles.
+                _ensure_external(batch, target, kind=NodeKind.TYPE)
                 batch.add_edge(Edge(type_id, target, EdgeKind.IMPLEMENTS, Provenance(rel, line)))
 
         body = node.child_by_field_name("body")
@@ -225,6 +228,30 @@ _CALL_SCOPE_STOP = frozenset(
 )
 
 
+def _ensure_external(batch: FactBatch, target: str, *, kind: NodeKind = NodeKind.FUNCTION) -> None:
+    """Give a package-keyed target a node, so the edge lands somewhere.
+
+    A call to an imported third-party symbol resolves to ``ts:<specifier>:<name>`` — an
+    honest id naming a real npm package — but no node was ever emitted for it, so the edge
+    dangled. Measured on a real Angular codebase: **854 dangling edges**, almost all of them
+    `rxjs/operators:takeUntil`, `@angular/core:OnInit`, `jquery:$` and friends.
+
+    This is the shape Python already uses (``py:ValueError`` exists as an external ``Type``):
+    the node is `external`, so it is ungrounded and excluded from every count that claims to
+    describe first-party code, while `pkg verify` stops reporting a dangling edge that was
+    never wrong — only unlanded.
+
+    Repo-local ids (``ts:path/to/mod.name``) are left alone: those *should* resolve to a real
+    declaration, and inventing a node for one would paper over a genuine resolution miss.
+    """
+    # `ts:<specifier>:<name>` — the package form has a second colon; repo-local ids do not.
+    if target.count(":") < 2:
+        return
+    _, spec, name = target.split(":", 2)
+    batch.add_node(Node(target, kind, name, "typescript", external=True))
+    batch.add_node(Node(f"ts:{spec}", NodeKind.MODULE, spec, "typescript", external=True))
+
+
 def _import_target(spec: str, name: str, rel: str) -> str:
     """Resolve an imported call target to a node id.
 
@@ -272,6 +299,7 @@ def _calls(
             fn = n.child_by_field_name("function")
             target = _resolve_callee(fn, type_id, siblings, local_funcs, imports, rel, source)
             if target is not None:
+                _ensure_external(batch, target)
                 batch.add_edge(Edge(caller, target, EdgeKind.CALLS, Provenance(rel, n.start_point[0] + 1)))
         stack.extend(n.named_children)
 
