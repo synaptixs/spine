@@ -65,7 +65,7 @@ docs · **n/a** out of category
 | Security verifier in the delivery path | ❌ ⁵ | n/a | n/a | n/a | n/a | ✅ | ➖ | ➖ | ➖ |
 | Confidence-calibrated escalation | ✅ | n/a | n/a | n/a | n/a | n/a | n/a | ➖ | ➖ |
 | OpenTelemetry tracing end-to-end | ✅ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
-| **RBAC enforcement** | **✅ ⁶** | n/a | n/a | n/a | n/a | n/a | ✅ | ➖ | ✅ |
+| **RBAC enforcement** | **🟡 ⁶** | n/a | n/a | n/a | n/a | n/a | ✅ | ➖ | ✅ |
 | **Multi-tenancy (isolation, not a label)** | **✅ ⁶** | n/a | n/a | n/a | n/a | n/a | ✅ | ➖ | ✅ |
 | Secrets vault beyond `.env` | ❌ | n/a | n/a | n/a | n/a | n/a | ✅ | ➖ | ✅ |
 
@@ -99,10 +99,22 @@ generic more-context effect, replicated on a second unrelated codebase.
 verifier chain is `base, chain, confidence, evidence, glossary, policy`. Security scanning
 exists at CI level and via the `audit` persona, but not as a per-step verifier.
 
-**⁶ Corrected 2026-08-16.** Previously marked ❌ from a G-scorecard entry reading *10%*. Both
-are **implemented and enforced** — `Principal(id, tenant_id, roles)`, `has_role`, cross-tenant
-reads returning 404, `tenant_id` as a real column on three tables. The scorecard was stale, not
-the code.
+**⁶ Corrected twice — read the split, because the two halves differ.** First marked ❌ from a
+G-scorecard entry reading *10%*, then ✅ once the code was read. An audit on 2026-08-17 shows
+that ✅ was right for tenancy and **too generous for roles**, so they are now scored separately.
+
+- **Multi-tenancy ✅.** `Principal(id, tenant_id, roles)` reaches **16 of 23 API route
+  modules** via `PrincipalDep`, there are **23 `principal.tenant_id` scoping sites**, a
+  cross-tenant read returns **404** rather than 403 (no id leakage), and `tenant_id` is a real
+  column on four tables. That is isolation, not a label.
+- **RBAC 🟡.** Identity and roles are modelled and plumbed everywhere, but the *role check*
+  itself — `has_role` — is called at **exactly one site**: the approval decision in
+  `approvals.py`. Every other route is authenticated and tenant-scoped, not role-gated.
+
+Defensible as a design — the approval gate is the highest-risk action and the right place to
+start — but a buyer asking "can I restrict who does X?" will find one X. Scoring it ✅ would be
+the matrix overstating what they would actually find, which is what this document exists to
+avoid.
 
 **⁷ There is no SWE-bench number — none has been run.** ❌ here means *absent*, not *low*.
 Spine's `9/10` and the 200-run rates are measured on **self-authored tickets against its own
@@ -121,7 +133,7 @@ scaffold vs 61.5% top score on a standardised harness). See
 whether the product's central claim is *true*, not about what it can do.
 
 **3 rows where Spine is ❌** — SWE-bench comparability, an in-path security verifier, and a
-secrets vault. Down from six earlier in the month: two were **my own errors** from stale status
+secrets vault; plus RBAC at 🟡 (see ⁶). Down from six earlier in the month: two were **my own errors** from stale status
 docs (⁶), and one (interactive visualization) turned out to be a **deliberate design choice**
 rather than a gap (³).
 
