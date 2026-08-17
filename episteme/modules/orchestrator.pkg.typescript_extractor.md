@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/pkg/typescript_extractor.py`](../../src/orchestrator/pkg/typescript_extractor.py)
 
-1 types · 12 functions · python
+1 types · 13 functions · python
 
 ## Changing this safely
 
@@ -13,16 +13,16 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L415) — reaches **10** symbols · **no test path visible**
+- [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L467) — reaches **10** symbols · **no test path visible**
 - [`TypeScriptExtractor`](../../src/orchestrator/pkg/typescript_extractor.py#L46) — reaches **6** symbols
-- [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L410) — reaches **4** symbols · **no test path visible**
-- [`_ensure_external`](../../src/orchestrator/pkg/typescript_extractor.py#L231) — reaches **3** symbols · **no test path visible**
-- [`_import_target`](../../src/orchestrator/pkg/typescript_extractor.py#L255) — reaches **3** symbols · **no test path visible**
-- [`_imported_locals`](../../src/orchestrator/pkg/typescript_extractor.py#L358) — reaches **2** symbols · **no test path visible**
-- [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L307) — reaches **2** symbols · **no test path visible**
-- [`_resolve_type`](../../src/orchestrator/pkg/typescript_extractor.py#L398) — reaches **2** symbols · **no test path visible**
+- [`_import_target`](../../src/orchestrator/pkg/typescript_extractor.py#L287) — reaches **5** symbols · **no test path visible**
+- [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L462) — reaches **4** symbols · **no test path visible**
+- [`_ensure_external`](../../src/orchestrator/pkg/typescript_extractor.py#L243) — reaches **3** symbols · **no test path visible**
+- [`_imported_locals`](../../src/orchestrator/pkg/typescript_extractor.py#L395) — reaches **2** symbols · **no test path visible**
+- [`_relative_module`](../../src/orchestrator/pkg/typescript_extractor.py#L267) — reaches **2** symbols · **no test path visible**
+- [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L340) — reaches **2** symbols · **no test path visible**
 
-_12 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_13 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Types
 
@@ -30,7 +30,7 @@ _12 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/typescript_extractor.py:46`](../../src/orchestrator/pkg/typescript_extractor.py#L46)
 
-- **Called by** (1 production · 5 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L525), [`_facts`](../../tests/pkg/test_typescript_extractor.py#L50), [`test_package_base_type_gets_an_external_node`](../../tests/pkg/test_typescript_extractor.py#L177), [`test_package_call_target_gets_an_external_node`](../../tests/pkg/test_typescript_extractor.py#L160), [`test_repo_extractor_dispatches_typescript_by_suffix`](../../tests/pkg/test_typescript_extractor.py#L113), [`test_repo_local_target_is_not_invented`](../../tests/pkg/test_typescript_extractor.py#L186)
+- **Called by** (1 production · 8 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L525), [`_facts`](../../tests/pkg/test_typescript_extractor.py#L50), [`test_method_call_on_a_named_import_is_not_a_module_member`](../../tests/pkg/test_typescript_extractor.py#L204), [`test_namespace_import_member_call_still_resolves`](../../tests/pkg/test_typescript_extractor.py#L223), [`test_package_base_type_gets_an_external_node`](../../tests/pkg/test_typescript_extractor.py#L185), [`test_package_call_target_gets_an_external_node`](../../tests/pkg/test_typescript_extractor.py#L168), [`test_relative_import_joins_to_the_first_party_module`](../../tests/pkg/test_typescript_extractor.py#L235), [`test_repo_extractor_dispatches_typescript_by_suffix`](../../tests/pkg/test_typescript_extractor.py#L121), [`test_repo_local_target_is_not_invented`](../../tests/pkg/test_typescript_extractor.py#L194)
 - **Fields**: `language`, `suffixes`
 - **Documented in**: `docs/specs/typescript-codegen.md#slice-1-typescript-comprehension-ships-first-cheap`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
@@ -38,75 +38,83 @@ _12 of the symbols other code depends on here have no test path the graph can se
 
 ### `_calls`
 
-[`src/orchestrator/pkg/typescript_extractor.py:280`](../../src/orchestrator/pkg/typescript_extractor.py#L280)
+[`src/orchestrator/pkg/typescript_extractor.py:312`](../../src/orchestrator/pkg/typescript_extractor.py#L312)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L67)
-- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_ensure_external`](../../src/orchestrator/pkg/typescript_extractor.py#L231), [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L307)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_ensure_external`](../../src/orchestrator/pkg/typescript_extractor.py#L243), [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L340)
 
 ### `_emit_function`
 
-[`src/orchestrator/pkg/typescript_extractor.py:201`](../../src/orchestrator/pkg/typescript_extractor.py#L201)
+[`src/orchestrator/pkg/typescript_extractor.py:213`](../../src/orchestrator/pkg/typescript_extractor.py#L213)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L67)
-- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Node`](../../src/orchestrator/pkg/facts.py#L93), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L410)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Node`](../../src/orchestrator/pkg/facts.py#L93), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L462)
 
 ### `_ensure_external`
 
-[`src/orchestrator/pkg/typescript_extractor.py:231`](../../src/orchestrator/pkg/typescript_extractor.py#L231)
+[`src/orchestrator/pkg/typescript_extractor.py:243`](../../src/orchestrator/pkg/typescript_extractor.py#L243)
 
-- **Called by** (2): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L280), [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L119)
+- **Called by** (2): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L312), [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L131)
 - **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L93)
 
 ### `_field_text`
 
-[`src/orchestrator/pkg/typescript_extractor.py:410`](../../src/orchestrator/pkg/typescript_extractor.py#L410)
+[`src/orchestrator/pkg/typescript_extractor.py:462`](../../src/orchestrator/pkg/typescript_extractor.py#L462)
 
-- **Called by** (4): [`_emit_const_functions`](../../src/orchestrator/pkg/typescript_extractor.py#L171), [`_emit_function`](../../src/orchestrator/pkg/typescript_extractor.py#L201), [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L119), [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L67)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L415)
+- **Called by** (4): [`_emit_const_functions`](../../src/orchestrator/pkg/typescript_extractor.py#L183), [`_emit_function`](../../src/orchestrator/pkg/typescript_extractor.py#L213), [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L131), [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L67)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L467)
 
 ### `_import_target`
 
-[`src/orchestrator/pkg/typescript_extractor.py:255`](../../src/orchestrator/pkg/typescript_extractor.py#L255)
+[`src/orchestrator/pkg/typescript_extractor.py:287`](../../src/orchestrator/pkg/typescript_extractor.py#L287)
 
-- **Called by** (1): [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L307)
+- **Called by** (2): [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L340), [`_resolve_type`](../../src/orchestrator/pkg/typescript_extractor.py#L444)
 - **Calls** (3): `dirname`, `join`, `normpath`
 
 ### `_imported_locals`
 
-[`src/orchestrator/pkg/typescript_extractor.py:358`](../../src/orchestrator/pkg/typescript_extractor.py#L358)
+[`src/orchestrator/pkg/typescript_extractor.py:395`](../../src/orchestrator/pkg/typescript_extractor.py#L395)
 
 - **Called by** (1): [`_imports`](../../src/orchestrator/pkg/typescript_extractor.py#L100)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L415)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L467)
+
+### `_relative_module`
+
+[`src/orchestrator/pkg/typescript_extractor.py:267`](../../src/orchestrator/pkg/typescript_extractor.py#L267)
+
+- **Called by** (1): [`_imports`](../../src/orchestrator/pkg/typescript_extractor.py#L100)
+- **Calls** (3): `dirname`, `join`, `normpath`
 
 ### `_resolve_callee`
 
-[`src/orchestrator/pkg/typescript_extractor.py:307`](../../src/orchestrator/pkg/typescript_extractor.py#L307)
+[`src/orchestrator/pkg/typescript_extractor.py:340`](../../src/orchestrator/pkg/typescript_extractor.py#L340)
 
-- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L280)
-- **Calls** (2): [`_import_target`](../../src/orchestrator/pkg/typescript_extractor.py#L255), [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L415)
+- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L312)
+- **Calls** (2): [`_import_target`](../../src/orchestrator/pkg/typescript_extractor.py#L287), [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L467)
 
 ### `_resolve_type`
 
-[`src/orchestrator/pkg/typescript_extractor.py:398`](../../src/orchestrator/pkg/typescript_extractor.py#L398)
+[`src/orchestrator/pkg/typescript_extractor.py:444`](../../src/orchestrator/pkg/typescript_extractor.py#L444)
 
-- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L119)
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L131)
+- **Calls** (1): [`_import_target`](../../src/orchestrator/pkg/typescript_extractor.py#L287)
 
 ### `_supertypes`
 
-[`src/orchestrator/pkg/typescript_extractor.py:382`](../../src/orchestrator/pkg/typescript_extractor.py#L382)
+[`src/orchestrator/pkg/typescript_extractor.py:428`](../../src/orchestrator/pkg/typescript_extractor.py#L428)
 
-- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L119)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L415)
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/typescript_extractor.py#L131)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L467)
 
 ### `_text`
 
-[`src/orchestrator/pkg/typescript_extractor.py:415`](../../src/orchestrator/pkg/typescript_extractor.py#L415)
+[`src/orchestrator/pkg/typescript_extractor.py:467`](../../src/orchestrator/pkg/typescript_extractor.py#L467)
 
-- **Called by** (5): [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L410), [`_imported_locals`](../../src/orchestrator/pkg/typescript_extractor.py#L358), [`_imports`](../../src/orchestrator/pkg/typescript_extractor.py#L100), [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L307), [`_supertypes`](../../src/orchestrator/pkg/typescript_extractor.py#L382)
+- **Called by** (5): [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L462), [`_imported_locals`](../../src/orchestrator/pkg/typescript_extractor.py#L395), [`_imports`](../../src/orchestrator/pkg/typescript_extractor.py#L100), [`_resolve_callee`](../../src/orchestrator/pkg/typescript_extractor.py#L340), [`_supertypes`](../../src/orchestrator/pkg/typescript_extractor.py#L428)
 
 ### `_ts_parser`
 
-[`src/orchestrator/pkg/typescript_extractor.py:421`](../../src/orchestrator/pkg/typescript_extractor.py#L421)
+[`src/orchestrator/pkg/typescript_extractor.py:473`](../../src/orchestrator/pkg/typescript_extractor.py#L473)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L67)
 - **Calls** (4): `language_tsx`, `language_typescript`, `tree_sitter.Language`, `tree_sitter.Parser`
@@ -114,7 +122,7 @@ _12 of the symbols other code depends on here have no test path the graph can se
 
 ### `_unwrap`
 
-[`src/orchestrator/pkg/typescript_extractor.py:341`](../../src/orchestrator/pkg/typescript_extractor.py#L341)
+[`src/orchestrator/pkg/typescript_extractor.py:378`](../../src/orchestrator/pkg/typescript_extractor.py#L378)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L67)
 
