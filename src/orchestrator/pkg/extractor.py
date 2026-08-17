@@ -607,10 +607,14 @@ class RepoCodeExtractor:
         # cross-file edges that a per-file pass can't (e.g. Go's IMPLEMENTS by method-set
         # matching, which spans every file in a package). Duck-typed so no front-end is
         # obliged to implement it.
+        # The return value is honoured, not discarded. Go's `finalize` mutates in place and
+        # returns the same batch, so it worked either way — but a pass that needs to *replace*
+        # an edge (C# repointing a mis-qualified base type) has to build a new batch, and
+        # ignoring the result silently dropped that work.
         for extractor in used:
             finalize = getattr(extractor, "finalize", None)
             if callable(finalize):
-                finalize(batch)
+                batch = finalize(batch) or batch
         # Whole-repo import join: repoint IMPORTS edges at the first-party modules
         # they denote. Lives here (not in a front-end) because it needs the full
         # module index, and here (not at call sites) so every consumer of the

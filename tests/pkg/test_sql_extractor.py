@@ -220,3 +220,47 @@ def test_unparseable_file_is_skipped_not_fatal(tmp_path: Path) -> None:
     extractor = RepoCodeExtractor()
     batch = extractor.extract(tmp_path)
     assert any(n.id == "sql:t" for n in batch.nodes)  # the good file still extracted
+
+
+# --- SQL Server reality: encoding and batch separators -------------------------------
+#
+# Measured on a real SQL Server project: 676 of 709 .sql files were UTF-16LE and every one
+# was silently skipped, taking the whole database tier of the graph with it. Neither defect
+# is about SQL dialect, so `--dialect tsql` did not help.
+
+
+def test_utf16_sql_is_read_not_skipped(tmp_path: Path) -> None:
+    """SSMS scripts objects as UTF-16 by default; reading as UTF-8 loses the file."""
+    f = tmp_path / "obj.sql"
+    f.write_bytes("CREATE TABLE dbo.Widget (Id int NOT NULL);".encode("utf-16"))
+    batch = SqlExtractor().extract(path=f, module="obj", rel="obj.sql")
+    assert any(n.kind is NodeKind.ENTITY for n in batch.nodes), "UTF-16 file produced no facts"
+
+
+def test_go_batch_separator_does_not_fail_the_file(tmp_path: Path) -> None:
+    """`GO` is an SSMS client directive, not T-SQL — sqlglot rejects the whole file on it."""
+    f = tmp_path / "obj.sql"
+    f.write_text(
+        "SET ANSI_NULLS ON\nGO\nCREATE TABLE dbo.Widget (Id int NOT NULL);\nGO\n",
+        encoding="utf-8",
+    )
+    batch = SqlExtractor().extract(path=f, module="obj", rel="obj.sql")
+    assert any(n.kind is NodeKind.ENTITY for n in batch.nodes)
+
+
+def test_utf16_and_go_together(tmp_path: Path) -> None:
+    """The real-world shape: both at once, which is what a scripted object looks like."""
+    f = tmp_path / "obj.sql"
+    f.write_bytes(
+        "SET QUOTED_IDENTIFIER ON\nGO\nCREATE TABLE dbo.Widget (Id int NOT NULL);\nGO\n".encode("utf-16")
+    )
+    batch = SqlExtractor().extract(path=f, module="obj", rel="obj.sql")
+    assert any(n.kind is NodeKind.ENTITY for n in batch.nodes)
+
+
+def test_plain_utf8_without_go_is_unchanged(tmp_path: Path) -> None:
+    """The common case must not change shape."""
+    f = tmp_path / "obj.sql"
+    f.write_text("CREATE TABLE widget (id int NOT NULL);", encoding="utf-8")
+    batch = SqlExtractor().extract(path=f, module="obj", rel="obj.sql")
+    assert any(n.kind is NodeKind.ENTITY for n in batch.nodes)

@@ -155,3 +155,39 @@ def test_emits_calls_for_local_imported_and_this(tmp_path: Path) -> None:
     assert ("ts:a.a", "ts:src/util.run") in calls  # imported namespace
     assert ("ts:a.Svc.run", "ts:a.Svc.step") in calls  # this.method()
     assert not any(dst.endswith(":ignored") or dst.endswith(".ignored") for _, dst in calls)
+
+
+def test_package_call_target_gets_an_external_node(tmp_path: Path) -> None:
+    """An imported third-party call must land on a node, not dangle.
+
+    Measured on a real Angular codebase: 854 dangling edges, nearly all of them
+    `rxjs/operators:takeUntil`, `@angular/core:OnInit`, `jquery:$`. The ids were honest —
+    they name real packages — but no node was emitted, so every edge dangled.
+    """
+    src = tmp_path / "a.ts"
+    src.write_text("import { takeUntil } from 'rxjs/operators';\nexport function f() { takeUntil(); }\n")
+    batch = TypeScriptExtractor().extract(path=src, module="a", rel="a.ts")
+    ids = {n.id for n in batch.nodes}
+    dangling = [e for e in batch.edges if e.dst not in ids]
+    assert not dangling, f"dangling: {[(e.src, e.dst) for e in dangling]}"
+    ext = [n for n in batch.nodes if n.id == "ts:rxjs/operators:takeUntil"]
+    assert ext and ext[0].external and not ext[0].grounded
+
+
+def test_package_base_type_gets_an_external_node(tmp_path: Path) -> None:
+    """`implements OnInit` from @angular/core needs the same treatment as a call target."""
+    src = tmp_path / "b.ts"
+    src.write_text("import { OnInit } from '@angular/core';\nexport class C implements OnInit {}\n")
+    batch = TypeScriptExtractor().extract(path=src, module="b", rel="b.ts")
+    ids = {n.id for n in batch.nodes}
+    assert not [e for e in batch.edges if e.dst not in ids]
+
+
+def test_repo_local_target_is_not_invented(tmp_path: Path) -> None:
+    """A relative import should resolve to a real declaration; inventing a node for it
+    would paper over a genuine resolution miss rather than fix it."""
+    src = tmp_path / "c.ts"
+    src.write_text("import { helper } from './util';\nexport function g() { helper(); }\n")
+    batch = TypeScriptExtractor().extract(path=src, module="c", rel="c.ts")
+    invented = [n for n in batch.nodes if n.id.startswith("ts:util") and n.kind is NodeKind.FUNCTION]
+    assert not invented, "repo-local target must not get a synthesised node"

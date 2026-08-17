@@ -106,6 +106,40 @@ class CSharpExtractor:
             m = None
         return m.group(1) if m else rel_module_name(path, root)
 
+    def finalize(self, batch: FactBatch) -> FactBatch:
+        """Repoint `IMPLEMENTS` edges whose base type was provisionally placed in the wrong
+        namespace.
+
+        `_resolve_type` has to guess at per-file time: a bare `class Foo : IEqualityComparer`
+        gives no clue whether the base is first-party or framework. It assumes the enclosing
+        namespace, which is right for a sibling type and wrong for everything from `System.*`.
+
+        By the time this runs every declaration in the repo is known, so the guess is
+        checkable. A target that matches no declared type is repointed at `csharp:<BareName>`
+        and given an **external** node — asserting the name we read rather than a namespace we
+        invented, and landing the edge so it stops dangling.
+
+        Measured on a real ASP.NET codebase: 77 `IMPLEMENTS` edges pointed at types that did
+        not exist — `IEqualityComparer`, `Exception`, `ControllerBase`, `ClientBase`.
+        """
+        declared = {n.id for n in batch.nodes if n.kind is NodeKind.TYPE and not n.external}
+        repointed = FactBatch()
+        for node in batch.nodes:
+            repointed.add_node(node)
+        for edge in batch.edges:
+            if (
+                edge.kind is not EdgeKind.IMPLEMENTS
+                or not edge.dst.startswith("csharp:")
+                or edge.dst in declared
+            ):
+                repointed.add_edge(edge)
+                continue
+            bare = edge.dst.rsplit(".", 1)[-1]
+            target = f"csharp:{bare}"
+            repointed.add_node(Node(target, NodeKind.TYPE, bare, "csharp", external=True))
+            repointed.add_edge(Edge(edge.src, target, EdgeKind.IMPLEMENTS, edge.provenance))
+        return repointed
+
     def extract(self, *, path: Path, module: str, rel: str) -> FactBatch:
         parser = _csharp_parser()
         source = path.read_bytes()
@@ -464,7 +498,17 @@ def _last_segment(name: str) -> str:
 
 
 def _resolve_type(name: str, namespace: str) -> str | None:
-    """Best-effort base-type id (precision-first). Simple names assume same namespace."""
+    """Best-effort base-type id. A simple name is *provisionally* placed in its own namespace.
+
+    "Assume same namespace" is a guess, and on real code it is usually wrong: `IEqualityComparer`,
+    `Exception` and `DisplayNameAttribute` are `System.*` types, but a per-file pass cannot know
+    whether a bare base name is first-party or framework — that needs every declaration in the
+    repo, which only exists after the walk.
+
+    So the guess is made here and **corrected in `finalize`**: any target that turns out not to
+    be a declared type is repointed at an external node keyed by the bare name, which asserts
+    the name (which we read) and not the namespace (which we invented).
+    """
     name = name.split("<", 1)[0].strip()  # drop generics: IList<T> → IList
     if not name:
         return None

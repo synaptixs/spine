@@ -334,3 +334,40 @@ def test_minimal_api_endpoints_expose_module(tmp_path: Path) -> None:
     # no named handler for a lambda → EXPOSES points at the module the route lives in.
     assert (get_id, f"csharp:{module}", EdgeKind.EXPOSES) in edges
     assert (post_id, f"csharp:{module}", EdgeKind.EXPOSES) in edges
+
+
+def test_framework_base_type_is_not_placed_in_the_local_namespace(tmp_path: Path) -> None:
+    """`class Foo : IEqualityComparer` must not assert the interface lives in Foo's namespace.
+
+    A per-file pass cannot tell a first-party sibling from a `System.*` type, so it guesses
+    the enclosing namespace. `finalize` corrects the guess once every declaration is known:
+    an undeclared target is repointed at a bare-name EXTERNAL node, asserting the name we
+    read rather than the namespace we invented.
+
+    Measured on a real ASP.NET codebase: 77 IMPLEMENTS edges pointed at types that did not
+    exist — IEqualityComparer, Exception, ControllerBase, ClientBase.
+    """
+    src = tmp_path / "a.cs"
+    src.write_text("namespace Acme.Biz {\n  public class Cmp : IEqualityComparer { }\n}\n", encoding="utf-8")
+    ex = CSharpExtractor()
+    batch = ex.extract(path=src, module="Acme.Biz", rel="a.cs")
+    batch = ex.finalize(batch)
+
+    ids = {n.id for n in batch.nodes}
+    assert not [e for e in batch.edges if e.dst not in ids], "IMPLEMENTS edge still dangles"
+    assert "csharp:Acme.Biz.IEqualityComparer" not in ids, "invented namespace survived finalize"
+    ext = [n for n in batch.nodes if n.id == "csharp:IEqualityComparer"]
+    assert ext and ext[0].external and not ext[0].grounded
+
+
+def test_first_party_base_type_keeps_its_namespace(tmp_path: Path) -> None:
+    """A sibling base type IS in the same namespace — finalize must leave it alone."""
+    src = tmp_path / "b.cs"
+    src.write_text(
+        "namespace Acme.Biz {\n  public class Base { }\n  public class Sub : Base { }\n}\n",
+        encoding="utf-8",
+    )
+    ex = CSharpExtractor()
+    batch = ex.finalize(ex.extract(path=src, module="Acme.Biz", rel="b.cs"))
+    impl = [e for e in batch.edges if e.kind is EdgeKind.IMPLEMENTS]
+    assert any(e.dst == "csharp:Acme.Biz.Base" for e in impl), "first-party base was repointed"
