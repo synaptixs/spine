@@ -645,7 +645,13 @@ def _code_structure(s: CurrentState) -> list[str]:
     ]
     zones: dict[str, list[str]] = {}
     areas = set(s.area_types) | set(s.area_funcs)
-    for a in sorted(areas, key=lambda a: s.area_types.get(a, 0) * 3 + s.area_funcs.get(a, 0), reverse=True):
+    # The name is a tiebreaker, not decoration. `areas` is a set, so Python's per-process
+    # string-hash randomisation gives it a different iteration order every run; `sorted` is
+    # stable, so equal-scoring areas kept whatever order the set happened to yield. Three
+    # identical runs on this repo produced three different reports — which breaks invariant 2
+    # (`understand`/`state` are deterministic), the property that makes them worth trusting.
+    # Sorting on (-score, name) is total, so ties resolve the same way every time.
+    for a in sorted(areas, key=lambda a: (-(s.area_types.get(a, 0) * 3 + s.area_funcs.get(a, 0)), a)):
         zones.setdefault(_zone(a), []).append(a)
     for zone in sorted(zones):
         top = zones[zone][:5]
