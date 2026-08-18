@@ -94,6 +94,14 @@ built-in default.
 Pointing a stage at another vendor needs that vendor's key in the environment
 (`OPENAI_API_KEY` for `gpt-*`, `ANTHROPIC_API_KEY` for `claude-*`).
 
+**Reasoning models need their level named.** `ORCHESTRATOR_REASONING_EFFORT` (default `high`)
+sets the reasoning level sent whenever a tool call is in play. It is not a tuning knob you can
+ignore: OpenAI **rejects function tools alongside a reasoning model's implicit default**, so
+without an explicit level every codegen call fails on models like `gpt-5.6-sol`. `low`,
+`medium` and `high` all work and all keep the reasoning. The provider's own error suggests
+`none` — that disables the reasoning these models are chosen for, and is the wrong fix. Lower
+it to trade quality for latency and cost, never to clear an error.
+
 ### `orchestrator doctor`
 
 Check environment readiness and print a diagnostic report.
@@ -243,11 +251,8 @@ orchestrator state [PATH] [OPTIONS]
 Output format follows `--out`'s extension: `--out report.html` emits a single self-contained,
 shareable HTML report; any other extension (or stdout) emits markdown.
 
-> **Known issue — `state` output is not byte-stable across runs.** Components that tie on
-> their symbol counts can swap order between runs, because the area list is sorted from a
-> `set` with a non-total key and Python randomizes string hashing per process. Five identical
-> runs can produce two or three different outputs. If you diff `state` output, pin
-> `PYTHONHASHSEED=0` on both sides until this is fixed. `understand` is unaffected.
+Output is byte-stable: pair `--no-timestamp` with any extension and two runs of the same
+commit produce identical bytes, so a report can be diffed or checked into CI.
 
 ### `orchestrator profile`
 

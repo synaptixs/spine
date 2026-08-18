@@ -35,7 +35,7 @@ docs · **n/a** out of category
 | **Declared-vs-extracted parity check** | **✅** | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
 | **CI-checkable currency (`--check`)** | **✅** | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
 | **Accuracy regression gate in CI** | **✅** | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
-| Byte-stable report output | 🟡 ¹ | ➖ | ➖ | ➖ | ➖ | ✅ | ➖ | n/a | n/a |
+| Byte-stable report output | ✅ ¹ | ➖ | ➖ | ➖ | ➖ | ✅ | ➖ | n/a | n/a |
 | Blast-radius / impact analysis | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ | 🟡 | ➖ | ➖ |
 | Doc ingestion into the graph | ✅ | ➖ | ✅ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
 | Media (OCR / ASR) ingestion | ✅ ² | ➖ | ✅ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
@@ -73,11 +73,12 @@ docs · **n/a** out of category
 
 ## Footnotes
 
-**¹ Byte-stable output — partial, and the exception matters.** `understand` is byte-identical
-run to run. **`state` is not**: components that tie on their symbol counts sort out of a `set`
-with a non-total key, and Python randomises string hashing per process, so five identical runs
-produced three different outputs. `PYTHONHASHSEED=0` is the workaround
-([`current_state.py:647`](../../src/orchestrator/knowledge/current_state.py)).
+**¹ Byte-stable output — fixed in 3.19.0.** Both `understand` and `state` are byte-identical
+run to run. `state` was not, until 3.19.0: its area list sorted out of a `set` on score alone,
+and Python randomises string hashing per process, so five identical runs produced three
+different outputs. The sort key is now total, and a regression test renders under five
+`PYTHONHASHSEED` values in subprocesses — the only way to see the bug, since the seed is fixed
+for the life of a process.
 
 **² Media ingestion** shipped in **3.10.0** (G3) — images via OCR, audio/video via ASR, both
 through a committed `.spine-media/` artifact so no model runs in the deterministic build. Its

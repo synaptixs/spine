@@ -136,6 +136,7 @@ Set one knob for everything, or a model per stage:
 | `SDLC_CODEGEN_MODEL` | codegen — implement, refine, revise, author_tests |
 | `SDLC_JUDGE_MODEL` | the acceptance judge |
 | `ORCHESTRATOR_INTAKE_MODEL` | intent extraction and spec writing |
+| `ORCHESTRATOR_REASONING_EFFORT` | reasoning level on tool-calling models (default `high`) |
 
 A stage's own variable wins over `ORCHESTRATOR_MODEL`, which wins over the default.
 Pointing a stage at another vendor needs that vendor's key in the environment.
@@ -231,10 +232,8 @@ orchestrator state . --no-timestamp        # omit generated-at, for byte-stable 
 `--out report.html` emits a **self-contained** page — CSS and diagrams inlined, nothing fetched
 — so a saved or emailed copy still renders. Any other extension emits markdown.
 
-> **Known issue:** `state` output is not byte-stable across runs. Components that tie on their
-> symbol counts can swap position, so five identical runs may produce two or three different
-> files. If you diff `state` output or check it into CI, set `PYTHONHASHSEED=0` on both sides
-> until this is fixed. `understand` is unaffected and is byte-identical run to run.
+With `--no-timestamp`, `state` is byte-stable: two runs of the same commit produce identical
+files, so you can diff a report or check it into CI. `understand` has the same guarantee.
 
 It renders a plain-language **overview**, an **infrastructure & runtime** breakdown (the
 datastores, queues, cloud, container services and external APIs the repo declares it needs —
