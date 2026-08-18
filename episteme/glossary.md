@@ -35,7 +35,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L84) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
 | **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L572) | `docs/specs/README.md#44-build-phases-per-repo-split`, `docs/specs/archive/PKG-INTEGRATION-PLAN.md#phase-1-repo-code-extractor-track-11-34-wks` |
 | **RunBudget** | [`RunBudget`](../src/orchestrator/core/llm/budget.py#L42) | `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/README.md#autonomous-agent-scorecard` |
-| **RunContext** | [`RunContext`](../src/orchestrator/sdlc/autorun.py#L62) | — |
+| **RunContext** | [`RunContext`](../src/orchestrator/sdlc/autorun.py#L62) | `docs/specs/graphir-sdlc-workflow.md#appendix-what-was-rejected-from-the-source-analysis`, `docs/specs/graphir-sdlc-workflow.md#open-questions` |
 | **SDLCActivities** | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L44) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration` |
 | **SDLCWorkflow** | [`SDLCWorkflow`](../src/orchestrator/sdlc/workflows.py#L475) | `CLI_REFERENCE.md`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
 | **SDLCWorkflowInput** | [`SDLCWorkflowInput`](../src/orchestrator/sdlc/types.py#L17) | `docs/specs/archive/BLOCK-C-DESIGN.md#4-parent-sdlcworkflow`, `docs/specs/bet2c-rbac-multitenancy.md#as-built-notes` |
@@ -44,6 +44,6 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/testrunner.py#L78) | `docs/specs/java-codegen.md#test-runner-env`, `docs/specs/typescript-codegen.md#test-runner-env` |
 | **VerifierFailure** | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | — |
 | **VersionedRepo** | [`VersionedRepo`](../src/orchestrator/registry/repositories.py#L45) | — |
-| **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
+| **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | `docs/specs/STATE-OF-SPINE.md#5-how-spine-is-adopted-without-entering-anyones-build-image`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
 
 _Top 40 of 591 types by graph centrality._

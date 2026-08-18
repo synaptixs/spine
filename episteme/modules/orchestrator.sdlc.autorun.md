@@ -40,6 +40,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L215)
 - **Fields**: `approvals_dir`, `artifacts_dir`, `branch`, `design_files`, `fixer`, `issue_key`, `landing`, `live`, `plan`, `pr_url`, `record`, `root`, `run_id`, `source`, `spec`, `stages`, `store`, `tests`, `verdict`, `worktree`
+- **Documented in**: `docs/specs/graphir-sdlc-workflow.md#appendix-what-was-rejected-from-the-source-analysis`, `docs/specs/graphir-sdlc-workflow.md#open-questions`, `docs/specs/graphir-sdlc-workflow.md#phase-2-the-ir-executes-the-run-evidence-is-consumed-criteria-are-bound`, `docs/specs/graphir-sdlc-workflow.md#research-is-not-wired-as-research-four-defects`, `docs/specs/graphir-sdlc-workflow.md#what-exists-today-verified-against-source`, `docs/specs/graphir-sdlc-workflow.md#which-phase-closes-which-defect-2`
 
 ### `StageResult`
 
@@ -132,6 +133,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L215)
 - **Calls** (2): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L43), [`assess`](../../src/orchestrator/sdlc/validity.py#L418)
+- **Documented in**: `docs/specs/graphir-sdlc-workflow.md#the-hybrid-split-facts-fix-the-frame-the-model-fills-it`
 
 ### `autorun`
 
@@ -139,7 +141,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L993), [`_run`](../../tests/sdlc/test_autorun.py#L545)
 - **Calls** (25): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L43), [`RunContext`](../../src/orchestrator/sdlc/autorun.py#L62), [`RunRecord`](../../src/orchestrator/sdlc/runstate.py#L43), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L90), [`TokenLedger`](../../src/orchestrator/core/llm/recording.py#L58), [`_journal_outcome`](../../src/orchestrator/sdlc/autorun.py#L385), [`_load_graph`](../../src/orchestrator/sdlc/autorun.py#L551), [`_log_run_cost`](../../src/orchestrator/sdlc/autorun.py#L406), [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L441), [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L468), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L437), [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L629), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L650), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L498), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L565), [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L730), [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L586), [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L205), `getpid`, `monotonic`, `orchestrator.core.llm.RunBudget`, `pathlib.Path`, [`span`](../../src/orchestrator/obs/tracing.py#L137), `time`, `uuid4`
-- **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `docs/specs/build-document.md#6-what-changes-about-a-run`, `docs/specs/build-document.md#command-shape`, `docs/specs/build-document.md#phase-1-orchestrator-sdlc-plan-built`, `docs/specs/build-document.md#phase-4-approval-gate-and-handoff-contract-built`
+- **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `docs/specs/STATE-OF-SPINE.md#6-the-active-programme-graphir-as-the-sdlc-workflow`, `docs/specs/build-document.md#6-what-changes-about-a-run`, `docs/specs/build-document.md#command-shape`, `docs/specs/build-document.md#phase-1-orchestrator-sdlc-plan-built`
 
 ### `default_artifacts_dir`
 

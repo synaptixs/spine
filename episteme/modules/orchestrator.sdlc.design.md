@@ -52,6 +52,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 1 test): [`produce_design`](../../src/orchestrator/sdlc/design.py#L285), [`test_memory_bank_conventions_are_fenced_as_untrusted`](../../tests/sdlc/test_design.py#L89)
 - **Calls** (6): [`Message`](../../src/orchestrator/core/llm/client.py#L48), [`_normalise`](../../src/orchestrator/sdlc/design.py#L211), [`_structure_lines`](../../src/orchestrator/sdlc/design.py#L50), [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), `loads`, [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L44)
+- **Documented in**: `docs/specs/STATE-OF-SPINE.md#3-the-delivery-pipeline-as-it-actually-runs`, `docs/specs/graphir-sdlc-workflow.md#class-model`, `docs/specs/graphir-sdlc-workflow.md#phase-2-the-ir-executes-the-run-evidence-is-consumed-criteria-are-bound`, `docs/specs/graphir-sdlc-workflow.md#the-six-stages-what-calls-a-model-today-and-what-should`
 
 ### `_load_context`
 
