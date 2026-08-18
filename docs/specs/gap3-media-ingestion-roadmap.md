@@ -3,10 +3,21 @@
 > **"G3" is a label, not a position in a queue.** It's gap #3 in the Graphify comparison. The specs
 > are not ordered and do not run in sequence — see *Working alongside other tracks* at the bottom.
 
-**Status:** Not started.
-**Owner:** _unassigned_
+**Status: ✅ COMPLETE — shipped in 3.10.0 (“Diagrams and recordings become facts”).**
+All three phases delivered. *(Status corrected 2026-08-15: this line still read “Not started”
+long after the work shipped, and the roadmap index repeated the error.)*
+**Owner:** _shipped_
 **Ships:** architecture diagrams, screenshots, recorded design reviews and demo videos become graph
 content — **without** making `understand`/`state` non-deterministic, networked, or slow.
+
+| Phase | Delivered as | Verified in 3.18.1 |
+|---|---|---|
+| 1 — Deterministic ingestion | `register_reader()` seam; committed artifacts under `.spine-media/` → `Doc` nodes + `MENTIONS`. No model in the build path | ✅ `pkg/doc_source.py:72` |
+| 2 — Images / OCR | `orchestrator media extract`, local Tesseract, diagram-oriented (labels, not prose) | ✅ `pkg/media_extract.py`, `[media]` extra |
+| 3 — Audio / video | `media extract` for audio/video, local Whisper or `--asr api` (off-machine only with `--allow-remote`), timestamped segments | ✅ `pkg/media_asr.py`, `[asr]` extra |
+
+The deliberate split held: **`media extract` is the only thing that runs a model.** A repo with no
+artifact is byte-identical to one with no media at all, so the deterministic build is untouched.
 
 ## Before you start
 

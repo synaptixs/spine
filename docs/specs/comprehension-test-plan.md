@@ -11,8 +11,9 @@ Companion to [`cli-test-plan.md`](cli-test-plan.md) (the broad CLI sweep) and
 [`pkg-accuracy-test-plan.md`](pkg-accuracy-test-plan.md) (the accuracy oracles). This one
 covers `understand` → `state` → `--intents` deeply.
 
-> **Two known failures are baked into this plan, at §5 and §9.** They are not hypotheticals —
-> both reproduced on every attempt. Do not treat a matching failure as your setup being broken.
+> **One known limitation is baked into this plan, at §9.** It is not a hypothetical — it
+> reproduced on every attempt. Do not treat a matching result as your setup being broken.
+> (§5's determinism failure was real when this was written and is **fixed in 3.19.0**.)
 
 ---
 
@@ -195,7 +196,7 @@ so it re-extracts rather than using the cache — it will be slower.
 
 ---
 
-## 5. `state` — the two lenses, and a **known determinism failure**
+## 5. `state` — the two lenses, and its determinism
 
 ```bash
 $SPINE state spine --lens developer --no-timestamp > st-dev.md
@@ -208,47 +209,29 @@ plain language with no symbol ids leaking through.
 
 Always pass `--no-timestamp` when diffing — otherwise the generated-at time guarantees a diff.
 
-### 5.1 ⚠️ KNOWN FAILING — `state` is not deterministic
+### 5.1 Determinism — `state` must render identically every run
 
 ```bash
-for i in 1 2 3 4 5; do $SPINE state spine --no-timestamp > run$i.md; done
+for i in 1 2 3 4 5; do $SPINE state . --no-timestamp > run$i.md; done
 md5 -q run*.md | sort | uniq -c
 ```
 
-**Expect 2–3 distinct hashes across 5 identical runs.** Observed: `3`, `1`, `1`.
+**Expect 1 distinct hash.** ✅ Fixed in 3.19.0.
 
-This violates invariant 2. Find the varying line:
+Until 3.19.0 this reported 2–3 distinct outputs. The layout sorted areas out of a `set` on
+score alone, and Python randomises string hashing per process, so equal-scoring components
+(`scripts.security_sweep` and `scripts.security_verify`, both `0 types, 12 fns`) swapped
+position between runs. The sort key is now total — `(-score, name)` — so ties resolve
+identically every time.
 
-```bash
-diff run1.md run2.md
-```
-
-Observed — the `scripts/` component list reorders entries that **tie** on their counts:
-
-```
-- **scripts/** — … `scripts.security_verify` (0 types, 12 fns), `scripts.security_sweep` (0 types, 12 fns), …
-- **scripts/** — … `scripts.security_sweep` (0 types, 12 fns), `scripts.security_verify` (0 types, 12 fns), …
-```
-
-**Root cause**, [`knowledge/current_state.py:647`](../../src/orchestrator/knowledge/current_state.py):
-
-```python
-areas = set(s.area_types) | set(s.area_funcs)      # set iteration order is per-process random
-for a in sorted(areas, key=lambda a: ...score..., reverse=True):   # stable sort keeps that order for ties
-```
-
-Python randomizes string hashing per process, so the set yields a different order each run;
-`sorted()` is stable, so equal-scoring areas inherit it. Confirm the diagnosis — pinning the
-seed must make it stable:
+The stronger form of the check, since a fresh process gets a fresh seed anyway:
 
 ```bash
-for i in 1 2 3 4 5; do PYTHONHASHSEED=0 $SPINE state spine --no-timestamp | sed -n '42p' | md5; done
+for s in 0 42 999; do PYTHONHASHSEED=$s $SPINE state . --no-timestamp | md5 -q; done
 ```
 
-Expect **5 identical hashes**. ✅ Verified.
-
-`PYTHONHASHSEED=0` is the workaround for any diffing you do today. The fix is a total sort
-key (append the area name as a tiebreaker).
+Also 1 distinct hash. `PYTHONHASHSEED` is no longer a workaround you need — it is just a way
+to prove the property holds.
 
 ### 5.2 The shareable report
 
@@ -319,8 +302,8 @@ nothing else. No page says which ticket a symbol serves — the facts are counte
 ## 7. `--intents` on `state`
 
 ```bash
-PYTHONHASHSEED=0 $SPINE state spine --no-timestamp > st-plain.md
-PYTHONHASHSEED=0 $SPINE state spine --intents --no-timestamp > st-intents.md
+$SPINE state . --no-timestamp > st-plain.md
+$SPINE state . --intents --no-timestamp > st-intents.md
 diff st-plain.md st-intents.md
 ```
 
@@ -331,9 +314,8 @@ Observed — **one line**, the size summary:
 > - Size: 643 namespaces (≈50 areas) · … · 1233 docs · 34 intents
 ```
 
-Pin `PYTHONHASHSEED=0` on both sides, or §5.1 will add unrelated noise to this diff and you
-will misread reordered `scripts/` entries as an intent effect. That is the trap this plan
-exists to spare you.
+Before 3.19.0 this diff also carried reordered `scripts/` entries from the non-determinism in
+§5.1, which was easy to misread as an intent effect. That noise is gone.
 
 ---
 
@@ -398,7 +380,7 @@ time and silent on CPU. On a shared CI runner the CPU figure is the one that bit
 |---|---|---|
 | 3 | `understand` deterministic | ✅ byte-identical |
 | 4 | `--check` currency gate | ✅ exit 0, writes nothing |
-| 5.1 | `state` deterministic | ❌ **3 distinct outputs / 5 runs** |
+| 5.1 | `state` deterministic | ✅ 1 distinct output (fixed 3.19.0) |
 | 5.2 | HTML report self-contained | ✅ no external fetches |
 | 6 | `--intents` renders content in episteme | ❌ counts only |
 | 7 | `--intents` renders content in state | ❌ one count |
@@ -421,7 +403,7 @@ docs/specs/comprehension-test-results/<version>-<YYYY-MM-DD>-<who>.md
 | 3 | re-run + `diff -rq` | identical | | |
 | 4 | `--check` | exit 0 | | |
 | 4 | `--check` after an edit | non-zero | | |
-| 5.1 | `state` ×5 | ❌ 2–3 hashes | | |
+| 5.1 | `state` ×5 | ✅ 1 hash | | |
 | 5.2 | `--out report.html` | 0 external refs | | |
 | 6 | `understand --intents` | 2 count lines only | | |
 | 7 | `state --intents` | 1 count line only | | |

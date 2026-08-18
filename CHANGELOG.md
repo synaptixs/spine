@@ -4,6 +4,83 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.19.0 — What the graph is worth, measured; and four ways it was wrong
+
+3.18.x claimed the code graph makes generated code better. This release **measures that claim**
+in a controlled A/B — and every extraction defect below was found by pointing the measurement at
+codebases that are not this one.
+
+### Added — the grounding claim is now a number
+
+- **200 runs, 2 frontier models, 5 passes each, grounded against an identical ungrounded
+  control.** Every new module that integrated correctly came from a grounded run — **29/50**
+  under `mypy --strict` plus correct placement; the same tickets ungrounded produced **none**.
+  On tickets that already name the target file the two arms tie (**98/100**), which rules out a
+  generic more-context effect and locates the payoff precisely where the model cannot see.
+  Method, Wilson bounds and the abort accounting are in
+  [`codegen-model-comparison-results.md`](docs/specs/codegen-model-comparison-results.md).
+- **Replicated on an unrelated external codebase**, so the result is not an artefact of Spine
+  grading itself — see
+  [`external-repo-grounding-results.md`](docs/specs/external-repo-grounding-results.md).
+  Combined across both: **47/68 grounded, 3/68 ungrounded**, with the `edit`-ticket control at
+  122/124 either arm.
+- **Held-out grading.** Each ticket's acceptance suite is authored separately from the ticket;
+  the model never writes the test that grades it. A pass that never reached the model is
+  recorded as **aborted and excluded**, not silently counted as a failure.
+- `scripts/bench_aggregate.py` — Wilson score intervals (they stay sensible at small *n* and
+  near 0 or 1, where the normal approximation does not), aborted passes excluded, and a warning
+  below five passes.
+
+### Added — preflight judges the change, not the repository
+
+`sdlc` preflight now captures a **baseline** of `ruff check`, `ruff format` and `mypy` findings
+before generation and diffs against it, so a repo that already has findings no longer fails
+every build on pre-existing debt. A check whose baseline could not be captured is reported as
+skipped rather than assumed clean. Design record:
+[`preflight-baseline-diff.md`](docs/specs/preflight-baseline-diff.md).
+
+### Fixed — extraction defects, each found on real code
+
+- **A SQL Server database project was 95% invisible.** SSMS scripts UTF-16 by default and
+  separates batches with `GO`, a client directive that is not valid T-SQL — so an entire file
+  failed to parse and was skipped in silence. Encoding is now sniffed from the BOM and files are
+  split on `GO` and parsed batch by batch. On one real project: **676 of 709 `.sql` files
+  skipped → 0**, `READS` 2 → 186, `WRITES` 0 → 26. Neither cause was a dialect problem, so
+  `--dialect tsql` never helped.
+- **931 dangling edges on a real C#/TypeScript/SQL codebase.** TypeScript emitted edges to
+  imported symbols with no node to land on (**854** of them); C# qualified an external base type
+  into the deriving type's own namespace, inventing a target that does not exist. Both now
+  resolve to explicit external nodes.
+- **`extractor.py` discarded `finalize()`'s return value** — a front-end's whole-repo post-pass
+  computed its corrections and threw them away. C# is the first front-end to need one, which is
+  how this surfaced.
+- **TypeScript resolved relative imports three different ways**, so the same module reached the
+  graph under up to three ids. One resolver now serves declaration, call and type resolution.
+- **`state` rendered a different report for identical input.** Areas tying on their symbol
+  counts sorted out of a `set` on score alone, and Python randomises string hashing per process
+  — five identical runs produced three distinct outputs. The sort key is now total. The
+  regression test renders under five `PYTHONHASHSEED` values **in subprocesses**, which is the
+  only way to see the bug: the seed is fixed for the life of a process. `state` is byte-stable
+  again, as [ARCHITECTURE.md](ARCHITECTURE.md) always claimed; the 3.18.1 caveat is withdrawn.
+- **LiteLLM client.** `reasoning_effort` is sent only to models that declare support (from
+  `litellm.model_cost`, configurable with `ORCHESTRATOR_REASONING_EFFORT`, default `high`);
+  `response_format=json_object` is no longer sent alongside function tools, which OpenAI
+  rejects; every completion is wrapped in `asyncio.wait_for`, so a hung request fails the pass
+  instead of hanging the run; and the served model name is recorded from the response rather
+  than assumed from the request.
+
+### Documented
+
+- [`capability-matrix.md`](docs/specs/capability-matrix.md) and
+  [`competitive-landscape.md`](docs/specs/competitive-landscape.md) — Spine's column verified
+  against source, every other column marked public-documentation-only. RBAC is scored **🟡**
+  after an audit found `has_role` called at exactly one site, while multi-tenancy holds at ✅.
+- [`parsing-and-the-pkg.md`](docs/specs/parsing-and-the-pkg.md) — why every front-end is a real
+  parser (AST or tree-sitter or `sqlglot`) and never a regex, written for an engineering
+  audience.
+- `ORCHESTRATOR_REASONING_EFFORT` documented in `.env.example`, `CLI_REFERENCE.md` and
+  `USER_GUIDE.md`; the SQL Server capability in `KNOWLEDGE_GRAPH.md` §4 and `FEATURES.md`.
+
 ## 3.18.1 — The documentation catches up, and corrects itself
 
 No code changes. 3.17.0 and 3.18.0 shipped two releases of PKG work without the user-facing

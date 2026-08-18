@@ -51,7 +51,12 @@ from orchestrator.evals.graders import (  # noqa: E402
 )
 from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter  # noqa: E402
 from orchestrator.sdlc.grounding import PKGCodegenGrounder  # noqa: E402
-from orchestrator.sdlc.preflight import SubprocessPreflightRunner  # noqa: E402
+from orchestrator.sdlc.preflight import (  # noqa: E402
+    _JSON_CHECKS,
+    Baseline,
+    PreflightBaselineError,
+    SubprocessPreflightRunner,
+)
 
 
 @dataclass(frozen=True)
@@ -69,12 +74,359 @@ class Ticket:
     held_out_tests: dict[str, str] = field(default_factory=dict)
 
 
+# --------------------------------------------------------------------------
+# Held-out reference suites for the G2 set.
+#
+# Until 2026-08-15 these ten tickets carried NO held-out tests, so `tests=PASS`
+# meant *the model's own tests passed* — the model wrote both the implementation
+# and its grader. That is not the SWE-bench signal, which uses human-authored
+# FAIL_TO_PASS tests, and it made the `resolved` number self-graded and
+# inflatable (see docs/specs/codegen-model-comparison-results.md).
+#
+# The model never sees these. `preflight` and `fit` were already objective; this
+# closes the last self-graded signal.
+#
+# `create` tickets deliberately do NOT pin a module path — choosing the right
+# home is part of what grounding is being measured on — so their suites locate
+# the function by scanning the package, and assert *invariants* rather than an
+# exact rendering. A held-out test that demanded one specific Markdown layout
+# would fail a correct implementation that formatted it differently, which would
+# make the benchmark worse rather than better.
+# --------------------------------------------------------------------------
+
+_HO_FIND = '''
+import importlib, pkgutil
+
+
+def _find(pkg_name, func_name):
+    """Locate a function the model placed somewhere inside `pkg_name`."""
+    pkg = importlib.import_module(pkg_name)
+    for m in pkgutil.iter_modules(pkg.__path__):
+        try:
+            mod = importlib.import_module(f"{pkg_name}.{m.name}")
+        except Exception:
+            continue
+        fn = getattr(mod, func_name, None)
+        if callable(fn):
+            return fn
+    raise AssertionError(f"{func_name} not found anywhere in {pkg_name}")
+'''
+
+_HO_EDIT_STATS = """
+from orchestrator.pkg.stats import FunctionCallFrequency, mean_call_count
+
+
+def _f(name, count):
+    return FunctionCallFrequency(node_id=f"py:{name}", name=name, call_count=count)
+
+
+def test_empty_is_zero():
+    assert mean_call_count([]) == 0.0
+
+
+def test_arithmetic_mean():
+    assert mean_call_count([_f("a", 1), _f("b", 2), _f("c", 3)]) == 2.0
+
+
+def test_single_element():
+    assert mean_call_count([_f("a", 7)]) == 7.0
+
+
+def test_non_integral_mean():
+    assert abs(mean_call_count([_f("a", 1), _f("b", 2)]) - 1.5) < 1e-9
+
+
+def test_returns_a_float():
+    assert isinstance(mean_call_count([_f("a", 1)]), float)
+
+
+def test_does_not_mutate_input():
+    xs = [_f("a", 1), _f("b", 2)]
+    mean_call_count(xs)
+    assert [x.call_count for x in xs] == [1, 2]
+"""
+
+_HO_EDIT_LEDGER = """
+from orchestrator.core.llm.recording import StageUsage
+
+
+def test_zero_calls_is_zero_not_zero_division():
+    assert StageUsage(stage="s", calls=0, cost_usd=1.0).cost_per_call == 0.0
+
+
+def test_divides_cost_by_calls():
+    assert StageUsage(stage="s", calls=4, cost_usd=2.0).cost_per_call == 0.5
+
+
+def test_zero_cost_is_zero():
+    assert StageUsage(stage="s", calls=3, cost_usd=0.0).cost_per_call == 0.0
+
+
+def test_is_a_property_not_a_method():
+    assert isinstance(type(StageUsage(stage="s")).__dict__["cost_per_call"], property)
+"""
+
+_HO_EDIT_BUDGET = """
+import math
+
+from orchestrator.core.llm.budget import RunBudget
+
+
+def test_disabled_enforcement_is_infinite():
+    assert math.isinf(RunBudget(max_cost_usd=0.0).remaining())
+    assert math.isinf(RunBudget(max_cost_usd=-1.0).remaining())
+
+
+def test_full_budget_when_nothing_spent():
+    assert RunBudget(max_cost_usd=10.0).remaining("r") == 10.0
+
+
+def test_subtracts_the_runs_spend():
+    assert RunBudget(max_cost_usd=10.0, spent_usd={"r": 4.0}).remaining("r") == 6.0
+
+
+def test_clamped_at_zero_when_overspent():
+    assert RunBudget(max_cost_usd=10.0, spent_usd={"r": 25.0}).remaining("r") == 0.0
+
+
+def test_other_runs_spend_is_not_counted():
+    assert RunBudget(max_cost_usd=10.0, spent_usd={"other": 5.0}).remaining("r") == 10.0
+"""
+
+_HO_EDIT_DIFF = """
+from orchestrator.codereview.diff_utils import count_added_lines
+
+PATCH = "--- a/f.py\\n+++ b/f.py\\n@@ -1,2 +1,3 @@\\n ctx\\n+one\\n+two\\n-gone\\n"
+
+
+def test_none_is_zero():
+    assert count_added_lines(None) == 0
+
+
+def test_empty_is_zero():
+    assert count_added_lines("") == 0
+
+
+def test_counts_only_added_lines():
+    assert count_added_lines(PATCH) == 2
+
+
+def test_does_not_count_the_file_header():
+    assert count_added_lines("--- a/x\\n+++ b/x\\n+one\\n") == 1
+
+
+def test_no_additions_is_zero():
+    assert count_added_lines("--- a/x\\n+++ b/x\\n-gone\\n ctx\\n") == 0
+"""
+
+_HO_EDIT_VERIFIER = """
+from orchestrator.codereview.verifiers import Finding, Severity, findings_by_severity
+
+
+def _f(sev, msg):
+    return Finding(verifier_id="v", rule="r", severity=sev, path="p.py", line=1, message=msg)
+
+
+def test_empty_input_is_empty_dict():
+    assert findings_by_severity([]) == {}
+
+
+def test_severities_with_no_findings_are_absent():
+    assert set(findings_by_severity([_f(Severity.NIT, "a")])) == {Severity.NIT}
+
+
+def test_groups_by_severity():
+    out = findings_by_severity([_f(Severity.BLOCKER, "b"), _f(Severity.NIT, "n")])
+    assert [x.message for x in out[Severity.BLOCKER]] == ["b"]
+    assert [x.message for x in out[Severity.NIT]] == ["n"]
+
+
+def test_preserves_input_order_within_a_group():
+    out = findings_by_severity([_f(Severity.NIT, "1"), _f(Severity.NIT, "2"), _f(Severity.NIT, "3")])
+    assert [x.message for x in out[Severity.NIT]] == ["1", "2", "3"]
+"""
+
+_HO_NEW_GRAPHMD = (
+    _HO_FIND
+    + """
+from orchestrator.pkg.stats import FunctionCallFrequency, GraphStats
+
+
+def _stats():
+    return GraphStats(
+        node_counts={}, edge_counts={}, total_nodes=3, total_edges=2,
+        top_called_functions=[FunctionCallFrequency(node_id="py:alpha", name="alpha", call_count=5)],
+    )
+
+
+def test_returns_non_empty_markdown():
+    out = _find("orchestrator.pkg", "render_stats_markdown")(_stats())
+    assert isinstance(out, str) and out.strip()
+
+
+def test_reports_the_totals():
+    out = _find("orchestrator.pkg", "render_stats_markdown")(_stats())
+    assert "3" in out and "2" in out
+
+
+def test_names_the_most_called_function():
+    out = _find("orchestrator.pkg", "render_stats_markdown")(_stats())
+    assert "alpha" in out
+
+
+def test_handles_an_empty_graph():
+    out = _find("orchestrator.pkg", "render_stats_markdown")(
+        GraphStats(node_counts={}, edge_counts={}, total_nodes=0, total_edges=0, top_called_functions=[])
+    )
+    assert isinstance(out, str)
+"""
+)
+
+_HO_NEW_LEDGERMD = (
+    _HO_FIND
+    + """
+from orchestrator.core.llm.recording import StageUsage, TokenLedger
+
+
+def _ledger():
+    led = TokenLedger()
+    led.stages["intake"] = StageUsage(
+        stage="intake", calls=2, prompt_tokens=100, completion_tokens=50, cost_usd=0.25
+    )
+    led.stages["codegen"] = StageUsage(
+        stage="codegen", calls=1, prompt_tokens=10, completion_tokens=5, cost_usd=0.75
+    )
+    return led
+
+
+def _render():
+    return _find("orchestrator.core.llm", "render_ledger_markdown")(_ledger())
+
+
+def test_returns_non_empty_markdown():
+    assert isinstance(_render(), str) and _render().strip()
+
+
+def test_has_a_row_per_stage():
+    out = _render()
+    assert "intake" in out and "codegen" in out
+
+
+def test_has_a_total_row():
+    assert "TOTAL" in _render().upper()
+
+
+def test_reports_the_token_counts():
+    out = _render()
+    assert "100" in out and "50" in out
+"""
+)
+
+_HO_NEW_DRIFTMD = (
+    _HO_FIND
+    + """
+def test_returns_non_empty_markdown_and_names_the_mentions():
+    import importlib, pkgutil
+
+    fn = None
+    for pkg_name in ("orchestrator.pkg", "orchestrator.knowledge"):
+        try:
+            fn = _find(pkg_name, "render_drift_markdown")
+            break
+        except AssertionError:
+            continue
+    assert fn is not None, "render_drift_markdown not found"
+
+    class F:
+        def __init__(self, page_title, mention, kind):
+            self.page_title = page_title
+            self.mention = mention
+            self.kind = kind
+
+    out = fn([F("Design", "missing_symbol", "symbol"), F("Design", "gone.py", "file")])
+    assert isinstance(out, str) and out.strip()
+    assert "missing_symbol" in out and "gone.py" in out
+    assert "Design" in out
+"""
+)
+
+_HO_NEW_SEVSUMMARY = (
+    _HO_FIND
+    + """
+from orchestrator.codereview.verifiers import Finding, Severity
+
+
+def _f(sev):
+    return Finding(verifier_id="v", rule="r", severity=sev, path="p.py", line=1, message="m")
+
+
+def _fn():
+    for pkg_name in ("orchestrator.codereview", "orchestrator"):
+        try:
+            return _find(pkg_name, "summarise_findings")
+        except AssertionError:
+            continue
+    raise AssertionError("summarise_findings not found")
+
+
+def test_returns_a_single_line_string():
+    out = _fn()([_f(Severity.BLOCKER)])
+    assert isinstance(out, str) and out.strip()
+    assert "\\n" not in out.strip()
+
+
+def test_empty_is_a_clean_review_message():
+    out = _fn()([])
+    assert isinstance(out, str) and out.strip()
+
+
+def test_counts_each_severity_present():
+    out = _fn()([_f(Severity.BLOCKER), _f(Severity.BLOCKER), _f(Severity.WARNING)])
+    assert "2" in out and "1" in out
+
+
+def test_highest_severity_is_reported_first():
+    out = _fn()([_f(Severity.NIT), _f(Severity.BLOCKER)]).lower()
+    assert out.index("block") < out.index("nit")
+"""
+)
+
+_HO_NEW_APPROVALMD = (
+    _HO_FIND
+    + """
+def test_renders_each_request_with_its_fields():
+    fn = None
+    for pkg_name in ("orchestrator.approval", "orchestrator.registry", "orchestrator.notify"):
+        try:
+            fn = _find(pkg_name, "render_approvals_markdown")
+            break
+        except AssertionError:
+            continue
+    assert fn is not None, "render_approvals_markdown not found"
+
+    class R:
+        def __init__(self, title, risk, state, created_at):
+            self.title = title
+            self.risk_classification = risk
+            self.risk = risk
+            self.state = state
+            self.created_at = created_at
+
+    out = fn([R("Deploy the thing", "high", "pending", "2026-01-01T00:00:00Z")])
+    assert isinstance(out, str) and out.strip()
+    assert "Deploy the thing" in out
+    assert "pending" in out
+"""
+)
+
+
 TICKETS: list[Ticket] = [
     # ---- edit-based: the feature lives INSIDE an existing module ----------
     Ticket(
         key="EDIT-STATS-1",
         kind="edit",
         must_edit=["src/orchestrator/pkg/stats.py"],
+        held_out_tests={"test_mean_call_count_ho.py": _HO_EDIT_STATS},
         spec={
             "title": "Mean call count for PKG graph statistics",
             "summary": (
@@ -100,6 +452,7 @@ TICKETS: list[Ticket] = [
         key="EDIT-LEDGER-1",
         kind="edit",
         must_edit=["src/orchestrator/core/llm/recording.py"],
+        held_out_tests={"test_cost_per_call_ho.py": _HO_EDIT_LEDGER},
         spec={
             "title": "StageUsage.cost_per_call property",
             "summary": (
@@ -125,6 +478,7 @@ TICKETS: list[Ticket] = [
         key="EDIT-BUDGET-1",
         kind="edit",
         must_edit=["src/orchestrator/core/llm/budget.py"],
+        held_out_tests={"test_remaining_ho.py": _HO_EDIT_BUDGET},
         spec={
             "title": "RunBudget.remaining helper",
             "summary": (
@@ -152,6 +506,7 @@ TICKETS: list[Ticket] = [
         key="EDIT-DIFF-1",
         kind="edit",
         must_edit=["src/orchestrator/codereview/diff_utils.py"],
+        held_out_tests={"test_count_added_ho.py": _HO_EDIT_DIFF},
         spec={
             "title": "count_added_lines diff helper",
             "summary": (
@@ -177,6 +532,7 @@ TICKETS: list[Ticket] = [
         key="EDIT-VERIFIER-1",
         kind="edit",
         must_edit=["src/orchestrator/codereview/verifiers.py"],
+        held_out_tests={"test_by_severity_ho.py": _HO_EDIT_VERIFIER},
         spec={
             "title": "Group review findings by severity",
             "summary": (
@@ -203,6 +559,7 @@ TICKETS: list[Ticket] = [
     Ticket(
         key="NEW-GRAPHMD-1",
         kind="create",
+        held_out_tests={"test_graphmd_ho.py": _HO_NEW_GRAPHMD},
         spec={
             "title": "Render GraphStats as a Markdown report",
             "summary": (
@@ -228,6 +585,7 @@ TICKETS: list[Ticket] = [
     Ticket(
         key="NEW-LEDGERMD-1",
         kind="create",
+        held_out_tests={"test_ledgermd_ho.py": _HO_NEW_LEDGERMD},
         spec={
             "title": "Render a token ledger as a Markdown table",
             "summary": (
@@ -253,6 +611,7 @@ TICKETS: list[Ticket] = [
     Ticket(
         key="NEW-DRIFTMD-1",
         kind="create",
+        held_out_tests={"test_driftmd_ho.py": _HO_NEW_DRIFTMD},
         spec={
             "title": "Render doc-drift findings as a Markdown report",
             "summary": (
@@ -278,6 +637,7 @@ TICKETS: list[Ticket] = [
     Ticket(
         key="NEW-APPROVALMD-1",
         kind="create",
+        held_out_tests={"test_approvalmd_ho.py": _HO_NEW_APPROVALMD},
         spec={
             "title": "Render pending approvals as a Markdown digest",
             "summary": (
@@ -300,6 +660,7 @@ TICKETS: list[Ticket] = [
     Ticket(
         key="NEW-SEVSUMMARY-1",
         kind="create",
+        held_out_tests={"test_sevsummary_ho.py": _HO_NEW_SEVSUMMARY},
         spec={
             "title": "Summarise code-review findings for a PR comment",
             "summary": (
@@ -597,6 +958,15 @@ _CONV_USAGELINE = (
     "    assert 'codegen' in line\n"
     "    assert '15' in line  # prompt + completion, via StageUsage.total_tokens\n"
 )
+
+
+# External-repo task set (see scripts/bench_tickets_ontomesh.py). Kept in its own module
+# because it targets a codebase Spine did not write: the tickets, and the held-out suites
+# that grade them, are specific to ontomesh and must not be mistaken for the G2 set.
+def _ontomesh_tickets() -> list[Ticket]:
+    from bench_tickets_ontomesh import build
+
+    return list(build(Ticket))
 
 
 SKILL_TASKSETS: dict[str, list[Ticket]] = {
@@ -1066,7 +1436,13 @@ SKILL_TASKSETS: dict[str, list[Ticket]] = {
 
 
 def taskset(skill_id: str) -> list[Ticket]:
-    """The signal-bearing tickets for ``skill_id`` (P1), or empty if unknown."""
+    """The signal-bearing tickets for ``skill_id`` (P1), or empty if unknown.
+
+    ``ontomesh`` is the external-repo set and is loaded lazily: its held-out suites import
+    that repository's modules, so it is only meaningful with ``BENCH_REPO`` pointing there.
+    """
+    if skill_id == "ontomesh":
+        return _ontomesh_tickets()
     return SKILL_TASKSETS.get(skill_id, [])
 
 
@@ -1140,6 +1516,55 @@ def _modified_tracked(root: Path) -> list[str]:
     return [line[3:] for line in status.splitlines() if line[:2].strip().startswith("M")]
 
 
+def _package_roots(root: Path) -> list[str]:
+    """Directory prefixes that count as "inside the package", for THIS repo.
+
+    Was hardcoded to `src/orchestrator/`, which is correct for Spine and silently
+    unsatisfiable anywhere else. On `synaptixs/ontomesh` — flat modules under `src/` — every
+    `create` ticket failed this check in BOTH arms, so grounded and ungrounded looked
+    identical and the run read as "grounding has no effect on an external repo". That was
+    the harness, not the models.
+
+    Derived from layout: `src/<pkg>/` when the repo nests a package under src, `src/` when
+    it keeps modules flat there, plus any top-level package directory.
+    """
+    roots: list[str] = []
+    src = root / "src"
+    if src.is_dir():
+        roots.extend(f"src/{d.name}/" for d in src.iterdir() if d.is_dir() and (d / "__init__.py").exists())
+        # `src/` itself counts whenever the repo also keeps modules flat there. ontomesh has
+        # BOTH nested packages and flat modules; listing only the packages would reject a
+        # module placed beside `db_introspector.py`, which is where its tickets belong.
+        if any(src.glob("*.py")):
+            roots.append("src/")
+    roots.extend(
+        f"{d.name}/"
+        for d in root.iterdir()
+        if d.is_dir() and (d / "__init__.py").exists() and d.name not in {"tests", "test"}
+    )
+    return list(dict.fromkeys(roots)) or ["src/"]
+
+
+def _importable_names(root: Path) -> set[str]:
+    """Module names this repo actually defines — the thing a new module must import.
+
+    Replaces a regex for `from orchestrator\\.`, which asserted Spine's own package name.
+    Reading the target's real module names means "did it reuse what exists" is answered from
+    the repository rather than from an assumption about it.
+    """
+    names: set[str] = set()
+    for base in (root / "src", root):
+        if not base.is_dir():
+            continue
+        for p in base.glob("*.py"):
+            if not p.name.startswith("_"):
+                names.add(p.stem)
+        for d in base.iterdir():
+            if d.is_dir() and (d / "__init__.py").exists():
+                names.add(d.name)
+    return names - {"tests", "test", "setup", "conftest"}
+
+
 def grade(ticket: Ticket, written: list[str], root: Path) -> tuple[bool, dict[str, bool]]:
     """Objective fit checks. Returns (fit, per-check breakdown)."""
     rel = _rel([f for f in written if Path(f).exists()], root)
@@ -1159,11 +1584,16 @@ def grade(ticket: Ticket, written: list[str], root: Path) -> tuple[bool, dict[st
             ),
         }
     else:
+        pkg_roots = _package_roots(root)
+        known = _importable_names(root)
+        imported = set(re.findall(r"^\s*(?:from|import)\s+([A-Za-z_][\w.]*)", source, re.M))
+        # A relative import (`from .x`) is by definition inside the package.
+        reuses_repo_code = bool(re.search(r"^\s*from\s+\.", source, re.M)) or any(
+            name.split(".")[0] in known for name in imported
+        )
         checks = {
-            "placed inside the package": any(p.startswith("src/orchestrator/") for p in new_non_test_modules),
-            "imports the real model": bool(
-                re.search(r"from orchestrator\.|import orchestrator\.|^from \.\w*", source, re.M)
-            ),
+            "placed inside the package": any(p.startswith(tuple(pkg_roots)) for p in new_non_test_modules),
+            "imports the real model": reuses_repo_code,
             "no tracked file clobbered": not modified,
         }
     return all(checks.values()), checks
@@ -1172,12 +1602,13 @@ def grade(ticket: Ticket, written: list[str], root: Path) -> tuple[bool, dict[st
 async def run_ticket(
     ticket: Ticket,
     llm: RecordingLLMClient,
-    grounder: PKGCodegenGrounder,
+    grounder: PKGCodegenGrounder | None,
     *,
     agentic: bool = False,
     repo_root: Path = REPO,
     model: str | None = None,
     eval_skill: str | None = None,
+    baseline: Baseline | None = None,
 ) -> dict[str, Any]:
     # Skill A/B hook (persona+skill measurement): the candidate skill's guidance is
     # injected into the conditioning seam, which is phase-aware (Skill.phases) — the
@@ -1214,7 +1645,7 @@ async def run_ticket(
             refines = 0
             while refines <= MAX_REFINES:
                 if passed:
-                    pre = await preflight.run(path=str(workdir))
+                    pre = await preflight.run(path=str(workdir), baseline=baseline)
                     pre_ok = pre.passed
                     if pre_ok:
                         break
@@ -1280,10 +1711,26 @@ async def run_ticket(
             "independent_accepted": independent_accepted,
             "semgrep_findings": findings,
             "reuse_ok": reuse_ok,
+            "aborted": False,
             "cost_usd": llm.ledger.total().cost_usd - cost_before,
         }
     except (CodegenError, LLMError) as exc:
-        print(f"  ABORTED: {exc}")
+        # These two are NOT the same event, and conflating them biases the result.
+        #
+        #   CodegenError — "the model returned something we can't turn into files": a
+        #     literal `</content>` tag in generated Python, no `files` list, edits that
+        #     will not apply. The model answered; the answer was unusable. That is a
+        #     **genuine failure** and must count in the denominator.
+        #   LLMError — timeout, auth, a rejected request: no usable response ever arrived.
+        #     Nothing about the model's ability was observed, so it is **not measured**.
+        #
+        # Marking both "aborted" excludes the model's worst outputs from the denominator,
+        # which inflates whichever arm fails more. Measured 2026-08-16: every such failure
+        # landed in the *ungrounded* arms, so treating them as unmeasured would have
+        # flattered the control and understated the grounding effect — the precise claim
+        # this benchmark exists to test.
+        is_infra = isinstance(exc, LLMError) and not isinstance(exc, CodegenError)
+        print(f"  {'ABORTED (not measured)' if is_infra else 'FAILED (model output unusable)'}: {exc}")
         return {
             "ticket": key,
             "kind": ticket.kind,
@@ -1297,6 +1744,11 @@ async def run_ticket(
             "independent_accepted": False if ticket.held_out_tests else None,
             "semgrep_findings": None,
             "reuse_ok": False,
+            # An infrastructure abort is *not a score of zero* — it is the absence of a
+            # measurement. Two runs on 2026-08-15 reported 4/10 and 3/10 that were really
+            # "6-8 of 10 tickets never reached the model", indistinguishable from real
+            # results. A model that answered unusably is the opposite: a real zero.
+            "aborted": is_infra,
             "cost_usd": llm.ledger.total().cost_usd - cost_before,
         }
     finally:
@@ -1313,6 +1765,27 @@ async def main() -> None:
         tickets = taskset(taskset_id)
         if not tickets:
             raise SystemExit(f"unknown EVAL_TASKSET {taskset_id!r}; choose one of {sorted(SKILL_TASKSETS)}")
+    elif os.getenv("BENCH_ALL"):
+        # BENCH_ALL=1 runs every ticket in the file — the 10 G2 tickets plus all three
+        # skill task sets — for **27 tickets instead of 10**.
+        #
+        # Sample size was the second reliability gap: at n=10 a single ticket moves the
+        # headline by 10 points, and the 95% interval on a 10-ticket arm is far too wide to
+        # separate anything. The cheapest honest fix is not to author 40 more tickets, it is
+        # to stop ignoring the 17 that already exist — the `TS-*`, `SEC-*` and `CONV-*` sets
+        # were built for skill measurement and **already carry held-out suites**, so they
+        # arrive with the objective grading the G2 set only just gained.
+        #
+        # They are not a like-for-like extension: they were written to leave headroom for a
+        # specific skill, so absolute rates across the full set are not comparable to a
+        # G2-only run. Use BENCH_ALL for grounded-vs-ungrounded contrasts (both arms see the
+        # same tickets, so the contrast holds) and quote G2-only for the headline rate.
+        seen: set[str] = set()
+        tickets = []
+        for t in [*TICKETS, *(t for ts in SKILL_TASKSETS.values() for t in ts)]:
+            if t.key not in seen:
+                seen.add(t.key)
+                tickets.append(t)
     else:
         tickets = TICKETS
     selected = os.getenv("BENCH_TICKETS")
@@ -1324,10 +1797,60 @@ async def main() -> None:
     if taskset_id:
         print(f"task set: {taskset_id} · arm: {arm}")
     print(f"model: {MODEL} · refine cap: {MAX_REFINES} · tickets: {[t.key for t in tickets]}")
-    print("\nbuilding PKG …")
-    grounder = PKGCodegenGrounder.from_repo(REPO)
+    # BENCH_NO_GROUNDING=1 runs the ungrounded control arm: identical tickets, model and
+    # refine cap, with the PKG context withheld. `LLMCodegenAdapter` already accepts
+    # `grounder=None`, so this withholds context without changing the codegen path.
+    ungrounded = bool(os.getenv("BENCH_NO_GROUNDING"))
 
-    results = [await run_ticket(t, llm, grounder) for t in tickets]
+    # BENCH_REPO points the whole run at a DIFFERENT repository. Every ticket already
+    # threads `repo_root` (worktree, preflight, grounder), so only this binding was
+    # missing.
+    #
+    # This exists because the ten stock tickets are Spine-authored, against Spine's own
+    # code, with the grounding tuned here — a home-field advantage that scaling the ticket
+    # count does nothing to remove. An external repo is the only thing that removes it, and
+    # a number measured on one is worth more than a larger number measured on ours.
+    #
+    # The tickets must suit the repo: pointing BENCH_REPO at flask while running tickets
+    # that patch `orchestrator.pkg.stats` measures nothing. Pair it with EVAL_TASKSET (or
+    # BENCH_TICKETS) naming a task set authored for that repo.
+    bench_repo = Path(os.getenv("BENCH_REPO", "")).expanduser().resolve() if os.getenv("BENCH_REPO") else REPO
+    if bench_repo != REPO:
+        if not (bench_repo / ".git").exists():
+            raise SystemExit(f"BENCH_REPO={bench_repo} is not a git repository (worktrees are required)")
+        print(f"target repo: {bench_repo}  [EXTERNAL — tickets must be authored for it]")
+
+    # Preflight baseline: what the target repo's own tools already report, captured once.
+    #
+    # Without it the gate asks "is this repository clean?" instead of "is this change
+    # clean?" — and on any codebase carrying a lint/type backlog every ticket fails before
+    # the model contributes a line. Measured on `synaptixs/ontomesh`: 3,378 pre-existing
+    # findings, which would have produced 0/50 in *both* arms and a run that cost money and
+    # measured nothing.
+    #
+    # A failure here stops the run. A missing baseline does not weaken the gate, it makes
+    # every downstream number meaningless — and a silent pass reads exactly like a result.
+    try:
+        baseline = await SubprocessPreflightRunner().capture_baseline(path=str(bench_repo))
+    except PreflightBaselineError as exc:
+        raise SystemExit(
+            f"\n*** STOPPING — preflight baseline could not be captured for {bench_repo}:\n"
+            f"    {exc}\n"
+            "    Without a baseline, `mergeable` cannot distinguish the model's errors from\n"
+            "    the repo's own. This is not a result. Fix the cause and re-run."
+        ) from exc
+    print(f"preflight baseline: {baseline.describe()}")
+    if baseline.skipped:
+        print(
+            f"  !! gate is WEAKER here — {', '.join(baseline.skipped)} could not run in this repo.\n"
+            "     `mergeable` below means the remaining checks only; do not compare it to a\n"
+            "     run where every tool participated."
+        )
+
+    print("\ngrounding: OFF (BENCH_NO_GROUNDING)" if ungrounded else "\nbuilding PKG …")
+    grounder = None if ungrounded else PKGCodegenGrounder.from_repo(bench_repo)
+
+    results = [await run_ticket(t, llm, grounder, repo_root=bench_repo, baseline=baseline) for t in tickets]
 
     print("\n=== G2 acceptance summary ===")
     print(
@@ -1360,6 +1883,45 @@ async def main() -> None:
         print(f"  total semgrep findings: {sum(r['semgrep_findings'] for r in scanned)}")
     print(f"  reuse-of-existing-symbols: {sum(1 for r in results if r.get('reuse_ok'))}/{len(results)}")
     print(f"  total cost: ${total.cost_usd:.2f} · {total.calls} calls · {total.total_tokens} tokens")
+
+    # --- Provenance: what actually produced these numbers -------------------------
+    # A benchmark figure without this block is not reproducible. Each line closes a
+    # specific way an earlier run could have been quoted misleadingly.
+
+    # (a) The model that ANSWERED, not the alias requested. `claude-opus-5` and
+    #     `gpt-5.6-sol` are moving aliases; the dated snapshot behind them changes.
+    #     Caveat, verified: both providers echo the alias rather than a dated snapshot, so
+    #     this catches substitution/fallback but does NOT pin weights. Quote the run date.
+    served = ", ".join(sorted({m for st in llm.ledger.ordered() for m in st.models})) or "(none)"
+    print(f"  served model(s): {served}  [alias, not a pinned snapshot]")
+
+    # (b) What `mergeable` MEANT here. Acceptance folds in this repo's own preflight
+    #     config, so the bar is not portable: the same patch can be mergeable in one
+    #     repo and not another. Cross-repo comparison needs this stated, not assumed.
+    gate_tools = ", ".join(t for t, _ in _JSON_CHECKS if t not in baseline.skipped)
+    print(f"  acceptance gate: tests + preflight ({gate_tools} @ {bench_repo.name}) + fit")
+    print(f"  preflight baseline: {baseline.describe()}  [only NEW findings fail a ticket]")
+
+    # (c) Temperature is NOT pinned, and cannot be. `claude-opus-5` accepts only its own
+    #     fixed value and rejects every other (see litellm_client's retry path), so a
+    #     pinned temperature is impossible across the model set. Run-to-run variance is
+    #     therefore irreducible here — a 3-ticket swing between identical passes was
+    #     observed on 2026-08-15 — and the honest response is to report variance across
+    #     repeated passes rather than to claim determinism the models will not give.
+    print("  temperature: provider default (not pinned — opus-5 rejects a pinned value)")
+
+    # Aborts are reported last, loudly, and as a non-zero exit — an aborted ticket is a
+    # missing measurement, not a failed one, and an arm containing any is not a result.
+    aborted = [r["ticket"] for r in results if r.get("aborted")]
+    print(f"  aborted (NOT measured): {len(aborted)}/{len(results)}")
+    if aborted:
+        print(
+            f"\n  *** THIS ARM IS NOT A RESULT — {len(aborted)} of {len(results)} tickets never "
+            f"reached the model: {', '.join(aborted)}.\n"
+            "      The acceptance figures above are 'how many tickets avoided the failure',\n"
+            "      not model performance. Fix the cause and re-run before quoting anything."
+        )
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

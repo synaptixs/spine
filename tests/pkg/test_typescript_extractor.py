@@ -90,8 +90,13 @@ def test_emits_top_level_functions_decl_and_arrow(tmp_path: Path) -> None:
 def test_imports_and_contains_edges(tmp_path: Path) -> None:
     batch, _ = _facts(tmp_path)
     edges = {(e.src, e.dst, e.kind) for e in batch.edges}
-    assert ("ts:account", "ts:./base", EdgeKind.IMPORTS) in edges
-    assert ("ts:account", "ts:./util", EdgeKind.IMPORTS) in edges
+    # A relative specifier resolves to the imported module's ID, not the literal `./base`.
+    # That is what lets IMPORTS join to the first-party module; left raw, the same module
+    # appeared once per importing directory as a separate "external" one.
+    # (The fixture passes rel="src/account.ts" while module="account", so the resolved
+    # prefix is `src/` here; in a real repo the two agree.)
+    assert ("ts:account", "ts:src/base", EdgeKind.IMPORTS) in edges
+    assert ("ts:account", "ts:src/util", EdgeKind.IMPORTS) in edges
     assert ("ts:account.Account", "ts:account.Account.deposit", EdgeKind.CONTAINS) in edges
 
 
@@ -99,7 +104,10 @@ def test_implements_resolves_import_and_local_sibling(tmp_path: Path) -> None:
     batch, _ = _facts(tmp_path)
     impls = {(e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.IMPLEMENTS}
     # extends Base → resolved via the import to its module specifier
-    assert ("ts:account.Account", "ts:./base:Base") in impls
+    # A base type imported RELATIVELY resolves to the repo-local module's symbol id.
+    # It used to read `ts:./base:Base` — package-shaped, two colons — which made the
+    # extractor mint an external module node beside the real first-party one.
+    assert ("ts:account.Account", "ts:src/base.Base") in impls
     # implements Closeable → resolved to the same-module sibling interface
     assert ("ts:account.Account", "ts:account.Closeable") in impls
 
@@ -155,3 +163,84 @@ def test_emits_calls_for_local_imported_and_this(tmp_path: Path) -> None:
     assert ("ts:a.a", "ts:src/util.run") in calls  # imported namespace
     assert ("ts:a.Svc.run", "ts:a.Svc.step") in calls  # this.method()
     assert not any(dst.endswith(":ignored") or dst.endswith(".ignored") for _, dst in calls)
+
+
+def test_package_call_target_gets_an_external_node(tmp_path: Path) -> None:
+    """An imported third-party call must land on a node, not dangle.
+
+    Measured on a real Angular codebase: 854 dangling edges, nearly all of them
+    `rxjs/operators:takeUntil`, `@angular/core:OnInit`, `jquery:$`. The ids were honest —
+    they name real packages — but no node was emitted, so every edge dangled.
+    """
+    src = tmp_path / "a.ts"
+    src.write_text("import { takeUntil } from 'rxjs/operators';\nexport function f() { takeUntil(); }\n")
+    batch = TypeScriptExtractor().extract(path=src, module="a", rel="a.ts")
+    ids = {n.id for n in batch.nodes}
+    dangling = [e for e in batch.edges if e.dst not in ids]
+    assert not dangling, f"dangling: {[(e.src, e.dst) for e in dangling]}"
+    ext = [n for n in batch.nodes if n.id == "ts:rxjs/operators:takeUntil"]
+    assert ext and ext[0].external and not ext[0].grounded
+
+
+def test_package_base_type_gets_an_external_node(tmp_path: Path) -> None:
+    """`implements OnInit` from @angular/core needs the same treatment as a call target."""
+    src = tmp_path / "b.ts"
+    src.write_text("import { OnInit } from '@angular/core';\nexport class C implements OnInit {}\n")
+    batch = TypeScriptExtractor().extract(path=src, module="b", rel="b.ts")
+    ids = {n.id for n in batch.nodes}
+    assert not [e for e in batch.edges if e.dst not in ids]
+
+
+def test_repo_local_target_is_not_invented(tmp_path: Path) -> None:
+    """A relative import should resolve to a real declaration; inventing a node for it
+    would paper over a genuine resolution miss rather than fix it."""
+    src = tmp_path / "c.ts"
+    src.write_text("import { helper } from './util';\nexport function g() { helper(); }\n")
+    batch = TypeScriptExtractor().extract(path=src, module="c", rel="c.ts")
+    invented = [n for n in batch.nodes if n.id.startswith("ts:util") and n.kind is NodeKind.FUNCTION]
+    assert not invented, "repo-local target must not get a synthesised node"
+
+
+def test_method_call_on_a_named_import_is_not_a_module_member(tmp_path: Path) -> None:
+    """`items.forEach()` calls an Array method, not an export of `items`' module.
+
+    `X.foo()` only means "the export foo of X's module" when X was bound by `import * as X`.
+    Treating a named binding the same way resolved a real `sidenavMenuItems.forEach(...)` to
+    `ts:<module>.forEach` — a node that does not and should not exist, and the last dangling
+    edge in a 24k-edge graph.
+    """
+    f = tmp_path / "svc.ts"
+    f.write_text(
+        "import { items } from './data';\nexport function run() { items.forEach(x => x); }\n",
+        encoding="utf-8",
+    )
+    batch = TypeScriptExtractor().extract(path=f, module="svc", rel="svc.ts")
+    ids = {n.id for n in batch.nodes}
+    assert not [e for e in batch.edges if e.dst not in ids], "dangling edge from a named import"
+    assert not [e for e in batch.edges if e.dst.endswith(".forEach")], "forEach resolved as an export"
+
+
+def test_namespace_import_member_call_still_resolves(tmp_path: Path) -> None:
+    """The behaviour that must NOT regress: `import * as ns` really does expose exports."""
+    f = tmp_path / "svc.ts"
+    f.write_text(
+        "import * as util from './util';\nexport function run() { util.helper(); }\n",
+        encoding="utf-8",
+    )
+    batch = TypeScriptExtractor().extract(path=f, module="svc", rel="svc.ts")
+    calls = {e.dst for e in batch.edges if e.kind is EdgeKind.CALLS}
+    assert any(c.endswith("util.helper") for c in calls), f"namespace call lost: {calls}"
+
+
+def test_relative_import_joins_to_the_first_party_module(tmp_path: Path) -> None:
+    """A relative specifier must resolve to the module's id, not stay as `./x`.
+
+    Left raw, the same first-party module appeared once per importing directory as a
+    separate "external" module, and IMPORTS never joined.
+    """
+    f = tmp_path / "a.ts"
+    f.write_text("import { T } from './model/thing';\nexport class C {}\n", encoding="utf-8")
+    batch = TypeScriptExtractor().extract(path=f, module="app/a", rel="app/a.ts")
+    mods = {n.id for n in batch.nodes if n.kind is NodeKind.MODULE}
+    assert "ts:app/model/thing" in mods, mods
+    assert "ts:./model/thing" not in mods, "raw specifier survived as a module id"

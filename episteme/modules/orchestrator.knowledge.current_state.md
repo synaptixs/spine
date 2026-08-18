@@ -44,13 +44,13 @@
 
 [`src/orchestrator/knowledge/current_state.py:633`](../../src/orchestrator/knowledge/current_state.py#L633)
 
-- **Called by** (1): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L708)
+- **Called by** (1): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L714)
 
 ### `_documentation_section`
 
-[`src/orchestrator/knowledge/current_state.py:680`](../../src/orchestrator/knowledge/current_state.py#L680)
+[`src/orchestrator/knowledge/current_state.py:686`](../../src/orchestrator/knowledge/current_state.py#L686)
 
-- **Called by** (1): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L708)
+- **Called by** (1): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L714)
 
 ### `_entry_points`
 
@@ -61,9 +61,9 @@
 
 ### `_infrastructure_section`
 
-[`src/orchestrator/knowledge/current_state.py:662`](../../src/orchestrator/knowledge/current_state.py#L662)
+[`src/orchestrator/knowledge/current_state.py:668`](../../src/orchestrator/knowledge/current_state.py#L668)
 
-- **Called by** (1): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L708)
+- **Called by** (1): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L714)
 
 ### `_is_framework`
 
@@ -114,7 +114,7 @@
 
 [`src/orchestrator/knowledge/current_state.py:616`](../../src/orchestrator/knowledge/current_state.py#L616)
 
-- **Called by** (2): [`_overview_section`](../../src/orchestrator/knowledge/report_html.py#L96), [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L708)
+- **Called by** (2): [`_overview_section`](../../src/orchestrator/knowledge/report_html.py#L96), [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L714)
 - **Calls** (1): [`_app_type`](../../src/orchestrator/knowledge/current_state.py#L606)
 
 ### `_recent_areas`
@@ -133,10 +133,10 @@
 
 ### `_render_developer`
 
-[`src/orchestrator/knowledge/current_state.py:708`](../../src/orchestrator/knowledge/current_state.py#L708)
+[`src/orchestrator/knowledge/current_state.py:714`](../../src/orchestrator/knowledge/current_state.py#L714)
 
 - **Called by** (1): [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L569)
-- **Calls** (5): [`_code_structure`](../../src/orchestrator/knowledge/current_state.py#L633), [`_documentation_section`](../../src/orchestrator/knowledge/current_state.py#L680), [`_infrastructure_section`](../../src/orchestrator/knowledge/current_state.py#L662), [`_overview`](../../src/orchestrator/knowledge/current_state.py#L616), [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L526)
+- **Calls** (5): [`_code_structure`](../../src/orchestrator/knowledge/current_state.py#L633), [`_documentation_section`](../../src/orchestrator/knowledge/current_state.py#L686), [`_infrastructure_section`](../../src/orchestrator/knowledge/current_state.py#L668), [`_overview`](../../src/orchestrator/knowledge/current_state.py#L616), [`architecture_mermaid`](../../src/orchestrator/knowledge/current_state.py#L526)
 
 ### `_render_stakeholder`
 
@@ -169,15 +169,15 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:526`](../../src/orchestrator/knowledge/current_state.py#L526)
 
-- **Called by** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L708), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1014)
+- **Called by** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L714), [`_system_architecture_block`](../../src/orchestrator/knowledge/renderers.py#L1014)
 - **Calls** (4): [`_mid`](../../src/orchestrator/knowledge/current_state.py#L444), [`architecture_clusters`](../../src/orchestrator/knowledge/current_state.py#L496), [`architecture_graph`](../../src/orchestrator/knowledge/current_state.py#L461), `collections.defaultdict`
 
 ### `build_current_state`
 
-[`src/orchestrator/knowledge/current_state.py:853`](../../src/orchestrator/knowledge/current_state.py#L853)
+[`src/orchestrator/knowledge/current_state.py:859`](../../src/orchestrator/knowledge/current_state.py#L859)
 
 - **Called by** (3 production · 2 test): [`_compute`](../../src/orchestrator/sdlc/comprehension.py#L31), [`adapter`](../../src/orchestrator/registry/api/capabilities.py#L261), [`state`](../../src/orchestrator/cli.py#L2017), [`test_build_current_state_end_to_end_python`](../../tests/knowledge/test_current_state.py#L193), [`test_infrastructure_section_from_real_repo`](../../tests/knowledge/test_current_state.py#L108)
-- **Calls** (2): [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L835), [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L569)
+- **Calls** (2): [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L841), [`render_current_state`](../../src/orchestrator/knowledge/current_state.py#L569)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `compute_current_state`
@@ -196,9 +196,9 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 ### `load_current_state`
 
-[`src/orchestrator/knowledge/current_state.py:835`](../../src/orchestrator/knowledge/current_state.py#L835)
+[`src/orchestrator/knowledge/current_state.py:841`](../../src/orchestrator/knowledge/current_state.py#L841)
 
-- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L2077), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L853), [`run`](../../src/orchestrator/plugin/server.py#L552), [`run`](../../src/orchestrator/plugin/server.py#L225)
+- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L2077), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L859), [`run`](../../src/orchestrator/plugin/server.py#L552), [`run`](../../src/orchestrator/plugin/server.py#L225)
 - **Calls** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
@@ -206,8 +206,8 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:569`](../../src/orchestrator/knowledge/current_state.py#L569)
 
-- **Called by** (2 production · 8 test): [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L853), [`run`](../../src/orchestrator/plugin/server.py#L225), [`test_auth_surface_and_recency_degrade`](../../tests/knowledge/test_current_state.py#L183), [`test_both_surfaces_read_the_same_analysis`](../../tests/knowledge/test_shared_analysis.py#L65), [`test_call_graph_hotspots_rendered`](../../tests/knowledge/test_current_state.py#L158), [`test_developer_lens_renders_sections`](../../tests/knowledge/test_current_state.py#L91), [`test_documentation_metrics_and_section`](../../tests/knowledge/test_current_state.py#L64), [`test_git_churn_stays_out_of_the_committed_bank`](../../tests/knowledge/test_shared_analysis.py#L128), [`test_no_documentation_section_without_docs`](../../tests/knowledge/test_current_state.py#L77), [`test_stakeholder_lens_is_plain_language`](../../tests/knowledge/test_current_state.py#L175)
-- **Calls** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L708), [`_render_stakeholder`](../../src/orchestrator/knowledge/current_state.py#L576)
+- **Called by** (2 production · 8 test): [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L859), [`run`](../../src/orchestrator/plugin/server.py#L225), [`test_auth_surface_and_recency_degrade`](../../tests/knowledge/test_current_state.py#L183), [`test_both_surfaces_read_the_same_analysis`](../../tests/knowledge/test_shared_analysis.py#L65), [`test_call_graph_hotspots_rendered`](../../tests/knowledge/test_current_state.py#L158), [`test_developer_lens_renders_sections`](../../tests/knowledge/test_current_state.py#L91), [`test_documentation_metrics_and_section`](../../tests/knowledge/test_current_state.py#L64), [`test_git_churn_stays_out_of_the_committed_bank`](../../tests/knowledge/test_shared_analysis.py#L128), [`test_no_documentation_section_without_docs`](../../tests/knowledge/test_current_state.py#L77), [`test_stakeholder_lens_is_plain_language`](../../tests/knowledge/test_current_state.py#L175)
+- **Calls** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L714), [`_render_stakeholder`](../../src/orchestrator/knowledge/current_state.py#L576)
 
 ## Imports
 

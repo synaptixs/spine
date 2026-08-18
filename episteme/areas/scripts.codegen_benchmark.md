@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`scripts.codegen_benchmark`** is one of 46 areas in this repo, in the `scripts` zone. It holds 1 module — 1 types and 10 functions. No other area imports it, and it draws on 3 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
+**`scripts.codegen_benchmark`** is one of 48 areas in this repo, in the `scripts` zone. It holds 1 module — 1 types and 13 functions. No other area imports it, and it draws on 3 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
 
 ```mermaid
 flowchart LR
@@ -20,7 +20,7 @@ flowchart LR
 
 ## Modules
 
-- [`scripts.codegen_benchmark`](../../scripts/codegen_benchmark.py#L1)
+- [`scripts.codegen_benchmark`](../modules/scripts.codegen_benchmark.md)
 
 ## Depends on
 

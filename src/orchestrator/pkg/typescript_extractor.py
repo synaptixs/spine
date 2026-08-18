@@ -73,7 +73,7 @@ class TypeScriptExtractor:
         batch.add_node(Node(module_id, NodeKind.MODULE, module or rel, "typescript", Provenance(rel, 1)))
 
         decls = [_unwrap(node) for node in tree.root_node.named_children]
-        imports = self._imports(decls, module_id, source, rel, batch)
+        imports, namespaces = self._imports(decls, module_id, source, rel, batch)
         local_types = {
             _field_text(d, "name", source) for d in decls if d is not None and d.type in _TYPE_DECLS
         }
@@ -94,14 +94,15 @@ class TypeScriptExtractor:
             elif node.type in _FUNC_CONST_DECLS:
                 self._emit_const_functions(node, module_id, source, rel, batch, funcs, local_funcs)
         for fid, type_id, body in funcs:
-            _calls(fid, type_id, body, type_methods, local_funcs, imports, source, rel, batch)
+            _calls(fid, type_id, body, type_methods, local_funcs, imports, namespaces, source, rel, batch)
         return batch
 
     def _imports(
         self, decls: list[TSNode | None], module_id: str, source: bytes, rel: str, batch: FactBatch
-    ) -> dict[str, str]:
-        """Emit IMPORTS edges; return {localName: moduleSpecifier} for heritage resolution."""
+    ) -> tuple[dict[str, str], set[str]]:
+        """Emit IMPORTS edges; return ({localName: specifier}, namespace-bound locals)."""
         by_local: dict[str, str] = {}
+        namespaces: set[str] = set()
         for node in decls:
             if node is None or node.type != "import_statement":
                 continue
@@ -109,12 +110,23 @@ class TypeScriptExtractor:
             spec = _text(source_node, source).strip("\"'") if source_node is not None else ""
             if not spec:
                 continue
-            mid = f"ts:{spec}"
-            batch.add_node(Node(mid, NodeKind.MODULE, spec, "typescript", external=True))
+            # A RELATIVE specifier names a module in this repo, so resolve it to that
+            # module's id rather than recording the literal `../environment`. Left raw, the
+            # same first-party module appeared once per importing directory as a separate
+            # "external" module — `ts:../environment` and `ts:../../environments/environment`
+            # alongside the real `ts:.../environments/environment` — so IMPORTS never joined
+            # and `pkg verify` reported them as phantoms.
+            resolved = _relative_module(spec, rel)
+            mid = f"ts:{resolved}" if resolved is not None else f"ts:{spec}"
+            batch.add_node(
+                Node(mid, NodeKind.MODULE, resolved or spec, "typescript", external=resolved is None)
+            )
             batch.add_edge(Edge(module_id, mid, EdgeKind.IMPORTS, Provenance(rel, node.start_point[0] + 1)))
-            for local in _imported_locals(node, source):
+            locals_, ns_locals = _imported_locals(node, source)
+            for local in locals_:
                 by_local[local] = spec
-        return by_local
+            namespaces.update(ns_locals)
+        return by_local, namespaces
 
     def _emit_type(
         self,
@@ -139,8 +151,11 @@ class TypeScriptExtractor:
         batch.add_edge(Edge(parent_id, type_id, EdgeKind.CONTAINS, Provenance(rel, line)))
 
         for base in _supertypes(node, source):
-            target = _resolve_type(base, imports, local_types, parent_id)
+            target = _resolve_type(base, imports, local_types, parent_id, rel)
             if target is not None:
+                # A base type from a package (`implements OnInit` from @angular/core) needs
+                # the same external node a call target does, or the edge dangles.
+                _ensure_external(batch, target, kind=NodeKind.TYPE)
                 batch.add_edge(Edge(type_id, target, EdgeKind.IMPLEMENTS, Provenance(rel, line)))
 
         body = node.child_by_field_name("body")
@@ -225,6 +240,50 @@ _CALL_SCOPE_STOP = frozenset(
 )
 
 
+def _ensure_external(batch: FactBatch, target: str, *, kind: NodeKind = NodeKind.FUNCTION) -> None:
+    """Give a package-keyed target a node, so the edge lands somewhere.
+
+    A call to an imported third-party symbol resolves to ``ts:<specifier>:<name>`` — an
+    honest id naming a real npm package — but no node was ever emitted for it, so the edge
+    dangled. Measured on a real Angular codebase: **854 dangling edges**, almost all of them
+    `rxjs/operators:takeUntil`, `@angular/core:OnInit`, `jquery:$` and friends.
+
+    This is the shape Python already uses (``py:ValueError`` exists as an external ``Type``):
+    the node is `external`, so it is ungrounded and excluded from every count that claims to
+    describe first-party code, while `pkg verify` stops reporting a dangling edge that was
+    never wrong — only unlanded.
+
+    Repo-local ids (``ts:path/to/mod.name``) are left alone: those *should* resolve to a real
+    declaration, and inventing a node for one would paper over a genuine resolution miss.
+    """
+    # `ts:<specifier>:<name>` — the package form has a second colon; repo-local ids do not.
+    if target.count(":") < 2:
+        return
+    _, spec, name = target.split(":", 2)
+    batch.add_node(Node(target, kind, name, "typescript", external=True))
+    batch.add_node(Node(f"ts:{spec}", NodeKind.MODULE, spec, "typescript", external=True))
+
+
+def _relative_module(spec: str, rel: str) -> str | None:
+    """Module id path for a relative specifier, or None when it names a package.
+
+    Mirrors `_import_target`'s path handling so an IMPORTS edge and a CALLS edge to the same
+    module agree on its id — they disagreed before, which is why the join failed.
+    """
+    if not spec.startswith("."):
+        return None
+    import posixpath
+
+    joined = posixpath.normpath(posixpath.join(posixpath.dirname(rel), spec))
+    for suffix in (".ts", ".tsx"):
+        if joined.endswith(suffix):
+            joined = joined[: -len(suffix)]
+            break
+    if joined.endswith("/index"):
+        joined = joined[: -len("/index")]
+    return joined
+
+
 def _import_target(spec: str, name: str, rel: str) -> str:
     """Resolve an imported call target to a node id.
 
@@ -257,6 +316,7 @@ def _calls(
     type_methods: dict[str, set[str]],
     local_funcs: dict[str, str],
     imports: dict[str, str],
+    namespaces: set[str],
     source: bytes,
     rel: str,
     batch: FactBatch,
@@ -270,8 +330,9 @@ def _calls(
             continue
         if n.type == "call_expression":
             fn = n.child_by_field_name("function")
-            target = _resolve_callee(fn, type_id, siblings, local_funcs, imports, rel, source)
+            target = _resolve_callee(fn, type_id, siblings, local_funcs, imports, namespaces, rel, source)
             if target is not None:
+                _ensure_external(batch, target)
                 batch.add_edge(Edge(caller, target, EdgeKind.CALLS, Provenance(rel, n.start_point[0] + 1)))
         stack.extend(n.named_children)
 
@@ -282,6 +343,7 @@ def _resolve_callee(
     siblings: set[str],
     local_funcs: dict[str, str],
     imports: dict[str, str],
+    namespaces: set[str],
     rel: str,
     source: bytes,
 ) -> str | None:
@@ -303,9 +365,12 @@ def _resolve_callee(
             return None
         if obj.type == "this":  # this.method() → sibling
             return f"{type_id}.{pname}" if type_id and pname in siblings else None
-        if obj.type == "identifier":  # ns.func() through an imported namespace
+        if obj.type == "identifier":  # ns.func() through an imported NAMESPACE only
+            # A named binding is a value, not a module: `items.forEach()` calls an Array
+            # method, not an export of the module `items` came from. Resolving it produced
+            # `ts:<module>.forEach` — a node that does not and should not exist.
             oname = _text(obj, source)
-            if oname in imports:
+            if oname in namespaces and oname in imports:
                 return _import_target(imports[oname], pname, rel)
     return None
 
@@ -327,9 +392,17 @@ def _unwrap(node: TSNode) -> TSNode | None:
     return None
 
 
-def _imported_locals(import_stmt: TSNode, source: bytes) -> list[str]:
-    """Local binding names introduced by an import (default, namespace, named/aliased)."""
+def _imported_locals(import_stmt: TSNode, source: bytes) -> tuple[list[str], list[str]]:
+    """Local names from an import, and which of them are NAMESPACE imports.
+
+    The distinction is load-bearing. `X.foo()` only means "the export `foo` of X's module"
+    when X was bound by `import * as X`. For a named binding — `import { items }` — X is a
+    *value*, and `items.forEach()` is an Array method, not an export. Treating the two alike
+    resolved `sidenavMenuItems.forEach(...)` to `ts:<module>.forEach`, a node that does not
+    and should not exist.
+    """
     locals_: list[str] = []
+    namespaces: list[str] = []
     for clause in import_stmt.named_children:
         if clause.type != "import_clause":
             continue
@@ -340,6 +413,7 @@ def _imported_locals(import_stmt: TSNode, source: bytes) -> list[str]:
                 ident = child.named_children[-1] if child.named_children else None
                 if ident is not None:
                     locals_.append(_text(ident, source))
+                    namespaces.append(_text(ident, source))
             elif child.type == "named_imports":
                 for spec in child.named_children:
                     if spec.type != "import_specifier":
@@ -348,7 +422,7 @@ def _imported_locals(import_stmt: TSNode, source: bytes) -> list[str]:
                     name = alias if alias is not None else spec.child_by_field_name("name")
                     if name is not None:
                         locals_.append(_text(name, source))
-    return [n for n in locals_ if n]
+    return [n for n in locals_ if n], [n for n in namespaces if n]
 
 
 def _supertypes(node: TSNode, source: bytes) -> list[str]:
@@ -367,13 +441,19 @@ def _supertypes(node: TSNode, source: bytes) -> list[str]:
     return [n for n in out if n]
 
 
-def _resolve_type(base: str, imports: dict[str, str], local_types: set[str], module_id: str) -> str | None:
+def _resolve_type(
+    base: str, imports: dict[str, str], local_types: set[str], module_id: str, rel: str = ""
+) -> str | None:
     """Resolve a base type name to a node id (precision-first, else None)."""
     name = base.split("<", 1)[0].strip()  # drop generics: Repo<T> → Repo
     if not name or "." in name:  # namespaced base (ns.Base) — won't second-guess
         return None
-    if name in imports:  # imported symbol → external node keyed by its module specifier
-        return f"ts:{imports[name]}:{name}"
+    if name in imports:
+        # Route through `_import_target` so a RELATIVE specifier resolves to the repo-local
+        # module id. Building `ts:{spec}:{name}` from the raw text gave `ts:./serializable:
+        # Serializable` — two colons, which reads as a package id, so an external module node
+        # `ts:./serializable` was minted alongside the real first-party one.
+        return _import_target(imports[name], name, rel)
     if name in local_types:  # same-module sibling type
         return f"{module_id}.{name}"
     return None

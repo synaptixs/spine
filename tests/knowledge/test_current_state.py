@@ -216,3 +216,64 @@ def test_vendored_and_generated_paths_excluded() -> None:
     # the project's own code is NOT flagged
     assert not _is_generated(n("src/amf/amf-context.c"))
     assert not _is_generated(n("lib/core/ogs-hash.c"))
+
+
+def _tied_batch() -> FactBatch:
+    """Several areas with IDENTICAL scores in one zone — the only shape that ties.
+
+    Ties are what expose the bug: the sort key was the score alone, so equal-scoring areas
+    kept whatever order the `set` happened to yield that process. A batch whose areas all
+    score differently cannot catch it, which is what made the first version of this test
+    pass on the broken code.
+    """
+    b = FactBatch()
+    for name in ("App.Alpha", "App.Bravo", "App.Charlie", "App.Delta"):
+        mod = _node(f"c:{name}", NodeKind.MODULE, name, f"{name}.cs")
+        b.add_node(mod)
+        # identical shape per module: 1 type, 2 functions -> identical score
+        t = _node(f"c:{name}.T", NodeKind.TYPE, "T", f"{name}.cs")
+        b.add_node(t)
+        b.add_edge(Edge(mod.id, t.id, EdgeKind.CONTAINS, Provenance(f"{name}.cs", 1)))
+        for fn in ("One", "Two"):
+            f = _node(f"c:{name}.T.{fn}", NodeKind.FUNCTION, fn, f"{name}.cs")
+            b.add_node(f)
+            b.add_edge(Edge(t.id, f.id, EdgeKind.CONTAINS, Provenance(f"{name}.cs", 2)))
+    return b
+
+
+def test_layout_is_deterministic_across_hash_seeds(tmp_path: Path) -> None:
+    """`state` must render identically run to run — invariant 2, and the reason it is trusted.
+
+    The zone layout sorted areas out of a `set` with a score-only key. Python randomises
+    string hashing per process, so the set yielded a different order each run, and `sorted`
+    being stable meant equal-scoring areas inherited it. Three identical runs on this
+    repository produced three different reports.
+
+    This runs in SUBPROCESSES on purpose: the hash seed is fixed for the life of a process,
+    so an in-process loop passes even on the broken code. Only separate interpreters with
+    different seeds can see the bug.
+    """
+    import subprocess
+    import sys
+    import textwrap
+
+    script = textwrap.dedent("""
+        from orchestrator.knowledge.current_state import render_current_state, compute_current_state
+        import tests.knowledge.test_current_state as t
+        state = compute_current_state(t._tied_batch(), t._PROFILE)
+        print(render_current_state(state, lens="developer"))
+    """)
+    outs = set()
+    for seed in ("0", "1", "42", "999", "12345"):
+        proc = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            env={"PYTHONHASHSEED": seed, "PATH": "/usr/bin:/bin", "PYTHONPATH": str(Path.cwd())},
+            cwd=str(Path.cwd()),
+        )
+        assert proc.returncode == 0, proc.stderr[-500:]
+        outs.add(proc.stdout)
+    assert len(outs) == 1, (
+        f"{len(outs)} distinct renderings across 5 hash seeds — layout is not total-ordered"
+    )

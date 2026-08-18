@@ -36,6 +36,7 @@ radius) and grounds new code in what already exists. Full guide:
 |---|---|---|
 | Multi-language comprehension + codegen — Python, Java, TypeScript, C#, C, C++, Go | ✅ | automatic per repo |
 | SQL data-layer comprehension — schema, queries, stored procedures, migration folding | ✅ | `pip install 'synaptixs-spine[sql]'`; `.sql` per repo |
+| SQL Server database projects — **UTF-16** scripts (SSMS's default) and `GO` batch separators are handled, so a scripted `.Database` project reads instead of being skipped | ✅ | automatic; no flag. On one real project this was the difference between **676 of 709 `.sql` files skipped** and none |
 | SQL greenfield codegen — generate a migration, validate on an ephemeral DB | ✅ | `sdlc feature --language sql` (in-memory SQLite; `SDLC_SQL_ENGINE=postgres` for real Postgres) |
 | Framework-aware edges — JAX-RS endpoints (Java); ASP.NET Core endpoints and EF Core entities (C#) | ✅ | emitted into the PKG on `pkg extract` / `understand` |
 | C `#include` graph + header/source merge; codegen on **CMake or Meson** | ✅ | `.c`/`.h` per repo; `sdlc feature --language c` |
@@ -48,6 +49,7 @@ radius) and grounds new code in what already exists. Full guide:
 | Image OCR — architecture diagrams → box/edge labels bound to symbols (local Tesseract, diagram-oriented) | ✅ | `pip install 'synaptixs-spine[media]'` + a `tesseract` binary |
 | Audio/video ASR — recorded design reviews → searchable, timestamped transcripts; local Whisper or a remote API (off-machine only with explicit `--allow-remote`) | ✅ | `pip install 'synaptixs-spine[asr]'` (local) or `--asr api` |
 | Doc-grounded codegen — a reused symbol's documenting prose rides into the codegen context | ✅ | automatic in `sdlc feature` grounding when the repo has docs |
+| **Measured value of grounding** — the PKG's contribution to codegen is a number, not a claim. 200 runs, 2 frontier models, 5 passes each: **every new module that integrated correctly came from a grounded run (29/50, under `mypy --strict` + placement); the same tickets ungrounded produced none.** On tickets naming the target file both arms tie (98/100) — the graph pays exactly where the model cannot see | ✅ | `scripts/codegen_benchmark.py` (+ `BENCH_NO_GROUNDING=1` for the control); method and bounds in [`codegen-model-comparison-results.md`](docs/specs/codegen-model-comparison-results.md) |
 | Committed `episteme/` for humans + any AI tool, with a CI currency gate | ✅ | `orchestrator understand --out episteme`; `orchestrator understand . --check` writes nothing and exits non-zero when the bank no longer matches the code |
 | Current State report — overview, infrastructure/runtime, code structure, **documentation coverage + doc drift**, architecture diagrams (no LLM) | ✅ | `orchestrator state . --lens developer\|stakeholder` |
 | PKG extraction / export | ✅ | `orchestrator pkg extract`, `orchestrator pkg export` |

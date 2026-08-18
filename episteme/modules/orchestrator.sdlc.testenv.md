@@ -95,7 +95,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1): [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L395)
 - **Fields**: `_python`, `_uv`, `declared`
-- **Documented in**: `docs/specs/sandboxed-test-execution.md#build-plan-reliable-isolated-autonomous-execution`, `docs/specs/sandboxed-test-execution.md#file-level-change-list`, `docs/specs/sandboxed-test-execution.md#first-step`, `docs/specs/sandboxed-test-execution.md#new-testenvironment-sdlctestenvpy`, `docs/specs/sandboxed-test-execution.md#phasing`, `docs/specs/sandboxed-test-execution.md#wiring-sdlcfeature-runnerpy`
+- **Documented in**: `docs/specs/SPEC-INDEX.md#complete-shipped`, `docs/specs/sandboxed-test-execution.md#build-plan-reliable-isolated-autonomous-execution`, `docs/specs/sandboxed-test-execution.md#file-level-change-list`, `docs/specs/sandboxed-test-execution.md#first-step`, `docs/specs/sandboxed-test-execution.md#new-testenvironment-sdlctestenvpy`, `docs/specs/sandboxed-test-execution.md#phasing`
 
 ## Functions
 

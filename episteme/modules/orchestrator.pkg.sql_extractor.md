@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/pkg/sql_extractor.py`](../../src/orchestrator/pkg/sql_extractor.py)
 
-2 types · 11 functions · python
+2 types · 13 functions · python
 
 ## Changing this safely
 
@@ -13,105 +13,117 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`SqlExtractor`](../../src/orchestrator/pkg/sql_extractor.py#L89) — reaches **6** symbols
-- [`detect_dialect`](../../src/orchestrator/pkg/sql_extractor.py#L78) — reaches **6** symbols
-- [`_TableBuilder`](../../src/orchestrator/pkg/sql_extractor.py#L276) — reaches **5** symbols · **no test path visible**
-- [`_touch_entity`](../../src/orchestrator/pkg/sql_extractor.py#L311) — reaches **5** symbols · **no test path visible**
-- [`_classify_tables`](../../src/orchestrator/pkg/sql_extractor.py#L326) — reaches **4** symbols · **no test path visible**
-- [`_type_sql`](../../src/orchestrator/pkg/sql_extractor.py#L306) — reaches **4** symbols · **no test path visible**
-- [`_reparse_body`](../../src/orchestrator/pkg/sql_extractor.py#L355) — reaches **3** symbols · **no test path visible**
-- [`_routine_body`](../../src/orchestrator/pkg/sql_extractor.py#L338) — reaches **3** symbols · **no test path visible**
+- [`SqlExtractor`](../../src/orchestrator/pkg/sql_extractor.py#L136) — reaches **6** symbols
+- [`detect_dialect`](../../src/orchestrator/pkg/sql_extractor.py#L125) — reaches **6** symbols
+- [`_TableBuilder`](../../src/orchestrator/pkg/sql_extractor.py#L327) — reaches **5** symbols · **no test path visible**
+- [`_touch_entity`](../../src/orchestrator/pkg/sql_extractor.py#L362) — reaches **5** symbols · **no test path visible**
+- [`_classify_tables`](../../src/orchestrator/pkg/sql_extractor.py#L377) — reaches **4** symbols · **no test path visible**
+- [`_type_sql`](../../src/orchestrator/pkg/sql_extractor.py#L357) — reaches **4** symbols · **no test path visible**
+- [`_reparse_body`](../../src/orchestrator/pkg/sql_extractor.py#L406) — reaches **3** symbols · **no test path visible**
+- [`_routine_body`](../../src/orchestrator/pkg/sql_extractor.py#L389) — reaches **3** symbols · **no test path visible**
 
-_11 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_13 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Types
 
 ### `SqlExtractor`
 
-[`src/orchestrator/pkg/sql_extractor.py:89`](../../src/orchestrator/pkg/sql_extractor.py#L89)
+[`src/orchestrator/pkg/sql_extractor.py:136`](../../src/orchestrator/pkg/sql_extractor.py#L136)
 
-- **Called by** (1 production · 1 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L525), [`_extract`](../../tests/pkg/test_sql_extractor.py#L31)
+- **Called by** (1 production · 5 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L525), [`_extract`](../../tests/pkg/test_sql_extractor.py#L31), [`test_go_batch_separator_does_not_fail_the_file`](../../tests/pkg/test_sql_extractor.py#L240), [`test_plain_utf8_without_go_is_unchanged`](../../tests/pkg/test_sql_extractor.py#L261), [`test_utf16_and_go_together`](../../tests/pkg/test_sql_extractor.py#L251), [`test_utf16_sql_is_read_not_skipped`](../../tests/pkg/test_sql_extractor.py#L232)
 - **Fields**: `_active_dialect`, `_dialect`, `language`, `suffixes`
 
 ### `_TableBuilder`
 
-[`src/orchestrator/pkg/sql_extractor.py:276`](../../src/orchestrator/pkg/sql_extractor.py#L276)
+[`src/orchestrator/pkg/sql_extractor.py:327`](../../src/orchestrator/pkg/sql_extractor.py#L327)
 
-- **Called by** (3): [`_handle_alter`](../../src/orchestrator/pkg/sql_extractor.py#L212), [`_handle_create_table`](../../src/orchestrator/pkg/sql_extractor.py#L173), [`_handle_create_view`](../../src/orchestrator/pkg/sql_extractor.py#L193)
+- **Called by** (3): [`_handle_alter`](../../src/orchestrator/pkg/sql_extractor.py#L263), [`_handle_create_table`](../../src/orchestrator/pkg/sql_extractor.py#L224), [`_handle_create_view`](../../src/orchestrator/pkg/sql_extractor.py#L244)
 - **Fields**: `_columns`, `_fks`, `is_view`, `name`, `provenance`
 
 ## Functions
 
 ### `_aligned_lines`
 
-[`src/orchestrator/pkg/sql_extractor.py:393`](../../src/orchestrator/pkg/sql_extractor.py#L393)
+[`src/orchestrator/pkg/sql_extractor.py:444`](../../src/orchestrator/pkg/sql_extractor.py#L444)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/sql_extractor.py#L107)
-- **Calls** (1): [`_non_null`](../../src/orchestrator/pkg/sql_extractor.py#L389)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/sql_extractor.py#L154)
+- **Calls** (1): [`_non_null`](../../src/orchestrator/pkg/sql_extractor.py#L440)
 
 ### `_classify_tables`
 
-[`src/orchestrator/pkg/sql_extractor.py:326`](../../src/orchestrator/pkg/sql_extractor.py#L326)
+[`src/orchestrator/pkg/sql_extractor.py:377`](../../src/orchestrator/pkg/sql_extractor.py#L377)
 
-- **Called by** (1): [`_emit_data_access`](../../src/orchestrator/pkg/sql_extractor.py#L264)
+- **Called by** (1): [`_emit_data_access`](../../src/orchestrator/pkg/sql_extractor.py#L315)
 
 ### `_non_null`
 
-[`src/orchestrator/pkg/sql_extractor.py:389`](../../src/orchestrator/pkg/sql_extractor.py#L389)
+[`src/orchestrator/pkg/sql_extractor.py:440`](../../src/orchestrator/pkg/sql_extractor.py#L440)
 
-- **Called by** (2): [`_aligned_lines`](../../src/orchestrator/pkg/sql_extractor.py#L393), [`extract`](../../src/orchestrator/pkg/sql_extractor.py#L107)
+- **Called by** (2): [`_aligned_lines`](../../src/orchestrator/pkg/sql_extractor.py#L444), [`extract`](../../src/orchestrator/pkg/sql_extractor.py#L154)
+
+### `_read_sql`
+
+[`src/orchestrator/pkg/sql_extractor.py:83`](../../src/orchestrator/pkg/sql_extractor.py#L83)
+
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/sql_extractor.py#L154)
 
 ### `_reparse_body`
 
-[`src/orchestrator/pkg/sql_extractor.py:355`](../../src/orchestrator/pkg/sql_extractor.py#L355)
+[`src/orchestrator/pkg/sql_extractor.py:406`](../../src/orchestrator/pkg/sql_extractor.py#L406)
 
-- **Called by** (1): [`_handle_create_routine`](../../src/orchestrator/pkg/sql_extractor.py#L238)
+- **Called by** (1): [`_handle_create_routine`](../../src/orchestrator/pkg/sql_extractor.py#L289)
 - **Calls** (1): `parse`
 
 ### `_routine_body`
 
-[`src/orchestrator/pkg/sql_extractor.py:338`](../../src/orchestrator/pkg/sql_extractor.py#L338)
+[`src/orchestrator/pkg/sql_extractor.py:389`](../../src/orchestrator/pkg/sql_extractor.py#L389)
 
-- **Called by** (1): [`_handle_create_routine`](../../src/orchestrator/pkg/sql_extractor.py#L238)
+- **Called by** (1): [`_handle_create_routine`](../../src/orchestrator/pkg/sql_extractor.py#L289)
 
 ### `_select_tables`
 
-[`src/orchestrator/pkg/sql_extractor.py:320`](../../src/orchestrator/pkg/sql_extractor.py#L320)
+[`src/orchestrator/pkg/sql_extractor.py:371`](../../src/orchestrator/pkg/sql_extractor.py#L371)
 
-- **Called by** (1): [`_handle_create_view`](../../src/orchestrator/pkg/sql_extractor.py#L193)
+- **Called by** (1): [`_handle_create_view`](../../src/orchestrator/pkg/sql_extractor.py#L244)
+
+### `_split_batches`
+
+[`src/orchestrator/pkg/sql_extractor.py:107`](../../src/orchestrator/pkg/sql_extractor.py#L107)
+
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/sql_extractor.py#L154)
 
 ### `_statement_start_lines`
 
-[`src/orchestrator/pkg/sql_extractor.py:371`](../../src/orchestrator/pkg/sql_extractor.py#L371)
+[`src/orchestrator/pkg/sql_extractor.py:422`](../../src/orchestrator/pkg/sql_extractor.py#L422)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/sql_extractor.py#L107)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/sql_extractor.py#L154)
 - **Calls** (1): `tokenize`
 
 ### `_touch_entity`
 
-[`src/orchestrator/pkg/sql_extractor.py:311`](../../src/orchestrator/pkg/sql_extractor.py#L311)
+[`src/orchestrator/pkg/sql_extractor.py:362`](../../src/orchestrator/pkg/sql_extractor.py#L362)
 
-- **Called by** (2): [`_emit_data_access`](../../src/orchestrator/pkg/sql_extractor.py#L264), [`_handle_create_view`](../../src/orchestrator/pkg/sql_extractor.py#L193)
+- **Called by** (2): [`_emit_data_access`](../../src/orchestrator/pkg/sql_extractor.py#L315), [`_handle_create_view`](../../src/orchestrator/pkg/sql_extractor.py#L244)
 - **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L93)
 
 ### `_touch_function`
 
-[`src/orchestrator/pkg/sql_extractor.py:316`](../../src/orchestrator/pkg/sql_extractor.py#L316)
+[`src/orchestrator/pkg/sql_extractor.py:367`](../../src/orchestrator/pkg/sql_extractor.py#L367)
 
-- **Called by** (1): [`_handle_create_routine`](../../src/orchestrator/pkg/sql_extractor.py#L238)
+- **Called by** (1): [`_handle_create_routine`](../../src/orchestrator/pkg/sql_extractor.py#L289)
 - **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L93)
 
 ### `_type_sql`
 
-[`src/orchestrator/pkg/sql_extractor.py:306`](../../src/orchestrator/pkg/sql_extractor.py#L306)
+[`src/orchestrator/pkg/sql_extractor.py:357`](../../src/orchestrator/pkg/sql_extractor.py#L357)
 
-- **Called by** (2): [`_handle_alter`](../../src/orchestrator/pkg/sql_extractor.py#L212), [`_handle_create_table`](../../src/orchestrator/pkg/sql_extractor.py#L173)
+- **Called by** (2): [`_handle_alter`](../../src/orchestrator/pkg/sql_extractor.py#L263), [`_handle_create_table`](../../src/orchestrator/pkg/sql_extractor.py#L224)
 
 ### `detect_dialect`
 
-[`src/orchestrator/pkg/sql_extractor.py:78`](../../src/orchestrator/pkg/sql_extractor.py#L78)
+[`src/orchestrator/pkg/sql_extractor.py:125`](../../src/orchestrator/pkg/sql_extractor.py#L125)
 
-- **Called by** (2 production · 1 test): [`extract`](../../src/orchestrator/pkg/sql_extractor.py#L107), [`fold_migrations`](../../src/orchestrator/pkg/migrations.py#L57), [`test_detect_dialect_fingerprints`](../../tests/pkg/test_sql_extractor.py#L172)
+- **Called by** (2 production · 1 test): [`extract`](../../src/orchestrator/pkg/sql_extractor.py#L154), [`fold_migrations`](../../src/orchestrator/pkg/migrations.py#L57), [`test_detect_dialect_fingerprints`](../../tests/pkg/test_sql_extractor.py#L172)
 - **Documented in**: `docs/specs/sql-support-roadmap.md#a15-dialect-selection-auto-detect-done`
 
 ## Imports
