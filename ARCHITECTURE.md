@@ -97,9 +97,8 @@ PR** — deployment is out of scope by design.
 - **Comprehension is deterministic and no-LLM.** `understand` and the PKG produce
   byte-identical output for the same commit. The LLM lives in the *execution loop* (codegen) and
   *intake* extraction — never in comprehension.
-  *Known exception:* `state` is not currently byte-stable — components tying on their symbol
-  counts can swap order between runs, because the area list is sorted from a `set` with a
-  non-total key. Pin `PYTHONHASHSEED=0` when diffing until it is fixed.
+  `state` holds the same guarantee: its layout sorts on a total key, so a tie between two
+  components resolves identically every run regardless of Python's per-process hash seed.
 - **Everything is grounded and audited.** Every fact carries `file:line` provenance; every tool
   call, approval and decision is recorded in an append-only audit trail.
 

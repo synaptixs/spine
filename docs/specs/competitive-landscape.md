@@ -148,9 +148,9 @@ refusal hide behind a missed one, and they cost very different things.
    PHP).
 4. **Two of four oracles are Python-only** (`runtime` via PEP 669, `invention` via Python `ast`).
    On a non-Python repo `invention` reports `0` meaning *not measured*, not clean.
-5. **Small self-inflicted credibility nicks:** `--intents` ships with no reader, and `state` is
-   not byte-stable (found 2026-08-14). Minor in themselves, but they sit directly under the
-   determinism claim that is a headline strength.
+5. **`--intents` ships with no reader** — it costs ~3× CPU and nothing renders its facts. Minor
+   in itself, but it sits under the determinism-and-measurement claim that is a headline
+   strength. (`state` was also not byte-stable when this was written; **fixed in 3.19.0**.)
 
 ---
 

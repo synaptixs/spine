@@ -321,8 +321,8 @@ orchestrator state . --out report.html     # one self-contained, shareable HTML 
 orchestrator state . --no-timestamp        # omit generated-at, for byte-stable CI diffs
 ```
 
-> **Known issue:** `state` is not byte-stable across runs — components tying on their symbol
-> counts can swap order, so identical runs can differ. Pin `PYTHONHASHSEED=0` when diffing.
+With `--no-timestamp`, two runs of the same commit produce identical bytes — the report is
+diffable and safe to check into CI.
 > `understand` is unaffected.
 
 It renders a plain-language **overview**, an **infrastructure & runtime** breakdown (the
@@ -392,6 +392,15 @@ T-SQL, Oracle, SQLite, …) from distinctive syntax — so T-SQL `[bracketed]` i
 back-ticks, and Oracle `VARCHAR2` parse under their own grammar instead of degrading as
 Postgres. Portable DDL with no tell-tale falls back to Postgres. Pin it with `--dialect`
 (on `pkg extract` / `understand` / `state`) when detection can't tell.
+
+**SQL Server database projects read as-scripted.** A `.Database` project scripted out of SSMS
+is not plain UTF-8 T-SQL: SSMS writes **UTF-16** by default, and it separates statements with
+**`GO`**, a client batch separator that is not valid T-SQL and makes a whole file unparseable if
+fed through as one statement. Both are handled — encoding is sniffed from the BOM, and files
+are split on `GO` and parsed batch by batch — so a scripted database project is extracted
+rather than skipped. Neither is a dialect problem, so `--dialect tsql` never fixed them. On one
+real SQL Server project this was the difference between **676 of 709 `.sql` files silently
+skipped** and none, taking `READS` from 2 to 186 and `WRITES` from 0 to 26.
 
 **Greenfield too.** SQL isn't only read — `sdlc feature --language sql` *generates* the data
 layer: it scaffolds a `migrations/` directory, writes a DDL migration for the intent, and
@@ -538,7 +547,8 @@ reviews honest.
   front-ends. Other languages aren't extracted yet (their files are simply not
   represented). For C, parsing is
   pre-preprocessor — heavy macro use yields partial facts (we never run `cpp`). For SQL, the
-  dialect is auto-detected (override with `--dialect`); stored-procedure bodies are re-parsed
+  dialect is auto-detected (override with `--dialect`); UTF-16 and `GO`-separated SQL Server
+  scripts are handled (see §4). Stored-procedure bodies are re-parsed
   best-effort — exotic procedural PL/pgSQL / T-SQL constructs degrade to partial facts;
   migration folding assumes linearly-ordered files.
 - **Heuristic edges.** Some edges (e.g. ORM-inferred foreign keys) are inferred and improve
