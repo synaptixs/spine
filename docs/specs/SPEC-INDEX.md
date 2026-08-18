@@ -1,6 +1,6 @@
 # Spec index — every design record, and where it stands
 
-**Generated 2026-08-15 against 3.18.1.** 61 top-level specs, 6 archived, 10 build documents.
+**Generated 2026-08-15 against 3.18.1; one row added 2026-08-18.** 62 top-level specs, 6 archived, 10 build documents.
 
 **How to read the Verified column — this matters.** Status is **self-reported by each spec**
 unless marked ✔. This index was built after three separate cases in one session where a status
@@ -16,6 +16,12 @@ Treat an unverified status as a claim, not a fact. ✔ means checked against sou
 **Companions:** [`README.md`](README.md) is the narrative programme doc (its G1–G17 percentages are
 stamped 2026-06-11 and are stale). [`gap-roadmap-index.md`](gap-roadmap-index.md) indexes the
 Graphify-gap series only. This file is the complete inventory.
+
+---
+
+> **Start with [STATE-OF-SPINE.md](STATE-OF-SPINE.md)** — one page, verified 2026-08-18 against
+> 3.19.0, covering where the product stands, what is measured, the active programme, and what is
+> outstanding. Come here for the per-spec inventory.
 
 ---
 
@@ -61,6 +67,7 @@ Graphify-gap series only. This file is the complete inventory.
 |---|---|---|
 | [gap6-benchmarks-roadmap](gap6-benchmarks-roadmap.md) | Not started | **Rewritten 2026-08-15** against 3.18.1 — reuse the scoreboard, don't rebuild |
 | [codegen-benchmark-roadmap](codegen-benchmark-roadmap.md) | Not started | **New 2026-08-15.** SWE-bench comparability → `resolved`-vs-`mergeable` delta |
+| [graphir-sdlc-workflow](graphir-sdlc-workflow.md) | Not started | **New 2026-08-18.** The SDLC becomes a GraphIR workflow; 4 phases, determinism boundary enforced |
 | [codex-plugin-keyless-roadmap](codex-plugin-keyless-roadmap.md) | Not started | **New 2026-08-15.** Phase 0 is a blocking spike |
 | [gap4-adoption-distribution-roadmap](gap4-adoption-distribution-roadmap.md) | Not started | No prerequisites (Phase 3 excepted) |
 | [phase5-agentic-codegen-loop](phase5-agentic-codegen-loop.md) | Proposed, under review | "The hinge phase" |
@@ -113,7 +120,7 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 |---|---|
 | ✅ Complete | 16 |
 | 🟡 Partial | 10 |
-| 📋 Outstanding | 16 *(incl. 1 missing spec)* |
+| 📋 Outstanding | 17 *(incl. 1 missing spec)* |
 | ⚠️ Stale status | 1 |
 | 📖 Reference | 18 |
 
