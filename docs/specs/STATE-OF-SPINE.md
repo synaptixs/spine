@@ -1,7 +1,7 @@
-# State of Spine — 3.19.0
+# State of Spine — 3.20.0
 
-**The one document to read.** Verified against source on **2026-08-18**; numbers re-measured the
-same day after Phase 1 of the GraphIR programme landed on `feat/graphir-sdlc-workflow`.
+**The one document to read.** Verified against source on **2026-08-19**, at the 3.20.0 release
+cut. Every number below was re-measured that day.
 
 > **Why this exists.** There are **68 specs**, 6 archived, and 17 root-level user documents.
 > Answering "where do we stand?" required opening five of them and reconciling three that
@@ -22,11 +22,11 @@ gates (before building, before merging). The product is **Spine**; it ships as
 
 | | Value | How it is known |
 |---|---|---|
-| Version | **3.19.0** on PyPI | verified on pypi.org, both wheel and sdist |
+| Version | **3.20.0** | cutting now; 3.19.0 is the last on PyPI until this ships |
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
 | CLI commands | **53** | `grep -c '\.command(' src/orchestrator/cli.py` |
-| Source modules | **314** | `find src/orchestrator -name '*.py'` |
-| Test functions | **2,535** across 289 files | `grep -rh '^def test_\|^async def test_' tests` |
+| Source modules | **317** | `find src/orchestrator -name '*.py'` |
+| Test functions | **2,552** across 291 files | `grep -rh '^def test_\|^async def test_' tests` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
 | `CALLS` recall | **1.00** (C, SQL) → **0.50** (TypeScript) | same |
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |

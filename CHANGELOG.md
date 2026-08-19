@@ -4,6 +4,109 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.20.0 — The evidence drives the run
+
+3.19.0 measured what the code graph is worth. This release puts it in front of the work: every
+SDLC run now begins with a **deterministic research pass**, and design, codegen and the
+acceptance criteria are judged against what it found instead of against the ticket's own
+account of itself.
+
+Phases 1, 2a and 2b of [`graphir-sdlc-workflow.md`](docs/specs/graphir-sdlc-workflow.md).
+
+### Fixed — four defects in how a ticket reached the code
+
+The pipeline checked a ticket against the graph **once**, at `validity`, and thereafter the
+*ticket* drove every downstream stage. Each of these had shipped for months:
+
+- **Root-cause analysis never ran.** `build_rca` is deterministic and produces a fault site,
+  ranked hypotheses and a regression surface — and `sdlc autorun` did not call it. An autonomous
+  bug run did no root-cause work at all. It now runs on every ticket.
+- **The blast radius described the design's own guess.** `design.py` computed impact from its
+  own `files_to_touch`, so a wrong proposal produced a faithful analysis of a fiction — and it
+  read as verification. It is now computed from **where the ticket lands**, before design runs,
+  and handed in. `design.py` no longer computes one, and a test fails if that call comes back.
+- **The research was flattened to filenames.** `Landing{name, where, kind, callers, module}`
+  became `where.split(":")[0]` before anything downstream saw it, so design and codegen received
+  file paths where the research had proved symbols. The whole fact now survives the stage
+  boundary.
+- **Acceptance criteria were taken on trust.** They originate in intake — a model reading a
+  document, not the code — and were read straight through by design, codegen and grounding.
+  Each one is now bound to a symbol and a `file:line`.
+
+### Added — Evidence, and two refusals
+
+- **`Evidence`** — one artifact per run composing `investigate` + `rca` + `blast_radius`. No
+  model, so it costs nothing and is reproducible at a commit. Written **even when the run parks**,
+  because a parked run's evidence is what a human is being asked to judge. Lands as `evidence.md`
+  and `evidence.json`.
+- **Criterion binding refuses a false premise.** A criterion naming code the graph does not hold
+  stops the run — a criterion nobody can locate is a test nobody can write. **Prose never parks a
+  run:** CamelCase, `ALL_CAPS` env vars, tool names and plain English are not claims about your
+  code and are reported as "not a code claim". The rule is borrowed from the doc-drift
+  reconciler rather than invented, so there is one definition of "names a symbol".
+- **A validator on the design.** A design naming a directory or module the repository does not
+  have parks the run instead of reaching codegen. A new file in an existing directory is fine —
+  that is a file being created. **0 false positives across 100 measured runs.**
+- **`orchestrator sdlc explain <run>`** renders the graph a run actually executed, skipped nodes
+  included, from a typed per-node `Case` with the digest of what each node produced.
+- **`orchestrator sdlc workflow`** prints the validated SDLC profile — `sdlc/profiles/default.yaml`,
+  the pipeline as data rather than as Python stage ordering.
+- **`NodeType.TOOL`** in GraphIR: a deterministic node with no model call, no network, no clock
+  and no RNG, whose output is digested — so "deterministic" is checkable rather than asserted.
+
+### Measured — and one feature declined
+
+- **Phase 1 gate:** 0 divergences over 20 runs across 5 commits, plus a determinism test that
+  renders under five `PYTHONHASHSEED` values in subprocesses. **Free** — the compared nodes are
+  deterministic.
+- **Phase 2a gate:** verdict parity over 20 runs across 5 commits, 0 unexplained mismatches, and
+  a parking-rate delta showing 5 new parks, all the one ticket naming a symbol no repository has.
+  Also free.
+- **Phase 2b: the design promotion was measured and declined.** A 100-run A/B across two frontier
+  models found no acceptance difference a 50-run arm can resolve, a held-out rate favouring the
+  deterministic design (**0.60 [0.46, 0.72]** against **0.40 [0.28, 0.54]**), and **1.98× the
+  cost**. `design` stays deterministic and the model-call budget stays at three. The validator
+  ships regardless. The held-out gap is one model, so the finding is *"helped neither and hurt
+  one"* — full result, including what would reopen it, in
+  [`design-promotion-ab-results.md`](docs/specs/design-promotion-ab-results.md).
+
+### Fixed — three defects the benchmark harness found before it ran
+
+Pre-flighting the A/B with four real calls, about $2.50, caught three things that would each have
+produced a confident wrong number:
+
+- **The benchmark had no design stage.** It drives `LLMCodegenAdapter` directly and never called
+  `autorun`, so `produce_design` was never in its path — the 200-run grounding study measured
+  codegen with no design in the loop whatsoever.
+- **`_llm_design` had never worked.** It parsed with `json.loads`, the model answers inside a
+  markdown fence, and `produce_design` catches every exception and returns the deterministic
+  design. The model arm would have **silently measured the skeleton and reported it as the
+  model's work.** It now uses codegen's tolerant loader, and a fallback is recorded as the
+  *absence* of a measurement.
+- **The validator refused prose.** Models write sentences into `data_changes`; a sentence
+  containing a path was judged as a path. Every ticket in the model arm would have been rejected
+  and reported as the model inventing code.
+
+### Changed
+
+- **`assets/spine-architecture.png` is generated, not drawn.** Its predecessor was stamped
+  `3.8.4`, claimed `41 commands` against 53, and carried `7 node kinds · 9 edge kinds` two
+  releases after `ARCHITECTURE.md` had corrected them to **8 and 11**. Every number is now read
+  from source at render time by `scripts/render_architecture_svg.py`, the SVG is the committed
+  source, and **CI fails if the image no longer matches**.
+- `CLI_REFERENCE.md` documented `SPINE_IR_SHADOW` and a `shadow.json` artifact, both removed in
+  Phase 2a. Replaced with what a run actually writes.
+- `SPINE_SDLC_IMPERATIVE=1` restores the pre-3.20 path for one release: stages re-derive their
+  own view, and neither refusal above can park a run. Documented in `.env.example` and
+  `OPERATIONS.md`.
+
+### Note for operators
+
+Two verdicts can park a ticket that previously built — an unbound acceptance criterion, and a
+design naming a place your repository does not have. Both park with their evidence on disk;
+`sdlc runs approve` continues a run you disagree with, and `SPINE_SDLC_IMPERATIVE=1` turns both
+off wholesale.
+
 ## 3.19.0 — What the graph is worth, measured; and four ways it was wrong
 
 3.18.x claimed the code graph makes generated code better. This release **measures that claim**

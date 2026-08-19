@@ -24,7 +24,7 @@ docs · **n/a** out of category
 
 ---
 
-| Capability | **Spine 3.19.0** | CodeGraph | Graphify | GitNexus | Serena | Joern | Sourcegraph | OpenHands | Devin |
+| Capability | **Spine 3.20.0** | CodeGraph | Graphify | GitNexus | Serena | Joern | Sourcegraph | OpenHands | Devin |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | **LAYER A — CODE INTELLIGENCE** |
 | Deterministic, no-LLM extraction | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ |
@@ -132,10 +132,9 @@ choice moves the same model further than model choice does (one reported case: ~
 scaffold vs 61.5% top score on a standardised harness). See
 [`codegen-benchmark-roadmap.md`](codegen-benchmark-roadmap.md), Phase 1, `Not started`.
 
-**⁸ New on `develop`, unreleased (Phases 1, 2a, 2b of
-[`graphir-sdlc-workflow.md`](graphir-sdlc-workflow.md), 2026-08-18/19).** Do not quote these to a
-customer until 3.20.0 ships — the rest of this table describes a released version, and mixing the
-two is how a matrix becomes 22% wrong.
+**⁸ Shipped in 3.20.0** (Phases 1, 2a, 2b of
+[`graphir-sdlc-workflow.md`](graphir-sdlc-workflow.md), 2026-08-18/19). These were marked
+unreleased while they sat on `develop`; the marker stays only to say when they arrived.
 
 The last row is the odd one, and it is deliberate. Spine ran a 100-run controlled A/B on whether
 its design stage should call a model, found no gain it could resolve and a held-out rate that
@@ -148,7 +147,7 @@ claim about method rather than function, which is why it sits last.
 
 ## Summary
 
-**16 rows where Spine stands alone.** Five were added on 2026-08-19 and are unreleased (⁸). Of the released ones, four are the strongest: they are about
+**16 rows where Spine stands alone.** Five arrived in 3.20.0 (⁸). Of the rest, four are the strongest: they are about
 whether the product's central claim is *true*, not about what it can do.
 
 **3 rows where Spine is ❌** — SWE-bench comparability, an in-path security verifier, and a
