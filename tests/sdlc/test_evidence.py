@@ -154,23 +154,27 @@ def test_the_digest_is_stable_across_hash_seeds() -> None:
     assert len(digests) == 1, f"Evidence is not byte-stable across hash seeds: {digests}"
 
 
-def test_evidence_does_not_import_the_tool_registry_at_module_scope() -> None:
-    """`runtime.tool_registry.default_registry()` imports this module to register the SDLC's
-    tools. A module-level import back into it is a genuine cycle — CodeQL flagged it, correctly,
-    even though laziness on the other side kept it from biting at runtime.
+def test_evidence_never_imports_the_tool_registry() -> None:
+    """`runtime.tool_registry` imports this module to register the SDLC's tools, so any import
+    back is a cycle — and **two lazy imports are still a cycle**.
 
-    Asserted on the AST rather than by importing, because an import-order test passes whenever
-    something else happened to import one side first, which is exactly how a cycle hides.
+    The first attempt at this fix moved which side deferred and left the loop standing; CodeQL
+    flagged it again, correctly, because the cycle is a property of the dependency graph rather
+    than of import timing. The digest now lives in `core.digest`, which depends on neither, so
+    this edge does not exist at any scope.
+
+    Asserted on the AST rather than by importing: an import-order test passes whenever something
+    else happened to import one side first, which is exactly how a cycle hides. `ast.walk` rather
+    than `tree.body`, so a function-level import counts too.
     """
     import ast
-    import pathlib
+    import inspect
+    import pathlib as _pathlib
 
-    import orchestrator.sdlc.evidence as module
-
-    tree = ast.parse(pathlib.Path(module.__file__).read_text(encoding="utf-8"))
-    module_level = {
+    source = _pathlib.Path(inspect.getsourcefile(build_evidence) or "").read_text(encoding="utf-8")
+    modules = {
         node.module
-        for node in tree.body
-        if isinstance(node, ast.ImportFrom) and node.module and not node.level
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.ImportFrom) and node.module
     }
-    assert "orchestrator.runtime.tool_registry" not in module_level
+    assert "orchestrator.runtime.tool_registry" not in modules
