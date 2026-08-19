@@ -50,7 +50,7 @@ Graphify-gap series only. This file is the complete inventory.
 
 | Spec | Done | Outstanding |
 |---|---|---|
-| [graphir-sdlc-workflow](graphir-sdlc-workflow.md) | **Phase 1 (2026-08-18)** — `tool` node type, Evidence, SDLC as IR in shadow; gate passed 20 runs / 5 commits / 0 divergences | **2a** Evidence consumed + criteria bound (free gate) · **2b** design promotion (paid A/B) · **3** profiles · **4** parallelism |
+| [graphir-sdlc-workflow](graphir-sdlc-workflow.md) | **Phases 1 + 2a (2026-08-18)** — `tool` nodes, Evidence, criteria binding, typed Case; both gates passed (20 runs / 5 commits each). All four research defects closed | **2b** design promotion (paid A/B) · **3** profiles · **4** parallelism |
 | [capability-recommendations-kg-grounded](capability-recommendations-kg-grounded.md) | C1–C6, C8–C10 (9 of 10) | **C7** — observability→defect |
 | [sql-support-roadmap](sql-support-roadmap.md) | Track A complete, released 2.7.0 | **Track B** — greenfield SQL codegen |
 | [go-support-roadmap](go-support-roadmap.md) | Phase 4.1 comprehension **done**; Go ships in 3.18.1 | Later phases; branch `feat/go-support` |

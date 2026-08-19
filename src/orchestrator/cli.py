@@ -736,6 +736,38 @@ def sdlc_baseline(
     typer.echo(render_report(gate, runs))
 
 
+@sdlc_app.command("explain")
+def sdlc_explain(
+    run_id: Annotated[str, typer.Argument(help="Run id, as printed by `sdlc autorun`.")],
+    as_json: Annotated[bool, typer.Option("--json", help="Emit the Case as JSON.")] = False,
+) -> None:
+    """Show the graph a run actually executed — node by node, with what each one produced.
+
+    Reads the run's `case.json`. Every node appears, including the ones that were skipped and
+    why: a summary listing only the nodes that ran cannot be told apart from one where the rest
+    were never reached.
+
+    Digests cover content, never timing — two identical runs must agree, and no two runs take
+    the same time.
+    """
+    import json as _json
+
+    from orchestrator.sdlc.autorun import default_artifacts_dir
+    from orchestrator.sdlc.case import load_case
+
+    path = default_artifacts_dir(run_id) / "case.json"
+    if not path.is_file():
+        typer.secho(f"No case for run {run_id!r} at {path}", fg=typer.colors.RED)
+        typer.echo("A run older than Phase 2a has no Case; read its artifacts directory instead.")
+        raise typer.Exit(code=2)
+
+    case = load_case(path)
+    if as_json:
+        typer.echo(_json.dumps(case.to_dict(), indent=2, sort_keys=True))
+        return
+    typer.echo(case.render())
+
+
 @sdlc_app.command("workflow")
 def sdlc_workflow(
     name: Annotated[str, typer.Argument(help="Profile name, e.g. `default`.")] = "default",
