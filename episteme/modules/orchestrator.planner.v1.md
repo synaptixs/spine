@@ -68,21 +68,21 @@ _8 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/planner/v1.py:577`](../../src/orchestrator/planner/v1.py#L577)
 
 - **Called by** (2): [`plan`](../../src/orchestrator/planner/v1.py#L77), [`replan`](../../src/orchestrator/planner/v1.py#L183)
-- **Calls** (6): [`Budget`](../../src/orchestrator/ir/graph.py#L99), [`GraphIR`](../../src/orchestrator/ir/graph.py#L148), [`GraphSpec`](../../src/orchestrator/ir/graph.py#L108), [`Metadata`](../../src/orchestrator/registry/_common.py#L30), [`Node`](../../src/orchestrator/ir/graph.py#L45), [`_coerce_glossary_term`](../../src/orchestrator/planner/v0.py#L162)
+- **Calls** (6): [`Budget`](../../src/orchestrator/ir/graph.py#L104), [`GraphIR`](../../src/orchestrator/ir/graph.py#L153), [`GraphSpec`](../../src/orchestrator/ir/graph.py#L113), [`Metadata`](../../src/orchestrator/registry/_common.py#L30), [`Node`](../../src/orchestrator/ir/graph.py#L50), [`_coerce_glossary_term`](../../src/orchestrator/planner/v0.py#L162)
 
 ### `_build_sequential_ir`
 
 [`src/orchestrator/planner/v1.py:634`](../../src/orchestrator/planner/v1.py#L634)
 
 - **Called by** (2): [`plan`](../../src/orchestrator/planner/v1.py#L77), [`replan`](../../src/orchestrator/planner/v1.py#L183)
-- **Calls** (7): [`Budget`](../../src/orchestrator/ir/graph.py#L99), [`Edge`](../../src/orchestrator/ir/graph.py#L55), [`GraphIR`](../../src/orchestrator/ir/graph.py#L148), [`GraphSpec`](../../src/orchestrator/ir/graph.py#L108), [`Metadata`](../../src/orchestrator/registry/_common.py#L30), [`Node`](../../src/orchestrator/ir/graph.py#L45), [`_coerce_glossary_term`](../../src/orchestrator/planner/v0.py#L162)
+- **Calls** (7): [`Budget`](../../src/orchestrator/ir/graph.py#L104), [`Edge`](../../src/orchestrator/ir/graph.py#L60), [`GraphIR`](../../src/orchestrator/ir/graph.py#L153), [`GraphSpec`](../../src/orchestrator/ir/graph.py#L113), [`Metadata`](../../src/orchestrator/registry/_common.py#L30), [`Node`](../../src/orchestrator/ir/graph.py#L50), [`_coerce_glossary_term`](../../src/orchestrator/planner/v0.py#L162)
 
 ### `_build_single_agent_ir`
 
 [`src/orchestrator/planner/v1.py:545`](../../src/orchestrator/planner/v1.py#L545)
 
 - **Called by** (2): [`plan`](../../src/orchestrator/planner/v1.py#L77), [`replan`](../../src/orchestrator/planner/v1.py#L183)
-- **Calls** (6): [`Budget`](../../src/orchestrator/ir/graph.py#L99), [`GraphIR`](../../src/orchestrator/ir/graph.py#L148), [`GraphSpec`](../../src/orchestrator/ir/graph.py#L108), [`Metadata`](../../src/orchestrator/registry/_common.py#L30), [`Node`](../../src/orchestrator/ir/graph.py#L45), [`_coerce_glossary_term`](../../src/orchestrator/planner/v0.py#L162)
+- **Calls** (6): [`Budget`](../../src/orchestrator/ir/graph.py#L104), [`GraphIR`](../../src/orchestrator/ir/graph.py#L153), [`GraphSpec`](../../src/orchestrator/ir/graph.py#L113), [`Metadata`](../../src/orchestrator/registry/_common.py#L30), [`Node`](../../src/orchestrator/ir/graph.py#L50), [`_coerce_glossary_term`](../../src/orchestrator/planner/v0.py#L162)
 
 ### `_glossary_terms_to_plain`
 

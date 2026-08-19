@@ -3,23 +3,28 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.ir`** is one of 48 areas in this repo, in the `orchestrator` zone. It holds 3 modules — 12 types and 2 functions. It sits in the middle of the graph: 1 area below it, 4 above. Changes here can reach both ways.
+**`orchestrator.ir`** is one of 49 areas in this repo, in the `orchestrator` zone. It holds 3 modules — 12 types and 2 functions. It sits in the middle of the graph: 2 areas below it, 6 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
   n0["orchestrator.ir"]
-  n1["orchestrator.planner"]
-  n2["orchestrator.registry"]
-  n3["orchestrator.runtime"]
-  n4["orchestrator.temporal"]
+  n1["orchestrator.cli"]
+  n2["orchestrator.planner"]
+  n3["orchestrator.registry"]
+  n4["orchestrator.runtime"]
+  n5["orchestrator.sdlc"]
+  n6["orchestrator.temporal"]
   n1 --> n0
   n2 --> n0
   n3 --> n0
   n4 --> n0
-  n0 --> n2
+  n5 --> n0
+  n6 --> n0
+  n0 --> n3
+  n0 --> n4
 ```
 
-**In the diagram:** **`orchestrator.ir`** (this area) · [`orchestrator.planner`](orchestrator.planner.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.runtime`](orchestrator.runtime.md) · [`orchestrator.temporal`](orchestrator.temporal.md)
+**In the diagram:** **`orchestrator.ir`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.planner`](orchestrator.planner.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.runtime`](orchestrator.runtime.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · [`orchestrator.temporal`](orchestrator.temporal.md)
 
 ## Modules
 
@@ -29,8 +34,8 @@ flowchart LR
 
 ## Depends on
 
-[`orchestrator.registry`](orchestrator.registry.md)
+[`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md)
 
 ## Depended on by
 
-[`orchestrator.planner`](orchestrator.planner.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.temporal`](orchestrator.temporal.md)
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.planner`](orchestrator.planner.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.temporal`](orchestrator.temporal.md)

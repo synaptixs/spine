@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.registry`** is one of 48 areas in this repo, in the `orchestrator` zone. It holds 50 modules — 94 types and 170 functions. It sits in the middle of the graph: 15 areas below it, 15 above. Changes here can reach both ways.
+**`orchestrator.registry`** is one of 49 areas in this repo, in the `orchestrator` zone. It holds 50 modules — 94 types and 170 functions. It sits in the middle of the graph: 15 areas below it, 15 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -68,7 +68,7 @@ _Showing 16 of 30 neighbouring areas._
 - [`orchestrator.registry.api.session`](../../src/orchestrator/registry/api/session.py#L1)
 - [`orchestrator.registry.api.stream`](../../src/orchestrator/registry/api/stream.py#L1)
 - [`orchestrator.registry.api.system`](../../src/orchestrator/registry/api/system.py#L1)
-- [`orchestrator.registry.api.tasks`](../modules/orchestrator.registry.api.tasks.md)
+- [`orchestrator.registry.api.tasks`](../../src/orchestrator/registry/api/tasks.py#L1)
 - [`orchestrator.registry.api.trace`](../../src/orchestrator/registry/api/trace.py#L1)
 - [`orchestrator.registry.api.web`](../../src/orchestrator/registry/api/web/__init__.py#L1)
 - [`orchestrator.registry.api.web.advanced`](../../src/orchestrator/registry/api/web/advanced.py#L1)

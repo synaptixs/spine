@@ -3,27 +3,29 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.runtime`** is one of 48 areas in this repo, in the `orchestrator` zone. It holds 19 modules — 49 types and 44 functions. It sits in the middle of the graph: 4 areas below it, 3 above. Changes here can reach both ways.
+**`orchestrator.runtime`** is one of 49 areas in this repo, in the `orchestrator` zone. It holds 20 modules — 52 types and 47 functions. It sits in the middle of the graph: 5 areas below it, 4 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
   n0["orchestrator.runtime"]
-  n1["orchestrator.registry"]
-  n2["orchestrator.sdlc"]
-  n3["orchestrator.temporal"]
-  n4["orchestrator.core"]
-  n5["orchestrator.ir"]
+  n1["orchestrator.ir"]
+  n2["orchestrator.registry"]
+  n3["orchestrator.sdlc"]
+  n4["orchestrator.temporal"]
+  n5["orchestrator.core"]
   n6["orchestrator.storage"]
   n1 --> n0
   n2 --> n0
   n3 --> n0
-  n0 --> n4
+  n4 --> n0
   n0 --> n5
   n0 --> n1
+  n0 --> n2
+  n0 --> n3
   n0 --> n6
 ```
 
-**In the diagram:** **`orchestrator.runtime`** (this area) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · [`orchestrator.temporal`](orchestrator.temporal.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.ir`](orchestrator.ir.md) · `orchestrator.storage`
+**In the diagram:** **`orchestrator.runtime`** (this area) · [`orchestrator.ir`](orchestrator.ir.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · [`orchestrator.temporal`](orchestrator.temporal.md) · [`orchestrator.core`](orchestrator.core.md) · `orchestrator.storage`
 
 ## Modules
 
@@ -38,6 +40,7 @@ flowchart LR
 - [`orchestrator.runtime.post_conditions`](../../src/orchestrator/runtime/post_conditions.py#L1)
 - [`orchestrator.runtime.specialist`](../../src/orchestrator/runtime/specialist.py#L1)
 - [`orchestrator.runtime.task_orchestration`](../modules/orchestrator.runtime.task_orchestration.md)
+- [`orchestrator.runtime.tool_registry`](../../src/orchestrator/runtime/tool_registry.py#L1)
 - [`orchestrator.runtime.verifier`](../../src/orchestrator/runtime/verifier.py#L1)
 - [`orchestrator.runtime.verifiers`](../../src/orchestrator/runtime/verifiers/__init__.py#L1)
 - [`orchestrator.runtime.verifiers.base`](../../src/orchestrator/runtime/verifiers/base.py#L1)
@@ -49,8 +52,8 @@ flowchart LR
 
 ## Depends on
 
-[`orchestrator.core`](orchestrator.core.md), [`orchestrator.ir`](orchestrator.ir.md), [`orchestrator.registry`](orchestrator.registry.md), `orchestrator.storage`
+[`orchestrator.core`](orchestrator.core.md), [`orchestrator.ir`](orchestrator.ir.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), `orchestrator.storage`
 
 ## Depended on by
 
-[`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.temporal`](orchestrator.temporal.md)
+[`orchestrator.ir`](orchestrator.ir.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.temporal`](orchestrator.temporal.md)

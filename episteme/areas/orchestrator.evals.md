@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.evals`** is one of 48 areas in this repo, in the `orchestrator` zone. It holds 8 modules — 11 types and 26 functions. It sits in the middle of the graph: 3 areas below it, 7 above. Changes here can reach both ways.
+**`orchestrator.evals`** is one of 49 areas in this repo, in the `orchestrator` zone. It holds 8 modules — 11 types and 26 functions. It sits in the middle of the graph: 3 areas below it, 7 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
