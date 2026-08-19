@@ -152,3 +152,25 @@ def test_the_digest_is_stable_across_hash_seeds() -> None:
         )
         digests.add(json.loads(out.stdout.strip().splitlines()[-1])["digest"])
     assert len(digests) == 1, f"Evidence is not byte-stable across hash seeds: {digests}"
+
+
+def test_evidence_does_not_import_the_tool_registry_at_module_scope() -> None:
+    """`runtime.tool_registry.default_registry()` imports this module to register the SDLC's
+    tools. A module-level import back into it is a genuine cycle — CodeQL flagged it, correctly,
+    even though laziness on the other side kept it from biting at runtime.
+
+    Asserted on the AST rather than by importing, because an import-order test passes whenever
+    something else happened to import one side first, which is exactly how a cycle hides.
+    """
+    import ast
+    import pathlib
+
+    import orchestrator.sdlc.evidence as module
+
+    tree = ast.parse(pathlib.Path(module.__file__).read_text(encoding="utf-8"))
+    module_level = {
+        node.module
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom) and node.module and not node.level
+    }
+    assert "orchestrator.runtime.tool_registry" not in module_level

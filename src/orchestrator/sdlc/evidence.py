@@ -30,10 +30,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from orchestrator.pkg import FactStore
-from orchestrator.runtime.tool_registry import ToolRegistry, digest_of
+
+if TYPE_CHECKING:  # `runtime.tool_registry` imports this module to register its tools.
+    from orchestrator.runtime.tool_registry import ToolRegistry
 
 __all__ = [
     "Evidence",
@@ -237,6 +239,13 @@ def to_dict(ev: Evidence) -> dict[str, Any]:
 
 
 def evidence_digest(ev: Evidence) -> str:
+    # Imported here, not at module scope. `runtime.tool_registry.default_registry()` imports this
+    # module to register the SDLC's tools, so a module-level import back into it is a genuine
+    # cycle — one CodeQL flagged, correctly, even though laziness on the other side kept it from
+    # biting at runtime. Only the annotation and this one call need the module, so neither has to
+    # be an import-time edge.
+    from orchestrator.runtime.tool_registry import digest_of
+
     return digest_of(to_dict(ev))
 
 
