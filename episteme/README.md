@@ -4,7 +4,7 @@
 Code-true knowledge base for **synaptixs-spine** (brownfield), built by `orchestrator understand` from the Product Knowledge Graph + project profile.
 
 <!-- spine-stamp -->
-Generated from commit `a171d99c3ace0010d92416d052f54a343a7355bd` **plus uncommitted changes** by **Spine 3.20.0**.
+Generated from commit `1eb9a0fa5267481c52b0606c997d15d8a320b601` **plus uncommitted changes** by **Spine 3.20.0**.
 Verify it still matches the code with `orchestrator understand --check`.
 <!-- /spine-stamp -->
 
