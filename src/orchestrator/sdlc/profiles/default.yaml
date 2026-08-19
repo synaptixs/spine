@@ -1,0 +1,117 @@
+# The SDLC pipeline as `sdlc autorun` actually runs it, expressed as a GraphIR.
+#
+# Phase 1 executes this in shadow: the graph is built, validated, and its `tool` nodes are run
+# alongside the imperative pipeline so their outputs can be compared. `autorun` stays
+# authoritative and nothing downstream reads this graph yet.
+#
+# Node classes are the point of the file. A `tool` node is deterministic — no model, no network,
+# no clock, no RNG — and its output is digested, so "deterministic" is checkable rather than
+# asserted. An `agent` node reaches a model. Today `n_design` is an agent node whose model is
+# never called (`produce_design(..., llm=None)`); it is declared as one because that is the
+# target state, and Phase 2 promotes it behind a validator rather than by editing this file.
+#
+# Two nodes here have no imperative twin — `n_rca` and `n_blast_radius`. RCA never runs in
+# `autorun` today, and the blast radius is computed inside `design.py` from the design's own
+# proposal rather than from where the ticket lands. Nothing to diverge from, so nothing is
+# compared for them; they are new facts, not a second opinion.
+#
+# `approval_points` is deliberately empty. `autorun` still owns the plan gate and parking, and
+# writing gates here that this graph does not enforce would claim governance the profile does
+# not provide. Mapping park/resume onto ApprovalPoint is Phase 2.
+
+metadata:
+  id: sdlc.default
+  version: 1.0.0
+  description: >-
+    The default SDLC delivery pipeline — intake, deterministic research and gating, design,
+    implementation, review.
+  tags: [sdlc, default]
+
+status:
+  state: published
+
+spec:
+  objective: >-
+    Take one ticket from a source document to a reviewed change, grounding every step in the
+    Product Knowledge Graph.
+  workflow_pattern: sequential
+
+  nodes:
+    - id: n_intake
+      type: agent
+      config:
+        stage: intake
+        summary: Resolve the source to one spec, once, and hand it to every later stage.
+
+    - id: n_investigate
+      type: tool
+      template_id: sdlc.investigate
+      config:
+        stage: investigate
+        summary: The symbols this ticket lands on, with file:line, kind, callers and module.
+
+    - id: n_rca
+      type: tool
+      template_id: sdlc.rca
+      config:
+        stage: rca
+        summary: Fault site, regression surface, recently-changed, ranked hypotheses.
+        new_in_graph: true
+
+    - id: n_blast_radius
+      type: tool
+      template_id: sdlc.blast_radius
+      config:
+        stage: blast_radius
+        summary: Impact of the landing sites — not of a design's proposal.
+        new_in_graph: true
+
+    - id: n_validity
+      type: tool
+      template_id: sdlc.validity
+      config:
+        stage: validity
+        summary: Judge the ticket against the code. The only step that stops a run before code.
+
+    - id: n_design
+      type: agent
+      config:
+        stage: design
+        summary: Approach, interfaces, data changes, test strategy.
+        model_today: false
+        note: >-
+          Declared an agent node because that is the target state. Runs with llm=None today;
+          promotion is Phase 2 and requires the design validator to ship first.
+
+    - id: n_implement
+      type: agent
+      config:
+        stage: implement
+        summary: Codegen, tests and the refine loop.
+
+    - id: n_review
+      type: agent
+      config:
+        stage: review
+        summary: Review the worktree diff, fix what it finds, re-run the tests.
+
+  edges:
+    - source: n_intake
+      target: n_investigate
+    - source: n_investigate
+      target: n_rca
+    - source: n_rca
+      target: n_blast_radius
+    - source: n_blast_radius
+      target: n_validity
+    - source: n_validity
+      target: n_design
+    - source: n_design
+      target: n_implement
+    - source: n_implement
+      target: n_review
+
+  approval_points: []
+
+  budget:
+    max_replan_count: 0

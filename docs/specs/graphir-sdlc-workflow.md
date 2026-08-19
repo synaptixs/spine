@@ -300,7 +300,7 @@ real; neither fixes anything listed above.
 
 | Phase | Deliverable | Status | Started | Ended |
 |---|---|---|---|---|
-| 1 | `tool` node type + the **Evidence** research node, SDLC expressed as IR, run in shadow | Not started | — | — |
+| 1 | `tool` node type + the **Evidence** research node, SDLC expressed as IR, run in shadow | **Built — divergence gate outstanding** | 2026-08-18 | — |
 | 2 | The IR executes the run; Evidence is **consumed**; criteria bound to it; `RunContext` becomes the typed Case | Not started | — | — |
 | 3 | Issue-type-shaped workflows; profiles as files a repo can carry | Not started | — | — |
 | 4 | Parallel fan-out and the bounded replan loop | Not started | — | — |
@@ -323,14 +323,21 @@ computed from the landing sites. It carries `grounded: bool` from `Investigation
 when the PKG had no grounded nodes for this ticket, the Evidence is **empty and says so**, rather
 than a confident-looking artifact assembled from nothing.
 
-**Files.** `ir/graph.py` (+`TOOL`), `ir/validator.py` (tool-node shape rules; a tool node needs a
-resolvable `template_id` in a new tool registry), `runtime/tool_registry.py` (new — name →
-deterministic callable, with digest capture), `sdlc/evidence.py` (new — the `Evidence` dataclass +
+**Files, as built.** `ir/graph.py` (+`TOOL`), `ir/validator.py` (`tool_unresolved` rule, checked
+**without a session** — `autorun` runs with no registry service, so a DB-backed tool lookup would
+leave the SDLC's graph unvalidatable in exactly the context that runs it; plus agent-chain
+condensation so tools may sit between agents), `runtime/tool_registry.py` (new — name →
+deterministic callable, with digest capture), `sdlc/evidence.py` (new — `Evidence` +
 `build_evidence()` composing `build_investigation` / `build_rca` / `blast_radius`),
-`sdlc/workflows/default.yaml` (new), `sdlc/autorun.py` (shadow build + compare, write
-`evidence.md`/`evidence.json`), `tests/ir/`, `tests/sdlc/`.
+`sdlc/profiles/default.yaml` (new), `sdlc/autorun.py` (shadow build + compare; writes
+`evidence.md`, `evidence.json`, `shadow.json`), `cli.py` (`sdlc workflow`), `tests/ir/`,
+`tests/sdlc/`.
 
-**Done when.** (a) `orchestrator sdlc workflow show default` prints the validated graph; (b) a
+> **The package is `sdlc/profiles/`, not `sdlc/workflows/`.** `orchestrator.sdlc.workflows` is
+> already the Temporal workflow module; a package of that name shadows it and `SDLCWorkflow`
+> silently stops existing. The test suite stayed green — `mypy` caught it.
+
+**Done when.** (a) `orchestrator sdlc workflow default` prints the validated graph; (b) a
 shadow run reports **zero divergence** between IR-executed deterministic nodes and the imperative
 stages, over ≥20 runs across ≥5 commits; (c) a determinism test runs the same graph twice at one
 commit under five `PYTHONHASHSEED` values in subprocesses and asserts identical digests — the
