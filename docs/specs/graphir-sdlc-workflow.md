@@ -300,7 +300,7 @@ real; neither fixes anything listed above.
 
 | Phase | Deliverable | Status | Started | Ended |
 |---|---|---|---|---|
-| 1 | `tool` node type + the **Evidence** research node, SDLC expressed as IR, run in shadow | **Built — divergence gate outstanding** | 2026-08-18 | — |
+| 1 | `tool` node type + the **Evidence** research node, SDLC expressed as IR, run in shadow | ✅ **COMPLETE** | 2026-08-18 | 2026-08-18 |
 | 2 | The IR executes the run; Evidence is **consumed**; criteria bound to it; `RunContext` becomes the typed Case | Not started | — | — |
 | 3 | Issue-type-shaped workflows; profiles as files a repo can carry | Not started | — | — |
 | 4 | Parallel fan-out and the bounded replan loop | Not started | — | — |
@@ -351,6 +351,23 @@ filenames, and criteria are still unbound. That is by design: shadow mode change
 **Defects.** Closes **1** in the sense that RCA runs and is recorded on every bug ticket. Leaves
 **2, 3 and 4 open** — Evidence is produced but nothing consumes it, so design still computes its own
 blast radius, still receives filenames rather than symbols, and criteria are still unbound.
+
+**Gate result — 2026-08-18. PASS.** `scripts/phase1_shadow_gate.py`: **20 runs across 5 commits,
+0 divergences**, floor met. Verdicts exercised both paths (16 `PROCEED`, 4 `TOO_BIG`, i.e. parked),
+and 9 distinct Evidence digests over the 20 runs confirm the artifact varies with ticket and
+commit rather than being constant. The gate was proved able to fail three ways before it was
+believed: perturbing one field of a tool's output flagged 4/4 runs, breaking the comparator
+flagged none, and running 4 runs across 1 commit failed the floor.
+
+**Two nodes are compared, not four.** `n_rca` and `n_blast_radius` have no imperative twin — RCA
+does not run in `autorun` at all, and the blast radius is computed inside `design.py` from the
+design's own proposal. The gate reports `compared_nodes` and `uncompared_nodes` separately so a
+reader cannot mistake the coverage.
+
+**No model runs in the gate, and that is not a shortcut.** Both compared nodes are deterministic;
+the three model stages have no bearing on whether the graph reproduces them. The gate drives the
+real `_shadow_pass`, `_stage_investigate` and `_stage_validity` from `autorun` rather than a
+reimplementation — a gate that re-derives what it checks checks itself.
 
 **Value if we stop here.** RCA finally runs on autonomous bug tickets and a *true* blast radius is
 recorded per run — both absent today — plus an inspectable description of the pipeline and the
