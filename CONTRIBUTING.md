@@ -73,7 +73,8 @@ them on a release cadence — so opening an issue first avoids duplicated effort
    The one exemption is a **release promotion** — a `develop` → `main` PR. Its `episteme/`
    diff is every bot commit made on `develop` since `main` last moved, which is the design
    working rather than a contributor carrying the artifact, so the check skips when the base
-   is `main`. `main` regenerates from its own tree after the merge either way.
+   is `main`. Since 3.20.0 that promotion is the **only** way `main`'s bank moves:
+   regeneration runs on `develop` alone, and `main` inherits it verbatim.
 4. Open the PR with a clear description of **what** and **why**, linking any issue.
 5. A maintainer reviews; the `security scan` check must pass.
 

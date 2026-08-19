@@ -122,8 +122,8 @@ jobs:
       # a merge, and the two-dot diff against a main that is behind shows all of them at
       # once. The guard asks "did a contributor carry the artifact?" — on a promotion the
       # answer is structurally no, and there is no way to make it pass without reverting
-      # the bank main is owed. Regeneration runs on main too, so main rebuilds from its own
-      # tree after this lands regardless.
+      # the bank main is owed. Since 3.20.0 regeneration runs on develop only, so a
+      # promotion is the *sole* way main's bank moves — see .github/workflows/episteme.yml.
       - name: PR does not modify episteme/
         if: github.event_name == 'pull_request' && github.base_ref != 'main'
         run: |
