@@ -168,3 +168,53 @@ async def test_design_is_handed_the_evidence_blast_radius(tmp_path: Path, monkey
 
     assert seen.get("blast_radius") is not None, "design computed its own impact again"
     assert seen["blast_radius"] == ctx.evidence.blast_radius, "and it must be Evidence's, not another"
+
+
+async def test_a_design_naming_invented_code_parks_the_run(tmp_path: Path) -> None:
+    """Phase 2b's enforcement, and the reason the promotion rule allows `design` to call a model
+    at all: every other model output in this pipeline has a deterministic check downstream, and
+    until now this one had none.
+
+    The design is synthesised rather than generated — the deterministic design names real files,
+    so the only way to exercise the guard is to hand it the output a model would produce on a
+    bad day.
+    """
+    from orchestrator.pkg.overview import build_overview
+    from orchestrator.sdlc import design as design_mod
+    from orchestrator.sdlc.autorun import AutorunError, _stage_design
+
+    store = _store()
+    ctx = _ctx(tmp_path)
+    ctx.approvals_dir = tmp_path / "approvals"
+    await _research_pass(ctx, store=store, issue_type="Bug", emit=lambda _s: None)
+    _stage_investigate(ctx, store=store, emit=lambda _s: None)
+
+    async def _invented(*_args: object, **_kwargs: object) -> dict[str, object]:
+        return {
+            "approach": "add a widget",
+            "files_to_touch": ["made_up_pkg/widget.py"],
+            "interfaces": [],
+            "data_changes": [],
+            "risks": [],
+            "test_strategy": "",
+        }
+
+    monkey = design_mod.produce_design
+    design_mod.produce_design = _invented
+    try:
+        batch = FactBatch()
+        for node in store.nodes:
+            batch.add_node(node)
+        try:
+            await _stage_design(ctx, store=store, overview=build_overview(batch), emit=lambda _s: None)
+        except AutorunError as exc:
+            assert "does not exist" in str(exc)
+        else:
+            raise AssertionError("a design naming an invented directory reached codegen")
+    finally:
+        design_mod.produce_design = monkey
+
+    stage = next(s for s in ctx.stages if s.name == "design")
+    assert stage.status == "failed"
+    assert ctx.case.result("n_design").status == "failed"
+    assert (ctx.artifacts_dir / "design-references.md").is_file()

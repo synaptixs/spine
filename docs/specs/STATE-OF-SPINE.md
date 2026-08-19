@@ -121,7 +121,7 @@ bound to — without converting a deterministic stage into a model call.
 |---|---|---|---|
 | 1 | `tool` node type + the **Evidence** artifact, SDLC as IR in shadow | defect 1 | ✅ **COMPLETE 2026-08-18** |
 | **2a** | IR executes; Evidence consumed; criteria bound; `RunContext` → typed Case | **defects 2, 3, 4** | ✅ **COMPLETE 2026-08-18** |
-| **2b** | `design` promoted to hybrid — validator, then `_llm_design`, then measure | none | Not started |
+| **2b** | `design` promoted to hybrid — validator, then `_llm_design`, then measure | none | 🟡 **validator enforcing; promotion awaiting a paid A/B** |
 | 3 | Issue-type profiles as files a repo can carry | none | Not started |
 | 4 | Parallel fan-out + bounded replan | none | Not started |
 
