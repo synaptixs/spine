@@ -93,7 +93,7 @@
 [`src/orchestrator/sdlc/evidence.py:239`](../../src/orchestrator/sdlc/evidence.py#L239)
 
 - **Called by** (0 production · 1 test): [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100)
-- **Calls** (2): [`digest_of`](../../src/orchestrator/runtime/tool_registry.py#L52), [`to_dict`](../../src/orchestrator/sdlc/evidence.py#L215)
+- **Calls** (2): [`digest_of`](../../src/orchestrator/core/digest.py#L46), [`to_dict`](../../src/orchestrator/sdlc/evidence.py#L215)
 
 ### `evidence_from_parts`
 
@@ -119,7 +119,7 @@
 
 [`src/orchestrator/sdlc/evidence.py:376`](../../src/orchestrator/sdlc/evidence.py#L376)
 
-- **Called by** (1): [`default_registry`](../../src/orchestrator/runtime/tool_registry.py#L117)
+- **Called by** (1): [`default_registry`](../../src/orchestrator/runtime/tool_registry.py#L106)
 
 ### `render_evidence_md`
 
@@ -136,7 +136,7 @@
 
 ## Imports
 
-`__future__.annotations`, `dataclasses.dataclass`, `dataclasses.field`, [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.runtime.tool_registry`](../../src/orchestrator/runtime/tool_registry.py#L1), [`orchestrator.sdlc.impact`](../../src/orchestrator/sdlc/impact.py#L1), [`orchestrator.sdlc.investigate`](../../src/orchestrator/sdlc/investigate.py#L1), [`orchestrator.sdlc.rca`](../../src/orchestrator/sdlc/rca.py#L1), [`orchestrator.sdlc.validity`](orchestrator.sdlc.validity.md), `pathlib.Path`, `typing.Any`
+`__future__.annotations`, `dataclasses.dataclass`, `dataclasses.field`, [`orchestrator.core.digest`](../../src/orchestrator/core/digest.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.sdlc.impact`](../../src/orchestrator/sdlc/impact.py#L1), [`orchestrator.sdlc.investigate`](../../src/orchestrator/sdlc/investigate.py#L1), [`orchestrator.sdlc.rca`](../../src/orchestrator/sdlc/rca.py#L1), [`orchestrator.sdlc.validity`](orchestrator.sdlc.validity.md), `pathlib.Path`, `typing.Any`
 
 ## Imported by
 
