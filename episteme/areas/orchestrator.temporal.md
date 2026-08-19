@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.temporal`** is one of 49 areas in this repo, in the `orchestrator` zone. It holds 6 modules — 7 types and 11 functions. It sits in the middle of the graph: 7 areas below it, 3 above. Changes here can reach both ways.
+**`orchestrator.temporal`** is one of 50 areas in this repo, in the `orchestrator` zone. It holds 6 modules — 7 types and 11 functions. It sits in the middle of the graph: 7 areas below it, 3 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -29,7 +29,7 @@ flowchart LR
   n0 --> n9
 ```
 
-**In the diagram:** **`orchestrator.temporal`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · [`orchestrator.approval`](orchestrator.approval.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.ir`](orchestrator.ir.md) · [`orchestrator.obs`](orchestrator.obs.md) · [`orchestrator.planner`](orchestrator.planner.md) · [`orchestrator.runtime`](orchestrator.runtime.md)
+**In the diagram:** **`orchestrator.temporal`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · `orchestrator.approval` · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.ir`](orchestrator.ir.md) · [`orchestrator.obs`](orchestrator.obs.md) · [`orchestrator.planner`](orchestrator.planner.md) · [`orchestrator.runtime`](orchestrator.runtime.md)
 
 ## Modules
 
@@ -42,7 +42,7 @@ flowchart LR
 
 ## Depends on
 
-[`orchestrator.approval`](orchestrator.approval.md), [`orchestrator.core`](orchestrator.core.md), [`orchestrator.ir`](orchestrator.ir.md), [`orchestrator.obs`](orchestrator.obs.md), [`orchestrator.planner`](orchestrator.planner.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md)
+`orchestrator.approval`, [`orchestrator.core`](orchestrator.core.md), [`orchestrator.ir`](orchestrator.ir.md), [`orchestrator.obs`](orchestrator.obs.md), [`orchestrator.planner`](orchestrator.planner.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md)
 
 ## Depended on by
 

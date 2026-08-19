@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.sdlc`** is one of 49 areas in this repo, in the `orchestrator` zone. It holds 45 modules — 116 types and 353 functions. It sits in the middle of the graph: 17 areas below it, 14 above. Changes here can reach both ways.
+**`orchestrator.sdlc`** is one of 50 areas in this repo, in the `orchestrator` zone. It holds 45 modules — 116 types and 353 functions. It sits in the middle of the graph: 17 areas below it, 14 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -40,7 +40,7 @@ flowchart LR
   n0 --> n4
 ```
 
-**In the diagram:** **`orchestrator.sdlc`** (this area) · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.runtime`](orchestrator.runtime.md) · `scripts.agentic_eval` · [`orchestrator.approval`](orchestrator.approval.md) · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.codereview`](orchestrator.codereview.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.intake`](orchestrator.intake.md) · [`orchestrator.ir`](orchestrator.ir.md)
+**In the diagram:** **`orchestrator.sdlc`** (this area) · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.runtime`](orchestrator.runtime.md) · `scripts.agentic_eval` · `orchestrator.approval` · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.codereview`](orchestrator.codereview.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.intake`](orchestrator.intake.md) · [`orchestrator.ir`](orchestrator.ir.md)
 
 _Showing 16 of 31 neighbouring areas._
 
@@ -94,7 +94,7 @@ _Showing 16 of 31 neighbouring areas._
 
 ## Depends on
 
-[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.approval`](orchestrator.approval.md), [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.core`](orchestrator.core.md), [`orchestrator.intake`](orchestrator.intake.md), [`orchestrator.ir`](orchestrator.ir.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), `orchestrator.notify`, [`orchestrator.obs`](orchestrator.obs.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.spine`](orchestrator.spine.md), [`orchestrator.temporal`](orchestrator.temporal.md)
+[`orchestrator.agentic`](orchestrator.agentic.md), `orchestrator.approval`, [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.core`](orchestrator.core.md), [`orchestrator.intake`](orchestrator.intake.md), [`orchestrator.ir`](orchestrator.ir.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), `orchestrator.notify`, [`orchestrator.obs`](orchestrator.obs.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.spine`](orchestrator.spine.md), [`orchestrator.temporal`](orchestrator.temporal.md)
 
 ## Depended on by
 

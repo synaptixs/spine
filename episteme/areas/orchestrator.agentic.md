@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.agentic`** is one of 49 areas in this repo, in the `orchestrator` zone. It holds 8 modules — 13 types and 16 functions. It sits in the middle of the graph: 5 areas below it, 3 above. Changes here can reach both ways.
+**`orchestrator.agentic`** is one of 50 areas in this repo, in the `orchestrator` zone. It holds 8 modules — 13 types and 16 functions. It sits in the middle of the graph: 5 areas below it, 3 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR

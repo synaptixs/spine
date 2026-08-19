@@ -52,7 +52,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 2 test): [`produce_design`](../../src/orchestrator/sdlc/design.py#L295), [`test_memory_bank_conventions_are_fenced_as_untrusted`](../../tests/sdlc/test_design.py#L89), [`test_the_design_model_answer_parses_out_of_a_fence`](../../tests/sdlc/test_design_validator.py#L146)
 - **Calls** (6): [`Message`](../../src/orchestrator/core/llm/client.py#L48), [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L2504), [`_normalise`](../../src/orchestrator/sdlc/design.py#L211), [`_structure_lines`](../../src/orchestrator/sdlc/design.py#L50), [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L44)
-- **Documented in**: `docs/specs/STATE-OF-SPINE.md#6-the-active-programme-graphir-as-the-sdlc-workflow`, `docs/specs/design-promotion-ab-results.md#consequences`, `docs/specs/design-promotion-ab-results.md#the-question-and-why-it-had-to-be-asked`, `docs/specs/design-promotion-ab-results.md#three-defects-the-pre-flight-found-for-about-250`, `docs/specs/graphir-sdlc-workflow.md#class-model`, `docs/specs/graphir-sdlc-workflow.md#phase-2b-design-promoted-to-a-hybrid-model-node`
+- **Documented in**: `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#6-the-active-programme-graphir-as-the-sdlc-workflow`, `docs/specs/design-promotion-ab-results.md#consequences`, `docs/specs/design-promotion-ab-results.md#the-question-and-why-it-had-to-be-asked`, `docs/specs/design-promotion-ab-results.md#three-defects-the-pre-flight-found-for-about-250`, `docs/specs/graphir-sdlc-workflow.md#class-model`
 
 ### `_load_context`
 
@@ -99,7 +99,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (5 production · 5 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L848), [`build_design`](../../scripts/codegen_benchmark.py#L1615), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1127), [`design`](../../src/orchestrator/cli.py#L2200), [`design_feature`](../../src/orchestrator/sdlc/design.py#L343), [`test_a_design_that_cannot_tell_says_so_and_proposes_nothing`](../../tests/sdlc/test_design.py#L253), [`test_heuristic_files_come_from_where_the_ticket_lands`](../../tests/sdlc/test_design.py#L232), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_the_design_agrees_with_the_investigation`](../../tests/sdlc/test_design.py#L269)
 - **Calls** (5): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L170), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L224), [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L142), `suppress`, [`to_dict`](../../src/orchestrator/sdlc/impact.py#L187)
-- **Documented in**: `docs/specs/design-promotion-ab-results.md#three-defects-the-pre-flight-found-for-about-250`
+- **Documented in**: `CHANGELOG.md`, `docs/specs/design-promotion-ab-results.md#three-defects-the-pre-flight-found-for-about-250`
 
 ### `render_design_md`
 
