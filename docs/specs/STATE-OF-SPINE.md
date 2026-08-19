@@ -47,7 +47,7 @@ call a model.**
 | `intake` | **yes** | source document → one spec |
 | `investigate` | no | PKG query → landing symbols with `file:line` |
 | `validity` | no | judges the ticket against the graph; **the only stage that can stop a run before code is written** |
-| `design` | **no** — `produce_design(..., llm=None)` | deterministic skeleton; `_llm_design` exists and is unwired |
+| `design` | **no** — `produce_design(..., llm=None)` | deterministic by decision, not by default: measured 2026-08-19 and declined |
 | `implement` | **yes** | codegen + tests + refine |
 | `review` | **yes** | review the worktree diff, fix findings, re-test |
 
@@ -121,7 +121,7 @@ bound to — without converting a deterministic stage into a model call.
 |---|---|---|---|
 | 1 | `tool` node type + the **Evidence** artifact, SDLC as IR in shadow | defect 1 | ✅ **COMPLETE 2026-08-18** |
 | **2a** | IR executes; Evidence consumed; criteria bound; `RunContext` → typed Case | **defects 2, 3, 4** | ✅ **COMPLETE 2026-08-18** |
-| **2b** | `design` promoted to hybrid — validator, then `_llm_design`, then measure | none | 🟡 **validator enforcing; promotion awaiting a paid A/B** |
+| **2b** | `design` promoted to hybrid — validator, then `_llm_design`, then measure | none | ✅ **COMPLETE 2026-08-19 — promotion declined, measured** |
 | 3 | Issue-type profiles as files a repo can carry | none | Not started |
 | 4 | Parallel fan-out + bounded replan | none | Not started |
 
@@ -131,6 +131,13 @@ where the ticket lands instead of computing one from its own guess, the landing 
 symbols instead of collapsing to filenames, and each acceptance criterion is bound to a
 `file:line` or refused. Gate: **20 runs / 5 commits, 0 unexplained verdict mismatches**, with 5
 new parks — all the one ticket naming a symbol no repository has.
+
+**Phase 2b closed 2026-08-19 with the promotion declined.** A 100-run A/B ($49.51, 0 aborts)
+found no acceptance difference a 50-run arm can resolve, a held-out rate favouring the
+deterministic design (0.60 vs 0.40), and 1.98× the cost. `design` stays deterministic; the
+model-call budget stays at three. The validator ships regardless — **0 false positives across
+100 runs**, including 50 real model-written designs. Detail:
+[`design-promotion-ab-results.md`](design-promotion-ab-results.md).
 
 **Phase 2 is split.** 2a is deterministic and its gate costs nothing; 2b is the design promotion
 and its gate is a paid A/B. Splitting keeps the defect closure — the value of the phase — from

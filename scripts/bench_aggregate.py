@@ -33,8 +33,13 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-# `<model>-<arm>-p<pass>.log`, e.g. `claude-opus-5-grounded-p2.log`
-_NAME = re.compile(r"^(?P<model>.+?)-(?P<arm>grounded|ungrounded)-p(?P<pass>\d+)\.log$")
+# `<model>-<arm>-p<pass>.log`, e.g. `claude-opus-5-grounded-p2.log`.
+# Phase 2b adds the design arms (`design-none` / `design-deterministic` / `design-llm`), which
+# are compared the same way and against each other rather than against a grounding control.
+_NAME = re.compile(
+    r"^(?P<model>.+?)-(?P<arm>grounded|ungrounded|design-none|design-deterministic|design-llm)"
+    r"-p(?P<pass>\d+)\.log$"
+)
 
 _ACCEPT = re.compile(r"overall acceptance:\s*(\d+)/(\d+)")
 _HELD = re.compile(r"independent \(held-out\) acceptance:\s*(\d+)/(\d+)")
