@@ -35,7 +35,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
-from orchestrator.runtime.tool_registry import digest_of
+from orchestrator.core.digest import digest_of
 
 StageStatus = Literal["ok", "skipped", "failed"]
 

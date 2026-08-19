@@ -18,17 +18,20 @@ that agree on content agree on bytes regardless of dict insertion order.
 
 from __future__ import annotations
 
-import hashlib
 import inspect
-import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
+
+from orchestrator.core.digest import canonical_json, digest_of
 
 __all__ = [
     "ToolError",
     "ToolResult",
     "ToolRegistry",
+    # Re-exported from `core.digest`, which owns them. They lived here until `sdlc.evidence`
+    # needed the digest too and had to import this module back — a cycle CodeQL was right about,
+    # and one that a lazy import does not remove.
     "canonical_json",
     "digest_of",
     "default_registry",
@@ -37,20 +40,6 @@ __all__ = [
 
 class ToolError(RuntimeError):
     """A tool was named that is not registered, or one raised while running."""
-
-
-def canonical_json(value: Any) -> str:
-    """The one serialisation a digest is taken over.
-
-    ``sort_keys`` is load-bearing: Python dicts preserve insertion order, so two runs that
-    computed identical facts in a different order would otherwise digest differently and read
-    as a divergence. Same reason the ``state`` area sort had to become total in 3.19.0.
-    """
-    return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), default=str)
-
-
-def digest_of(value: Any) -> str:
-    return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True)

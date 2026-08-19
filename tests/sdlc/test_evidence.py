@@ -152,3 +152,29 @@ def test_the_digest_is_stable_across_hash_seeds() -> None:
         )
         digests.add(json.loads(out.stdout.strip().splitlines()[-1])["digest"])
     assert len(digests) == 1, f"Evidence is not byte-stable across hash seeds: {digests}"
+
+
+def test_evidence_never_imports_the_tool_registry() -> None:
+    """`runtime.tool_registry` imports this module to register the SDLC's tools, so any import
+    back is a cycle — and **two lazy imports are still a cycle**.
+
+    The first attempt at this fix moved which side deferred and left the loop standing; CodeQL
+    flagged it again, correctly, because the cycle is a property of the dependency graph rather
+    than of import timing. The digest now lives in `core.digest`, which depends on neither, so
+    this edge does not exist at any scope.
+
+    Asserted on the AST rather than by importing: an import-order test passes whenever something
+    else happened to import one side first, which is exactly how a cycle hides. `ast.walk` rather
+    than `tree.body`, so a function-level import counts too.
+    """
+    import ast
+    import inspect
+    import pathlib as _pathlib
+
+    source = _pathlib.Path(inspect.getsourcefile(build_evidence) or "").read_text(encoding="utf-8")
+    modules = {
+        node.module
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.ImportFrom) and node.module
+    }
+    assert "orchestrator.runtime.tool_registry" not in modules

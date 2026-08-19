@@ -32,8 +32,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from orchestrator.core.digest import SupportsRegister, digest_of
 from orchestrator.pkg import FactStore
-from orchestrator.runtime.tool_registry import ToolRegistry, digest_of
 
 __all__ = [
     "Evidence",
@@ -373,7 +373,7 @@ def _tool_validity(
     }
 
 
-def register_sdlc_tools(registry: ToolRegistry) -> None:
+def register_sdlc_tools(registry: SupportsRegister) -> None:
     """Register the SDLC's deterministic tools. Called lazily by ``default_registry()``."""
     registry.register("sdlc.investigate", _tool_investigate)
     registry.register("sdlc.rca", _tool_rca)
