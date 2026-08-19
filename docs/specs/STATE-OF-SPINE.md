@@ -120,9 +120,14 @@ bound to — without converting a deterministic stage into a model call.
 | Phase | Deliverable | Closes | Status |
 |---|---|---|---|
 | 1 | `tool` node type + the **Evidence** artifact, SDLC as IR in shadow | defect 1 | ✅ **COMPLETE 2026-08-18** |
-| 2 | IR executes; Evidence consumed; criteria bound; `design` promoted to hybrid **validator first** | defects 2, 3, 4 | Not started |
+| **2a** | IR executes; Evidence consumed; criteria bound; `RunContext` → typed Case | **defects 2, 3, 4** | Not started |
+| **2b** | `design` promoted to hybrid — validator, then `_llm_design`, then measure | none | Not started |
 | 3 | Issue-type profiles as files a repo can carry | none | Not started |
 | 4 | Parallel fan-out + bounded replan | none | Not started |
+
+**Phase 2 is split.** 2a is deterministic and its gate costs nothing; 2b is the design promotion
+and its gate is a paid A/B. Splitting keeps the defect closure — the value of the phase — from
+being held behind a benchmark run.
 
 **Phase 1 shipped 2026-08-18.** `NodeType.TOOL`, an in-process tool registry with output digests,
 `Evidence` (investigate + RCA + blast radius keyed off the landing sites), the pipeline as
