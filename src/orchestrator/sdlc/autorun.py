@@ -25,6 +25,7 @@ under a run directory in the system temp dir unless ``SPINE_RUN_ARTIFACTS`` says
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import tempfile
 import time
@@ -33,6 +34,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
+
+from orchestrator.runtime.tool_registry import digest_of
 
 StageStatus = Literal["ok", "skipped", "failed"]
 
@@ -96,6 +99,9 @@ class RunContext:
     # a mystery worktree and a ticket stuck In Progress.
     record: Any = None
     store: Any = None
+    # What the SDLC graph's tool nodes computed, keyed by node id, plus the divergences found
+    # against the imperative stages. Read by nothing that decides anything — see `_shadow_pass`.
+    shadow: dict[str, Any] = field(default_factory=dict)
 
     @property
     def passed(self) -> bool:
@@ -331,6 +337,9 @@ async def autorun(
             # it is asking about.
             await _require_plan(ctx, enabled=plan_gate, emit=emit)
             store_graph, overview = _load_graph(ctx, emit=emit)
+            # Shadow, before the stages it shadows: a run that parks at validity still leaves
+            # its Evidence behind, which is the artifact a human is asked to judge the park on.
+            await _shadow_pass(ctx, store=store_graph, issue_type=issue_type, emit=emit)
             with ctx.stage_span("investigate"):
                 _stage_investigate(ctx, store=store_graph, emit=emit)
             with ctx.stage_span("validity"):
@@ -374,6 +383,10 @@ async def autorun(
             await _log_run_cost(ctx, ledger=ledger, started=started, verdict="FAILED", emit=emit)
             _journal_outcome(ctx, ledger=ledger, budget=budget, verdict="FAILED")
             raise AutorunError(f"{type(exc).__name__}: {exc}", code=1) from exc
+        finally:
+            # Written on every path — done, parked, or crashed. A report that only appears on
+            # success cannot tell "clean" from "never ran".
+            _write_shadow_report(ctx)
 
     ctx.checkpoint(phase="done", status="done", spent_usd=_spent(budget, run_id))
     await _log_run_cost(ctx, ledger=ledger, started=started, verdict="PASSED", emit=emit)
@@ -548,6 +561,160 @@ async def _stage_intake(
     emit(f"[intake] {ctx.spec.get('title', '')} (intent {ctx.spec.get('intent_id', '')})")
 
 
+_SHADOW_ENV = "SPINE_IR_SHADOW"
+
+# Node id → the stage whose output it should reproduce. Only two of the four tool nodes have an
+# imperative twin: `n_rca` never runs in this pipeline today, and `n_blast_radius` is computed
+# inside `design.py` from the design's own proposal rather than from the landing sites, so
+# there is nothing to compare it against. Stating the map here keeps the run summary from
+# implying four comparisons when it makes two.
+_SHADOW_COMPARISONS: dict[str, str] = {"n_investigate": "investigate", "n_validity": "validity"}
+
+
+def _shadow_enabled() -> bool:
+    return (os.getenv(_SHADOW_ENV) or "1").strip().lower() not in {"0", "false", "no", "off"}
+
+
+async def _shadow_pass(ctx: RunContext, *, store: Any, issue_type: str, emit: Callable[[str], None]) -> None:
+    """Build the SDLC graph, run its deterministic nodes, and write Evidence.
+
+    Shadow means exactly that: nothing here decides anything. No stage is recorded, no verdict
+    changes, and every failure is caught and reported rather than raised — a run must not break
+    because the graph that is not driving it could not be built.
+
+    It runs *before* investigate and validity so a parked run still leaves Evidence behind. The
+    two stages then compare their own results against what the tools computed; the comparison
+    is emitted and persisted, never acted on.
+
+    On by default, with ``SPINE_IR_SHADOW=0`` to switch it off. Opt-in shadow finds nothing —
+    the same reason the episteme workflow's warn-and-exit-0 went unnoticed for three releases.
+    """
+    if not _shadow_enabled():
+        ctx.shadow = {"enabled": False}
+        return
+
+    from orchestrator.runtime.tool_registry import default_registry
+    from orchestrator.sdlc.evidence import (
+        evidence_from_parts,
+        landing_files,
+        rca_problem,
+        render_evidence_md,
+        to_dict,
+    )
+    from orchestrator.sdlc.profiles import load_profile
+
+    spec = ctx.spec or {}
+    title, summary = str(spec.get("title", "")), str(spec.get("summary", ""))
+    ctx.shadow = {"enabled": True, "nodes": {}, "divergences": []}
+    try:
+        from orchestrator.ir.validator import IRValidator
+        from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
+
+        ir = load_profile()
+        report = await IRValidator().validate(ir)
+        ctx.shadow["profile"] = ir.metadata.id
+        ctx.shadow["valid"] = report.ok
+        if not report.ok:
+            ctx.shadow["failures"] = report.failures
+            emit(f"[shadow] profile {ir.metadata.id} failed validation — {len(report.failures)} rule(s)")
+            return
+
+        registry = default_registry()
+        investigate = await registry.run(
+            "sdlc.investigate", store=store, title=title, problem=summary, root=ctx.root
+        )
+        rca = await registry.run("sdlc.rca", store=store, problem=rca_problem(title, summary), root=ctx.root)
+        files = landing_files(list(investigate.value.get("landing") or []))
+        blast = await registry.run("sdlc.blast_radius", store=store, files=list(files))
+        validity = await registry.run(
+            "sdlc.validity",
+            store=store,
+            spec=spec,
+            landing=list(files),
+            issue_type=issue_type or str(spec.get("issue_type", "")),
+            issue_key=ctx.issue_key,
+            prior_runs=ctx.store.all() if ctx.store is not None else [],
+            root=ctx.root,
+            context_budget=_MAX_CONTEXT_BYTES,
+        )
+        for result in (investigate, rca, blast, validity):
+            ctx.shadow["nodes"][result.name] = {"digest": result.digest, "value": result.value}
+        ctx.shadow["by_node"] = {
+            "n_investigate": investigate.name,
+            "n_rca": rca.name,
+            "n_blast_radius": blast.name,
+            "n_validity": validity.name,
+        }
+
+        evidence = evidence_from_parts(
+            title=title,
+            problem=summary,
+            issue_type=issue_type or str(spec.get("issue_type", "")),
+            investigate=investigate.value,
+            rca=rca.value,
+            blast=blast.value,
+        )
+        ev_path = ctx.write_artifact("evidence.md", render_evidence_md(evidence))
+        ctx.write_artifact("evidence.json", json.dumps(to_dict(evidence), indent=2, sort_keys=True))
+        ctx.shadow["evidence_digest"] = digest_of(to_dict(evidence))
+
+        located = evidence.rca.get("fault_site") or "not localized"
+        emit(
+            f"[shadow] evidence: {len(evidence.landing)} landing site(s), "
+            f"{len(evidence.files)} file(s), rca {located} · {ev_path}"
+        )
+        if not evidence.grounded:
+            emit("[shadow] the graph has no grounded nodes — evidence is empty, not clean")
+    except Exception as exc:  # noqa: BLE001 — shadow must never take the run down with it
+        ctx.shadow["error"] = f"{type(exc).__name__}: {exc}"
+        emit(f"[shadow] skipped — {type(exc).__name__}: {exc}")
+
+
+def _shadow_compare(
+    ctx: RunContext, node_id: str, actual: dict[str, Any], *, emit: Callable[[str], None]
+) -> None:
+    """Compare an imperative stage's result against what the graph's tool node computed.
+
+    A divergence is emitted loudly and written to ``shadow.json``; it does **not** record a
+    failed stage. A failed stage flips ``ctx.passed`` and would change the run's outcome, which
+    would make this a second pipeline rather than a shadow of the first. The enforcement lives
+    in the test suite and in the phase gate that reads these files, not in the run.
+    """
+    if not ctx.shadow.get("enabled") or "nodes" not in ctx.shadow:
+        return
+    tool_name = (ctx.shadow.get("by_node") or {}).get(node_id)
+    recorded = (ctx.shadow.get("nodes") or {}).get(tool_name or "")
+    if not recorded:
+        return
+    expected_digest = digest_of(actual)
+    if expected_digest == recorded["digest"]:
+        return
+    divergence = {
+        "node": node_id,
+        "tool": tool_name,
+        "stage_digest": expected_digest,
+        "tool_digest": recorded["digest"],
+        "stage_value": actual,
+        "tool_value": recorded["value"],
+    }
+    ctx.shadow.setdefault("divergences", []).append(divergence)
+    emit(f"[shadow] DIVERGENCE at {node_id}: the stage and the tool disagree — see shadow.json")
+
+
+def _write_shadow_report(ctx: RunContext) -> None:
+    """Persist the shadow result, divergences included. Written even when clean.
+
+    A file that only appears on failure cannot distinguish "clean" from "never ran", and that
+    ambiguity is how a silent skip reads as a pass.
+    """
+    if not ctx.shadow:
+        return
+    ctx.shadow["comparisons"] = sorted(_SHADOW_COMPARISONS)
+    ctx.shadow["divergence_count"] = len(ctx.shadow.get("divergences") or [])
+    with contextlib.suppress(Exception):
+        ctx.write_artifact("shadow.json", json.dumps(ctx.shadow, indent=2, sort_keys=True, default=str))
+
+
 def _load_graph(ctx: RunContext, *, emit: Callable[[str], None]) -> tuple[Any, dict[str, Any]]:
     """One extraction, shared by investigate and design.
 
@@ -579,6 +746,25 @@ def _stage_investigate(ctx: RunContext, *, store: Any, emit: Callable[[str], Non
         if where and where not in ctx.landing:
             ctx.landing.append(where)
     landed = len(getattr(investigation, "landing", []) or [])
+    _shadow_compare(
+        ctx,
+        "n_investigate",
+        {
+            "landing": [
+                {
+                    "name": land.name,
+                    "where": land.where,
+                    "kind": land.kind,
+                    "callers": land.callers,
+                    "module": land.module,
+                }
+                for land in (getattr(investigation, "landing", []) or [])
+            ],
+            "areas": list(getattr(investigation, "areas", []) or []),
+            "grounded": bool(getattr(investigation, "grounded", False)),
+        },
+        emit=emit,
+    )
     ctx.record_stage("investigate", "ok", f"{landed} symbol(s) this ticket lands on", path)
     emit(f"[investigate] {landed} symbol(s) · {path}")
 
@@ -607,6 +793,17 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
         context_budget=_MAX_CONTEXT_BYTES,
     )
     ctx.verdict = assessment.verdict.value
+    _shadow_compare(
+        ctx,
+        "n_validity",
+        {
+            "verdict": assessment.verdict.value,
+            "findings": [
+                {"check": f.check, "detail": f.detail, "evidence": f.evidence} for f in assessment.findings
+            ],
+        },
+        emit=emit,
+    )
     path = ctx.write_artifact("validity.md", assessment.render())
 
     if assessment.verdict is Verdict.PROCEED:

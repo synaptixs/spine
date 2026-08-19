@@ -1,7 +1,7 @@
 # State of Spine — 3.19.0
 
-**The one document to read.** Verified against source on **2026-08-18**, at `develop` =
-`main` (trees identical after the 3.19.0 release).
+**The one document to read.** Verified against source on **2026-08-18**; numbers re-measured the
+same day after Phase 1 of the GraphIR programme landed on `feat/graphir-sdlc-workflow`.
 
 > **Why this exists.** There are **68 specs**, 6 archived, and 17 root-level user documents.
 > Answering "where do we stand?" required opening five of them and reconciling three that
@@ -24,9 +24,9 @@ gates (before building, before merging). The product is **Spine**; it ships as
 |---|---|---|
 | Version | **3.19.0** on PyPI | verified on pypi.org, both wheel and sdist |
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
-| CLI commands | **51** | `grep -c '\.command(' src/orchestrator/cli.py` |
-| Source modules | **311** | `find src/orchestrator -name '*.py'` |
-| Test functions | **2,513** across 286 files | `grep -rh '^def test_\|^async def test_' tests` |
+| CLI commands | **52** | `grep -c '\.command(' src/orchestrator/cli.py` |
+| Source modules | **314** | `find src/orchestrator -name '*.py'` |
+| Test functions | **2,535** across 289 files | `grep -rh '^def test_\|^async def test_' tests` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
 | `CALLS` recall | **1.00** (C, SQL) → **0.50** (TypeScript) | same |
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |
@@ -54,6 +54,11 @@ call a model.**
 Each model output has a deterministic validator downstream — intake's spec by `assess()`,
 implement's code by tests + preflight baseline-diff + fit, review's fixes by re-running the tests.
 **`design` has none**, which is safe only while it calls no model. That seam is the subject of §6.
+
+**Since Phase 1 (2026-08-18) every run also writes `evidence.md` / `evidence.json` / `shadow.json`**
+beside its brief: the landing symbols with `file:line`, an RCA, and a blast radius keyed off those
+landing sites. Nothing downstream reads them yet — that is Phase 2 — so the stage table above is
+unchanged by it.
 
 ## 4. Where Spine is genuinely ahead, and where it is not
 
@@ -114,10 +119,22 @@ bound to — without converting a deterministic stage into a model call.
 
 | Phase | Deliverable | Closes | Status |
 |---|---|---|---|
-| 1 | `tool` node type + the **Evidence** artifact, SDLC as IR in shadow | defect 1 | Not started |
-| 2 | IR executes; Evidence consumed; criteria bound; `design` promoted to hybrid **validator first** | defects 2, 3, 4 | Not started |
+| 1 | `tool` node type + the **Evidence** artifact, SDLC as IR in shadow | defect 1 | ✅ **COMPLETE 2026-08-18** |
+| **2a** | IR executes; Evidence consumed; criteria bound; `RunContext` → typed Case | **defects 2, 3, 4** | Not started |
+| **2b** | `design` promoted to hybrid — validator, then `_llm_design`, then measure | none | Not started |
 | 3 | Issue-type profiles as files a repo can carry | none | Not started |
 | 4 | Parallel fan-out + bounded replan | none | Not started |
+
+**Phase 2 is split.** 2a is deterministic and its gate costs nothing; 2b is the design promotion
+and its gate is a paid A/B. Splitting keeps the defect closure — the value of the phase — from
+being held behind a benchmark run.
+
+**Phase 1 shipped 2026-08-18.** `NodeType.TOOL`, an in-process tool registry with output digests,
+`Evidence` (investigate + RCA + blast radius keyed off the landing sites), the pipeline as
+`sdlc/profiles/default.yaml`, and a shadow pass in `autorun` that compares the graph's
+deterministic nodes against the imperative stages. `orchestrator sdlc workflow` prints the
+validated graph. Gate: **20 runs, 5 commits, 0 divergences** — and proved able to fail three ways
+before it was believed.
 
 **Phase 1 is enablement; Phase 2 is where the value lands.** Phase 1 produces Evidence and nothing
 reads it — deliberate, since that is what makes it shippable with zero behaviour change — so

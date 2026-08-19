@@ -68,9 +68,45 @@ class IRValidator:
         failures.extend(self._check_reachability(ir))
         failures.extend(self._check_pattern_coherence(ir))
         failures.extend(self._check_budget_sanity(ir))
+        # Tool references resolve in this process, so unlike agent templates they are checked
+        # unconditionally. A graph whose deterministic steps name callables that do not exist is
+        # broken on a laptop exactly as it is in the service, and that is where it runs.
+        failures.extend(self._check_tool_references(ir))
         if session is not None:
             failures.extend(await self._check_references(ir, session))
         return _to_report(failures)
+
+    def _check_tool_references(self, ir: GraphIR) -> list[IRValidationFailure]:
+        """Every ``tool`` node names a registered deterministic callable."""
+        from orchestrator.runtime.tool_registry import default_registry
+
+        tool_nodes = [n for n in ir.spec.nodes if n.type is NodeType.TOOL]
+        if not tool_nodes:
+            return []
+        registry = default_registry()
+        failures: list[IRValidationFailure] = []
+        for node in tool_nodes:
+            if not node.template_id:
+                failures.append(
+                    IRValidationFailure(
+                        rule="tool_unresolved",
+                        field=f"spec.nodes[{node.id}].template_id",
+                        message="a tool node must name a tool via template_id",
+                    )
+                )
+                continue
+            if not registry.has(node.template_id):
+                failures.append(
+                    IRValidationFailure(
+                        rule="tool_unresolved",
+                        field=f"spec.nodes[{node.id}].template_id",
+                        message=(
+                            f"no tool registered as {node.template_id!r}; "
+                            f"registered: {', '.join(registry.names()) or 'none'}"
+                        ),
+                    )
+                )
+        return failures
 
     def _check_pattern_supported(self, ir: GraphIR) -> list[IRValidationFailure]:
         if ir.spec.workflow_pattern not in self.SUPPORTED_PATTERNS:
@@ -223,14 +259,19 @@ class IRValidator:
                     message=(f"sequential pattern requires at least two agent nodes; got {len(agent_nodes)}"),
                 )
             ]
-        # Build adjacency restricted to agent-only edges.
+        # Agent-to-agent adjacency *through* non-agent nodes. A direct edge is the length-1
+        # case, so graphs that were linear before stay linear; what this admits is a chain with
+        # deterministic tool steps (or verifiers) between the agents, which is the shape the
+        # SDLC profile has. Restricting to direct edges made every agent both a head and a tail
+        # the moment anything sat between them.
         agent_ids = {n.id for n in agent_nodes}
-        agent_edges = [e for e in ir.spec.edges if e.source in agent_ids and e.target in agent_ids]
+        succ = self._agent_condensation(ir, agent_ids)
         out_degree: dict[str, int] = dict.fromkeys(agent_ids, 0)
         in_degree: dict[str, int] = dict.fromkeys(agent_ids, 0)
-        for edge in agent_edges:
-            out_degree[edge.source] += 1
-            in_degree[edge.target] += 1
+        for source, targets in succ.items():
+            out_degree[source] += len(targets)
+            for target in targets:
+                in_degree[target] += 1
         bad = [node_id for node_id in agent_ids if out_degree[node_id] > 1 or in_degree[node_id] > 1]
         if bad:
             return [
@@ -255,6 +296,34 @@ class IRValidator:
                 )
             ]
         return []
+
+    def _agent_condensation(self, ir: GraphIR, agent_ids: set[str]) -> dict[str, set[str]]:
+        """For each agent node, the agent nodes reachable through non-agent nodes only.
+
+        Walking stops at the first agent reached, so ``a -> tool -> b -> tool -> c`` yields
+        ``a: {b}``, ``b: {c}`` rather than ``a: {b, c}`` — the chain check needs immediate
+        successors, and a transitive closure would report every agent as branching.
+        """
+        adjacency: dict[str, set[str]] = {n.id: set() for n in ir.spec.nodes}
+        for edge in ir.spec.edges:
+            adjacency[edge.source].add(edge.target)
+
+        out: dict[str, set[str]] = {}
+        for source in sorted(agent_ids):
+            found: set[str] = set()
+            seen: set[str] = set()
+            queue: deque[str] = deque(adjacency[source])
+            while queue:
+                cur = queue.popleft()
+                if cur in seen:
+                    continue
+                seen.add(cur)
+                if cur in agent_ids:
+                    found.add(cur)
+                    continue
+                queue.extend(adjacency[cur])
+            out[source] = found
+        return out
 
     def _check_budget_sanity(self, ir: GraphIR) -> list[IRValidationFailure]:
         # Pydantic enforces non-negative bounds; this exists for explicit auditability

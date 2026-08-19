@@ -1,7 +1,11 @@
 # The SDLC as a GraphIR workflow — one orchestrator, deterministic where it counts
 
-**Status:** Not started. **Written 2026-08-18 against 3.19.0.**
-**Owner:** _unassigned_
+**Status:** **Phase 1 ✅ COMPLETE** (2026-08-18, gate passed) · Phases 2–4 not started.
+**Written 2026-08-18 against 3.19.0.** **Owner:** _unassigned_
+
+> **Currency.** This record is updated as each phase lands — the whole document, not just the
+> phase table. `docs/specs/SPEC-INDEX.md` exists because four status lines in this repository
+> once read *"Not started"* for work that had shipped.
 
 **One-liner:** Spine runs **two orchestration systems that never touch each other**. `sdlc/autorun.py`
 is an imperative six-stage pipeline; GraphIR + the planner + the verifier chain + Temporal is a
@@ -39,14 +43,14 @@ and [what was rejected](#appendix--what-was-rejected-from-the-source-analysis).
 | Primitive | Where | Note |
 |---|---|---|
 | Typed workflow IR | [`ir/graph.py`](../../src/orchestrator/ir/graph.py) | `GraphSpec`, `Node`, `Edge` with `condition`, `ApprovalPoint`, `Budget` |
-| Node types | `ir/graph.py` `NodeType` | `agent`, `verifier`, `approval`, `loop_guard`, `reflection`, `a2a_call` — **no deterministic-tool type** |
+| Node types | `ir/graph.py` `NodeType` | `agent`, **`tool`**, `verifier`, `approval`, `loop_guard`, `reflection`, `a2a_call`. `tool` was added by Phase 1; the other six predate this record |
 | Patterns | `ir/graph.py` `WorkflowPattern` | five declared; **three executable** (`single_agent`, `sequential`, `manager_specialists`) per `IRValidator.SUPPORTED_PATTERNS` |
 | Validator | [`ir/validator.py`](../../src/orchestrator/ir/validator.py) | 8 rule families incl. `cycle`, `unreachable`, `budget`, `reference_unresolved` |
-| Executor | [`runtime/task_orchestration.py`](../../src/orchestrator/runtime/task_orchestration.py) | LangGraph graphs built per pattern; dispatch is `node.type is NodeType.AGENT` only |
+| Executor | [`runtime/task_orchestration.py`](../../src/orchestrator/runtime/task_orchestration.py) | LangGraph graphs built per pattern; dispatch is still `node.type is NodeType.AGENT` only — Phase 1's tool nodes run through `runtime/tool_registry.py` in the shadow pass, **not** through this executor. Wiring `TOOL` into it is 2a |
 | Durability | [`temporal/`](../../src/orchestrator/temporal/) | worker, activities, `replan_ir` |
 | Verifier chain | `runtime/verifiers/` | `base, chain, confidence, evidence, glossary, policy` |
 | SDLC pipeline | [`sdlc/autorun.py`](../../src/orchestrator/sdlc/autorun.py) | `RunContext` + six stages, checkpoint / park / resume / budget |
-| RCA | [`sdlc/rca.py`](../../src/orchestrator/sdlc/rca.py) | `build_rca` — *"Deterministic unless `llm` is given"*; **not reachable from `autorun`**, CLI + plugin only |
+| RCA | [`sdlc/rca.py`](../../src/orchestrator/sdlc/rca.py) | `build_rca` — *"Deterministic unless `llm` is given"*. Was unreachable from `autorun`; **since Phase 1 it runs on every run** and lands in `evidence.json`. Nothing consumes it until 2a |
 | Blast radius | [`sdlc/impact.py`](../../src/orchestrator/sdlc/impact.py) | called from `design.py` **after** design proposes `files_to_touch` — see defect 2 |
 
 ### The six stages: what calls a model **today**, and what should
@@ -59,7 +63,7 @@ table rather than the signatures, because the difference is where the doubt cree
 | `intake` | **yes** | `model` | `model` | `intake/specs.py`, `intents.py` |
 | `investigate` | no | `deterministic` | `deterministic` | sync `def`, PKG query |
 | `validity` | no | `deterministic` | `deterministic` | *"the graph answers, not a model"* |
-| `design` | **no** | `deterministic` | **`model` (hybrid fields), Phase 2, validator first** | `produce_design(..., llm=None)` — see below |
+| `design` | **no** | `deterministic` | **`model` (hybrid fields), Phase 2b, validator first** | `produce_design(..., llm=None)` — see below |
 | `implement` | **yes** | `model` | `model` | codegen |
 | `review` | **yes** | `model` | `model` | `reviewer.review` → `llm_findings`, `fixer.refine` |
 
@@ -128,24 +132,40 @@ An agent cannot make that guarantee.
 ### Research is not wired as research — four defects
 
 The pipeline checks the ticket against the graph **once**, at `validity`, and thereafter the
-*ticket* — not the graph — drives every downstream stage. Four concrete consequences:
+*ticket* — not the graph — drives every downstream stage. Four concrete consequences, each with
+where it now stands:
+
+| Defect | As of 3.19.0 | Now |
+|---|---|---|
+| 1 · RCA never runs | not called at all | **✅ closed** — runs every run, in `evidence.json` |
+| 2 · Blast radius from the design's proposal | the only one computed | 🟡 **a correct one is now computed** in Evidence; `design.py` still computes its own and still uses it |
+| 3 · Evidence discarded between stages | flattened to filenames | 🟡 **kept in Evidence**; `RunContext` still carries filenames to design and codegen |
+| 4 · Criteria not bound to evidence | unbound | ❌ **open** — 2a |
+
+Phase 1 produced the facts; **Phase 2a is what makes 2, 3 and 4 stop being defects**, because a
+fact nothing reads changes nothing. The detail of each:
 
 1. **RCA never runs.** `build_rca` produces `fault_site`, `fault_module`, `callers`,
    `regression_surface`, `recently_changed`, `hypotheses`, all deterministically, and `autorun`
-   does not call it. A bug ticket gets no root-cause work.
+   did not call it. A bug ticket got no root-cause work. **Closed in Phase 1:** the `n_rca` tool
+   node runs on every run, parked ones included.
 2. **Blast radius is computed from the design's own proposal.** `design.py`:
    `blast_radius(store, design.get("files_to_touch"))`. The impact analysis describes the files the
    design *guessed at*, not the files the evidence says the ticket lands on. If the proposal is
    wrong, the blast radius is a faithful analysis of a fiction — and it reads as verification.
+   **Half-closed in Phase 1:** Evidence computes the correct one from the landing sites, but
+   `design.py` is untouched and still annotates itself with its own.
 3. **The evidence is discarded between stages.** `Investigation.landing` carries
    `Landing{name, where:"file:line", kind, callers, module}`. What reaches `RunContext` is
    `where.split(":", 1)[0]` — the file path alone. Line, kind, caller count and owning module are
    dropped, so design and codegen see filenames where the research proved symbols.
+   **Half-closed in Phase 1:** `Evidence.landing` carries `LandingFact` in full; `RunContext`
+   still hands filenames downstream until 2a rewires it.
 4. **Acceptance criteria are never bound to evidence.** `spec["acceptance_criteria"]` originates in
    intake (a model, reading a document, not the code) and is read straight through by `design.py`,
    `codegen.py` and `grounding.py`. Tests are generated against criteria written by a model that
    had not examined the code. `validity` catches false *counts*; nothing binds a criterion to a
-   symbol or a `file:line`.
+   symbol or a `file:line`. **Untouched by Phase 1** — binding is 2a's `criteria_binding.py`.
 
 **This is the substance of the design below.** Evidence — investigate + RCA + blast-radius keyed
 off the landing sites — is the artifact the workflow carries, and acceptance criteria are bound to
@@ -172,9 +192,9 @@ deterministic node. This is a CI check, not a convention — see [Phase 1](#phas
 ### Class `model`
 
 Today there are **three** model nodes: `intake`, `implement`, `review`. `design` is `async` but
-runs with `llm=None`, so it is `deterministic` today and `model` after Phase 2. That is a budget,
-not a starting point to grow from: **three today, four after Phase 2, and the fourth costs a
-validator.**
+runs with `llm=None`, so it is `deterministic` today and `model` after Phase 2b. That is a budget,
+not a starting point to grow from: **three today and through 2a, four after 2b, and the fourth
+costs a validator.**
 
 > **The promotion rule.** A node may be **demoted** from `model` to `deterministic` freely — no
 > permission, no measurement, it is strictly a gain. A node may be **promoted** from
@@ -194,7 +214,7 @@ because it currently calls no model; the moment `llm=` is wired in, model-writte
 into codegen as `ctx.plan` **unchecked**, and a hallucinated path or invented symbol propagates into
 the change.
 
-So `design`'s promotion is **scheduled, not forbidden** — Phase 2, in this order: build the
+So `design`'s promotion is **scheduled, not forbidden** — Phase 2b, in this order: build the
 validator (an enforcing `unverified_references` extended to symbols and tables), then wire
 `_llm_design`, then measure. If the measurement does not favour the model fields, design stays
 deterministic and the validator is kept anyway — it costs nothing and guards the field the day
@@ -221,7 +241,7 @@ flowchart TD
     bind["bind criteria<br/>each one gets a file:line"]
   end
   subgraph hyb["Hybrid — facts fix the frame, model fills it"]
-    des["design<br/>deterministic today<br/>model + validator, Phase 2"]
+    des["design<br/>deterministic today<br/>model + validator, 2b"]
     dval["design validator<br/>every path, symbol, table resolves"]
   end
   subgraph mdl["Model nodes — three, and only three"]
@@ -250,8 +270,8 @@ flowchart TD
 
 ## Phases
 
-Four phases. **Each is complete in itself** — it ships, it is useful, and the programme can stop
-there without leaving debris. Implement one at a time.
+Four phases, with Phase 2 in two slices. **Each is complete in itself** — it ships, it is useful,
+and the programme can stop there without leaving debris. Implement one at a time.
 
 ### Which phase closes which defect
 
@@ -260,48 +280,28 @@ Read this before choosing where to start. The four defects in
 distribute evenly across the phases, and a phase that *produces* an artifact is not the phase that
 *closes* the defect — nothing is fixed until something downstream consumes it.
 
-| Defect | Produced | Consumed | **Closed at** |
-|---|---|---|---|
-| 1 · RCA never runs | Phase 1 — `rca` joins the Evidence node | Phase 2 — feeds design | **Phase 1** for "runs and is recorded"; **Phase 2** for "informs the change" |
-| 2 · Blast radius computed from the design's own proposal | Phase 1 — computed from landing sites | Phase 2 — design consumes it and stops computing its own | **Phase 2** |
-| 3 · Evidence discarded between stages | Phase 1 — Evidence keeps `{name, where, kind, callers, module}` | Phase 2 — design and codegen receive it | **Phase 2** |
-| 4 · Acceptance criteria never bound to evidence | — | Phase 2 — `criteria_binding.py` | **Phase 2** |
+| Defect | Produced | Consumed | **Closed at** | Status |
+|---|---|---|---|---|
+| 1 · RCA never runs | Phase 1 — `rca` joins the Evidence node | **2a** — feeds design | **Phase 1** for "runs and is recorded"; **2a** for "informs the change" | ✅ produced |
+| 2 · Blast radius computed from the design's own proposal | Phase 1 — computed from landing sites | **2a** — design consumes it and stops computing its own | **2a** | 🟡 produced, not consumed |
+| 3 · Evidence discarded between stages | Phase 1 — Evidence keeps `{name, where, kind, callers, module}` | **2a** — design and codegen receive it | **2a** | 🟡 produced, not consumed |
+| 4 · Acceptance criteria never bound to evidence | — | **2a** — `criteria_binding.py`; an unbound countable criterion parks | **2a** | ❌ not started |
 
-**Phases 3 and 4 close no defects.** Phase 3 is configurability, Phase 4 is throughput. Both are
-real work; neither fixes anything listed above.
+**2b, 3 and 4 close no defects.** 2b is the design stage's quality, Phase 3 is configurability,
+Phase 4 is throughput. All three are real work; none fixes anything listed above.
 
-> **The consequence, stated plainly: Phase 1 is enablement, Phase 2 is where the value lands.**
+> **The consequence, stated plainly: Phase 1 is enablement, Phase 2a is where the value lands.**
 > Phase 1 produces Evidence and nothing reads it — deliberately, since that is what makes it
 > shippable in shadow with zero behaviour change. **Stopping after Phase 1 leaves three of four
 > defects open.** If the goal is closing the defects rather than building the workflow engine,
-> Phases 1 and 2 are the deliverable and Phase 1 alone is a down payment.
-
-### Which phase closes which defect
-
-Read this before choosing where to start. The four defects in
-[Research is not wired as research](#research-is-not-wired-as-research--four-defects) are **not**
-spread evenly across the phases.
-
-| Defect | Produced | Consumed | **Closed at** |
-|---|---|---|---|
-| 1. RCA never runs | Phase 1 — `rca` joins Evidence | Phase 2 — feeds design | **Phase 1** (runs + recorded); fully Phase 2 |
-| 2. Blast radius computed from the design's own proposal | Phase 1 — computed from landing sites | Phase 2 — design consumes it and stops computing its own | **Phase 2** |
-| 3. Evidence discarded between stages | Phase 1 — full `Landing{name, where, kind, callers, module}` preserved | Phase 2 — design and codegen receive it | **Phase 2** |
-| 4. Acceptance criteria never bound to evidence | — | Phase 2 — `criteria_binding.py`; an unbound countable criterion parks | **Phase 2** |
-
-**Phases 3 and 4 close no defects.** Phase 3 is configurability, Phase 4 is throughput. Both are
-real; neither fixes anything listed above.
-
-> **The consequence, stated plainly: Phase 1 is enablement, Phase 2 is where the value lands.**
-> Phase 1 produces Evidence and nothing downstream reads it — deliberately, because that is what
-> makes it shippable in shadow with zero behaviour change. Stopping after Phase 1 leaves **three of
-> four defects open**. If the goal is closing the defects rather than building the workflow engine,
-> **Phases 1+2 are the deliverable** and Phase 1 alone is a down payment.
+> **Phases 1 and 2a are the deliverable** and Phase 1 alone is a down payment. 2b, 3 and 4 improve
+> a pipeline that is by then already correct.
 
 | Phase | Deliverable | Status | Started | Ended |
 |---|---|---|---|---|
-| 1 | `tool` node type + the **Evidence** research node, SDLC expressed as IR, run in shadow | Not started | — | — |
-| 2 | The IR executes the run; Evidence is **consumed**; criteria bound to it; `RunContext` becomes the typed Case | Not started | — | — |
+| 1 | `tool` node type + the **Evidence** research node, SDLC expressed as IR, run in shadow | ✅ **COMPLETE** | 2026-08-18 | 2026-08-18 |
+| **2a** | The IR executes the run; Evidence is **consumed**; criteria bound; `RunContext` becomes the typed Case | Not started | — | — |
+| **2b** | `design` promoted to a hybrid model node — validator, then `_llm_design`, then the measurement | Not started | — | — |
 | 3 | Issue-type-shaped workflows; profiles as files a repo can carry | Not started | — | — |
 | 4 | Parallel fan-out and the bounded replan loop | Not started | — | — |
 
@@ -323,14 +323,21 @@ computed from the landing sites. It carries `grounded: bool` from `Investigation
 when the PKG had no grounded nodes for this ticket, the Evidence is **empty and says so**, rather
 than a confident-looking artifact assembled from nothing.
 
-**Files.** `ir/graph.py` (+`TOOL`), `ir/validator.py` (tool-node shape rules; a tool node needs a
-resolvable `template_id` in a new tool registry), `runtime/tool_registry.py` (new — name →
-deterministic callable, with digest capture), `sdlc/evidence.py` (new — the `Evidence` dataclass +
+**Files, as built.** `ir/graph.py` (+`TOOL`), `ir/validator.py` (`tool_unresolved` rule, checked
+**without a session** — `autorun` runs with no registry service, so a DB-backed tool lookup would
+leave the SDLC's graph unvalidatable in exactly the context that runs it; plus agent-chain
+condensation so tools may sit between agents), `runtime/tool_registry.py` (new — name →
+deterministic callable, with digest capture), `sdlc/evidence.py` (new — `Evidence` +
 `build_evidence()` composing `build_investigation` / `build_rca` / `blast_radius`),
-`sdlc/workflows/default.yaml` (new), `sdlc/autorun.py` (shadow build + compare, write
-`evidence.md`/`evidence.json`), `tests/ir/`, `tests/sdlc/`.
+`sdlc/profiles/default.yaml` (new), `sdlc/autorun.py` (shadow build + compare; writes
+`evidence.md`, `evidence.json`, `shadow.json`), `cli.py` (`sdlc workflow`), `tests/ir/`,
+`tests/sdlc/`.
 
-**Done when.** (a) `orchestrator sdlc workflow show default` prints the validated graph; (b) a
+> **The package is `sdlc/profiles/`, not `sdlc/workflows/`.** `orchestrator.sdlc.workflows` is
+> already the Temporal workflow module; a package of that name shadows it and `SDLCWorkflow`
+> silently stops existing. The test suite stayed green — `mypy` caught it.
+
+**Done when.** (a) `orchestrator sdlc workflow default` prints the validated graph; (b) a
 shadow run reports **zero divergence** between IR-executed deterministic nodes and the imperative
 stages, over ≥20 runs across ≥5 commits; (c) a determinism test runs the same graph twice at one
 commit under five `PYTHONHASHSEED` values in subprocesses and asserts identical digests — the
@@ -345,61 +352,130 @@ filenames, and criteria are still unbound. That is by design: shadow mode change
 **2, 3 and 4 open** — Evidence is produced but nothing consumes it, so design still computes its own
 blast radius, still receives filenames rather than symbols, and criteria are still unbound.
 
+**Gate result — 2026-08-18. PASS.** `scripts/phase1_shadow_gate.py`: **20 runs across 5 commits,
+0 divergences**, floor met. Verdicts exercised both paths (16 `PROCEED`, 4 `TOO_BIG`, i.e. parked),
+and 9 distinct Evidence digests over the 20 runs confirm the artifact varies with ticket and
+commit rather than being constant. The gate was proved able to fail three ways before it was
+believed: perturbing one field of a tool's output flagged 4/4 runs, breaking the comparator
+flagged none, and running 4 runs across 1 commit failed the floor.
+
+**Two nodes are compared, not four.** `n_rca` and `n_blast_radius` have no imperative twin — RCA
+does not run in `autorun` at all, and the blast radius is computed inside `design.py` from the
+design's own proposal. The gate reports `compared_nodes` and `uncompared_nodes` separately so a
+reader cannot mistake the coverage.
+
+**No model runs in the gate, and that is not a shortcut.** Both compared nodes are deterministic;
+the three model stages have no bearing on whether the graph reproduces them. The gate drives the
+real `_shadow_pass`, `_stage_investigate` and `_stage_validity` from `autorun` rather than a
+reimplementation — a gate that re-derives what it checks checks itself.
+
 **Value if we stop here.** RCA finally runs on autonomous bug tickets and a *true* blast radius is
 recorded per run — both absent today — plus an inspectable description of the pipeline and the
 first proof that its deterministic half is reproducible. Useful even if the IR never becomes the
 executor.
 
-### Phase 2 — the IR executes the run, Evidence is consumed, criteria are bound
+### Phase 2 — the IR executes the run, and Evidence stops being an artifact nobody reads
+
+**Split into two slices, each complete in itself**, because as one phase it bundled a
+deterministic change with a paid measurement and the first was held hostage to the second.
+
+---
+
+#### Phase 2a — Evidence consumed, criteria bound
 
 **Deliverable.** `orchestrator sdlc autorun --workflow default` executes the graph for real:
 deterministic nodes run through the tool registry, the three model stages run as `agent` nodes
-wrapping today's functions unchanged. **Evidence stops being an artifact nobody reads:**
+wrapping today's functions unchanged. Evidence stops being an artifact nobody reads.
 
-- `validity` judges the ticket against Evidence rather than re-deriving landing sites;
-- `design` receives Evidence — including a blast radius that is already known — instead of
-  computing impact from its own `files_to_touch` guess;
-- **acceptance criteria are bound.** Each criterion in `spec["acceptance_criteria"]` is matched to a
-  symbol and a `file:line` in Evidence. A criterion that cannot be bound is reported, and an
-  unbound *countable* criterion parks the run — the same treatment `assess()` already gives a false
-  count, for the same reason: a criterion nobody can locate is a test nobody can write.
+- **`validity` judges the ticket against Evidence** rather than re-deriving landing sites. It
+  already takes `landing` as a parameter *"passed in rather than recomputed so the gate and the
+  brief cannot disagree"* — 2a extends that principle from landing to the whole artifact.
+- **`design` receives a blast radius that is already known**, instead of computing impact from its
+  own `files_to_touch`. `design.py` stops calling `blast_radius` altogether. This is the moment
+  defect 2 closes: the impact analysis becomes a fact about the ticket rather than about a guess.
+- **`design` and codegen receive `LandingFact`, not filenames** — symbol, `file:line`, kind,
+  caller count, owning module. Defect 3.
+- **Acceptance criteria are bound.** Each criterion in `spec["acceptance_criteria"]` is matched to
+  a symbol and a `file:line` in Evidence. A criterion that cannot be bound is reported; an unbound
+  **countable** criterion parks the run — the same treatment `assess()` already gives a false
+  count, for the same reason: a criterion nobody can locate is a test nobody can write. Defect 4.
+- **`RunContext` becomes a view over a persisted `Case`**, written per node rather than per stage;
+  `park`/`resume` map onto `ApprovalPoint` and node state.
 
-**And `design` is promoted to a hybrid model node — validator first, in this order:**
+**The one behaviour change, named up front.** Criterion binding can **park a ticket that
+previously built**. That is the point — a criterion nobody can locate produces a test nobody can
+write — but it is the first time this programme changes an outcome, and it must be measured
+before it is trusted: see the gate below. Binding is deterministic, so it can be, and it is
+scoped to *countable* criteria for the same reason `assess()` scopes its own check that way.
 
-1. **Build the validator.** `unverified_references` becomes enforcing rather than reporting, and
-   extends from paths to symbols and tables. A design naming an unresolvable reference on a
-   *grounded* repo does not reach codegen. Greenfield suppression stays as it is.
-2. **Wire `_llm_design`,** with the fact fields (`files_to_touch`, `blast_radius`, `risks`) supplied
-   from Evidence and **not** re-derivable by the model.
-3. **Measure.** If the model fields do not improve acceptance, design reverts to deterministic and
-   the validator is kept regardless — it costs nothing and guards the seam permanently.
+**Files.** `sdlc/autorun.py` (delegate to the runtime; drop the shadow comparison for nodes that
+now execute for real), `sdlc/case.py` (new — the typed, persisted Case; `RunContext` becomes a
+view over it), `sdlc/criteria_binding.py` (new — deterministic criterion → symbol/`file:line`),
+`sdlc/validity.py` (accept Evidence), `sdlc/design.py` (accept a precomputed blast radius; stop
+computing its own), `runtime/task_orchestration.py` (dispatch `TOOL`), `registry/api/` (expose the
+executed graph per run), `cli.py` (`sdlc explain <run>`), `scripts/phase2a_parity_gate.py` (new),
+`tests/sdlc/`, `tests/runtime/`.
 
-`RunContext` is persisted per node; `park`/`resume` map onto `ApprovalPoint` and node state. The
-imperative path stays available behind a flag for one release.
+**Done when.**
 
-**Files.** `sdlc/autorun.py` (delegate to the runtime), `sdlc/case.py` (new — the typed, persisted
-Case; `RunContext` becomes a view over it), `sdlc/criteria_binding.py` (new — deterministic
-criterion → symbol/`file:line`), `sdlc/validity.py` (accept Evidence), `sdlc/design.py` (accept a
-precomputed blast radius; wire `_llm_design` behind the validator), `sdlc/design_validator.py` (new
-— enforcing reference resolution), `sdlc/impact.py` (`unverified_references` → symbols and tables),
-`runtime/task_orchestration.py` (dispatch `TOOL`), `registry/api/`, `cli.py`.
+1. **Verdict parity** — every ticket in the gate corpus reaches the same `validity` verdict
+   through the graph as through the imperative path, over ≥20 runs across ≥5 commits. This is
+   Phase 1's gate pointed at the thing 2a changes, and it costs nothing.
+2. **Every acceptance criterion in a completed run carries a provenance**, or an explicit
+   `unbound` with a reason. No silent pass-through.
+3. **`design.py` contains no call to `blast_radius`** — enforced by a test, because the defect
+   returns the moment someone adds a convenience call back.
+4. **Node-granular resume** replays a run to the same digests.
+5. **`sdlc explain <run>`** renders the graph that actually executed, including nodes that were
+   skipped and why.
+6. **The parking-rate delta is reported**, not just the parity number: how many corpus tickets
+   park under binding that did not before, each with the criterion that could not be bound. A
+   binding rule that parks everything would pass parity and be useless.
 
-**Done when.** Acceptance on the benchmark corpus is **non-inferior** to the imperative path (see
-[Measurement](#measurement-plan)); resume works at node granularity; the run record shows per-node
-cost, latency and digest; every acceptance criterion in a completed run carries a provenance or an
-explicit "unbound" with a reason; the design validator rejects a synthetic design naming a
-nonexistent symbol, proven by a test that fails when the validator is reverted; `sdlc explain <run>` renders the graph that actually executed,
-including skipped nodes and why.
-
-**Defects: closes 2, 3, 4, and completes 1.** Every defect in this record is shut by the end of
-this phase. Nothing about research remains outstanding afterwards.
+**The imperative path stays behind a flag for one release.** `SPINE_SDLC_IMPERATIVE=1` restores
+it. A migration with no way back is a migration nobody can roll back at 2am.
 
 **Defects.** Closes **2, 3 and 4**, and completes **1** by putting the RCA in front of design.
-After this phase every defect in §"Research is not wired as research" is shut. Leaves none open.
+After this slice every defect in §"Research is not wired as research" is shut, and nothing about
+research remains outstanding.
 
 **Value if we stop here.** The chain the ticket drives becomes the chain the *evidence* drives —
 design constrained by a real blast radius, tests written against located criteria — plus
 node-granular resume, replay and per-node cost, and one orchestration system instead of two.
+
+---
+
+#### Phase 2b — `design` promoted to a hybrid model node
+
+**Deliverable.** The promotion the boundary's rule governs, in this order and no other:
+
+1. **Build the validator.** `unverified_references` becomes **enforcing** rather than reporting,
+   and extends from paths to symbols and tables. A design naming an unresolvable reference on a
+   *grounded* repo does not reach codegen. Greenfield suppression stays exactly as it is.
+2. **Wire `_llm_design`,** with the fact fields — `files_to_touch`, `blast_radius`, `risks` —
+   supplied from Evidence and **not** re-derivable by the model. The model fills `approach`,
+   `interfaces`, `data_changes`, `test_strategy`, which is the split in
+   [the hybrid table](#the-hybrid-split--facts-fix-the-frame-the-model-fills-it).
+3. **Measure.** Non-inferiority is the wrong test here — this one is a superiority claim, and if
+   the model fields do not improve acceptance, `design` reverts to deterministic.
+
+**The validator is kept either way.** It costs nothing, it guards the seam permanently, and it
+is the clause that makes the promotion legal at all. Building it and then declining to wire the
+model is a complete, defensible outcome for this slice — not a failure.
+
+**Files.** `sdlc/design_validator.py` (new — enforcing reference resolution),
+`sdlc/impact.py` (`unverified_references` → symbols and tables), `sdlc/design.py` (wire
+`_llm_design` behind the validator), `tests/sdlc/`.
+
+**Done when.** The validator rejects a synthetic design naming a nonexistent symbol, **proven by
+a test that fails when the validator is reverted**; and the A/B is reported with its interval,
+whichever way it goes.
+
+**Defects.** Closes **none** — all four are shut by 2a. This slice is about the design stage's
+quality, and it must not be sold as a fix.
+
+**Value if we stop here.** The one unguarded model seam in the pipeline gains a deterministic
+validator, whether or not a model ever runs behind it.
 
 ### Phase 3 — issue-type-shaped workflows, and profiles a repo can carry
 
@@ -415,9 +491,9 @@ deterministic profile choice from issue type; **no model**), `cli.py` (`sdlc wor
 result is reported as null. Profile selection is deterministic and unit-tested per issue type.
 
 **Defects: closes none.** This phase is configurability, not correctness. It is worth doing on its
-own merits and should not be sequenced ahead of Phase 2 on the argument that it fixes something.
+own merits and should not be sequenced ahead of Phase 2a on the argument that it fixes something.
 
-**Defects.** Closes **none** — all four are shut by the end of Phase 2. This phase is
+**Defects.** Closes **none** — all four are shut by the end of 2a. This phase is
 configurability, and it should not be sold as a fix.
 
 **Value if we stop here.** The SDLC becomes configurable per repository without a code change, and
@@ -440,7 +516,7 @@ overrun; a forced node failure demonstrably replans within the cap and stops at 
 the sequencing went wrong.
 
 **Defects.** Closes **none** — this phase is throughput. It must not regress any of the four, and
-the Phase 2 gates stay in the suite to prove it.
+the 2a gates stay in the suite to prove it.
 
 **Value if we stop here.** The programme is complete: one orchestrator, deterministic where it
 counts, replannable, and faster.
@@ -465,17 +541,27 @@ comparable to the 3.19.0 baseline.
 |---|---|
 | Deterministic-node divergence | **0** — any divergence blocks the phase |
 | USD per ticket | ≤ baseline + 10% |
-| Model calls per ticket | **≤ 3** today; **≤ 4** from Phase 2, and only once design's validator is enforcing. Any further increase amends this document |
-| Acceptance criteria unbound to evidence | reported every run; an unbound countable criterion parks (Phase 2 on) |
+| Model calls per ticket | **≤ 3** today and through 2a; **≤ 4** from 2b, and only once design's validator is enforcing. Any further increase amends this document |
+| Acceptance criteria unbound to evidence | reported every run; an unbound countable criterion parks (2a on) |
 | Wall-clock per ticket | Phase 4 must improve it; Phases 1–3 must not regress it >10% |
 
-**Per-phase gates.** Phase 1: 0 divergences, ≥20 runs, ≥5 commits, plus the `PYTHONHASHSEED`
-determinism test, and Evidence produced for every run. Phase 2: non-inferiority against the imperative path, plus 100% of acceptance criteria either bound or explicitly reported unbound. Phase 3: bug-corpus
-acceptance, ≥20 bug tickets × 5 passes, held-out graders. Phase 4: wall-clock improvement at equal
-acceptance.
+**Per-phase gates.**
+
+| Phase | Gate | Model spend |
+|---|---|---|
+| 1 | 0 divergences over ≥20 runs / ≥5 commits, the `PYTHONHASHSEED` determinism test, Evidence produced for every run | **none** |
+| **2a** | **Verdict parity** — every ticket in the gate corpus reaches the same `validity` verdict through the graph as through the imperative path, over ≥20 runs / ≥5 commits; 100% of acceptance criteria bound or explicitly reported unbound with a reason; node-granular resume replays a run to the same digests | **none** |
+| **2b** | Non-inferiority against the deterministic-design arm on the benchmark corpus | **paid** |
+| 3 | Bug-corpus acceptance, ≥20 bug tickets × 5 passes, held-out graders | paid |
+| 4 | Wall-clock improvement at equal acceptance | paid |
+
+**2a's gate is free, and that is the reason for the split.** Everything 2a changes is
+deterministic, so it can be gated the same way Phase 1 was — by running both paths and comparing.
+Bundling it with 2b would hold the defect closure behind a benchmark run, and the defects are the
+value of the phase.
 
 **State the power honestly, because non-inferiority is the weakest claim here.** At 10 tickets × 5
-passes = 50 trials, a Wilson interval around p≈0.9 is roughly ±8pp. Phase 2 can therefore detect a
+passes = 50 trials, a Wilson interval around p≈0.9 is roughly ±8pp. Phase 2b can therefore detect a
 regression of about 10pp and **cannot** rule out a 5pp one. Either widen the corpus for that phase
 or say so in the result — "within the noise of a 50-trial comparison", never "no difference".
 
@@ -509,12 +595,16 @@ today. A phase that changes the harness does not also report its own improvement
 
 ## Open questions
 
-1. **Where do profiles live** — `sdlc/workflows/` in the package, or `.spine/workflows/` in the
-   target repo? Phase 3 needs an answer; Phase 1 can hardcode the package path.
-2. **Temporal or plain asyncio** for SDLC runs? Autorun does not use Temporal today, and Phase 2
-   does not need it. Deciding at Phase 4 is fine; deciding at Phase 2 is cheaper.
-3. **Migration of in-flight runs.** A `RunContext` written by 3.19.0 must still resume after
-   Phase 2, or the release notes must say it cannot.
+1. **Where do profiles live** — in the package, or `.spine/workflows/` in the target repo?
+   **Phase 1 settled the interim:** `src/orchestrator/sdlc/profiles/`, loaded from package data.
+   Named `profiles` and not `workflows` because `orchestrator.sdlc.workflows` is already the
+   Temporal module and a package of that name shadows it. Phase 3 still owns the repo-carried
+   question.
+2. **Temporal or plain asyncio** for SDLC runs? Autorun does not use Temporal today, and 2a does
+   not need it. Deciding at Phase 4 is fine; deciding at 2a is cheaper.
+3. **Migration of in-flight runs.** A `RunContext` written by 3.19.0 must still resume after 2a,
+   or the release notes must say it cannot. `SPINE_SDLC_IMPERATIVE=1` covers the operator who
+   needs the old path back; it does not by itself migrate a half-finished run's state.
 4. **Does `sdlc feature` move too**, or stay the single-ticket imperative path? Current assumption:
    it stays, and `autorun` is the only surface that gains a graph.
 
@@ -527,7 +617,7 @@ today. A phase that changes the harness does not also report its own improvement
 | Replace `investigate` / `validity` with `investigation-agent` / `requirements-validator` | Both are synchronous PKG queries today. Promotion to a model node would trade a guarantee for a guess, against the promotion rule. |
 | Decompose RCA into six agents (Evidence, Localization, Git History, Reproduction, Hypothesis, Judge) | `build_rca` is deterministic by default; `localize_trace` and `_recently_changed_files` already do localization and git history exactly and for free. Six model calls to reproduce two functions. **The real gap is that `rca` is unreachable from `autorun`** — Phase 1 fixes that. |
 | Route on confidence `≥0.85 → design`, `0.50–0.85 → reproduce`, `<0.50 → park` | The score's origin and calibration are unspecified. Uncalibrated numbers driving control flow are precisely the failure mode this project keeps finding in itself. |
-| `SDLCCase` as new architecture | `RunContext` already carries run id, issue, branch, worktree, PR URL, spec, design, verdict, tests, artifacts, checkpointing, parking, resume and duplicate-run protection. Phase 2 makes it typed and per-node; it does not invent it. |
+| `SDLCCase` as new architecture | `RunContext` already carries run id, issue, branch, worktree, PR URL, spec, design, verdict, tests, artifacts, checkpointing, parking, resume and duplicate-run protection. Phase 2a makes it typed and per-node; it does not invent it. |
 | A ~15-agent organisation per ticket | Unpriced. Against a three-model-call baseline and an enforced `SDLC_RUN_BUDGET_USD`, roughly an order of magnitude per ticket, with no proposed measurement of whether it helps. |
 | Three levels of supervisor | See Non-goals. |
 

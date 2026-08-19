@@ -4,7 +4,7 @@
 > Maintained by hand against the CLI — run `orchestrator <command> --help` for the
 > authoritative version. If the two disagree, `--help` is right and this file is a bug.
 
-**51 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
+**52 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
 
 ## Command map
 
@@ -21,7 +21,7 @@
 `ingest` · `backlog` · `openspec draft`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
-`sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
+`sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc workflow` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
 
 **MCP — external tools** — Consume onboarded Model Context Protocol servers (governed, audited).  
 `mcp list` · `mcp contracts` · `mcp call` · `mcp ingest-db`
@@ -1115,6 +1115,39 @@ orchestrator sdlc baseline [OPTIONS]
 |---|---|
 | `--path` | Repo whose graph the gate reads. (default: `.`) |
 | `--json` | Emit the numbers as JSON. |
+
+### `orchestrator sdlc workflow`
+
+Show a workflow profile — the SDLC pipeline as a validated graph.
+
+Prints what each node is and, for deterministic nodes, which tool it names. Validation runs
+every time: a profile that cannot be validated is a packaging bug, and printing it as if it were
+fine is how a broken graph reaches a run. Exit code is non-zero when the profile is invalid.
+
+A **tool** node is deterministic — no model call, no network, no clock, no RNG — and its output
+is digested, so the property is checkable rather than asserted. An **agent** node reaches a
+model. `n_design` is declared an agent node because that is the target state; it runs with
+`llm=None` today.
+
+Nothing executes this graph yet. `sdlc autorun` builds it in shadow beside the imperative
+pipeline and compares the two deterministic nodes that have an imperative twin
+(`n_investigate`, `n_validity`); `n_rca` and `n_blast_radius` are new facts with nothing to
+compare against. Set `SPINE_IR_SHADOW=0` to switch the shadow off.
+
+```
+orchestrator sdlc workflow [NAME] [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `NAME` | Profile name. (default: `default`) |
+| `--json` | Emit the validated IR as JSON. |
+
+Every run writes three artifacts beside its brief: `evidence.md` and `evidence.json` (the
+research the graph produced — landing symbols with `file:line`, RCA, and a blast radius keyed
+off the landing sites) and `shadow.json` (the tool digests and any divergences). All three are
+written even when the run parks, and `shadow.json` is written even when clean — a file that
+only appears on failure cannot tell "clean" from "never ran".
 
 ### `orchestrator sdlc address-review`
 
