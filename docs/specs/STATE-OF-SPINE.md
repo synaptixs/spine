@@ -171,7 +171,7 @@ its output edge, and inside the model-call budget.
 | Rust front-end | not started |
 | Express endpoint extraction (TypeScript) | unscheduled |
 | Deployment image + reusable CI workflow for central adoption | not started, needed before rollout |
-| `episteme.yml` main-branch path produces orphan branches | see §8 |
+| `episteme.yml` main-branch path produces orphan branches | ✅ **fixed 2026-08-19** — regeneration is `develop`-only; `main` inherits the bank verbatim |
 
 ## 8. The failure mode this project keeps having
 
