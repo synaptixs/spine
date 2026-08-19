@@ -13,13 +13,13 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`LandingFact`](../../src/orchestrator/sdlc/evidence.py#L57) — reaches **8** symbols
-- [`_landing_files`](../../src/orchestrator/sdlc/evidence.py#L94) — reaches **8** symbols
+- [`LandingFact`](../../src/orchestrator/sdlc/evidence.py#L57) — reaches **10** symbols
+- [`_landing_files`](../../src/orchestrator/sdlc/evidence.py#L94) — reaches **10** symbols
+- [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L111) — reaches **10** symbols
+- [`Evidence`](../../src/orchestrator/sdlc/evidence.py#L77) — reaches **9** symbols
+- [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L127) — reaches **9** symbols
+- [`rca_problem`](../../src/orchestrator/sdlc/evidence.py#L106) — reaches **9** symbols
 - [`register_sdlc_tools`](../../src/orchestrator/sdlc/evidence.py#L376) — reaches **8** symbols
-- [`Evidence`](../../src/orchestrator/sdlc/evidence.py#L77) — reaches **7** symbols
-- [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L111) — reaches **7** symbols
-- [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L127) — reaches **6** symbols
-- [`rca_problem`](../../src/orchestrator/sdlc/evidence.py#L106) — reaches **6** symbols
 - [`to_dict`](../../src/orchestrator/sdlc/evidence.py#L215) — reaches **6** symbols
 
 ## Types
@@ -84,7 +84,7 @@
 
 [`src/orchestrator/sdlc/evidence.py:167`](../../src/orchestrator/sdlc/evidence.py#L167)
 
-- **Called by** (0 production · 5 test): [`test_an_ungrounded_graph_says_so_rather_than_looking_clean`](../../tests/sdlc/test_evidence.py#L91), [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100), [`test_landing_keeps_the_whole_fact_not_the_filename`](../../tests/sdlc/test_evidence.py#L61), [`test_rca_runs_and_is_recorded_without_a_model`](../../tests/sdlc/test_evidence.py#L83), [`test_the_blast_radius_is_keyed_off_landing_not_off_a_proposal`](../../tests/sdlc/test_evidence.py#L72)
+- **Called by** (1 production · 5 test): [`build_design`](../../scripts/codegen_benchmark.py#L1615), [`test_an_ungrounded_graph_says_so_rather_than_looking_clean`](../../tests/sdlc/test_evidence.py#L91), [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100), [`test_landing_keeps_the_whole_fact_not_the_filename`](../../tests/sdlc/test_evidence.py#L61), [`test_rca_runs_and_is_recorded_without_a_model`](../../tests/sdlc/test_evidence.py#L83), [`test_the_blast_radius_is_keyed_off_landing_not_off_a_proposal`](../../tests/sdlc/test_evidence.py#L72)
 - **Calls** (6): [`_tool_blast_radius`](../../src/orchestrator/sdlc/evidence.py#L338), [`_tool_investigate`](../../src/orchestrator/sdlc/evidence.py#L310), [`_tool_rca`](../../src/orchestrator/sdlc/evidence.py#L332), [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L127), [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L111), [`rca_problem`](../../src/orchestrator/sdlc/evidence.py#L106)
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#phase-1-the-tool-node-type-the-evidence-artifact-and-the-sdlc-ir-in-shadow`
 
@@ -140,4 +140,4 @@
 
 ## Imported by
 
-[`orchestrator.runtime.tool_registry`](../../src/orchestrator/runtime/tool_registry.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`tests.sdlc.test_evidence`](../../tests/sdlc/test_evidence.py#L1)
+[`orchestrator.runtime.tool_registry`](../../src/orchestrator/runtime/tool_registry.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), [`tests.sdlc.test_evidence`](../../tests/sdlc/test_evidence.py#L1)

@@ -5,7 +5,7 @@
 
 **Source:** [`scripts/codegen_benchmark.py`](../../scripts/codegen_benchmark.py)
 
-1 types · 13 functions · python
+1 types · 14 functions · python
 
 ## Changing this safely
 
@@ -19,10 +19,10 @@
 - [`_rel`](../../scripts/codegen_benchmark.py#L1508) — reaches **3** symbols · **no test path visible**
 - [`_ontomesh_tickets`](../../scripts/codegen_benchmark.py#L966) — reaches **2** symbols · **no test path visible**
 - [`_stage`](../../scripts/codegen_benchmark.py#L1456) — reaches **2** symbols · **no test path visible**
+- [`build_design`](../../scripts/codegen_benchmark.py#L1615) — reaches **2** symbols · **no test path visible**
 - [`drop_worktree`](../../scripts/codegen_benchmark.py#L1480) — reaches **2** symbols · **no test path visible**
-- [`grade`](../../scripts/codegen_benchmark.py#L1568) — reaches **2** symbols · **no test path visible**
 
-_11 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_12 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Types
 
@@ -64,64 +64,72 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`scripts/codegen_benchmark.py:1508`](../../scripts/codegen_benchmark.py#L1508)
 
-- **Called by** (2): [`grade`](../../scripts/codegen_benchmark.py#L1568), [`run_ticket`](../../scripts/codegen_benchmark.py#L1602)
+- **Called by** (2): [`grade`](../../scripts/codegen_benchmark.py#L1568), [`run_ticket`](../../scripts/codegen_benchmark.py#L1681)
 - **Calls** (1): `pathlib.Path`
 
 ### `_stage`
 
 [`scripts/codegen_benchmark.py:1456`](../../scripts/codegen_benchmark.py#L1456)
 
-- **Called by** (1): [`run_ticket`](../../scripts/codegen_benchmark.py#L1602)
+- **Called by** (1): [`run_ticket`](../../scripts/codegen_benchmark.py#L1681)
+
+### `build_design`
+
+[`scripts/codegen_benchmark.py:1615`](../../scripts/codegen_benchmark.py#L1615)
+
+- **Called by** (1): [`run_ticket`](../../scripts/codegen_benchmark.py#L1681)
+- **Calls** (7): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L167), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), `orchestrator.pkg.FactStore`, `orchestrator.pkg.load_or_extract`, [`produce_design`](../../src/orchestrator/sdlc/design.py#L295), [`render_design_md`](../../src/orchestrator/sdlc/design.py#L272), [`validate_design`](../../src/orchestrator/sdlc/design_validator.py#L177)
+- **Documented in**: `docs/specs/design-promotion-ab-results.md#three-defects-the-pre-flight-found-for-about-250`
 
 ### `drop_worktree`
 
 [`scripts/codegen_benchmark.py:1480`](../../scripts/codegen_benchmark.py#L1480)
 
-- **Called by** (1): [`run_ticket`](../../scripts/codegen_benchmark.py#L1602)
+- **Called by** (1): [`run_ticket`](../../scripts/codegen_benchmark.py#L1681)
 - **Calls** (1): `run`
 
 ### `grade`
 
 [`scripts/codegen_benchmark.py:1568`](../../scripts/codegen_benchmark.py#L1568)
 
-- **Called by** (1): [`run_ticket`](../../scripts/codegen_benchmark.py#L1602)
+- **Called by** (1): [`run_ticket`](../../scripts/codegen_benchmark.py#L1681)
 - **Calls** (7): [`_importable_names`](../../scripts/codegen_benchmark.py#L1548), [`_modified_tracked`](../../scripts/codegen_benchmark.py#L1512), [`_package_roots`](../../scripts/codegen_benchmark.py#L1519), [`_rel`](../../scripts/codegen_benchmark.py#L1508), `findall`, `pathlib.Path`, `search`
 
 ### `main`
 
-[`scripts/codegen_benchmark.py:1758`](../../scripts/codegen_benchmark.py#L1758)
+[`scripts/codegen_benchmark.py:1853`](../../scripts/codegen_benchmark.py#L1853)
 
-- **Calls** (9): [`SubprocessPreflightRunner`](../../src/orchestrator/sdlc/preflight.py#L185), [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L48), `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), `orchestrator.core.llm.LiteLLMClient`, `orchestrator.core.llm.RecordingLLMClient`, `pathlib.Path`, [`run_ticket`](../../scripts/codegen_benchmark.py#L1602), [`taskset`](../../scripts/codegen_benchmark.py#L1438)
+- **Calls** (9): [`SubprocessPreflightRunner`](../../src/orchestrator/sdlc/preflight.py#L185), [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L48), `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), `orchestrator.core.llm.LiteLLMClient`, `orchestrator.core.llm.RecordingLLMClient`, `pathlib.Path`, [`run_ticket`](../../scripts/codegen_benchmark.py#L1681), [`taskset`](../../scripts/codegen_benchmark.py#L1438)
 
 ### `make_worktree`
 
 [`scripts/codegen_benchmark.py:1469`](../../scripts/codegen_benchmark.py#L1469)
 
-- **Called by** (1): [`run_ticket`](../../scripts/codegen_benchmark.py#L1602)
+- **Called by** (1): [`run_ticket`](../../scripts/codegen_benchmark.py#L1681)
 - **Calls** (3): `mkdtemp`, `pathlib.Path`, `run`
 
 ### `run_pytest`
 
 [`scripts/codegen_benchmark.py:1489`](../../scripts/codegen_benchmark.py#L1489)
 
-- **Called by** (1): [`run_ticket`](../../scripts/codegen_benchmark.py#L1602)
+- **Called by** (1): [`run_ticket`](../../scripts/codegen_benchmark.py#L1681)
 - **Calls** (1): `run`
 
 ### `run_ticket`
 
-[`scripts/codegen_benchmark.py:1602`](../../scripts/codegen_benchmark.py#L1602)
+[`scripts/codegen_benchmark.py:1681`](../../scripts/codegen_benchmark.py#L1681)
 
-- **Called by** (1): [`main`](../../scripts/codegen_benchmark.py#L1758)
-- **Calls** (14): [`LLMCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L826), [`SubprocessPreflightRunner`](../../src/orchestrator/sdlc/preflight.py#L185), [`_rel`](../../scripts/codegen_benchmark.py#L1508), [`_stage`](../../scripts/codegen_benchmark.py#L1456), [`drop_worktree`](../../scripts/codegen_benchmark.py#L1480), `getenv`, [`grade`](../../scripts/codegen_benchmark.py#L1568), [`make_worktree`](../../scripts/codegen_benchmark.py#L1469), `pathlib.Path`, [`read_source`](../../src/orchestrator/evals/graders.py#L191), [`reused_existing_symbols`](../../src/orchestrator/evals/graders.py#L174), [`run_held_out_tests`](../../src/orchestrator/evals/graders.py#L61), [`run_pytest`](../../scripts/codegen_benchmark.py#L1489), [`semgrep_findings`](../../src/orchestrator/evals/graders.py#L138)
+- **Called by** (1): [`main`](../../scripts/codegen_benchmark.py#L1853)
+- **Calls** (15): [`LLMCodegenAdapter`](../../src/orchestrator/sdlc/codegen.py#L826), [`SubprocessPreflightRunner`](../../src/orchestrator/sdlc/preflight.py#L185), [`_rel`](../../scripts/codegen_benchmark.py#L1508), [`_stage`](../../scripts/codegen_benchmark.py#L1456), [`build_design`](../../scripts/codegen_benchmark.py#L1615), [`drop_worktree`](../../scripts/codegen_benchmark.py#L1480), `getenv`, [`grade`](../../scripts/codegen_benchmark.py#L1568), [`make_worktree`](../../scripts/codegen_benchmark.py#L1469), `pathlib.Path`, [`read_source`](../../src/orchestrator/evals/graders.py#L191), [`reused_existing_symbols`](../../src/orchestrator/evals/graders.py#L174), [`run_held_out_tests`](../../src/orchestrator/evals/graders.py#L61), [`run_pytest`](../../scripts/codegen_benchmark.py#L1489), [`semgrep_findings`](../../src/orchestrator/evals/graders.py#L138)
 - **Documented in**: `docs/specs/persona-skill-measurement.md#3-the-ab-harness`, `docs/specs/persona-skill-measurement.md#phasing-each-shippable`
 
 ### `taskset`
 
 [`scripts/codegen_benchmark.py:1438`](../../scripts/codegen_benchmark.py#L1438)
 
-- **Called by** (1): [`main`](../../scripts/codegen_benchmark.py#L1758)
+- **Called by** (1): [`main`](../../scripts/codegen_benchmark.py#L1853)
 - **Calls** (1): [`_ontomesh_tickets`](../../scripts/codegen_benchmark.py#L966)
 
 ## Imports
 
-`__future__.annotations`, `asyncio`, `bench_tickets_ontomesh.build`, `dataclasses.dataclass`, `dataclasses.field`, [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1), [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), [`orchestrator.evals.graders`](../../src/orchestrator/evals/graders.py#L1), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.grounding`](../../src/orchestrator/sdlc/grounding.py#L1), [`orchestrator.sdlc.preflight`](../../src/orchestrator/sdlc/preflight.py#L1), `os`, `pathlib.Path`, `re`, `subprocess`, `sys`, `tempfile`, `typing.Any`
+`__future__.annotations`, `asyncio`, `bench_tickets_ontomesh.build`, `dataclasses.dataclass`, `dataclasses.field`, [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1), [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), [`orchestrator.evals.graders`](../../src/orchestrator/evals/graders.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.pkg.overview`](../../src/orchestrator/pkg/overview.py#L1), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.design`](orchestrator.sdlc.design.md), [`orchestrator.sdlc.design_validator`](../../src/orchestrator/sdlc/design_validator.py#L1), [`orchestrator.sdlc.evidence`](orchestrator.sdlc.evidence.md), [`orchestrator.sdlc.grounding`](../../src/orchestrator/sdlc/grounding.py#L1), [`orchestrator.sdlc.preflight`](../../src/orchestrator/sdlc/preflight.py#L1), `os`, `pathlib.Path`, `re`, `subprocess`, `sys`, `tempfile`, `typing.Any`
