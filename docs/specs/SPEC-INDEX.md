@@ -1,6 +1,6 @@
 # Spec index — every design record, and where it stands
 
-**Generated 2026-08-15 against 3.18.1; one row added 2026-08-18.** 62 top-level specs, 6 archived, 10 build documents.
+**Generated 2026-08-15 against 3.18.1; refreshed 2026-08-18 for the GraphIR programme.** 62 top-level specs, 6 archived, 10 build documents.
 
 **How to read the Verified column — this matters.** Status is **self-reported by each spec**
 unless marked ✔. This index was built after three separate cases in one session where a status
@@ -50,6 +50,7 @@ Graphify-gap series only. This file is the complete inventory.
 
 | Spec | Done | Outstanding |
 |---|---|---|
+| [graphir-sdlc-workflow](graphir-sdlc-workflow.md) | **Phase 1 (2026-08-18)** — `tool` node type, Evidence, SDLC as IR in shadow; gate passed 20 runs / 5 commits / 0 divergences | **Phases 2–4** — Evidence consumed, criteria bound, profiles, parallelism |
 | [capability-recommendations-kg-grounded](capability-recommendations-kg-grounded.md) | C1–C6, C8–C10 (9 of 10) | **C7** — observability→defect |
 | [sql-support-roadmap](sql-support-roadmap.md) | Track A complete, released 2.7.0 | **Track B** — greenfield SQL codegen |
 | [go-support-roadmap](go-support-roadmap.md) | Phase 4.1 comprehension **done**; Go ships in 3.18.1 | Later phases; branch `feat/go-support` |
@@ -67,7 +68,6 @@ Graphify-gap series only. This file is the complete inventory.
 |---|---|---|
 | [gap6-benchmarks-roadmap](gap6-benchmarks-roadmap.md) | Not started | **Rewritten 2026-08-15** against 3.18.1 — reuse the scoreboard, don't rebuild |
 | [codegen-benchmark-roadmap](codegen-benchmark-roadmap.md) | Not started | **New 2026-08-15.** SWE-bench comparability → `resolved`-vs-`mergeable` delta |
-| [graphir-sdlc-workflow](graphir-sdlc-workflow.md) | Not started | **New 2026-08-18.** The SDLC becomes a GraphIR workflow; 4 phases, determinism boundary enforced |
 | [codex-plugin-keyless-roadmap](codex-plugin-keyless-roadmap.md) | Not started | **New 2026-08-15.** Phase 0 is a blocking spike |
 | [gap4-adoption-distribution-roadmap](gap4-adoption-distribution-roadmap.md) | Not started | No prerequisites (Phase 3 excepted) |
 | [phase5-agentic-codegen-loop](phase5-agentic-codegen-loop.md) | Proposed, under review | "The hinge phase" |
@@ -119,8 +119,8 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | State | Count |
 |---|---|
 | ✅ Complete | 16 |
-| 🟡 Partial | 10 |
-| 📋 Outstanding | 17 *(incl. 1 missing spec)* |
+| 🟡 Partial | 11 |
+| 📋 Outstanding | 16 *(incl. 1 missing spec)* |
 | ⚠️ Stale status | 1 |
 | 📖 Reference | 18 |
 

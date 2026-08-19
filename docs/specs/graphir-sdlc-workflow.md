@@ -1,7 +1,11 @@
 # The SDLC as a GraphIR workflow — one orchestrator, deterministic where it counts
 
-**Status:** Not started. **Written 2026-08-18 against 3.19.0.**
-**Owner:** _unassigned_
+**Status:** **Phase 1 ✅ COMPLETE** (2026-08-18, gate passed) · Phases 2–4 not started.
+**Written 2026-08-18 against 3.19.0.** **Owner:** _unassigned_
+
+> **Currency.** This record is updated as each phase lands — the whole document, not just the
+> phase table. `docs/specs/SPEC-INDEX.md` exists because four status lines in this repository
+> once read *"Not started"* for work that had shipped.
 
 **One-liner:** Spine runs **two orchestration systems that never touch each other**. `sdlc/autorun.py`
 is an imperative six-stage pipeline; GraphIR + the planner + the verifier chain + Temporal is a
@@ -39,14 +43,14 @@ and [what was rejected](#appendix--what-was-rejected-from-the-source-analysis).
 | Primitive | Where | Note |
 |---|---|---|
 | Typed workflow IR | [`ir/graph.py`](../../src/orchestrator/ir/graph.py) | `GraphSpec`, `Node`, `Edge` with `condition`, `ApprovalPoint`, `Budget` |
-| Node types | `ir/graph.py` `NodeType` | `agent`, `verifier`, `approval`, `loop_guard`, `reflection`, `a2a_call` — **no deterministic-tool type** |
+| Node types | `ir/graph.py` `NodeType` | `agent`, **`tool`**, `verifier`, `approval`, `loop_guard`, `reflection`, `a2a_call`. `tool` was added by Phase 1; the other six predate this record |
 | Patterns | `ir/graph.py` `WorkflowPattern` | five declared; **three executable** (`single_agent`, `sequential`, `manager_specialists`) per `IRValidator.SUPPORTED_PATTERNS` |
 | Validator | [`ir/validator.py`](../../src/orchestrator/ir/validator.py) | 8 rule families incl. `cycle`, `unreachable`, `budget`, `reference_unresolved` |
-| Executor | [`runtime/task_orchestration.py`](../../src/orchestrator/runtime/task_orchestration.py) | LangGraph graphs built per pattern; dispatch is `node.type is NodeType.AGENT` only |
+| Executor | [`runtime/task_orchestration.py`](../../src/orchestrator/runtime/task_orchestration.py) | LangGraph graphs built per pattern; dispatch is still `node.type is NodeType.AGENT` only — Phase 1's tool nodes run through `runtime/tool_registry.py` in the shadow pass, **not** through this executor. Wiring `TOOL` into it is Phase 2 |
 | Durability | [`temporal/`](../../src/orchestrator/temporal/) | worker, activities, `replan_ir` |
 | Verifier chain | `runtime/verifiers/` | `base, chain, confidence, evidence, glossary, policy` |
 | SDLC pipeline | [`sdlc/autorun.py`](../../src/orchestrator/sdlc/autorun.py) | `RunContext` + six stages, checkpoint / park / resume / budget |
-| RCA | [`sdlc/rca.py`](../../src/orchestrator/sdlc/rca.py) | `build_rca` — *"Deterministic unless `llm` is given"*; **not reachable from `autorun`**, CLI + plugin only |
+| RCA | [`sdlc/rca.py`](../../src/orchestrator/sdlc/rca.py) | `build_rca` — *"Deterministic unless `llm` is given"*. Was unreachable from `autorun`; **since Phase 1 it runs on every run** and lands in `evidence.json`. Nothing consumes it until Phase 2 |
 | Blast radius | [`sdlc/impact.py`](../../src/orchestrator/sdlc/impact.py) | called from `design.py` **after** design proposes `files_to_touch` — see defect 2 |
 
 ### The six stages: what calls a model **today**, and what should
@@ -128,24 +132,41 @@ An agent cannot make that guarantee.
 ### Research is not wired as research — four defects
 
 The pipeline checks the ticket against the graph **once**, at `validity`, and thereafter the
-*ticket* — not the graph — drives every downstream stage. Four concrete consequences:
+*ticket* — not the graph — drives every downstream stage. Four concrete consequences, each with
+where it now stands:
+
+| Defect | As of 3.19.0 | Now |
+|---|---|---|
+| 1 · RCA never runs | not called at all | **✅ closed** — runs every run, in `evidence.json` |
+| 2 · Blast radius from the design's proposal | the only one computed | 🟡 **a correct one is now computed** in Evidence; `design.py` still computes its own and still uses it |
+| 3 · Evidence discarded between stages | flattened to filenames | 🟡 **kept in Evidence**; `RunContext` still carries filenames to design and codegen |
+| 4 · Criteria not bound to evidence | unbound | ❌ **open** — Phase 2 |
+
+Phase 1 produced the facts; **Phase 2 is what makes 2, 3 and 4 stop being defects**, because a
+fact nothing reads changes nothing. The detail of each:
 
 1. **RCA never runs.** `build_rca` produces `fault_site`, `fault_module`, `callers`,
    `regression_surface`, `recently_changed`, `hypotheses`, all deterministically, and `autorun`
-   does not call it. A bug ticket gets no root-cause work.
+   did not call it. A bug ticket got no root-cause work. **Closed in Phase 1:** the `n_rca` tool
+   node runs on every run, parked ones included.
 2. **Blast radius is computed from the design's own proposal.** `design.py`:
    `blast_radius(store, design.get("files_to_touch"))`. The impact analysis describes the files the
    design *guessed at*, not the files the evidence says the ticket lands on. If the proposal is
    wrong, the blast radius is a faithful analysis of a fiction — and it reads as verification.
+   **Half-closed in Phase 1:** Evidence computes the correct one from the landing sites, but
+   `design.py` is untouched and still annotates itself with its own.
 3. **The evidence is discarded between stages.** `Investigation.landing` carries
    `Landing{name, where:"file:line", kind, callers, module}`. What reaches `RunContext` is
    `where.split(":", 1)[0]` — the file path alone. Line, kind, caller count and owning module are
    dropped, so design and codegen see filenames where the research proved symbols.
+   **Half-closed in Phase 1:** `Evidence.landing` carries `LandingFact` in full; `RunContext`
+   still hands filenames downstream until Phase 2 rewires it.
 4. **Acceptance criteria are never bound to evidence.** `spec["acceptance_criteria"]` originates in
    intake (a model, reading a document, not the code) and is read straight through by `design.py`,
    `codegen.py` and `grounding.py`. Tests are generated against criteria written by a model that
    had not examined the code. `validity` catches false *counts*; nothing binds a criterion to a
-   symbol or a `file:line`.
+   symbol or a `file:line`. **Untouched by Phase 1** — binding is Phase 2's
+   `criteria_binding.py`.
 
 **This is the substance of the design below.** Evidence — investigate + RCA + blast-radius keyed
 off the landing sites — is the artifact the workflow carries, and acceptance criteria are bound to
@@ -260,12 +281,12 @@ Read this before choosing where to start. The four defects in
 distribute evenly across the phases, and a phase that *produces* an artifact is not the phase that
 *closes* the defect — nothing is fixed until something downstream consumes it.
 
-| Defect | Produced | Consumed | **Closed at** |
-|---|---|---|---|
-| 1 · RCA never runs | Phase 1 — `rca` joins the Evidence node | Phase 2 — feeds design | **Phase 1** for "runs and is recorded"; **Phase 2** for "informs the change" |
-| 2 · Blast radius computed from the design's own proposal | Phase 1 — computed from landing sites | Phase 2 — design consumes it and stops computing its own | **Phase 2** |
-| 3 · Evidence discarded between stages | Phase 1 — Evidence keeps `{name, where, kind, callers, module}` | Phase 2 — design and codegen receive it | **Phase 2** |
-| 4 · Acceptance criteria never bound to evidence | — | Phase 2 — `criteria_binding.py` | **Phase 2** |
+| Defect | Produced | Consumed | **Closed at** | Status |
+|---|---|---|---|---|
+| 1 · RCA never runs | Phase 1 — `rca` joins the Evidence node | Phase 2 — feeds design | **Phase 1** for "runs and is recorded"; **Phase 2** for "informs the change" | ✅ produced |
+| 2 · Blast radius computed from the design's own proposal | Phase 1 — computed from landing sites | Phase 2 — design consumes it and stops computing its own | **Phase 2** | 🟡 produced, not consumed |
+| 3 · Evidence discarded between stages | Phase 1 — Evidence keeps `{name, where, kind, callers, module}` | Phase 2 — design and codegen receive it | **Phase 2** | 🟡 produced, not consumed |
+| 4 · Acceptance criteria never bound to evidence | — | Phase 2 — `criteria_binding.py` | **Phase 2** | ❌ not started |
 
 **Phases 3 and 4 close no defects.** Phase 3 is configurability, Phase 4 is throughput. Both are
 real work; neither fixes anything listed above.
@@ -533,8 +554,11 @@ today. A phase that changes the harness does not also report its own improvement
 
 ## Open questions
 
-1. **Where do profiles live** — `sdlc/workflows/` in the package, or `.spine/workflows/` in the
-   target repo? Phase 3 needs an answer; Phase 1 can hardcode the package path.
+1. **Where do profiles live** — in the package, or `.spine/workflows/` in the target repo?
+   **Phase 1 settled the interim:** `src/orchestrator/sdlc/profiles/`, loaded from package data.
+   Named `profiles` and not `workflows` because `orchestrator.sdlc.workflows` is already the
+   Temporal module and a package of that name shadows it. Phase 3 still owns the repo-carried
+   question.
 2. **Temporal or plain asyncio** for SDLC runs? Autorun does not use Temporal today, and Phase 2
    does not need it. Deciding at Phase 4 is fine; deciding at Phase 2 is cheaper.
 3. **Migration of in-flight runs.** A `RunContext` written by 3.19.0 must still resume after
