@@ -171,6 +171,7 @@ its output edge, and inside the model-call budget.
 | Rust front-end | not started |
 | Express endpoint extraction (TypeScript) | unscheduled |
 | Deployment image + reusable CI workflow for central adoption | not started, needed before rollout |
+| G4 adoption — friction audit | ✅ **Phase 1 done 2026-08-19** — ≈28s cold start, no key; channels/proof/measurement outstanding |
 | `episteme.yml` main-branch path produces orphan branches | ✅ **fixed 2026-08-19** — regeneration is `develop`-only; `main` inherits the bank verbatim |
 
 ## 8. The failure mode this project keeps having
