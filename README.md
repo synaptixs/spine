@@ -30,12 +30,14 @@ flowchart LR
     pkg["Product Knowledge Graph<br/>(deterministic, file:line)"]
     know["understand / state<br/>(episteme + health)"]
     ask["What breaks if I<br/>change X? What's<br/>untested?"]
+    ev["Evidence<br/>(where it lands, root cause,<br/>blast radius — no model)"]
     build["sdlc feature<br/>(grounded codegen)"]
     pr["Reviewed PR"]
     repo --> pkg
     pkg --> know
     pkg --> ask
-    pkg --> build
+    pkg --> ev
+    ev --> build
     build --> pr
 ```
 
@@ -44,6 +46,44 @@ pip install synaptixs-spine
 orchestrator init && orchestrator doctor                  # scaffold .env, check readiness
 orchestrator sdlc feature --source file://./spec.md --safe   # build locally — no pushes, no PRs
 ```
+
+---
+
+## New in 3.20.0 — the evidence drives the run
+
+Until now the pipeline checked your ticket against the graph **once**, and thereafter the
+*ticket* — not the code — drove every step. Design guessed which files it would touch and then
+analysed the impact of its own guess. The research that proved where a ticket lands was flattened
+to a list of filenames before anything downstream saw it. Root-cause analysis existed as a
+command and **never ran inside an autonomous run at all**. And acceptance criteria, written by a
+model that had not read your repository, went straight into the tests that graded the work.
+
+3.20.0 closes all four. Every run now begins with a deterministic **Evidence** pass — no model,
+no cost, reproducible at a commit — and everything downstream is judged against it:
+
+| | Before | Now |
+|---|---|---|
+| **Root cause** | never ran in an autonomous run | runs on every ticket, lands in `evidence.md` |
+| **Blast radius** | computed from the design's own guess | computed from **where the ticket actually lands** |
+| **Research** | flattened to filenames between stages | symbol, `file:line`, kind, callers, owning module — kept |
+| **Acceptance criteria** | taken on trust | **bound to a `file:line`, or the ticket is refused** |
+
+**Two new refusals, and one promise about them.** A criterion naming code your graph does not
+hold stops the run — a criterion nobody can locate is a test nobody can write. So does a design
+naming a directory or module your repository does not have. **Prose never stops a run:**
+CamelCase, `ALL_CAPS` env vars, tool names and plain English are not claims about your code, and
+are reported as such. Both refusals park with their evidence on disk, and `sdlc explain <run>`
+prints the graph the run actually executed — skipped nodes included.
+
+**And one feature we measured and did not ship.** We ran a 100-run controlled A/B on whether the
+design stage should call a model. It found no improvement a 50-run arm can resolve, a held-out
+pass rate that moved the *wrong* way on one of two frontier models, and **1.98× the cost**. So it
+is not in this release. The validator built to guard it ships anyway — 0 false positives across
+those 100 runs. The
+[full result is published](https://github.com/synaptixs/spine/blob/main/docs/specs/design-promotion-ab-results.md),
+including what would change the answer.
+
+---
 
 > ### 👉 [**See it work end to end — one ticket, start to finish**](https://github.com/synaptixs/spine/blob/main/EXAMPLE.md)
 >
@@ -200,6 +240,12 @@ animated diagram, is in ARCHITECTURE.md](https://github.com/synaptixs/spine/blob
        alt="Spine platform architecture: surfaces → comprehension → planning → governed execution loop with two human gates → reviewed PR, over the Product Knowledge Graph"
        width="820">
 </p>
+
+> **The diagram is stamped 3.8.4 and predates several releases.** Its shape is still right — the
+> layers, the graph underneath, the two gates — but four figures on it are out of date: the
+> version, `41 commands` (now 53), and `7 node kinds · 9 edge kinds` (now **8 and 11**). It also
+> predates the deterministic research pass described above. [ARCHITECTURE.md](https://github.com/synaptixs/spine/blob/main/ARCHITECTURE.md)
+> is maintained by hand and is current; where the two disagree, believe the document.
 
 ```
   requirement (Confluence / Notion / Markdown)
