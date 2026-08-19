@@ -253,7 +253,17 @@ async def _llm_design(spec: dict[str, Any], ctx: dict[str, Any], llm: Any) -> di
         json_object=True,
         temperature=0.2,
     )
-    data = json.loads(result.text)
+    # `_loads_json_object` rather than `json.loads`: the model answers with the object inside a
+    # markdown fence or after a sentence, and strict parsing raised `JSONDecodeError` on the
+    # first real call this path ever made. `produce_design` swallows that and returns the
+    # deterministic design, so the failure was silent — an `llm` arm that measured the skeleton
+    # and reported it as the model's work. Codegen already had a tolerant loader; reusing it
+    # keeps one definition of "parse a model's JSON".
+    from orchestrator.sdlc.codegen import _loads_json_object
+
+    data = _loads_json_object(result.text)
+    if data is None:
+        raise ValueError("the design model returned no parseable JSON object")
     data["grounded"] = bool(ctx.get("overview"))
     data["llm"] = True
     return _normalise(data)

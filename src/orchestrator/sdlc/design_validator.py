@@ -130,6 +130,20 @@ def _module_names(store: FactStore) -> set[str]:
     return {n.name.lower() for n in store.nodes if n.kind is NodeKind.MODULE}
 
 
+# A reference must be a *token*, not a sentence, before it is judged. Models write prose into
+# these list fields — "No schema changes: nothing added to src/orchestrator/registry/db/models.py,
+# no migrations" is a real `data_changes` entry — and a sentence containing a path is a statement
+# about the repository, not a claim to touch something. Judging it refused three legitimate
+# entries on the first real design this validator ever saw, which would have failed every ticket
+# in the model arm and read as "the model writes terrible designs".
+_MAX_REFERENCE_CHARS = 200
+
+
+def _is_token(ref: str) -> bool:
+    """One reference, not a sentence about several."""
+    return bool(ref) and len(ref) <= _MAX_REFERENCE_CHARS and not ref.strip().rstrip(",.").count(" ")
+
+
 def _looks_like_path(ref: str) -> bool:
     return "/" in ref or ref.endswith((".py", ".ts", ".tsx", ".java", ".cs", ".go", ".sql", ".c", ".h"))
 
@@ -180,7 +194,9 @@ def validate_design(
     for field in _REFERENCE_FIELDS:
         for raw in design.get(field) or []:
             ref = str(raw).strip()
-            if not ref:
+            if not _is_token(ref):
+                # Prose. Mining it would judge a design for describing the repository, which is
+                # the same reason `approach` and `test_strategy` are not mined at all.
                 continue
             if _looks_like_path(ref):
                 if ref in known_files or (root is not None and (Path(root) / ref).exists()):

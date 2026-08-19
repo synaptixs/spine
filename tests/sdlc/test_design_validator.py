@@ -120,3 +120,50 @@ def test_the_render_says_which_reference_and_why() -> None:
     rendered = result.render()
     assert "made_up_pkg/thing.py" in rendered
     assert "made_up_pkg" in rendered and "does not exist" in rendered
+
+
+@pytest.mark.parametrize(
+    "prose",
+    [
+        "No schema changes: nothing added to src/orchestrator/registry/db/models.py, no migrations.",
+        "New test package marker tests/pkg/ (with __init__.py only if the existing subpackages use them).",
+        "No change to the GraphStats dataclass in src/orchestrator/pkg/stats.py — fields are read only.",
+    ],
+)
+def test_prose_in_a_list_field_is_not_a_reference(prose: str) -> None:
+    """Verbatim `data_changes` and `interfaces` entries from the first real model design this
+    validator ever saw. Each contains a path, and each was refused — three false findings on
+    one design, which would have failed every ticket in the model arm and been reported as
+    "the model writes designs full of invented code".
+
+    A sentence mentioning a path is a statement *about* the repository, not a claim to touch
+    something, which is exactly why `approach` and `test_strategy` are not mined at all.
+    """
+    result = validate_design({"data_changes": [prose], "interfaces": [prose]}, store=_store())
+    assert result.ok, f"prose refused as a reference: {prose}"
+
+
+async def test_the_design_model_answer_parses_out_of_a_fence() -> None:
+    """`_llm_design` used `json.loads` on the raw response, which raised on the first real call
+    this path ever made — the model answered with the object inside a markdown fence. The
+    exception was then swallowed by `produce_design`, so the run silently returned the
+    deterministic design. Reusing codegen's tolerant loader keeps one definition of "parse a
+    model's JSON" and makes the failure visible when it is real.
+    """
+    from orchestrator.sdlc.design import _llm_design
+
+    fenced = (
+        '```json\n{"approach": "a", "files_to_touch": ["x.py"], "interfaces": [],\n'
+        '"data_changes": [], "risks": [], "test_strategy": "t"}\n```'
+    )
+
+    class _Fenced:
+        text = fenced
+
+    class _LLM:
+        async def complete(self, *_a: object, **_k: object) -> _Fenced:
+            return _Fenced()
+
+    design = await _llm_design({"title": "t"}, {"overview": {"modules": []}}, _LLM())
+    assert design["llm"] is True
+    assert design["files_to_touch"] == ["x.py"]
