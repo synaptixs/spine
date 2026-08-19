@@ -1599,6 +1599,85 @@ def grade(ticket: Ticket, written: list[str], root: Path) -> tuple[bool, dict[st
     return all(checks.values()), checks
 
 
+# Phase 2b: which design the codegen prompt is conditioned on.
+#
+#   none          — no design stage at all. What Run 2 measured, and the default, so that
+#                   run stays reproducible from this file.
+#   deterministic — the skeleton `produce_design` writes with no model.
+#   llm           — `_llm_design`, with the fact fields supplied from Evidence and the output
+#                   checked by `design_validator` before it is allowed near codegen.
+#
+# `deterministic` vs `llm` is the comparison the promotion rule asks for. `none` is the third
+# arm, and it answers a different question: whether a design stage earns its tokens at all.
+DESIGN_ARMS = ("none", "deterministic", "llm")
+
+
+async def build_design(
+    ticket: Ticket,
+    llm: RecordingLLMClient,
+    *,
+    arm: str,
+    repo_root: Path,
+    model: str | None,
+) -> tuple[str, dict[str, Any]]:
+    """Return the design text handed to codegen, plus what to record about it.
+
+    A design the validator refuses returns **no text and `rejected: True`**. That is not an
+    abort — the model answered, the answer named code that does not exist, and the production
+    pipeline parks the run. Counting it as a pass would measure a design nobody would ship;
+    counting it as an abort would hide the failure mode this arm exists to expose.
+    """
+    if arm == "none":
+        return "", {"design_arm": arm}
+
+    from orchestrator.pkg import FactStore, load_or_extract
+    from orchestrator.pkg.overview import build_overview
+    from orchestrator.sdlc.design import produce_design, render_design_md
+    from orchestrator.sdlc.design_validator import validate_design
+    from orchestrator.sdlc.evidence import build_evidence
+
+    batch = load_or_extract(repo_root)
+    store = FactStore(batch)
+    evidence = await build_evidence(
+        str(ticket.spec.get("title", "")),
+        str(ticket.spec.get("summary", "")),
+        store=store,
+        root=repo_root,
+    )
+    design = await produce_design(
+        ticket.spec,
+        overview=build_overview(batch),
+        store=store,
+        # The model writes `approach`, `interfaces`, `data_changes` and `test_strategy`; the
+        # fact fields come from Evidence and are not the model's to invent.
+        llm=llm if arm == "llm" else None,
+        root=repo_root,
+        blast_radius=evidence.blast_radius,
+    )
+    validation = validate_design(design, store=store, root=repo_root)
+    # `produce_design` catches every exception and returns the deterministic design, so an
+    # `llm` arm whose model call failed silently measures the skeleton and reports it as the
+    # model's work. That is the "6 tickets never reached the model" accounting error in a new
+    # place, and it happened on the very first real call this path made (a JSON parse failure).
+    # A fallback is the *absence* of a measurement, and is recorded as one.
+    fell_back = arm == "llm" and not design.get("llm")
+    if fell_back:
+        print("  design:    FELL BACK to the deterministic design — this run measures nothing")
+    meta: dict[str, Any] = {
+        "design_arm": arm,
+        "design_fell_back": fell_back,
+        "design_llm": bool(design.get("llm")),
+        "design_files": len(design.get("files_to_touch") or []),
+        "design_rejected": not validation.ok,
+        "design_findings": [f.named for f in validation.findings],
+    }
+    if not validation.ok:
+        print(f"  design:    REJECTED — {', '.join(meta['design_findings'])}")
+        return "", meta
+    print(f"  design:    {meta['design_files']} file(s), llm={meta['design_llm']}")
+    return render_design_md(ticket.spec, design), meta
+
+
 async def run_ticket(
     ticket: Ticket,
     llm: RecordingLLMClient,
@@ -1609,6 +1688,7 @@ async def run_ticket(
     model: str | None = None,
     eval_skill: str | None = None,
     baseline: Baseline | None = None,
+    design_arm: str = "none",
 ) -> dict[str, Any]:
     # Skill A/B hook (persona+skill measurement): the candidate skill's guidance is
     # injected into the conditioning seam, which is phase-aware (Skill.phases) — the
@@ -1619,6 +1699,7 @@ async def run_ticket(
     # `EVAL_SKILL=<id> ... codegen_benchmark.py` still works.
     if eval_skill is None:
         eval_skill = os.getenv("EVAL_SKILL", "").strip()
+    design_text, design_meta = "", {"design_arm": design_arm}
     adapter = LLMCodegenAdapter(
         llm,
         model=model or MODEL,
@@ -1633,6 +1714,18 @@ async def run_ticket(
     print(f"\n=== {key} ({ticket.kind}) → {workdir}")
     try:
         with llm.stage(key):
+            if design_arm != "none":
+                design_text, design_meta = await build_design(
+                    ticket, llm, arm=design_arm, repo_root=repo_root, model=model
+                )
+                adapter = LLMCodegenAdapter(
+                    llm,
+                    model=model or MODEL,
+                    grounder=grounder,
+                    agentic=agentic,
+                    skills=[eval_skill] if eval_skill else None,
+                    design=design_text,
+                )
             impl = await _stage(adapter.implement, spec=ticket.spec, path=str(workdir), issue_key=key)
             print(f"  implement: {_rel(impl.files, workdir)} — {impl.summary[:120]}")
             tests = await _stage(adapter.author_tests, spec=ticket.spec, path=str(workdir), issue_key=key)
@@ -1713,6 +1806,7 @@ async def run_ticket(
             "reuse_ok": reuse_ok,
             "aborted": False,
             "cost_usd": llm.ledger.total().cost_usd - cost_before,
+            **design_meta,
         }
     except (CodegenError, LLMError) as exc:
         # These two are NOT the same event, and conflating them biases the result.
@@ -1750,6 +1844,7 @@ async def run_ticket(
             # results. A model that answered unusably is the opposite: a real zero.
             "aborted": is_infra,
             "cost_usd": llm.ledger.total().cost_usd - cost_before,
+            **design_meta,
         }
     finally:
         drop_worktree(workdir, repo_root)
@@ -1802,6 +1897,12 @@ async def main() -> None:
     # `grounder=None`, so this withholds context without changing the codegen path.
     ungrounded = bool(os.getenv("BENCH_NO_GROUNDING"))
 
+    # BENCH_DESIGN selects which design conditions the codegen prompt — see DESIGN_ARMS.
+    # Defaults to "none", which is what Run 2 measured, so this file still reproduces it.
+    design_arm = (os.getenv("BENCH_DESIGN") or "none").strip().lower()
+    if design_arm not in DESIGN_ARMS:
+        raise SystemExit(f"BENCH_DESIGN={design_arm!r} is not one of {DESIGN_ARMS}")
+
     # BENCH_REPO points the whole run at a DIFFERENT repository. Every ticket already
     # threads `repo_root` (worktree, preflight, grounder), so only this binding was
     # missing.
@@ -1850,7 +1951,11 @@ async def main() -> None:
     print("\ngrounding: OFF (BENCH_NO_GROUNDING)" if ungrounded else "\nbuilding PKG …")
     grounder = None if ungrounded else PKGCodegenGrounder.from_repo(bench_repo)
 
-    results = [await run_ticket(t, llm, grounder, repo_root=bench_repo, baseline=baseline) for t in tickets]
+    print(f"design arm: {design_arm}")
+    results = [
+        await run_ticket(t, llm, grounder, repo_root=bench_repo, baseline=baseline, design_arm=design_arm)
+        for t in tickets
+    ]
 
     print("\n=== G2 acceptance summary ===")
     print(

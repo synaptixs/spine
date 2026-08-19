@@ -868,13 +868,41 @@ async def _stage_design(
     path = ctx.write_artifact("design.md", rendered)
     ctx.design_files = [str(f) for f in (design.get("files_to_touch") or [])]
     touched = len(design.get("files_to_touch") or [])
+    # The validator on design's output edge — the clause the promotion rule requires before this
+    # node may ever call a model. It runs whether or not one wrote the design: a deterministic
+    # design naming a directory that does not exist is wrong for the same reason a hallucinated
+    # one is, and a guard that only switches on for model output has never been exercised by the
+    # time it first matters.
+    from orchestrator.sdlc.design_validator import validate_design
+
+    validation = validate_design(design, store=store, root=ctx.root)
+    ref_path = ctx.write_artifact("design-references.md", validation.render())
     if ctx.case is not None:
         ctx.case.record(
             "n_design",
             kind="agent",
-            status="ok",
+            status="ok" if validation.ok else "failed",
             digest=digest_of(design),
-            detail=f"{touched} file(s) proposed" + ("" if blast is None else "; blast radius from Evidence"),
+            detail=f"{touched} file(s) proposed"
+            + ("" if blast is None else "; blast radius from Evidence")
+            + ("" if validation.ok else f"; {len(validation.findings)} invented reference(s)"),
+        )
+    if not validation.ok:
+        detail = "; ".join(f"{f.named} — {f.detail}" for f in validation.findings)
+        ctx.record_stage("design", "failed", f"invented reference(s): {detail}", ref_path)
+        # Parked rather than failed, like a refused ticket: the design may be salvageable and a
+        # human is the one who can say. The evidence is on disk either way.
+        ctx.checkpoint(verdict="DESIGN_UNGROUNDED")
+        approval = ctx.park(
+            kind="design",
+            title="the design names code that does not exist — build anyway?",
+            reason=detail,
+        )
+        emit(f"[design] {len(validation.findings)} invented reference(s) — {detail}")
+        emit(f"[approval] {approval.approval_id} raised")
+        raise AutorunError(
+            f"design names code that does not exist: {detail} — run parked, nothing was built.",
+            code=5,
         )
     # Carried into the implement stage. Writing an artifact nobody reads is the difference
     # between chaining commands and connecting them.

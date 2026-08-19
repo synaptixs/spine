@@ -1,6 +1,7 @@
 # The SDLC as a GraphIR workflow — one orchestrator, deterministic where it counts
 
-**Status:** **Phase 1 ✅ COMPLETE** · **Phase 2a ✅ COMPLETE** (both 2026-08-18, gates passed) · 2b, 3, 4 not started.
+**Status:** **Phase 1 ✅** · **Phase 2a ✅** (2026-08-18) · **Phase 2b ✅ — promotion declined,
+measured** (2026-08-19). Phases 3 and 4 not started.
 **Written 2026-08-18 against 3.19.0.** **Owner:** _unassigned_
 
 > **Currency.** This record is updated as each phase lands — the whole document, not just the
@@ -301,7 +302,7 @@ Phase 4 is throughput. All three are real work; none fixes anything listed above
 |---|---|---|---|---|
 | 1 | `tool` node type + the **Evidence** research node, SDLC expressed as IR, run in shadow | ✅ **COMPLETE** | 2026-08-18 | 2026-08-18 |
 | **2a** | The IR executes the run; Evidence is **consumed**; criteria bound; `RunContext` becomes the typed Case | ✅ **COMPLETE** | 2026-08-18 | 2026-08-18 |
-| **2b** | `design` promoted to a hybrid model node — validator, then `_llm_design`, then the measurement | Not started | — | — |
+| **2b** | `design` promoted to a hybrid model node — validator, then `_llm_design`, then the measurement | ✅ **COMPLETE — promotion declined, measured** | 2026-08-18 | 2026-08-19 |
 | 3 | Issue-type-shaped workflows; profiles as files a repo can carry | Not started | — | — |
 | 4 | Parallel fan-out and the bounded replan loop | Not started | — | — |
 
@@ -475,6 +476,46 @@ node-granular resume, replay and per-node cost, and one orchestration system ins
    [the hybrid table](#the-hybrid-split--facts-fix-the-frame-the-model-fills-it).
 3. **Measure.** Non-inferiority is the wrong test here — this one is a superiority claim, and if
    the model fields do not improve acceptance, `design` reverts to deterministic.
+
+**Complete 2026-08-19: the validator ships, the promotion is declined.** All three steps were
+taken. `sdlc/design_validator.py` is enforcing — a design naming a directory or module the
+repository does not have parks the run rather than reaching codegen. `_llm_design` was wired
+behind it, measured, and **left unwired in production** because the measurement did not favour
+it. `design` remains a deterministic node and the model-call budget stays at **three**.
+
+**The measurement — [`design-promotion-ab-results.md`](design-promotion-ab-results.md).** 100
+ticket-runs, 2 frontier models, 5 passes, $49.51, 0 aborts and 0 design fallbacks. Pooled at
+n=50 per arm: acceptance **0.04 [0.01, 0.13]** deterministic against **0.08 [0.03, 0.19]** model
+— four events, which is not a comparison — and held-out **0.60 [0.46, 0.72]** against **0.40
+[0.28, 0.54]**, which is. The model arm cost **1.98×**. The held-out gap is one model
+(`gpt-5.6-sol` 0.60 → 0.24; `claude-sonnet-4-6` unchanged), so the finding is *"helped neither
+and hurt one"*, not "model designs are worse".
+
+**Declined is not "not attempted".** The question was asked under the rule, answered, and
+recorded; the results record lists the three things that would legitimately reopen it. The most
+promising is the one this run did **not** test: conditioning the design prompt on the landing
+symbols and their `file:line`, which is what [the hybrid split](#the-hybrid-split--facts-fix-the-frame-the-model-fills-it)
+actually describes.
+
+**The validator was measured incidentally and passed:** **0 false positives across 100 runs**,
+including 50 real model-written designs — stronger evidence than the five-ticket check that
+preceded the sweep.
+
+**The rule it enforces, and the one it deliberately does not.** `impact.unverified_references`
+already computes "design-named paths absent from the graph" and reports them; making *that*
+enforcing would refuse every create, since a design that creates
+`src/orchestrator/sdlc/new_thing.py` names a path the graph has never heard of and is right to.
+`interfaces` is documented as "signatures/types to **add or change**", so no rule of the form
+"everything named must already exist" can survive contact with a real ticket. What survives:
+**you can build a new house on a real street, but not on a street that does not exist.** A new
+file in an existing directory passes; a file in a directory that exists nowhere does not. A new
+symbol in a real module passes; `orchestrator.invented.Thing` does not. Greenfield is suppressed
+entirely, on the same grounds `unverified_references` suppresses it.
+
+**Evidence it does not false-positive.** Five real tickets against Spine's own graph produced
+designs naming 25 files between them, and the validator refused none. That is weak evidence for
+the model path by construction — the deterministic design only ever names files it read out of
+the graph — which is precisely why the model path is not wired.
 
 **The validator is kept either way.** It costs nothing, it guards the seam permanently, and it
 is the clause that makes the promotion legal at all. Building it and then declining to wire the
