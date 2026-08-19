@@ -21,11 +21,12 @@ adapter, local Markdown, anything with a title + text). No LLM, no network.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-from orchestrator.pkg.facts import FactBatch
+from orchestrator.pkg.facts import FactBatch, Node
 
 _BACKTICK_RE = re.compile(r"`([^`\n]{2,120})`")
 _DOTTED_RE = re.compile(r"\b[a-z_]\w*(?:\.[A-Za-z_]\w*){2,}\b")  # a.b.C at least
@@ -141,11 +142,26 @@ class DocReconciler:
     """
 
     def __init__(self, batch: FactBatch, *, repo_root: Path | str | None = None) -> None:
+        self._init(batch.nodes, repo_root=repo_root)
+
+    @classmethod
+    def from_nodes(cls, nodes: Iterable[Node], *, repo_root: Path | str | None = None) -> DocReconciler:
+        """Build from nodes rather than a batch — for callers holding a ``FactStore``.
+
+        The reconciler only ever reads ``batch.nodes``. A caller with a store would otherwise
+        have to rebuild a batch just to be let in, and a second copy of the same nodes is a
+        second thing that can drift from the first.
+        """
+        obj = cls.__new__(cls)
+        obj._init(nodes, repo_root=repo_root)
+        return obj
+
+    def _init(self, nodes: Iterable[Node], *, repo_root: Path | str | None) -> None:
         self._root = Path(repo_root) if repo_root else None
         self._names: dict[str, list[str]] = {}
         self._suffixes: dict[str, list[str]] = {}
         self._files: set[str] = set()
-        for n in batch.nodes:
+        for n in nodes:
             if not n.grounded:
                 continue
             self._names.setdefault(n.name.lower(), []).append(n.id)

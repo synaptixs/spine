@@ -1,6 +1,6 @@
 # The SDLC as a GraphIR workflow — one orchestrator, deterministic where it counts
 
-**Status:** **Phase 1 ✅ COMPLETE** (2026-08-18, gate passed) · Phases 2–4 not started.
+**Status:** **Phase 1 ✅ COMPLETE** · **Phase 2a ✅ COMPLETE** (both 2026-08-18, gates passed) · 2b, 3, 4 not started.
 **Written 2026-08-18 against 3.19.0.** **Owner:** _unassigned_
 
 > **Currency.** This record is updated as each phase lands — the whole document, not just the
@@ -137,13 +137,13 @@ where it now stands:
 
 | Defect | As of 3.19.0 | Now |
 |---|---|---|
-| 1 · RCA never runs | not called at all | **✅ closed** — runs every run, in `evidence.json` |
-| 2 · Blast radius from the design's proposal | the only one computed | 🟡 **a correct one is now computed** in Evidence; `design.py` still computes its own and still uses it |
-| 3 · Evidence discarded between stages | flattened to filenames | 🟡 **kept in Evidence**; `RunContext` still carries filenames to design and codegen |
-| 4 · Criteria not bound to evidence | unbound | ❌ **open** — 2a |
+| 1 · RCA never runs | not called at all | **✅ closed** — runs every run, and reaches design |
+| 2 · Blast radius from the design's proposal | the only one computed | **✅ closed** — `_stage_design` supplies Evidence's; the fallback survives only for callers with no Evidence |
+| 3 · Evidence discarded between stages | flattened to filenames | **✅ closed** — `RunContext.landing_facts` carries symbol, `file:line`, kind, callers, module |
+| 4 · Criteria not bound to evidence | unbound | **✅ closed** — `criteria_binding.py`; an unbound *claim* refuses the ticket |
 
-Phase 1 produced the facts; **Phase 2a is what makes 2, 3 and 4 stop being defects**, because a
-fact nothing reads changes nothing. The detail of each:
+Phase 1 produced the facts; **Phase 2a made 2, 3 and 4 stop being defects**, because a fact
+nothing reads changes nothing. All four are now closed. The detail of each:
 
 1. **RCA never runs.** `build_rca` produces `fault_site`, `fault_module`, `callers`,
    `regression_surface`, `recently_changed`, `hypotheses`, all deterministically, and `autorun`
@@ -300,7 +300,7 @@ Phase 4 is throughput. All three are real work; none fixes anything listed above
 | Phase | Deliverable | Status | Started | Ended |
 |---|---|---|---|---|
 | 1 | `tool` node type + the **Evidence** research node, SDLC expressed as IR, run in shadow | ✅ **COMPLETE** | 2026-08-18 | 2026-08-18 |
-| **2a** | The IR executes the run; Evidence is **consumed**; criteria bound; `RunContext` becomes the typed Case | Not started | — | — |
+| **2a** | The IR executes the run; Evidence is **consumed**; criteria bound; `RunContext` becomes the typed Case | ✅ **COMPLETE** | 2026-08-18 | 2026-08-18 |
 | **2b** | `design` promoted to a hybrid model node — validator, then `_llm_design`, then the measurement | Not started | — | — |
 | 3 | Issue-type-shaped workflows; profiles as files a repo can carry | Not started | — | — |
 | 4 | Parallel fan-out and the bounded replan loop | Not started | — | — |
@@ -438,6 +438,23 @@ it. A migration with no way back is a migration nobody can roll back at 2am.
 **Defects.** Closes **2, 3 and 4**, and completes **1** by putting the RCA in front of design.
 After this slice every defect in §"Research is not wired as research" is shut, and nothing about
 research remains outstanding.
+
+**Gate result — 2026-08-18. PASS.** `scripts/phase2a_parity_gate.py`, running the pipeline
+**both ways** and comparing: **20 runs across 5 commits, 0 verdict mismatches unrelated to
+binding, 0 criteria neither bound nor reported.**
+
+**The parking-rate delta, which is the number to read.** 9 parks graph-side against 4
+imperative-side — **5 new parks, all of them the same ticket**, the one whose criterion names
+`NonexistentBinderWidget`. The three tickets whose criteria name real symbols gained no parks.
+A binding rule that parked everything would have agreed with itself perfectly and been useless;
+this one refuses exactly what it claims to refuse.
+
+**Where the gate is weaker than it looks.** Parity is judged on verdicts reached for reasons
+*other* than binding, since binding is new and a ticket parking only because a criterion is
+unbound is the feature rather than a disagreement. Those are counted separately and printed in
+full. It also replaces `phase1_shadow_gate.py`, which could not survive this phase: the nodes it
+compared in shadow now execute for real, so there is no shadow left to compare. Phase 1's
+recorded result stands as measured at the time.
 
 **Value if we stop here.** The chain the ticket drives becomes the chain the *evidence* drives —
 design constrained by a real blast radius, tests written against located criteria — plus

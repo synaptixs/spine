@@ -4,7 +4,7 @@
 > Maintained by hand against the CLI — run `orchestrator <command> --help` for the
 > authoritative version. If the two disagree, `--help` is right and this file is a bug.
 
-**52 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
+**53 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
 
 ## Command map
 
@@ -21,7 +21,7 @@
 `ingest` · `backlog` · `openspec draft`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
-`sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc workflow` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
+`sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc workflow` · `sdlc explain` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
 
 **MCP — external tools** — Consume onboarded Model Context Protocol servers (governed, audited).  
 `mcp list` · `mcp contracts` · `mcp call` · `mcp ingest-db`
@@ -1115,6 +1115,27 @@ orchestrator sdlc baseline [OPTIONS]
 |---|---|
 | `--path` | Repo whose graph the gate reads. (default: `.`) |
 | `--json` | Emit the numbers as JSON. |
+
+### `orchestrator sdlc explain`
+
+Show the graph a run actually executed — node by node, with what each one produced.
+
+Reads the run's `case.json`. **Every node appears, including the ones that were skipped and
+why:** a summary listing only the nodes that ran cannot be told apart from one where the rest
+were never reached. Digests cover content and never timing — two identical runs must agree, and
+no two runs take the same time.
+
+```
+orchestrator sdlc explain RUN_ID [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `RUN_ID` | Run id, as printed by `sdlc autorun`. |
+| `--json` | Emit the Case as JSON. |
+
+A run from before 3.20.0 has no Case; the command says so and exits 2 rather than printing an
+empty table.
 
 ### `orchestrator sdlc workflow`
 

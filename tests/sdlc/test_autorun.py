@@ -152,8 +152,11 @@ def test_artifacts_are_written_outside_the_repo(monkeypatch: pytest.MonkeyPatch,
     ctx = _run(tmp_path)
 
     written = [Path(s.artifact) for s in ctx.stages if s.artifact]
+    # `evidence.md` where `investigation.md` used to be: since Phase 2a the investigate stage
+    # reads what the graph's research nodes produced instead of rendering a second brief from a
+    # second derivation of the same question.
     assert {p.name for p in written} == {
-        "investigation.md",
+        "evidence.md",
         "validity.md",
         "design.md",
         "review.md",

@@ -24,7 +24,7 @@ gates (before building, before merging). The product is **Spine**; it ships as
 |---|---|---|
 | Version | **3.19.0** on PyPI | verified on pypi.org, both wheel and sdist |
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
-| CLI commands | **52** | `grep -c '\.command(' src/orchestrator/cli.py` |
+| CLI commands | **53** | `grep -c '\.command(' src/orchestrator/cli.py` |
 | Source modules | **314** | `find src/orchestrator -name '*.py'` |
 | Test functions | **2,535** across 289 files | `grep -rh '^def test_\|^async def test_' tests` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
@@ -120,10 +120,17 @@ bound to — without converting a deterministic stage into a model call.
 | Phase | Deliverable | Closes | Status |
 |---|---|---|---|
 | 1 | `tool` node type + the **Evidence** artifact, SDLC as IR in shadow | defect 1 | ✅ **COMPLETE 2026-08-18** |
-| **2a** | IR executes; Evidence consumed; criteria bound; `RunContext` → typed Case | **defects 2, 3, 4** | Not started |
+| **2a** | IR executes; Evidence consumed; criteria bound; `RunContext` → typed Case | **defects 2, 3, 4** | ✅ **COMPLETE 2026-08-18** |
 | **2b** | `design` promoted to hybrid — validator, then `_llm_design`, then measure | none | Not started |
 | 3 | Issue-type profiles as files a repo can carry | none | Not started |
 | 4 | Parallel fan-out + bounded replan | none | Not started |
+
+**Phase 2a shipped 2026-08-18 — every defect in the programme is now closed.** Evidence drives
+the run: `validity` judges the ticket against it, `design` is handed a blast radius keyed off
+where the ticket lands instead of computing one from its own guess, the landing facts keep their
+symbols instead of collapsing to filenames, and each acceptance criterion is bound to a
+`file:line` or refused. Gate: **20 runs / 5 commits, 0 unexplained verdict mismatches**, with 5
+new parks — all the one ticket naming a symbol no repository has.
 
 **Phase 2 is split.** 2a is deterministic and its gate costs nothing; 2b is the design promotion
 and its gate is a paid A/B. Splitting keeps the defect closure — the value of the phase — from
