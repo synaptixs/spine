@@ -9,7 +9,7 @@
 
 ## Changing this safely
 
-**Tested by** (2): `tests.sdlc.test_design`, `tests.sdlc.test_design_impact`
+**Tested by** (3): `tests.sdlc.test_design`, `tests.sdlc.test_design_impact`, `tests.sdlc.test_research_pass`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
@@ -37,7 +37,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:28`](../../src/orchestrator/sdlc/design.py#L28)
 
-- **Called by** (1): [`_put`](../../src/orchestrator/sdlc/design.py#L341)
+- **Called by** (1): [`_put`](../../src/orchestrator/sdlc/design.py#L351)
 
 ### `_landing_files`
 
@@ -58,7 +58,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:32`](../../src/orchestrator/sdlc/design.py#L32)
 
-- **Called by** (1): [`design_feature`](../../src/orchestrator/sdlc/design.py#L323)
+- **Called by** (1): [`design_feature`](../../src/orchestrator/sdlc/design.py#L333)
 - **Calls** (2): `loads`, `suppress`
 
 ### `_normalise`
@@ -88,7 +88,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ### `design_feature`
 
-[`src/orchestrator/sdlc/design.py:323`](../../src/orchestrator/sdlc/design.py#L323)
+[`src/orchestrator/sdlc/design.py:333`](../../src/orchestrator/sdlc/design.py#L333)
 
 - **Called by** (1 production · 3 test): [`design_feature`](../../src/orchestrator/sdlc/activities.py#L278), [`test_heuristic_design_grounded_in_graph_and_persisted`](../../tests/sdlc/test_design.py#L44), [`test_llm_design_used_when_client_present`](../../tests/sdlc/test_design.py#L115), [`test_llm_failure_falls_back_to_heuristic`](../../tests/sdlc/test_design.py#L132)
 - **Calls** (4): [`_load_context`](../../src/orchestrator/sdlc/design.py#L32), `dumps`, [`produce_design`](../../src/orchestrator/sdlc/design.py#L285), [`render_design_md`](../../src/orchestrator/sdlc/design.py#L262)
@@ -97,14 +97,14 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:285`](../../src/orchestrator/sdlc/design.py#L285)
 
-- **Called by** (4 production · 5 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L826), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1127), [`design`](../../src/orchestrator/cli.py#L2168), [`design_feature`](../../src/orchestrator/sdlc/design.py#L323), [`test_a_design_that_cannot_tell_says_so_and_proposes_nothing`](../../tests/sdlc/test_design.py#L253), [`test_heuristic_files_come_from_where_the_ticket_lands`](../../tests/sdlc/test_design.py#L232), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_the_design_agrees_with_the_investigation`](../../tests/sdlc/test_design.py#L269)
+- **Called by** (4 production · 5 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L848), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1127), [`design`](../../src/orchestrator/cli.py#L2200), [`design_feature`](../../src/orchestrator/sdlc/design.py#L333), [`test_a_design_that_cannot_tell_says_so_and_proposes_nothing`](../../tests/sdlc/test_design.py#L253), [`test_heuristic_files_come_from_where_the_ticket_lands`](../../tests/sdlc/test_design.py#L232), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_the_design_agrees_with_the_investigation`](../../tests/sdlc/test_design.py#L269)
 - **Calls** (5): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L170), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L224), [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L142), `suppress`, [`to_dict`](../../src/orchestrator/sdlc/impact.py#L187)
 
 ### `render_design_md`
 
 [`src/orchestrator/sdlc/design.py:262`](../../src/orchestrator/sdlc/design.py#L262)
 
-- **Called by** (3 production · 3 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L826), [`design`](../../src/orchestrator/cli.py#L2168), [`design_feature`](../../src/orchestrator/sdlc/design.py#L323), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_render_design_md_sections`](../../tests/sdlc/test_design.py#L204)
+- **Called by** (3 production · 3 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L848), [`design`](../../src/orchestrator/cli.py#L2200), [`design_feature`](../../src/orchestrator/sdlc/design.py#L333), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_render_design_md_sections`](../../tests/sdlc/test_design.py#L204)
 - **Calls** (1): [`render_md`](../../src/orchestrator/sdlc/impact.py#L216)
 
 ## Imports
@@ -113,4 +113,4 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.sdlc.activities`](../../src/orchestrator/sdlc/activities.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`tests.sdlc.test_design`](../../tests/sdlc/test_design.py#L1), [`tests.sdlc.test_design_impact`](../../tests/sdlc/test_design_impact.py#L1)
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.sdlc.activities`](../../src/orchestrator/sdlc/activities.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`tests.sdlc.test_design`](../../tests/sdlc/test_design.py#L1), [`tests.sdlc.test_design_impact`](../../tests/sdlc/test_design_impact.py#L1), [`tests.sdlc.test_research_pass`](../../tests/sdlc/test_research_pass.py#L1)

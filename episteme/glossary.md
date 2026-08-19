@@ -12,7 +12,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L283) | `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this` |
 | **CorpusError** | [`CorpusError`](../src/orchestrator/pkg/accuracy.py#L53) | — |
 | **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L118) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
-| **DocPage** | [`DocPage`](../src/orchestrator/pkg/docs.py#L51) | `docs/specs/doc-ingestion-spec.md#components-where-the-code-goes`, `docs/specs/doc-ingestion-spec.md#design-decisions` |
+| **DocPage** | [`DocPage`](../src/orchestrator/pkg/docs.py#L52) | `docs/specs/doc-ingestion-spec.md#components-where-the-code-goes`, `docs/specs/doc-ingestion-spec.md#design-decisions` |
 | **Edge** | [`Edge`](../src/orchestrator/pkg/facts.py#L109) | — |
 | **EdgeKind** | [`EdgeKind`](../src/orchestrator/pkg/facts.py#L55) | `CLAUDE.md#layout-where-things-live`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#the-coercion-kind-per-table-projection` |
 | **EntityKey** | [`EntityKey`](../src/orchestrator/spine/entity_key.py#L27) | `FEATURES.md#the-semantic-spine-ontomesh-spine-infodrift`, `OPERATIONS.md#the-semantic-spine` |
@@ -46,4 +46,4 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **VersionedRepo** | [`VersionedRepo`](../src/orchestrator/registry/repositories.py#L45) | — |
 | **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | `docs/specs/STATE-OF-SPINE.md#5-how-spine-is-adopted-without-entering-anyones-build-image`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
 
-_Top 40 of 597 types by graph centrality._
+_Top 40 of 602 types by graph centrality._

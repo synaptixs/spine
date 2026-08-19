@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.sdlc`** is one of 49 areas in this repo, in the `orchestrator` zone. It holds 42 modules — 109 types and 341 functions. It sits in the middle of the graph: 17 areas below it, 14 above. Changes here can reach both ways.
+**`orchestrator.sdlc`** is one of 49 areas in this repo, in the `orchestrator` zone. It holds 44 modules — 114 types and 346 functions. It sits in the middle of the graph: 17 areas below it, 14 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -50,11 +50,13 @@ _Showing 16 of 31 neighbouring areas._
 - [`orchestrator.sdlc.activities`](../../src/orchestrator/sdlc/activities.py#L1)
 - [`orchestrator.sdlc.autorun`](../modules/orchestrator.sdlc.autorun.md)
 - [`orchestrator.sdlc.builddoc`](../modules/orchestrator.sdlc.builddoc.md)
+- [`orchestrator.sdlc.case`](../../src/orchestrator/sdlc/case.py#L1)
 - [`orchestrator.sdlc.ci`](../../src/orchestrator/sdlc/ci.py#L1)
 - [`orchestrator.sdlc.codegen`](../modules/orchestrator.sdlc.codegen.md)
 - [`orchestrator.sdlc.comprehension`](../../src/orchestrator/sdlc/comprehension.py#L1)
 - [`orchestrator.sdlc.conventions`](../../src/orchestrator/sdlc/conventions.py#L1)
 - [`orchestrator.sdlc.coverage`](../../src/orchestrator/sdlc/coverage.py#L1)
+- [`orchestrator.sdlc.criteria_binding`](../../src/orchestrator/sdlc/criteria_binding.py#L1)
 - [`orchestrator.sdlc.deps`](../../src/orchestrator/sdlc/deps.py#L1)
 - [`orchestrator.sdlc.design`](../modules/orchestrator.sdlc.design.md)
 - [`orchestrator.sdlc.escalate`](../../src/orchestrator/sdlc/escalate.py#L1)
@@ -95,4 +97,4 @@ _Showing 16 of 31 neighbouring areas._
 
 ## Depended on by
 
-[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), `scripts.agentic_eval`, `scripts.audit_eval`, `scripts.codegen_ab`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.live_sdlc_worker`, `scripts.phase1_shadow_gate`, `scripts.skill_ab`
+[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), `scripts.agentic_eval`, `scripts.audit_eval`, `scripts.codegen_ab`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.live_sdlc_worker`, `scripts.phase2a_parity_gate`, `scripts.skill_ab`

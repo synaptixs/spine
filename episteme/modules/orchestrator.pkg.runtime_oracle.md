@@ -102,7 +102,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/pkg/runtime_oracle.py:308`](../../src/orchestrator/pkg/runtime_oracle.py#L308)
 
-- **Called by** (2 production · 3 test): [`_runtime_oracle`](../../src/orchestrator/cli.py#L2768), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L400), [`test_a_missing_repo_is_an_oracle_error`](../../tests/pkg/test_runtime_oracle.py#L232), [`test_coverage_is_reported_or_honestly_absent`](../../tests/pkg/test_runtime_oracle.py#L243), [`test_score_runtime_traces_a_real_suite`](../../tests/pkg/test_runtime_oracle.py#L211)
+- **Called by** (2 production · 3 test): [`_runtime_oracle`](../../src/orchestrator/cli.py#L2800), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L400), [`test_a_missing_repo_is_an_oracle_error`](../../tests/pkg/test_runtime_oracle.py#L232), [`test_coverage_is_reported_or_honestly_absent`](../../tests/pkg/test_runtime_oracle.py#L243), [`test_score_runtime_traces_a_real_suite`](../../tests/pkg/test_runtime_oracle.py#L211)
 - **Calls** (7): [`OracleError`](../../src/orchestrator/pkg/runtime_oracle.py#L55), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L572), `TemporaryDirectory`, `loads`, `pathlib.Path`, `run`, [`score_observations`](../../src/orchestrator/pkg/runtime_oracle.py#L281)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-2-build.md#5-blast-radius-impact-neighbourhood`, `docs/specs/build-documents/PKG-ACC-2-build.md#7-files`
 
