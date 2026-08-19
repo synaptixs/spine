@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1600 2285" role="img"><title>Spine platform architecture</title><desc>Surfaces, deterministic comprehension and research over the Product Knowledge Graph, typed planning, a governed execution loop with two human gates, and SDLC delivery to a reviewed pull request. Generated from source at version 3.20.0.</desc><rect x="0" y="0" width="1600" height="2285" fill="#0B1020"/><rect x="0" y="0" width="1600" height="6" fill="#2DD4BF"/><line x1="1566" y1="300" x2="1566" y2="2165" stroke="#2A3757" stroke-width="1.5"/><text x="1580" y="1142" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="13" fill="#8A94A6" letter-spacing="3" transform="rotate(90 1580 1142)" text-anchor="middle">OBSERVABILITY · AUDIT</text>
+<text x="64" y="78" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="16" font-weight="500" fill="#8A94A6" letter-spacing="4">PLATFORM ARCHITECTURE</text>
+<text x="64" y="132" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="46" font-weight="700" fill="#F5F7FA">Spine — the governed delivery loop</text>
+<text x="64" y="176" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="400" fill="#C9D2E0">A request flows top to bottom — through comprehension, deterministic research and planning,</text>
+<text x="64" y="204" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="400" fill="#C9D2E0">into an execution loop that pauses at two human gates — and out as a reviewed pull request.</text>
+<text x="64" y="238" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" font-weight="400" fill="#8A94A6">synaptixs-spine · 3.20.0</text>
+<text x="64" y="290" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="17" font-weight="600" fill="#5DCAA5" letter-spacing="2.5">A · SURFACES</text>
+<text x="64" y="322" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="19" font-weight="400" fill="#C9D2E0">You ask for something — from a terminal, your AI assistant, the web inbox, or the TUI. Same engine behind all four.</text>
+<rect x="64" y="350" width="353" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="84" y="384" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Command line</text>
+<text x="84" y="410" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">53 commands · the main surface</text>
+<text x="84" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">cli.py</text>
+<rect x="437" y="350" width="353" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="457" y="384" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Assistant plugin</text>
+<text x="457" y="410" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">Claude Code &amp; Codex call it as tools</text>
+<text x="457" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">plugin/</text>
+<rect x="810" y="350" width="353" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="830" y="384" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Web app + API</text>
+<text x="830" y="410" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">the operator inbox — approvals live here</text>
+<text x="830" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">registry/</text>
+<rect x="1183" y="350" width="353" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="1203" y="384" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Terminal UI</text>
+<text x="1203" y="410" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">watch runs, clear gates, keyboard-only</text>
+<text x="1203" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">tui/</text>
+<text x="64" y="489" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="17" font-weight="600" fill="#5DCAA5" letter-spacing="2.5">B · INTAKE &amp; COMPREHENSION</text>
+<rect x="1336" y="472" width="200" height="24" rx="12" fill="none" stroke="#2DD4BF" stroke-width="1"/>
+<text x="1348" y="489" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#2DD4BF">deterministic · no LLM</text>
+<text x="64" y="521" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="19" font-weight="400" fill="#C9D2E0">Before writing anything, Spine reads. Your requirement becomes structured intents; your code and your docs become a graph.</text>
+<rect x="64" y="549" width="477" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="84" y="583" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Read the requirement</text>
+<text x="84" y="609" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">Confluence · Jira · OpenSpec · files → intents</text>
+<text x="84" y="642" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">intake/</text>
+<rect x="561" y="549" width="477" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="581" y="583" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Size up the repo</text>
+<text x="581" y="609" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">languages, framework, what kind of job</text>
+<text x="581" y="642" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">catalog/</text>
+<rect x="1058" y="549" width="477" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="1078" y="583" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Write it down</text>
+<text x="1078" y="609" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">a committed, code-true knowledge base</text>
+<text x="1078" y="642" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">knowledge/</text>
+<rect x="64" y="688" width="1472" height="126" rx="10" fill="#16224180" stroke="#2DD4BF" stroke-width="1.5"/>
+<text x="88" y="726" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#F5F7FA">Product Knowledge Graph</text>
+<text x="88" y="752" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="400" fill="#5DCAA5">the source of truth · pkg/</text>
+<text x="1512" y="728" text-anchor="end" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">Every fact points at a file and a line. 8 node kinds · 11 edge kinds, across 8 language front-ends,</text>
+<text x="1512" y="750" text-anchor="end" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">built from code and docs. No LLM — the same commit always gives the same graph. Everything above and</text>
+<text x="1512" y="772" text-anchor="end" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">below reads from it.</text>
+<text x="64" y="844" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="17" font-weight="600" fill="#5DCAA5" letter-spacing="2.5">C · RESEARCH</text>
+<rect x="1336" y="827" width="200" height="24" rx="12" fill="none" stroke="#2DD4BF" stroke-width="1"/>
+<text x="1348" y="844" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#2DD4BF">deterministic · no LLM</text>
+<text x="64" y="876" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="19" font-weight="400" fill="#C9D2E0">Every run starts here. Three deterministic passes compose one Evidence artifact, and everything after is judged against it.</text>
+<rect x="64" y="904" width="353" height="130" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="84" y="938" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Where it lands</text>
+<text x="84" y="964" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">symbols with file:line, kind, callers,</text>
+<text x="84" y="985" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">module</text>
+<text x="84" y="1018" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">sdlc/investigate</text>
+<rect x="437" y="904" width="353" height="130" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="457" y="938" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Why it broke</text>
+<text x="457" y="964" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">fault site, hypotheses, regression</text>
+<text x="457" y="985" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">surface</text>
+<text x="457" y="1018" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">sdlc/rca</text>
+<rect x="810" y="904" width="353" height="130" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="830" y="938" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">What it touches</text>
+<text x="830" y="964" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">blast radius keyed off the landing sites</text>
+<text x="830" y="1018" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">sdlc/impact</text>
+<rect x="1183" y="904" width="353" height="130" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="1203" y="938" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Is the ticket true?</text>
+<text x="1203" y="964" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">criteria bound to a file:line, or refused</text>
+<text x="1203" y="1018" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">sdlc/validity</text>
+<text x="64" y="1064" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="17" font-weight="600" fill="#5DCAA5" letter-spacing="2.5">D · PLANNING</text>
+<text x="64" y="1096" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="19" font-weight="400" fill="#C9D2E0">The work becomes a typed, validated plan — which tools, which budget, where the approvals sit. Not free-form prompting.</text>
+<rect x="64" y="1124" width="477" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="84" y="1158" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Choose the approach</text>
+<text x="84" y="1184" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">objective → agents + tools</text>
+<text x="84" y="1217" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">planner/</text>
+<rect x="561" y="1124" width="477" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="581" y="1158" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">The plan, typed</text>
+<text x="581" y="1184" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">validated before anything runs</text>
+<text x="581" y="1217" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">ir/ · GraphIR</text>
+<rect x="1058" y="1124" width="477" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="1078" y="1158" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Reusable parts</text>
+<text x="1078" y="1184" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">versioned templates + tool contracts</text>
+<text x="1078" y="1217" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">registry/</text>
+<rect x="400" y="1263" width="800" height="78" rx="10" fill="#201A12" stroke="#E5A44C" stroke-width="1.5"/>
+<text x="800" y="1295" text-anchor="middle" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="19" font-weight="700" fill="#E5A44C">🔒 GATE 1 · approve intents</text>
+<text x="800" y="1321" text-anchor="middle" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">Stop. A human approves before a single line is generated — nothing has been written yet.</text>
+<text x="64" y="1371" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="17" font-weight="600" fill="#5DCAA5" letter-spacing="2.5">E · GOVERNED EXECUTION LOOP</text>
+<text x="64" y="1403" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="19" font-weight="400" fill="#C9D2E0">Now it runs. Each step is one contract-checked call, verified by 6 verifiers against schema, evidence and policy.</text>
+<rect x="64" y="1431" width="353" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="84" y="1465" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Run one step</text>
+<text x="84" y="1491" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">perceive → plan → act → observe</text>
+<text x="84" y="1524" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">runtime/</text>
+<rect x="437" y="1431" width="353" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="457" y="1465" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Check every step</text>
+<text x="457" y="1491" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">schema · evidence · policy</text>
+<text x="457" y="1524" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">runtime/verifiers</text>
+<rect x="810" y="1431" width="353" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="830" y="1465" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Hand out credentials</text>
+<text x="830" y="1491" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">only at the moment of use</text>
+<text x="830" y="1524" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">gateway/</text>
+<rect x="1183" y="1431" width="353" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="1203" y="1465" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Survive the pause</text>
+<text x="1203" y="1491" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">resumable across gates and restarts</text>
+<text x="1203" y="1524" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">temporal/</text>
+<text x="64" y="1570" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="17" font-weight="600" fill="#5DCAA5" letter-spacing="2.5">F · SDLC DELIVERY</text>
+<text x="64" y="1602" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="19" font-weight="400" fill="#C9D2E0">Code is generated grounded in what already exists and in the Evidence above, tested, and retried until the tests pass. Then it's reviewed.</text>
+<rect x="64" y="1630" width="353" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="84" y="1664" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Build the change</text>
+<text x="84" y="1690" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">evidence → code → tests → PR</text>
+<text x="84" y="1723" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">sdlc/</text>
+<rect x="437" y="1630" width="353" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="457" y="1664" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Write, test, retry</text>
+<text x="457" y="1690" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">until the tests are green</text>
+<text x="457" y="1723" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">agentic/</text>
+<rect x="810" y="1630" width="353" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="830" y="1664" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Review it</text>
+<text x="830" y="1690" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">secrets · security · style</text>
+<text x="830" y="1723" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">codereview/</text>
+<rect x="1183" y="1630" width="353" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="1203" y="1664" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Same engine, other jobs</text>
+<text x="1203" y="1690" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">PR reviewer, codebase auditor</text>
+<text x="1203" y="1723" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">personas/</text>
+<rect x="400" y="1769" width="800" height="78" rx="10" fill="#201A12" stroke="#E5A44C" stroke-width="1.5"/>
+<text x="800" y="1801" text-anchor="middle" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="19" font-weight="700" fill="#E5A44C">🔒 GATE 2 · approve merge</text>
+<text x="800" y="1827" text-anchor="middle" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">Stop again. Until this moment nothing has been pushed to your repo or your tracker.</text>
+<rect x="64" y="1877" width="1472" height="104" rx="10" fill="#111A31" stroke="#5DCAA5" stroke-width="1.5"/>
+<text x="88" y="1915" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#F5F7FA">Reviewed, CI-green pull request</text>
+<text x="88" y="1941" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="400" fill="#5DCAA5">the pipeline ends here · deployment stays yours</text>
+<text x="1512" y="1917" text-anchor="end" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">Every step above was traced and recorded — an append-only trail you can replay, and a Case you can</text>
+<text x="1512" y="1939" text-anchor="end" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">read back node by node with `sdlc explain`.</text>
+<text x="64" y="2011" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="17" font-weight="600" fill="#5DCAA5" letter-spacing="2.5">G · SHARED SERVICES</text>
+<text x="64" y="2043" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="19" font-weight="400" fill="#C9D2E0">Used across every layer.</text>
+<rect x="64" y="2071" width="228" height="130" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="84" y="2105" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Model access</text>
+<text x="84" y="2131" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">one client, any provider</text>
+<text x="84" y="2185" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">core/</text>
+<rect x="312" y="2071" width="228" height="130" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="332" y="2105" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Use outside tools</text>
+<text x="332" y="2131" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">databases, Atlassian —</text>
+<text x="332" y="2152" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">governed</text>
+<text x="332" y="2185" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">mcp/</text>
+<rect x="560" y="2071" width="228" height="130" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="580" y="2105" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Keep artifacts</text>
+<text x="580" y="2131" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">runs, bundles, reports</text>
+<text x="580" y="2185" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">storage/</text>
+<rect x="808" y="2071" width="228" height="130" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="828" y="2105" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Tell someone</text>
+<text x="828" y="2131" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">Slack on gates</text>
+<text x="828" y="2185" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">notify/</text>
+<rect x="1056" y="2071" width="228" height="130" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="1076" y="2105" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Measure it</text>
+<text x="1076" y="2131" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">the eval harness</text>
+<text x="1076" y="2185" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">evals/</text>
+<rect x="1304" y="2071" width="228" height="130" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
+<text x="1324" y="2105" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Domain meaning</text>
+<text x="1324" y="2131" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">optional — off unless</text>
+<text x="1324" y="2152" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">configured</text>
+<text x="1324" y="2185" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">spine/</text>
+<rect x="64" y="2229" width="28" height="14" rx="4" fill="none" stroke="#5DCAA5" stroke-width="2"/>
+<text x="102" y="2241" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#8A94A6">Flow layer</text>
+<rect x="192" y="2229" width="28" height="14" rx="4" fill="none" stroke="#E5A44C" stroke-width="2"/>
+<text x="230" y="2241" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#8A94A6">Human gate — nothing crosses without you</text>
+<rect x="560" y="2229" width="28" height="14" rx="4" fill="none" stroke="#2DD4BF" stroke-width="2"/>
+<text x="598" y="2241" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#8A94A6">Knowledge-graph substrate</text>
+</svg>

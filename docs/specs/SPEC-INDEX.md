@@ -1,6 +1,6 @@
 # Spec index — every design record, and where it stands
 
-**Generated 2026-08-15 against 3.18.1.** 61 top-level specs, 6 archived, 10 build documents.
+**Generated 2026-08-15 against 3.18.1; refreshed 2026-08-19 for the GraphIR programme.** 63 top-level specs, 6 archived, 10 build documents.
 
 **How to read the Verified column — this matters.** Status is **self-reported by each spec**
 unless marked ✔. This index was built after three separate cases in one session where a status
@@ -16,6 +16,12 @@ Treat an unverified status as a claim, not a fact. ✔ means checked against sou
 **Companions:** [`README.md`](README.md) is the narrative programme doc (its G1–G17 percentages are
 stamped 2026-06-11 and are stale). [`gap-roadmap-index.md`](gap-roadmap-index.md) indexes the
 Graphify-gap series only. This file is the complete inventory.
+
+---
+
+> **Start with [STATE-OF-SPINE.md](STATE-OF-SPINE.md)** — one page, verified 2026-08-18 against
+> 3.19.0, covering where the product stands, what is measured, the active programme, and what is
+> outstanding. Come here for the per-spec inventory.
 
 ---
 
@@ -44,6 +50,7 @@ Graphify-gap series only. This file is the complete inventory.
 
 | Spec | Done | Outstanding |
 |---|---|---|
+| [graphir-sdlc-workflow](graphir-sdlc-workflow.md) | **Phases 1, 2a, 2b (2026-08-18/19)** — `tool` nodes, Evidence, criteria binding, typed Case, design validator. All four research defects closed; the design promotion measured and **declined** | **3** issue-type profiles · **4** parallel fan-out + replan |
 | [capability-recommendations-kg-grounded](capability-recommendations-kg-grounded.md) | C1–C6, C8–C10 (9 of 10) | **C7** — observability→defect |
 | [sql-support-roadmap](sql-support-roadmap.md) | Track A complete, released 2.7.0 | **Track B** — greenfield SQL codegen |
 | [go-support-roadmap](go-support-roadmap.md) | Phase 4.1 comprehension **done**; Go ships in 3.18.1 | Later phases; branch `feat/go-support` |
@@ -89,6 +96,7 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | Doc | Kind |
 |---|---|
 | [README](README.md) | Programme narrative + G1–G17 scorecard — **percentages stamped 2026-06-11, stale** |
+| [design-promotion-ab-results](design-promotion-ab-results.md) | The 100-run measurement behind Phase 2b's **declined** design promotion (2026-08-19) |
 | [gap-roadmap-index](gap-roadmap-index.md) | Index of the Graphify-gap series |
 | [knowledge-graph-architecture](knowledge-graph-architecture.md) | Descriptive, derived from code 2026-08-02 |
 | [KNOWLEDGE-VISION](KNOWLEDGE-VISION.md) · [PRODUCT-KNOWLEDGE-GRAPH](PRODUCT-KNOWLEDGE-GRAPH.md) | Vision / concept |
@@ -112,10 +120,10 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | State | Count |
 |---|---|
 | ✅ Complete | 16 |
-| 🟡 Partial | 10 |
+| 🟡 Partial | 11 |
 | 📋 Outstanding | 16 *(incl. 1 missing spec)* |
 | ⚠️ Stale status | 1 |
-| 📖 Reference | 18 |
+| 📖 Reference | 19 |
 
 **The programme is further along than its own paperwork says.** Every discrepancy found this
 session ran the same direction — work shipped, the status line didn't move. Nothing was claimed

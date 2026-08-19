@@ -128,4 +128,4 @@ _13 of the symbols other code depends on here have no test path the graph can se
 
 ## Imported by
 
-[`orchestrator.registry.api.tasks`](orchestrator.registry.api.tasks.md), [`orchestrator.temporal.activities`](../../src/orchestrator/temporal/activities.py#L1), [`tests.temporal.test_activities`](../../tests/temporal/test_activities.py#L1)
+[`orchestrator.registry.api.tasks`](../../src/orchestrator/registry/api/tasks.py#L1), [`orchestrator.temporal.activities`](../../src/orchestrator/temporal/activities.py#L1), [`tests.temporal.test_activities`](../../tests/temporal/test_activities.py#L1)

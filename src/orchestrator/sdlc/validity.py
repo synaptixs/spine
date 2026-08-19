@@ -171,6 +171,24 @@ def _check_countable_claims(spec: dict[str, Any], store: FactStore) -> list[Find
     return findings
 
 
+def _check_unbound_criteria(criteria: Any) -> list[Finding]:
+    """A criterion naming code the graph does not hold.
+
+    Only claims can fail here — prose, CamelCase, env vars and tool names are not claims about
+    this repository and never refuse a ticket. That rule lives in `criteria_binding`, which
+    borrows it from the doc-drift reconciler rather than inventing a second one.
+    """
+    rows = getattr(criteria, "unbound", ()) if criteria is not None else ()
+    return [
+        Finding(
+            check="criterion-unbound",
+            detail=(f"the criterion names {', '.join(row.claims)}, which the graph does not hold"),
+            evidence=row.text,
+        )
+        for row in rows
+    ]
+
+
 # --- documented invariants -------------------------------------------------------------
 # Hand-maintained on purpose. Parsing CLAUDE.md at runtime would make the gate depend on
 # prose formatting — a worse contract than a short explicit list that a reviewer can read.
@@ -427,11 +445,17 @@ def assess(
     max_files: int = DEFAULT_MAX_FILES,
     root: Path | str | None = None,
     context_budget: int = 0,
+    criteria: Any = None,
 ) -> Assessment:
     """Judge one ticket against the code. Deterministic; the graph answers, not a model.
 
     ``landing`` is where the investigation says this ticket lands — passed in rather than
     recomputed so the gate and the brief cannot disagree.
+
+    ``criteria`` is a ``CriteriaBinding`` (Phase 2a). It arrives here rather than parking the
+    run from `autorun` so there is **one gate with one verdict**: an unbound criterion is a
+    false premise in exactly the way a false count is, and a second refusal path would give the
+    parity gate two answers to compare.
     """
     landing = landing or []
     findings: list[Finding] = []
@@ -451,6 +475,13 @@ def assess(
         # Ordered first because it is the one failure that makes every later stage pointless:
         # code built to a false premise passes its own tests and is still wrong.
         return Assessment(verdict=Verdict.CRITERIA_WRONG, findings=wrong)
+
+    unbound = _check_unbound_criteria(criteria)
+    if unbound:
+        # Same family as a false count, and ordered beside it: a criterion nobody can locate
+        # is a test nobody can write, so anything built to it is graded by a test that had to
+        # invent its own subject.
+        return Assessment(verdict=Verdict.CRITERIA_WRONG, findings=unbound)
 
     unlocalized = _check_localization(spec, landing, issue_type)
     if unlocalized:

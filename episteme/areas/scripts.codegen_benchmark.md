@@ -3,20 +3,22 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`scripts.codegen_benchmark`** is one of 48 areas in this repo, in the `scripts` zone. It holds 1 module — 1 types and 13 functions. No other area imports it, and it draws on 3 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
+**`scripts.codegen_benchmark`** is one of 50 areas in this repo, in the `scripts` zone. It holds 1 module — 1 types and 14 functions. No other area imports it, and it draws on 4 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
 
 ```mermaid
 flowchart LR
   n0["scripts.codegen_benchmark"]
   n1["orchestrator.core"]
   n2["orchestrator.evals"]
-  n3["orchestrator.sdlc"]
+  n3["orchestrator.pkg"]
+  n4["orchestrator.sdlc"]
   n0 --> n1
   n0 --> n2
   n0 --> n3
+  n0 --> n4
 ```
 
-**In the diagram:** **`scripts.codegen_benchmark`** (this area) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md)
+**In the diagram:** **`scripts.codegen_benchmark`** (this area) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.pkg`](orchestrator.pkg.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md)
 
 ## Modules
 
@@ -24,4 +26,4 @@ flowchart LR
 
 ## Depends on
 
-[`orchestrator.core`](orchestrator.core.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.sdlc`](orchestrator.sdlc.md)
+[`orchestrator.core`](orchestrator.core.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.sdlc`](orchestrator.sdlc.md)

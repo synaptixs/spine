@@ -25,6 +25,7 @@ under a run directory in the system temp dir unless ``SPINE_RUN_ARTIFACTS`` says
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import tempfile
 import time
@@ -33,6 +34,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
+
+from orchestrator.core.digest import digest_of
 
 StageStatus = Literal["ok", "skipped", "failed"]
 
@@ -96,6 +99,17 @@ class RunContext:
     # a mystery worktree and a ticket stuck In Progress.
     record: Any = None
     store: Any = None
+    # What the graph's research nodes computed. `Evidence` is the deterministic answer to
+    # "what does the graph know about this ticket"; `criteria` binds each acceptance criterion
+    # to a symbol in it. Both are produced before validity so a parked run keeps its evidence.
+    evidence: Any = None
+    criteria: Any = None
+    # The run as the graph executed it — a row per node with the digest of what it produced.
+    case: Any = None
+    # Where the ticket lands, in full: symbol, file:line, kind, callers, owning module. `landing`
+    # above keeps only the file paths, which is what the stages used to receive and the reason
+    # design and codegen saw filenames where the research had proved symbols.
+    landing_facts: list[Any] = field(default_factory=list)
 
     @property
     def passed(self) -> bool:
@@ -331,6 +345,9 @@ async def autorun(
             # it is asking about.
             await _require_plan(ctx, enabled=plan_gate, emit=emit)
             store_graph, overview = _load_graph(ctx, emit=emit)
+            # Research first, and before validity: a run that parks still leaves its Evidence
+            # behind, which is the artifact a human is asked to judge the park on.
+            await _research_pass(ctx, store=store_graph, issue_type=issue_type, emit=emit)
             with ctx.stage_span("investigate"):
                 _stage_investigate(ctx, store=store_graph, emit=emit)
             with ctx.stage_span("validity"):
@@ -374,6 +391,10 @@ async def autorun(
             await _log_run_cost(ctx, ledger=ledger, started=started, verdict="FAILED", emit=emit)
             _journal_outcome(ctx, ledger=ledger, budget=budget, verdict="FAILED")
             raise AutorunError(f"{type(exc).__name__}: {exc}", code=1) from exc
+        finally:
+            # Written on every path — done, parked, or crashed. A record that only appears on
+            # success cannot tell "clean" from "never ran".
+            _write_case(ctx)
 
     ctx.checkpoint(phase="done", status="done", spent_usd=_spent(budget, run_id))
     await _log_run_cost(ctx, ledger=ledger, started=started, verdict="PASSED", emit=emit)
@@ -548,6 +569,151 @@ async def _stage_intake(
     emit(f"[intake] {ctx.spec.get('title', '')} (intent {ctx.spec.get('intent_id', '')})")
 
 
+# The imperative path, kept for one release. A migration with no way back is one nobody can
+# roll back at 2am — see `docs/specs/graphir-sdlc-workflow.md`, Phase 2a.
+_IMPERATIVE_ENV = "SPINE_SDLC_IMPERATIVE"
+
+# Node ids in the profile, so the two paths agree on what to call each step.
+_N_INVESTIGATE, _N_RCA, _N_BLAST, _N_VALIDITY = (
+    "n_investigate",
+    "n_rca",
+    "n_blast_radius",
+    "n_validity",
+)
+
+
+def _imperative() -> bool:
+    """True when the operator has asked for the pre-graph path."""
+    return (os.getenv(_IMPERATIVE_ENV) or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+async def _research_pass(
+    ctx: RunContext, *, store: Any, issue_type: str, emit: Callable[[str], None]
+) -> None:
+    """Run the graph's research nodes for real, and bind the ticket's criteria to what they found.
+
+    Phase 1 ran these in shadow and threw the answers away. Here they *are* the run's research:
+    `investigate`, `rca` and `blast_radius` execute through the tool registry, compose into
+    `Evidence`, and every downstream stage reads that instead of re-deriving its own view.
+
+    Nothing in here reaches a model, so it costs nothing and is reproducible at a commit. It runs
+    before validity so a parked run still leaves its Evidence behind — that artifact is what a
+    human is being asked to judge the park on.
+    """
+    from orchestrator.runtime.tool_registry import default_registry
+    from orchestrator.sdlc.case import Case
+    from orchestrator.sdlc.criteria_binding import bind_criteria
+    from orchestrator.sdlc.evidence import (
+        evidence_from_parts,
+        landing_files,
+        rca_problem,
+        render_evidence_md,
+        to_dict,
+    )
+    from orchestrator.sdlc.profiles import load_profile
+
+    spec = ctx.spec or {}
+    title, summary = str(spec.get("title", "")), str(spec.get("summary", ""))
+    resolved_type = issue_type or str(spec.get("issue_type", ""))
+    ctx.case = Case(
+        run_id=ctx.run_id,
+        issue_key=ctx.issue_key,
+        issue_type=resolved_type,
+        title=title,
+        mode="imperative" if _imperative() else "graph",
+    )
+
+    try:
+        from orchestrator.ir.validator import IRValidator
+
+        ir = load_profile()
+        report = await IRValidator().validate(ir)
+        ctx.case.profile = ir.metadata.id
+        if not report.ok:
+            # A profile that does not validate is a packaging bug. Say so and fall through to
+            # the imperative stages rather than running a graph nobody checked.
+            emit(f"[research] profile {ir.metadata.id} failed validation — {len(report.failures)} rule(s)")
+            ctx.case.record(_N_INVESTIGATE, kind="tool", status="failed", detail="profile invalid")
+            return
+
+        registry = default_registry()
+        investigate = await registry.run(
+            "sdlc.investigate", store=store, title=title, problem=summary, root=ctx.root
+        )
+        ctx.case.record(
+            _N_INVESTIGATE,
+            kind="tool",
+            status="ok",
+            digest=investigate.digest,
+            tool=investigate.name,
+            detail=f"{len(investigate.value.get('landing') or [])} landing site(s)",
+        )
+
+        rca = await registry.run("sdlc.rca", store=store, problem=rca_problem(title, summary), root=ctx.root)
+        ctx.case.record(
+            _N_RCA,
+            kind="tool",
+            status="ok",
+            digest=rca.digest,
+            tool=rca.name,
+            detail=rca.value.get("fault_site") or "not localized",
+        )
+
+        files = landing_files(list(investigate.value.get("landing") or []))
+        blast = await registry.run("sdlc.blast_radius", store=store, files=list(files))
+        ctx.case.record(
+            _N_BLAST,
+            kind="tool",
+            status="ok",
+            digest=blast.digest,
+            tool=blast.name,
+            detail=f"{len(blast.value.get('modules') or [])} module(s) from {len(files)} landing file(s)",
+        )
+
+        evidence = evidence_from_parts(
+            title=title,
+            problem=summary,
+            issue_type=resolved_type,
+            investigate=investigate.value,
+            rca=rca.value,
+            blast=blast.value,
+        )
+        ctx.evidence = evidence
+        ctx.case.evidence = to_dict(evidence)
+        ev_path = ctx.write_artifact("evidence.md", render_evidence_md(evidence))
+        ctx.write_artifact("evidence.json", json.dumps(to_dict(evidence), indent=2, sort_keys=True))
+
+        binding = bind_criteria(spec, store=store, evidence_files=evidence.files, root=ctx.root)
+        ctx.criteria = binding
+        ctx.case.criteria = binding.to_dict()
+        ctx.write_artifact("criteria.md", binding.render())
+
+        emit(
+            f"[research] {len(evidence.landing)} landing site(s), {len(evidence.files)} file(s), "
+            f"rca {evidence.rca.get('fault_site') or 'not localized'} · {ev_path}"
+        )
+        emit(
+            f"[criteria] {len(binding.bound)} bound · {len(binding.unbound)} unbound · "
+            f"{len(binding.no_claim)} not a code claim"
+        )
+        if not evidence.grounded:
+            emit("[research] the graph has no grounded nodes — evidence is empty, not clean")
+    except Exception as exc:  # noqa: BLE001 — research must never take the run down with it
+        ctx.case.record(_N_INVESTIGATE, kind="tool", status="failed", detail=f"{type(exc).__name__}: {exc}")
+        emit(f"[research] skipped — {type(exc).__name__}: {exc}")
+
+
+def _write_case(ctx: RunContext) -> None:
+    """Persist the Case on every path — done, parked, or crashed.
+
+    A file that only appears on success cannot tell "clean" from "never ran".
+    """
+    if ctx.case is None:
+        return
+    with contextlib.suppress(Exception):
+        ctx.case.write(ctx.artifacts_dir / "case.json")
+
+
 def _load_graph(ctx: RunContext, *, emit: Callable[[str], None]) -> tuple[Any, dict[str, Any]]:
     """One extraction, shared by investigate and design.
 
@@ -563,6 +729,17 @@ def _load_graph(ctx: RunContext, *, emit: Callable[[str], None]) -> tuple[Any, d
 
 
 def _stage_investigate(ctx: RunContext, *, store: Any, emit: Callable[[str], None]) -> None:
+    """Where this ticket lands in the code.
+
+    In graph mode the `n_investigate` tool has already answered this and its answer is in
+    `ctx.evidence`; the stage reads it rather than calling `build_investigation` a second time.
+    Re-deriving would give the run two views of the same question and no way to know which one
+    design was built on — the defect this phase closes, in miniature.
+    """
+    if ctx.evidence is not None and not _imperative():
+        _adopt_evidence(ctx, emit=emit)
+        return
+
     from orchestrator.sdlc.investigate import build_investigation, render_investigation_md
 
     spec = ctx.spec or {}
@@ -574,13 +751,35 @@ def _stage_investigate(ctx: RunContext, *, store: Any, emit: Callable[[str], Non
     )
     path = ctx.write_artifact("investigation.md", render_investigation_md(investigation))
     ctx.landing = []
-    for land in getattr(investigation, "landing", []) or []:
+    ctx.landing_facts = list(getattr(investigation, "landing", []) or [])
+    for land in ctx.landing_facts:
         where = str(getattr(land, "where", "")).split(":", 1)[0]
         if where and where not in ctx.landing:
             ctx.landing.append(where)
-    landed = len(getattr(investigation, "landing", []) or [])
+    landed = len(ctx.landing_facts)
     ctx.record_stage("investigate", "ok", f"{landed} symbol(s) this ticket lands on", path)
     emit(f"[investigate] {landed} symbol(s) · {path}")
+
+
+def _adopt_evidence(ctx: RunContext, *, emit: Callable[[str], None]) -> None:
+    """Take the research nodes' answer as the run's answer.
+
+    `landing_facts` keeps the whole fact — symbol, `file:line`, kind, caller count, owning
+    module — where `landing` keeps only file paths. Both exist because the file list is what
+    `assess` and the context budget already consume; the facts are what design and codegen get
+    instead of filenames. Defect 3.
+    """
+    evidence = ctx.evidence
+    ctx.landing_facts = list(evidence.landing)
+    ctx.landing = list(evidence.files)
+    path = str(ctx.artifacts_dir / "evidence.md")
+    ctx.record_stage(
+        "investigate",
+        "ok",
+        f"{len(ctx.landing_facts)} symbol(s) this ticket lands on (from the graph)",
+        path,
+    )
+    emit(f"[investigate] {len(ctx.landing_facts)} symbol(s) · {path}")
 
 
 def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Callable[[str], None]) -> None:
@@ -605,8 +804,28 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
         # the gate follows.
         root=ctx.root,
         context_budget=_MAX_CONTEXT_BYTES,
+        # One gate, one verdict. An unbound criterion is a false premise in exactly the way a
+        # false count is, and a second refusal path would give the parity gate two answers.
+        criteria=None if _imperative() else ctx.criteria,
     )
     ctx.verdict = assessment.verdict.value
+    if ctx.case is not None:
+        ctx.case.record(
+            _N_VALIDITY,
+            kind="tool",
+            status="ok" if assessment.verdict is Verdict.PROCEED else "failed",
+            digest=digest_of(
+                {
+                    "verdict": assessment.verdict.value,
+                    "findings": [
+                        {"check": f.check, "detail": f.detail, "evidence": f.evidence}
+                        for f in assessment.findings
+                    ],
+                }
+            ),
+            tool="sdlc.validity",
+            detail=assessment.verdict.value,
+        )
     path = ctx.write_artifact("validity.md", assessment.render())
 
     if assessment.verdict is Verdict.PROCEED:
@@ -633,13 +852,58 @@ async def _stage_design(
 
     spec = ctx.spec or {}
     # No LLM here yet: the deterministic design is the honest skeleton default, and it keeps
-    # this stage runnable with no provider configured. Wiring the model in is phase 2 work,
-    # not skeleton work.
-    design = await produce_design(spec, overview=overview, store=store, llm=None, root=ctx.root)
+    # this stage runnable with no provider configured. Promoting this to a model node is 2b,
+    # and the rule says its validator ships first.
+    #
+    # The blast radius is **supplied, not computed**. `produce_design` used to call
+    # `impact.blast_radius` on its own `files_to_touch`, so the impact analysis described the
+    # files the design had guessed at — a faithful analysis of a fiction whenever the guess was
+    # wrong, and it read as verification. Evidence computed the real one from where the ticket
+    # lands. Defect 2.
+    blast = (ctx.evidence.blast_radius if ctx.evidence is not None else None) if not _imperative() else None
+    design = await produce_design(
+        spec, overview=overview, store=store, llm=None, root=ctx.root, blast_radius=blast
+    )
     rendered = render_design_md(spec, design)
     path = ctx.write_artifact("design.md", rendered)
     ctx.design_files = [str(f) for f in (design.get("files_to_touch") or [])]
     touched = len(design.get("files_to_touch") or [])
+    # The validator on design's output edge — the clause the promotion rule requires before this
+    # node may ever call a model. It runs whether or not one wrote the design: a deterministic
+    # design naming a directory that does not exist is wrong for the same reason a hallucinated
+    # one is, and a guard that only switches on for model output has never been exercised by the
+    # time it first matters.
+    from orchestrator.sdlc.design_validator import validate_design
+
+    validation = validate_design(design, store=store, root=ctx.root)
+    ref_path = ctx.write_artifact("design-references.md", validation.render())
+    if ctx.case is not None:
+        ctx.case.record(
+            "n_design",
+            kind="agent",
+            status="ok" if validation.ok else "failed",
+            digest=digest_of(design),
+            detail=f"{touched} file(s) proposed"
+            + ("" if blast is None else "; blast radius from Evidence")
+            + ("" if validation.ok else f"; {len(validation.findings)} invented reference(s)"),
+        )
+    if not validation.ok:
+        detail = "; ".join(f"{f.named} — {f.detail}" for f in validation.findings)
+        ctx.record_stage("design", "failed", f"invented reference(s): {detail}", ref_path)
+        # Parked rather than failed, like a refused ticket: the design may be salvageable and a
+        # human is the one who can say. The evidence is on disk either way.
+        ctx.checkpoint(verdict="DESIGN_UNGROUNDED")
+        approval = ctx.park(
+            kind="design",
+            title="the design names code that does not exist — build anyway?",
+            reason=detail,
+        )
+        emit(f"[design] {len(validation.findings)} invented reference(s) — {detail}")
+        emit(f"[approval] {approval.approval_id} raised")
+        raise AutorunError(
+            f"design names code that does not exist: {detail} — run parked, nothing was built.",
+            code=5,
+        )
     # Carried into the implement stage. Writing an artifact nobody reads is the difference
     # between chaining commands and connecting them.
     ctx.plan = rendered

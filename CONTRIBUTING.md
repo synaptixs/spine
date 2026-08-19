@@ -34,6 +34,7 @@ them on a release cadence — so opening an issue first avoids duplicated effort
    ```bash
    mypy src tests
    ruff format --check .
+   python scripts/render_architecture_svg.py --check   # the diagram's numbers come from source
    uv run orchestrator pkg accuracy --check
    ```
    That last one is the **accuracy gate**: it re-measures the graph and fails if a *gated*

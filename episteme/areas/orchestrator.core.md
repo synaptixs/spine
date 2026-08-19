@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.core`** is one of 48 areas in this repo, in the `orchestrator` zone. It holds 13 modules — 28 types and 22 functions. It sits in the middle of the graph: 1 area below it, 23 above. Changes here can reach both ways.
+**`orchestrator.core`** is one of 50 areas in this repo, in the `orchestrator` zone. It holds 14 modules — 29 types and 24 functions. It sits in the middle of the graph: 1 area below it, 23 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -36,6 +36,7 @@ _Showing 9 of 24 neighbouring areas._
 
 - [`orchestrator.core`](../../src/orchestrator/core/__init__.py#L1)
 - [`orchestrator.core.claim`](../../src/orchestrator/core/claim.py#L1)
+- [`orchestrator.core.digest`](../../src/orchestrator/core/digest.py#L1)
 - [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1)
 - [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1)
 - [`orchestrator.core.llm.budget`](../../src/orchestrator/core/llm/budget.py#L1)

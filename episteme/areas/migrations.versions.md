@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`migrations.versions`** is one of 48 areas in this repo, in the `migrations` zone. It holds 6 modules — 0 types and 14 functions. It has no import edges to or from other areas — it stands alone.
+**`migrations.versions`** is one of 50 areas in this repo, in the `migrations` zone. It holds 6 modules — 0 types and 14 functions. It has no import edges to or from other areas — it stands alone.
 
 ## Modules
 

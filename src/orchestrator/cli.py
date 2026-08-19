@@ -736,6 +736,95 @@ def sdlc_baseline(
     typer.echo(render_report(gate, runs))
 
 
+@sdlc_app.command("explain")
+def sdlc_explain(
+    run_id: Annotated[str, typer.Argument(help="Run id, as printed by `sdlc autorun`.")],
+    as_json: Annotated[bool, typer.Option("--json", help="Emit the Case as JSON.")] = False,
+) -> None:
+    """Show the graph a run actually executed — node by node, with what each one produced.
+
+    Reads the run's `case.json`. Every node appears, including the ones that were skipped and
+    why: a summary listing only the nodes that ran cannot be told apart from one where the rest
+    were never reached.
+
+    Digests cover content, never timing — two identical runs must agree, and no two runs take
+    the same time.
+    """
+    import json as _json
+
+    from orchestrator.sdlc.autorun import default_artifacts_dir
+    from orchestrator.sdlc.case import load_case
+
+    path = default_artifacts_dir(run_id) / "case.json"
+    if not path.is_file():
+        typer.secho(f"No case for run {run_id!r} at {path}", fg=typer.colors.RED)
+        typer.echo("A run older than Phase 2a has no Case; read its artifacts directory instead.")
+        raise typer.Exit(code=2)
+
+    case = load_case(path)
+    if as_json:
+        typer.echo(_json.dumps(case.to_dict(), indent=2, sort_keys=True))
+        return
+    typer.echo(case.render())
+
+
+@sdlc_app.command("workflow")
+def sdlc_workflow(
+    name: Annotated[str, typer.Argument(help="Profile name, e.g. `default`.")] = "default",
+    as_json: Annotated[bool, typer.Option("--json", help="Emit the validated IR as JSON.")] = False,
+) -> None:
+    """Show a workflow profile — the SDLC pipeline as a validated graph.
+
+    Prints what each node is and, for deterministic nodes, which tool it names. Validation runs
+    every time: a profile that cannot be validated is a packaging bug, and printing it as if it
+    were fine is how a broken graph reaches a run.
+
+    Nothing executes this graph yet. `autorun` builds it in shadow beside the imperative
+    pipeline and compares the deterministic nodes that have an imperative twin.
+    """
+    import asyncio as _asyncio
+    import json as _json
+
+    from orchestrator.ir.graph import NodeType
+    from orchestrator.ir.validator import IRValidator
+    from orchestrator.sdlc.profiles import ProfileNotFoundError, load_profile, profile_names
+
+    try:
+        ir = load_profile(name)
+    except ProfileNotFoundError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        typer.echo(f"Available: {', '.join(profile_names())}")
+        raise typer.Exit(code=2) from exc
+
+    report = _asyncio.run(IRValidator().validate(ir))
+    if as_json:
+        typer.echo(_json.dumps({"ir": ir.model_dump(mode="json"), "valid": report.ok}, indent=2))
+        raise typer.Exit(code=0 if report.ok else 1)
+
+    typer.echo(f"{ir.metadata.id}@{ir.metadata.version} — {ir.spec.workflow_pattern.value}")
+    typer.echo(f"{ir.metadata.description.strip()}\n")
+    successors: dict[str, list[str]] = {}
+    for edge in ir.spec.edges:
+        successors.setdefault(edge.source, []).append(edge.target)
+    for node in ir.spec.nodes:
+        kind = node.type.value
+        tool = f" → {node.template_id}" if node.template_id else ""
+        det = "deterministic" if node.type is NodeType.TOOL else "model"
+        nxt = ", ".join(successors.get(node.id, [])) or "—"
+        typer.echo(f"  {node.id:<16} {kind:<8} [{det}]{tool}")
+        typer.echo(f"  {'':<16} next: {nxt}")
+    typer.echo("")
+    if report.ok:
+        typer.secho(
+            f"✓ valid — {len(ir.spec.nodes)} node(s), {len(ir.spec.edges)} edge(s)", fg=typer.colors.GREEN
+        )
+        return
+    typer.secho(f"✗ invalid — {len(report.failures)} failure(s)", fg=typer.colors.RED)
+    for failure in report.failures:
+        typer.echo(f"  [{failure['rule']}] {failure['field']}: {failure['message']}")
+    raise typer.Exit(code=1)
+
+
 @sdlc_app.command("runs")
 def sdlc_runs(
     action: Annotated[

@@ -28,6 +28,11 @@ class WorkflowPattern(str, Enum):
 
 class NodeType(str, Enum):
     AGENT = "agent"
+    # A deterministic step: no model call, no network, no clock, no RNG. Its output is a pure
+    # function of (commit, inputs) and is digested, so the same graph at the same commit
+    # produces the same bytes. ``template_id`` names an entry in the in-process tool registry
+    # (``runtime.tool_registry``) rather than a published agent template — see the validator.
+    TOOL = "tool"
     VERIFIER = "verifier"
     APPROVAL = "approval"
     LOOP_GUARD = "loop_guard"

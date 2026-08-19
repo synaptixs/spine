@@ -253,7 +253,17 @@ async def _llm_design(spec: dict[str, Any], ctx: dict[str, Any], llm: Any) -> di
         json_object=True,
         temperature=0.2,
     )
-    data = json.loads(result.text)
+    # `_loads_json_object` rather than `json.loads`: the model answers with the object inside a
+    # markdown fence or after a sentence, and strict parsing raised `JSONDecodeError` on the
+    # first real call this path ever made. `produce_design` swallows that and returns the
+    # deterministic design, so the failure was silent — an `llm` arm that measured the skeleton
+    # and reported it as the model's work. Codegen already had a tolerant loader; reusing it
+    # keeps one definition of "parse a model's JSON".
+    from orchestrator.sdlc.codegen import _loads_json_object
+
+    data = _loads_json_object(result.text)
+    if data is None:
+        raise ValueError("the design model returned no parseable JSON object")
     data["grounded"] = bool(ctx.get("overview"))
     data["llm"] = True
     return _normalise(data)
@@ -290,6 +300,7 @@ async def produce_design(
     store: FactStore | None = None,
     llm: Any = None,
     root: Path | None = None,
+    blast_radius: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Produce a grounded design dict for one spec — the pure core, no I/O.
 
@@ -298,10 +309,16 @@ async def produce_design(
     of files to open. Without it, stated paths are taken as written.
 
     An LLM writes it when configured, else a deterministic heuristic from the
-    graph overview + acceptance criteria. When a ``FactStore`` is supplied, the
-    design is annotated with its **blast radius** (module dependents + call
-    hotspots) and any **unverified references** (named paths absent from the
-    graph). Shared by the SDLC activity (persists artifacts) and the CLI.
+    graph overview + acceptance criteria.
+
+    **``blast_radius`` is supplied, not computed — that is defect 2 of
+    ``docs/specs/graphir-sdlc-workflow.md``.** This function used to call
+    ``impact.blast_radius`` on its own ``files_to_touch``, so the impact analysis described the
+    files the design *guessed at*. When the guess was wrong the result was a faithful analysis
+    of a fiction, and it read as verification. Phase 1 computes the real one in ``Evidence``,
+    keyed off where the ticket lands; Phase 2a passes it in here. The fallback path — computing
+    it from ``files_to_touch`` when no caller supplies one — is retained **only** for callers
+    that have no Evidence (the standalone `design` CLI command); every SDLC run supplies it.
     """
     ctx = {"overview": overview, "memory_bank": memory_bank or {}}
     try:
@@ -312,11 +329,14 @@ async def produce_design(
         )
     except Exception:  # noqa: BLE001 — LLM/parse failure → deterministic design, never blocks
         design = _fallback_design(spec, overview, store, root)
-    if store is not None:
+    if blast_radius is not None:
+        design["blast_radius"] = dict(blast_radius)
+    elif store is not None:
         with contextlib.suppress(Exception):  # impact is an annotation; never fail the design
-            from orchestrator.sdlc.impact import blast_radius, to_dict
+            from orchestrator.sdlc.impact import blast_radius as _compute
+            from orchestrator.sdlc.impact import to_dict
 
-            design["blast_radius"] = to_dict(blast_radius(store, design.get("files_to_touch") or []))
+            design["blast_radius"] = to_dict(_compute(store, design.get("files_to_touch") or []))
     return design
 
 

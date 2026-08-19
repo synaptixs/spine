@@ -9,7 +9,7 @@
 | Migrations | yes |
 | Test runner | pytest |
 | Task type (default) | feature |
-| Version | `3.19.0` |
+| Version | `3.20.0` |
 | Requires Python | `>=3.12` |
 
 ## Infrastructure & runtime
@@ -35,23 +35,23 @@ _How this system starts._
 - `orchestrator-mcp` → orchestrator.plugin.__main__:main (console script)
 - `main()` @ scripts/agentic_eval.py:100
 - `main()` @ scripts/audit_eval.py:54
-- `main()` @ scripts/bench_aggregate.py:89
+- `main()` @ scripts/bench_aggregate.py:94
 - `main()` @ scripts/codegen_ab.py:242
-- `main()` @ scripts/codegen_benchmark.py:1758
+- `main()` @ scripts/codegen_benchmark.py:1853
 - `main()` @ scripts/live_sdlc_worker.py:44
 
 ## Most-used external imports
 _Everything imported from outside this codebase, by how often — standard library and test dependencies included, so this is wider than the install list._
 
-- `__future__.annotations` — imported 596 times
-- `pathlib.Path` — imported 237 times
-- `typing.Any` — imported 225 times
-- `pytest` — imported 168 times
-- `json` — imported 126 times
-- `dataclasses.dataclass` — imported 122 times
-- `collections.abc` — imported 104 times
-- `os` — imported 95 times
-- `asyncio` — imported 75 times
+- `__future__.annotations` — imported 610 times
+- `pathlib.Path` — imported 246 times
+- `typing.Any` — imported 232 times
+- `pytest` — imported 171 times
+- `json` — imported 135 times
+- `dataclasses.dataclass` — imported 128 times
+- `collections.abc` — imported 106 times
+- `os` — imported 96 times
+- `asyncio` — imported 77 times
 - `httpx` — imported 73 times
 
-_Top 10 of 201._
+_Top 10 of 203._

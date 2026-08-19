@@ -4,7 +4,7 @@
 > Maintained by hand against the CLI — run `orchestrator <command> --help` for the
 > authoritative version. If the two disagree, `--help` is right and this file is a bug.
 
-**51 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
+**53 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
 
 ## Command map
 
@@ -21,7 +21,7 @@
 `ingest` · `backlog` · `openspec draft`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
-`sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
+`sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc workflow` · `sdlc explain` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
 
 **MCP — external tools** — Consume onboarded Model Context Protocol servers (governed, audited).  
 `mcp list` · `mcp contracts` · `mcp call` · `mcp ingest-db`
@@ -668,6 +668,10 @@ regression surface a fix must cover, and a scoped fix approach. Deterministic
 by default; `--llm` enriches the hypotheses. It stops at the report — a human
 decides whether to build the fix.
 
+Since 3.20.0 this also runs **inside** `sdlc autorun`, on every ticket: the `n_rca` node is part
+of the research pass and its output lands in `evidence.md`. Before that it was reachable only
+from this command and the MCP plugin, so an autonomous bug run did no root-cause work at all.
+
 ```
 orchestrator rca [PATH] [OPTIONS]
 ```
@@ -1115,6 +1119,65 @@ orchestrator sdlc baseline [OPTIONS]
 |---|---|
 | `--path` | Repo whose graph the gate reads. (default: `.`) |
 | `--json` | Emit the numbers as JSON. |
+
+### `orchestrator sdlc explain`
+
+Show the graph a run actually executed — node by node, with what each one produced.
+
+Reads the run's `case.json`. **Every node appears, including the ones that were skipped and
+why:** a summary listing only the nodes that ran cannot be told apart from one where the rest
+were never reached. Digests cover content and never timing — two identical runs must agree, and
+no two runs take the same time.
+
+```
+orchestrator sdlc explain RUN_ID [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `RUN_ID` | Run id, as printed by `sdlc autorun`. |
+| `--json` | Emit the Case as JSON. |
+
+A run from before 3.20.0 has no Case; the command says so and exits 2 rather than printing an
+empty table.
+
+### `orchestrator sdlc workflow`
+
+Show a workflow profile — the SDLC pipeline as a validated graph.
+
+Prints what each node is and, for deterministic nodes, which tool it names. Validation runs
+every time: a profile that cannot be validated is a packaging bug, and printing it as if it were
+fine is how a broken graph reaches a run. Exit code is non-zero when the profile is invalid.
+
+A **tool** node is deterministic — no model call, no network, no clock, no RNG — and its output
+is digested, so the property is checkable rather than asserted. An **agent** node reaches a
+model. `n_design` is declared an agent node because that is the target state; it runs with
+`llm=None` today.
+
+**`sdlc autorun` executes this graph.** Its deterministic research nodes — `n_investigate`,
+`n_rca`, `n_blast_radius` — run through the tool registry and compose one `Evidence` artifact
+that `validity`, `design` and the acceptance criteria are all judged against. Set
+`SPINE_SDLC_IMPERATIVE=1` to fall back to the pre-graph path, which stays available for one
+release.
+
+```
+orchestrator sdlc workflow [NAME] [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `NAME` | Profile name. (default: `default`) |
+| `--json` | Emit the validated IR as JSON. |
+
+Every run writes its research beside the design and review artifacts, and **writes them even
+when it parks** — a parked run's evidence is the thing a human is being asked to judge:
+
+| Artifact | What it holds |
+|---|---|
+| `evidence.md` / `evidence.json` | landing symbols with `file:line`, kind, callers and module; the RCA; a blast radius keyed off **the landing sites**, not a design's proposal |
+| `criteria.md` | every acceptance criterion, bound to a symbol or reported as unbound |
+| `design-references.md` | whether every file, module and symbol the design names resolves |
+| `case.json` | the graph as it executed — a row per node with the digest of what it produced. Read it with `sdlc explain` |
 
 ### `orchestrator sdlc address-review`
 
