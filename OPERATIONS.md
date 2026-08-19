@@ -31,6 +31,7 @@ All behavior is configured by environment variables (`orchestrator init` scaffol
 `SDLC_CODEGEN`, `SDLC_CODEGEN_MODEL` / `SDLC_REVIEW_MODEL`.
 
 **Pipeline & governance** — `SDLC_REPO_URL`, `SDLC_RUN_BUDGET_USD` (hard spend cap),
+`SPINE_SDLC_IMPERATIVE` (fall back to the pre-3.20 path; see below),
 `SDLC_AGENTIC_CODEGEN` (ReAct loop, default off), `SDLC_AGENTIC_POLICY`,
 `SDLC_TEST_ISOLATION`, `SDLC_GITHUB_INSTALLATION_ID` (live PR auth).
 

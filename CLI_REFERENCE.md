@@ -668,6 +668,10 @@ regression surface a fix must cover, and a scoped fix approach. Deterministic
 by default; `--llm` enriches the hypotheses. It stops at the report — a human
 decides whether to build the fix.
 
+Since 3.20.0 this also runs **inside** `sdlc autorun`, on every ticket: the `n_rca` node is part
+of the research pass and its output lands in `evidence.md`. Before that it was reachable only
+from this command and the MCP plugin, so an autonomous bug run did no root-cause work at all.
+
 ```
 orchestrator rca [PATH] [OPTIONS]
 ```
@@ -1150,10 +1154,11 @@ is digested, so the property is checkable rather than asserted. An **agent** nod
 model. `n_design` is declared an agent node because that is the target state; it runs with
 `llm=None` today.
 
-Nothing executes this graph yet. `sdlc autorun` builds it in shadow beside the imperative
-pipeline and compares the two deterministic nodes that have an imperative twin
-(`n_investigate`, `n_validity`); `n_rca` and `n_blast_radius` are new facts with nothing to
-compare against. Set `SPINE_IR_SHADOW=0` to switch the shadow off.
+**`sdlc autorun` executes this graph.** Its deterministic research nodes — `n_investigate`,
+`n_rca`, `n_blast_radius` — run through the tool registry and compose one `Evidence` artifact
+that `validity`, `design` and the acceptance criteria are all judged against. Set
+`SPINE_SDLC_IMPERATIVE=1` to fall back to the pre-graph path, which stays available for one
+release.
 
 ```
 orchestrator sdlc workflow [NAME] [OPTIONS]
@@ -1164,11 +1169,15 @@ orchestrator sdlc workflow [NAME] [OPTIONS]
 | `NAME` | Profile name. (default: `default`) |
 | `--json` | Emit the validated IR as JSON. |
 
-Every run writes three artifacts beside its brief: `evidence.md` and `evidence.json` (the
-research the graph produced — landing symbols with `file:line`, RCA, and a blast radius keyed
-off the landing sites) and `shadow.json` (the tool digests and any divergences). All three are
-written even when the run parks, and `shadow.json` is written even when clean — a file that
-only appears on failure cannot tell "clean" from "never ran".
+Every run writes its research beside the design and review artifacts, and **writes them even
+when it parks** — a parked run's evidence is the thing a human is being asked to judge:
+
+| Artifact | What it holds |
+|---|---|
+| `evidence.md` / `evidence.json` | landing symbols with `file:line`, kind, callers and module; the RCA; a blast radius keyed off **the landing sites**, not a design's proposal |
+| `criteria.md` | every acceptance criterion, bound to a symbol or reported as unbound |
+| `design-references.md` | whether every file, module and symbol the design names resolves |
+| `case.json` | the graph as it executed — a row per node with the digest of what it produced. Read it with `sdlc explain` |
 
 ### `orchestrator sdlc address-review`
 

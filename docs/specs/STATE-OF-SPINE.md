@@ -55,10 +55,11 @@ Each model output has a deterministic validator downstream — intake's spec by 
 implement's code by tests + preflight baseline-diff + fit, review's fixes by re-running the tests.
 **`design` has none**, which is safe only while it calls no model. That seam is the subject of §6.
 
-**Since Phase 1 (2026-08-18) every run also writes `evidence.md` / `evidence.json` / `shadow.json`**
-beside its brief: the landing symbols with `file:line`, an RCA, and a blast radius keyed off those
-landing sites. Nothing downstream reads them yet — that is Phase 2 — so the stage table above is
-unchanged by it.
+**Since Phase 2a every run also writes `evidence.md` / `evidence.json` / `criteria.md` / `design-references.md` / `case.json`**
+beside its brief. `validity` judges the ticket against that Evidence, `design` is handed its blast
+radius rather than computing one, and every acceptance criterion is bound to a `file:line` or
+refuses the ticket. Two verdicts are new and both can park a run that previously built: an
+unbound criterion, and a design naming a place the repository does not have.
 
 ## 4. Where Spine is genuinely ahead, and where it is not
 
@@ -145,10 +146,11 @@ being held behind a benchmark run.
 
 **Phase 1 shipped 2026-08-18.** `NodeType.TOOL`, an in-process tool registry with output digests,
 `Evidence` (investigate + RCA + blast radius keyed off the landing sites), the pipeline as
-`sdlc/profiles/default.yaml`, and a shadow pass in `autorun` that compares the graph's
-deterministic nodes against the imperative stages. `orchestrator sdlc workflow` prints the
-validated graph. Gate: **20 runs, 5 commits, 0 divergences** — and proved able to fail three ways
-before it was believed.
+`sdlc/profiles/default.yaml`, and a shadow pass in `autorun` that compared the graph's
+deterministic nodes against the imperative stages — **superseded by 2a**, where those nodes
+execute for real and there is no shadow left to compare. `orchestrator sdlc workflow` prints the
+validated graph. Gate at the time: **20 runs, 5 commits, 0 divergences**, proved able to fail
+three ways before it was believed.
 
 **Phase 1 is enablement; Phase 2 is where the value lands.** Phase 1 produces Evidence and nothing
 reads it — deliberate, since that is what makes it shippable with zero behaviour change — so
