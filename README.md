@@ -241,11 +241,16 @@ animated diagram, is in ARCHITECTURE.md](https://github.com/synaptixs/spine/blob
        width="820">
 </p>
 
-> **The diagram is stamped 3.8.4 and predates several releases.** Its shape is still right — the
-> layers, the graph underneath, the two gates — but four figures on it are out of date: the
-> version, `41 commands` (now 53), and `7 node kinds · 9 edge kinds` (now **8 and 11**). It also
-> predates the deterministic research pass described above. [ARCHITECTURE.md](https://github.com/synaptixs/spine/blob/main/ARCHITECTURE.md)
-> is maintained by hand and is current; where the two disagree, believe the document.
+> **Every number on that diagram is read from the source, not typed into it.** The version, the
+> command count, the node and edge kinds and the language front-ends are computed at render time
+> by [`scripts/render_architecture_svg.py`](https://github.com/synaptixs/spine/blob/main/scripts/render_architecture_svg.py),
+> and CI fails if the checked-in image no longer matches. The
+> [SVG is the source](https://github.com/synaptixs/spine/blob/main/assets/spine-architecture.svg);
+> the PNG above is a rendering of it.
+>
+> The version it replaced was stamped `3.8.4` and claimed `7 node kinds · 9 edge kinds` — two
+> releases after `ARCHITECTURE.md` had corrected them to **8 and 11**. Nothing noticed, because a
+> picture is the one artefact no test reads. Now one does.
 
 ```
   requirement (Confluence / Notion / Markdown)

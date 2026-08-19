@@ -93,6 +93,14 @@ jobs:
       - name: PKG invariants (orchestrator pkg verify)
         run: uv run orchestrator pkg verify .
 
+      # The architecture diagram carries live numbers — version, command count, node and edge
+      # kinds — and it is generated from them rather than drawn. The PNG this replaced was
+      # stamped 3.8.4 and claimed `7 node kinds · 9 edge kinds` two releases after
+      # ARCHITECTURE.md had corrected them to 8 and 11. Nothing noticed, because a picture is
+      # the one artefact no test reads.
+      - name: Architecture diagram is current
+        run: uv run python scripts/render_architecture_svg.py --check
+
       # Spine's own episteme has to describe Spine's own HEAD — but it is regenerated
       # *after* merge (.github/workflows/episteme.yml), not carried on branches. A PR
       # cannot keep it current: CI checks the merge ref, so the moment anything lands on
