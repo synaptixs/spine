@@ -1,6 +1,7 @@
 # Capability matrix — Spine against the field
 
-**Generated 2026-08-16 against 3.18.1.**
+**Generated 2026-08-16 against 3.18.1; refreshed 2026-08-19 for the GraphIR programme
+(Phases 1, 2a, 2b), which is unreleased on `develop` and marked ⁸.**
 
 > ## Read this before quoting any cell
 >
@@ -23,7 +24,7 @@ docs · **n/a** out of category
 
 ---
 
-| Capability | **Spine 3.18.1** | CodeGraph | Graphify | GitNexus | Serena | Joern | Sourcegraph | OpenHands | Devin |
+| Capability | **Spine 3.20.0** | CodeGraph | Graphify | GitNexus | Serena | Joern | Sourcegraph | OpenHands | Devin |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | **LAYER A — CODE INTELLIGENCE** |
 | Deterministic, no-LLM extraction | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ |
@@ -52,6 +53,11 @@ docs · **n/a** out of category
 | **Portable acceptance gate (baseline-diff)** | **✅ ⁴** | n/a | n/a | n/a | n/a | n/a | n/a | ➖ | ➖ |
 | Test generation + refine loop | ✅ | n/a | n/a | n/a | ➖ | n/a | ➖ | ✅ | ✅ |
 | **CI-parity preflight before PR** | **✅** | n/a | n/a | n/a | ➖ | n/a | ➖ | ➖ | ➖ |
+| **Deterministic research artifact per ticket** (landing symbols + RCA + blast radius, no model) | **✅ ⁸** | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
+| **Acceptance criteria bound to `file:line`, or the ticket refused** | **✅ ⁸** | n/a | n/a | n/a | n/a | n/a | n/a | ➖ | ➖ |
+| **Impact analysis keyed off where the ticket lands, not the plan's own guess** | **✅ ⁸** | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
+| **Deterministic validator on a model stage's output** | **✅ ⁸** | n/a | n/a | n/a | n/a | n/a | n/a | ➖ | ➖ |
+| **A published measurement that *declined* a feature** | **✅ ⁸** | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
 | Opens real PRs | ✅ | n/a | n/a | n/a | ➖ | n/a | ➖ | ✅ | ✅ |
 | Autonomous merge on green | ✅ | n/a | n/a | n/a | ➖ | n/a | ➖ | ➖ | 🟡 |
 | Responds to human PR review comments | ✅ | n/a | n/a | n/a | ➖ | n/a | ➖ | 🟡 | 🟡 |
@@ -126,11 +132,22 @@ choice moves the same model further than model choice does (one reported case: ~
 scaffold vs 61.5% top score on a standardised harness). See
 [`codegen-benchmark-roadmap.md`](codegen-benchmark-roadmap.md), Phase 1, `Not started`.
 
+**⁸ Shipped in 3.20.0** (Phases 1, 2a, 2b of
+[`graphir-sdlc-workflow.md`](graphir-sdlc-workflow.md), 2026-08-18/19). These were marked
+unreleased while they sat on `develop`; the marker stays only to say when they arrived.
+
+The last row is the odd one, and it is deliberate. Spine ran a 100-run controlled A/B on whether
+its design stage should call a model, found no gain it could resolve and a held-out rate that
+went the wrong way on one of two models, and **published the result and did not ship the
+feature** ([`design-promotion-ab-results.md`](design-promotion-ab-results.md)). No competitor in
+this category was found publishing a measurement that declined their own capability. It is a
+claim about method rather than function, which is why it sits last.
+
 ---
 
 ## Summary
 
-**11 rows where Spine stands alone.** Four are new, and they are the strongest: they are about
+**16 rows where Spine stands alone.** Five arrived in 3.20.0 (⁸). Of the rest, four are the strongest: they are about
 whether the product's central claim is *true*, not about what it can do.
 
 **3 rows where Spine is ❌** — SWE-bench comparability, an in-path security verifier, and a

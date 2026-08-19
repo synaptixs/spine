@@ -606,11 +606,33 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --saf
 refuses without an approved build document for this ticket (Step 3.4). It parks rather
 than fails: the ticket is fine, the review has not happened.
 
+**Before anything is judged — `[research]`.** Three deterministic passes run first and
+compose one **Evidence** artifact: where the ticket lands (symbol, `file:line`, kind, caller
+count, owning module), a root-cause analysis, and a blast radius computed from **those landing
+sites**. No model runs, so it costs nothing, and it is written even if the run parks — a parked
+run's evidence is what you are being asked to judge. It lands as `evidence.md` / `evidence.json`
+beside the other artifacts.
+
 **Before any code is written — `[validity]`.** The ticket is checked against the
 graph. A criterion asserting *"11 Entity nodes on this repo"* when the source has 7
 is a false premise, and building to it produces code that passes its own tests and
 is still wrong. Verdicts other than `PROCEED` park the run with evidence rather than
 guessing.
+
+**Two of those verdicts are new, and both can park a ticket that used to build:**
+
+- **An acceptance criterion that names code the graph does not hold.** *"`OrderTotals` is
+  recalculated on save"* against a repo with no such symbol is the same false premise as a wrong
+  count — a criterion nobody can locate is a test nobody can write. Every criterion is bound to
+  a symbol and a `file:line`, or reported, in `criteria.md`. **Prose never parks a run:**
+  CamelCase words, `ALL_CAPS` env vars, tool names and plain English are not claims about your
+  code and are marked "not a code claim".
+- **A design that names a place your repository does not have.** A new file in an existing
+  directory is fine — that is a file being created. A file in a directory that exists nowhere,
+  or a symbol in a module that does not exist, is not. See `design-references.md`.
+
+Both refuse rather than guess, and both park with the evidence on disk. If a park is wrong,
+`sdlc runs approve` continues the run.
 
 **`[typecheck]`** runs your repo's own type checker over the lines the change
 touched, and any error goes back to the refine loop like a test failure. This is not
