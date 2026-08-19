@@ -436,11 +436,9 @@ explicit "unbound" with a reason; the design validator rejects a synthetic desig
 nonexistent symbol, proven by a test that fails when the validator is reverted; `sdlc explain <run>` renders the graph that actually executed,
 including skipped nodes and why.
 
-**Defects: closes 2, 3, 4, and completes 1.** Every defect in this record is shut by the end of
-this phase. Nothing about research remains outstanding afterwards.
-
 **Defects.** Closes **2, 3 and 4**, and completes **1** by putting the RCA in front of design.
-After this phase every defect in §"Research is not wired as research" is shut. Leaves none open.
+After this phase every defect in §"Research is not wired as research" is shut, and nothing about
+research remains outstanding. Leaves none open.
 
 **Value if we stop here.** The chain the ticket drives becomes the chain the *evidence* drives —
 design constrained by a real blast radius, tests written against located criteria — plus
