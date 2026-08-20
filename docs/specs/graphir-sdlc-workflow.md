@@ -1,7 +1,7 @@
 # The SDLC as a GraphIR workflow — one orchestrator, deterministic where it counts
 
-**Status:** **Phase 1 ✅** · **Phase 2a ✅** (2026-08-18) · **Phase 2b ✅ — promotion declined,
-measured** (2026-08-19). Phases 3 and 4 not started.
+**Status:** **Phase 1 ✅** · **2a ✅** (2026-08-18) · **2b ✅ — promotion declined, measured** ·
+**Phase 3 ✅** (2026-08-19). Phase 4 not started.
 **Written 2026-08-18 against 3.19.0.** **Owner:** _unassigned_
 
 > **Currency.** This record is updated as each phase lands — the whole document, not just the
@@ -303,7 +303,7 @@ Phase 4 is throughput. All three are real work; none fixes anything listed above
 | 1 | `tool` node type + the **Evidence** research node, SDLC expressed as IR, run in shadow | ✅ **COMPLETE** | 2026-08-18 | 2026-08-18 |
 | **2a** | The IR executes the run; Evidence is **consumed**; criteria bound; `RunContext` becomes the typed Case | ✅ **COMPLETE** | 2026-08-18 | 2026-08-18 |
 | **2b** | `design` promoted to a hybrid model node — validator, then `_llm_design`, then the measurement | ✅ **COMPLETE — promotion declined, measured** | 2026-08-18 | 2026-08-19 |
-| 3 | Issue-type-shaped workflows; profiles as files a repo can carry | Not started | — | — |
+| 3 | Issue-type-shaped workflows; profiles as files a repo can carry | ✅ **COMPLETE** | 2026-08-19 | 2026-08-19 |
 | 4 | Parallel fan-out and the bounded replan loop | Not started | — | — |
 
 ### Phase 1 — the `tool` node type, the Evidence artifact, and the SDLC IR in shadow
@@ -542,17 +542,37 @@ validator, whether or not a model ever runs behind it.
 surface, the enhancement profile weights blast radius and existing-capability analysis, and each
 selects which Evidence nodes run. A repo may carry its own profile.
 
-**Files.** `sdlc/workflows/{default,bug,enhancement}.yaml`, `sdlc/workflow_select.py` (new —
-deterministic profile choice from issue type; **no model**), `cli.py` (`sdlc workflows`).
+**Files, as built.** `sdlc/profiles/{default,bug,enhancement}.yaml` (the package is `profiles`,
+not `workflows` — `orchestrator.sdlc.workflows` is the Temporal module), `sdlc/profile_select.py`
+(new — deterministic issue type → profile; **no model**), `sdlc/profiles/__init__.py` (repo-carried
+profiles), `sdlc/autorun.py` (select, and skip `n_rca` when the profile has none), `cli.py`
+(`sdlc workflows`).
 
-**Done when.** Bug-ticket acceptance improves against a bug corpus with held-out graders, or the
-result is reported as null. Profile selection is deterministic and unit-tested per issue type.
+**Done when — and what was not measured.** Profile selection is deterministic and unit-tested per
+issue type, including the unmapped case. Every shipped profile validates. A bug run's Evidence
+carries an RCA; an enhancement run's records it as *not run for this issue type*.
 
-**Defects: closes none.** This phase is configurability, not correctness. It is worth doing on its
-own merits and should not be sequenced ahead of Phase 2a on the argument that it fixes something.
+**Acceptance impact: not measured.** The clause asked for bug-ticket acceptance against a bug
+corpus with held-out graders. **No bug corpus exists** — the benchmark holds 5 `create` and 5
+`edit` tickets and no bugs — so honouring it meant authoring one and running a paid A/B on the
+scale of 2b (~$50). That was not done, and the claim is therefore **not made**: this phase is
+recorded as configurability, which is what it is.
+
+The value that *was* verified is narrower and real: an enhancement no longer runs root-cause
+analysis it cannot use. `localize_trace` on a feature request resolves nothing and prints "Not
+localized to a repo symbol" — an empty section that reads as a finding — and it costs a `git log`
+subprocess to say it. Not running it, and saying so, is better on both counts and needed no
+measurement to establish.
 
 **Defects.** Closes **none** — all four are shut by the end of 2a. This phase is
-configurability, and it should not be sold as a fix.
+configurability, not correctness, and should not be sold as a fix.
+
+**Open question 1 is settled.** Repo-carried profiles live in `.spine/workflows/<name>.yaml`
+inside the target repo, and a profile there **shadows a shipped one of the same name**. `.spine/`
+is already Spine's directory in a target repo, and same-name-wins means a team wanting a different
+`bug` profile writes `bug.yaml` rather than learning a precedence order. Repo profiles are
+validated exactly like shipped ones: "it came from the repo" is not a reason to trust a graph the
+SDLC will execute less carefully, or more.
 
 **Value if we stop here.** The SDLC becomes configurable per repository without a code change, and
 each issue type gets the research it actually needs rather than one fixed pass.

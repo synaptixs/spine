@@ -51,7 +51,7 @@ Graphify-gap series only. This file is the complete inventory.
 | Spec | Done | Outstanding |
 |---|---|---|
 | [gap4-adoption-distribution-roadmap](gap4-adoption-distribution-roadmap.md) | **Phase 1 (2026-08-19)** — friction audit: ≈28s cold start, no key, measured; two findings fixed | **2** channels · **3** proof assets · **4** measurement |
-| [graphir-sdlc-workflow](graphir-sdlc-workflow.md) | **Phases 1, 2a, 2b (2026-08-18/19)** — `tool` nodes, Evidence, criteria binding, typed Case, design validator. All four research defects closed; the design promotion measured and **declined** | **3** issue-type profiles · **4** parallel fan-out + replan |
+| [graphir-sdlc-workflow](graphir-sdlc-workflow.md) | **Phases 1, 2a, 2b, 3 (2026-08-18/19)** — `tool` nodes, Evidence, criteria binding, typed Case, design validator, issue-type profiles. All four research defects closed; the design promotion measured and **declined** | **4** parallel fan-out + bounded replan |
 | [capability-recommendations-kg-grounded](capability-recommendations-kg-grounded.md) | C1–C6, C8–C10 (9 of 10) | **C7** — observability→defect |
 | [sql-support-roadmap](sql-support-roadmap.md) | Track A complete, released 2.7.0 | **Track B** — greenfield SQL codegen |
 | [go-support-roadmap](go-support-roadmap.md) | Phase 4.1 comprehension **done**; Go ships in 3.18.1 | Later phases; branch `feat/go-support` |

@@ -610,7 +610,8 @@ async def _research_pass(
         render_evidence_md,
         to_dict,
     )
-    from orchestrator.sdlc.profiles import load_profile
+    from orchestrator.sdlc.profile_select import select_profile
+    from orchestrator.sdlc.profiles import load_profile, profile_names
 
     spec = ctx.spec or {}
     title, summary = str(spec.get("title", "")), str(spec.get("summary", ""))
@@ -626,7 +627,12 @@ async def _research_pass(
     try:
         from orchestrator.ir.validator import IRValidator
 
-        ir = load_profile()
+        # Which research this ticket gets is a lookup on its issue type, not a judgement — and
+        # it stays one. A model choosing would make the Evidence unreproducible at a commit,
+        # which is the guarantee everything downstream rests on.
+        selection = select_profile(resolved_type, available=profile_names(ctx.root))
+        emit(f"[research] {selection.reason}")
+        ir = load_profile(selection.profile, ctx.root)
         report = await IRValidator().validate(ir)
         ctx.case.profile = ir.metadata.id
         if not report.ok:
@@ -649,15 +655,31 @@ async def _research_pass(
             detail=f"{len(investigate.value.get('landing') or [])} landing site(s)",
         )
 
-        rca = await registry.run("sdlc.rca", store=store, problem=rca_problem(title, summary), root=ctx.root)
-        ctx.case.record(
-            _N_RCA,
-            kind="tool",
-            status="ok",
-            digest=rca.digest,
-            tool=rca.name,
-            detail=rca.value.get("fault_site") or "not localized",
-        )
+        # The enhancement profile has no `n_rca`: root-cause analysis localizes a symptom, and
+        # a feature request has none, so it would resolve nothing and print "not localized" — an
+        # empty section that reads as a finding. Recorded as *skipped for this issue type*,
+        # which is a different statement from "we ran it and found nothing".
+        rca_value: dict[str, Any] = {}
+        if any(node.id == _N_RCA for node in ir.spec.nodes):
+            rca = await registry.run(
+                "sdlc.rca", store=store, problem=rca_problem(title, summary), root=ctx.root
+            )
+            rca_value = rca.value
+            ctx.case.record(
+                _N_RCA,
+                kind="tool",
+                status="ok",
+                digest=rca.digest,
+                tool=rca.name,
+                detail=rca.value.get("fault_site") or "not localized",
+            )
+        else:
+            ctx.case.record(
+                _N_RCA,
+                kind="tool",
+                status="skipped",
+                detail=f"not run for issue type `{selection.issue_type or 'unset'}`",
+            )
 
         files = landing_files(list(investigate.value.get("landing") or []))
         blast = await registry.run("sdlc.blast_radius", store=store, files=list(files))
@@ -675,7 +697,7 @@ async def _research_pass(
             problem=summary,
             issue_type=resolved_type,
             investigate=investigate.value,
-            rca=rca.value,
+            rca=rca_value,
             blast=blast.value,
         )
         ctx.evidence = evidence

@@ -1,4 +1,14 @@
-# The SDLC pipeline as `sdlc autorun` actually runs it, expressed as a GraphIR.
+# The bug profile — the same pipeline, with the research a bug actually needs.
+#
+# A bug arrives with a symptom and the question is *where*. `n_rca` localizes it against the
+# graph, ranks hypotheses by evidence, and computes the regression surface a fix has to cover;
+# on a bug that is the most useful thing the research pass produces. The enhancement profile
+# drops that node entirely — see `enhancement.yaml`, and `profile_select.py` for how one is
+# chosen.
+#
+# Everything below is `default.yaml` unchanged. Selecting a profile per issue type is what makes
+# them differ; a profile that merely restated the default would be a file pretending to be a
+# decision.
 #
 # `sdlc autorun` executes this. Its `tool` nodes run through the tool registry and compose the
 # `Evidence` every later stage is judged against — `validity` reads it instead of re-deriving
@@ -17,20 +27,20 @@
 # not provide.
 
 metadata:
-  id: sdlc.default
+  id: sdlc.bug
   version: 1.0.0
   description: >-
-    The default SDLC delivery pipeline — intake, deterministic research and gating, design,
-    implementation, review.
-  tags: [sdlc, default]
+    The SDLC pipeline for a bug — root-cause analysis and regression surface, then design,
+    implementation and review.
+  tags: [sdlc, bug]
 
 status:
   state: published
 
 spec:
   objective: >-
-    Take one ticket from a source document to a reviewed change, grounding every step in the
-    Product Knowledge Graph.
+    Take one bug from a source document to a reviewed change, localizing it against the Product
+    Knowledge Graph before anything is designed.
   workflow_pattern: sequential
 
   nodes:
