@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/cli.py`](../../src/orchestrator/cli.py)
 
-0 types · 85 functions · python
+0 types · 86 functions · python
 
 ## Changing this safely
 
@@ -18,7 +18,7 @@
 - [`_client`](../../src/orchestrator/cli.py#L61) — reaches **16** symbols · **no test path visible**
 - [`_repo_arg`](../../src/orchestrator/cli.py#L105) — reaches **13** symbols
 - [`_load_payload`](../../src/orchestrator/cli.py#L68) — reaches **3** symbols · **no test path visible**
-- [`_load_ticket`](../../src/orchestrator/cli.py#L2363) — reaches **3** symbols · **no test path visible**
+- [`_load_ticket`](../../src/orchestrator/cli.py#L2405) — reaches **3** symbols · **no test path visible**
 - [`_deprecate`](../../src/orchestrator/cli.py#L173) — reaches **2** symbols · **no test path visible**
 - [`_issue_key_from_branch`](../../src/orchestrator/cli.py#L1520) — reaches **2** symbols
 
@@ -55,9 +55,9 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 ### `_invention_oracle`
 
-[`src/orchestrator/cli.py:2903`](../../src/orchestrator/cli.py#L2903)
+[`src/orchestrator/cli.py:2945`](../../src/orchestrator/cli.py#L2945)
 
-- **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli.py#L3026)
+- **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli.py#L3068)
 - **Calls** (8): [`EdgeKind`](../../src/orchestrator/pkg/facts.py#L55), `Exit`, [`_print`](../../src/orchestrator/cli.py#L79), `echo`, `orchestrator.pkg.RepoCodeExtractor`, `pathlib.Path`, [`sample_edges`](../../src/orchestrator/pkg/invention.py#L190), [`score_invention`](../../src/orchestrator/pkg/invention.py#L211)
 
 ### `_issue_key_from_branch`
@@ -76,16 +76,16 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 ### `_load_bug_text`
 
-[`src/orchestrator/cli.py:2512`](../../src/orchestrator/cli.py#L2512)
+[`src/orchestrator/cli.py:2554`](../../src/orchestrator/cli.py#L2554)
 
-- **Called by** (1): [`rca`](../../src/orchestrator/cli.py#L2439)
-- **Calls** (1): [`_load_ticket`](../../src/orchestrator/cli.py#L2363)
+- **Called by** (1): [`rca`](../../src/orchestrator/cli.py#L2481)
+- **Calls** (1): [`_load_ticket`](../../src/orchestrator/cli.py#L2405)
 
 ### `_load_design_spec`
 
-[`src/orchestrator/cli.py:2278`](../../src/orchestrator/cli.py#L2278)
+[`src/orchestrator/cli.py:2320`](../../src/orchestrator/cli.py#L2320)
 
-- **Called by** (1): [`design`](../../src/orchestrator/cli.py#L2200)
+- **Called by** (1): [`design`](../../src/orchestrator/cli.py#L2242)
 - **Calls** (2): `BadParameter`, `loads`
 
 ### `_load_payload`
@@ -97,9 +97,9 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 ### `_load_ticket`
 
-[`src/orchestrator/cli.py:2363`](../../src/orchestrator/cli.py#L2363)
+[`src/orchestrator/cli.py:2405`](../../src/orchestrator/cli.py#L2405)
 
-- **Called by** (2): [`_load_bug_text`](../../src/orchestrator/cli.py#L2512), [`investigate`](../../src/orchestrator/cli.py#L2311)
+- **Called by** (2): [`_load_bug_text`](../../src/orchestrator/cli.py#L2554), [`investigate`](../../src/orchestrator/cli.py#L2353)
 - **Calls** (5): `Exit`, [`build_service_for`](../../src/orchestrator/intake/factory.py#L272), `echo`, [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40), `run`
 
 ### `_mcp_build_registry`
@@ -125,22 +125,22 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 ### `_parity_oracle`
 
-[`src/orchestrator/cli.py:2853`](../../src/orchestrator/cli.py#L2853)
+[`src/orchestrator/cli.py:2895`](../../src/orchestrator/cli.py#L2895)
 
-- **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli.py#L3026)
+- **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli.py#L3068)
 - **Calls** (4): `Exit`, [`_print`](../../src/orchestrator/cli.py#L79), `echo`, [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L335)
 
 ### `_pct`
 
-[`src/orchestrator/cli.py:2795`](../../src/orchestrator/cli.py#L2795)
+[`src/orchestrator/cli.py:2837`](../../src/orchestrator/cli.py#L2837)
 
-- **Called by** (2): [`_runtime_oracle`](../../src/orchestrator/cli.py#L2800), [`pkg_accuracy`](../../src/orchestrator/cli.py#L3026)
+- **Called by** (2): [`_runtime_oracle`](../../src/orchestrator/cli.py#L2842), [`pkg_accuracy`](../../src/orchestrator/cli.py#L3068)
 
 ### `_print`
 
 [`src/orchestrator/cli.py:79`](../../src/orchestrator/cli.py#L79)
 
-- **Called by** (26): [`_deprecate`](../../src/orchestrator/cli.py#L173), [`_invention_oracle`](../../src/orchestrator/cli.py#L2903), [`_list`](../../src/orchestrator/cli.py#L152), [`_parity_oracle`](../../src/orchestrator/cli.py#L2853), [`_publish`](../../src/orchestrator/cli.py#L168), [`_register`](../../src/orchestrator/cli.py#L146), [`_run_address_review`](../../src/orchestrator/cli.py#L646), [`_run_ingest`](../../src/orchestrator/cli.py#L312), [`_run_openspec_draft`](../../src/orchestrator/cli.py#L403), [`_run_sdlc`](../../src/orchestrator/cli.py#L545), [`_run_sdlc_complete`](../../src/orchestrator/cli.py#L1528), [`_runtime_oracle`](../../src/orchestrator/cli.py#L2800), [`_scoreboard`](../../src/orchestrator/cli.py#L2964), [`_show`](../../src/orchestrator/cli.py#L162), [`catalog_list`](../../src/orchestrator/cli.py#L2591), [`catalog_plan`](../../src/orchestrator/cli.py#L2620), [`mcp_call`](../../src/orchestrator/cli.py#L1738), [`mcp_contracts`](../../src/orchestrator/cli.py#L1696), [`mcp_ingest_db`](../../src/orchestrator/cli.py#L1663), [`mcp_list`](../../src/orchestrator/cli.py#L1607), [`pkg_accuracy`](../../src/orchestrator/cli.py#L3026), [`pkg_extract`](../../src/orchestrator/cli.py#L2645), [`pkg_verify`](../../src/orchestrator/cli.py#L2753), [`profile`](../../src/orchestrator/cli.py#L1998), [`task_submit`](../../src/orchestrator/cli.py#L245), +1 more
+- **Called by** (26): [`_deprecate`](../../src/orchestrator/cli.py#L173), [`_invention_oracle`](../../src/orchestrator/cli.py#L2945), [`_list`](../../src/orchestrator/cli.py#L152), [`_parity_oracle`](../../src/orchestrator/cli.py#L2895), [`_publish`](../../src/orchestrator/cli.py#L168), [`_register`](../../src/orchestrator/cli.py#L146), [`_run_address_review`](../../src/orchestrator/cli.py#L646), [`_run_ingest`](../../src/orchestrator/cli.py#L312), [`_run_openspec_draft`](../../src/orchestrator/cli.py#L403), [`_run_sdlc`](../../src/orchestrator/cli.py#L545), [`_run_sdlc_complete`](../../src/orchestrator/cli.py#L1528), [`_runtime_oracle`](../../src/orchestrator/cli.py#L2842), [`_scoreboard`](../../src/orchestrator/cli.py#L3006), [`_show`](../../src/orchestrator/cli.py#L162), [`catalog_list`](../../src/orchestrator/cli.py#L2633), [`catalog_plan`](../../src/orchestrator/cli.py#L2662), [`mcp_call`](../../src/orchestrator/cli.py#L1738), [`mcp_contracts`](../../src/orchestrator/cli.py#L1696), [`mcp_ingest_db`](../../src/orchestrator/cli.py#L1663), [`mcp_list`](../../src/orchestrator/cli.py#L1607), [`pkg_accuracy`](../../src/orchestrator/cli.py#L3068), [`pkg_extract`](../../src/orchestrator/cli.py#L2687), [`pkg_verify`](../../src/orchestrator/cli.py#L2795), [`profile`](../../src/orchestrator/cli.py#L1998), [`task_submit`](../../src/orchestrator/cli.py#L245), +1 more
 - **Calls** (2): `dumps`, `echo`
 
 ### `_publish`
@@ -152,9 +152,9 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 ### `_read_design_bank`
 
-[`src/orchestrator/cli.py:2296`](../../src/orchestrator/cli.py#L2296)
+[`src/orchestrator/cli.py:2338`](../../src/orchestrator/cli.py#L2338)
 
-- **Called by** (1): [`design`](../../src/orchestrator/cli.py#L2200)
+- **Called by** (1): [`design`](../../src/orchestrator/cli.py#L2242)
 - **Calls** (2): [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49), `suppress`
 
 ### `_register`
@@ -167,16 +167,16 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 ### `_render_state_html`
 
-[`src/orchestrator/cli.py:2166`](../../src/orchestrator/cli.py#L2166)
+[`src/orchestrator/cli.py:2208`](../../src/orchestrator/cli.py#L2208)
 
-- **Called by** (1): [`state`](../../src/orchestrator/cli.py#L2106)
+- **Called by** (1): [`state`](../../src/orchestrator/cli.py#L2148)
 - **Calls** (5): [`load_current_state`](../../src/orchestrator/knowledge/current_state.py#L841), `now`, `orchestrator.pkg.FactStore`, [`render_report_html`](../../src/orchestrator/knowledge/report_html.py#L383), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L137)
 
 ### `_repo_arg`
 
 [`src/orchestrator/cli.py:105`](../../src/orchestrator/cli.py#L105)
 
-- **Called by** (13 production · 1 test): [`catalog_plan`](../../src/orchestrator/cli.py#L2620), [`design`](../../src/orchestrator/cli.py#L2200), [`investigate`](../../src/orchestrator/cli.py#L2311), [`localize`](../../src/orchestrator/cli.py#L2389), [`pkg_docs`](../../src/orchestrator/cli.py#L3287), [`pkg_export`](../../src/orchestrator/cli.py#L3195), [`pkg_extract`](../../src/orchestrator/cli.py#L2645), [`pkg_verify`](../../src/orchestrator/cli.py#L2753), [`profile`](../../src/orchestrator/cli.py#L1998), [`rca`](../../src/orchestrator/cli.py#L2439), [`regression`](../../src/orchestrator/cli.py#L2527), [`state`](../../src/orchestrator/cli.py#L2106), [`understand`](../../src/orchestrator/cli.py#L2027), [`test_repo_arg_classifies_local_vs_git`](../../tests/test_cli.py#L325)
+- **Called by** (13 production · 1 test): [`catalog_plan`](../../src/orchestrator/cli.py#L2662), [`design`](../../src/orchestrator/cli.py#L2242), [`investigate`](../../src/orchestrator/cli.py#L2353), [`localize`](../../src/orchestrator/cli.py#L2431), [`pkg_docs`](../../src/orchestrator/cli.py#L3329), [`pkg_export`](../../src/orchestrator/cli.py#L3237), [`pkg_extract`](../../src/orchestrator/cli.py#L2687), [`pkg_verify`](../../src/orchestrator/cli.py#L2795), [`profile`](../../src/orchestrator/cli.py#L1998), [`rca`](../../src/orchestrator/cli.py#L2481), [`regression`](../../src/orchestrator/cli.py#L2569), [`state`](../../src/orchestrator/cli.py#L2148), [`understand`](../../src/orchestrator/cli.py#L2027), [`test_repo_arg_classifies_local_vs_git`](../../tests/test_cli.py#L325)
 - **Calls** (5): `Exit`, [`Settings`](../../src/orchestrator/registry/api/config.py#L12), `echo`, [`materialize_repo_source`](../../src/orchestrator/registry/api/workspace.py#L216), [`resolve_repo_source`](../../src/orchestrator/registry/api/workspace.py#L166)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-1-build.md#9-facts-the-generator-needs`, `docs/specs/build-documents/SSPN-49-build.md#4-pkg-what-the-graph-knows`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
@@ -231,16 +231,16 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 ### `_runtime_oracle`
 
-[`src/orchestrator/cli.py:2800`](../../src/orchestrator/cli.py#L2800)
+[`src/orchestrator/cli.py:2842`](../../src/orchestrator/cli.py#L2842)
 
-- **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli.py#L3026)
-- **Calls** (5): `Exit`, [`_pct`](../../src/orchestrator/cli.py#L2795), [`_print`](../../src/orchestrator/cli.py#L79), `echo`, [`score_runtime`](../../src/orchestrator/pkg/runtime_oracle.py#L308)
+- **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli.py#L3068)
+- **Calls** (5): `Exit`, [`_pct`](../../src/orchestrator/cli.py#L2837), [`_print`](../../src/orchestrator/cli.py#L79), `echo`, [`score_runtime`](../../src/orchestrator/pkg/runtime_oracle.py#L308)
 
 ### `_scoreboard`
 
-[`src/orchestrator/cli.py:2964`](../../src/orchestrator/cli.py#L2964)
+[`src/orchestrator/cli.py:3006`](../../src/orchestrator/cli.py#L3006)
 
-- **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli.py#L3026)
+- **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli.py#L3068)
 - **Calls** (9): `Exit`, [`_print`](../../src/orchestrator/cli.py#L79), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L400), [`compare_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L498), `dumps`, `echo`, `loads`, `pathlib.Path`, [`scoreboard_improvements`](../../src/orchestrator/pkg/accuracy.py#L542)
 
 ### `_show`
@@ -257,6 +257,12 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (1): [`_go`](../../src/orchestrator/cli.py#L1082)
 
+### `_understand_summary`
+
+[`src/orchestrator/cli.py:2112`](../../src/orchestrator/cli.py#L2112)
+
+- **Called by** (1 production · 1 test): [`understand`](../../src/orchestrator/cli.py#L2027), [`test_understand_leads_with_what_it_learned_not_a_file_listing`](../../tests/test_cli.py#L333)
+
 ### `audit`
 
 [`src/orchestrator/cli.py:1950`](../../src/orchestrator/cli.py#L1950)
@@ -272,13 +278,13 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 ### `catalog_list`
 
-[`src/orchestrator/cli.py:2591`](../../src/orchestrator/cli.py#L2591)
+[`src/orchestrator/cli.py:2633`](../../src/orchestrator/cli.py#L2633)
 
 - **Calls** (3): [`_print`](../../src/orchestrator/cli.py#L79), `echo`, `orchestrator.catalog.default_catalog`
 
 ### `catalog_plan`
 
-[`src/orchestrator/cli.py:2620`](../../src/orchestrator/cli.py#L2620)
+[`src/orchestrator/cli.py:2662`](../../src/orchestrator/cli.py#L2662)
 
 - **Calls** (5): [`_print`](../../src/orchestrator/cli.py#L79), [`_repo_arg`](../../src/orchestrator/cli.py#L105), `echo`, `from_repo`, `orchestrator.catalog.plan_capabilities`
 
@@ -314,9 +320,9 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 ### `design`
 
-[`src/orchestrator/cli.py:2200`](../../src/orchestrator/cli.py#L2200)
+[`src/orchestrator/cli.py:2242`](../../src/orchestrator/cli.py#L2242)
 
-- **Calls** (15): `Exit`, [`_load_design_spec`](../../src/orchestrator/cli.py#L2278), [`_read_design_bank`](../../src/orchestrator/cli.py#L2296), [`_repo_arg`](../../src/orchestrator/cli.py#L105), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), `orchestrator.core.llm.LiteLLMClient`, `orchestrator.pkg.FactStore`, `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.load_or_extract`, [`produce_design`](../../src/orchestrator/sdlc/design.py#L295), [`render_design_md`](../../src/orchestrator/sdlc/design.py#L272), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L44), `run`
+- **Calls** (15): `Exit`, [`_load_design_spec`](../../src/orchestrator/cli.py#L2320), [`_read_design_bank`](../../src/orchestrator/cli.py#L2338), [`_repo_arg`](../../src/orchestrator/cli.py#L105), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), `orchestrator.core.llm.LiteLLMClient`, `orchestrator.pkg.FactStore`, `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.load_or_extract`, [`produce_design`](../../src/orchestrator/sdlc/design.py#L295), [`render_design_md`](../../src/orchestrator/sdlc/design.py#L272), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L44), `run`
 
 ### `doctor`
 
@@ -340,13 +346,13 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 ### `investigate`
 
-[`src/orchestrator/cli.py:2311`](../../src/orchestrator/cli.py#L2311)
+[`src/orchestrator/cli.py:2353`](../../src/orchestrator/cli.py#L2353)
 
-- **Calls** (9): `Exit`, [`_load_ticket`](../../src/orchestrator/cli.py#L2363), [`_repo_arg`](../../src/orchestrator/cli.py#L105), [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L67), `echo`, `orchestrator.pkg.FactStore`, `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.load_or_extract`, [`render_investigation_md`](../../src/orchestrator/sdlc/investigate.py#L116)
+- **Calls** (9): `Exit`, [`_load_ticket`](../../src/orchestrator/cli.py#L2405), [`_repo_arg`](../../src/orchestrator/cli.py#L105), [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L67), `echo`, `orchestrator.pkg.FactStore`, `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.load_or_extract`, [`render_investigation_md`](../../src/orchestrator/sdlc/investigate.py#L116)
 
 ### `localize`
 
-[`src/orchestrator/cli.py:2389`](../../src/orchestrator/cli.py#L2389)
+[`src/orchestrator/cli.py:2431`](../../src/orchestrator/cli.py#L2431)
 
 - **Calls** (8): `Exit`, [`_repo_arg`](../../src/orchestrator/cli.py#L105), `echo`, [`localize_trace`](../../src/orchestrator/sdlc/localize.py#L161), `orchestrator.pkg.FactStore`, `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.load_or_extract`, [`render_localization_md`](../../src/orchestrator/sdlc/localize.py#L202)
 
@@ -376,7 +382,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 ### `media_extract`
 
-[`src/orchestrator/cli.py:3319`](../../src/orchestrator/cli.py#L3319)
+[`src/orchestrator/cli.py:3361`](../../src/orchestrator/cli.py#L3361)
 
 - **Calls** (7): [`ApiAsrBackend`](../../src/orchestrator/pkg/media_asr.py#L96), `Exit`, [`LocalWhisperBackend`](../../src/orchestrator/pkg/media_asr.py#L73), `echo`, [`extract_image`](../../src/orchestrator/pkg/media_extract.py#L186), [`extract_media`](../../src/orchestrator/pkg/media_asr.py#L227), [`iter_media_files`](../../src/orchestrator/pkg/media_extract.py#L245)
 
@@ -394,37 +400,37 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 ### `pkg_accuracy`
 
-[`src/orchestrator/cli.py:3026`](../../src/orchestrator/cli.py#L3026)
+[`src/orchestrator/cli.py:3068`](../../src/orchestrator/cli.py#L3068)
 
-- **Calls** (9): `Exit`, [`_invention_oracle`](../../src/orchestrator/cli.py#L2903), [`_parity_oracle`](../../src/orchestrator/cli.py#L2853), [`_pct`](../../src/orchestrator/cli.py#L2795), [`_print`](../../src/orchestrator/cli.py#L79), [`_runtime_oracle`](../../src/orchestrator/cli.py#L2800), [`_scoreboard`](../../src/orchestrator/cli.py#L2964), `echo`, [`score_corpus`](../../src/orchestrator/pkg/accuracy.py#L266)
+- **Calls** (9): `Exit`, [`_invention_oracle`](../../src/orchestrator/cli.py#L2945), [`_parity_oracle`](../../src/orchestrator/cli.py#L2895), [`_pct`](../../src/orchestrator/cli.py#L2837), [`_print`](../../src/orchestrator/cli.py#L79), [`_runtime_oracle`](../../src/orchestrator/cli.py#L2842), [`_scoreboard`](../../src/orchestrator/cli.py#L3006), `echo`, [`score_corpus`](../../src/orchestrator/pkg/accuracy.py#L266)
 
 ### `pkg_capabilities`
 
-[`src/orchestrator/cli.py:2713`](../../src/orchestrator/cli.py#L2713)
+[`src/orchestrator/cli.py:2755`](../../src/orchestrator/cli.py#L2755)
 
 - **Calls** (5): `Exit`, `dumps`, `echo`, [`front_end_capabilities`](../../src/orchestrator/pkg/capabilities.py#L138), [`render_markdown`](../../src/orchestrator/pkg/capabilities.py#L190)
 
 ### `pkg_docs`
 
-[`src/orchestrator/cli.py:3287`](../../src/orchestrator/cli.py#L3287)
+[`src/orchestrator/cli.py:3329`](../../src/orchestrator/cli.py#L3329)
 
 - **Calls** (7): `Exit`, [`_repo_arg`](../../src/orchestrator/cli.py#L105), `echo`, `orchestrator.pkg.DocPage`, `orchestrator.pkg.DocReconciler`, `orchestrator.pkg.load_or_extract`, `pathlib.Path`
 
 ### `pkg_export`
 
-[`src/orchestrator/cli.py:3195`](../../src/orchestrator/cli.py#L3195)
+[`src/orchestrator/cli.py:3237`](../../src/orchestrator/cli.py#L3237)
 
 - **Calls** (9): `Exit`, [`_repo_arg`](../../src/orchestrator/cli.py#L105), `echo`, [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49), `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.export_sqlite`, `orchestrator.pkg.link_docs`, `pathlib.Path`, [`write_vault`](../../src/orchestrator/knowledge/wikilinks.py#L84)
 
 ### `pkg_extract`
 
-[`src/orchestrator/cli.py:2645`](../../src/orchestrator/cli.py#L2645)
+[`src/orchestrator/cli.py:2687`](../../src/orchestrator/cli.py#L2687)
 
 - **Calls** (5): [`_print`](../../src/orchestrator/cli.py#L79), [`_repo_arg`](../../src/orchestrator/cli.py#L105), `echo`, `orchestrator.pkg.FactStore`, `orchestrator.pkg.RepoCodeExtractor`
 
 ### `pkg_verify`
 
-[`src/orchestrator/cli.py:2753`](../../src/orchestrator/cli.py#L2753)
+[`src/orchestrator/cli.py:2795`](../../src/orchestrator/cli.py#L2795)
 
 - **Calls** (6): `Exit`, [`_print`](../../src/orchestrator/cli.py#L79), [`_repo_arg`](../../src/orchestrator/cli.py#L105), `echo`, `orchestrator.pkg.RepoCodeExtractor`, [`verify_batch`](../../src/orchestrator/pkg/verify.py#L516)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-1-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/PKG-ACC-1-build.md#63-the-command-pkg-accuracy-in-clipy`, `docs/specs/build-documents/PKG-ACC-1-build.md#7-files`, `docs/specs/build-documents/PKG-ACC-1-build.md#9-facts-the-generator-needs`
@@ -437,13 +443,13 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 ### `rca`
 
-[`src/orchestrator/cli.py:2439`](../../src/orchestrator/cli.py#L2439)
+[`src/orchestrator/cli.py:2481`](../../src/orchestrator/cli.py#L2481)
 
-- **Calls** (13): `Exit`, [`_load_bug_text`](../../src/orchestrator/cli.py#L2512), [`_repo_arg`](../../src/orchestrator/cli.py#L105), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L225), `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), `orchestrator.core.llm.LiteLLMClient`, `orchestrator.pkg.FactStore`, `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.load_or_extract`, [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L272), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L44), `run`
+- **Calls** (13): `Exit`, [`_load_bug_text`](../../src/orchestrator/cli.py#L2554), [`_repo_arg`](../../src/orchestrator/cli.py#L105), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L225), `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), `orchestrator.core.llm.LiteLLMClient`, `orchestrator.pkg.FactStore`, `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.load_or_extract`, [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L272), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L44), `run`
 
 ### `regression`
 
-[`src/orchestrator/cli.py:2527`](../../src/orchestrator/cli.py#L2527)
+[`src/orchestrator/cli.py:2569`](../../src/orchestrator/cli.py#L2569)
 
 - **Calls** (10): `Exit`, [`_repo_arg`](../../src/orchestrator/cli.py#L105), [`build_regression_plan`](../../src/orchestrator/sdlc/coverage.py#L137), `echo`, [`localize_trace`](../../src/orchestrator/sdlc/localize.py#L161), `orchestrator.pkg.FactStore`, `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.load_or_extract`, [`render_regression_plan_md`](../../src/orchestrator/sdlc/coverage.py#L180), [`resolve_target`](../../src/orchestrator/sdlc/coverage.py#L170)
 
@@ -521,9 +527,9 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 ### `state`
 
-[`src/orchestrator/cli.py:2106`](../../src/orchestrator/cli.py#L2106)
+[`src/orchestrator/cli.py:2148`](../../src/orchestrator/cli.py#L2148)
 
-- **Calls** (5): `Exit`, [`_render_state_html`](../../src/orchestrator/cli.py#L2166), [`_repo_arg`](../../src/orchestrator/cli.py#L105), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L859), `echo`
+- **Calls** (5): `Exit`, [`_render_state_html`](../../src/orchestrator/cli.py#L2208), [`_repo_arg`](../../src/orchestrator/cli.py#L105), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L859), `echo`
 
 ### `task_submit`
 
@@ -573,7 +579,7 @@ _29 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/cli.py:2027`](../../src/orchestrator/cli.py#L2027)
 
-- **Calls** (8): `Exit`, [`_print`](../../src/orchestrator/cli.py#L79), [`_repo_arg`](../../src/orchestrator/cli.py#L105), `echo`, [`memory_bank_dir`](../../src/orchestrator/knowledge/understand.py#L41), `orchestrator.knowledge.build_memory_bank`, `orchestrator.knowledge.check_memory_bank`, `pathlib.Path`
+- **Calls** (9): `Exit`, [`_print`](../../src/orchestrator/cli.py#L79), [`_repo_arg`](../../src/orchestrator/cli.py#L105), [`_understand_summary`](../../src/orchestrator/cli.py#L2112), `echo`, [`memory_bank_dir`](../../src/orchestrator/knowledge/understand.py#L41), `orchestrator.knowledge.build_memory_bank`, `orchestrator.knowledge.check_memory_bank`, `pathlib.Path`
 
 ### `up`
 
