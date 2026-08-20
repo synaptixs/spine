@@ -207,6 +207,7 @@ orchestrator understand [PATH] [OPTIONS]
 | `--check` | Verify the committed episteme still matches the code; write nothing, exit non-zero if not. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
 | `--intents` | Also record which ticket each symbol was last changed for (`Intent`/`SERVES`). Opt-in — see the caveat below. |
+| `--json` | Emit the result — including every file written — as JSON. Without it the command prints what the bank says and names the three files to read first. |
 
 `--check` writes nothing: it re-renders and diffs against the committed bank, exiting non-zero
 when they disagree. That makes `episteme/` *provably* current in CI rather than hopefully

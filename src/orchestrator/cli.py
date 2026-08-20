@@ -2052,6 +2052,9 @@ def understand(
             "Adds ~8s: one `git blame` per file. Opt-in — nothing renders these facts yet.",
         ),
     ] = False,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Emit the result — including every file written — as JSON.")
+    ] = False,
 ) -> None:
     """Build a committed `episteme/` — a code-true project knowledge base.
 
@@ -2092,14 +2095,53 @@ def understand(
         result = build_memory_bank(
             repo, out_dir=out_dir, refresh=refresh, sql_dialect=dialect, intents=intents, log=typer.echo
         )
-    _print(
-        {
-            "dir": result["dir"],
-            "greenfield": result["greenfield"],
-            "files": result["files"],
-            "grounded_nodes": result["summary"].get("grounded_nodes", 0),
-        }
-    )
+    if as_json:
+        _print(
+            {
+                "dir": result["dir"],
+                "greenfield": result["greenfield"],
+                "files": result["files"],
+                "grounded_nodes": result["summary"].get("grounded_nodes", 0),
+            }
+        )
+        return
+    for line in _understand_summary(result):
+        typer.echo(line)
+
+
+def _understand_summary(result: dict[str, Any]) -> list[str]:
+    """What the bank says, and which file to open first.
+
+    This used to print the raw result — a JSON array of all 62 filenames — so the first thing
+    anyone saw on their first run was a directory listing. The facts were in the files; the
+    terminal showed plumbing. The listing is still available under ``--json``, where a caller
+    that wants to parse it can ask for it.
+    """
+    summary = result.get("summary") or {}
+    profile = result.get("profile") or {}
+    nodes, grounded = summary.get("nodes", 0), summary.get("grounded_nodes", 0)
+    calls, imports = summary.get("edges_calls", 0), summary.get("edges_imports", 0)
+    docs = summary.get("edges_mentions", 0)
+
+    # `profile["languages"]` is a list, and interpolating it printed `['python']` at a stranger
+    # on their first run. The build's own `[understand]` lines already reported the node count
+    # and the directory, so this says what those did not rather than repeating them.
+    raw = profile.get("languages") or profile.get("language") or []
+    languages = ", ".join(str(x) for x in raw) if isinstance(raw, list | tuple) else str(raw)
+
+    out: list[str] = []
+    head = f"{grounded:,} grounded of {nodes:,} nodes"
+    out.append(f"{languages} · {head}" if languages else head)
+    out.append(f"{calls:,} call edges · {imports:,} imports · {docs:,} doc mentions")
+    # Three named files rather than "62 written": a reader needs one place to start, not an index.
+    out.append("")
+    out.append("Start here:")
+    out.append("  README.md          what this codebase is")
+    out.append("  architecture.md    how it fits together")
+    out.append("  symbol-index.md    every symbol, with file:line")
+    out.append("")
+    out.append(f"{len(result.get('files') or [])} files in total — `--json` lists them all.")
+    return out
 
 
 @app.command("state")
