@@ -3,8 +3,56 @@
 > **"G4" is a label, not a position in a queue.** It's gap #4 in the Graphify comparison. The specs
 > are not ordered and do not run in sequence.
 
-**Status:** Not started.
+**Status:** **Phase 1 ✅ COMPLETE** (2026-08-19) · Phases 2–4 not started.
 **Owner:** _unassigned_
+
+## Phase 1 result — measured 2026-08-19
+
+**The exit criterion was already met.** Cold start on a clean machine, fresh venv, against the
+**published 3.20.0 wheel** with `pip --no-cache-dir` (the first measurement used a warm cache and
+flattered us by 2s):
+
+| Step | Time |
+|---|---|
+| `python3 -m venv` | 1.4s |
+| `pip install --no-cache-dir synaptixs-spine` | **25.4s** |
+| `orchestrator state <repo>` | **0.8s** |
+| **nothing → grounded answer** | **≈28s** |
+
+No API key, no `.env`, nothing written to the target repo. On
+[`pallets/click`](https://github.com/pallets/click) the first line is a real answer: *"173 types
+and 1722 functions across 22 components (78 files). Top priority: refactor 3 god-classes, e.g.
+`Context` (60)."*
+
+**Against the bar of "< 60 s, no API key, on a clean box": met, with half the budget spare.**
+
+### What the audit found anyway
+
+The number passing did not mean the path was good. Two things were wrong, both fixed in
+[#215](https://github.com/synaptixs/spine/pull/215):
+
+1. **The documented first command was the wrong one.** README opened with `orchestrator init &&
+   orchestrator doctor`, which says configuration is required before anything works — it is not —
+   and then `understand`, which writes 62 files into the repo of someone who has not decided to
+   adopt anything (`?? episteme/` in their `git status`). The quick-start now opens with
+   `state`, which writes nothing and needs no key; setup moved under *"when you want it to write
+   code"*.
+2. **`understand` printed a file listing instead of an answer.** Its last output was a JSON array
+   of all 62 filenames. It now leads with the shape of what it found and names **three** files to
+   read first; `--json` keeps the old output for anything that parses it.
+
+Neither was visible from the timer. Both were found by running the path as a stranger would and
+reading what came back, which is the part of a friction audit that a stopwatch cannot do.
+
+### What was not re-measured, and why
+
+The fixes changed *what a stranger sees*, not how long it takes — install time is PyPI's, and
+`state` was already sub-second. So the ≈28s stands as the Phase 1 number. It will need re-taking
+when the dependency set changes materially, not when the copy does.
+
+**These fixes are on `develop` and ship in the next release.** The 28s above was measured against
+the published 3.20.0 artifact, so it describes what a stranger gets *today* — the findings above
+describe what they get after the next release.
 
 ## Before you start
 
@@ -58,7 +106,7 @@ the lowest-commitment first touch we have — the equivalent of `/graphify`.
 
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
-| **1 — Friction audit + 60-second path** | Time the real cold-start on a clean machine: install → point at a repo → first useful answer. Remove every step that isn't essential (config, credentials, docs-reading) from the **read-only** path. Fix whatever the audit finds. | ~4–6 d | A stranger gets a grounded answer about their own repo in **< 60 s**, with **no API key**, measured on a clean box |
+| **1 — Friction audit + 60-second path** ✅ | Time the real cold-start on a clean machine: install → point at a repo → first useful answer. Remove every step that isn't essential (config, credentials, docs-reading) from the **read-only** path. Fix whatever the audit finds. | ~4–6 d | A stranger gets a grounded answer about their own repo in **< 60 s**, with **no API key**, measured on a clean box |
 | **2 — Channel expansion** | List in the **MCP registry** and any assistant marketplaces we're absent from; verify the plugin actually installs in each documented host (don't assume — install it). One-line install snippets per host, kept in CI-checked docs. | ~5–7 d | Installable from N hosts, each **verified by an actual install**, not by documentation |
 | **3 — Proof assets** | Publish the G6 benchmark page; a short "what Spine tells you that grep doesn't" walkthrough on a well-known OSS repo; the G5 export as a shareable artifact. Public, reproducible, honest. | ~4–5 d | Linkable evidence for each headline claim |
 | **4 — Measure** | Opt-in, privacy-respecting install/usage signal (or, if that's unacceptable, PyPI download + plugin-install counts). Decide *before* Phase 1 what "working" looks like numerically. | ~2–3 d | We can tell whether phases 1–3 moved anything, instead of guessing |
