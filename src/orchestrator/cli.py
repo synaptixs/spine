@@ -768,9 +768,48 @@ def sdlc_explain(
     typer.echo(case.render())
 
 
+@sdlc_app.command("workflows")
+def sdlc_workflows(
+    path: Annotated[str, typer.Option("--path", help="Repo whose `.spine/workflows/` to include.")] = ".",
+) -> None:
+    """List the workflow profiles available, and which issue types choose them.
+
+    Shipped profiles live in the package; a repo may carry its own in `.spine/workflows/`, where
+    a profile of the same name **wins**. Both are listed, with the source, because "why did this
+    run use that graph?" should be answerable without reading two directories.
+    """
+    from orchestrator.sdlc.profile_select import _BY_TYPE
+    from orchestrator.sdlc.profiles import REPO_PROFILE_DIR, profile_names, repo_profile_names
+
+    root = Path(path)
+    carried = set(repo_profile_names(root))
+    names = profile_names(root)
+    if not names:
+        typer.echo("No profiles found.")
+        return
+
+    by_profile: dict[str, list[str]] = {}
+    for issue_type, profile in sorted(_BY_TYPE.items()):
+        by_profile.setdefault(profile, []).append(issue_type)
+
+    typer.echo(f"{'profile':<16} {'source':<10} chosen for")
+    typer.echo(f"{'-' * 16} {'-' * 10} {'-' * 40}")
+    for profile in names:
+        source = "repo" if profile in carried else "shipped"
+        types = ", ".join(by_profile.get(profile, [])) or (
+            "any unmapped issue type" if profile == "default" else "—"
+        )
+        typer.echo(f"{profile:<16} {source:<10} {types}")
+    if carried:
+        typer.echo(f"\nRepo profiles read from {root / REPO_PROFILE_DIR} — same name wins over shipped.")
+
+
 @sdlc_app.command("workflow")
 def sdlc_workflow(
     name: Annotated[str, typer.Argument(help="Profile name, e.g. `default`.")] = "default",
+    path: Annotated[
+        str, typer.Option("--path", help="Repo whose `.spine/workflows/` to search first.")
+    ] = ".",
     as_json: Annotated[bool, typer.Option("--json", help="Emit the validated IR as JSON.")] = False,
 ) -> None:
     """Show a workflow profile — the SDLC pipeline as a validated graph.
@@ -779,8 +818,9 @@ def sdlc_workflow(
     every time: a profile that cannot be validated is a packaging bug, and printing it as if it
     were fine is how a broken graph reaches a run.
 
-    Nothing executes this graph yet. `autorun` builds it in shadow beside the imperative
-    pipeline and compares the deterministic nodes that have an imperative twin.
+    `sdlc autorun` executes one of these, chosen from the ticket's issue type — `sdlc workflows`
+    lists which type picks which. A profile in the repo's `.spine/workflows/` wins over the
+    shipped one of the same name.
     """
     import asyncio as _asyncio
     import json as _json
@@ -789,11 +829,12 @@ def sdlc_workflow(
     from orchestrator.ir.validator import IRValidator
     from orchestrator.sdlc.profiles import ProfileNotFoundError, load_profile, profile_names
 
+    root = Path(path)
     try:
-        ir = load_profile(name)
+        ir = load_profile(name, root)
     except ProfileNotFoundError as exc:
         typer.secho(str(exc), fg=typer.colors.RED)
-        typer.echo(f"Available: {', '.join(profile_names())}")
+        typer.echo(f"Available: {', '.join(profile_names(root))}")
         raise typer.Exit(code=2) from exc
 
     report = _asyncio.run(IRValidator().validate(ir))

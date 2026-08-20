@@ -24,7 +24,7 @@ gates (before building, before merging). The product is **Spine**; it ships as
 |---|---|---|
 | Version | **3.20.0** | cutting now; 3.19.0 is the last on PyPI until this ships |
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
-| CLI commands | **53** | `grep -c '\.command(' src/orchestrator/cli.py` |
+| CLI commands | **54** | `grep -c '\.command(' src/orchestrator/cli.py` |
 | Source modules | **317** | `find src/orchestrator -name '*.py'` |
 | Test functions | **2,552** across 291 files | `grep -rh '^def test_\|^async def test_' tests` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
@@ -123,7 +123,7 @@ bound to — without converting a deterministic stage into a model call.
 | 1 | `tool` node type + the **Evidence** artifact, SDLC as IR in shadow | defect 1 | ✅ **COMPLETE 2026-08-18** |
 | **2a** | IR executes; Evidence consumed; criteria bound; `RunContext` → typed Case | **defects 2, 3, 4** | ✅ **COMPLETE 2026-08-18** |
 | **2b** | `design` promoted to hybrid — validator, then `_llm_design`, then measure | none | ✅ **COMPLETE 2026-08-19 — promotion declined, measured** |
-| 3 | Issue-type profiles as files a repo can carry | none | Not started |
+| 3 | Issue-type profiles as files a repo can carry | none — configurability | ✅ **COMPLETE 2026-08-19** |
 | 4 | Parallel fan-out + bounded replan | none | Not started |
 
 **Phase 2a shipped 2026-08-18 — every defect in the programme is now closed.** Evidence drives
@@ -132,6 +132,14 @@ where the ticket lands instead of computing one from its own guess, the landing 
 symbols instead of collapsing to filenames, and each acceptance criterion is bound to a
 `file:line` or refused. Gate: **20 runs / 5 commits, 0 unexplained verdict mismatches**, with 5
 new parks — all the one ticket naming a symbol no repository has.
+
+**Phase 3 shipped 2026-08-19.** Three profiles — `default`, `bug`, `enhancement` — chosen from
+the ticket's issue type by a deterministic lookup, never a model. A repo may carry its own in
+`.spine/workflows/`, where the same name wins. The enhancement profile has no `n_rca`: root-cause
+analysis localizes a symptom and a feature request has none, so an enhancement run records it as
+*not run for this issue type* rather than printing "not localized". **Acceptance impact was not
+measured** — no bug corpus exists, and the phase is recorded as configurability rather than
+claiming a number it did not take.
 
 **Phase 2b closed 2026-08-19 with the promotion declined.** A 100-run A/B ($49.51, 0 aborts)
 found no acceptance difference a 50-run arm can resolve, a held-out rate favouring the

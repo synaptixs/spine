@@ -1,4 +1,12 @@
-# The SDLC pipeline as `sdlc autorun` actually runs it, expressed as a GraphIR.
+# The enhancement profile — the same pipeline, minus the research an enhancement cannot use.
+#
+# `n_rca` is absent, and that is the whole point of this file. Root-cause analysis localizes a
+# *symptom*; a feature request has none, so `localize_trace` resolves nothing and the report says
+# "Not localized to a repo symbol" — an empty section that reads as a finding and is not one. It
+# also costs a `git log` subprocess per run to say nothing.
+#
+# So an enhancement's evidence records that RCA was **not run for this issue type**, which is a
+# different statement from "we ran it and found nothing", and the honest one.
 #
 # `sdlc autorun` executes this. Its `tool` nodes run through the tool registry and compose the
 # `Evidence` every later stage is judged against — `validity` reads it instead of re-deriving
@@ -17,20 +25,20 @@
 # not provide.
 
 metadata:
-  id: sdlc.default
+  id: sdlc.enhancement
   version: 1.0.0
   description: >-
-    The default SDLC delivery pipeline — intake, deterministic research and gating, design,
-    implementation, review.
-  tags: [sdlc, default]
+    The SDLC pipeline for an enhancement — landing sites and blast radius, then design,
+    implementation and review. No root-cause analysis; there is no fault to localize.
+  tags: [sdlc, enhancement]
 
 status:
   state: published
 
 spec:
   objective: >-
-    Take one ticket from a source document to a reviewed change, grounding every step in the
-    Product Knowledge Graph.
+    Take one enhancement from a source document to a reviewed change, grounded in what the
+    Product Knowledge Graph already holds.
   workflow_pattern: sequential
 
   nodes:
@@ -46,14 +54,6 @@ spec:
       config:
         stage: investigate
         summary: The symbols this ticket lands on, with file:line, kind, callers and module.
-
-    - id: n_rca
-      type: tool
-      template_id: sdlc.rca
-      config:
-        stage: rca
-        summary: Fault site, regression surface, recently-changed, ranked hypotheses.
-        new_in_graph: true
 
     - id: n_blast_radius
       type: tool
@@ -96,8 +96,6 @@ spec:
     - source: n_intake
       target: n_investigate
     - source: n_investigate
-      target: n_rca
-    - source: n_rca
       target: n_blast_radius
     - source: n_blast_radius
       target: n_validity
