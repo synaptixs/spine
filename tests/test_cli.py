@@ -328,3 +328,39 @@ def test_repo_arg_classifies_local_vs_git(tmp_path: Path) -> None:
     with _repo_arg(str(tmp_path)) as (path, is_remote):
         assert path == tmp_path.resolve()
         assert is_remote is False
+
+
+def test_understand_leads_with_what_it_learned_not_a_file_listing(tmp_path: Path) -> None:
+    """The first run used to print the raw result — a JSON array of every file written — so a
+    stranger's first impression was a directory listing rather than an answer. The listing is
+    still there under `--json`; the default is what the bank says.
+
+    Asserts on the rendered lines rather than by running the CLI: the summary is the thing under
+    test, and driving `understand` needs a real repo and several seconds.
+    """
+    from orchestrator.cli import _understand_summary
+
+    lines = _understand_summary(
+        {
+            "dir": str(tmp_path / "episteme"),
+            "greenfield": False,
+            "files": [f"f{i}.md" for i in range(62)],
+            "profile": {"languages": ["python"]},
+            "summary": {
+                "nodes": 2914,
+                "grounded_nodes": 2640,
+                "edges_calls": 2007,
+                "edges_imports": 665,
+                "edges_mentions": 383,
+            },
+        }
+    )
+    rendered = "\n".join(lines)
+    assert "python · 2,640 grounded of 2,914 nodes" in rendered
+    assert "2,007 call edges" in rendered
+    assert "README.md" in rendered and "symbol-index.md" in rendered
+    assert "62 files in total" in rendered
+    # The list repr is the bug this guards: `profile["languages"]` is a list, and interpolating
+    # it printed `['python']` at a stranger on their first run.
+    assert "['python']" not in rendered
+    assert "f0.md" not in rendered, "the file listing belongs behind --json"

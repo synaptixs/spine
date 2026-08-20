@@ -768,9 +768,48 @@ def sdlc_explain(
     typer.echo(case.render())
 
 
+@sdlc_app.command("workflows")
+def sdlc_workflows(
+    path: Annotated[str, typer.Option("--path", help="Repo whose `.spine/workflows/` to include.")] = ".",
+) -> None:
+    """List the workflow profiles available, and which issue types choose them.
+
+    Shipped profiles live in the package; a repo may carry its own in `.spine/workflows/`, where
+    a profile of the same name **wins**. Both are listed, with the source, because "why did this
+    run use that graph?" should be answerable without reading two directories.
+    """
+    from orchestrator.sdlc.profile_select import _BY_TYPE
+    from orchestrator.sdlc.profiles import REPO_PROFILE_DIR, profile_names, repo_profile_names
+
+    root = Path(path)
+    carried = set(repo_profile_names(root))
+    names = profile_names(root)
+    if not names:
+        typer.echo("No profiles found.")
+        return
+
+    by_profile: dict[str, list[str]] = {}
+    for issue_type, profile in sorted(_BY_TYPE.items()):
+        by_profile.setdefault(profile, []).append(issue_type)
+
+    typer.echo(f"{'profile':<16} {'source':<10} chosen for")
+    typer.echo(f"{'-' * 16} {'-' * 10} {'-' * 40}")
+    for profile in names:
+        source = "repo" if profile in carried else "shipped"
+        types = ", ".join(by_profile.get(profile, [])) or (
+            "any unmapped issue type" if profile == "default" else "—"
+        )
+        typer.echo(f"{profile:<16} {source:<10} {types}")
+    if carried:
+        typer.echo(f"\nRepo profiles read from {root / REPO_PROFILE_DIR} — same name wins over shipped.")
+
+
 @sdlc_app.command("workflow")
 def sdlc_workflow(
     name: Annotated[str, typer.Argument(help="Profile name, e.g. `default`.")] = "default",
+    path: Annotated[
+        str, typer.Option("--path", help="Repo whose `.spine/workflows/` to search first.")
+    ] = ".",
     as_json: Annotated[bool, typer.Option("--json", help="Emit the validated IR as JSON.")] = False,
 ) -> None:
     """Show a workflow profile — the SDLC pipeline as a validated graph.
@@ -779,8 +818,9 @@ def sdlc_workflow(
     every time: a profile that cannot be validated is a packaging bug, and printing it as if it
     were fine is how a broken graph reaches a run.
 
-    Nothing executes this graph yet. `autorun` builds it in shadow beside the imperative
-    pipeline and compares the deterministic nodes that have an imperative twin.
+    `sdlc autorun` executes one of these, chosen from the ticket's issue type — `sdlc workflows`
+    lists which type picks which. A profile in the repo's `.spine/workflows/` wins over the
+    shipped one of the same name.
     """
     import asyncio as _asyncio
     import json as _json
@@ -789,11 +829,12 @@ def sdlc_workflow(
     from orchestrator.ir.validator import IRValidator
     from orchestrator.sdlc.profiles import ProfileNotFoundError, load_profile, profile_names
 
+    root = Path(path)
     try:
-        ir = load_profile(name)
+        ir = load_profile(name, root)
     except ProfileNotFoundError as exc:
         typer.secho(str(exc), fg=typer.colors.RED)
-        typer.echo(f"Available: {', '.join(profile_names())}")
+        typer.echo(f"Available: {', '.join(profile_names(root))}")
         raise typer.Exit(code=2) from exc
 
     report = _asyncio.run(IRValidator().validate(ir))
@@ -2052,6 +2093,9 @@ def understand(
             "Adds ~8s: one `git blame` per file. Opt-in — nothing renders these facts yet.",
         ),
     ] = False,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Emit the result — including every file written — as JSON.")
+    ] = False,
 ) -> None:
     """Build a committed `episteme/` — a code-true project knowledge base.
 
@@ -2092,14 +2136,53 @@ def understand(
         result = build_memory_bank(
             repo, out_dir=out_dir, refresh=refresh, sql_dialect=dialect, intents=intents, log=typer.echo
         )
-    _print(
-        {
-            "dir": result["dir"],
-            "greenfield": result["greenfield"],
-            "files": result["files"],
-            "grounded_nodes": result["summary"].get("grounded_nodes", 0),
-        }
-    )
+    if as_json:
+        _print(
+            {
+                "dir": result["dir"],
+                "greenfield": result["greenfield"],
+                "files": result["files"],
+                "grounded_nodes": result["summary"].get("grounded_nodes", 0),
+            }
+        )
+        return
+    for line in _understand_summary(result):
+        typer.echo(line)
+
+
+def _understand_summary(result: dict[str, Any]) -> list[str]:
+    """What the bank says, and which file to open first.
+
+    This used to print the raw result — a JSON array of all 62 filenames — so the first thing
+    anyone saw on their first run was a directory listing. The facts were in the files; the
+    terminal showed plumbing. The listing is still available under ``--json``, where a caller
+    that wants to parse it can ask for it.
+    """
+    summary = result.get("summary") or {}
+    profile = result.get("profile") or {}
+    nodes, grounded = summary.get("nodes", 0), summary.get("grounded_nodes", 0)
+    calls, imports = summary.get("edges_calls", 0), summary.get("edges_imports", 0)
+    docs = summary.get("edges_mentions", 0)
+
+    # `profile["languages"]` is a list, and interpolating it printed `['python']` at a stranger
+    # on their first run. The build's own `[understand]` lines already reported the node count
+    # and the directory, so this says what those did not rather than repeating them.
+    raw = profile.get("languages") or profile.get("language") or []
+    languages = ", ".join(str(x) for x in raw) if isinstance(raw, list | tuple) else str(raw)
+
+    out: list[str] = []
+    head = f"{grounded:,} grounded of {nodes:,} nodes"
+    out.append(f"{languages} · {head}" if languages else head)
+    out.append(f"{calls:,} call edges · {imports:,} imports · {docs:,} doc mentions")
+    # Three named files rather than "62 written": a reader needs one place to start, not an index.
+    out.append("")
+    out.append("Start here:")
+    out.append("  README.md          what this codebase is")
+    out.append("  architecture.md    how it fits together")
+    out.append("  symbol-index.md    every symbol, with file:line")
+    out.append("")
+    out.append(f"{len(result.get('files') or [])} files in total — `--json` lists them all.")
+    return out
 
 
 @app.command("state")

@@ -218,3 +218,35 @@ async def test_a_design_naming_invented_code_parks_the_run(tmp_path: Path) -> No
     assert stage.status == "failed"
     assert ctx.case.result("n_design").status == "failed"
     assert (ctx.artifacts_dir / "design-references.md").is_file()
+
+
+async def test_a_bug_gets_rca_and_an_enhancement_does_not(tmp_path: Path) -> None:
+    """Phase 3, end to end. The profile is chosen from the issue type, and the difference is
+    visible in the Case: a bug's `n_rca` ran, an enhancement's is recorded as *skipped for this
+    issue type* — which is a different statement from "we ran it and found nothing"."""
+    store = _store()
+
+    bug = _ctx(tmp_path / "bug")
+    await _research_pass(bug, store=store, issue_type="Bug", emit=lambda _s: None)
+    assert bug.case.profile == "sdlc.bug"
+    rca = bug.case.result("n_rca")
+    assert rca is not None and rca.status == "ok" and rca.digest
+
+    story = _ctx(tmp_path / "story")
+    await _research_pass(story, store=store, issue_type="Story", emit=lambda _s: None)
+    assert story.case.profile == "sdlc.enhancement"
+    skipped = story.case.result("n_rca")
+    assert skipped is not None and skipped.status == "skipped"
+    assert "not run for issue type" in skipped.detail
+    assert not skipped.digest, "a node that did not run has nothing to digest"
+    # The evidence says so too, rather than carrying an empty RCA that reads as a finding.
+    assert story.evidence is not None and story.evidence.rca == {}
+
+
+async def test_an_unmapped_issue_type_uses_default_and_says_why(tmp_path: Path) -> None:
+    said: list[str] = []
+    ctx = _ctx(tmp_path)
+    await _research_pass(ctx, store=_store(), issue_type="Spike", emit=said.append)
+
+    assert ctx.case.profile == "sdlc.default"
+    assert any("Spike" in line and "default" in line for line in said), said

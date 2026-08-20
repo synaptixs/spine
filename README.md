@@ -41,9 +41,28 @@ flowchart LR
     build --> pr
 ```
 
+**Try it on your own repo in under a minute.** No API key, no configuration, and it writes
+nothing — `state` reads your code and prints what it found:
+
 ```bash
 pip install synaptixs-spine
-orchestrator init && orchestrator doctor                  # scaffold .env, check readiness
+orchestrator state /path/to/your/repo
+```
+
+Measured cold on a clean machine: **25s to install, 0.8s to answer.** On
+[`pallets/click`](https://github.com/pallets/click) it opens with
+
+> This is a python library / service — **173 types** and **1722 functions** across **22
+> components** (78 files). Top priority: Refactor 3 god-classes (>40 members), e.g. `Context`
+> (60), `ProgressBar` (48).
+
+then the architecture, the areas, documentation coverage and drift. Deterministic — no model
+runs, so the same commit always gives the same report.
+
+**When you want it to write code**, that's when configuration starts to matter:
+
+```bash
+orchestrator init && orchestrator doctor                     # scaffold .env, check readiness
 orchestrator sdlc feature --source file://./spec.md --safe   # build locally — no pushes, no PRs
 ```
 

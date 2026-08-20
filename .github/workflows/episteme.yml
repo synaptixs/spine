@@ -9,11 +9,34 @@
 # Moving regeneration here keeps everything that made committing the bank worthwhile — it
 # stays readable in the repo, diffable per commit, and ingested as Doc nodes — while
 # removing the conflict entirely. PRs are forbidden from touching it (see ci.yml).
+#
+# ## Why `develop` only
+#
+# This ran on `main` too, until 3.20.0. `main` cannot be pushed to, so the bank arrived by a
+# PR the workflow opened itself — except "Allow GitHub Actions to create and approve pull
+# requests" is off, so the branch landed and no PR ever opened. Four releases, four orphan
+# branches nobody saw, because the step warned and exited 0.
+#
+# Enabling that setting would not have fixed it, which is the part worth recording. `main`
+# receives only what `develop` already regenerated, so the two banks are content-identical;
+# the *only* thing a main-side run produces is a new commit SHA in the stamp:
+#
+#     -Generated from commit `1eb9a0fa…` … by Spine 3.20.0.
+#     +Generated from commit `ad6e8de8…` … by Spine 3.20.0.
+#
+# And merging that PR creates a new commit, so the stamp is stale again the moment it lands.
+# It is a loop that cannot converge, and it was costing a release-day approval dance: every
+# push to `develop` re-queues gated checks and dismisses the promotion's approval.
+#
+# So `main` inherits `develop`'s bank verbatim. Its stamp names the commit the facts were
+# computed from — a `develop` commit — which is more accurate than naming the merge commit
+# that changed nothing. CI checks that the bank *builds* on every PR (ci.yml); it does not
+# run `understand --check`, so nothing depends on the stamp matching HEAD.
 name: Episteme
 
 on:
   push:
-    branches: [main, develop]
+    branches: [develop]
 
 # One regeneration at a time per branch. Superseding an in-flight run is safe and correct:
 # the output is a pure function of the tree, so the newest run computes the newest answer.
@@ -22,8 +45,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
-  pull-requests: write # main cannot be pushed to; the bank arrives there by PR
+  contents: write # push the regenerated bank to develop; nothing else
 
 jobs:
   regenerate:
@@ -70,59 +92,13 @@ jobs:
           the tree, not authored, and is regenerated after merge so branches never carry
           it and never conflict over it."
 
-      # `develop` takes a direct push. `main` does not, and finding that out at push time
-      # is how the 3.17.0 promotion left main's bank stale: the run regenerated correctly,
-      # then died on `GH013: Changes must be made through a pull request` — a rule this
-      # workflow cannot and should not bypass.
-      - name: Push it (develop)
-        if: steps.commit.outputs.moved == 'true' && github.ref_name != 'main'
+      # `develop` takes a direct push. `main` does not — `GH013: Changes must be made through
+      # a pull request` — which is why this workflow no longer runs there at all; see the
+      # header.
+      - name: Push it
+        if: steps.commit.outputs.moved == 'true'
         run: |
           # Another merge may have landed while this ran. Rebase rather than force: the
           # regeneration is reproducible, and clobbering someone else's merge is not.
           git pull --rebase --autostash origin "${{ github.ref_name }}"
           git push origin HEAD:"${{ github.ref_name }}"
-
-      # On main the bank arrives the same way everything else does. CI's "PR does not
-      # modify episteme/" guard already exempts `base_ref == main`, so this PR is legal by
-      # the same rule that lets a release promotion carry the artifact.
-      - name: Open a pull request (main)
-        if: steps.commit.outputs.moved == 'true' && github.ref_name == 'main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          FOR_SHA: ${{ steps.commit.outputs.for }}
-        run: |
-          branch="chore/episteme-${FOR_SHA}"
-          git push --force-with-lease origin HEAD:"$branch"
-          open=$(gh pr list --head "$branch" --state open --json number --jq 'length')
-          if [ "$open" != "0" ]; then
-            echo "a PR for $branch is already open"
-            exit 0
-          fi
-          {
-            printf '`episteme/` regenerated from main'"'"'s own tree by\n'
-            printf '[`.github/workflows/episteme.yml`](.github/workflows/episteme.yml).\n\n'
-            printf 'It arrives as a pull request because main'"'"'s ruleset requires one — a direct\n'
-            printf 'push is rejected with `GH013`, which is what left the bank stale after the\n'
-            printf '3.17.0 promotion. Nothing here is authored: the knowledge base is a pure\n'
-            printf 'function of the tracked tree, so this diff is whatever `orchestrator\n'
-            printf 'understand .` computes at this commit.\n\n'
-            printf 'CI'"'"'s "PR does not modify episteme/" guard exempts `base_ref == main`, the\n'
-            printf 'same rule that lets a release promotion carry the artifact.\n'
-          } > /tmp/episteme-pr-body.md
-          # `gh pr create` can be refused by a setting no workflow permission overrides:
-          # "Allow GitHub Actions to create and approve pull requests". When it is off the
-          # call fails with `GitHub Actions is not permitted to create or approve pull
-          # requests`, which is what happened on the 3.18.0 promotion.
-          #
-          # The branch is already pushed at that point, so nothing is lost and failing the run
-          # says otherwise. Print the one-click URL and exit 0: a human opens it in a moment,
-          # and if the setting is ever enabled this starts opening PRs by itself with no
-          # further change.
-          if ! gh pr create --base main --head "$branch" \
-              --title "chore(episteme): regenerate for ${FOR_SHA}" \
-              --body-file /tmp/episteme-pr-body.md; then
-            echo "::warning::Could not open the PR automatically — the branch is pushed and waiting."
-            echo "Open it here: ${{ github.server_url }}/${{ github.repository }}/pull/new/$branch"
-            echo "If this is the 'Actions is not permitted to create pull requests' refusal, the"
-            echo "fix is Settings -> Actions -> General -> Workflow permissions."
-          fi

@@ -4,7 +4,7 @@
 > Maintained by hand against the CLI — run `orchestrator <command> --help` for the
 > authoritative version. If the two disagree, `--help` is right and this file is a bug.
 
-**53 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
+**54 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
 
 ## Command map
 
@@ -21,7 +21,7 @@
 `ingest` · `backlog` · `openspec draft`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
-`sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc workflow` · `sdlc explain` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
+`sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc workflow` · `sdlc workflows` · `sdlc explain` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
 
 **MCP — external tools** — Consume onboarded Model Context Protocol servers (governed, audited).  
 `mcp list` · `mcp contracts` · `mcp call` · `mcp ingest-db`
@@ -207,6 +207,7 @@ orchestrator understand [PATH] [OPTIONS]
 | `--check` | Verify the committed episteme still matches the code; write nothing, exit non-zero if not. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
 | `--intents` | Also record which ticket each symbol was last changed for (`Intent`/`SERVES`). Opt-in — see the caveat below. |
+| `--json` | Emit the result — including every file written — as JSON. Without it the command prints what the bank says and names the three files to read first. |
 
 `--check` writes nothing: it re-renders and diffs against the committed bank, exiting non-zero
 when they disagree. That makes `episteme/` *provably* current in CI rather than hopefully
@@ -1140,6 +1141,40 @@ orchestrator sdlc explain RUN_ID [OPTIONS]
 
 A run from before 3.20.0 has no Case; the command says so and exits 2 rather than printing an
 empty table.
+
+### `orchestrator sdlc workflows`
+
+List the workflow profiles available, and which issue types choose them.
+
+Shipped profiles live in the package; a repo may carry its own in `.spine/workflows/`, where a
+profile of the **same name wins**. Both are listed with their source, because *"why did this run
+use that graph?"* should be answerable without reading two directories.
+
+```
+orchestrator sdlc workflows [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `--path` | Repo whose `.spine/workflows/` to include. (default: `.`) |
+
+```
+profile          source     chosen for
+---------------- ---------- ----------------------------------------
+bug              shipped    bug, defect, incident
+default          shipped    any unmapped issue type
+enhancement      shipped    enhancement, feature, improvement, new feature, story, task
+```
+
+**Selection is a lookup, never a judgement.** `sdlc autorun` maps the ticket's issue type onto a
+profile deterministically — a model choosing would make the Evidence unreproducible at a commit,
+which is the guarantee everything downstream rests on. An unmapped type falls back to `default`
+and the run says so rather than skipping research silently.
+
+**The enhancement profile has no `n_rca`.** Root-cause analysis localizes a *symptom*, and a
+feature request has none — it would resolve nothing and print "not localized", an empty section
+that reads as a finding. An enhancement run records RCA as *not run for this issue type*, which
+is a different statement.
 
 ### `orchestrator sdlc workflow`
 

@@ -97,6 +97,28 @@ uv run orchestrator --help     # in this layout, prefix CLI calls with `uv run`
 
 ---
 
+## Step 1.5 — See what it knows about your repo (no configuration yet)
+
+Before any of the setup below, Spine can already read your code. `state` needs **no API key and
+no `.env`**, and **writes nothing** — it prints what it found:
+
+```bash
+orchestrator state /path/to/your/repo
+```
+
+On a clean machine that is 25 seconds to install and under a second to answer. Everything in
+this step is deterministic: no model runs, so the same commit always produces the same report.
+`orchestrator profile` and `orchestrator pkg extract --json` are the same — read-only, keyless.
+
+Configure when you want Spine to *write* code, which is Step 2 onward.
+
+> **`understand` is the one read command that does write.** It builds the committed knowledge
+> base — `episteme/` inside the repo — because that artifact is meant to be reviewed and
+> committed. Use `state` while you are evaluating; use `understand` once you have decided the
+> bank belongs in your repository.
+
+---
+
 ## Step 2 — Configure
 
 ```bash
