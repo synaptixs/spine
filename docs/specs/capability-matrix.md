@@ -24,7 +24,7 @@ docs · **n/a** out of category
 
 ---
 
-| Capability | **Spine 3.20.0** | CodeGraph | Graphify | GitNexus | Serena | Joern | Sourcegraph | OpenHands | Devin |
+| Capability | **Spine 3.21.0** | CodeGraph | Graphify | GitNexus | Serena | Joern | Sourcegraph | OpenHands | Devin |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | **LAYER A — CODE INTELLIGENCE** |
 | Deterministic, no-LLM extraction | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ |
