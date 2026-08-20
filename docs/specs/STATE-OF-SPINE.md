@@ -1,9 +1,9 @@
 # State of Spine — 3.20.0
 
-**The one document to read.** Verified against source on **2026-08-19**, at the 3.20.0 release
-cut. Every number below was re-measured that day.
+**The one document to read.** Verified against source on **2026-08-20**, after GraphIR Phase 3
+landed on `develop`. Every number below was re-measured that day.
 
-> **Why this exists.** There are **68 specs**, 6 archived, and 17 root-level user documents.
+> **Why this exists.** There are **70 specs**, 6 archived, and 17 root-level user documents.
 > Answering "where do we stand?" required opening five of them and reconciling three that
 > disagreed. This page carries the current answer; the others are the detail behind it.
 > **If this page and another document disagree, this page was checked more recently — but fix
@@ -22,11 +22,11 @@ gates (before building, before merging). The product is **Spine**; it ships as
 
 | | Value | How it is known |
 |---|---|---|
-| Version | **3.20.0** | cutting now; 3.19.0 is the last on PyPI until this ships |
+| Version | **3.20.0** on PyPI · `develop` is ahead | verified on pypi.org, wheel + sdist. Six changes since, unreleased |
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
 | CLI commands | **54** | `grep -c '\.command(' src/orchestrator/cli.py` |
-| Source modules | **317** | `find src/orchestrator -name '*.py'` |
-| Test functions | **2,552** across 291 files | `grep -rh '^def test_\|^async def test_' tests` |
+| Source modules | **319** | `find src/orchestrator -name '*.py'` |
+| Test functions | **2,569** across 293 files | `grep -rh '^def test_\|^async def test_' tests` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
 | `CALLS` recall | **1.00** (C, SQL) → **0.50** (TypeScript) | same |
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |
@@ -133,6 +133,9 @@ symbols instead of collapsing to filenames, and each acceptance criterion is bou
 `file:line` or refused. Gate: **20 runs / 5 commits, 0 unexplained verdict mismatches**, with 5
 new parks — all the one ticket naming a symbol no repository has.
 
+**Only Phase 4 remains** — parallel fan-out and the bounded replan loop, which is throughput
+rather than capability.
+
 **Phase 3 shipped 2026-08-19.** Three profiles — `default`, `bug`, `enhancement` — chosen from
 the ticket's issue type by a deterministic lookup, never a model. A repo may carry its own in
 `.spine/workflows/`, where the same name wins. The enhancement profile has no `n_rca`: root-cause
@@ -160,9 +163,10 @@ execute for real and there is no shadow left to compare. `orchestrator sdlc work
 validated graph. Gate at the time: **20 runs, 5 commits, 0 divergences**, proved able to fail
 three ways before it was believed.
 
-**Phase 1 is enablement; Phase 2 is where the value lands.** Phase 1 produces Evidence and nothing
-reads it — deliberate, since that is what makes it shippable with zero behaviour change — so
-stopping there leaves three of four defects open. Phases 1+2 are the deliverable.
+**Phase 1 was enablement; 2a is where the value landed.** Phase 1 produced Evidence and nothing
+read it — deliberate, since that is what made it shippable with zero behaviour change. All four
+defects were shut by the end of 2a. Kept here because the sequencing is the part worth reusing:
+produce the artifact in shadow first, consume it second.
 
 Full record: [`graphir-sdlc-workflow.md`](graphir-sdlc-workflow.md). Its governing rule — a node may
 be demoted to deterministic freely, and promoted to model only with a measurement, a validator on
@@ -178,7 +182,9 @@ its output edge, and inside the model-call budget.
 | Decide `--intents` — shipped with no reader, no export | undecided |
 | Rust front-end | not started |
 | Express endpoint extraction (TypeScript) | unscheduled |
-| Deployment image + reusable CI workflow for central adoption | not started, needed before rollout |
+| Deployment image + reusable CI workflow for central adoption | not started. **Not a G4 phase** — it was recommended as though it were; it needs adding to that spec before it can be scheduled |
+| `SPEC-INDEX.md` links `watch-items-roadmap.md`, which does not exist | not started |
+| `docs/specs/current-state.md` has a mermaid block that falls back to `<pre>` in our own UI | not started |
 | G4 adoption — friction audit | ✅ **Phase 1 done 2026-08-19** — ≈28s cold start, no key; channels/proof/measurement outstanding |
 | `episteme.yml` main-branch path produces orphan branches | ✅ **fixed 2026-08-19** — regeneration is `develop`-only; `main` inherits the bank verbatim |
 
