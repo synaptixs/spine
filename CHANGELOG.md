@@ -4,6 +4,61 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.21.0 — The right research for the ticket, and a first run that asks for nothing
+
+A small release with one theme: **fewer steps between someone new and a useful answer**, and
+research shaped to the ticket rather than one fixed pass for everything.
+
+### Added — issue-type workflow profiles
+
+- **Three profiles ship** — `default`, `bug`, `enhancement` — and the ticket's issue type chooses
+  one. **Selection is a lookup, never a model:** a model deciding which research a ticket gets
+  would make the Evidence unreproducible at a commit, and that reproducibility is what every
+  stage downstream rests on. An unmapped type falls back to `default` **and the run says why**.
+- **The `enhancement` profile has no root-cause node**, which is the reason it exists. RCA
+  localizes a *symptom*; a feature request has none, so it resolved nothing and printed *"Not
+  localized to a repo symbol"* — an empty section that reads as a finding, bought with a
+  `git log` subprocess. An enhancement run now records RCA as **not run for this issue type**.
+- **A repo may carry its own profiles** in `.spine/workflows/<name>.yaml`, where a profile of the
+  same name **wins** over the shipped one. They are validated exactly like shipped profiles:
+  coming from the repo is not a reason to check a graph the SDLC will execute less carefully, or
+  more.
+- **`orchestrator sdlc workflows`** lists what is available, with its source, and which issue
+  types choose it.
+
+### Changed — the first thing a new user runs
+
+- **The quick-start leads with `orchestrator state`**, which needs no API key, no `.env`, and
+  **writes nothing**. It opened with `orchestrator init && orchestrator doctor` — implying
+  configuration was required before anything worked, which it is not — and then `understand`,
+  which writes 62 files into the repo of someone who has not decided to adopt anything.
+  `init`/`doctor` now sit under *"when you want it to write code"*. `USER_GUIDE.md` gets the same
+  as Step 1.5.
+- **`understand` says what it learned** instead of listing what it wrote. Its last output was a
+  JSON array of every filename; it now leads with the shape of the graph and names **three**
+  files to open first. `--json` keeps the old output for anything that parses it.
+
+Measured cold on a clean machine against 3.20.0: **25s to install, 0.8s to answer** — ~28s from
+nothing to a grounded statement about someone else's repository. Recorded in
+[`gap4-adoption-distribution-roadmap.md`](docs/specs/gap4-adoption-distribution-roadmap.md).
+
+### Fixed
+
+- **`episteme` regeneration runs on `develop` only.** On `main` it opened a PR the workflow could
+  not create, so the branch landed and nothing opened — four releases, four orphan branches
+  nobody saw, because the step warned and exited 0. Enabling the setting would not have fixed it:
+  `main` receives only what `develop` already regenerated, so the whole diff was one commit SHA
+  in a stamp, and merging it created a new commit that made the stamp stale again. A loop that
+  could not converge. It also dismissed the promotion PR's approval on every push, which is what
+  made the 3.20.0 release take three head changes and two re-approvals.
+
+### Note for operators
+
+Nothing in this release changes what a run does to your repository, and the two refusals
+introduced in 3.20.0 — an unbound acceptance criterion, and a design naming a place your
+repository does not have — are unchanged. `SPINE_SDLC_IMPERATIVE=1` still restores the pre-3.20
+path.
+
 ## 3.20.0 — The evidence drives the run
 
 3.19.0 measured what the code graph is worth. This release puts it in front of the work: every

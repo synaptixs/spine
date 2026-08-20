@@ -1,7 +1,7 @@
-# State of Spine — 3.20.0
+# State of Spine — 3.21.0
 
-**The one document to read.** Verified against source on **2026-08-20**, after GraphIR Phase 3
-landed on `develop`. Every number below was re-measured that day.
+**The one document to read.** Verified against source on **2026-08-20**, at the 3.21.0 release
+cut. Every number below was re-measured that day.
 
 > **Why this exists.** There are **70 specs**, 6 archived, and 17 root-level user documents.
 > Answering "where do we stand?" required opening five of them and reconciling three that
@@ -22,7 +22,7 @@ gates (before building, before merging). The product is **Spine**; it ships as
 
 | | Value | How it is known |
 |---|---|---|
-| Version | **3.20.0** on PyPI · `develop` is ahead | verified on pypi.org, wheel + sdist. Six changes since, unreleased |
+| Version | **3.21.0** | cutting now; 3.20.0 is the last on PyPI until this ships |
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
 | CLI commands | **54** | `grep -c '\.command(' src/orchestrator/cli.py` |
 | Source modules | **319** | `find src/orchestrator -name '*.py'` |
