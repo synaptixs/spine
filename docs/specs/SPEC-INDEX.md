@@ -1,6 +1,16 @@
 # Spec index — every design record, and where it stands
 
-**Generated 2026-08-15 against 3.18.1; refreshed 2026-08-19 for the GraphIR programme.** 63 top-level specs, 6 archived, 10 build documents.
+**Generated 2026-08-15 against 3.18.1; refreshed 2026-08-21 for the completed GraphIR
+programme.** `docs/specs/` holds **70** markdown files — **67 specs** plus three navigation
+documents ([README](README.md), this index, [STATE-OF-SPINE](STATE-OF-SPINE.md)) — with 6
+archived and 10 build documents. The count read *63* until 2026-08-21, and **five specs were
+not listed at all**, including this file's own companion matrix and both measurements it
+cites as evidence. An inventory that silently omits things is the failure it was built to
+catch, so the count is now stated as a derivation anyone can re-run:
+
+```
+ls docs/specs/*.md | wc -l          # 70
+```
 
 **How to read the Verified column — this matters.** Status is **self-reported by each spec**
 unless marked ✔. This index was built after three separate cases in one session where a status
@@ -8,8 +18,12 @@ line contradicted the shipped code:
 
 - `gap3-media-ingestion-roadmap.md` read *"Not started"* — it shipped in **3.10.0**, all phases.
 - `gap-roadmap-index.md` read *"Not started"* for **G5** — its own spec said `✅ COMPLETE`.
-- The G1–G17 scorecard in [`README.md`](README.md) scored RBAC/multi-tenancy at **10%** — both
-  are **implemented and enforced** (`Principal`, `has_role`, cross-tenant 404).
+- The G1–G17 scorecard in [`README.md`](README.md) scored RBAC/multi-tenancy at **10%**.
+  **Multi-tenancy is implemented and enforced** (`Principal`, cross-tenant reads return 404).
+  **RBAC is not** — this line said "both" until 2026-08-21, which was the correction
+  overshooting: `has_role` is called at exactly one site, the approval decision. See
+  [`capability-matrix.md`](capability-matrix.md) footnote ⁶, where the same cell is on record as
+  corrected twice.
 
 Treat an unverified status as a claim, not a fact. ✔ means checked against source this session.
 
@@ -51,7 +65,7 @@ Graphify-gap series only. This file is the complete inventory.
 | Spec | Done | Outstanding |
 |---|---|---|
 | [gap4-adoption-distribution-roadmap](gap4-adoption-distribution-roadmap.md) | **Phase 1 (2026-08-19)** — friction audit: ≈28s cold start, no key, measured; two findings fixed | **2** channels · **3** proof assets · **4** measurement |
-| [graphir-sdlc-workflow](graphir-sdlc-workflow.md) | **Phases 1, 2a, 2b, 3 (2026-08-18/19)** — `tool` nodes, Evidence, criteria binding, typed Case, design validator, issue-type profiles. All four research defects closed; the design promotion measured and **declined** | **4** parallel fan-out + bounded replan |
+| [graphir-sdlc-workflow](graphir-sdlc-workflow.md) | **Phases 1–3 (2026-08-18/19)** — `tool` nodes, Evidence, criteria binding, typed Case, design validator, issue-type profiles. All four research defects closed | **Phase 4 closed unshipped (2026-08-23)** — fan-out worth ~30ms, replan built then reverted as unreachable; reopen only if `design` is promoted |
 | [capability-recommendations-kg-grounded](capability-recommendations-kg-grounded.md) | C1–C6, C8–C10 (9 of 10) | **C7** — observability→defect |
 | [sql-support-roadmap](sql-support-roadmap.md) | Track A complete, released 2.7.0 | **Track B** — greenfield SQL codegen |
 | [go-support-roadmap](go-support-roadmap.md) | Phase 4.1 comprehension **done**; Go ships in 3.18.1 | Later phases; branch `feat/go-support` |
@@ -88,6 +102,7 @@ Graphify-gap series only. This file is the complete inventory.
 | Spec | Says | Actually |
 |---|---|---|
 | [current-state.md](current-state.md) | "Design / proposed (build **after** the PKG)" | **`orchestrator state` shipped long ago** — two lenses, HTML report, doc-drift section. Status never updated | **✔** |
+| [preflight-baseline-diff.md](preflight-baseline-diff.md) | "Proposed — awaiting approval" | **Shipped.** `Baseline`, `capture_baseline` and baseline mode are in `sdlc/preflight.py` with 11 tests in `tests/sdlc/test_preflight.py`; the capability matrix scores it ✅. Found 2026-08-21 — the spec was not in this index either | **✔** |
 
 ## 📖 Reference — not work items
 
@@ -100,7 +115,10 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | [gap-roadmap-index](gap-roadmap-index.md) | Index of the Graphify-gap series |
 | [knowledge-graph-architecture](knowledge-graph-architecture.md) | Descriptive, derived from code 2026-08-02 |
 | [KNOWLEDGE-VISION](KNOWLEDGE-VISION.md) · [PRODUCT-KNOWLEDGE-GRAPH](PRODUCT-KNOWLEDGE-GRAPH.md) | Vision / concept |
-| [competitive-landscape](competitive-landscape.md) | Competitive analysis (2026-08-15) |
+| [capability-matrix](capability-matrix.md) | **The** capability matrix — 47 scored rows, 22 of them rows no competitor's public docs fill. Counts checked by `scripts/matrix-count.py --check` (2026-08-21) |
+| [codegen-model-comparison-results](codegen-model-comparison-results.md) · [external-repo-grounding-results](external-repo-grounding-results.md) | The two measurements behind the matrix's ⁴ rows — 200 and 60 ticket-runs (2026-08-16) |
+| [parsing-and-the-pkg](parsing-and-the-pkg.md) | How source becomes graph facts, front-end by front-end (2026-08-16) |
+| [competitive-landscape](competitive-landscape.md) | Competitive **narrative and strategy** (2026-08-21). Its duplicate scored matrix was removed — see `capability-matrix.md` |
 | [graphify-vs-spine-comparison](graphify-vs-spine-comparison.md) | One competitor in depth — **at v3.7.0, stale** |
 | [cli-test-plan](cli-test-plan.md) | 50 commands, written against 3.16.0 |
 | [pkg-accuracy-test-plan](pkg-accuracy-test-plan.md) · [comprehension-test-plan](comprehension-test-plan.md) | Manual test plans |
@@ -122,8 +140,8 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | ✅ Complete | 16 |
 | 🟡 Partial | 12 |
 | 📋 Outstanding | 15 *(incl. 1 missing spec)* |
-| ⚠️ Stale status | 1 |
-| 📖 Reference | 19 |
+| ⚠️ Stale status | 2 |
+| 📖 Reference | 23 |
 
 **The programme is further along than its own paperwork says.** Every discrepancy found this
 session ran the same direction — work shipped, the status line didn't move. Nothing was claimed

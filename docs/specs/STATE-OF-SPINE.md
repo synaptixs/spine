@@ -1,9 +1,11 @@
 # State of Spine — 3.21.0
 
-**The one document to read.** Verified against source on **2026-08-20**, at the 3.21.0 release
-cut. Every number below was re-measured that day.
+**The one document to read.** Verified against source on **2026-08-23**, with 3.21.0 released.
+Every number below was re-measured that day.
 
-> **Why this exists.** There are **70 specs**, 6 archived, and 17 root-level user documents.
+> **Why this exists.** `docs/specs/` holds **70** markdown files — **67 specs** plus this
+> page, [`README`](README.md) and [`SPEC-INDEX`](SPEC-INDEX.md) — with 6 archived, 10 build
+> documents, and 17 root-level user documents.
 > Answering "where do we stand?" required opening five of them and reconciling three that
 > disagreed. This page carries the current answer; the others are the detail behind it.
 > **If this page and another document disagree, this page was checked more recently — but fix
@@ -22,11 +24,11 @@ gates (before building, before merging). The product is **Spine**; it ships as
 
 | | Value | How it is known |
 |---|---|---|
-| Version | **3.21.0** | cutting now; 3.20.0 is the last on PyPI until this ships |
+| Version | **3.21.0**, released | merged to `main` (PR #220) |
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
 | CLI commands | **54** | `grep -c '\.command(' src/orchestrator/cli.py` |
 | Source modules | **319** | `find src/orchestrator -name '*.py'` |
-| Test functions | **2,569** across 293 files | `grep -rh '^def test_\|^async def test_' tests` |
+| Test functions | **2,598** across 297 files | `grep -rh '^def test_\|^async def test_' tests` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
 | `CALLS` recall | **1.00** (C, SQL) → **0.50** (TypeScript) | same |
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |
@@ -37,7 +39,133 @@ gates (before building, before merging). The product is **Spine**; it ships as
 **The one claim worth repeating:** every new module that integrated correctly came from a grounded
 run. The graph pays exactly where the model cannot see the target, and ties where it can.
 
-## 3. The delivery pipeline as it actually runs
+## 3. The PKG — what it is, how it is built, and why any of it matters
+
+*For engineers. The narrative version is [`KNOWLEDGE_GRAPH.md`](../../KNOWLEDGE_GRAPH.md); the
+full front-end detail is [`parsing-and-the-pkg.md`](parsing-and-the-pkg.md).*
+
+Everything else on this page rests on one artifact. The **Program Knowledge Graph** is a typed
+fact graph of the target codebase — **8 node kinds** (`Module` `Type` `Function` `Field`
+`Endpoint` `Entity` `Doc` `Intent`) and **11 edge kinds** (`IMPORTS` `CONTAINS` `CALLS`
+`IMPLEMENTS` `READS` `WRITES` `EXPOSES` `CONSUMES` `REFERENCES` `MENTIONS` `SERVES`) — where
+**every fact carries `file:line` provenance**. No model builds it, and no model is consulted
+while it is built.
+
+### AST or CST — Spine uses whichever one the language's own toolchain uses
+
+The distinction decides what a front-end can *see*, and where it breaks.
+
+- An **AST (Abstract Syntax Tree)** is what a compiler keeps after discarding everything that
+  does not change meaning — parentheses, whitespace, comments, exact token order. `a + (b)` and
+  `a+b` produce the same tree.
+- A **CST (Concrete Syntax Tree)** keeps every token and its byte range; you can reconstruct
+  the source character-for-character. tree-sitter produces one.
+
+| Front-end | Parser | Tree | Why this one |
+|---|---|---|---|
+| `python` | CPython `ast` (stdlib) | **AST** | The same parser that *runs* the code — no second implementation to disagree with |
+| `java` `csharp` `c` `cpp` `go` `typescript` | tree-sitter + the language's official grammar | **CST** | Community-maintained, fast, and **error-tolerant** — a file that does not compile still yields the parts that parse |
+| `sql` | `sqlglot` | **AST** | Dialect-aware (postgres / mysql / tsql / oracle …); treats SQL as a language, not as text |
+
+**Structure comes from a real parser, never from pattern-matching source text** — any regex over
+source is a second, worse implementation of a parser, and it fails exactly where the code is
+hardest: nested generics, macros, string literals containing what looks like syntax. The
+capability matrix scores this row *"real parser, never regex"*, and **"never" is three cases too
+strong** — state them, because a reader will find them:
+
+| Where | What it recovers | Why the parser cannot |
+|---|---|---|
+| `java_extractor` `_PACKAGE_RE` · `csharp_extractor` `_NAMESPACE_RE` | the one-line `package` / `namespace` declaration, used to *name* the `Module` node | the tree-sitter walk reads the file's members; the declaration is read separately rather than walked to |
+| `sql_extractor` `_CALL_RE` | `CALL` / `PERFORM proc()` — and these become **real `CALLS` edges** | sqlglot collapses both into opaque `Command` nodes, so the callee is not in the tree to read |
+
+The first two name a node the parser already found. **The third emits edges**, which is the one
+that would matter if it were wrong — and it is the thinnest-evidenced cell on this page: SQL's
+`CALLS` scores 1.00 precision and 1.00 recall, **on a corpus of exactly one labelled call edge**.
+That is a passing test, not a measurement. The fallback is confined to two keywords followed by a
+parenthesis, so the blast radius is small, but anyone quoting SQL call accuracy should quote the
+denominator with it. Everything else in all eight front-ends comes off the tree.
+
+**Why not one parser for all eight?** Because a second implementation of a language is a second
+*opinion* about what the language means, and the two diverge on the hard cases. Using CPython's
+own parser for Python removes that risk entirely for the largest front-end.
+
+### Parsing is not where accuracy is lost — resolution is
+
+Measured against a hand-labelled corpus, all 8 languages
+(`orchestrator pkg accuracy`, gated in CI):
+
+| | Result |
+|---|---|
+| **Precision** | **1.00** on every node kind and every edge kind, all 8 languages |
+| **Recall** | 1.00 on every kind **except `CALLS`** |
+| `CALLS` recall | 1.00 (c, sql) · 0.73 (python) · 0.67 (cpp, csharp, go, java) · **0.50 (typescript)** |
+| Invention on this repo | **0** invented targets across **15,855** `CALLS` edges (re-run 2026-08-21) |
+
+Structure — *this module contains this class which contains this method* — is either in the tree
+or it is not. **`CALLS` is different because it needs *resolution*:** the tree tells you a call
+happened and how it was spelled, not which definition it reaches. That is a judgement, and
+judgements can be wrong. It is scored on its own for exactly that reason, rather than folded
+into an average that would hide it.
+
+**The rule is skip rather than guess** — and the cost of the other choice is on record.
+`_resolve_call` used to invent an id for any unresolved bare name; every parameter, local and
+nested function became an edge to a function that did not exist. That was **497 fabricated edges
+on this repo alone — 3.16% of the call graph** — and worse on external code: **14.8% of unique
+call relationships in Flask, 7.4% in httpx**. Two things about that bug are the whole argument
+for this section:
+
+- **It was self-consistent.** The inventor created the phantom *node* as well as the edge, so
+  `pkg verify`'s dangling-edge check reported **0** the entire time it was live. *A graph can be
+  internally perfect and externally false*, and no structural check will tell you.
+- **It corrupted real nodes.** The invented id collided with legitimate ungrounded types, so
+  `py:Exception` — a `Type` named `Exception` — became a `Function` literally named
+  `"py:Exception"`.
+
+The fix was one line, shipped in 3.18.0: return `None` instead of a guess. That is why the
+invention oracle exists as a standing measurement rather than a one-off, and why `CALLS` recall
+is allowed to sit at 0.50 on TypeScript instead of being padded.
+
+### Why this matters
+
+**1. The failure mode is silence, not fiction.** Everything the graph asserts exists; what it
+cannot resolve, it drops. For a model consuming the graph those are not remotely equal costs. A
+**missing** edge makes an agent go and look. A **fabricated** edge makes it confidently follow a
+call into a function nobody ever wrote — and produce a change that is coherent, plausible, and
+built on nothing. Precision is held at 1.00 and recall is allowed to be imperfect because that
+trade is the right way round for the consumer.
+
+**2. It is deterministic, so it is checkable.** Same commit in → same bytes out. Nothing else on
+this page is possible without that property: `understand --check` can gate the knowledge base as
+*provably* current rather than hopefully current; the extraction cache can be commit-keyed
+(and is trusted only on a clean tree); a run's Evidence can be reproduced at a commit and
+therefore replayed and diffed. A graph that redrew itself differently for identical input could
+not be gated by anything.
+
+**3. Provenance is what makes a claim falsifiable.** Every node carries `file:line`, so a
+downstream assertion is an address a human can open rather than a summary they must trust. This
+is what lets acceptance criteria be **bound to a `file:line` or the ticket refused** (§7), and
+what lets a design naming code that does not exist be caught instead of built.
+
+**4. It is measurably what makes the delivery half work.** Across 260 runs on two frontier
+models, **47 of 68** new modules integrated correctly with the graph in context versus **3 of
+68** without — while tickets that already named their target file scored **122 of 124 either
+way**, the control that rules out "more context just helps". The graph pays precisely where the
+model cannot see the target, and ties where it can.
+
+**5. It is cheap enough to be unconditional.** A full extraction of this repository — **11,609
+nodes, 33,684 edges** across 319 modules — takes **~2.2s** cold, and is cached per commit after
+that. Nothing in the pipeline has to ration it.
+
+### Where it is honestly weak
+
+- **`CALLS` recall on TypeScript is 0.50** — half the call edges are missed. Structure is
+  complete; the call graph is not.
+- **Two of four accuracy oracles are Python-only** (`runtime` via PEP 669, `invention` via
+  Python `ast`). On a non-Python repo `invention` reporting `0` means *not measured*, not clean.
+- **8 languages**, against 21–40 for the graph-only tools. Additive against a fixed schema
+  (`facts.py`) rather than a ceiling, but it is today's number.
+
+## 4. The delivery pipeline as it actually runs
 
 `sdlc autorun` is six stages. **`async` does not mean "calls a model" — four are `async`, three
 call a model.**
@@ -47,13 +175,13 @@ call a model.**
 | `intake` | **yes** | source document → one spec |
 | `investigate` | no | PKG query → landing symbols with `file:line` |
 | `validity` | no | judges the ticket against the graph; **the only stage that can stop a run before code is written** |
-| `design` | **no** — `produce_design(..., llm=None)` | deterministic by decision, not by default: measured 2026-08-19 and declined |
+| `design` | **no** — `produce_design(..., llm=None)` | deterministic by decision, not by default: measured 2026-08-19 and declined. A design that fails its output-edge validator **parks** — Phase 4 tried to repair it within a budget and the repair proved unreachable (§7) |
 | `implement` | **yes** | codegen + tests + refine |
 | `review` | **yes** | review the worktree diff, fix findings, re-test |
 
 Each model output has a deterministic validator downstream — intake's spec by `assess()`,
 implement's code by tests + preflight baseline-diff + fit, review's fixes by re-running the tests.
-**`design` has none**, which is safe only while it calls no model. That seam is the subject of §6.
+**`design` has none**, which is safe only while it calls no model. That seam is the subject of §7.
 
 **Since Phase 2a every run also writes `evidence.md` / `evidence.json` / `criteria.md` / `design-references.md` / `case.json`**
 beside its brief. `validity` judges the ticket against that Evidence, `design` is handed its blast
@@ -61,13 +189,18 @@ radius rather than computing one, and every acceptance criterion is bound to a `
 refuses the ticket. Two verdicts are new and both can park a run that previously built: an
 unbound criterion, and a design naming a place the repository does not have.
 
-## 4. Where Spine is genuinely ahead, and where it is not
+## 5. Where Spine is genuinely ahead, and where it is not
 
-**Ahead — 11 rows in the capability matrix nobody else fills.** The strongest four are not about
-features: published precision/recall of its own graph, a published controlled A/B for the context
-layer, replication on an external codebase, and held-out grading. Every published benchmark found
-in the code-intelligence category measures *efficiency* ("70% fewer tokens"), which answers *how
-cheap*, not *is it right*.
+**Ahead — 21 rows in the capability matrix nobody else fills**, out of 46. The strongest four
+are not about features: published precision/recall of its own graph, a published controlled A/B
+for the context layer, replication on an external codebase, and held-out grading. Every published
+benchmark found in the code-intelligence category measures *efficiency* ("70% fewer tokens"),
+which answers *how cheap*, not *is it right*.
+
+> This line and the matrix's own summary **disagreed** until 2026-08-21 — 11 here against 16
+> there, for the same table, and the answer was 22 at the time. Both are now derived by
+> `python scripts/matrix-count.py --check`, which fails if either drifts again. The count was
+> the one number on this page nobody could re-run, which is why it was the one that rotted.
 
 **Behind, and not disputed:** language breadth (8 against 21–40 for the graph-only tools) and
 adoption by orders of magnitude.
@@ -77,7 +210,7 @@ adoption by orders of magnitude.
 tenant-scoping sites, cross-tenant reads return 404), but the role check `has_role` is called at
 **exactly one site**, the approval decision.
 
-## 5. How Spine is adopted, without entering anyone's build image
+## 6. How Spine is adopted, without entering anyone's build image
 
 Spine is never a dependency of the project it works on. It operates on a checkout from outside.
 
@@ -98,7 +231,7 @@ for build and test, Spine installed at job time.
 **Known gap for the central mode: there is no Dockerfile or published image in this repo.** Going
 central today means building that image yourself.
 
-## 6. The active programme — GraphIR as the SDLC workflow
+## 7. The GraphIR programme — Phases 1–3 delivered, Phase 4 closed unshipped
 
 Spine runs **two orchestration systems that never touch each other**: `sdlc/autorun.py` is an
 imperative pipeline, and GraphIR + planner + verifier chain + Temporal is a typed, replannable
@@ -124,7 +257,7 @@ bound to — without converting a deterministic stage into a model call.
 | **2a** | IR executes; Evidence consumed; criteria bound; `RunContext` → typed Case | **defects 2, 3, 4** | ✅ **COMPLETE 2026-08-18** |
 | **2b** | `design` promoted to hybrid — validator, then `_llm_design`, then measure | none | ✅ **COMPLETE 2026-08-19 — promotion declined, measured** |
 | 3 | Issue-type profiles as files a repo can carry | none — configurability | ✅ **COMPLETE 2026-08-19** |
-| 4 | Parallel fan-out + bounded replan | none | Not started |
+| **4** | Parallel fan-out + bounded replan | none | ❌ **NOT DELIVERED 2026-08-23 — both halves measured and declined; per-node wall-clock kept** |
 
 **Phase 2a shipped 2026-08-18 — every defect in the programme is now closed.** Evidence drives
 the run: `validity` judges the ticket against it, `design` is handed a blast radius keyed off
@@ -133,8 +266,31 @@ symbols instead of collapsing to filenames, and each acceptance criterion is bou
 `file:line` or refused. Gate: **20 runs / 5 commits, 0 unexplained verdict mismatches**, with 5
 new parks — all the one ticket naming a symbol no repository has.
 
-**Only Phase 4 remains** — parallel fan-out and the bounded replan loop, which is throughput
-rather than capability.
+**Phase 4 delivered neither half, and is closed rather than complete.** The gate said *wall-clock
+per ticket drops*; the research nodes were timed first and only `investigate` (0.034s) and `rca`
+(0.057s) are independent, so the entire available saving is **~30ms** of a ~2.3s pass. Preflight
+is serial too, but cold `mypy` is 16.3s against ruff's 0.1s; the coverage probes cannot be
+parallelised at all (each `git stash`es the shared worktree); and the fan-out with real
+wall-clock in it — one child workflow per issue, bounded by `max_parallel_features` — shipped
+before the phase was written.
+
+**The bounded replan was built and then reverted**, which is the more useful half of the story.
+`Budget.max_replan_count` was honoured, a repair loop fed refused references back into the design
+node, and six tests passed. Then the trigger was probed: `validate_design` refused **0 of 6** real
+specs, including one naming `made_up_pkg/thing.py`. `_fallback_design`'s three sources cannot
+fabricate — stated paths are filesystem-filtered, and the other two come from the graph — and the
+one producer that could, `_llm_design`, is switched off because 2b declined that promotion. **The
+budget could not be spent.** Underneath that: re-running a deterministic producer returns the same
+answer, so a replan loop only means anything for a non-deterministic one. Every test had
+`monkeypatch`ed the producer to manufacture the failure, so the mechanism was verified and the
+trigger never was — internally perfect, externally inert, which is the failure §3 of this page
+describes in another form.
+
+**What was kept:** per-node wall-clock in the `Case` (every row read `0.00s` before, which made
+"where did the time go" unanswerable from the artifact built to answer it), and two parallel-shape
+validator rules that do not fire today but close a real hole — `_check_sequential_shape` inspects
+only the agent condensation, so a fan-out over `tool` nodes passed validation with nothing having
+looked at it. Detail: [`graphir-sdlc-workflow.md`](graphir-sdlc-workflow.md), Phase 4.
 
 **Phase 3 shipped 2026-08-19.** Three profiles — `default`, `bug`, `enhancement` — chosen from
 the ticket's issue type by a deterministic lookup, never a model. A repo may carry its own in
@@ -172,7 +328,7 @@ Full record: [`graphir-sdlc-workflow.md`](graphir-sdlc-workflow.md). Its governi
 be demoted to deterministic freely, and promoted to model only with a measurement, a validator on
 its output edge, and inside the model-call budget.
 
-## 7. Outstanding, everything else
+## 8. Outstanding, everything else
 
 | Item | State |
 |---|---|
@@ -189,7 +345,7 @@ its output edge, and inside the model-call budget.
 | G4 adoption — friction audit | ✅ **Phase 1 done 2026-08-19** — ≈28s cold start, no key; channels/proof/measurement outstanding |
 | `episteme.yml` main-branch path produces orphan branches | ✅ **fixed 2026-08-19** — regeneration is `develop`-only; `main` inherits the bank verbatim |
 
-## 8. The failure mode this project keeps having
+## 9. The failure mode this project keeps having
 
 Worth stating once, because it explains most of the corrections in this document's history.
 

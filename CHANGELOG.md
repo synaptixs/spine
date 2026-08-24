@@ -52,6 +52,56 @@ All notable changes to this project are documented here. Format loosely follows
   may sit on one: two model calls in flight can each pass the run budget check and jointly
   overrun it.
 
+### Added — a technical section on the PKG in `STATE-OF-SPINE.md`
+
+- **New §3, written for engineers:** what the PKG is (8 node kinds, 11 edge kinds, `file:line`
+  provenance on every fact), **AST vs CST and why Spine uses both** — CPython's own `ast` for
+  Python because it is the parser that *runs* the code, tree-sitter CSTs for the six compiled
+  languages because they are error-tolerant and community-maintained, `sqlglot` for SQL — and
+  then the part that answers *why any of it matters*: the failure mode is **silence, not
+  fiction**; determinism is what makes `understand --check` and commit-keyed caching possible at
+  all; provenance is what makes a downstream claim falsifiable; and the graph is measurably what
+  makes the delivery half work (47/68 vs 3/68, control 122/124).
+- **The `_resolve_call` invention bug is carried into it as the argument**, because it is the
+  clearest evidence for the trade: inventing an id for unresolved names produced **497 fabricated
+  edges on this repo (3.16% of the call graph)** and 14.8% in Flask, and `pkg verify` reported
+  **0 dangling edges the whole time** because the inventor created the phantom node too. A graph
+  can be internally perfect and externally false.
+
+### Fixed — "real parser, never regex" was three cases too strong
+
+- The capability matrix scored that row ✅ unqualified. Three narrow regex fallbacks exist:
+  `java`/`csharp` recover the one-line `package`/`namespace` declaration to *name* a module the
+  parser already found, and `sql` recovers `CALL`/`PERFORM proc()` — which sqlglot collapses into
+  opaque `Command` nodes — as **real `CALLS` edges**. Only the third emits facts, and its corpus
+  evidence is **one labelled call edge**, so SQL call accuracy is now quoted with its
+  denominator. The row stays ✅ with footnote ¹⁰; the claim it is scored against — *structure is
+  parsed, not pattern-matched* — holds.
+
+### Fixed — the documents that say where Spine stands were disagreeing with each other
+
+- **The capability matrix's headline count was wrong in both places that quoted it.**
+  `capability-matrix.md` said **16 rows where Spine stands alone**; `STATE-OF-SPINE.md` said
+  **11**, for the same table on the same day. Counting it gives **22 of 47**. Both documents
+  open by warning that a hand-authored matrix in this project was once 22% wrong with nothing
+  failing — and neither was exempt.
+- **`scripts/matrix-count.py` derives the count instead**, and `--check` fails when the prose
+  drifts from the table. Wired into CI beside the architecture-diagram check, and proved able to
+  fail three ways — a wrong count in either document, and a row added to the table.
+- **`competitive-landscape.md` carried a second, older copy of the matrix** that had drifted
+  from the real one on four cells, three of which made Spine look *worse* than the source
+  supports. The duplicate is gone; that file is the narrative and `capability-matrix.md` is the
+  matrix. Its RBAC cell was the one the matrix records as **corrected twice** — it was wrong
+  there for a third time because nothing connected the two files.
+- **`SPEC-INDEX.md` was missing five specs** while describing itself as the complete inventory —
+  including the capability matrix itself and both measurements it cites as evidence. Its spec
+  count read **63** against **70** on disk. Both fixed, and the count is now stated as a command.
+- **`preflight-baseline-diff.md` still read "Proposed — awaiting approval"** — it shipped, with
+  `Baseline`, `capture_baseline` and 11 tests. Fourth instance of the failure `SPEC-INDEX.md`
+  exists to catch, and it was in none of them because the spec was not indexed.
+- **Test-count drift in `STATE-OF-SPINE.md`** — 2,569 across 293 files, re-measured at **2,598
+  across 297**.
+
 ## 3.21.0 — The right research for the ticket, and a first run that asks for nothing
 
 A small release with one theme: **fewer steps between someone new and a useful answer**, and
