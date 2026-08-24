@@ -4,6 +4,54 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## Unreleased
+
+### Changed — GraphIR Phase 4 closed without shipping either half
+
+- **The parallel fan-out was measured and declined.** Timed on this repo's own graph, only
+  `investigate` (0.034s) and `rca` (0.057s) are independent, so the entire available saving is
+  **~30ms** of a ~2.3s research pass — and collecting it means putting two synchronous tools on
+  threads over a shared `FactStore`. Preflight is serial too, but cold `mypy` is **16.3s**
+  against ruff's 0.1s. The coverage probes cannot be parallelised at all: each `git stash`es the
+  shared worktree. And the fan-out with real wall-clock in it — one child workflow per issue,
+  bounded by `max_parallel_features` — shipped long before this phase was written.
+- **The bounded replan was built, then reverted as unreachable.** `Budget.max_replan_count` was
+  honoured by `autorun`, a repair loop fed the design validator's refused references back as a
+  bar, and six tests passed. Probing the *trigger* rather than the mechanism showed
+  `validate_design` refuses **0 of 6** real specs — including one naming `made_up_pkg/thing.py`.
+  `_fallback_design`'s three sources cannot fabricate: stated paths are filesystem-filtered when
+  `root` is given (and `autorun` always gives it), while landing and overview files come from the
+  graph. The one producer that could fabricate, `_llm_design`, is off because **3.20.0 declined
+  that promotion**. The budget could not be spent.
+- **Underneath it: re-running a deterministic producer returns the same answer**, so a replan
+  loop only means anything for a non-deterministic one. This half was never deliverable while
+  `design` stays deterministic. Every test had `monkeypatch`ed the producer to manufacture the
+  failure, so the mechanism was verified and the trigger never was — internally perfect,
+  externally inert.
+- **Reverted with it:** `produce_design(exclude=...)`, `max_replan_count: 2` in the three
+  profiles (back to `0`), `Case.attempts`, and `IRValidator.check_structure_preserving`, whose
+  only purpose was guarding the replanner.
+
+### Added — per-node wall-clock in the Case
+
+- **Every node row read `0.00s`.** No `case.record(...)` call passed `seconds=`, so *"where did
+  the time go"* was unanswerable from the artifact built to answer it. All five recorded nodes —
+  the three research tools, the validity gate and the design node — are now timed, and
+  `Case.seconds` sums the rows. Deliberately **not** the run's duration: `autorun` does work
+  between nodes that no node owns, and reporting it as the run's would credit the graph with
+  time it never spent. Excluded from `Case.digest()`, like `cost_usd`: a clock may be reported,
+  never computed with.
+
+### Added — parallel-shape rules in the IR validator
+
+- **`parallel_reconvergence` and `parallel_determinism`.** No shipped profile declares a fan-out,
+  so **these do not fire today, and their tests say so.** They exist because
+  `_check_sequential_shape` inspects only the *agent* condensation, so a fan-out over `tool`
+  nodes passed validation **without anything having looked at it** — a concurrency capability
+  nobody declared and nothing verified. A branch must reconverge, and only deterministic nodes
+  may sit on one: two model calls in flight can each pass the run budget check and jointly
+  overrun it.
+
 ## 3.21.0 — The right research for the ticket, and a first run that asks for nothing
 
 A small release with one theme: **fewer steps between someone new and a useful answer**, and
