@@ -4,7 +4,7 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
-## Unreleased
+## 3.22.0 — Four front-ends stop asserting calls the source does not make
 
 ### Fixed — four front-ends fabricated a `CALLS` edge for a shadowed name
 
