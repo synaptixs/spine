@@ -32,6 +32,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 3 test): [`produce_design`](../../src/orchestrator/sdlc/design.py#L295), [`test_a_path_the_spec_names_is_used`](../../tests/sdlc/test_design.py#L308), [`test_a_spec_naming_nothing_still_falls_back_to_the_overview`](../../tests/sdlc/test_design.py#L369), [`test_the_risks_say_which_reading_produced_the_files`](../../tests/sdlc/test_design.py#L356)
 - **Calls** (3): [`_landing_files`](../../src/orchestrator/sdlc/design.py#L108), [`_overview_files`](../../src/orchestrator/sdlc/design.py#L136), [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L76)
+- **Documented in**: `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/graphir-sdlc-workflow.md#half-two-the-bounded-replan-built-then-reverted-as-unreachable`
 
 ### `_key`
 
@@ -52,7 +53,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 2 test): [`produce_design`](../../src/orchestrator/sdlc/design.py#L295), [`test_memory_bank_conventions_are_fenced_as_untrusted`](../../tests/sdlc/test_design.py#L89), [`test_the_design_model_answer_parses_out_of_a_fence`](../../tests/sdlc/test_design_validator.py#L146)
 - **Calls** (6): [`Message`](../../src/orchestrator/core/llm/client.py#L48), [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L2504), [`_normalise`](../../src/orchestrator/sdlc/design.py#L211), [`_structure_lines`](../../src/orchestrator/sdlc/design.py#L50), [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L44)
-- **Documented in**: `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#6-the-active-programme-graphir-as-the-sdlc-workflow`, `docs/specs/design-promotion-ab-results.md#consequences`, `docs/specs/design-promotion-ab-results.md#the-question-and-why-it-had-to-be-asked`, `docs/specs/design-promotion-ab-results.md#three-defects-the-pre-flight-found-for-about-250`, `docs/specs/graphir-sdlc-workflow.md#class-model`
+- **Documented in**: `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/design-promotion-ab-results.md#consequences`, `docs/specs/design-promotion-ab-results.md#the-question-and-why-it-had-to-be-asked`, `docs/specs/design-promotion-ab-results.md#three-defects-the-pre-flight-found-for-about-250`, `docs/specs/graphir-sdlc-workflow.md#class-model`
 
 ### `_load_context`
 
@@ -73,12 +74,14 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L170)
 - **Calls** (1): `split`
+- **Documented in**: `docs/specs/graphir-sdlc-workflow.md#half-two-the-bounded-replan-built-then-reverted-as-unreachable`
 
 ### `_stated_paths`
 
 [`src/orchestrator/sdlc/design.py:76`](../../src/orchestrator/sdlc/design.py#L76)
 
 - **Called by** (1 production · 4 test): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L170), [`test_a_stated_path_that_does_not_exist_is_dropped`](../../tests/sdlc/test_design.py#L328), [`test_duplicate_mentions_are_listed_once`](../../tests/sdlc/test_design.py#L344), [`test_stated_paths_are_taken_as_written_without_a_root`](../../tests/sdlc/test_design.py#L337), [`test_technical_notes_are_read_too`](../../tests/sdlc/test_design.py#L319)
+- **Documented in**: `docs/specs/graphir-sdlc-workflow.md#half-two-the-bounded-replan-built-then-reverted-as-unreachable`
 
 ### `_structure_lines`
 
@@ -97,7 +100,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:295`](../../src/orchestrator/sdlc/design.py#L295)
 
-- **Called by** (5 production · 5 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L870), [`build_design`](../../scripts/codegen_benchmark.py#L1615), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1127), [`design`](../../src/orchestrator/cli.py#L2283), [`design_feature`](../../src/orchestrator/sdlc/design.py#L343), [`test_a_design_that_cannot_tell_says_so_and_proposes_nothing`](../../tests/sdlc/test_design.py#L253), [`test_heuristic_files_come_from_where_the_ticket_lands`](../../tests/sdlc/test_design.py#L232), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_the_design_agrees_with_the_investigation`](../../tests/sdlc/test_design.py#L269)
+- **Called by** (5 production · 5 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L882), [`build_design`](../../scripts/codegen_benchmark.py#L1615), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1127), [`design`](../../src/orchestrator/cli.py#L2283), [`design_feature`](../../src/orchestrator/sdlc/design.py#L343), [`test_a_design_that_cannot_tell_says_so_and_proposes_nothing`](../../tests/sdlc/test_design.py#L253), [`test_heuristic_files_come_from_where_the_ticket_lands`](../../tests/sdlc/test_design.py#L232), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_the_design_agrees_with_the_investigation`](../../tests/sdlc/test_design.py#L269)
 - **Calls** (5): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L170), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L224), [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L142), `suppress`, [`to_dict`](../../src/orchestrator/sdlc/impact.py#L187)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/design-promotion-ab-results.md#three-defects-the-pre-flight-found-for-about-250`
 
@@ -105,7 +108,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:272`](../../src/orchestrator/sdlc/design.py#L272)
 
-- **Called by** (4 production · 3 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L870), [`build_design`](../../scripts/codegen_benchmark.py#L1615), [`design`](../../src/orchestrator/cli.py#L2283), [`design_feature`](../../src/orchestrator/sdlc/design.py#L343), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_render_design_md_sections`](../../tests/sdlc/test_design.py#L204)
+- **Called by** (4 production · 3 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L882), [`build_design`](../../scripts/codegen_benchmark.py#L1615), [`design`](../../src/orchestrator/cli.py#L2283), [`design_feature`](../../src/orchestrator/sdlc/design.py#L343), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_render_design_md_sections`](../../tests/sdlc/test_design.py#L204)
 - **Calls** (1): [`render_md`](../../src/orchestrator/sdlc/impact.py#L216)
 
 ## Imports

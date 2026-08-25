@@ -197,7 +197,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/builddoc.py:270`](../../src/orchestrator/sdlc/builddoc.py#L270)
 
-- **Called by** (1 production · 2 test): [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L936), [`test_agreement_says_nothing`](../../tests/sdlc/test_builddoc.py#L633), [`test_disagreement_names_both_directions`](../../tests/sdlc/test_builddoc.py#L625)
+- **Called by** (1 production · 2 test): [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L950), [`test_agreement_says_nothing`](../../tests/sdlc/test_builddoc.py#L633), [`test_disagreement_names_both_directions`](../../tests/sdlc/test_builddoc.py#L625)
 - **Documented in**: `docs/specs/build-document.md#phase-5-the-journey-built`
 
 ### `journey_path`
