@@ -8,6 +8,11 @@
 of grounded PKG nodes; the top hits become `Landing` records carrying `file:line`, kind, owning
 module and caller count — deterministically, with no model involved after the spec exists.
 
+**The consequence, stated up front (§7):** everything runs on the ticket's own words, so a
+ticket that names nothing the codebase uses cannot produce good landing sites. What it produces
+instead is a **refusal** — an empty brief, or a criterion that cannot be bound and parks the run
+— not a plausible change built on nothing.
+
 ---
 
 ## 1. The chain
@@ -155,7 +160,62 @@ measured*. That metric is the first phase of
 [`gap6-benchmarks-roadmap.md`](gap6-benchmarks-roadmap.md), and until it exists this section is
 a description of a mechanism rather than a claim about its accuracy.
 
-## 7. Two variants worth knowing
+## 7. Ticket quality sets the ceiling — and the floor is a refusal, not a bad change
+
+Everything above runs on the ticket's own words. **A vague ticket cannot produce good landing
+sites, and no amount of graph quality compensates**: the retriever's entire view of the problem
+is the title and problem statement intake distilled, and if those contain no term the codebase
+uses, there is nothing to match against. Input quality bounds output quality, and it bounds it
+at the first step.
+
+**But the classic phrasing is wrong for this system.** Garbage in does not produce garbage out
+here; it produces a *stop*. That distinction is the whole point of the design, and it is worth
+being precise about how a thin ticket actually degrades:
+
+| What the ticket lacks | What happens |
+|---|---|
+| Any term the code uses | `landing` is **empty**, `areas` is empty, and the brief says so — it does not offer a plausible-looking guess |
+| A clear problem statement | Intake's spec is thin, so the query is thin; the hits that survive are generic and their caller counts are the only signal left |
+| Anything a criterion can bind to | The criterion cannot be bound to a `file:line`, and **the ticket is refused** rather than built |
+| A real target, but named only by symptom | Hits land in the wrong area, and `validity` — judging the ticket against that Evidence — is the stage that can **park the run before code is written** |
+
+So the honest failure mode is **an expensive no**, not a confident wrong answer. That is
+deliberate and it is the same trade the graph makes everywhere: a missing fact sends a human
+looking, a fabricated one sends them somewhere unrelated with full confidence. A pipeline that
+produced a plausible change from an unclear ticket would be worse than one that stops, because
+the plausible change still has to be reviewed by someone who now has to work out that the
+premise was wrong.
+
+**What that costs, stated rather than implied:** a thin ticket still spends the intake model
+call and a full extraction before it parks. The refusal is cheap relative to reviewing a bad
+change, not free.
+
+### What makes a ticket land well
+
+Nothing exotic — it is the same thing that makes a ticket good for a human engineer, which is
+the point:
+
+- **Name things the way the code does.** One real identifier — a class, a function, an endpoint
+  path, a config key — is worth several paragraphs of description, because the tokeniser matches
+  names and nothing else.
+- **Paste the evidence.** A stack trace, a log line, a failing request. These are dense with
+  exactly the identifiers the retriever is built to find.
+- **Say what should be true afterwards.** Acceptance criteria that name observable behaviour
+  can be bound to a symbol; criteria that describe a feeling cannot, and will refuse the ticket.
+- **Describe the mechanism, not only the symptom.** *"Customers are charged twice"* is a
+  symptom. Adding *"the retry path re-submits the payment"* gives the retriever something a
+  codebase actually names.
+- **One change per ticket.** Landing sites are ranked over the whole spec; two unrelated
+  problems in one ticket split the token budget and dilute both.
+
+**This is not a workaround for a weak retriever.** A ticket that names nothing in the system it
+is about is under-specified for a human too — the difference is that a human will go and ask,
+and this pipeline will stop. Improving the retriever (semantic matching, embeddings) would raise
+the ceiling on vague tickets, but it would also reintroduce guessing into the one path that is
+currently deterministic, which is a trade nobody has measured yet — see
+[`gap6-benchmarks-roadmap.md`](gap6-benchmarks-roadmap.md).
+
+## 8. Two variants worth knowing
 
 - **`api_surface(text)`** — the same query, but every `Module` hit is expanded into its grounded
   `Type`/`Function` children. A module that matches a ticket is usually a *container* of the
@@ -164,7 +224,7 @@ a description of a mechanism rather than a claim about its accuracy.
   ranges, find the enclosing symbols and their callers, flagging **cross-file** callers, which
   are the ones a diff can silently break.
 
-## 8. If you are extending this
+## 9. If you are extending this
 
 - **Add facts, not heuristics.** If retrieval needs to know something new, extend `facts.py` and
   the front-ends. Scoring more cleverly over facts that were never extracted is a second, worse
