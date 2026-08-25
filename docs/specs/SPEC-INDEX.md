@@ -118,6 +118,7 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | [capability-matrix](capability-matrix.md) | **The** capability matrix — 47 scored rows, 22 of them rows no competitor's public docs fill. Counts checked by `scripts/matrix-count.py --check` (2026-08-21) |
 | [codegen-model-comparison-results](codegen-model-comparison-results.md) · [external-repo-grounding-results](external-repo-grounding-results.md) | The two measurements behind the matrix's ⁴ rows — 200 and 60 ticket-runs (2026-08-16) |
 | [parsing-and-the-pkg](parsing-and-the-pkg.md) | How source becomes graph facts, front-end by front-end (2026-08-16) |
+| [ticket-to-landing-sites](ticket-to-landing-sites.md) | How a ticket's words become `file:line` landing sites — tokenising, scoring, and what the result is bound to (2026-08-25) |
 | [competitive-landscape](competitive-landscape.md) | Competitive **narrative and strategy** (2026-08-21). Its duplicate scored matrix was removed — see `capability-matrix.md` |
 | [graphify-vs-spine-comparison](graphify-vs-spine-comparison.md) | One competitor in depth — **at v3.7.0, stale** |
 | [cli-test-plan](cli-test-plan.md) | 50 commands, written against 3.16.0 |
