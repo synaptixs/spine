@@ -31,7 +31,7 @@ flowchart LR
 ## Modules
 
 - [`orchestrator.intake`](../../src/orchestrator/intake/__init__.py#L1)
-- [`orchestrator.intake.adf`](../modules/orchestrator.intake.adf.md)
+- [`orchestrator.intake.adf`](../../src/orchestrator/intake/adf.py#L1)
 - [`orchestrator.intake.backlog_doc`](../../src/orchestrator/intake/backlog_doc.py#L1)
 - [`orchestrator.intake.cache`](../../src/orchestrator/intake/cache.py#L1)
 - [`orchestrator.intake.confluence`](../../src/orchestrator/intake/confluence.py#L1)

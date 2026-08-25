@@ -36,7 +36,7 @@ flowchart LR
 - [`orchestrator.codereview.models`](../../src/orchestrator/codereview/models.py#L1)
 - [`orchestrator.codereview.reviewer`](../modules/orchestrator.codereview.reviewer.md)
 - [`orchestrator.codereview.semgrep`](../../src/orchestrator/codereview/semgrep.py#L1)
-- [`orchestrator.codereview.verifiers`](../modules/orchestrator.codereview.verifiers.md)
+- [`orchestrator.codereview.verifiers`](../../src/orchestrator/codereview/verifiers.py#L1)
 - [`orchestrator.codereview.webhook`](../../src/orchestrator/codereview/webhook.py#L1)
 
 ## Depends on
