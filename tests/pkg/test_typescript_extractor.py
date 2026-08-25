@@ -244,3 +244,67 @@ def test_relative_import_joins_to_the_first_party_module(tmp_path: Path) -> None
     mods = {n.id for n in batch.nodes if n.kind is NodeKind.MODULE}
     assert "ts:app/model/thing" in mods, mods
     assert "ts:./model/thing" not in mods, "raw specifier survived as a module id"
+
+
+# ---- shadowed calls: a name the caller bound itself ------------------------
+#
+# `local_funcs` and `imports` hold the FILE-level binding of a name. When a parameter, local
+# or closure argument shadows one, resolving through those tables asserts a call to a
+# definition the source never reaches — and the target is a real node, so nothing dangled and
+# `pkg verify` stayed silent. Measured across 11 public repositories before the fix; the
+# guard is `corpus/typescript/shadowed_calls`.
+
+
+def _calls(tmp_path: Path, src: str) -> set[tuple[str, str]]:
+    batch, _ = _facts(tmp_path, src, "dispatch.ts")
+    return {(e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.CALLS}
+
+
+def test_a_parameter_shadowing_a_module_function_emits_no_call(tmp_path: Path) -> None:
+    src = (
+        "export function handle(): number { return 1; }\n"
+        "export function run(handle: () => number): number { return handle(); }\n"
+        "export function direct(): number { return handle(); }\n"
+    )
+    calls = _calls(tmp_path, src)
+    assert ("ts:dispatch.run", "ts:dispatch.handle") not in calls
+    assert ("ts:dispatch.direct", "ts:dispatch.handle") in calls  # the control
+
+
+def test_a_closure_parameter_shadows_an_import(tmp_path: Path) -> None:
+    """`hook.forEach(h => h(...args))` — the one fabricated edge found in vue/core."""
+    src = (
+        'import { h } from "@vue/runtime-core";\n'
+        "export function callHook(hook: Function[]): void {\n"
+        "  hook.forEach(h => h());\n"
+        "}\n"
+        "export function render(): void { h(); }\n"
+    )
+    calls = _calls(tmp_path, src)
+    assert ("ts:dispatch.callHook", "ts:@vue/runtime-core:h") not in calls
+    assert ("ts:dispatch.render", "ts:@vue/runtime-core:h") in calls
+
+
+def test_a_destructuring_default_is_not_a_binding(tmp_path: Path) -> None:
+    """`{ arg: slot = makeDefault() }` binds `slot`, not `makeDefault`.
+
+    Reading the default expression as a pattern would silently drop every later call to that
+    name — the same class of error as the invention, pointing the other way.
+    """
+    src = (
+        "export function makeDefault(): number { return 0; }\n"
+        "export function build(node: any): number {\n"
+        "  const { arg: slot = makeDefault() } = node;\n"
+        "  return slot + makeDefault();\n"
+        "}\n"
+    )
+    assert ("ts:dispatch.build", "ts:dispatch.makeDefault") in _calls(tmp_path, src)
+
+
+def test_a_function_types_own_parameter_names_bind_nothing(tmp_path: Path) -> None:
+    """`cb: (nested: string) => void` declares `nested` inside a type. Nothing binds it."""
+    src = (
+        "export function nested(): void {}\n"
+        "export function outer(cb: (nested: string) => void): void { nested(); }\n"
+    )
+    assert ("ts:dispatch.outer", "ts:dispatch.nested") in _calls(tmp_path, src)

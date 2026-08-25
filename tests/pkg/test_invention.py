@@ -260,44 +260,36 @@ def _one_language(tmp_path: Path, language: str) -> LanguageInvention:
     return next(e for e in report.by_language if e.language == language)
 
 
-def test_typescript_shadowed_parameter_is_invention(tmp_path: Path) -> None:
-    entry = _one_language(tmp_path, "typescript")
-    assert len(entry.invented) == 1
-    assert entry.invented[0].dst == "ts:a.send"
-    assert entry.invented[0].line == 2
+@pytest.mark.parametrize("language", sorted(_SHADOW_CASES))
+def test_the_shadowed_call_is_no_longer_emitted(tmp_path: Path, language: str) -> None:
+    """Each front-end now refuses the shadowed name, so the oracle has nothing to report.
 
-
-def test_go_shadowed_parameter_is_invention(tmp_path: Path) -> None:
-    entry = _one_language(tmp_path, "go")
-    assert len(entry.invented) == 1
-    assert entry.invented[0].name == "Send"
-
-
-def test_csharp_shadowed_parameter_is_invention(tmp_path: Path) -> None:
-    entry = _one_language(tmp_path, "csharp")
-    assert len(entry.invented) == 1
-    assert entry.invented[0].dst == "csharp:A.Send"
-
-
-def test_cpp_shadowed_function_pointer_is_invention(tmp_path: Path) -> None:
-    entry = _one_language(tmp_path, "cpp")
-    assert len(entry.invented) == 1
-    assert entry.invented[0].dst == "cpp:send"
-
-
-def test_the_honest_call_in_the_same_file_is_never_flagged(tmp_path: Path) -> None:
-    """Each fixture's third function calls the same name without shadowing it.
-
-    If this ever fails the oracle is accusing correct code, which is worse than missing the
-    defect: the front-ends would then be 'fixed' into dropping real edges.
+    Written while the defect was live, when each of these reported exactly 1. Inverted with
+    the fix rather than deleted: an oracle that only ever returns 0 is indistinguishable from
+    one that is not running, and this is the pair that tells them apart — the front-end drops
+    the edge, and the detector that found it agrees.
     """
-    for language in _SHADOW_CASES:
-        case = tmp_path / language
-        case.mkdir()
-        entry = _one_language(case, language)
-        callers = {i.src for i in entry.invented}
-        assert len(callers) == 1, language
-        assert next(iter(callers)).lower().endswith("outer"), language
+    entry = _one_language(tmp_path, language)
+    assert entry.status == MEASURED
+    assert entry.invented == ()
+    assert entry.shadowable > 0, "nothing was examined — the oracle is not running"
+
+
+@pytest.mark.parametrize("language", sorted(_SHADOW_CASES))
+def test_the_unshadowed_sibling_keeps_its_edge(tmp_path: Path, language: str) -> None:
+    """The fix must skip the shadowed call only.
+
+    Each fixture's third function calls the same name without shadowing it. A front-end that
+    passed the test above by dropping every bare call would fail this one — which is how the
+    47 removed edges were shown to be exactly the 47 fabrications and nothing else.
+    """
+    name, source, extra = _SHADOW_CASES[language]
+    pytest.importorskip(extra, reason=f"install the '{language}' extra")
+    (tmp_path / name).write_text(source, encoding="utf-8")
+    batch = RepoCodeExtractor().extract(tmp_path)
+    callers = {e.src for e in batch.edges if e.kind is EdgeKind.CALLS}
+    assert len(callers) == 1, f"{language}: expected exactly the honest caller, got {callers}"
+    assert next(iter(callers)).lower().endswith("honest"), language
 
 
 def test_c_is_the_control_and_stays_clean(tmp_path: Path) -> None:

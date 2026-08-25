@@ -292,6 +292,7 @@ class GoExtractor:
         calls to a same-file package function, and `recv.M()` to a method of the receiver's
         own type. Everything else (cross-package, interface values, other objects) is left
         unresolved rather than guessed."""
+        bound = _bound_names(body.node, source)
         for call in _all_of_type(body.node, "call_expression"):
             fn = call.child_by_field_name("function")
             if fn is None:
@@ -299,6 +300,11 @@ class GoExtractor:
             target: str | None = None
             if fn.type == "identifier":
                 name = _text(fn, source)
+                # A name this function bound itself shadows the package-level function for the
+                # rest of the block. `local_funcs` still holds that package-level name, so
+                # resolving it would assert a call the source does not make.
+                if call.start_point[0] + 1 >= bound.get(name, 1 << 30):
+                    continue
                 if name in local_funcs:
                     target = f"{module_id}.{name}"
             elif fn.type == "selector_expression":
@@ -409,6 +415,64 @@ def _descendants(node: TSNode, type_name: str) -> list[TSNode]:
         else:
             stack.extend(n.named_children)
     return out
+
+
+def _bound_names(body: TSNode, source: bytes) -> dict[str, int]:
+    """Names this function binds, each with the first line it is in scope.
+
+    **The line is not decoration — Go's spec requires it.** The scope of a short variable
+    declaration begins at the *end* of the statement, so
+
+        cmd := cmd(binaryPath, logger, args)
+
+    calls the package-level ``cmd`` and binds a local of the same name for everything below.
+    Binding it from the top of the function would drop that edge — it occurs 5 times in
+    grpc-go alone. Parameters, which have no such rule, bind from the function header.
+
+    Deliberately narrow: only forms that *bind*. A plain ``=`` assigns to something already
+    declared and is not included, and neither is the right-hand side of anything.
+    """
+    bound: dict[str, int] = {}
+
+    def bind(name: str, line: int) -> None:
+        if name and name != "_" and line < bound.get(name, 1 << 30):
+            bound[name] = line
+
+    header = body.parent
+    if header is not None:
+        for fname in ("receiver", "parameters", "result", "type_parameters"):
+            plist = header.child_by_field_name(fname)
+            if plist is None:
+                continue
+            # Direct children only: `Send func(string)` nests a `parameter_list` under its
+            # `type`, and those inner names are bound nowhere.
+            for decl in plist.named_children:
+                for i, child in enumerate(decl.children):
+                    if child.is_named and decl.field_name_for_child(i) == "name":
+                        bind(_text(child, source), header.start_point[0] + 1)
+
+    stack = list(body.named_children)
+    while stack:
+        n = stack.pop()
+        after = n.end_point[0] + 2
+        if n.type == "short_var_declaration":
+            for ident in _all_of_type(n.child_by_field_name("left") or n, "identifier"):
+                bind(_text(ident, source), after)
+        elif n.type in ("var_spec", "const_spec"):
+            for i, child in enumerate(n.children):
+                if child.is_named and n.field_name_for_child(i) == "name":
+                    bind(_text(child, source), after)
+        elif n.type == "range_clause":
+            for ident in _all_of_type(n.child_by_field_name("left") or n, "identifier"):
+                bind(_text(ident, source), n.end_point[0] + 1)
+        elif n.type == "func_literal":  # a closure's own parameters, descended into below
+            plist = n.child_by_field_name("parameters")
+            for decl in plist.named_children if plist is not None else []:
+                for i, child in enumerate(decl.children):
+                    if child.is_named and decl.field_name_for_child(i) == "name":
+                        bind(_text(child, source), n.start_point[0] + 1)
+        stack.extend(n.named_children)
+    return bound
 
 
 def _all_of_type(node: TSNode, type_name: str) -> list[TSNode]:

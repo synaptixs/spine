@@ -286,11 +286,25 @@ class CppExtractor:
 
     def _calls(self, caller: str, type_id: str | None, body: TSNode, ctx: _Ctx) -> None:
         siblings = ctx.type_methods.get(type_id or "", set())
+        bound = _bound_names(body, ctx.source)
         stack = list(body.named_children)
         while stack:
             n = stack.pop()
             if n.type == "call_expression":
                 fn = n.child_by_field_name("function")
+                line = n.start_point[0] + 1
+                if (
+                    fn is not None
+                    and fn.type == "identifier"
+                    and line >= bound.get(_text(fn, ctx.source), 1 << 30)
+                ):
+                    # Called through a function pointer, a `std::function` or a lambda this
+                    # function bound. `_resolve_callee` name-keys an unresolved identifier to
+                    # `cpp:<name>` — correct for a function declared in a header, wrong here:
+                    # the callee is whatever the caller passed in. 46 of the 47 edges the
+                    # cross-language invention oracle found were this shape.
+                    stack.extend(n.named_children)
+                    continue
                 target = _resolve_callee(fn, ctx.source, siblings, type_id, ctx.free_funcs)
                 if target is not None:
                     ctx.batch.add_edge(
@@ -330,6 +344,102 @@ def _member(type_id: str, name: str, kind: NodeKind, line: int, ctx: _Ctx) -> No
     mid = f"{type_id}::{name}"
     ctx.batch.add_node(Node(mid, kind, name, "cpp", Provenance(ctx.rel, line)))
     ctx.batch.add_edge(Edge(type_id, mid, EdgeKind.CONTAINS, Provenance(ctx.rel, line)))
+
+
+# Declarator wrappers, in the order the grammar nests them: `int (*handle)()` is
+# function_declarator → parenthesized_declarator → pointer_declarator → identifier.
+_DECLARATOR_WRAPPERS = frozenset(
+    {
+        "init_declarator",
+        "pointer_declarator",
+        "reference_declarator",
+        "array_declarator",
+        "function_declarator",
+        "parenthesized_declarator",
+        "abstract_function_declarator",
+    }
+)
+
+
+def _declared_name(node: TSNode | None, source: bytes) -> str:
+    """The innermost declared name of a declarator, or ``""`` for an abstract one.
+
+    Followed through the ``declarator`` field only. Descending into ``parameters`` would bind
+    the parameter names of a function *pointer* — in `void f(void (*cb)(const char *x))`, `x`
+    names a parameter of the pointed-to function and is bound nowhere.
+    """
+    cur = node
+    for _ in range(32):  # a declarator cannot nest meaningfully deeper
+        if cur is None:
+            return ""
+        if cur.type in ("identifier", "field_identifier", "qualified_identifier"):
+            return _text(cur, source)
+        if cur.type not in _DECLARATOR_WRAPPERS:
+            return ""
+        nxt = cur.child_by_field_name("declarator")
+        if nxt is None and cur.type in (
+            "parenthesized_declarator",
+            "reference_declarator",
+            "pointer_declarator",
+        ):
+            nxt = cur.named_children[0] if cur.named_children else None
+        cur = nxt
+    return ""
+
+
+def _bound_names(body: TSNode, source: bytes) -> dict[str, int]:
+    """Names this function binds, each with the first line it is in scope.
+
+    A callee in this map is reached through a pointer, a ``std::function`` or a lambda, so the
+    target is decided at run time and no id names it. The same test C has carried since it was
+    fixed there, and deliberately the same shape: *did this function bind the name*, not *can
+    we resolve it*. An unresolved callee in C++ is usually declared in a header and defined in
+    another translation unit, which is ordinary and must keep its ``cpp:name`` id.
+
+    The line is kept because a declaration's scope starts at its declarator: `auto f = f();`
+    calls the outer ``f``. Parameters bind from the function header.
+    """
+    bound: dict[str, int] = {}
+
+    def bind(name: str, line: int) -> None:
+        if name and line < bound.get(name, 1 << 30):
+            bound[name] = line
+
+    header = body.parent
+    if header is not None:
+        cur = header.child_by_field_name("declarator")
+        for _ in range(32):
+            if cur is None:
+                break
+            plist = cur.child_by_field_name("parameters")
+            if plist is not None:
+                for param in plist.named_children:
+                    bind(
+                        _declared_name(param.child_by_field_name("declarator"), source),
+                        header.start_point[0] + 1,
+                    )
+                break
+            cur = cur.child_by_field_name("declarator")
+
+    stack = list(body.named_children)
+    while stack:
+        n = stack.pop()
+        if n.type == "declaration":
+            for i, child in enumerate(n.children):
+                if child.is_named and n.field_name_for_child(i) == "declarator":
+                    bind(_declared_name(child, source), n.end_point[0] + 2)
+        elif n.type == "for_range_loop":
+            bind(_declared_name(n.child_by_field_name("declarator"), source), n.start_point[0] + 1)
+        elif n.type == "lambda_expression":  # a lambda's own parameters
+            declarator = n.child_by_field_name("declarator")
+            plist = declarator.child_by_field_name("parameters") if declarator is not None else None
+            for param in plist.named_children if plist is not None else []:
+                bind(
+                    _declared_name(param.child_by_field_name("declarator"), source),
+                    n.start_point[0] + 1,
+                )
+        stack.extend(n.named_children)
+    return bound
 
 
 def _resolve_callee(

@@ -131,3 +131,53 @@ def test_out_of_line_qualified_name_normalizes_whitespace(tmp_path: Path) -> Non
     assert "cpp:Conn::read" in by_id
     assert by_id["cpp:Conn::read"].name == "read"  # no embedded whitespace
     assert not any("\n" in n.id or "\n" in n.name for n in by_id.values())
+
+
+# ---- shadowed calls: a name the caller bound itself ------------------------
+#
+# `_resolve_callee` name-keys an unresolved identifier to `cpp:<name>`, which is right for a
+# function declared in a header and defined elsewhere — and wrong when the caller bound the
+# name itself, because then the callee is a pointer, a `std::function` or a lambda and is
+# decided at run time. 46 of the 47 edges found across 11 public repositories were this shape.
+# Guard: `corpus/cpp/shadowed_calls`.
+
+
+def _cpp_calls(tmp_path: Path, src: str) -> set[tuple[str, str]]:
+    _write(tmp_path, "src/dispatch.cpp", src)
+    batch = _extract(tmp_path, "src/dispatch.cpp")
+    return {(e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.CALLS}
+
+
+def test_a_function_pointer_parameter_shadowing_a_free_function_emits_no_call(
+    tmp_path: Path,
+) -> None:
+    src = (
+        "int handle() { return 1; }\n"
+        "int run(int (*handle)()) { return handle(); }\n"
+        "int direct() { return handle(); }\n"
+    )
+    calls = _cpp_calls(tmp_path, src)
+    assert ("cpp:run", "cpp:handle") not in calls
+    assert ("cpp:direct", "cpp:handle") in calls  # the control
+
+
+def test_a_local_lambda_shadows_a_free_function(tmp_path: Path) -> None:
+    """The fmt shape: `auto check = [](){...}; check();` — 43 edges in one file."""
+    src = "void check() {}\nvoid run() {\n  auto check = [](){ return 1; };\n  check();\n}\n"
+    assert ("cpp:run", "cpp:check") not in _cpp_calls(tmp_path, src)
+
+
+def test_a_callee_this_function_did_not_bind_keeps_its_name_keyed_id(tmp_path: Path) -> None:
+    """An unresolved call in C++ is usually a header declaration linked from another TU.
+
+    The test is 'did this function bind the name', not 'can we resolve it' — a Python-style
+    'skip anything unresolved' fix would silence every cross-translation-unit call.
+    """
+    src = "void run() {\n  external_helper();\n}\n"
+    assert ("cpp:run", "cpp:external_helper") in _cpp_calls(tmp_path, src)
+
+
+def test_a_function_pointer_parameters_own_names_bind_nothing(tmp_path: Path) -> None:
+    """In `void (*cb)(const char *x)`, `x` names a parameter of the pointed-to function."""
+    src = "void x() {}\nvoid run(void (*cb)(const char *x)) { x(); }\n"
+    assert ("cpp:run", "cpp:x") in _cpp_calls(tmp_path, src)

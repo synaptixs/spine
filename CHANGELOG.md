@@ -6,7 +6,7 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
-### Added — the invention oracle now walks six front-ends, and found a defect in four
+### Fixed — four front-ends fabricated a `CALLS` edge for a shadowed name
 
 - **`pkg accuracy --oracle invention` and `pkg verify` were Python-only, and said `0`.** The
   detector re-parsed with the stdlib `ast`, so on a TypeScript, Go, C++ or C# repository a zero
@@ -34,10 +34,31 @@ All notable changes to this project are documented here. Format loosely follows
   (Java — variables and methods have separate namespaces, JLS §6.5.7; SQL — no lexical scope),
   or `unwalked`. The denominator reported is **bare calls**, not all `CALLS`: only a bare call
   can be reached by a shadow.
-- **The front-ends are unchanged.** No `*_extractor.py` was touched; this measures only. Porting
-  C's fix to the other four, a `shadowed_calls` corpus case each, and moving `invention` to a
-  `strict`-at-zero gate (recorded as `target_gate` in `scoreboard.json`) are the phases after
-  this one.
+- **Fixed by porting C's test to the other four** — a local `_bound_names` per front-end,
+  answering *did this function bind the name*, never *can we resolve it*. The difference is the
+  design: an unresolved callee in C++ is usually a header declaration linked from another
+  translation unit, and a Python-style "skip anything unresolved" fix would have silenced every
+  cross-translation-unit call in every C++ repository. The oracle keeps its own independent
+  implementation — a detector that imports the code it audits agrees with that code's bugs.
+- **Each helper carries the first line a name is in scope**, because two of the four languages
+  require it. Go's spec starts a `:=` scope at the end of the statement, so `cmd := cmd(path)`
+  calls the package-level `cmd`; C and C++ read the same way. Binding from the top of the
+  function would have dropped those edges — 5 in grpc-go alone. C# tracks the bare-call form
+  separately: `this.Handle()` is an explicit member access and cannot be shadowed.
+- **Re-measured on the same 11 repositories: 0 everywhere, and 47 edges removed for 47
+  fabrications found.** vue/core −1, leveldb −3, fmt −43, every other repo unchanged. No true
+  edge was lost across 38,602 bare calls; grpc-go kept all 6,285 of its `CALLS`. Precision
+  rises, recall is untouched — these edges were never in any expected set.
+- **Four corpus cases** — `corpus/{typescript,go,cpp,csharp}/shadowed_calls`, modelled on
+  `corpus/c/function_pointers`. Each was written and scored **before** the fix and each failed
+  at the predicted point: `CALLS` precision 0.50, recall 1.00. Each pairs the shadowed call
+  with an unshadowed sibling in the same file, so a front-end cannot pass by dropping both.
+- **`invention` is now gated `strict` at zero per language** — the only metric gated on an
+  absolute value rather than against the baseline, because it is the only one with a correct
+  value. Comparing to a stored number would let a non-zero baseline become the thing everyone
+  agrees to live with. A language whose status is not `measured` is skipped; its 0 means *not
+  examined*. The gate is proved by making it fail, and the original objection is preserved: the
+  *rate* still moves freely, only the count is held at zero.
 
 ### Changed — GraphIR Phase 4 closed without shipping either half
 

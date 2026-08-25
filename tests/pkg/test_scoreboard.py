@@ -2,10 +2,12 @@
 
 The design decision under test is *which* metrics may be gated. Every number here is
 deterministic run-to-run; what differs is what each is measured **against**. Corpus scores
-come from committed fixtures and cannot move when someone writes code. Invention is measured
-against the repository itself and moves on ordinary commits — adding `def handler(cb):
-return cb()` took it from 496 to 497. Gating that fails blameless PRs, which is how a gate
-gets switched off.
+come from committed fixtures and cannot move when someone writes code. Parity is measured
+against the repository and ratchets. Invention is the odd one: its *rate* moves on ordinary
+commits — adding `def handler(cb): return cb()` took it from 496 to 497 — but its *count* has
+a correct value, zero, so it is gated absolutely rather than against a baseline. Gating the
+rate would fail blameless PRs, which is how a gate gets switched off; gating the count cannot,
+because there is no repository where a fabricated edge is acceptable.
 """
 
 from __future__ import annotations
@@ -26,8 +28,11 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 def _board(
-    *, matched: int = 8, emitted: int = 10, expected: int = 10, shortfall: int = 5, invented: int = 496
+    *, matched: int = 8, emitted: int = 10, expected: int = 10, shortfall: int = 5, invented: int = 0
 ) -> dict[str, Any]:
+    """A healthy board. `invented` defaults to 0 because a fabricated edge now fails the gate,
+    so a fixture carrying one would make every unrelated test in this file fail for the wrong
+    reason."""
     return {
         "version": 1,
         "metrics": {
@@ -40,7 +45,12 @@ def _board(
                 },
             },
             "parity": {"gated": "ratchet", "shortfall": shortfall, "surplus": 7},
-            "invention": {"gated": False, "count": invented, "total_calls": 15000},
+            "invention": {
+                "gated": "strict",
+                "count": invented,
+                "total_calls": 15000,
+                "languages": {"python": {"status": "measured", "invented": invented, "total_calls": 15000}},
+            },
         },
     }
 
@@ -82,14 +92,30 @@ def test_parity_shortfall_ratchets_one_way() -> None:
     assert any("parity" in i for i in scoreboard_improvements(_board(shortfall=5), _board(shortfall=4)))
 
 
-def test_invention_never_fails_the_build() -> None:
-    """The decision this phase turns on: measured against a moving population, so ungated.
+def test_invention_is_gated_at_zero_per_language() -> None:
+    """The decision this phase turns on, and the one it reversed.
 
-    One ordinary new file with a callback parameter moved it 496 -> 497. Gating it fails a
-    PR that adds a perfectly normal function.
+    Ungated until 2026-08-24 on the grounds that the population moves. That was right about
+    the *rate* and wrong about the *count*: a `CALLS` edge to a name the caller bound itself
+    is a defect at any commit, so there is nothing for a ratchet to ratchet.
     """
-    assert compare_scoreboard(_board(invented=496), _board(invented=5000)) == []
-    assert GATES["invention"] is False
+    assert GATES["invention"] == "strict"
+    assert compare_scoreboard(_board(invented=0), _board(invented=0)) == []
+    assert [r.metric for r in compare_scoreboard(_board(invented=0), _board(invented=1))] == ["invention"]
+
+
+def test_the_invention_gate_ignores_the_baseline_entirely() -> None:
+    """Comparing to a stored number is how a defect count becomes a metric people live with."""
+    assert compare_scoreboard(_board(invented=496), _board(invented=496)) != []
+
+
+def test_the_invention_rate_may_still_move_freely() -> None:
+    """The original objection, preserved: only the count is gated, never the rate."""
+    quiet = _board(invented=0)
+    busy = _board(invented=0)
+    busy["metrics"]["invention"]["total_calls"] = 90000
+    busy["metrics"]["invention"]["languages"]["python"]["total_calls"] = 90000
+    assert compare_scoreboard(quiet, busy) == []
 
 
 def test_every_metric_records_whether_it_is_gated() -> None:

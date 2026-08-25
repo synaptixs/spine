@@ -1,0 +1,64 @@
+{
+  "language": "cpp",
+  "case": "shadowed_calls",
+  "root": ".repo",
+  "why": "A local binding that shadows a resolvable name. The caller's own parameter is what runs; the file-level definition of the same name is never reached. Labelled from the source: the shadowed call site gets NO edge, and the unshadowed sibling in the same file gets one, so a front-end cannot pass by dropping both. C has carried this case since it was fixed there (corpus/c/function_pointers); this is the same shape in the four front-ends that had neither the fix nor a fixture.",
+  "nodes": [
+    {
+      "id": "cpp:src/dispatch.cpp",
+      "kind": "Module"
+    },
+    {
+      "id": "cpp:handle",
+      "kind": "Function"
+    },
+    {
+      "id": "cpp:run",
+      "kind": "Function"
+    },
+    {
+      "id": "cpp:direct",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "cpp:src/dispatch.cpp",
+      "dst": "cpp:handle",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:src/dispatch.cpp",
+      "dst": "cpp:run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:src/dispatch.cpp",
+      "dst": "cpp:direct",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:direct",
+      "dst": "cpp:handle",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [
+    {
+      "edge": {
+        "src": "cpp:run",
+        "dst": "cpp:handle",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `cpp:run -CALLS-> cpp:handle`. `run`'s function-pointer parameter `handle` shadows the free function; the callee is decided at run time."
+    }
+  ],
+  "excluded": [
+    "`direct` (`Direct`) calling the same name without shadowing it is NOT excluded \u2014 it is the control. A fix that skipped every unresolved bare call would drop this edge too, and the case would catch that."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": [
+    "Written BEFORE the fix and scored: the front-end emitted an edge to the file-level definition, taking CALLS precision to 0.50 for this case. Unlike the Python and C inventions, the target is a REAL node, so nothing dangled and pkg verify stayed silent \u2014 which is why no existing check found it and why this fixture, not a verifier rule, is the guard."
+  ]
+}

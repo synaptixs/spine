@@ -467,7 +467,15 @@ def _call_edges(types: list[_TypeRec], source: bytes, rel: str, batch: FactBatch
     for rec in types:
         method_ids = {name: mid for name, mid, _ in rec.methods}
         for _name, mid, mnode in rec.methods:
-            for callee, line in _calls_in(mnode, source):
+            bound = _bound_names(mnode, source)
+            for callee, line, bare in _calls_in(mnode, source):
+                # A local, parameter or lambda argument shadows the sibling method: C# resolves
+                # a simple name to the innermost declaration, so `Handle()` under a parameter
+                # named `Handle` invokes the delegate, not the method. `this.Handle()` is an
+                # explicit member access and cannot be shadowed, which is why `bare` is carried
+                # rather than inferred — skipping it too would drop real edges.
+                if bare and line >= bound.get(callee, 1 << 30):
+                    continue
                 target = method_ids.get(callee)
                 if target is not None:
                     batch.add_edge(Edge(mid, target, EdgeKind.CALLS, Provenance(rel, line)))
@@ -591,18 +599,71 @@ def _member_name(fn: TSNode | None, source: bytes) -> str:
     return ""
 
 
-def _calls_in(mnode: TSNode, source: bytes) -> list[tuple[str, int]]:
-    """``(callee_name, line)`` for unqualified / ``this.`` calls inside a method."""
-    out: list[tuple[str, int]] = []
+def _calls_in(mnode: TSNode, source: bytes) -> list[tuple[str, int, bool]]:
+    """``(callee_name, line, bare)`` for unqualified / ``this.`` calls inside a method.
+
+    ``bare`` is True only for the ``Foo(...)`` form. ``this.Foo(...)`` resolves to the member
+    whatever else is in scope, so only the bare form can be shadowed by a local.
+    """
+    out: list[tuple[str, int, bool]] = []
     stack = list(mnode.named_children)
     while stack:
         node = stack.pop()
         if node.type == "invocation_expression":
-            name = _unqualified_call_name(node.child_by_field_name("function"), source)
+            fn = node.child_by_field_name("function")
+            name = _unqualified_call_name(fn, source)
             if name:
-                out.append((name, node.start_point[0] + 1))
+                out.append((name, node.start_point[0] + 1, fn is not None and fn.type == "identifier"))
         stack.extend(node.named_children)
     return out
+
+
+def _bound_names(mnode: TSNode, source: bytes) -> dict[str, int]:
+    """Names this method binds, each with the first line it is in scope.
+
+    C# forbids using a simple name as an outer meaning in a block where it later denotes a
+    local, so the line rarely changes an answer here — it is kept so the helper asserts what it
+    actually knows, and so the four front-ends read the same way.
+
+    Lambdas are descended into by the call walk, so their parameters bind too: a call inside
+    ``xs.Select(Handle => Handle())`` is attributed to the enclosing method.
+    """
+    bound: dict[str, int] = {}
+
+    def bind(node: TSNode | None, line: int) -> None:
+        if node is None:
+            return
+        name = _text(node, source)
+        if name and line < bound.get(name, 1 << 30):
+            bound[name] = line
+
+    def bind_params(plist: TSNode | None, line: int) -> None:
+        if plist is None:
+            return
+        if plist.type == "identifier":  # `x => …`, which carries no parameter_list
+            bind(plist, line)
+            return
+        for param in plist.named_children:
+            bind(param.child_by_field_name("name") or param, line)
+
+    bind_params(mnode.child_by_field_name("parameters"), mnode.start_point[0] + 1)
+
+    stack = list(mnode.named_children)
+    while stack:
+        n = stack.pop()
+        if n.type == "variable_declarator":
+            bind(n.child_by_field_name("name") or n, n.end_point[0] + 2)
+        elif n.type == "foreach_statement":
+            bind(n.child_by_field_name("left"), n.start_point[0] + 1)
+        elif n.type == "catch_declaration":
+            bind(n.child_by_field_name("name"), n.start_point[0] + 1)
+        elif n.type in ("lambda_expression", "anonymous_method_expression"):
+            bind_params(n.child_by_field_name("parameters"), n.start_point[0] + 1)
+        elif n.type == "local_function_statement":
+            bind(n.child_by_field_name("name"), n.start_point[0] + 1)
+            bind_params(n.child_by_field_name("parameters"), n.start_point[0] + 1)
+        stack.extend(n.named_children)
+    return bound
 
 
 def _unqualified_call_name(fn: TSNode | None, source: bytes) -> str:
