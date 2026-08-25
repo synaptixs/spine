@@ -8,10 +8,22 @@
 of grounded PKG nodes; the top hits become `Landing` records carrying `file:line`, kind, owning
 module and caller count — deterministically, with no model involved after the spec exists.
 
-**The consequence, stated up front (§7):** everything runs on the ticket's own words, so a
-ticket that names nothing the codebase uses cannot produce good landing sites. What it produces
-instead is a **refusal** — an empty brief, or a criterion that cannot be bound and parks the run
-— not a plausible change built on nothing.
+> ### A thin ticket does not produce a bad answer. It produces no answer.
+>
+> Everything below runs on the ticket's own words, so **ticket quality sets the ceiling** — a
+> ticket naming nothing the codebase uses cannot produce good landing sites, and no amount of
+> graph quality compensates.
+>
+> **But the floor is a refusal, not garbage.** Three mechanisms make that structural rather than
+> hopeful: an empty landing list *says it is empty* instead of guessing; an acceptance criterion
+> that cannot be bound to a `file:line` **refuses the ticket**; and `validity` can park a run
+> before a line of code is written. Worked through in [§7](#7-ticket-quality-sets-the-ceiling--and-the-floor-is-a-refusal-not-garbage).
+>
+> **The precise claim, and its edge:** the pipeline will never point at a location that does not
+> exist, and never pass a criterion bound to nothing. It *can* still build the wrong thing for a
+> ticket that is confidently wrong about its own premise — a ticket that names real symbols for
+> a change that should not be made lands cleanly and proceeds. Spine guards the *address*, not
+> the *intent*. That is why there are two human gates.
 
 ---
 
@@ -160,7 +172,7 @@ measured*. That metric is the first phase of
 [`gap6-benchmarks-roadmap.md`](gap6-benchmarks-roadmap.md), and until it exists this section is
 a description of a mechanism rather than a claim about its accuracy.
 
-## 7. Ticket quality sets the ceiling — and the floor is a refusal, not a bad change
+## 7. Ticket quality sets the ceiling — and the floor is a refusal, not garbage
 
 Everything above runs on the ticket's own words. **A vague ticket cannot produce good landing
 sites, and no amount of graph quality compensates**: the retriever's entire view of the problem
@@ -189,6 +201,68 @@ premise was wrong.
 **What that costs, stated rather than implied:** a thin ticket still spends the intake model
 call and a full extraction before it parks. The refusal is cheap relative to reviewing a bad
 change, not free.
+
+### The same request, written two ways
+
+Both tickets ask for the same thing. Only one of them can be acted on, and the other **does not
+produce a worse change — it produces no change**.
+
+---
+
+**Ticket A — under-specified**
+
+> **Title:** Orders are broken
+> **Problem:** Customers are complaining that things go wrong at checkout sometimes. Please fix
+> this, it is urgent.
+
+**Tokens after normalisation:** `{order, broken, customer, complaining, thing, checkout,
+sometimes, please, fix, urgent}` — "please", "urgent" and "sometimes" are noise; nothing here is
+an identifier any codebase would use.
+
+**What happens, step by step:**
+
+| Stage | Outcome |
+|---|---|
+| Retrieval | `checkout` and `order` may hit a handful of generically-named symbols; most of the query matches nothing. Score is dominated by the ratio term, so broad hits rank low |
+| `Landing[]` | Empty or near-empty, and the brief renders **"nothing grounded"** rather than a plausible list |
+| Acceptance criteria | *"things go wrong sometimes"* names no observable behaviour, so nothing can be bound to a `file:line` |
+| `validity` | **Parks the run.** No code is generated, no PR is opened, no diff is produced |
+
+**Output: a stop, with a reason.** Not a speculative patch to a file that looked related.
+
+---
+
+**Ticket B — the same problem, specified**
+
+> **Title:** Duplicate charges when the payment retry path re-submits
+> **Problem:** `PaymentRetryHandler.submit()` re-sends the authorisation when the gateway times
+> out, so a slow-but-successful call is charged twice. Seen in
+> `payments/retry_handler.py:214`; trace attached. After the fix, a retry for an
+> already-authorised order must be a no-op and must be recorded as such.
+
+**Tokens:** `{duplicate, charge, payment, retry, path, submit, handler, gateway, authorisation,
+order}` — dense with terms the codebase actually uses.
+
+| Stage | Outcome |
+|---|---|
+| Retrieval | `PaymentRetryHandler` matches on nearly its whole name — the ratio term rewards exactly this — plus `submit`, and the surrounding payment module |
+| `Landing[]` | Real symbols with `file:line`, kind, owning module, **and caller counts** — the last of which tells you what else breaks |
+| Acceptance criteria | *"a retry for an already-authorised order is a no-op"* binds to a symbol, so it survives |
+| `validity` | Proceeds. Design gets a blast radius keyed off where the ticket lands |
+
+---
+
+**The difference is not output quality. It is whether there is output at all.** Ticket A does not
+yield a lower-confidence version of Ticket B's answer; it yields a refusal with the reason
+attached. Every mechanism above is built to make that the outcome rather than a change that
+looks right and is founded on nothing — because a plausible wrong change costs a reviewer more
+than a stop does, and it costs them *after* they have started trusting it.
+
+**Where the guarantee ends:** Ticket B would land just as cleanly if the duplicate charge were
+actually caused elsewhere and `PaymentRetryHandler` were innocent. Naming real symbols confidently
+is enough to proceed. The graph guarantees the *address exists*; it cannot guarantee the reporter
+diagnosed the right one. That residual is what the two human gates are for, and no amount of
+retrieval quality removes it.
 
 ### What makes a ticket land well
 
