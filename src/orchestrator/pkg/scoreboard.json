@@ -347,8 +347,19 @@
     "invention": {
       "count": 0,
       "gated": false,
-      "note": "moves with ordinary commits \u2014 recorded as a trend, never gated",
-      "total_calls": 15212
+      "languages": {
+        "python": {
+          "examined": 0,
+          "invented": 0,
+          "shadowable": 0,
+          "status": "measured",
+          "total_calls": 15982,
+          "unexamined": 0
+        }
+      },
+      "note": "rate moves with ordinary commits; count is a defect count \u2014 see GATES",
+      "target_gate": "strict",
+      "total_calls": 15982
     },
     "parity": {
       "declared": 75,

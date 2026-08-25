@@ -363,16 +363,25 @@ BASELINE = Path(__file__).with_name("scoreboard.json")
 #   ratchet — an increase fails. For a metric that rises only when the graph falls behind.
 #   false   — recorded, never fails.
 #
-# Invention is deliberately ungated. It is measured against the repository itself, so it
-# moves whenever anyone writes ordinary code: adding `def handler(cb): return cb()` moved it
-# from 496 to 497 and shifted the rate. A metric measured against a moving population cannot
-# be gated on equality, and a tolerance band would be an arbitrary number that eventually
-# fires on something legitimate and gets widened until it means nothing.
+# Invention is ungated *today*, and that is a phase, not a verdict. It is measured against the
+# repository itself, so its RATE moves whenever anyone writes ordinary code: adding
+# `def handler(cb): return cb()` moved it from 496 to 497. A metric measured against a moving
+# population cannot be gated on equality, and a tolerance band would be an arbitrary number
+# that eventually fires on something legitimate and gets widened until it means nothing.
 #
-# The cost is stated rather than hidden: nothing here would catch a front-end change that
-# adds thousands of phantom edges. Corpus precision catches it only if the corpus happens to
-# contain that shape.
+# But the *count* has a correct value, and it is zero. Once every front-end refuses a shadowed
+# name — Python does, C does, and the other four are the subject of this programme — the gate
+# becomes `strict` at zero per language, which is not a ratchet and not a band: any invented
+# edge is a defect. It stays False until that is true, because a gate that fails on the day it
+# lands teaches everyone to ignore it.
+#
+# The cost of the interim is stated rather than hidden: nothing here would catch a front-end
+# change that adds thousands of phantom edges. Corpus precision catches it only if the corpus
+# happens to contain that shape — and for four front-ends it does not.
 GATES = {"corpus": "strict", "parity": "ratchet", "invention": False, "runtime": False}
+
+#: Where `invention` is going, recorded next to where it is. See the comment above.
+INVENTION_TARGET_GATE = "strict"
 
 
 @dataclass(frozen=True)
@@ -448,9 +457,24 @@ def build_scoreboard(
             },
             "invention": {
                 "gated": GATES["invention"],
+                "target_gate": INVENTION_TARGET_GATE,
                 "count": len(invention.invented),
                 "total_calls": invention.total_calls,
-                "note": "moves with ordinary commits — recorded as a trend, never gated",
+                # Per front-end, with each one's standing. A language absent from this map
+                # emitted no CALLS edges here; a language present with `status` other than
+                # `measured` was NOT examined, and its zero says nothing about its health.
+                "languages": {
+                    entry.language: {
+                        "status": entry.status,
+                        "invented": len(entry.invented),
+                        "total_calls": entry.total_calls,
+                        "examined": entry.examined,
+                        "shadowable": entry.shadowable,
+                        "unexamined": entry.unexamined,
+                    }
+                    for entry in invention.by_language
+                },
+                "note": "rate moves with ordinary commits; count is a defect count — see GATES",
             },
         },
     }

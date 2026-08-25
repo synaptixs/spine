@@ -6,6 +6,39 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Added — the invention oracle now walks six front-ends, and found a defect in four
+
+- **`pkg accuracy --oracle invention` and `pkg verify` were Python-only, and said `0`.** The
+  detector re-parsed with the stdlib `ast`, so on a TypeScript, Go, C++ or C# repository a zero
+  meant *nothing ran*. New `pkg/scope.py` walks TypeScript, Go, C#, C++ and C with the same
+  tree-sitter parser each front-end uses, and the detector is restated language-neutrally: an
+  edge is invented when the call site is a **bare identifier** matching the target and that
+  name is **bound inside the calling function**.
+- **Four front-ends fabricate a `CALLS` edge for a shadowed name.** `outer(send)` calling its
+  own parameter `send` yields `ts:a.outer -CALLS-> ts:a.send` — the module-level function it
+  never reaches. Reproduces in Go, C++ and C#. This is the bug Python fixed in 3.18.0, in a
+  form the fix did not reach: these do not invent an id, they land on a **real node**, so
+  `pkg verify` sees no dangling edge and no corpus fixture carries the shape. C already refuses
+  it (`c_extractor._bound_names`) and has a corpus case; the other four have neither.
+- **Measured on 11 pinned public repositories:** 47 fabricated edges across 23,746 bare calls —
+  **46 in C++** (0.47%; leveldb and fmt), **1 in TypeScript** (vue/core), **0 in Go and C#** on
+  8,562 bare calls, and **0 in C** across 14,856, which is the control holding. Roughly an order
+  of magnitude rarer than Python's 3.16% was. Record, with SHAs and the reproducing command:
+  `docs/specs/invention-oracle-cross-language.md`.
+- **Two false positives in the oracle were found by hand and fixed before publishing.** A
+  TypeScript destructuring *default* was read as a binding (3 phantom findings on vue/core), and
+  Go's `:=` was treated as in scope on its own line, when the spec starts it after the statement
+  — so idiomatic `cmd := cmd(path)` read as fiction (5 on grpc-go). Both have regression tests
+  written against the language reference.
+- **Per front-end in the scoreboard and the CLI, with a `status`.** `measured`, `not-applicable`
+  (Java — variables and methods have separate namespaces, JLS §6.5.7; SQL — no lexical scope),
+  or `unwalked`. The denominator reported is **bare calls**, not all `CALLS`: only a bare call
+  can be reached by a shadow.
+- **The front-ends are unchanged.** No `*_extractor.py` was touched; this measures only. Porting
+  C's fix to the other four, a `shadowed_calls` corpus case each, and moving `invention` to a
+  `strict`-at-zero gate (recorded as `target_gate` in `scoreboard.json`) are the phases after
+  this one.
+
 ### Changed — GraphIR Phase 4 closed without shipping either half
 
 - **The parallel fan-out was measured and declined.** Timed on this repo's own graph, only
