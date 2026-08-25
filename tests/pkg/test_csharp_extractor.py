@@ -371,3 +371,55 @@ def test_first_party_base_type_keeps_its_namespace(tmp_path: Path) -> None:
     batch = ex.finalize(ex.extract(path=src, module="Acme.Biz", rel="b.cs"))
     impl = [e for e in batch.edges if e.kind is EdgeKind.IMPLEMENTS]
     assert any(e.dst == "csharp:Acme.Biz.Base" for e in impl), "first-party base was repointed"
+
+
+# ---- shadowed calls: a name the caller bound itself ------------------------
+#
+# C# resolves a simple name to the innermost declaration, so a parameter or local named after
+# a sibling method wins. `this.Foo()` is an explicit member access and cannot be shadowed —
+# skipping it too would drop real edges, which is why the bare form is tracked separately.
+# Guard: `corpus/csharp/shadowed_calls`.
+
+
+def _cs_calls(tmp_path: Path, src: str) -> set[tuple[str, str]]:
+    batch, _ = _facts(tmp_path, src, "Dispatch.cs")
+    return {(e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.CALLS}
+
+
+DISPATCH = """\
+namespace App;
+
+public class Dispatch {
+    public int Handle() { return 1; }
+    public int Run(System.Func<int> Handle) { return Handle(); }
+    public int Direct() { return Handle(); }
+}
+"""
+
+
+def test_a_delegate_parameter_shadowing_a_sibling_method_emits_no_call(tmp_path: Path) -> None:
+    calls = _cs_calls(tmp_path, DISPATCH)
+    assert ("csharp:App.Dispatch.Run", "csharp:App.Dispatch.Handle") not in calls
+    assert ("csharp:App.Dispatch.Direct", "csharp:App.Dispatch.Handle") in calls  # the control
+
+
+def test_an_explicit_this_call_is_never_shadowed(tmp_path: Path) -> None:
+    """`this.Handle()` names the member whatever else is in scope."""
+    src = (
+        "namespace App;\n\npublic class Dispatch {\n"
+        "    public int Handle() { return 1; }\n"
+        "    public int Run(System.Func<int> Handle) { return this.Handle(); }\n}\n"
+    )
+    assert ("csharp:App.Dispatch.Run", "csharp:App.Dispatch.Handle") in _cs_calls(tmp_path, src)
+
+
+def test_a_local_shadows_a_sibling_method(tmp_path: Path) -> None:
+    src = (
+        "namespace App;\n\npublic class Dispatch {\n"
+        "    public int Handle() { return 1; }\n"
+        "    public int Run() {\n"
+        "        System.Func<int> Handle = () => 2;\n"
+        "        return Handle();\n"
+        "    }\n}\n"
+    )
+    assert ("csharp:App.Dispatch.Run", "csharp:App.Dispatch.Handle") not in _cs_calls(tmp_path, src)

@@ -96,10 +96,22 @@ Measured against a hand-labelled corpus, all 8 languages
 
 | | Result |
 |---|---|
-| **Precision** | **1.00** on every node kind and every edge kind, all 8 languages |
+| **Precision** | **1.00** on every node kind and every edge kind, all 8 languages — *on the corpus*, and see the caveat below |
 | **Recall** | 1.00 on every kind **except `CALLS`** |
 | `CALLS` recall | 1.00 (c, sql) · 0.73 (python) · 0.67 (cpp, csharp, go, java) · **0.50 (typescript)** |
-| Invention on this repo | **0** invented targets across **15,855** `CALLS` edges (re-run 2026-08-21) |
+| Invention | **0** on this repo and on 11 pinned public repos across 6 front-ends, gated `strict` at zero per language (2026-08-24) |
+
+**That precision row was a corpus score over a corpus missing a shape, and both have been
+fixed.** When a parameter or local **shadowed** a resolvable name, TypeScript, Go, C++ and C#
+each emitted a `CALLS` edge to the file-level definition the caller never reaches — the bug
+Python fixed in 3.18.0, in a form the fix did not reach. Nothing caught it: the target is a
+real node so `pkg verify` saw no dangling edge, no fixture carried the shape so precision read
+1.00, and the invention oracle was Python-only. Found by widening the oracle to six
+front-ends, measured at **47 fabricated edges across 23,746 bare calls** on 11 public repos,
+then fixed by porting C's `_bound_names` to the other four. **47 edges removed, 47
+fabrications — no true edge lost.** Guarded by `corpus/*/shadowed_calls`, four cases written
+and failed at 0.50 precision *before* the fix. Full record:
+[`invention-oracle-cross-language.md`](invention-oracle-cross-language.md).
 
 Structure — *this module contains this class which contains this method* — is either in the tree
 or it is not. **`CALLS` is different because it needs *resolution*:** the tree tells you a call
@@ -160,8 +172,13 @@ that. Nothing in the pipeline has to ration it.
 
 - **`CALLS` recall on TypeScript is 0.50** — half the call edges are missed. Structure is
   complete; the call graph is not.
-- **Two of four accuracy oracles are Python-only** (`runtime` via PEP 669, `invention` via
-  Python `ast`). On a non-Python repo `invention` reporting `0` means *not measured*, not clean.
+- **`runtime` is still Python-only** (PEP 669) — the last of the four oracles with that
+  limit. On a non-Python repo it reports nothing, and that is *not measured*, not clean.
+  `invention` was the same until 2026-08-24 and now walks six front-ends, naming Java and SQL
+  as not-applicable with reasons rather than scoring them 0.
+- **The invention oracle only knows about shadowing.** Other classes — `CONSUMES` matched on
+  `(verb, path)`, `EXPOSES` composed from mount prefixes — have no detector at all, and rest
+  on `sample_edges` plus a human reading the source.
 - **8 languages**, against 21–40 for the graph-only tools. Additive against a fixed schema
   (`facts.py`) rather than a ceiling, but it is today's number.
 
@@ -341,6 +358,7 @@ its output edge, and inside the model-call budget.
 | Deployment image + reusable CI workflow for central adoption | not started. **Not a G4 phase** — it was recommended as though it were; it needs adding to that spec before it can be scheduled |
 | `SPEC-INDEX.md` links `watch-items-roadmap.md`, which does not exist | not started |
 | `docs/specs/current-state.md` has a mermaid block that falls back to `<pre>` in our own UI | not started |
+| Shadowed-name `CALLS` invention in TypeScript, Go, C++, C# | ✅ **closed 2026-08-24** — oracle widened to 6 front-ends, all four fixed, 4 corpus cases added, `invention` gated `strict` at zero per language. 47 fabricated edges removed with no true edge lost. [Record](invention-oracle-cross-language.md) |
 | TypeScript resolution via the TS compiler API | **idea, not scheduled** (2026-08-21). `CALLS` recall is **0.50** for TypeScript against 1.00 for C and SQL — tree-sitter parses the syntax correctly but has no symbol table, so a call site resolves to the wrong target or none. The language's own toolchain would fix that. Costs: a Node runtime dependency, loss of tree-sitter's error tolerance, and a determinism risk if resolution depends on installed packages — the same commit could then give different graphs on different machines |
 | G4 adoption — friction audit | ✅ **Phase 1 done 2026-08-19** — ≈28s cold start, no key; channels/proof/measurement outstanding |
 | `episteme.yml` main-branch path produces orphan branches | ✅ **fixed 2026-08-19** — regeneration is `develop`-only; `main` inherits the bank verbatim |

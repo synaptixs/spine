@@ -6,6 +6,60 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Fixed — four front-ends fabricated a `CALLS` edge for a shadowed name
+
+- **`pkg accuracy --oracle invention` and `pkg verify` were Python-only, and said `0`.** The
+  detector re-parsed with the stdlib `ast`, so on a TypeScript, Go, C++ or C# repository a zero
+  meant *nothing ran*. New `pkg/scope.py` walks TypeScript, Go, C#, C++ and C with the same
+  tree-sitter parser each front-end uses, and the detector is restated language-neutrally: an
+  edge is invented when the call site is a **bare identifier** matching the target and that
+  name is **bound inside the calling function**.
+- **Four front-ends fabricate a `CALLS` edge for a shadowed name.** `outer(send)` calling its
+  own parameter `send` yields `ts:a.outer -CALLS-> ts:a.send` — the module-level function it
+  never reaches. Reproduces in Go, C++ and C#. This is the bug Python fixed in 3.18.0, in a
+  form the fix did not reach: these do not invent an id, they land on a **real node**, so
+  `pkg verify` sees no dangling edge and no corpus fixture carries the shape. C already refuses
+  it (`c_extractor._bound_names`) and has a corpus case; the other four have neither.
+- **Measured on 11 pinned public repositories:** 47 fabricated edges across 23,746 bare calls —
+  **46 in C++** (0.47%; leveldb and fmt), **1 in TypeScript** (vue/core), **0 in Go and C#** on
+  8,562 bare calls, and **0 in C** across 14,856, which is the control holding. Roughly an order
+  of magnitude rarer than Python's 3.16% was. Record, with SHAs and the reproducing command:
+  `docs/specs/invention-oracle-cross-language.md`.
+- **Two false positives in the oracle were found by hand and fixed before publishing.** A
+  TypeScript destructuring *default* was read as a binding (3 phantom findings on vue/core), and
+  Go's `:=` was treated as in scope on its own line, when the spec starts it after the statement
+  — so idiomatic `cmd := cmd(path)` read as fiction (5 on grpc-go). Both have regression tests
+  written against the language reference.
+- **Per front-end in the scoreboard and the CLI, with a `status`.** `measured`, `not-applicable`
+  (Java — variables and methods have separate namespaces, JLS §6.5.7; SQL — no lexical scope),
+  or `unwalked`. The denominator reported is **bare calls**, not all `CALLS`: only a bare call
+  can be reached by a shadow.
+- **Fixed by porting C's test to the other four** — a local `_bound_names` per front-end,
+  answering *did this function bind the name*, never *can we resolve it*. The difference is the
+  design: an unresolved callee in C++ is usually a header declaration linked from another
+  translation unit, and a Python-style "skip anything unresolved" fix would have silenced every
+  cross-translation-unit call in every C++ repository. The oracle keeps its own independent
+  implementation — a detector that imports the code it audits agrees with that code's bugs.
+- **Each helper carries the first line a name is in scope**, because two of the four languages
+  require it. Go's spec starts a `:=` scope at the end of the statement, so `cmd := cmd(path)`
+  calls the package-level `cmd`; C and C++ read the same way. Binding from the top of the
+  function would have dropped those edges — 5 in grpc-go alone. C# tracks the bare-call form
+  separately: `this.Handle()` is an explicit member access and cannot be shadowed.
+- **Re-measured on the same 11 repositories: 0 everywhere, and 47 edges removed for 47
+  fabrications found.** vue/core −1, leveldb −3, fmt −43, every other repo unchanged. No true
+  edge was lost across 38,602 bare calls; grpc-go kept all 6,285 of its `CALLS`. Precision
+  rises, recall is untouched — these edges were never in any expected set.
+- **Four corpus cases** — `corpus/{typescript,go,cpp,csharp}/shadowed_calls`, modelled on
+  `corpus/c/function_pointers`. Each was written and scored **before** the fix and each failed
+  at the predicted point: `CALLS` precision 0.50, recall 1.00. Each pairs the shadowed call
+  with an unshadowed sibling in the same file, so a front-end cannot pass by dropping both.
+- **`invention` is now gated `strict` at zero per language** — the only metric gated on an
+  absolute value rather than against the baseline, because it is the only one with a correct
+  value. Comparing to a stored number would let a non-zero baseline become the thing everyone
+  agrees to live with. A language whose status is not `measured` is skipped; its 0 means *not
+  examined*. The gate is proved by making it fail, and the original objection is preserved: the
+  *rate* still moves freely, only the count is held at zero.
+
 ### Changed — GraphIR Phase 4 closed without shipping either half
 
 - **The parallel fan-out was measured and declined.** Timed on this repo's own graph, only

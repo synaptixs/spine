@@ -205,3 +205,57 @@ def test_repo_extractor_dispatches_go_by_suffix(tmp_path: Path) -> None:
     batch = RepoCodeExtractor().extract(tmp_path)
     langs = {n.language for n in batch.nodes}
     assert "go" in langs and "python" in langs
+
+
+# ---- shadowed calls: a name the caller bound itself ------------------------
+#
+# `local_funcs` holds the package-level names in this file. A parameter or `:=` local of the
+# same name shadows one for the rest of the block, so resolving through that set asserts a
+# call the source does not make. Guard: `corpus/go/shadowed_calls`.
+
+
+def _call_edges(root: Path, src: str) -> set[tuple[str, str]]:
+    _, edges, _ = _facts(root, "shop/dispatch.go", src)
+    return {(s, d) for s, d, k in edges if k is EdgeKind.CALLS}
+
+
+def test_a_parameter_shadowing_a_package_function_emits_no_call(tmp_path: Path) -> None:
+    src = (
+        "package shop\n\n"
+        "func Handle() int { return 1 }\n\n"
+        "func Run(Handle func() int) int { return Handle() }\n\n"
+        "func Direct() int { return Handle() }\n"
+    )
+    calls = _call_edges(tmp_path, src)
+    assert ("go:shop.Run", "go:shop.Handle") not in calls
+    assert ("go:shop.Direct", "go:shop.Handle") in calls  # the control
+
+
+def test_short_declaration_does_not_shadow_its_own_right_hand_side(tmp_path: Path) -> None:
+    """Go's spec: a `:=` identifier's scope begins at the END of the statement.
+
+    `cmd := cmd(path)` therefore calls the package-level `cmd`. Binding it from the top of the
+    function would drop that edge — it occurs 5 times in grpc-go alone.
+    """
+    src = (
+        "package shop\n\n"
+        "func cmd(p string) int { return 1 }\n\n"
+        'func New() int {\n\tcmd := cmd("x")\n\treturn cmd\n}\n'
+    )
+    assert ("go:shop.New", "go:shop.cmd") in _call_edges(tmp_path, src)
+
+
+def test_short_declaration_shadows_every_line_below_it(tmp_path: Path) -> None:
+    src = (
+        "package shop\n\nfunc run() int { return 1 }\n\n"
+        "func New() int {\n\trun := func() int { return 2 }\n\treturn run()\n}\n"
+    )
+    assert ("go:shop.New", "go:shop.run") not in _call_edges(tmp_path, src)
+
+
+def test_a_closure_parameter_shadows_a_package_function(tmp_path: Path) -> None:
+    src = (
+        "package shop\n\nfunc apply() int { return 1 }\n\n"
+        "func New(xs []func() int) {\n\tfor _, apply := range xs {\n\t\tapply()\n\t}\n}\n"
+    )
+    assert ("go:shop.New", "go:shop.apply") not in _call_edges(tmp_path, src)

@@ -123,6 +123,7 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | [cli-test-plan](cli-test-plan.md) | 50 commands, written against 3.16.0 |
 | [pkg-accuracy-test-plan](pkg-accuracy-test-plan.md) · [comprehension-test-plan](comprehension-test-plan.md) | Manual test plans |
 | [pkg-accuracy-gaps](pkg-accuracy-gaps.md) | Review of the accuracy programme |
+| [invention-oracle-cross-language](invention-oracle-cross-language.md) | The invention oracle across 8 front-ends (2026-08-24) — 47 fabricated `CALLS` edges found on 11 pinned public repos, four front-ends fixed, gated | **✔** |
 | [models](models.md) · [spine-vignette-runbook](spine-vignette-runbook.md) | Reference / runbook |
 | [build-document](build-document.md) *(also above)* | The 12-section template |
 | [sdlc-tracking-blueprint](sdlc-tracking-blueprint.md) · [design-and-comprehension-milestones](design-and-comprehension-milestones.md) | Blueprints |

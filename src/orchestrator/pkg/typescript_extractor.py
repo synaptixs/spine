@@ -323,6 +323,7 @@ def _calls(
 ) -> None:
     """Emit CALLS for precisely-resolvable ``call_expression`` sites in a body."""
     siblings = type_methods.get(type_id or "", set())
+    bound = _bound_names(body, source)
     stack = list(body.named_children)
     while stack:
         n = stack.pop()
@@ -330,11 +331,105 @@ def _calls(
             continue
         if n.type == "call_expression":
             fn = n.child_by_field_name("function")
+            line = n.start_point[0] + 1
+            if fn is not None and fn.type == "identifier" and line >= bound.get(_text(fn, source), 1 << 30):
+                # A call through a name this function bound itself — a parameter, a local, or a
+                # closure argument. `local_funcs` and `imports` still hold the FILE-level
+                # binding of that name, so resolving it would emit an edge to a definition the
+                # call never reaches. The callee here is decided by whoever supplied the value.
+                stack.extend(n.named_children)
+                continue
             target = _resolve_callee(fn, type_id, siblings, local_funcs, imports, namespaces, rel, source)
             if target is not None:
                 _ensure_external(batch, target)
                 batch.add_edge(Edge(caller, target, EdgeKind.CALLS, Provenance(rel, n.start_point[0] + 1)))
         stack.extend(n.named_children)
+
+
+def _pattern_names(node: TSNode | None, src: bytes) -> list[str]:
+    """Names a binding pattern binds — never the contents of a default value.
+
+    `const { arg: slotName = makeDefault() } = x` binds `slotName`. Sweeping the pattern for
+    identifiers also picks up `makeDefault`, and then every later call to it is skipped as
+    shadowed — a silently dropped edge, which is the failure this whole change exists to avoid
+    in the other direction.
+    """
+    if node is None:
+        return []
+    if node.type in ("identifier", "shorthand_property_identifier_pattern"):
+        return [_text(node, src)]
+    if node.type == "pair_pattern":
+        return _pattern_names(node.child_by_field_name("value"), src)
+    if node.type == "assignment_pattern":
+        return _pattern_names(node.child_by_field_name("left"), src)
+    if node.type in ("object_pattern", "array_pattern", "rest_pattern"):
+        return [n for c in node.named_children for n in _pattern_names(c, src)]
+    return []
+
+
+def _params_of(node: TSNode | None, src: bytes) -> list[str]:
+    """Parameter names of a callable. Direct children only, for one specific reason.
+
+    A parameter typed ``(v: string) => void`` carries its own ``formal_parameters`` under the
+    ``type`` field. ``v`` is bound nowhere, and treating it as a local would drop real calls.
+    """
+    if node is None:
+        return []
+    single = node.child_by_field_name("parameter")  # `x => …`
+    if single is not None:
+        return _pattern_names(single, src)
+    params = node.child_by_field_name("parameters")
+    if params is None:
+        return []
+    out: list[str] = []
+    for child in params.named_children:
+        pattern = child.child_by_field_name("pattern")
+        out.extend(_pattern_names(pattern if pattern is not None else child, src))
+    return out
+
+
+def _bound_names(body: TSNode, src: bytes) -> dict[str, int]:
+    """Names this function binds, each with the first line it is in scope.
+
+    A callee in this map is reached through a parameter, a local or a closure argument, so no
+    file-level id names it. The line matters: TypeScript's temporal dead zone makes a call
+    *above* a `const` an error rather than a call to an outer function, but keeping the line
+    costs nothing and keeps this helper honest about what it is asserting.
+
+    The walk mirrors `_calls_in_body` exactly — same `_CALL_SCOPE_STOP` boundaries — because a
+    binding set that covers more or less ground than the call walk would either drop real edges
+    or miss shadowed ones. Anonymous arrows are descended into by both: `hook.forEach(h => h())`
+    is where vue/core's one fabricated edge came from.
+    """
+    bound: dict[str, int] = {}
+
+    def bind(name: str, line: int) -> None:
+        if name and line < bound.get(name, 1 << 30):
+            bound[name] = line
+
+    for name in _params_of(body.parent, src):
+        bind(name, body.parent.start_point[0] + 1 if body.parent is not None else 1)
+
+    stack = list(body.named_children)
+    while stack:
+        n = stack.pop()
+        if n.type in _CALL_SCOPE_STOP:
+            continue
+        after = n.end_point[0] + 2  # a declaration is in scope from the line after it ends
+        if n.type == "variable_declarator":
+            for name in _pattern_names(n.child_by_field_name("name"), src):
+                bind(name, after)
+        elif n.type in ("for_in_statement", "for_statement"):
+            for name in _pattern_names(n.child_by_field_name("left"), src):
+                bind(name, n.start_point[0] + 1)
+        elif n.type == "catch_clause":
+            for name in _pattern_names(n.child_by_field_name("parameter"), src):
+                bind(name, n.start_point[0] + 1)
+        elif n.type in ("arrow_function", "function_expression", "generator_function"):
+            for name in _params_of(n, src):
+                bind(name, n.start_point[0] + 1)
+        stack.extend(n.named_children)
+    return bound
 
 
 def _resolve_callee(
