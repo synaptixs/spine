@@ -185,6 +185,7 @@ its output edge, and inside the model-call budget.
 | Deployment image + reusable CI workflow for central adoption | not started. **Not a G4 phase** — it was recommended as though it were; it needs adding to that spec before it can be scheduled |
 | `SPEC-INDEX.md` links `watch-items-roadmap.md`, which does not exist | not started |
 | `docs/specs/current-state.md` has a mermaid block that falls back to `<pre>` in our own UI | not started |
+| TypeScript resolution via the TS compiler API | **idea, not scheduled** (2026-08-21). `CALLS` recall is **0.50** for TypeScript against 1.00 for C and SQL — tree-sitter parses the syntax correctly but has no symbol table, so a call site resolves to the wrong target or none. The language's own toolchain would fix that. Costs: a Node runtime dependency, loss of tree-sitter's error tolerance, and a determinism risk if resolution depends on installed packages — the same commit could then give different graphs on different machines |
 | G4 adoption — friction audit | ✅ **Phase 1 done 2026-08-19** — ≈28s cold start, no key; channels/proof/measurement outstanding |
 | `episteme.yml` main-branch path produces orphan branches | ✅ **fixed 2026-08-19** — regeneration is `develop`-only; `main` inherits the bank verbatim |
 
