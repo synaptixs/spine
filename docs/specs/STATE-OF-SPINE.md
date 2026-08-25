@@ -1,9 +1,9 @@
-# State of Spine — 3.21.0
+# State of Spine — 3.22.0
 
-**The one document to read.** Verified against source on **2026-08-23**, with 3.21.0 released.
-Every number below was re-measured that day.
+**The one document to read.** Verified against source on **2026-08-25**, at the 3.22.0 release
+cut. Every number below was re-measured that day.
 
-> **Why this exists.** `docs/specs/` holds **70** markdown files — **67 specs** plus this
+> **Why this exists.** `docs/specs/` holds **71** markdown files — **68 specs** plus this
 > page, [`README`](README.md) and [`SPEC-INDEX`](SPEC-INDEX.md) — with 6 archived, 10 build
 > documents, and 17 root-level user documents.
 > Answering "where do we stand?" required opening five of them and reconciling three that
@@ -24,11 +24,11 @@ gates (before building, before merging). The product is **Spine**; it ships as
 
 | | Value | How it is known |
 |---|---|---|
-| Version | **3.21.0**, released | merged to `main` (PR #220) |
+| Version | **3.22.0** | cutting now; 3.21.0 is the last on PyPI until this ships |
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
 | CLI commands | **54** | `grep -c '\.command(' src/orchestrator/cli.py` |
-| Source modules | **319** | `find src/orchestrator -name '*.py'` |
-| Test functions | **2,574** across 294 files | `grep -rh '^def test_\|^async def test_' tests` |
+| Source modules | **320** | `find src/orchestrator -name '*.py'` |
+| Test functions | **2,621** across 295 files | `grep -rh '^def test_\|^async def test_' tests` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
 | `CALLS` recall | **1.00** (C, SQL) → **0.50** (TypeScript) | same |
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |
@@ -164,8 +164,8 @@ models, **47 of 68** new modules integrated correctly with the graph in context 
 way**, the control that rules out "more context just helps". The graph pays precisely where the
 model cannot see the target, and ties where it can.
 
-**5. It is cheap enough to be unconditional.** A full extraction of this repository — **11,609
-nodes, 33,684 edges** across 319 modules — takes **~2.2s** cold, and is cached per commit after
+**5. It is cheap enough to be unconditional.** A full extraction of this repository — **11,761
+nodes, 34,041 edges** across 320 modules — takes **~2.3s** cold, and is cached per commit after
 that. Nothing in the pipeline has to ration it.
 
 ### Where it is honestly weak
