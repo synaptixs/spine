@@ -643,6 +643,11 @@ async def _research_pass(
             return
 
         registry = default_registry()
+        # Each node is timed. The clock is *reported*, never computed with — `Case.digest()`
+        # excludes `seconds` precisely so that measuring a run cannot change what the run is.
+        # Every node row read 0.00s before this, which made "where did the time go" a question
+        # the artifact built to answer could not answer.
+        started = time.monotonic()
         investigate = await registry.run(
             "sdlc.investigate", store=store, title=title, problem=summary, root=ctx.root
         )
@@ -653,6 +658,7 @@ async def _research_pass(
             digest=investigate.digest,
             tool=investigate.name,
             detail=f"{len(investigate.value.get('landing') or [])} landing site(s)",
+            seconds=time.monotonic() - started,
         )
 
         # The enhancement profile has no `n_rca`: root-cause analysis localizes a symptom, and
@@ -661,6 +667,7 @@ async def _research_pass(
         # which is a different statement from "we ran it and found nothing".
         rca_value: dict[str, Any] = {}
         if any(node.id == _N_RCA for node in ir.spec.nodes):
+            started = time.monotonic()
             rca = await registry.run(
                 "sdlc.rca", store=store, problem=rca_problem(title, summary), root=ctx.root
             )
@@ -672,6 +679,7 @@ async def _research_pass(
                 digest=rca.digest,
                 tool=rca.name,
                 detail=rca.value.get("fault_site") or "not localized",
+                seconds=time.monotonic() - started,
             )
         else:
             ctx.case.record(
@@ -682,6 +690,7 @@ async def _research_pass(
             )
 
         files = landing_files(list(investigate.value.get("landing") or []))
+        started = time.monotonic()
         blast = await registry.run("sdlc.blast_radius", store=store, files=list(files))
         ctx.case.record(
             _N_BLAST,
@@ -690,6 +699,7 @@ async def _research_pass(
             digest=blast.digest,
             tool=blast.name,
             detail=f"{len(blast.value.get('modules') or [])} module(s) from {len(files)} landing file(s)",
+            seconds=time.monotonic() - started,
         )
 
         evidence = evidence_from_parts(
@@ -814,6 +824,7 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
     from orchestrator.sdlc.codegen import _MAX_CONTEXT_BYTES
     from orchestrator.sdlc.validity import Verdict, assess
 
+    started = time.monotonic()
     assessment = assess(
         ctx.spec or {},
         store=store,
@@ -847,6 +858,7 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
             ),
             tool="sdlc.validity",
             detail=assessment.verdict.value,
+            seconds=time.monotonic() - started,
         )
     path = ctx.write_artifact("validity.md", assessment.render())
 
@@ -883,6 +895,7 @@ async def _stage_design(
     # wrong, and it read as verification. Evidence computed the real one from where the ticket
     # lands. Defect 2.
     blast = (ctx.evidence.blast_radius if ctx.evidence is not None else None) if not _imperative() else None
+    started = time.monotonic()
     design = await produce_design(
         spec, overview=overview, store=store, llm=None, root=ctx.root, blast_radius=blast
     )
@@ -908,6 +921,7 @@ async def _stage_design(
             detail=f"{touched} file(s) proposed"
             + ("" if blast is None else "; blast radius from Evidence")
             + ("" if validation.ok else f"; {len(validation.findings)} invented reference(s)"),
+            seconds=time.monotonic() - started,
         )
     if not validation.ok:
         detail = "; ".join(f"{f.named} — {f.detail}" for f in validation.findings)

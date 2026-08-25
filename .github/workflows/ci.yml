@@ -101,6 +101,22 @@ jobs:
       - name: Architecture diagram is current
         run: uv run python scripts/render_architecture_svg.py --check
 
+      # The knowledge-foundation figure is generated too, and its generator additionally asserts
+      # its own geometry: no text outside the card that holds it, no two cards in a column
+      # overlapping, nothing straying out of its lane. `--check` runs that layout pass as well as
+      # comparing bytes, so a collision fails the build instead of shipping in an image nobody
+      # re-opens.
+      - name: Knowledge-foundation diagram is current
+        run: uv run python scripts/render_knowledge_foundation_svg.py --check
+
+      # The capability matrix is a claim surface, and its headline count was the one number in
+      # it nobody could re-run. On 2026-08-21 the matrix's own summary said 16 rows and
+      # STATE-OF-SPINE.md said 11, for the same table on the same day; the answer was 22. Both
+      # documents were warning, in their own text, about hand-authored matrices being wrong.
+      # A number quoted to customers should fail a build when it drifts, not a meeting.
+      - name: Capability matrix counts match the table
+        run: uv run python scripts/matrix-count.py --check
+
       # Spine's own episteme has to describe Spine's own HEAD — but it is regenerated
       # *after* merge (.github/workflows/episteme.yml), not carried on branches. A PR
       # cannot keep it current: CI checks the merge ref, so the moment anything lands on
