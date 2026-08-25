@@ -120,6 +120,7 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | [parsing-and-the-pkg](parsing-and-the-pkg.md) | How source becomes graph facts, front-end by front-end (2026-08-16) |
 | [competitive-landscape](competitive-landscape.md) | Competitive **narrative and strategy** (2026-08-21). Its duplicate scored matrix was removed — see `capability-matrix.md` |
 | [graphify-vs-spine-comparison](graphify-vs-spine-comparison.md) | One competitor in depth — **at v3.7.0, stale** |
+| [spec-kit-integration-analysis](spec-kit-integration-analysis.md) | GitHub's spec-kit — **evaluated and declined 2026-08-25**. LLM-driven end to end, no validator, never reads the target codebase. Carries a revisit condition |
 | [cli-test-plan](cli-test-plan.md) | 50 commands, written against 3.16.0 |
 | [pkg-accuracy-test-plan](pkg-accuracy-test-plan.md) · [comprehension-test-plan](comprehension-test-plan.md) | Manual test plans |
 | [pkg-accuracy-gaps](pkg-accuracy-gaps.md) | Review of the accuracy programme |
