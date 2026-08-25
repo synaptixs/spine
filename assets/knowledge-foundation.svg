@@ -1,0 +1,205 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 2000 685" role="img"><title>Knowledge Foundation Architecture</title><desc>Many sources across many repositories — code, documentation, institutional records, defects, work items and schemas — are read by one front-end each, collapsed into a single closed vocabulary of entity and relation kinds, related by enrichment passes, and settled into a content-addressed store tied to a commit. A query layer answers questions over it, and the same facts project out as committed knowledge, dashboards, interchange exports, grounded agent inputs and cross-project patterns. Every fact carries its origin; model-inferred relations are a separate, opt-in class.</desc><defs><marker id="arrow-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="#D2564B"/></marker><marker id="arrow-link" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="#B9C2CF"/></marker><marker id="arrow-infer" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="#C77D1E"/></marker></defs><rect x="0" y="0" width="2000" height="685" fill="#FFFFFF"/>
+<rect x="38" y="44" width="278" height="544.28" rx="10" fill="#F6FAF0"/>
+<rect x="52" y="78" width="250" height="3" fill="#6B7F3A"/>
+<text x="52" y="62" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="10.5" font-weight="700" fill="#6B7F3A" letter-spacing="2.2">SOURCES · MANY PROJECTS</text>
+<rect x="340" y="44" width="236" height="531.6" rx="10" fill="#F2F2FB"/>
+<rect x="354" y="78" width="208" height="3" fill="#5B5AA6"/>
+<text x="354" y="62" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="10.5" font-weight="700" fill="#5B5AA6" letter-spacing="2.2">1 · EXTRACTION</text>
+<rect x="614" y="78" width="176" height="3" fill="#C0473E"/>
+<text x="614" y="62" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="10.5" font-weight="700" fill="#C0473E" letter-spacing="2.2">2 · VOCABULARY</text>
+<rect x="828" y="44" width="284" height="532.1" rx="10" fill="#F1FAF3"/>
+<rect x="842" y="78" width="256" height="3" fill="#3F8A5B"/>
+<text x="842" y="62" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="10.5" font-weight="700" fill="#3F8A5B" letter-spacing="2.2">3 · ENRICHMENT PASSES</text>
+<rect x="1136" y="44" width="260" height="441.5" rx="10" fill="#F1F6FC"/>
+<rect x="1150" y="78" width="232" height="3" fill="#2F6DA8"/>
+<text x="1150" y="62" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="10.5" font-weight="700" fill="#2F6DA8" letter-spacing="2.2">4 · GROUNDED STORE</text>
+<rect x="1420" y="44" width="242" height="454" rx="10" fill="#FDF2F8"/>
+<rect x="1434" y="78" width="214" height="3" fill="#A8447C"/>
+<text x="1434" y="62" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="10.5" font-weight="700" fill="#A8447C" letter-spacing="2.2">5 · QUERY LAYER</text>
+<rect x="1686" y="44" width="276" height="547.1" rx="10" fill="#F2F7FC"/>
+<rect x="1700" y="78" width="248" height="3" fill="#2F6DA8"/>
+<text x="1700" y="62" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="10.5" font-weight="700" fill="#2F6DA8" letter-spacing="2.2">PROJECTIONS</text>
+<path d="M302 131.81 C328 131.81 328 131.43 354 131.43" fill="none" stroke="#B9C2CF" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<path d="M302 199.44 C328 199.44 328 198.27 354 198.27" fill="none" stroke="#B9C2CF" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<path d="M302 267.07 C328 267.07 328 265.12 354 265.12" fill="none" stroke="#B9C2CF" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<path d="M302 334.7 C328 334.7 328 331.97 354 331.97" fill="none" stroke="#B9C2CF" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<path d="M302 402.33 C328 402.33 328 398.82 354 398.82" fill="none" stroke="#B9C2CF" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<path d="M302 469.96 C328 469.96 328 465.68 354 465.68" fill="none" stroke="#B9C2CF" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<path d="M562 131.43 C588 131.43 588 263.18 614 263.18" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M562 198.27 C588 198.27 588 263.18 614 263.18" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M562 265.12 C588 265.12 588 263.18 614 263.18" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M562 331.97 C588 331.97 588 263.18 614 263.18" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M562 398.82 C588 398.82 588 263.18 614 263.18" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M562 465.68 C588 465.68 588 263.18 614 263.18" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M790 263.18 C816 263.18 816 138.56 842 138.56" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M790 263.18 C816 263.18 816 220.68 842 220.68" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M790 263.18 C816 263.18 816 302.8 842 302.8" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M790 263.18 C816 263.18 816 384.92 842 384.92" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M1098 138.56 C1124 138.56 1124 312.88 1150 312.88" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M1098 220.68 C1124 220.68 1124 312.88 1150 312.88" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M1098 302.8 C1124 302.8 1124 312.88 1150 312.88" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M1098 384.92 C1124 384.92 1124 312.88 1150 312.88" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M1098 467.04 C1124 467.04 1124 402.5 1150 402.5" fill="none" stroke="#C77D1E" stroke-width="1.2" stroke-dasharray="2 5" marker-end="url(#arrow-infer)"/>
+<path d="M1382 312.88 C1408 312.88 1408 336.1 1434 336.1" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M1648 336.1 C1674 336.1 1674 138.56 1700 138.56" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M1648 336.1 C1674 336.1 1674 220.68 1700 220.68" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M1648 336.1 C1674 336.1 1674 302.8 1700 302.8" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M1648 336.1 C1674 336.1 1674 384.92 1700 384.92" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<path d="M1648 336.1 C1674 336.1 1674 467.04 1700 467.04" fill="none" stroke="#D2564B" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrow-flow)"/>
+<rect x="52" y="104" width="250" height="55.63" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="65" y="127.14" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Source code</text>
+<text x="65" y="144.85" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">many languages, many repositories</text>
+<rect x="52" y="171.63" width="250" height="55.63" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="65" y="194.77" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Product &amp; user docs</text>
+<text x="65" y="212.48" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">guides, references, change logs</text>
+<rect x="52" y="239.26" width="250" height="55.63" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="65" y="262.4" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Institutional knowledge</text>
+<text x="65" y="280.11" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">design records, decision records, runbooks, wikis</text>
+<rect x="52" y="306.89" width="250" height="55.63" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="65" y="330.03" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Defect databases</text>
+<text x="65" y="347.74" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">reports, regressions, root causes</text>
+<rect x="52" y="374.52" width="250" height="55.63" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="65" y="397.66" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Issue trackers &amp; epics</text>
+<text x="65" y="415.37" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">work items, epics, parent and blocker links</text>
+<rect x="52" y="442.15" width="250" height="55.63" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="65" y="465.29" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Schemas &amp; contracts</text>
+<text x="65" y="483" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">migrations, API contracts, event payloads</text>
+<text x="52" y="529.23" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">Stacked cards: every row arrives from many repos.</text>
+<text x="52" y="550.73" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">One source type spans many projects; one project gives many</text>
+<text x="52" y="564.23" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">source types.</text>
+<rect x="354" y="104" width="208" height="54.85" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="367" y="126.36" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="12" font-weight="700" fill="#16202E">code reader</text>
+<text x="367" y="144.07" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">parse → symbols</text>
+<rect x="354" y="170.85" width="208" height="54.85" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="367" y="193.21" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="12" font-weight="700" fill="#16202E">doc reader</text>
+<text x="367" y="210.92" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">split → sections</text>
+<rect x="354" y="237.7" width="208" height="54.85" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="367" y="260.06" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="12" font-weight="700" fill="#16202E">record reader</text>
+<text x="367" y="277.77" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">read → decisions</text>
+<rect x="354" y="304.55" width="208" height="54.85" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="367" y="326.91" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="12" font-weight="700" fill="#16202E">defect reader</text>
+<text x="367" y="344.62" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">read → reports</text>
+<rect x="354" y="371.4" width="208" height="54.85" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="367" y="393.76" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="12" font-weight="700" fill="#16202E">tracker reader</text>
+<text x="367" y="411.47" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">read → work items</text>
+<rect x="354" y="438.25" width="208" height="54.85" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="367" y="460.61" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="12" font-weight="700" fill="#16202E">schema reader</text>
+<text x="367" y="478.32" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">read → contracts</text>
+<text x="354" y="524.55" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">One front-end per source type, all emitting the same</text>
+<text x="354" y="538.05" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">shape — so adding a source is additive, and</text>
+<text x="354" y="551.55" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">nothing downstream changes.</text>
+<rect x="614" y="104" width="176" height="379" rx="8" fill="#FFFFFF" stroke="#D2564B" stroke-width="1" stroke-dasharray="5 4"/>
+<text x="627" y="130" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="700" fill="#D2564B" letter-spacing="1.2">NARROW WAIST</text>
+<text x="627" y="156" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="8.5" font-weight="700" fill="#16202E" letter-spacing="1.2">ENTITY KINDS</text>
+<text x="627" y="172" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">file</text>
+<text x="627" y="185" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">symbol</text>
+<text x="627" y="198" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">module</text>
+<text x="627" y="211" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">document</text>
+<text x="627" y="224" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">section</text>
+<text x="627" y="237" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">work item</text>
+<text x="627" y="250" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">defect</text>
+<text x="627" y="263" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">contract</text>
+<text x="627" y="288" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="8.5" font-weight="700" fill="#16202E" letter-spacing="1.2">RELATION KINDS</text>
+<text x="627" y="304" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">calls</text>
+<text x="627" y="317" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">imports</text>
+<text x="627" y="330" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">defines</text>
+<text x="627" y="343" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">describes</text>
+<text x="627" y="356" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">touches</text>
+<text x="627" y="369" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">depends on</text>
+<text x="627" y="382" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="10" font-weight="400" fill="#16202E">derives from</text>
+<text x="627" y="409" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="8.5" font-weight="400" fill="#5A6678">A closed set. Every source collapses</text>
+<text x="627" y="421" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="8.5" font-weight="400" fill="#5A6678">into these kinds; a new source adds no</text>
+<text x="627" y="433" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="8.5" font-weight="400" fill="#5A6678">kinds.</text>
+<text x="627" y="457" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="8.5" font-weight="400" fill="#5A6678">Every entity carries</text>
+<text x="627" y="469" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="8.5" font-weight="400" fill="#D2564B" font-style="italic">its origin, always.</text>
+<path d="M627 266 H777" fill="none" stroke="#EED9D7" stroke-width="1"/>
+<text x="614" y="509" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="8" font-weight="700" fill="#8A94A6" letter-spacing="1.4">READING THE LINES</text>
+<path d="M614 522 h22" fill="none" stroke="#B9C2CF" stroke-width="1.4"/>
+<text x="644" y="525" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="8.5" font-weight="400" fill="#8A94A6">one source, one reader</text>
+<path d="M614 537 h22" fill="none" stroke="#D2564B" stroke-width="1.4" stroke-dasharray="4 4"/>
+<text x="644" y="540" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="8.5" font-weight="400" fill="#8A94A6">extracted facts</text>
+<path d="M614 552 h22" fill="none" stroke="#C77D1E" stroke-width="1.4" stroke-dasharray="2 5"/>
+<text x="644" y="555" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="8.5" font-weight="400" fill="#8A94A6">inferred, opt-in</text>
+<rect x="842" y="104" width="256" height="69.12" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="855" y="127.14" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Reference resolution</text>
+<text x="855" y="144.85" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">Bind call sites to definitions across files, packages and</text>
+<text x="855" y="158.34" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">repository boundaries.</text>
+<rect x="842" y="186.12" width="256" height="69.12" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="855" y="209.26" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Documentation binding</text>
+<text x="855" y="226.97" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">Attach each document section to the code it describes</text>
+<text x="855" y="240.46" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">— and record where it no longer does.</text>
+<rect x="842" y="268.24" width="256" height="69.12" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="855" y="291.38" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Schema folding</text>
+<text x="855" y="309.09" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">Fold migrations into the schema they produce; tie</text>
+<text x="855" y="322.58" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">contracts to the code that satisfies them.</text>
+<rect x="842" y="350.36" width="256" height="69.12" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="855" y="373.5" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Work linking</text>
+<text x="855" y="391.21" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">Connect work items and defects to the components</text>
+<text x="855" y="404.7" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">they touched, via the commits that closed them.</text>
+<rect x="842" y="432.48" width="256" height="69.12" rx="8" fill="#FDF6E7" stroke="#C77D1E" stroke-width="1"/>
+<text x="855" y="455.62" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Inference — opt-in</text>
+<text x="855" y="473.33" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">Model-proposed relations, each labelled and scored:</text>
+<text x="855" y="486.82" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">conf 0.72. Stored apart from the facts.</text>
+<text x="842" y="525.05" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">Passes relate what extraction could only see in isolation. Each</text>
+<text x="842" y="538.55" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">reads the graph and writes back only new relations — never</text>
+<text x="842" y="552.05" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">new kinds.</text>
+<rect x="1150" y="188" width="232" height="277.5" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="1164" y="216" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Grounded store</text>
+<text x="1164" y="241.5" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">Content-addressed: identical input yields</text>
+<text x="1164" y="255" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">identical facts.</text>
+<text x="1164" y="276.5" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">Versioned: the graph is a build artifact tied to a</text>
+<text x="1164" y="290" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">commit, not a one-time crawl.</text>
+<rect x="1164" y="304" width="159.47" height="24" rx="12" fill="#F2F6FC" stroke="#CFDCEC" stroke-width="1"/>
+<text x="1176" y="319.5" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="9.5" font-weight="400" fill="#2F6DA8">graph @ 4f1c9ab · clean</text>
+<text x="1164" y="353.5" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">Built only from a clean tree. A dirty source</text>
+<text x="1164" y="367" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">marks the graph untrusted rather than silently</text>
+<text x="1164" y="380.5" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">answering from it.</text>
+<path d="M1164 396.5 H1368" fill="none" stroke="#E7ECF3" stroke-width="1"/>
+<text x="1164" y="409" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">Facts and hypotheses are stored as separate</text>
+<text x="1164" y="421.5" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">classes; a query returns facts unless it opts in.</text>
+<text x="1266" y="439.5" text-anchor="middle" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#2F6DA8">one build · many projects</text>
+<rect x="1434" y="220" width="214" height="258" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="1448" y="248" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Query layer</text>
+<text x="1448" y="273.5" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">Answers questions instead of making</text>
+<text x="1448" y="287" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">callers walk edges.</text>
+<text x="1448" y="320" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="11" font-weight="400" fill="#16202E">who calls this?</text>
+<text x="1448" y="347" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="11" font-weight="400" fill="#16202E">what breaks if I change it?</text>
+<text x="1448" y="374" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="11" font-weight="400" fill="#16202E">which documents describe this?</text>
+<text x="1448" y="401" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="11" font-weight="400" fill="#16202E">which issues touched it?</text>
+<path d="M1448 423 H1634" fill="none" stroke="#F0DCE8" stroke-width="1"/>
+<text x="1448" y="435.5" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">Bounded views say so: results state their cap</text>
+<text x="1448" y="448" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">and depth, and a summary is labelled as one.</text>
+<rect x="1700" y="104" width="248" height="69.12" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="1713" y="127.14" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Committed knowledge</text>
+<text x="1713" y="144.85" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">Human-readable summaries written back into the</text>
+<text x="1713" y="158.34" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">repo and reviewed like code.</text>
+<rect x="1700" y="186.12" width="248" height="69.12" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="1713" y="209.26" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Dashboards</text>
+<text x="1713" y="226.97" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">Coverage, undocumented surfaces, defect hot</text>
+<text x="1713" y="240.46" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">spots, drift over time.</text>
+<rect x="1700" y="268.24" width="248" height="69.12" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="1713" y="291.38" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Interchange exports</text>
+<text x="1713" y="309.09" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">The same facts in a portable graph format for</text>
+<text x="1713" y="322.58" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">external tooling and analysis.</text>
+<rect x="1700" y="350.36" width="248" height="69.12" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="1713" y="373.5" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Grounded agent inputs</text>
+<text x="1713" y="391.21" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">Retrieval that returns facts with citations, so an</text>
+<text x="1713" y="404.7" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">answer can be verified, not trusted.</text>
+<rect x="1700" y="432.48" width="248" height="69.12" rx="8" fill="#FFFFFF" stroke="#D8DEE9" stroke-width="1"/>
+<text x="1713" y="455.62" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="13" font-weight="700" fill="#16202E">Cross-project patterns</text>
+<text x="1713" y="473.33" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">Recurring designs, shared idioms, and drift between</text>
+<text x="1713" y="486.82" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9.5" font-weight="400" fill="#5A6678">what documents claim and what the code does.</text>
+<text x="1700" y="532.05" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="700" fill="#8A94A6">Only possible when several projects share one graph.</text>
+<text x="1700" y="553.55" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">A single repository cannot show what is common across an</text>
+<text x="1700" y="567.05" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">org.</text>
+<text x="1150" y="524" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="700" fill="#8A94A6" letter-spacing="1.6">ONE FACT, WITH ITS ORIGIN</text>
+<text x="1150" y="554" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="15" font-weight="400" fill="#16202E">calls( auth.verify → tokens.decode )</text>
+<rect x="1150" y="574" width="128.02" height="24" rx="12" fill="#F5F7FA" stroke="#DFE5EE" stroke-width="1"/>
+<text x="1161" y="589.5" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="9.5" font-weight="400" fill="#5A6678">auth/verify.rs:214</text>
+<rect x="1288.02" y="574" width="110.35" height="24" rx="12" fill="#F5F7FA" stroke="#DFE5EE" stroke-width="1"/>
+<text x="1299.02" y="589.5" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="9.5" font-weight="400" fill="#5A6678">decision-014 §3</text>
+<rect x="1408.37" y="574" width="133.91" height="24" rx="12" fill="#F5F7FA" stroke="#DFE5EE" stroke-width="1"/>
+<text x="1419.37" y="589.5" text-anchor="start" font-family="Menlo, DejaVu Sans Mono, Courier New, monospace" font-size="9.5" font-weight="400" fill="#5A6678">issue 1182 · closed</text>
+<text x="1150" y="614" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">Nothing is asserted that cannot be pointed at. A fact traces to a file and line, a document and section, or a work item — so an</text>
+<text x="1150" y="626.5" text-anchor="start" font-family="Helvetica, Arial, Liberation Sans, sans-serif" font-size="9" font-weight="400" fill="#8A94A6">answer can always be checked.</text>
+</svg>

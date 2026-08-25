@@ -110,7 +110,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ## Imports
 
-`__future__.annotations`, `collections.abc.Awaitable`, `collections.abc.Callable`, `json`, `logging`, [`orchestrator.codereview.diff_utils`](../../src/orchestrator/codereview/diff_utils.py#L1), [`orchestrator.codereview.github_client`](../../src/orchestrator/codereview/github_client.py#L1), [`orchestrator.codereview.verifiers`](orchestrator.codereview.verifiers.md), [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), `typing.Any`, `typing.Protocol`
+`__future__.annotations`, `collections.abc.Awaitable`, `collections.abc.Callable`, `json`, `logging`, [`orchestrator.codereview.diff_utils`](../../src/orchestrator/codereview/diff_utils.py#L1), [`orchestrator.codereview.github_client`](../../src/orchestrator/codereview/github_client.py#L1), [`orchestrator.codereview.verifiers`](../../src/orchestrator/codereview/verifiers.py#L1), [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), `typing.Any`, `typing.Protocol`
 
 ## Imported by
 

@@ -1,7 +1,8 @@
 # The SDLC as a GraphIR workflow — one orchestrator, deterministic where it counts
 
 **Status:** **Phase 1 ✅** · **2a ✅** (2026-08-18) · **2b ✅ — promotion declined, measured** ·
-**Phase 3 ✅** (2026-08-19). Phase 4 not started.
+**Phase 3 ✅** (2026-08-19) · **Phase 4 ❌ — not delivered; both halves measured and declined**
+(2026-08-23). **Phases 1–3 are the programme; Phase 4 is closed, not shipped.**
 **Written 2026-08-18 against 3.19.0.** **Owner:** _unassigned_
 
 > **Currency.** This record is updated as each phase lands — the whole document, not just the
@@ -304,7 +305,7 @@ Phase 4 is throughput. All three are real work; none fixes anything listed above
 | **2a** | The IR executes the run; Evidence is **consumed**; criteria bound; `RunContext` becomes the typed Case | ✅ **COMPLETE** | 2026-08-18 | 2026-08-18 |
 | **2b** | `design` promoted to a hybrid model node — validator, then `_llm_design`, then the measurement | ✅ **COMPLETE — promotion declined, measured** | 2026-08-18 | 2026-08-19 |
 | 3 | Issue-type-shaped workflows; profiles as files a repo can carry | ✅ **COMPLETE** | 2026-08-19 | 2026-08-19 |
-| 4 | Parallel fan-out and the bounded replan loop | Not started | — | — |
+| 4 | Parallel fan-out and the bounded replan loop | ❌ **NOT DELIVERED — fan-out worth ~30ms; replan built, then reverted as unreachable** | 2026-08-21 | 2026-08-23 |
 
 ### Phase 1 — the `tool` node type, the Evidence artifact, and the SDLC IR in shadow
 
@@ -577,29 +578,111 @@ SDLC will execute less carefully, or more.
 **Value if we stop here.** The SDLC becomes configurable per repository without a code change, and
 each issue type gets the research it actually needs rather than one fixed pass.
 
-### Phase 4 — parallel fan-out and the bounded replan loop
+### Phase 4 — **not delivered as specified.** Both halves were measured and declined
 
-**Deliverable.** Independent nodes run concurrently under a bounded pool and the run budget.
-Failures route through the existing verifier chain into `replan_ir`, capped by
-`Budget.max_replan_count`, which already exists and is currently unused by the SDLC.
+**Closed 2026-08-23 without shipping either half.** This section is longer than the others
+because a phase that does not ship has to say why in enough detail that nobody re-opens it by
+accident.
 
-**Files.** `runtime/task_orchestration.py` (fan-out for `sequential`/`manager_specialists` graphs
-with independent nodes), `sdlc/case.py` (concurrent node writes), `temporal/` (replan wiring),
-`ir/validator.py` (parallel-shape rules).
+#### What was proposed
 
-**Done when.** Wall-clock per ticket drops with **no acceptance regression** and no budget
-overrun; a forced node failure demonstrably replans within the cap and stops at it.
+> Independent nodes run concurrently under a bounded pool and the run budget. Failures route
+> through the existing verifier chain into `replan_ir`, capped by `Budget.max_replan_count`,
+> which already exists and is currently unused by the SDLC.
 
-**Defects: closes none.** This phase is throughput. If it is reached with any defect still open,
-the sequencing went wrong.
+#### Half one — parallel fan-out. Measured, ~30ms available, declined
 
-**Defects.** Closes **none** — this phase is throughput. It must not regress any of the four, and
-the 2a gates stay in the suite to prove it.
+The gate said *wall-clock per ticket drops*. Timed on this repository's own graph
+(11,609 nodes / 33,684 edges):
 
-**Value if we stop here.** The programme is complete: one orchestrator, deterministic where it
-counts, replannable, and faster.
+| Node | Wall-clock | Depends on |
+|---|---|---|
+| `sdlc.investigate` | 0.034s | — |
+| `sdlc.rca` | 0.057s | — |
+| `sdlc.blast_radius` | 2.167s | `investigate`'s landing files |
+| `sdlc.validity` | 0.002s | both |
 
----
+Only `investigate` and `rca` are independent, so **the whole available saving is ~30ms** of a
+~2.3s pass — and it is not free: `_tool_investigate` and `_tool_blast_radius` are synchronous
+and `build_rca` calls a blocking `subprocess.run`, so `asyncio.gather` yields no concurrency at
+all. Collecting 30ms means putting two deterministic tools on threads over a shared `FactStore`.
+
+The other candidates were measured too. **Preflight** runs `ruff check` → `ruff format` → `mypy`
+serially, but cold `mypy` is 16.3s against ruff's 0.1s, so gathering saves ~0.1s of 16.4s.
+**`_files_no_test_exercises`** runs the suite up to four times in sequence and *cannot* be
+parallelised — each probe `git stash`es the shared worktree. And **the fan-out with real
+wall-clock in it already shipped**, before this phase was written: the SDLC parent runs one
+child workflow per issue in bounded batches (`max_parallel_features`), and `manager_graph` runs
+specialists under an `asyncio.Semaphore(parallelism_max)`.
+
+#### Half two — the bounded replan. Built, then reverted as unreachable
+
+This half **was implemented** — `Budget.max_replan_count` honoured by `autorun`, a repair loop
+on the design node that fed refused references back as a bar, `produce_design(exclude=...)`,
+`max_replan_count: 2` in all three profiles, six passing tests. It was reverted on 2026-08-23,
+because a check that should have come first showed **the loop can never execute**.
+
+**The trigger does not occur.** The repair fires when `validate_design` refuses a design for
+naming code that does not exist. Probed against six real specs — including one whose summary
+names `made_up_pkg/thing.py` and `totally/absent/file.py` — the validator refused **0 of 6**.
+
+The reason is structural. `_fallback_design` draws from three sources in order and **none of
+them can fabricate**:
+
+| Source | Why it cannot produce a refused reference |
+|---|---|
+| `_stated_paths` | drops any path that is not a real file when `root` is given, and `autorun` always gives it |
+| `_landing_files` | comes from the graph — real by construction |
+| `_overview_files` | comes from the graph — real by construction |
+
+The only producer that *could* fabricate is `_llm_design`, and `autorun` hardcodes `llm=None`
+because **2b measured that promotion and declined it**. So the budget could not be spent.
+
+**The deeper reason, which should have been obvious at the design stage:** re-running a
+deterministic producer with the same inputs returns the same answer. *A replan loop only means
+anything for a non-deterministic producer.* This half was never deliverable while `design` stays
+deterministic — it is blocked on a decision that 2b already took the other way.
+
+**How it survived review as long as it did.** All six tests `monkeypatch` the producer to
+manufacture a fabrication. They prove the loop is *correct*; not one of them proves it is
+*reachable*. The mechanism was verified and the trigger never was — the same shape as the
+invention bug recorded in §3 of [`STATE-OF-SPINE.md`](STATE-OF-SPINE.md), where `pkg verify`
+reported 0 dangling edges the whole time 497 edges were fabricated, because the inventor created
+the phantom node too. **A thing can be internally perfect and externally inert.**
+
+#### What was kept, because it is not speculative
+
+- **Per-node wall-clock in the `Case`.** No `case.record(...)` call passed `seconds=`, so every
+  node row read `0.00` and *"where did the time go"* was unanswerable from the artifact built to
+  answer it. All five recorded nodes are now timed and `Case.seconds` sums the rows —
+  deliberately *not* the run's duration, since `autorun` does work between nodes that no node
+  owns. Reported, never digested: a clock may be read, never computed with.
+- **`parallel_reconvergence` and `parallel_determinism` in `ir/validator.py`.** No shipped
+  profile declares a fan-out, so **these do not fire today** and the tests say so. They are kept
+  for one narrow reason: `_check_sequential_shape` inspects only the *agent* condensation, so a
+  fan-out over `tool` nodes passes validation **without anything having looked at it**. That is
+  a capability nobody declared and nothing verified.
+
+`check_structure_preserving` was removed with the replan — its only purpose was guarding a
+replanner that no longer exists, and keeping it would be the same dead-code mistake one level up.
+
+#### Done when — against what actually happened
+
+| Clause | Outcome |
+|---|---|
+| Wall-clock per ticket drops | **Not met, not meetable** by fan-out at this grain. Wall-clock is now *instrumented* per node, so the claim is at least falsifiable |
+| No acceptance regression | ✅ nothing shipped that could regress it; the 2a gates stay in the suite |
+| No budget overrun | ✅ `parallel_determinism` refuses the shape that could cause one — on a shape nothing currently declares |
+| A forced node failure replans within the cap and stops at it | **Withdrawn.** True only under a mocked producer; the failure it forces cannot occur in the shipped configuration |
+
+**Defects.** Closes **none** — all four were shut by the end of 2a, and nothing here reopened
+one.
+
+**Where this leaves the programme.** Phases 1, 2a, 2b and 3 delivered. **Phase 4 delivered
+neither half**, and should stay closed unless `design` is promoted to a model node — at which
+point the replan becomes meaningful *and* the promotion needs its own measurement, per the
+governing rule. The instrumentation and the validator rules are the residue worth keeping.
+
 
 ## Measurement plan
 

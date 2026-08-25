@@ -1,7 +1,9 @@
 # Capability matrix — Spine against the field
 
-**Generated 2026-08-16 against 3.18.1; refreshed 2026-08-19 for the GraphIR programme
-(Phases 1, 2a, 2b), which is unreleased on `develop` and marked ⁸.**
+**Generated 2026-08-16 against 3.18.1; refreshed 2026-08-23.** Phases 1, 2a and 2b of the
+GraphIR programme shipped in **3.20.0** and Phase 3 in **3.21.0** — both marked ⁸. **Phase 4
+delivered nothing** and adds no row here: both halves were measured and declined
+([`graphir-sdlc-workflow.md`](graphir-sdlc-workflow.md)).
 
 > ## Read this before quoting any cell
 >
@@ -24,11 +26,11 @@ docs · **n/a** out of category
 
 ---
 
-| Capability | **Spine 3.21.0** | CodeGraph | Graphify | GitNexus | Serena | Joern | Sourcegraph | OpenHands | Devin |
+| Capability | **Spine 3.22.0** | CodeGraph | Graphify | GitNexus | Serena | Joern | Sourcegraph | OpenHands | Devin |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | **LAYER A — CODE INTELLIGENCE** |
 | Deterministic, no-LLM extraction | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ |
-| Real parser, never regex | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ |
+| Real parser, never regex | ✅ ¹⁰ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ |
 | `file:line` provenance on every fact | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ |
 | **Published precision/recall of its own graph** | **✅** | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
 | **Invention detection (fabricated edges)** | **🟡 py** | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
@@ -58,6 +60,7 @@ docs · **n/a** out of category
 | **Impact analysis keyed off where the ticket lands, not the plan's own guess** | **✅ ⁸** | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
 | **Deterministic validator on a model stage's output** | **✅ ⁸** | n/a | n/a | n/a | n/a | n/a | n/a | ➖ | ➖ |
 | **A published measurement that *declined* a feature** | **✅ ⁸** | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ |
+| **Research pipeline shaped by issue type, as a file the repo can carry** | **✅ ⁸** | n/a | n/a | n/a | n/a | n/a | n/a | ➖ | ➖ |
 | Opens real PRs | ✅ | n/a | n/a | n/a | ➖ | n/a | ➖ | ✅ | ✅ |
 | Autonomous merge on green | ✅ | n/a | n/a | n/a | ➖ | n/a | ➖ | ➖ | 🟡 |
 | Responds to human PR review comments | ✅ | n/a | n/a | n/a | ➖ | n/a | ➖ | 🟡 | 🟡 |
@@ -132,26 +135,57 @@ choice moves the same model further than model choice does (one reported case: ~
 scaffold vs 61.5% top score on a standardised harness). See
 [`codegen-benchmark-roadmap.md`](codegen-benchmark-roadmap.md), Phase 1, `Not started`.
 
-**⁸ Shipped in 3.20.0** (Phases 1, 2a, 2b of
-[`graphir-sdlc-workflow.md`](graphir-sdlc-workflow.md), 2026-08-18/19). These were marked
-unreleased while they sat on `develop`; the marker stays only to say when they arrived.
+**⁸ Shipped, in two releases** — [`graphir-sdlc-workflow.md`](graphir-sdlc-workflow.md).
+Phases 1, 2a and 2b in **3.20.0** (2026-08-18/19); **Phase 3 in 3.21.0** (2026-08-19), which is
+the issue-type row: three profiles ship, the ticket's issue type chooses one by **deterministic
+lookup rather than a model** — a model choosing would make the Evidence unreproducible at a
+commit — and a repo may carry its own in `.spine/workflows/`, where the same name wins. These
+were marked unreleased while they sat on `develop`; the marker stays only to say when they
+arrived.
 
-The last row is the odd one, and it is deliberate. Spine ran a 100-run controlled A/B on whether
-its design stage should call a model, found no gain it could resolve and a held-out rate that
-went the wrong way on one of two models, and **published the result and did not ship the
-feature** ([`design-promotion-ab-results.md`](design-promotion-ab-results.md)). No competitor in
-this category was found publishing a measurement that declined their own capability. It is a
-claim about method rather than function, which is why it sits last.
+**The *declined a feature* row is the odd one, and it is deliberate.** It now has **two
+instances**, which is what turns a one-off into a method:
+
+1. Spine ran a 100-run controlled A/B on whether its design stage should call a model, found no
+   gain it could resolve and a held-out rate that went the wrong way, and **published the result
+   and did not ship the feature**
+   ([`design-promotion-ab-results.md`](design-promotion-ab-results.md)).
+2. Phase 4 proposed concurrent pipeline nodes and a bounded replan. Timing showed the fan-out
+   was worth **~30ms**; the replan was built, then **reverted when the trigger was probed and
+   found unreachable** — `validate_design` refused 0 of 6 real specs, because a deterministic
+   design cannot fabricate. **The phase shipped neither half and the record says so**
+   ([`graphir-sdlc-workflow.md`](graphir-sdlc-workflow.md), Phase 4).
+
+No competitor in this category was found publishing a measurement that declined their own
+capability. It is a claim about method rather than function, which is why it sits last.
+
+**¹⁰ "Never regex" is three cases too strong, and they are named rather than defended.** All
+eight front-ends parse with a real parser and read structure off the tree. Three narrow regex
+fallbacks exist: `java`/`csharp` recover the one-line `package`/`namespace` declaration to *name*
+a module the parser already found, and `sql` recovers `CALL`/`PERFORM proc()` — which sqlglot
+collapses into opaque `Command` nodes — as **real `CALLS` edges**. Only the third emits facts,
+and its corpus evidence is **one labelled call edge**. The row stays ✅ because the claim it is
+scored against is "structure is parsed, not pattern-matched", which holds; the asterisk is here
+so the cell is not quoted as more absolute than the source supports. Detail:
+[`STATE-OF-SPINE.md`](STATE-OF-SPINE.md) §3 and
+[`parsing-and-the-pkg.md`](parsing-and-the-pkg.md).
 
 ---
 
 ## Summary
 
-**16 rows where Spine stands alone.** Five arrived in 3.20.0 (⁸). Of the rest, four are the strongest: they are about
-whether the product's central claim is *true*, not about what it can do.
+**21 rows where Spine stands alone**, out of 46. Six arrived with the GraphIR programme (⁸). Of the rest, four are the strongest: they are about whether the
+product's central claim is *true*, not about what it can do.
+
+> **The count is derived, not maintained.** `python scripts/matrix-count.py` reads this table and
+> prints the numbers in this section; CI fails if they drift from the prose. It exists because
+> this section read **16** and [`STATE-OF-SPINE.md`](STATE-OF-SPINE.md) read **11** for the same
+> table on the same day, and both were wrong — the exact failure `evals/agent_corpus.py` was
+> built for, reproduced in the document that warns about it.
 
 **3 rows where Spine is ❌** — SWE-bench comparability, an in-path security verifier, and a
-secrets vault; plus RBAC at 🟡 (see ⁶). Down from six earlier in the month: two were **my own errors** from stale status
+secrets vault; plus three at 🟡 (invention detection and the runtime oracle are Python-only;
+RBAC, see ⁶). Down from six earlier in the month: two were **my own errors** from stale status
 docs (⁶), and one (interactive visualization) turned out to be a **deliberate design choice**
 rather than a gap (³).
 

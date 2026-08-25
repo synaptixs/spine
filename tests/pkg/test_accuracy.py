@@ -324,3 +324,52 @@ def test_parity_on_a_missing_repo_is_an_error() -> None:
 
     with pytest.raises(CorpusError, match="not a directory"):
         score_parity("/nope/does/not/exist")
+
+
+# ---- the invention gate: zero per language, not zero-versus-baseline -------
+
+
+def _board(languages: dict[str, Any]) -> dict[str, Any]:
+    return {"metrics": {"invention": {"gated": "strict", "languages": languages}}}
+
+
+def test_a_fabricated_edge_fails_the_gate() -> None:
+    """Proved by making it fail, not by watching it pass.
+
+    A gate nobody has seen fail is a gate nobody knows is wired up — this is the check that
+    the four front-end fixes are actually held in place by something.
+    """
+    from orchestrator.pkg.accuracy import compare_scoreboard
+
+    clean = _board({"cpp": {"status": "measured", "invented": 0}})
+    assert compare_scoreboard(clean, clean) == []
+
+    broken = _board({"cpp": {"status": "measured", "invented": 3}})
+    regressions = compare_scoreboard(clean, broken)
+    assert [r.metric for r in regressions] == ["invention"]
+    assert "cpp" in regressions[0].detail
+
+
+def test_the_gate_is_absolute_not_relative_to_the_baseline() -> None:
+    """A non-zero baseline must not license a non-zero current.
+
+    Gating against a stored number is how a defect count becomes a metric everyone agrees to
+    live with. There is no repository where a fabricated edge is acceptable.
+    """
+    from orchestrator.pkg.accuracy import compare_scoreboard
+
+    dirty_baseline = _board({"go": {"status": "measured", "invented": 5}})
+    assert compare_scoreboard(dirty_baseline, dirty_baseline) != []
+
+
+def test_an_unmeasured_language_is_not_gated() -> None:
+    """Its 0 means 'not examined'. Gating on it would report health nobody checked."""
+    from orchestrator.pkg.accuracy import compare_scoreboard
+
+    board = _board(
+        {
+            "java": {"status": "not-applicable", "invented": 0},
+            "rust": {"status": "unwalked", "invented": 0},
+        }
+    )
+    assert compare_scoreboard(board, board) == []

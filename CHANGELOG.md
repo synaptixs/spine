@@ -4,6 +4,181 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.22.0 — Four front-ends stop asserting calls the source does not make
+
+### Fixed — four front-ends fabricated a `CALLS` edge for a shadowed name
+
+- **`pkg accuracy --oracle invention` and `pkg verify` were Python-only, and said `0`.** The
+  detector re-parsed with the stdlib `ast`, so on a TypeScript, Go, C++ or C# repository a zero
+  meant *nothing ran*. New `pkg/scope.py` walks TypeScript, Go, C#, C++ and C with the same
+  tree-sitter parser each front-end uses, and the detector is restated language-neutrally: an
+  edge is invented when the call site is a **bare identifier** matching the target and that
+  name is **bound inside the calling function**.
+- **Four front-ends fabricate a `CALLS` edge for a shadowed name.** `outer(send)` calling its
+  own parameter `send` yields `ts:a.outer -CALLS-> ts:a.send` — the module-level function it
+  never reaches. Reproduces in Go, C++ and C#. This is the bug Python fixed in 3.18.0, in a
+  form the fix did not reach: these do not invent an id, they land on a **real node**, so
+  `pkg verify` sees no dangling edge and no corpus fixture carries the shape. C already refuses
+  it (`c_extractor._bound_names`) and has a corpus case; the other four have neither.
+- **Measured on 11 pinned public repositories:** 47 fabricated edges across 23,746 bare calls —
+  **46 in C++** (0.47%; leveldb and fmt), **1 in TypeScript** (vue/core), **0 in Go and C#** on
+  8,562 bare calls, and **0 in C** across 14,856, which is the control holding. Roughly an order
+  of magnitude rarer than Python's 3.16% was. Record, with SHAs and the reproducing command:
+  `docs/specs/invention-oracle-cross-language.md`.
+- **Two false positives in the oracle were found by hand and fixed before publishing.** A
+  TypeScript destructuring *default* was read as a binding (3 phantom findings on vue/core), and
+  Go's `:=` was treated as in scope on its own line, when the spec starts it after the statement
+  — so idiomatic `cmd := cmd(path)` read as fiction (5 on grpc-go). Both have regression tests
+  written against the language reference.
+- **Per front-end in the scoreboard and the CLI, with a `status`.** `measured`, `not-applicable`
+  (Java — variables and methods have separate namespaces, JLS §6.5.7; SQL — no lexical scope),
+  or `unwalked`. The denominator reported is **bare calls**, not all `CALLS`: only a bare call
+  can be reached by a shadow.
+- **Fixed by porting C's test to the other four** — a local `_bound_names` per front-end,
+  answering *did this function bind the name*, never *can we resolve it*. The difference is the
+  design: an unresolved callee in C++ is usually a header declaration linked from another
+  translation unit, and a Python-style "skip anything unresolved" fix would have silenced every
+  cross-translation-unit call in every C++ repository. The oracle keeps its own independent
+  implementation — a detector that imports the code it audits agrees with that code's bugs.
+- **Each helper carries the first line a name is in scope**, because two of the four languages
+  require it. Go's spec starts a `:=` scope at the end of the statement, so `cmd := cmd(path)`
+  calls the package-level `cmd`; C and C++ read the same way. Binding from the top of the
+  function would have dropped those edges — 5 in grpc-go alone. C# tracks the bare-call form
+  separately: `this.Handle()` is an explicit member access and cannot be shadowed.
+- **Re-measured on the same 11 repositories: 0 everywhere, and 47 edges removed for 47
+  fabrications found.** vue/core −1, leveldb −3, fmt −43, every other repo unchanged. No true
+  edge was lost across 38,602 bare calls; grpc-go kept all 6,285 of its `CALLS`. Precision
+  rises, recall is untouched — these edges were never in any expected set.
+- **Four corpus cases** — `corpus/{typescript,go,cpp,csharp}/shadowed_calls`, modelled on
+  `corpus/c/function_pointers`. Each was written and scored **before** the fix and each failed
+  at the predicted point: `CALLS` precision 0.50, recall 1.00. Each pairs the shadowed call
+  with an unshadowed sibling in the same file, so a front-end cannot pass by dropping both.
+- **`invention` is now gated `strict` at zero per language** — the only metric gated on an
+  absolute value rather than against the baseline, because it is the only one with a correct
+  value. Comparing to a stored number would let a non-zero baseline become the thing everyone
+  agrees to live with. A language whose status is not `measured` is skipped; its 0 means *not
+  examined*. The gate is proved by making it fail, and the original objection is preserved: the
+  *rate* still moves freely, only the count is held at zero.
+
+### Changed — GraphIR Phase 4 closed without shipping either half
+
+- **The parallel fan-out was measured and declined.** Timed on this repo's own graph, only
+  `investigate` (0.034s) and `rca` (0.057s) are independent, so the entire available saving is
+  **~30ms** of a ~2.3s research pass — and collecting it means putting two synchronous tools on
+  threads over a shared `FactStore`. Preflight is serial too, but cold `mypy` is **16.3s**
+  against ruff's 0.1s. The coverage probes cannot be parallelised at all: each `git stash`es the
+  shared worktree. And the fan-out with real wall-clock in it — one child workflow per issue,
+  bounded by `max_parallel_features` — shipped long before this phase was written.
+- **The bounded replan was built, then reverted as unreachable.** `Budget.max_replan_count` was
+  honoured by `autorun`, a repair loop fed the design validator's refused references back as a
+  bar, and six tests passed. Probing the *trigger* rather than the mechanism showed
+  `validate_design` refuses **0 of 6** real specs — including one naming `made_up_pkg/thing.py`.
+  `_fallback_design`'s three sources cannot fabricate: stated paths are filesystem-filtered when
+  `root` is given (and `autorun` always gives it), while landing and overview files come from the
+  graph. The one producer that could fabricate, `_llm_design`, is off because **3.20.0 declined
+  that promotion**. The budget could not be spent.
+- **Underneath it: re-running a deterministic producer returns the same answer**, so a replan
+  loop only means anything for a non-deterministic one. This half was never deliverable while
+  `design` stays deterministic. Every test had `monkeypatch`ed the producer to manufacture the
+  failure, so the mechanism was verified and the trigger never was — internally perfect,
+  externally inert.
+- **Reverted with it:** `produce_design(exclude=...)`, `max_replan_count: 2` in the three
+  profiles (back to `0`), `Case.attempts`, and `IRValidator.check_structure_preserving`, whose
+  only purpose was guarding the replanner.
+
+### Added — per-node wall-clock in the Case
+
+- **Every node row read `0.00s`.** No `case.record(...)` call passed `seconds=`, so *"where did
+  the time go"* was unanswerable from the artifact built to answer it. All five recorded nodes —
+  the three research tools, the validity gate and the design node — are now timed, and
+  `Case.seconds` sums the rows. Deliberately **not** the run's duration: `autorun` does work
+  between nodes that no node owns, and reporting it as the run's would credit the graph with
+  time it never spent. Excluded from `Case.digest()`, like `cost_usd`: a clock may be reported,
+  never computed with.
+
+### Added — parallel-shape rules in the IR validator
+
+- **`parallel_reconvergence` and `parallel_determinism`.** No shipped profile declares a fan-out,
+  so **these do not fire today, and their tests say so.** They exist because
+  `_check_sequential_shape` inspects only the *agent* condensation, so a fan-out over `tool`
+  nodes passed validation **without anything having looked at it** — a concurrency capability
+  nobody declared and nothing verified. A branch must reconverge, and only deterministic nodes
+  may sit on one: two model calls in flight can each pass the run budget check and jointly
+  overrun it.
+
+### Added — the Knowledge Foundation Architecture diagram, as SVG and PNG
+
+- **`assets/knowledge-foundation.svg` + `.png`**, generated by
+  `scripts/render_knowledge_foundation_svg.py`. The product-neutral, federated figure described by
+  `docs/specs/knowledge-foundation-diagram-prompt.md`: many sources across many repositories, one
+  reader each, collapsing through a closed vocabulary — the narrow waist — into enrichment passes,
+  a content-addressed store tied to a commit, a query layer, and five projections. Deterministic
+  and seeded, like every other visual surface here: same input, same bytes.
+- **Text is measured, not estimated.** The generator carries Helvetica's published advance widths
+  (units/1000) and names Helvetica first in the SVG, so wrapping is computed against the font the
+  renderer will actually use. Every card height derives from its wrapped line count; none is a
+  constant. The existing architecture generator estimates at "~7.6px per character" and has a
+  comment recording the line that estimate ran through a label.
+- **The layout is asserted, not eyeballed.** `--check` re-derives the geometry and fails on text
+  outside its card, cards overlapping within a column, text straying out of its column, or
+  anything leaving the canvas. Proved able to fail all three ways before being trusted, and wired
+  into CI beside the architecture-diagram check.
+- **The two ideas the figure exists to carry are drawn, not just written:** every fact shows its
+  origin (the provenance band traces one `calls(...)` edge to a file and line, a document and
+  section, and a work item), and the opt-in inference path is amber, differently dashed, and
+  **enters the store at its own inlet** beside the sentence explaining that hypotheses are a
+  separate class. A legend names the three line styles.
+
+### Added — a technical section on the PKG in `STATE-OF-SPINE.md`
+
+- **New §3, written for engineers:** what the PKG is (8 node kinds, 11 edge kinds, `file:line`
+  provenance on every fact), **AST vs CST and why Spine uses both** — CPython's own `ast` for
+  Python because it is the parser that *runs* the code, tree-sitter CSTs for the six compiled
+  languages because they are error-tolerant and community-maintained, `sqlglot` for SQL — and
+  then the part that answers *why any of it matters*: the failure mode is **silence, not
+  fiction**; determinism is what makes `understand --check` and commit-keyed caching possible at
+  all; provenance is what makes a downstream claim falsifiable; and the graph is measurably what
+  makes the delivery half work (47/68 vs 3/68, control 122/124).
+- **The `_resolve_call` invention bug is carried into it as the argument**, because it is the
+  clearest evidence for the trade: inventing an id for unresolved names produced **497 fabricated
+  edges on this repo (3.16% of the call graph)** and 14.8% in Flask, and `pkg verify` reported
+  **0 dangling edges the whole time** because the inventor created the phantom node too. A graph
+  can be internally perfect and externally false.
+
+### Fixed — "real parser, never regex" was three cases too strong
+
+- The capability matrix scored that row ✅ unqualified. Three narrow regex fallbacks exist:
+  `java`/`csharp` recover the one-line `package`/`namespace` declaration to *name* a module the
+  parser already found, and `sql` recovers `CALL`/`PERFORM proc()` — which sqlglot collapses into
+  opaque `Command` nodes — as **real `CALLS` edges**. Only the third emits facts, and its corpus
+  evidence is **one labelled call edge**, so SQL call accuracy is now quoted with its
+  denominator. The row stays ✅ with footnote ¹⁰; the claim it is scored against — *structure is
+  parsed, not pattern-matched* — holds.
+
+### Fixed — the documents that say where Spine stands were disagreeing with each other
+
+- **The capability matrix's headline count was wrong in both places that quoted it.**
+  `capability-matrix.md` said **16 rows where Spine stands alone**; `STATE-OF-SPINE.md` said
+  **11**, for the same table on the same day. Counting it gives **22 of 47**. Both documents
+  open by warning that a hand-authored matrix in this project was once 22% wrong with nothing
+  failing — and neither was exempt.
+- **`scripts/matrix-count.py` derives the count instead**, and `--check` fails when the prose
+  drifts from the table. Wired into CI beside the architecture-diagram check, and proved able to
+  fail three ways — a wrong count in either document, and a row added to the table.
+- **`competitive-landscape.md` carried a second, older copy of the matrix** that had drifted
+  from the real one on four cells, three of which made Spine look *worse* than the source
+  supports. The duplicate is gone; that file is the narrative and `capability-matrix.md` is the
+  matrix. Its RBAC cell was the one the matrix records as **corrected twice** — it was wrong
+  there for a third time because nothing connected the two files.
+- **`SPEC-INDEX.md` was missing five specs** while describing itself as the complete inventory —
+  including the capability matrix itself and both measurements it cites as evidence. Its spec
+  count read **63** against **70** on disk. Both fixed, and the count is now stated as a command.
+- **`preflight-baseline-diff.md` still read "Proposed — awaiting approval"** — it shipped, with
+  `Baseline`, `capture_baseline` and 11 tests. Fourth instance of the failure `SPEC-INDEX.md`
+  exists to catch, and it was in none of them because the spec was not indexed.
+- **Test-count drift in `STATE-OF-SPINE.md`** — 2,569 across 293 files, re-measured at **2,598
+  across 297**.
+
 ## 3.21.0 — The right research for the ticket, and a first run that asks for nothing
 
 A small release with one theme: **fewer steps between someone new and a useful answer**, and

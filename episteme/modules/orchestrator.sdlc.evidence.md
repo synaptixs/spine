@@ -59,6 +59,7 @@
 
 - **Called by** (1): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L167)
 - **Calls** (2): [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L142), [`to_dict`](../../src/orchestrator/sdlc/impact.py#L187)
+- **Documented in**: `docs/specs/graphir-sdlc-workflow.md#half-one-parallel-fan-out-measured-30ms-available-declined`
 
 ### `_tool_investigate`
 
@@ -66,6 +67,7 @@
 
 - **Called by** (1): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L167)
 - **Calls** (1): [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L67)
+- **Documented in**: `docs/specs/graphir-sdlc-workflow.md#half-one-parallel-fan-out-measured-30ms-available-declined`
 
 ### `_tool_rca`
 

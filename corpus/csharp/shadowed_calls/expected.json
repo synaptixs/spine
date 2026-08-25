@@ -1,0 +1,73 @@
+{
+  "language": "csharp",
+  "case": "shadowed_calls",
+  "root": ".repo",
+  "why": "A local binding that shadows a resolvable name. The caller's own parameter is what runs; the file-level definition of the same name is never reached. Labelled from the source: the shadowed call site gets NO edge, and the unshadowed sibling in the same file gets one, so a front-end cannot pass by dropping both. C has carried this case since it was fixed there (corpus/c/function_pointers); this is the same shape in the four front-ends that had neither the fix nor a fixture.",
+  "nodes": [
+    {
+      "id": "csharp:App",
+      "kind": "Module"
+    },
+    {
+      "id": "csharp:App.Dispatch",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Dispatch.Handle",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Dispatch.Run",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Dispatch.Direct",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "csharp:App",
+      "dst": "csharp:App.Dispatch",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Dispatch",
+      "dst": "csharp:App.Dispatch.Handle",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Dispatch",
+      "dst": "csharp:App.Dispatch.Run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Dispatch",
+      "dst": "csharp:App.Dispatch.Direct",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Dispatch.Direct",
+      "dst": "csharp:App.Dispatch.Handle",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [
+    {
+      "edge": {
+        "src": "csharp:App.Dispatch.Run",
+        "dst": "csharp:App.Dispatch.Handle",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `csharp:App.Dispatch.Run -CALLS-> csharp:App.Dispatch.Handle`. C# resolves a simple name to the local/parameter before the member, so the delegate parameter `Handle` wins."
+    }
+  ],
+  "excluded": [
+    "`direct` (`Direct`) calling the same name without shadowing it is NOT excluded \u2014 it is the control. A fix that skipped every unresolved bare call would drop this edge too, and the case would catch that."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": [
+    "Written BEFORE the fix and scored: the front-end emitted an edge to the file-level definition, taking CALLS precision to 0.50 for this case. Unlike the Python and C inventions, the target is a REAL node, so nothing dangled and pkg verify stayed silent \u2014 which is why no existing check found it and why this fixture, not a verifier rule, is the guard."
+  ]
+}

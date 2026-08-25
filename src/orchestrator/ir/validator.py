@@ -67,6 +67,7 @@ class IRValidator:
         failures.extend(self._check_dag(ir))
         failures.extend(self._check_reachability(ir))
         failures.extend(self._check_pattern_coherence(ir))
+        failures.extend(self._check_parallel_shape(ir))
         failures.extend(self._check_budget_sanity(ir))
         # Tool references resolve in this process, so unlike agent templates they are checked
         # unconditionally. A graph whose deterministic steps name callables that do not exist is
@@ -324,6 +325,88 @@ class IRValidator:
                 queue.extend(adjacency[cur])
             out[source] = found
         return out
+
+    # ------------------------------------------------------------------------------
+    # Parallel shape. A fan-out is a node with more than one outgoing edge, and the SDLC
+    # profiles do not declare one today — these rules exist so that the day one does, it is
+    # *checked* rather than silently admitted. `_check_sequential_shape` only looks at the
+    # agent condensation, so tool-node branching passes it without ever being examined, which
+    # is a capability nobody declared and nothing verifies.
+    # ------------------------------------------------------------------------------
+
+    def _check_parallel_shape(self, ir: GraphIR) -> list[IRValidationFailure]:
+        adjacency = self._adjacency(ir)
+        kinds = {n.id: n.type for n in ir.spec.nodes}
+        failures: list[IRValidationFailure] = []
+
+        for node_id, targets in sorted(adjacency.items()):
+            if len(targets) < 2:
+                continue
+            closures = {t: self._closure(adjacency, t) for t in sorted(targets)}
+            joins = set.intersection(*closures.values())
+            if not joins:
+                failures.append(
+                    IRValidationFailure(
+                        rule="parallel_reconvergence",
+                        field="spec.edges",
+                        message=(
+                            f"{node_id} fans out to {sorted(targets)} and the branches never "
+                            "reconverge; a branch whose result no later node reads is work the "
+                            "run pays for and discards"
+                        ),
+                    )
+                )
+                continue
+
+            # Everything strictly between the fan-out and the join it reconverges at.
+            join = self._earliest_join(adjacency, joins)
+            after = self._closure(adjacency, join)
+            branch_nodes = sorted(set().union(*closures.values()) - after)
+            modelled = [b for b in branch_nodes if kinds.get(b) is not NodeType.TOOL]
+            if modelled:
+                failures.append(
+                    IRValidationFailure(
+                        rule="parallel_determinism",
+                        field="spec.nodes",
+                        message=(
+                            f"{node_id} fans out over non-tool node(s) {modelled}; only "
+                            "deterministic tool nodes may run concurrently, because two model "
+                            "calls in flight can each pass the run budget check and jointly "
+                            "overrun it"
+                        ),
+                    )
+                )
+        return failures
+
+    def _adjacency(self, ir: GraphIR) -> dict[str, set[str]]:
+        adjacency: dict[str, set[str]] = {n.id: set() for n in ir.spec.nodes}
+        for edge in ir.spec.edges:
+            adjacency[edge.source].add(edge.target)
+        return adjacency
+
+    def _closure(self, adjacency: dict[str, set[str]], start: str) -> set[str]:
+        """``start`` and everything reachable from it."""
+        seen: set[str] = set()
+        queue: deque[str] = deque([start])
+        while queue:
+            cur = queue.popleft()
+            if cur in seen:
+                continue
+            seen.add(cur)
+            queue.extend(adjacency.get(cur, ()))
+        return seen
+
+    def _earliest_join(self, adjacency: dict[str, set[str]], joins: set[str]) -> str:
+        """The join every other join is downstream of — where the branches actually meet.
+
+        Sorted-first on a tie so two runs of the same graph pick the same node; a rule whose
+        message depends on set iteration order is a rule that reports differently on identical
+        input.
+        """
+        for candidate in sorted(joins):
+            if joins <= self._closure(adjacency, candidate):
+                return candidate
+        return sorted(joins)[0]
 
     def _check_budget_sanity(self, ir: GraphIR) -> list[IRValidationFailure]:
         # Pydantic enforces non-negative bounds; this exists for explicit auditability

@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 50 areas in this repo, in the `orchestrator` zone. It holds 38 modules — 79 types and 283 functions. Nothing here depends on other areas, but 14 areas depend on it — it's a foundation, so changes ripple outward.
+**`orchestrator.pkg`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 39 modules — 90 types and 302 functions. Nothing here depends on other areas, but 14 areas depend on it — it's a foundation, so changes ripple outward.
 
 ```mermaid
 flowchart LR
@@ -36,7 +36,7 @@ _Showing 8 of 14 neighbouring areas._
 - [`orchestrator.pkg.accuracy`](../modules/orchestrator.pkg.accuracy.md)
 - [`orchestrator.pkg.c_extractor`](../modules/orchestrator.pkg.c_extractor.md)
 - [`orchestrator.pkg.capabilities`](../../src/orchestrator/pkg/capabilities.py#L1)
-- [`orchestrator.pkg.cpp_extractor`](../../src/orchestrator/pkg/cpp_extractor.py#L1)
+- [`orchestrator.pkg.cpp_extractor`](../modules/orchestrator.pkg.cpp_extractor.md)
 - [`orchestrator.pkg.csharp_extractor`](../modules/orchestrator.pkg.csharp_extractor.md)
 - [`orchestrator.pkg.data_layer_link`](../../src/orchestrator/pkg/data_layer_link.py#L1)
 - [`orchestrator.pkg.doc_link`](../../src/orchestrator/pkg/doc_link.py#L1)
@@ -49,7 +49,7 @@ _Showing 8 of 14 neighbouring areas._
 - [`orchestrator.pkg.graph_export`](../../src/orchestrator/pkg/graph_export.py#L1)
 - [`orchestrator.pkg.import_link`](../../src/orchestrator/pkg/import_link.py#L1)
 - [`orchestrator.pkg.intent_link`](../../src/orchestrator/pkg/intent_link.py#L1)
-- [`orchestrator.pkg.invention`](../../src/orchestrator/pkg/invention.py#L1)
+- [`orchestrator.pkg.invention`](../modules/orchestrator.pkg.invention.md)
 - [`orchestrator.pkg.java_extractor`](../modules/orchestrator.pkg.java_extractor.md)
 - [`orchestrator.pkg.media`](../../src/orchestrator/pkg/media.py#L1)
 - [`orchestrator.pkg.media_asr`](../modules/orchestrator.pkg.media_asr.md)
@@ -64,6 +64,7 @@ _Showing 8 of 14 neighbouring areas._
 - [`orchestrator.pkg.retrieval`](../../src/orchestrator/pkg/retrieval.py#L1)
 - [`orchestrator.pkg.runtime_oracle`](../../src/orchestrator/pkg/runtime_oracle.py#L1)
 - [`orchestrator.pkg.schema`](../../src/orchestrator/pkg/schema.py#L1)
+- [`orchestrator.pkg.scope`](../modules/orchestrator.pkg.scope.md)
 - [`orchestrator.pkg.sql_extractor`](../modules/orchestrator.pkg.sql_extractor.md)
 - [`orchestrator.pkg.stats`](../../src/orchestrator/pkg/stats.py#L1)
 - [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1)
@@ -73,4 +74,4 @@ _Showing 8 of 14 neighbouring areas._
 
 ## Depended on by
 
-[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.spine`](orchestrator.spine.md), [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.phase2a_parity_gate`, [`scripts.render_architecture_svg`](scripts.render_architecture_svg.md)
+[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.spine`](orchestrator.spine.md), [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.phase2a_parity_gate`, `scripts.render_architecture_svg`

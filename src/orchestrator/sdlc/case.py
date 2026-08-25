@@ -104,6 +104,16 @@ class Case:
     def spent_usd(self) -> float:
         return round(sum(n.cost_usd for n in self.nodes), 6)
 
+    @property
+    def seconds(self) -> float:
+        """Wall-clock the recorded nodes account for.
+
+        The sum of the rows, not of the run: `autorun` does work between nodes — the PKG
+        extraction, the plan gate, writing artifacts — that no node owns. Reporting this as the
+        run's duration would quietly credit the graph with time it never spent.
+        """
+        return round(sum(n.seconds for n in self.nodes), 3)
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "run_id": self.run_id,
@@ -152,7 +162,8 @@ class Case:
             out.append(f"**{self.title}**  ")
         out.append(
             f"profile `{self.profile or '—'}` · mode `{self.mode}` · "
-            f"{len(self.nodes)} node(s) · digest `{self.digest()[:12]}`"
+            f"{len(self.nodes)} node(s) · {self.seconds:.2f}s in-node · "
+            f"digest `{self.digest()[:12]}`"
         )
         out.append("")
         out.append("| Node | Kind | Status | Detail | Digest | Seconds | USD |")

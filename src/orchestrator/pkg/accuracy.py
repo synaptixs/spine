@@ -363,16 +363,27 @@ BASELINE = Path(__file__).with_name("scoreboard.json")
 #   ratchet — an increase fails. For a metric that rises only when the graph falls behind.
 #   false   — recorded, never fails.
 #
-# Invention is deliberately ungated. It is measured against the repository itself, so it
-# moves whenever anyone writes ordinary code: adding `def handler(cb): return cb()` moved it
-# from 496 to 497 and shifted the rate. A metric measured against a moving population cannot
-# be gated on equality, and a tolerance band would be an arbitrary number that eventually
-# fires on something legitimate and gets widened until it means nothing.
+# Invention is `strict` — the only metric here gated on an absolute value rather than on the
+# baseline, and the reason is that it is the only one with a *correct* value. A `CALLS` edge to
+# a name the calling function bound itself is a defect, not a score: there is no repository and
+# no commit where one is acceptable, so there is nothing for a ratchet to ratchet.
 #
-# The cost is stated rather than hidden: nothing here would catch a front-end change that
-# adds thousands of phantom edges. Corpus precision catches it only if the corpus happens to
-# contain that shape.
-GATES = {"corpus": "strict", "parity": "ratchet", "invention": False, "runtime": False}
+# It was ungated until 2026-08-24, for a good reason that no longer holds. The *rate* does move
+# with ordinary code — adding `def handler(cb): return cb()` took it from 496 to 497 — and a
+# tolerance band would be an arbitrary number that eventually fires on something legitimate and
+# gets widened until it means nothing. But the rate was never what needed gating. The count was,
+# and every front-end that can express the defect now refuses it: Python (3.18.0), C, and
+# TypeScript/Go/C++/C# with the port that came with this gate.
+#
+# Strict here means **zero per language, not zero-versus-baseline**. Comparing to a stored
+# number would let a non-zero baseline become the thing everyone agrees to live with, which is
+# how a defect count turns into a metric.
+#
+# What it does NOT catch is stated rather than hidden: the oracle detects shadowing, so a
+# front-end that fabricates some other way passes this gate. Corpus precision catches that only
+# if the corpus happens to carry the shape — which is why `corpus/*/shadowed_calls` exists, and
+# why a new invention class needs a fixture as well as a detector.
+GATES = {"corpus": "strict", "parity": "ratchet", "invention": "strict", "runtime": False}
 
 
 @dataclass(frozen=True)
@@ -450,7 +461,21 @@ def build_scoreboard(
                 "gated": GATES["invention"],
                 "count": len(invention.invented),
                 "total_calls": invention.total_calls,
-                "note": "moves with ordinary commits — recorded as a trend, never gated",
+                # Per front-end, with each one's standing. A language absent from this map
+                # emitted no CALLS edges here; a language present with `status` other than
+                # `measured` was NOT examined, and its zero says nothing about its health.
+                "languages": {
+                    entry.language: {
+                        "status": entry.status,
+                        "invented": len(entry.invented),
+                        "total_calls": entry.total_calls,
+                        "examined": entry.examined,
+                        "shadowable": entry.shadowable,
+                        "unexamined": entry.unexamined,
+                    }
+                    for entry in invention.by_language
+                },
+                "note": "gated at zero per language, not against this baseline — see GATES",
             },
         },
     }
@@ -530,6 +555,19 @@ def compare_scoreboard(baseline: dict[str, Any], current: dict[str, Any]) -> lis
                                 f"{float(after):.4f}",
                             )
                         )
+
+    # Invention: zero per language, measured against nothing. `baseline` is unused on purpose
+    # — see GATES. A language whose status is not `measured` is skipped, because its 0 means
+    # "not examined" and gating on it would report health nobody checked.
+    if GATES["invention"] == "strict":
+        for lang, entry in sorted(
+            current.get("metrics", {}).get("invention", {}).get("languages", {}).items()
+        ):
+            if entry.get("status") != "measured":
+                continue
+            count = int(entry.get("invented", 0))
+            if count:
+                out.append(Regression("invention", f"{lang}: fabricated CALLS edge(s)", "0", str(count)))
 
     was_short = baseline.get("metrics", {}).get("parity", {}).get("shortfall")
     now_short = current.get("metrics", {}).get("parity", {}).get("shortfall")

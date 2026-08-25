@@ -3004,6 +3004,19 @@ def _invention_oracle(repo: str, sample: int, kind: str, as_json: bool) -> None:
                 "external_calls": report.external_calls,
                 "candidates": report.candidates,
                 "unexamined": report.unexamined,
+                "languages": [
+                    {
+                        "language": entry.language,
+                        "status": entry.status,
+                        "reason": entry.reason,
+                        "invented": len(entry.invented),
+                        "total_calls": entry.total_calls,
+                        "examined": entry.examined,
+                        "shadowable": entry.shadowable,
+                        "unexamined": entry.unexamined,
+                    }
+                    for entry in report.by_language
+                ],
                 "examples": list(report.examples),
             }
         )
@@ -3013,12 +3026,30 @@ def _invention_oracle(repo: str, sample: int, kind: str, as_json: bool) -> None:
     typer.echo(f"\ninvented CALLS edges — {len(report.invented)} ({rate} of all calls)")
     typer.echo(f"  {report.total_calls} CALLS, {report.external_calls} to external targets")
     typer.echo(f"  {report.candidates} candidate(s) examined, {report.unexamined} unexaminable")
+
+    if report.by_language:
+        typer.echo("\n  per front-end — a count only means 'clean' where status is measured:")
+        for entry in report.by_language:
+            typer.echo(
+                f"    {entry.language:<12} {entry.status:<14} "
+                f"{len(entry.invented):>5} invented / {entry.shadowable:>6} bare calls"
+                f"  (of {entry.total_calls} CALLS)"
+            )
+            if entry.reason:
+                typer.echo(f"      {entry.reason}")
+
     for line in report.examples:
         typer.echo(f"    {line}")
     typer.echo(
-        "\n  Each of these asserts a module outside the tree that does not exist.\n"
-        "  Exactly detected, not sampled: a name bound in the caller's scope cannot be one."
+        "\n  Each of these asserts a call that the source does not make.\n"
+        "  Exactly detected, not sampled: a name bound inside the caller cannot be one."
     )
+    if report.unmeasured_languages:
+        typer.echo(
+            "  NOT MEASURED here: "
+            + ", ".join(report.unmeasured_languages)
+            + " — these carry CALLS edges no walker examined."
+        )
 
     if sample:
         try:

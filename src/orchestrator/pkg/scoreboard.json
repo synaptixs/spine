@@ -37,14 +37,14 @@
         "cpp": {
           "edges": {
             "CALLS": {
-              "emitted": 2,
-              "expected": 3,
-              "matched": 2
+              "emitted": 3,
+              "expected": 4,
+              "matched": 3
             },
             "CONTAINS": {
-              "emitted": 8,
-              "expected": 8,
-              "matched": 8
+              "emitted": 11,
+              "expected": 11,
+              "matched": 11
             }
           },
           "nodes": {
@@ -54,14 +54,14 @@
               "matched": 1
             },
             "Function": {
-              "emitted": 5,
-              "expected": 5,
-              "matched": 5
+              "emitted": 8,
+              "expected": 8,
+              "matched": 8
             },
             "Module": {
-              "emitted": 2,
-              "expected": 2,
-              "matched": 2
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
             },
             "Type": {
               "emitted": 2,
@@ -73,14 +73,14 @@
         "csharp": {
           "edges": {
             "CALLS": {
-              "emitted": 2,
-              "expected": 3,
-              "matched": 2
+              "emitted": 3,
+              "expected": 4,
+              "matched": 3
             },
             "CONTAINS": {
-              "emitted": 11,
-              "expected": 11,
-              "matched": 11
+              "emitted": 15,
+              "expected": 15,
+              "matched": 15
             },
             "IMPLEMENTS": {
               "emitted": 1,
@@ -95,33 +95,33 @@
               "matched": 1
             },
             "Function": {
-              "emitted": 6,
-              "expected": 6,
-              "matched": 6
+              "emitted": 9,
+              "expected": 9,
+              "matched": 9
             },
             "Module": {
-              "emitted": 2,
-              "expected": 2,
-              "matched": 2
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
             },
             "Type": {
-              "emitted": 4,
-              "expected": 4,
-              "matched": 4
+              "emitted": 5,
+              "expected": 5,
+              "matched": 5
             }
           }
         },
         "go": {
           "edges": {
             "CALLS": {
-              "emitted": 2,
-              "expected": 3,
-              "matched": 2
+              "emitted": 3,
+              "expected": 4,
+              "matched": 3
             },
             "CONTAINS": {
-              "emitted": 12,
-              "expected": 12,
-              "matched": 12
+              "emitted": 15,
+              "expected": 15,
+              "matched": 15
             },
             "IMPLEMENTS": {
               "emitted": 1,
@@ -136,14 +136,14 @@
               "matched": 2
             },
             "Function": {
-              "emitted": 7,
-              "expected": 7,
-              "matched": 7
+              "emitted": 10,
+              "expected": 10,
+              "matched": 10
             },
             "Module": {
-              "emitted": 2,
-              "expected": 2,
-              "matched": 2
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
             },
             "Type": {
               "emitted": 3,
@@ -298,14 +298,14 @@
         "typescript": {
           "edges": {
             "CALLS": {
-              "emitted": 3,
-              "expected": 6,
-              "matched": 3
+              "emitted": 4,
+              "expected": 7,
+              "matched": 4
             },
             "CONTAINS": {
-              "emitted": 22,
-              "expected": 22,
-              "matched": 22
+              "emitted": 25,
+              "expected": 25,
+              "matched": 25
             },
             "IMPLEMENTS": {
               "emitted": 2,
@@ -325,14 +325,14 @@
               "matched": 4
             },
             "Function": {
-              "emitted": 12,
-              "expected": 12,
-              "matched": 12
+              "emitted": 15,
+              "expected": 15,
+              "matched": 15
             },
             "Module": {
-              "emitted": 5,
-              "expected": 5,
-              "matched": 5
+              "emitted": 6,
+              "expected": 6,
+              "matched": 6
             },
             "Type": {
               "emitted": 6,
@@ -346,9 +346,19 @@
     },
     "invention": {
       "count": 0,
-      "gated": false,
-      "note": "moves with ordinary commits \u2014 recorded as a trend, never gated",
-      "total_calls": 15212
+      "gated": "strict",
+      "languages": {
+        "python": {
+          "examined": 0,
+          "invented": 0,
+          "shadowable": 0,
+          "status": "measured",
+          "total_calls": 16039,
+          "unexamined": 0
+        }
+      },
+      "note": "gated at zero per language, not against this baseline \u2014 see GATES",
+      "total_calls": 16039
     },
     "parity": {
       "declared": 75,

@@ -1,6 +1,6 @@
 # How Spine parses code, and what lands in the PKG
 
-**Audience:** engineering · **Written 2026-08-16 against 3.18.1**
+**Audience:** engineering · **Written 2026-08-16 against 3.18.1 · §3 and §6 updated 2026-08-24**
 **Read alongside:** [`knowledge-graph-architecture.md`](knowledge-graph-architecture.md) (the
 graph itself), [`../../KNOWLEDGE_GRAPH.md`](../../KNOWLEDGE_GRAPH.md) (user-facing).
 
@@ -80,6 +80,11 @@ Parsing is not where accuracy is lost. **Every node kind and every edge kind exc
 scores 1.00 precision and 1.00 recall on the corpus, in all eight languages.** Structure is
 either in the tree or it is not.
 
+> **Read that sentence as the conditional it is: 1.00 *on the corpus*.** It held at 1.00 for
+> four front-ends that were fabricating `CALLS` edges, for the whole time they were, because no
+> fixture carried the shape — see the shadowed-callee section below. A corpus score bounds what
+> the corpus contains and nothing else.
+
 `CALLS` is different because it needs *resolution*: the tree tells you a call happened and what
 it was spelled, not which definition it reaches. That is a judgement, and judgements can be
 wrong.
@@ -111,6 +116,46 @@ C could not take the same fix. An unresolved callee in C is usually a function d
 header and linked from another translation unit, so skipping those would silence every
 cross-TU call in every C repository. The C test is therefore *"did this function bind the
 name"* (a function-pointer parameter) rather than *"can we resolve it"*.
+
+### The same class in four more front-ends — found 2026-08-24
+
+**The story above was told as one Python bug, closed. It was one instance of a class, and the
+other four front-ends had it the whole time.** When a parameter or local **shadows** a
+resolvable name, TypeScript, Go, C++ and C# each resolved it anyway:
+
+```ts
+export function send(x: string): void {}
+export function outer(send: (v: string) => void): void { send("hi"); }
+// emitted: ts:a.outer -CALLS-> ts:a.send   — `outer` calls its own parameter
+```
+
+It hid better than the Python bug did, and for the opposite reason. Python's inventor
+manufactured an id *and a phantom node*; these four resolve against their own file-level tables
+and land on a **node that genuinely exists**. So there was no dangling edge for `pkg verify` to
+report, no phantom node to notice, and no corpus case to fail — three checks agreeing on a case
+none of them examined.
+
+Found by widening the invention oracle past Python (`pkg/scope.py` walks five tree-sitter
+front-ends), measured at **47 fabricated edges across 23,746 bare calls** on 11 pinned public
+repositories, then fixed by giving each front-end **C's test**, which is why it is worth having
+written down here: *did this function bind the name*, never *can we resolve it*. **47 edges
+removed for 47 fabrications, with no true edge lost.**
+
+Two things the port needed that the C version does not spell out:
+
+- **A binding is not in scope on its own line, in three of the five languages.** Go's spec
+  starts a short variable declaration's scope at the *end* of the statement, so
+  `cmd := cmd(binaryPath, …)` calls the package-level `cmd` — idiomatic, and it occurs 5 times
+  in grpc-go alone. C and C++ read the same way. Each helper therefore records the first line a
+  name is in scope, not just the name.
+- **Only a bare-identifier call can be shadowed.** `this.Handle()` in C# and `this.method()` in
+  TypeScript are explicit member accesses that name the member whatever else is in scope, so
+  the bare form is tracked separately. Skipping both would have dropped real edges.
+
+The guard is a corpus case per front-end (`corpus/*/shadowed_calls`), each **written and scored
+before the fix** and each failing at `CALLS` precision 0.50 — a fixture written afterwards only
+proves the fix is self-consistent. Full record:
+[`invention-oracle-cross-language.md`](invention-oracle-cross-language.md).
 
 ---
 
@@ -189,13 +234,15 @@ The parser choice is not an aesthetic preference. It is what makes the accuracy 
 
 | | Result |
 |---|---|
-| Precision | **1.00** on every node kind and every edge kind, all 8 languages |
+| Precision | **1.00** on every node kind and every edge kind, all 8 languages — on the corpus, which now includes the shadowed-callee shape (§3) |
 | Recall | 1.00 on every kind except `CALLS` |
 | `CALLS` recall | 1.00 (c, sql) · 0.73 (python) · 0.67 (cpp, csharp, go, java) · 0.50 (typescript) |
-| Invention | **0** invented targets across 15,212 call edges |
+| Invention | **0** on this repo, and **0** across 11 pinned public repos in 6 front-ends (2026-08-24). Java and SQL are recorded *not-applicable* with reasons rather than scored 0 |
+| Invention gate | **`strict`, zero per language** — the one metric gated on an absolute value rather than against the baseline, because it is the one with a correct value |
 
-**The failure mode is silence, not fiction.** Everything the graph asserts exists; what it
-misses, it misses quietly. For an agent reasoning over the graph those are not equally bad — a
+**The failure mode is silence, not fiction** — held, rather than assumed. It was untrue for
+four front-ends until 2026-08-24, and what made it true again was a detector plus a fixture,
+not a claim. Everything the graph asserts exists; what it misses, it misses quietly. For an agent reasoning over the graph those are not equally bad — a
 missing edge makes it search, a fabricated one makes it confidently follow a call into a
 function that was never written.
 

@@ -13,7 +13,7 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_text`](../../src/orchestrator/pkg/c_extractor.py#L491) — reaches **31** symbols · **no test path visible**
+- [`_text`](../../src/orchestrator/pkg/c_extractor.py#L491) — reaches **33** symbols · **no test path visible**
 - [`_declarator_name`](../../src/orchestrator/pkg/c_extractor.py#L418) — reaches **14** symbols · **no test path visible**
 - [`_function_declarator`](../../src/orchestrator/pkg/c_extractor.py#L406) — reaches **11** symbols · **no test path visible**
 - [`_field_text`](../../src/orchestrator/pkg/c_extractor.py#L486) — reaches **10** symbols · **no test path visible**
@@ -22,7 +22,7 @@
 - [`_has_body`](../../src/orchestrator/pkg/c_extractor.py#L465) — reaches **7** symbols · **no test path visible**
 - [`_header_index`](../../src/orchestrator/pkg/c_extractor.py#L325) — reaches **7** symbols · **no test path visible**
 
-_18 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_17 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Types
 
@@ -42,12 +42,13 @@ _18 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (1): [`_calls`](../../src/orchestrator/pkg/c_extractor.py#L255)
 - **Calls** (1): [`_identifiers_in`](../../src/orchestrator/pkg/c_extractor.py#L345)
+- **Documented in**: `CHANGELOG.md`
 
 ### `_c_parser`
 
 [`src/orchestrator/pkg/c_extractor.py:497`](../../src/orchestrator/pkg/c_extractor.py#L497)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/c_extractor.py#L73)
+- **Called by** (2): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L466), [`extract`](../../src/orchestrator/pkg/c_extractor.py#L73)
 - **Calls** (3): `language`, `tree_sitter.Language`, `tree_sitter.Parser`
 
 ### `_calls_in`
@@ -156,7 +157,7 @@ _18 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/c_extractor.py:491`](../../src/orchestrator/pkg/c_extractor.py#L491)
 
-- **Called by** (14): [`_calls_in`](../../src/orchestrator/pkg/c_extractor.py#L392), [`_declarator_name`](../../src/orchestrator/pkg/c_extractor.py#L418), [`_declared_names`](../../src/orchestrator/pkg/c_extractor.py#L432), [`_field_text`](../../src/orchestrator/pkg/c_extractor.py#L486), [`_has_storage`](../../src/orchestrator/pkg/c_extractor.py#L473), [`_identifiers_in`](../../src/orchestrator/pkg/c_extractor.py#L345), [`_include`](../../src/orchestrator/pkg/c_extractor.py#L120), [`_include`](../../src/orchestrator/pkg/cpp_extractor.py#L122), [`_last_type_identifier`](../../src/orchestrator/pkg/c_extractor.py#L459), [`_member_type_name`](../../src/orchestrator/pkg/c_extractor.py#L445), [`_qualified_text`](../../src/orchestrator/pkg/cpp_extractor.py#L359), [`_resolve_callee`](../../src/orchestrator/pkg/cpp_extractor.py#L335), [`_string_content`](../../src/orchestrator/pkg/c_extractor.py#L479), [`_template_params`](../../src/orchestrator/pkg/cpp_extractor.py#L367)
+- **Called by** (16): [`_calls`](../../src/orchestrator/pkg/cpp_extractor.py#L287), [`_calls_in`](../../src/orchestrator/pkg/c_extractor.py#L392), [`_declarator_name`](../../src/orchestrator/pkg/c_extractor.py#L418), [`_declared_name`](../../src/orchestrator/pkg/cpp_extractor.py#L364), [`_declared_names`](../../src/orchestrator/pkg/c_extractor.py#L432), [`_field_text`](../../src/orchestrator/pkg/c_extractor.py#L486), [`_has_storage`](../../src/orchestrator/pkg/c_extractor.py#L473), [`_identifiers_in`](../../src/orchestrator/pkg/c_extractor.py#L345), [`_include`](../../src/orchestrator/pkg/c_extractor.py#L120), [`_include`](../../src/orchestrator/pkg/cpp_extractor.py#L122), [`_last_type_identifier`](../../src/orchestrator/pkg/c_extractor.py#L459), [`_member_type_name`](../../src/orchestrator/pkg/c_extractor.py#L445), [`_qualified_text`](../../src/orchestrator/pkg/cpp_extractor.py#L469), [`_resolve_callee`](../../src/orchestrator/pkg/cpp_extractor.py#L445), [`_string_content`](../../src/orchestrator/pkg/c_extractor.py#L479), [`_template_params`](../../src/orchestrator/pkg/cpp_extractor.py#L477)
 
 ## Imports
 
@@ -164,4 +165,4 @@ _18 of the symbols other code depends on here have no test path the graph can se
 
 ## Imported by
 
-[`orchestrator.pkg.cpp_extractor`](../../src/orchestrator/pkg/cpp_extractor.py#L1), [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`tests.pkg.test_c_extractor`](../../tests/pkg/test_c_extractor.py#L1)
+[`orchestrator.pkg.cpp_extractor`](orchestrator.pkg.cpp_extractor.md), [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`orchestrator.pkg.scope`](orchestrator.pkg.scope.md), [`tests.pkg.test_c_extractor`](../../tests/pkg/test_c_extractor.py#L1)

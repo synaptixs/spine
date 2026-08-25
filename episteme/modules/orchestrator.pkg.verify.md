@@ -69,7 +69,7 @@
 [`src/orchestrator/pkg/verify.py:492`](../../src/orchestrator/pkg/verify.py#L492)
 
 - **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L516)
-- **Calls** (3): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L62), [`_examples`](../../src/orchestrator/pkg/verify.py#L87), [`find_invented_calls`](../../src/orchestrator/pkg/invention.py#L142)
+- **Calls** (3): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L62), [`_examples`](../../src/orchestrator/pkg/verify.py#L87), [`find_invented_calls`](../../src/orchestrator/pkg/invention.py#L328)
 
 ### `_check_phantoms`
 
@@ -149,7 +149,7 @@
 
 ## Imports
 
-`__future__.annotations`, `ast`, `dataclasses.dataclass`, [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.invention`](../../src/orchestrator/pkg/invention.py#L1), `pathlib.Path`, `re`
+`__future__.annotations`, `ast`, `dataclasses.dataclass`, [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.invention`](orchestrator.pkg.invention.md), `pathlib.Path`, `re`
 
 ## Imported by
 
