@@ -1,0 +1,55 @@
+{
+  "language": "java",
+  "case": "jaxrs_endpoints",
+  "why": "Measures Java JAX-RS endpoint extraction with explicit Jakarta REST imports, a literal class path, a literal method path, and a verb-annotated handler. This closes the accuracy-corpus gap for Java Endpoint and EXPOSES facts without changing production extraction logic.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "java:com.example.widgets",
+      "kind": "Module"
+    },
+    {
+      "id": "java:com.example.widgets.WidgetResource",
+      "kind": "Type"
+    },
+    {
+      "id": "java:com.example.widgets.WidgetResource.getWidget",
+      "kind": "Function"
+    },
+    {
+      "id": "java:endpoint:GET /widgets/{id}",
+      "kind": "Endpoint"
+    }
+  ],
+  "edges": [
+    {
+      "src": "java:com.example.widgets",
+      "dst": "java:jakarta.ws.rs.GET",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "java:com.example.widgets",
+      "dst": "java:jakarta.ws.rs.Path",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "java:com.example.widgets",
+      "dst": "java:com.example.widgets.WidgetResource",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:com.example.widgets.WidgetResource",
+      "dst": "java:com.example.widgets.WidgetResource.getWidget",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:endpoint:GET /widgets/{id}",
+      "dst": "java:com.example.widgets.WidgetResource.getWidget",
+      "kind": "EXPOSES"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": []
+}
