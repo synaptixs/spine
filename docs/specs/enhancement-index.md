@@ -30,11 +30,10 @@ cadence; this one is a snapshot of a conversation.
 | **E5** | [Oracle coverage gaps](#e5--oracle-coverage-gaps) | **Named in `STATE-OF-SPINE` §3** | Medium | Nothing |
 | **E6** | [Stale `## Unreleased` in the changelog](#e6--stale-unreleased-heading) | **Known defect** | Trivial | Someone who knows which release those entries shipped in |
 
-**Branch state, because it needs consolidating.** Five unmerged branches exist:
-`docs/spec-kit-declined`, `docs/ticket-to-landing-sites`, `docs/constitution-spec` (this page +
-E1), `docs/multi-repo-spec` (E2), and `feat/g6-comprehension-metrics` (empty — E3 awaits four
-decisions). **Four of them each add a row to `SPEC-INDEX.md` and will conflict pairwise on
-merge**; they want folding into one PR rather than five.
+**Branch state.** The four documentation branches were consolidated into `docs/session-specs`
+on 2026-08-25 — they each added a row to `SPEC-INDEX.md` and conflicted pairwise, which is the
+predictable cost of one branch per document. `feat/g6-comprehension-metrics` is separate and
+empty: E3 awaits the four decisions below.
 
 ---
 
