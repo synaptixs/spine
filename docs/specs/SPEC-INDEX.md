@@ -120,6 +120,7 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | [parsing-and-the-pkg](parsing-and-the-pkg.md) | How source becomes graph facts, front-end by front-end (2026-08-16) |
 | [competitive-landscape](competitive-landscape.md) | Competitive **narrative and strategy** (2026-08-21). Its duplicate scored matrix was removed — see `capability-matrix.md` |
 | [graphify-vs-spine-comparison](graphify-vs-spine-comparison.md) | One competitor in depth — **at v3.7.0, stale** |
+| [enhancement-index](enhancement-index.md) | Directory of the enhancements planned in the 2026-08-25 session — E1–E6, with state and what gates each. **Not a third backlog**; `STATE-OF-SPINE` §8 remains the authority |
 | [constitution-roadmap](constitution-roadmap.md) | Durable project rules a run is *checked* against, not prompted with. **Spec only — Phase 0 is a blocking trigger probe** that may close it unbuilt |
 | [cli-test-plan](cli-test-plan.md) | 50 commands, written against 3.16.0 |
 | [pkg-accuracy-test-plan](pkg-accuracy-test-plan.md) · [comprehension-test-plan](comprehension-test-plan.md) | Manual test plans |
