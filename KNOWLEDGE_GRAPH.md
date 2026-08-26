@@ -19,6 +19,7 @@ pip install synaptixs-spine
 
 orchestrator understand .          # build the PKG → write a committed episteme/
 orchestrator pkg extract . -q User # inspect: callers + blast radius of a symbol
+orchestrator pkg path caller helper # prove one extracted relationship chain, hop by hop
 orchestrator pkg accuracy          # how right is it? precision & recall, per kind, per language
 ```
 
@@ -343,6 +344,25 @@ orchestrator pkg extract . -q Invoice     # callers + blast radius of a symbol
 orchestrator pkg extract . --json         # dump all facts as JSON
 ```
 
+### `orchestrator pkg path` — prove one relationship chain
+
+```bash
+orchestrator pkg path caller helper                         # scan the current directory
+orchestrator pkg path helper caller --path . --direction reverse # ask the inverse question explicitly
+orchestrator pkg path "GET /v1/orders" orders.status --path . --json # machine-readable evidence
+```
+
+Returns one stable shortest path between two exact IDs (or uniquely named nodes), with each
+node, relation, traversal direction, and available `file:line` provenance. By default it follows
+semantic code/API/data/doc relations: `CALLS`, `EXPOSES`, `CONSUMES`, `READS`, `WRITES`,
+`REFERENCES`, and `MENTIONS`. Structural `CONTAINS`/`IMPORTS` relations are opt-in because they
+can make a path technically short but architecturally noisy.
+
+A miss says **“no extracted path”** and exits non-zero; it does not prove no runtime relationship
+exists. The command is read-only, deterministic, and never invents a missing edge. It excludes
+`SERVES` in v1 because `Intent` nodes have no source-file provenance. See
+[CLI_REFERENCE.md](CLI_REFERENCE.md) for the full option contract.
+
 ### `orchestrator pkg export` — the queryable projection
 ```bash
 orchestrator pkg export . --db pkg-facts.db   # a kind-per-table SQLite database
@@ -527,6 +547,7 @@ reviews honest.
 ## 8. Inspecting & querying
 
 - **Quick CLI:** `orchestrator pkg extract . -q <Symbol>` → callers + blast radius.
+- **Evidence path:** `orchestrator pkg path <source> <target> --path .` → one bounded, provenance-bearing relationship chain; use `--direction reverse|both` for inverse exploration.
 - **Full graph:** `orchestrator pkg extract . --json` → every node and edge.
 - **SQL:** `orchestrator pkg export . --out pkg-facts.db` → a kind-per-table SQLite DB you
   can query directly, e.g.:
