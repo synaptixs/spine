@@ -93,6 +93,7 @@ Graphify-gap series only. This file is the complete inventory.
 | [pkg-code-grounded-understanding](pkg-code-grounded-understanding.md) | Proposed, for review | |
 | [language-support-roadmap](language-support-roadmap.md) | Design/blueprint, not started | Three new front-ends |
 | [language-expansion-roadmap](language-expansion-roadmap.md) | Prioritization only | Go ✅ · Rust · Kotlin · Ruby |
+| [multi-repo-roadmap](multi-repo-roadmap.md) | One graph across several repositories — comprehension only. **Spec only; Phase 1 is a blocking identity decision.** Multi-repo *delivery* is an explicit non-goal |
 | [tri-repo-integration](tri-repo-integration.md) | Design only | Spans ontomesh + infodrift |
 | [ontomesh-integration-analysis](ontomesh-integration-analysis.md) | Analysis for decision | Nothing built |
 | **watch-items** | ⚠️ **Spec missing** | `watch-items-roadmap.md` does not exist in `docs/specs/` or `archive/`; the index linked it as a live track | **✔** |
