@@ -160,36 +160,51 @@
               "matched": 2
             },
             "CONTAINS": {
-              "emitted": 11,
-              "expected": 11,
-              "matched": 11
+              "emitted": 13,
+              "expected": 13,
+              "matched": 13
+            },
+            "EXPOSES": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
             },
             "IMPLEMENTS": {
               "emitted": 1,
               "expected": 1,
               "matched": 1
+            },
+            "IMPORTS": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
             }
           },
           "nodes": {
+            "Endpoint": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            },
             "Field": {
               "emitted": 1,
               "expected": 1,
               "matched": 1
             },
             "Function": {
-              "emitted": 6,
-              "expected": 6,
-              "matched": 6
+              "emitted": 7,
+              "expected": 7,
+              "matched": 7
             },
             "Module": {
-              "emitted": 2,
-              "expected": 2,
-              "matched": 2
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
             },
             "Type": {
-              "emitted": 4,
-              "expected": 4,
-              "matched": 4
+              "emitted": 5,
+              "expected": 5,
+              "matched": 5
             }
           }
         },
@@ -353,12 +368,12 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 16039,
+          "total_calls": 16046,
           "unexamined": 0
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 16039
+      "total_calls": 16046
     },
     "parity": {
       "declared": 75,
