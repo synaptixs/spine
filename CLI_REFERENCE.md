@@ -4,7 +4,7 @@
 > Maintained by hand against the CLI — run `orchestrator <command> --help` for the
 > authoritative version. If the two disagree, `--help` is right and this file is a bug.
 
-**54 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
+**55 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
 
 ## Command map
 
@@ -12,7 +12,7 @@
 `init` · `doctor` · `models` · `up` · `tui` · `task submit`
 
 **Understand a codebase — the Knowledge Graph** — Extract and read the Product Knowledge Graph (PKG). Deterministic, no LLM. All accept a local path OR a git URL.  
-`understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs` · `pkg capabilities` · `pkg verify` · `pkg accuracy` · `media extract`
+`understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg path` · `pkg export` · `pkg docs` · `pkg capabilities` · `pkg verify` · `pkg accuracy` · `media extract`
 
 **Grounded design, debugging & RCA** — The KG-grounded engineering commands: design a change, research a ticket, and trace/analyze bugs — all anchored to real code.  
 `design` · `investigate` · `localize` · `rca` · `regression` · `audit`
@@ -321,6 +321,43 @@ orchestrator pkg extract [PATH] [OPTIONS]
 | `--query`, `-q` | Show callers + blast radius of a symbol name. |
 | `--json` | Dump all facts as JSON. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
+
+### `orchestrator pkg path`
+
+Trace one shortest **extracted** path between two PKG nodes. It is a compact proof for questions
+such as “how does this client reach this handler?” or “which document section describes this
+symbol?” Every hop shows the original edge direction, type, and available `file:line` provenance.
+The command is read-only and deterministic; it does not call an LLM.
+
+```
+orchestrator pkg path SOURCE TARGET [OPTIONS]
+```
+
+**Arguments**
+
+- `SOURCE` — Exact node ID, or a uniquely matching node name.
+- `TARGET` — Exact node ID, or a uniquely matching node name.
+
+| Option | Description |
+|---|---|
+| `--path`, `-p` | Repo path or git URL to scan. _(default: current directory)_ |
+| `--direction` | `forward` \| `reverse` \| `both`. The output labels reverse traversal rather than rewriting the extracted edge. _(default: `forward`)_ |
+| `--max-hops` | Maximum extracted edges to traverse. _(default: `4`)_ |
+| `--kind` | Allowed edge kind; repeat to select several. Defaults to semantic code/API/data/doc relations. |
+| `--include-structural` | Also allow `CONTAINS` and `IMPORTS` when `--kind` is omitted. Structural paths are opt-in because they can be technically short but semantically noisy. |
+| `--json` | Emit the query options, node metadata, every hop, provenance, and caveat as structured JSON. |
+
+```bash
+# Follow extracted call/API/data facts in their stored direction.
+orchestrator pkg path client_function "GET /v1/orders" --path . --direction forward
+
+# Ask the inverse question while preserving the fact’s true orientation in output.
+orchestrator pkg path OrderService.fetch "GET /v1/orders" --path . --direction reverse
+```
+
+A miss exits non-zero and says **“no extracted path”**. It does **not** prove that no runtime
+relationship exists: the PKG is static and intentionally omits uncertain facts rather than inventing
+them. Ambiguous short names also exit non-zero and list exact qualified IDs to use.
 
 ### `orchestrator pkg export`
 
