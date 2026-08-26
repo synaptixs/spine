@@ -24,14 +24,17 @@ cadence; this one is a snapshot of a conversation.
 | # | Enhancement | State | Size | What gates it |
 |---|---|---|---|---|
 | **E1** | [Project constitution](#e1--project-constitution) | **Spec written, needs rewrite** — [`constitution-roadmap.md`](constitution-roadmap.md), branch `docs/constitution-spec` | Unknown until Phase 0 | A blocking trigger probe that may close it unbuilt |
-| **E2** | [Multi-repo comprehension](#e2--multi-repo-comprehension) | **Conversation only.** No spec | Medium (read-only half) | Node identity in `facts.py`; needs its own spec first |
-| **E3** | [G6 — comprehension benchmark](#e3--g6--comprehension-benchmark) | **Spec exists, not started** — [`gap6-benchmarks-roadmap.md`](gap6-benchmarks-roadmap.md) | ~3 days if descoped | Nothing. No prerequisites |
+| **E2** | [Multi-repo comprehension](#e2--multi-repo-comprehension) | **Spec written** — [`multi-repo-roadmap.md`](multi-repo-roadmap.md), branch `docs/multi-repo-spec` | Medium (read-only half) | Phase 1 is a blocking identity decision |
+| **E3** | [G6 — comprehension benchmark](#e3--g6--comprehension-benchmark) | **Spec exists, not started.** Branch `feat/g6-comprehension-metrics` cut, empty | ~3 days if descoped | **Four open decisions** — corpus scope, metric set, repo mix, gate tier |
 | **E4** | [Per-run caching: temperature + MCP](#e4--per-run-caching-temperature-refusal-and-mcp-sessions) | **Observed in the field.** No ticket | Small | Nothing |
 | **E5** | [Oracle coverage gaps](#e5--oracle-coverage-gaps) | **Named in `STATE-OF-SPINE` §3** | Medium | Nothing |
 | **E6** | [Stale `## Unreleased` in the changelog](#e6--stale-unreleased-heading) | **Known defect** | Trivial | Someone who knows which release those entries shipped in |
 
-Three unmerged documentation branches also exist and are not enhancements:
-`docs/spec-kit-declined`, `docs/ticket-to-landing-sites`, `docs/constitution-spec`.
+**Branch state, because it needs consolidating.** Five unmerged branches exist:
+`docs/spec-kit-declined`, `docs/ticket-to-landing-sites`, `docs/constitution-spec` (this page +
+E1), `docs/multi-repo-spec` (E2), and `feat/g6-comprehension-metrics` (empty — E3 awaits four
+decisions). **Four of them each add a row to `SPEC-INDEX.md` and will conflict pairwise on
+merge**; they want folding into one PR rather than five.
 
 ---
 
@@ -127,8 +130,24 @@ problem entirely. N PRs that must land together is ordering and rollback, not a 
 and preflight has to run per repo with that repo's toolchain. Do not build the pipeline on an
 unmeasured join.
 
-Needs its own spec before any of it. `tri-repo-integration.md` is **not** this — that is three
-products interoperating through a shared ontology key.
+**Spec written 2026-08-25:** [`multi-repo-roadmap.md`](multi-repo-roadmap.md).
+
+Writing it surfaced a hazard that reshaped the design, recorded here because it looks like a
+one-line improvement. The obvious way to address a fact across repos is to make
+`Provenance.__str__` return `repo:file:line` — but **three production call sites parse that
+string back** with `split(":", 1)[0]` to recover a file path (`design.py:130`,
+`autorun.py:788`, `builddoc.py:953/1163`). All three would silently return the **repo name**
+where a path is expected: no exception, a blast radius computed against a path that does not
+exist, and a build document listing it as a landing file. Two further sites parse node ids the
+same way for area grouping.
+
+So identity is **Phase 1 and blocking**, and the recommendation is that scoping is applied **at
+merge time, not extract time** — single-repo extraction then stays byte-identical, protecting
+the commit-keyed cache, the committed `scoreboard.json`, every corpus fixture and
+`understand --check`. None of those should move because a feature nobody enabled was added.
+
+`tri-repo-integration.md` is **not** this — that is three products interoperating through a
+shared ontology key.
 
 ## E3 — G6 — comprehension benchmark
 
@@ -155,6 +174,18 @@ discipline that has now worked twice in this repo. Collapses Phase 1 from ~5–7
 Directly relevant to [`ticket-to-landing-sites.md`](ticket-to-landing-sites.md): how often the
 true fix site lands in the top *k* is **unmeasured**, and a `0` there would not distinguish *bad*
 from *never measured*.
+
+**Four decisions block the work, all recommended, none taken:**
+
+| | Decision | Recommendation |
+|---|---|---|
+| D1 | Gold set only, or also mined PRs? | **Gold set only** — 30–50 hand-labelled. The spec admits mined PRs are a dirty denominator, so a bad number could not be attributed. Cuts Phase 1 to ~3 days |
+| D2 | Which of the five metrics ship in v1? | **Two** — top-k localization and provenance validity. The first is the claim that matters; the second is nearly free (`stale_findings`). Impact recall depends on D1; fault-site top-1 needs a traceback corpus that does not exist |
+| D3 | Which repos? | **Reuse the eleven pinned for the invention work** — already SHA-pinned, already exercised against 3.22.0, and the language mix is right (the spec is explicit the corpus must not be Python-heavy) |
+| D4 | Gate tier? | **Ratchet** — but not for the spec's stated reason. A SHA-pinned corpus does not churn; the real reason is that this is a *ratio*, not a defect count, so unlike `invention` there is no correct value to hold at zero |
+
+**One stale line in the spec:** open question 3 asks whether to publish before or after G3/G5
+land. Both landed — 3.10.0 and 3.11.0 — so it resolves to *publish now* and should be struck.
 
 ## E4 — Per-run caching: temperature refusal and MCP sessions
 
