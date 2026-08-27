@@ -128,7 +128,7 @@ _16 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/python_orm.py:293`](../../src/orchestrator/pkg/python_orm.py#L293)
 
 - **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L193)
-- **Calls** (2): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Node`](../../src/orchestrator/pkg/facts.py#L93)
+- **Calls** (2): [`Edge`](../../src/orchestrator/pkg/facts.py#L137), [`Node`](../../src/orchestrator/pkg/facts.py#L121)
 
 ### `scan_module`
 

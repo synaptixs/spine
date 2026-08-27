@@ -4,6 +4,94 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.23.0 — One graph across several repositories
+
+### Added — multi-repo comprehension
+
+- **"What breaks if I change this?" can now answer with a caller in a different repository.**
+  Declare your services in `.spine/repos.yaml` and they extract, scope and merge into one
+  graph. A ticket landing in one repo reports what depends on it in another:
+
+  ```
+  - **billing** · `create_order` (Function, 0 caller(s), **1 dependent(s) in other repos**) — billing:app/routes.py:7
+  ```
+
+  That row is the whole point. `0 caller(s)` is **true** — nothing in the source calls an HTTP
+  handler — and on its own it is the most dangerous answer the graph can give.
+
+- **Three join kinds, and the topology is declared rather than guessed.** An HTTP call to a
+  path another repo serves, a table two repos both write, a library one repo publishes and
+  another imports. Declaring a join **narrows the search**; it does not create the edge —
+  matching `POST /v1/orders/42` against `POST /v1/orders/{id}` is still resolution, done
+  segment-by-segment so a `{param}` can never swallow a `/`, and **refused outright when two
+  endpoints match**. Recall pays; precision does not.
+
+- **Nobody authors the topology.** `orchestrator pkg joins --propose` derives it from evidence —
+  the calls a repo makes to paths it does not serve, matched against its neighbours' endpoints;
+  shared table names; imports another repo defines — and **every candidate carries the number of
+  edges it would create**, because a join producing zero is noise. It prints a block to review
+  and writes no config.
+
+- **`pkg joins --check`, because a forgotten join is quiet.** A repository nobody listed is loud:
+  no nodes, a visibly narrower graph. A missing `joins:` entry looks exactly like two services
+  that are not coupled, which reads as health. So unplaced calls are reported by reason **and per
+  declared join**, and a stale join shows `** placed nothing **` rather than vanishing into a
+  healthy total.
+
+- **Measured, per joiner, against corpus cases written before the joiners worked:** precision
+  **1.00** on all three; recall **1.00** for data and package, **0.67** for HTTP. Precision is
+  1.00 *by construction* — nothing can join to a repository nobody declared — so recall is the
+  number worth watching. The missing third on HTTP is a path built from an f-string, which the
+  extractor collects as no call at all; it is labelled a known gap rather than hidden.
+
+- **New surfaces:** `pkg extract --repos`, `pkg joins --propose|--check`, `investigate --repos`.
+
+### Changed — `Provenance` gained a `repo`, and `__str__` deliberately did not
+
+- Node ids are language-prefixed, not repository-prefixed, so `py:shop.cart.Cart` is the same id
+  in two repositories and merging collapsed them **silently** — internally consistent, externally
+  false, with `pkg verify` reporting zero throughout. Scoping is applied **at merge time only**,
+  so single-repo extraction is byte-identical: verified by SHA-256 over the full node and edge
+  set against the previous release on leveldb, gin, zod, Newtonsoft.Json and this repo's own
+  source, at every phase.
+- **`Provenance.__str__` keeps its shape**, and there is a test that fails if it ever stops.
+  **Six production call sites parse it back** with `split(":", 1)[0]` to recover a file path,
+  two of which are `evidence.py` and `criteria_binding.py` — so a repo in the string makes an
+  acceptance criterion bind against a repo name, which is to say against nothing, and **pass**.
+  Use `Provenance.qualified()` where the repository matters.
+
+### Added — the corpus can hold a cross-repo case
+
+- `expected.json` accepts `roots:` (repo key → path) alongside `root:`, and a multi-repo case is
+  scored through the **real** merged path — scoping, merging, declared joins — or it would
+  measure an assembly nothing ships. A `requires:` field separates *what a case measures* from
+  *which front-end must be installed*; the two are identical for every single-language case and
+  differ for a cross-repo one.
+
+### Documentation
+
+- **The README now argues for the project instead of re-telling a release.** It opened with
+  "New in 3.20.0", two releases stale. It leads with what Spine does that other tools do not —
+  four points, each with a number — and the contributing section says what the codebase is
+  actually like, names four places to start, and states the three rules that matter.
+- `CLI_REFERENCE` covers `pkg joins` and both `--repos` flags; `FEATURES` gains multi-repo.
+- Four design records: the multi-repo roadmap, an enhancement index, how a ticket becomes a
+  `file:line`, and a constitution spec that **may close unbuilt** — its Phase 0 is a blocking
+  trigger probe, and the probe already run says all three candidate rules have fired zero times
+  in this project's history.
+- **spec-kit evaluated and declined**, with the revisit condition written down.
+
+### Known limitations
+
+- **Only Python emits `CONSUMES`**, so the HTTP joiner is Python-client → any-language-endpoint.
+  A Java service calling a Java service produces no join at all.
+- Only `investigate` reads the joins; `design` and the SDLC pipeline still run against one
+  repository. **Multi-repo *delivery* is an explicit non-goal** — N PRs that must land together
+  is ordering and rollback, not a graph problem.
+- Recall 0.67 on HTTP is against a fixture designed to be joinable. The number from a real pair
+  of production repositories — templated paths, gateway rewrites, a declaration written by
+  someone who did not build this — **has not been taken.**
+
 ## 3.22.0 — Four front-ends stop asserting calls the source does not make
 
 ### Fixed — four front-ends fabricated a `CALLS` edge for a shadowed name

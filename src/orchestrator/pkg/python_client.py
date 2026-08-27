@@ -55,8 +55,12 @@ class ClientState:
     """Calls accumulated across the walk, emitted once every endpoint is known."""
 
     calls: list[PendingCall] = field(default_factory=list)
+    #: Calls that matched no endpoint in this repository. **Not facts, and deliberately not.**
+    #: See :func:`emit`.
+    unmatched: list[PendingCall] = field(default_factory=list)
 
     def clear(self) -> None:
+        """Clear the pending calls. ``unmatched`` survives — it is the run's output."""
         self.calls.clear()
 
 
@@ -155,14 +159,30 @@ def emit(state: ClientState, batch: FactBatch) -> None:
     """Join each collected call to the endpoint it calls, when that endpoint exists.
 
     Must run *after* ``python_routes.emit`` — the endpoints it joins against are the ones
-    that pass added to this same batch. A call that matches nothing is dropped in silence:
-    it is either a third-party API or a path this repo does not serve, and neither is a
-    fact about this codebase.
+    that pass added to this same batch. A call that matches nothing emits **no edge**: it is
+    either a third-party API or a path this repo does not serve, and neither is a fact about
+    this codebase.
+
+    **It is recorded on ``state.unmatched`` rather than discarded, and that distinction is the
+    whole design.** In a multi-repo graph these calls are the candidates for a cross-repo join —
+    a call to a path *another* declared repository serves. Losing them means the join has
+    nothing to propose from.
+
+    But they stay **out of the batch**. Emitting an edge here would assert *"this function calls
+    `POST /v1/orders`"* about an endpoint nothing in scope is known to serve, and creating the
+    endpoint node alongside it would make ``pkg verify`` report zero dangling — the
+    self-consistent invention this project has now removed twice. ``invention`` would not catch
+    it either: that oracle detects shadowing and nothing else.
+
+    So the graph is byte-identical with and without this bookkeeping, which is what keeps the
+    commit-keyed cache, the committed scoreboard and every corpus fixture valid. The shape is
+    ``RepoCodeExtractor.skipped``: a list on the object, never a node in the graph.
     """
     endpoints = {node.name: node.id for node in batch.nodes if node.kind is NodeKind.ENDPOINT}
     for call in state.calls:
         endpoint_id = endpoints.get(f"{call.verb} {call.path}")
         if endpoint_id is None:
+            state.unmatched.append(call)
             continue
         batch.add_edge(Edge(call.caller_id, endpoint_id, EdgeKind.CONSUMES, call.provenance))
 

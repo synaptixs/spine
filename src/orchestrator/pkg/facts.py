@@ -79,14 +79,42 @@ SYMBOL_KINDS = frozenset({NodeKind.TYPE, NodeKind.FUNCTION, NodeKind.FIELD, Node
 
 @dataclass(frozen=True)
 class Provenance:
-    """Where a fact came from, to line precision."""
+    """Where a fact came from, to line precision.
+
+    ``repo`` names the repository a fact came from, and is empty for the single-repo case that
+    is everything today. It exists so a merged multi-repo graph can say *which* checkout a
+    ``file:line`` belongs to — see :mod:`orchestrator.pkg.scoping`.
+
+    **``__str__`` deliberately does not include it, and must not start.** Six production call
+    sites parse this string back with ``split(":", 1)[0]`` to recover the file path::
+
+        sdlc/design.py            sdlc/builddoc.py (x2)
+        sdlc/autorun.py           sdlc/criteria_binding.py
+                                  sdlc/evidence.py
+
+    Adding a segment makes every one of them return the *repo name* where a path is expected —
+    silently, with no exception raised. Two of those are the ones that would hurt:
+    ``evidence.py`` is the Evidence artifact's own file accessor, and ``criteria_binding.py``
+    decides whether an acceptance criterion is bound to a landing site. A criterion binding
+    against a repo name binds against nothing and passes, which is exactly the guarantee the
+    binding exists to provide. ``tests/pkg/test_identity_contract.py`` pins this.
+
+    Use :meth:`qualified` where the repository matters. It is for display and for keys that are
+    known to be repo-aware — never for anything that will be split back apart.
+    """
 
     file: str
     line: int
     end_line: int | None = None
+    repo: str = ""
 
     def __str__(self) -> str:
+        # Contract: exactly one ':' separator, file first. See the class docstring.
         return f"{self.file}:{self.line}"
+
+    def qualified(self) -> str:
+        """``repo:file:line`` when the repo is known, else ``file:line``."""
+        return f"{self.repo}:{self}" if self.repo else str(self)
 
 
 @dataclass(frozen=True)

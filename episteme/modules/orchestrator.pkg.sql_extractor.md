@@ -30,7 +30,7 @@ _13 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/sql_extractor.py:136`](../../src/orchestrator/pkg/sql_extractor.py#L136)
 
-- **Called by** (1 production · 5 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L525), [`_extract`](../../tests/pkg/test_sql_extractor.py#L31), [`test_go_batch_separator_does_not_fail_the_file`](../../tests/pkg/test_sql_extractor.py#L240), [`test_plain_utf8_without_go_is_unchanged`](../../tests/pkg/test_sql_extractor.py#L261), [`test_utf16_and_go_together`](../../tests/pkg/test_sql_extractor.py#L251), [`test_utf16_sql_is_read_not_skipped`](../../tests/pkg/test_sql_extractor.py#L232)
+- **Called by** (1 production · 5 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L530), [`_extract`](../../tests/pkg/test_sql_extractor.py#L31), [`test_go_batch_separator_does_not_fail_the_file`](../../tests/pkg/test_sql_extractor.py#L240), [`test_plain_utf8_without_go_is_unchanged`](../../tests/pkg/test_sql_extractor.py#L261), [`test_utf16_and_go_together`](../../tests/pkg/test_sql_extractor.py#L251), [`test_utf16_sql_is_read_not_skipped`](../../tests/pkg/test_sql_extractor.py#L232)
 - **Fields**: `_active_dialect`, `_dialect`, `language`, `suffixes`
 
 ### `_TableBuilder`
@@ -104,14 +104,14 @@ _13 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/sql_extractor.py:362`](../../src/orchestrator/pkg/sql_extractor.py#L362)
 
 - **Called by** (2): [`_emit_data_access`](../../src/orchestrator/pkg/sql_extractor.py#L315), [`_handle_create_view`](../../src/orchestrator/pkg/sql_extractor.py#L244)
-- **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L93)
+- **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L121)
 
 ### `_touch_function`
 
 [`src/orchestrator/pkg/sql_extractor.py:367`](../../src/orchestrator/pkg/sql_extractor.py#L367)
 
 - **Called by** (1): [`_handle_create_routine`](../../src/orchestrator/pkg/sql_extractor.py#L289)
-- **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L93)
+- **Calls** (1): [`Node`](../../src/orchestrator/pkg/facts.py#L121)
 
 ### `_type_sql`
 

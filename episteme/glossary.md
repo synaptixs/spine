@@ -13,10 +13,9 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **CorpusError** | [`CorpusError`](../src/orchestrator/pkg/accuracy.py#L53) | — |
 | **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L118) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
 | **DocPage** | [`DocPage`](../src/orchestrator/pkg/docs.py#L52) | `docs/specs/doc-ingestion-spec.md#components-where-the-code-goes`, `docs/specs/doc-ingestion-spec.md#design-decisions` |
-| **Edge** | [`Edge`](../src/orchestrator/pkg/facts.py#L109) | — |
+| **Edge** | [`Edge`](../src/orchestrator/pkg/facts.py#L137) | — |
 | **EdgeKind** | [`EdgeKind`](../src/orchestrator/pkg/facts.py#L55) | `CLAUDE.md#layout-where-things-live`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#the-coercion-kind-per-table-projection` |
-| **EntityKey** | [`EntityKey`](../src/orchestrator/spine/entity_key.py#L27) | `FEATURES.md#the-semantic-spine-ontomesh-spine-infodrift`, `OPERATIONS.md#the-semantic-spine` |
-| **FactBatch** | [`FactBatch`](../src/orchestrator/pkg/facts.py#L122) | `CLAUDE.md#layout-where-things-live`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#the-coercion-kind-per-table-projection` |
+| **FactBatch** | [`FactBatch`](../src/orchestrator/pkg/facts.py#L150) | `CLAUDE.md#layout-where-things-live`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#the-coercion-kind-per-table-projection` |
 | **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L25) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
 | **FeatureImplementationWorkflow** | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
 | **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L49) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/sandboxed-test-execution.md#wiring-sdlcfeature-runnerpy` |
@@ -26,14 +25,15 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L826) | `CHANGELOG.md`, `docs/specs/cross-run-semantic-memory.md#design-cross-run-semantic-memory-the-experience-true-layer` |
 | **MediaExtractorUnavailableError** | [`MediaExtractorUnavailableError`](../src/orchestrator/pkg/media_extract.py#L55) | — |
 | **MemoryRow** | [`MemoryRow`](../src/orchestrator/registry/db/models.py#L216) | `KNOWLEDGE_GRAPH.md#where-each-artifact-is-persisted`, `docs/specs/README.md#autonomous-agent-scorecard` |
-| **Node** | [`Node`](../src/orchestrator/pkg/facts.py#L93) | — |
+| **Node** | [`Node`](../src/orchestrator/pkg/facts.py#L121) | — |
 | **NodeKind** | [`NodeKind`](../src/orchestrator/pkg/facts.py#L38) | `CLAUDE.md#layout-where-things-live`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#the-coercion-kind-per-table-projection` |
 | **PKGCodegenGrounder** | [`PKGCodegenGrounder`](../src/orchestrator/sdlc/grounding.py#L31) | `KNOWLEDGE_GRAPH.md#7-how-grounding-uses-the-pkg`, `docs/specs/README.md#3-gap-taxonomy-g1g17` |
 | **PlannerError** | [`PlannerError`](../src/orchestrator/planner/v0.py#L38) | — |
 | **Provenance** | [`Provenance`](../src/orchestrator/pkg/facts.py#L81) | — |
 | **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L151) | `docs/specs/parsing-and-the-pkg.md#2-what-actually-happens-to-a-file`, `docs/specs/python-frontend-parity.md#7-files` |
 | **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L84) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
-| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L572) | `docs/specs/README.md#44-build-phases-per-repo-split`, `docs/specs/archive/PKG-INTEGRATION-PLAN.md#phase-1-repo-code-extractor-track-11-34-wks` |
+| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L577) | `docs/specs/README.md#44-build-phases-per-repo-split`, `docs/specs/archive/PKG-INTEGRATION-PLAN.md#phase-1-repo-code-extractor-track-11-34-wks` |
+| **RepoConfigError** | [`RepoConfigError`](../src/orchestrator/pkg/repos.py#L47) | — |
 | **RunBudget** | [`RunBudget`](../src/orchestrator/core/llm/budget.py#L42) | `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/README.md#autonomous-agent-scorecard` |
 | **RunContext** | [`RunContext`](../src/orchestrator/sdlc/autorun.py#L65) | `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/graphir-sdlc-workflow.md#appendix-what-was-rejected-from-the-source-analysis` |
 | **SDLCActivities** | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L44) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration` |
@@ -46,4 +46,4 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **VersionedRepo** | [`VersionedRepo`](../src/orchestrator/registry/repositories.py#L45) | — |
 | **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | `docs/specs/STATE-OF-SPINE.md#6-how-spine-is-adopted-without-entering-anyones-build-image`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
 
-_Top 40 of 614 types by graph centrality._
+_Top 40 of 623 types by graph centrality._

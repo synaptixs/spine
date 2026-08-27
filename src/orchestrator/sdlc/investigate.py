@@ -36,6 +36,32 @@ class Landing:
     kind: str  # Function | Type | Module | …
     callers: int
     module: str  # owning module (touch-risk context)
+    #: Dependents in **other** repositories — what breaks elsewhere if this changes.
+    #:
+    #: `callers` counts inbound ``CALLS`` and nothing else, which is right for a function and
+    #: catastrophic for an HTTP handler: nothing in the source *calls* one, so it reports
+    #: **0 callers** while a client in another service depends on it entirely. Reading that as
+    #: "nothing depends on this" is the most dangerous answer the graph can give, and it is the
+    #: exact question a multi-repo graph exists to answer. Computed from ``impact_of``, which
+    #: follows ``CALLS`` then ``EXPOSES`` then ``CONSUMES`` — so a handler reaches the endpoint
+    #: it serves and then the code, anywhere, that calls it.
+    cross_repo: int = 0
+    #: Which repository, in a merged multi-repo graph. Empty for the single-repo case.
+    #:
+    #: Not decoration. Module *names* are not scoped — only ids are — so two services that
+    #: both have `app.models` produce two landing sites reading `app.models`, and a reader
+    #: cannot tell which checkout to open. `where` does not disambiguate either: both say
+    #: `app/models.py:14`.
+    repo: str = ""
+
+    @property
+    def location(self) -> str:
+        """`repo:file:line` when the repo is known, else `file:line`.
+
+        Rendered only. `where` keeps its shape because six call sites parse it back with
+        `split(":", 1)[0]` to recover the file — see `pkg/facts.Provenance`.
+        """
+        return f"{self.repo}:{self.where}" if self.repo and self.where else self.where
 
 
 @dataclass
@@ -44,6 +70,11 @@ class Investigation:
     problem: str
     landing: list[Landing] = field(default_factory=list)
     areas: list[str] = field(default_factory=list)  # distinct owning modules
+    #: Repositories the landing sites fall in, when the graph is merged. Empty single-repo.
+    repos: list[str] = field(default_factory=list)
+    #: Symbols that matched but were cut by ``max_symbols``. Bounded honestly: a truncated
+    #: list must read as "top N of M", never as the complete answer (`CLAUDE.md` invariant 7).
+    elided: int = 0
     knowledge: str = ""  # episteme excerpt, or ""
     prior_notes: list[str] = field(default_factory=list)  # cross-run recall, best-effort
     grounded: bool = False  # the PKG had grounded nodes
@@ -64,6 +95,20 @@ def _owning_module(store: FactStore, node_id: str, parents: dict[str, str]) -> s
     return (node.provenance.file if node and node.provenance else "") or ""
 
 
+def _cross_repo_dependents(store: FactStore, node_id: str, repo: str) -> int:
+    """How many symbols in *other* repositories depend on this one, transitively.
+
+    Zero for a single-repo graph, where every id is unscoped and there is no "other". The walk
+    is `impact_of`'s, so it crosses a boundary the only way the graph allows: through the
+    endpoint a handler serves and on to whatever consumes it.
+    """
+    if not repo:
+        return 0
+    from orchestrator.pkg.scoping import unscope_id
+
+    return sum(1 for node, _ in store.impact_of(node_id) if unscope_id(node.id)[0] not in ("", repo))
+
+
 def build_investigation(
     title: str,
     problem: str,
@@ -75,15 +120,21 @@ def build_investigation(
 ) -> Investigation:
     """Research ``title``/``problem`` against the PKG + episteme. Deterministic."""
     from orchestrator.pkg.retrieval import GroundedRetriever
+    from orchestrator.pkg.scoping import unscope_id
 
     retriever = GroundedRetriever(store)
-    symbols = retriever.relevant_symbols(f"{title}\n{problem}", limit=max_symbols)
+    # One extra, so `elided` can distinguish "these are all of them" from "this is the top N".
+    symbols = retriever.relevant_symbols(f"{title}\n{problem}", limit=max_symbols + 1)
+    elided = max(0, len(symbols) - max_symbols)
+    symbols = symbols[:max_symbols]
     parents = store.parents_index()
 
     landing: list[Landing] = []
     areas: list[str] = []
+    repos: list[str] = []
     for n in symbols:
         module = _owning_module(store, n.id, parents)
+        repo, _ = unscope_id(n.id)
         landing.append(
             Landing(
                 name=n.name,
@@ -91,10 +142,17 @@ def build_investigation(
                 kind=n.kind.value,
                 callers=len(store.callers_of(n.id)),
                 module=module,
+                repo=repo,
+                cross_repo=_cross_repo_dependents(store, n.id, repo),
             )
         )
-        if module and module not in areas:
-            areas.append(module)
+        # Areas are qualified by repo, or two services that both have `app.models` collapse
+        # into one area and the brief claims a change is narrower than it is.
+        area = f"{repo}:{module}" if repo and module else module
+        if area and area not in areas:
+            areas.append(area)
+        if repo and repo not in repos:
+            repos.append(repo)
 
     knowledge = ""
     if root is not None:
@@ -110,6 +168,8 @@ def build_investigation(
         knowledge=knowledge,
         prior_notes=list(prior_notes or []),
         grounded=store.summary().get("grounded_nodes", 0) > 0,
+        repos=repos,
+        elided=elided,
     )
 
 
@@ -123,9 +183,22 @@ def render_investigation_md(inv: Investigation) -> str:
     if inv.landing:
         out.append("_Lexically-retrieved from the knowledge graph — start here, confirm before trusting._\n")
         for hit in inv.landing:
-            loc = f" — {hit.where}" if hit.where else ""
+            loc = f" — {hit.location}" if hit.where else ""
             in_mod = f" _(in {hit.module})_" if hit.module and hit.module != hit.name else ""
-            out.append(f"- `{hit.name}` ({hit.kind}, {hit.callers} caller(s)){in_mod}{loc}")
+            # The repo goes first, before the symbol: in a merged graph it is the field that
+            # decides which checkout a reader opens, and burying it after the line number
+            # makes two identically-named landings look like one.
+            prefix = f"**{hit.repo}** · " if hit.repo else ""
+            # Stated separately rather than folded into the caller count: they are different
+            # facts, and an HTTP handler with 0 callers and 3 dependents in another service is
+            # exactly the row a reader must not skim past.
+            reach = f", **{hit.cross_repo} dependent(s) in other repos**" if hit.cross_repo else ""
+            out.append(f"- {prefix}`{hit.name}` ({hit.kind}, {hit.callers} caller(s){reach}){in_mod}{loc}")
+        if len(inv.repos) > 1:
+            out.append(f"\n_This ticket lands in {len(inv.repos)} repositories: {', '.join(inv.repos)}._")
+        if inv.elided:
+            # "Top N of M", never a clipped list implying completeness.
+            out.append(f"\n_Showing the top {len(inv.landing)}; {inv.elided} further match(es) not listed._")
         if inv.areas:
             out.append(f"\n_Likely areas: {', '.join(inv.areas)}_")
     elif not inv.grounded:

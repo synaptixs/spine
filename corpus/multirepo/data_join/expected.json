@@ -1,0 +1,254 @@
+{
+  "language": "multirepo",
+  "case": "data_join",
+  "requires": [
+    "python"
+  ],
+  "roots": {
+    "billing": ".billing",
+    "reporting": ".reporting"
+  },
+  "joins": [
+    {
+      "kind": "data",
+      "consumer": "reporting",
+      "provider": "billing"
+    }
+  ],
+  "why": "Two repositories writing one physical table. Without the join each gets its own `invoices` entity, so \"who writes this table\" answers per repository and silently under-reports \u2014 a schema change looks safe because half its writers are in a graph nobody merged. The declaration names billing as the schema owner; reporting's node collapses onto it. `ledger` is the control: reporting owns it, billing has never heard of it, and it must survive untouched \u2014 a joiner that collapsed every entity would pass on invoices and destroy this.",
+  "nodes": [
+    {
+      "id": "py:billing@app.models",
+      "kind": "Module"
+    },
+    {
+      "id": "py:billing@app.models.Base",
+      "kind": "Type"
+    },
+    {
+      "id": "py:billing@app.models.Invoice",
+      "kind": "Type"
+    },
+    {
+      "id": "py:billing@app.models.issue",
+      "kind": "Function"
+    },
+    {
+      "id": "py:billing@app.models.latest",
+      "kind": "Function"
+    },
+    {
+      "id": "py:reporting@app.models",
+      "kind": "Module"
+    },
+    {
+      "id": "py:reporting@app.models.Base",
+      "kind": "Type"
+    },
+    {
+      "id": "py:reporting@app.models.Invoice",
+      "kind": "Type"
+    },
+    {
+      "id": "py:reporting@app.models.Ledger",
+      "kind": "Type"
+    },
+    {
+      "id": "py:reporting@app.models.summarise",
+      "kind": "Function"
+    },
+    {
+      "id": "py:reporting@app.models.audit",
+      "kind": "Function"
+    },
+    {
+      "id": "py:billing@entity:invoices",
+      "kind": "Entity"
+    },
+    {
+      "id": "py:reporting@entity:ledger",
+      "kind": "Entity"
+    },
+    {
+      "id": "py:billing@app.models.Invoice.__tablename__",
+      "kind": "Field"
+    },
+    {
+      "id": "py:reporting@app.models.Invoice.__tablename__",
+      "kind": "Field"
+    },
+    {
+      "id": "py:reporting@app.models.Ledger.__tablename__",
+      "kind": "Field"
+    }
+  ],
+  "edges": [
+    {
+      "src": "py:billing@app.models",
+      "dst": "py:billing@app.models.Base",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:billing@app.models",
+      "dst": "py:billing@app.models.Invoice",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:billing@app.models",
+      "dst": "py:billing@app.models.issue",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:billing@app.models",
+      "dst": "py:billing@app.models.latest",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:reporting@app.models",
+      "dst": "py:reporting@app.models.Base",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:reporting@app.models",
+      "dst": "py:reporting@app.models.Invoice",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:reporting@app.models",
+      "dst": "py:reporting@app.models.Ledger",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:reporting@app.models",
+      "dst": "py:reporting@app.models.summarise",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:reporting@app.models",
+      "dst": "py:reporting@app.models.audit",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:billing@app.models.issue",
+      "dst": "py:billing@entity:invoices",
+      "kind": "WRITES"
+    },
+    {
+      "src": "py:billing@app.models.latest",
+      "dst": "py:billing@entity:invoices",
+      "kind": "READS"
+    },
+    {
+      "src": "py:reporting@app.models.summarise",
+      "dst": "py:billing@entity:invoices",
+      "kind": "READS"
+    },
+    {
+      "src": "py:reporting@app.models.audit",
+      "dst": "py:reporting@entity:ledger",
+      "kind": "READS"
+    },
+    {
+      "src": "py:billing@app.models",
+      "dst": "py:billing@entity:invoices",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:reporting@app.models",
+      "dst": "py:reporting@entity:ledger",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:billing@app.models",
+      "dst": "py:sqlalchemy.insert",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:billing@app.models",
+      "dst": "py:sqlalchemy.select",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:billing@app.models",
+      "dst": "py:sqlalchemy.orm.DeclarativeBase",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:reporting@app.models",
+      "dst": "py:sqlalchemy.select",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:reporting@app.models",
+      "dst": "py:sqlalchemy.orm.DeclarativeBase",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:billing@app.models.Base",
+      "dst": "py:sqlalchemy.orm.DeclarativeBase",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:reporting@app.models.Base",
+      "dst": "py:sqlalchemy.orm.DeclarativeBase",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:billing@app.models.Invoice",
+      "dst": "py:billing@app.models.Base",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:reporting@app.models.Invoice",
+      "dst": "py:reporting@app.models.Base",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:reporting@app.models.Ledger",
+      "dst": "py:reporting@app.models.Base",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:billing@app.models.Invoice",
+      "dst": "py:billing@app.models.Invoice.__tablename__",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:reporting@app.models.Invoice",
+      "dst": "py:reporting@app.models.Invoice.__tablename__",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:reporting@app.models.Ledger",
+      "dst": "py:reporting@app.models.Ledger.__tablename__",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:billing@app.models.issue",
+      "dst": "py:sqlalchemy.insert",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:billing@app.models.latest",
+      "dst": "py:sqlalchemy.select",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:reporting@app.models.summarise",
+      "dst": "py:sqlalchemy.select",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:reporting@app.models.audit",
+      "dst": "py:sqlalchemy.select",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "`py:reporting@entity:invoices` is deliberately absent from the labels: after the join it must not exist. Its survival would mean the graph still answers the schema-impact question with half the writers, which is the whole defect."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

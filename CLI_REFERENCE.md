@@ -4,7 +4,7 @@
 > Maintained by hand against the CLI — run `orchestrator <command> --help` for the
 > authoritative version. If the two disagree, `--help` is right and this file is a bug.
 
-**54 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
+**55 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
 
 ## Command map
 
@@ -12,7 +12,7 @@
 `init` · `doctor` · `models` · `up` · `tui` · `task submit`
 
 **Understand a codebase — the Knowledge Graph** — Extract and read the Product Knowledge Graph (PKG). Deterministic, no LLM. All accept a local path OR a git URL.  
-`understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs` · `pkg capabilities` · `pkg verify` · `pkg accuracy` · `media extract`
+`understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs` · `pkg capabilities` · `pkg verify` · `pkg accuracy` · `pkg joins` · `media extract`
 
 **Grounded design, debugging & RCA** — The KG-grounded engineering commands: design a change, research a ticket, and trace/analyze bugs — all anchored to real code.  
 `design` · `investigate` · `localize` · `rca` · `regression` · `audit`
@@ -321,6 +321,43 @@ orchestrator pkg extract [PATH] [OPTIONS]
 | `--query`, `-q` | Show callers + blast radius of a symbol name. |
 | `--json` | Dump all facts as JSON. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
+| `--repos` | A `.spine/repos.yaml` — extract every declared repo into **one** graph. |
+
+With `--repos`, each repository is extracted and cached **separately** and merged on read, so
+changing one of four re-extracts one and reuses three. The summary then lists every repo with
+its commit and whether it came from cache — and says loudly when the merged graph is **not
+reproducible**, because one repository with uncommitted work makes the whole thing
+unreproducible and a merged graph looks identical either way.
+
+### `orchestrator pkg joins`
+
+Propose or check cross-repository joins (read-only; writes no config).
+
+```
+orchestrator pkg joins --propose | --check [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `--config` | The `.spine/repos.yaml` declaring the repos. _(default: `.spine/repos.yaml`)_ |
+| `--propose` | Suggest a `joins:` block from the evidence. |
+| `--check` | List the calls no declared join could place. |
+| `--json` | Emit as JSON. |
+
+**`--propose`** derives the topology from facts rather than asking you to draw it: HTTP calls a
+repo makes to paths it does not serve, matched against its neighbours' endpoints; table names
+two repos share; imports one repo makes that another actually defines. **Every candidate carries
+the number of edges it would create**, because a join producing zero is noise. It prints a block
+for you to paste — it never writes one.
+
+**`--check`** exists because a forgotten join is *quiet*. A repository nobody listed is loud —
+no nodes, a visibly narrower graph. A missing `joins:` entry looks exactly like two services
+that are not coupled, which reads as health. So the unplaced calls are reported by reason **and
+per declared join**, and a stale join shows `** placed nothing **` rather than disappearing into
+a healthy-looking total.
+
+Precision is ~1.00 by construction — nothing can join to a repository nobody declared — so the
+number this prints is **recall**, and it is the one worth watching.
 
 ### `orchestrator pkg export`
 
@@ -616,6 +653,11 @@ and — when a registry DB is configured — prior-run notes. Deterministic, no
 LLM. Pass the ticket via `--source` (e.g. `jira://PROJ-123`) or inline with
 `--title`/`--text`. Feed the result into `orchestrator design`.
 
+With `--repos` the brief is built from the merged multi-repo graph, so each landing site names
+the repository it is in and **how many dependents it has elsewhere**. That second number is the
+point: an HTTP handler has no inbound `CALLS` — nothing in the source calls one — so a caller
+count of `0` reads as "nothing depends on this" while another service depends on it entirely.
+
 ```
 orchestrator investigate [PATH] [OPTIONS]
 ```
@@ -628,6 +670,7 @@ orchestrator investigate [PATH] [OPTIONS]
 |---|---|
 | `--source` | Fetch the ticket from a source, e.g. jira://PROJ-123, confluence://<id>, file://./bug.md. |
 | `--title`, `-t` | Inline ticket title (instead of --source). |
+| `--repos` | A `.spine/repos.yaml` — research across **every declared repo**. |
 | `--text` | Inline ticket body (with --title). |
 | `--out` | Write the brief here (default: print to stdout). |
 | `--refresh` | Re-extract the PKG instead of using the commit cache. |
