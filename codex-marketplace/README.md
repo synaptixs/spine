@@ -8,17 +8,42 @@ Codex's plugin list instead of hand-editing `~/.codex/config.toml`.
 
 ```bash
 # 1. make the server available on PATH
-pip install 'synaptixs-spine[mcp]'        # provides the `orchestrator-mcp` command
+pip install 'synaptixs-spine[all]'        # provides the `orchestrator-mcp` command
 
 # 2. add this marketplace + install the plugin
 codex plugin marketplace add synaptixs/spine        # or a local path to this folder
 codex plugin add spine@spine
 ```
 
-Restart Codex; **Spine** appears in the plugin list. It exposes the orchestrator's MCP
-tools — `doctor`, `ingest_preview`, `pkg_grounding`, `read_memory_bank`, `sdlc_feature`
-(greenfield via `layout=new`, brownfield via `layout=existing`), and the gated
-`sdlc_start_run` / `…_status` / `…_decide_gate` / `…_result`.
+Restart Codex; **Spine** appears in the plugin list.
+
+> **Use `[all]`, not `[mcp]`.** `[mcp]` installs the server and nothing else, so the graph
+> is **Python-only** — and silently: a Java or Go repo yields zero nodes rather than an
+> error, which reads as "nothing here" instead of "nothing parsed". `[all]` adds every
+> language front-end, doc ingestion and the MCP server. `[languages]` is the front-ends
+> alone.
+
+## What it exposes
+
+**Comprehension — read-only, deterministic, no credentials.** `map_repo`, `blast_radius`
+("what breaks if I change X"), `explain_symbol`, `investigate` (where a ticket lands),
+`localize` (stack trace → fault site), `regression_gaps` (blast radius with no covering
+test), `root_cause`, `docs_for`, plus `read_memory_bank` (a repo's committed `episteme/`),
+`pkg_grounding` and `doctor`. Each takes a local path **or a git URL**, and returns typed
+fields **plus** a `markdown` rendering.
+
+**Across several repositories.** Declare your services in a `.spine/repos.yaml` and pass it
+as `repos=` to `blast_radius` or `investigate`: a handler with zero callers in its own
+source then names the service that depends on it. `pkg_joins` proposes or checks that
+topology — read-only, it never writes a config.
+
+**Plan and decide.** `sdlc_plan` renders a twelve-section build document from the graph, git
+and the tree (no model, no credentials); `sdlc_approve` records the decision on it. Both
+write only under `.spine/`.
+
+**Gated codegen.** `sdlc_feature` (greenfield via `layout=new`, brownfield via
+`layout=existing`) and the run-control set `sdlc_start_run` / `…_status` / `…_decide_gate` /
+`…_result`. These spend real money, and `live=true` additionally requires `confirm=true`.
 
 ## Credentials
 

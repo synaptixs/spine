@@ -582,3 +582,142 @@ async def test_an_approval_nobody_is_named_for_is_refused(
 
     assert "cannot tell who is approving" in sdlc_approve(str(repo), "TCK-9")["error"]
     assert mod.sdlc_approve in mod._TOOLS
+
+
+# ---- multi-repo: one graph across several repositories ---------------------
+# The case these exist for: an HTTP handler with **zero callers in its own source**. That
+# answer is true and, on a single-repo graph, the most dangerous one the graph can give.
+
+_BILLING = """\
+from fastapi import FastAPI
+
+app = FastAPI()
+
+
+@app.post("/v1/orders")
+def create_order(payload: dict) -> dict:
+    return {"id": 1}
+"""
+
+_WEB_CLIENT = """\
+import requests
+
+
+def place_order(payload: dict) -> dict:
+    return requests.post("http://billing/v1/orders", json=payload).json()
+"""
+
+
+def _repo_at(root: Path, name: str, body: str) -> Path:
+    """A real git repo with one commit — a merged graph is only reproducible over clean trees."""
+    import os
+    import subprocess
+
+    (root / "app").mkdir(parents=True, exist_ok=True)
+    (root / "app" / name).write_text(body, encoding="utf-8")
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "t",
+        "GIT_AUTHOR_EMAIL": "t@e",
+        "GIT_COMMITTER_NAME": "t",
+        "GIT_COMMITTER_EMAIL": "t@e",
+    }
+    for args in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "init"]):
+        subprocess.run(["git", *args], cwd=root, check=True, env=env)
+    return root
+
+
+def _repos_config(tmp_path: Path, *, joins: bool = True) -> str:
+    billing = _repo_at(tmp_path / "billing", "routes.py", _BILLING)
+    web = _repo_at(tmp_path / "web", "client.py", _WEB_CLIENT)
+    block = "joins:\n  - kind: http\n    consumer: web\n    provider: billing\n" if joins else ""
+    cfg = tmp_path / "repos.yaml"
+    cfg.write_text(f"repos:\n  billing: {billing}\n  web: {web}\n{block}", encoding="utf-8")
+    return str(cfg)
+
+
+def test_blast_radius_reports_dependents_in_another_repo(tmp_path: Path) -> None:
+    out = blast_radius(symbol="create_order", repos=_repos_config(tmp_path))
+
+    assert out["found"], out
+    match = out["matches"][0]
+    # Zero callers at home is the true answer, and on its own it is the misleading one.
+    assert match["caller_count"] == 0
+    assert match["cross_repo_count"] >= 1
+    assert any(c["repo"] == "web" for c in match["cross_repo"])
+    assert "Dependents in other repos" in out["markdown"]
+
+
+def test_multi_repo_answers_carry_their_standing(tmp_path: Path) -> None:
+    """A graph built over a dirty tree looks identical to one that is reproducible."""
+    cfg = _repos_config(tmp_path)
+    clean = blast_radius(symbol="create_order", repos=cfg)
+    assert clean["standing"] == {
+        "repos": ["billing", "web"],
+        "reproducible": True,
+        "untrusted": [],
+    }
+
+    (tmp_path / "web" / "app" / "client.py").write_text(_WEB_CLIENT + "# edit\n", encoding="utf-8")
+    dirty = blast_radius(symbol="create_order", repos=cfg)
+    assert dirty["standing"]["reproducible"] is False
+    assert dirty["standing"]["untrusted"] == ["web"]
+
+
+def test_investigate_across_repos_reports_cross_repo_landing(tmp_path: Path) -> None:
+    out = investigate(title="change order creation", repos=_repos_config(tmp_path))
+
+    landing = {h["name"]: h for h in out["landing"]}
+    assert landing["create_order"]["cross_repo"] >= 1
+    assert "dependent(s) in other repos" in out["markdown"]
+    # `episteme/` belongs to one repository; a merged brief must not fill it from an arbitrary one.
+    assert out["has_knowledge"] is False
+
+
+def test_a_tool_takes_one_repo_or_many_but_never_both(tmp_path: Path) -> None:
+    cfg = _repos_config(tmp_path)
+    assert "exactly one" in blast_radius(repo_path=str(tmp_path), symbol="x", repos=cfg)["error"]
+    assert "exactly one" in blast_radius(symbol="create_order")["error"]
+    assert "exactly one" in investigate(repo_path=str(tmp_path), title="t", repos=cfg)["error"]
+
+
+def test_pkg_joins_check_reports_what_the_declared_joins_placed(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import pkg_joins
+
+    out = pkg_joins(_repos_config(tmp_path), "check")
+
+    assert out["mode"] == "check"
+    assert out["declared"] == 1
+    assert out["joined"] >= 1
+    assert out["per_join"][0]["join"] == "web -http-> billing"
+
+
+def test_pkg_joins_check_says_nothing_is_declared_rather_than_zero_unplaced(tmp_path: Path) -> None:
+    """ "0 unplaced" against no declarations is exactly the silence this command exists to break."""
+    from orchestrator.plugin.server import pkg_joins
+
+    out = pkg_joins(_repos_config(tmp_path, joins=False), "check")
+
+    assert out["declared"] == 0
+    assert "no joins declared" in out["note"]
+
+
+def test_pkg_joins_propose_derives_the_topology_from_evidence(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import pkg_joins
+
+    out = pkg_joins(_repos_config(tmp_path, joins=False), "propose")
+
+    candidate = out["candidates"][0]
+    assert (candidate["kind"], candidate["consumer"], candidate["provider"]) == ("http", "web", "billing")
+    # A join producing zero edges is noise, so every candidate carries what it would create.
+    assert candidate["edges"] >= 1
+    assert candidate["already_declared"] is False
+
+
+def test_pkg_joins_rejects_an_unknown_mode_and_a_missing_config(tmp_path: Path) -> None:
+    from orchestrator.plugin import server as mod
+    from orchestrator.plugin.server import pkg_joins
+
+    assert "propose" in pkg_joins(_repos_config(tmp_path), "sideways")["error"]
+    assert "cannot be read" in pkg_joins(str(tmp_path / "nope.yaml"), "check")["error"]
+    assert mod.pkg_joins in mod._TOOLS

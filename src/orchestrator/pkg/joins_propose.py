@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
     from orchestrator.pkg.facts import FactBatch
     from orchestrator.pkg.python_client import PendingCall
+    from orchestrator.pkg.repos import RepoSet
 
 
 @dataclass(frozen=True)
@@ -233,4 +234,21 @@ def render(candidates: Sequence[Candidate]) -> str:
     return "joins:\n" + "\n\n".join(c.as_yaml() for c in candidates) + "\n"
 
 
-__all__ = ["Candidate", "propose", "render"]
+def unresolved_by_repo(repo_set: RepoSet) -> dict[str, list[PendingCall]]:
+    """The HTTP calls each declared repo makes to a path it does not itself serve.
+
+    Re-extracts per repo to collect them. They live on the extractor as a side-channel and are
+    never facts, so they do not survive into a merged batch and cannot be read back out of one.
+    Cheap in practice: every repo is cache-warm by the time a caller needs this.
+    """
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+
+    out: dict[str, list[PendingCall]] = {}
+    for key, root in repo_set:
+        extractor = RepoCodeExtractor()
+        extractor.extract(root)
+        out[key] = list(extractor.unresolved_calls)
+    return out
+
+
+__all__ = ["Candidate", "propose", "render", "unresolved_by_repo"]
