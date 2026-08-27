@@ -15,8 +15,12 @@ import hashlib
 import importlib.util
 import json
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from orchestrator.pkg.repos import RepoSet
 
 from orchestrator.pkg.extractor import RepoCodeExtractor
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
@@ -244,7 +248,100 @@ def load_or_extract(
     return batch
 
 
+# ---- multi-repo -------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RepoState:
+    """What was loaded for one repository, and whether it can be trusted."""
+
+    key: str
+    root: Path
+    sha: str | None
+    dirty: bool
+    cached: bool  # served from the commit-keyed cache rather than re-extracted
+
+    @property
+    def trusted(self) -> bool:
+        """A clean tree at a known commit. Anything else describes uncommitted or unknown work."""
+        return self.sha is not None and not self.dirty
+
+
+@dataclass(frozen=True)
+class MergedFacts:
+    """A merged multi-repo graph, with the standing of every input attached.
+
+    The standing is not decoration. A merged graph assembled from four repositories where one
+    has a dirty tree describes work that is not committed anywhere, so it cannot back a currency
+    gate, cannot be reproduced at a commit, and must not be quoted as a measurement. Carrying
+    ``repos`` is what lets a caller tell that from a clean one — the alternative is a graph that
+    looks identical either way, which is how "0 findings" comes to mean "nothing ran".
+    """
+
+    batch: FactBatch
+    repos: tuple[RepoState, ...]
+
+    @property
+    def trusted(self) -> bool:
+        """**Any** dirty or non-git repository makes the whole merged graph untrusted.
+
+        Not a per-repo verdict, because the graph is one artifact: a cache that is right about
+        three of four inputs is not a cache, and a join that crosses into the dirty one is
+        wrong wherever it lands.
+        """
+        return all(r.trusted for r in self.repos)
+
+    @property
+    def untrusted_keys(self) -> tuple[str, ...]:
+        return tuple(r.key for r in self.repos if not r.trusted)
+
+    def cache_key(self) -> tuple[tuple[str, str], ...]:
+        """``((repo, sha), …)`` in key order — the multi-repo analogue of one HEAD SHA.
+
+        Empty when any repo is untrusted, so it cannot accidentally name a graph that includes
+        uncommitted work. Identity for a merged graph, not a filename: there is no merged cache
+        entry, by design (see :func:`load_or_extract_repos`).
+        """
+        if not self.trusted:
+            return ()
+        return tuple((r.key, r.sha or "") for r in self.repos)
+
+
+def load_or_extract_repos(
+    repo_set: RepoSet,
+    *,
+    cache_dir: Path | None = None,
+    extractor: RepoCodeExtractor | None = None,
+) -> MergedFacts:
+    """Extract every declared repository and merge into one scoped graph.
+
+    **Per-repo caches, merged on read — there is no merged cache entry.** Change one of four
+    repositories and one re-extracts while three are served from cache; a single entry keyed on
+    the whole tuple would invalidate everything on any change. Merging is cheap and extraction
+    is not, so the composition is done every time and the expensive half is what gets reused.
+
+    Repos are processed in key order, and :func:`~orchestrator.pkg.scoping.merge_repos` sorts
+    again, so the same declarations always produce the same graph regardless of how the YAML was
+    written.
+    """
+    from orchestrator.pkg.scoping import merge_repos
+
+    batches: dict[str, FactBatch] = {}
+    states: list[RepoState] = []
+    for key, root in repo_set:
+        sha, dirty = repo_state(root)
+        cache_file = _cache_path(cache_dir or default_cache_dir(), root, sha) if sha and not dirty else None
+        was_cached = cache_file is not None and cache_file.exists()
+        batches[key] = load_or_extract(root, cache_dir=cache_dir, extractor=extractor)
+        states.append(RepoState(key, root, sha, dirty, cached=was_cached))
+
+    return MergedFacts(merge_repos(batches), tuple(states))
+
+
 __all__ = [
+    "MergedFacts",
+    "RepoState",
+    "load_or_extract_repos",
     "FactCacheError",
     "default_cache_dir",
     "extractor_fingerprint",

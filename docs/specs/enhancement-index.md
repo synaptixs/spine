@@ -24,7 +24,7 @@ cadence; this one is a snapshot of a conversation.
 | # | Enhancement | State | Size | What gates it |
 |---|---|---|---|---|
 | **E1** | [Project constitution](#e1--project-constitution) | **Spec written, needs rewrite** — [`constitution-roadmap.md`](constitution-roadmap.md), branch `docs/constitution-spec` | Unknown until Phase 0 | A blocking trigger probe that may close it unbuilt |
-| **E2** | [Multi-repo comprehension](#e2--multi-repo-comprehension) | **Phase 1 complete** — [`multi-repo-roadmap.md`](multi-repo-roadmap.md), branch `feat/multi-repo-identity` | Phases 2–4 remain | Nothing. Phase 2 can start |
+| **E2** | [Multi-repo comprehension](#e2--multi-repo-comprehension) | **Phases 1–2 complete** — [`multi-repo-roadmap.md`](multi-repo-roadmap.md), branch `feat/multi-repo-identity` | Phases 3–4 remain | Nothing. Phase 3 can start |
 | **E3** | [G6 — comprehension benchmark](#e3--g6--comprehension-benchmark) | **Spec exists, not started.** Branch `feat/g6-comprehension-metrics` cut, empty | ~3 days if descoped | **Four open decisions** — corpus scope, metric set, repo mix, gate tier |
 | **E4** | [Per-run caching: temperature + MCP](#e4--per-run-caching-temperature-refusal-and-mcp-sessions) | **Observed in the field.** No ticket | Small | Nothing |
 | **E5** | [Oracle coverage gaps](#e5--oracle-coverage-gaps) | **Named in `STATE-OF-SPINE` §3** | Medium | Nothing |
@@ -143,6 +143,17 @@ same way for area grouping.
 **Phase 1 completed 2026-08-25** — decision C taken, scoping applied **at merge time, not
 extract time**, so single-repo extraction is byte-identical (proved by SHA-256 over the full
 node and edge set on leveldb, gin and zod, extracted by `develop` and by the branch).
+
+**Phase 2 completed the same day.** Repositories are **declared** in `.spine/repos.yaml`, never
+derived — a key baked into every scoped id and cache entry must be identical on a laptop and in
+CI, and nothing derivable is. Caches stay **per repo, merged on read**, so changing one of four
+re-extracts one and reuses three. `MergedFacts` carries a per-repo sha/dirty/cached state,
+because a merged graph looks identical whether or not one input is dirty — and one dirty repo
+makes the whole graph unreproducible. `pkg extract --repos` says so in as many words.
+
+Phase 2's original exit criterion had to be corrected: it asked for blast radius crossing a
+repository boundary, which cannot happen before the Phase 3 joiners create any cross-repo edges.
+Moved to Phase 3.
 
 Phase 1 also re-measured the blast radius and the first draft was wrong: **six provenance parse
 sites, not three, and fourteen id sites, not two.** The two missed were `evidence.py:73` and

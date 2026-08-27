@@ -2735,13 +2735,22 @@ def pkg_extract(
         str | None,
         typer.Option("--dialect", help="SQL dialect (postgres|mysql|tsql|oracle|…); default: auto-detect."),
     ] = None,
+    repos: Annotated[
+        str | None,
+        typer.Option("--repos", help="A `.spine/repos.yaml` — extract every declared repo into one graph."),
+    ] = None,
 ) -> None:
     """Extract grounded code facts from a repo and print a summary (read-only)."""
     from orchestrator.pkg import FactStore, RepoCodeExtractor
 
     extractor = RepoCodeExtractor(sql_dialect=dialect)
-    with _repo_arg(path) as (repo, _):
-        store = FactStore(extractor.extract(repo))
+    if repos:
+        store, merged = _extract_repos(repos, dialect)
+        path = repos
+    else:
+        merged = None
+        with _repo_arg(path) as (repo, _):
+            store = FactStore(extractor.extract(repo))
 
     if as_json:
         _print(
@@ -2762,10 +2771,16 @@ def pkg_extract(
         return
 
     summary = store.summary()
+    scanned = f"{len(merged.repos)} repos" if merged is not None else path
     typer.echo(
-        f"Scanned {path} — {summary['grounded_nodes']} grounded nodes, "
+        f"Scanned {scanned} — {summary['grounded_nodes']} grounded nodes, "
         f"{summary['external_nodes']} external, {summary['edges']} edges."
     )
+    if merged is not None:
+        for state in merged.repos:
+            mark = "cached" if state.cached else "extracted"
+            trust = "" if state.trusted else "  ** UNTRUSTED **"
+            typer.echo(f"  {state.key:<16} {mark:<9} {(state.sha or '-')[:12]}{trust}")
     # Per kind, because one total cannot show a kind that stopped being emitted. Zeros are
     # printed rather than skipped: `REFERENCES 0` on a repo with entities is the line worth
     # reading, and omitting it looks like a question nobody asked.
@@ -2774,6 +2789,16 @@ def pkg_extract(
         typer.echo("  " + "  ".join(f"{k.upper()} {v}" for k, v in per_kind.items()))
     if extractor.skipped:
         typer.echo(f"  (skipped {len(extractor.skipped)} unparseable file(s))")
+
+    if merged is not None and not merged.trusted:
+        # Last, and loud. A merged graph looks identical either way, and one describing
+        # uncommitted work cannot back a currency gate or be reproduced at a commit — so the
+        # thing that must not be missed goes where the eye stops, not above the counts.
+        typer.echo(
+            f"\n  NOT REPRODUCIBLE — {', '.join(merged.untrusted_keys)} "
+            "has uncommitted work or is not a git repo.\n"
+            "  The counts above are real, but this graph cannot be re-derived at a commit."
+        )
 
     if query:
         matches = store.find(query)
@@ -2790,6 +2815,21 @@ def pkg_extract(
             touched = store.touches(node.id)
             tail = "…" if len(touched) > 12 else ""
             typer.echo(f"  touches ({len(touched)}): " + ", ".join(t.id for t in touched[:12]) + tail)
+
+
+def _extract_repos(config: str, dialect: str | None) -> tuple[Any, Any]:
+    """`--repos`: every declared repository, merged into one scoped graph."""
+    from orchestrator.pkg import FactStore, RepoCodeExtractor
+    from orchestrator.pkg.persistence import load_or_extract_repos
+    from orchestrator.pkg.repos import RepoConfigError, load_repo_config
+
+    try:
+        repo_set = load_repo_config(config)
+    except RepoConfigError as exc:
+        typer.echo(f"pkg extract: {exc}")
+        raise typer.Exit(code=1) from exc
+    merged = load_or_extract_repos(repo_set, extractor=RepoCodeExtractor(sql_dialect=dialect))
+    return FactStore(merged.batch), merged
 
 
 @pkg_app.command("capabilities")

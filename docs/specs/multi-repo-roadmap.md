@@ -1,8 +1,8 @@
 # Multi-repo comprehension — one graph across several repositories
 
-**Status:** **Phase 1 complete 2026-08-25** — the identity decision is taken (option C), the
-parse contract is pinned by tests, and single-repo extraction is proved byte-identical.
-Phases 2–4 not started.
+**Status:** **Phases 1–2 complete 2026-08-25.** Identity decided and pinned; several
+repositories now extract and merge into one scoped graph, cached per repo. Phases 3–4 not
+started — there are still no cross-repo *edges*, so a merged graph is two islands.
 **Written:** 2026-08-25 against 3.22.0. **Owner:** _unassigned_.
 **Scope:** comprehension only. **Multi-repo *delivery* is an explicit non-goal** — see below.
 **Index entry:** E2 in [`enhancement-index.md`](enhancement-index.md).
@@ -137,16 +137,68 @@ different versions of one package share a node, because the graph does not hold 
 | Single-repo extraction is byte-identical | SHA-256 of the full node+edge set on three real repos, extracted by `develop` and by this branch: **identical on all three** (leveldb 1,611/7,791 · gin 1,898/3,391 · zod 4,610/7,381) |
 | Nothing else moved | `pkg accuracy --check` OK · 3,040 tests passing · mypy and ruff clean |
 
-## Phase 2 — the merged graph *(not started)*
+## Phase 2 — the merged graph *(complete)*
 
-A tuple cache key — `((repo, sha), …)` — instead of one SHA. Determinism survives intact: same
-commits in, same bytes out. `understand --check` still works; the key just gets wider.
+### The three decisions, taken
 
-Dirty-tree handling stays as-is per repo: **any** dirty repo makes the whole merged graph
-untrusted, because a cache that is right about three of four inputs is not a cache.
+**D1 — the repo key is declared, never derived.** It is baked into every scoped id and every
+cache entry, so it must be identical on a laptop and in CI. A directory name differs per
+checkout; a remote URL differs between SSH and HTTPS forms. A drifting key silently invalidates
+caches and makes two runs incomparable.
 
-**Exit:** two repos extract, merge without collision, and `pkg verify` reports zero dangling
-edges across the merged graph. Blast radius crosses the boundary in at least one direction.
+**D2 — declared in `.spine/repos.yaml`**, beside `.spine/workflows/`, which already establishes
+repo-carried configuration. **Not discovered from manifests:** guessing which of forty entries
+in a lockfile are "our" repositories is a judgement the team owns, and a second resolution
+problem this package does not need.
+
+> **Why a hand-maintained file is acceptable here, when it would not be for the constitution.**
+> Both depend on somebody filling something in. The difference is the failure mode: a repo
+> nobody listed produces no nodes and a visibly narrower graph — you notice on the first run.
+> An empty rules file produces *"no violations found"*, which reads as health.
+
+**D3 — per-repo caches, merged on read. There is no merged cache entry.** Change one of four
+repositories and one re-extracts while three are served from cache; a single entry keyed on the
+whole tuple would invalidate everything on any change. Merging is cheap and extraction is not,
+so the composition runs every time and the expensive half is reused.
+
+The tuple cache key from the original draft therefore became **carried metadata** rather than a
+filename: `MergedFacts.cache_key()` returns `((repo, sha), …)` in key order, and returns
+**empty** when any repo is untrusted so it can never name a graph containing uncommitted work.
+
+### Trust is a property of the whole graph
+
+`MergedFacts` carries a `RepoState` per repository — sha, dirty, and whether it came from cache
+— because **a merged graph looks identical whether or not one of its inputs is dirty**. One
+untrusted repo makes the whole thing untrusted: it cannot back a currency gate, cannot be
+reproduced at a commit, and must not be quoted as a measurement. Not a per-repo verdict, because
+the graph is one artifact and a join crossing into the dirty repo is wrong wherever it lands.
+
+`pkg extract --repos <config>` prints the per-repo state and says so in as many words when the
+graph is not reproducible — placed after the counts, where the eye stops.
+
+### Scope calls
+
+- **A minimal CLI now, not in Phase 4.** A capability nobody can invoke is inert, which is what
+  GraphIR Phase 4 was reverted for. `--repos` commits to no UX beyond a summary.
+- **Local paths only.** Cloning is `WorkspaceManager`'s job; pulling it in here would drag auth,
+  shallow-clone policy and workspace layout into a phase whose point is that merging works.
+
+### Exit — met, and corrected from the draft
+
+**The original exit criterion was unachievable.** It required *"blast radius crosses the
+boundary in at least one direction"* — but cross-repo edges do not exist until the Phase 3
+joiners, so a merged graph is two islands and no radius can cross. Moved to Phase 3.
+
+| Criterion | Evidence |
+|---|---|
+| Two repos merge with **zero id collisions** | `test_two_repos_defining_the_same_symbols_stay_two_nodes` — both `py:svc-a@shop.Cart` and `py:svc-b@shop.Cart` survive |
+| **No dangling edges** across the merged graph | `test_the_merged_graph_has_no_dangling_edges`; and an intra-repo call stays in its own repo rather than binding to the identically-named symbol next door |
+| An unchanged repo **reuses its cache** | `test_a_repo_that_did_not_change_is_served_from_cache` — cold/warm/one-commit, asserted on `RepoState.cached` rather than on timing |
+| **Deterministic** regardless of declaration order | Same nodes, same edges, same `cache_key()` from reversed YAML |
+| A dirty repo is **visible** | `trusted` False, `untrusted_keys == ("svc-b",)`, `cache_key() == ()` |
+| Single-repo path still byte-identical | The Phase 1 guards, re-run |
+
+Gate: `mypy src tests` clean · `ruff` clean · **3,062 tests passing** · `pkg accuracy --check` OK.
 
 ## Phase 3 — the three joiners *(not started)*
 
@@ -166,7 +218,9 @@ So the joins are held to the `CALLS` standard, not the structure standard:
   that made `corpus/*/shadowed_calls` worth having.
 - Expect recall well under 1.00 and **publish it that way.**
 
-**Exit:** three joiners, three corpus cases, precision 1.00 on each, recall stated honestly.
+**Exit:** three joiners, three corpus cases, precision 1.00 on each, recall stated honestly —
+**and blast radius crossing a repository boundary in at least one direction**, moved here from
+Phase 2 where it could not be met.
 
 ## Phase 4 — the surfaces *(not started)*
 
@@ -202,15 +256,14 @@ verification-shaped, and fiction.
 
 ## Open questions
 
-1. ~~**What is a repo key?**~~ **Partly closed in Phase 1.** The *shape* is fixed —
+1. ~~**What is a repo key?**~~ **Closed across Phases 1–2.** The *shape* is fixed —
    `^[A-Za-z0-9][A-Za-z0-9._-]*$`, validated by `validate_repo_key`, refused loudly rather than
    sanitised because a key silently rewritten differs between the machine that wrote the cache
    and the one that reads it. **Where the key comes from is still open** (remote URL, config
    name, content hash); the constraint is that it must be stable across clones and machines, so
    a local directory name is not a candidate.
-2. **How are the repos declared?** A `.spine/repos.yaml`, a CLI flag, or discovered from
-   manifests (`go.mod`, `package.json`, `pyproject.toml` dependencies)? Discovery is nicer and is
-   a second resolution problem.
+2. ~~**How are the repos declared?**~~ **Closed in Phase 2:** `.spine/repos.yaml`, explicit,
+   with `--repos` to point at one elsewhere. Manifest discovery declined — see D2.
 3. **Does `episteme/` become multi-repo?** It lands in one repo today. A merged bank has no
    obvious owner, and writing one repo's bank from another repo's facts is a currency problem
    nobody has thought about.
