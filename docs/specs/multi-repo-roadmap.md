@@ -335,11 +335,27 @@ The joins are still held to the `CALLS` standard, not the structure standard:
   that matches, and a declared join whose path shape defeats the matcher.
 - Expect recall well under 1.00 and **publish it that way.**
 
-**Exit:** unmatched calls retained · `joins --propose` produces a draft whose every entry carries
-its evidence and edge count · three joiners · three corpus cases · precision 1.00 on each ·
-recall stated honestly · `--check` reports the unjoined · **and blast radius crossing a
-repository boundary in at least one direction**, moved here from Phase 2 where it could not be
-met.
+### Exit
+
+| Criterion | |
+|---|---|
+| Unmatched calls **retained as a side-channel**, not as facts | See Invariants |
+| `joins --propose` produces a draft whose every entry carries its evidence and edge count | A join producing 0 edges is not offered |
+| Three joiners, three corpus cases | Each case written **before** its joiner and failing first |
+| Precision **1.00** on each, recall **stated honestly** | Scored on their own in `scoreboard.json` |
+| `--check` reports the unjoined | An absence becomes a number |
+| **Blast radius crosses a repository boundary** in at least one direction | Moved here from Phase 2, where it could not be met |
+| **The digest check** ↓ | The one that enforces the two Phase 3 invariants |
+
+**The digest check, as an exit criterion rather than a habit.** Extract a real repository with
+`develop` and with the branch, and compare SHA-256 over the full node and edge set. It has been
+run by hand twice — Phase 1 and Phase 2, on leveldb, gin, zod and Newtonsoft.Json, identical
+every time. Phase 3 is the phase that can break it, so it stops being something someone
+remembers to do.
+
+Neither Phase 3 invariant is safe as a comment: both describe a change that produces **no error,
+no failing test and no dangling edge** — just a different graph. A digest is the only check that
+notices, and it moves for a reason nobody can argue with.
 
 ## Phase 4 — the surfaces *(not started)*
 
@@ -365,8 +381,44 @@ verification-shaped, and fiction.
 
 ## Invariants
 
+> **The one idea underneath the first three.** Single-repo extraction has precision 1.00 and a
+> `strict` gate. The joiners will publish recall well under 1.00 *by design*. **New uncertainty
+> must not leak into the surface that is already trusted** — anything that lets the second
+> contaminate the first is a regression wearing a feature's clothes.
+
 - **Single-repo behaviour does not change.** Byte-identical extraction, same cache, same
   scoreboard, same corpus scores.
+
+- **Retained unmatched calls are a side-channel, never facts.** *(Phase 3)* The natural way to
+  keep a call whose endpoint is not in this repository is to emit it: a node for the endpoint,
+  an edge from the caller. **That edge is an invention.** It asserts *"this function calls
+  `POST /v1/orders`"* about an endpoint nothing in scope is known to serve — and it is the
+  self-consistent kind, because creating the phantom endpoint node alongside it makes
+  `pkg verify` report **zero dangling**, exactly as it did through the 497 Python inventions and
+  the 46 in C++.
+
+  **The `invention` gate would not catch it.** That oracle detects *shadowing* and says so in its
+  own docstring. This would be a new invention class in a system that has just finished proving
+  it has no detector for classes nobody wrote a detector for.
+
+  Carry them as a list on the extractor — the shape `RepoCodeExtractor.skipped` already uses for
+  unparseable files. Same information available to the proposer, and the graph asserts nothing
+  new.
+
+- **The joiners run only from the multi-repo path.** *(Phase 3)* Never from
+  `RepoCodeExtractor.extract`, and never as a repo-wide post-pass beside `import_link` and
+  `doc_link`, which run on every extraction.
+
+  Mechanically: with one repository there is no cross-repo work to do, but a joiner would still
+  attempt fuzzy path matching *within* it and create edges the exact-match client
+  **deliberately declined** to create — the same invention risk through a back door.
+
+  Structurally, and this is the real reason: the joiner is the least trustworthy code here. It is
+  resolution rather than structure, it assumes a human declared the topology, and a single-repo
+  user declared nothing. Letting it run on their graph gives them uncertainty they never opted
+  into, with no `joins:` block and no `--check` output to notice it by. **`--repos` is the
+  opt-in to a graph with different guarantees, and the two must stay distinguishable.**
+
 - **Deterministic, no LLM.** The joiners are graph queries. A model deciding whether two paths
   are the same endpoint would put a model call in the one path that has none.
 - **No vocabulary change.** `facts.py` is untouched: the edge kinds already exist. If a join
