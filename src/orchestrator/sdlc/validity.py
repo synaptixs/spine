@@ -31,6 +31,7 @@ from typing import Any
 
 from orchestrator.pkg import FactStore
 from orchestrator.pkg.facts import NodeKind
+from orchestrator.sdlc.profile_select import is_bug
 
 
 class Verdict(str, Enum):
@@ -171,19 +172,37 @@ def _check_countable_claims(spec: dict[str, Any], store: FactStore) -> list[Find
     return findings
 
 
-def _check_unbound_criteria(criteria: Any) -> list[Finding]:
+def _check_unbound_criteria(criteria: Any, issue_type: str = "") -> list[Finding]:
     """A criterion naming code the graph does not hold.
 
     Only claims can fail here — prose, CamelCase, env vars and tool names are not claims about
     this repository and never refuse a ticket. That rule lives in `criteria_binding`, which
     borrows it from the doc-drift reconciler rather than inventing a second one.
+
+    **What the finding means depends on the ticket**, and `assess` acts on it accordingly. For
+    a bug it is a false premise: the subject is code that already exists, so a criterion naming
+    a symbol nobody can find describes a repository this is not. For an enhancement the missing
+    symbol *is the deliverable* — and the better-written the criterion, the more precisely it
+    names something not built yet. So the wording says which case the reader is in, rather than
+    leaving one sentence to serve two opposite meanings.
     """
     rows = getattr(criteria, "unbound", ()) if criteria is not None else ()
+    expected = not is_bug(issue_type)
     return [
         Finding(
             check="criterion-unbound",
-            detail=(f"the criterion names {', '.join(row.claims)}, which the graph does not hold"),
-            evidence=row.text,
+            detail=(
+                f"the criterion names {', '.join(row.claims)}, which the graph does not hold"
+                + (" — expected for something not built yet" if expected else "")
+            ),
+            evidence=(
+                row.text
+                if not expected
+                # One fact, reported twice, two stages apart: the design stage lists the same
+                # absent name under unverified references (`impact.unverified_references`). A
+                # reviewer who cannot tell it is one fact starts discounting both.
+                else f"{row.text} — the design stage lists it again under unverified references"
+            ),
         )
         for row in rows
     ]
@@ -306,7 +325,7 @@ def _check_invariants(spec: dict[str, Any]) -> list[Finding]:
 def _check_localization(spec: dict[str, Any], landing: list[str], issue_type: str) -> list[Finding]:
     """A Bug describes something that already exists. If nothing in the graph matches it, the
     run has nowhere to start, and guessing a fault site is the failure RCA exists to avoid."""
-    if issue_type.strip().lower() not in {"bug", "defect"}:
+    if not is_bug(issue_type):
         return []
     if landing:
         return []
@@ -476,12 +495,24 @@ def assess(
         # code built to a false premise passes its own tests and is still wrong.
         return Assessment(verdict=Verdict.CRITERIA_WRONG, findings=wrong)
 
-    unbound = _check_unbound_criteria(criteria)
-    if unbound:
-        # Same family as a false count, and ordered beside it: a criterion nobody can locate
-        # is a test nobody can write, so anything built to it is graded by a test that had to
-        # invent its own subject.
+    unbound = _check_unbound_criteria(criteria, issue_type)
+    if unbound and is_bug(issue_type):
+        # For a bug, the same family as a false count and ordered beside it: a criterion nobody
+        # can locate is a test nobody can write, so anything built to it is graded by a test
+        # that had to invent its own subject.
         return Assessment(verdict=Verdict.CRITERIA_WRONG, findings=unbound)
+    # For anything else it is reported and the run continues. An enhancement's criterion names
+    # what the run is about to build, so refusing it means the *better-written* criterion is
+    # the one that parks the ticket:
+    #
+    #     the compiler returns >= 70 rules        → no claim → PROCEED
+    #     `rule_compiler` returns >= 70 rules     → unbound  → parked
+    #
+    # The second is more precise and more testable. `_check_localization` two functions above
+    # already takes this position — an enhancement lands nowhere in the graph because it has
+    # not been built — and one gate holding two stances on one question is the defect here.
+    # Riding along with PROCEED is what `_check_context_budget` already does below.
+    findings.extend(unbound)
 
     unlocalized = _check_localization(spec, landing, issue_type)
     if unlocalized:

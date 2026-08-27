@@ -116,6 +116,132 @@ def test_a_story_that_lands_nowhere_still_proceeds() -> None:
     assert assessment.verdict is Verdict.PROCEED
 
 
+# ---- an unbound criterion, and who it is fatal to ---------------------------
+#
+# The gap: `_check_localization` excuses an enhancement from landing anywhere in the graph —
+# a feature has no existing behaviour to localize — while the unbound-criteria check refused
+# every ticket alike. One gate, two stances on one question, and the perverse consequence was
+# that writing an enhancement's criterion *well* is what parked it.
+
+
+def _binding(*criteria: str) -> Any:
+    """A real `CriteriaBinding` against a graph holding one symbol. No fake to drift."""
+    from orchestrator.pkg.facts import FactBatch, Node, NodeKind, Provenance
+    from orchestrator.sdlc.criteria_binding import bind_criteria
+
+    batch = FactBatch()
+    batch.add_node(Node("py:report", NodeKind.MODULE, "report.py", "python", Provenance("report.py", 1)))
+    batch.add_node(
+        Node("py:report.render", NodeKind.FUNCTION, "render", "python", Provenance("report.py", 10))
+    )
+    return bind_criteria({"acceptance_criteria": list(criteria)}, store=FactStore(batch))
+
+
+def test_a_bug_naming_a_symbol_that_does_not_exist_is_still_refused() -> None:
+    """Unchanged, and the reason the check exists: a bug's subject is code that already runs,
+    so a criterion naming a symbol nobody can find describes a repository this is not."""
+    assessment = assess(
+        _spec("`GhostWidget` no longer double-counts"),
+        store=_graph(),
+        issue_type="Bug",
+        landing=["report.py"],
+        criteria=_binding("`GhostWidget` no longer double-counts"),
+    )
+
+    assert assessment.verdict is Verdict.CRITERIA_WRONG
+    assert assessment.findings[0].check == "criterion-unbound"
+
+
+def test_an_enhancement_naming_the_module_it_will_create_proceeds() -> None:
+    """The deliverable is allowed not to exist yet. This is the verdict that changed."""
+    assessment = assess(
+        _spec("`rule_compiler` returns at least 70 rules"),
+        store=_graph(),
+        issue_type="Story",
+        criteria=_binding("`rule_compiler` returns at least 70 rules"),
+    )
+
+    assert assessment.verdict is Verdict.PROCEED
+
+
+def test_the_enhancement_still_hears_about_it() -> None:
+    """Proceeding is not the same as saying nothing. A criterion naming a symbol that will
+    never exist — a typo, a renamed module — is worth a reviewer's eye either way."""
+    assessment = assess(
+        _spec("`rule_compiler` returns at least 70 rules"),
+        store=_graph(),
+        issue_type="Story",
+        criteria=_binding("`rule_compiler` returns at least 70 rules"),
+    )
+
+    (finding,) = [f for f in assessment.findings if f.check == "criterion-unbound"]
+    assert "rule_compiler" in finding.detail
+    assert "expected for something not built yet" in finding.detail
+    # One fact, two stages: the design stage lists the same absent name under unverified
+    # references, and a reviewer who cannot tell it is one fact discounts both.
+    assert "unverified references" in finding.evidence
+    assert "**Verdict:** PROCEED" in assessment.render()
+    assert "rule_compiler" in assessment.render()
+
+
+def test_the_precise_criterion_is_no_longer_the_one_that_parks_the_ticket() -> None:
+    """The perverse consequence, stated as a test. Both forms describe the same feature; the
+    second names its subject, is more testable, and used to be the one that stopped the run."""
+    prose = assess(
+        _spec("the compiler returns at least 70 rules"),
+        store=_graph(),
+        issue_type="Story",
+        criteria=_binding("the compiler returns at least 70 rules"),
+    )
+    precise = assess(
+        _spec("`rule_compiler` returns at least 70 rules"),
+        store=_graph(),
+        issue_type="Story",
+        criteria=_binding("`rule_compiler` returns at least 70 rules"),
+    )
+
+    assert prose.verdict is precise.verdict is Verdict.PROCEED
+
+
+def test_an_untyped_ticket_is_not_held_to_a_bugs_standard() -> None:
+    """Empty is the honest state for a source with no issue types — a wiki page, a `--spec`
+    file. Refusing those would make the gate strictest exactly where it knows least."""
+    assessment = assess(
+        _spec("`rule_compiler` returns at least 70 rules"),
+        store=_graph(),
+        criteria=_binding("`rule_compiler` returns at least 70 rules"),
+    )
+
+    assert assessment.verdict is Verdict.PROCEED
+
+
+def test_an_incident_is_judged_as_a_bug() -> None:
+    """`profile_select` has always mapped `incident` to the bug profile; validity kept its own
+    list and did not. One predicate now answers for both — an incident that gets root-cause
+    analysis is an incident that must localize."""
+    assessment = assess(
+        _spec("`GhostWidget` no longer double-counts"),
+        store=_graph(),
+        issue_type="Incident",
+        landing=["report.py"],
+        criteria=_binding("`GhostWidget` no longer double-counts"),
+    )
+
+    assert assessment.verdict is Verdict.CRITERIA_WRONG
+
+
+def test_a_bound_criterion_proceeds_whatever_the_issue_type() -> None:
+    for issue_type in ("Bug", "Story", ""):
+        assessment = assess(
+            _spec("`render` keeps its signature"),
+            store=_graph(),
+            issue_type=issue_type,
+            landing=["report.py"],
+            criteria=_binding("`render` keeps its signature"),
+        )
+        assert assessment.verdict is Verdict.PROCEED, issue_type
+
+
 # ---- size and duplication --------------------------------------------------
 
 

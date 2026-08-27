@@ -681,7 +681,10 @@ async def _research_pass(
         # Which research this ticket gets is a lookup on its issue type, not a judgement — and
         # it stays one. A model choosing would make the Evidence unreproducible at a commit,
         # which is the guarantee everything downstream rests on.
-        selection = select_profile(resolved_type, available=profile_names(ctx.root))
+        # Labels are the fallback, not an override: `select_profile` reads them only where the
+        # issue type maps to nothing. They have been fetched with every Jira issue since the
+        # adapter was written and read by nothing until now.
+        selection = select_profile(resolved_type, labels=ctx.labels, available=profile_names(ctx.root))
         emit(f"[research] {selection.reason}")
         ir = load_profile(selection.profile, ctx.root)
         report = await IRValidator().validate(ir)

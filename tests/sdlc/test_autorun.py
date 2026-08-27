@@ -648,6 +648,27 @@ def test_the_labels_travel_with_it(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert ctx.labels == ("backend", "sev1"), "sorted — `select_profile` matches over this set"
 
 
+def test_a_label_selects_the_profile_when_the_ticket_has_no_type(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """End of the second half of the plumbing: labels were fetched by the Jira adapter and read
+    by nothing. A tracker with no type field, or a renamed dropdown, still gets its profile."""
+    _install(monkeypatch, tmp_path, **_typed_source("", labels=("customer", "type:bug")))
+
+    ctx = _run(tmp_path)
+
+    assert ctx.issue_type == ""
+    assert ctx.case is not None and ctx.case.profile == "sdlc.bug"
+
+
+def test_the_tickets_own_type_still_beats_its_labels(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _install(monkeypatch, tmp_path, **_typed_source("Story", labels=("bug",)))
+
+    ctx = _run(tmp_path)
+
+    assert ctx.case is not None and ctx.case.profile == "sdlc.enhancement"
+
+
 def test_a_typed_ticket_selects_the_matching_profile(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """The point of the plumbing: `bug`/`enhancement` were unreachable in every real run."""
     _install(monkeypatch, tmp_path, **_typed_source("Story"))
