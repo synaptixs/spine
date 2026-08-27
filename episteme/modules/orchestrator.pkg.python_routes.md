@@ -106,7 +106,7 @@ _13 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/python_routes.py:283`](../../src/orchestrator/pkg/python_routes.py#L283)
 
 - **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L193)
-- **Calls** (3): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Node`](../../src/orchestrator/pkg/facts.py#L93), [`_join`](../../src/orchestrator/pkg/python_routes.py#L117)
+- **Calls** (3): [`Edge`](../../src/orchestrator/pkg/facts.py#L137), [`Node`](../../src/orchestrator/pkg/facts.py#L121), [`_join`](../../src/orchestrator/pkg/python_routes.py#L117)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-3-build.md#9-facts-the-generator-needs`, `docs/specs/build-documents/PKG-ACC-3-build.md#why-the-analysis-is-90`
 
 ### `scan_module`

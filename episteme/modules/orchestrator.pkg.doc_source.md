@@ -139,7 +139,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/doc_source.py:72`](../../src/orchestrator/pkg/doc_source.py#L72)
 
 - **Called by** (0 production · 2 test): [`test_reader_returning_none_skips_the_file`](../../tests/pkg/test_doc_source.py#L60), [`test_register_reader_adds_a_format_without_touching_dispatch`](../../tests/pkg/test_doc_source.py#L49)
-- **Documented in**: `docs/specs/gap2-document-modality-roadmap.md#design-decisions`, `docs/specs/gap2-document-modality-roadmap.md#non-goals`, `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`, `docs/specs/gap3-media-ingestion-roadmap.md#before-you-start`, `docs/specs/gap3-media-ingestion-roadmap.md#g3-media-ingestion-images-audio-video`, `docs/specs/gap3-media-ingestion-roadmap.md#phases`
+- **Documented in**: `docs/specs/enhancement-index.md#e1-project-constitution`, `docs/specs/gap2-document-modality-roadmap.md#design-decisions`, `docs/specs/gap2-document-modality-roadmap.md#non-goals`, `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`, `docs/specs/gap3-media-ingestion-roadmap.md#before-you-start`, `docs/specs/gap3-media-ingestion-roadmap.md#g3-media-ingestion-images-audio-video`
 
 ### `split_sections`
 
