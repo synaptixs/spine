@@ -227,18 +227,119 @@ issued `POST /v1/orders`; it does not tell you which service serves it. Path tem
 (`/v1/orders/{id}`), version prefixes, gateway rewrites and base-path config all make it a
 judgement, and judgements can be wrong.
 
-So the joins are held to the `CALLS` standard, not the structure standard:
+### Declare the topology, infer the edges
+
+**The topology is declared in `.spine/repos.yaml` alongside the repos.** Same principle as D1
+and D2, and it removes most of the resolution risk: a call cannot be joined to a repository
+nobody declared as its provider.
+
+```yaml
+repos:
+  billing: ../billing
+  web:     ../storefront
+
+joins:
+  - kind: http
+    consumer: web
+    provider: billing
+    base: /v1              # the provider mounts its routes under this
+  - kind: data
+    repos: [billing, reporting]
+    schema: analytics
+```
+
+**But declaring a join does not create the edge — it narrows the search.** *"web talks to
+billing over HTTP under /v1"* is a topology fact. Matching `POST /v1/orders/42` against
+`POST /v1/orders/{id}` is still a judgement; the declaration only decides **which** set of
+`EXPOSES` to search, not **which member** of it matches. The split is deliberate:
+
+| Declared by a human | Inferred from facts |
+|---|---|
+| Which repos join, and by which mechanism | Which call matches which endpoint |
+| Base paths, prefixes, gateway rewrites | Path-template matching inside that narrowed set |
+| Shared schema names | Which symbols read or write which table |
+
+Topology is small and stable — a few lines that change when a service is added. Edges are
+thousands and change every commit. **Declaring topology is maintainable; declaring edges is a
+second codebase.**
+
+### Nobody authors this from scratch — it is proposed
+
+The join set is itself a small graph, so it gets the treatment every other graph here gets:
+**derived from evidence, ratified by a human.** Nobody hand-writes `episteme/` either.
+
+```bash
+orchestrator pkg joins --propose    # a draft, with the evidence inline
+orchestrator pkg joins --check      # what is still unjoined
+orchestrator pkg joins --render     # the topology as one picture
+```
+
+**Four sources, by strength:**
+
+| Source | Evidence | Strength |
+|---|---|---|
+| **Unmatched client calls × another repo's endpoints** | `web` has 142 unmatched `POST /v1/orders…`; `billing` exposes `POST /v1/orders/{id}` | Strongest — both sides are extracted facts carrying `file:line` |
+| **Package manifests between declared repos** | `billing/go.mod` requires the module `shared-lib` declares | Near-certain |
+| **Shared table names** in `READS`/`WRITES` | Both repos write `invoices` | Strong; occasionally coincidence |
+| **Service URLs in config or env** | `BILLING_URL=http://billing` | Weak — propose, never assume |
+
+**Manifest discovery is safe here even though it was declined for `repos:`.** There it had to
+guess *which of forty dependencies are ours*, which is a judgement. Here the repositories are
+already declared, so it only has to find relationships **among a known set** — a much smaller
+problem with nothing to guess.
+
+**Every proposal carries the number of edges it would create.** A join producing 0 is noise and
+must not be offered; one producing 142 is real. This is the trigger-count-at-proposal-time idea
+from [`constitution-roadmap.md`](constitution-roadmap.md) — except the evidence here is
+deterministic path overlap rather than prose read by a model, so it actually works.
+
+### The one prerequisite: stop discarding the evidence
+
+`pkg/python_client.py` resolves a call by exact endpoint name and **drops it when there is no
+match**:
+
+```python
+endpoint_id = endpoints.get(f"{call.verb} {call.path}")
+if endpoint_id is None:
+    continue        # ← the cross-repo candidate, discarded
+```
+
+Correct for one repository, and it throws away precisely the facts a proposal needs. **Retaining
+unmatched calls is the first change Phase 3 makes**, before any joiner exists. Same for the other
+front-ends that emit `CONSUMES`.
+
+### `--check`, because a missing join is quiet
+
+For `repos:`, a forgotten entry is **loud** — no nodes, a visibly narrower graph. **A forgotten
+`joins:` entry is not.** Missing cross-repo edges look exactly like *"these services are not
+coupled"*, which reads as health — the constitution's failure mode, appearing here.
+
+So the joiner reports what it could **not** join: *"142 calls in `web` matched no declared
+provider."* An unmatched call becomes a visible number instead of an absence. That is the
+*bound honestly* invariant applied to a join — say what was elided, never let a clipped view
+imply completeness.
+
+### What this does to the measurement
+
+**Precision becomes ~1.00 by construction** — nothing can join to an undeclared repository. So
+the interesting number flips to **recall**: of the calls that should have joined, how many did?
+That is the more honest metric anyway, and `--check` yields it for free.
+
+The joins are still held to the `CALLS` standard, not the structure standard:
 
 - **Precision first, skip rather than guess.** A missing cross-repo edge sends a human looking; a
   fabricated one asserts that a service calls an endpoint nobody serves.
 - **Scored on their own** in `scoreboard.json`, never folded into an average that hides them.
-- **A corpus case per joiner**, written before the joiner, failing before it works — the order
-  that made `corpus/*/shadowed_calls` worth having.
+- **A corpus case per joiner**, written before the joiner and failing before it works — the order
+  that made `corpus/*/shadowed_calls` worth having. Each now tests both halves: a declared join
+  that matches, and a declared join whose path shape defeats the matcher.
 - Expect recall well under 1.00 and **publish it that way.**
 
-**Exit:** three joiners, three corpus cases, precision 1.00 on each, recall stated honestly —
-**and blast radius crossing a repository boundary in at least one direction**, moved here from
-Phase 2 where it could not be met.
+**Exit:** unmatched calls retained · `joins --propose` produces a draft whose every entry carries
+its evidence and edge count · three joiners · three corpus cases · precision 1.00 on each ·
+recall stated honestly · `--check` reports the unjoined · **and blast radius crossing a
+repository boundary in at least one direction**, moved here from Phase 2 where it could not be
+met.
 
 ## Phase 4 — the surfaces *(not started)*
 
@@ -285,7 +386,12 @@ verification-shaped, and fiction.
 3. **Does `episteme/` become multi-repo?** It lands in one repo today. A merged bank has no
    obvious owner, and writing one repo's bank from another repo's facts is a currency problem
    nobody has thought about.
-4. **How does the doc binder behave?** `doc_link` binds docs to symbols within a repo. A doc in
+4. **Does the topology picture belong to Phase 3 or Phase 4?** `joins --render` is listed under
+   Phase 3 because it is how a human reviews a proposal, and the graph is small enough that a
+   deterministic seeded layout is trivial. But *"show me how our services connect, from evidence
+   rather than from a wiki page last edited in 2024"* is a deliverable in its own right, and may
+   deserve its own place.
+5. **How does the doc binder behave?** `doc_link` binds docs to symbols within a repo. A doc in
    repo A describing repo B's API is real and common, and cross-repo `MENTIONS` may be the
    cheapest useful join of all — or the noisiest.
 
