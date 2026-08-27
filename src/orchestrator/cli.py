@@ -2983,14 +2983,9 @@ def _joins_check(repo_set: Any, merged: Any, as_json: bool) -> None:
 
 def _unresolved_by_repo(repo_set: Any) -> dict[str, list[Any]]:
     """Re-extract to collect the side-channel. Cheap: every repo is cache-warm by now."""
-    from orchestrator.pkg import RepoCodeExtractor
+    from orchestrator.pkg.joins_propose import unresolved_by_repo
 
-    out: dict[str, list[Any]] = {}
-    for key, root in repo_set:
-        extractor = RepoCodeExtractor()
-        extractor.extract(root)
-        out[key] = list(extractor.unresolved_calls)
-    return out
+    return unresolved_by_repo(repo_set)
 
 
 @pkg_app.command("capabilities")

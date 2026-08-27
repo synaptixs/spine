@@ -1,4 +1,4 @@
-<svg width="100%" viewBox="0 0 1280 640" role="img" xmlns="http://www.w3.org/2000/svg"><title>Spine</title><desc>Spine — one governed, provenance-grounded platform: understand a codebase, design and debug grounded in a Program Knowledge Graph, ingest requirements from many sources, and build human-gated, reviewed PRs.</desc>
+<svg width="100%" viewBox="0 0 1280 640" role="img" xmlns="http://www.w3.org/2000/svg"><title>Spine</title><desc>Spine — one governed, provenance-grounded platform: understand a codebase, design and debug grounded in a Product Knowledge Graph, ingest requirements from many sources, and build human-gated, reviewed PRs.</desc>
 <rect x="0" y="0" width="1280" height="640" fill="#0B1020"/>
 <rect x="0" y="0" width="1280" height="6" fill="#2DD4BF"/>
 
@@ -7,7 +7,7 @@
 <text x="86" y="292" font-family="Inter, Arial, sans-serif" font-size="120" font-weight="700" fill="#F5F7FA">Spine</text>
 <text x="90" y="346" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="500" fill="#C9D2E0">Governed, provenance-grounded</text>
 <text x="90" y="382" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="500" fill="#C9D2E0">software delivery — end to end</text>
-<text x="90" y="430" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#9AA4B2">One platform, grounded in a Program Knowledge Graph.</text>
+<text x="90" y="430" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#9AA4B2">One platform, grounded in a Product Knowledge Graph.</text>
 <text x="90" y="512" font-family="ui-monospace, Menlo, monospace" font-size="22" font-weight="400" fill="#5DCAA5">pip install synaptixs-spine</text>
 <text x="90" y="548" font-family="Inter, Arial, sans-serif" font-size="21" font-weight="400" fill="#8A94A6">github.com/synaptixs/spine</text>
 

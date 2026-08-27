@@ -9,7 +9,7 @@
 | Migrations | yes |
 | Test runner | pytest |
 | Task type (default) | feature |
-| Version | `3.23.0` |
+| Version | `3.24.0` |
 | Requires Python | `>=3.12` |
 
 ## Infrastructure & runtime
@@ -50,7 +50,7 @@ _Everything imported from outside this codebase, by how often — standard libra
 - `json` — imported 135 times
 - `dataclasses.dataclass` — imported 135 times
 - `collections.abc` — imported 114 times
-- `os` — imported 96 times
+- `os` — imported 97 times
 - `asyncio` — imported 77 times
 - `httpx` — imported 73 times
 

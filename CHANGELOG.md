@@ -4,6 +4,61 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.24.0 — The plugins catch up with the product
+
+### Added — multi-repo reaches the plugin surface
+
+- **`blast_radius` and `investigate` take `repos`.** Point either at a `.spine/repos.yaml`
+  instead of a `repo_path` and the answer crosses a repository boundary: a handler reporting
+  `0 caller(s)` at home now names the service that depends on it. 3.23.0 shipped this on the
+  CLI only, so the headline capability of that release was invisible to Claude Code and Codex.
+- **`pkg_joins`** — `mode="propose"` derives a `joins:` block from the evidence (each candidate
+  carrying the edges it would create); `mode="check"` reports the calls no declared join could
+  place. Read-only; it never writes a config, same as the CLI.
+- **Every multi-repo answer carries a `standing` block** — the repos it covers and whether it is
+  `reproducible`. The CLI prints that on stderr; a tool has to *return* it, or a caller quotes a
+  number nothing can reproduce and nothing in the payload says so.
+
+### Added — a single-repo answer now says when it is one
+
+- **`multi_repo_available`.** Point a comprehension tool at a repository that declares siblings
+  in its own `.spine/repos.yaml` and the answer carries a note naming that config and the repos
+  it declares. This is the one case the multi-repo work could not make loud on its own:
+  extracting a single directory always *succeeds*, so `0 caller(s)` from an unscoped graph is
+  indistinguishable from `0 caller(s)` that was checked across every service — and the first is
+  the answer that gets a handler changed.
+- A note, not a switch. It never redirects the caller to the merged graph, because which
+  repositories an answer covers is theirs to decide. A config too broken to parse still
+  produces a note, since an unreadable config is still evidence the project is multi-repo.
+- `sdlc_approve` opts out: a decision about one repository's plan is not a question about the
+  others.
+
+### Added — `[all]`, because the documented install under-delivered
+
+- **`pip install 'synaptixs-spine[all]'`** — every language front-end, the MCP server, doc and
+  office ingestion. Both plugin READMEs and both guides said `[mcp]`, which installs the server
+  and a **Python-only** graph: a Java or Go repo yields zero nodes rather than an error, so the
+  documented install failed by looking like an empty repository. `[languages]` is the front-ends
+  alone.
+
+### Fixed — the manifests had stood at 2.5.0 through fifteen releases
+
+- **Version, tool list and language list are current** across `marketplace.json`, the Claude
+  Code `plugin.json` and the Codex `plugin.json`. They advertised 7 tools and 7 languages
+  against a registry of 20 and a front-end set of 8, and omitted `sdlc_plan` / `sdlc_approve`
+  entirely — both shipped in August and neither appeared in a manifest.
+- **`understand-codebase`** gained the cross-repo tools, the `standing` block, the plan/approve
+  tier, and SQL.
+- **Three tests so this cannot recur quietly.** Manifest versions are asserted against
+  `pyproject.toml`; every name in `_TOOLS` must appear in a user-facing guide; the pitch must
+  name all eight languages. The old test grepped the manifests for the word "Go" — written for
+  3.7.0, and green for every release after it.
+
+### Changed — one helper, not two
+
+- `unresolved_by_repo` moved to `pkg/joins_propose.py`; `cli.py` and the plugin server now share
+  it instead of carrying identical copies.
+
 ## 3.23.0 — One graph across several repositories
 
 ### Added — multi-repo comprehension

@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L225) — reaches **17** symbols
-- [`repo_state`](../../src/orchestrator/pkg/persistence.py#L144) — reaches **16** symbols
-- [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L218) — reaches **15** symbols
-- [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L154) — reaches **15** symbols
-- [`load_facts`](../../src/orchestrator/pkg/persistence.py#L123) — reaches **15** symbols
-- [`save_facts`](../../src/orchestrator/pkg/persistence.py#L116) — reaches **15** symbols
-- [`_git`](../../src/orchestrator/pkg/persistence.py#L137) — reaches **14** symbols
-- [`FactCacheError`](../../src/orchestrator/pkg/persistence.py#L44) — reaches **10** symbols
+- [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L225) — reaches **22** symbols
+- [`repo_state`](../../src/orchestrator/pkg/persistence.py#L144) — reaches **21** symbols
+- [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L218) — reaches **20** symbols
+- [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L154) — reaches **20** symbols
+- [`load_facts`](../../src/orchestrator/pkg/persistence.py#L123) — reaches **18** symbols
+- [`save_facts`](../../src/orchestrator/pkg/persistence.py#L116) — reaches **18** symbols
+- [`_git`](../../src/orchestrator/pkg/persistence.py#L137) — reaches **17** symbols
+- [`extractor_fingerprint`](../../src/orchestrator/pkg/persistence.py#L177) — reaches **13** symbols
 
 ## Documented in
 
@@ -148,7 +148,7 @@
 
 [`src/orchestrator/pkg/persistence.py:366`](../../src/orchestrator/pkg/persistence.py#L366)
 
-- **Called by** (3 production · 10 test): [`_extract_repos`](../../src/orchestrator/cli.py#L2849), [`investigate`](../../src/orchestrator/cli.py#L2394), [`pkg_joins`](../../src/orchestrator/cli.py#L2865), [`test_a_non_git_directory_is_untrusted_not_merely_uncached`](../../tests/pkg/test_multi_repo_load.py#L136), [`test_a_repo_that_did_not_change_is_served_from_cache`](../../tests/pkg/test_multi_repo_load.py#L75), [`test_an_intra_repo_call_stays_inside_its_own_repo`](../../tests/pkg/test_multi_repo_load.py#L64), [`test_no_joins_declared_means_no_report_not_a_clean_one`](../../tests/pkg/test_join_link.py#L206), [`test_one_dirty_repo_makes_the_whole_merged_graph_untrusted`](../../tests/pkg/test_multi_repo_load.py#L119), [`test_the_join_survives_a_warm_cache`](../../tests/pkg/test_join_link.py#L179), [`test_the_merged_graph_does_not_depend_on_declaration_order`](../../tests/pkg/test_multi_repo_load.py#L101), [`test_the_merged_graph_gains_a_cross_repo_edge`](../../tests/pkg/test_join_link.py#L194), [`test_the_merged_graph_has_no_dangling_edges`](../../tests/pkg/test_multi_repo_load.py#L57), [`test_two_repos_defining_the_same_symbols_stay_two_nodes`](../../tests/pkg/test_multi_repo_load.py#L44)
+- **Called by** (4 production · 10 test): [`_extract_repos`](../../src/orchestrator/cli.py#L2849), [`_merged_store`](../../src/orchestrator/plugin/server.py#L275), [`investigate`](../../src/orchestrator/cli.py#L2394), [`pkg_joins`](../../src/orchestrator/cli.py#L2865), [`test_a_non_git_directory_is_untrusted_not_merely_uncached`](../../tests/pkg/test_multi_repo_load.py#L136), [`test_a_repo_that_did_not_change_is_served_from_cache`](../../tests/pkg/test_multi_repo_load.py#L75), [`test_an_intra_repo_call_stays_inside_its_own_repo`](../../tests/pkg/test_multi_repo_load.py#L64), [`test_no_joins_declared_means_no_report_not_a_clean_one`](../../tests/pkg/test_join_link.py#L206), [`test_one_dirty_repo_makes_the_whole_merged_graph_untrusted`](../../tests/pkg/test_multi_repo_load.py#L119), [`test_the_join_survives_a_warm_cache`](../../tests/pkg/test_join_link.py#L179), [`test_the_merged_graph_does_not_depend_on_declaration_order`](../../tests/pkg/test_multi_repo_load.py#L101), [`test_the_merged_graph_gains_a_cross_repo_edge`](../../tests/pkg/test_join_link.py#L194), [`test_the_merged_graph_has_no_dangling_edges`](../../tests/pkg/test_multi_repo_load.py#L57), [`test_two_repos_defining_the_same_symbols_stay_two_nodes`](../../tests/pkg/test_multi_repo_load.py#L44)
 - **Calls** (12): [`MergedFacts`](../../src/orchestrator/pkg/persistence.py#L274), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L577), [`RepoState`](../../src/orchestrator/pkg/persistence.py#L258), [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L218), [`_calls_sidecar`](../../src/orchestrator/pkg/persistence.py#L316), [`_load_calls`](../../src/orchestrator/pkg/persistence.py#L345), [`_save_calls`](../../src/orchestrator/pkg/persistence.py#L327), [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L154), [`link_joins`](../../src/orchestrator/pkg/join_link.py#L150), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L225), [`merge_repos`](../../src/orchestrator/pkg/scoping.py#L150), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L144)
 - **Documented in**: `docs/specs/multi-repo-roadmap.md#invariants`, `docs/specs/multi-repo-roadmap.md#where-it-was-blocked-and-what-still-is`
 
@@ -173,4 +173,4 @@
 
 ## Imported by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.understand`](../../src/orchestrator/knowledge/understand.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`tests.pkg.test_join_link`](../../tests/pkg/test_join_link.py#L1), [`tests.pkg.test_multi_repo_load`](../../tests/pkg/test_multi_repo_load.py#L1), [`tests.pkg.test_persistence`](../../tests/pkg/test_persistence.py#L1)
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.understand`](../../src/orchestrator/knowledge/understand.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`tests.pkg.test_join_link`](../../tests/pkg/test_join_link.py#L1), [`tests.pkg.test_multi_repo_load`](../../tests/pkg/test_multi_repo_load.py#L1), [`tests.pkg.test_persistence`](../../tests/pkg/test_persistence.py#L1)

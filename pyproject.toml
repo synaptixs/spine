@@ -1,6 +1,6 @@
 [project]
 name = "synaptixs-spine"
-version = "3.23.0"
+version = "3.24.0"
 description = "Agent orchestration platform — planner, registry, runtime, verifier."
 readme = "README.md"
 license = { text = "MIT" }
@@ -163,6 +163,20 @@ dev = [
     # Office doc-ingestion parsers, so CI exercises the .docx/.xlsx readers too.
     "python-docx>=1.1",
     "openpyxl>=3.1",
+]
+# Every PKG language front-end at once. Without these the graph is Python-only —
+# and silently so: a repo whose language has no front-end yields zero nodes rather
+# than an error, which reads as "nothing here" instead of "nothing parsed".
+languages = [
+    "synaptixs-spine[c,cpp,csharp,go,java,sql,typescript]",
+]
+# What the plugin install should be: every language, the MCP server, and doc
+# ingestion. Deliberately NOT everything — `security` (semgrep), `media`/`asr`
+# (tesseract/whisper need system binaries), `sql-postgres` (testcontainers wants
+# Docker), `tui`, `otel` and `dev` stay opt-in, because an install that pulls a
+# container runtime to answer "what breaks if I change X" is one nobody finishes.
+all = [
+    "synaptixs-spine[languages,mcp,docs,office,sdlc]",
 ]
 
 [project.scripts]
