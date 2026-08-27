@@ -198,7 +198,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:841`](../../src/orchestrator/knowledge/current_state.py#L841)
 
-- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L2249), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L859), [`run`](../../src/orchestrator/plugin/server.py#L729), [`run`](../../src/orchestrator/plugin/server.py#L300)
+- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L2249), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L859), [`run`](../../src/orchestrator/plugin/server.py#L781), [`run`](../../src/orchestrator/plugin/server.py#L350)
 - **Calls** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
@@ -206,7 +206,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:569`](../../src/orchestrator/knowledge/current_state.py#L569)
 
-- **Called by** (2 production · 8 test): [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L859), [`run`](../../src/orchestrator/plugin/server.py#L300), [`test_auth_surface_and_recency_degrade`](../../tests/knowledge/test_current_state.py#L183), [`test_both_surfaces_read_the_same_analysis`](../../tests/knowledge/test_shared_analysis.py#L65), [`test_call_graph_hotspots_rendered`](../../tests/knowledge/test_current_state.py#L158), [`test_developer_lens_renders_sections`](../../tests/knowledge/test_current_state.py#L91), [`test_documentation_metrics_and_section`](../../tests/knowledge/test_current_state.py#L64), [`test_git_churn_stays_out_of_the_committed_bank`](../../tests/knowledge/test_shared_analysis.py#L128), [`test_no_documentation_section_without_docs`](../../tests/knowledge/test_current_state.py#L77), [`test_stakeholder_lens_is_plain_language`](../../tests/knowledge/test_current_state.py#L175)
+- **Called by** (2 production · 8 test): [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L859), [`run`](../../src/orchestrator/plugin/server.py#L350), [`test_auth_surface_and_recency_degrade`](../../tests/knowledge/test_current_state.py#L183), [`test_both_surfaces_read_the_same_analysis`](../../tests/knowledge/test_shared_analysis.py#L65), [`test_call_graph_hotspots_rendered`](../../tests/knowledge/test_current_state.py#L158), [`test_developer_lens_renders_sections`](../../tests/knowledge/test_current_state.py#L91), [`test_documentation_metrics_and_section`](../../tests/knowledge/test_current_state.py#L64), [`test_git_churn_stays_out_of_the_committed_bank`](../../tests/knowledge/test_shared_analysis.py#L128), [`test_no_documentation_section_without_docs`](../../tests/knowledge/test_current_state.py#L77), [`test_stakeholder_lens_is_plain_language`](../../tests/knowledge/test_current_state.py#L175)
 - **Calls** (2): [`_render_developer`](../../src/orchestrator/knowledge/current_state.py#L714), [`_render_stakeholder`](../../src/orchestrator/knowledge/current_state.py#L576)
 
 ## Imports
