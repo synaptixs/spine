@@ -19,11 +19,24 @@ surfaces) not started.
 | **4** | The surfaces — investigate, blast radius, state | ⬜ Not started | — | — |
 | — | Multi-repo **delivery** | ❌ **Explicit non-goal** | — | — |
 
-**Where that leaves it.** A merged graph now answers *"what breaks in the other repo"* for HTTP
-— `pkg joins --check` reports what it placed and what it could not, and `--propose` derives the
-topology from evidence rather than asking anyone to write it. Measured on the corpus case:
-**precision 1.00, recall 0.67**, the missing third being a path built from an f-string, which
-the extractor never collects as a call at all.
+**Where that leaves it.** A merged graph answers *"what breaks in the other repo"* in all three
+shapes — an HTTP call, a shared table, an imported library. `pkg joins --check` reports what was
+placed and what was not; `--propose` derives the topology from evidence rather than asking
+anyone to write it.
+
+| Joiner | Precision | Recall | The miss |
+|---|---|---|---|
+| http | **1.00** | 0.67 | A path built from an f-string is collected as no call at all |
+| data | **1.00** | **1.00** | — |
+| package | **1.00** | **1.00** | — |
+
+**Precision is 1.00 by construction, not by luck** — nothing can join to a repository nobody
+declared. So recall is the number worth watching, and `--check` yields it for free.
+
+**What is still missing is the last mile.** These edges exist in the graph and in
+`pkg joins --check`. **No comprehension surface reads them yet** — `investigate` does not rank
+across repositories and blast radius does not traverse a join. That is Phase 4, and until it
+lands the value is reachable from an API and not from the product.
 
 **Why 3 was split.** The three joiners are not equal risk. HTTP carries all of it — path
 templating, prefixes, the resolution judgement — and needs every piece of machinery: retained
@@ -79,10 +92,11 @@ The edge kinds that cross a repository boundary **exist and are already extracte
 | **Data** | `READS` / `WRITES` | Two repos touching the same table |
 | **Package** | `IMPORTS` ↔ module | A publishes what B imports |
 
-**No new `NodeKind`, no new `EdgeKind`, no `facts.py` vocabulary change** — confirmed through
-Phases 1–2, which added a field to `Provenance` and nothing else. What is still missing is the
-post-pass that performs the join, in the shape of `import_link.py` and `doc_link.py`. **That is
-Phase 3, and until it lands a merged graph has no edge that crosses a repository.**
+**No new `NodeKind`, no new `EdgeKind`, no `facts.py` vocabulary change** — and the claim held
+all the way through Phase 3. Across four phases `facts.py` gained exactly one field, `repo` on
+`Provenance`. Every cross-repo edge that now exists is a `CONSUMES`, `READS`, `WRITES`,
+`IMPORTS` or `REFERENCES` that was already in the vocabulary; what was missing was only the
+post-pass, and it landed in the shape of `import_link.py` as predicted.
 
 ## Phase 1 — the identity decision *(complete)*
 
@@ -280,8 +294,11 @@ The join set is itself a small graph, so it gets the treatment every other graph
 ```bash
 orchestrator pkg joins --propose    # a draft, with the evidence inline
 orchestrator pkg joins --check      # what is still unjoined
-orchestrator pkg joins --render     # the topology as one picture
 ```
+
+**`--render` was proposed and not built.** It is listed in open question 4, not here, because a
+spec that advertises a flag the CLI does not have is a spec a reader cannot trust about the
+flags it does have.
 
 **Four sources, by strength:**
 
@@ -344,13 +361,13 @@ The joins are still held to the `CALLS` standard, not the structure standard:
   that matches, and a declared join whose path shape defeats the matcher.
 - Expect recall well under 1.00 and **publish it that way.**
 
-### Exit — 3a met
+### Exit — 3a met *(3b's own results are in the section below)*
 
 | Criterion | Evidence |
 |---|---|
 | Unmatched calls **retained as a side-channel**, not as facts | `ClientState.unmatched`, surfaced as `RepoCodeExtractor.unresolved_calls`. Guarded: no phantom endpoint node, no phantom edge |
 | `joins --propose` carries evidence and an edge count per entry | A candidate producing 0 edges is never offered |
-| One joiner, one corpus case, **written before it worked** | `corpus/multirepo/http_join` — scored **CONSUMES precision `None`, recall 0.00** with the joiner disabled, 1.00 / 0.67 with it |
+| A joiner and a corpus case, **written before it worked** | `corpus/multirepo/http_join` — scored **CONSUMES precision `None`, recall 0.00** with the joiner disabled, 1.00 / 0.67 with it |
 | Precision **1.00**, recall **stated honestly** | 0.67. The missing third is a **known gap**, labelled: an f-string path is collected as no call at all |
 | `--check` reports the unjoined | By reason, and **per declared join**, so a stale one shows `** placed nothing **` instead of hiding in a healthy total |
 | **Blast radius crosses a repository boundary** | `py:web@app.client.order -CONSUMES-> py:billing@endpoint:POST /v1/orders` |
@@ -455,7 +472,7 @@ verification-shaped, and fiction.
 - **Single-repo behaviour does not change.** Byte-identical extraction, same cache, same
   scoreboard, same corpus scores.
 
-- **Retained unmatched calls are a side-channel, never facts.** *(Phase 3)* The natural way to
+- **Retained unmatched calls are a side-channel, never facts.** *(held — `ClientState.unmatched`, guarded by `test_an_unmatched_http_call_emits_no_fact`)* The natural way to
   keep a call whose endpoint is not in this repository is to emit it: a node for the endpoint,
   an edge from the caller. **That edge is an invention.** It asserts *"this function calls
   `POST /v1/orders`"* about an endpoint nothing in scope is known to serve — and it is the
@@ -471,7 +488,7 @@ verification-shaped, and fiction.
   unparseable files. Same information available to the proposer, and the graph asserts nothing
   new.
 
-- **The joiners run only from the multi-repo path.** *(Phase 3)* Never from
+- **The joiners run only from the multi-repo path.** *(held — `link_joins` is called from `load_or_extract_repos` alone, asserted on the source by `test_the_joiner_never_runs_on_a_single_repo_extraction`)* Never from
   `RepoCodeExtractor.extract`, and never as a repo-wide post-pass beside `import_link` and
   `doc_link`, which run on every extraction.
 
@@ -504,11 +521,11 @@ verification-shaped, and fiction.
 3. **Does `episteme/` become multi-repo?** It lands in one repo today. A merged bank has no
    obvious owner, and writing one repo's bank from another repo's facts is a currency problem
    nobody has thought about.
-4. **Does the topology picture belong to Phase 3 or Phase 4?** `joins --render` is listed under
-   Phase 3 because it is how a human reviews a proposal, and the graph is small enough that a
-   deterministic seeded layout is trivial. But *"show me how our services connect, from evidence
-   rather than from a wiki page last edited in 2024"* is a deliverable in its own right, and may
-   deserve its own place.
+4. **Where does the topology picture belong?** **Still open, and `joins --render` was not
+   built** — Phase 3 shipped `--propose` and `--check` only. The graph is small enough that a
+   deterministic seeded layout is trivial, and *"show me how our services connect, from evidence
+   rather than from a wiki page last edited in 2024"* is arguably a deliverable in its own right
+   rather than a review aid. Phase 4 is the natural home, since that is where surfaces live.
 5. **How does the doc binder behave?** `doc_link` binds docs to symbols within a repo. A doc in
    repo A describing repo B's API is real and common, and cross-repo `MENTIONS` may be the
    cheapest useful join of all — or the noisiest.
