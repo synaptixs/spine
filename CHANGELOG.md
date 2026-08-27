@@ -4,7 +4,7 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
-## Unreleased — The plugins catch up with the product
+## 3.24.0 — The plugins catch up with the product
 
 ### Added — multi-repo reaches the plugin surface
 
