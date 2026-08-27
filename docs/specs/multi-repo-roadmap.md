@@ -568,22 +568,48 @@ verification-shaped, and fiction.
 1. ~~**What is a repo key?**~~ **Closed across Phases 1–2.** The *shape* is fixed —
    `^[A-Za-z0-9][A-Za-z0-9._-]*$`, validated by `validate_repo_key`, refused loudly rather than
    sanitised because a key silently rewritten differs between the machine that wrote the cache
-   and the one that reads it. **Where the key comes from is still open** (remote URL, config
-   name, content hash); the constraint is that it must be stable across clones and machines, so
-   a local directory name is not a candidate.
+   and the one that reads it. **Where it comes from is closed too:** a human writes it in
+   `.spine/repos.yaml` (D1). Nothing derives it, because nothing derivable — a directory name, a
+   remote URL in either of its two spellings — is stable across a laptop and CI, and the key is
+   baked into every scoped id and every cache entry.
 2. ~~**How are the repos declared?**~~ **Closed in Phase 2:** `.spine/repos.yaml`, explicit,
    with `--repos` to point at one elsewhere. Manifest discovery declined — see D2.
 3. **Does `episteme/` become multi-repo?** It lands in one repo today. A merged bank has no
    obvious owner, and writing one repo's bank from another repo's facts is a currency problem
    nobody has thought about.
-4. **Where does the topology picture belong?** **Still open, and `joins --render` was not
-   built** — Phase 3 shipped `--propose` and `--check` only. The graph is small enough that a
-   deterministic seeded layout is trivial, and *"show me how our services connect, from evidence
-   rather than from a wiki page last edited in 2024"* is arguably a deliverable in its own right
-   rather than a review aid. Phase 4 is the natural home, since that is where surfaces live.
+4. **Where does the topology picture belong?** **Open, and now homeless** — `joins --render`
+   was proposed in Phase 3, not built there, and Phase 4 closed without it. The graph is small
+   enough that a deterministic seeded layout is trivial, and *"show me how our services connect,
+   from evidence rather than from a wiki page last edited in 2024"* is arguably a deliverable in
+   its own right rather than a review aid. It needs a decision to belong to something, or it
+   will keep being the thing each phase assumes the next one will do.
 5. **How does the doc binder behave?** `doc_link` binds docs to symbols within a repo. A doc in
    repo A describing repo B's API is real and common, and cross-repo `MENTIONS` may be the
    cheapest useful join of all — or the noisiest.
+
+## What "complete" means here, and what it does not
+
+The roadmap's **scope** is done: every phase met its exit criteria, and the exit criteria were
+written before the phases. That is not the same as the feature being finished, and the two are
+worth separating so nobody reads the progress table as the whole story.
+
+**Out of scope by decision, not by omission:**
+
+- **Multi-repo delivery** — N PRs that must land together is ordering, atomicity and rollback,
+  not a graph problem. Argued in full above.
+- **Remote repositories** in `.spine/repos.yaml` — cloning is `WorkspaceManager`'s job.
+
+**In scope for a follow-on, and named rather than left to be discovered:**
+
+| | |
+|---|---|
+| Only `investigate` reads the joins | `design`, `criteria_binding` and the SDLC pipeline still run against one repository |
+| `state` / `understand` ignore repo | A merged bank has no owner — open question 3 |
+| `joins --render` | Open question 4, and now homeless |
+| Cross-repo `MENTIONS` | Open question 5; possibly the cheapest useful join of all |
+| Only Python emits `CONSUMES` | So the HTTP joiner is Python-client → any-language-endpoint. Java, C# and Go expose routes but have no client-side extraction |
+
+**And the measurement that has not been taken** — see below.
 
 ## What would make this obviously worth building
 
