@@ -68,39 +68,55 @@ orchestrator sdlc feature --source file://./spec.md --safe   # build locally —
 
 ---
 
-## New in 3.20.0 — the evidence drives the run
+## What Spine does that other tools don't
 
-Until now the pipeline checked your ticket against the graph **once**, and thereafter the
-*ticket* — not the code — drove every step. Design guessed which files it would touch and then
-analysed the impact of its own guess. The research that proved where a ticket lands was flattened
-to a list of filenames before anything downstream saw it. Root-cause analysis existed as a
-command and **never ran inside an autonomous run at all**. And acceptance criteria, written by a
-model that had not read your repository, went straight into the tests that graded the work.
+Plenty of tools read your codebase. The difference is what they'll let themselves say
+about it.
 
-3.20.0 closes all four. Every run now begins with a deterministic **Evidence** pass — no model,
-no cost, reproducible at a commit — and everything downstream is judged against it:
+**1 · The graph is built by parsers, not by a model — and its accuracy is published.**
+Eight language front-ends, every fact carrying `file:line`. Scored against a hand-labelled
+corpus in CI: **precision 1.00 on every node and edge kind**. Where it's weaker, that's
+published too — `CALLS` recall runs 1.00 on C and SQL down to 0.50 on TypeScript, reported
+separately rather than averaged into something flattering.
 
-| | Before | Now |
-|---|---|---|
-| **Root cause** | never ran in an autonomous run | runs on every ticket, lands in `evidence.md` |
-| **Blast radius** | computed from the design's own guess | computed from **where the ticket actually lands** |
-| **Research** | flattened to filenames between stages | symbol, `file:line`, kind, callers, owning module — kept |
-| **Acceptance criteria** | taken on trust | **bound to a `file:line`, or the ticket is refused** |
+**2 · The failure mode is silence, not fiction.** Everything the graph asserts exists;
+what it can't resolve, it drops. A missing edge sends you looking. A fabricated one sends
+you confidently into a function nobody wrote. We hold precision at 1.00 and let recall be
+imperfect because that trade is the right way round for whoever reads it — and the
+**invented-edge count is gated at zero**, per language, on every commit.
 
-**Two new refusals, and one promise about them.** A criterion naming code your graph does not
-hold stops the run — a criterion nobody can locate is a test nobody can write. So does a design
-naming a directory or module your repository does not have. **Prose never stops a run:**
-CamelCase, `ALL_CAPS` env vars, tool names and plain English are not claims about your code, and
-are reported as such. Both refusals park with their evidence on disk, and `sdlc explain <run>`
-prints the graph the run actually executed — skipped nodes included.
+**3 · We measured whether any of it helps, with a control.** Across 260 ticket-runs on two
+frontier models: **47 of 68** new modules integrated correctly with the graph in context,
+against **3 of 68** without. The control — tickets that already named their target file —
+scored **122 of 124 either way**, which is what rules out "more context just helps". Every
+published benchmark we could find in this category measures *efficiency* ("70% fewer
+tokens"). That answers *how cheap*, not *is it right*.
 
-**And one feature we measured and did not ship.** We ran a 100-run controlled A/B on whether the
-design stage should call a model. It found no improvement a 50-run arm can resolve, a held-out
-pass rate that moved the *wrong* way on one of two frontier models, and **1.98× the cost**. So it
-is not in this release. The validator built to guard it ships anyway — 0 false positives across
-those 100 runs. The
-[full result is published](https://github.com/synaptixs/spine/blob/main/docs/specs/design-promotion-ab-results.md),
-including what would change the answer.
+**4 · Comprehension is deterministic, so it can be gated.** Same commit in, same bytes out
+— no model, no cost, no variance. That's why `understand --check` can prove a knowledge
+base is current rather than hoping, why extraction can be cached per commit, and why a
+run's evidence can be replayed and diffed.
+
+The honest summary: **Spine is slower to claim things than the alternatives, and that is
+the product.** Where it can't know something, it says so and stops.
+
+---
+
+## What's new
+
+**3.22.0 (current)** — four front-ends were fabricating a `CALLS` edge when a parameter
+shadowed a resolvable name. Found by widening the invention oracle from Python-only to six
+front-ends, measured at **47 fabricated edges across 11 public repositories**, fixed, and
+gated at zero so it can't come back.
+
+**On `develop`** — **multi-repo comprehension**: several repositories merge into one graph,
+and a ticket landing in one now reports what depends on it in another. Declare them in
+`.spine/repos.yaml`, let `orchestrator pkg joins --propose` derive the topology from
+evidence, and `investigate --repos` reads it.
+
+**3.21.0** — issue-type workflow profiles a repo can carry itself.
+
+Full history, including the features we measured and *didn't* ship: **[CHANGELOG](https://github.com/synaptixs/spine/blob/main/CHANGELOG.md)**.
 
 ---
 
@@ -172,52 +188,28 @@ No model call, so the same commit produces the same document. `sdlc approve` rec
 decision against a digest of what you read, and a run refuses if the plan has changed since.
 
 **Code-grounded understanding.** Before generating, it builds a **Product Knowledge
-Graph** of your repo — modules, types, functions, call sites, blast radius — and
-grounds new code in what already exists, so output reads like your team wrote it.
+Graph** of your repo — modules, types, functions, call sites, blast radius — and grounds new
+code in what already exists, so output reads like your team wrote it. The measurement behind
+that is [above](#what-spine-does-that-other-tools-dont); the method and its bounds are
+published in full
+([on this repo](https://github.com/synaptixs/spine/blob/main/docs/specs/codegen-model-comparison-results.md)
+· [replicated on an unrelated codebase](https://github.com/synaptixs/spine/blob/main/docs/specs/external-repo-grounding-results.md)),
+and the harness ships with the package so you can get your own number.
 
-**And that grounding is measured, not asserted** — it is the difference between code that
-*looks* right and code that *fits*.
+Works across **Python, Java, TypeScript, C#, C, C++ and Go**, plus **SQL** data-layer
+comprehension (schema, queries, stored procedures, migration folding). It reads your
+**documentation** too — Markdown, reST, plain text and **PDF** — folding it in as `Doc` nodes
+linked to the code they describe, so you can ask *which docs cover this symbol* and *where
+they've drifted*. `orchestrator understand` writes a committed, code-true `episteme/` your
+team and any AI tool can read — *epistēmē*, knowledge grounded in evidence, because every
+word of it is derived from the code rather than written by hand.
 
-Across **260 runs on two frontier models** (Anthropic's and OpenAI's current top models),
-asked to add a new module that had to integrate with code it did not write: **47 of 68
-succeeded with the graph. Without it, 3 of 68.** Success meant more than a passing test — the
-change also had to clear that repository's own lint and type gate and land where it belonged.
-
-What makes this a mechanism rather than "more context helps": on tickets that already named
-the file to change, both arms scored the same — **122 of 124, with or without the graph**.
-**The graph earns its keep exactly where the model cannot see**, which is what a knowledge
-graph is for.
-
-**It holds on code we didn't write.** The result was measured twice — once on this repository,
-then replicated on an unrelated open-source codebase with different authors, a different
-layout, and types Spine had never seen. Same shape both times. The failure without the graph
-is consistent and specific: models write working code that quietly reinvents the types that
-already exist, instead of importing them.
-
-Absolute rates stay repo-specific — yours will differ, and the second repository's gate was
-weaker than this one's. But the harness ships with the package, so you can point it at your
-own code and get your own number. Method and bounds:
-[measured on Spine](https://github.com/synaptixs/spine/blob/main/docs/specs/codegen-model-comparison-results.md)
-· [replicated externally](https://github.com/synaptixs/spine/blob/main/docs/specs/external-repo-grounding-results.md)
-
-Works across **Python, Java, TypeScript, C#, C, C++, and Go**, plus **SQL** data-layer
-comprehension (schema, queries, stored procedures, migration folding). Java JAX-RS and
-Jakarta REST resources are captured as grounded API endpoints. It even reads your
-**documentation** — Markdown, reST, plain text, and **PDF** — folding it into the graph as
-`Doc` nodes linked to the code they describe, so you can ask *which docs cover this symbol*,
-*how documented the code is*, and *where the docs have drifted from the code*. `orchestrator
-understand` writes a committed, code-true `episteme/` your whole team (and any AI tool)
-can read — *epistēmē*, knowledge grounded in evidence, because every word of it is derived
-from the code rather than written by hand.
-
-**And the graph's accuracy is a number, not an adjective.** `orchestrator pkg accuracy`
-scores it against a committed corpus of 19 hand-labelled repositories covering **all eight
-front-ends**: **precision is 1.00 on every node kind and every edge kind, in every language.**
-Nothing in the graph is invented — every edge Spine emits is one that exists in your source.
-The remaining gap is *silence*, not fiction: some calls whose receiver is a variable rather
-than a name are not emitted (`CALLS` recall runs 1.00 for C and SQL down to 0.50 for
-TypeScript). For an agent reasoning over the graph, a missing edge is survivable in a way a
-fabricated one is not. See [KNOWLEDGE_GRAPH.md §10](https://github.com/synaptixs/spine/blob/main/KNOWLEDGE_GRAPH.md#10-how-right-is-it--measured-not-asserted).
+**Across repositories, not just inside one.** Declare your services in `.spine/repos.yaml`
+and they merge into a single graph, so *"what breaks if I change this?"* can answer with a
+caller in a **different repo** — an HTTP client, a shared table, an imported library. Spine
+derives the topology from evidence (`pkg joins --propose`) rather than asking you to draw it,
+and reports what it could *not* place, because a missing cross-repo edge looks exactly like
+two services that aren't coupled.
 
 **Governed autonomy.** The workflow itself is a typed, validated artifact. A planner
 decomposes the objective, a runtime executes it, and **per-edge verifiers** check
@@ -309,26 +301,15 @@ The autonomous multi-feature pipeline + web dashboard needs Temporal + Postgres 
 see the [Setup guide](https://github.com/synaptixs/spine/blob/main/SETUP.md).
 
 **Which languages and models?**
-Code generation and comprehension cover **Python, Java, TypeScript, C#, C, C++, and Go**
-(Java also extracts JAX-RS / Jakarta REST endpoints; C# extracts ASP.NET Core endpoints
-and EF Core entities; C builds the
-`#include` graph and merges header declarations with their source definitions; C++ is
-a superset of the C front-end that adds classes, namespaces, inheritance, member
-functions, and templates, and shares C's CMake/Meson + `ctest` codegen; **Go** models a
-package as its directory, extracts calls and — via method-set matching — **interface
-satisfaction** (`IMPLEMENTS`), and generates code built + tested with `go build`/`go test`,
-multi-module aware).
-**SQL** (`[sql]` extra) adds data-layer *comprehension* — schema, foreign keys, views,
-queries, stored procedures, and ordered-migration folding, grounded from `.sql` source —
-plus *greenfield codegen* (`sdlc feature --language sql`): it generates a migration and
-validates it by applying it to an ephemeral database (in-memory SQLite by default).
-**Documentation** is folded in automatically on `understand`/`state` (Markdown/reST/text
-and **HTML** need nothing; **PDF** needs `[docs]`, **Word/Excel** need `[office]`).
-**Media** — diagrams, screenshots, recorded design reviews — join the graph too via the opt-in
-`orchestrator media extract` (image OCR with `[media]`, audio/video transcription with `[asr]`);
-the model runs only in that command, never in the deterministic build. Any
-LiteLLM-supported provider (Anthropic, OpenAI, Bedrock) or a local Ollama model;
-you can set a different model per stage.
+Comprehension and codegen cover **Python, Java, TypeScript, C#, C, C++ and Go** — each
+front-end going beyond structure into what that stack actually does (Java and C# REST
+endpoints, EF Core entities, C's `#include` graph, C++ templates and namespaces, Go
+interface satisfaction by method-set matching). **SQL** adds data-layer comprehension plus
+greenfield migration codegen validated against an ephemeral database. **Docs** fold in
+automatically; **media** (diagrams, screenshots, recorded reviews) via the opt-in
+`media extract`. Any LiteLLM provider — Anthropic, OpenAI, Bedrock — or a local Ollama
+model, and you can set a different model per stage. Extras and details:
+[FEATURES.md](https://github.com/synaptixs/spine/blob/main/FEATURES.md).
 
 **How is it safe to run on real repos?**
 Write guards on generated files, allow-listed + write-gated external tools, a per-run
@@ -344,17 +325,53 @@ MCP server so Claude Code / Codex / your IDE can call the pipeline (with the sam
 
 ---
 
-## Contributing & feedback
+## Contributing
 
-We'd love your input. Pick the channel that fits:
+**We'd genuinely like the help, and the codebase is unusually easy to be useful in.**
 
-- 🐛 **Bug?** Open a [bug report](https://github.com/synaptixs/spine/issues/new?template=bug_report.md).
-- 💡 **Feature idea / enhancement?** Open a [feature request](https://github.com/synaptixs/spine/issues/new?template=feature_request.md).
-- 💬 **Question, feedback, or idea to discuss?** Start a [Discussion](https://github.com/synaptixs/spine/discussions).
-- 🔒 **Security issue?** Please follow [SECURITY.md](https://github.com/synaptixs/spine/blob/main/SECURITY.md) — don't open a public issue.
+It's plain Python. `pip install -e ".[dev]"`, and the test suite runs in about three
+minutes with no services, no API key and no network. There's no build step anywhere —
+the web UI is vanilla JS on purpose. Most of the interesting work is a pure function
+over a graph, which means you can hold a change in your head and prove it with a
+fixture.
 
-See [CONTRIBUTING.md](https://github.com/synaptixs/spine/blob/main/CONTRIBUTING.md) and the [CODE_OF_CONDUCT.md](https://github.com/synaptixs/spine/blob/main/CODE_OF_CONDUCT.md)
-for how contributions are reviewed.
+### Good places to start
+
+| If you want to… | Look at |
+|---|---|
+| **Add a language** | `pkg/*_extractor.py`. Eight front-ends today; each is one file plus a labelled corpus case. Rust, Kotlin and Ruby are the obvious next three. |
+| **Improve accuracy** | `corpus/` — hand-written fixtures with expected facts. Adding a case that *fails* is a real contribution; it's how the last four front-end bugs were found. |
+| **Fix something we've written down** | [`STATE-OF-SPINE` §8](https://github.com/synaptixs/spine/blob/main/docs/specs/STATE-OF-SPINE.md) is a standing list of what's broken or missing, kept honest at each release. |
+| **Work on a bigger idea** | [`docs/specs/`](https://github.com/synaptixs/spine/tree/main/docs/specs) — every design record, including the ones we closed *unshipped* and why. |
+
+### How we work, in three points
+
+1. **A fixture that fails first.** New behaviour lands with a test written *before* it
+   works and seen to fail. A test that passes before the code is a test that measures
+   nothing — and a green check over an unexamined case is the mistake this project has
+   made most often.
+2. **Say what you didn't measure.** A `0` that means *"not checked"* must not read like a
+   `0` that means *"clean"*. Bound your output honestly — "top N of M", never a clipped
+   list implying completeness.
+3. **Never guess in the graph.** If a fact can't be resolved from a real parse tree, drop
+   it. `CLAUDE.md` has the full set of invariants and the scars behind each one.
+
+Before pushing: `mypy src tests` (**not** just `src`), `ruff format --check .`, and the
+suite. Work off `develop`. Details in
+[CONTRIBUTING.md](https://github.com/synaptixs/spine/blob/main/CONTRIBUTING.md).
+
+### Or just tell us what you found
+
+You don't have to write code to be useful — **running it on a codebase we've never seen
+is genuinely valuable**, especially if it gets something wrong.
+
+- 🐛 [Bug report](https://github.com/synaptixs/spine/issues/new?template=bug_report.md) — a
+  wrong fact in the graph is our most serious kind of bug, and we want it.
+- 💡 [Feature request](https://github.com/synaptixs/spine/issues/new?template=feature_request.md)
+- 💬 [Discussion](https://github.com/synaptixs/spine/discussions) — questions and half-formed ideas welcome.
+- 🔒 Security: [SECURITY.md](https://github.com/synaptixs/spine/blob/main/SECURITY.md), not a public issue.
+
+See also the [CODE_OF_CONDUCT.md](https://github.com/synaptixs/spine/blob/main/CODE_OF_CONDUCT.md).
 
 ## License
 
