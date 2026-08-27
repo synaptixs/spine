@@ -1,9 +1,9 @@
 # State of Spine — 3.22.0
 
 **The one document to read.** Verified against source on **2026-08-25**, at the 3.22.0 release
-cut. Every number below was re-measured that day.
+cut, and re-measured the same day when multi-repo comprehension landed on `develop`.
 
-> **Why this exists.** `docs/specs/` holds **71** markdown files — **68 specs** plus this
+> **Why this exists.** `docs/specs/` holds **76** markdown files — **73 specs** plus this
 > page, [`README`](README.md) and [`SPEC-INDEX`](SPEC-INDEX.md) — with 6 archived, 10 build
 > documents, and 17 root-level user documents.
 > Answering "where do we stand?" required opening five of them and reconciling three that
@@ -26,9 +26,9 @@ gates (before building, before merging). The product is **Spine**; it ships as
 |---|---|---|
 | Version | **3.22.0** | cutting now; 3.21.0 is the last on PyPI until this ships |
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
-| CLI commands | **54** | `grep -c '\.command(' src/orchestrator/cli.py` |
-| Source modules | **320** | `find src/orchestrator -name '*.py'` |
-| Test functions | **2,621** across 295 files | `grep -rh '^def test_\|^async def test_' tests` |
+| CLI commands | **55** | `grep -c '\.command(' src/orchestrator/cli.py` |
+| Source modules | **324** | `find src/orchestrator -name '*.py'` |
+| Test functions | **2,693** across 300 files | `grep -rh '^def test_\|^async def test_' tests` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
 | `CALLS` recall | **1.00** (C, SQL) → **0.50** (TypeScript) | same |
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |
