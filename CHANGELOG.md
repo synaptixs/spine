@@ -19,6 +19,20 @@ All notable changes to this project are documented here. Format loosely follows
   `reproducible`. The CLI prints that on stderr; a tool has to *return* it, or a caller quotes a
   number nothing can reproduce and nothing in the payload says so.
 
+### Added — a single-repo answer now says when it is one
+
+- **`multi_repo_available`.** Point a comprehension tool at a repository that declares siblings
+  in its own `.spine/repos.yaml` and the answer carries a note naming that config and the repos
+  it declares. This is the one case the multi-repo work could not make loud on its own:
+  extracting a single directory always *succeeds*, so `0 caller(s)` from an unscoped graph is
+  indistinguishable from `0 caller(s)` that was checked across every service — and the first is
+  the answer that gets a handler changed.
+- A note, not a switch. It never redirects the caller to the merged graph, because which
+  repositories an answer covers is theirs to decide. A config too broken to parse still
+  produces a note, since an unreadable config is still evidence the project is multi-repo.
+- `sdlc_approve` opts out: a decision about one repository's plan is not a question about the
+  others.
+
 ### Added — `[all]`, because the documented install under-delivered
 
 - **`pip install 'synaptixs-spine[all]'`** — every language front-end, the MCP server, doc and

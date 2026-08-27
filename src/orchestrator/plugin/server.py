@@ -200,24 +200,74 @@ def _repo_store(repo_path: str) -> Iterator[tuple[Any, Any]]:
         yield FactStore(load_or_extract(repo)), repo
 
 
-def _in_repo(repo_path: str, fn: Callable[[Any], dict[str, Any]]) -> dict[str, Any]:
+def _repos_note(repo: Any) -> dict[str, Any] | None:
+    """A ``.spine/repos.yaml`` sitting in the repo we were pointed at — which this answer ignored.
+
+    The single-repo path has no way to fail loudly here. Point a tool at a directory and it
+    extracts that directory; there is no error to raise, and the result looks like every other
+    answer. But if the project declares siblings, the honest reading of ``0 caller(s)`` is
+    "none *in this repository*", and nothing in the payload would have said so.
+
+    A note, not a behaviour change: it never switches the caller to the merged graph on their
+    behalf, because which repositories an answer covers is the caller's decision to make.
+    """
+    from orchestrator.pkg.repos import RepoConfigError, find_repo_config, load_repo_config
+
+    config = find_repo_config(repo)
+    if config is None:
+        return None
+    try:
+        declared = [key for key, _root in load_repo_config(config)]
+    except RepoConfigError:
+        # A config too broken to read is still evidence that this is a multi-repo project, and
+        # staying quiet about it would be the exact silence this note exists to break.
+        return {
+            "config": str(config),
+            "note": (
+                f"{config} exists but could not be read. This answer covers one repository; "
+                "fix the config and pass repos= to include the others."
+            ),
+        }
+    return {
+        "config": str(config),
+        "declares": declared,
+        "note": (
+            f"This answer covers one repository. {config} declares {len(declared)} "
+            f"({', '.join(declared)}) — pass repos='{config}' to include dependents in the others."
+        ),
+    }
+
+
+def _with_repos_note(out: dict[str, Any], repo: Any, *, hint: bool) -> dict[str, Any]:
+    """Attach the multi-repo note, unless the tool opted out or already said something."""
+    if not hint or "error" in out:
+        return out
+    note = _repos_note(repo)
+    if note is not None:
+        out.setdefault("multi_repo_available", note)
+    return out
+
+
+def _in_repo(repo_path: str, fn: Callable[[Any], dict[str, Any]], *, hint: bool = True) -> dict[str, Any]:
     """Run ``fn(repo)`` inside a resolved repo; a bad path / URL returns ``{"error": …}``."""
     from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
 
     try:
         with _open_repo(repo_path) as repo:
-            return fn(repo)
+            return _with_repos_note(fn(repo), repo, hint=hint)
     except (RepoSourceError, RepoPathError) as exc:
         return {"error": str(exc)}
 
 
-def _in_repo_store(repo_path: str, fn: Callable[[Any, Any], dict[str, Any]]) -> dict[str, Any]:
+def _in_repo_store(
+    repo_path: str, fn: Callable[[Any, Any], dict[str, Any]], *, hint: bool = True
+) -> dict[str, Any]:
     """Run ``fn(store, repo)`` inside a resolved repo; a bad path / URL returns ``{"error": …}``."""
     from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
 
     try:
         with _repo_store(repo_path) as (store, repo):
-            return fn(store, repo)
+            return _with_repos_note(fn(store, repo), repo, hint=hint)
     except (RepoSourceError, RepoPathError) as exc:
         return {"error": str(exc)}
 
@@ -716,7 +766,9 @@ def sdlc_approve(
             "path": str(save_approval(approval, root=repo)),
         }
 
-    return _in_repo(repo_path, run)
+    # No multi-repo note: an approval is a decision about one repository's plan, and a
+    # nudge toward a merged graph here would be answering a question nobody asked.
+    return _in_repo(repo_path, run, hint=False)
 
 
 def docs_for(repo_path: str, symbol: str = "") -> dict[str, Any]:
