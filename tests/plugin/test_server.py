@@ -721,3 +721,93 @@ def test_pkg_joins_rejects_an_unknown_mode_and_a_missing_config(tmp_path: Path) 
     assert "propose" in pkg_joins(_repos_config(tmp_path), "sideways")["error"]
     assert "cannot be read" in pkg_joins(str(tmp_path / "nope.yaml"), "check")["error"]
     assert mod.pkg_joins in mod._TOOLS
+
+
+# ---- the nudge: a single-repo answer in a multi-repo project ----------------
+# The single-repo path cannot fail loudly here. Point a tool at a directory and it extracts
+# that directory — there is no error to raise, and `0 caller(s)` looks like every other answer.
+
+
+def _repo_declaring_siblings(tmp_path: Path) -> Path:
+    """A billing repo whose own `.spine/repos.yaml` names it and a `web` sibling."""
+    billing = _repo_at(tmp_path / "billing", "routes.py", _BILLING)
+    web = _repo_at(tmp_path / "web", "client.py", _WEB_CLIENT)
+    (billing / ".spine").mkdir(exist_ok=True)
+    (billing / ".spine" / "repos.yaml").write_text(
+        f"repos:\n  billing: {billing}\n  web: {web}\n"
+        "joins:\n  - kind: http\n    consumer: web\n    provider: billing\n",
+        encoding="utf-8",
+    )
+    return billing
+
+
+def test_a_single_repo_answer_says_the_project_declares_more(tmp_path: Path) -> None:
+    billing = _repo_declaring_siblings(tmp_path)
+
+    out = blast_radius(repo_path=str(billing), symbol="create_order")
+
+    # The answer itself is unchanged and still true — of this repository.
+    assert out["matches"][0]["caller_count"] == 0
+    assert "cross_repo_count" not in out["matches"][0]
+    # …but it no longer reads as the whole story.
+    note = out["multi_repo_available"]
+    assert note["declares"] == ["billing", "web"]
+    assert "covers one repository" in note["note"]
+    assert "repos=" in note["note"]
+
+
+def test_the_nudge_reaches_every_comprehension_tool_that_takes_one_repo(tmp_path: Path) -> None:
+    billing = str(_repo_declaring_siblings(tmp_path))
+
+    assert "multi_repo_available" in map_repo(billing)
+    assert "multi_repo_available" in explain_symbol(billing, "create_order")
+    assert "multi_repo_available" in investigate(repo_path=billing, title="order creation")
+    assert "multi_repo_available" in regression_gaps(billing, symbol="create_order")
+
+
+def test_a_project_with_one_repo_hears_nothing(tmp_path: Path) -> None:
+    """A note on every answer everywhere is a note nobody reads."""
+    plain = _repo_at(tmp_path / "billing", "routes.py", _BILLING)
+
+    assert "multi_repo_available" not in blast_radius(repo_path=str(plain), symbol="create_order")
+    assert "multi_repo_available" not in map_repo(str(plain))
+
+
+def test_a_config_too_broken_to_read_still_speaks_up(tmp_path: Path) -> None:
+    """It is still evidence the project is multi-repo, and silence here is the failure mode."""
+    billing = _repo_declaring_siblings(tmp_path)
+    (billing / ".spine" / "repos.yaml").write_text("repos: [not, a, mapping]\n", encoding="utf-8")
+
+    note = blast_radius(repo_path=str(billing), symbol="create_order")["multi_repo_available"]
+
+    assert "could not be read" in note["note"]
+    assert "declares" not in note
+
+
+def test_the_merged_answer_does_not_nudge_toward_itself(tmp_path: Path) -> None:
+    billing = _repo_declaring_siblings(tmp_path)
+    config = str(billing / ".spine" / "repos.yaml")
+
+    out = blast_radius(symbol="create_order", repos=config)
+
+    assert "multi_repo_available" not in out
+    assert out["matches"][0]["cross_repo_count"] >= 1
+
+
+def test_an_approval_is_about_one_repo_and_is_not_nudged(tmp_path: Path) -> None:
+    """A decision on one repository's plan is not a question about the others."""
+    from orchestrator.plugin.server import sdlc_approve
+
+    billing = _repo_declaring_siblings(tmp_path)
+
+    out = sdlc_approve(str(billing), "TCK-9", decided_by="falcon")
+
+    assert "no plan at" in out["error"]
+    assert "multi_repo_available" not in out
+
+
+def test_an_unreadable_repo_reports_the_error_and_nothing_else(tmp_path: Path) -> None:
+    out = blast_radius(repo_path=str(tmp_path / "nowhere"), symbol="create_order")
+
+    assert "error" in out
+    assert "multi_repo_available" not in out

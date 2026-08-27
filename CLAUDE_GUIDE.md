@@ -246,6 +246,11 @@ Three things worth knowing:
   narrower graph); a missing `joins:` entry looks exactly like two services that are not
   coupled — which reads as health. Run `pkg_joins` with `mode="check"` before trusting a clean
   result, and `mode="propose"` to see what the evidence supports. Neither writes anything.
+- **A single‑repo answer will tell you when it is one.** Point a tool at a repo that declares
+  siblings in its own `.spine/repos.yaml` and the result carries a `multi_repo_available` note
+  naming the config and the repos it declares. Nothing errors — extracting one directory always
+  succeeds — so without the note a partial answer would be indistinguishable from a complete
+  one. It is a note, never a switch: which repositories an answer covers stays your decision.
 - **Every multi‑repo answer carries a `standing` block** — the repos it covers, and whether the
   result is `reproducible`. A merged graph built over a repo with uncommitted work looks
   identical to one built over clean trees, so the answer says which it was.

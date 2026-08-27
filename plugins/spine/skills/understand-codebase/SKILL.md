@@ -68,6 +68,11 @@ dependents it has **in other repositories**:
   the declared repos has uncommitted work — say so rather than quoting a number nothing can
   reproduce.
 - `map_repo` is single-repo only; there's no merged profile behind it. Call it per repository.
+- **If a single-repo answer comes back carrying `multi_repo_available`, stop and re-ask.** It
+  means the repo you pointed at declares siblings in its own `.spine/repos.yaml`, so the answer
+  you have covers one of them. Nothing errored — pointing a tool at a directory always works —
+  which is exactly why the note is there. Re-run with the `repos=` path it gives you before
+  telling anyone a symbol is safe to change.
 
 ## How to work
 
