@@ -233,7 +233,9 @@ def test_a_case_whose_front_end_is_missing_is_skipped_not_scored_zero(tmp_path: 
     report = score_corpus(tmp_path)
 
     assert report.cases == (), "an unavailable front-end must not be scored"
-    assert report.skipped == ("typescript-but-not-installed/c1",)
+    # The line names what was missing, because "skipped" alone does not tell a reader on a
+    # bare machine which extra to install.
+    assert report.skipped == ("typescript-but-not-installed/c1 (needs typescript-but-not-installed)",)
     assert report.skipped_languages == ("typescript-but-not-installed",)
 
 

@@ -2413,6 +2413,10 @@ def investigate(
     dialect: Annotated[
         str | None, typer.Option("--dialect", help="SQL dialect; default: auto-detect.")
     ] = None,
+    repos: Annotated[
+        str | None,
+        typer.Option("--repos", help="A `.spine/repos.yaml` — research across every declared repo."),
+    ] = None,
 ) -> None:
     """Investigation brief: a ticket × the codebase, before you design.
 
@@ -2430,10 +2434,35 @@ def investigate(
         typer.echo("ERROR: provide --source or --title (the ticket to investigate).", err=True)
         raise typer.Exit(code=2)
 
-    with _repo_arg(path) as (repo, _):
-        extractor = RepoCodeExtractor(sql_dialect=dialect)
-        batch = extractor.extract(repo) if refresh else load_or_extract(repo, extractor=extractor)
-        inv = build_investigation(ticket_title, problem, store=FactStore(batch), root=repo)
+    if repos:
+        # A merged graph with its joins applied: landing sites then carry their repository,
+        # blast radius crosses a boundary, and a ticket landing in two services says so.
+        from orchestrator.pkg.persistence import load_or_extract_repos
+        from orchestrator.pkg.repos import RepoConfigError, load_repo_config
+
+        try:
+            repo_set = load_repo_config(repos)
+        except RepoConfigError as exc:
+            typer.echo(f"investigate: {exc}")
+            raise typer.Exit(code=1) from exc
+        merged = load_or_extract_repos(repo_set, extractor=RepoCodeExtractor(sql_dialect=dialect))
+        if not merged.trusted:
+            # The brief is still useful, but it cannot be reproduced at a commit — and nothing
+            # in the markdown would tell a reader that later.
+            typer.echo(
+                f"investigate: NOT REPRODUCIBLE — {', '.join(merged.untrusted_keys)} "
+                "has uncommitted work or is not a git repo.",
+                err=True,
+            )
+        # `root=None`: `episteme/` belongs to one repository, and a merged brief has no single
+        # owner for it. The section is omitted rather than filled from an arbitrary repo — the
+        # brief is written to be honest when a section has nothing grounded.
+        inv = build_investigation(ticket_title, problem, store=FactStore(merged.batch), root=None)
+    else:
+        with _repo_arg(path) as (repo, _):
+            extractor = RepoCodeExtractor(sql_dialect=dialect)
+            batch = extractor.extract(repo) if refresh else load_or_extract(repo, extractor=extractor)
+            inv = build_investigation(ticket_title, problem, store=FactStore(batch), root=repo)
 
     md = render_investigation_md(inv)
     if out is not None:
@@ -2735,13 +2764,22 @@ def pkg_extract(
         str | None,
         typer.Option("--dialect", help="SQL dialect (postgres|mysql|tsql|oracle|…); default: auto-detect."),
     ] = None,
+    repos: Annotated[
+        str | None,
+        typer.Option("--repos", help="A `.spine/repos.yaml` — extract every declared repo into one graph."),
+    ] = None,
 ) -> None:
     """Extract grounded code facts from a repo and print a summary (read-only)."""
     from orchestrator.pkg import FactStore, RepoCodeExtractor
 
     extractor = RepoCodeExtractor(sql_dialect=dialect)
-    with _repo_arg(path) as (repo, _):
-        store = FactStore(extractor.extract(repo))
+    if repos:
+        store, merged = _extract_repos(repos, dialect)
+        path = repos
+    else:
+        merged = None
+        with _repo_arg(path) as (repo, _):
+            store = FactStore(extractor.extract(repo))
 
     if as_json:
         _print(
@@ -2762,10 +2800,16 @@ def pkg_extract(
         return
 
     summary = store.summary()
+    scanned = f"{len(merged.repos)} repos" if merged is not None else path
     typer.echo(
-        f"Scanned {path} — {summary['grounded_nodes']} grounded nodes, "
+        f"Scanned {scanned} — {summary['grounded_nodes']} grounded nodes, "
         f"{summary['external_nodes']} external, {summary['edges']} edges."
     )
+    if merged is not None:
+        for state in merged.repos:
+            mark = "cached" if state.cached else "extracted"
+            trust = "" if state.trusted else "  ** UNTRUSTED **"
+            typer.echo(f"  {state.key:<16} {mark:<9} {(state.sha or '-')[:12]}{trust}")
     # Per kind, because one total cannot show a kind that stopped being emitted. Zeros are
     # printed rather than skipped: `REFERENCES 0` on a repo with entities is the line worth
     # reading, and omitting it looks like a question nobody asked.
@@ -2774,6 +2818,16 @@ def pkg_extract(
         typer.echo("  " + "  ".join(f"{k.upper()} {v}" for k, v in per_kind.items()))
     if extractor.skipped:
         typer.echo(f"  (skipped {len(extractor.skipped)} unparseable file(s))")
+
+    if merged is not None and not merged.trusted:
+        # Last, and loud. A merged graph looks identical either way, and one describing
+        # uncommitted work cannot back a currency gate or be reproduced at a commit — so the
+        # thing that must not be missed goes where the eye stops, not above the counts.
+        typer.echo(
+            f"\n  NOT REPRODUCIBLE — {', '.join(merged.untrusted_keys)} "
+            "has uncommitted work or is not a git repo.\n"
+            "  The counts above are real, but this graph cannot be re-derived at a commit."
+        )
 
     if query:
         matches = store.find(query)
@@ -2790,6 +2844,153 @@ def pkg_extract(
             touched = store.touches(node.id)
             tail = "…" if len(touched) > 12 else ""
             typer.echo(f"  touches ({len(touched)}): " + ", ".join(t.id for t in touched[:12]) + tail)
+
+
+def _extract_repos(config: str, dialect: str | None) -> tuple[Any, Any]:
+    """`--repos`: every declared repository, merged into one scoped graph."""
+    from orchestrator.pkg import FactStore, RepoCodeExtractor
+    from orchestrator.pkg.persistence import load_or_extract_repos
+    from orchestrator.pkg.repos import RepoConfigError, load_repo_config
+
+    try:
+        repo_set = load_repo_config(config)
+    except RepoConfigError as exc:
+        typer.echo(f"pkg extract: {exc}")
+        raise typer.Exit(code=1) from exc
+    merged = load_or_extract_repos(repo_set, extractor=RepoCodeExtractor(sql_dialect=dialect))
+    return FactStore(merged.batch), merged
+
+
+@pkg_app.command("joins")
+def pkg_joins(
+    config: Annotated[
+        str, typer.Option("--config", help="The `.spine/repos.yaml` declaring the repos.")
+    ] = ".spine/repos.yaml",
+    propose: Annotated[
+        bool, typer.Option("--propose", help="Suggest a `joins:` block from the evidence.")
+    ] = False,
+    check: Annotated[
+        bool, typer.Option("--check", help="List the calls no declared join could place.")
+    ] = False,
+    as_json: Annotated[bool, typer.Option("--json", help="Emit as JSON.")] = False,
+) -> None:
+    """Propose or check cross-repository joins (read-only; writes no config).
+
+    `--propose` reads the evidence — calls a repo makes to paths it does not serve, against the
+    endpoints its neighbours expose — and prints a `joins:` block to review. It never writes one:
+    a topology Spine invented and then enforced would be a rule nobody agreed to.
+
+    `--check` is the countermeasure for the quiet failure. A forgotten `repos:` entry is loud —
+    no nodes, a visibly narrower graph. A forgotten `joins:` entry is not: missing cross-repo
+    edges look exactly like two services that are not coupled, which reads as health. So the
+    calls nothing placed are reported as a number rather than an absence.
+    """
+    from orchestrator.pkg.persistence import load_or_extract_repos
+    from orchestrator.pkg.repos import RepoConfigError, load_repo_config
+
+    if propose == check:
+        typer.echo("pkg joins: choose exactly one of --propose or --check")
+        raise typer.Exit(code=2)
+    try:
+        repo_set = load_repo_config(config)
+    except RepoConfigError as exc:
+        typer.echo(f"pkg joins: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    merged = load_or_extract_repos(repo_set)
+    if propose:
+        _joins_propose(repo_set, merged, as_json)
+    else:
+        _joins_check(repo_set, merged, as_json)
+
+
+def _joins_propose(repo_set: Any, merged: Any, as_json: bool) -> None:
+    from orchestrator.pkg.joins_propose import propose as propose_joins
+    from orchestrator.pkg.joins_propose import render
+
+    unresolved = _unresolved_by_repo(repo_set)
+    candidates = propose_joins(merged.batch, unresolved)
+    if as_json:
+        _print(
+            [
+                {
+                    "kind": c.kind,
+                    "consumer": c.consumer,
+                    "provider": c.provider,
+                    "base": c.base,
+                    "edges": c.edges,
+                    "examples": list(c.examples),
+                }
+                for c in candidates
+            ]
+        )
+        return
+    declared = {(j.kind, j.consumer, j.provider) for j in repo_set.joins}
+    typer.echo(render(candidates))
+    already = [c for c in candidates if (c.kind, c.consumer, c.provider) in declared]
+    if already:
+        typer.echo(f"  ({len(already)} of these are already declared — shown so the counts are checkable.)")
+
+
+def _joins_check(repo_set: Any, merged: Any, as_json: bool) -> None:
+    report = merged.joins
+    if report is None:
+        # Not the same as "everything joined". A config with no `joins:` block has nothing to
+        # report against, and saying "0 unplaced" here would be the silence this command exists
+        # to prevent.
+        msg = "no joins declared — run `pkg joins --propose` to see what the evidence supports"
+        _print({"declared": 0, "note": msg}) if as_json else typer.echo(f"pkg joins: {msg}")
+        return
+
+    if as_json:
+        _print(
+            {
+                "joined": report.joined,
+                "examined": report.examined,
+                "recall": report.recall,
+                "per_join": [{"join": k, "edges": v} for k, v in report.per_join],
+                "unjoined": [
+                    {"repo": u.repo, "verb": u.verb, "path": u.path, "at": u.where, "reason": u.reason}
+                    for u in report.unjoined
+                ],
+            }
+        )
+        return
+
+    rate = "—" if report.recall is None else f"{report.recall:.0%}"
+    typer.echo(f"\ncross-repo joins — {report.joined} of {report.examined} candidate call(s) placed ({rate})")
+    for label, count in report.per_join:
+        # A declared join placing 0 is the row worth reading: it is either stale or wrong, and
+        # a summary line would hide it inside a healthy-looking total.
+        tail = "   ** placed nothing **" if count == 0 else ""
+        typer.echo(f"  {label:<44} {count:>5}{tail}")
+
+    if report.unjoined:
+        by_reason: dict[str, int] = {}
+        for u in report.unjoined:
+            by_reason[u.reason] = by_reason.get(u.reason, 0) + 1
+        typer.echo("\n  unplaced, by reason:")
+        for reason, count in sorted(by_reason.items()):
+            typer.echo(f"    {reason:<24} {count}")
+        typer.echo("\n  first few:")
+        for u in report.unjoined[:8]:
+            typer.echo(f"    {u}")
+    typer.echo(
+        "\n  Precision is ~1.00 by construction — nothing joins to an undeclared repo — so the\n"
+        "  number above is recall, and it is the one worth watching."
+    )
+
+
+def _unresolved_by_repo(repo_set: Any) -> dict[str, list[Any]]:
+    """Re-extract to collect the side-channel. Cheap: every repo is cache-warm by now."""
+    from orchestrator.pkg import RepoCodeExtractor
+
+    out: dict[str, list[Any]] = {}
+    for key, root in repo_set:
+        extractor = RepoCodeExtractor()
+        extractor.extract(root)
+        out[key] = list(extractor.unresolved_calls)
+    return out
 
 
 @pkg_app.command("capabilities")

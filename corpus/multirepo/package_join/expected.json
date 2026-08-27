@@ -1,0 +1,76 @@
+{
+  "language": "multirepo",
+  "case": "package_join",
+  "requires": [
+    "python"
+  ],
+  "roots": {
+    "billing": ".billing",
+    "shared": ".shared"
+  },
+  "joins": [
+    {
+      "kind": "package",
+      "consumer": "billing",
+      "provider": "shared"
+    }
+  ],
+  "why": "A repository importing a library that is another declared repository. Without the join `billing` holds an external placeholder for `shared.money.to_cents` and the call disappears at the repository edge \u2014 so \"who calls this\" answers with the library's own repo only, and a breaking change to it looks safe. `json` is the control: also external, genuinely third-party, and must stay a placeholder. A joiner that repointed every external import would pass on `shared` and destroy this.",
+  "nodes": [
+    {
+      "id": "py:billing@app.charge",
+      "kind": "Module"
+    },
+    {
+      "id": "py:billing@app.charge.charge",
+      "kind": "Function"
+    },
+    {
+      "id": "py:shared@shared.money",
+      "kind": "Module"
+    },
+    {
+      "id": "py:shared@shared.money.to_cents",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "py:billing@app.charge",
+      "dst": "py:billing@app.charge.charge",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:shared@shared.money",
+      "dst": "py:shared@shared.money.to_cents",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:billing@app.charge",
+      "dst": "py:json",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:billing@app.charge.charge",
+      "dst": "py:json.dumps",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:billing@app.charge",
+      "dst": "py:shared@shared.money.to_cents",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:billing@app.charge.charge",
+      "dst": "py:shared@shared.money.to_cents",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "`py:shared.money.to_cents` as an external placeholder is deliberately absent: after the join it must not exist, and the IMPORTS and CALLS that referenced it must both have moved to the real function. Moving only the import would drop a real call edge when the placeholder is removed \u2014 a join that destroys knowledge instead of adding it."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

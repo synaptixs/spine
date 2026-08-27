@@ -15,8 +15,15 @@ import hashlib
 import importlib.util
 import json
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from orchestrator.pkg.join_link import JoinReport
+    from orchestrator.pkg.repos import RepoSet
 
 from orchestrator.pkg.extractor import RepoCodeExtractor
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
@@ -244,7 +251,182 @@ def load_or_extract(
     return batch
 
 
+# ---- multi-repo -------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RepoState:
+    """What was loaded for one repository, and whether it can be trusted."""
+
+    key: str
+    root: Path
+    sha: str | None
+    dirty: bool
+    cached: bool  # served from the commit-keyed cache rather than re-extracted
+
+    @property
+    def trusted(self) -> bool:
+        """A clean tree at a known commit. Anything else describes uncommitted or unknown work."""
+        return self.sha is not None and not self.dirty
+
+
+@dataclass(frozen=True)
+class MergedFacts:
+    """A merged multi-repo graph, with the standing of every input attached.
+
+    The standing is not decoration. A merged graph assembled from four repositories where one
+    has a dirty tree describes work that is not committed anywhere, so it cannot back a currency
+    gate, cannot be reproduced at a commit, and must not be quoted as a measurement. Carrying
+    ``repos`` is what lets a caller tell that from a clean one — the alternative is a graph that
+    looks identical either way, which is how "0 findings" comes to mean "nothing ran".
+    """
+
+    batch: FactBatch
+    repos: tuple[RepoState, ...]
+    #: What the declared joins placed, and what they could not. ``None`` when no joins are
+    #: declared — which is not the same as "nothing to join", and the CLI says so.
+    joins: JoinReport | None = None
+
+    @property
+    def trusted(self) -> bool:
+        """**Any** dirty or non-git repository makes the whole merged graph untrusted.
+
+        Not a per-repo verdict, because the graph is one artifact: a cache that is right about
+        three of four inputs is not a cache, and a join that crosses into the dirty one is
+        wrong wherever it lands.
+        """
+        return all(r.trusted for r in self.repos)
+
+    @property
+    def untrusted_keys(self) -> tuple[str, ...]:
+        return tuple(r.key for r in self.repos if not r.trusted)
+
+    def cache_key(self) -> tuple[tuple[str, str], ...]:
+        """``((repo, sha), …)`` in key order — the multi-repo analogue of one HEAD SHA.
+
+        Empty when any repo is untrusted, so it cannot accidentally name a graph that includes
+        uncommitted work. Identity for a merged graph, not a filename: there is no merged cache
+        entry, by design (see :func:`load_or_extract_repos`).
+        """
+        if not self.trusted:
+            return ()
+        return tuple((r.key, r.sha or "") for r in self.repos)
+
+
+def _calls_sidecar(cache_file: Path) -> Path:
+    """Where a repo's unresolved calls live, beside its cached facts.
+
+    **A sidecar, not a key in the fact cache.** The facts file is the graph; these are not facts
+    and must not travel inside it — the whole reason `python_client.emit` keeps them out of the
+    batch. A separate file also means an absent or unreadable sidecar degrades to "extract
+    again", never to a corrupt graph.
+    """
+    return cache_file.with_suffix(".calls.json")
+
+
+def _save_calls(calls: Sequence[Any], path: Path) -> None:
+    payload = [
+        {
+            "verb": c.verb,
+            "path": c.path,
+            "caller_id": c.caller_id,
+            "file": c.provenance.file,
+            "line": c.provenance.line,
+        }
+        for c in calls
+    ]
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    except OSError:
+        pass  # a cache that cannot be written is a slow path, never a failure
+
+
+def _load_calls(path: Path) -> list[Any] | None:
+    from orchestrator.pkg.python_client import PendingCall
+
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    try:
+        return [
+            PendingCall(
+                verb=str(e["verb"]),
+                path=str(e["path"]),
+                caller_id=str(e["caller_id"]),
+                provenance=Provenance(str(e["file"]), int(e["line"])),
+            )
+            for e in raw
+        ]
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def load_or_extract_repos(
+    repo_set: RepoSet,
+    *,
+    cache_dir: Path | None = None,
+    extractor: RepoCodeExtractor | None = None,
+) -> MergedFacts:
+    """Extract every declared repository and merge into one scoped graph.
+
+    **Per-repo caches, merged on read — there is no merged cache entry.** Change one of four
+    repositories and one re-extracts while three are served from cache; a single entry keyed on
+    the whole tuple would invalidate everything on any change. Merging is cheap and extraction
+    is not, so the composition is done every time and the expensive half is what gets reused.
+
+    Repos are processed in key order, and :func:`~orchestrator.pkg.scoping.merge_repos` sorts
+    again, so the same declarations always produce the same graph regardless of how the YAML was
+    written.
+    """
+    from orchestrator.pkg.join_link import link_joins
+    from orchestrator.pkg.scoping import merge_repos
+
+    batches: dict[str, FactBatch] = {}
+    unresolved: dict[str, list[Any]] = {}
+    states: list[RepoState] = []
+    for key, root in repo_set:
+        sha, dirty = repo_state(root)
+        cache_file = _cache_path(cache_dir or default_cache_dir(), root, sha) if sha and not dirty else None
+        was_cached = cache_file is not None and cache_file.exists()
+        # A fresh extractor per repo: `unresolved_calls` accumulates on the instance, and one
+        # shared extractor would attribute web's calls to billing.
+        per_repo = extractor or RepoCodeExtractor()
+        batches[key] = load_or_extract(root, cache_dir=cache_dir, extractor=per_repo)
+
+        # The side-channel has to survive the cache. On a warm hit `load_or_extract` never runs
+        # the extractor, so `unresolved_calls` is empty — and the joiner would silently see no
+        # candidates and place nothing, which looks exactly like two uncoupled services.
+        sidecar = _calls_sidecar(cache_file) if cache_file is not None else None
+        cached_calls = _load_calls(sidecar) if sidecar is not None and was_cached else None
+        if cached_calls is None:
+            if was_cached:
+                # Facts cached, calls missing: re-extract for the side-channel only, and write
+                # it so this happens once rather than every load.
+                per_repo.unresolved_calls.clear()
+                per_repo.extract(root)
+            cached_calls = list(per_repo.unresolved_calls)
+            if sidecar is not None:
+                _save_calls(cached_calls, sidecar)
+        unresolved[key] = cached_calls
+        per_repo.unresolved_calls.clear()
+        states.append(RepoState(key, root, sha, dirty, cached=was_cached))
+
+    merged = merge_repos(batches)
+    # The joiner runs here and **only** here — never from `RepoCodeExtractor.extract` and never
+    # beside `import_link`, which run on every extraction. A single-repo user declared no
+    # topology, and must not inherit edges from a matcher that assumes one.
+    report = None
+    if repo_set.joins:
+        merged, report = link_joins(merged, repo_set.joins, unresolved)
+    return MergedFacts(merged, tuple(states), report)
+
+
 __all__ = [
+    "MergedFacts",
+    "RepoState",
+    "load_or_extract_repos",
     "FactCacheError",
     "default_cache_dir",
     "extractor_fingerprint",
