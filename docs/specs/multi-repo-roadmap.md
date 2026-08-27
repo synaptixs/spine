@@ -7,6 +7,22 @@ started — there are still no cross-repo *edges*, so a merged graph is two isla
 **Scope:** comprehension only. **Multi-repo *delivery* is an explicit non-goal** — see below.
 **Index entry:** E2 in [`enhancement-index.md`](enhancement-index.md).
 
+## Progress
+
+| Phase | What it delivers | Status | Started | Ended |
+|---|---|---|---|---|
+| **1** | Identity — repo scope, the parse contract pinned | ✅ **Complete** | 2026-08-25 | 2026-08-25 |
+| **2** | The merged graph — declared repos, per-repo caches | ✅ **Complete** | 2026-08-25 | 2026-08-25 |
+| **3** | The three joiners — the first cross-repo *edges* | ⬜ Not started | — | — |
+| **4** | The surfaces — investigate, blast radius, state | ⬜ Not started | — | — |
+| — | Multi-repo **delivery** | ❌ **Explicit non-goal** | — | — |
+
+**Where that leaves it.** Several repositories now extract and merge into one graph with no
+collisions, cached per repo. **There are still no cross-repo edges**, so a merged graph is
+*n* islands: useful for seeing everything at once, not yet able to answer *"what breaks in the
+other repo."* That is Phase 3, and it is the phase carrying the real risk — the joins are
+resolution, not structure.
+
 > **This is not [`tri-repo-integration.md`](tri-repo-integration.md).** That design spans three
 > *products* — ontomesh, agent-orchestrator, infodrift — joined by a shared ontology key. This is
 > one *change* landing in several repositories of one system, which is an ordinary situation with
@@ -24,18 +40,19 @@ thing that will actually break — is not in the graph at all.
 The failure is **silence**, which is the right direction but is still a failure: the brief looks
 complete and is bounded by an accident of which directory the command ran in.
 
-## Where it is blocked today, precisely
+## Where it was blocked, and what still is
 
-Four places, all single-repo **by construction** rather than by oversight:
+Four places were single-repo **by construction** rather than by oversight. Two have moved:
 
-| Surface | Constraint |
-|---|---|
-| `RepoCodeExtractor.extract(root)` | Takes one root |
-| `pkg/persistence.py` | Cache keyed to **one** repo's HEAD SHA, trusted only on a clean tree |
-| `WorkspaceManager(root, repo_url, base_branch)` | Clones one repo, one worktree per issue |
-| `sdlc/autorun.py` | Ends in one PR; `episteme/` lands in one repo |
+| Surface | Constraint | Now |
+|---|---|---|
+| `RepoCodeExtractor.extract(root)` | Takes one root | **Still true, deliberately.** `load_or_extract_repos` composes it per repo rather than changing it — which is what keeps single-repo extraction byte-identical |
+| `pkg/persistence.py` | Cache keyed to **one** repo's HEAD SHA, clean trees only | ✅ **Phase 2.** Per-repo caches merged on read; `MergedFacts.cache_key()` is the tuple, and empty when any repo is untrusted |
+| `WorkspaceManager(root, repo_url, base_branch)` | Clones one repo, one worktree per issue | **Still true.** Only matters for delivery, which is a non-goal |
+| `sdlc/autorun.py` | Ends in one PR; `episteme/` lands in one repo | **Still true.** Same reason |
 
-**The blocking one is none of those. It is identity.**
+**The blocking one was none of those. It was identity** — closed in Phase 1, and recorded here
+because the reasoning is what the rest of the design rests on.
 
 Node ids are language-prefixed, not repo-prefixed. `py:shop.cart.Cart` in two repositories is
 **the same id**, and `FactBatch.merge` is `add_node` in a loop — so merging two graphs today
@@ -53,11 +70,12 @@ The edge kinds that cross a repository boundary **exist and are already extracte
 | **Data** | `READS` / `WRITES` | Two repos touching the same table |
 | **Package** | `IMPORTS` ↔ module | A publishes what B imports |
 
-**No new `NodeKind`, no new `EdgeKind`, no `facts.py` vocabulary change.** What is missing is a
-post-pass that performs the join — the same shape as `import_link.py` and `doc_link.py`, which
-already exist and already run repo-wide.
+**No new `NodeKind`, no new `EdgeKind`, no `facts.py` vocabulary change** — confirmed through
+Phases 1–2, which added a field to `Provenance` and nothing else. What is still missing is the
+post-pass that performs the join, in the shape of `import_link.py` and `doc_link.py`. **That is
+Phase 3, and until it lands a merged graph has no edge that crosses a repository.**
 
-## Phase 1 — the identity decision (blocking)
+## Phase 1 — the identity decision *(complete)*
 
 **The constraint that rules out the obvious answer.** `Provenance.__str__` returns `f"{file}:{line}"`,
 and production code parses it back to recover the file path.
