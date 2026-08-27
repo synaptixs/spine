@@ -44,7 +44,7 @@ run. The graph pays exactly where the model cannot see the target, and ties wher
 *For engineers. The narrative version is [`KNOWLEDGE_GRAPH.md`](../../KNOWLEDGE_GRAPH.md); the
 full front-end detail is [`parsing-and-the-pkg.md`](parsing-and-the-pkg.md).*
 
-Everything else on this page rests on one artifact. The **Program Knowledge Graph** is a typed
+Everything else on this page rests on one artifact. The **Product Knowledge Graph** is a typed
 fact graph of the target codebase — **8 node kinds** (`Module` `Type` `Function` `Field`
 `Endpoint` `Entity` `Doc` `Intent`) and **11 edge kinds** (`IMPORTS` `CONTAINS` `CALLS`
 `IMPLEMENTS` `READS` `WRITES` `EXPOSES` `CONSUMES` `REFERENCES` `MENTIONS` `SERVES`) — where

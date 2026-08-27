@@ -78,8 +78,14 @@ Then make the `orchestrator-mcp` server available on PATH (the plugin declares i
 provides it):
 
 ```bash
-pip install 'synaptixs-spine[mcp]'          # provides the `orchestrator-mcp` command
+pip install 'synaptixs-spine[all]'          # provides the `orchestrator-mcp` command
 ```
+
+> **`[all]`, not `[mcp]`.** `[mcp]` installs the server alone, so the graph is **Python-only** —
+> and silently so: a Java or Go repo yields zero nodes rather than an error, which reads as
+> "nothing here" instead of "nothing parsed". `[all]` adds every language front-end, doc
+> ingestion and the MCP server; `[languages]` is the front-ends on their own.
+
 
 Restart Claude Code (or run `/reload-plugins`). Confirm with `/plugin` (Spine shows as
 installed + enabled) and `/mcp` (the `spine` server shows as connected).
@@ -186,6 +192,7 @@ At a glance:
 | `regression_gaps` | The production symbols a change (by symbol or trace) reaches that **no test covers** — what could break silently. | no |
 | `root_cause` | A grounded root‑cause report for a bug: fault site, ranked hypotheses + evidence, regression surface, fix approach. Deterministic by default; `use_llm=true` enriches (needs a model). | no |
 | `docs_for` | **Which docs describe the code.** With a `symbol`, the doc pages that mention it; without one, a doc‑coverage summary (% of symbols documented + top drift). Ingests `.md`/`.rst`/`.txt`/**HTML**, plus **PDF** (`[docs]`) and **Word/Excel** (`[office]`). | no |
+| `pkg_joins` | **The cross‑repo topology, proposed or checked.** `mode="propose"` derives a `joins:` block from the evidence (each candidate carrying the number of edges it would create); `mode="check"` reports the calls no declared join could place. Read‑only — it never writes a config. | no |
 | [`read_memory_bank`](#read_memory_bank) | Read a repo's committed `episteme/` (code‑true project knowledge). | no |
 | [`pkg_grounding`](#pkg_grounding) | The existing‑code context a repo's Product Knowledge Graph surfaces for a spec — real APIs/types Spine would reuse, with `file:line`. | no |
 | [`ingest_preview`](#ingest_preview) | Preview the backlog (derived intents + gaps) for a requirements source — dry‑run. | no |
@@ -203,6 +210,47 @@ At a glance:
 > allow‑list); each returns structured fields **plus** a `markdown` rendering, bounded (top‑N +
 > `file:line`). To serve them to a **remote** host over HTTP, run the streamable‑HTTP server
 > (`orchestrator-mcp --http`, bearer/OAuth auth from env) — it registers the same tools.
+
+### Asking across several repositories
+
+The comprehension tools take **one** repository by default, and for a service that is called
+over HTTP that is a trap rather than a limitation. `blast_radius` on a route handler reports
+**`0 caller(s)`** — which is *true*, nothing in its own source calls it — and reads as safe to
+change.
+
+Declare your services in a **`.spine/repos.yaml`** and pass it as `repos=` to `blast_radius`
+or `investigate` instead of `repo_path`:
+
+```yaml
+repos:
+  billing: ../billing
+  web: ../web
+joins:
+  - kind: http
+    consumer: web
+    provider: billing
+```
+
+The same question then crosses the boundary:
+
+```
+- **billing** · `create_order` (Function, 0 caller(s), **1 dependent(s) in other repos**) — billing:app/routes.py:7
+```
+
+Three things worth knowing:
+
+- **The topology is declared, not guessed.** A `joins:` entry *narrows* the search; it does not
+  create the edge — matching `POST /v1/orders/42` against `POST /v1/orders/{id}` is still
+  resolution, done segment by segment, and refused outright when two endpoints match.
+- **A forgotten join is quiet.** A repository nobody listed is loud (no nodes, a visibly
+  narrower graph); a missing `joins:` entry looks exactly like two services that are not
+  coupled — which reads as health. Run `pkg_joins` with `mode="check"` before trusting a clean
+  result, and `mode="propose"` to see what the evidence supports. Neither writes anything.
+- **Every multi‑repo answer carries a `standing` block** — the repos it covers, and whether the
+  result is `reproducible`. A merged graph built over a repo with uncommitted work looks
+  identical to one built over clean trees, so the answer says which it was.
+
+`map_repo` stays single‑repo: there is no merged profile behind it. Call it per repository.
 
 ### Using the `understand-codebase` skill
 
@@ -609,8 +657,9 @@ Comprehension covers **eight front-ends**. Spine only needs a language's toolcha
 | Go | the **`go`** toolchain (`go build` / `go test`); multi-module aware |
 | SQL | nothing extra — schema, queries, stored procedures, ordered-migration folding |
 
-Comprehension front-ends beyond Python install as extras, e.g.
-`pip install 'synaptixs-spine[go]'`.
+Comprehension front-ends beyond Python install as extras — one at a time
+(`pip install 'synaptixs-spine[go]'`) or all at once with `[languages]`, which `[all]`
+already includes.
 
 `language=auto` detects from the repo. For C#, Spine additionally lifts ASP.NET Core
 endpoints and EF Core entities into the graph; for C/C++ it builds the `#include` graph and
@@ -634,7 +683,7 @@ name. Run `orchestrator pkg accuracy` to see the current numbers yourself.
 |---|---|
 | Claude doesn't see Spine's tools | Restart Claude Code or run `/reload-plugins`. Check `/mcp` and `/plugin`. |
 | `doctor` says the LLM provider is missing | Your `.env` isn't being found — launch Claude Code from a project with a `.env`, or use the raw‑MCP form (§3b) and set `ORCHESTRATOR_DOTENV` to its **absolute** path. |
-| `orchestrator-mcp: command not found` | The server isn't on PATH. `pip install 'synaptixs-spine[mcp]'`, or point `command` at the absolute path of the console script. |
+| `orchestrator-mcp: command not found` | The server isn't on PATH. `pip install 'synaptixs-spine[all]'`, or point `command` at the absolute path of the console script. |
 | Codegen times out | Set a faster model: `ORCHESTRATOR_INTAKE_MODEL=...` (or `SDLC_CODEGEN_MODEL`). |
 | "live needs a repo to push to" | Pass `repo=...` or set `SDLC_REPO_URL`; ensure `GITHUB_TOKEN`/`GH_TOKEN` is set. |
 | A `live` call refuses to write | That's the gate — pass `confirm=true` together with `live=true`. |
@@ -650,7 +699,7 @@ from the folder with your `.env`.
 
 ```
 # update the engine (new languages, fixes)
-pip install -U 'synaptixs-spine[mcp]'
+pip install -U 'synaptixs-spine[all]'
 /plugin marketplace update spine            # refresh the marketplace snapshot
 
 # remove

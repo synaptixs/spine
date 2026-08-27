@@ -9,11 +9,19 @@ the real engine (intake, PKG grounding, readiness).
 
 **1. Read-only comprehension** — ``doctor``, ``pkg_grounding``, ``read_memory_bank``,
 ``ingest_preview`` (dry-run), and the graph-query set ``map_repo`` / ``blast_radius`` /
-``explain_symbol`` / ``investigate`` / ``localize`` / ``regression_gaps`` / ``root_cause``.
-Hands an assistant Spine's *engineering decisions* (what breaks, what's untested, where a
-change lands) with ``file:line`` provenance. Deterministic, no credentials — except
-``root_cause``'s opt-in ``use_llm`` enrichment. These take a local path **or a git URL**
-(shallow-cloned behind the CLI's SSRF/host-allow-list guard).
+``explain_symbol`` / ``investigate`` / ``localize`` / ``regression_gaps`` / ``root_cause`` /
+``docs_for``. Hands an assistant Spine's *engineering decisions* (what breaks, what's
+untested, where a change lands, which docs describe it) with ``file:line`` provenance.
+Deterministic, no credentials — except ``root_cause``'s opt-in ``use_llm`` enrichment. These
+take a local path **or a git URL** (shallow-cloned behind the CLI's SSRF/host-allow-list
+guard).
+
+``blast_radius`` and ``investigate`` additionally take ``repos`` — a ``.spine/repos.yaml`` —
+and answer across every declared repository, reporting the dependents a change reaches in
+*other* repos. ``pkg_joins`` proposes or checks the topology that makes those edges possible;
+it is read-only and never writes a config. Every multi-repo answer carries a ``standing``
+block, because a merged graph built over a dirty tree looks identical to one that is
+reproducible.
 
 **2. Plan and decide** — ``sdlc_plan`` and ``sdlc_approve``. These *write*, but only under
 ``.spine/`` in the repo, and they still need no model and no credentials: ``build_plan``
@@ -214,6 +222,73 @@ def _in_repo_store(repo_path: str, fn: Callable[[Any, Any], dict[str, Any]]) -> 
         return {"error": str(exc)}
 
 
+def _merged_store(repos: str) -> tuple[Any, Any, Any]:
+    """``(FactStore, MergedFacts, RepoSet)`` for a ``.spine/repos.yaml`` — every declared
+    repository extracted, scoped and merged into one graph with its declared joins applied."""
+    from orchestrator.pkg import FactStore
+    from orchestrator.pkg.persistence import load_or_extract_repos
+    from orchestrator.pkg.repos import load_repo_config
+
+    repo_set = load_repo_config(repos)
+    merged = load_or_extract_repos(repo_set)
+    return FactStore(merged.batch), merged, repo_set
+
+
+def _standing(merged: Any) -> dict[str, Any]:
+    """The merged graph's standing, attached to every multi-repo answer.
+
+    A merged graph assembled from a repository with uncommitted work cannot be reproduced at a
+    commit, and looks identical to a clean one. The CLI prints that on stderr; a tool has to
+    return it, or the caller quotes a number that nothing can reproduce.
+    """
+    return {
+        "repos": [r.key for r in merged.repos],
+        "reproducible": merged.trusted,
+        "untrusted": list(merged.untrusted_keys),
+    }
+
+
+def _in_repos_store(repos: str, fn: Callable[[Any, Any], dict[str, Any]]) -> dict[str, Any]:
+    """Run ``fn(store, merged)`` over a merged multi-repo graph; a bad config returns
+    ``{"error": …}``."""
+    from orchestrator.pkg.repos import RepoConfigError
+
+    try:
+        store, merged, _repo_set = _merged_store(repos)
+    except RepoConfigError as exc:
+        return {"error": str(exc)}
+    out = fn(store, merged)
+    out.setdefault("standing", _standing(merged))
+    return out
+
+
+def _cross_repo_reach(store: Any, node_id: str) -> list[dict[str, Any]]:
+    """The symbols in *other* repositories that a change to this one reaches.
+
+    This is the whole point of a merged graph. An HTTP handler with ``0 caller(s)`` is telling
+    the truth — nothing in its own source calls it — and on its own that is the most dangerous
+    answer the graph can give.
+    """
+    from orchestrator.pkg.scoping import unscope_id
+
+    owner, _ = unscope_id(node_id)
+    if not owner:
+        return []
+    out: list[dict[str, Any]] = []
+    for node, hops in store.impact_of(node_id):
+        repo, _unscoped = unscope_id(node.id)
+        if repo and repo != owner:
+            out.append(
+                {
+                    "id": node.id,
+                    "repo": repo,
+                    "hops": hops,
+                    "where": str(node.provenance) if node.provenance else None,
+                }
+            )
+    return out
+
+
 def map_repo(repo_path: str, lens: str = "developer") -> dict[str, Any]:
     """A skim-first map of a repo: languages, components, **call-hotspots**, **test-coverage
     gaps**, and prioritized **recommendations**. Deterministic (no LLM). ``lens`` is
@@ -245,11 +320,20 @@ def map_repo(repo_path: str, lens: str = "developer") -> dict[str, Any]:
     return _in_repo(repo_path, run)
 
 
-def blast_radius(repo_path: str, symbol: str) -> dict[str, Any]:
+def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
     """ "What breaks if I change X" — a symbol's direct callers plus the cross-layer set a
-    change ripples into (CALLS + IMPORTS + REFERENCES), each with ``file:line``. Deterministic."""
+    change ripples into (CALLS + IMPORTS + REFERENCES), each with ``file:line``. Deterministic.
 
-    def run(store: Any, _repo: Any) -> dict[str, Any]:
+    Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to answer across every
+    declared repository: each match then also reports the dependents a change reaches **in
+    other repositories**, which is what a single-repo graph cannot see. An HTTP handler with
+    zero callers in its own source is the case this exists for."""
+    if not symbol:
+        return {"error": "provide a symbol"}
+    if bool(repo_path) == bool(repos):
+        return {"error": "provide exactly one of repo_path or repos"}
+
+    def run(store: Any, _ctx: Any) -> dict[str, Any]:
         matches = store.find(symbol)
         if not matches:
             return {"symbol": symbol, "found": False, "matches": []}
@@ -257,22 +341,26 @@ def blast_radius(repo_path: str, symbol: str) -> dict[str, Any]:
         for node in matches[:5]:
             callers = store.callers_of(node.id)
             touched = store.touches(node.id)
-            out.append(
-                {
-                    "id": node.id,
-                    "kind": node.kind.value,
-                    "where": str(node.provenance) if node.provenance else None,
-                    "caller_count": len(callers),
-                    "callers": [{"id": cs.caller.id, "at": cs.at} for cs in callers[:25]],
-                    "touch_count": len(touched),
-                    "touches": [
-                        {"id": t.id, "where": str(t.provenance) if t.provenance else None}
-                        for t in touched[:25]
-                    ],
-                }
-            )
+            entry: dict[str, Any] = {
+                "id": node.id,
+                "kind": node.kind.value,
+                "where": str(node.provenance) if node.provenance else None,
+                "caller_count": len(callers),
+                "callers": [{"id": cs.caller.id, "at": cs.at} for cs in callers[:25]],
+                "touch_count": len(touched),
+                "touches": [
+                    {"id": t.id, "where": str(t.provenance) if t.provenance else None} for t in touched[:25]
+                ],
+            }
+            if repos:
+                reach = _cross_repo_reach(store, node.id)
+                entry["cross_repo_count"] = len(reach)
+                entry["cross_repo"] = reach[:25]
+            out.append(entry)
         return {"symbol": symbol, "found": True, "matches": out, "markdown": _blast_markdown(out)}
 
+    if repos:
+        return _in_repos_store(repos, run)
     return _in_repo_store(repo_path, run)
 
 
@@ -302,20 +390,37 @@ def explain_symbol(repo_path: str, symbol: str) -> dict[str, Any]:
     return _in_repo_store(repo_path, run)
 
 
-def investigate(repo_path: str, title: str, problem: str = "") -> dict[str, Any]:
+def investigate(
+    repo_path: str = "", title: str = "", problem: str = "", repos: str | None = None
+) -> dict[str, Any]:
     """Where a ticket lands in the code: the real symbols to start from (``file:line`` + caller
-    counts), the owning areas, and any committed ``episteme/`` knowledge. Deterministic (no LLM)."""
+    counts), the owning areas, and any committed ``episteme/`` knowledge. Deterministic (no LLM).
+
+    Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to research across every
+    declared repository: a landing site then carries its repository and reports the dependents
+    it has in others, so a ticket landing in two services says so. The ``episteme/`` section is
+    omitted on a merged graph — a knowledge base belongs to one repository, and filling it from
+    an arbitrary one would be the brief inventing an owner."""
     if not title and not problem:
         return {"error": "provide a ticket title (and optionally a problem description)"}
+    if bool(repo_path) == bool(repos):
+        return {"error": "provide exactly one of repo_path or repos"}
 
-    def run(store: Any, repo: Any) -> dict[str, Any]:
+    def build(store: Any, root: Any) -> dict[str, Any]:
         from orchestrator.sdlc.investigate import build_investigation, render_investigation_md
 
-        inv = build_investigation(title, problem, store=store, root=repo)
+        inv = build_investigation(title, problem, store=store, root=root)
         return {
             "title": inv.title,
             "landing": [
-                {"name": h.name, "kind": h.kind, "where": h.where, "callers": h.callers, "module": h.module}
+                {
+                    "name": h.name,
+                    "kind": h.kind,
+                    "where": h.where,
+                    "callers": h.callers,
+                    "cross_repo": h.cross_repo,
+                    "module": h.module,
+                }
                 for h in inv.landing
             ],
             "areas": inv.areas,
@@ -323,7 +428,79 @@ def investigate(repo_path: str, title: str, problem: str = "") -> dict[str, Any]
             "markdown": render_investigation_md(inv),
         }
 
-    return _in_repo_store(repo_path, run)
+    if repos:
+        # `root=None`: see the docstring — a merged brief has no single owner for `episteme/`.
+        return _in_repos_store(repos, lambda store, _merged: build(store, None))
+    return _in_repo_store(repo_path, build)
+
+
+def pkg_joins(config: str = ".spine/repos.yaml", mode: str = "check") -> dict[str, Any]:
+    """Propose or check cross-repository joins. Read-only — it never writes a config.
+
+    ``mode="propose"`` derives a ``joins:`` block from the evidence (calls a repo makes to paths
+    it does not serve, matched against its neighbours' endpoints; shared tables; imports another
+    repo defines), each candidate carrying the number of edges it would create — a join
+    producing zero is noise.
+
+    ``mode="check"`` reports what the declared joins could not place. This is the countermeasure
+    for a quiet failure: a repository nobody listed is loud (no nodes, a visibly narrower
+    graph), but a missing ``joins:`` entry looks exactly like two services that are not coupled,
+    which reads as health."""
+    if mode not in ("propose", "check"):
+        return {"error": "mode must be 'propose' or 'check'"}
+    from orchestrator.pkg.repos import RepoConfigError
+
+    try:
+        _store, merged, repo_set = _merged_store(config)
+    except RepoConfigError as exc:
+        return {"error": str(exc)}
+
+    if mode == "propose":
+        return {"mode": "propose", "standing": _standing(merged), **_joins_proposal(repo_set, merged)}
+    return {"mode": "check", "standing": _standing(merged), **_joins_report(merged)}
+
+
+def _joins_proposal(repo_set: Any, merged: Any) -> dict[str, Any]:
+    from orchestrator.pkg.joins_propose import propose as propose_joins
+    from orchestrator.pkg.joins_propose import unresolved_by_repo
+
+    unresolved = unresolved_by_repo(repo_set)
+    declared = {(j.kind, j.consumer, j.provider) for j in repo_set.joins}
+    candidates = [
+        {
+            "kind": c.kind,
+            "consumer": c.consumer,
+            "provider": c.provider,
+            "base": c.base,
+            "edges": c.edges,
+            "examples": list(c.examples),
+            "already_declared": (c.kind, c.consumer, c.provider) in declared,
+        }
+        for c in propose_joins(merged.batch, unresolved)
+    ]
+    return {"candidates": candidates}
+
+
+def _joins_report(merged: Any) -> dict[str, Any]:
+    report = merged.joins
+    if report is None:
+        # Not the same as "everything joined". A config with no `joins:` block has nothing to
+        # report against, and "0 unplaced" here would be the silence this tool exists to prevent.
+        return {
+            "declared": 0,
+            "note": "no joins declared — run with mode='propose' to see what the evidence supports",
+        }
+    return {
+        "declared": len(report.per_join),
+        "joined": report.joined,
+        "examined": report.examined,
+        "recall": report.recall,
+        "per_join": [{"join": k, "edges": v} for k, v in report.per_join],
+        "unjoined": [
+            {"repo": u.repo, "verb": u.verb, "path": u.path, "at": u.where, "reason": u.reason}
+            for u in report.unjoined
+        ],
+    }
 
 
 def localize(repo_path: str, trace: str) -> dict[str, Any]:
@@ -610,6 +787,11 @@ def _blast_markdown(matches: list[dict[str, Any]]) -> str:
             f"- **Called by ({m['caller_count']}):** " + ", ".join(c["id"] for c in m["callers"][:10])
         )
         lines.append(f"- **Touches ({m['touch_count']}):** " + ", ".join(t["id"] for t in m["touches"][:10]))
+        # Only on a merged graph. Rendered even at zero: "no dependents in other repos" is an
+        # answer, and its absence would read the same as never having looked.
+        if "cross_repo_count" in m:
+            reached = ", ".join(f"{c['repo']}·`{c['id']}`" for c in m["cross_repo"][:10]) or "none"
+            lines.append(f"- **Dependents in other repos ({m['cross_repo_count']}):** {reached}")
     return "\n".join(lines)
 
 
@@ -692,6 +874,8 @@ _TOOLS = (
     localize,
     regression_gaps,
     root_cause,
+    # multi-repo: one graph across several repositories (`.spine/repos.yaml`)
+    pkg_joins,
     sdlc_plan,
     sdlc_approve,
     docs_for,

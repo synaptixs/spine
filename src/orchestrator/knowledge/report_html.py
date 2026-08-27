@@ -372,7 +372,7 @@ def _footer(state: CurrentState) -> str:
         caveat += "Call graph not yet available for this language. "
     caveat += f"{state.generated} generated types flagged and excluded from hotspots."
     return (
-        "<footer><p>Deterministic snapshot rendered from the Program Knowledge Graph — no LLM, "
+        "<footer><p>Deterministic snapshot rendered from the Product Knowledge Graph — no LLM, "
         f"nothing fetched. {_e(caveat)}</p></footer>"
     )
 
