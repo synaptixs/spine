@@ -1,7 +1,7 @@
-# State of Spine — 3.22.0
+# State of Spine — 3.23.0
 
-**The one document to read.** Verified against source on **2026-08-25**, at the 3.22.0 release
-cut, and re-measured the same day when multi-repo comprehension landed on `develop`.
+**The one document to read.** Verified against source on **2026-08-27**, at the 3.23.0 release
+cut. Every number below was re-measured that day.
 
 > **Why this exists.** `docs/specs/` holds **76** markdown files — **73 specs** plus this
 > page, [`README`](README.md) and [`SPEC-INDEX`](SPEC-INDEX.md) — with 6 archived, 10 build
@@ -24,7 +24,7 @@ gates (before building, before merging). The product is **Spine**; it ships as
 
 | | Value | How it is known |
 |---|---|---|
-| Version | **3.22.0** | cutting now; 3.21.0 is the last on PyPI until this ships |
+| Version | **3.23.0** | cutting now; 3.22.0 is the last on PyPI until this ships |
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
 | CLI commands | **55** | `grep -c '\.command(' src/orchestrator/cli.py` |
 | Source modules | **324** | `find src/orchestrator -name '*.py'` |
