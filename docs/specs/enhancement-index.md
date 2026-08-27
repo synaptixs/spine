@@ -24,7 +24,7 @@ cadence; this one is a snapshot of a conversation.
 | # | Enhancement | State | Size | What gates it |
 |---|---|---|---|---|
 | **E1** | [Project constitution](#e1--project-constitution) | **Spec written, needs rewrite** — [`constitution-roadmap.md`](constitution-roadmap.md), branch `docs/constitution-spec` | Unknown until Phase 0 | A blocking trigger probe that may close it unbuilt |
-| **E2** | [Multi-repo comprehension](#e2--multi-repo-comprehension) | **Phases 1–3a complete** — [`multi-repo-roadmap.md`](multi-repo-roadmap.md), branch `feat/multi-repo-identity` | 3b + Phase 4 remain | Nothing. 3b can start |
+| **E2** | [Multi-repo comprehension](#e2--multi-repo-comprehension) | **Phases 1–3 complete** — [`multi-repo-roadmap.md`](multi-repo-roadmap.md), branch `feat/multi-repo-identity` | Phase 4 remains | Nothing. Phase 4 can start |
 | **E3** | [G6 — comprehension benchmark](#e3--g6--comprehension-benchmark) | **Spec exists, not started.** Branch `feat/g6-comprehension-metrics` cut, empty | ~3 days if descoped | **Four open decisions** — corpus scope, metric set, repo mix, gate tier |
 | **E4** | [Per-run caching: temperature + MCP](#e4--per-run-caching-temperature-refusal-and-mcp-sessions) | **Observed in the field.** No ticket | Small | Nothing |
 | **E5** | [Oracle coverage gaps](#e5--oracle-coverage-gaps) | **Named in `STATE-OF-SPINE` §3** | Medium | Nothing |
@@ -162,6 +162,15 @@ one by hand. Corpus: **precision 1.00, recall 0.67** — the missing third is a 
 f-string, which the extractor never collects as a call at all, labelled as a known gap rather
 than hidden. `--check` reports what went unplaced *and per declared join*, so a stale join reads
 `** placed nothing **` instead of disappearing into a healthy total.
+
+**Phase 3b completed the same day — the data and package joiners.** Both *repoint and rebuild*
+rather than adding edges, which turned out to be the design question rather than the matching:
+every edge into a collapsed node must be **dropped** (the node is going, so anything else
+dangles), and `CALLS` must move with `IMPORTS` or removing a placeholder silently destroys a
+real call edge. Each case carries a control — a table only one repo has, an import nobody
+declares — because a joiner that collapsed everything would pass the positive test and destroy
+them. Recall **1.00** on both, against 0.67 for HTTP, which is the expected shape: a table name
+is a string and an import is a declaration.
 
 Three things the spec did not predict, all found by building it: the side-channel **did not
 survive the cache** (a warm hit skips the extractor, so the joiner saw no candidates — fixed

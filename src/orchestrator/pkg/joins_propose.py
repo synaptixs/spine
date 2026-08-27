@@ -22,7 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from orchestrator.pkg.facts import NodeKind
+from orchestrator.pkg.facts import EdgeKind, NodeKind
 from orchestrator.pkg.join_link import _template_matches, _with_base
 from orchestrator.pkg.scoping import unscope_id
 
@@ -46,7 +46,12 @@ class Candidate:
 
     def as_yaml(self) -> str:
         """The block to paste into `.spine/repos.yaml`, with its evidence as comments."""
-        lines = [f"  # {self.edges} call(s) in `{self.consumer}` match endpoints in `{self.provider}`"]
+        noun = {
+            "http": "call(s) match endpoints in",
+            "data": "table name(s) shared with",
+            "package": "import(s) defined by",
+        }
+        lines = [f"  # {self.edges} {noun[self.kind]} `{self.provider}`, from `{self.consumer}`"]
         lines += [f"  #   {ex}" for ex in self.examples]
         lines += [
             f"  - kind: {self.kind}",
@@ -71,6 +76,95 @@ def propose(
     min_edges: int = 1,
 ) -> tuple[Candidate, ...]:
     """Candidate joins, strongest first. Never proposes a join that would create nothing."""
+    return tuple(
+        sorted(
+            [*_http(batch, unresolved, min_edges), *_data(batch, min_edges), *_package(batch, min_edges)],
+            key=lambda c: (-c.edges, c.kind, c.consumer, c.provider, c.base),
+        )
+    )
+
+
+def _data(batch: FactBatch, min_edges: int) -> list[Candidate]:
+    """Two repositories with a table of the same name.
+
+    Weaker evidence than an HTTP path overlap and it is labelled that way: `users` is a table
+    name two unrelated systems can both have, and only a human knows whether they are the same
+    physical table. The count is what makes the difference legible — one shared name is a
+    coincidence, six is a schema.
+    """
+    from orchestrator.pkg.scoping import unscope_id
+
+    tables: dict[str, dict[str, str]] = {}
+    for node in batch.nodes:
+        if node.kind is NodeKind.ENTITY:
+            owner, _ = unscope_id(node.id)
+            tables.setdefault(owner, {})[node.name.lower()] = node.id
+
+    out: list[Candidate] = []
+    for consumer in sorted(tables):
+        for provider in sorted(tables):
+            if consumer >= provider:
+                continue  # one direction only; the pair is symmetric, the declaration is not
+            shared = sorted(tables[consumer].keys() & tables[provider].keys())
+            if len(shared) >= min_edges:
+                out.append(
+                    Candidate(
+                        kind="data",
+                        consumer=consumer,
+                        provider=provider,
+                        base="",
+                        edges=len(shared),
+                        examples=tuple(f"shared table: {t}" for t in shared[:3]),
+                    )
+                )
+    return out
+
+
+def _package(batch: FactBatch, min_edges: int) -> list[Candidate]:
+    """A repository importing something another declared repository actually defines.
+
+    The strongest evidence of the three: an external placeholder whose name is exactly a
+    first-party symbol somewhere else in the system is not a coincidence.
+    """
+    from orchestrator.pkg.scoping import unscope_id
+
+    first_party: dict[str, str] = {}
+    for node in batch.nodes:
+        if not node.external:
+            owner, unscoped = unscope_id(node.id)
+            first_party[unscoped.partition(":")[2]] = owner
+
+    external = {n.id for n in batch.nodes if n.external}
+    hits: dict[tuple[str, str], list[str]] = {}
+    for edge in batch.edges:
+        if edge.kind is not EdgeKind.IMPORTS or edge.dst not in external:
+            continue
+        consumer, _ = unscope_id(edge.src)
+        name = edge.dst.partition(":")[2]
+        parts = name.split(".")
+        for i in range(len(parts), 0, -1):
+            found = first_party.get(".".join(parts[:i]))
+            if found and found != consumer:
+                hits.setdefault((consumer, found), []).append(name)
+                break
+
+    return [
+        Candidate(
+            kind="package",
+            consumer=consumer,
+            provider=provider,
+            base="",
+            edges=len(names),
+            examples=tuple(f"imports: {n}" for n in sorted(set(names))[:3]),
+        )
+        for (consumer, provider), names in sorted(hits.items())
+        if len(names) >= min_edges
+    ]
+
+
+def _http(
+    batch: FactBatch, unresolved: Mapping[str, Sequence[PendingCall]], min_edges: int
+) -> list[Candidate]:
     endpoints: dict[str, list[tuple[str, str]]] = {}
     for node in batch.nodes:
         if node.kind is NodeKind.ENDPOINT:
@@ -101,8 +195,7 @@ def propose(
                         examples=tuple(best[2][:3]),
                     )
                 )
-    # Strongest first, then a stable key — two runs on one commit must list them identically.
-    return tuple(sorted(out, key=lambda c: (-c.edges, c.consumer, c.provider, c.base)))
+    return out
 
 
 def _count(

@@ -38,7 +38,7 @@ from orchestrator.pkg.scoping import ScopeError, validate_repo_key
 #: Join kinds this release understands. A kind absent here is refused at load rather than
 #: ignored, because a silently dropped join produces missing edges — which look like two
 #: services that are not coupled, and read as health.
-JOIN_KINDS = frozenset({"http"})
+JOIN_KINDS = frozenset({"http", "data", "package"})
 
 #: Relative to the directory the command runs in — the same `.spine/` a repo already carries.
 DEFAULT_CONFIG = Path(".spine") / "repos.yaml"
@@ -94,7 +94,10 @@ def joins_from_list(raw: Any, *, where: Path | str = "<inline>") -> tuple[Join, 
                 raise RepoConfigError(f"{where}: joins[{i}] {role} — {exc}") from exc
         if consumer == provider:
             raise RepoConfigError(f"{where}: joins[{i}] joins {consumer!r} to itself")
-        out.append(Join(kind, consumer, provider, str(entry.get("base", "")).rstrip("/")))
+        base = str(entry.get("base", "")).rstrip("/")
+        if base and kind != "http":
+            raise RepoConfigError(f"{where}: joins[{i}] — 'base' means a URL prefix and applies to http only")
+        out.append(Join(kind, consumer, provider, base))
     return tuple(sorted(out, key=lambda j: (j.kind, j.consumer, j.provider, j.base)))
 
 

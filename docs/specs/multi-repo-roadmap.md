@@ -1,8 +1,9 @@
 # Multi-repo comprehension — one graph across several repositories
 
-**Status:** **Phases 1–3a complete 2026-08-25.** Identity decided and pinned; repositories
-merge into one scoped graph, cached per repo; and **the HTTP joiner ships**, so a merged graph
-now carries edges that cross a repository. 3b (data + package joiners) and Phase 4 not started.
+**Status:** **Phases 1–3 complete 2026-08-25.** Identity decided and pinned; repositories merge
+into one scoped graph, cached per repo; and **all three joiners ship** — HTTP, data and package
+— so a merged graph carries edges that cross a repository in all three shapes. Phase 4 (the
+surfaces) not started.
 **Written:** 2026-08-25 against 3.22.0. **Owner:** _unassigned_.
 **Scope:** comprehension only. **Multi-repo *delivery* is an explicit non-goal** — see below.
 **Index entry:** E2 in [`enhancement-index.md`](enhancement-index.md).
@@ -14,7 +15,7 @@ now carries edges that cross a repository. 3b (data + package joiners) and Phase
 | **1** | Identity — repo scope, the parse contract pinned | ✅ **Complete** | 2026-08-25 | 2026-08-25 |
 | **2** | The merged graph — declared repos, per-repo caches | ✅ **Complete** | 2026-08-25 | 2026-08-25 |
 | **3a** | The HTTP joiner — declared topology, proposal, `--check` | ✅ **Complete** | 2026-08-25 | 2026-08-25 |
-| **3b** | The data and package joiners | ⬜ Not started | — | — |
+| **3b** | The data and package joiners | ✅ **Complete** | 2026-08-25 | 2026-08-25 |
 | **4** | The surfaces — investigate, blast radius, state | ⬜ Not started | — | — |
 | — | Multi-repo **delivery** | ❌ **Explicit non-goal** | — | — |
 
@@ -226,7 +227,7 @@ joiners, so a merged graph is two islands and no radius can cross. Moved to Phas
 
 Gate: `mypy src tests` clean · `ruff` clean · **3,062 tests passing** · `pkg accuracy --check` OK.
 
-## Phase 3 — the joiners *(3a complete · 3b not started)*
+## Phase 3 — the joiners *(complete)*
 
 Deterministic post-passes, in the shape of `import_link.py`.
 
@@ -378,13 +379,49 @@ edge** — just a different graph. A digest is the only check that notices, and 
 reason nobody can argue with. It has now run at Phases 1, 2 and 3a and been identical every
 time.
 
-### 3b — the remaining joiners *(not started)*
+### 3b — data and package *(complete)*
 
-**Data** (shared table names in `READS`/`WRITES`) and **package** (a manifest dependency between
-two declared repos). Both reuse everything above: config shape, proposal, `--check`, scoring,
-and the corpus-case discipline. Neither carries HTTP's matching risk — a table name is a string
-and a manifest dependency is a declaration — so the honest expectation is precision 1.00 and
-markedly better recall.
+Both **repoint and rebuild** rather than adding edges, which HTTP does not — and that turned out
+to be the design question, not the matching.
+
+**Data.** Two repositories writing `invoices` produce two `Entity` nodes for one physical table,
+so *"who writes this table"* answers per repository and silently under-reports: a schema change
+looks safe because half its writers are in a graph nobody merged. The declaration names the
+schema owner and the consumer's node is **collapsed onto it** — the same move `data_layer_link`
+makes when an ORM entity and a real SQL table describe the same thing.
+
+**Package.** A repository importing a library that is another declared repository. `import_link`
+already repoints an external placeholder at what it denotes *within* a repo; across a boundary
+the placeholder denotes a symbol in another declared one, and the same two rules apply — exact
+id first, then longest dotted prefix naming a provider module.
+
+**Two things that had to be got right, and both are the same shape.**
+
+1. **Every edge into a collapsed node is dropped, not kept.** Forced rather than chosen: the
+   node is going away, so a surviving edge would dangle. It is also true on its own terms —
+   once `reporting`'s `invoices` collapses onto `billing`'s, `reporting`'s module does not
+   contain an `invoices` entity, and repointing that `CONTAINS` would assert that billing's
+   module contains a node declared in another repository.
+2. **`CALLS` moves with `IMPORTS`, or the join destroys knowledge.** The placeholder carries
+   both — `from shared.money import to_cents` makes the import, `to_cents()` makes the call.
+   Moving only the import would drop a real call edge on the floor when the placeholder is
+   removed, turning a join that adds knowledge into one that quietly loses it.
+
+**Each has a control in its corpus case, and the controls are the point.** `ledger` is a table
+`reporting` owns and `billing` has never heard of; `json` is an external import nobody declares.
+A joiner that collapsed *every* entity, or repointed *every* external import, would pass the
+positive test and destroy the control.
+
+| Case | Result | Failed first at |
+|---|---|---|
+| `multirepo/data_join` | Entity **1.00/1.00**, READS **1.00/1.00**, WRITES **1.00/1.00** | Entity P 0.67, READS 0.67/0.67 |
+| `multirepo/package_join` | IMPORTS **1.00/1.00**, CALLS **1.00/1.00** | IMPORTS 0.50/0.50, CALLS 0.50/0.50 |
+
+Recall is 1.00 on both, against 0.67 for HTTP — as expected: a table name is a string and an
+import is a declaration, neither of which needs the path-template judgement HTTP does.
+
+Gate: `mypy src tests` clean · `ruff` clean · **3,088 tests passing** · `pkg accuracy --check`
+OK · digest identical against `develop` on leveldb, gin, zod, Newtonsoft.Json and `spine/src`.
 
 ## Phase 4 — the surfaces *(not started)*
 
