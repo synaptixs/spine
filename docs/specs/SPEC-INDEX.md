@@ -93,6 +93,7 @@ Graphify-gap series only. This file is the complete inventory.
 | [pkg-code-grounded-understanding](pkg-code-grounded-understanding.md) | Proposed, for review | |
 | [language-support-roadmap](language-support-roadmap.md) | Design/blueprint, not started | Three new front-ends |
 | [language-expansion-roadmap](language-expansion-roadmap.md) | Prioritization only | Go ✅ · Rust · Kotlin · Ruby |
+| [multi-repo-roadmap](multi-repo-roadmap.md) | One graph across several repositories — comprehension only. **Spec only; Phase 1 is a blocking identity decision.** Multi-repo *delivery* is an explicit non-goal |
 | [tri-repo-integration](tri-repo-integration.md) | Design only | Spans ontomesh + infodrift |
 | [ontomesh-integration-analysis](ontomesh-integration-analysis.md) | Analysis for decision | Nothing built |
 | **watch-items** | ⚠️ **Spec missing** | `watch-items-roadmap.md` does not exist in `docs/specs/` or `archive/`; the index linked it as a live track | **✔** |
@@ -118,8 +119,12 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | [capability-matrix](capability-matrix.md) | **The** capability matrix — 47 scored rows, 22 of them rows no competitor's public docs fill. Counts checked by `scripts/matrix-count.py --check` (2026-08-21) |
 | [codegen-model-comparison-results](codegen-model-comparison-results.md) · [external-repo-grounding-results](external-repo-grounding-results.md) | The two measurements behind the matrix's ⁴ rows — 200 and 60 ticket-runs (2026-08-16) |
 | [parsing-and-the-pkg](parsing-and-the-pkg.md) | How source becomes graph facts, front-end by front-end (2026-08-16) |
+| [ticket-to-landing-sites](ticket-to-landing-sites.md) | How a ticket's words become `file:line` landing sites — tokenising, scoring, and what the result is bound to (2026-08-25) |
 | [competitive-landscape](competitive-landscape.md) | Competitive **narrative and strategy** (2026-08-21). Its duplicate scored matrix was removed — see `capability-matrix.md` |
 | [graphify-vs-spine-comparison](graphify-vs-spine-comparison.md) | One competitor in depth — **at v3.7.0, stale** |
+| [spec-kit-integration-analysis](spec-kit-integration-analysis.md) | GitHub's spec-kit — **evaluated and declined 2026-08-25**. LLM-driven end to end, no validator, never reads the target codebase. Carries a revisit condition |
+| [enhancement-index](enhancement-index.md) | Directory of the enhancements planned in the 2026-08-25 session — E1–E6, with state and what gates each. **Not a third backlog**; `STATE-OF-SPINE` §8 remains the authority |
+| [constitution-roadmap](constitution-roadmap.md) | Durable project rules a run is *checked* against, not prompted with. **Spec only — Phase 0 is a blocking trigger probe** that may close it unbuilt |
 | [cli-test-plan](cli-test-plan.md) | 50 commands, written against 3.16.0 |
 | [pkg-accuracy-test-plan](pkg-accuracy-test-plan.md) · [comprehension-test-plan](comprehension-test-plan.md) | Manual test plans |
 | [pkg-accuracy-gaps](pkg-accuracy-gaps.md) | Review of the accuracy programme |
