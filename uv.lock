@@ -3734,7 +3734,7 @@ wheels = [
 
 [[package]]
 name = "synaptixs-spine"
-version = "3.21.0"
+version = "3.24.0"
 source = { editable = "." }
 dependencies = [
     { name = "aioboto3" },
@@ -3761,6 +3761,22 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+all = [
+    { name = "mcp" },
+    { name = "openpyxl" },
+    { name = "pypdf" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "python-docx" },
+    { name = "sqlglot" },
+    { name = "tree-sitter" },
+    { name = "tree-sitter-c" },
+    { name = "tree-sitter-c-sharp" },
+    { name = "tree-sitter-cpp" },
+    { name = "tree-sitter-go" },
+    { name = "tree-sitter-java" },
+    { name = "tree-sitter-typescript" },
+]
 asr = [
     { name = "openai-whisper" },
 ]
@@ -3801,6 +3817,16 @@ go = [
 java = [
     { name = "tree-sitter" },
     { name = "tree-sitter-java" },
+]
+languages = [
+    { name = "sqlglot" },
+    { name = "tree-sitter" },
+    { name = "tree-sitter-c" },
+    { name = "tree-sitter-c-sharp" },
+    { name = "tree-sitter-cpp" },
+    { name = "tree-sitter-go" },
+    { name = "tree-sitter-java" },
+    { name = "tree-sitter-typescript" },
 ]
 mcp = [
     { name = "mcp" },
@@ -3884,6 +3910,8 @@ requires-dist = [
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0" },
     { name = "sqlglot", marker = "extra == 'dev'", specifier = ">=25" },
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=25" },
+    { name = "synaptixs-spine", extras = ["c", "cpp", "csharp", "go", "java", "sql", "typescript"], marker = "extra == 'languages'" },
+    { name = "synaptixs-spine", extras = ["languages", "mcp", "docs", "office", "sdlc"], marker = "extra == 'all'" },
     { name = "temporalio", specifier = ">=1.7" },
     { name = "testcontainers", marker = "extra == 'sql-postgres'", specifier = ">=4" },
     { name = "textual", marker = "extra == 'tui'", specifier = ">=0.50" },
@@ -3904,7 +3932,7 @@ requires-dist = [
     { name = "types-pyyaml", specifier = ">=6.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
-provides-extras = ["security", "java", "typescript", "csharp", "c", "cpp", "go", "sql", "sql-postgres", "docs", "office", "mcp", "media", "asr", "sdlc", "tui", "otel", "dev"]
+provides-extras = ["security", "java", "typescript", "csharp", "c", "cpp", "go", "sql", "sql-postgres", "docs", "office", "mcp", "media", "asr", "sdlc", "tui", "otel", "dev", "languages", "all"]
 
 [[package]]
 name = "temporalio"
