@@ -2413,6 +2413,10 @@ def investigate(
     dialect: Annotated[
         str | None, typer.Option("--dialect", help="SQL dialect; default: auto-detect.")
     ] = None,
+    repos: Annotated[
+        str | None,
+        typer.Option("--repos", help="A `.spine/repos.yaml` — research across every declared repo."),
+    ] = None,
 ) -> None:
     """Investigation brief: a ticket × the codebase, before you design.
 
@@ -2430,10 +2434,35 @@ def investigate(
         typer.echo("ERROR: provide --source or --title (the ticket to investigate).", err=True)
         raise typer.Exit(code=2)
 
-    with _repo_arg(path) as (repo, _):
-        extractor = RepoCodeExtractor(sql_dialect=dialect)
-        batch = extractor.extract(repo) if refresh else load_or_extract(repo, extractor=extractor)
-        inv = build_investigation(ticket_title, problem, store=FactStore(batch), root=repo)
+    if repos:
+        # A merged graph with its joins applied: landing sites then carry their repository,
+        # blast radius crosses a boundary, and a ticket landing in two services says so.
+        from orchestrator.pkg.persistence import load_or_extract_repos
+        from orchestrator.pkg.repos import RepoConfigError, load_repo_config
+
+        try:
+            repo_set = load_repo_config(repos)
+        except RepoConfigError as exc:
+            typer.echo(f"investigate: {exc}")
+            raise typer.Exit(code=1) from exc
+        merged = load_or_extract_repos(repo_set, extractor=RepoCodeExtractor(sql_dialect=dialect))
+        if not merged.trusted:
+            # The brief is still useful, but it cannot be reproduced at a commit — and nothing
+            # in the markdown would tell a reader that later.
+            typer.echo(
+                f"investigate: NOT REPRODUCIBLE — {', '.join(merged.untrusted_keys)} "
+                "has uncommitted work or is not a git repo.",
+                err=True,
+            )
+        # `root=None`: `episteme/` belongs to one repository, and a merged brief has no single
+        # owner for it. The section is omitted rather than filled from an arbitrary repo — the
+        # brief is written to be honest when a section has nothing grounded.
+        inv = build_investigation(ticket_title, problem, store=FactStore(merged.batch), root=None)
+    else:
+        with _repo_arg(path) as (repo, _):
+            extractor = RepoCodeExtractor(sql_dialect=dialect)
+            batch = extractor.extract(repo) if refresh else load_or_extract(repo, extractor=extractor)
+            inv = build_investigation(ticket_title, problem, store=FactStore(batch), root=repo)
 
     md = render_investigation_md(inv)
     if out is not None:

@@ -1,9 +1,9 @@
 # Multi-repo comprehension — one graph across several repositories
 
-**Status:** **Phases 1–3 complete 2026-08-25.** Identity decided and pinned; repositories merge
-into one scoped graph, cached per repo; and **all three joiners ship** — HTTP, data and package
-— so a merged graph carries edges that cross a repository in all three shapes. Phase 4 (the
-surfaces) not started.
+**Status:** **Complete 2026-08-25 — all four phases.** Repositories merge into one scoped
+graph, three joiners cross the boundary, and the comprehension surfaces read them: a ticket
+landing in one repository now reports the dependents it has in another. Multi-repo *delivery*
+remains an explicit non-goal.
 **Written:** 2026-08-25 against 3.22.0. **Owner:** _unassigned_.
 **Scope:** comprehension only. **Multi-repo *delivery* is an explicit non-goal** — see below.
 **Index entry:** E2 in [`enhancement-index.md`](enhancement-index.md).
@@ -16,7 +16,7 @@ surfaces) not started.
 | **2** | The merged graph — declared repos, per-repo caches | ✅ **Complete** | 2026-08-25 | 2026-08-25 |
 | **3a** | The HTTP joiner — declared topology, proposal, `--check` | ✅ **Complete** | 2026-08-25 | 2026-08-25 |
 | **3b** | The data and package joiners | ✅ **Complete** | 2026-08-25 | 2026-08-25 |
-| **4** | The surfaces — investigate, blast radius, state | ⬜ Not started | — | — |
+| **4** | The surfaces — investigate reads the joins | ✅ **Complete** | 2026-08-25 | 2026-08-25 |
 | — | Multi-repo **delivery** | ❌ **Explicit non-goal** | — | — |
 
 **Where that leaves it.** A merged graph answers *"what breaks in the other repo"* in all three
@@ -33,10 +33,16 @@ anyone to write it.
 **Precision is 1.00 by construction, not by luck** — nothing can join to a repository nobody
 declared. So recall is the number worth watching, and `--check` yields it for free.
 
-**What is still missing is the last mile.** These edges exist in the graph and in
-`pkg joins --check`. **No comprehension surface reads them yet** — `investigate` does not rank
-across repositories and blast radius does not traverse a join. That is Phase 4, and until it
-lands the value is reachable from an API and not from the product.
+**The last mile landed in Phase 4.** `investigate --repos` researches a ticket against the
+merged graph, and each landing site reports the repository it is in and **how many dependents it
+has elsewhere**:
+
+```
+- **billing** · `create_order` (Function, 0 caller(s), **1 dependent(s) in other repos**) — billing:app/routes.py:7
+```
+
+That row is the whole programme in one line. `0 caller(s)` is true — nothing in the source calls
+an HTTP handler — and on its own it is the most dangerous answer the graph can give.
 
 **Why 3 was split.** The three joiners are not equal risk. HTTP carries all of it — path
 templating, prefixes, the resolution judgement — and needs every piece of machinery: retained
@@ -440,13 +446,62 @@ import is a declaration, neither of which needs the path-template judgement HTTP
 Gate: `mypy src tests` clean · `ruff` clean · **3,088 tests passing** · `pkg accuracy --check`
 OK · digest identical against `develop` on leveldb, gin, zod, Newtonsoft.Json and `spine/src`.
 
-## Phase 4 — the surfaces *(not started)*
+## Phase 4 — the surfaces *(complete)*
 
-`investigate` ranks across the merged graph; blast radius crosses boundaries; `state` and
-`understand` render repo as a dimension. Bound honestly — a merged overview must say *"top N of
-M across R repos"*, never imply completeness.
+### Most of the traversal was already there
 
-**Exit:** a ticket landing in repo A shows the repo-B caller that will break.
+`FactStore.impact_of` follows `CALLS`, then `EXPOSES`, then `CONSUMES` — written for the
+single-repo case where a repo ships both a client and the service it calls. Given a merged graph
+it crosses a repository with no change at all:
+
+```
+impact_of(py:billing@app.routes.create_order)
+   1 hop:  py:billing@endpoint:POST /v1/orders
+   2 hops: py:web@app.client.place_order
+```
+
+**So Phase 4 was never about traversal. It was about whether anyone is told.** The graph knew;
+no surface said so.
+
+### What the brief now carries
+
+| | Why it is not decoration |
+|---|---|
+| `Landing.repo` | Module **names** are not scoped — only ids are — so two services with `app.models` produce two landings both reading `app.models`, and `where` does not disambiguate either: both say `app/models.py:14` |
+| `Landing.cross_repo` | `callers` counts inbound `CALLS` and nothing else. Right for a function, **catastrophic for an HTTP handler**: nothing in the source calls one, so it reports *0 callers* while another service depends on it entirely |
+| Repo-qualified `areas` | Unqualified, two services' `app.models` collapse into one area and the brief claims the change is narrower than it is |
+| `Investigation.elided` | *"Top N of M"*, never a clipped list implying completeness (invariant 7). One extra symbol is retrieved so *"these are all of them"* and *"this is the top N"* are distinguishable |
+
+`cross_repo` is reported **beside** the caller count, not folded into it: they are different
+facts, and a handler with 0 callers and 3 dependents in another service is the row a reader must
+not skim past.
+
+### `episteme/` is omitted rather than guessed
+
+A merged brief passes `root=None`. `episteme/` belongs to one repository and a merged graph has
+no single owner for it; filling the section from an arbitrary repo would present one service's
+domain model as the system's. The brief is built to be silent where it has nothing grounded, so
+it is silent here.
+
+### Exit — met
+
+| Criterion | Evidence |
+|---|---|
+| *"A ticket landing in repo A shows the repo-B caller that will break"* | `test_a_handler_reports_its_dependent_in_another_repo` — `create_order`, **0 callers, 1 cross-repo dependent** |
+| Attributable to the join and nothing else | The counterfactual: same fixture, no join declared → `cross_repo == 0` |
+| Bounded honestly | `elided` renders *"N further match(es) not listed"*, and does not when the list is complete |
+| Single-repo unchanged | No repo, no cross-repo count, neither line rendered — and the digest identical against `develop` on leveldb, gin, zod and `spine/src` |
+
+Gate: `mypy src tests` clean · `ruff` clean · **3,095 tests passing** · `pkg accuracy --check` OK.
+
+### Not done, and named rather than implied
+
+- **`state` and `understand` do not render repo as a dimension.** A merged bank has no owner —
+  the same problem as `episteme/` above — and it wants its own decision rather than a default.
+- **`pkg joins --render`** was proposed in Phase 3 and never built (open question 4).
+- **Only `investigate` reads the joins.** `design`, `criteria_binding` and the SDLC pipeline
+  still run against one repository, which is consistent with delivery being a non-goal but is
+  worth stating rather than leaving to be discovered.
 
 ## Explicit non-goal: multi-repo delivery
 
@@ -533,6 +588,11 @@ verification-shaped, and fiction.
 ## What would make this obviously worth building
 
 **Someone asks "what breaks if I change this?" and the answer names a caller in a different
-repository, correctly, with a `file:line` they can open.** Until that has happened once against
-a real pair of repos, this is a design with a good argument and no evidence — the same standing
-the constitution spec has, and recorded the same way.
+repository, correctly, with a `file:line` they can open.**
+
+**That now happens** — on the corpus fixtures and on a two-repo scratch system, and it is a test
+rather than an anecdote. What has *not* happened is the same thing on a real pair of production
+repositories, where the paths are templated, the prefixes are rewritten by a gateway and the
+declaration is written by someone who did not build this. Recall is 0.67 on HTTP against a
+fixture designed to be joinable; the number that matters is the one from a system nobody tuned
+it against, and it has not been taken.

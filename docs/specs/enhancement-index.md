@@ -24,7 +24,7 @@ cadence; this one is a snapshot of a conversation.
 | # | Enhancement | State | Size | What gates it |
 |---|---|---|---|---|
 | **E1** | [Project constitution](#e1--project-constitution) | **Spec written, needs rewrite** — [`constitution-roadmap.md`](constitution-roadmap.md), branch `docs/constitution-spec` | Unknown until Phase 0 | A blocking trigger probe that may close it unbuilt |
-| **E2** | [Multi-repo comprehension](#e2--multi-repo-comprehension) | **Phases 1–3 complete** — [`multi-repo-roadmap.md`](multi-repo-roadmap.md), branch `feat/multi-repo-identity` | Phase 4 remains | Nothing. Phase 4 can start |
+| **E2** | [Multi-repo comprehension](#e2--multi-repo-comprehension) | ✅ **Complete — all four phases** — [`multi-repo-roadmap.md`](multi-repo-roadmap.md), branch `feat/multi-repo-identity` | — | Unmeasured on real repos; delivery still a non-goal |
 | **E3** | [G6 — comprehension benchmark](#e3--g6--comprehension-benchmark) | **Spec exists, not started.** Branch `feat/g6-comprehension-metrics` cut, empty | ~3 days if descoped | **Four open decisions** — corpus scope, metric set, repo mix, gate tier |
 | **E4** | [Per-run caching: temperature + MCP](#e4--per-run-caching-temperature-refusal-and-mcp-sessions) | **Observed in the field.** No ticket | Small | Nothing |
 | **E5** | [Oracle coverage gaps](#e5--oracle-coverage-gaps) | **Named in `STATE-OF-SPINE` §3** | Medium | Nothing |
