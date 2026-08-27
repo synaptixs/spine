@@ -24,7 +24,7 @@ cadence; this one is a snapshot of a conversation.
 | # | Enhancement | State | Size | What gates it |
 |---|---|---|---|---|
 | **E1** | [Project constitution](#e1--project-constitution) | **Spec written, needs rewrite** — [`constitution-roadmap.md`](constitution-roadmap.md), branch `docs/constitution-spec` | Unknown until Phase 0 | A blocking trigger probe that may close it unbuilt |
-| **E2** | [Multi-repo comprehension](#e2--multi-repo-comprehension) | **Phases 1–2 complete** — [`multi-repo-roadmap.md`](multi-repo-roadmap.md), branch `feat/multi-repo-identity` | Phases 3–4 remain | Nothing. Phase 3 can start |
+| **E2** | [Multi-repo comprehension](#e2--multi-repo-comprehension) | **Phases 1–3a complete** — [`multi-repo-roadmap.md`](multi-repo-roadmap.md), branch `feat/multi-repo-identity` | 3b + Phase 4 remain | Nothing. 3b can start |
 | **E3** | [G6 — comprehension benchmark](#e3--g6--comprehension-benchmark) | **Spec exists, not started.** Branch `feat/g6-comprehension-metrics` cut, empty | ~3 days if descoped | **Four open decisions** — corpus scope, metric set, repo mix, gate tier |
 | **E4** | [Per-run caching: temperature + MCP](#e4--per-run-caching-temperature-refusal-and-mcp-sessions) | **Observed in the field.** No ticket | Small | Nothing |
 | **E5** | [Oracle coverage gaps](#e5--oracle-coverage-gaps) | **Named in `STATE-OF-SPINE` §3** | Medium | Nothing |
@@ -154,6 +154,20 @@ makes the whole graph unreproducible. `pkg extract --repos` says so in as many w
 Phase 2's original exit criterion had to be corrected: it asked for blast radius crossing a
 repository boundary, which cannot happen before the Phase 3 joiners create any cross-repo edges.
 Moved to Phase 3.
+
+**Phase 3a completed the same day — the HTTP joiner, so a merged graph now carries edges that
+cross a repository.** Topology is declared in `.spine/repos.yaml` and *proposed* from evidence
+by `pkg joins --propose`, because the join set is itself a small graph and nobody should author
+one by hand. Corpus: **precision 1.00, recall 0.67** — the missing third is a path built from an
+f-string, which the extractor never collects as a call at all, labelled as a known gap rather
+than hidden. `--check` reports what went unplaced *and per declared join*, so a stale join reads
+`** placed nothing **` instead of disappearing into a healthy total.
+
+Three things the spec did not predict, all found by building it: the side-channel **did not
+survive the cache** (a warm hit skips the extractor, so the joiner saw no candidates — fixed
+with a sidecar, deliberately not a key in the fact cache); the corpus format assumed **one
+fixture per case**; and `language` was doing **two jobs** — naming what a case measures and
+which front-end must be installed, which only differ for a cross-repo case.
 
 Phase 1 also re-measured the blast radius and the first draft was wrong: **six provenance parse
 sites, not three, and fourteen id sites, not two.** The two missed were `evidence.py:73` and

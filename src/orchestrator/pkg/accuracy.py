@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any
 
 from orchestrator.pkg.extractor import RepoCodeExtractor, default_extractors
-from orchestrator.pkg.facts import EdgeKind, NodeKind
+from orchestrator.pkg.facts import EdgeKind, FactBatch, NodeKind
 from orchestrator.pkg.verify import ParityCount, source_parity_counts
 
 CASE_FILE = "expected.json"
@@ -168,12 +168,27 @@ def _load_case(case_dir: Path) -> tuple[dict[str, Any], Path]:
     if not isinstance(spec, dict):
         raise CorpusError(f"{path}: expected a JSON object")
 
-    for field in ("language", "case", "root", "nodes", "edges"):
+    for field in ("language", "case", "nodes", "edges"):
         _require(spec, field, path)
+    if "root" not in spec and "roots" not in spec:
+        raise CorpusError(f"{path}: expected 'root' (one fixture) or 'roots' (a multi-repo case)")
 
-    root = (case_dir / str(spec["root"])).resolve()
-    if not root.is_dir():
-        raise CorpusError(f"{path}: root {spec['root']!r} is not a directory")
+    # A cross-repo case names several fixtures, keyed the way `.spine/repos.yaml` keys them —
+    # so the ids a label must use are the scoped ids the product actually emits, not a
+    # corpus-only spelling that could agree with nothing.
+    if "roots" in spec:
+        roots = spec["roots"]
+        if not isinstance(roots, dict) or not roots:
+            raise CorpusError(f"{path}: 'roots' must be a non-empty mapping of repo key to path")
+        for key, rel in roots.items():
+            resolved = (case_dir / str(rel)).resolve()
+            if not resolved.is_dir():
+                raise CorpusError(f"{path}: root {rel!r} for repo {key!r} is not a directory")
+        root = case_dir
+    else:
+        root = (case_dir / str(spec["root"])).resolve()
+        if not root.is_dir():
+            raise CorpusError(f"{path}: root {spec['root']!r} is not a directory")
 
     expected_edges = {_edge_key(e, path) for e in spec["edges"]}
 
@@ -214,10 +229,36 @@ def _describe(items: set[tuple[str, ...]]) -> tuple[str, ...]:
     return tuple(out)
 
 
+def _case_batch(spec: dict[str, Any], case_dir: Path, root: Path, sql_dialect: str | None) -> FactBatch:
+    """One fixture, or several merged and joined the way the product would merge them.
+
+    A cross-repo case must be scored through the *real* multi-repo path — scoping, merging and
+    the declared joins — or it would measure a corpus-only assembly that nothing ships. The
+    joins come from the case's own `joins:` block, which is the same shape a repo declares in
+    `.spine/repos.yaml`.
+    """
+    if "roots" not in spec:
+        return RepoCodeExtractor(sql_dialect=sql_dialect).extract(root)
+
+    from orchestrator.pkg.join_link import link_joins
+    from orchestrator.pkg.repos import joins_from_list
+    from orchestrator.pkg.scoping import merge_repos
+
+    batches: dict[str, FactBatch] = {}
+    unresolved: dict[str, list[Any]] = {}
+    for key, rel in sorted(spec["roots"].items()):
+        extractor = RepoCodeExtractor(sql_dialect=sql_dialect)
+        batches[key] = extractor.extract((case_dir / str(rel)).resolve())
+        unresolved[key] = list(extractor.unresolved_calls)
+    merged = merge_repos(batches)
+    joins = joins_from_list(spec.get("joins", []), where=case_dir / CASE_FILE)
+    return link_joins(merged, joins, unresolved)[0]
+
+
 def score_case(case_dir: Path, *, sql_dialect: str | None = None) -> CaseReport:
     """Score one corpus case against a fresh extraction of its fixture."""
     spec, root = _load_case(case_dir)
-    batch = RepoCodeExtractor(sql_dialect=sql_dialect).extract(root)
+    batch = _case_batch(spec, case_dir, root, sql_dialect)
     path = case_dir / CASE_FILE
 
     # Nodes: external ones are placeholders for things outside the tree, not claims.
@@ -290,8 +331,14 @@ def score_corpus(
         case_language = str(spec["language"])
         if language is not None and case_language != language:
             continue
-        if case_language not in available:
-            skipped.append(f"{case_language}/{spec['case']}")
+        # `language` names what a case *measures*; `requires` names the front-ends it needs
+        # installed. They are the same for every single-language case and differ for a
+        # cross-repo one, whose fixtures may be Python while what it measures is the join.
+        # Conflating them either skipped the case forever or filed its scores under a language
+        # whose front-end it is not testing.
+        needs = {str(x) for x in spec.get("requires", [case_language])}
+        if missing := sorted(needs - available):
+            skipped.append(f"{case_language}/{spec['case']} (needs {', '.join(missing)})")
             continue
         reports.append(score_case(case_dir, sql_dialect=sql_dialect))
     return AccuracyReport(tuple(reports), tuple(skipped))

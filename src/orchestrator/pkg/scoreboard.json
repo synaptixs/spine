@@ -193,6 +193,52 @@
             }
           }
         },
+        "multirepo": {
+          "edges": {
+            "CALLS": {
+              "emitted": 4,
+              "expected": 4,
+              "matched": 4
+            },
+            "CONSUMES": {
+              "emitted": 2,
+              "expected": 3,
+              "matched": 2
+            },
+            "CONTAINS": {
+              "emitted": 6,
+              "expected": 6,
+              "matched": 6
+            },
+            "EXPOSES": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "IMPORTS": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            }
+          },
+          "nodes": {
+            "Endpoint": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "Function": {
+              "emitted": 6,
+              "expected": 6,
+              "matched": 6
+            },
+            "Module": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            }
+          }
+        },
         "python": {
           "edges": {
             "CALLS": {
@@ -353,12 +399,12 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 16039,
+          "total_calls": 16344,
           "unexamined": 0
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 16039
+      "total_calls": 16344
     },
     "parity": {
       "declared": 75,

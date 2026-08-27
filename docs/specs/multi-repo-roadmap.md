@@ -1,8 +1,8 @@
 # Multi-repo comprehension — one graph across several repositories
 
-**Status:** **Phases 1–2 complete 2026-08-25.** Identity decided and pinned; several
-repositories now extract and merge into one scoped graph, cached per repo. Phases 3–4 not
-started — there are still no cross-repo *edges*, so a merged graph is two islands.
+**Status:** **Phases 1–3a complete 2026-08-25.** Identity decided and pinned; repositories
+merge into one scoped graph, cached per repo; and **the HTTP joiner ships**, so a merged graph
+now carries edges that cross a repository. 3b (data + package joiners) and Phase 4 not started.
 **Written:** 2026-08-25 against 3.22.0. **Owner:** _unassigned_.
 **Scope:** comprehension only. **Multi-repo *delivery* is an explicit non-goal** — see below.
 **Index entry:** E2 in [`enhancement-index.md`](enhancement-index.md).
@@ -13,15 +13,23 @@ started — there are still no cross-repo *edges*, so a merged graph is two isla
 |---|---|---|---|---|
 | **1** | Identity — repo scope, the parse contract pinned | ✅ **Complete** | 2026-08-25 | 2026-08-25 |
 | **2** | The merged graph — declared repos, per-repo caches | ✅ **Complete** | 2026-08-25 | 2026-08-25 |
-| **3** | The three joiners — the first cross-repo *edges* | ⬜ Not started | — | — |
+| **3a** | The HTTP joiner — declared topology, proposal, `--check` | ✅ **Complete** | 2026-08-25 | 2026-08-25 |
+| **3b** | The data and package joiners | ⬜ Not started | — | — |
 | **4** | The surfaces — investigate, blast radius, state | ⬜ Not started | — | — |
 | — | Multi-repo **delivery** | ❌ **Explicit non-goal** | — | — |
 
-**Where that leaves it.** Several repositories now extract and merge into one graph with no
-collisions, cached per repo. **There are still no cross-repo edges**, so a merged graph is
-*n* islands: useful for seeing everything at once, not yet able to answer *"what breaks in the
-other repo."* That is Phase 3, and it is the phase carrying the real risk — the joins are
-resolution, not structure.
+**Where that leaves it.** A merged graph now answers *"what breaks in the other repo"* for HTTP
+— `pkg joins --check` reports what it placed and what it could not, and `--propose` derives the
+topology from evidence rather than asking anyone to write it. Measured on the corpus case:
+**precision 1.00, recall 0.67**, the missing third being a path built from an f-string, which
+the extractor never collects as a call at all.
+
+**Why 3 was split.** The three joiners are not equal risk. HTTP carries all of it — path
+templating, prefixes, the resolution judgement — and needs every piece of machinery: retained
+unmatched calls, proposal, `--check`, scoring, a corpus case. Data and package joins reuse all
+of that with far easier matching. Shipping HTTP alone proves the design end to end, including
+whether declared topology really does collapse the resolution risk. It does: **precision is
+1.00 because nothing can join to an undeclared repository.**
 
 > **This is not [`tri-repo-integration.md`](tri-repo-integration.md).** That design spans three
 > *products* — ontomesh, agent-orchestrator, infodrift — joined by a shared ontology key. This is
@@ -218,7 +226,7 @@ joiners, so a merged graph is two islands and no radius can cross. Moved to Phas
 
 Gate: `mypy src tests` clean · `ruff` clean · **3,062 tests passing** · `pkg accuracy --check` OK.
 
-## Phase 3 — the three joiners *(not started)*
+## Phase 3 — the joiners *(3a complete · 3b not started)*
 
 Deterministic post-passes, in the shape of `import_link.py`.
 
@@ -335,27 +343,48 @@ The joins are still held to the `CALLS` standard, not the structure standard:
   that matches, and a declared join whose path shape defeats the matcher.
 - Expect recall well under 1.00 and **publish it that way.**
 
-### Exit
+### Exit — 3a met
 
-| Criterion | |
+| Criterion | Evidence |
 |---|---|
-| Unmatched calls **retained as a side-channel**, not as facts | See Invariants |
-| `joins --propose` produces a draft whose every entry carries its evidence and edge count | A join producing 0 edges is not offered |
-| Three joiners, three corpus cases | Each case written **before** its joiner and failing first |
-| Precision **1.00** on each, recall **stated honestly** | Scored on their own in `scoreboard.json` |
-| `--check` reports the unjoined | An absence becomes a number |
-| **Blast radius crosses a repository boundary** in at least one direction | Moved here from Phase 2, where it could not be met |
-| **The digest check** ↓ | The one that enforces the two Phase 3 invariants |
+| Unmatched calls **retained as a side-channel**, not as facts | `ClientState.unmatched`, surfaced as `RepoCodeExtractor.unresolved_calls`. Guarded: no phantom endpoint node, no phantom edge |
+| `joins --propose` carries evidence and an edge count per entry | A candidate producing 0 edges is never offered |
+| One joiner, one corpus case, **written before it worked** | `corpus/multirepo/http_join` — scored **CONSUMES precision `None`, recall 0.00** with the joiner disabled, 1.00 / 0.67 with it |
+| Precision **1.00**, recall **stated honestly** | 0.67. The missing third is a **known gap**, labelled: an f-string path is collected as no call at all |
+| `--check` reports the unjoined | By reason, and **per declared join**, so a stale one shows `** placed nothing **` instead of hiding in a healthy total |
+| **Blast radius crosses a repository boundary** | `py:web@app.client.order -CONSUMES-> py:billing@endpoint:POST /v1/orders` |
+| **The digest check** | `develop` vs branch on leveldb, gin, zod, Newtonsoft.Json **and `spine/src`** — the Python path Phase 3 actually modified. Identical on all five |
 
-**The digest check, as an exit criterion rather than a habit.** Extract a real repository with
-`develop` and with the branch, and compare SHA-256 over the full node and edge set. It has been
-run by hand twice — Phase 1 and Phase 2, on leveldb, gin, zod and Newtonsoft.Json, identical
-every time. Phase 3 is the phase that can break it, so it stops being something someone
-remembers to do.
+Gate: `mypy src tests` clean · `ruff` clean · **3,080 tests passing** · `pkg accuracy --check` OK.
 
-Neither Phase 3 invariant is safe as a comment: both describe a change that produces **no error,
-no failing test and no dangling edge** — just a different graph. A digest is the only check that
-notices, and it moves for a reason nobody can argue with.
+**Three things Phase 3a found that the spec did not predict.**
+
+1. **The side-channel does not survive the cache.** `load_or_extract` never runs the extractor on
+   a warm hit, so `unresolved_calls` came back empty and the joiner placed nothing — which looks
+   exactly like two uncoupled services. Fixed with a **sidecar** file beside the cached facts,
+   deliberately not a key inside them: these are not facts and must not travel in the graph.
+2. **The corpus format assumed one fixture per case.** `expected.json` now accepts `roots:` (a
+   mapping of repo key to path) alongside `root:`, and a cross-repo case is scored through the
+   *real* multi-repo path — scoping, merging, declared joins — or it would measure an assembly
+   nothing ships.
+3. **`language` was doing two jobs.** It named both what a case *measures* and which front-end
+   must be *installed*, which are the same for every single-language case and differ for this
+   one. A `requires:` field now names the second, so the case is neither skipped forever nor
+   filed under a front-end it is not testing.
+
+**The digest check, as an exit criterion rather than a habit.** Neither Phase 3 invariant is safe
+as a comment: both describe a change producing **no error, no failing test and no dangling
+edge** — just a different graph. A digest is the only check that notices, and it moves for a
+reason nobody can argue with. It has now run at Phases 1, 2 and 3a and been identical every
+time.
+
+### 3b — the remaining joiners *(not started)*
+
+**Data** (shared table names in `READS`/`WRITES`) and **package** (a manifest dependency between
+two declared repos). Both reuse everything above: config shape, proposal, `--check`, scoring,
+and the corpus-case discipline. Neither carries HTTP's matching risk — a table name is a string
+and a manifest dependency is a declaration — so the honest expectation is precision 1.00 and
+markedly better recall.
 
 ## Phase 4 — the surfaces *(not started)*
 

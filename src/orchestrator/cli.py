@@ -2832,6 +2832,138 @@ def _extract_repos(config: str, dialect: str | None) -> tuple[Any, Any]:
     return FactStore(merged.batch), merged
 
 
+@pkg_app.command("joins")
+def pkg_joins(
+    config: Annotated[
+        str, typer.Option("--config", help="The `.spine/repos.yaml` declaring the repos.")
+    ] = ".spine/repos.yaml",
+    propose: Annotated[
+        bool, typer.Option("--propose", help="Suggest a `joins:` block from the evidence.")
+    ] = False,
+    check: Annotated[
+        bool, typer.Option("--check", help="List the calls no declared join could place.")
+    ] = False,
+    as_json: Annotated[bool, typer.Option("--json", help="Emit as JSON.")] = False,
+) -> None:
+    """Propose or check cross-repository joins (read-only; writes no config).
+
+    `--propose` reads the evidence — calls a repo makes to paths it does not serve, against the
+    endpoints its neighbours expose — and prints a `joins:` block to review. It never writes one:
+    a topology Spine invented and then enforced would be a rule nobody agreed to.
+
+    `--check` is the countermeasure for the quiet failure. A forgotten `repos:` entry is loud —
+    no nodes, a visibly narrower graph. A forgotten `joins:` entry is not: missing cross-repo
+    edges look exactly like two services that are not coupled, which reads as health. So the
+    calls nothing placed are reported as a number rather than an absence.
+    """
+    from orchestrator.pkg.persistence import load_or_extract_repos
+    from orchestrator.pkg.repos import RepoConfigError, load_repo_config
+
+    if propose == check:
+        typer.echo("pkg joins: choose exactly one of --propose or --check")
+        raise typer.Exit(code=2)
+    try:
+        repo_set = load_repo_config(config)
+    except RepoConfigError as exc:
+        typer.echo(f"pkg joins: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    merged = load_or_extract_repos(repo_set)
+    if propose:
+        _joins_propose(repo_set, merged, as_json)
+    else:
+        _joins_check(repo_set, merged, as_json)
+
+
+def _joins_propose(repo_set: Any, merged: Any, as_json: bool) -> None:
+    from orchestrator.pkg.joins_propose import propose as propose_joins
+    from orchestrator.pkg.joins_propose import render
+
+    unresolved = _unresolved_by_repo(repo_set)
+    candidates = propose_joins(merged.batch, unresolved)
+    if as_json:
+        _print(
+            [
+                {
+                    "kind": c.kind,
+                    "consumer": c.consumer,
+                    "provider": c.provider,
+                    "base": c.base,
+                    "edges": c.edges,
+                    "examples": list(c.examples),
+                }
+                for c in candidates
+            ]
+        )
+        return
+    declared = {(j.kind, j.consumer, j.provider) for j in repo_set.joins}
+    typer.echo(render(candidates))
+    already = [c for c in candidates if (c.kind, c.consumer, c.provider) in declared]
+    if already:
+        typer.echo(f"  ({len(already)} of these are already declared — shown so the counts are checkable.)")
+
+
+def _joins_check(repo_set: Any, merged: Any, as_json: bool) -> None:
+    report = merged.joins
+    if report is None:
+        # Not the same as "everything joined". A config with no `joins:` block has nothing to
+        # report against, and saying "0 unplaced" here would be the silence this command exists
+        # to prevent.
+        msg = "no joins declared — run `pkg joins --propose` to see what the evidence supports"
+        _print({"declared": 0, "note": msg}) if as_json else typer.echo(f"pkg joins: {msg}")
+        return
+
+    if as_json:
+        _print(
+            {
+                "joined": report.joined,
+                "examined": report.examined,
+                "recall": report.recall,
+                "per_join": [{"join": k, "edges": v} for k, v in report.per_join],
+                "unjoined": [
+                    {"repo": u.repo, "verb": u.verb, "path": u.path, "at": u.where, "reason": u.reason}
+                    for u in report.unjoined
+                ],
+            }
+        )
+        return
+
+    rate = "—" if report.recall is None else f"{report.recall:.0%}"
+    typer.echo(f"\ncross-repo joins — {report.joined} of {report.examined} candidate call(s) placed ({rate})")
+    for label, count in report.per_join:
+        # A declared join placing 0 is the row worth reading: it is either stale or wrong, and
+        # a summary line would hide it inside a healthy-looking total.
+        tail = "   ** placed nothing **" if count == 0 else ""
+        typer.echo(f"  {label:<44} {count:>5}{tail}")
+
+    if report.unjoined:
+        by_reason: dict[str, int] = {}
+        for u in report.unjoined:
+            by_reason[u.reason] = by_reason.get(u.reason, 0) + 1
+        typer.echo("\n  unplaced, by reason:")
+        for reason, count in sorted(by_reason.items()):
+            typer.echo(f"    {reason:<24} {count}")
+        typer.echo("\n  first few:")
+        for u in report.unjoined[:8]:
+            typer.echo(f"    {u}")
+    typer.echo(
+        "\n  Precision is ~1.00 by construction — nothing joins to an undeclared repo — so the\n"
+        "  number above is recall, and it is the one worth watching."
+    )
+
+
+def _unresolved_by_repo(repo_set: Any) -> dict[str, list[Any]]:
+    """Re-extract to collect the side-channel. Cheap: every repo is cache-warm by now."""
+    from orchestrator.pkg import RepoCodeExtractor
+
+    out: dict[str, list[Any]] = {}
+    for key, root in repo_set:
+        extractor = RepoCodeExtractor()
+        extractor.extract(root)
+        out[key] = list(extractor.unresolved_calls)
+    return out
+
+
 @pkg_app.command("capabilities")
 def pkg_capabilities(
     fmt: Annotated[

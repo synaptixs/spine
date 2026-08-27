@@ -206,3 +206,78 @@ def test_single_repo_extraction_is_untouched(tmp_path: Path) -> None:
     assert all(n.provenance is None or n.provenance.repo == "" for n in batch.nodes), (
         "provenance gained a repo"
     )
+
+
+# ---- the Phase 3 invariants ------------------------------------------------
+#
+# Both describe a change that produces no error, no failing test and no dangling edge — just a
+# different graph. A digest is the only check that notices.
+
+
+def test_an_unmatched_http_call_emits_no_fact(tmp_path: Path) -> None:
+    """Retaining it as a node or an edge would assert a call to an endpoint nothing serves.
+
+    That is the self-consistent invention this project has removed twice, and `invention` would
+    not catch it: that oracle detects shadowing and nothing else.
+    """
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+
+    (tmp_path / "c.py").write_text(
+        "import httpx\n\n\ndef go():\n    return httpx.post('/v1/orders')\n", encoding="utf-8"
+    )
+    extractor = RepoCodeExtractor()
+    batch = extractor.extract(tmp_path)
+
+    assert [(c.verb, c.path) for c in extractor.unresolved_calls] == [("POST", "/v1/orders")]
+    assert not [n for n in batch.nodes if n.kind.value == "Endpoint"], "no phantom endpoint"
+    assert not [e for e in batch.edges if e.kind.value == "CONSUMES"], "no phantom edge"
+
+
+def test_the_joiner_never_runs_on_a_single_repo_extraction(tmp_path: Path) -> None:
+    """`--repos` is the opt-in to a graph with weaker guarantees. A single-repo user declared no
+    topology and must not inherit edges from a matcher that assumes one.
+
+    Asserted on the call graph rather than on behaviour, because the damage from a joiner wired
+    into `extract` would be invisible in a single-repo output that has nothing to cross to.
+    """
+    import inspect
+
+    from orchestrator.pkg import extractor as extractor_mod
+
+    source = inspect.getsource(extractor_mod)
+    assert "join_link" not in source, "the joiner must not be reachable from RepoCodeExtractor"
+
+
+def test_single_repo_extraction_is_unchanged_by_the_join_machinery(tmp_path: Path) -> None:
+    """A digest over the whole fact set — the check that notices what nothing else would.
+
+    Run by hand at Phases 1 and 2 against `develop` on leveldb, gin, zod and Newtonsoft.Json and
+    identical every time. Here it guards the shape locally: joins add nothing to a lone repo.
+    """
+    import hashlib
+
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "m.py").write_text(
+        "import httpx\nfrom fastapi import FastAPI\n\napp = FastAPI()\n\n\n"
+        "@app.get('/v1/x')\ndef served():\n    return 1\n\n\n"
+        "def calls_out():\n    return httpx.get('/v1/elsewhere')\n",
+        encoding="utf-8",
+    )
+
+    def digest() -> str:
+        batch = RepoCodeExtractor().extract(tmp_path)
+        h = hashlib.sha256()
+        for n in sorted(batch.nodes, key=lambda x: x.id):
+            h.update(f"{n.id}|{n.kind.value}|{n.provenance}|{n.external}\n".encode())
+        for e in sorted(batch.edges, key=lambda x: (x.src, x.dst, x.kind.value)):
+            h.update(f"{e.src}|{e.dst}|{e.kind.value}|{e.provenance}\n".encode())
+        return h.hexdigest()
+
+    assert digest() == digest(), "extraction is not deterministic"
+    # The call that goes nowhere is retained off to the side and asserts nothing in the graph.
+    extractor = RepoCodeExtractor()
+    batch = extractor.extract(tmp_path)
+    assert len(extractor.unresolved_calls) == 1
+    assert sum(1 for e in batch.edges if e.kind.value == "CONSUMES") == 0

@@ -35,12 +35,67 @@ from typing import Any
 
 from orchestrator.pkg.scoping import ScopeError, validate_repo_key
 
+#: Join kinds this release understands. A kind absent here is refused at load rather than
+#: ignored, because a silently dropped join produces missing edges — which look like two
+#: services that are not coupled, and read as health.
+JOIN_KINDS = frozenset({"http"})
+
 #: Relative to the directory the command runs in — the same `.spine/` a repo already carries.
 DEFAULT_CONFIG = Path(".spine") / "repos.yaml"
 
 
 class RepoConfigError(ValueError):
     """The declaration cannot be used. Always names the file and the offending key."""
+
+
+@dataclass(frozen=True)
+class Join:
+    """One declared relationship between two repositories.
+
+    **Declaring a join does not create an edge — it narrows the search.** "web talks to billing
+    over HTTP under /v1" is a topology fact; matching ``POST /v1/orders/42`` against
+    ``POST /v1/orders/{id}`` is still resolution, and still done from extracted facts. What the
+    declaration removes is the part that cannot be resolved from evidence at all: *which*
+    repository is even a candidate.
+    """
+
+    kind: str
+    consumer: str
+    provider: str
+    base: str = ""
+
+    def __str__(self) -> str:
+        under = f" under {self.base}" if self.base else ""
+        return f"{self.consumer} -{self.kind}-> {self.provider}{under}"
+
+
+def joins_from_list(raw: Any, *, where: Path | str = "<inline>") -> tuple[Join, ...]:
+    """Validate a ``joins:`` block. Order-independent: sorted, so two spellings agree."""
+    if raw in (None, []):
+        return ()
+    if not isinstance(raw, list):
+        raise RepoConfigError(f"{where}: 'joins' must be a list")
+    out: list[Join] = []
+    for i, entry in enumerate(raw):
+        if not isinstance(entry, dict):
+            raise RepoConfigError(f"{where}: joins[{i}] is not a mapping")
+        kind = str(entry.get("kind", "")).strip()
+        if kind not in JOIN_KINDS:
+            raise RepoConfigError(
+                f"{where}: joins[{i}] has kind {kind!r} — expected one of {sorted(JOIN_KINDS)}"
+            )
+        consumer, provider = str(entry.get("consumer", "")), str(entry.get("provider", ""))
+        for role, value in (("consumer", consumer), ("provider", provider)):
+            if not value:
+                raise RepoConfigError(f"{where}: joins[{i}] has no {role}")
+            try:
+                validate_repo_key(value)
+            except ScopeError as exc:
+                raise RepoConfigError(f"{where}: joins[{i}] {role} — {exc}") from exc
+        if consumer == provider:
+            raise RepoConfigError(f"{where}: joins[{i}] joins {consumer!r} to itself")
+        out.append(Join(kind, consumer, provider, str(entry.get("base", "")).rstrip("/")))
+    return tuple(sorted(out, key=lambda j: (j.kind, j.consumer, j.provider, j.base)))
 
 
 @dataclass(frozen=True)
@@ -54,6 +109,7 @@ class RepoSet:
 
     roots: tuple[tuple[str, Path], ...]
     source: Path | None = None
+    joins: tuple[Join, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.roots:
@@ -76,7 +132,13 @@ class RepoSet:
         return iter(self.roots)
 
 
-def from_mapping(mapping: dict[str, Any], *, base: Path, source: Path | None = None) -> RepoSet:
+def from_mapping(
+    mapping: dict[str, Any],
+    *,
+    base: Path,
+    source: Path | None = None,
+    joins: Any = None,
+) -> RepoSet:
     """Build a :class:`RepoSet` from ``{key: path}``. Relative paths resolve against ``base``.
 
     Every key is validated here rather than at merge time. A bad key caught at load names the
@@ -111,7 +173,16 @@ def from_mapping(mapping: dict[str, Any], *, base: Path, source: Path | None = N
         seen_paths[root] = key
         roots.append((key, root))
 
-    return RepoSet(tuple(sorted(roots)), source)
+    declared = joins_from_list(joins, where=where)
+    known = {key for key, _ in roots}
+    for join in declared:
+        for role, key in (("consumer", join.consumer), ("provider", join.provider)):
+            if key not in known:
+                raise RepoConfigError(
+                    f"{where}: join {join} names an undeclared {role} {key!r} "
+                    f"— declared repos are {sorted(known)}"
+                )
+    return RepoSet(tuple(sorted(roots)), source, declared)
 
 
 def load_repo_config(path: Path | str, *, base: Path | None = None) -> RepoSet:
@@ -129,7 +200,7 @@ def load_repo_config(path: Path | str, *, base: Path | None = None) -> RepoSet:
         raise RepoConfigError(f"{config}: invalid YAML — {exc}") from exc
     if not isinstance(doc, dict) or "repos" not in doc:
         raise RepoConfigError(f"{config}: expected a top-level 'repos:' mapping")
-    return from_mapping(doc["repos"], base=base or config.parent, source=config)
+    return from_mapping(doc["repos"], base=base or config.parent, source=config, joins=doc.get("joins"))
 
 
 def find_repo_config(start: Path | str = ".") -> Path | None:
@@ -144,8 +215,11 @@ def find_repo_config(start: Path | str = ".") -> Path | None:
 
 __all__ = [
     "DEFAULT_CONFIG",
+    "JOIN_KINDS",
+    "Join",
     "RepoConfigError",
     "RepoSet",
+    "joins_from_list",
     "find_repo_config",
     "from_mapping",
     "load_repo_config",
