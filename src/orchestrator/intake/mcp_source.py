@@ -29,7 +29,12 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-from orchestrator.intake.jira_source import _description_text, issue_meta_header, project_key_of
+from orchestrator.intake.jira_source import (
+    _description_text,
+    issue_meta_header,
+    issue_type_of,
+    project_key_of,
+)
 from orchestrator.intake.source import (
     DEFAULT_MAX_DEPTH,
     DEFAULT_MAX_DOCS,
@@ -135,11 +140,10 @@ def _parse_document(doc_id: str, data: Any, raw_text: str) -> SourceDocument:
         body = _description_text(fields.get("description"))
     body = body.strip()
 
-    # Jira issues carry type/status/priority, and SourceDocument has no field for them — the
-    # REST adapter prepends them to the body so the extractor can tell a Bug from a Story and
-    # done from open. Do the same here, from the same helper, or the identical epic ingested
-    # over MCP arrives untyped while the REST path types it. Guarded on `fields` so Confluence
-    # pages (which have no such shape) are untouched.
+    # Jira issues carry type/status/priority; the REST adapter prepends them to the body so the
+    # extractor can tell a Bug from a Story and done from open. Do the same here, from the same
+    # helper, or the identical epic ingested over MCP arrives untyped while the REST path types
+    # it. Guarded on `fields` so Confluence pages (which have no such shape) are untouched.
     header = issue_meta_header(fields) if fields else ""
 
     # The raw-text fallback is for a payload we did not recognise AT ALL — not for one we
@@ -166,7 +170,17 @@ def _parse_document(doc_id: str, data: Any, raw_text: str) -> SourceDocument:
     # mcp-atlassian hands back the browse link, so the `url` the REST adapter builds from its
     # base URL is available here after all — no need to know the host.
     url = str(doc.get("browse_url") or doc.get("url") or "")
-    return SourceDocument(id=resolved_id, title=title, body=body, labels=labels, space=space, url=url)
+    return SourceDocument(
+        id=resolved_id,
+        title=title,
+        body=body,
+        labels=labels,
+        space=space,
+        url=url,
+        # Same helper as the header above, and the same `fields` guard: an issue ingested over
+        # MCP must select the same workflow profile as the identical issue over REST.
+        issue_type=issue_type_of(fields) if fields else "",
+    )
 
 
 def _parse_children(data: Any) -> list[SourceRef]:

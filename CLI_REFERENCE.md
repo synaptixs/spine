@@ -905,6 +905,7 @@ orchestrator sdlc plan --spec ./SSPN-49.json --path .
 | `--path` | Repo to reason about — the graph the plan is grounded in. (default: `.`) |
 | `--out` | Where the document goes (default: `<repo>/.spine/plans`). |
 | `--language` | Target language named in the codegen-prompt section. (default: `python`) |
+| `--issue-type` | Override the ticket's issue type (`Bug`, `Story`, …) — it decides whether the validity section requires the ticket to localize. Default: read it from the ticket; with `--spec` there is no ticket to read. |
 | `--quiet` | Write the document without printing it. |
 
 **Section 8 takes one extra spec field.** `met_criteria` maps a stated criterion's exact
@@ -980,6 +981,7 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --saf
 | `--review` / `--no-review` | Show the diff and ask before committing or pushing anything. (default: `--no-review`) |
 | `--base` | Branch to build on **and** open the PR into (default `$SDLC_PR_BASE`, else the remote's default branch). The run's worktree is cut from this, so on a repo that merges to `develop`, leaving it unset builds the change on `main`. |
 | `--language` | Target language (auto detects). (default: `auto`) |
+| `--issue-type` | Override the ticket's issue type (`Bug`, `Story`, …), which selects the workflow profile and decides whether the ticket must localize. Default: read it from the ticket. With `--spec` there is no ticket to read, so this is the only way to type that run. |
 | `--out` | Where run artifacts go (default: a run dir under the temp dir). |
 | `--resume` | Continue a run by id — adopts the issue it already created. |
 | `--max-cost` | Cap LLM spend (USD) for this run; exhausting it parks the run. |
