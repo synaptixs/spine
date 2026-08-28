@@ -4,6 +4,22 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.25.1 — The README catches up, and is made to stay caught up
+
+### Fixed — the first thing anyone reads was three releases stale
+
+- **`README.md`'s "What's new" said `3.22.0 (current)`** while PyPI served 3.25.0. The release
+  cut touches `pyproject.toml`, three manifests, the architecture diagram and two `docs/specs`
+  files — and nothing else knew a release had happened, so the section every visitor reads
+  first quietly described a version from three cuts ago, with 3.23.0's and 3.25.0's headline
+  features still filed under *"on `develop`"*.
+
+  It now lists 3.25.1 through 3.22.0, and **`test_the_readme_whats_new_section_names_the_current
+  _version` fails until it names the version in `pyproject.toml`**. That is the same fix, and
+  the same argument, as `test_manifest_version_tracks_the_package`: the manifests stood at 2.5.0
+  through fifteen releases because nothing tied them to the package, and a document nobody has
+  tied to the release is a document that goes stale silently rather than loudly.
+
 ## 3.25.0 — The issue type finally reaches the run
 
 ### Fixed — the issue-type pipeline was unreachable

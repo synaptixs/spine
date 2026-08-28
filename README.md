@@ -104,23 +104,23 @@ the product.** Where it can't know something, it says so and stops.
 
 ## What's new
 
-**3.22.0 (current)** — four front-ends were fabricating a `CALLS` edge when a parameter
-shadowed a resolvable name. Found by widening the invention oracle from Python-only to six
-front-ends, measured at **47 fabricated edges across 11 public repositories**, fixed, and
+**3.25.1 (current)** — **the issue type finally reaches the run.** Spine has been issue-type
+shaped since 3.21.0 — the profile selector, the localization check, the `bug`/`enhancement`
+profiles — and nothing ever supplied the type, so every run took the `default` profile. A Bug
+now gets root-cause analysis and must localize; an enhancement gets a churn reading over its
+landing sites instead, and is no longer refused for naming the module it is about to create.
+
+**3.24.0** — the Claude Code and Codex plugins catch up with the product: multi-repo tools,
+`pkg_joins`, and an `[all]` install that actually extracts all eight languages.
+
+**3.23.0** — **multi-repo comprehension**: several repositories merge into one graph, and a
+ticket landing in one reports what depends on it in another. Declare them in
+`.spine/repos.yaml`, let `orchestrator pkg joins --propose` derive the topology from evidence,
+and `investigate --repos` reads it.
+
+**3.22.0** — four front-ends were fabricating a `CALLS` edge when a parameter shadowed a
+resolvable name. Measured at **47 fabricated edges across 11 public repositories**, fixed, and
 gated at zero so it can't come back.
-
-**On `develop`** — **multi-repo comprehension**: several repositories merge into one graph,
-and a ticket landing in one now reports what depends on it in another. Declare them in
-`.spine/repos.yaml`, let `orchestrator pkg joins --propose` derive the topology from
-evidence, and `investigate --repos` reads it.
-
-Also on `develop` — **the issue type now reaches the run.** The profiles below were selectable
-in principle and never selected in practice: nothing carried a ticket's type from the tracker to
-the pipeline, so every run took the `default` profile. A Bug now gets root-cause analysis and
-must localize; an enhancement gets a churn reading instead, and is no longer refused for naming
-the module it is about to create.
-
-**3.21.0** — issue-type workflow profiles a repo can carry itself.
 
 Full history, including the features we measured and *didn't* ship: **[CHANGELOG](https://github.com/synaptixs/spine/blob/main/CHANGELOG.md)**.
 
