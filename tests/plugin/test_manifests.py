@@ -87,6 +87,25 @@ def test_manifest_version_tracks_the_package(manifest: Path) -> None:
     )
 
 
+def test_the_readme_whats_new_section_names_the_current_version() -> None:
+    """The first thing anyone reads about this project should not name a version from three
+    releases ago.
+
+    Nothing tied these together, so `README.md` sat at **3.22.0 (current)** through 3.23.0,
+    3.24.0 and 3.25.0 — the same way the plugin manifests sat at 2.5.0 through fifteen
+    releases, and for the same reason: the release cut touches `pyproject.toml`, the
+    manifests, the diagram and two `docs/specs` files, and nothing else knows a release
+    happened. This is the check that makes the README part of the cut.
+    """
+    readme = (_ROOT / "README.md").read_text(encoding="utf-8")
+    version = _pyproject_version()
+
+    assert f"**{version} (current)**" in readme, (
+        f"README.md's 'What's new' does not name {version} as current; "
+        "add the entry and move the previous one down when cutting a release"
+    )
+
+
 def test_every_registered_tool_is_documented_for_a_user() -> None:
     """A tool nobody wrote down is one nobody calls.
 
