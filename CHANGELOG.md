@@ -42,6 +42,16 @@ All notable changes to this project are documented here. Format loosely follows
   saw an empty result and could not tell a skipped node from an empty one. It now says *"Not run
   for this issue type"*, and a bug that genuinely localizes nothing still says the original.
 
+### Fixed — the local gate failed on files you did not touch
+
+- **Two `type: ignore` comments were only correct in some environments.** Whether an ignore is
+  "unused" depends on whether the optional dependency it guards is installed, so
+  `mypy src tests` failed on `mcp/client.py` with `--extra dev` and on `sdlc/testrunner.py` with
+  `--all-extras` — always in a file the contributor had not touched, and never in CI, which
+  installs a set that hits neither. Both now name `unused-ignore` alongside the real code, which
+  is green in either environment. A gate that fails on someone else's file is a gate people
+  learn to distrust.
+
 ### Added — two signals that were computed and thrown away
 
 - **`--issue-type` on `sdlc autorun` and `sdlc plan`.** Overrides what the ticket says, and is
