@@ -130,6 +130,31 @@ async def test_fetch_document_maps_issue_to_document() -> None:
     # metadata header + description prose both land in the body
     assert "Bug" in doc.body and "status: To Do" in doc.body
     assert "Crashes on login." in doc.body and "- repro step" in doc.body
+    # …and the type also travels as data. The header is prose for the extractor; only the
+    # field can select a workflow profile or decide whether the ticket must localize.
+    assert doc.issue_type == "Bug"
+
+
+async def test_the_meta_header_and_the_issue_type_field_cannot_disagree() -> None:
+    """Two answers to "what type is this?" would be a defect visible from neither alone."""
+    mock = _JiraMock({"PROJ-1": _fields("Login fails", itype="New Feature")})
+    adapter, http = _adapter(mock)
+    try:
+        doc = await adapter.fetch_document("PROJ-1")
+    finally:
+        await http.aclose()
+    assert doc.issue_type == "New Feature"
+    assert doc.body.startswith("New Feature"), "same value, one helper, both consumers"
+
+
+async def test_an_untyped_issue_carries_an_empty_type_rather_than_a_guess() -> None:
+    mock = _JiraMock({"PROJ-1": _fields("Login fails", itype="")})
+    adapter, http = _adapter(mock)
+    try:
+        doc = await adapter.fetch_document("PROJ-1")
+    finally:
+        await http.aclose()
+    assert doc.issue_type == ""
 
 
 # ---- children + tree walk -------------------------------------------------

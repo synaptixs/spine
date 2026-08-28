@@ -250,3 +250,98 @@ async def test_an_unmapped_issue_type_uses_default_and_says_why(tmp_path: Path) 
 
     assert ctx.case.profile == "sdlc.default"
     assert any("Spike" in line and "default" in line for line in said), said
+
+
+# ---- churn: the signal an enhancement used to lose ---------------------------
+#
+# `build_rca` computes a `git log` recency pass and crosses it with the fault site. The
+# enhancement profile drops `n_rca` — a feature has no symptom — and dropped the recency answer
+# with it, for half of all tickets.
+
+
+def _git_repo(root: Path) -> None:
+    import subprocess
+
+    (root / "report.py").write_text("def render():\n    return 1\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "c"],
+        cwd=root,
+        check=True,
+    )
+
+
+async def test_an_enhancement_runs_the_churn_node(tmp_path: Path) -> None:
+    _git_repo(tmp_path)
+    ctx = _ctx(tmp_path)
+
+    await _research_pass(ctx, store=_store(), issue_type="Story", emit=lambda _s: None)
+
+    assert "n_churn" in {n.node for n in ctx.case.nodes}
+    assert ctx.evidence is not None
+    assert "report.py" in ctx.evidence.recently_changed
+
+
+async def test_the_bug_profile_has_no_churn_node_because_rca_answers_it(tmp_path: Path) -> None:
+    """One question, two keyings: the bug path crosses history with the *fault site*, which is
+    what makes it a regression signal rather than a note about a busy area."""
+    _git_repo(tmp_path)
+    ctx = _ctx(tmp_path)
+
+    await _research_pass(ctx, store=_store(), issue_type="Bug", emit=lambda _s: None)
+
+    assert "n_churn" not in {n.node for n in ctx.case.nodes}
+    assert "n_rca" in {n.node for n in ctx.case.nodes}
+
+
+async def test_the_enhancement_rendering_does_not_borrow_rcas_regression_wording(
+    tmp_path: Path,
+) -> None:
+    """A feature's landing sites are where its vocabulary already lives — what it will attach
+    to, not what it will touch. "Treat a regression as the leading hypothesis" is a claim this
+    evidence does not support."""
+    _git_repo(tmp_path)
+    ctx = _ctx(tmp_path)
+
+    await _research_pass(ctx, store=_store(), issue_type="Story", emit=lambda _s: None)
+
+    rendered = (ctx.artifacts_dir / "evidence.md").read_text(encoding="utf-8")
+    assert "Changing lately" in rendered and "report.py" in rendered
+    assert "regression" not in rendered.lower()
+
+
+async def test_an_enhancements_evidence_says_rca_was_not_run_not_that_it_found_nothing(
+    tmp_path: Path,
+) -> None:
+    """`enhancement.yaml` drops `n_rca` to avoid a "Not localized to a repo symbol" section that
+    reads as a finding and is not one — and the renderer printed it regardless, because it saw
+    an empty dict and could not tell a skipped node from an empty result."""
+    _git_repo(tmp_path)
+    ctx = _ctx(tmp_path)
+
+    await _research_pass(ctx, store=_store(), issue_type="Story", emit=lambda _s: None)
+
+    rendered = (ctx.artifacts_dir / "evidence.md").read_text(encoding="utf-8")
+    assert "Not run for this issue type" in rendered
+    assert "Not localized to a repo symbol" not in rendered
+
+
+async def test_a_bug_that_localizes_nothing_still_says_so(tmp_path: Path) -> None:
+    """The other half: the node ran and found nothing, which is a finding a reader must see."""
+    ctx = _ctx(tmp_path)
+    ctx.spec = {"title": "nothing here", "summary": "matches no symbol", "acceptance_criteria": []}
+
+    await _research_pass(ctx, store=_store(), issue_type="Bug", emit=lambda _s: None)
+
+    rendered = (ctx.artifacts_dir / "evidence.md").read_text(encoding="utf-8")
+    assert "Not localized to a repo symbol" in rendered
+
+
+async def test_a_repo_with_no_history_says_nothing_rather_than_failing(tmp_path: Path) -> None:
+    ctx = _ctx(tmp_path)
+
+    await _research_pass(ctx, store=_store(), issue_type="Story", emit=lambda _s: None)
+
+    assert ctx.evidence is not None and ctx.evidence.recently_changed == ()
+    assert "Changing lately" not in (ctx.artifacts_dir / "evidence.md").read_text(encoding="utf-8")

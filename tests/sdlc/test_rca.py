@@ -63,7 +63,9 @@ async def test_unresolved_bug_gives_low_confidence_hypothesis() -> None:
 
 
 async def test_recent_churn_raises_regression_hypothesis(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("orchestrator.sdlc.rca._recently_changed_files", lambda root, **k: {"auth.py"})
+    # Patched at the git boundary in `sdlc.churn`, which both the bug path and the enhancement
+    # profile's churn node now share — one implementation, so they cannot answer differently.
+    monkeypatch.setattr("orchestrator.sdlc.churn.recently_changed_files", lambda root, **k: {"auth.py"})
     report = await build_rca(_TRACEBACK, store=FactStore(_graph()), root="/repo")
     assert report.recently_changed is True
     top = report.hypotheses[0]
