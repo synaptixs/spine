@@ -19,6 +19,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **FactStore** | [`FactStore`](../src/orchestrator/pkg/store.py#L25) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
 | **FeatureImplementationWorkflow** | [`FeatureImplementationWorkflow`](../src/orchestrator/sdlc/workflows.py#L60) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout` |
 | **FeatureRunError** | [`FeatureRunError`](../src/orchestrator/sdlc/feature_runner.py#L49) | `docs/specs/go-support-roadmap.md#packaging-changes`, `docs/specs/sandboxed-test-execution.md#wiring-sdlcfeature-runnerpy` |
+| **FeatureSpec** | [`FeatureSpec`](../src/orchestrator/intake/specs.py#L91) | `CHANGELOG.md`, `CLI_REFERENCE.md` |
 | **GroundingVerifier** | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L42) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#2-what-ontomesh-produced-evidence`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
 | **JiraAdapter** | [`JiraAdapter`](../src/orchestrator/intake/jira.py#L114) | `docs/specs/capability-recommendations-kg-grounded.md#where-we-are-today-the-honest-baseline` |
@@ -38,7 +39,6 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **RunContext** | [`RunContext`](../src/orchestrator/sdlc/autorun.py#L65) | `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/graphir-sdlc-workflow.md#appendix-what-was-rejected-from-the-source-analysis` |
 | **SDLCActivities** | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L44) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration` |
 | **SDLCWorkflow** | [`SDLCWorkflow`](../src/orchestrator/sdlc/workflows.py#L475) | `CLI_REFERENCE.md`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
-| **SDLCWorkflowInput** | [`SDLCWorkflowInput`](../src/orchestrator/sdlc/types.py#L17) | `docs/specs/archive/BLOCK-C-DESIGN.md#4-parent-sdlcworkflow`, `docs/specs/bet2c-rbac-multitenancy.md#as-built-notes` |
 | **SourceDocument** | [`SourceDocument`](../src/orchestrator/intake/source.py#L35) | `CHANGELOG.md`, `docs/specs/capability-recommendations-kg-grounded.md#c10-generalized-mcp-backed-sources-confluence-jira-any-source-effort-m-enhancement` |
 | **TargetLayout** | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L79) | `docs/specs/java-codegen.md#feature-runner`, `docs/specs/java-codegen.md#first-step` |
 | **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/testrunner.py#L78) | `docs/specs/java-codegen.md#test-runner-env`, `docs/specs/typescript-codegen.md#test-runner-env` |

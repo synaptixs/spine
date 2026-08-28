@@ -85,6 +85,7 @@
 
 - **Called by** (1 production · 1 test): [`assess`](../../src/orchestrator/sdlc/validity.py#L455), [`test_bug_agrees_with_the_validity_gate`](../../tests/sdlc/test_profile_select.py#L57)
 - **Calls** (2): [`Finding`](../../src/orchestrator/sdlc/validity.py#L84), [`is_bug`](../../src/orchestrator/sdlc/profile_select.py#L82)
+- **Documented in**: `docs/specs/graphir-sdlc-workflow.md#phase-3-issue-type-shaped-workflows-and-profiles-a-repo-can-carry`
 
 ### `_check_prior_runs`
 
