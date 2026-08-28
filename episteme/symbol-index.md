@@ -1142,7 +1142,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 3370 symbols; 
 | `_to_report` | `orchestrator.ir.validator` | [`_to_report`](../src/orchestrator/ir/validator.py#L43) |
 | `_to_row` | [`orchestrator.registry.api.audit`](modules/orchestrator.registry.api.audit.md#_to_row) | [`_to_row`](../src/orchestrator/registry/api/audit.py#L83) |
 | `_to_row` | `orchestrator.approval.repository` | [`_to_row`](../src/orchestrator/approval/repository.py#L168) |
-| `_to_tool` | `orchestrator.mcp.client` | [`_to_tool`](../src/orchestrator/mcp/client.py#L100) |
+| `_to_tool` | `orchestrator.mcp.client` | [`_to_tool`](../src/orchestrator/mcp/client.py#L103) |
 | `_tokenize` | `orchestrator.registry.repositories` | [`_tokenize`](../src/orchestrator/registry/repositories.py#L194) |
 | `_tokens` | `orchestrator.pkg.retrieval` | [`_tokens`](../src/orchestrator/pkg/retrieval.py#L79) |
 | `_tokens` | `orchestrator.spine.mapper` | [`_tokens`](../src/orchestrator/spine/mapper.py#L56) |
