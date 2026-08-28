@@ -623,10 +623,11 @@ async def _stage_intake(
 _IMPERATIVE_ENV = "SPINE_SDLC_IMPERATIVE"
 
 # Node ids in the profile, so the two paths agree on what to call each step.
-_N_INVESTIGATE, _N_RCA, _N_BLAST, _N_VALIDITY = (
+_N_INVESTIGATE, _N_RCA, _N_BLAST, _N_CHURN, _N_VALIDITY = (
     "n_investigate",
     "n_rca",
     "n_blast_radius",
+    "n_churn",
     "n_validity",
 )
 
@@ -756,6 +757,25 @@ async def _research_pass(
             seconds=time.monotonic() - started,
         )
 
+        # The churn node, where the profile declares one. `bug` and `default` get the same
+        # question answered inside `n_rca`, keyed to the fault site; this is the landing-site
+        # reading, which is what an enhancement can have. One implementation behind both.
+        churn_value: dict[str, Any] = {}
+        if any(node.id == _N_CHURN for node in ir.spec.nodes):
+            started = time.monotonic()
+            churn = await registry.run("sdlc.churn", files=list(files), root=ctx.root)
+            churn_value = churn.value
+            ctx.case.record(
+                _N_CHURN,
+                kind="tool",
+                status="ok",
+                digest=churn.digest,
+                tool=churn.name,
+                detail=f"{len(churn.value.get('files') or [])} of {len(files)} landing file(s) "
+                f"changed in the last {churn.value.get('commits', 0)} commits",
+                seconds=time.monotonic() - started,
+            )
+
         evidence = evidence_from_parts(
             title=title,
             problem=summary,
@@ -763,6 +783,7 @@ async def _research_pass(
             investigate=investigate.value,
             rca=rca_value,
             blast=blast.value,
+            churn=churn_value,
         )
         ctx.evidence = evidence
         ctx.case.evidence = to_dict(evidence)

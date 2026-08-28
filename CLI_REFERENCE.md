@@ -1219,7 +1219,14 @@ and the run says so rather than skipping research silently.
 **The enhancement profile has no `n_rca`.** Root-cause analysis localizes a *symptom*, and a
 feature request has none — it would resolve nothing and print "not localized", an empty section
 that reads as a finding. An enhancement run records RCA as *not run for this issue type*, which
-is a different statement.
+is a different statement, and its evidence says so in those words.
+
+**It has `n_churn` instead.** `build_rca` also carries a `git log` recency pass, and dropping the
+whole node dropped that with it for half of all tickets — "is this area moving?" does not depend
+on a symptom. The enhancement's churn is crossed with its **landing sites** rather than a fault
+site, which makes it the weaker of the two readings: where a ticket's vocabulary already lives is
+what it will attach to, not what it will touch. It is worded accordingly and never says
+"regression". One implementation (`sdlc/churn.py`) serves both profiles.
 
 ### `orchestrator sdlc workflow`
 
@@ -1235,7 +1242,7 @@ model. `n_design` is declared an agent node because that is the target state; it
 `llm=None` today.
 
 **`sdlc autorun` executes this graph.** Its deterministic research nodes — `n_investigate`,
-`n_rca`, `n_blast_radius` — run through the tool registry and compose one `Evidence` artifact
+`n_rca` (or `n_churn`), `n_blast_radius` — run through the tool registry and compose one `Evidence` artifact
 that `validity`, `design` and the acceptance criteria are all judged against. Set
 `SPINE_SDLC_IMPERATIVE=1` to fall back to the pre-graph path, which stays available for one
 release.
