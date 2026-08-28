@@ -486,7 +486,15 @@ class PostgresSqlTestRunner:
 
         def _run() -> TestRunResult:
             try:
-                from testcontainers.postgres import PostgresContainer  # type: ignore[import-not-found]
+                # `unused-ignore` because whether this ignore is needed depends on the
+                # environment: with the `sql-postgres` extra installed the import resolves and
+                # the ignore is redundant, without it the import is unfindable and the ignore is
+                # required. Naming both codes keeps `mypy src tests` green either way — CI
+                # installs one set, a contributor may have the other, and a gate that fails on a
+                # file you did not touch is a gate people learn to distrust.
+                from testcontainers.postgres import (  # type: ignore[import-not-found, unused-ignore]
+                    PostgresContainer,
+                )
             except ImportError:
                 return TestRunResult(
                     passed=False,
