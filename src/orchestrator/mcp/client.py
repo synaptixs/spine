@@ -80,7 +80,10 @@ class SessionMCPClient:
                 # v2 takes a configured http client rather than a `headers` kwarg, and
                 # yields two streams rather than three. `create_mcp_http_client` is the
                 # SDK's own factory, so MCP's recommended timeouts still apply.
-                from mcp.client.streamable_http import (  # type: ignore[attr-defined]
+                # `unused-ignore` alongside: with the `mcp` extra installed the symbols resolve
+                # and `attr-defined` is redundant, without it the module is `Any` and the ignore
+                # is required. Naming both keeps `mypy src tests` green in either environment.
+                from mcp.client.streamable_http import (  # type: ignore[attr-defined, unused-ignore]
                     create_mcp_http_client,  # re-exported here, but absent from __all__
                     streamable_http_client,
                 )

@@ -207,6 +207,10 @@ async def test_mcp_jira_carries_issue_type_status_and_priority() -> None:
     assert doc.body.startswith("Bug · status: Open · priority: High")
     assert "stack trace" in doc.body
     assert doc.space == "ENG", "project key should come from the issue key, as in REST"
+    # The same parity requirement, one layer down: an issue ingested over MCP must select the
+    # same workflow profile as the identical issue over REST, which means the *field* agrees
+    # and not just the prose header.
+    assert doc.issue_type == "Bug"
 
 
 async def test_mcp_jira_matches_the_rest_adapter_byte_for_byte() -> None:
@@ -273,6 +277,8 @@ def test_parses_the_flattened_mcp_atlassian_shape() -> None:
 
     doc = _parse_document("CB-676", _REAL_MCP_ATLASSIAN_ISSUE, "")
     assert doc.body.startswith("Sub-task · status: Business Requirements · priority: Medium")
+    # `issue_type`, the mcp-atlassian spelling — the field reads it as the header does.
+    assert doc.issue_type == "Sub-task"
 
 
 def test_prefers_the_issue_key_over_the_opaque_numeric_id() -> None:

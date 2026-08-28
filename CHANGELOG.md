@@ -4,6 +4,72 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.25.0 — The issue type finally reaches the run
+
+### Fixed — the issue-type pipeline was unreachable
+
+- **Nothing carried the ticket's issue type into a run.** Spine is issue-type shaped:
+  `select_profile` picks a workflow profile from it, the validity gate decides by it whether a
+  ticket must localize, and the `bug`/`enhancement` profiles exist to be selected by it. None of
+  it fired. The only thing intake hands a run is a `FeatureSpec`, which forbids extra keys and
+  has no field for a type — so the lookup was always `""`, **every run took the `default`
+  profile**, and the localization check never once ran outside its own tests. The type reached
+  the intent *extractor*, as prose prepended to the body, and nothing else.
+
+  It is now resolved deterministically at intake — `spec.intent_id → Intent → source_doc_ids →
+  SourceDocument` — over data already fetched, and carried on the run rather than on the spec. A
+  spec is written by a model, and a model choosing which research a ticket gets is what
+  `profile_select` exists to prevent. **Two behaviours change with it:** a typed ticket now
+  selects `bug`/`enhancement` where it silently took `default`, and a `Bug` whose words match
+  nothing in the graph parks as `UNLOCALIZED` — the check working on the first ticket that ever
+  reached it.
+
+- **An enhancement was refused for naming what it was about to build.** The gate excuses a
+  feature from landing anywhere in the graph — it has no existing behaviour to localize — while
+  the unbound-criteria check refused every ticket alike. One gate, two stances on one question,
+  and the consequence was perverse: `the compiler returns >= 70 rules` is prose and proceeded,
+  while `` `rule_compiler` returns >= 70 rules `` named its subject, was more testable, and
+  parked the run. A bug is still refused — its subject is code that already exists, so an unbound
+  claim is a false premise — and anything else is told, and proceeds.
+
+- **`incident` was a bug to the profile selector and not to the gate.** It selected the bug
+  profile, got root-cause analysis, and was then excused from having to localize. Both now ask
+  one predicate.
+
+- **An enhancement's evidence claimed its root-cause section had found nothing.** The
+  enhancement profile drops `n_rca` precisely so the report does not print *"Not localized to a
+  repo symbol"* — an empty section that reads as a finding. The renderer printed it anyway: it
+  saw an empty result and could not tell a skipped node from an empty one. It now says *"Not run
+  for this issue type"*, and a bug that genuinely localizes nothing still says the original.
+
+### Fixed — the local gate failed on files you did not touch
+
+- **Two `type: ignore` comments were only correct in some environments.** Whether an ignore is
+  "unused" depends on whether the optional dependency it guards is installed, so
+  `mypy src tests` failed on `mcp/client.py` with `--extra dev` and on `sdlc/testrunner.py` with
+  `--all-extras` — always in a file the contributor had not touched, and never in CI, which
+  installs a set that hits neither. Both now name `unused-ignore` alongside the real code, which
+  is green in either environment. A gate that fails on someone else's file is a gate people
+  learn to distrust.
+
+### Added — two signals that were computed and thrown away
+
+- **`--issue-type` on `sdlc autorun` and `sdlc plan`.** Overrides what the ticket says, and is
+  the only way to type a run driven by `--spec`, which has no ticket behind it.
+
+- **Labels select a profile when the issue type does not.** Jira labels have been fetched with
+  every issue since the adapter was written and read by nothing. They are consulted **only**
+  where the type resolves to nothing — a renamed dropdown, a tracker with no type field — so a
+  feature request labelled `bug` for triage does not thereby get root-cause analysis. Sorted
+  before matching: first-match-wins over an unordered set is not reproducible.
+
+- **`n_churn` for the enhancement profile.** `build_rca` runs a `git log` recency pass and
+  crosses it with the fault file; dropping the node dropped that answer too, for half of all
+  tickets, though *"is this area moving?"* does not depend on a symptom. An enhancement's churn
+  is crossed with its **landing sites** instead — where a ticket's vocabulary already lives is
+  what it will attach to, not what it will touch — which is the weaker reading and is worded as
+  one. It never says "regression"; a test asserts the word does not appear.
+
 ## 3.24.0 — The plugins catch up with the product
 
 ### Added — multi-repo reaches the plugin surface

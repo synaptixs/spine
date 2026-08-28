@@ -1071,6 +1071,13 @@ def sdlc_autorun(
     ] = False,
     base: Annotated[str | None, typer.Option("--base", help="PR target branch.")] = None,
     language: Annotated[str, typer.Option("--language", help="Target language (auto detects).")] = "auto",
+    issue_type: Annotated[
+        str,
+        typer.Option(
+            "--issue-type",
+            help="Override the ticket's issue type (Bug, Story, …). Default: read it from the ticket.",
+        ),
+    ] = "",
     out: Annotated[
         Path | None,
         typer.Option("--out", help="Where run artifacts go (default: a run dir under the temp dir)."),
@@ -1133,6 +1140,7 @@ def sdlc_autorun(
                 gate=_terminal_gate() if review else None,
                 base_branch=base,
                 language=language,
+                issue_type=issue_type,
                 artifacts_dir=out,
                 resume=resume,
                 max_cost_usd=max_cost,
@@ -1167,6 +1175,13 @@ def sdlc_plan(
         typer.Option("--out", help="Where the document goes (default: <repo>/.spine/plans)."),
     ] = None,
     language: Annotated[str, typer.Option("--language", help="Target language for the prompt.")] = "python",
+    issue_type: Annotated[
+        str,
+        typer.Option(
+            "--issue-type",
+            help="Override the ticket's issue type (Bug, Story, …). Default: read it from the ticket.",
+        ),
+    ] = "",
     quiet: Annotated[bool, typer.Option("--quiet", help="Write the document without printing it.")] = False,
 ) -> None:
     """Produce the build document for ONE ticket and stop. No worktree, no code, no spend.
@@ -1194,6 +1209,9 @@ def sdlc_plan(
 
     async def _go() -> None:
         resolved = injected
+        # The flag wins; otherwise the ticket answers. An injected spec has no ticket behind
+        # it, so with `--spec` and no flag the document is honestly untyped.
+        resolved_type = issue_type
         if resolved is None:
             from orchestrator.core.env import load_local_env
             from orchestrator.core.llm.client import LLMError
@@ -1225,12 +1243,17 @@ def sdlc_plan(
                 typer.echo(f"Intent {intent!r} not found. Available: {ids}", err=True)
                 raise typer.Exit(code=3)
             resolved = chosen.model_dump()
+            if not resolved_type:
+                from orchestrator.intake.ticket_meta import resolve_ticket_meta
+
+                resolved_type = resolve_ticket_meta(plan_result, chosen).issue_type
 
         intent_key = str(resolved.get("intent_id") or "spec")
         document = await build_plan(
             resolved,
             root=path,
             language=language,
+            issue_type=resolved_type,
             # Rendered, never stored in the document: a plan that changed since it was
             # approved shows as stale rather than carrying an approval it outgrew.
             approval=load_approval(intent_key, root=path, out=out),

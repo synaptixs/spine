@@ -92,7 +92,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ### `StubTestRunner`
 
-[`src/orchestrator/sdlc/testrunner.py:509`](../../src/orchestrator/sdlc/testrunner.py#L509)
+[`src/orchestrator/sdlc/testrunner.py:517`](../../src/orchestrator/sdlc/testrunner.py#L517)
 
 - **Called by** (0 production · 2 test): [`test_stub_defaults_to_pass`](../../tests/sdlc/test_testrunner.py#L29), [`test_stub_scripts_outcomes_then_repeats_last`](../../tests/sdlc/test_testrunner.py#L17)
 - **Fields**: `_calls`, `_outcomes`
@@ -110,7 +110,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:78`](../../src/orchestrator/sdlc/testrunner.py#L78)
 
-- **Called by** (11 production · 1 test): [`_run`](../../src/orchestrator/sdlc/testrunner.py#L487), [`run`](../../src/orchestrator/sdlc/testrunner.py#L283), [`run`](../../src/orchestrator/sdlc/testrunner.py#L203), [`run`](../../src/orchestrator/sdlc/testrunner.py#L343), [`run`](../../src/orchestrator/sdlc/testrunner.py#L164), [`run`](../../src/orchestrator/sdlc/testrunner.py#L313), [`run`](../../src/orchestrator/sdlc/testrunner.py#L245), [`run`](../../src/orchestrator/sdlc/testrunner.py#L477), [`run`](../../src/orchestrator/sdlc/testrunner.py#L444), [`run`](../../src/orchestrator/sdlc/testrunner.py#L521), [`run`](../../src/orchestrator/sdlc/testrunner.py#L111), [`_fail`](../../tests/sdlc/test_testenv.py#L55)
+- **Called by** (11 production · 1 test): [`_run`](../../src/orchestrator/sdlc/testrunner.py#L487), [`run`](../../src/orchestrator/sdlc/testrunner.py#L283), [`run`](../../src/orchestrator/sdlc/testrunner.py#L203), [`run`](../../src/orchestrator/sdlc/testrunner.py#L343), [`run`](../../src/orchestrator/sdlc/testrunner.py#L164), [`run`](../../src/orchestrator/sdlc/testrunner.py#L313), [`run`](../../src/orchestrator/sdlc/testrunner.py#L245), [`run`](../../src/orchestrator/sdlc/testrunner.py#L477), [`run`](../../src/orchestrator/sdlc/testrunner.py#L444), [`run`](../../src/orchestrator/sdlc/testrunner.py#L529), [`run`](../../src/orchestrator/sdlc/testrunner.py#L111), [`_fail`](../../tests/sdlc/test_testenv.py#L55)
 - **Fields**: `__test__`, `output`, `passed`, `returncode`
 - **Documented in**: `docs/specs/java-codegen.md#test-runner-env`, `docs/specs/typescript-codegen.md#test-runner-env`
 

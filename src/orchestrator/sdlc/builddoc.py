@@ -1129,6 +1129,7 @@ async def build_plan(
     *,
     root: Path | str = ".",
     language: str = "python",
+    issue_type: str = "",
     approval: PlanApproval | None = None,
     journey: list[JourneyEntry] | None = None,
 ) -> str:
@@ -1170,7 +1171,10 @@ async def build_plan(
         spec,
         store=store,
         landing=landing,
-        issue_type=str(spec.get("issue_type") or ""),
+        # Passed in, not read off the spec: `FeatureSpec` forbids extra keys and has no such
+        # field, so `spec["issue_type"]` was always "" and the localization check never ran.
+        # The caller resolves it from the ticket (`intake.ticket_meta`) or is handed it.
+        issue_type=issue_type,
         root=root_path,
         context_budget=_MAX_CONTEXT_BYTES,
     )
