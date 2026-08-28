@@ -114,6 +114,12 @@ and a ticket landing in one now reports what depends on it in another. Declare t
 `.spine/repos.yaml`, let `orchestrator pkg joins --propose` derive the topology from
 evidence, and `investigate --repos` reads it.
 
+Also on `develop` — **the issue type now reaches the run.** The profiles below were selectable
+in principle and never selected in practice: nothing carried a ticket's type from the tracker to
+the pipeline, so every run took the `default` profile. A Bug now gets root-cause analysis and
+must localize; an enhancement gets a churn reading instead, and is no longer refused for naming
+the module it is about to create.
+
 **3.21.0** — issue-type workflow profiles a repo can carry itself.
 
 Full history, including the features we measured and *didn't* ship: **[CHANGELOG](https://github.com/synaptixs/spine/blob/main/CHANGELOG.md)**.

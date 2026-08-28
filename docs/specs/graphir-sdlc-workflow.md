@@ -1,7 +1,8 @@
 # The SDLC as a GraphIR workflow — one orchestrator, deterministic where it counts
 
 **Status:** **Phase 1 ✅** · **2a ✅** (2026-08-18) · **2b ✅ — promotion declined, measured** ·
-**Phase 3 ✅** (2026-08-19) · **Phase 4 ❌ — not delivered; both halves measured and declined**
+**Phase 3 ✅** (2026-08-19; **reached production 2026-08-28** — see the correction under Phase 3)
+· **Phase 4 ❌ — not delivered; both halves measured and declined**
 (2026-08-23). **Phases 1–3 are the programme; Phase 4 is closed, not shipped.**
 **Written 2026-08-18 against 3.19.0.** **Owner:** _unassigned_
 
@@ -304,7 +305,7 @@ Phase 4 is throughput. All three are real work; none fixes anything listed above
 | 1 | `tool` node type + the **Evidence** research node, SDLC expressed as IR, run in shadow | ✅ **COMPLETE** | 2026-08-18 | 2026-08-18 |
 | **2a** | The IR executes the run; Evidence is **consumed**; criteria bound; `RunContext` becomes the typed Case | ✅ **COMPLETE** | 2026-08-18 | 2026-08-18 |
 | **2b** | `design` promoted to a hybrid model node — validator, then `_llm_design`, then the measurement | ✅ **COMPLETE — promotion declined, measured** | 2026-08-18 | 2026-08-19 |
-| 3 | Issue-type-shaped workflows; profiles as files a repo can carry | ✅ **COMPLETE** | 2026-08-19 | 2026-08-19 |
+| 3 | Issue-type-shaped workflows; profiles as files a repo can carry | ✅ **COMPLETE** — but unreachable in production until 2026-08-28; see the correction below | 2026-08-19 | 2026-08-19 |
 | 4 | Parallel fan-out and the bounded replan loop | ❌ **NOT DELIVERED — fan-out worth ~30ms; replan built, then reverted as unreachable** | 2026-08-21 | 2026-08-23 |
 
 ### Phase 1 — the `tool` node type, the Evidence artifact, and the SDLC IR in shadow
@@ -547,11 +548,33 @@ selects which Evidence nodes run. A repo may carry its own profile.
 not `workflows` — `orchestrator.sdlc.workflows` is the Temporal module), `sdlc/profile_select.py`
 (new — deterministic issue type → profile; **no model**), `sdlc/profiles/__init__.py` (repo-carried
 profiles), `sdlc/autorun.py` (select, and skip `n_rca` when the profile has none), `cli.py`
-(`sdlc workflows`).
+(`sdlc workflows`). **Added 2026-08-28** (#246): `intake/ticket_meta.py`, `sdlc/churn.py`,
+`SourceDocument.issue_type`, `profile_select.is_bug`, and an `n_churn` node in
+`enhancement.yaml`.
 
 **Done when — and what was not measured.** Profile selection is deterministic and unit-tested per
 issue type, including the unmapped case. Every shipped profile validates. A bug run's Evidence
 carries an RCA; an enhancement run's records it as *not run for this issue type*.
+
+> **Correction, 2026-08-28.** Every sentence above was true of the code and false of any real
+> run. **Nothing supplied the issue type.** `FeatureSpec` forbids extra keys and has no field for
+> one, so `spec.get("issue_type")` was always `""`; no CLI passed one; and the tests that
+> established "deterministic per issue type" passed it directly to `_research_pass`. So
+> `select_profile` saw `""` on every production run, `default` was the only profile ever
+> selected, and `validity._check_localization` — guarded on the same string — never fired
+> outside its own tests. The bug and enhancement profiles this phase shipped were unreachable
+> for nine days.
+>
+> Closed by [#246](https://github.com/synaptixs/spine/pull/246): the type is resolved
+> deterministically at intake from the source document (`intake/ticket_meta.py`) and carried on
+> `RunContext`, with `--issue-type` as an operator override. The same PR gave the enhancement
+> profile back the `git log` churn pass it was losing along with `n_rca`, and stopped the
+> unbound-criteria check refusing an enhancement for naming what it was about to build.
+>
+> **The lesson is about the acceptance evidence, not the code.** A unit test that supplies an
+> input itself cannot tell you anything about whether the input ever arrives. Everything this
+> phase claimed was tested; nothing tested the wiring, and a green row said COMPLETE for nine
+> days. This record's own *Currency* note exists for exactly this failure mode.
 
 **Acceptance impact: not measured.** The clause asked for bug-ticket acceptance against a bug
 corpus with held-out graders. **No bug corpus exists** — the benchmark holds 5 `create` and 5
@@ -564,6 +587,13 @@ analysis it cannot use. `localize_trace` on a feature request resolves nothing a
 localized to a repo symbol" — an empty section that reads as a finding — and it costs a `git log`
 subprocess to say it. Not running it, and saying so, is better on both counts and needed no
 measurement to establish.
+
+Two halves of that argument were only completed on 2026-08-28. The renderer went on printing
+"Not localized to a repo symbol" regardless, because it saw an empty dict and could not tell a
+skipped node from an empty result — so the misleading section this phase dropped the node to
+avoid was printed anyway. And the `git log` subprocess is not only cost: it also answers "is this
+area moving?", which is not symptom-dependent, so the enhancement profile now carries an
+`n_churn` node keyed to its landing sites rather than a fault site.
 
 **Defects.** Closes **none** — all four are shut by the end of 2a. This phase is
 configurability, not correctness, and should not be sold as a fix.

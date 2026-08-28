@@ -646,18 +646,35 @@ guessing.
 
 **Two of those verdicts are new, and both can park a ticket that used to build:**
 
-- **An acceptance criterion that names code the graph does not hold.** *"`OrderTotals` is
-  recalculated on save"* against a repo with no such symbol is the same false premise as a wrong
-  count — a criterion nobody can locate is a test nobody can write. Every criterion is bound to
-  a symbol and a `file:line`, or reported, in `criteria.md`. **Prose never parks a run:**
-  CamelCase words, `ALL_CAPS` env vars, tool names and plain English are not claims about your
-  code and are marked "not a code claim".
+- **An acceptance criterion that names code the graph does not hold — on a bug.** *"`OrderTotals`
+  is recalculated on save"* against a repo with no such symbol is the same false premise as a
+  wrong count: a bug describes code that already runs, so a criterion nobody can locate is a test
+  nobody can write. Every criterion is bound to a symbol and a `file:line`, or reported, in
+  `criteria.md`. **Prose never parks a run:** CamelCase words, `ALL_CAPS` env vars, tool names
+  and plain English are not claims about your code and are marked "not a code claim".
+
+  **On an enhancement it is reported, not refused.** A feature's criterion names what the run is
+  about to build, so refusing it would mean the better-written criterion is the one that parks
+  your ticket — *"the compiler returns ≥ 70 rules"* is prose and proceeds, while
+  *"`rule_compiler` returns ≥ 70 rules"* names its subject, is more testable, and would have
+  stopped the run. The finding still appears in the assessment, and the design stage lists the
+  same absent name under unverified references. Which way it goes depends on the ticket's
+  **issue type** — see below.
 - **A design that names a place your repository does not have.** A new file in an existing
   directory is fine — that is a file being created. A file in a directory that exists nowhere,
   or a symbol in a module that does not exist, is not. See `design-references.md`.
 
 Both refuse rather than guess, and both park with the evidence on disk. If a park is wrong,
 `sdlc runs approve` continues the run.
+
+**The ticket's issue type decides which research it gets, and how strictly it is judged.** It is
+read from the tracker — a Jira `Bug`, `Story`, `New Feature` — and falls back to the ticket's
+labels when the type is one Spine does not map. A `Bug` runs root-cause analysis and must
+localize: if nothing in the graph matches its words there is no fault site to work from, and the
+run parks as `UNLOCALIZED` rather than guessing one. An enhancement skips RCA, which it has no
+symptom to use, and gets a churn reading over its landing sites instead — *is the area I am
+building into moving?* Override it with `--issue-type Bug` when the tracker is wrong, or when
+you are running from a `--spec` file and there is no ticket to ask.
 
 **`[typecheck]`** runs your repo's own type checker over the lines the change
 touched, and any error goes back to the refine loop like a test failure. This is not
