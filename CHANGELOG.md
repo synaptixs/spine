@@ -4,7 +4,7 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
-## Unreleased — The issue type finally reaches the run
+## 3.25.0 — The issue type finally reaches the run
 
 ### Fixed — the issue-type pipeline was unreachable
 
