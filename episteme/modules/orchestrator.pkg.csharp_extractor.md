@@ -30,7 +30,7 @@ _26 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/csharp_extractor.py:92`](../../src/orchestrator/pkg/csharp_extractor.py#L92)
 
-- **Called by** (1 production · 4 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L525), [`_facts`](../../tests/pkg/test_csharp_extractor.py#L41), [`test_first_party_base_type_keeps_its_namespace`](../../tests/pkg/test_csharp_extractor.py#L363), [`test_framework_base_type_is_not_placed_in_the_local_namespace`](../../tests/pkg/test_csharp_extractor.py#L339), [`test_repo_extractor_dispatches_csharp_by_suffix`](../../tests/pkg/test_csharp_extractor.py#L97)
+- **Called by** (1 production · 4 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L530), [`_facts`](../../tests/pkg/test_csharp_extractor.py#L41), [`test_first_party_base_type_keeps_its_namespace`](../../tests/pkg/test_csharp_extractor.py#L363), [`test_framework_base_type_is_not_placed_in_the_local_namespace`](../../tests/pkg/test_csharp_extractor.py#L339), [`test_repo_extractor_dispatches_csharp_by_suffix`](../../tests/pkg/test_csharp_extractor.py#L97)
 - **Fields**: `language`, `suffixes`
 - **Documented in**: `docs/specs/language-support-roadmap.md#track-1-c-cs-do-first-lowest-risk`
 
@@ -75,7 +75,7 @@ _26 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/csharp_extractor.py:465`](../../src/orchestrator/pkg/csharp_extractor.py#L465)
 
 - **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L296)
-- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_bound_names`](../../src/orchestrator/pkg/csharp_extractor.py#L621), [`_calls_in`](../../src/orchestrator/pkg/csharp_extractor.py#L602)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L137), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_bound_names`](../../src/orchestrator/pkg/csharp_extractor.py#L621), [`_calls_in`](../../src/orchestrator/pkg/csharp_extractor.py#L602)
 
 ### `_calls_in`
 
@@ -96,14 +96,14 @@ _26 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/csharp_extractor.py:331`](../../src/orchestrator/pkg/csharp_extractor.py#L331)
 
 - **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L296)
-- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Node`](../../src/orchestrator/pkg/facts.py#L93), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_attr_string_arg`](../../src/orchestrator/pkg/csharp_extractor.py#L566), [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L552), [`_is_controller`](../../src/orchestrator/pkg/csharp_extractor.py#L366), [`_join_route`](../../src/orchestrator/pkg/csharp_extractor.py#L497)
+- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L137), [`Node`](../../src/orchestrator/pkg/facts.py#L121), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_attr_string_arg`](../../src/orchestrator/pkg/csharp_extractor.py#L566), [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L552), [`_is_controller`](../../src/orchestrator/pkg/csharp_extractor.py#L366), [`_join_route`](../../src/orchestrator/pkg/csharp_extractor.py#L497)
 
 ### `_entity_edges`
 
 [`src/orchestrator/pkg/csharp_extractor.py:404`](../../src/orchestrator/pkg/csharp_extractor.py#L404)
 
 - **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L296)
-- **Calls** (10): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Node`](../../src/orchestrator/pkg/facts.py#L93), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L552), [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L528), [`_entity_id`](../../src/orchestrator/pkg/csharp_extractor.py#L487), [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L683), [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L503), [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L700), [`_type_arg_names`](../../src/orchestrator/pkg/csharp_extractor.py#L691)
+- **Calls** (10): [`Edge`](../../src/orchestrator/pkg/facts.py#L137), [`Node`](../../src/orchestrator/pkg/facts.py#L121), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L552), [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L528), [`_entity_id`](../../src/orchestrator/pkg/csharp_extractor.py#L487), [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L683), [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L503), [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L700), [`_type_arg_names`](../../src/orchestrator/pkg/csharp_extractor.py#L691)
 
 ### `_entity_id`
 
@@ -184,7 +184,7 @@ _26 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/csharp_extractor.py:380`](../../src/orchestrator/pkg/csharp_extractor.py#L380)
 
 - **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L296)
-- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L109), [`Node`](../../src/orchestrator/pkg/facts.py#L93), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L574), [`_member_name`](../../src/orchestrator/pkg/csharp_extractor.py#L588)
+- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L137), [`Node`](../../src/orchestrator/pkg/facts.py#L121), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L574), [`_member_name`](../../src/orchestrator/pkg/csharp_extractor.py#L588)
 
 ### `_ref_type_names`
 

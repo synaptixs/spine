@@ -46,6 +46,16 @@ class SourceDocument:
     url: str = ""
     space: str = ""
     labels: tuple[str, ...] = ()
+    #: The tracker's own type string — ``Bug``, ``Story``, ``New Feature``, whatever a team
+    #: typed into the dropdown. Carried **unnormalised**: mapping it to a workflow profile is
+    #: `sdlc.profile_select`'s job, and a source that silently canonicalised it would give the
+    #: run a type the tracker never used.
+    #:
+    #: It is also prepended to ``body`` (see ``jira_source.issue_meta_header``) so the intent
+    #: extractor reads it as prose. That is a different consumer: the header is for the model,
+    #: this field is for the deterministic pipeline, and only the second can select a profile
+    #: or decide whether a ticket must localize. Empty for sources that have no such notion.
+    issue_type: str = ""
 
     @property
     def is_empty(self) -> bool:

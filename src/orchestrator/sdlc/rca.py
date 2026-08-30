@@ -18,12 +18,12 @@ text — all reduce to "text we localize + ground against the PKG".
 from __future__ import annotations
 
 import logging
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from orchestrator.pkg import FactStore
+from orchestrator.sdlc.churn import changed_recently
 from orchestrator.sdlc.localize import Localization, localize_trace
 
 logger = logging.getLogger("orchestrator.sdlc.rca")
@@ -63,24 +63,6 @@ class RCAReport:
     fix_approach: str = ""
     grounded: bool = False
     llm: bool = False
-
-
-def _recently_changed_files(root: Path | str | None, *, commits: int = 40) -> set[str]:
-    """Repo-relative files touched in the last ``commits`` commits (best-effort)."""
-    if root is None:
-        return set()
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(root), "log", "--name-only", "--pretty=format:", "-n", str(commits)],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return set()
-    if out.returncode != 0:
-        return set()
-    return {line.strip() for line in out.stdout.splitlines() if line.strip()}
 
 
 def _exception_class(exception: str) -> str:
@@ -237,10 +219,11 @@ async def build_rca(
     # regression surface and a recently-changed check for the majority of bug tickets,
     # which arrive as prose and not as tracebacks.
     fault_file = fault.where.split(":", 1)[0] if fault else (loc.stated_files[0] if loc.stated_files else "")
-    changed = _recently_changed_files(root)
-    recently_changed = bool(
-        fault_file and any(c == fault_file or c.endswith("/" + fault_file) for c in changed)
-    )
+    # The same churn pass the enhancement profile now runs on its landing sites, from one
+    # implementation — a bug and a feature asking "has this changed lately?" must not get two
+    # different answers. Here it is crossed with the fault file, which is what makes it a
+    # regression signal rather than a note about a busy area.
+    recently_changed = bool(changed_recently([fault_file], root)) if fault_file else False
 
     report = RCAReport(
         problem=problem.strip(),

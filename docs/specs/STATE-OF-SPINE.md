@@ -1,9 +1,9 @@
-# State of Spine — 3.22.0
+# State of Spine — 3.25.1
 
-**The one document to read.** Verified against source on **2026-08-25**, at the 3.22.0 release
+**The one document to read.** Verified against source on **2026-08-28**, at the 3.25.1 release
 cut. Every number below was re-measured that day.
 
-> **Why this exists.** `docs/specs/` holds **71** markdown files — **68 specs** plus this
+> **Why this exists.** `docs/specs/` holds **76** markdown files — **73 specs** plus this
 > page, [`README`](README.md) and [`SPEC-INDEX`](SPEC-INDEX.md) — with 6 archived, 10 build
 > documents, and 17 root-level user documents.
 > Answering "where do we stand?" required opening five of them and reconciling three that
@@ -24,11 +24,11 @@ gates (before building, before merging). The product is **Spine**; it ships as
 
 | | Value | How it is known |
 |---|---|---|
-| Version | **3.22.0** | cutting now; 3.21.0 is the last on PyPI until this ships |
+| Version | **3.25.1** | cutting now; 3.25.0 is the last on PyPI until this ships |
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
-| CLI commands | **54** | `grep -c '\.command(' src/orchestrator/cli.py` |
-| Source modules | **320** | `find src/orchestrator -name '*.py'` |
-| Test functions | **2,621** across 295 files | `grep -rh '^def test_\|^async def test_' tests` |
+| CLI commands | **55** | `grep -c '\.command(' src/orchestrator/cli.py` |
+| Source modules | **326** | `find src/orchestrator -name '*.py'` |
+| Test functions | **2,767** across 293 files | `grep -rh '^def test_\|^async def test_' tests`; files via the same pattern with `-rl` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
 | `CALLS` recall | **1.00** (C, SQL) → **0.50** (TypeScript) | same |
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |
@@ -44,7 +44,7 @@ run. The graph pays exactly where the model cannot see the target, and ties wher
 *For engineers. The narrative version is [`KNOWLEDGE_GRAPH.md`](../../KNOWLEDGE_GRAPH.md); the
 full front-end detail is [`parsing-and-the-pkg.md`](parsing-and-the-pkg.md).*
 
-Everything else on this page rests on one artifact. The **Program Knowledge Graph** is a typed
+Everything else on this page rests on one artifact. The **Product Knowledge Graph** is a typed
 fact graph of the target codebase — **8 node kinds** (`Module` `Type` `Function` `Field`
 `Endpoint` `Entity` `Doc` `Intent`) and **11 edge kinds** (`IMPORTS` `CONTAINS` `CALLS`
 `IMPLEMENTS` `READS` `WRITES` `EXPOSES` `CONSUMES` `REFERENCES` `MENTIONS` `SERVES`) — where

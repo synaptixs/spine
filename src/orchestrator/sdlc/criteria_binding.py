@@ -14,13 +14,20 @@ so this module reuses that extractor and that binder rather than defining a seco
 "names a symbol". Two definitions would be two things that can disagree, and the first
 disagreement would be reported as a defect in the pipeline.
 
-**What parks a run, precisely.** Only a criterion that *makes a claim and gets it wrong*:
+**What parks a run, precisely.** Only a criterion that *makes a claim and gets it wrong*, and
+only on a ticket whose subject is code that already exists:
 
 | Criterion | Status | Parks? |
 |---|---|---|
 | names a symbol/file the graph holds | `bound` | no |
-| names a symbol/file with **code intent** that resolves to nothing | `unbound` | **yes** |
+| names a symbol/file with **code intent** that resolves to nothing | `unbound` | **on a bug** |
 | prose, or a mention that cannot carry code intent | `no-claim` | no |
+
+The middle row is a false premise on a bug and the *deliverable* on an enhancement — the same
+binding, two meanings — so `validity.assess` refuses the first and reports the second. Refusing
+both would mean the better-written criterion is the one that parks a feature: "the compiler
+returns >= 70 rules" is prose and proceeds, while "`rule_compiler` returns >= 70 rules" names
+its subject, is more testable, and would be the one to stop the run.
 
 The third row is what keeps this from parking everything. `_can_drift` in `pkg/docs.py` is the
 arbiter: CamelCase prose ("GitHub", "Python"), ALL-CAPS tokens (env vars, config keys), plain
@@ -80,7 +87,13 @@ class CriterionBinding:
 
     @property
     def parks(self) -> bool:
-        """Only an unbound *claim* stops a run. Prose never does."""
+        """Only an unbound *claim* can stop a run. Prose never can.
+
+        **Can**, not does: `validity.assess` makes that call, and it depends on the issue
+        type. A bug's subject is code that already exists, so an unbound claim is a false
+        premise and parks. An enhancement's unbound claim names the deliverable, and is
+        reported without stopping the run. This flag is the gate's input, not its verdict.
+        """
         return self.status == "unbound"
 
 

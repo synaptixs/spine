@@ -4,6 +4,231 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.25.1 — The README catches up, and is made to stay caught up
+
+### Fixed — the first thing anyone reads was three releases stale
+
+- **`README.md`'s "What's new" said `3.22.0 (current)`** while PyPI served 3.25.0. The release
+  cut touches `pyproject.toml`, three manifests, the architecture diagram and two `docs/specs`
+  files — and nothing else knew a release had happened, so the section every visitor reads
+  first quietly described a version from three cuts ago, with 3.23.0's and 3.25.0's headline
+  features still filed under *"on `develop`"*.
+
+  It now lists 3.25.1 through 3.22.0, and **`test_the_readme_whats_new_section_names_the_current
+  _version` fails until it names the version in `pyproject.toml`**. That is the same fix, and
+  the same argument, as `test_manifest_version_tracks_the_package`: the manifests stood at 2.5.0
+  through fifteen releases because nothing tied them to the package, and a document nobody has
+  tied to the release is a document that goes stale silently rather than loudly.
+
+## 3.25.0 — The issue type finally reaches the run
+
+### Fixed — the issue-type pipeline was unreachable
+
+- **Nothing carried the ticket's issue type into a run.** Spine is issue-type shaped:
+  `select_profile` picks a workflow profile from it, the validity gate decides by it whether a
+  ticket must localize, and the `bug`/`enhancement` profiles exist to be selected by it. None of
+  it fired. The only thing intake hands a run is a `FeatureSpec`, which forbids extra keys and
+  has no field for a type — so the lookup was always `""`, **every run took the `default`
+  profile**, and the localization check never once ran outside its own tests. The type reached
+  the intent *extractor*, as prose prepended to the body, and nothing else.
+
+  It is now resolved deterministically at intake — `spec.intent_id → Intent → source_doc_ids →
+  SourceDocument` — over data already fetched, and carried on the run rather than on the spec. A
+  spec is written by a model, and a model choosing which research a ticket gets is what
+  `profile_select` exists to prevent. **Two behaviours change with it:** a typed ticket now
+  selects `bug`/`enhancement` where it silently took `default`, and a `Bug` whose words match
+  nothing in the graph parks as `UNLOCALIZED` — the check working on the first ticket that ever
+  reached it.
+
+- **An enhancement was refused for naming what it was about to build.** The gate excuses a
+  feature from landing anywhere in the graph — it has no existing behaviour to localize — while
+  the unbound-criteria check refused every ticket alike. One gate, two stances on one question,
+  and the consequence was perverse: `the compiler returns >= 70 rules` is prose and proceeded,
+  while `` `rule_compiler` returns >= 70 rules `` named its subject, was more testable, and
+  parked the run. A bug is still refused — its subject is code that already exists, so an unbound
+  claim is a false premise — and anything else is told, and proceeds.
+
+- **`incident` was a bug to the profile selector and not to the gate.** It selected the bug
+  profile, got root-cause analysis, and was then excused from having to localize. Both now ask
+  one predicate.
+
+- **An enhancement's evidence claimed its root-cause section had found nothing.** The
+  enhancement profile drops `n_rca` precisely so the report does not print *"Not localized to a
+  repo symbol"* — an empty section that reads as a finding. The renderer printed it anyway: it
+  saw an empty result and could not tell a skipped node from an empty one. It now says *"Not run
+  for this issue type"*, and a bug that genuinely localizes nothing still says the original.
+
+### Fixed — the local gate failed on files you did not touch
+
+- **Two `type: ignore` comments were only correct in some environments.** Whether an ignore is
+  "unused" depends on whether the optional dependency it guards is installed, so
+  `mypy src tests` failed on `mcp/client.py` with `--extra dev` and on `sdlc/testrunner.py` with
+  `--all-extras` — always in a file the contributor had not touched, and never in CI, which
+  installs a set that hits neither. Both now name `unused-ignore` alongside the real code, which
+  is green in either environment. A gate that fails on someone else's file is a gate people
+  learn to distrust.
+
+### Added — two signals that were computed and thrown away
+
+- **`--issue-type` on `sdlc autorun` and `sdlc plan`.** Overrides what the ticket says, and is
+  the only way to type a run driven by `--spec`, which has no ticket behind it.
+
+- **Labels select a profile when the issue type does not.** Jira labels have been fetched with
+  every issue since the adapter was written and read by nothing. They are consulted **only**
+  where the type resolves to nothing — a renamed dropdown, a tracker with no type field — so a
+  feature request labelled `bug` for triage does not thereby get root-cause analysis. Sorted
+  before matching: first-match-wins over an unordered set is not reproducible.
+
+- **`n_churn` for the enhancement profile.** `build_rca` runs a `git log` recency pass and
+  crosses it with the fault file; dropping the node dropped that answer too, for half of all
+  tickets, though *"is this area moving?"* does not depend on a symptom. An enhancement's churn
+  is crossed with its **landing sites** instead — where a ticket's vocabulary already lives is
+  what it will attach to, not what it will touch — which is the weaker reading and is worded as
+  one. It never says "regression"; a test asserts the word does not appear.
+
+## 3.24.0 — The plugins catch up with the product
+
+### Added — multi-repo reaches the plugin surface
+
+- **`blast_radius` and `investigate` take `repos`.** Point either at a `.spine/repos.yaml`
+  instead of a `repo_path` and the answer crosses a repository boundary: a handler reporting
+  `0 caller(s)` at home now names the service that depends on it. 3.23.0 shipped this on the
+  CLI only, so the headline capability of that release was invisible to Claude Code and Codex.
+- **`pkg_joins`** — `mode="propose"` derives a `joins:` block from the evidence (each candidate
+  carrying the edges it would create); `mode="check"` reports the calls no declared join could
+  place. Read-only; it never writes a config, same as the CLI.
+- **Every multi-repo answer carries a `standing` block** — the repos it covers and whether it is
+  `reproducible`. The CLI prints that on stderr; a tool has to *return* it, or a caller quotes a
+  number nothing can reproduce and nothing in the payload says so.
+
+### Added — a single-repo answer now says when it is one
+
+- **`multi_repo_available`.** Point a comprehension tool at a repository that declares siblings
+  in its own `.spine/repos.yaml` and the answer carries a note naming that config and the repos
+  it declares. This is the one case the multi-repo work could not make loud on its own:
+  extracting a single directory always *succeeds*, so `0 caller(s)` from an unscoped graph is
+  indistinguishable from `0 caller(s)` that was checked across every service — and the first is
+  the answer that gets a handler changed.
+- A note, not a switch. It never redirects the caller to the merged graph, because which
+  repositories an answer covers is theirs to decide. A config too broken to parse still
+  produces a note, since an unreadable config is still evidence the project is multi-repo.
+- `sdlc_approve` opts out: a decision about one repository's plan is not a question about the
+  others.
+
+### Added — `[all]`, because the documented install under-delivered
+
+- **`pip install 'synaptixs-spine[all]'`** — every language front-end, the MCP server, doc and
+  office ingestion. Both plugin READMEs and both guides said `[mcp]`, which installs the server
+  and a **Python-only** graph: a Java or Go repo yields zero nodes rather than an error, so the
+  documented install failed by looking like an empty repository. `[languages]` is the front-ends
+  alone.
+
+### Fixed — the manifests had stood at 2.5.0 through fifteen releases
+
+- **Version, tool list and language list are current** across `marketplace.json`, the Claude
+  Code `plugin.json` and the Codex `plugin.json`. They advertised 7 tools and 7 languages
+  against a registry of 20 and a front-end set of 8, and omitted `sdlc_plan` / `sdlc_approve`
+  entirely — both shipped in August and neither appeared in a manifest.
+- **`understand-codebase`** gained the cross-repo tools, the `standing` block, the plan/approve
+  tier, and SQL.
+- **Three tests so this cannot recur quietly.** Manifest versions are asserted against
+  `pyproject.toml`; every name in `_TOOLS` must appear in a user-facing guide; the pitch must
+  name all eight languages. The old test grepped the manifests for the word "Go" — written for
+  3.7.0, and green for every release after it.
+
+### Changed — one helper, not two
+
+- `unresolved_by_repo` moved to `pkg/joins_propose.py`; `cli.py` and the plugin server now share
+  it instead of carrying identical copies.
+
+## 3.23.0 — One graph across several repositories
+
+### Added — multi-repo comprehension
+
+- **"What breaks if I change this?" can now answer with a caller in a different repository.**
+  Declare your services in `.spine/repos.yaml` and they extract, scope and merge into one
+  graph. A ticket landing in one repo reports what depends on it in another:
+
+  ```
+  - **billing** · `create_order` (Function, 0 caller(s), **1 dependent(s) in other repos**) — billing:app/routes.py:7
+  ```
+
+  That row is the whole point. `0 caller(s)` is **true** — nothing in the source calls an HTTP
+  handler — and on its own it is the most dangerous answer the graph can give.
+
+- **Three join kinds, and the topology is declared rather than guessed.** An HTTP call to a
+  path another repo serves, a table two repos both write, a library one repo publishes and
+  another imports. Declaring a join **narrows the search**; it does not create the edge —
+  matching `POST /v1/orders/42` against `POST /v1/orders/{id}` is still resolution, done
+  segment-by-segment so a `{param}` can never swallow a `/`, and **refused outright when two
+  endpoints match**. Recall pays; precision does not.
+
+- **Nobody authors the topology.** `orchestrator pkg joins --propose` derives it from evidence —
+  the calls a repo makes to paths it does not serve, matched against its neighbours' endpoints;
+  shared table names; imports another repo defines — and **every candidate carries the number of
+  edges it would create**, because a join producing zero is noise. It prints a block to review
+  and writes no config.
+
+- **`pkg joins --check`, because a forgotten join is quiet.** A repository nobody listed is loud:
+  no nodes, a visibly narrower graph. A missing `joins:` entry looks exactly like two services
+  that are not coupled, which reads as health. So unplaced calls are reported by reason **and per
+  declared join**, and a stale join shows `** placed nothing **` rather than vanishing into a
+  healthy total.
+
+- **Measured, per joiner, against corpus cases written before the joiners worked:** precision
+  **1.00** on all three; recall **1.00** for data and package, **0.67** for HTTP. Precision is
+  1.00 *by construction* — nothing can join to a repository nobody declared — so recall is the
+  number worth watching. The missing third on HTTP is a path built from an f-string, which the
+  extractor collects as no call at all; it is labelled a known gap rather than hidden.
+
+- **New surfaces:** `pkg extract --repos`, `pkg joins --propose|--check`, `investigate --repos`.
+
+### Changed — `Provenance` gained a `repo`, and `__str__` deliberately did not
+
+- Node ids are language-prefixed, not repository-prefixed, so `py:shop.cart.Cart` is the same id
+  in two repositories and merging collapsed them **silently** — internally consistent, externally
+  false, with `pkg verify` reporting zero throughout. Scoping is applied **at merge time only**,
+  so single-repo extraction is byte-identical: verified by SHA-256 over the full node and edge
+  set against the previous release on leveldb, gin, zod, Newtonsoft.Json and this repo's own
+  source, at every phase.
+- **`Provenance.__str__` keeps its shape**, and there is a test that fails if it ever stops.
+  **Six production call sites parse it back** with `split(":", 1)[0]` to recover a file path,
+  two of which are `evidence.py` and `criteria_binding.py` — so a repo in the string makes an
+  acceptance criterion bind against a repo name, which is to say against nothing, and **pass**.
+  Use `Provenance.qualified()` where the repository matters.
+
+### Added — the corpus can hold a cross-repo case
+
+- `expected.json` accepts `roots:` (repo key → path) alongside `root:`, and a multi-repo case is
+  scored through the **real** merged path — scoping, merging, declared joins — or it would
+  measure an assembly nothing ships. A `requires:` field separates *what a case measures* from
+  *which front-end must be installed*; the two are identical for every single-language case and
+  differ for a cross-repo one.
+
+### Documentation
+
+- **The README now argues for the project instead of re-telling a release.** It opened with
+  "New in 3.20.0", two releases stale. It leads with what Spine does that other tools do not —
+  four points, each with a number — and the contributing section says what the codebase is
+  actually like, names four places to start, and states the three rules that matter.
+- `CLI_REFERENCE` covers `pkg joins` and both `--repos` flags; `FEATURES` gains multi-repo.
+- Four design records: the multi-repo roadmap, an enhancement index, how a ticket becomes a
+  `file:line`, and a constitution spec that **may close unbuilt** — its Phase 0 is a blocking
+  trigger probe, and the probe already run says all three candidate rules have fired zero times
+  in this project's history.
+- **spec-kit evaluated and declined**, with the revisit condition written down.
+
+### Known limitations
+
+- **Only Python emits `CONSUMES`**, so the HTTP joiner is Python-client → any-language-endpoint.
+  A Java service calling a Java service produces no join at all.
+- Only `investigate` reads the joins; `design` and the SDLC pipeline still run against one
+  repository. **Multi-repo *delivery* is an explicit non-goal** — N PRs that must land together
+  is ordering and rollback, not a graph problem.
+- Recall 0.67 on HTTP is against a fixture designed to be joinable. The number from a real pair
+  of production repositories — templated paths, gateway rewrites, a declaration written by
+  someone who did not build this — **has not been taken.**
+
 ## 3.22.0 — Four front-ends stop asserting calls the source does not make
 
 ### Fixed — four front-ends fabricated a `CALLS` edge for a shadowed name

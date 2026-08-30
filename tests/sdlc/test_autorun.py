@@ -46,21 +46,35 @@ class _Spec:
 
 
 class _Plan:
-    def __init__(self, specs: list[_Spec]) -> None:
+    def __init__(
+        self,
+        specs: list[_Spec],
+        *,
+        documents: list[Any] | None = None,
+        intents: list[Any] | None = None,
+    ) -> None:
         self.specs = specs
-        self.documents: list[Any] = []
-        self.intents: list[Any] = []
+        self.documents: list[Any] = documents or []
+        self.intents: list[Any] = intents or []
         self.gaps: list[Any] = []
         self.blocked = False
         self.truncated = False
 
 
 class _Service:
-    def __init__(self, specs: list[_Spec]) -> None:
+    def __init__(
+        self,
+        specs: list[_Spec],
+        *,
+        documents: list[Any] | None = None,
+        intents: list[Any] | None = None,
+    ) -> None:
         self._specs = specs
+        self._documents = documents
+        self._intents = intents
 
     async def analyze(self, root_id: str) -> _Plan:
-        return _Plan(self._specs)
+        return _Plan(self._specs, documents=self._documents, intents=self._intents)
 
 
 def _install(
@@ -68,6 +82,8 @@ def _install(
     tmp_path: Path,
     *,
     specs: list[_Spec] | None = None,
+    documents: list[Any] | None = None,
+    intents: list[Any] | None = None,
     feature: Any = None,
     calls: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -76,7 +92,9 @@ def _install(
     monkeypatch.setattr("orchestrator.core.env.load_local_env", lambda *a, **k: 0)
     monkeypatch.setattr(
         "orchestrator.intake.factory.build_service_for",
-        lambda *a, **k: _Service(specs if specs is not None else [_Spec()]),
+        lambda *a, **k: _Service(
+            specs if specs is not None else [_Spec()], documents=documents, intents=intents
+        ),
     )
 
     async def _feature(source: str, **kwargs: Any) -> Any:  # noqa: ARG001
@@ -555,6 +573,8 @@ def _run(
     issue: str | None = None,
     max_cost_usd: float | None = None,
     spec: dict[str, Any] | None = None,
+    issue_type: str = "",
+    log: Any = None,
 ) -> RunContext:
     """Run the skeleton against a tiny real repo, so the graph stages do real work."""
     import asyncio
@@ -576,10 +596,158 @@ def _run(
             issue=issue,
             max_cost_usd=max_cost_usd,
             spec=spec,
+            issue_type=issue_type,
+            log=log,
             # These tests exercise the rest of the run; the plan gate has its own below.
             plan_gate=False,
         )
     )
+
+
+# --- the ticket's issue type reaches the run ----------------------------------------
+#
+# It did not, for the whole life of the issue-type-shaped pipeline: `FeatureSpec` forbids
+# extra keys and has no field for a type, so `spec.get("issue_type")` was always "" and the
+# CLI passed nothing. Every run took the `default` profile and the localization check never
+# fired. These are the assertions that would have caught it — they exercise the real
+# resolution, not a stubbed one.
+
+
+def _typed_source(issue_type: str = "Bug", *, labels: tuple[str, ...] = ()) -> dict[str, Any]:
+    """A plan shaped like a real Jira ingest: one document, one intent that links to it."""
+    from orchestrator.intake.intents import Intent
+    from orchestrator.intake.source import SourceDocument
+
+    return {
+        "documents": [
+            SourceDocument(
+                id="PROJ-1", title="Add CSV export", body="text", issue_type=issue_type, labels=labels
+            )
+        ],
+        "intents": [Intent(id="intent-a", title="X", description="do x", source_doc_ids=["PROJ-1"])],
+    }
+
+
+def test_the_issue_type_travels_from_the_ticket_to_the_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install(monkeypatch, tmp_path, **_typed_source("Bug"))
+
+    ctx = _run(tmp_path)
+
+    assert ctx.issue_type == "Bug"
+    assert ctx.case is not None and ctx.case.issue_type == "Bug"
+
+
+def test_the_labels_travel_with_it(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Fetched by the Jira adapter since it was written, and read by nothing until now."""
+    _install(monkeypatch, tmp_path, **_typed_source("Bug", labels=("sev1", "backend")))
+
+    ctx = _run(tmp_path)
+
+    assert ctx.labels == ("backend", "sev1"), "sorted — `select_profile` matches over this set"
+
+
+def test_a_label_selects_the_profile_when_the_ticket_has_no_type(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """End of the second half of the plumbing: labels were fetched by the Jira adapter and read
+    by nothing. A tracker with no type field, or a renamed dropdown, still gets its profile."""
+    _install(monkeypatch, tmp_path, **_typed_source("", labels=("customer", "type:bug")))
+
+    ctx = _run(tmp_path)
+
+    assert ctx.issue_type == ""
+    assert ctx.case is not None and ctx.case.profile == "sdlc.bug"
+
+
+def test_the_tickets_own_type_still_beats_its_labels(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _install(monkeypatch, tmp_path, **_typed_source("Story", labels=("bug",)))
+
+    ctx = _run(tmp_path)
+
+    assert ctx.case is not None and ctx.case.profile == "sdlc.enhancement"
+
+
+def test_a_typed_ticket_selects_the_matching_profile(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The point of the plumbing: `bug`/`enhancement` were unreachable in every real run."""
+    _install(monkeypatch, tmp_path, **_typed_source("Story"))
+
+    ctx = _run(tmp_path)
+
+    assert ctx.case is not None and ctx.case.profile == "sdlc.enhancement"
+
+
+def test_an_untyped_ticket_still_takes_the_default_profile(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Unchanged behaviour for a source with no such notion — a file:// spec, a wiki page."""
+    _install(monkeypatch, tmp_path)
+
+    ctx = _run(tmp_path)
+
+    assert ctx.issue_type == ""
+    assert ctx.case is not None and ctx.case.profile == "sdlc.default"
+
+
+def test_the_operator_flag_overrides_what_the_ticket_says(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install(monkeypatch, tmp_path, **_typed_source("Story"))
+
+    ctx = _run(tmp_path, issue_type="Bug")
+
+    assert ctx.issue_type == "Bug"
+    assert ctx.case is not None and ctx.case.profile == "sdlc.bug"
+
+
+def test_the_flag_is_the_only_way_to_type_an_injected_spec(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`--spec` skips intake entirely, so there is no ticket to ask."""
+    _install(monkeypatch, tmp_path)
+    # Words that land in the test repo (`mod.py` defines `export_csv`): typing a spec as a
+    # Bug now makes the localization check live, and it refuses a bug it cannot localize.
+    injected = {**_INJECTED, "title": "Add CSV export", "summary": "export_csv drops rows"}
+
+    assert _run(tmp_path, spec=injected).issue_type == ""
+    assert _run(tmp_path, spec=injected, issue_type="Bug").issue_type == "Bug"
+
+
+def test_typing_a_ticket_as_a_bug_makes_the_localization_check_live(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The check has existed since Phase 3 and never once fired: it is guarded on an issue
+    type nothing supplied. A Bug whose words match nothing in the graph has no fault site to
+    work from, and guessing one is the failure RCA exists to avoid."""
+    _install(monkeypatch, tmp_path)
+    unrelated = {**_INJECTED, "title": "Keep invented criteria separable", "summary": "quarantine them"}
+
+    with pytest.raises(AutorunError, match="UNLOCALIZED"):
+        _run(tmp_path, spec=unrelated, issue_type="Bug")
+
+    # …and the same ticket, untyped, still proceeds exactly as it did before this branch.
+    assert _run(tmp_path, spec=unrelated).passed
+
+
+def test_the_run_says_where_the_issue_type_came_from(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """ "Why did this run take the `default` profile?" has to be answerable from the output —
+    an untyped run that says nothing is how this sat unreachable without anyone noticing."""
+    _install(monkeypatch, tmp_path, **_typed_source("Bug"))
+    lines: list[str] = []
+
+    _run(tmp_path, log=lines.append)
+
+    assert any("issue type `Bug`" in line and "PROJ-1" in line for line in lines)
+
+
+def test_an_untyped_run_says_that_too(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _install(monkeypatch, tmp_path)
+    lines: list[str] = []
+
+    _run(tmp_path, log=lines.append)
+
+    assert any("no issue type" in line for line in lines)
 
 
 # --- A hand-written spec replaces intake (--spec) -----------------------------------

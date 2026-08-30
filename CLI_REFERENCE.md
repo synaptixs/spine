@@ -4,7 +4,7 @@
 > Maintained by hand against the CLI — run `orchestrator <command> --help` for the
 > authoritative version. If the two disagree, `--help` is right and this file is a bug.
 
-**54 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
+**55 commands** across 7 areas. Every command supports `--help`; repo-analysis commands accept a local path or a git URL.
 
 ## Command map
 
@@ -12,7 +12,7 @@
 `init` · `doctor` · `models` · `up` · `tui` · `task submit`
 
 **Understand a codebase — the Knowledge Graph** — Extract and read the Product Knowledge Graph (PKG). Deterministic, no LLM. All accept a local path OR a git URL.  
-`understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs` · `pkg capabilities` · `pkg verify` · `pkg accuracy` · `media extract`
+`understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs` · `pkg capabilities` · `pkg verify` · `pkg accuracy` · `pkg joins` · `media extract`
 
 **Grounded design, debugging & RCA** — The KG-grounded engineering commands: design a change, research a ticket, and trace/analyze bugs — all anchored to real code.  
 `design` · `investigate` · `localize` · `rca` · `regression` · `audit`
@@ -321,6 +321,43 @@ orchestrator pkg extract [PATH] [OPTIONS]
 | `--query`, `-q` | Show callers + blast radius of a symbol name. |
 | `--json` | Dump all facts as JSON. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
+| `--repos` | A `.spine/repos.yaml` — extract every declared repo into **one** graph. |
+
+With `--repos`, each repository is extracted and cached **separately** and merged on read, so
+changing one of four re-extracts one and reuses three. The summary then lists every repo with
+its commit and whether it came from cache — and says loudly when the merged graph is **not
+reproducible**, because one repository with uncommitted work makes the whole thing
+unreproducible and a merged graph looks identical either way.
+
+### `orchestrator pkg joins`
+
+Propose or check cross-repository joins (read-only; writes no config).
+
+```
+orchestrator pkg joins --propose | --check [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `--config` | The `.spine/repos.yaml` declaring the repos. _(default: `.spine/repos.yaml`)_ |
+| `--propose` | Suggest a `joins:` block from the evidence. |
+| `--check` | List the calls no declared join could place. |
+| `--json` | Emit as JSON. |
+
+**`--propose`** derives the topology from facts rather than asking you to draw it: HTTP calls a
+repo makes to paths it does not serve, matched against its neighbours' endpoints; table names
+two repos share; imports one repo makes that another actually defines. **Every candidate carries
+the number of edges it would create**, because a join producing zero is noise. It prints a block
+for you to paste — it never writes one.
+
+**`--check`** exists because a forgotten join is *quiet*. A repository nobody listed is loud —
+no nodes, a visibly narrower graph. A missing `joins:` entry looks exactly like two services
+that are not coupled, which reads as health. So the unplaced calls are reported by reason **and
+per declared join**, and a stale join shows `** placed nothing **` rather than disappearing into
+a healthy-looking total.
+
+Precision is ~1.00 by construction — nothing can join to a repository nobody declared — so the
+number this prints is **recall**, and it is the one worth watching.
 
 ### `orchestrator pkg export`
 
@@ -616,6 +653,11 @@ and — when a registry DB is configured — prior-run notes. Deterministic, no
 LLM. Pass the ticket via `--source` (e.g. `jira://PROJ-123`) or inline with
 `--title`/`--text`. Feed the result into `orchestrator design`.
 
+With `--repos` the brief is built from the merged multi-repo graph, so each landing site names
+the repository it is in and **how many dependents it has elsewhere**. That second number is the
+point: an HTTP handler has no inbound `CALLS` — nothing in the source calls one — so a caller
+count of `0` reads as "nothing depends on this" while another service depends on it entirely.
+
 ```
 orchestrator investigate [PATH] [OPTIONS]
 ```
@@ -628,6 +670,7 @@ orchestrator investigate [PATH] [OPTIONS]
 |---|---|
 | `--source` | Fetch the ticket from a source, e.g. jira://PROJ-123, confluence://<id>, file://./bug.md. |
 | `--title`, `-t` | Inline ticket title (instead of --source). |
+| `--repos` | A `.spine/repos.yaml` — research across **every declared repo**. |
 | `--text` | Inline ticket body (with --title). |
 | `--out` | Write the brief here (default: print to stdout). |
 | `--refresh` | Re-extract the PKG instead of using the commit cache. |
@@ -862,6 +905,7 @@ orchestrator sdlc plan --spec ./SSPN-49.json --path .
 | `--path` | Repo to reason about — the graph the plan is grounded in. (default: `.`) |
 | `--out` | Where the document goes (default: `<repo>/.spine/plans`). |
 | `--language` | Target language named in the codegen-prompt section. (default: `python`) |
+| `--issue-type` | Override the ticket's issue type (`Bug`, `Story`, …) — it decides whether the validity section requires the ticket to localize. Default: read it from the ticket; with `--spec` there is no ticket to read. |
 | `--quiet` | Write the document without printing it. |
 
 **Section 8 takes one extra spec field.** `met_criteria` maps a stated criterion's exact
@@ -937,6 +981,7 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --saf
 | `--review` / `--no-review` | Show the diff and ask before committing or pushing anything. (default: `--no-review`) |
 | `--base` | Branch to build on **and** open the PR into (default `$SDLC_PR_BASE`, else the remote's default branch). The run's worktree is cut from this, so on a repo that merges to `develop`, leaving it unset builds the change on `main`. |
 | `--language` | Target language (auto detects). (default: `auto`) |
+| `--issue-type` | Override the ticket's issue type (`Bug`, `Story`, …), which selects the workflow profile and decides whether the ticket must localize. Default: read it from the ticket. With `--spec` there is no ticket to read, so this is the only way to type that run. |
 | `--out` | Where run artifacts go (default: a run dir under the temp dir). |
 | `--resume` | Continue a run by id — adopts the issue it already created. |
 | `--max-cost` | Cap LLM spend (USD) for this run; exhausting it parks the run. |
@@ -1174,7 +1219,14 @@ and the run says so rather than skipping research silently.
 **The enhancement profile has no `n_rca`.** Root-cause analysis localizes a *symptom*, and a
 feature request has none — it would resolve nothing and print "not localized", an empty section
 that reads as a finding. An enhancement run records RCA as *not run for this issue type*, which
-is a different statement.
+is a different statement, and its evidence says so in those words.
+
+**It has `n_churn` instead.** `build_rca` also carries a `git log` recency pass, and dropping the
+whole node dropped that with it for half of all tickets — "is this area moving?" does not depend
+on a symptom. The enhancement's churn is crossed with its **landing sites** rather than a fault
+site, which makes it the weaker of the two readings: where a ticket's vocabulary already lives is
+what it will attach to, not what it will touch. It is worded accordingly and never says
+"regression". One implementation (`sdlc/churn.py`) serves both profiles.
 
 ### `orchestrator sdlc workflow`
 
@@ -1190,7 +1242,7 @@ model. `n_design` is declared an agent node because that is the target state; it
 `llm=None` today.
 
 **`sdlc autorun` executes this graph.** Its deterministic research nodes — `n_investigate`,
-`n_rca`, `n_blast_radius` — run through the tool registry and compose one `Evidence` artifact
+`n_rca` (or `n_churn`), `n_blast_radius` — run through the tool registry and compose one `Evidence` artifact
 that `validity`, `design` and the acceptance criteria are all judged against. Set
 `SPINE_SDLC_IMPERATIVE=1` to fall back to the pre-graph path, which stays available for one
 release.

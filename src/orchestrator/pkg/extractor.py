@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Protocol
 
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
-from orchestrator.pkg.python_client import ClientState
+from orchestrator.pkg.python_client import ClientState, PendingCall
 from orchestrator.pkg.python_client import emit as emit_calls
 from orchestrator.pkg.python_client import scan_module as scan_calls
 from orchestrator.pkg.python_orm import OrmState
@@ -207,6 +207,11 @@ class PythonExtractor:
         emit_calls(self._calls, batch)
         self._calls.clear()
         return batch
+
+    @property
+    def unresolved_calls(self) -> list[PendingCall]:
+        """Calls this repo makes to endpoints it does not serve. Side-channel, not facts."""
+        return self._calls.unmatched
 
     # ---- pass 1: names available for call resolution --------------------
 
@@ -586,6 +591,9 @@ class RepoCodeExtractor:
                 self._by_suffix[suffix] = ex
         self._ignore_dirs = ignore_dirs
         self.skipped: list[str] = []
+        #: HTTP calls that matched no endpoint in this repository — the cross-repo join
+        #: candidates. A side-channel, never facts: see `python_client.emit`.
+        self.unresolved_calls: list[PendingCall] = []
 
     def extract(self, root: Path | str) -> FactBatch:
         root_path = Path(root)
@@ -620,6 +628,11 @@ class RepoCodeExtractor:
         # module index, and here (not at call sites) so every consumer of the
         # graph — understand, state, grounding, export — gets resolved imports.
         from orchestrator.pkg.import_link import link_imports
+
+        for extractor in used:
+            state = getattr(extractor, "unresolved_calls", None)
+            if state:
+                self.unresolved_calls.extend(state)
 
         return link_imports(batch, root_path)
 

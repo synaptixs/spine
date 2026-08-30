@@ -9,10 +9,19 @@
     {
       "name": "spine",
       "source": "./plugins/spine",
-      "description": "Understand any codebase, then ship changes to it. Read-only comprehension tools hand you engineering decisions (what breaks if you change X, what's untested, where a ticket/bug lands) from a deterministic Product Knowledge Graph; then delegate a ticket and, on confirm, get a reviewed, tested PR. Greenfield + brownfield across Python, Java, TypeScript, C#, C, C++, and Go, exposed as MCP tools + an understand-codebase skill.",
-      "version": "2.5.0",
+      "description": "Understand any codebase, then ship changes to it. Read-only comprehension tools hand you engineering decisions (what breaks if you change X, what's untested, where a ticket lands) from a deterministic Product Knowledge Graph — across one repository or several. Then delegate a ticket and, on confirm, get a reviewed, tested PR. Greenfield + brownfield across Python, Java, TypeScript, C#, C, C++, Go, and SQL, exposed as MCP tools + an understand-codebase skill.",
+      "version": "3.25.1",
       "category": "Engineering",
-      "keywords": ["sdlc", "codegen", "mcp", "knowledge-graph", "greenfield", "brownfield", "pkg"]
+      "keywords": [
+        "sdlc",
+        "codegen",
+        "mcp",
+        "knowledge-graph",
+        "greenfield",
+        "brownfield",
+        "pkg",
+        "multi-repo"
+      ]
     }
   ]
 }

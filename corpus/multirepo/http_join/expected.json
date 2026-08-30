@@ -1,0 +1,164 @@
+{
+  "language": "multirepo",
+  "case": "http_join",
+  "requires": [
+    "python"
+  ],
+  "roots": {
+    "billing": ".billing",
+    "web": ".web"
+  },
+  "joins": [
+    {
+      "kind": "http",
+      "consumer": "web",
+      "provider": "billing"
+    }
+  ],
+  "why": "The first edges in the PKG that leave a repository. `web` calls paths it does not serve; `billing` serves two of them. Written and scored BEFORE the joiner worked, and it failed on exactly the CONSUMES edges below \u2014 a fixture that passes before the code is a fixture that measures nothing. Four calls, chosen so a matcher cannot pass by cheating in either direction: an exact path, a concrete path that must match a templated route, a path built from an f-string, and a path nothing serves.",
+  "nodes": [
+    {
+      "id": "py:web@app.client",
+      "kind": "Module"
+    },
+    {
+      "id": "py:web@app.client.place_order",
+      "kind": "Function"
+    },
+    {
+      "id": "py:web@app.client.fetch_order",
+      "kind": "Function"
+    },
+    {
+      "id": "py:web@app.client.fetch_by_var",
+      "kind": "Function"
+    },
+    {
+      "id": "py:web@app.client.check_health",
+      "kind": "Function"
+    },
+    {
+      "id": "py:billing@app.routes",
+      "kind": "Module"
+    },
+    {
+      "id": "py:billing@app.routes.create_order",
+      "kind": "Function"
+    },
+    {
+      "id": "py:billing@app.routes.read_order",
+      "kind": "Function"
+    },
+    {
+      "id": "py:billing@endpoint:POST /v1/orders",
+      "kind": "Endpoint"
+    },
+    {
+      "id": "py:billing@endpoint:GET /v1/orders/{order_id}",
+      "kind": "Endpoint"
+    }
+  ],
+  "edges": [
+    {
+      "src": "py:web@app.client",
+      "dst": "py:web@app.client.place_order",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:web@app.client",
+      "dst": "py:web@app.client.fetch_order",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:web@app.client",
+      "dst": "py:web@app.client.fetch_by_var",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:web@app.client",
+      "dst": "py:web@app.client.check_health",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:billing@app.routes",
+      "dst": "py:billing@app.routes.create_order",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:billing@app.routes",
+      "dst": "py:billing@app.routes.read_order",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:web@app.client",
+      "dst": "py:httpx",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:billing@app.routes",
+      "dst": "py:fastapi.FastAPI",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:web@app.client.place_order",
+      "dst": "py:httpx.post",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:web@app.client.fetch_order",
+      "dst": "py:httpx.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:web@app.client.fetch_by_var",
+      "dst": "py:httpx.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:web@app.client.check_health",
+      "dst": "py:httpx.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:billing@endpoint:POST /v1/orders",
+      "dst": "py:billing@app.routes.create_order",
+      "kind": "EXPOSES"
+    },
+    {
+      "src": "py:billing@endpoint:GET /v1/orders/{order_id}",
+      "dst": "py:billing@app.routes.read_order",
+      "kind": "EXPOSES"
+    },
+    {
+      "src": "py:web@app.client.place_order",
+      "dst": "py:billing@endpoint:POST /v1/orders",
+      "kind": "CONSUMES"
+    },
+    {
+      "src": "py:web@app.client.fetch_order",
+      "dst": "py:billing@endpoint:GET /v1/orders/{order_id}",
+      "kind": "CONSUMES"
+    },
+    {
+      "src": "py:web@app.client.fetch_by_var",
+      "dst": "py:billing@endpoint:GET /v1/orders/{order_id}",
+      "kind": "CONSUMES"
+    }
+  ],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "py:web@app.client.fetch_by_var",
+        "dst": "py:billing@endpoint:GET /v1/orders/{order_id}",
+        "kind": "CONSUMES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `httpx.get(f\"/v1/orders/{order_id}\")` builds its path from an f-string, and `python_client._literal` reads only literal constants \u2014 so no call is collected at all and there is nothing for the joiner to place. A real recall miss in extraction, not in the join, and counted as one rather than exempted. The literal `/v1/orders/42` two lines above is what actually exercises template matching."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [
+    "`check_health` calling GET /health is NOT excluded and NOT labelled: nothing serves it, so no edge is correct. It is the control \u2014 a matcher joining everything would emit an edge here and lose precision; one joining nothing would lose recall on the two real joins."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

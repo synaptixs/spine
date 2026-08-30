@@ -208,6 +208,82 @@
             }
           }
         },
+        "multirepo": {
+          "edges": {
+            "CALLS": {
+              "emitted": 10,
+              "expected": 10,
+              "matched": 10
+            },
+            "CONSUMES": {
+              "emitted": 2,
+              "expected": 3,
+              "matched": 2
+            },
+            "CONTAINS": {
+              "emitted": 22,
+              "expected": 22,
+              "matched": 22
+            },
+            "EXPOSES": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "IMPLEMENTS": {
+              "emitted": 5,
+              "expected": 5,
+              "matched": 5
+            },
+            "IMPORTS": {
+              "emitted": 9,
+              "expected": 9,
+              "matched": 9
+            },
+            "READS": {
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
+            },
+            "WRITES": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            }
+          },
+          "nodes": {
+            "Endpoint": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "Entity": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "Field": {
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
+            },
+            "Function": {
+              "emitted": 12,
+              "expected": 12,
+              "matched": 12
+            },
+            "Module": {
+              "emitted": 6,
+              "expected": 6,
+              "matched": 6
+            },
+            "Type": {
+              "emitted": 5,
+              "expected": 5,
+              "matched": 5
+            }
+          }
+        },
         "python": {
           "edges": {
             "CALLS": {
@@ -368,12 +444,13 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 16046,
+          "total_calls": 16411,
           "unexamined": 0
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 16046
+      "total_calls": 16411
+
     },
     "parity": {
       "declared": 75,

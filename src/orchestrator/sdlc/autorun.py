@@ -79,6 +79,14 @@ class RunContext:
     worktree: str = ""
     pr_url: str | None = None
     spec: dict[str, Any] | None = None
+    # What the tracker says about this ticket, resolved once at intake and read by everything
+    # that is issue-type shaped: which profile runs, whether the ticket must localize, whether
+    # an unbound criterion parks the run. It is *not* on the spec — a spec is written by a
+    # model, and a model choosing which research a ticket gets is the one thing
+    # `profile_select` exists to prevent. Empty is a legitimate answer and behaves as it
+    # always did: the `default` profile, and a reason printed at intake.
+    issue_type: str = ""
+    labels: tuple[str, ...] = ()
     # The design, rendered — handed to codegen so the implement stage acts on what the
     # design stage decided rather than re-deriving its own view of the ticket.
     plan: str = ""
@@ -255,6 +263,10 @@ async def autorun(
     does today: the brief and design are written to the run directory, the code is committed
     locally, and no tracker or forge is touched.
 
+    ``issue_type`` **overrides** what intake resolves from the ticket, and is the only way the
+    ``spec=`` path can be typed at all — an injected spec has no source document behind it.
+    Empty means "ask the ticket", which is the normal case.
+
     ``resume`` continues a run that already exists: it keeps the run id, and adopts the
     tracker issue that run already created rather than creating a second one. ``max_cost_usd``
     caps LLM spend for the run; exhausting it parks the run instead of shipping half a change.
@@ -339,7 +351,7 @@ async def autorun(
     ):
         try:
             with ctx.stage_span("intake"):
-                await _stage_intake(ctx, intent_id=intent_id, spec=spec, emit=emit)
+                await _stage_intake(ctx, intent_id=intent_id, spec=spec, issue_type=issue_type, emit=emit)
             # Before the graph, before any spend: was this plan read and approved? The gate
             # is here rather than before intake because it needs the spec to know which plan
             # it is asking about.
@@ -347,11 +359,13 @@ async def autorun(
             store_graph, overview = _load_graph(ctx, emit=emit)
             # Research first, and before validity: a run that parks still leaves its Evidence
             # behind, which is the artifact a human is asked to judge the park on.
-            await _research_pass(ctx, store=store_graph, issue_type=issue_type, emit=emit)
+            # `ctx.issue_type`, not the parameter: intake resolved it from the ticket, and the
+            # parameter is only the operator's override into that resolution.
+            await _research_pass(ctx, store=store_graph, issue_type=ctx.issue_type, emit=emit)
             with ctx.stage_span("investigate"):
                 _stage_investigate(ctx, store=store_graph, emit=emit)
             with ctx.stage_span("validity"):
-                _stage_validity(ctx, store=store_graph, issue_type=issue_type, emit=emit)
+                _stage_validity(ctx, store=store_graph, issue_type=ctx.issue_type, emit=emit)
             with ctx.stage_span("design"):
                 await _stage_design(ctx, store=store_graph, overview=overview, emit=emit)
             with ctx.stage_span("implement"):
@@ -516,11 +530,30 @@ async def _require_plan(ctx: RunContext, *, enabled: bool, emit: Callable[[str],
 # ---- stages ----------------------------------------------------------------
 
 
+def _adopt_issue_type(
+    ctx: RunContext, issue_type: str, *, origin: str, detail: str = "", emit: Callable[[str], None]
+) -> None:
+    """Record the resolved issue type on the run, and say where it came from.
+
+    Always emits, including when nothing resolved. "Why did this run take the `default`
+    profile?" has to be answerable from the run's own output; an untyped run that says
+    nothing is how the whole issue-type-shaped pipeline sat unreachable without anyone
+    noticing.
+    """
+    resolved = issue_type.strip()
+    ctx.issue_type = resolved
+    if resolved:
+        emit(f"[intake] issue type `{resolved}`" + (f" (from {origin})" if origin else ""))
+        return
+    emit("[intake] no issue type" + (f" — {detail}" if detail else ""))
+
+
 async def _stage_intake(
     ctx: RunContext,
     *,
     intent_id: str | None,
     spec: dict[str, Any] | None = None,
+    issue_type: str = "",
     emit: Callable[[str], None],
 ) -> None:
     """Resolve the source to one spec, once, and hand it to every later stage.
@@ -532,10 +565,19 @@ async def _stage_intake(
     A caller-supplied ``spec`` replaces that derivation outright: intake does not run, and
     the stage records *skipped* rather than *ok*, so the summary never implies a source
     document was read. The source URI is still what the run is filed against.
+
+    It is also where the ticket's **issue type** is resolved, from the plan's own documents
+    (:func:`orchestrator.intake.ticket_meta.resolve_ticket_meta`). Once, here, so every later
+    stage reads one answer: the profile selector and the validity gate disagreeing about
+    whether a ticket is a bug would be a defect visible from neither side alone.
     """
     if spec is not None:
         ctx.spec = dict(spec)
         ctx.spec.setdefault("intent_id", intent_id or "injected")
+        # An injected spec has no source document behind it, so `--issue-type` is the only
+        # way this path can reach the bug profile at all. Silence here is what made a
+        # spec-file run untyped and unexplained.
+        _adopt_issue_type(ctx, issue_type, origin="--issue-type", emit=emit)
         ctx.record_stage("intake", "skipped", "spec supplied by the caller")
         emit(f"[intake] skipped — spec supplied: {ctx.spec.get('title', '')}")
         return
@@ -544,6 +586,7 @@ async def _stage_intake(
     from orchestrator.intake.cache import analyze_cached
     from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
     from orchestrator.intake.service import parse_source_uri
+    from orchestrator.intake.ticket_meta import resolve_ticket_meta
 
     load_local_env()
     parse_source_uri(ctx.source)
@@ -565,6 +608,12 @@ async def _stage_intake(
         raise AutorunError(f"Intent {intent_id!r} not found. Available: {ids}", code=3)
 
     ctx.spec = chosen.model_dump()
+    if issue_type.strip():
+        _adopt_issue_type(ctx, issue_type, origin="--issue-type", emit=emit)
+    else:
+        meta = resolve_ticket_meta(plan, chosen)
+        ctx.labels = meta.labels
+        _adopt_issue_type(ctx, meta.issue_type, origin=meta.origin, detail=meta.detail, emit=emit)
     ctx.record_stage("intake", "ok", f"spec: {ctx.spec.get('title', '')}")
     emit(f"[intake] {ctx.spec.get('title', '')} (intent {ctx.spec.get('intent_id', '')})")
 
@@ -574,10 +623,11 @@ async def _stage_intake(
 _IMPERATIVE_ENV = "SPINE_SDLC_IMPERATIVE"
 
 # Node ids in the profile, so the two paths agree on what to call each step.
-_N_INVESTIGATE, _N_RCA, _N_BLAST, _N_VALIDITY = (
+_N_INVESTIGATE, _N_RCA, _N_BLAST, _N_CHURN, _N_VALIDITY = (
     "n_investigate",
     "n_rca",
     "n_blast_radius",
+    "n_churn",
     "n_validity",
 )
 
@@ -615,7 +665,9 @@ async def _research_pass(
 
     spec = ctx.spec or {}
     title, summary = str(spec.get("title", "")), str(spec.get("summary", ""))
-    resolved_type = issue_type or str(spec.get("issue_type", ""))
+    # No `spec.get("issue_type")` fallback: `FeatureSpec` forbids extra keys and has no such
+    # field, so that read was always "" and made an unreachable path look supplied.
+    resolved_type = issue_type
     ctx.case = Case(
         run_id=ctx.run_id,
         issue_key=ctx.issue_key,
@@ -630,7 +682,10 @@ async def _research_pass(
         # Which research this ticket gets is a lookup on its issue type, not a judgement — and
         # it stays one. A model choosing would make the Evidence unreproducible at a commit,
         # which is the guarantee everything downstream rests on.
-        selection = select_profile(resolved_type, available=profile_names(ctx.root))
+        # Labels are the fallback, not an override: `select_profile` reads them only where the
+        # issue type maps to nothing. They have been fetched with every Jira issue since the
+        # adapter was written and read by nothing until now.
+        selection = select_profile(resolved_type, labels=ctx.labels, available=profile_names(ctx.root))
         emit(f"[research] {selection.reason}")
         ir = load_profile(selection.profile, ctx.root)
         report = await IRValidator().validate(ir)
@@ -702,6 +757,25 @@ async def _research_pass(
             seconds=time.monotonic() - started,
         )
 
+        # The churn node, where the profile declares one. `bug` and `default` get the same
+        # question answered inside `n_rca`, keyed to the fault site; this is the landing-site
+        # reading, which is what an enhancement can have. One implementation behind both.
+        churn_value: dict[str, Any] = {}
+        if any(node.id == _N_CHURN for node in ir.spec.nodes):
+            started = time.monotonic()
+            churn = await registry.run("sdlc.churn", files=list(files), root=ctx.root)
+            churn_value = churn.value
+            ctx.case.record(
+                _N_CHURN,
+                kind="tool",
+                status="ok",
+                digest=churn.digest,
+                tool=churn.name,
+                detail=f"{len(churn.value.get('files') or [])} of {len(files)} landing file(s) "
+                f"changed in the last {churn.value.get('commits', 0)} commits",
+                seconds=time.monotonic() - started,
+            )
+
         evidence = evidence_from_parts(
             title=title,
             problem=summary,
@@ -709,6 +783,7 @@ async def _research_pass(
             investigate=investigate.value,
             rca=rca_value,
             blast=blast.value,
+            churn=churn_value,
         )
         ctx.evidence = evidence
         ctx.case.evidence = to_dict(evidence)
@@ -829,7 +904,7 @@ def _stage_validity(ctx: RunContext, *, store: Any, issue_type: str, emit: Calla
         ctx.spec or {},
         store=store,
         landing=ctx.landing,
-        issue_type=issue_type or str((ctx.spec or {}).get("issue_type", "")),
+        issue_type=issue_type,
         issue_key=ctx.issue_key,
         prior_runs=ctx.store.all() if ctx.store is not None else [],
         # The gate can only weigh the context budget if it can measure the files. Passing

@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from orchestrator.intake.cache import (
+    _CACHE_VERSION,
     analyze_cached,
     cache_path,
     complete_by_pr,
@@ -26,7 +27,9 @@ _SOURCE = "confluence://1234567890"
 
 def _plan() -> BacklogPlan:
     return BacklogPlan(
-        documents=[SourceDocument(id="1234567890", title="Reqs", body="text", labels=("a", "b"))],
+        documents=[
+            SourceDocument(id="1234567890", title="Reqs", body="text", labels=("a", "b"), issue_type="Bug")
+        ],
         intents=[Intent(id="intent-x", title="X", description="do x", acceptance_criteria=["c1"])],
         gaps=[
             GapFinding(
@@ -59,6 +62,9 @@ def test_round_trip_preserves_the_plan(tmp_path: Path) -> None:
     assert [s.intent_id for s in loaded.specs] == ["intent-x"]
     assert loaded.gaps[0].severity is GapSeverity.WARNING  # enum survives, not bare str
     assert loaded.documents[0].labels == ("a", "b")  # tuple restored
+    # A cached document that lost its type would send every resumed run to the `default`
+    # profile, silently — the reason the cache version was bumped rather than left compatible.
+    assert loaded.documents[0].issue_type == "Bug"
 
 
 def test_miss_returns_none(tmp_path: Path) -> None:
@@ -68,7 +74,10 @@ def test_miss_returns_none(tmp_path: Path) -> None:
 def test_version_mismatch_is_ignored(tmp_path: Path) -> None:
     save_plan(_SOURCE, _plan(), tmp_path)
     p = cache_path(_SOURCE, tmp_path)
-    p.write_text(p.read_text().replace('"version": 1', '"version": 999'))
+    # Written against the *current* version, not a literal: hard-coding `"version": 1` made
+    # this test silently stop testing anything the first time the version was bumped — the
+    # replace matched nothing and the file it loaded was simply valid.
+    p.write_text(p.read_text().replace(f'"version": {_CACHE_VERSION}', '"version": 999'))
     assert load_cached_plan(_SOURCE, tmp_path) is None
 
 

@@ -12,23 +12,30 @@
 # Running from the project env means one source of truth (pyproject) and local results that
 # match CI. The cost is that these hooks need `uv sync --extra dev` first, which contributors
 # run anyway. Hooks that do not depend on the project's dependency graph stay pinned below.
+#
+# `--frozen` on every `uv run` below: without it, `uv run` re-resolves and REWRITES `uv.lock`
+# on every commit. When your uv is older than the one that last wrote the lock, that rewrite
+# downgrades the file format and churns unrelated dependency markers — pre-commit then aborts
+# with "files were modified by this hook", attributed to `ruff (lint, --fix)`, which is not
+# where the change came from. Linting has no business editing the lockfile, so it does not.
+# Relocking stays a deliberate `uv lock`.
 repos:
   - repo: local
     hooks:
       - id: ruff
         name: ruff (lint, --fix)
-        entry: uv run ruff check --fix
+        entry: uv run --frozen ruff check --fix
         language: system
         types_or: [python, pyi]
       - id: ruff-format
         name: ruff (format)
-        entry: uv run ruff format
+        entry: uv run --frozen ruff format
         language: system
         types_or: [python, pyi]
       - id: mypy
         name: mypy src tests
         # `mypy src tests`, not just `src` — typing src alone passes locally and fails CI.
-        entry: uv run mypy src tests
+        entry: uv run --frozen mypy src tests
         language: system
         pass_filenames: false
         files: ^(src|tests)/

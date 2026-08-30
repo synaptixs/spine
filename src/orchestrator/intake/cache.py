@@ -34,7 +34,12 @@ from orchestrator.intake.specs import FeatureSpec
 logger = logging.getLogger("orchestrator.intake.cache")
 
 # Bump when the serialized shape changes so stale files are ignored, not crashed on.
-_CACHE_VERSION = 1
+#
+# 2: `SourceDocument.issue_type`. A new optional field would not *crash* a v1 read — it
+# defaults to "" — and that is exactly the problem: a warm cache would keep serving untyped
+# documents, every run would keep selecting the `default` profile, and nothing would say why.
+# Bumping turns a silent wrong answer into a refetch.
+_CACHE_VERSION = 2
 
 
 def default_cache_dir() -> Path:

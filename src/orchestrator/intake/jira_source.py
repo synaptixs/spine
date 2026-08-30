@@ -80,21 +80,37 @@ def _description_text(description: Any) -> str:
     return ""
 
 
+def issue_type_of(fields: dict[str, Any]) -> str:
+    """``"Bug"`` from a Jira issue's fields, or ``""``.
+
+    Accepts **both spellings of the type key**, because the two transports disagree: Jira REST
+    returns ``issuetype``, while ``mcp-atlassian`` returns ``issue_type``. Reading only the
+    REST spelling is how the meta header silently produced nothing at all over MCP — the tests
+    mocked REST's shape, so they agreed with the code and both were wrong about the real
+    server.
+
+    One function so the *header* and the ``SourceDocument.issue_type`` *field* cannot disagree
+    about what type an issue is. They feed different consumers — the header is prose for the
+    intent extractor, the field is data for the deterministic pipeline — and a ticket whose
+    two answers differed would be a defect nobody could see from either one alone.
+    """
+    type_obj = fields.get("issuetype") or fields.get("issue_type") or {}
+    return str(type_obj.get("name") or "") if isinstance(type_obj, dict) else str(type_obj)
+
+
 def issue_meta_header(fields: dict[str, Any]) -> str:
     """``"Bug · status: Open · priority: High"`` from a Jira issue's fields, or ``""``.
 
     Shared by the REST adapter and the MCP one so an issue reads the same whichever
-    transport fetched it. The header is how issue *type* reaches the extractor at all —
-    :class:`SourceDocument` has no field for it, so it is prepended to the body, and a Bug
-    genuinely reads differently from a Story.
+    transport fetched it. This is how issue type, status and priority reach the *extractor* —
+    prepended to the body, because a Bug genuinely reads differently from a Story and the
+    model only sees prose.
 
-    Accepts **both spellings of the type key**, because the two transports disagree: Jira REST
-    returns ``issuetype``, while ``mcp-atlassian`` returns ``issue_type``. Reading only the
-    REST spelling is how this silently produced no header at all over MCP — the tests mocked
-    REST's shape, so they agreed with the code and both were wrong about the real server.
+    The type also travels as ``SourceDocument.issue_type``, which is what selects a workflow
+    profile. This header cannot serve that: parsing a profile decision back out of a body
+    string would make the pipeline depend on prose formatting.
     """
-    type_obj = fields.get("issuetype") or fields.get("issue_type") or {}
-    itype = str(type_obj.get("name") or "") if isinstance(type_obj, dict) else str(type_obj)
+    itype = issue_type_of(fields)
     status = str((fields.get("status") or {}).get("name") or "")
     priority = str((fields.get("priority") or {}).get("name") or "")
     parts = (itype, f"status: {status}" if status else "", f"priority: {priority}" if priority else "")
@@ -131,7 +147,15 @@ class JiraSourceAdapter:
         body = _collapse("\n\n".join(p for p in (header, _description_text(fields.get("description"))) if p))
         url = f"{self._config.base_url.rstrip('/')}/browse/{key}" if key else ""
         project = project_key_of(key)
-        return SourceDocument(id=key, title=summary, body=body, url=url, space=project, labels=labels)
+        return SourceDocument(
+            id=key,
+            title=summary,
+            body=body,
+            url=url,
+            space=project,
+            labels=labels,
+            issue_type=issue_type_of(fields),
+        )
 
     async def fetch_document(self, doc_id: str) -> SourceDocument:
         data = await self._get(f"/issue/{doc_id}", params={"fields": _FIELDS})

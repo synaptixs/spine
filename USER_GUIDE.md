@@ -64,6 +64,9 @@ orchestrator --help
 Optional extras, added when you need them:
 - `pip install 'synaptixs-spine[sdlc]'` — run the generated tests (the `sdlc feature`/`run` path)
 - `pip install 'synaptixs-spine[tui]'` — the `orchestrator tui` terminal UI (Step 7)
+- `pip install 'synaptixs-spine[all]'` — everything below at once: every language front-end,
+  the MCP server and doc ingestion. This is the right install for the Claude Code / Codex
+  plugin; `[languages]` is the front-ends on their own.
 - `[java]`, `[typescript]`, `[csharp]`, `[c]`, `[cpp]`, `[go]`, `[sql]` — language parsers for
   comprehension + grounding (Python needs no extra). C# codegen also needs the **.NET SDK**
   (`dotnet`) on PATH; C / C++ codegen needs a C / C++ compiler plus **CMake** (greenfield) or
@@ -643,18 +646,35 @@ guessing.
 
 **Two of those verdicts are new, and both can park a ticket that used to build:**
 
-- **An acceptance criterion that names code the graph does not hold.** *"`OrderTotals` is
-  recalculated on save"* against a repo with no such symbol is the same false premise as a wrong
-  count — a criterion nobody can locate is a test nobody can write. Every criterion is bound to
-  a symbol and a `file:line`, or reported, in `criteria.md`. **Prose never parks a run:**
-  CamelCase words, `ALL_CAPS` env vars, tool names and plain English are not claims about your
-  code and are marked "not a code claim".
+- **An acceptance criterion that names code the graph does not hold — on a bug.** *"`OrderTotals`
+  is recalculated on save"* against a repo with no such symbol is the same false premise as a
+  wrong count: a bug describes code that already runs, so a criterion nobody can locate is a test
+  nobody can write. Every criterion is bound to a symbol and a `file:line`, or reported, in
+  `criteria.md`. **Prose never parks a run:** CamelCase words, `ALL_CAPS` env vars, tool names
+  and plain English are not claims about your code and are marked "not a code claim".
+
+  **On an enhancement it is reported, not refused.** A feature's criterion names what the run is
+  about to build, so refusing it would mean the better-written criterion is the one that parks
+  your ticket — *"the compiler returns ≥ 70 rules"* is prose and proceeds, while
+  *"`rule_compiler` returns ≥ 70 rules"* names its subject, is more testable, and would have
+  stopped the run. The finding still appears in the assessment, and the design stage lists the
+  same absent name under unverified references. Which way it goes depends on the ticket's
+  **issue type** — see below.
 - **A design that names a place your repository does not have.** A new file in an existing
   directory is fine — that is a file being created. A file in a directory that exists nowhere,
   or a symbol in a module that does not exist, is not. See `design-references.md`.
 
 Both refuse rather than guess, and both park with the evidence on disk. If a park is wrong,
 `sdlc runs approve` continues the run.
+
+**The ticket's issue type decides which research it gets, and how strictly it is judged.** It is
+read from the tracker — a Jira `Bug`, `Story`, `New Feature` — and falls back to the ticket's
+labels when the type is one Spine does not map. A `Bug` runs root-cause analysis and must
+localize: if nothing in the graph matches its words there is no fault site to work from, and the
+run parks as `UNLOCALIZED` rather than guessing one. An enhancement skips RCA, which it has no
+symptom to use, and gets a churn reading over its landing sites instead — *is the area I am
+building into moving?* Override it with `--issue-type Bug` when the tracker is wrong, or when
+you are running from a `--spec` file and there is no ticket to ask.
 
 **`[typecheck]`** runs your repo's own type checker over the lines the change
 touched, and any error goes back to the refine loop like a test failure. This is not
@@ -1154,8 +1174,11 @@ The reverse of Step 9: Spine can **become** an MCP server, so any host
 "intent → reviewed PR" pipeline as tools, with the **same human gates**.
 
 ```bash
-pip install 'synaptixs-spine[mcp]'        # or from source: uv sync --extra mcp
+pip install 'synaptixs-spine[all]'        # or from source: uv sync --extra all
 ```
+> `[mcp]` alone serves the tools but a **Python-only** graph — a Java or Go repo yields zero
+> nodes rather than an error. `[all]` is `[languages]` + `[mcp]` + doc ingestion, which is what
+> the comprehension tools are worth installing for.
 
 **10.1 — Local (the host launches it over stdio):**
 ```bash
@@ -1191,7 +1214,7 @@ deliver into a fresh **or** an existing repo from the host.
 [`codex-marketplace/`](codex-marketplace/). The MCP-server config above and the plugin
 are two layers of the same thing — the plugin *bundles* that server plus branding.
 ```bash
-pip install 'synaptixs-spine[mcp]'            # puts `orchestrator-mcp` on PATH
+pip install 'synaptixs-spine[all]'            # puts `orchestrator-mcp` on PATH
 codex plugin marketplace add synaptixs/spine  # or a local path to codex-marketplace/
 codex plugin add spine@spine
 ```

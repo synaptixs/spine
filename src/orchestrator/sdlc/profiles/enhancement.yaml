@@ -2,8 +2,11 @@
 #
 # `n_rca` is absent, and that is the whole point of this file. Root-cause analysis localizes a
 # *symptom*; a feature request has none, so `localize_trace` resolves nothing and the report says
-# "Not localized to a repo symbol" — an empty section that reads as a finding and is not one. It
-# also costs a `git log` subprocess per run to say nothing.
+# "Not localized to a repo symbol" — an empty section that reads as a finding and is not one.
+#
+# Dropping the node used to drop `build_rca`'s `git log` recency pass with it. That question —
+# is this area actively changing? — is not symptom-dependent, so it comes back as `n_churn`
+# below, over the landing sites.
 #
 # So an enhancement's evidence records that RCA was **not run for this issue type**, which is a
 # different statement from "we ran it and found nothing", and the honest one.
@@ -63,6 +66,21 @@ spec:
         summary: Impact of the landing sites — not of a design's proposal.
         new_in_graph: true
 
+    # The half of `n_rca` an enhancement can actually use. RCA localizes a symptom and a
+    # feature has none, so this profile drops that node — and used to drop the `git log`
+    # recency pass with it, for half of all tickets. "Is this area moving?" does not depend on
+    # a symptom. Keyed off the landing sites rather than a fault site, which makes it the
+    # weaker of the two readings: where this ticket's vocabulary already lives is what it will
+    # attach to, not what it will touch, so the rendering says that and not "expect a
+    # regression". `bug` and `default` keep getting churn through `n_rca`, from the same
+    # implementation in `sdlc/churn.py`.
+    - id: n_churn
+      type: tool
+      template_id: sdlc.churn
+      config:
+        stage: churn
+        summary: Which landing files changed in the last 40 commits.
+
     - id: n_validity
       type: tool
       template_id: sdlc.validity
@@ -98,6 +116,8 @@ spec:
     - source: n_investigate
       target: n_blast_radius
     - source: n_blast_radius
+      target: n_churn
+    - source: n_churn
       target: n_validity
     - source: n_validity
       target: n_design

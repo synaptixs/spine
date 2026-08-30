@@ -7,6 +7,9 @@ Three deterministic passes compose into one artifact:
 * **rca** — fault site, regression surface, recently-changed, ranked hypotheses. Deterministic;
   ``build_rca`` only reaches a model when handed one, and nothing here hands it one.
 * **blast radius** — computed from **the landing sites**, not from a design's proposal.
+* **churn** — which of those landing files git touched lately, for the profiles that skip rca.
+  The same question rca answers about a *fault site*, asked about the area a ticket attaches
+  to, which is a weaker claim and worded as one.
 
 That last point is the reason this module exists rather than a helper inside ``design.py``.
 Today ``design.py`` calls ``blast_radius(store, design["files_to_touch"])`` — the impact
@@ -20,10 +23,10 @@ first is deliberate: it ships in shadow with zero behaviour change, and every la
 something true to be judged against.
 
 **Determinism, and one honest caveat.** Everything here is a pure function of the tree except
-``rca``'s recently-changed check, which shells out to ``git log -n 40``. That makes the digest a
-pure function of *the commit* rather than of the working tree alone — stable at a given commit,
-different if history is rewritten. That satisfies the boundary's ``(commit, inputs) → identical
-output`` wording, and is said here rather than discovered later.
+the recently-changed checks — ``rca``'s and ``churn``'s — which shell out to ``git log -n 40``.
+That makes the digest a pure function of *the commit* rather than of the working tree alone —
+stable at a given commit, different if history is rewritten. That satisfies the boundary's
+``(commit, inputs) → identical output`` wording, and is said here rather than discovered later.
 """
 
 from __future__ import annotations
@@ -34,6 +37,8 @@ from typing import Any
 
 from orchestrator.core.digest import SupportsRegister, digest_of
 from orchestrator.pkg import FactStore
+from orchestrator.sdlc.churn import DEFAULT_COMMITS as _CHURN_COMMITS
+from orchestrator.sdlc.churn import changed_recently
 
 __all__ = [
     "Evidence",
@@ -85,6 +90,10 @@ class Evidence:
     files: tuple[str, ...] = ()
     rca: dict[str, Any] = field(default_factory=dict)
     blast_radius: dict[str, Any] = field(default_factory=dict)
+    #: Landing files touched in the last `churn.DEFAULT_COMMITS` commits. Distinct from
+    #: ``rca["recently_changed"]``, which is the *fault file* and therefore a regression
+    #: signal; this is the area a ticket attaches to, and says only that it is moving.
+    recently_changed: tuple[str, ...] = ()
     # The PKG had grounded nodes at all. When false, every section below is legitimately empty
     # and says so — an empty Evidence that announces itself beats a confident-looking one
     # assembled from nothing.
@@ -132,6 +141,7 @@ def evidence_from_parts(
     investigate: dict[str, Any],
     rca: dict[str, Any],
     blast: dict[str, Any],
+    churn: dict[str, Any] | None = None,
 ) -> Evidence:
     """Assemble Evidence from the three tool outputs.
 
@@ -160,6 +170,7 @@ def evidence_from_parts(
         files=landing_files(rows),
         rca=dict(rca),
         blast_radius=dict(blast),
+        recently_changed=tuple(str(f) for f in (churn or {}).get("files") or ()),
         grounded=bool(investigate.get("grounded", False)),
     )
 
@@ -182,6 +193,7 @@ async def build_evidence(
     rca = await _tool_rca(store=store, problem=rca_problem(title, problem), root=root)
     files = landing_files(list(investigate.get("landing") or []))
     blast = _tool_blast_radius(store=store, files=list(files))
+    churn = _tool_churn(files=list(files), root=root)
     return evidence_from_parts(
         title=title,
         problem=problem,
@@ -189,6 +201,7 @@ async def build_evidence(
         investigate=investigate,
         rca=rca,
         blast=blast,
+        churn=churn,
     )
 
 
@@ -233,6 +246,7 @@ def to_dict(ev: Evidence) -> dict[str, Any]:
         ],
         "rca": ev.rca,
         "blast_radius": ev.blast_radius,
+        "recently_changed": list(ev.recently_changed),
     }
 
 
@@ -262,6 +276,14 @@ def render_evidence_md(ev: Evidence) -> str:
             out.append(f"- `{hit.name}` ({hit.kind}, {hit.callers} caller(s)){in_mod}{loc}")
         if ev.areas:
             out.append(f"\n_Areas: {', '.join(ev.areas)}_")
+        if ev.recently_changed:
+            # Deliberately not RCA's "treat a regression as the leading hypothesis": these are
+            # landing sites, which for a feature are where its vocabulary already lives rather
+            # than what it will touch. The weaker sentence is the true one.
+            out.append(
+                f"\n_Changing lately ({len(ev.recently_changed)} of these files were touched in "
+                f"the last {_CHURN_COMMITS} commits): {', '.join(ev.recently_changed[:10])}_"
+            )
     else:
         out.append("_No symbol matched the ticket's terms._")
     out.append("")
@@ -272,6 +294,13 @@ def render_evidence_md(ev: Evidence) -> str:
         out.append(f"**Fault site:** {rca['fault_site']}")
         if rca.get("recently_changed"):
             out.append("\n⚠ This module changed recently — a regression is the leading hypothesis.")
+    elif not rca:
+        # An empty dict means the node did not run — `_tool_rca` always returns its keys, so
+        # there is no other way to get here. That is a different statement from "we ran it and
+        # found nothing", and `enhancement.yaml` drops `n_rca` precisely to avoid printing the
+        # second: an empty section reads as a finding and is not one. The profile made the
+        # honest choice and the renderer went on printing the misleading sentence anyway.
+        out.append("_Not run for this issue type — root-cause analysis localizes a symptom._")
     else:
         out.append("_Not localized to a repo symbol._")
     hypotheses = rca.get("hypotheses") or []
@@ -373,9 +402,20 @@ def _tool_validity(
     }
 
 
+def _tool_churn(*, files: list[str], root: Path | str | None = None) -> dict[str, Any]:
+    """Which landing files changed lately. The signal `n_rca` computes and an enhancement lost.
+
+    Keyed off the landing sites, not a fault site: a feature has none. That makes this the
+    weaker of the two churn readings — the area a ticket attaches to is moving — and the
+    renderer says so rather than borrowing RCA's regression wording.
+    """
+    return {"files": list(changed_recently(list(files), root)), "commits": _CHURN_COMMITS}
+
+
 def register_sdlc_tools(registry: SupportsRegister) -> None:
     """Register the SDLC's deterministic tools. Called lazily by ``default_registry()``."""
     registry.register("sdlc.investigate", _tool_investigate)
     registry.register("sdlc.rca", _tool_rca)
     registry.register("sdlc.blast_radius", _tool_blast_radius)
+    registry.register("sdlc.churn", _tool_churn)
     registry.register("sdlc.validity", _tool_validity)
