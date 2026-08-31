@@ -582,6 +582,22 @@ def _score_entry(s: KindScore) -> dict[str, int]:
     return {"expected": s.expected, "emitted": s.emitted, "matched": s.matched}
 
 
+def _localization_status() -> dict[str, str]:
+    """Why localization has no number in an offline scoreboard — precisely which reason."""
+    try:
+        from orchestrator.evals.labels import load_labels
+
+        labelled = len(load_labels().labels)
+    except Exception:  # noqa: BLE001 — a malformed gold set must not break the scoreboard
+        return {"status": "not_measured", "reason": "gold set could not be read"}
+    if not labelled:
+        return {"status": "not_measured", "reason": "no gold set — G6 D1"}
+    return {
+        "status": "not_measured",
+        "reason": f"gold set of {labelled} — run `pkg accuracy --oracle comprehension --pinned-corpus`",
+    }
+
+
 def build_scoreboard(
     corpus_root: Path | str = "corpus", repo: Path | str = ".", *, runtime: bool = False
 ) -> dict[str, Any]:
@@ -644,8 +660,11 @@ def build_scoreboard(
                     "unreadable": provenance.unreadable,
                 },
                 # Named, not omitted. An absent key reads as an oversight; this reads as a
-                # measurement nobody has taken yet, which is the truth (G6 D1: no gold set).
-                "localization": {"status": "not_measured", "reason": "no gold set — G6 D1"},
+                # measurement nobody has taken *here*, which is the truth. The two reasons are
+                # different and are told apart: an empty gold set is work not yet done, while a
+                # populated one simply cannot be scored offline — localization needs the pinned
+                # corpus on disk, and a gate CI runs by default must not depend on the network.
+                "localization": _localization_status(),
                 "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
             },
             "drift": {

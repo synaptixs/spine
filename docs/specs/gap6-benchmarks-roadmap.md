@@ -136,6 +136,22 @@ so the corpus arrives pinned and already known to extract.
 Python-only, so a Python-dominated corpus would report health it has not measured. Non-Python
 repositories are what make that limit visible rather than invisible.
 
+> **How a label is made, and why it is made that way.** Ground truth comes from the commit that
+> fixed the issue: what that commit changed *is* the answer, which is git rather than anyone's
+> opinion. `orchestrator pkg fix-sites <repo> <sha>` prints exactly that — paths and change
+> counts, fetched at depth 2 so the commit reads as a *change* rather than as a repository
+> appearing from nothing. **It deliberately does not choose:** a commit carries tests, changelogs
+> and tidying, and deciding which change *is* the fix is the judgement the gold set exists to
+> capture. A candidate proposed by reading the ticket the way `investigate` reads it would not be
+> independent of the thing being scored — it would measure two readers of the same clues agreeing
+> and report it as accuracy.
+>
+> The validator refuses what a reader could not check: an abbreviated fix commit, an issue that
+> is not a URL, a repository absent from the corpus manifest, a label with no fix site, the same
+> issue twice, an exclusion with no reason. `--paths` additionally verifies every labelled path
+> exists in the **pinned** tree, which catches the likeliest silent mistake — naming a file the
+> fix *created*, which no run against the pre-fix state could ever have found.
+>
 > **Two things measuring changed, recorded because the spec asserted otherwise.**
 >
 > - **`stale_findings` cannot be provenance validity.** The spec called it *"most of it"*. It
@@ -165,7 +181,8 @@ repositories are what make that limit visible rather than invisible.
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
 | **1a — the harness** ✅ **2026-08-31** | Manifest (`evals/comprehension_corpus.yaml`, five pins, validated full-length at load), fetch-and-persist (`evals/corpus_fetch.py`), **provenance validity** (`evals/comprehension.py`), a `comprehension` key on the one scoreboard, a ratchet gate, and `pkg accuracy --oracle comprehension [--corpus]` | ~1 d | ✅ **1.0000 on 10,789 anchored facts**, gated. Localization reports `not_measured`, never 0 |
-| **1b — the gold set** | 30–50 hand-labelled issues. **Blocked on an owner, not on code** | ~3 d labelling | outstanding |
+| **1b — the scaffolding** ✅ **2026-08-31** | `evals/comprehension_labels.yaml` + a validator that refuses anything unreproducible, `pkg fix-sites` to read what a fixing commit changed, `pkg labels --check`, and the top-k scorer | ~0.5 d | ✅ Labelling is now a form to fill in, and every field is checked |
+| **1c — the gold set** | 30–50 hand-labelled issues, by a human. **Owner: labelling in progress 2026-08-31** | ~3 d labelling | outstanding |
 | **1 — A gold set, two metrics, into the existing scoreboard** | Pin the corpus in a **manifest the harness reads** (five repositories, D3), then hand-label **30–50 real issues** — one fix site per issue, taken from the fixing commit, recorded with the issue URL and the commit SHA so anyone can re-derive it. Metrics: **top-k localization** and **provenance validity** (D2). Deterministic, no LLM anywhere in scoring or in labelling. Land them as a **`comprehension` key in `scoreboard.json`**, written by `pkg accuracy --scoreboard`. | ~2 d harness + **~3 d labelling** | `pkg accuracy` prints comprehension alongside corpus/invention/parity; one baseline, one file; every label re-derivable from its recorded SHA |
 | **2 — Gate + trend** | Extend `pkg accuracy --check` to the new key on the **ratchet** tier (D4). Track a trend series across releases — with the honest caveat that at n=30–50 a small move is noise, so the gate is a floor, not a graph. | ~2–3 d | A PR that degrades localization is visible before merge, using the gate that already exists |
 | **3 — Publish** | Public methodology + results: the corpus **with its commit SHAs**, how each label was derived, the two metrics, the numbers, and a **reproducible command**. States what was *not* measured — impact recall, fault-site top-1, `regression_gaps` precision, C#, and the Python-only oracles — rather than implying broader coverage. | ~3–4 d | A public benchmark page and a command an outsider can run |
