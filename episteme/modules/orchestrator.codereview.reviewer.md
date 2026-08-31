@@ -106,7 +106,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/codereview/reviewer.py:197`](../../src/orchestrator/codereview/reviewer.py#L197)
 
 - **Called by** (1 production · 3 test): [`_assemble`](../../src/orchestrator/codereview/reviewer.py#L300), [`test_submission_anchors_inline_vs_floating_and_blocks`](../../tests/codereview/test_reviewer.py#L121), [`test_submission_clean_diff_comments_not_approves`](../../tests/codereview/test_reviewer.py#L145), [`test_submission_warnings_only_does_not_block`](../../tests/codereview/test_reviewer.py#L138)
-- **Calls** (6): [`ReviewComment`](../../src/orchestrator/codereview/github_client.py#L94), [`ReviewSubmission`](../../src/orchestrator/codereview/github_client.py#L104), [`_format_comment`](../../src/orchestrator/codereview/reviewer.py#L224), [`_format_summary`](../../src/orchestrator/codereview/reviewer.py#L228), [`_valid_anchors`](../../src/orchestrator/codereview/reviewer.py#L185), [`_verdict`](../../src/orchestrator/codereview/reviewer.py#L215)
+- **Calls** (6): [`ReviewComment`](../../src/orchestrator/codereview/github_client.py#L99), [`ReviewSubmission`](../../src/orchestrator/codereview/github_client.py#L109), [`_format_comment`](../../src/orchestrator/codereview/reviewer.py#L224), [`_format_summary`](../../src/orchestrator/codereview/reviewer.py#L228), [`_valid_anchors`](../../src/orchestrator/codereview/reviewer.py#L185), [`_verdict`](../../src/orchestrator/codereview/reviewer.py#L215)
 
 ## Imports
 

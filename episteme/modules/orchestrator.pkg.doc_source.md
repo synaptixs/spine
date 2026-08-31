@@ -13,9 +13,9 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L153) — reaches **32** symbols
-- [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L97) — reaches **25** symbols
-- [`_slug`](../../src/orchestrator/pkg/doc_source.py#L91) — reaches **18** symbols
+- [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L153) — reaches **33** symbols
+- [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L97) — reaches **26** symbols
+- [`_slug`](../../src/orchestrator/pkg/doc_source.py#L91) — reaches **19** symbols
 - [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L184) — reaches **2** symbols · **no test path visible**
 - [`_HtmlToText`](../../src/orchestrator/pkg/doc_source.py#L222) — reaches **1** symbol · **no test path visible**
 - [`_docx_heading_level`](../../src/orchestrator/pkg/doc_source.py#L319) — reaches **1** symbol
