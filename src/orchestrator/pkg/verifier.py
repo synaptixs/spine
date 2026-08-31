@@ -7,9 +7,16 @@ Two ways the knowledge graph can lie, two checks:
    projection; hand-written shapes work identically). The facts are
    materialised as RDF (``pkg.rdf``) and validated with ``pyshacl``.
 2. **Stale facts** (``stale_findings``) — the graph asserts a symbol that the
-   *current source* no longer contains: the file is re-extracted and every
-   grounded fact for it is re-checked. A stale fact is the one sin the PKG
-   must never commit silently.
+   *current source* no longer contains: the file is re-extracted **by its own
+   front-end** and every grounded fact for it is re-checked. A stale fact is the
+   one sin the PKG must never commit silently.
+
+   Until 2026-08-31 that re-extraction was ``PythonExtractor`` for *every* file,
+   so a Go or TypeScript file parsed as Python, raised, and every fact in it was
+   reported stale — on the pull-request review path, where the only repositories
+   this runs against are other people's. Measured on an unmodified scratch repo:
+   Python 0, TypeScript 2/2, Go 3/3. Invisible here, because ``src/`` is
+   Python-only and both walkers skip ``corpus/``'s dot-prefixed fixture roots.
 
 Both return ``GroundingFinding`` rows carrying ``file:line`` provenance, so
 they anchor cleanly as review comments or audit entries.
@@ -17,15 +24,18 @@ they anchor cleanly as review comments or audit entries.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 from pyshacl import validate as shacl_validate
 from rdflib import Graph, Namespace
 
-from orchestrator.pkg.extractor import PythonExtractor, module_qualname
+from orchestrator.pkg.extractor import LanguageExtractor, default_extractors
 from orchestrator.pkg.facts import FactBatch, Node
 from orchestrator.pkg.rdf import DEFAULT_NAMESPACE, facts_to_graph, symbol_iri
+
+logger = logging.getLogger("orchestrator.pkg")
 
 
 @dataclass(frozen=True)
@@ -53,6 +63,25 @@ class GroundingVerifier:
         self._shapes_path = Path(shapes_path) if shapes_path else None
         self._namespace = namespace
         self._by_iri: dict[str, Node] = {str(symbol_iri(Namespace(namespace), n.id)): n for n in batch.nodes}
+        self._by_suffix: dict[str, LanguageExtractor] | None = None
+        #: Files whose freshness could not be checked because no front-end claims their
+        #: suffix — on a base install that is *every* non-Python file, since the
+        #: tree-sitter front-ends load only with their extra. Recorded rather than
+        #: returned: a finding becomes a review WARNING, and "could not check this file"
+        #: posted on every polyglot PR is noise worse than the bug it replaced. The fact
+        #: stays recoverable here and in the debug log, and is never counted as clean.
+        self.skipped_freshness: list[str] = []
+
+    def _extractor_for(self, suffix: str) -> LanguageExtractor | None:
+        """The front-end owning ``suffix``, or ``None`` if this install has none.
+
+        Built the same way :class:`RepoCodeExtractor` builds it, from the same registry,
+        so freshness re-extracts a file exactly as extraction produced it. Lazy because a
+        verifier that only runs SHACL should not pay for importing eight grammars.
+        """
+        if self._by_suffix is None:
+            self._by_suffix = {sfx: ex for ex in default_extractors() for sfx in ex.suffixes}
+        return self._by_suffix.get(suffix)
 
     # ---- 1. SHACL conformance ---------------------------------------------
 
@@ -122,9 +151,18 @@ class GroundingVerifier:
     def stale_findings(self, root: Path | str, files: list[str] | None = None) -> list[GroundingFinding]:
         """Facts asserting symbols the current source no longer defines.
 
-        Re-extracts each (changed) file under ``root`` and reports every
-        grounded fact whose symbol id is absent from the fresh extraction.
-        Files that vanished entirely make all their facts stale.
+        Re-extracts each (changed) file under ``root`` **with the front-end that owns its
+        suffix** and reports every grounded fact whose symbol id is absent from the fresh
+        extraction. Files that vanished entirely make all their facts stale.
+
+        A file no front-end claims is **skipped**, not judged: it lands in
+        :attr:`skipped_freshness` and is absent from the result. Silence is the only
+        honest answer there — the alternative, and what this did until 2026-08-31, is to
+        parse it as Python, fail, and report every fact in it as stale.
+
+        A file whose *own* front-end cannot parse it is still treated as wholly stale.
+        That is unchanged and deliberate: the source is genuinely unverifiable, and the
+        aggressive direction is the safe one when the file itself is broken.
         """
         root_path = Path(root)
         by_file: dict[str, list[Node]] = {}
@@ -133,17 +171,34 @@ class GroundingVerifier:
                 by_file.setdefault(n.provenance.file, []).append(n)
 
         targets = files if files is not None else sorted(by_file)
-        extractor = PythonExtractor()
         findings: list[GroundingFinding] = []
         for rel in targets:
             recorded = by_file.get(rel)
             if not recorded:
                 continue
             path = root_path / rel
+            extractor = self._extractor_for(path.suffix)
+            if extractor is None and path.exists():
+                # No front-end for this suffix in this install. Say nothing about the file
+                # rather than something false about it.
+                self.skipped_freshness.append(rel)
+                logger.debug(
+                    "freshness skipped: no front-end claims %s",
+                    path.suffix or rel,
+                    extra={"event": "pkg.freshness_skipped", "file": rel, "suffix": path.suffix},
+                )
+                continue
             fresh_ids: set[str] = set()
-            if path.exists():
+            if path.exists() and extractor is not None:
                 try:
-                    fresh = extractor.extract(path=path, module=module_qualname(path, root_path), rel=rel)
+                    # `module_name` too, not just `extract`: each front-end owns its notion
+                    # of a module — Go's is the package directory, not the file — and the
+                    # Python-shaped `module_qualname` this used to hardcode would rename
+                    # every symbol it re-derived, which is the same false-stale by another
+                    # route.
+                    fresh = extractor.extract(
+                        path=path, module=extractor.module_name(path, root_path), rel=rel
+                    )
                     fresh_ids = {n.id for n in fresh.nodes}
                 except (SyntaxError, UnicodeDecodeError, ValueError):
                     pass  # unparseable now → everything recorded for it is stale

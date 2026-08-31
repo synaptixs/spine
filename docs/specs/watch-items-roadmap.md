@@ -1,8 +1,9 @@
 # WI — Watch items: doc-drift durability (and the half that is being dropped)
 
 **Status:** **Written 2026-08-30 against 3.25.1**, to close a decision that had been open since
-the docs came back into this repo on 2026-07-30. **WI-2 is a real track and carries a live
-defect** (§3.1). **WI-1 is recommended for removal** — its premise cannot be recovered (§2).
+the docs came back into this repo on 2026-07-30. **WI-2 Phase 1 shipped 2026-08-31** — the defect
+in §3.1 is fixed and guarded. Phases 2–3 outstanding. **WI-1 is recommended for removal** — its
+premise cannot be recovered (§2).
 **Owner:** _unassigned_
 
 **Gap:** the **WI** row in [`gap-roadmap-index.md`](gap-roadmap-index.md).
@@ -80,9 +81,9 @@ system.
 
 Three things stand between here and that, and they are not the three the index implies.
 
-### 3.1 — `stale_findings` fabricates staleness on every non-Python file
+### 3.1 — `stale_findings` fabricated staleness on every non-Python file ✅ **fixed 2026-08-31**
 
-**A defect, live, in the PR-review path.**
+**A defect, live in the PR-review path until 3.25.1.**
 [`verifier.py:143`](../../src/orchestrator/pkg/verifier.py) re-extracts each changed file with
 `PythonExtractor()` **unconditionally**. On a Go, TypeScript, Java, C#, C, C++ or SQL file the
 parse raises, the `except` clause treats an unparseable file as *"everything recorded for it is
@@ -128,6 +129,17 @@ Either way the guard belongs beside the test that proves it: a fixture per non-P
 asserting **zero** findings on an unmodified file. Revert the fix and that test must fail — the
 countermeasure this project already uses, applied to a check that has never had one.
 
+> **Shipped 2026-08-31 as option 1**, per-suffix dispatch, plus option 2 for a suffix this
+> install has no front-end for — which on a base install is *every* non-Python file, since the
+> tree-sitter front-ends load only with their extra. `module_name` moved with `extract`: each
+> front-end owns its notion of a module (Go's is the package directory), and re-deriving one
+> with the Python-shaped `module_qualname` would have renamed every symbol it checked — the same
+> false-stale by another route. Skipped files land in `GroundingVerifier.skipped_freshness` and a
+> debug log rather than a finding: a finding becomes a review `WARNING`, and *"could not check
+> this file"* on every polyglot PR is noise worse than the bug. **Nine tests, one per front-end
+> plus a Go two-file package, a no-front-end case, and the unparseable case whose behaviour is
+> deliberately unchanged — all nine verified to fail with the dispatch reverted.**
+
 ### 3.2 — `doc_findings` was built and never wired
 
 [`GroundingVerifier.doc_findings`](../../src/orchestrator/pkg/verifier.py) renders drift as a
@@ -165,7 +177,7 @@ gates the bank.
 
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
-| **1 — Freshness stops lying about seven of eight languages** | Dispatch `stale_findings` per suffix (fallback: skip-and-report). A fixture per non-Python front-end asserting zero findings on an unmodified file, each proved to fail with the fix reverted | ~1 d | A polyglot PR gets zero stale-fact warnings when nothing is stale, and the suite would catch a regression |
+| **1 — Freshness stops lying about seven of eight languages** ✅ | Dispatch `stale_findings` per suffix, skip-and-report where this install has no front-end. Nine tests, each proved to fail with the fix reverted | ~1 d | ✅ **2026-08-31.** A polyglot PR gets zero stale-fact warnings when nothing is stale, and the suite would catch a regression |
 | **2 — Wire the drift finding** | Call `doc_findings` from `PKGGroundingVerifier.scan`, filtered to docs in the diff. Severity stays `WARNING` | ~0.5 d | A PR that renames a symbol its docs still name gets one comment, on the doc's line |
 | **3 — Gate the count** | A `drift` key alongside the existing scoreboard keys, on the **ratchet** tier. One baseline, one file — never a second scoreboard | ~1–2 d | A PR that increases repository drift is visible before merge, using the gate that already exists |
 
@@ -195,10 +207,11 @@ still wants fixing.
 
 ## 7. Open questions
 
-1. **Does Phase 1's per-suffix dispatch need single-file extraction from every front-end?** The
-   Python path re-extracts one file; the tree-sitter front-ends are built around a repo walk.
-   (Lean: **check before designing** — if one front-end cannot do it, that language takes the
-   skip-and-report path and says so, rather than holding up the other six.)
+1. ~~**Does Phase 1's per-suffix dispatch need single-file extraction from every front-end?**~~
+   **Closed 2026-08-31: no.** `LanguageExtractor.extract(*, path, module, rel)` is already
+   per-file for all eight — `RepoCodeExtractor` does nothing but build a `{suffix: extractor}`
+   map and call it once per file. No front-end needed a new capability, and none took the
+   skip path for want of one.
 2. **Should Phase 3's ratchet count symbol-shaped drift only, or all drift?**
    (Lean: **symbol-shaped only** — the same filter the surfaces already apply. A gate on a
    noisier population than the report is a gate nobody will trust.)

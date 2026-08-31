@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 from orchestrator.pkg import (
     Edge,
     EdgeKind,
@@ -114,6 +116,116 @@ def test_deleted_file_makes_all_its_facts_stale(tmp_path: Path) -> None:
     repo, batch = _extracted_repo(tmp_path)
     (repo / "m.py").unlink()
     stale = {f.symbol_id for f in GroundingVerifier(batch).stale_findings(repo)}
+    assert {"py:m", "py:m.f", "py:m.g"} <= stale
+
+
+# ---- freshness is per-language, not per-Python (WI-2 phase 1) ----------------
+#
+# `stale_findings` re-extracted every changed file with `PythonExtractor`, so a Go or
+# TypeScript file parsed as Python, raised, and every fact in it was reported stale — on
+# the PR-review path, whose only targets are other people's repositories. Nothing here
+# caught it: `src/` is Python-only and both walkers skip `corpus/`'s dot-prefixed fixture
+# roots, so the non-Python path had no test at all. These are that test.
+#
+# Each asserts **zero** findings on a file nobody touched, and asserts the file has
+# recorded facts first — without that guard `stale_findings` skips it as unknown and the
+# test passes having checked nothing, which is the failure mode it exists to catch.
+
+_SOURCES: dict[str, tuple[str, str, str]] = {
+    # suffix: (grammar module to skip on, filename, source)
+    ".go": ("tree_sitter_go", "main.go", 'package main\n\nfunc Greet() string {\n\treturn "hi"\n}\n'),
+    ".ts": (
+        "tree_sitter_typescript",
+        "app.ts",
+        "export function greet(name: string): string {\n  return `hi ${name}`;\n}\n",
+    ),
+    ".java": (
+        "tree_sitter_java",
+        "App.java",
+        'package app;\n\npublic class App {\n  public String greet() { return "hi"; }\n}\n',
+    ),
+    ".cs": (
+        "tree_sitter_c_sharp",
+        "App.cs",
+        'namespace App;\n\npublic class Greeter {\n  public string Greet() => "hi";\n}\n',
+    ),
+    ".c": ("tree_sitter_c", "main.c", 'const char *greet(void) {\n  return "hi";\n}\n'),
+    ".cpp": (
+        "tree_sitter_cpp",
+        "main.cpp",
+        '#include <string>\n\nstd::string greet() {\n  return "hi";\n}\n',
+    ),
+    ".sql": ("sqlglot", "schema.sql", "CREATE TABLE users (id INT PRIMARY KEY, email TEXT);\n"),
+}
+
+
+@pytest.mark.parametrize("suffix", sorted(_SOURCES))
+def test_an_unmodified_file_is_never_stale_in_any_language(suffix: str, tmp_path: Path) -> None:
+    """The bug, per front-end: Python read 0 while Go read 3 and TypeScript 2."""
+    grammar, name, source = _SOURCES[suffix]
+    pytest.importorskip(grammar, reason=f"install the extra providing {grammar}")
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / name).write_text(source, encoding="utf-8")
+    batch = RepoCodeExtractor().extract(repo)
+
+    # Guard first: no facts means the assertion below proves nothing.
+    assert [n for n in batch.nodes if n.provenance and n.provenance.file == name], (
+        f"{name} produced no grounded facts — the freshness assertion would be vacuous"
+    )
+
+    verifier = GroundingVerifier(batch)
+    assert verifier.stale_findings(repo, [name]) == []
+    assert verifier.skipped_freshness == []  # a front-end exists; nothing to skip
+
+
+def test_go_package_spans_files_and_still_reads_fresh(tmp_path: Path) -> None:
+    """Go is the one front-end whose module is the directory, not the file.
+
+    Re-extracting one file of a package is therefore the case most likely to diverge from
+    the whole-repo pass — if per-file ids differ from repo-pass ids anywhere, here first.
+    """
+    pytest.importorskip("tree_sitter_go", reason="install the 'go' extra")
+    repo = tmp_path / "repo"
+    (repo / "pkg").mkdir(parents=True)
+    (repo / "pkg" / "a.go").write_text(
+        'package pkg\n\nfunc A() string {\n\treturn "a"\n}\n', encoding="utf-8"
+    )
+    (repo / "pkg" / "b.go").write_text(
+        'package pkg\n\nfunc B() string {\n\treturn "b"\n}\n', encoding="utf-8"
+    )
+
+    verifier = GroundingVerifier(RepoCodeExtractor().extract(repo))
+    assert verifier.stale_findings(repo, ["pkg/a.go", "pkg/b.go"]) == []
+
+
+def test_a_language_with_no_front_end_is_skipped_not_judged(tmp_path: Path) -> None:
+    """Silence over fiction — and on a base install this is *every* non-Python file."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "lib.rs").write_text('pub fn greet() -> &\'static str { "hi" }\n', encoding="utf-8")
+    # Rust has no front-end, so nothing extracts it: assert the recorded fact by hand,
+    # which is also what a graph carried over from a build that *did* know the file looks
+    # like.
+    batch = FactBatch()
+    batch.add_node(Node("rs:lib.greet", NodeKind.FUNCTION, "greet", "code", Provenance("lib.rs", 1)))
+
+    verifier = GroundingVerifier(batch)
+    assert verifier.stale_findings(repo, ["lib.rs"]) == []
+    assert verifier.skipped_freshness == ["lib.rs"]
+
+
+def test_a_file_its_own_front_end_cannot_parse_is_still_stale(tmp_path: Path) -> None:
+    """Unchanged behaviour, asserted so the WI-2 fix cannot quietly relax it.
+
+    A broken file is genuinely unverifiable, and the aggressive answer is the safe one —
+    unlike the no-front-end case above, where nothing is wrong with the file at all.
+    """
+    repo, batch = _extracted_repo(tmp_path)
+    (repo / "m.py").write_text("def f(:\n", encoding="utf-8")  # syntax error
+
+    stale = {f.symbol_id for f in GroundingVerifier(batch).stale_findings(repo, ["m.py"])}
     assert {"py:m", "py:m.f", "py:m.g"} <= stale
 
 
