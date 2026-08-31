@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.codereview`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 11 modules — 32 types and 24 functions. It sits in the middle of the graph: 3 areas below it, 4 above. Changes here can reach both ways.
+**`orchestrator.codereview`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 12 modules — 34 types and 25 functions. It sits in the middle of the graph: 4 areas below it, 4 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -21,6 +21,7 @@ flowchart LR
   n0 --> n5
   n0 --> n6
   n0 --> n1
+  n0 --> n2
 ```
 
 **In the diagram:** **`orchestrator.codereview`** (this area) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · `scripts.live_github_auth` · `scripts.live_review` · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.pkg`](orchestrator.pkg.md)
@@ -29,6 +30,7 @@ flowchart LR
 
 - [`orchestrator.codereview`](../../src/orchestrator/codereview/__init__.py#L1)
 - [`orchestrator.codereview.auth`](../../src/orchestrator/codereview/auth.py#L1)
+- [`orchestrator.codereview.checkout`](../../src/orchestrator/codereview/checkout.py#L1)
 - [`orchestrator.codereview.config`](../../src/orchestrator/codereview/config.py#L1)
 - [`orchestrator.codereview.diff_utils`](../../src/orchestrator/codereview/diff_utils.py#L1)
 - [`orchestrator.codereview.github_client`](../../src/orchestrator/codereview/github_client.py#L1)
@@ -41,7 +43,7 @@ flowchart LR
 
 ## Depends on
 
-[`orchestrator.core`](orchestrator.core.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.registry`](orchestrator.registry.md)
+[`orchestrator.core`](orchestrator.core.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md)
 
 ## Depended on by
 

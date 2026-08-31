@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.core`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 14 modules — 29 types and 24 functions. It sits in the middle of the graph: 1 area below it, 23 above. Changes here can reach both ways.
+**`orchestrator.core`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 15 modules — 30 types and 28 functions. It sits in the middle of the graph: 1 area below it, 24 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -11,11 +11,11 @@ flowchart LR
   n1["orchestrator.agentic"]
   n2["orchestrator.cli"]
   n3["orchestrator.codereview"]
-  n4["orchestrator.gateway"]
-  n5["orchestrator.init_scaffold"]
-  n6["orchestrator.intake"]
-  n7["orchestrator.knowledge"]
-  n8["orchestrator.personas"]
+  n4["orchestrator.evals"]
+  n5["orchestrator.gateway"]
+  n6["orchestrator.init_scaffold"]
+  n7["orchestrator.intake"]
+  n8["orchestrator.knowledge"]
   n9["orchestrator.obs"]
   n1 --> n0
   n2 --> n0
@@ -28,9 +28,9 @@ flowchart LR
   n0 --> n9
 ```
 
-**In the diagram:** **`orchestrator.core`** (this area) · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.codereview`](orchestrator.codereview.md) · [`orchestrator.gateway`](orchestrator.gateway.md) · `orchestrator.init_scaffold` · [`orchestrator.intake`](orchestrator.intake.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.personas`](orchestrator.personas.md) · [`orchestrator.obs`](orchestrator.obs.md)
+**In the diagram:** **`orchestrator.core`** (this area) · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.codereview`](orchestrator.codereview.md) · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.gateway`](orchestrator.gateway.md) · `orchestrator.init_scaffold` · [`orchestrator.intake`](orchestrator.intake.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.obs`](orchestrator.obs.md)
 
-_Showing 9 of 24 neighbouring areas._
+_Showing 9 of 25 neighbouring areas._
 
 ## Modules
 
@@ -45,6 +45,7 @@ _Showing 9 of 24 neighbouring areas._
 - [`orchestrator.core.llm.litellm_client`](../../src/orchestrator/core/llm/litellm_client.py#L1)
 - [`orchestrator.core.llm.mock`](../../src/orchestrator/core/llm/mock.py#L1)
 - [`orchestrator.core.llm.recording`](../../src/orchestrator/core/llm/recording.py#L1)
+- [`orchestrator.core.pinned_checkout`](../../src/orchestrator/core/pinned_checkout.py#L1)
 - [`orchestrator.core.prompt_safety`](../../src/orchestrator/core/prompt_safety.py#L1)
 - [`orchestrator.core.state`](../../src/orchestrator/core/state.py#L1)
 - [`orchestrator.core.tool_client`](../../src/orchestrator/core/tool_client.py#L1)
@@ -55,4 +56,4 @@ _Showing 9 of 24 neighbouring areas._
 
 ## Depended on by
 
-[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.gateway`](orchestrator.gateway.md), `orchestrator.init_scaffold`, [`orchestrator.intake`](orchestrator.intake.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.planner`](orchestrator.planner.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.temporal`](orchestrator.temporal.md), `scripts.agentic_eval`, `scripts.audit_eval`, `scripts.codegen_ab`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.intents_to_confluence`, `scripts.live_github_auth`, `scripts.live_review`, `scripts.live_sdlc_worker`, `scripts.skill_ab`
+[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.gateway`](orchestrator.gateway.md), `orchestrator.init_scaffold`, [`orchestrator.intake`](orchestrator.intake.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.planner`](orchestrator.planner.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.temporal`](orchestrator.temporal.md), `scripts.agentic_eval`, `scripts.audit_eval`, `scripts.codegen_ab`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.intents_to_confluence`, `scripts.live_github_auth`, `scripts.live_review`, `scripts.live_sdlc_worker`, `scripts.skill_ab`

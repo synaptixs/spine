@@ -3,25 +3,24 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.sdlc`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 47 modules — 117 types and 361 functions. It sits in the middle of the graph: 17 areas below it, 14 above. Changes here can reach both ways.
+**`orchestrator.sdlc`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 47 modules — 117 types and 361 functions. It sits in the middle of the graph: 17 areas below it, 15 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
   n0["orchestrator.sdlc"]
   n1["orchestrator.agentic"]
   n2["orchestrator.cli"]
-  n3["orchestrator.evals"]
-  n4["orchestrator.knowledge"]
-  n5["orchestrator.plugin"]
-  n6["orchestrator.registry"]
-  n7["orchestrator.runtime"]
-  n8["scripts.agentic_eval"]
+  n3["orchestrator.codereview"]
+  n4["orchestrator.evals"]
+  n5["orchestrator.knowledge"]
+  n6["orchestrator.plugin"]
+  n7["orchestrator.registry"]
+  n8["orchestrator.runtime"]
   n9["orchestrator.approval"]
   n10["orchestrator.catalog"]
-  n11["orchestrator.codereview"]
-  n12["orchestrator.core"]
-  n13["orchestrator.intake"]
-  n14["orchestrator.ir"]
+  n11["orchestrator.core"]
+  n12["orchestrator.intake"]
+  n13["orchestrator.ir"]
   n1 --> n0
   n2 --> n0
   n3 --> n0
@@ -33,16 +32,16 @@ flowchart LR
   n0 --> n1
   n0 --> n9
   n0 --> n10
+  n0 --> n3
   n0 --> n11
   n0 --> n12
   n0 --> n13
-  n0 --> n14
-  n0 --> n4
+  n0 --> n5
 ```
 
-**In the diagram:** **`orchestrator.sdlc`** (this area) · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.runtime`](orchestrator.runtime.md) · `scripts.agentic_eval` · `orchestrator.approval` · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.codereview`](orchestrator.codereview.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.intake`](orchestrator.intake.md) · [`orchestrator.ir`](orchestrator.ir.md)
+**In the diagram:** **`orchestrator.sdlc`** (this area) · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.codereview`](orchestrator.codereview.md) · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.runtime`](orchestrator.runtime.md) · `orchestrator.approval` · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.intake`](orchestrator.intake.md) · [`orchestrator.ir`](orchestrator.ir.md)
 
-_Showing 16 of 31 neighbouring areas._
+_Showing 16 of 32 neighbouring areas._
 
 ## Modules
 
@@ -100,4 +99,4 @@ _Showing 16 of 31 neighbouring areas._
 
 ## Depended on by
 
-[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), `scripts.agentic_eval`, `scripts.audit_eval`, `scripts.codegen_ab`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.live_sdlc_worker`, `scripts.phase2a_parity_gate`, `scripts.skill_ab`
+[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.runtime`](orchestrator.runtime.md), `scripts.agentic_eval`, `scripts.audit_eval`, `scripts.codegen_ab`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.live_sdlc_worker`, `scripts.phase2a_parity_gate`, `scripts.skill_ab`

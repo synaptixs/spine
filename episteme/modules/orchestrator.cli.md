@@ -50,7 +50,7 @@ _35 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/cli.py:3205`](../../src/orchestrator/cli.py#L3205)
 
 - **Called by** (1): [`pkg_accuracy`](../../src/orchestrator/cli.py#L3498)
-- **Calls** (7): `Exit`, `TemporaryDirectory`, [`_print`](../../src/orchestrator/cli.py#L79), `echo`, [`load_manifest`](../../src/orchestrator/evals/corpus_fetch.py#L75), [`materialize`](../../src/orchestrator/evals/corpus_fetch.py#L149), [`score_comprehension`](../../src/orchestrator/pkg/accuracy.py#L456)
+- **Calls** (7): `Exit`, `TemporaryDirectory`, [`_print`](../../src/orchestrator/cli.py#L79), `echo`, [`load_manifest`](../../src/orchestrator/evals/corpus_fetch.py#L63), [`materialize`](../../src/orchestrator/evals/corpus_fetch.py#L105), [`score_comprehension`](../../src/orchestrator/pkg/accuracy.py#L456)
 
 ### `_deprecate`
 

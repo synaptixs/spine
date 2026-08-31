@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.evals`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 10 modules — 14 types and 32 functions. It sits in the middle of the graph: 3 areas below it, 8 above. Changes here can reach both ways.
+**`orchestrator.evals`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 10 modules — 14 types and 30 functions. It sits in the middle of the graph: 4 areas below it, 8 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -17,7 +17,8 @@ flowchart LR
   n7["scripts.skill_ab"]
   n8["scripts.skill_promote"]
   n9["orchestrator.catalog"]
-  n10["orchestrator.sdlc"]
+  n10["orchestrator.core"]
+  n11["orchestrator.sdlc"]
   n1 --> n0
   n2 --> n0
   n3 --> n0
@@ -27,11 +28,12 @@ flowchart LR
   n7 --> n0
   n8 --> n0
   n0 --> n9
-  n0 --> n3
   n0 --> n10
+  n0 --> n3
+  n0 --> n11
 ```
 
-**In the diagram:** **`orchestrator.evals`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.personas`](orchestrator.personas.md) · [`orchestrator.pkg`](orchestrator.pkg.md) · `scripts.agentic_eval` · `scripts.audit_eval` · [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md) · `scripts.skill_ab` · `scripts.skill_promote` · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md)
+**In the diagram:** **`orchestrator.evals`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.personas`](orchestrator.personas.md) · [`orchestrator.pkg`](orchestrator.pkg.md) · `scripts.agentic_eval` · `scripts.audit_eval` · [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md) · `scripts.skill_ab` · `scripts.skill_promote` · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md)
 
 ## Modules
 
@@ -48,7 +50,7 @@ flowchart LR
 
 ## Depends on
 
-[`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.sdlc`](orchestrator.sdlc.md)
+[`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.core`](orchestrator.core.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.sdlc`](orchestrator.sdlc.md)
 
 ## Depended on by
 
