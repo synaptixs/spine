@@ -260,3 +260,65 @@ async def test_review_service_carries_grounding_verifier(tmp_path: Path) -> None
     assert (
         any("stale" in c.body.lower() for c in submission.comments) or "stale" in submission.summary.lower()
     )
+
+
+# ---- drift as a delta against the base (WI-2 follow-up) ---------------------
+#
+# The heuristics above answer "did this diff cause it?" by inference — the doc is in the diff,
+# or the patch removed the name. Good, and approximate: blind to drift a truncated patch body
+# hides and to a symbol removed indirectly. With the PR's base on disk the question is asked
+# directly instead: was this claim already broken before?
+
+
+def test_drift_the_base_already_had_is_not_this_prs_fault(tmp_path: Path) -> None:
+    from orchestrator.codereview.grounding import PKGGroundingVerifier
+    from orchestrator.pkg import RepoCodeExtractor
+    from orchestrator.pkg.verifier import GroundingVerifier
+
+    repo = _repo(tmp_path)
+    (repo / "README.md").write_text("# Guide\n\nSee `long_gone_helper`.\n", encoding="utf-8")
+    batch = RepoCodeExtractor().extract(repo)
+    baseline = GroundingVerifier(batch).drift_keys(repo)
+    assert baseline, "the fixture must actually carry drift, or this proves nothing"
+
+    verifier = PKGGroundingVerifier(batch, root=repo, baseline_drift=baseline)
+    assert [f for f in verifier.scan(_diff()) if f.rule == "doc_drift"] == []
+
+
+def test_drift_this_pr_introduced_is_reported_even_with_the_doc_untouched(tmp_path: Path) -> None:
+    """The case both heuristics can miss: the base was clean here, so this change caused it."""
+    from orchestrator.codereview.grounding import PKGGroundingVerifier
+    from orchestrator.pkg import RepoCodeExtractor
+
+    repo = _repo(tmp_path)
+    (repo / "README.md").write_text("# Guide\n\nSee `newly_broken_ref`.\n", encoding="utf-8")
+    batch = RepoCodeExtractor().extract(repo)
+
+    # The base had no drift at all — so everything the head has, this change introduced.
+    verifier = PKGGroundingVerifier(batch, root=repo, baseline_drift=set())
+    drift = [f for f in verifier.scan(_diff()) if f.rule == "doc_drift"]
+    assert [f.path for f in drift] == ["README.md"]
+    assert "newly_broken_ref" in drift[0].message
+
+
+def test_no_baseline_falls_back_to_the_heuristics(tmp_path: Path) -> None:
+    """A base that will not materialise leaves the review exactly as good as it was."""
+    from orchestrator.codereview.grounding import PKGGroundingVerifier
+    from orchestrator.pkg import RepoCodeExtractor
+
+    repo = _repo(tmp_path)
+    (repo / "README.md").write_text("# Guide\n\nSee `unrelated_absent_thing`.\n", encoding="utf-8")
+    batch = RepoCodeExtractor().extract(repo)
+
+    # `None`, not an empty set: an empty set asserts the base was clean, which is a claim.
+    verifier = PKGGroundingVerifier(batch, root=repo, baseline_drift=None)
+    # The diff touches tax.py and names nothing the doc claims, so the heuristics report none.
+    assert [f for f in verifier.scan(_diff()) if f.rule == "doc_drift"] == []
+
+
+def test_the_base_sha_reaches_the_diff() -> None:
+    """`PRDiff` carries it now; without that the delta cannot be computed at all."""
+    from orchestrator.codereview.github_client import PRDiff
+
+    assert PRDiff(repo="a/b", pr_number=1, head_sha="h", files=()).base_sha == ""
+    assert PRDiff(repo="a/b", pr_number=1, head_sha="h", files=(), base_sha="b").base_sha == "b"
