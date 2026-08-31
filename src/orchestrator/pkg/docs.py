@@ -99,6 +99,13 @@ class DocDriftFinding:
     mention: str
     kind: MentionKind
     message: str
+    #: The document this claim is in, and the line its section starts at — the same pair
+    #: `link_docs` uses for `Doc` provenance. Carried so a consumer can anchor the finding
+    #: instead of partitioning `page_title` and guessing line 1: a drift comment at the top
+    #: of a long README does not tell a reviewer where to look. Optional because a page can
+    #: be synthesised without a source file (media, in-memory fixtures).
+    source_file: str | None = None
+    line: int = 1
 
 
 def extract_mentions(page: DocPage) -> list[DocMention]:
@@ -226,6 +233,8 @@ class DocReconciler:
                         page_title=page.title,
                         mention=mention.text,
                         kind=mention.kind,
+                        source_file=page.source_file or None,
+                        line=page.line,
                         message=(
                             f"Doc claim is unbound: '{page.title}' references "
                             f"`{mention.text}` but the code defines no such "

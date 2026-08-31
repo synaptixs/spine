@@ -11,9 +11,10 @@ Deterministic and read-only: the grounding is graph lookups, not an LLM call.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
-from orchestrator.codereview.diff_utils import iter_added_lines
+from orchestrator.codereview.diff_utils import iter_added_lines, iter_removed_lines
 from orchestrator.codereview.github_client import PRDiff
 from orchestrator.codereview.verifiers import Finding, Severity
 from orchestrator.pkg import (
@@ -99,6 +100,35 @@ class PKGReviewGrounder:
         return findings
 
 
+_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def _removed_identifiers(diff: PRDiff) -> set[str]:
+    """Every identifier-shaped token this diff **took away**.
+
+    The second of the two ways a pull request creates documentation drift, and the one a
+    doc-file filter alone cannot see: rename ``foo`` and the docs that still name it are
+    nowhere in your diff. Pairing these tokens with a drift finding makes that attributable
+    without a second extraction — a drift finding exists *only* when the graph has no such
+    symbol, so "the graph lacks it" plus "this diff deleted it" is this change's doing. Were
+    the symbol still there, there would be no finding to attribute.
+
+    **Bounded honestly.** A token is matched wherever it was removed, not only at a
+    definition, so removing a *call* to a symbol that no longer exists also attributes. That
+    over-attributes to someone who touched the name, which is the harmless direction: the
+    drift is real either way, and they are the person best placed to fix it. Blind to a
+    deletion whose patch body GitHub truncates, and to drift a previous merge caused — the
+    latter deliberately, since it is not this author's to answer for.
+    """
+    return {
+        token
+        for f in diff.files
+        if f.patch
+        for line in iter_removed_lines(f.patch)
+        for token in _IDENTIFIER.findall(line)
+    }
+
+
 class PKGGroundingVerifier:
     """``CodeVerifier`` adapter for the PKG GroundingVerifier (Track 1.4).
 
@@ -132,6 +162,7 @@ class PKGGroundingVerifier:
         grounding = [
             *self._verifier.stale_findings(self._root, changed),
             *self._verifier.shacl_findings(),
+            *self._verifier.doc_findings(self._root, files=changed, mentions=_removed_identifiers(diff)),
         ]
         findings: list[Finding] = []
         for g in grounding:
