@@ -47,7 +47,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 3370 symbols; 
 | `_area_prose` | [`orchestrator.knowledge.renderers`](modules/orchestrator.knowledge.renderers.md#_area_prose) | [`_area_prose`](../src/orchestrator/knowledge/renderers.py#L738) |
 | `_arity` | [`orchestrator.pkg.go_extractor`](modules/orchestrator.pkg.go_extractor.md#_arity) | [`_arity`](../src/orchestrator/pkg/go_extractor.py#L369) |
 | `_artifact_store` | [`orchestrator.registry.api.jobs`](modules/orchestrator.registry.api.jobs.md#_artifact_store) | [`_artifact_store`](../src/orchestrator/registry/api/jobs.py#L69) |
-| `_as_dict` | `orchestrator.core.llm.litellm_client` | [`_as_dict`](../src/orchestrator/core/llm/litellm_client.py#L322) |
+| `_as_dict` | `orchestrator.core.llm.litellm_client` | [`_as_dict`](../src/orchestrator/core/llm/litellm_client.py#L355) |
 | `_as_float` | `orchestrator.spine.drift` | [`_as_float`](../src/orchestrator/spine/drift.py#L112) |
 | `_attr_string_arg` | [`orchestrator.pkg.csharp_extractor`](modules/orchestrator.pkg.csharp_extractor.md#_attr_string_arg) | [`_attr_string_arg`](../src/orchestrator/pkg/csharp_extractor.py#L566) |
 | `_attributes` | [`orchestrator.pkg.csharp_extractor`](modules/orchestrator.pkg.csharp_extractor.md#_attributes) | [`_attributes`](../src/orchestrator/pkg/csharp_extractor.py#L552) |
@@ -128,7 +128,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 3370 symbols; 
 | `_c_parser` | [`orchestrator.pkg.c_extractor`](modules/orchestrator.pkg.c_extractor.md#_c_parser) | [`_c_parser`](../src/orchestrator/pkg/c_extractor.py#L497) |
 | `_cache_path` | [`orchestrator.pkg.persistence`](modules/orchestrator.pkg.persistence.md#_cache_path) | [`_cache_path`](../src/orchestrator/pkg/persistence.py#L218) |
 | `_CachedToken` | `orchestrator.codereview.auth` | [`_CachedToken`](../src/orchestrator/codereview/auth.py#L61) |
-| `_call` | `orchestrator.core.llm.litellm_client` | [`_call`](../src/orchestrator/core/llm/litellm_client.py#L193) |
+| `_call` | `orchestrator.core.llm.litellm_client` | [`_call`](../src/orchestrator/core/llm/litellm_client.py#L221) |
 | `_call_edges` | [`orchestrator.pkg.csharp_extractor`](modules/orchestrator.pkg.csharp_extractor.md#_call_edges) | [`_call_edges`](../src/orchestrator/pkg/csharp_extractor.py#L465) |
 | `_call_name` | [`orchestrator.pkg.python_orm`](modules/orchestrator.pkg.python_orm.md#_call_name) | [`_call_name`](../src/orchestrator/pkg/python_orm.py#L116) |
 | `_call_of` | `orchestrator.pkg.python_client` | [`_call_of`](../src/orchestrator/pkg/python_client.py#L97) |
@@ -345,7 +345,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 3370 symbols; 
 | `_emit_type` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_emit_type) | [`_emit_type`](../src/orchestrator/pkg/typescript_extractor.py#L131) |
 | `_enclosing_def` | `scripts.security_verify` | [`_enclosing_def`](../scripts/security_verify.py#L159) |
 | `_encode_cursor` | `orchestrator.registry.api.routes` | [`_encode_cursor`](../src/orchestrator/registry/api/routes.py#L80) |
-| `_encoded` | `orchestrator.mcp.registry` | [`_encoded`](../src/orchestrator/mcp/registry.py#L119) |
+| `_encoded` | `orchestrator.mcp.registry` | [`_encoded`](../src/orchestrator/mcp/registry.py#L130) |
 | `_endpoint_edges` | [`orchestrator.pkg.csharp_extractor`](modules/orchestrator.pkg.csharp_extractor.md#_endpoint_edges) | [`_endpoint_edges`](../src/orchestrator/pkg/csharp_extractor.py#L331) |
 | `_endpoint_index` | `orchestrator.pkg.join_link` | [`_endpoint_index`](../src/orchestrator/pkg/join_link.py#L110) |
 | `_ensure_base_repo` | `orchestrator.sdlc.workspace` | [`_ensure_base_repo`](../src/orchestrator/sdlc/workspace.py#L110) |
@@ -376,11 +376,11 @@ _Every first-party symbol, A–Z, and the page that describes it. 3370 symbols; 
 | `_exercises_module` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_exercises_module) | [`_exercises_module`](../src/orchestrator/sdlc/codegen.py#L2312) |
 | `_existing_test_examples` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_existing_test_examples) | [`_existing_test_examples`](../src/orchestrator/sdlc/codegen.py#L2239) |
 | `_external_deps_block` | [`orchestrator.knowledge.renderers`](modules/orchestrator.knowledge.renderers.md#_external_deps_block) | [`_external_deps_block`](../src/orchestrator/knowledge/renderers.py#L993) |
-| `_extract` | `orchestrator.core.llm.litellm_client` | [`_extract`](../src/orchestrator/core/llm/litellm_client.py#L278) |
+| `_extract` | `orchestrator.core.llm.litellm_client` | [`_extract`](../src/orchestrator/core/llm/litellm_client.py#L311) |
 | `_extract_definitions` | `orchestrator.runtime.verifiers.glossary` | [`_extract_definitions`](../src/orchestrator/runtime/verifiers/glossary.py#L112) |
 | `_extract_frames` | `orchestrator.sdlc.localize` | [`_extract_frames`](../src/orchestrator/sdlc/localize.py#L75) |
 | `_extract_repos` | [`orchestrator.cli`](modules/orchestrator.cli.md#_extract_repos) | [`_extract_repos`](../src/orchestrator/cli.py#L2872) |
-| `_extract_tool_calls` | `orchestrator.core.llm.litellm_client` | [`_extract_tool_calls`](../src/orchestrator/core/llm/litellm_client.py#L293) |
+| `_extract_tool_calls` | `orchestrator.core.llm.litellm_client` | [`_extract_tool_calls`](../src/orchestrator/core/llm/litellm_client.py#L326) |
 | `_factory` | [`orchestrator.registry.api.connections`](modules/orchestrator.registry.api.connections.md#_factory) | [`_factory`](../src/orchestrator/registry/api/connections.py#L73) |
 | `_failure_finding` | `orchestrator.codereview.semgrep` | [`_failure_finding`](../src/orchestrator/codereview/semgrep.py#L126) |
 | `_failure_kind` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_failure_kind) | [`_failure_kind`](../src/orchestrator/sdlc/codegen.py#L2356) |
@@ -1098,7 +1098,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 3370 symbols; 
 | `_summarize` | [`orchestrator.registry.api.runs`](modules/orchestrator.registry.api.runs.md#_summarize) | [`_summarize`](../src/orchestrator/registry/api/runs.py#L132) |
 | `_supertypes` | [`orchestrator.pkg.java_extractor`](modules/orchestrator.pkg.java_extractor.md#_supertypes) | [`_supertypes`](../src/orchestrator/pkg/java_extractor.py#L379) |
 | `_supertypes` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_supertypes) | [`_supertypes`](../src/orchestrator/pkg/typescript_extractor.py#L523) |
-| `_supports_reasoning` | `orchestrator.core.llm.litellm_client` | [`_supports_reasoning`](../src/orchestrator/core/llm/litellm_client.py#L48) |
+| `_supports_reasoning` | `orchestrator.core.llm.litellm_client` | [`_supports_reasoning`](../src/orchestrator/core/llm/litellm_client.py#L59) |
 | `_surface_pattern` | [`orchestrator.sdlc.validity`](modules/orchestrator.sdlc.validity.md#_surface_pattern) | [`_surface_pattern`](../src/orchestrator/sdlc/validity.py#L261) |
 | `_sweep_from_tests` | `orchestrator.sdlc.coverage` | [`_sweep_from_tests`](../src/orchestrator/sdlc/coverage.py#L94) |
 | `_symbol_block` | `orchestrator.sdlc.grounding` | [`_symbol_block`](../src/orchestrator/sdlc/grounding.py#L145) |
@@ -1455,7 +1455,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 3370 symbols; 
 | `CalibrationHistoryRepo` | `orchestrator.registry.calibration` | [`CalibrationHistoryRepo`](../src/orchestrator/registry/calibration.py#L50) |
 | `CalibrationHistoryRow` | `orchestrator.registry.db.models` | [`CalibrationHistoryRow`](../src/orchestrator/registry/db/models.py#L100) |
 | `CalibrationStats` | `orchestrator.registry.calibration` | [`CalibrationStats`](../src/orchestrator/registry/calibration.py#L28) |
-| `call` | `orchestrator.mcp.registry` | [`call`](../src/orchestrator/mcp/registry.py#L107) |
+| `call` | `orchestrator.mcp.registry` | [`call`](../src/orchestrator/mcp/registry.py#L118) |
 | `call_tool` | `orchestrator.mcp.client` | [`call_tool`](../src/orchestrator/mcp/client.py#L30) |
 | `call_tool` | `orchestrator.mcp.client` | [`call_tool`](../src/orchestrator/mcp/client.py#L44) |
 | `callee_id` | `orchestrator.pkg.runtime_oracle` | [`callee_id`](../src/orchestrator/pkg/runtime_oracle.py#L124) |
