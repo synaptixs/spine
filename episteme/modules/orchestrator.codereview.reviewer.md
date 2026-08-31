@@ -36,7 +36,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/codereview/reviewer.py:80`](../../src/orchestrator/codereview/reviewer.py#L80)
 
-- **Called by** (2 production · 9 test): [`_build_review_service`](../../src/orchestrator/codereview/webhook.py#L177), [`_main`](../../scripts/live_review.py#L32), [`_service`](../../tests/codereview/test_reviewer.py#L196), [`test_llm_reviewer_degrades_on_garbage`](../../tests/codereview/test_reviewer.py#L95), [`test_llm_reviewer_parses_findings`](../../tests/codereview/test_reviewer.py#L58), [`test_llm_reviewer_skips_malformed_findings`](../../tests/codereview/test_reviewer.py#L102), [`test_llm_reviewer_tolerates_code_fence`](../../tests/codereview/test_reviewer.py#L86), [`test_review_service_carries_grounding_verifier`](../../tests/codereview/test_grounding.py#L153), [`test_review_service_posts_pkg_impact_comment`](../../tests/codereview/test_grounding.py#L115), [`test_reviewer_injects_grounding_into_prompt`](../../tests/codereview/test_grounding.py#L75), [`test_reviewer_without_grounder_has_no_impact_section`](../../tests/codereview/test_grounding.py#L82)
+- **Called by** (2 production · 9 test): [`_build_review_service`](../../src/orchestrator/codereview/webhook.py#L177), [`_main`](../../scripts/live_review.py#L32), [`_service`](../../tests/codereview/test_reviewer.py#L196), [`test_llm_reviewer_degrades_on_garbage`](../../tests/codereview/test_reviewer.py#L95), [`test_llm_reviewer_parses_findings`](../../tests/codereview/test_reviewer.py#L58), [`test_llm_reviewer_skips_malformed_findings`](../../tests/codereview/test_reviewer.py#L102), [`test_llm_reviewer_tolerates_code_fence`](../../tests/codereview/test_reviewer.py#L86), [`test_review_service_carries_grounding_verifier`](../../tests/codereview/test_grounding.py#L245), [`test_review_service_posts_pkg_impact_comment`](../../tests/codereview/test_grounding.py#L115), [`test_reviewer_injects_grounding_into_prompt`](../../tests/codereview/test_grounding.py#L75), [`test_reviewer_without_grounder_has_no_impact_section`](../../tests/codereview/test_grounding.py#L82)
 - **Fields**: `_grounder`, `_llm`, `_model`
 
 ### `ReviewGrounder`
@@ -49,7 +49,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/codereview/reviewer.py:252`](../../src/orchestrator/codereview/reviewer.py#L252)
 
-- **Called by** (2 production · 3 test): [`_build_review_service`](../../src/orchestrator/codereview/webhook.py#L177), [`_main`](../../scripts/live_review.py#L32), [`_service`](../../tests/codereview/test_reviewer.py#L196), [`test_review_service_carries_grounding_verifier`](../../tests/codereview/test_grounding.py#L153), [`test_review_service_posts_pkg_impact_comment`](../../tests/codereview/test_grounding.py#L115)
+- **Called by** (2 production · 3 test): [`_build_review_service`](../../src/orchestrator/codereview/webhook.py#L177), [`_main`](../../scripts/live_review.py#L32), [`_service`](../../tests/codereview/test_reviewer.py#L196), [`test_review_service_carries_grounding_verifier`](../../tests/codereview/test_grounding.py#L245), [`test_review_service_posts_pkg_impact_comment`](../../tests/codereview/test_grounding.py#L115)
 - **Fields**: `_audit`, `_github`, `_impact_source`, `_reviewer`, `_verifiers`
 
 ## Functions
@@ -92,7 +92,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/codereview/reviewer.py:185`](../../src/orchestrator/codereview/reviewer.py#L185)
 
 - **Called by** (1): [`build_review_submission`](../../src/orchestrator/codereview/reviewer.py#L197)
-- **Calls** (1): [`iter_added_lines`](../../src/orchestrator/codereview/diff_utils.py#L26)
+- **Calls** (1): [`iter_added_lines`](../../src/orchestrator/codereview/diff_utils.py#L39)
 
 ### `_verdict`
 
