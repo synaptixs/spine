@@ -3,20 +3,20 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.evals`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 8 modules — 11 types and 26 functions. It sits in the middle of the graph: 3 areas below it, 7 above. Changes here can reach both ways.
+**`orchestrator.evals`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 10 modules — 14 types and 32 functions. It sits in the middle of the graph: 3 areas below it, 8 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
   n0["orchestrator.evals"]
   n1["orchestrator.cli"]
   n2["orchestrator.personas"]
-  n3["scripts.agentic_eval"]
-  n4["scripts.audit_eval"]
-  n5["scripts.codegen_benchmark"]
-  n6["scripts.skill_ab"]
-  n7["scripts.skill_promote"]
-  n8["orchestrator.catalog"]
-  n9["orchestrator.pkg"]
+  n3["orchestrator.pkg"]
+  n4["scripts.agentic_eval"]
+  n5["scripts.audit_eval"]
+  n6["scripts.codegen_benchmark"]
+  n7["scripts.skill_ab"]
+  n8["scripts.skill_promote"]
+  n9["orchestrator.catalog"]
   n10["orchestrator.sdlc"]
   n1 --> n0
   n2 --> n0
@@ -25,17 +25,20 @@ flowchart LR
   n5 --> n0
   n6 --> n0
   n7 --> n0
-  n0 --> n8
+  n8 --> n0
   n0 --> n9
+  n0 --> n3
   n0 --> n10
 ```
 
-**In the diagram:** **`orchestrator.evals`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.personas`](orchestrator.personas.md) · `scripts.agentic_eval` · `scripts.audit_eval` · [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md) · `scripts.skill_ab` · `scripts.skill_promote` · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.pkg`](orchestrator.pkg.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md)
+**In the diagram:** **`orchestrator.evals`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.personas`](orchestrator.personas.md) · [`orchestrator.pkg`](orchestrator.pkg.md) · `scripts.agentic_eval` · `scripts.audit_eval` · [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md) · `scripts.skill_ab` · `scripts.skill_promote` · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md)
 
 ## Modules
 
 - [`orchestrator.evals`](../../src/orchestrator/evals/__init__.py#L1)
 - [`orchestrator.evals.agent_corpus`](../../src/orchestrator/evals/agent_corpus.py#L1)
+- [`orchestrator.evals.comprehension`](../../src/orchestrator/evals/comprehension.py#L1)
+- [`orchestrator.evals.corpus_fetch`](../../src/orchestrator/evals/corpus_fetch.py#L1)
 - [`orchestrator.evals.graders`](../../src/orchestrator/evals/graders.py#L1)
 - [`orchestrator.evals.harness`](../../src/orchestrator/evals/harness.py#L1)
 - [`orchestrator.evals.models`](../../src/orchestrator/evals/models.py#L1)
@@ -49,4 +52,4 @@ flowchart LR
 
 ## Depended on by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.personas`](orchestrator.personas.md), `scripts.agentic_eval`, `scripts.audit_eval`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.skill_ab`, `scripts.skill_promote`
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.pkg`](orchestrator.pkg.md), `scripts.agentic_eval`, `scripts.audit_eval`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.skill_ab`, `scripts.skill_promote`
