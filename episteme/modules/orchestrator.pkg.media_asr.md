@@ -108,6 +108,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 7 test): [`media_extract`](../../src/orchestrator/cli.py#L3652), [`test_extract_media_is_deterministic_for_a_pinned_version`](../../tests/pkg/test_media_asr.py#L115), [`test_extract_media_writes_and_reader_round_trips`](../../tests/pkg/test_media_asr.py#L108), [`test_local_backend_needs_no_consent`](../../tests/pkg/test_media_asr.py#L168), [`test_oversized_media_is_skipped`](../../tests/pkg/test_media_asr.py#L146), [`test_recorded_review_becomes_searchable_doc`](../../tests/pkg/test_media_asr.py#L177), [`test_remote_backend_refuses_without_consent`](../../tests/pkg/test_media_asr.py#L155), [`test_remote_backend_runs_with_consent`](../../tests/pkg/test_media_asr.py#L162)
 - **Calls** (7): [`ExtractResult`](../../src/orchestrator/pkg/media_extract.py#L64), [`MediaExtractorUnavailableError`](../../src/orchestrator/pkg/media_extract.py#L55), [`RemoteConsentRequiredError`](../../src/orchestrator/pkg/media_asr.py#L46), [`_file_sha256`](../../src/orchestrator/pkg/media.py#L52), [`artifact_path`](../../src/orchestrator/pkg/media.py#L64), [`build_media_artifact`](../../src/orchestrator/pkg/media_asr.py#L192), [`write_artifact`](../../src/orchestrator/pkg/media_extract.py#L174)
+- **Documented in**: `docs/specs/document-ingestion-reference.md#writing-a-document-that-binds`
 
 ## Imports
 
