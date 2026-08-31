@@ -84,6 +84,7 @@ Graphify-gap series only. This file is the complete inventory.
 | [cross-run-semantic-memory](cross-run-semantic-memory.md) | Phase 1 read path, `MemoryRow` | Write/distil path |
 | [project-comprehension-memory-bank](project-comprehension-memory-bank.md) | Phases 1 + 4 (1.5.0, 1.6.0) | Phases 2–3 |
 | [persona-skill-measurement](persona-skill-measurement.md) | P0–P3 implemented | The P2 A/B `--live` run |
+| [watch-items-roadmap](watch-items-roadmap.md) | **Written 2026-08-30** — the spec three pages linked for a month and nobody had. WI-1 recommended for removal (premise unsourced; both readings already shipped) | **WI-2, all three phases.** Phase 1 is a live defect: `stale_findings` fabricates staleness on every non-Python file, in the PR-review path | **✔** |
 
 ## 📋 Outstanding — not started or proposal only
 
@@ -103,7 +104,6 @@ Graphify-gap series only. This file is the complete inventory.
 | [language-expansion-roadmap](language-expansion-roadmap.md) | Prioritization only | Go ✅ · Rust · Kotlin · Ruby |
 | [tri-repo-integration](tri-repo-integration.md) | Design only | Spans ontomesh + infodrift |
 | [ontomesh-integration-analysis](ontomesh-integration-analysis.md) | Analysis for decision | Nothing built |
-| **watch-items** | ⚠️ **Spec missing** | `watch-items-roadmap.md` does not exist in `docs/specs/` or `archive/`; the index linked it as a live track | **✔** |
 
 ## ⚠️ Status line contradicts reality
 
@@ -152,8 +152,8 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | State | Count |
 |---|---|
 | ✅ Complete | 17 |
-| 🟡 Partial | 12 |
-| 📋 Outstanding | 14 *(incl. 1 missing spec)* |
+| 🟡 Partial | 13 |
+| 📋 Outstanding | 13 |
 | ⚠️ Stale status | 2 |
 | 📖 Reference | 24 |
 
