@@ -184,6 +184,18 @@ false staleness warnings makes the review noisier, not more trustworthy.
 > indirectly, by a build change rather than an edit. Closing those needs the drift *delta*
 > between the PR's graph and its base — two extractions and a base graph the review path does
 > not have. **That is the follow-up, and it is Phase 3-sized, not thirty minutes.**
+>
+> **✅ Delivered 2026-08-31, and it cost far less than that estimate** — because the review path
+> gained a checkout in the meantime and `core/pinned_checkout` already knew how to fetch a
+> commit safely. `PRDiff` now carries `base_sha` (the request that returns the head already
+> returned it), the base is materialised beside the head, and `GroundingVerifier.drift_keys`
+> gives the base's claims as `(page_title, mention)` keys. What the head has and the base did
+> not is what this change broke.
+>
+> The delta **supersedes** the two heuristics rather than joining them: it asks their question
+> directly instead of approximating it. They remain the fallback for a diff with no base, or a
+> base that will not materialise — and that fallback returns `None`, never an empty set, because
+> an empty set asserts *the base was clean* and that is a claim nobody checked.
 
 ### 3.3 — Drift is reported everywhere and gated nowhere ⚠️ **gate withdrawn 2026-08-31**
 

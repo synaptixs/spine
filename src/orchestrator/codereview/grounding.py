@@ -21,6 +21,7 @@ from orchestrator.pkg import (
     FactBatch,
     FactStore,
     GroundedRetriever,
+    GroundingFinding,
     GroundingVerifier,
     RepoCodeExtractor,
     load_or_extract,
@@ -149,20 +150,51 @@ class PKGGroundingVerifier:
         *,
         root: Path,
         shapes_path: Path | str | None = None,
+        baseline_drift: set[tuple[str, str]] | None = None,
     ) -> None:
         self._verifier = GroundingVerifier(batch, shapes_path=shapes_path)
         self._root = root
+        #: Drift the PR's *base* already had, keyed `(page_title, mention)`. When present the
+        #: doc-drift finding is a **delta** — what this change introduced — and the heuristic
+        #: filters are not used, because the delta answers their question exactly rather than
+        #: approximating it.
+        self._baseline_drift = baseline_drift
 
     @classmethod
-    def from_repo(cls, root: Path | str, *, shapes_path: Path | str | None = None) -> PKGGroundingVerifier:
-        return cls(load_or_extract(root), root=Path(root), shapes_path=shapes_path)
+    def from_repo(
+        cls,
+        root: Path | str,
+        *,
+        shapes_path: Path | str | None = None,
+        baseline_drift: set[tuple[str, str]] | None = None,
+    ) -> PKGGroundingVerifier:
+        return cls(
+            load_or_extract(root),
+            root=Path(root),
+            shapes_path=shapes_path,
+            baseline_drift=baseline_drift,
+        )
+
+    def _doc_findings(self, diff: PRDiff, changed: list[str]) -> list[GroundingFinding]:
+        """Drift attributable to this change — by delta when a base is available.
+
+        Without a base the two heuristics stand: the document is in the diff, or its mention
+        was removed by the patch. They are good and they are approximations — blind to drift a
+        truncated patch body hides, and to a symbol removed indirectly by a build change. The
+        delta is neither, because it asks the question directly: was this claim already broken
+        before? Drift a previous merge introduced stays out either way; it is not this author's
+        to answer for.
+        """
+        if self._baseline_drift is not None:
+            return self._verifier.doc_findings(self._root, exclude=self._baseline_drift)
+        return self._verifier.doc_findings(self._root, files=changed, mentions=_removed_identifiers(diff))
 
     def scan(self, diff: PRDiff) -> list[Finding]:
         changed = [f.filename for f in diff.files if f.patch or f.status == "removed"]
         grounding = [
             *self._verifier.stale_findings(self._root, changed),
             *self._verifier.shacl_findings(),
-            *self._verifier.doc_findings(self._root, files=changed, mentions=_removed_identifiers(diff)),
+            *self._doc_findings(diff, changed),
         ]
         findings: list[Finding] = []
         for g in grounding:

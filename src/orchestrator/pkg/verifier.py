@@ -125,6 +125,7 @@ class GroundingVerifier:
         limit: int = 20,
         files: list[str] | None = None,
         mentions: set[str] | None = None,
+        exclude: set[tuple[str, str]] | None = None,
     ) -> list[GroundingFinding]:
         """Docs that claim a *symbol* the graph doesn't have — the third way the knowledge can
         lie: not the code being stale, but the *prose* about it. Deterministic, informational
@@ -138,7 +139,14 @@ class GroundingVerifier:
         ``mypkg.foo`` matches a change to ``foo``). Passing neither returns everything, which is
         what the repo-wide surfaces want.
 
-        **Both filters are applied before ``limit``**, and that ordering is the whole point of
+        ``exclude`` is the **delta** mode and supersedes both: given the drift a *base* tree
+        already had, keyed ``(page_title, mention)``, only what is new is reported. That is the
+        exact form of the question the heuristic filters approximate — *what did this change
+        break?* — so when a base is available they are not also applied. Drift a previous merge
+        introduced is the previous author's, and drift whose cause the patch does not mention is
+        still this change's if it was not there before.
+
+        **The filters are applied before ``limit``**, and that ordering is the whole point of
         having them here rather than at the call site: capping first and filtering after would
         return nothing for a caller's own documents as soon as a repository carried 20 unrelated
         drift claims — the feature would go quiet on exactly the repositories that need it, and
@@ -152,7 +160,10 @@ class GroundingVerifier:
             if not symbolish_drift(f.mention):
                 continue
             file = f.source_file or f.page_title.partition("#")[0] or None
-            if wanted_files is not None or mentions is not None:
+            if exclude is not None:
+                if (f.page_title, f.mention) in exclude:
+                    continue
+            elif wanted_files is not None or mentions is not None:
                 by_file = file is not None and wanted_files is not None and file in wanted_files
                 by_mention = mentions is not None and (
                     f.mention in mentions or f.mention.rsplit(".", 1)[-1] in mentions
@@ -174,6 +185,18 @@ class GroundingVerifier:
             if len(findings) >= limit:
                 break
         return findings
+
+    def drift_keys(self, root: Path | str) -> set[tuple[str, str]]:
+        """Every symbol-shaped drift claim in ``root``, keyed ``(page_title, mention)``.
+
+        The baseline half of the delta: run this on a base checkout, hand the result to the
+        head's :meth:`doc_findings` as ``exclude``, and what survives is the drift this change
+        introduced. Keyed on the claim rather than the finding's rendered message so the two
+        sides compare even if the wording changes.
+        """
+        from orchestrator.pkg.doc_link import doc_drift, symbolish_drift
+
+        return {(f.page_title, f.mention) for f in doc_drift(self._batch, root) if symbolish_drift(f.mention)}
 
     # ---- 2. freshness against current source -------------------------------
 

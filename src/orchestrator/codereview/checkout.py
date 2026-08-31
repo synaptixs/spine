@@ -18,6 +18,13 @@ codebase keeps finding — a check that confirms the expected path and stays qui
 
 **Depth 1 at the head SHA.** Extraction reads a tree, not a history. The commit comes from
 ``PRDiff.head_sha``, so the graph is built from exactly what the review is about.
+
+**And the base, when the diff carries one.** With both trees the doc-drift finding becomes a
+*delta* — what this change broke — rather than an inference from what the patch removed. The
+heuristics it replaces are good but approximate: blind to drift a truncated patch body hides,
+and to a symbol removed indirectly. The base costs a second shallow fetch and a second
+extraction; a base that will not materialise is not fatal, it just falls back to the heuristics
+and says nothing about it, because the review is no worse than it was yesterday.
 """
 
 from __future__ import annotations
@@ -108,9 +115,10 @@ class PRCheckoutGrounding:
 
             from orchestrator.codereview.grounding import PKGGroundingVerifier, PKGReviewGrounder
 
+            baseline = self._baseline_drift(diff, url, Path(tmp) / "base")
             try:
                 grounder = PKGReviewGrounder.from_repo(root)
-                verifier = PKGGroundingVerifier.from_repo(root)
+                verifier = PKGGroundingVerifier.from_repo(root, baseline_drift=baseline)
             except Exception as exc:  # noqa: BLE001 — extraction failure must not fail a review
                 logger.warning(
                     "review grounding failed for %s: %s",
@@ -122,6 +130,33 @@ class PRCheckoutGrounding:
                 return
 
             yield Grounding(impact_source=grounder, verifiers=[verifier])
+
+    def _baseline_drift(self, diff: PRDiff, url: str, dest: Path) -> set[tuple[str, str]] | None:
+        """The drift the PR's base already had, or ``None`` to fall back to the heuristics.
+
+        ``None`` on every failure and on a diff that names no base: a review that cannot see
+        the base is exactly the review this path produced before the delta existed, so falling
+        back costs nothing. Reporting *all* the base's drift as this PR's would be the harmful
+        direction, which is why the failure returns ``None`` and never an empty set — an empty
+        set means "the base was clean", and that is a claim.
+        """
+        if not diff.base_sha:
+            return None
+        try:
+            from orchestrator.pkg.persistence import load_or_extract
+            from orchestrator.pkg.verifier import GroundingVerifier
+
+            base_root = materialize_at(url, diff.base_sha, dest)
+            return GroundingVerifier(load_or_extract(base_root)).drift_keys(base_root)
+        except Exception as exc:  # noqa: BLE001 — the head review is still worth producing
+            logger.warning(
+                "review base checkout failed for %s@%s: %s — drift falls back to diff heuristics",
+                diff.repo,
+                diff.base_sha[:12],
+                exc,
+                extra={"event": "codereview.base_checkout_failed", "repo": diff.repo},
+            )
+            return None
 
 
 __all__ = ["ENABLE_ENV", "Grounding", "PRCheckoutGrounding", "checkout_enabled"]

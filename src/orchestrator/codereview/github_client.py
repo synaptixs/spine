@@ -65,6 +65,11 @@ class PRDiff:
     head_sha: str
     files: tuple[ChangedFile, ...]
     truncated: bool = False  # True when the file list hit the page cap
+    #: The commit this PR is proposed against. Empty when the caller did not supply one —
+    #: every field here has to be optional for the fakes and for a diff assembled by hand.
+    #: With it, drift can be reported as a *delta* against the base rather than guessed at
+    #: from what the patch removed (see `codereview.checkout`).
+    base_sha: str = ""
 
     @property
     def diff_text(self) -> str:
@@ -125,7 +130,7 @@ class GitHubClient:
     async def fetch_pr_diff(self, *, installation_id: int, repo: str, pr_number: int) -> PRDiff:
         """Fetch the PR's changed files (paginated, capped) + head SHA."""
         token = await self._auth.installation_token(installation_id)
-        head_sha = await self._fetch_head_sha(token, repo, pr_number)
+        head_sha, base_sha = await self._fetch_pr_refs(token, repo, pr_number)
         files, truncated = await self._fetch_files(token, repo, pr_number)
         return PRDiff(
             repo=repo,
@@ -133,6 +138,7 @@ class GitHubClient:
             head_sha=head_sha,
             files=tuple(files),
             truncated=truncated,
+            base_sha=base_sha,
         )
 
     async def submit_review(
@@ -194,7 +200,8 @@ class GitHubClient:
 
     # ---- internals --------------------------------------------------------
 
-    async def _fetch_head_sha(self, token: str, repo: str, pr_number: int) -> str:
+    async def _fetch_pr_refs(self, token: str, repo: str, pr_number: int) -> tuple[str, str]:
+        """``(head_sha, base_sha)`` — both from the one request that already returns them."""
         url = f"{self._config.api_base_url}/repos/{repo}/pulls/{pr_number}"
         resp = await self._request("GET", url, token)
         if resp.status_code != httpx.codes.OK:
@@ -202,7 +209,13 @@ class GitHubClient:
                 f"fetch PR {repo}#{pr_number} failed: HTTP {resp.status_code} {resp.text[:256]}"
             )
         data = resp.json()
-        return str((data.get("head") or {}).get("sha") or "")
+        return (
+            str((data.get("head") or {}).get("sha") or ""),
+            str((data.get("base") or {}).get("sha") or ""),
+        )
+
+    async def _fetch_head_sha(self, token: str, repo: str, pr_number: int) -> str:
+        return (await self._fetch_pr_refs(token, repo, pr_number))[0]
 
     async def _fetch_files(self, token: str, repo: str, pr_number: int) -> tuple[list[ChangedFile], bool]:
         files: list[ChangedFile] = []
