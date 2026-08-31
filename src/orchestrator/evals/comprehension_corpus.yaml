@@ -1,0 +1,42 @@
+# G6 comprehension corpus — the repositories the comprehension metrics are measured on.
+#
+# Declared, never derived, for the reason `pkg/repos.py` gives at length: anything computed
+# from a checkout drifts between machines, and a corpus that drifts cannot back a published
+# number. Every entry is pinned to a COMMIT, not a branch — a branch moves under you and the
+# numbers move with it.
+#
+# Five repositories, one per front-end (G6 decision D3, 2026-08-30). Not all eleven pinned for
+# the invention oracle: 30-50 labelled issues spread over eleven repositories is too thin per
+# repository to say anything about any of them.
+#
+# C# has NO slot in this corpus, and anything published from it must say so rather than let
+# five repositories imply the whole matrix. Dapper (6d48ef664acc) and Newtonsoft.Json
+# (09bb545d7296) stay pinned in `invention-oracle-cross-language.md` and can join when the gold
+# set grows.
+version: 1
+repos:
+  - name: vue-core
+    language: typescript
+    url: https://github.com/vuejs/core.git
+    sha: e2bede96134f757aad5c5b33ac9be055022dbfc8
+    why: TypeScript has the weakest CALLS recall we ship (0.50) — measure it or it hides
+  - name: gin
+    language: go
+    url: https://github.com/gin-gonic/gin.git
+    sha: dcaa4296d111981ffb31ac3eba90bb63e1eb5ab9
+    why: mid-size, dense HTTP routing — exercises Endpoint/EXPOSES alongside localization
+  - name: fmt
+    language: cpp
+    url: https://github.com/fmtlib/fmt.git
+    sha: e27cc20bd93a4e280fb9268d41cd131069a9c73f
+    why: the hardest extraction shape we ship; carried 43 of the 47 fabricated edges
+  - name: libuv
+    language: c
+    url: https://github.com/libuv/libuv.git
+    sha: f87c8e4f70f234b952d9c47b15fb567f78e5f399
+    why: C recall is 1.00, so a poor localization score here is not a recall artefact
+  - name: flask
+    language: python
+    url: https://github.com/pallets/flask.git
+    sha: d318b683471101618febed18996405ad26462110
+    why: the largest front-end and the language most users point Spine at

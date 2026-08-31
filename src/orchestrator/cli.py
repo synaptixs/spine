@@ -3202,6 +3202,95 @@ def _parity_oracle(repo: str, as_json: bool) -> None:
     )
 
 
+def _comprehension_oracle(repo: str, as_json: bool, pinned_corpus: bool) -> None:
+    """`--oracle comprehension`: do facts open to a line that names them?"""
+    from orchestrator.pkg.accuracy import CorpusError, score_comprehension
+
+    if pinned_corpus:
+        import tempfile
+
+        from orchestrator.evals.corpus_fetch import CorpusFetchError, load_manifest, materialize
+
+        try:
+            pinned = load_manifest()
+        except CorpusFetchError as exc:
+            typer.echo(f"pkg accuracy: {exc}")
+            raise typer.Exit(code=1) from exc
+        # Task-scoped: the corpus lives for this command and no longer, so a later run cannot
+        # inherit a half-fetched tree. See evals/corpus_fetch.py.
+        with tempfile.TemporaryDirectory(prefix="spine-g6-") as tmp:
+            rows: list[dict[str, Any]] = []
+            for entry in pinned:
+                typer.echo(f"  fetching {entry.name} @ {entry.sha[:12]} ...", err=True)
+                try:
+                    path = materialize(entry, tmp)
+                except CorpusFetchError as exc:
+                    # All-or-nothing: scoring what happened to arrive would publish a number
+                    # whose denominator moved with the network.
+                    typer.echo(f"pkg accuracy: corpus incomplete — {exc}")
+                    raise typer.Exit(code=1) from exc
+                report = score_comprehension(path)
+                rate = float(report.rate) if report.rate is not None else None
+                rows.append(
+                    {
+                        "repo": entry.name,
+                        "language": entry.language,
+                        "sha": entry.sha,
+                        "anchored": report.anchored,
+                        "resolved": report.resolved,
+                        "excluded": report.excluded,
+                        "rate": rate,
+                    }
+                )
+        if as_json:
+            _print({"oracle": "comprehension", "corpus": rows})
+            return
+        typer.echo("\nprovenance validity on the pinned corpus")
+        for r in rows:
+            shown = f"{r['rate']:.4f}" if r["rate"] is not None else "not measured"
+            typer.echo(
+                f"  {r['repo']:10s} {r['language']:11s} {r['resolved']:6d}/{r['anchored']:<6d} {shown}"
+            )
+        typer.echo("\n  C# has no slot in this corpus — five repositories, six front-ends.")
+        return
+
+    try:
+        report = score_comprehension(repo)
+    except CorpusError as exc:
+        typer.echo(f"pkg accuracy: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if as_json:
+        _print(
+            {
+                "oracle": "comprehension",
+                "anchored": report.anchored,
+                "resolved": report.resolved,
+                "excluded": report.excluded,
+                "unreadable": report.unreadable,
+                "rate": float(report.rate) if report.rate is not None else None,
+                "localization": "not_measured",
+            }
+        )
+        return
+
+    if not report.measured:
+        typer.echo("\nno anchored facts — nothing to measure, which is not the same as a clean result")
+        return
+    typer.echo(
+        f"\nprovenance validity — {report.resolved} of {report.anchored} anchored facts "
+        f"({float(report.rate):.2%}) open to a line that names them"
+    )
+    typer.echo(f"  {report.excluded} excluded: Module, Endpoint and Entity are named by construction")
+    if report.unreadable:
+        typer.echo(f"  {report.unreadable} unreadable file(s) — reported, never counted as passing")
+    typer.echo(
+        "\n  Localization is NOT measured: it needs the gold set G6 D1 called for, and a zero\n"
+        "  there would be indistinguishable from never having measured it.\n"
+        "  --pinned-corpus runs this against the five pinned repositories instead (network)."
+    )
+
+
 def _drift_oracle(repo: str, as_json: bool) -> None:
     """`--oracle drift`: doc claims the graph cannot support, and the rate the gate ratchets."""
     from orchestrator.pkg.accuracy import CorpusError, score_drift
@@ -3402,7 +3491,8 @@ def pkg_accuracy(
             "--oracle",
             help="'runtime' EXECUTES THE REPO'S TEST SUITE to measure CALLS recall; "
             "'parity' compares declared routes/tables against the graph, reading only source; "
-            "'drift' counts doc claims the graph cannot support.",
+            "'drift' counts doc claims the graph cannot support; "
+            "'comprehension' checks facts open to a line that names them.",
         ),
     ] = None,
     tests: Annotated[
@@ -3413,6 +3503,14 @@ def pkg_accuracy(
         int,
         typer.Option("--sample", help="With --oracle invention: also list N edges for human review."),
     ] = 0,
+    pinned_corpus: Annotated[
+        bool,
+        typer.Option(
+            "--pinned-corpus/--no-pinned-corpus",
+            help="With --oracle comprehension: fetch and score the five PINNED repositories "
+            "(needs network; all-or-nothing). Named apart from the positional corpus root.",
+        ),
+    ] = False,
     kind: Annotated[
         str,
         typer.Option("--kind", help="Edge kind to sample (CONSUMES, EXPOSES, REFERENCES, CALLS)."),
@@ -3461,10 +3559,13 @@ def pkg_accuracy(
         if oracle == "drift":
             _drift_oracle(path or ".", as_json)
             return
+        if oracle == "comprehension":
+            _comprehension_oracle(path or ".", as_json, pinned_corpus)
+            return
         if oracle != "runtime":
             typer.echo(
                 f"pkg accuracy: unknown oracle {oracle!r} — "
-                "known oracles: corpus, runtime, parity, invention, drift"
+                "known oracles: corpus, runtime, parity, invention, drift, comprehension"
             )
             raise typer.Exit(code=1)
         _runtime_oracle(path or ".", tests, as_json)

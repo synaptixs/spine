@@ -441,6 +441,27 @@ def score_drift(repo: Path | str, *, sql_dialect: str | None = None) -> DriftRep
     return DriftReport(count=len(drift), docs=docs)
 
 
+def score_comprehension(repo: Path | str, *, sql_dialect: str | None = None) -> Any:
+    """Provenance validity for ``repo`` — do facts open to a line that names them?
+
+    The fifth oracle, and the first that asks about the *answer* rather than the shape. Lives
+    in ``evals`` (G6 owns that package); this is the seam that puts it on the one scoreboard
+    rather than starting a second.
+
+    **Measured on the repository under test, offline.** The pinned five-repository corpus is
+    reached by ``evals.corpus_fetch`` and run explicitly, for the same reason ``runtime`` is
+    opt-in: a gate CI runs by default must not depend on the network, and a metric that fails
+    because a clone timed out teaches people to ignore it.
+    """
+    from orchestrator.evals.comprehension import score_provenance
+
+    root = Path(repo)
+    if not root.is_dir():
+        raise CorpusError(f"{root}: not a directory")
+    batch = RepoCodeExtractor(sql_dialect=sql_dialect).extract(root)
+    return score_provenance(batch, root)
+
+
 # ---- the scoreboard --------------------------------------------------------
 
 SCOREBOARD_VERSION = 1
@@ -494,11 +515,17 @@ BASELINE = Path(__file__).with_name("scoreboard.json")
 #
 # `docs` is recorded beside `count` because zero drift on zero documents is not a clean result,
 # and a gate that cannot tell those apart reports health it never measured.
+# Comprehension is `ratchet` and, unlike drift, it fails when the number goes DOWN: it is an
+# accuracy, not a defect count. It reads 1.0000 on 10,788 anchored facts here, which is the
+# claim worth protecting — every Function, Type and Field fact opens to a line naming it. The
+# localization half stays `not_measured` until a gold set exists (G6 D1/D2); a zero there would
+# be indistinguishable from never having measured, which is the failure §9 describes.
 GATES = {
     "corpus": "strict",
     "parity": "ratchet",
     "invention": "strict",
     "drift": "ratchet",
+    "comprehension": "ratchet",
     "runtime": False,
 }
 
@@ -555,6 +582,7 @@ def build_scoreboard(
     parity = score_parity(repo)
     invention = score_invention(repo)
     drift = score_drift(repo)
+    provenance = score_comprehension(repo)
 
     board: dict[str, Any] = {
         "version": SCOREBOARD_VERSION,
@@ -574,6 +602,21 @@ def build_scoreboard(
                 "surplus": parity.surplus,
                 "declared": parity.declared,
                 "in_graph": parity.in_graph,
+            },
+            "comprehension": {
+                "gated": GATES["comprehension"],
+                "provenance": {
+                    "anchored": provenance.anchored,
+                    "resolved": provenance.resolved,
+                    # Kinds named by construction rather than by a token at the site — Module,
+                    # Endpoint, Entity. Recorded so "not scored" cannot be read as "passed".
+                    "excluded": provenance.excluded,
+                    "unreadable": provenance.unreadable,
+                },
+                # Named, not omitted. An absent key reads as an oversight; this reads as a
+                # measurement nobody has taken yet, which is the truth (G6 D1: no gold set).
+                "localization": {"status": "not_measured", "reason": "no gold set — G6 D1"},
+                "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
             },
             "drift": {
                 "gated": GATES["drift"],
@@ -695,6 +738,22 @@ def compare_scoreboard(baseline: dict[str, Any], current: dict[str, Any]) -> lis
             if count:
                 out.append(Regression("invention", f"{lang}: fabricated CALLS edge(s)", "0", str(count)))
 
+    # Comprehension: an accuracy, so a DROP fails — the opposite direction to drift below.
+    base_prov = baseline.get("metrics", {}).get("comprehension", {}).get("provenance", {})
+    cur_prov = current.get("metrics", {}).get("comprehension", {}).get("provenance", {})
+    before_prov = _ratio(int(base_prov.get("resolved", 0)), int(base_prov.get("anchored", 0)))
+    after_prov = _ratio(int(cur_prov.get("resolved", 0)), int(cur_prov.get("anchored", 0)))
+    if before_prov is not None and after_prov is not None and after_prov < before_prov:
+        out.append(
+            Regression(
+                "comprehension",
+                f"provenance validity fell ({cur_prov.get('resolved')} of {cur_prov.get('anchored')} facts "
+                "open to a line naming them)",
+                f"{float(before_prov):.4f}",
+                f"{float(after_prov):.4f}",
+            )
+        )
+
     # Drift: the *rate*, and only when both sides actually measured something. A current run
     # with no documents says nothing about drift, so it cannot regress — the same reasoning as
     # `skipped_languages` above.
@@ -747,6 +806,12 @@ def scoreboard_improvements(baseline: dict[str, Any], current: dict[str, Any]) -
     b, c = baseline.get("metrics", {}).get("parity", {}), current.get("metrics", {}).get("parity", {})
     if b.get("shortfall") is not None and c.get("shortfall") is not None and c["shortfall"] < b["shortfall"]:
         out.append(f"parity shortfall: {b['shortfall']} -> {c['shortfall']}")
+    bp = baseline.get("metrics", {}).get("comprehension", {}).get("provenance", {})
+    cp = current.get("metrics", {}).get("comprehension", {}).get("provenance", {})
+    before_prov = _ratio(int(bp.get("resolved", 0)), int(bp.get("anchored", 0)))
+    after_prov = _ratio(int(cp.get("resolved", 0)), int(cp.get("anchored", 0)))
+    if before_prov is not None and after_prov is not None and after_prov > before_prov:
+        out.append(f"provenance validity: {float(before_prov):.4f} -> {float(after_prov):.4f}")
     bd, cd = baseline.get("metrics", {}).get("drift", {}), current.get("metrics", {}).get("drift", {})
     before_rate = _ratio(int(bd.get("count", 0)), int(bd.get("docs", 0)))
     after_rate = _ratio(int(cd.get("count", 0)), int(cd.get("docs", 0)))
