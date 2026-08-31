@@ -44,6 +44,6 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/testrunner.py#L78) | `docs/specs/java-codegen.md#test-runner-env`, `docs/specs/typescript-codegen.md#test-runner-env` |
 | **VerifierFailure** | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | — |
 | **VersionedRepo** | [`VersionedRepo`](../src/orchestrator/registry/repositories.py#L45) | — |
-| **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | `docs/specs/STATE-OF-SPINE.md#6-how-spine-is-adopted-without-entering-anyones-build-image`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
+| **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | `docs/specs/STATE-OF-SPINE.md#6-how-spine-is-adopted-without-entering-anyones-build-image`, `docs/specs/STATE-OF-SPINE.md#8-outstanding-everything-else` |
 
 _Top 40 of 628 types by graph centrality._
