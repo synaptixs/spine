@@ -3220,6 +3220,7 @@ def _comprehension_oracle(repo: str, as_json: bool, pinned_corpus: bool) -> None
         # inherit a half-fetched tree. See evals/corpus_fetch.py.
         with tempfile.TemporaryDirectory(prefix="spine-g6-") as tmp:
             rows: list[dict[str, Any]] = []
+            roots: dict[str, Path] = {}
             for entry in pinned:
                 typer.echo(f"  fetching {entry.name} @ {entry.sha[:12]} ...", err=True)
                 try:
@@ -3229,6 +3230,7 @@ def _comprehension_oracle(repo: str, as_json: bool, pinned_corpus: bool) -> None
                     # whose denominator moved with the network.
                     typer.echo(f"pkg accuracy: corpus incomplete — {exc}")
                     raise typer.Exit(code=1) from exc
+                roots[entry.name] = path
                 report = score_comprehension(path)
                 rate = float(report.rate) if report.rate is not None else None
                 rows.append(
@@ -3242,8 +3244,20 @@ def _comprehension_oracle(repo: str, as_json: bool, pinned_corpus: bool) -> None
                         "rate": rate,
                     }
                 )
+        from orchestrator.evals.labels import load_labels
+        from orchestrator.evals.localization import score_localization
+
+        gold = load_labels(known_repos={r.name for r in pinned})
+        localization = score_localization(gold, roots) if gold.measured else None
+
         if as_json:
-            _print({"oracle": "comprehension", "corpus": rows})
+            _print(
+                {
+                    "oracle": "comprehension",
+                    "corpus": rows,
+                    "localization": localization.as_dict() if localization else None,
+                }
+            )
             return
         typer.echo("\nprovenance validity on the pinned corpus")
         for r in rows:
@@ -3251,6 +3265,26 @@ def _comprehension_oracle(repo: str, as_json: bool, pinned_corpus: bool) -> None
             typer.echo(
                 f"  {r['repo']:10s} {r['language']:11s} {r['resolved']:6d}/{r['anchored']:<6d} {shown}"
             )
+        if localization is not None:
+            typer.echo(f"\ntop-k localization — {len(localization.results)} labelled issues")
+            for k in localization.ks:
+                hit_rate = localization.rate_at(k)
+                shown = f"{float(hit_rate):.2f}" if hit_rate is not None else "n/a"
+                typer.echo(
+                    f"  top-{k:<3} {localization.hits_at(k):3d}/{len(localization.results):<3d}  {shown}"
+                )
+            if localization.as_dict()["empty_results"]:
+                typer.echo(
+                    f"  {localization.as_dict()['empty_results']} issue(s) returned no landing "
+                    "site at all — a different failure from ranking one badly"
+                )
+        else:
+            typer.echo(
+                "\ntop-k localization — NOT MEASURED: the gold set is empty.\n"
+                "  Not 0: a 0 would be indistinguishable from never having measured it."
+            )
+        if gold.excluded:
+            typer.echo(f"\n  {len(gold.excluded)} issue(s) examined and excluded, with reasons.")
         typer.echo("\n  C# has no slot in this corpus — five repositories, six front-ends.")
         return
 
@@ -3491,6 +3525,144 @@ def _scoreboard(repo: str, write: bool, as_json: bool) -> None:
             f"{len(regressions)} gated regression(s), {len(improvements)} improvement(s)."
         )
     if regressions:
+        raise typer.Exit(code=1)
+
+
+@pkg_app.command("fix-sites")
+def pkg_fix_sites(
+    repo: Annotated[str, typer.Argument(help="A repo name from the G6 corpus manifest.")],
+    commit: Annotated[str, typer.Argument(help="The full 40-character commit that fixed the issue.")],
+    as_json: Annotated[bool, typer.Option("--json", help="Machine-readable.")] = False,
+) -> None:
+    """What a fixing commit changed — the raw material for a G6 gold-set label.
+
+    Prints paths and change counts straight from git. **It does not choose for you**, and that
+    is deliberate: a commit usually touches tests, changelogs and incidental tidying, and
+    deciding which change *is* the fix is the judgement the hand-labelled gold set exists to
+    capture. A candidate picked by reading the ticket the way `investigate` reads it would not
+    be independent of the thing being scored.
+    """
+    import tempfile
+
+    from orchestrator.core.pinned_checkout import CheckoutError, _git, materialize_at
+    from orchestrator.evals.corpus_fetch import load_manifest
+
+    entry = next((r for r in load_manifest() if r.name == repo), None)
+    if entry is None:
+        known = ", ".join(r.name for r in load_manifest())
+        typer.echo(f"pkg fix-sites: unknown repo {repo!r} — the corpus holds: {known}")
+        raise typer.Exit(code=1)
+
+    with tempfile.TemporaryDirectory(prefix="spine-fixsites-") as tmp:
+        try:
+            # Fetch the FIXING commit, not the pin: the pin is the pre-fix tree we score
+            # against, and this is the change that answers the question.
+            # Depth 2: the commit AND its parent, so `--numstat` is a real diff. At depth 1
+            # there is no parent and every file reads as added.
+            root = materialize_at(entry.url, commit, Path(tmp) / repo, depth=2)
+            stat = _git("show", "--numstat", "--format=%s%n%b", commit, cwd=root)
+        except CheckoutError as exc:
+            typer.echo(f"pkg fix-sites: {exc}")
+            raise typer.Exit(code=1) from exc
+
+    message: list[str] = []
+    files: list[dict[str, Any]] = []
+    for line in stat.splitlines():
+        parts = line.split("\t")
+        if len(parts) == 3 and (parts[0].isdigit() or parts[0] == "-"):
+            files.append({"path": parts[2], "added": parts[0], "removed": parts[1]})
+        elif line.strip():
+            message.append(line)
+
+    if as_json:
+        _print({"repo": repo, "commit": commit, "message": message, "files": files})
+        return
+
+    typer.echo(f"\n{repo} @ {commit[:12]}")
+    for line in message[:5]:
+        typer.echo(f"  {line}")
+    typer.echo(f"\n  {len(files)} file(s) changed:")
+    for f in files:
+        typer.echo(f"    +{f['added']:>5} -{f['removed']:>5}  {f['path']}")
+    typer.echo(
+        "\n  Which of these IS the fix is yours to decide — tests, changelogs and tidying\n"
+        "  travel with it. Record the real site(s) in evals/comprehension_labels.yaml,\n"
+        "  then: orchestrator pkg labels --check"
+    )
+
+
+@pkg_app.command("labels")
+def pkg_labels(
+    check: Annotated[
+        bool, typer.Option("--check", help="Validate the gold set and exit non-zero on a problem.")
+    ] = False,
+    paths: Annotated[
+        bool,
+        typer.Option("--paths", help="Also verify every labelled path exists in the pinned tree (network)."),
+    ] = False,
+    as_json: Annotated[bool, typer.Option("--json", help="Machine-readable.")] = False,
+) -> None:
+    """The G6 gold set: what is labelled, what was excluded and why."""
+    from orchestrator.evals.corpus_fetch import load_manifest
+    from orchestrator.evals.labels import LabelError, load_labels
+
+    try:
+        manifest = load_manifest()
+        gold = load_labels(known_repos={r.name for r in manifest})
+    except LabelError as exc:
+        typer.echo(f"pkg labels: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    problems: list[str] = []
+    if paths:
+        import tempfile
+
+        from orchestrator.core.pinned_checkout import CheckoutError, materialize_at
+        from orchestrator.evals.labels import unresolvable_paths
+
+        by_name = {r.name: r for r in manifest}
+        with tempfile.TemporaryDirectory(prefix="spine-labels-") as tmp:
+            roots: dict[str, Path] = {}
+            for label in gold.labels:
+                if label.repo not in roots:
+                    try:
+                        roots[label.repo] = materialize_at(
+                            by_name[label.repo].url, by_name[label.repo].sha, Path(tmp) / label.repo
+                        )
+                    except CheckoutError as exc:
+                        problems.append(f"{label.repo}: could not materialise — {exc}")
+                        continue
+                if label.repo not in roots:
+                    continue
+                missing = unresolvable_paths(label, roots[label.repo])
+                if missing:
+                    problems.append(
+                        f"{label.issue}: {missing} not in the pinned tree — a path the fix "
+                        "CREATED can never be found by a run against the pre-fix state"
+                    )
+
+    if as_json:
+        _print(
+            {
+                "labelled": len(gold.labels),
+                "excluded": [{"repo": e.repo, "issue": e.issue, "reason": e.reason} for e in gold.excluded],
+                "problems": problems,
+                "ok": not problems,
+            }
+        )
+    else:
+        typer.echo(f"\ngold set — {len(gold.labels)} labelled, {len(gold.excluded)} excluded")
+        for e in gold.excluded:
+            typer.echo(f"  excluded  {e.issue} — {e.reason}")
+        for p in problems:
+            typer.echo(f"  [PROBLEM] {p}")
+        if not gold.labels:
+            typer.echo(
+                "\n  Nothing labelled yet, so localization reports `not_measured` rather than 0 —\n"
+                "  a 0 would be indistinguishable from never having measured.\n"
+                "  Start with: orchestrator pkg fix-sites <repo> <fix-commit>"
+            )
+    if check and problems:
         raise typer.Exit(code=1)
 
 

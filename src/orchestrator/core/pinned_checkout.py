@@ -76,12 +76,16 @@ def verified(dest: Path, url: str, sha: str) -> bool:
         return False  # unreadable, or not a repo → not verified, so rebuild
 
 
-def materialize_at(url: str, sha: str, dest: Path | str) -> Path:
+def materialize_at(url: str, sha: str, dest: Path | str, *, depth: int = 1) -> Path:
     """Put ``url`` at commit ``sha`` in ``dest``, verified, and return the path.
 
     Idempotent: a checkout that verifies is reused, anything else is torn down and refetched.
     Never reconciles a partial state — after a failure there is nothing to reconcile, because
     the marker that would have claimed completeness was never written.
+
+    ``depth`` is 1 because every caller here reads a *tree*. Pass 2 to read the commit as a
+    **change**: at depth 1 the commit has no parent, so ``git show --numstat`` reports every
+    file in the repository as freshly added, which looks like a diff and is not one.
     """
     if not FULL_SHA.match(sha):
         raise CheckoutError(f"{sha!r} is not a full 40-character commit id")
@@ -95,7 +99,7 @@ def materialize_at(url: str, sha: str, dest: Path | str) -> Path:
     _git("remote", "add", "origin", url, cwd=path)
     # Depth 1 on the commit itself: a tree is all any caller here reads, and asking for the
     # object removes any question of which branch it sits on.
-    _git("fetch", "--depth", "1", "--quiet", "origin", sha, cwd=path)
+    _git("fetch", "--depth", str(depth), "--quiet", "origin", sha, cwd=path)
     _git("checkout", "--quiet", "FETCH_HEAD", cwd=path)
 
     head = _git("rev-parse", "HEAD", cwd=path)

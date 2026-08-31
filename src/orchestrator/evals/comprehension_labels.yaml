@@ -1,0 +1,59 @@
+# G6 gold set — hand-labelled issues, and where their fixes actually landed.
+#
+# EMPTY ON PURPOSE. Localization reports `not_measured` until this file has entries, which is
+# the truth: a 0 here would be indistinguishable from never having measured (G6 D2).
+#
+# ── How to add one ────────────────────────────────────────────────────────────
+#
+#   1. Pick a closed issue from one of the five pinned repositories, fixed AFTER the commit
+#      that repository is pinned at (see comprehension_corpus.yaml). The corpus tree is the
+#      pre-fix state, which is the point: we ask whether Spine can find where the fix WILL go.
+#   2. Find the commit that fixed it.
+#   3. See what that commit changed:
+#
+#        orchestrator pkg fix-sites <repo-name> <fix-commit-sha>
+#
+#      That prints the paths and symbols the commit touched, straight from git. It does not
+#      choose for you — a commit usually touches tests, changelogs and incidental tidying, and
+#      deciding which change IS the fix is the judgement this gold set exists to capture.
+#   4. Record the real fix site(s) below. Validate with:
+#
+#        orchestrator pkg labels --check
+#
+# ── Why the answer comes from the fix commit ──────────────────────────────────
+#
+# What the fixing commit changed IS the answer — that is git, not an opinion. An answer read
+# off the ticket the way `investigate` reads it would not be independent of the thing being
+# scored: it would measure two readers of the same clues agreeing, and report it as accuracy.
+#
+# ── Fields ────────────────────────────────────────────────────────────────────
+#
+#   repo        a name from comprehension_corpus.yaml (vue-core | gin | fmt | libuv | flask)
+#   issue       the issue URL, so any row can be checked upstream
+#   title       the ticket text handed to `investigate` — stored so a re-run needs no network
+#   body        optional; more ticket text, same purpose
+#   fix_commit  the FULL 40-character commit. Abbreviations are refused at load
+#   fix_sites   where the fix landed: a path, optionally with the symbol
+#   note        optional; anything a reader would want to know about a judgement call
+#
+# ── A worked example, commented out ───────────────────────────────────────────
+#
+# labels:
+#   - repo: flask
+#     issue: https://github.com/pallets/flask/issues/0000
+#     title: "send_file() sets the wrong mimetype for .mjs"
+#     fix_commit: 0000000000000000000000000000000000000000
+#     fix_sites:
+#       - path: src/flask/helpers.py
+#         symbol: send_file
+#     note: the same commit updated CHANGES.rst and a test; neither is the fix
+
+version: 1
+
+labels: []
+
+# Issues examined and set aside. Recorded rather than dropped: an exclusion says what the
+# corpus does NOT cover, and silently omitting it is how a benchmark implies coverage it never
+# had. Give a real reason — "spans three repositories, no single landing site" is a reason,
+# "not suitable" is not.
+excluded: []
