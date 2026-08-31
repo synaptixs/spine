@@ -61,6 +61,15 @@ class MCPRegistry:
     ) -> None:
         self._configs = {c.name: c for c in configs if c.enabled}
         self._factory = client_factory
+        # Input schemas seen during discovery, keyed `server:tool`. Every session with an
+        # MCP server costs a spawned process or an HTTP connection, and `_encoded` needed a
+        # schema the registry had *already been told* — so a single `call` carrying a
+        # structured argument opened two: one to re-ask for the schema, one to make the
+        # call. Discovery fills this; `_encoded` reads it and only pays the round-trip on a
+        # miss. Refreshed on every `probe`, so a changed schema is picked up the next time
+        # anything lists tools; a tool the server *removes* leaves a stale entry, which
+        # costs nothing — the call it would encode for is refused by the server either way.
+        self._schemas: dict[str, dict[str, Any]] = {}
 
     @classmethod
     def from_config(
@@ -93,7 +102,9 @@ class MCPRegistry:
                 )
                 out.append(MCPServerStatus(name=name, kind=kind, error=str(exc)[:300], remedy=remedy))
                 continue
-            out.append(MCPServerStatus(name=name, tools=tuple(t for t in tools if cfg.allows(t.name))))
+            allowed = tuple(t for t in tools if cfg.allows(t.name))
+            self._schemas.update({f"{name}:{t.name}": t.input_schema for t in allowed})
+            out.append(MCPServerStatus(name=name, tools=allowed))
         return out
 
     async def list_tools(self) -> list[MCPTool]:
@@ -114,24 +125,35 @@ class MCPRegistry:
         if not tool or not cfg.allows(tool):
             raise PermissionError(f"tool {qualified_name!r} is not allow-listed on server {server!r}")
         client = self._factory(cfg)
-        return await client.call_tool(tool, await self._encoded(client, tool, arguments))
+        return await client.call_tool(tool, await self._encoded(client, server, tool, arguments))
 
-    async def _encoded(self, client: MCPClient, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    async def _encoded(
+        self, client: MCPClient, server: str, tool: str, arguments: dict[str, Any]
+    ) -> dict[str, Any]:
         """Honour a server that declares a structured argument as a JSON string.
 
         Skipped entirely unless some argument is a ``dict``/``list``, so the common
         all-scalar call pays nothing for the schema round-trip. A discovery failure
         passes the arguments through untouched: this is a convenience over the raw
         call, and it must never be the reason one fails.
+
+        The schema is taken from the discovery cache when discovery has already run —
+        which it has for every caller that lists tools before calling them, the agentic
+        loop included. That is the whole of the saving: one session per call instead of
+        two, without giving the client a lifecycle for anyone to leak.
         """
         if not needs_schema_lookup(arguments):
             return arguments
+        cached = self._schemas.get(f"{server}:{tool}")
+        if cached is not None:
+            return encode_for_schema(cached, arguments)
         try:
-            schema = next((t.input_schema for t in await client.list_tools() if t.name == tool), None)
+            tools = await client.list_tools()
         except Exception as exc:  # noqa: BLE001 — the call itself is still worth attempting
             logger.warning("mcp.schema_lookup_failed", extra={"tool": tool, "error": str(exc)[:200]})
             return arguments
-        return encode_for_schema(schema, arguments)
+        self._schemas.update({f"{server}:{t.name}": t.input_schema for t in tools})
+        return encode_for_schema(next((t.input_schema for t in tools if t.name == tool), None), arguments)
 
 
 __all__ = ["ClientFactory", "MCPRegistry"]

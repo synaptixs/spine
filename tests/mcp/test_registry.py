@@ -175,6 +175,31 @@ async def test_all_scalar_call_skips_the_schema_round_trip() -> None:
     assert client.list_count == 0
 
 
+async def test_discovery_pays_for_the_schema_lookup_once() -> None:
+    """One structured call used to open two sessions: one to re-ask, one to call."""
+    registry, client = _atlassian_registry()
+
+    await registry.list_tools()  # what every caller does before calling anything
+    listed = client.list_count
+    await registry.call("atlassian:jira_create_issue", {"additional_fields": {"summary": "x"}})
+
+    # The call itself asked the server nothing extra — and still encoded correctly, so
+    # this is a saved session rather than a skipped step.
+    assert client.list_count == listed
+    assert json.loads(client.calls[0][1]["additional_fields"]) == {"summary": "x"}
+
+
+async def test_the_schema_lookup_is_cached_after_a_cold_call() -> None:
+    """A caller that never lists pays once, not once per call."""
+    registry, client = _atlassian_registry()
+
+    for _ in range(3):
+        await registry.call("atlassian:jira_create_issue", {"additional_fields": {"summary": "x"}})
+
+    assert client.list_count == 1
+    assert [json.loads(c[1]["additional_fields"]) for c in client.calls] == [{"summary": "x"}] * 3
+
+
 async def test_a_failed_schema_lookup_still_makes_the_call() -> None:
     """The coercion is a convenience over the raw call, never a new way to fail."""
     client = _FakeClient("atlassian", [("jira_create_issue", False)], down=True)

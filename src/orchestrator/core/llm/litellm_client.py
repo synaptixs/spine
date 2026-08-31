@@ -45,6 +45,17 @@ def _rejects_temperature(exc: Exception) -> bool:
     return "temperature" in text and ("unsupported" in text or "only temperature" in text)
 
 
+# Models that refused `temperature` earlier in this process. A fact about the model, not
+# state of one client, so it is module-level: callers construct `LiteLLMClient` both once
+# per run (`sdlc/worker.py`) and once per operation (`gateway/tools/summarize_text.py`),
+# and an instance attribute would leave the per-operation callers re-learning it forever.
+#
+# **Deliberately not persisted.** A fresh process re-probes, so a transient refusal — a
+# router landing on a different backend, a provider changing what it accepts — costs one
+# retry rather than permanently downgrading a model on the strength of one bad call.
+_TEMPERATURE_REFUSED: set[str] = set()
+
+
 def _supports_reasoning(model: str) -> bool:
     """Does litellm report this model as reasoning-capable?
 
@@ -147,9 +158,26 @@ class LiteLLMClient:
             if _supports_reasoning(model):
                 params["reasoning_effort"] = self._reasoning_effort
         # Newer reasoning models (e.g. claude-opus-4-7) reject `temperature`
-        # entirely. Only forward it when the caller explicitly opts in.
-        if temperature is not None:
+        # entirely. Only forward it when the caller explicitly opts in — and not at all
+        # once this model has refused it in this process, which turns the retry below from
+        # a per-call tax into a one-off.
+        if temperature is not None and model not in _TEMPERATURE_REFUSED:
             params["temperature"] = temperature
+        elif temperature is not None:
+            # Warn *once*, at the refusal. Repeating the sentence on every later call is
+            # the noise `suppress_debug_info` above exists to kill, and the second one adds
+            # nothing a reader did not learn from the first. The fact still has to be
+            # recoverable after the fact — a spec that varies between runs must be
+            # explicable — so it stays in the log, at debug, under its own event name: this
+            # call skipped the parameter and paid no retry, which is not what
+            # `llm.temperature_unsupported` means.
+            logger.debug(
+                "%s refused temperature earlier in this process — sending the request without "
+                "temperature=%s rather than retrying it.",
+                model,
+                temperature,
+                extra={"event": "llm.temperature_skipped", "model": model, "temperature": temperature},
+            )
         if max_tokens is not None:
             params["max_tokens"] = max_tokens
         if self._fallbacks:
@@ -224,6 +252,11 @@ class LiteLLMClient:
             if "temperature" not in params or not _rejects_temperature(exc):
                 raise LLMError(f"{type(exc).__name__}: {exc}") from exc
             refused = params.pop("temperature")
+            # Learned once per process: every later call to this model skips the parameter
+            # at assembly instead of discovering the same refusal again. Before this, a run
+            # against such a model paid a failed round-trip *per call* and printed the
+            # warning below each time.
+            _TEMPERATURE_REFUSED.add(model)
             # A sentence, not an event name: this is printed at a human on a terminal, and
             # what it costs them (a spec that may differ between runs) is the part worth
             # reading. The structured fields stay for whoever is parsing logs.
