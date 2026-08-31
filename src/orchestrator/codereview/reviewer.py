@@ -259,12 +259,18 @@ class ReviewService:
         llm_reviewer: LLMReviewer,
         verifiers: list[CodeVerifier] | None = None,
         impact_source: ImpactFindingSource | None = None,
+        grounding: Any | None = None,
         audit: AuditFn | None = None,
     ) -> None:
         self._github = github
         self._reviewer = llm_reviewer
         self._verifiers = verifiers if verifiers is not None else default_code_verifiers()
         self._impact_source = impact_source
+        #: Optional per-review PKG grounding (`codereview.checkout.PRCheckoutGrounding`).
+        #: Per *review* rather than per service, because the pieces need a checkout of the
+        #: PR's head and the head is not known until the diff has been fetched — which is why
+        #: `impact_source` and the grounded verifiers were never wired here before.
+        self._grounding = grounding
         self._audit = audit
 
     async def _compute(
@@ -275,11 +281,49 @@ class ReviewService:
             installation_id=installation_id, repo=repo, pr_number=pr_number
         )
         summary, llm_findings = await self._reviewer.review(diff)
+
+        grounded_verifiers: list[CodeVerifier] = []
+        impact_source = self._impact_source
+        degraded = False
+        if self._grounding is not None:
+            async with self._grounding.for_diff(diff) as grounding:
+                if grounding is None:
+                    degraded = True
+                else:
+                    grounded_verifiers = list(grounding.verifiers)
+                    impact_source = grounding.impact_source or impact_source
+                return self._assemble(
+                    diff, summary, llm_findings, grounded_verifiers, impact_source, degraded
+                )
+        return self._assemble(diff, summary, llm_findings, [], impact_source, False)
+
+    def _assemble(
+        self,
+        diff: PRDiff,
+        summary: str,
+        llm_findings: list[Finding],
+        grounded_verifiers: list[CodeVerifier],
+        impact_source: ImpactFindingSource | None,
+        degraded: bool,
+    ) -> tuple[PRDiff, ReviewSubmission, list[Finding]]:
+        """Run the verifier chain and build the submission.
+
+        Split out so the grounded path can hold its checkout open across the scan — the
+        verifiers read files from it — and release it before anything is posted.
+        """
         verifier_findings: list[Finding] = []
-        for v in self._verifiers:
+        for v in [*self._verifiers, *grounded_verifiers]:
             verifier_findings.extend(v.scan(diff))
-        impact_findings = self._impact_source.findings_for_diff(diff) if self._impact_source else []
+        impact_findings = impact_source.findings_for_diff(diff) if impact_source else []
         all_findings = [*impact_findings, *verifier_findings, *llm_findings]
+        if degraded:
+            # Said in the body, not just the log. A degraded review that reads identically to
+            # a clean one is the failure this codebase keeps finding: silence taken as success.
+            summary = (
+                f"{summary}\n\n_Graph-grounded checks did not run for this review: the "
+                "repository could not be checked out. Impact, fact-freshness and doc-drift "
+                "findings are absent — not clean._"
+            )
         return diff, build_review_submission(diff, all_findings, summary), all_findings
 
     async def preview_pull_request(

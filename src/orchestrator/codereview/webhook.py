@@ -208,4 +208,22 @@ def _build_review_service(request: Request, *, trace_id: str | None) -> Any:
             )
             await session.commit()
 
-    return ReviewService(github=github, llm_reviewer=reviewer, audit=_audit)
+    # PKG-grounded review needs a checkout of the PR's head, which this path does not
+    # otherwise have — which is why `impact_source` and the grounded verifiers were never
+    # wired here (STATE-OF-SPINE §8). Opt-in, because cloning per review is an operator's
+    # cost to accept: ORCHESTRATOR_REVIEW_CHECKOUT=1.
+    from orchestrator.codereview.checkout import PRCheckoutGrounding, checkout_enabled
+
+    grounding = None
+    if checkout_enabled():
+        from orchestrator.sdlc.gitauth import authenticate_repo_url
+
+        async def _clone_url_for(repo: str) -> str | None:
+            # A token is embedded when the deployment has one; `authenticate_repo_url` is
+            # best-effort and degrades to the bare URL, which is right for a public repo and
+            # fails cleanly for a private one — a failure the review reports rather than dies on.
+            return await authenticate_repo_url(f"https://github.com/{repo}.git")
+
+        grounding = PRCheckoutGrounding(clone_url_for=_clone_url_for, enabled=True)
+
+    return ReviewService(github=github, llm_reviewer=reviewer, grounding=grounding, audit=_audit)
