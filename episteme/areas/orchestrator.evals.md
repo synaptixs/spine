@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.evals`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 10 modules — 14 types and 30 functions. It sits in the middle of the graph: 4 areas below it, 8 above. Changes here can reach both ways.
+**`orchestrator.evals`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 12 modules — 21 types and 35 functions. It sits in the middle of the graph: 4 areas below it, 8 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -43,6 +43,8 @@ flowchart LR
 - [`orchestrator.evals.corpus_fetch`](../../src/orchestrator/evals/corpus_fetch.py#L1)
 - [`orchestrator.evals.graders`](../../src/orchestrator/evals/graders.py#L1)
 - [`orchestrator.evals.harness`](../../src/orchestrator/evals/harness.py#L1)
+- [`orchestrator.evals.labels`](../../src/orchestrator/evals/labels.py#L1)
+- [`orchestrator.evals.localization`](../../src/orchestrator/evals/localization.py#L1)
 - [`orchestrator.evals.models`](../../src/orchestrator/evals/models.py#L1)
 - [`orchestrator.evals.paths`](../../src/orchestrator/evals/paths.py#L1)
 - [`orchestrator.evals.promotion`](../../src/orchestrator/evals/promotion.py#L1)
