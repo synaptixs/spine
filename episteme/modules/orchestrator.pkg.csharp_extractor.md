@@ -14,11 +14,11 @@
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L721) — reaches **23** symbols · **no test path visible**
+- [`CSharpExtractor`](../../src/orchestrator/pkg/csharp_extractor.py#L92) — reaches **8** symbols
 - [`_field_text`](../../src/orchestrator/pkg/csharp_extractor.py#L716) — reaches **8** symbols · **no test path visible**
 - [`_join_ns`](../../src/orchestrator/pkg/csharp_extractor.py#L491) — reaches **8** symbols · **no test path visible**
 - [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L528) — reaches **7** symbols · **no test path visible**
 - [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L503) — reaches **7** symbols · **no test path visible**
-- [`CSharpExtractor`](../../src/orchestrator/pkg/csharp_extractor.py#L92) — reaches **6** symbols
 - [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L552) — reaches **5** symbols · **no test path visible**
 - [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L574) — reaches **5** symbols · **no test path visible**
 

@@ -14,7 +14,7 @@
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L562) — reaches **13** symbols · **no test path visible**
-- [`TypeScriptExtractor`](../../src/orchestrator/pkg/typescript_extractor.py#L46) — reaches **6** symbols
+- [`TypeScriptExtractor`](../../src/orchestrator/pkg/typescript_extractor.py#L46) — reaches **8** symbols
 - [`_import_target`](../../src/orchestrator/pkg/typescript_extractor.py#L287) — reaches **5** symbols · **no test path visible**
 - [`_field_text`](../../src/orchestrator/pkg/typescript_extractor.py#L557) — reaches **4** symbols · **no test path visible**
 - [`_pattern_names`](../../src/orchestrator/pkg/typescript_extractor.py#L349) — reaches **4** symbols · **no test path visible**

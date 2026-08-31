@@ -14,8 +14,8 @@
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`_text`](../../src/orchestrator/pkg/java_extractor.py#L418) — reaches **14** symbols · **no test path visible**
+- [`JavaExtractor`](../../src/orchestrator/pkg/java_extractor.py#L52) — reaches **8** symbols
 - [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L413) — reaches **7** symbols · **no test path visible**
-- [`JavaExtractor`](../../src/orchestrator/pkg/java_extractor.py#L52) — reaches **6** symbols
 - [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L314) — reaches **5** symbols · **no test path visible**
 - [`_string_literal`](../../src/orchestrator/pkg/java_extractor.py#L342) — reaches **5** symbols · **no test path visible**
 - [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L330) — reaches **4** symbols · **no test path visible**
