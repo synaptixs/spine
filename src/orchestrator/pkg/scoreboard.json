@@ -1,5 +1,19 @@
 {
   "metrics": {
+    "comprehension": {
+      "gated": "ratchet",
+      "localization": {
+        "reason": "no gold set \u2014 G6 D1",
+        "status": "not_measured"
+      },
+      "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
+      "provenance": {
+        "anchored": 10802,
+        "excluded": 761,
+        "resolved": 10802,
+        "unreadable": 0
+      }
+    },
     "corpus": {
       "gated": "strict",
       "languages": {
@@ -421,7 +435,7 @@
       "skipped_languages": []
     },
     "drift": {
-      "count": 890,
+      "count": 893,
       "docs": 1532,
       "gated": "ratchet",
       "note": "ratcheted on the rate (count/docs), not the count \u2014 see GATES"
@@ -435,12 +449,12 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 16816,
+          "total_calls": 16903,
           "unexamined": 0
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 16816
+      "total_calls": 16903
     },
     "parity": {
       "declared": 75,

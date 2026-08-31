@@ -3,7 +3,8 @@
 > **"G6" is a label, not a position in a queue.** It's gap #6 in the Graphify comparison. The specs
 > are not ordered and do not run in sequence.
 
-**Status:** Not started — **scope decided 2026-08-30** (D1–D4 below).
+**Status:** **Phase 1's harness shipped 2026-08-31**; the gold set it scores is not written, so
+localization reports `not_measured`. Scope decided 2026-08-30 (D1–D4 below).
 **Rewritten 2026-08-15 against 3.18.1**; decisions taken and the text reconciled to them
 2026-08-30.
 **Owner:** _unassigned_ — and that is the binding constraint, not the code. D1 makes the gold set
@@ -135,15 +136,36 @@ so the corpus arrives pinned and already known to extract.
 Python-only, so a Python-dominated corpus would report health it has not measured. Non-Python
 repositories are what make that limit visible rather than invisible.
 
+> **Two things measuring changed, recorded because the spec asserted otherwise.**
+>
+> - **`stale_findings` cannot be provenance validity.** The spec called it *"most of it"*. It
+>   compares a graph against the source it was extracted from, so on a freshly-extracted tree it
+>   is **zero by construction** — a constant, not a measurement. What *is* falsifiable per fact,
+>   and is what shipped: **does the recorded line actually name the symbol?** Every fact carries
+>   `file:line` and the product's central claim is that a reader can open it.
+> - **It is scored per kind, and that is the metric's definition.** `Function`, `Type` and
+>   `Field` read **1.000** here. `Module` reads 0.151, `Endpoint` 0.014, `Entity` 0.000 — none of
+>   them a defect: they are named by construction (a dotted path, `GET /v1/x`, a table name), not
+>   by a token at the site. Scoring them would measure a naming convention and call it
+>   provenance; omitting them silently would let *not scored* read as *passed*, so they are
+>   counted as `excluded`.
+>
 > **The pins live in prose today.** Those SHAs exist in exactly one place: a markdown table in
 > `invention-oracle-cross-language.md`. Nothing in `src/` or `evals/` reads them, so "pinned" is
 > currently a claim a human keeps. **Phase 1 must land a real manifest** — a checked-in file the
 > harness reads — or the pinning invariant is honoured by memory alone.
+>
+> **Done 2026-08-31**, and the manifest refuses an abbreviation at load. All eleven prose pins
+> were re-verified against the GitHub API while writing it: **all eleven resolve.** The four
+> reused here are recorded full-length, because a 12-character abbreviation reads as a SHA,
+> resolves for a human, and cannot be handed to `git fetch`.
 
 ## Phases
 
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
+| **1a — the harness** ✅ **2026-08-31** | Manifest (`evals/comprehension_corpus.yaml`, five pins, validated full-length at load), fetch-and-persist (`evals/corpus_fetch.py`), **provenance validity** (`evals/comprehension.py`), a `comprehension` key on the one scoreboard, a ratchet gate, and `pkg accuracy --oracle comprehension [--corpus]` | ~1 d | ✅ **1.0000 on 10,789 anchored facts**, gated. Localization reports `not_measured`, never 0 |
+| **1b — the gold set** | 30–50 hand-labelled issues. **Blocked on an owner, not on code** | ~3 d labelling | outstanding |
 | **1 — A gold set, two metrics, into the existing scoreboard** | Pin the corpus in a **manifest the harness reads** (five repositories, D3), then hand-label **30–50 real issues** — one fix site per issue, taken from the fixing commit, recorded with the issue URL and the commit SHA so anyone can re-derive it. Metrics: **top-k localization** and **provenance validity** (D2). Deterministic, no LLM anywhere in scoring or in labelling. Land them as a **`comprehension` key in `scoreboard.json`**, written by `pkg accuracy --scoreboard`. | ~2 d harness + **~3 d labelling** | `pkg accuracy` prints comprehension alongside corpus/invention/parity; one baseline, one file; every label re-derivable from its recorded SHA |
 | **2 — Gate + trend** | Extend `pkg accuracy --check` to the new key on the **ratchet** tier (D4). Track a trend series across releases — with the honest caveat that at n=30–50 a small move is noise, so the gate is a floor, not a graph. | ~2–3 d | A PR that degrades localization is visible before merge, using the gate that already exists |
 | **3 — Publish** | Public methodology + results: the corpus **with its commit SHAs**, how each label was derived, the two metrics, the numbers, and a **reproducible command**. States what was *not* measured — impact recall, fault-site top-1, `regression_gaps` precision, C#, and the Python-only oracles — rather than implying broader coverage. | ~3–4 d | A public benchmark page and a command an outsider can run |
