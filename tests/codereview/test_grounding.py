@@ -150,6 +150,98 @@ def test_grounding_verifier_flags_stale_fact_in_review(tmp_path: Path) -> None:
     assert all(f.verifier_id == "pkg.grounding" for f in findings)
 
 
+# ---- documentation drift on the review path (WI-2 phase 2) ------------------
+#
+# Two ways a PR creates drift, and the second is the one a doc-file filter cannot see:
+# rename a symbol and the docs that still name it are nowhere in your diff. Both rules are
+# attributable because a drift finding exists *only* when the graph has no such symbol.
+
+# Renames calc_tax -> compute_tax: `calc_tax` leaves on a removed line.
+RENAME_PATCH = "@@ -1,2 +1,2 @@\n-def calc_tax(items):\n+def compute_tax(items):\n     return 1\n"
+
+
+def _drift_repo(tmp_path: Path, *, doc: str) -> Path:
+    repo = _repo(tmp_path)
+    (repo / "README.md").write_text(doc, encoding="utf-8")
+    return repo
+
+
+def _verifier(repo: Path, batch_root: Path | None = None):  # type: ignore[no-untyped-def]
+    from orchestrator.codereview.grounding import PKGGroundingVerifier
+    from orchestrator.pkg import RepoCodeExtractor
+
+    return PKGGroundingVerifier(RepoCodeExtractor().extract(batch_root or repo), root=repo)
+
+
+def test_a_renamed_symbol_flags_the_doc_that_still_names_it(tmp_path: Path) -> None:
+    """The case the narrow filter misses: the doc is not in the diff at all."""
+    repo = _drift_repo(tmp_path, doc="# Guide\n\nCall `calc_tax` to price a line.\n")
+    (repo / "pkg" / "tax.py").write_text("def compute_tax(items):\n    return 1\n", encoding="utf-8")
+
+    cf = ChangedFile(filename="pkg/tax.py", status="modified", additions=1, deletions=1, patch=RENAME_PATCH)
+    diff = PRDiff(repo="acme/app", pr_number=7, head_sha="deadbeef", files=(cf,))
+
+    drift = [f for f in _verifier(repo).scan(diff) if f.rule == "doc_drift"]
+    assert [f.path for f in drift] == ["README.md"]
+    assert "calc_tax" in drift[0].message
+    assert drift[0].severity is Severity.WARNING
+
+
+def test_drift_the_pr_did_not_cause_stays_out_of_the_review(tmp_path: Path) -> None:
+    """Pre-existing drift is not this author's to answer for."""
+    repo = _drift_repo(tmp_path, doc="# Guide\n\nSee `long_gone_helper` for details.\n")
+
+    # The diff touches tax.py's body and names nothing the doc claims.
+    drift = [f for f in _verifier(repo).scan(_diff()) if f.rule == "doc_drift"]
+    assert drift == []
+
+
+def test_a_doc_the_pr_edited_is_flagged_even_with_no_code_change(tmp_path: Path) -> None:
+    """Rule 1: the author wrote a claim that does not hold."""
+    repo = _drift_repo(tmp_path, doc="# Guide\n\nUse `never_existed_at_all` first.\n")
+    patch = "@@ -1,3 +1,3 @@\n # Guide\n \n+Use `never_existed_at_all` first.\n"
+    cf = ChangedFile(filename="README.md", status="modified", additions=1, deletions=0, patch=patch)
+    diff = PRDiff(repo="acme/app", pr_number=7, head_sha="deadbeef", files=(cf,))
+
+    drift = [f for f in _verifier(repo).scan(diff) if f.rule == "doc_drift"]
+    assert [f.path for f in drift] == ["README.md"]
+    assert "never_existed_at_all" in drift[0].message
+
+
+def test_the_diff_filter_is_applied_before_the_cap(tmp_path: Path) -> None:
+    """Cap-then-filter would go quiet on exactly the repos that carry drift already."""
+    from orchestrator.pkg import RepoCodeExtractor
+    from orchestrator.pkg.verifier import GroundingVerifier
+
+    repo = _repo(tmp_path)
+    for i in range(25):  # 25 unrelated drifting docs, sorted before the one we want
+        (repo / f"a{i:02d}.md").write_text(f"# A{i}\n\nSee `absent_symbol_{i}` here.\n", encoding="utf-8")
+    (repo / "zz.md").write_text("# Z\n\nSee `calc_tax_helper` here.\n", encoding="utf-8")
+
+    verifier = GroundingVerifier(RepoCodeExtractor().extract(repo))
+    unfiltered = verifier.doc_findings(repo)
+    assert len(unfiltered) == 20  # the cap, and zz.md is past it
+    assert not any(f.file == "zz.md" for f in unfiltered)
+
+    filtered = verifier.doc_findings(repo, files=["zz.md"])
+    assert [f.file for f in filtered] == ["zz.md"]
+
+
+def test_a_drift_finding_anchors_on_its_section(tmp_path: Path) -> None:
+    """A comment at line 1 of a long document does not say where to look."""
+    from orchestrator.pkg import RepoCodeExtractor
+    from orchestrator.pkg.verifier import GroundingVerifier
+
+    repo = _repo(tmp_path)
+    (repo / "README.md").write_text(
+        "# Title\n\nIntro prose.\n\n## Pricing\n\nCall `absent_helper` to price.\n", encoding="utf-8"
+    )
+    findings = GroundingVerifier(RepoCodeExtractor().extract(repo)).doc_findings(repo, files=["README.md"])
+    assert [f.file for f in findings] == ["README.md"]
+    line = findings[0].line
+    assert line is not None and line > 1  # the ## Pricing heading, not the top of the file
+
+
 async def test_review_service_carries_grounding_verifier(tmp_path: Path) -> None:
     from orchestrator.codereview.grounding import PKGGroundingVerifier
     from orchestrator.pkg import RepoCodeExtractor

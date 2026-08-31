@@ -118,19 +118,47 @@ class GroundingVerifier:
 
     # ---- 3. documentation drift --------------------------------------------
 
-    def doc_findings(self, root: Path | str, *, limit: int = 20) -> list[GroundingFinding]:
+    def doc_findings(
+        self,
+        root: Path | str,
+        *,
+        limit: int = 20,
+        files: list[str] | None = None,
+        mentions: set[str] | None = None,
+    ) -> list[GroundingFinding]:
         """Docs that claim a *symbol* the graph doesn't have — the third way the knowledge can
         lie: not the code being stale, but the *prose* about it. Deterministic, informational
         (a review comment, not a blocker): high-confidence symbol drift only (paths/URLs/filenames
         filtered out by :func:`doc_link.symbolish_drift`), anchored to the doc's ``file:line``.
-        Empty when the repo has no docs."""
+        Empty when the repo has no docs.
+
+        ``files`` and ``mentions`` narrow the result to drift attributable to some change: a
+        finding is kept when its **document** is in ``files`` *or* its **mention** is in
+        ``mentions`` (matched whole, or on the final dotted segment, so a doc saying
+        ``mypkg.foo`` matches a change to ``foo``). Passing neither returns everything, which is
+        what the repo-wide surfaces want.
+
+        **Both filters are applied before ``limit``**, and that ordering is the whole point of
+        having them here rather than at the call site: capping first and filtering after would
+        return nothing for a caller's own documents as soon as a repository carried 20 unrelated
+        drift claims — the feature would go quiet on exactly the repositories that need it, and
+        look like a clean result while doing so.
+        """
         from orchestrator.pkg.doc_link import doc_drift, symbolish_drift
 
+        wanted_files = set(files) if files is not None else None
         findings: list[GroundingFinding] = []
         for f in doc_drift(self._batch, root):
             if not symbolish_drift(f.mention):
                 continue
-            file, _, _line = f.page_title.partition("#")
+            file = f.source_file or f.page_title.partition("#")[0] or None
+            if wanted_files is not None or mentions is not None:
+                by_file = file is not None and wanted_files is not None and file in wanted_files
+                by_mention = mentions is not None and (
+                    f.mention in mentions or f.mention.rsplit(".", 1)[-1] in mentions
+                )
+                if not (by_file or by_mention):
+                    continue
             findings.append(
                 GroundingFinding(
                     rule="doc_drift",
@@ -139,7 +167,8 @@ class GroundingVerifier:
                         "but the knowledge graph has no such symbol (renamed, removed, or never "
                         "existed). Update the doc or the code."
                     ),
-                    file=file or None,
+                    file=file,
+                    line=f.line,
                 )
             )
             if len(findings) >= limit:

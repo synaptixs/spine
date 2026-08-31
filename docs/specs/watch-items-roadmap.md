@@ -1,8 +1,8 @@
 # WI — Watch items: doc-drift durability (and the half that is being dropped)
 
 **Status:** **Written 2026-08-30 against 3.25.1**, to close a decision that had been open since
-the docs came back into this repo on 2026-07-30. **WI-2 Phase 1 shipped 2026-08-31** — the defect
-in §3.1 is fixed and guarded. Phases 2–3 outstanding. **WI-1 is recommended for removal** — its
+the docs came back into this repo on 2026-07-30. **WI-2 Phases 1 and 2 shipped 2026-08-31** — the
+defect in §3.1 is fixed and guarded, and drift reaches the review path. Phase 3 outstanding. **WI-1 is recommended for removal** — its
 premise cannot be recovered (§2).
 **Owner:** _unassigned_
 
@@ -140,7 +140,7 @@ countermeasure this project already uses, applied to a check that has never had 
 > plus a Go two-file package, a no-front-end case, and the unparseable case whose behaviour is
 > deliberately unchanged — all nine verified to fail with the dispatch reverted.**
 
-### 3.2 — `doc_findings` was built and never wired
+### 3.2 — `doc_findings` was built and never wired ✅ **fixed 2026-08-31**
 
 [`GroundingVerifier.doc_findings`](../../src/orchestrator/pkg/verifier.py) renders drift as a
 review finding, anchored to the doc's `file:line`, deliberately informational (*"a review
@@ -149,12 +149,40 @@ comment, not a blocker"*). **Nothing calls it.** `PKGGroundingVerifier.scan` com
 no reader.
 
 This is the `--intents` situation in [`STATE-OF-SPINE`](STATE-OF-SPINE.md) §8 — a shipped
-capability with no consumer — and it is one line to close: add it to `scan`, filtered to the
-docs the PR actually touched, the way `shacl_violation` is already filtered to the diff's blast
-radius.
+capability with no consumer — and it is one line to close: add it to `scan`, filtered the way
+`shacl_violation` is already filtered to the diff's blast radius.
 
 **Do 3.1 first.** Adding a second drift finding to a review path that is currently emitting
 false staleness warnings makes the review noisier, not more trustworthy.
+
+> **Shipped 2026-08-31, and the filter is wider than this section proposed.** Filtering to *the
+> docs the PR touched* — the obvious reading, and what was planned — misses the case that
+> matters most: **rename a symbol and the docs that still name it are nowhere in your diff.** A
+> finding is now kept when **either** its document is in the diff **or** its mention appears on a
+> **removed line** of the diff. The second rule is attributable rather than speculative, and the
+> reason is worth keeping: a drift finding exists *only* when the graph has no such symbol, so
+> "the graph lacks it" plus "this diff deleted it" is this change's doing. Were the symbol still
+> there, there would be no finding to attribute. It needs no base graph and no second extraction
+> — one regex pass over the patch.
+>
+> Two things had to be fixed beside the one-line wiring, and both would have made the feature
+> useless in practice:
+>
+> - **The 20-cap ran before any filter.** A repository carrying 20 unrelated drift claims would
+>   have returned nothing for the PR's own documents — quiet on exactly the repositories that
+>   need it, and looking like a clean result while doing so. `doc_findings` now takes `files` and
+>   `mentions` and applies them *inside* the loop.
+> - **The finding had no line.** `DocDriftFinding` carried only `page_title`, so `scan` anchored
+>   every comment at line 1. It now carries the page's `source_file` and section `line` — the
+>   same pair `link_docs` already uses for `Doc` provenance — so the comment lands on the section
+>   that makes the claim.
+>
+> **What the union filter still does not catch**, stated so the row is not read as "drift on PRs
+> is solved": drift a *previous* merge caused (deliberately — not this author's to answer for);
+> a deletion whose patch body GitHub truncates on a very large diff; and a symbol removed
+> indirectly, by a build change rather than an edit. Closing those needs the drift *delta*
+> between the PR's graph and its base — two extractions and a base graph the review path does
+> not have. **That is the follow-up, and it is Phase 3-sized, not thirty minutes.**
 
 ### 3.3 — Drift is reported everywhere and gated nowhere
 
@@ -178,7 +206,7 @@ gates the bank.
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
 | **1 — Freshness stops lying about seven of eight languages** ✅ | Dispatch `stale_findings` per suffix, skip-and-report where this install has no front-end. Nine tests, each proved to fail with the fix reverted | ~1 d | ✅ **2026-08-31.** A polyglot PR gets zero stale-fact warnings when nothing is stale, and the suite would catch a regression |
-| **2 — Wire the drift finding** | Call `doc_findings` from `PKGGroundingVerifier.scan`, filtered to docs in the diff. Severity stays `WARNING` | ~0.5 d | A PR that renames a symbol its docs still name gets one comment, on the doc's line |
+| **2 — Wire the drift finding** ✅ | Call `doc_findings` from `PKGGroundingVerifier.scan`, filtered to docs in the diff **or** mentions on its removed lines. Severity stays `WARNING` | ~0.5 d | ✅ **2026-08-31.** A PR that renames a symbol its docs still name gets one comment, on the doc's section line |
 | **3 — Gate the count** | A `drift` key alongside the existing scoreboard keys, on the **ratchet** tier. One baseline, one file — never a second scoreboard | ~1–2 d | A PR that increases repository drift is visible before merge, using the gate that already exists |
 
 **Phase 1 is not optional and does not depend on the rest.** It is a live false-positive on the
