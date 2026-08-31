@@ -8,6 +8,7 @@ moves the number it annotates.
 from __future__ import annotations
 
 import json
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -394,6 +395,8 @@ def test_drift_counts_claims_the_graph_cannot_support(tmp_path: Path) -> None:
     repo = _drift_repo(tmp_path, doc="# Guide\n\nCall `absent_symbol` after `real_symbol`.\n")
     report = score_drift(repo)
     assert report.count == 1 and report.docs >= 1 and report.measured
+    # The denominator is every claim, so the bound one counts too.
+    assert report.mentions >= 2 and report.rate is not None and report.rate < 1
 
 
 def test_no_documentation_is_not_a_clean_result(tmp_path: Path) -> None:
@@ -409,42 +412,43 @@ def test_no_documentation_is_not_a_clean_result(tmp_path: Path) -> None:
     assert not report.measured
 
 
-def test_writing_accurate_documentation_does_not_fail_the_gate() -> None:
-    """The reason the gate is on the rate: a count ratchet punishes writing docs."""
-    from orchestrator.pkg.accuracy import compare_scoreboard
+def test_drift_never_fails_a_build() -> None:
+    """The gate shipped 2026-08-31 and was withdrawn the same day, one PR later.
 
-    was = {"metrics": {"drift": {"count": 10, "docs": 100}}}
-    # 40 new sections, 2 of them drifting — the docs got *more* accurate overall.
-    now = {"metrics": {"drift": {"count": 12, "docs": 140}}}
-    assert compare_scoreboard(was, now) == []
-    # ... and a count ratchet would have failed this, which is the whole argument.
-    assert now["metrics"]["drift"]["count"] > was["metrics"]["drift"]["count"]
+    It failed a documentation change — the work it existed to protect — and fixing its
+    denominator did not rescue it, because about a tenth of the population cannot bind by
+    construction. Recorded and trended instead; see GATES for what would make it gate material.
+    """
+    from orchestrator.pkg.accuracy import GATES, compare_scoreboard
 
-
-def test_documentation_getting_less_accurate_fails_the_gate() -> None:
-    from orchestrator.pkg.accuracy import compare_scoreboard
-
-    was = {"metrics": {"drift": {"count": 10, "docs": 100}}}
-    now = {"metrics": {"drift": {"count": 15, "docs": 100}}}
-    regressions = [r for r in compare_scoreboard(was, now) if r.metric == "drift"]
-    assert len(regressions) == 1 and "rate increased" in regressions[0].detail
+    assert GATES["drift"] is False
+    much_worse = {"metrics": {"drift": {"count": 500, "mentions": 1000, "docs": 100}}}
+    was = {"metrics": {"drift": {"count": 10, "mentions": 1000, "docs": 100}}}
+    assert [r for r in compare_scoreboard(was, much_worse) if r.metric == "drift"] == []
 
 
-def test_a_repo_with_no_docs_cannot_regress_the_drift_gate() -> None:
-    """An unmeasured run reports nothing, the way an unmeasured language does."""
-    from orchestrator.pkg.accuracy import compare_scoreboard
+def test_the_denominator_is_claims_made_not_sections() -> None:
+    """A section count does not move when prose inside a section is edited.
 
-    was = {"metrics": {"drift": {"count": 10, "docs": 100}}}
-    now = {"metrics": {"drift": {"count": 0, "docs": 0}}}
-    assert [r for r in compare_scoreboard(was, now) if r.metric == "drift"] == []
+    That was the first defect: any added claim raised the figure with nothing able to dilute
+    it, and the result was not bounded by 1, so it was not a rate.
+    """
+    from orchestrator.pkg.accuracy import DriftReport
+
+    report = DriftReport(count=10, docs=100, mentions=1000)
+    assert report.rate == Fraction(1, 100)
+
+    # The old shape: more drift claims than sections, a "rate" above 1.
+    assert DriftReport(count=893, docs=1532, mentions=0).rate is None
 
 
-def test_cleaner_documentation_marks_the_baseline_stale() -> None:
-    from orchestrator.pkg.accuracy import scoreboard_improvements
+def test_an_edited_section_dilutes_when_it_adds_bound_claims() -> None:
+    """What the corrected denominator buys, even though it is no longer gated on."""
+    from orchestrator.pkg.accuracy import DriftReport
 
-    was = {"metrics": {"drift": {"count": 20, "docs": 100}}}
-    now = {"metrics": {"drift": {"count": 10, "docs": 100}}}
-    assert any("doc-drift rate" in i for i in scoreboard_improvements(was, now))
+    before = DriftReport(count=10, docs=100, mentions=1000)
+    after = DriftReport(count=10, docs=100, mentions=1200)  # same section, 200 more claims
+    assert after.rate is not None and before.rate is not None and after.rate < before.rate
 
 
 def test_the_gate_number_is_the_number_state_reports(tmp_path: Path) -> None:

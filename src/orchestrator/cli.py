@@ -3301,15 +3301,17 @@ def _drift_oracle(repo: str, as_json: bool) -> None:
         typer.echo(f"pkg accuracy: {exc}")
         raise typer.Exit(code=1) from exc
 
-    rate = report.count / report.docs if report.docs else None
+    rate = float(report.rate) if report.rate is not None else None
     if as_json:
         _print(
             {
                 "oracle": "drift",
                 "count": report.count,
+                "mentions": report.mentions,
                 "docs": report.docs,
                 "rate": rate,
                 "measured": report.measured,
+                "gated": False,
             }
         )
         return
@@ -3317,12 +3319,17 @@ def _drift_oracle(repo: str, as_json: bool) -> None:
     if not report.measured:
         typer.echo("\nno documentation read — nothing to measure, which is not the same as no drift")
         return
-    typer.echo(f"\ndocumentation drift — {report.count} of {report.docs} sections ({rate:.1%})")
+    shown = f"{rate:.1%}" if rate is not None else "n/a"
+    typer.echo(
+        f"\ndocumentation drift — {report.count} unbound of {report.mentions} claims ({shown}), "
+        f"across {report.docs} sections"
+    )
     typer.echo("  symbol-shaped claims only; paths, URLs and filenames are filtered out")
     typer.echo(
-        "\n  Gated on the RATE, not the count: drift grows with documentation, so a count gate\n"
-        "  would fail a pull request for writing a spec. `orchestrator state` reports the same\n"
-        "  number, and names the claims."
+        "\n  Recorded, never gated. About a tenth of these cannot bind by construction —\n"
+        "  parameters, module constants, string literals and log event names have no node kind —\n"
+        "  so this is an UPPER BOUND on drift, not a defect count. `orchestrator state` reports\n"
+        "  the same number and names the claims."
     )
 
 
@@ -3465,6 +3472,14 @@ def _scoreboard(repo: str, write: bool, as_json: bool) -> None:
         if was_inv is not None and was_inv != now_inv:
             typer.echo(
                 f"[trend]      invention: {was_inv} -> {now_inv} (ungated — moves with ordinary commits)"
+            )
+
+        was_drift = baseline.get("metrics", {}).get("drift", {}).get("count")
+        now_drift = current["metrics"]["drift"]["count"]
+        if was_drift is not None and was_drift != now_drift:
+            typer.echo(
+                f"[trend]      doc drift: {was_drift} -> {now_drift} "
+                "(ungated — a tenth of it cannot bind by construction; see GATES)"
             )
 
         if improvements and not regressions:
