@@ -375,3 +375,83 @@ def test_an_unmeasured_language_is_not_gated() -> None:
         }
     )
     assert compare_scoreboard(board, board) == []
+
+
+# ---- documentation drift, and why the gate is on the rate (WI-2 phase 3) ----
+
+
+def _drift_repo(tmp_path: Path, *, doc: str) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "m.py").write_text("def real_symbol():\n    return 1\n", encoding="utf-8")
+    (repo / "README.md").write_text(doc, encoding="utf-8")
+    return repo
+
+
+def test_drift_counts_claims_the_graph_cannot_support(tmp_path: Path) -> None:
+    from orchestrator.pkg.accuracy import score_drift
+
+    repo = _drift_repo(tmp_path, doc="# Guide\n\nCall `absent_symbol` after `real_symbol`.\n")
+    report = score_drift(repo)
+    assert report.count == 1 and report.docs >= 1 and report.measured
+
+
+def test_no_documentation_is_not_a_clean_result(tmp_path: Path) -> None:
+    """Zero drift on zero docs must be legible as 'nothing measured' (§9)."""
+    from orchestrator.pkg.accuracy import score_drift
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "m.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+
+    report = score_drift(repo)
+    assert report.count == 0 and report.docs == 0
+    assert not report.measured
+
+
+def test_writing_accurate_documentation_does_not_fail_the_gate() -> None:
+    """The reason the gate is on the rate: a count ratchet punishes writing docs."""
+    from orchestrator.pkg.accuracy import compare_scoreboard
+
+    was = {"metrics": {"drift": {"count": 10, "docs": 100}}}
+    # 40 new sections, 2 of them drifting — the docs got *more* accurate overall.
+    now = {"metrics": {"drift": {"count": 12, "docs": 140}}}
+    assert compare_scoreboard(was, now) == []
+    # ... and a count ratchet would have failed this, which is the whole argument.
+    assert now["metrics"]["drift"]["count"] > was["metrics"]["drift"]["count"]
+
+
+def test_documentation_getting_less_accurate_fails_the_gate() -> None:
+    from orchestrator.pkg.accuracy import compare_scoreboard
+
+    was = {"metrics": {"drift": {"count": 10, "docs": 100}}}
+    now = {"metrics": {"drift": {"count": 15, "docs": 100}}}
+    regressions = [r for r in compare_scoreboard(was, now) if r.metric == "drift"]
+    assert len(regressions) == 1 and "rate increased" in regressions[0].detail
+
+
+def test_a_repo_with_no_docs_cannot_regress_the_drift_gate() -> None:
+    """An unmeasured run reports nothing, the way an unmeasured language does."""
+    from orchestrator.pkg.accuracy import compare_scoreboard
+
+    was = {"metrics": {"drift": {"count": 10, "docs": 100}}}
+    now = {"metrics": {"drift": {"count": 0, "docs": 0}}}
+    assert [r for r in compare_scoreboard(was, now) if r.metric == "drift"] == []
+
+
+def test_cleaner_documentation_marks_the_baseline_stale() -> None:
+    from orchestrator.pkg.accuracy import scoreboard_improvements
+
+    was = {"metrics": {"drift": {"count": 20, "docs": 100}}}
+    now = {"metrics": {"drift": {"count": 10, "docs": 100}}}
+    assert any("doc-drift rate" in i for i in scoreboard_improvements(was, now))
+
+
+def test_the_gate_number_is_the_number_state_reports(tmp_path: Path) -> None:
+    """A reader who sees one number in the report and another in the gate can act on neither."""
+    from orchestrator.knowledge.current_state import load_current_state
+    from orchestrator.pkg.accuracy import score_drift
+
+    repo = _drift_repo(tmp_path, doc="# Guide\n\nCall `absent_symbol` and `also_absent`.\n")
+    state, _ = load_current_state(repo)
+    assert score_drift(repo).count == state.doc_drift_total

@@ -392,6 +392,55 @@ def score_parity(repo: Path | str, *, sql_dialect: str | None = None) -> ParityR
     return ParityReport(tuple(source_parity_counts(batch, root)))
 
 
+@dataclass(frozen=True)
+class DriftReport:
+    """Documentation drift for a repository: prose the graph cannot support.
+
+    ``docs`` is carried beside ``count`` so a zero can be read. A repository with no
+    documentation scores zero drift, and so does one whose documentation is perfectly
+    accurate — those are not the same result, and a gate that cannot tell them apart would
+    report health on a repository it never examined (§9's failure mode, and the same reason
+    ``corpus`` records ``skipped_languages`` and ``invention`` records a per-language
+    ``status``).
+    """
+
+    count: int
+    docs: int
+
+    @property
+    def measured(self) -> bool:
+        """False when there was nothing to measure — no docs, so no claim to check."""
+        return self.docs > 0
+
+
+def score_drift(repo: Path | str, *, sql_dialect: str | None = None) -> DriftReport:
+    """Symbol-shaped doc claims the graph cannot support, and how many docs were read.
+
+    **Symbol-shaped only**, via :func:`doc_link.symbolish_drift` — the same filter the
+    ``state`` surfaces and the review path already apply. Gating a noisier population than
+    the one reported would be a gate nobody trusts: a reader who sees 12 in the report and
+    41 in the gate cannot act on either.
+
+    Deterministic and no-LLM, like everything else on the scoreboard.
+    """
+    from orchestrator.pkg.doc_link import doc_drift, symbolish_drift
+    from orchestrator.pkg.doc_source import read_doc_pages
+
+    root = Path(repo)
+    if not root.is_dir():
+        raise CorpusError(f"{root}: not a directory")
+    # Sections, not files — `read_doc_pages` splits on headings, and a section is the unit a
+    # claim is attributed to. Counted from the reader rather than from `Doc` nodes because
+    # the batch here is code-only: `link_docs` is what adds those, and drift does not need
+    # them (its reconciler binds mentions against code).
+    docs = len(read_doc_pages(root))
+    if not docs:
+        return DriftReport(count=0, docs=0)
+    batch = RepoCodeExtractor(sql_dialect=sql_dialect).extract(root)
+    drift = [f for f in doc_drift(batch, root) if symbolish_drift(f.mention)]
+    return DriftReport(count=len(drift), docs=docs)
+
+
 # ---- the scoreboard --------------------------------------------------------
 
 SCOREBOARD_VERSION = 1
@@ -430,7 +479,28 @@ BASELINE = Path(__file__).with_name("scoreboard.json")
 # front-end that fabricates some other way passes this gate. Corpus precision catches that only
 # if the corpus happens to carry the shape — which is why `corpus/*/shadowed_calls` exists, and
 # why a new invention class needs a fixture as well as a detector.
-GATES = {"corpus": "strict", "parity": "ratchet", "invention": "strict", "runtime": False}
+# Drift is `ratchet`, and on the **rate**, not the count. The count is the obvious thing to
+# ratchet and it is the wrong thing: drift grows with documentation, so a count gate fails a PR
+# for *writing a spec* that names something not built yet. Measured on this repository while the
+# gate was being added — 890 drift over 1,532 sections — several of the documents produced that
+# same week would each have tripped it. A gate that fires on the work it is meant to protect
+# gets switched off, and then it protects nothing.
+#
+# The rate answers the question actually worth asking: are the docs getting *less* accurate?
+# Adding sections at or above the current accuracy passes; adding a batch worse than what is
+# there fails; deleting accurate prose fails. It is also the same argument G6's D4 settled on —
+# a ratio has no correct value to hold at zero, so it is ratcheted against the baseline rather
+# than gated absolutely.
+#
+# `docs` is recorded beside `count` because zero drift on zero documents is not a clean result,
+# and a gate that cannot tell those apart reports health it never measured.
+GATES = {
+    "corpus": "strict",
+    "parity": "ratchet",
+    "invention": "strict",
+    "drift": "ratchet",
+    "runtime": False,
+}
 
 
 @dataclass(frozen=True)
@@ -484,6 +554,7 @@ def build_scoreboard(
 
     parity = score_parity(repo)
     invention = score_invention(repo)
+    drift = score_drift(repo)
 
     board: dict[str, Any] = {
         "version": SCOREBOARD_VERSION,
@@ -503,6 +574,14 @@ def build_scoreboard(
                 "surplus": parity.surplus,
                 "declared": parity.declared,
                 "in_graph": parity.in_graph,
+            },
+            "drift": {
+                "gated": GATES["drift"],
+                "count": drift.count,
+                # The denominator, so the rate can be recomputed by a reader and so a zero on
+                # a repository with no documentation is legible as "nothing to measure".
+                "docs": drift.docs,
+                "note": "ratcheted on the rate (count/docs), not the count — see GATES",
             },
             "invention": {
                 "gated": GATES["invention"],
@@ -616,6 +695,23 @@ def compare_scoreboard(baseline: dict[str, Any], current: dict[str, Any]) -> lis
             if count:
                 out.append(Regression("invention", f"{lang}: fabricated CALLS edge(s)", "0", str(count)))
 
+    # Drift: the *rate*, and only when both sides actually measured something. A current run
+    # with no documents says nothing about drift, so it cannot regress — the same reasoning as
+    # `skipped_languages` above.
+    base_drift = baseline.get("metrics", {}).get("drift", {})
+    cur_drift = current.get("metrics", {}).get("drift", {})
+    before_rate = _ratio(int(base_drift.get("count", 0)), int(base_drift.get("docs", 0)))
+    after_rate = _ratio(int(cur_drift.get("count", 0)), int(cur_drift.get("docs", 0)))
+    if before_rate is not None and after_rate is not None and after_rate > before_rate:
+        out.append(
+            Regression(
+                "drift",
+                f"doc-drift rate increased ({cur_drift.get('count')} of {cur_drift.get('docs')} sections)",
+                f"{float(before_rate):.4f}",
+                f"{float(after_rate):.4f}",
+            )
+        )
+
     was_short = baseline.get("metrics", {}).get("parity", {}).get("shortfall")
     now_short = current.get("metrics", {}).get("parity", {}).get("shortfall")
     if was_short is not None and now_short is not None and now_short > was_short:
@@ -651,6 +747,11 @@ def scoreboard_improvements(baseline: dict[str, Any], current: dict[str, Any]) -
     b, c = baseline.get("metrics", {}).get("parity", {}), current.get("metrics", {}).get("parity", {})
     if b.get("shortfall") is not None and c.get("shortfall") is not None and c["shortfall"] < b["shortfall"]:
         out.append(f"parity shortfall: {b['shortfall']} -> {c['shortfall']}")
+    bd, cd = baseline.get("metrics", {}).get("drift", {}), current.get("metrics", {}).get("drift", {})
+    before_rate = _ratio(int(bd.get("count", 0)), int(bd.get("docs", 0)))
+    after_rate = _ratio(int(cd.get("count", 0)), int(cd.get("docs", 0)))
+    if before_rate is not None and after_rate is not None and after_rate < before_rate:
+        out.append(f"doc-drift rate: {float(before_rate):.4f} -> {float(after_rate):.4f}")
     return out
 
 
