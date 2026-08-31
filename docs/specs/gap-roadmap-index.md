@@ -24,7 +24,7 @@ rows had not moved since the page was written, and both had.
 | **G6** — [benchmarks](gap6-benchmarks-roadmap.md) | Retrieval/localization measurement + publication | Not started — **no prerequisites; best done first**. Rewritten 2026-08-15 against 3.18.1; **scope decided 2026-08-30** (D1–D4: gold set only, two metrics, five repos, ratchet gate). Nothing blocks it but staffing the ~3 days of labelling |
 | **CB** — [codegen benchmark](codegen-benchmark-roadmap.md) | SWE-bench comparability, then the `resolved`-vs-`mergeable` delta | Not started — **no prerequisites**. Explicit non-goal of G6; it had no home before |
 | **KL** — [codex plugin keyless](codex-plugin-keyless-roadmap.md) | Remove the API-key requirement via MCP sampling / Ollama | Not started — **Phase 0 is a blocking spike** (does Codex support sampling?) |
-| **WI** — watch-items | PR-workflow defense; doc-drift durability | ⚠️ **Spec missing.** `watch-items-roadmap.md` does not exist in `docs/specs/` or `archive/` — this row linked a file that was never written or was deleted. Write it or drop the row |
+| **WI** — [watch-items](watch-items-roadmap.md) | Doc-drift durability | **Written 2026-08-30**, closing the write-or-drop decision. **WI-2 is real and carries a live defect** — `stale_findings` re-extracts every changed file with `PythonExtractor`, so a polyglot PR gets a false stale-graph warning per symbol. **WI-1 ("PR-workflow defense") is recommended for removal**: its premise appears in no source, and both available readings are already shipped |
 
 **Gap 1 (language breadth — 36 grammars vs our 8) is deliberately not in this program.** We are not
 chasing language count without a concrete need. If that changes it gets its own spec; the queue
@@ -41,8 +41,10 @@ Suggested starting order if you're picking, rather than staffing everything:
 1. **G6 Phase 1** (baseline) — G2 shipped without one, so its effect is unmeasured, and every later
    track inherits that problem. **Its four blocking decisions were taken 2026-08-30**, so the spec
    is now actionable as written.
-2. **WI-2** (doc drift) — the comparison flags drift as *a lead, not a moat*: cheap for a competitor
-   to copy once they have doc→code edges, which Graphify already does.
+2. **WI-2 Phase 1** (doc drift) — the comparison flags drift as *a lead, not a moat*: cheap for a
+   competitor to copy once they have doc→code edges, which Graphify already does. **Its Phase 1 is
+   now a bug fix, not a feature** — the freshness check fabricates staleness on seven of the eight
+   front-ends, on the one surface a target repository sees.
 3. Anything else, in whatever order suits the people you have.
 
 ## Who owns which files
@@ -58,7 +60,7 @@ tracks meet is append-only.**
 | **G5** | `pkg/export.py`, `knowledge/report_*.py`, `web/static/` | `pkg/facts.py` — **read-only** |
 | **G6** | `evals/`, a new `comprehension` key in `pkg/scoreboard.json` | `pkg/accuracy` CLI — **extend the existing gate, never a second baseline** |
 | **CB** | `scripts/` (new SWE-bench harness), `evals/` | `scripts/codegen_benchmark.py` and the SDLC preflight — **read-only**; the strict gate must stay production code, not benchmark code |
-| **WI-1** | `sdlc/` | `plugin/_TOOLS` |
+| ~~**WI-1**~~ | *(recommended for removal — see the spec §2)* | |
 | **WI-2** | `pkg/doc_link.py`, `pkg/verifier.py`, `knowledge/current_state.py` | none |
 
 Appending a line to a registry, an extras block, or a tuple is a trivial merge conflict — not a
