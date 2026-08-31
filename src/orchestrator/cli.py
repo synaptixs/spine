@@ -3202,6 +3202,41 @@ def _parity_oracle(repo: str, as_json: bool) -> None:
     )
 
 
+def _drift_oracle(repo: str, as_json: bool) -> None:
+    """`--oracle drift`: doc claims the graph cannot support, and the rate the gate ratchets."""
+    from orchestrator.pkg.accuracy import CorpusError, score_drift
+
+    try:
+        report = score_drift(repo)
+    except CorpusError as exc:
+        typer.echo(f"pkg accuracy: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    rate = report.count / report.docs if report.docs else None
+    if as_json:
+        _print(
+            {
+                "oracle": "drift",
+                "count": report.count,
+                "docs": report.docs,
+                "rate": rate,
+                "measured": report.measured,
+            }
+        )
+        return
+
+    if not report.measured:
+        typer.echo("\nno documentation read — nothing to measure, which is not the same as no drift")
+        return
+    typer.echo(f"\ndocumentation drift — {report.count} of {report.docs} sections ({rate:.1%})")
+    typer.echo("  symbol-shaped claims only; paths, URLs and filenames are filtered out")
+    typer.echo(
+        "\n  Gated on the RATE, not the count: drift grows with documentation, so a count gate\n"
+        "  would fail a pull request for writing a spec. `orchestrator state` reports the same\n"
+        "  number, and names the claims."
+    )
+
+
 def _invention_oracle(repo: str, sample: int, kind: str, as_json: bool) -> None:
     """`--oracle invention`: CALLS edges targeting a name bound in the caller's own scope."""
     from orchestrator.pkg.facts import EdgeKind
@@ -3366,7 +3401,8 @@ def pkg_accuracy(
         typer.Option(
             "--oracle",
             help="'runtime' EXECUTES THE REPO'S TEST SUITE to measure CALLS recall; "
-            "'parity' compares declared routes/tables against the graph, reading only source.",
+            "'parity' compares declared routes/tables against the graph, reading only source; "
+            "'drift' counts doc claims the graph cannot support.",
         ),
     ] = None,
     tests: Annotated[
@@ -3422,9 +3458,13 @@ def pkg_accuracy(
         if oracle == "invention":
             _invention_oracle(path or ".", sample, kind, as_json)
             return
+        if oracle == "drift":
+            _drift_oracle(path or ".", as_json)
+            return
         if oracle != "runtime":
             typer.echo(
-                f"pkg accuracy: unknown oracle {oracle!r} — known oracles: corpus, runtime, parity, invention"
+                f"pkg accuracy: unknown oracle {oracle!r} — "
+                "known oracles: corpus, runtime, parity, invention, drift"
             )
             raise typer.Exit(code=1)
         _runtime_oracle(path or ".", tests, as_json)

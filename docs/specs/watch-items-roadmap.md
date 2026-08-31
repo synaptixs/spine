@@ -1,8 +1,9 @@
 # WI — Watch items: doc-drift durability (and the half that is being dropped)
 
 **Status:** **Written 2026-08-30 against 3.25.1**, to close a decision that had been open since
-the docs came back into this repo on 2026-07-30. **WI-2 Phases 1 and 2 shipped 2026-08-31** — the
-defect in §3.1 is fixed and guarded, and drift reaches the review path. Phase 3 outstanding. **WI-1 is recommended for removal** — its
+the docs came back into this repo on 2026-07-30. **WI-2 is complete — all three phases shipped
+2026-08-31.** The defect in §3.1 is fixed and guarded, drift reaches the review path, and the
+rate is gated. **WI-1 remains recommended for removal** (§2). **WI-1 is recommended for removal** — its
 premise cannot be recovered (§2).
 **Owner:** _unassigned_
 
@@ -184,7 +185,7 @@ false staleness warnings makes the review noisier, not more trustworthy.
 > between the PR's graph and its base — two extractions and a base graph the review path does
 > not have. **That is the follow-up, and it is Phase 3-sized, not thirty minutes.**
 
-### 3.3 — Drift is reported everywhere and gated nowhere
+### 3.3 — Drift was reported everywhere and gated nowhere ✅ **fixed 2026-08-31**
 
 Drift is surfaced in `state`'s markdown, the HTML report, and the MCP `read_memory_bank`
 payload — `doc_drift_total` plus a bounded top-8. Nothing fails on it. There is no
@@ -201,13 +202,35 @@ gates the bank.
   gate in §3.3 is a repository-level ratchet. Conflating them turns a helpful review note into
   a merge blocker, which is how a good signal gets switched off.
 
+> **Shipped 2026-08-31, and the ratchet is on the *rate*, not the count.** Both this section and
+> D4's reasoning said "ratchet" and left the quantity implicit; measuring it settled it. This
+> repository carries **890 drift claims over 1,532 doc sections**, and drift grows with
+> documentation — so a *count* ratchet fails a pull request for **writing a spec that names
+> something not built yet**. Several documents produced during the week this gate was added
+> would each have tripped it, including this one. A gate that fires on the work it protects gets
+> switched off, and then it protects nothing.
+>
+> The rate answers the question worth asking — *are the docs getting less accurate?* Sections
+> added at or above current accuracy pass; a batch worse than what is there fails; deleting
+> accurate prose fails. It is also exactly D4's argument in another place: a ratio has no correct
+> value to hold at zero, so it is ratcheted against a baseline rather than gated absolutely.
+>
+> **`docs` is recorded beside `count`** so a zero can be read. Zero drift on zero documents is
+> not a clean result, and a gate that cannot tell those apart reports health it never measured —
+> the same discipline as `corpus`'s `skipped_languages` and `invention`'s per-language `status`.
+> A run with no documents cannot regress the gate.
+>
+> `orchestrator pkg accuracy --oracle drift` reports it directly, and **the number it prints is
+> the number `state` prints** — asserted by a test, because a reader who sees 12 in the report
+> and 41 in the gate can act on neither.
+
 ## 4. Phases
 
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
 | **1 — Freshness stops lying about seven of eight languages** ✅ | Dispatch `stale_findings` per suffix, skip-and-report where this install has no front-end. Nine tests, each proved to fail with the fix reverted | ~1 d | ✅ **2026-08-31.** A polyglot PR gets zero stale-fact warnings when nothing is stale, and the suite would catch a regression |
 | **2 — Wire the drift finding** ✅ | Call `doc_findings` from `PKGGroundingVerifier.scan`, filtered to docs in the diff **or** mentions on its removed lines. Severity stays `WARNING` | ~0.5 d | ✅ **2026-08-31.** A PR that renames a symbol its docs still name gets one comment, on the doc's section line |
-| **3 — Gate the count** | A `drift` key alongside the existing scoreboard keys, on the **ratchet** tier. One baseline, one file — never a second scoreboard | ~1–2 d | A PR that increases repository drift is visible before merge, using the gate that already exists |
+| **3 — Gate the rate** ✅ | A `drift` key alongside the existing scoreboard keys, on the **ratchet** tier — on the rate, not the count, which measuring settled. One baseline, one file | ~1–2 d | ✅ **2026-08-31.** A PR that makes the documentation less accurate fails before merge, using the gate that already exists; one that merely adds documentation does not |
 
 **Phase 1 is not optional and does not depend on the rest.** It is a live false-positive on the
 one surface a target repository sees. If nothing else in this document is ever picked up, that
@@ -240,6 +263,7 @@ still wants fixing.
    per-file for all eight — `RepoCodeExtractor` does nothing but build a `{suffix: extractor}`
    map and call it once per file. No front-end needed a new capability, and none took the
    skip path for want of one.
-2. **Should Phase 3's ratchet count symbol-shaped drift only, or all drift?**
-   (Lean: **symbol-shaped only** — the same filter the surfaces already apply. A gate on a
-   noisier population than the report is a gate nobody will trust.)
+2. ~~**Should Phase 3's ratchet count symbol-shaped drift only, or all drift?**~~ **Closed
+   2026-08-31: symbol-shaped only**, the same filter the surfaces already apply, and asserted
+   equal to what `state` reports. A third question surfaced while building it and is answered in
+   §3.3: the ratchet is on the **rate**, not the count.

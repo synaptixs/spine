@@ -420,6 +420,12 @@
       },
       "skipped_languages": []
     },
+    "drift": {
+      "count": 890,
+      "docs": 1532,
+      "gated": "ratchet",
+      "note": "ratcheted on the rate (count/docs), not the count \u2014 see GATES"
+    },
     "invention": {
       "count": 0,
       "gated": "strict",
@@ -429,12 +435,12 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 16411,
+          "total_calls": 16816,
           "unexamined": 0
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 16411
+      "total_calls": 16816
     },
     "parity": {
       "declared": 75,
