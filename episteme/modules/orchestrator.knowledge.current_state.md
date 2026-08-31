@@ -198,7 +198,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:841`](../../src/orchestrator/knowledge/current_state.py#L841)
 
-- **Called by** (4 production · 1 test): [`_render_state_html`](../../src/orchestrator/cli.py#L2272), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L859), [`run`](../../src/orchestrator/plugin/server.py#L781), [`run`](../../src/orchestrator/plugin/server.py#L350), [`test_the_gate_number_is_the_number_state_reports`](../../tests/pkg/test_accuracy.py#L450)
+- **Called by** (4 production · 1 test): [`_render_state_html`](../../src/orchestrator/cli.py#L2272), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L859), [`run`](../../src/orchestrator/plugin/server.py#L781), [`run`](../../src/orchestrator/plugin/server.py#L350), [`test_the_gate_number_is_the_number_state_reports`](../../tests/pkg/test_accuracy.py#L454)
 - **Calls** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
