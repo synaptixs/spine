@@ -3,7 +3,7 @@
 **The one document to read.** Verified against source on **2026-08-28**, at the 3.25.1 release
 cut. Every number below was re-measured that day.
 
-> **Why this exists.** `docs/specs/` holds **76** markdown files — **73 specs** plus this
+> **Why this exists.** `docs/specs/` holds **77** markdown files — **74 specs** plus this
 > page, [`README`](README.md) and [`SPEC-INDEX`](SPEC-INDEX.md) — with 6 archived, 10 build
 > documents, and 17 root-level user documents.
 > Answering "where do we stand?" required opening five of them and reconciling three that
@@ -347,6 +347,13 @@ its output edge, and inside the model-call budget.
 
 ## 8. Outstanding, everything else
 
+*This table is the authority.* [`enhancement-index`](enhancement-index.md) and
+[`gap-roadmap-index`](gap-roadmap-index.md) are snapshots that feed it — seven rows below were
+merged in on 2026-08-30 from those two pages and from
+[`document-ingestion-reference`](document-ingestion-reference.md), where they had been recorded
+and never promoted. A list that claims to be the authority has to actually absorb them.
+
+
 | Item | State |
 |---|---|
 | Upgrade local `uv` past 0.8.0 | user's machine |
@@ -356,8 +363,15 @@ its output edge, and inside the model-call budget.
 | Rust front-end | not started |
 | Express endpoint extraction (TypeScript) | unscheduled |
 | Deployment image + reusable CI workflow for central adoption | not started. **Not a G4 phase** — it was recommended as though it were; it needs adding to that spec before it can be scheduled |
-| `SPEC-INDEX.md` links `watch-items-roadmap.md`, which does not exist | not started |
+| **Watch-items (WI): write the spec or drop the track** | **decision, not a task.** `watch-items-roadmap.md` was never written. Both indexes now carry it as ⚠️ *spec missing* rather than as a link, so the broken reference this row used to describe is gone — what remains is the choice. WI-2 (doc drift) is the half with a live argument: [`gap-roadmap-index`](gap-roadmap-index.md) ranks it second of everything remaining, as *a lead, not a moat* |
 | `docs/specs/current-state.md` has a mermaid block that falls back to `<pre>` in our own UI | not started |
+| **G6 comprehension benchmark — decided, unstaffed** | **scope decided 2026-08-30.** D1–D4 taken and written into [`gap6-benchmarks-roadmap.md`](gap6-benchmarks-roadmap.md): hand-labelled gold set only, two metrics (top-k localization + provenance validity), five pinned repositories, ratchet gate. Nothing blocks the work but the ~3 days of hand-labelling and an owner. **The corpus pins live in one markdown table and nothing reads them** — Phase 1 must land a manifest |
+| LLM temperature refusal is re-learned every call | not started. [`litellm_client.py:226`](../../src/orchestrator/core/llm/litellm_client.py) pops `temperature` from a **local** dict, so every call to a model that rejects it costs a failed round-trip and a warning. A per-model refusal cache halves the request count on those models. Was E4 in [`enhancement-index`](enhancement-index.md) and had never reached this list |
+| MCP server spawned per operation | not started. [`mcp/client.py`](../../src/orchestrator/mcp/client.py) `_session()` starts and tears down a fresh `stdio_client` per call — no pooling. E4's second half |
+| Stale second `## Unreleased` heading in the changelog | not started. `CHANGELOG.md:1182`, between the 3.14-era entries and `## 3.13.0`. Trivial, but it needs someone who knows which release those entries actually shipped in — which is why it was flagged rather than guessed at |
+| **56% of `Doc` sections bind to nothing** | not started, and **not a parsing defect** — those sections are perfectly-parsed markdown with no identifier in them. Closing it needs semantic matching, which means a model, which collides with the determinism that makes `understand --check` a gate. Any fix belongs in a labelled second tier, measured and declared the way GraphIR Phase 2b was. [Record](document-ingestion-reference.md) |
+| PDF, `.rst`/`.txt` and media collapse to one `Doc` node per file | unscheduled. Media is the one fixable without a new dependency — its segments already carry `start_ms`/`end_ms` and could become timestamped sections. **Unmeasured** |
+| Diagram arrows never become graph edges | **idea, no spec.** A mermaid flowchart is read as text; its labels bind to nothing and `intake --> design` produces no relationship. The more promising framing is the inverse — a diagram as a set of assertions to *check* against the graph rather than facts to add to it |
 | Shadowed-name `CALLS` invention in TypeScript, Go, C++, C# | ✅ **closed 2026-08-24** — oracle widened to 6 front-ends, all four fixed, 4 corpus cases added, `invention` gated `strict` at zero per language. 47 fabricated edges removed with no true edge lost. [Record](invention-oracle-cross-language.md) |
 | TypeScript resolution via the TS compiler API | **idea, not scheduled** (2026-08-21). `CALLS` recall is **0.50** for TypeScript against 1.00 for C and SQL — tree-sitter parses the syntax correctly but has no symbol table, so a call site resolves to the wrong target or none. The language's own toolchain would fix that. Costs: a Node runtime dependency, loss of tree-sitter's error tolerance, and a determinism risk if resolution depends on installed packages — the same commit could then give different graphs on different machines |
 | G4 adoption — friction audit | ✅ **Phase 1 done 2026-08-19** — ≈28s cold start, no key; channels/proof/measurement outstanding |

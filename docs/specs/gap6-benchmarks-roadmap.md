@@ -3,8 +3,11 @@
 > **"G6" is a label, not a position in a queue.** It's gap #6 in the Graphify comparison. The specs
 > are not ordered and do not run in sequence.
 
-**Status:** Not started. **Rewritten 2026-08-15 against 3.18.1.**
-**Owner:** _unassigned_
+**Status:** Not started — **scope decided 2026-08-30** (D1–D4 below).
+**Rewritten 2026-08-15 against 3.18.1**; decisions taken and the text reconciled to them
+2026-08-30.
+**Owner:** _unassigned_ — and that is the binding constraint, not the code. D1 makes the gold set
+**hand-labelling time**, which is the one cost nobody has agreed to spend.
 
 > **What changed in this rewrite.** The original opened with *"we make strong claims and publish
 > **zero** evidence."* That was true when written and is **false now** — 3.17.0 and 3.18.0 shipped
@@ -22,6 +25,27 @@ right. Extend the existing scoreboard to comprehension metrics on pinned **publi
 them, publish.
 
 ---
+
+## Decisions taken — 2026-08-30
+
+Four decisions had blocked this spec since the rewrite. All four are now taken, and together they
+**narrow v1**: a hand-labelled gold set, two metrics, five repositories, a ratchet gate.
+
+They are recorded here because the rest of this page is the *result* of them — the previous text
+said the opposite in three places (Phase 1 mined PRs, the corpus table named four other repos,
+open question 2 leaned "both") and has been rewritten to match rather than left to disagree with
+its own decisions.
+
+| | Decision | Taken | Why |
+|---|---|---|---|
+| **D1** | Ground truth | **Hand-labelled gold set only** — 30–50 issues. PR mining **dropped** | A merged PR touches files unrelated to its fix, so a poor localization score could not be attributed to Spine rather than to the label. A small hand-labelled set is attributable, and it is the discipline that has now worked twice in this repository (`corpus/`, the shadowed-call fixtures). Phase 1 drops from ~5–7 d to ~3 d — but see the Owner line: that is *labelling* time, not machine time |
+| **D2** | Metrics in v1 | **Two — top-k localization and provenance validity** | Localization is the claim that matters and is wholly unmeasured today; a `0` from `ticket-to-landing-sites` cannot currently be told apart from *never measured*. Provenance validity is nearly free (`stale_findings`). The other three are not cut so much as **removed by D1**: impact recall needs exactly the PR changed-file list that D1 dropped, fault-site top-1 needs a traceback corpus that does not exist, and `regression_gaps` precision needs a coverage run per repository |
+| **D3** | Corpus | **Five repositories**, one per front-end — see the corpus section below | A subset of the eleven already SHA-pinned for the invention oracle: pinned, exercised at 3.22.0, right language mix. Not all eleven — 30–50 labelled issues spread over eleven repositories is too thin per repository to say anything about any of them |
+| **D4** | Gate tier | **Ratchet** | Not for the reason the spec first gave — a SHA-pinned corpus does *not* churn. The real reason: this is a **ratio**, not a defect count, so unlike `invention` there is no correct value to hold at zero. `strict` would freeze whatever v1 happened to score into the definition of correct |
+
+**What D1 costs, stated plainly.** Volume. A gold set of 30–50 gives headline numbers with a clean
+denominator and no trend signal worth reading at that size. If a trend series is later wanted, it
+is a second decision with its own measurement — not a quiet re-introduction of mined PRs.
 
 ## What 3.18.1 already measures — do not rebuild any of this
 
@@ -48,13 +72,16 @@ an irrelevant axis, or good numbers that prove nothing a buyer cares about.
 
 **Measure what we actually claim:**
 
-| Our claim | Measurable as |
-|---|---|
-| "`investigate` finds where a ticket lands" | **Localization accuracy** — given a real issue, is the true fix site in the top-k returned symbols? |
-| "`localize` resolves a trace to the fault site" | **Fault-site top-1 accuracy** on real tracebacks |
-| "`blast_radius` tells you what breaks" | **Impact recall** — of the files a real PR actually touched, how many were in the predicted radius? |
-| "`regression_gaps` finds untested reach" | **Precision** — are flagged symbols genuinely uncovered? |
-| "grounded, `file:line`" | **Provenance validity** — sampled facts still resolve to the claimed line |
+| Our claim | Measurable as | In v1? |
+|---|---|---|
+| "`investigate` finds where a ticket lands" | **Localization accuracy** — given a real issue, is the true fix site in the top-k returned symbols? | ✅ **ships** (D2) |
+| "grounded, `file:line`" | **Provenance validity** — sampled facts still resolve to the claimed line | ✅ **ships** (D2) — nearly free |
+| "`blast_radius` tells you what breaks" | **Impact recall** — of the files a real PR actually touched, how many were in the predicted radius? | ❌ needs the PR changed-file list **D1 dropped** |
+| "`localize` resolves a trace to the fault site" | **Fault-site top-1 accuracy** on real tracebacks | ❌ no traceback corpus exists |
+| "`regression_gaps` finds untested reach" | **Precision** — are flagged symbols genuinely uncovered? | ❌ needs a coverage run per repository |
+
+**Three of five are deferred, and the page says so rather than implying five.** Anything published
+from v1 quotes two metrics and names the other three as not measured.
 
 The last one is the differentiator nobody else reports, and we can already compute it
 (`GroundingVerifier.stale_findings`, `pkg/verifier.py:122`, is most of it). A competitive sweep in
@@ -78,26 +105,48 @@ efficiency metric** — token savings, tool-call reduction — and none reports 
 published figure. `synaptixs/NN` is therefore excluded from anything published, though it remains
 useful privately.
 
-Two of the four validation repos are already public OSS and should be pinned as-is:
+**D3 (2026-08-30) replaced the corpus this section used to name.** It listed open5gs, dlib,
+flask/httpx and two TBD repositories — none of them pinned, two of them unexercised. Four of the
+five below instead come from the eleven repositories already SHA-pinned and run against 3.22.0 for
+the invention oracle ([`invention-oracle-cross-language.md`](invention-oracle-cross-language.md)),
+so the corpus arrives pinned and already known to extract.
 
-| Repo | Language | Why it earns a slot |
-|---|---|---|
-| **open5gs** | C | Large, real, and C is where `invention` cannot see |
-| **dlib** | C++ | Heavy templates — the hardest extraction shape we ship |
-| **flask**, **httpx** | Python | Small, fast, already exercised against 3.17/3.18 in Aug 2026 |
-| a Go and a TypeScript repo, TBD | Go, TS | TS has the weakest `CALLS` recall (0.50) — measure it or it hides |
+| Repo | Language | Pin | Why this one earns a slot |
+|---|---|---|---|
+| **vuejs/core** | TypeScript | `e2bede96134f` | TS has the weakest `CALLS` recall we ship — **0.50**. Measure it or it hides |
+| **gin-gonic/gin** | Go | `dcaa4296d111` | Mid-size, dense HTTP routing — exercises `Endpoint`/`EXPOSES` alongside localization |
+| **fmtlib/fmt** | C++ | `e27cc20bd93a` | The hardest extraction shape we ship, and it carried 43 of the 47 fabricated edges the invention widening found |
+| **libuv/libuv** | C | `f87c8e4f70f2` | C is where `invention` originally could not see; it is also the front-end with `CALLS` recall 1.00, so a poor localization score here is *not* a recall artefact |
+| **pallets/flask** | Python | **to be pinned in Phase 1** | The largest front-end and the language most users point Spine at. The one slot with no recorded SHA — pinning it is Phase 1's first act, not an assumption |
 
-**The corpus must not be Python-heavy.** The `runtime` and `invention` oracles are Python-only, so
-a Python-dominated corpus would report health it has not measured. Non-Python repos are what make
-that limit visible rather than invisible.
+**Excluded, and why — required by "bound honestly".**
+
+- **C# has no slot.** Dapper (`6d48ef664acc`) and Newtonsoft.Json (`09bb545d7296`) stay pinned and
+  can join when the gold set grows; five slots cannot cover six front-ends, and C# produced the
+  fewest extraction surprises of the six in the invention sweep. **v1 therefore publishes no C#
+  localization number, and must say so rather than let five repositories imply the matrix.**
+- **The other six pinned repositories** — leveldb, zod, nest, cobra, grpc-go, and the C files of
+  leveldb/fmt — are dropped for spread, not for quality: one repository per front-end keeps
+  30–50 labelled issues thick enough per repository to mean something.
+- **`synaptixs/spine` itself is excluded from anything published.** Self-measurement cannot back a
+  public claim, and the Python slot exists precisely so the number does not come from us.
+
+**The corpus must not be Python-heavy** — one of five. The `runtime` and `invention` oracles are
+Python-only, so a Python-dominated corpus would report health it has not measured. Non-Python
+repositories are what make that limit visible rather than invisible.
+
+> **The pins live in prose today.** Those SHAs exist in exactly one place: a markdown table in
+> `invention-oracle-cross-language.md`. Nothing in `src/` or `evals/` reads them, so "pinned" is
+> currently a claim a human keeps. **Phase 1 must land a real manifest** — a checked-in file the
+> harness reads — or the pinning invariant is honoured by memory alone.
 
 ## Phases
 
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
-| **1 — Comprehension metrics into the existing scoreboard** | Ground truth mined from **merged PRs and closed bug issues** (the PR's changed files = truth for impact; the fixing commit = truth for localization) on the pinned public corpus. Metrics: top-k localization, fault-site top-1, impact recall/precision, provenance validity. Deterministic, no LLM in scoring. Land them as a **`comprehension` key in `scoreboard.json`**, written by `pkg accuracy --scoreboard`. | ~5–7 d | `pkg accuracy` prints comprehension alongside corpus/invention/parity; one baseline, one file |
-| **2 — Gate + trend** | Extend `pkg accuracy --check` to the new key. Ratchet, not strict — these move with repo churn, like parity. Track a trend series across releases. | ~2–3 d | A PR that degrades localization is visible before merge, using the gate that already exists |
-| **3 — Publish** | Public methodology + results: corpus (with commit SHAs), ground-truth derivation, metrics, numbers, and a **reproducible command**. State what we did *not* measure — the Python-only oracles especially — rather than implying broader coverage. | ~3–4 d | A public benchmark page and a command an outsider can run |
+| **1 — A gold set, two metrics, into the existing scoreboard** | Pin the corpus in a **manifest the harness reads** (five repositories, D3), then hand-label **30–50 real issues** — one fix site per issue, taken from the fixing commit, recorded with the issue URL and the commit SHA so anyone can re-derive it. Metrics: **top-k localization** and **provenance validity** (D2). Deterministic, no LLM anywhere in scoring or in labelling. Land them as a **`comprehension` key in `scoreboard.json`**, written by `pkg accuracy --scoreboard`. | ~2 d harness + **~3 d labelling** | `pkg accuracy` prints comprehension alongside corpus/invention/parity; one baseline, one file; every label re-derivable from its recorded SHA |
+| **2 — Gate + trend** | Extend `pkg accuracy --check` to the new key on the **ratchet** tier (D4). Track a trend series across releases — with the honest caveat that at n=30–50 a small move is noise, so the gate is a floor, not a graph. | ~2–3 d | A PR that degrades localization is visible before merge, using the gate that already exists |
+| **3 — Publish** | Public methodology + results: the corpus **with its commit SHAs**, how each label was derived, the two metrics, the numbers, and a **reproducible command**. States what was *not* measured — impact recall, fault-site top-1, `regression_gaps` precision, C#, and the Python-only oracles — rather than implying broader coverage. | ~3–4 d | A public benchmark page and a command an outsider can run |
 
 **Which phase buys what.** Phases 1–2 make the claim *checkable*; Phase 3 makes it *a market
 position*. Phase 3 is not optional polish — an unpublished benchmark changes nothing outside the
@@ -124,12 +173,14 @@ repo, and "measured correctness" is the only axis on which Spine currently leads
 
 ## Open questions
 
+**All four are closed.** Nothing below blocks the work; the only unresolved item is who spends
+Phase 1's labelling days, which is a staffing call and sits on the Owner line, not here.
+
 1. ~~Public corpus or private?~~ **Closed: public only** for anything published (see Corpus above).
-2. Ground truth from merged PRs is noisy (PRs touch unrelated files). Do we hand-curate a small gold
-   set instead? (Lean: **both** — a curated gold set of ~50 for headline numbers, mined PRs for
-   volume/trend.)
-3. Do we publish before or after G3/G5 land? (Lean: **baseline privately now, publish once they
-   land**, so the numbers reflect the improved product.)
-4. **New:** does a comprehension regression gate belong on the `strict` tier or the `ratchet` tier?
-   Leaning ratchet — the corpus is real repos, so churn moves it, and the invention metric is
-   ungated for exactly this reason.
+2. ~~Ground truth from merged PRs is noisy — hand-curate a small gold set instead?~~ **Closed by D1
+   (2026-08-30): gold set only.** The lean was "both"; the decision dropped the mining half, and
+   with it impact recall.
+3. ~~Publish before or after G3/G5 land?~~ **Closed: publish now.** Both landed — G3 in 3.10.0 and
+   G5 in 3.11.0 — so the condition the lean waited on is already met.
+4. ~~`strict` tier or `ratchet` tier?~~ **Closed by D4 (2026-08-30): ratchet** — because the metric
+   is a ratio with no correct value, not because a pinned corpus churns.

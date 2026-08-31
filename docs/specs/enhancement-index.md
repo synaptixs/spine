@@ -25,7 +25,7 @@ cadence; this one is a snapshot of a conversation.
 |---|---|---|---|---|
 | **E1** | [Project constitution](#e1--project-constitution) | **Spec written, needs rewrite** — [`constitution-roadmap.md`](constitution-roadmap.md), branch `docs/constitution-spec` | Unknown until Phase 0 | A blocking trigger probe that may close it unbuilt |
 | **E2** | [Multi-repo comprehension](#e2--multi-repo-comprehension) | ✅ **Complete — all four phases** — [`multi-repo-roadmap.md`](multi-repo-roadmap.md), branch `feat/multi-repo-identity` | — | Unmeasured on real repos; delivery still a non-goal |
-| **E3** | [G6 — comprehension benchmark](#e3--g6--comprehension-benchmark) | **Spec exists, not started.** Branch `feat/g6-comprehension-metrics` cut, empty | ~3 days if descoped | **Four open decisions** — corpus scope, metric set, repo mix, gate tier |
+| **E3** | [G6 — comprehension benchmark](#e3--g6--comprehension-benchmark) | **Spec exists, not started. Scope decided 2026-08-30** — D1–D4 taken and written into the spec. Branch `feat/g6-comprehension-metrics` cut, empty | ~2 d harness + ~3 d labelling | **Nothing but staffing.** The gold set is hand-labelling time and the spec's Owner is unassigned |
 | **E4** | [Per-run caching: temperature + MCP](#e4--per-run-caching-temperature-refusal-and-mcp-sessions) | **Observed in the field.** No ticket | Small | Nothing |
 | **E5** | [Oracle coverage gaps](#e5--oracle-coverage-gaps) | **Named in `STATE-OF-SPINE` §3** | Medium | Nothing |
 | **E6** | [Stale `## Unreleased` in the changelog](#e6--stale-unreleased-heading) | **Known defect** | Trivial | Someone who knows which release those entries shipped in |
@@ -215,17 +215,22 @@ Directly relevant to [`ticket-to-landing-sites.md`](ticket-to-landing-sites.md):
 true fix site lands in the top *k* is **unmeasured**, and a `0` there would not distinguish *bad*
 from *never measured*.
 
-**Four decisions block the work, all recommended, none taken:**
+**All four decisions were taken 2026-08-30** and are now recorded in the spec itself, which was
+rewritten to match — Phase 1, the corpus table and two open questions had said the opposite.
+[`gap6-benchmarks-roadmap.md`](gap6-benchmarks-roadmap.md) is the authority; this is the summary:
 
-| | Decision | Recommendation |
+| | Decision | Taken |
 |---|---|---|
-| D1 | Gold set only, or also mined PRs? | **Gold set only** — 30–50 hand-labelled. The spec admits mined PRs are a dirty denominator, so a bad number could not be attributed. Cuts Phase 1 to ~3 days |
-| D2 | Which of the five metrics ship in v1? | **Two** — top-k localization and provenance validity. The first is the claim that matters; the second is nearly free (`stale_findings`). Impact recall depends on D1; fault-site top-1 needs a traceback corpus that does not exist |
-| D3 | Which repos? | **Reuse the eleven pinned for the invention work** — already SHA-pinned, already exercised against 3.22.0, and the language mix is right (the spec is explicit the corpus must not be Python-heavy) |
-| D4 | Gate tier? | **Ratchet** — but not for the spec's stated reason. A SHA-pinned corpus does not churn; the real reason is that this is a *ratio*, not a defect count, so unlike `invention` there is no correct value to hold at zero |
+| D1 | Gold set only, or also mined PRs? | **Gold set only** — 30–50 hand-labelled. Mined PRs are a dirty denominator, so a bad number could not be attributed |
+| D2 | Which of the five metrics ship in v1? | **Two** — top-k localization and provenance validity. The other three are removed *by D1*, not chosen against: impact recall needs the PR changed-file list, fault-site top-1 needs a traceback corpus that does not exist, `regression_gaps` precision needs per-repo coverage runs |
+| D3 | Which repos? | **Five, one per front-end** — vuejs/core, gin, fmt, libuv from the eleven invention pins, plus flask for Python (to be pinned in Phase 1). Not all eleven: 30–50 issues over eleven repositories is too thin per repository. **C# gets no slot in v1** and the published page must say so |
+| D4 | Gate tier? | **Ratchet** — because the metric is a *ratio* with no correct value, not because a pinned corpus churns |
 
-**One stale line in the spec:** open question 3 asks whether to publish before or after G3/G5
-land. Both landed — 3.10.0 and 3.11.0 — so it resolves to *publish now* and should be struck.
+**Open question 3 was struck at the same time:** it asked whether to publish before or after G3/G5
+land; both landed (3.10.0, 3.11.0), so it resolves to *publish now*.
+
+**What remains is staffing, not design.** D1 turns Phase 1's cost into ~3 days of human
+labelling, and the spec's Owner is still unassigned.
 
 ## E4 — Per-run caching: temperature refusal and MCP sessions
 
@@ -277,15 +282,28 @@ adoption do not qualify.
 
 E1 is the one idea taken from it.
 
+**A layout-aware document extractor** (Docling-class) — considered 2026-08-29 and declined:
+[`document-ingestion-reference.md`](document-ingestion-reference.md). Such tools recover headings,
+reading order and tables, but **headings are the only part this pipeline can use**, and HTML, DOCX
+and XLSX already get them free from their own converters. That leaves PDF alone, where the measured
+ceiling is roughly a doubling of bound sections — against a torch-sized dependency and a two-phase
+artifact seam. **Revisit condition:** a target environment is shown to keep most of its
+identifier-bearing prose in PDF.
+
 ## If you are sequencing these
 
 Not a queue, but the argument as it stands:
 
-1. **E4** — small, real, and found in the field. Cheap to clear.
+1. **E4** — small, real, and found in the field. Cheap to clear, and now on
+   [`STATE-OF-SPINE` §8](STATE-OF-SPINE.md) where it can be scheduled.
 2. **E3 (descoped)** — the only one that adds a *standing check* where none exists, and this
-   week showed what a missing check costs.
+   week showed what a missing check costs. **Its four decisions are taken (2026-08-30)**; what it
+   needs now is an owner for ~3 days of labelling, not a design session.
 3. **E1 Phase 0** — a probe, not a build. It is allowed to close the spec, and that is a
    successful outcome.
-4. **E5**, then **E2**, which needs a spec before it needs a decision.
+4. **E5** — the oracle coverage gaps, which need a fixture as well as a detector.
+
+**E2 is done** — all four phases shipped in 3.23.0; it left this list on 2026-08-30 and the
+`SPEC-INDEX` row that still called it *"spec only"* was corrected the same day.
 
 **E6** whenever someone with the history is passing.

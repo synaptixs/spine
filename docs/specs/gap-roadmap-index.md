@@ -4,7 +4,8 @@
 prerequisites, invariants, phases and exit criteria. This page exists only to say what the specs
 *are* and which files each one owns. If you're picking up a track, open its spec and start there.
 
-**Date:** 2026-07-22 · spine v3.8.2
+**Date:** 2026-07-22 · spine v3.8.2. **Statuses refreshed 2026-08-30 at 3.25.1** — the G4 and G6
+rows had not moved since the page was written, and both had.
 **Source:** the gaps in [graphify-vs-spine-comparison.md](graphify-vs-spine-comparison.md).
 
 ---
@@ -18,9 +19,9 @@ prerequisites, invariants, phases and exit criteria. This page exists only to sa
 |---|---|---|
 | **G2** — [document modality](gap2-document-modality-roadmap.md) | HTML + Office (`.docx`/`.xlsx`) ingestion | ✅ **Shipped in 3.8.2** |
 | **G3** — [media ingestion](gap3-media-ingestion-roadmap.md) | Images, audio, video (OCR / transcription) | ✅ **Shipped in 3.10.0** — all three phases |
-| **G4** — [adoption & distribution](gap4-adoption-distribution-roadmap.md) | Install friction, channels, proof assets | Not started — **no prerequisites** (Phase 3 excepted) |
+| **G4** — [adoption & distribution](gap4-adoption-distribution-roadmap.md) | Install friction, channels, proof assets | 🟡 **Phase 1 done 2026-08-19** — friction audit: ≈28s cold start, no key required, two findings fixed. **2** channels · **3** proof assets · **4** measurement outstanding |
 | **G5** — [visualization](gap5-visualization-roadmap.md) | Graph exports + richer deterministic visuals | ✅ **Shipped in 3.11.0** — Phases 1–2; **Phase 3 deliberately dropped** (Gephi does it better on our export) |
-| **G6** — [benchmarks](gap6-benchmarks-roadmap.md) | Retrieval/localization measurement + publication | Not started — **no prerequisites; best done first**. Rewritten 2026-08-15 against 3.18.1 |
+| **G6** — [benchmarks](gap6-benchmarks-roadmap.md) | Retrieval/localization measurement + publication | Not started — **no prerequisites; best done first**. Rewritten 2026-08-15 against 3.18.1; **scope decided 2026-08-30** (D1–D4: gold set only, two metrics, five repos, ratchet gate). Nothing blocks it but staffing the ~3 days of labelling |
 | **CB** — [codegen benchmark](codegen-benchmark-roadmap.md) | SWE-bench comparability, then the `resolved`-vs-`mergeable` delta | Not started — **no prerequisites**. Explicit non-goal of G6; it had no home before |
 | **KL** — [codex plugin keyless](codex-plugin-keyless-roadmap.md) | Remove the API-key requirement via MCP sampling / Ollama | Not started — **Phase 0 is a blocking spike** (does Codex support sampling?) |
 | **WI** — watch-items | PR-workflow defense; doc-drift durability | ⚠️ **Spec missing.** `watch-items-roadmap.md` does not exist in `docs/specs/` or `archive/` — this row linked a file that was never written or was deleted. Write it or drop the row |
@@ -38,7 +39,8 @@ branching — **shipped with G2 in 3.8.2**, so it's no longer pending on anyone.
 Suggested starting order if you're picking, rather than staffing everything:
 
 1. **G6 Phase 1** (baseline) — G2 shipped without one, so its effect is unmeasured, and every later
-   track inherits that problem.
+   track inherits that problem. **Its four blocking decisions were taken 2026-08-30**, so the spec
+   is now actionable as written.
 2. **WI-2** (doc drift) — the comparison flags drift as *a lead, not a moat*: cheap for a competitor
    to copy once they have doc→code edges, which Graphify already does.
 3. Anything else, in whatever order suits the people you have.
