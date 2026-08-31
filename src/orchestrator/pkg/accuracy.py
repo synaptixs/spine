@@ -396,21 +396,31 @@ def score_parity(repo: Path | str, *, sql_dialect: str | None = None) -> ParityR
 class DriftReport:
     """Documentation drift for a repository: prose the graph cannot support.
 
-    ``docs`` is carried beside ``count`` so a zero can be read. A repository with no
-    documentation scores zero drift, and so does one whose documentation is perfectly
-    accurate — those are not the same result, and a gate that cannot tell them apart would
-    report health on a repository it never examined (§9's failure mode, and the same reason
-    ``corpus`` records ``skipped_languages`` and ``invention`` records a per-language
-    ``status``).
+    ``mentions`` is the denominator — every code-intent claim the docs make, bound or not.
+    **It was ``docs`` (sections) until 2026-08-31, and that was wrong twice over:** a section
+    count does not move when prose inside an existing section is edited, which is what a
+    documentation change usually is, so any added claim raised the "rate" with nothing able to
+    dilute it; and the resulting figure was not bounded by 1, so it was not a rate at all.
+
+    ``docs`` is still carried, because a zero has to be readable. A repository with no
+    documentation scores zero drift and so does one whose documentation is perfectly accurate —
+    not the same result, and the same reason ``corpus`` records ``skipped_languages`` and
+    ``invention`` records a per-language ``status``.
     """
 
     count: int
     docs: int
+    mentions: int = 0
 
     @property
     def measured(self) -> bool:
         """False when there was nothing to measure — no docs, so no claim to check."""
         return self.docs > 0
+
+    @property
+    def rate(self) -> Fraction | None:
+        """Unbound claims over claims made. Exact; floats are for display only."""
+        return Fraction(self.count, self.mentions) if self.mentions else None
 
 
 def score_drift(repo: Path | str, *, sql_dialect: str | None = None) -> DriftReport:
@@ -423,22 +433,24 @@ def score_drift(repo: Path | str, *, sql_dialect: str | None = None) -> DriftRep
 
     Deterministic and no-LLM, like everything else on the scoreboard.
     """
-    from orchestrator.pkg.doc_link import doc_drift, symbolish_drift
+    from orchestrator.pkg.doc_link import symbolish_drift
     from orchestrator.pkg.doc_source import read_doc_pages
+    from orchestrator.pkg.docs import DocReconciler
 
     root = Path(repo)
     if not root.is_dir():
         raise CorpusError(f"{root}: not a directory")
-    # Sections, not files — `read_doc_pages` splits on headings, and a section is the unit a
-    # claim is attributed to. Counted from the reader rather than from `Doc` nodes because
-    # the batch here is code-only: `link_docs` is what adds those, and drift does not need
-    # them (its reconciler binds mentions against code).
-    docs = len(read_doc_pages(root))
-    if not docs:
-        return DriftReport(count=0, docs=0)
+    # Sections, not files — `read_doc_pages` splits on headings. Kept for the zero case.
+    pages = read_doc_pages(root)
+    if not pages:
+        return DriftReport(count=0, docs=0, mentions=0)
     batch = RepoCodeExtractor(sql_dialect=sql_dialect).extract(root)
-    drift = [f for f in doc_drift(batch, root) if symbolish_drift(f.mention)]
-    return DriftReport(count=len(drift), docs=docs)
+    # Reconcile once and keep both halves. `doc_drift` throws the bindings away, and the
+    # bindings are the denominator: every claim the docs make, which is what an added
+    # paragraph moves.
+    bindings, drift = DocReconciler(batch, repo_root=root).reconcile(pages)
+    symbolish = [f for f in drift if symbolish_drift(f.mention)]
+    return DriftReport(count=len(symbolish), docs=len(pages), mentions=len(bindings))
 
 
 def score_comprehension(repo: Path | str, *, sql_dialect: str | None = None) -> Any:
@@ -500,21 +512,39 @@ BASELINE = Path(__file__).with_name("scoreboard.json")
 # front-end that fabricates some other way passes this gate. Corpus precision catches that only
 # if the corpus happens to carry the shape — which is why `corpus/*/shadowed_calls` exists, and
 # why a new invention class needs a fixture as well as a detector.
-# Drift is `ratchet`, and on the **rate**, not the count. The count is the obvious thing to
-# ratchet and it is the wrong thing: drift grows with documentation, so a count gate fails a PR
-# for *writing a spec* that names something not built yet. Measured on this repository while the
-# gate was being added — 890 drift over 1,532 sections — several of the documents produced that
-# same week would each have tripped it. A gate that fires on the work it is meant to protect
-# gets switched off, and then it protects nothing.
+# Drift is RECORDED AND NEVER GATED — `False`, like `runtime`. It shipped as a `ratchet` on
+# 2026-08-31 and the gate was withdrawn the same day, one pull request later, because that pull
+# request was a documentation change and the gate failed it. The argument for the gate said "a
+# gate that fires on the work it is meant to protect gets switched off, and then it protects
+# nothing." It then did exactly that, which is the clearest evidence available that it was not
+# ready.
 #
-# The rate answers the question actually worth asking: are the docs getting *less* accurate?
-# Adding sections at or above the current accuracy passes; adding a batch worse than what is
-# there fails; deleting accurate prose fails. It is also the same argument G6's D4 settled on —
-# a ratio has no correct value to hold at zero, so it is ratcheted against the baseline rather
-# than gated absolutely.
+# Two things were wrong, and the second is why fixing the first is not enough:
 #
-# `docs` is recorded beside `count` because zero drift on zero documents is not a clean result,
-# and a gate that cannot tell those apart reports health it never measured.
+#   1. The denominator was `docs` (sections). A section count does not move when prose inside an
+#      existing section is edited — which is what a documentation change usually is — so any
+#      added claim raised the figure with nothing able to dilute it. It was also not bounded by
+#      1, so it was not a rate. Fixed: the denominator is now `mentions`, every code-intent
+#      claim the docs make. 893/8,885 = 0.1005 here, against the old 893/1,532 = 0.5829.
+#
+#   2. **About a tenth of the population cannot bind by construction.** The four claims that
+#      failed that pull request were `impact_source` (a constructor parameter), `not_measured`
+#      (a string literal), `_TEMPERATURE_REFUSED` (a module-level constant) and
+#      `llm.temperature_skipped` (a log event name). The graph has no node kind for any of them.
+#      So a design record naming implementation detail — which is what design records do — sits
+#      at or above the average and trips a strict comparison. With the corrected denominator
+#      that pull request *still* failed, 0.100506 -> 0.100517.
+#
+# A tolerance band is not the answer, for the reason stated below for invention: it is an
+# arbitrary number that eventually fires on something legitimate and gets widened until it means
+# nothing.
+#
+# **What would make this gate material:** excluding mentions the graph cannot model, so the
+# population is claims that *could* bind. Until then the number is an upper bound on drift, and
+# an upper bound with a tenth of it structural noise is not something to fail a build over. The
+# measurement stays — `state` reports it, `--oracle drift` reports it, `--check` trends it.
+#
+# `docs` is recorded beside `count` because zero drift on zero documents is not a clean result.
 # Comprehension is `ratchet` and, unlike drift, it fails when the number goes DOWN: it is an
 # accuracy, not a defect count. It reads 1.0000 on 10,788 anchored facts here, which is the
 # claim worth protecting — every Function, Type and Field fact opens to a line naming it. The
@@ -524,7 +554,7 @@ GATES = {
     "corpus": "strict",
     "parity": "ratchet",
     "invention": "strict",
-    "drift": "ratchet",
+    "drift": False,
     "comprehension": "ratchet",
     "runtime": False,
 }
@@ -621,10 +651,14 @@ def build_scoreboard(
             "drift": {
                 "gated": GATES["drift"],
                 "count": drift.count,
-                # The denominator, so the rate can be recomputed by a reader and so a zero on
-                # a repository with no documentation is legible as "nothing to measure".
+                # `mentions` is the denominator; `docs` stays so a zero is legible as "nothing
+                # to measure" rather than "nothing wrong".
+                "mentions": drift.mentions,
                 "docs": drift.docs,
-                "note": "ratcheted on the rate (count/docs), not the count — see GATES",
+                "note": (
+                    "recorded, never gated — an upper bound: a tenth of the population "
+                    "cannot bind by construction. See GATES"
+                ),
             },
             "invention": {
                 "gated": GATES["invention"],
@@ -754,23 +788,6 @@ def compare_scoreboard(baseline: dict[str, Any], current: dict[str, Any]) -> lis
             )
         )
 
-    # Drift: the *rate*, and only when both sides actually measured something. A current run
-    # with no documents says nothing about drift, so it cannot regress — the same reasoning as
-    # `skipped_languages` above.
-    base_drift = baseline.get("metrics", {}).get("drift", {})
-    cur_drift = current.get("metrics", {}).get("drift", {})
-    before_rate = _ratio(int(base_drift.get("count", 0)), int(base_drift.get("docs", 0)))
-    after_rate = _ratio(int(cur_drift.get("count", 0)), int(cur_drift.get("docs", 0)))
-    if before_rate is not None and after_rate is not None and after_rate > before_rate:
-        out.append(
-            Regression(
-                "drift",
-                f"doc-drift rate increased ({cur_drift.get('count')} of {cur_drift.get('docs')} sections)",
-                f"{float(before_rate):.4f}",
-                f"{float(after_rate):.4f}",
-            )
-        )
-
     was_short = baseline.get("metrics", {}).get("parity", {}).get("shortfall")
     now_short = current.get("metrics", {}).get("parity", {}).get("shortfall")
     if was_short is not None and now_short is not None and now_short > was_short:
@@ -812,11 +829,6 @@ def scoreboard_improvements(baseline: dict[str, Any], current: dict[str, Any]) -
     after_prov = _ratio(int(cp.get("resolved", 0)), int(cp.get("anchored", 0)))
     if before_prov is not None and after_prov is not None and after_prov > before_prov:
         out.append(f"provenance validity: {float(before_prov):.4f} -> {float(after_prov):.4f}")
-    bd, cd = baseline.get("metrics", {}).get("drift", {}), current.get("metrics", {}).get("drift", {})
-    before_rate = _ratio(int(bd.get("count", 0)), int(bd.get("docs", 0)))
-    after_rate = _ratio(int(cd.get("count", 0)), int(cd.get("docs", 0)))
-    if before_rate is not None and after_rate is not None and after_rate < before_rate:
-        out.append(f"doc-drift rate: {float(before_rate):.4f} -> {float(after_rate):.4f}")
     return out
 
 

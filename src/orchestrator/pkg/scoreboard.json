@@ -8,9 +8,9 @@
       },
       "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
       "provenance": {
-        "anchored": 10802,
+        "anchored": 10803,
         "excluded": 761,
-        "resolved": 10802,
+        "resolved": 10803,
         "unreadable": 0
       }
     },
@@ -435,10 +435,11 @@
       "skipped_languages": []
     },
     "drift": {
-      "count": 893,
+      "count": 897,
       "docs": 1532,
-      "gated": "ratchet",
-      "note": "ratcheted on the rate (count/docs), not the count \u2014 see GATES"
+      "gated": false,
+      "mentions": 8894,
+      "note": "recorded, never gated \u2014 an upper bound: a tenth of the population cannot bind by construction. See GATES"
     },
     "invention": {
       "count": 0,
@@ -449,12 +450,12 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 16903,
+          "total_calls": 16902,
           "unexamined": 0
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 16903
+      "total_calls": 16902
     },
     "parity": {
       "declared": 75,

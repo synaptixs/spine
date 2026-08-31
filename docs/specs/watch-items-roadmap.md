@@ -1,9 +1,9 @@
 # WI — Watch items: doc-drift durability (and the half that is being dropped)
 
 **Status:** **Written 2026-08-30 against 3.25.1**, to close a decision that had been open since
-the docs came back into this repo on 2026-07-30. **WI-2 is complete — all three phases shipped
-2026-08-31.** The defect in §3.1 is fixed and guarded, drift reaches the review path, and the
-rate is gated. **WI-1 remains recommended for removal** (§2). **WI-1 is recommended for removal** — its
+the docs came back into this repo on 2026-07-30. **WI-2 Phases 1 and 2 shipped 2026-08-31.
+Phase 3's gate was withdrawn the same day** — the measurement stays, the ratchet does not (§3.3).
+The defect in §3.1 is fixed and guarded, and drift reaches the review path. **WI-1 remains recommended for removal** (§2). **WI-1 is recommended for removal** — its
 premise cannot be recovered (§2).
 **Owner:** _unassigned_
 
@@ -185,7 +185,7 @@ false staleness warnings makes the review noisier, not more trustworthy.
 > between the PR's graph and its base — two extractions and a base graph the review path does
 > not have. **That is the follow-up, and it is Phase 3-sized, not thirty minutes.**
 
-### 3.3 — Drift was reported everywhere and gated nowhere ✅ **fixed 2026-08-31**
+### 3.3 — Drift is reported everywhere and gated nowhere ⚠️ **gate withdrawn 2026-08-31**
 
 Drift is surfaced in `state`'s markdown, the HTML report, and the MCP `read_memory_bank`
 payload — `doc_drift_total` plus a bounded top-8. Nothing fails on it. There is no
@@ -202,7 +202,8 @@ gates the bank.
   gate in §3.3 is a repository-level ratchet. Conflating them turns a helpful review note into
   a merge blocker, which is how a good signal gets switched off.
 
-> **Shipped 2026-08-31, and the ratchet is on the *rate*, not the count.** Both this section and
+> **Shipped 2026-08-31 and withdrawn the same day. The retraction is below; this is what was
+> argued at the time.** Shipped as a ratchet on the *rate*, not the count. Both this section and
 > D4's reasoning said "ratchet" and left the quantity implicit; measuring it settled it. This
 > repository carries **890 drift claims over 1,532 doc sections**, and drift grows with
 > documentation — so a *count* ratchet fails a pull request for **writing a spec that names
@@ -224,13 +225,46 @@ gates the bank.
 > the number `state` prints** — asserted by a test, because a reader who sees 12 in the report
 > and 41 in the gate can act on neither.
 
+**⚠️ The gate was withdrawn on 2026-08-31, one pull request after it shipped.** That pull request
+was a documentation change — a `STATE-OF-SPINE` §8 row — and the gate failed it. The argument
+above says, in as many words, *"a gate that fires on the work it is meant to protect gets
+switched off, and then it protects nothing."* It then did exactly that, which is the best
+evidence available that it was not ready.
+
+**Two defects, and the second is why fixing the first is not enough.**
+
+1. **The denominator was sections.** A section count does not move when prose *inside* an
+   existing section is edited — which is what a documentation change usually is — so any added
+   claim raised the figure with nothing able to dilute it. It was not bounded by 1 either, so it
+   was not a rate. **Fixed:** the denominator is now `mentions`, every code-intent claim the docs
+   make. 893/8,885 = **0.1005**, against the old 893/1,532 = 0.5829.
+2. **About a tenth of the population cannot bind by construction.** The four claims that failed
+   that pull request were `impact_source` (a constructor parameter), `not_measured` (a string
+   literal), `_TEMPERATURE_REFUSED` (a module-level constant) and `llm.temperature_skipped` (a
+   log event name). **The graph has no node kind for any of them.** So a design record naming
+   implementation detail — which is what design records do — sits at or above the average and
+   trips a strict comparison. With the corrected denominator that pull request *still* failed:
+   0.100506 → 0.100517.
+
+A tolerance band is not the answer, for the reason `GATES` already gives for invention: it is an
+arbitrary number that eventually fires on something legitimate and gets widened until it means
+nothing.
+
+**What the number is now:** recorded, trended by `--check`, never failing a build — the standing
+`runtime` treats it as. And **an upper bound on drift**, not a defect count, which is how it
+should have been described from the start.
+
+**The precondition for gating it later** is precision, not tolerance: exclude mentions the graph
+cannot model, so the population is claims that *could* bind. That is unscheduled, and it is the
+honest prerequisite this section skipped.
+
 ## 4. Phases
 
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
 | **1 — Freshness stops lying about seven of eight languages** ✅ | Dispatch `stale_findings` per suffix, skip-and-report where this install has no front-end. Nine tests, each proved to fail with the fix reverted | ~1 d | ✅ **2026-08-31.** A polyglot PR gets zero stale-fact warnings when nothing is stale, and the suite would catch a regression |
 | **2 — Wire the drift finding** ✅ | Call `doc_findings` from `PKGGroundingVerifier.scan`, filtered to docs in the diff **or** mentions on its removed lines. Severity stays `WARNING` | ~0.5 d | ✅ **2026-08-31.** A PR that renames a symbol its docs still name gets one comment, on the doc's section line |
-| **3 — Gate the rate** ✅ | A `drift` key alongside the existing scoreboard keys, on the **ratchet** tier — on the rate, not the count, which measuring settled. One baseline, one file | ~1–2 d | ✅ **2026-08-31.** A PR that makes the documentation less accurate fails before merge, using the gate that already exists; one that merely adds documentation does not |
+| **3 — Gate the rate** ⚠️ **withdrawn** | A `drift` key alongside the existing scoreboard keys. Shipped ratcheted 2026-08-31, **un-gated the same day** after it failed a documentation PR; the denominator was corrected to `mentions` and the key is now recorded and trended | ~1–2 d | ⚠️ **The measurement landed, the gate did not.** Gating needs the population narrowed to claims that *can* bind — unscheduled |
 
 **Phase 1 is not optional and does not depend on the rest.** It is a live false-positive on the
 one surface a target repository sees. If nothing else in this document is ever picked up, that
