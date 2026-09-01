@@ -100,7 +100,7 @@ The concrete payoff is in the surfaces that already exist:
 |---|---|---|---|
 | **1 — reach the export** ✅ **2026-09-01** | `--intents` on `pkg export`, applying `link_intents` beside `link_docs` for non-sqlite formats. No exporter change was needed: they already emit every kind | ~2 h | ✅ 37 `Intent` + 1,418 `SERVES` in the JSON export, coverage printed beside it. **And it immediately exposed §6.1** |
 | **2 — a query seam** | `intents_for(symbol)` / `symbols_serving(intent)` on `FactStore`, mirroring `docs_for` / `mentions_of`. An MCP tool only if Phase 3 wants one | ~0.5 d | The question is answerable in-process and from a script |
-| **3 — one real consumer** | `investigate`'s landing report names the tickets a landing symbol serves, bounded and labelled *last changed for*. **Blocked on §6.1** — noise in an export is inspectable, noise in a landing report is a tool misinforming an engineer | ~1 d | A ticket landing on an attributed symbol reports it; one landing on an unattributed symbol says nothing, and says nothing *loudly* — never a blank that reads as "no prior work" |
+| **3 — one real consumer** | `investigate`'s landing report names the tickets a landing symbol serves, bounded and labelled *last changed for*. **Unblocked 2026-09-01** — §6.1 fixed | ~1 d | A ticket landing on an attributed symbol reports it; one landing on an unattributed symbol says nothing, and says nothing *loudly* — never a blank that reads as "no prior work" |
 | **4 — the "built for" half** | `git log -L` per symbol to recover the introducing commit | ~1–2 d | Deferred on purpose. One subprocess per symbol against 11,022 symbols needs its own measurement before anyone commits to it |
 
 **Phase 1 is the one that removes "no reader".** Everything after it is about *which* reader.
@@ -114,7 +114,7 @@ The concrete payoff is in the surfaces that already exist:
 | **D3** | Which consumer first? | **`investigate`.** It already reads the graph, already renders per-symbol context, and "what was this last changed for" is the question a ticket-landing report exists to answer |
 | **D4** | Add an `intent` table to the sqlite export? | **No.** That schema is kind-per-table and is a contract with the ontomesh consumer; `link_docs` is already excluded from it for the same reason. Revisit only if ontomesh asks |
 
-## 6.1 — Precision: about an eighth of the "intents" are not tickets
+## 6.1 — Precision: about an eighth of the "intents" were not tickets ✅ **fixed 2026-09-01**
 
 **Found the moment Phase 1 made the facts readable, which is the argument for Phase 1.** The key
 pattern is deliberately generic — `\b[A-Z][A-Z0-9]{1,9}-\d+\b`, so that no repository is locked
@@ -151,13 +151,40 @@ exactly one number, so a naive "≥2 distinct numbers" rule would discard it. Op
 | Require a conventional position (`fixes #`, `refs`, message prefix) | Precise; discards keys mentioned mid-sentence, which is most of them here |
 | Denylist of standards (`SHA-`, `ISO-`, `UTF-`, `RFC-`, `CVE-`) | Fragile, endless, and wrong the first time someone files `RFC-12` in their tracker |
 
-**Recommendation: the allow-list, defaulting to the distinct-number heuristic**, with the derived
-prefixes reported so an operator can see what was inferred and override it. That keeps a
-zero-config repository working and gives a precise answer to anyone who wants one.
+> **✅ Fixed 2026-09-01, and the measurement changed the answer.** The recommendation above was a
+> distinct-number *threshold*. Counting them settled it against that:
+>
+> | prefix | distinct numbers | mentions |
+> |---|---|---|
+> | **SSPN** | **45** | 111 |
+> | UTF | 2 | 6 |
+> | WI | 2 | 11 |
+> | SHA · ISO · CHANGE · CB · CVE · PROJ | 1 each | ≤ 8 |
+>
+> **"≥2" keeps `UTF` (8 and 16); "≥3" discards the legitimate `WI-2`.** Any constant between
+> them is the arbitrary tolerance band `GATES` already argues against — one that eventually
+> fires on something legitimate and gets widened until it means nothing.
+>
+> **So: the single dominant prefix, which is a maximum and not a band.** A repository has one
+> issue tracker, and here it wins 45 distinct numbers to 2. The one floor is that the winner
+> must have **at least two** distinct numbers — a prefix seen with exactly one is
+> indistinguishable from a standard, so a repository whose leader has only one gets no intents
+> rather than a coin-flip.
+>
+> `--intent-prefix` (repeatable) overrides it for a repository with two trackers or a history
+> too thin to infer from, and **every run reports what it accepted and what it rejected** —
+> an inference nobody can inspect is a guess wearing a measurement's clothes.
+>
+> **Effect here: 37 intents → 31, all genuine `SSPN-N`; 1,418 `SERVES` → 1,263; coverage 11.5%
+> → 10.2%.** The cost is `WI-2`'s 63 edges, and that is the right trade: `WI` is a roadmap
+> label, not a tracker key, and precision over recall is this graph's standing rule.
+>
+> One thing found while testing it: `_all_commit_keys` reads only the **first** key in a
+> message, so a standard sharing a commit with a real key never surfaced at all. The five that
+> did were first in their own commits.
 
-**This blocks Phase 3, not Phase 1.** Noise in an export is inspectable; noise in `investigate`'s
-landing report is a tool telling an engineer their change relates to `SHA-256`. **Fix precision
-before the tier faces a user.**
+**This blocked Phase 3, not Phase 1.** Noise in an export is inspectable; noise in
+`investigate`'s landing report is a tool telling an engineer their change relates to `SHA-256`.
 
 ## 6. The risk, stated plainly
 
