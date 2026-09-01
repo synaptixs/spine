@@ -1,0 +1,19 @@
+{
+  "language": "typescript",
+  "case": "this_calls",
+  "why": "A shape that WORKS and was tested nowhere. `this.method()` is the most common call in class-heavy TypeScript, and on 2026-09-01 a probe found it resolves correctly while every other receiver shape misses (see `typescript-call-resolution.md`). A shape that works and is untested is one refactor away from silently not working — this is the fixture that would say so.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "ts:app/service", "kind": "Module"},
+    {"id": "ts:app/service.Service", "kind": "Type"},
+    {"id": "ts:app/service.Service.helper", "kind": "Function"},
+    {"id": "ts:app/service.Service.run", "kind": "Function"}
+  ],
+  "edges": [
+    {"src": "ts:app/service", "dst": "ts:app/service.Service", "kind": "CONTAINS"},
+    {"src": "ts:app/service.Service", "dst": "ts:app/service.Service.helper", "kind": "CONTAINS"},
+    {"src": "ts:app/service.Service", "dst": "ts:app/service.Service.run", "kind": "CONTAINS"},
+
+    {"src": "ts:app/service.Service.run", "dst": "ts:app/service.Service.helper", "kind": "CALLS"}
+  ]
+}

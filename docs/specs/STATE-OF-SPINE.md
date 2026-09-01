@@ -30,7 +30,7 @@ gates (before building, before merging). The product is **Spine**; it ships as
 | Source modules | **332** | `find src/orchestrator -name '*.py'` |
 | Test functions | **2,857** across 297 files | `grep -rh '^def test_\|^async def test_' tests`; files via the same pattern with `-rl` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
-| `CALLS` recall | **1.00** (C, SQL) → **0.57** (TypeScript, on 7 labelled edges) | same |
+| `CALLS` recall | **1.00** (C, SQL) → **0.36** (TypeScript, on 14 labelled edges) | same |
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |
 | Same, across two codebases | **47/68 vs 3/68** | replicated on an unrelated external repo |
 | Control (`edit` tickets, target file named) | **122/124 either arm** | rules out a generic more-context effect |
@@ -98,7 +98,7 @@ Measured against a hand-labelled corpus, all 8 languages
 |---|---|
 | **Precision** | **1.00** on every node kind and every edge kind, all 8 languages — *on the corpus*, and see the caveat below |
 | **Recall** | 1.00 on every kind **except `CALLS`** |
-| `CALLS` recall | 1.00 (c, sql) · 0.73 (python) · 0.67 (cpp, csharp, go, java) · **0.57 (typescript)** — every one of the four denominators is small; TypeScript's is 7 labelled edges |
+| `CALLS` recall | 1.00 (c, sql) · 0.73 (python) · 0.67 (cpp, csharp, go, java) · **0.36 (typescript)** — every one of the four denominators is small; TypeScript's is 14 labelled edges, doubled on 2026-09-01 |
 | Invention | **0** on this repo and on 11 pinned public repos across 6 front-ends, gated `strict` at zero per language (2026-08-24) |
 
 **That precision row was a corpus score over a corpus missing a shape, and both have been
@@ -135,7 +135,7 @@ for this section:
 
 The fix was one line, shipped in 3.18.0: return `None` instead of a guess. That is why the
 invention oracle exists as a standing measurement rather than a one-off, and why `CALLS` recall
-is allowed to sit at 0.57 on TypeScript instead of being padded.
+is allowed to sit at 0.36 on TypeScript instead of being padded.
 
 ### Why this matters
 
@@ -170,7 +170,7 @@ that. Nothing in the pipeline has to ration it.
 
 ### Where it is honestly weak
 
-- **`CALLS` recall on TypeScript is 0.57**, on 7 labelled edges — and the loss is one family,
+- **`CALLS` recall on TypeScript is 0.36**, on 14 labelled edges — and the loss is one family,
   not a spread. `this.method()` resolves; every call through a *variable* is missed, including
   `new Handler().run()`, which needs no type inference at all. Measured 2026-09-01 and scoped in
   [`typescript-call-resolution.md`](typescript-call-resolution.md), which argues against the
@@ -380,7 +380,7 @@ and never promoted. A list that claims to be the authority has to actually absor
 | PDF, `.rst`/`.txt` and media collapse to one `Doc` node per file | unscheduled. Media is the one fixable without a new dependency — its segments already carry `start_ms`/`end_ms` and could become timestamped sections. **Unmeasured** |
 | Diagram arrows never become graph edges | **idea, no spec.** A mermaid flowchart is read as text; its labels bind to nothing and `intake --> design` produces no relationship. The more promising framing is the inverse — a diagram as a set of assertions to *check* against the graph rather than facts to add to it |
 | Shadowed-name `CALLS` invention in TypeScript, Go, C++, C# | ✅ **closed 2026-08-24** — oracle widened to 6 front-ends, all four fixed, 4 corpus cases added, `invention` gated `strict` at zero per language. 47 fabricated edges removed with no true edge lost. [Record](invention-oracle-cross-language.md) |
-| TypeScript resolution via the TS compiler API | 🟡 **scoped 2026-09-01, and the spec argues against it** — [`typescript-call-resolution.md`](typescript-call-resolution.md). The number was **0.50 in three places and is 0.57** (4 of 7 labelled edges). Probing six call shapes showed the loss is one family: `this.method()` resolves, every call through a *variable* misses — including `new Handler().run()`, which needs no type inference at all. Four of five missed shapes are reachable with a **local** pass over the same tree-sitter CST, no new dependency and no determinism risk, so the compiler API is not the first move. Its third cost is disqualifying as normally implemented: resolution that reads `node_modules` gives a different graph for the same commit, which invariant 2 forbids. **The scheduled piece is widening the corpus first** — 7 labelled edges cannot tell you whether a fix works |
+| TypeScript resolution via the TS compiler API | 🟡 **scoped 2026-09-01, and the spec argues against it** — [`typescript-call-resolution.md`](typescript-call-resolution.md). The number was **0.50 in three places, is 0.36**, and moved twice on the way: 0.50 was stale (the scoreboard said 0.571), and widening the corpus on 2026-09-01 took it to **5 of 14**. **The drop is measurement, not regression** — the code did not change; two fixtures were added for shapes nothing was testing. Probing six call shapes showed the loss is one family: `this.method()` resolves, every call through a *variable* misses — including `new Handler().run()`, which needs no type inference at all. Four of five missed shapes are reachable with a **local** pass over the same tree-sitter CST, no new dependency and no determinism risk, so the compiler API is not the first move. Its third cost is disqualifying as normally implemented: resolution that reads `node_modules` gives a different graph for the same commit, which invariant 2 forbids. **The scheduled piece is widening the corpus first** — 7 labelled edges cannot tell you whether a fix works |
 | G4 adoption — friction audit | ✅ **Phase 1 done 2026-08-19** — ≈28s cold start, no key; channels/proof/measurement outstanding |
 | `episteme.yml` main-branch path produces orphan branches | ✅ **fixed 2026-08-19** — regeneration is `develop`-only; `main` inherits the bank verbatim |
 
