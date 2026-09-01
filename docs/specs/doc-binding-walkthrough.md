@@ -88,7 +88,7 @@ Each reader converts its format into **markdown-shaped text**: HTML's `<h1>`, Wo
 style and a spreadsheet's sheet name all become an ATX `#` heading. Everything downstream reads
 that one shape and never learns which format it came from.
 
-The splitter then cuts on headings. **Measured here: 1,572 `Doc` nodes** across the repository —
+The splitter then cuts on headings. **Measured here: 1,583 `Doc` nodes** across the repository —
 sections, not files.
 
 Our subject becomes:
@@ -118,7 +118,7 @@ precedence:
 | `CAMEL` | `DocReconciler` |
 | `FILE` | `src/orchestrator/pkg/store.py` |
 
-Our section yields **12 mentions**. Repository-wide: **9,109**.
+Our section yields **12 mentions**. Repository-wide: **9,167**.
 
 One rule worth knowing: a bare CamelCase word — "GitHub", "Python" — binds if it happens to
 resolve, but **never counts as drift**. Prose capitalisation is not a code claim.
@@ -166,13 +166,13 @@ Repository-wide, every mention lands in exactly one of four buckets:
 
 | | count | share |
 |---|---|---|
-| **one symbol anchor → `MENTIONS` edge** | **2,475** | 27% |
-| more than one symbol anchor → skipped | 1,937 | 21% |
-| resolved to a **file**, no symbol | 1,372 | 15% |
-| nothing at all | 3,325 | 37% |
-| **total mentions** | **9,109** | |
+| **one symbol anchor → `MENTIONS` edge** | **2,479** | 27% |
+| more than one symbol anchor → skipped | 1,962 | 21% |
+| resolved to a **file**, no symbol | 1,376 | 15% |
+| nothing at all | 3,350 | 37% |
+| **total mentions** | **9,167** | |
 
-2,450 edges are drawn from those 2,475 — the 25 difference is de-duplication, where one section
+2,453 edges are drawn from those 2,479 — the 26 difference is de-duplication, where one section
 names the same symbol twice.
 
 > **These seven figures are derived, and reported rather than gated.**
@@ -199,22 +199,22 @@ names the same symbol twice.
 > summary used the wrong one.
 >
 > The conclusion followed the bad number. It read *"ambiguity, not absence, is the larger
-> loss"*, and that is **false**: absence is 3,325 against ambiguity's 1,937.
+> loss"*, and that is **false**: absence is 3,343 against ambiguity's 1,959.
 
-**What is true, and still worth saying:** ambiguity is not a rounding error. **1,937 mentions
+**What is true, and still worth saying:** ambiguity is not a rounding error. **1,962 mentions
 found real code and were deliberately dropped** for naming more than one thing — 29% of
-everything that fails to become an edge. That is qualitatively different from the 3,325 that
+everything that fails to become an edge. That is qualitatively different from the 3,350 that
 found nothing, and it matters for how the gap gets closed: reducing it means answering *which*
 symbol was meant, not *whether* one exists. Doing that by proximity, or by "the most likely", is
 precisely the guess this tier does not make.
 
-The 1,370 file-only mentions are a third category and mostly correct behaviour: prose citing
+The 1,376 file-only mentions are a third category and mostly correct behaviour: prose citing
 `src/orchestrator/pkg/store.py` is naming a path, not a symbol, and there is no symbol edge to
 draw.
 
 ## Step 6 — drift, in detail
 
-Of the 3,325 mentions that matched nothing, most are prose: ordinary words in backticks, URLs,
+Of the 3,350 mentions that matched nothing, most are prose: ordinary words in backticks, URLs,
 filenames. `symbolish_drift` narrows to identifier-shaped claims, leaving **about 900** on this
 repository. Examples, all real:
 
@@ -231,6 +231,33 @@ un-gated one pull request later, after failing a documentation change: about a t
 population cannot bind by construction — parameters, module constants, string literals, log
 event names and builtins have no node kind. The number stands as an **upper bound** on drift,
 never as a defect count.
+
+> **The leaf-only fallback was audited on 2026-09-01 and cleared.** `bind`'s last resort, when a
+> dotted mention matches no id tail, is to match its **final segment alone** — throwing the
+> qualifier away. That looks like a fabrication waiting to happen: with exactly one symbol named
+> `json` in this repository, every `.json` filename could bind to `DummyResponse.json`, a test
+> double's method.
+>
+> **It does not happen, and the suspicion was quantified before it was acted on.** The fallback
+> rescues **76 mentions** into a single correct anchor — `store.find` onto `FactStore.find`,
+> `Budget.max_replan_count`, `CapabilityResult.content_type` — turns 166 into ambiguous
+> bindings that are skipped, and mis-binds **no filename at all**. Filenames never reach it:
+> a recognised extension makes the mention `FILE`-kind, which resolves against the filesystem
+> instead.
+>
+> Two `MENTIONS` edges *do* point at that method, and neither comes from the fallback. They come
+> from the bare word `` `json` `` in prose, which resolves exactly and binds — the documented
+> behaviour that single plain lowercase words bind when they resolve. That is a separate and much
+> smaller question than the one investigated.
+>
+> **What the audit did find was a drift-precision defect, in a different place.** `md.js`,
+> `graph.html` and `compose.dev.yml` are dotted, lowercase and multi-segment, so they are shaped
+> exactly like symbol paths; the FILE pattern does not recognise their extensions, so they arrived
+> as symbol claims and the drift list reported **55 filenames as prose naming code that does not
+> exist**. Extensions were added to `_URL_TAILS` and checked in `_can_drift`. Drift went
+> **1,651 → 1,596** and **not one `MENTIONS` edge changed** — a naming asymmetry, not a coverage
+> gap. `README.md` and `src/a/b.py` keep their disk check, because a document linking a file that
+> is not there is a real finding.
 
 ## What is added, and what is not
 
@@ -256,8 +283,8 @@ inference over the graph changing, not the graph being rewritten.
 
 **56% of `Doc` sections bind to nothing at all.** Section 2 shows why in miniature: prose that
 explains *why* something exists often names no identifier, and prose that does name one often
-names an ambiguous one. Both causes are real, and **absence is the larger of the two** — 3,325
-mentions against 1,937 — though the smaller one is the more interesting, because those 1,937
+names an ambiguous one. Both causes are real, and **absence is the larger of the two** — 3,350
+mentions against 1,962 — though the smaller one is the more interesting, because those 1,962
 found the code and were refused.
 
 Closing it needs semantic matching — meaning rather than string equality — which means a model,
