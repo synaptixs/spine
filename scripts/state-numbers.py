@@ -114,6 +114,25 @@ def _binding() -> dict[str, int]:
     return _BINDING
 
 
+def ts_calls_recall() -> str:
+    """TypeScript `CALLS` recall, to two places, read from the committed scoreboard.
+
+    Chained deliberately: source → scoreboard (gated by `pkg accuracy --check`) → prose (gated
+    here). The scoreboard cannot go stale against the code, so a claim that matches it is a
+    claim that matches the code.
+
+    This figure moved three times on 2026-09-01 — a stale 0.50 corrected to 0.571, then 0.357
+    when the corpus doubled — while being quoted in the README and in three places on
+    `STATE-OF-SPINE`. It is the clearest case in the repository for deriving a number instead
+    of carrying it.
+    """
+    import json
+
+    board = json.loads((ROOT / "src" / "orchestrator" / "pkg" / "scoreboard.json").read_text())
+    calls = board["metrics"]["corpus"]["languages"]["typescript"]["edges"]["CALLS"]
+    return f"{calls['matched'] / calls['expected']:.2f}"
+
+
 def package_version() -> str:
     import tomllib
 
@@ -180,6 +199,27 @@ CLAIMS: tuple[Claim, ...] = (
         STATE,
         re.compile(r"\| Version \| \*\*([\d.]+)\*\*"),
         package_version,
+        numeric=False,
+    ),
+    Claim(
+        "TypeScript CALLS recall (STATE §2)",
+        STATE,
+        re.compile(r"\| `CALLS` recall \| \*\*1\.00\*\* \(C, SQL\) → \*\*([\d.]+)\*\*"),
+        ts_calls_recall,
+        numeric=False,
+    ),
+    Claim(
+        "TypeScript CALLS recall (STATE §3)",
+        STATE,
+        re.compile(r"· \*\*([\d.]+) \(typescript\)\*\*"),
+        ts_calls_recall,
+        numeric=False,
+    ),
+    Claim(
+        "TypeScript CALLS recall (README)",
+        ROOT / "README.md",
+        re.compile(r"down to ([\d.]+) on TypeScript"),
+        ts_calls_recall,
         numeric=False,
     ),
     # The doc-binding walkthrough. Every figure below is a partition of the same population, so

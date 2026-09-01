@@ -76,7 +76,7 @@ about it.
 **1 · The graph is built by parsers, not by a model — and its accuracy is published.**
 Eight language front-ends, every fact carrying `file:line`. Scored against a hand-labelled
 corpus in CI: **precision 1.00 on every node and edge kind**. Where it's weaker, that's
-published too — `CALLS` recall runs 1.00 on C and SQL down to 0.36 on TypeScript, reported
+published too — `CALLS` recall runs 1.00 on C and SQL down to 0.86 on TypeScript, reported
 separately rather than averaged into something flattering.
 
 **2 · The failure mode is silence, not fiction.** Everything the graph asserts exists;
