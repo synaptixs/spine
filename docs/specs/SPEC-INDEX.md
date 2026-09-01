@@ -1,8 +1,8 @@
 # Spec index — every design record, and where it stands
 
 **Generated 2026-08-15 against 3.18.1; refreshed 2026-08-21 for the completed GraphIR
-programme; recounted 2026-09-01 at 3.26.1.** `docs/specs/` holds **80** markdown files —
-**77 specs** plus three navigation documents ([README](README.md), this index,
+programme; recounted 2026-09-01 at 3.26.1.** `docs/specs/` holds **81** markdown files —
+**78 specs** plus three navigation documents ([README](README.md), this index,
 [STATE-OF-SPINE](STATE-OF-SPINE.md)) — with 6 archived and 10 build documents. The count read
 *63* until 2026-08-21, and **five specs were not listed at all**, including this file's own
 companion matrix and both measurements it cites as evidence. An inventory that silently omits
@@ -10,7 +10,7 @@ things is the failure it was built to catch, so the count is now stated as a der
 can re-run:
 
 ```
-ls docs/specs/*.md | wc -l          # 80
+ls docs/specs/*.md | wc -l          # 81
 ```
 
 **It rotted anyway.** The line read *70* from 2026-08-21 until 2026-08-28 while the directory
@@ -103,6 +103,7 @@ Graphify-gap series only. This file is the complete inventory.
 | [pkg-code-grounded-understanding](pkg-code-grounded-understanding.md) | Proposed, for review | |
 | [language-support-roadmap](language-support-roadmap.md) | Design/blueprint, not started | Three new front-ends |
 | [language-expansion-roadmap](language-expansion-roadmap.md) | Prioritization only | Go ✅ · Rust · Kotlin · Ruby |
+| [typescript-call-resolution](typescript-call-resolution.md) | **Written 2026-09-01** — scoped, and argues **against** the compiler API | The recall figure was 0.50 in three places and is 0.57; the loss is one call-shape family, four fifths of it reachable locally. Widen the corpus first | **✔** |
 | [tri-repo-integration](tri-repo-integration.md) | Design only | Spans ontomesh + infodrift |
 | [ontomesh-integration-analysis](ontomesh-integration-analysis.md) | Analysis for decision | Nothing built |
 
@@ -155,7 +156,7 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 |---|---|
 | ✅ Complete | 17 |
 | 🟡 Partial | 13 |
-| 📋 Outstanding | 14 |
+| 📋 Outstanding | 15 |
 | ⚠️ Stale status | 2 |
 | 📖 Reference | 25 |
 
