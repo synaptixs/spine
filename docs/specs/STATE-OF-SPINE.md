@@ -3,7 +3,7 @@
 **The one document to read.** Verified against source on **2026-09-01**, at the 3.26.1 release
 cut. Every number below was re-measured that day.
 
-> **Why this exists.** `docs/specs/` holds **78** markdown files — **75 specs** plus this
+> **Why this exists.** `docs/specs/` holds **79** markdown files — **76 specs** plus this
 > page, [`README`](README.md) and [`SPEC-INDEX`](SPEC-INDEX.md) — with 6 archived, 10 build
 > documents, and 17 root-level user documents.
 > Answering "where do we stand?" required opening five of them and reconciling three that
@@ -360,7 +360,7 @@ and never promoted. A list that claims to be the authority has to actually absor
 | `orchestrator --version` | ✅ **added 2026-09-01.** It errored with *"No such option"* — the first thing anyone runs after installing, and the path [`BENCHMARK.md`](../../BENCHMARK.md) now sends strangers down. It prints the installed version **and where it is running from**, because CONTRIBUTING's own warning is that a bare command resolves to whatever is on `PATH`. Found alongside it: `orchestrator.__version__` was the literal `"0.0.0"` and no release step ever touched it, so every version ever shipped reported 0.0.0 to anything that imported it — now derived from the installed distribution |
 | RBAC role-gating beyond the approval decision + secrets vault | parked |
 | CI gate on spec-status drift | 🟡 **the numbers half shipped 2026-09-01** — `scripts/state-numbers.py --check`, in CI, re-derives the eight figures this page and `SPEC-INDEX` state and fails when prose and source disagree. It caught a stale test count on its first run, and again when adding its own tests moved the number. **The judgement half is still open:** whether a spec's *status line* matches shipped reality is not mechanically checkable, and that is the class that produced the multi-repo row reading "not started" while the code was in `src/` |
-| Decide `--intents` — shipped with no reader, no export | undecided |
+| Decide `--intents` — shipped with no reader, no export | 🟡 **scoped 2026-09-01** — [`recorded-intent-tier.md`](recorded-intent-tier.md). Not abandoned and not obsolete: the producer works and is measured (37 intents, 1,418 `SERVES`, 11.5% of symbols, 3.0s), and **nothing reads it**. The export gap is narrower than recorded: the exporters do not filter by kind, `pkg export` simply has no `--intents` flag while `understand`/`state` do, so `link_intents` is missing beside the `link_docs` post-pass whose own comment makes the same argument. Phase 1 is ~2 hours. **The standing risk is that the tier's value is a function of the customer's commit hygiene**, and this repository — squashed on import — is a bad demo of it |
 | Rust front-end | not started |
 | Express endpoint extraction (TypeScript) | unscheduled |
 | Deployment image + reusable CI workflow for central adoption | not started. **Not a G4 phase** — it was recommended as though it were; it needs adding to that spec before it can be scheduled |

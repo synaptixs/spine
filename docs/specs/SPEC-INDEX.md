@@ -1,8 +1,8 @@
 # Spec index — every design record, and where it stands
 
 **Generated 2026-08-15 against 3.18.1; refreshed 2026-08-21 for the completed GraphIR
-programme; recounted 2026-09-01 at 3.26.1.** `docs/specs/` holds **78** markdown files —
-**75 specs** plus three navigation documents ([README](README.md), this index,
+programme; recounted 2026-09-01 at 3.26.1.** `docs/specs/` holds **79** markdown files —
+**76 specs** plus three navigation documents ([README](README.md), this index,
 [STATE-OF-SPINE](STATE-OF-SPINE.md)) — with 6 archived and 10 build documents. The count read
 *63* until 2026-08-21, and **five specs were not listed at all**, including this file's own
 companion matrix and both measurements it cites as evidence. An inventory that silently omits
@@ -10,7 +10,7 @@ things is the failure it was built to catch, so the count is now stated as a der
 can re-run:
 
 ```
-ls docs/specs/*.md | wc -l          # 78
+ls docs/specs/*.md | wc -l          # 79
 ```
 
 **It rotted anyway.** The line read *70* from 2026-08-21 until 2026-08-28 while the directory
@@ -99,6 +99,7 @@ Graphify-gap series only. This file is the complete inventory.
 | [standout-evals-and-personas](standout-evals-and-personas.md) | Proposed, under review | Strategy bets 1 & 2 |
 | [persona-skill-system](persona-skill-system.md) | Proposed, spec only | |
 | [conversational-source-access](conversational-source-access.md) | Proposed, not started | |
+| [recorded-intent-tier](recorded-intent-tier.md) | **Written 2026-09-01** — producer shipped, nothing reads it | The design record for `--intents`. Phase 1 is ~2 hours: the export has no `--intents` flag while `understand`/`state` do | **✔** |
 | [pkg-code-grounded-understanding](pkg-code-grounded-understanding.md) | Proposed, for review | |
 | [language-support-roadmap](language-support-roadmap.md) | Design/blueprint, not started | Three new front-ends |
 | [language-expansion-roadmap](language-expansion-roadmap.md) | Prioritization only | Go ✅ · Rust · Kotlin · Ruby |
@@ -153,7 +154,7 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 |---|---|
 | ✅ Complete | 17 |
 | 🟡 Partial | 13 |
-| 📋 Outstanding | 13 |
+| 📋 Outstanding | 14 |
 | ⚠️ Stale status | 2 |
 | 📖 Reference | 24 |
 
