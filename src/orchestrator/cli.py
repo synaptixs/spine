@@ -3936,6 +3936,14 @@ def pkg_export(
             "changed for). Costs a `git blame` pass; ignored for --format sqlite.",
         ),
     ] = False,
+    intent_prefix: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--intent-prefix",
+            help="Issue-key prefix to accept, repeatable (e.g. --intent-prefix PROJ). Default: "
+            "infer the repository's dominant prefix, which the run reports.",
+        ),
+    ] = None,
     db: Annotated[
         Path | None,
         typer.Option("--db", help="DEPRECATED alias for --out (sqlite only). Use --out."),
@@ -4029,8 +4037,21 @@ def pkg_export(
             if intents:
                 from orchestrator.pkg.intent_link import link_intents
 
-                coverage = link_intents(batch, repo)
+                coverage = link_intents(batch, repo, prefixes=intent_prefix or None)
                 rate = f"{coverage.rate:.1%}" if coverage.rate is not None else "n/a"
+                # What it decided, not just what it found. The generic key pattern reads
+                # `SHA-256` and `ISO-8601` as tickets, so which prefixes were accepted is the
+                # difference between a measurement and a guess — and an operator who can see
+                # the rejects can correct them with --intent-prefix.
+                typer.echo(
+                    f"  intent prefixes: accepted {', '.join(coverage.prefixes_used) or 'none'}"
+                    + (
+                        f"; rejected as not tickets: {', '.join(coverage.prefixes_rejected)}"
+                        if coverage.prefixes_rejected
+                        else ""
+                    ),
+                    err=True,
+                )
                 # The denominator travels with the facts. A tier that attributes 12 of 4,000
                 # symbols is working as designed and says almost nothing, and only the ratio
                 # makes that visible to whoever reads the export.

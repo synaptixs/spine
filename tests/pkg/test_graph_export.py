@@ -191,6 +191,11 @@ def _repo_with_history(tmp_path: Path) -> Path:
     git("config", "user.name", "T")
     git("add", "-A")
     git("commit", "--quiet", "-m", "PROJ-7 add the handler")
+    (repo / "n.py").write_text("def other():\n    return 2\n", encoding="utf-8")
+    git("add", "-A")
+    # A second distinct number: one alone is indistinguishable from a standard and is declined
+    # by design (spec §6.1), so a single-ticket fixture would test the rejection, not the join.
+    git("commit", "--quiet", "-m", "PROJ-8 add another")
     return repo
 
 
@@ -241,6 +246,109 @@ def test_link_intents_attributes_a_symbol_to_its_commits_key(tmp_path: Path) -> 
     batch = RepoCodeExtractor().extract(repo)
     coverage = link_intents(batch, repo)
 
-    assert coverage.intents == 1
+    assert coverage.prefixes_used == ("PROJ",)
+    assert coverage.intents == 2
     assert coverage.symbols_attributed >= 1
     assert any(n.id == "intent:PROJ-7" for n in batch.nodes)
+
+
+# ---- issue keys vs things that merely look like them (spec §6.1) --------------
+
+
+def test_a_standard_is_not_read_as_a_ticket(tmp_path: Path) -> None:
+    """`SHA-256`, `ISO-8601`, `UTF-16` and `CVE-2024` matched the generic key pattern.
+
+    Five of 37 intents on this repository were of that shape — a `SERVES` edge asserting a
+    symbol was changed for a ticket nobody ever filed. The join was right; reading every match
+    as an issue key was not.
+    """
+    import subprocess
+
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+    from orchestrator.pkg.intent_link import link_intents
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=repo, capture_output=True, check=True)
+
+    git("init", "--quiet")
+    git("config", "user.email", "t@example.com")
+    git("config", "user.name", "T")
+    # One key per commit: `_all_commit_keys` reads the *first* match in a message, so a
+    # standard sharing a commit with a real key never surfaces at all. Giving each its own
+    # commit is what puts the discriminator under test rather than that incidental filter.
+    for i, message in enumerate(
+        [
+            "PROJ-1 add the first thing",
+            "PROJ-2 add the second",
+            "hash it with SHA-256 throughout",
+            "format dates as ISO-8601",
+        ]
+    ):
+        (repo / f"m{i}.py").write_text(f"def f{i}():\n    return {i}\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "--quiet", "-m", message)
+
+    coverage = link_intents(RepoCodeExtractor().extract(repo), repo)
+
+    assert coverage.prefixes_used == ("PROJ",)
+    assert "SHA" in coverage.prefixes_rejected
+    assert "ISO" in coverage.prefixes_rejected
+
+
+def test_a_repository_with_no_discernible_tracker_gets_no_intents(tmp_path: Path) -> None:
+    """One number is indistinguishable from a standard, so a lone prefix wins nothing.
+
+    Silence over fiction: a coin-flip between `SHA-256` and a real key is not an answer.
+    """
+    import subprocess
+
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+    from orchestrator.pkg.intent_link import link_intents
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=repo, capture_output=True, check=True)
+
+    git("init", "--quiet")
+    git("config", "user.email", "t@example.com")
+    git("config", "user.name", "T")
+    (repo / "m.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+    git("add", "-A")
+    git("commit", "--quiet", "-m", "encode with UTF-8 throughout")
+
+    coverage = link_intents(RepoCodeExtractor().extract(repo), repo)
+
+    assert coverage.prefixes_used == ()
+    assert coverage.intents == 0
+
+
+def test_an_explicit_prefix_overrides_the_inference(tmp_path: Path) -> None:
+    """The inference is the default, not the mechanism. A repo with two trackers says so."""
+    import subprocess
+
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+    from orchestrator.pkg.intent_link import link_intents
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=repo, capture_output=True, check=True)
+
+    git("init", "--quiet")
+    git("config", "user.email", "t@example.com")
+    git("config", "user.name", "T")
+    (repo / "m.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+    git("add", "-A")
+    git("commit", "--quiet", "-m", "OPS-9 wire the thing")
+
+    # One number, so the inference would decline it. Named explicitly, it counts.
+    coverage = link_intents(RepoCodeExtractor().extract(repo), repo, prefixes=["OPS"])
+
+    assert coverage.prefixes_used == ("OPS",)
+    assert coverage.intents == 1

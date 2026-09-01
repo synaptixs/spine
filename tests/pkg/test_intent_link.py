@@ -38,9 +38,30 @@ def _repo(root: Path, *, message: str, source: str = SOURCE) -> Path:
     return root
 
 
-def _scan(root: Path) -> tuple[Any, Any]:
+def _commit(root: Path, message: str) -> None:
+    """Another commit on an existing fixture repo — for tests that need two distinct keys."""
+    env = {
+        "GIT_AUTHOR_NAME": "t",
+        "GIT_AUTHOR_EMAIL": "t@e",
+        "GIT_COMMITTER_NAME": "t",
+        "GIT_COMMITTER_EMAIL": "t@e",
+        "PATH": "/usr/bin:/bin:/usr/local/bin",
+    }
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True, env=env)
+    subprocess.run(["git", "commit", "-q", "-m", message], cwd=root, check=True, env=env)
+
+
+def _scan(root: Path, *, prefixes: list[str] | None = None, **kwargs: Any) -> tuple[Any, Any]:
+    """Scan with the prefix named, because these tests are about the **join**, not the policy.
+
+    Since 2026-09-01 an unnamed prefix has to be inferred, and the inference declines a prefix
+    seen with exactly one number — one is indistinguishable from `SHA-256` (spec §6.1). Every
+    fixture here is a one-commit repository, so leaving it to the inference would make each of
+    these assert the rejection rule rather than the thing it is named for. The default path is
+    covered end to end in `test_graph_export.py`.
+    """
     batch = RepoCodeExtractor().extract(root)
-    return batch, link_intents(batch, root)
+    return batch, link_intents(batch, root, prefixes=prefixes or ["SSPN"], **kwargs)
 
 
 def test_a_keyed_commit_yields_an_intent_and_serves_edges(tmp_path: Path) -> None:
@@ -121,11 +142,11 @@ def test_the_key_pattern_is_configurable(tmp_path: Path) -> None:
     """No repository outside this one uses this project's prefix."""
     root = _repo(tmp_path, message="feat: x (ACME-123)")
     batch = RepoCodeExtractor().extract(root)
-    link_intents(batch, root)
+    link_intents(batch, root, prefixes=["ACME"])
     assert [n.id for n in batch.nodes if n.kind is NodeKind.INTENT] == ["intent:ACME-123"]
 
     batch2 = RepoCodeExtractor().extract(root)
-    link_intents(batch2, root, key_pattern=r"\bNOPE-\d+\b")
+    link_intents(batch2, root, key_pattern=r"\b(NOPE)-\d+\b", prefixes=["NOPE"])
     assert [n for n in batch2.nodes if n.kind is NodeKind.INTENT] == []
 
 
@@ -165,7 +186,13 @@ def test_analysis_does_not_scan_intents_by_default(tmp_path: Path) -> None:
 def test_analysis_scans_intents_when_asked(tmp_path: Path) -> None:
     from orchestrator.knowledge.analysis import analyse
 
-    _repo(tmp_path, message="feat: x (SSPN-9)")
+    # Two distinct numbers under one prefix: `analyse` takes no prefix argument, so this is the
+    # inference's own path, and one number is declined by design (spec §6.1).
+    root = _repo(tmp_path, message="feat: x (SSPN-9)")
+    (root / "app" / "b.py").write_text("def g():\n    return 2\n", encoding="utf-8")
+    _commit(root, "feat: y (SSPN-10)")
+
     result = analyse(tmp_path, intents=True)
-    assert [n.id for n in result.batch.nodes if n.kind is NodeKind.INTENT] == ["intent:SSPN-9"]
+    found = sorted(n.id for n in result.batch.nodes if n.kind is NodeKind.INTENT)
+    assert found == ["intent:SSPN-10", "intent:SSPN-9"]
     assert any(e.kind is EdgeKind.SERVES for e in result.batch.edges)
