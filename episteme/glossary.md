@@ -13,6 +13,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **CorpusError** | [`CorpusError`](../src/orchestrator/pkg/accuracy.py#L53) | — |
 | **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L118) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
 | **DocPage** | [`DocPage`](../src/orchestrator/pkg/docs.py#L52) | `docs/specs/doc-ingestion-spec.md#components-where-the-code-goes`, `docs/specs/doc-ingestion-spec.md#design-decisions` |
+| **DocReconciler** | [`DocReconciler`](../src/orchestrator/pkg/docs.py#L143) | `docs/specs/doc-binding-walkthrough.md#step-3-the-claims-in-detail`, `docs/specs/doc-binding-walkthrough.md#step-4-the-lookup-in-detail` |
 | **Edge** | [`Edge`](../src/orchestrator/pkg/facts.py#L137) | — |
 | **EdgeKind** | [`EdgeKind`](../src/orchestrator/pkg/facts.py#L55) | `CLAUDE.md#layout-where-things-live`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#the-coercion-kind-per-table-projection` |
 | **FactBatch** | [`FactBatch`](../src/orchestrator/pkg/facts.py#L150) | `CLAUDE.md#layout-where-things-live`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#the-coercion-kind-per-table-projection` |
@@ -24,7 +25,6 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
 | **JiraAdapter** | [`JiraAdapter`](../src/orchestrator/intake/jira.py#L114) | `docs/specs/capability-recommendations-kg-grounded.md#where-we-are-today-the-honest-baseline` |
 | **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L826) | `CHANGELOG.md`, `docs/specs/cross-run-semantic-memory.md#design-cross-run-semantic-memory-the-experience-true-layer` |
-| **MediaExtractorUnavailableError** | [`MediaExtractorUnavailableError`](../src/orchestrator/pkg/media_extract.py#L55) | — |
 | **MemoryRow** | [`MemoryRow`](../src/orchestrator/registry/db/models.py#L216) | `KNOWLEDGE_GRAPH.md#where-each-artifact-is-persisted`, `docs/specs/README.md#autonomous-agent-scorecard` |
 | **Node** | [`Node`](../src/orchestrator/pkg/facts.py#L121) | — |
 | **NodeKind** | [`NodeKind`](../src/orchestrator/pkg/facts.py#L38) | `CLAUDE.md#layout-where-things-live`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#the-coercion-kind-per-table-projection` |
