@@ -3,8 +3,9 @@
 > **"G6" is a label, not a position in a queue.** It's gap #6 in the Graphify comparison. The specs
 > are not ordered and do not run in sequence.
 
-**Status:** **Phase 1's harness shipped 2026-08-31**; the gold set it scores is not written, so
-localization reports `not_measured`. Scope decided 2026-08-30 (D1–D4 below).
+**Status:** **Phase 1 complete 2026-09-01 — localization is measured.** 38 hand-verified labels
+across five front-ends; top-1 **0.32**, top-10 **0.71**, against **0.085** for picking ten files
+at random. Scope decided 2026-08-30 (D1–D4 below).
 **Rewritten 2026-08-15 against 3.18.1**; decisions taken and the text reconciled to them
 2026-08-30.
 **Owner:** _unassigned_ — and that is the binding constraint, not the code. D1 makes the gold set
@@ -217,7 +218,7 @@ repositories are what make that limit visible rather than invisible.
 |---|---|---|---|
 | **1a — the harness** ✅ **2026-08-31** | Manifest (`evals/comprehension_corpus.yaml`, five pins, validated full-length at load), fetch-and-persist (`evals/corpus_fetch.py`), **provenance validity** (`evals/comprehension.py`), a `comprehension` key on the one scoreboard, a ratchet gate, and `pkg accuracy --oracle comprehension [--corpus]` | ~1 d | ✅ **1.0000 on 10,789 anchored facts**, gated. Localization reports `not_measured`, never 0 |
 | **1b — the scaffolding** ✅ **2026-08-31** | `evals/comprehension_labels.yaml` + a validator that refuses anything unreproducible, `pkg fix-sites` to read what a fixing commit changed, `pkg labels --check`, and the top-k scorer | ~0.5 d | ✅ Labelling is now a form to fill in, and every field is checked |
-| **1c — the gold set** | 30–50 hand-labelled issues, by a human. **Owner: labelling in progress 2026-08-31** | ~3 d labelling | outstanding |
+| **1c — the gold set** ✅ **2026-09-01** | 38 labels, every issue link confirmed against GitHub's own `closingIssuesReferences` and every path verified present in the pinned tree | — | ✅ top-1 0.32 · top-3 0.47 · top-5 0.58 · top-10 0.71 |
 | **1 — A gold set, two metrics, into the existing scoreboard** | Pin the corpus in a **manifest the harness reads** (five repositories, D3), then hand-label **30–50 real issues** — one fix site per issue, taken from the fixing commit, recorded with the issue URL and the commit SHA so anyone can re-derive it. Metrics: **top-k localization** and **provenance validity** (D2). Deterministic, no LLM anywhere in scoring or in labelling. Land them as a **`comprehension` key in `scoreboard.json`**, written by `pkg accuracy --scoreboard`. | ~2 d harness + **~3 d labelling** | `pkg accuracy` prints comprehension alongside corpus/invention/parity; one baseline, one file; every label re-derivable from its recorded SHA |
 | **2 — Gate + trend** | Extend `pkg accuracy --check` to the new key on the **ratchet** tier (D4). Track a trend series across releases — with the honest caveat that at n=30–50 a small move is noise, so the gate is a floor, not a graph. | ~2–3 d | A PR that degrades localization is visible before merge, using the gate that already exists |
 | **3 — Publish** | Public methodology + results: the corpus **with its commit SHAs**, how each label was derived, the two metrics, the numbers, and a **reproducible command**. States what was *not* measured — impact recall, fault-site top-1, `regression_gaps` precision, C#, and the Python-only oracles — rather than implying broader coverage. | ~3–4 d | A public benchmark page and a command an outsider can run |
@@ -225,6 +226,44 @@ repositories are what make that limit visible rather than invisible.
 **Which phase buys what.** Phases 1–2 make the claim *checkable*; Phase 3 makes it *a market
 position*. Phase 3 is not optional polish — an unpublished benchmark changes nothing outside the
 repo, and "measured correctness" is the only axis on which Spine currently leads.
+
+## The first localization numbers, and what they do not say
+
+Measured 2026-09-01 on 38 labelled issues from the five pinned repositories. `investigate` is
+given **the issue title only** and returns up to ten landing sites; a label scores a hit at *k*
+when any of its recorded fix paths appears in the first *k*.
+
+| | hits | rate |
+|---|---|---|
+| top-1 | 12/38 | **0.32** |
+| top-3 | 18/38 | 0.47 |
+| top-5 | 22/38 | 0.58 |
+| top-10 | 27/38 | **0.71** |
+
+**The baseline that makes those numbers readable: 0.085.** That is the expected top-10 hit rate
+for picking ten files at random from the same repositories (85–486 source files each, weighted
+per label). Spine is right about **eight times more often than chance**, from one line of prose,
+with no access to the fix.
+
+**Four things this does not establish, and every one of them belongs in anything published.**
+
+1. **n=38.** The 95% interval on top-1 is roughly **0.17–0.47**. A real measurement, not a
+   precise one. Going to 50 narrows it to ±0.13 — the useful next step is ~100, which needs
+   older pins or more repositories, and is a corpus decision rather than a labelling one.
+2. **The bugs are cleaner than average — the number is optimistic.** Every label is a fix
+   touching **1–3 source files** (6 of the 38 are multi-file); a fix spread across ten would be
+   harder to localize. A multi-file label also scores a hit if *any* of its paths lands, which
+   is more permissive than a single-path label.
+3. **`investigate` was given less than it would get in practice — the number is pessimistic.**
+   Only the issue *title*, no body. Real tickets carry more.
+4. **No competitor comparison exists.** Nobody else publishes retrieval correctness, so
+   "better than chance" is the only benchmark available. That is the point of §"Why, and why
+   *not* their benchmark" — and it is a claim about the field, not about us.
+
+**Composition:** libuv 14, fmt 8, vue-core 8, flask 4, gin 4. flask and gin are short because
+their post-pin windows contain few qualifying fixes, not because Python and Go were deprioritised.
+A test refuses a gold set where one repository exceeds half the labels, so this cannot quietly
+drift back into measuring one project.
 
 ## Invariants you must not break
 
