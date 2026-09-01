@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.ir`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 3 modules — 12 types and 2 functions. It sits in the middle of the graph: 2 areas below it, 6 above. Changes here can reach both ways.
+**`orchestrator.ir`** is one of 53 areas in this repo, in the `orchestrator` zone. It holds 3 modules — 12 types and 2 functions. It sits in the middle of the graph: 2 areas below it, 6 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
