@@ -166,3 +166,81 @@ def test_empty_graph_still_writes_a_valid_file(tmp_path: Path) -> None:
         assert path.read_text(encoding="utf-8").strip()
     ET.parse(tmp_path / "empty.graphml")  # noqa: S314 — self-written file
     assert json.loads((tmp_path / "empty.json").read_text(encoding="utf-8"))["nodes"] == []
+
+
+# ---- the recorded-intent tier reaches the export (spec phase 1) ---------------
+#
+# `pkg export` applied `link_docs` as a post-pass and not `link_intents`, so Intent nodes and
+# SERVES edges were absent from every export. The comprehension test plan recorded that as
+# "Intent nodes: 0 / SERVES edges: 0" and concluded the facts were unreachable. They were only
+# never added: nothing here filters by kind.
+
+
+def _repo_with_history(tmp_path: Path) -> Path:
+    import subprocess
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "m.py").write_text("def handler():\n    return 1\n", encoding="utf-8")
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=repo, capture_output=True, check=True)
+
+    git("init", "--quiet")
+    git("config", "user.email", "t@example.com")
+    git("config", "user.name", "T")
+    git("add", "-A")
+    git("commit", "--quiet", "-m", "PROJ-7 add the handler")
+    return repo
+
+
+def test_the_exporters_do_not_filter_by_kind(tmp_path: Path) -> None:
+    """The reason the facts were missing was that nothing added them, not that anything
+    rejected them. If a kind filter ever appears here, this is the test that says so."""
+    from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind
+
+    batch = FactBatch()
+    batch.add_node(Node("py:m.f", NodeKind.FUNCTION, "f", "python", Provenance("m.py", 1)))
+    batch.add_node(Node("intent:PROJ-7", NodeKind.INTENT, "PROJ-7", "", None))
+    batch.add_edge(Edge("py:m.f", "intent:PROJ-7", EdgeKind.SERVES, Provenance("m.py", 1)))
+
+    out = tmp_path / "g.json"
+    export_json(batch, out)
+    data = json.loads(out.read_text(encoding="utf-8"))
+
+    assert any(n["kind"] == "Intent" for n in data["nodes"])
+    assert any(e["kind"] == "SERVES" for e in data["edges"])
+
+
+def test_an_intent_node_survives_carrying_no_provenance(tmp_path: Path) -> None:
+    """An Intent is not a place in a file, so it is ungrounded by construction.
+
+    Any consumer assuming every node has a `file:line` breaks on this kind — the exporter
+    included, which is why it is asserted rather than assumed.
+    """
+    from orchestrator.pkg.facts import FactBatch, Node, NodeKind
+
+    batch = FactBatch()
+    batch.add_node(Node("intent:PROJ-7", NodeKind.INTENT, "PROJ-7", "", None))
+
+    out = tmp_path / "g.json"
+    export_json(batch, out)
+    node = json.loads(out.read_text(encoding="utf-8"))["nodes"][0]
+
+    assert node["kind"] == "Intent"
+    assert not node.get("file")
+    assert node.get("grounded") is False
+
+
+def test_link_intents_attributes_a_symbol_to_its_commits_key(tmp_path: Path) -> None:
+    """End to end on a real repository: blame → commit message → key → SERVES."""
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+    from orchestrator.pkg.intent_link import link_intents
+
+    repo = _repo_with_history(tmp_path)
+    batch = RepoCodeExtractor().extract(repo)
+    coverage = link_intents(batch, repo)
+
+    assert coverage.intents == 1
+    assert coverage.symbols_attributed >= 1
+    assert any(n.id == "intent:PROJ-7" for n in batch.nodes)
