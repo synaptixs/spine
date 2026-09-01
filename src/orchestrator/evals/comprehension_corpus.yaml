@@ -1,0 +1,65 @@
+# G6 comprehension corpus — the repositories the comprehension metrics are measured on.
+#
+# Declared, never derived, for the reason `pkg/repos.py` gives at length: anything computed
+# from a checkout drifts between machines, and a corpus that drifts cannot back a published
+# number. Every entry is pinned to a COMMIT, not a branch — a branch moves under you and the
+# numbers move with it.
+#
+# Five repositories, one per front-end (G6 decision D3, 2026-08-30). Not all eleven pinned for
+# the invention oracle: 30-50 labelled issues spread over eleven repositories is too thin per
+# repository to say anything about any of them.
+#
+# ── Why these commits, and not the ones the invention oracle used ─────────────
+#
+# The pins moved to late November 2025 on 2026-08-31. They were inherited from
+# `invention-oracle-cross-language.md`, where a RECENT tree is exactly right: that oracle counts
+# fabricated edges in whatever the code is now.
+#
+# Localization needs the opposite. It asks "given this issue, does Spine find where the fix
+# WENT?", so the tree has to be the PRE-FIX state and every labelled issue must have been fixed
+# AFTER the pin. Measured against the inherited pins the day labelling started:
+#
+#     vuejs/core     35 merged PRs after the pin
+#     fmtlib/fmt      7
+#     libuv/libuv     2
+#     gin-gonic/gin   0      <- nothing to label
+#     pallets/flask   0      <- nothing to label
+#
+# A 30-50 issue gold set was not reachable, and four fifths of what existed was one repository,
+# which is exactly the language mix D3 chose the corpus to avoid. At these pins the windows are
+# 200+/93/147/71/17 — every front-end can be labelled, Python and Go included.
+#
+# The invention record is untouched: that is a separate eleven-repository corpus which these
+# five only borrowed SHAs from.
+#
+# C# has NO slot in this corpus, and anything published from it must say so rather than let
+# five repositories imply the whole matrix. Dapper (6d48ef664acc) and Newtonsoft.Json
+# (09bb545d7296) stay pinned in `invention-oracle-cross-language.md` and can join when the gold
+# set grows.
+version: 1
+repos:
+  - name: vue-core
+    language: typescript
+    url: https://github.com/vuejs/core.git
+    sha: 25ebe3a42cd80ac0256355c2740a0258cdd7419d
+    why: TypeScript has the weakest CALLS recall we ship (0.50) — measure it or it hides
+  - name: gin
+    language: go
+    url: https://github.com/gin-gonic/gin.git
+    sha: f416d1e594a027063e73f66ac873a82113036fd8
+    why: mid-size, dense HTTP routing — exercises Endpoint/EXPOSES alongside localization
+  - name: fmt
+    language: cpp
+    url: https://github.com/fmtlib/fmt.git
+    sha: 2d839bbc61659d8a464bdcd2717b577f03991d94
+    why: the hardest extraction shape we ship; carried 43 of the 47 fabricated edges
+  - name: libuv
+    language: c
+    url: https://github.com/libuv/libuv.git
+    sha: 8fc70344df789d95c18f3c5282f11dcd85205545
+    why: C recall is 1.00, so a poor localization score here is not a recall artefact
+  - name: flask
+    language: python
+    url: https://github.com/pallets/flask.git
+    sha: ad68a12645d96fe51558da13e18544ba458d7af0
+    why: the largest front-end and the language most users point Spine at

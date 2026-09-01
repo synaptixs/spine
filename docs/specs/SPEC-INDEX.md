@@ -1,16 +1,23 @@
 # Spec index — every design record, and where it stands
 
 **Generated 2026-08-15 against 3.18.1; refreshed 2026-08-21 for the completed GraphIR
-programme.** `docs/specs/` holds **70** markdown files — **67 specs** plus three navigation
-documents ([README](README.md), this index, [STATE-OF-SPINE](STATE-OF-SPINE.md)) — with 6
-archived and 10 build documents. The count read *63* until 2026-08-21, and **five specs were
-not listed at all**, including this file's own companion matrix and both measurements it
-cites as evidence. An inventory that silently omits things is the failure it was built to
-catch, so the count is now stated as a derivation anyone can re-run:
+programme; recounted 2026-09-01 at 3.26.0.** `docs/specs/` holds **78** markdown files —
+**75 specs** plus three navigation documents ([README](README.md), this index,
+[STATE-OF-SPINE](STATE-OF-SPINE.md)) — with 6 archived and 10 build documents. The count read
+*63* until 2026-08-21, and **five specs were not listed at all**, including this file's own
+companion matrix and both measurements it cites as evidence. An inventory that silently omits
+things is the failure it was built to catch, so the count is now stated as a derivation anyone
+can re-run:
 
 ```
-ls docs/specs/*.md | wc -l          # 70
+ls docs/specs/*.md | wc -l          # 78
 ```
+
+**It rotted anyway.** The line read *70* from 2026-08-21 until 2026-08-28 while the directory
+grew to 76 — six specs listed in the table below but not in the count above it. A derivation a
+reader *can* re-run is not a derivation anything *does* re-run, and nothing here fails when the
+two disagree. [STATE-OF-SPINE](STATE-OF-SPINE.md) §8 tracks the missing gate ("CI gate on
+spec-status drift"); until it exists, re-run the command above when adding a spec.
 
 **How to read the Verified column — this matters.** Status is **self-reported by each spec**
 unless marked ✔. This index was built after three separate cases in one session where a status
@@ -33,8 +40,8 @@ Graphify-gap series only. This file is the complete inventory.
 
 ---
 
-> **Start with [STATE-OF-SPINE.md](STATE-OF-SPINE.md)** — one page, verified 2026-08-18 against
-> 3.19.0, covering where the product stands, what is measured, the active programme, and what is
+> **Start with [STATE-OF-SPINE.md](STATE-OF-SPINE.md)** — one page, verified 2026-09-01 against
+> 3.26.0, covering where the product stands, what is measured, the active programme, and what is
 > outstanding. Come here for the per-spec inventory.
 
 ---
@@ -53,6 +60,7 @@ Graphify-gap series only. This file is the complete inventory.
 | [bet2c-in-loop-approval](bet2c-in-loop-approval.md) | Implemented — in-loop approval gate | |
 | [bet2c-rbac-multitenancy](bet2c-rbac-multitenancy.md) | Implemented **as-built** — `Principal`, roles, tenant scoping | **✔** |
 | [doc-ingestion-spec](doc-ingestion-spec.md) | Phases 1–3 — `Doc` + `MENTIONS` + PDF + drift | **✔** |
+| [multi-repo-roadmap](multi-repo-roadmap.md) | **3.23.0** — all four phases: `.spine/repos.yaml`, three joiners, one scoped merged graph. Multi-repo *delivery* remains an explicit non-goal. **Was filed under 📋 "not started or proposal only" until 2026-08-30** while `pkg/repos.py`, `pkg/join_link.py` and `pkg/joins_propose.py` were in source — the §9 failure mode, found by re-reading the row against the code | **✔** |
 | [shareable-report-spec](shareable-report-spec.md) | Phases 1–3 | |
 | [comprehension-skill-spec](comprehension-skill-spec.md) | Phases 1–3 | |
 | [live-observability-otel](live-observability-otel.md) | Phases 1–3 — OTel tracing end-to-end | **✔** |
@@ -76,6 +84,7 @@ Graphify-gap series only. This file is the complete inventory.
 | [cross-run-semantic-memory](cross-run-semantic-memory.md) | Phase 1 read path, `MemoryRow` | Write/distil path |
 | [project-comprehension-memory-bank](project-comprehension-memory-bank.md) | Phases 1 + 4 (1.5.0, 1.6.0) | Phases 2–3 |
 | [persona-skill-measurement](persona-skill-measurement.md) | P0–P3 implemented | The P2 A/B `--live` run |
+| [watch-items-roadmap](watch-items-roadmap.md) | **Written 2026-08-30** — the spec three pages linked for a month and nobody had. WI-1 recommended for removal (premise unsourced; both readings already shipped) | **WI-2, all three phases.** Phase 1 is a live defect: `stale_findings` fabricates staleness on every non-Python file, in the PR-review path | **✔** |
 
 ## 📋 Outstanding — not started or proposal only
 
@@ -93,10 +102,8 @@ Graphify-gap series only. This file is the complete inventory.
 | [pkg-code-grounded-understanding](pkg-code-grounded-understanding.md) | Proposed, for review | |
 | [language-support-roadmap](language-support-roadmap.md) | Design/blueprint, not started | Three new front-ends |
 | [language-expansion-roadmap](language-expansion-roadmap.md) | Prioritization only | Go ✅ · Rust · Kotlin · Ruby |
-| [multi-repo-roadmap](multi-repo-roadmap.md) | One graph across several repositories — comprehension only. **Spec only; Phase 1 is a blocking identity decision.** Multi-repo *delivery* is an explicit non-goal |
 | [tri-repo-integration](tri-repo-integration.md) | Design only | Spans ontomesh + infodrift |
 | [ontomesh-integration-analysis](ontomesh-integration-analysis.md) | Analysis for decision | Nothing built |
-| **watch-items** | ⚠️ **Spec missing** | `watch-items-roadmap.md` does not exist in `docs/specs/` or `archive/`; the index linked it as a live track | **✔** |
 
 ## ⚠️ Status line contradicts reality
 
@@ -119,6 +126,7 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | [capability-matrix](capability-matrix.md) | **The** capability matrix — 47 scored rows, 22 of them rows no competitor's public docs fill. Counts checked by `scripts/matrix-count.py --check` (2026-08-21) |
 | [codegen-model-comparison-results](codegen-model-comparison-results.md) · [external-repo-grounding-results](external-repo-grounding-results.md) | The two measurements behind the matrix's ⁴ rows — 200 and 60 ticket-runs (2026-08-16) |
 | [parsing-and-the-pkg](parsing-and-the-pkg.md) | How source becomes graph facts, front-end by front-end (2026-08-16) |
+| [document-ingestion-reference](document-ingestion-reference.md) | How *prose* becomes graph facts, format by format — the five stages, per-format behaviour, bounds, and the measured cost of losing headings (2026-08-29) |
 | [ticket-to-landing-sites](ticket-to-landing-sites.md) | How a ticket's words become `file:line` landing sites — tokenising, scoring, and what the result is bound to (2026-08-25) |
 | [competitive-landscape](competitive-landscape.md) | Competitive **narrative and strategy** (2026-08-21). Its duplicate scored matrix was removed — see `capability-matrix.md` |
 | [graphify-vs-spine-comparison](graphify-vs-spine-comparison.md) | One competitor in depth — **at v3.7.0, stale** |
@@ -143,11 +151,17 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 
 | State | Count |
 |---|---|
-| ✅ Complete | 16 |
-| 🟡 Partial | 12 |
-| 📋 Outstanding | 15 *(incl. 1 missing spec)* |
+| ✅ Complete | 17 |
+| 🟡 Partial | 13 |
+| 📋 Outstanding | 13 |
 | ⚠️ Stale status | 2 |
-| 📖 Reference | 23 |
+| 📖 Reference | 24 |
+
+> **These five numbers have no derivation.** Unlike the file count above them, nothing re-runs
+> them and they do not reconcile to the 74 specs in the header — reference rows double-count
+> specs listed above and fold `archive/` and `build-documents/` into single lines. Treat them as
+> a shape, not an inventory; the "CI gate on spec-status drift" in
+> [STATE-OF-SPINE](STATE-OF-SPINE.md) §8 is what would make them checkable.
 
 **The programme is further along than its own paperwork says.** Every discrepancy found this
 session ran the same direction — work shipped, the status line didn't move. Nothing was claimed

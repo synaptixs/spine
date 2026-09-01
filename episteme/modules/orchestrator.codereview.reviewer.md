@@ -9,18 +9,18 @@
 
 ## Changing this safely
 
-**Tested by** (2): `tests.codereview.test_grounding`, `tests.codereview.test_reviewer`
+**Tested by** (3): `tests.codereview.test_checkout_grounding`, `tests.codereview.test_grounding`, `tests.codereview.test_reviewer`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
+- [`_format_comment`](../../src/orchestrator/codereview/reviewer.py#L224) — reaches **5** symbols
+- [`_format_summary`](../../src/orchestrator/codereview/reviewer.py#L228) — reaches **5** symbols
+- [`_valid_anchors`](../../src/orchestrator/codereview/reviewer.py#L185) — reaches **5** symbols
+- [`_verdict`](../../src/orchestrator/codereview/reviewer.py#L215) — reaches **5** symbols
 - [`LLMReviewer`](../../src/orchestrator/codereview/reviewer.py#L80) — reaches **4** symbols
 - [`ReviewService`](../../src/orchestrator/codereview/reviewer.py#L252) — reaches **4** symbols
-- [`_format_comment`](../../src/orchestrator/codereview/reviewer.py#L224) — reaches **4** symbols
-- [`_format_summary`](../../src/orchestrator/codereview/reviewer.py#L228) — reaches **4** symbols
-- [`_valid_anchors`](../../src/orchestrator/codereview/reviewer.py#L185) — reaches **4** symbols
-- [`_verdict`](../../src/orchestrator/codereview/reviewer.py#L215) — reaches **4** symbols
+- [`build_review_submission`](../../src/orchestrator/codereview/reviewer.py#L197) — reaches **4** symbols
 - [`_coerce_severity`](../../src/orchestrator/codereview/reviewer.py#L178) — reaches **3** symbols · **no test path visible**
-- [`build_review_submission`](../../src/orchestrator/codereview/reviewer.py#L197) — reaches **3** symbols
 
 _3 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -36,7 +36,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/codereview/reviewer.py:80`](../../src/orchestrator/codereview/reviewer.py#L80)
 
-- **Called by** (2 production · 9 test): [`_build_review_service`](../../src/orchestrator/codereview/webhook.py#L177), [`_main`](../../scripts/live_review.py#L32), [`_service`](../../tests/codereview/test_reviewer.py#L196), [`test_llm_reviewer_degrades_on_garbage`](../../tests/codereview/test_reviewer.py#L95), [`test_llm_reviewer_parses_findings`](../../tests/codereview/test_reviewer.py#L58), [`test_llm_reviewer_skips_malformed_findings`](../../tests/codereview/test_reviewer.py#L102), [`test_llm_reviewer_tolerates_code_fence`](../../tests/codereview/test_reviewer.py#L86), [`test_review_service_carries_grounding_verifier`](../../tests/codereview/test_grounding.py#L153), [`test_review_service_posts_pkg_impact_comment`](../../tests/codereview/test_grounding.py#L115), [`test_reviewer_injects_grounding_into_prompt`](../../tests/codereview/test_grounding.py#L75), [`test_reviewer_without_grounder_has_no_impact_section`](../../tests/codereview/test_grounding.py#L82)
+- **Called by** (2 production · 10 test): [`_build_review_service`](../../src/orchestrator/codereview/webhook.py#L177), [`_main`](../../scripts/live_review.py#L32), [`_service`](../../tests/codereview/test_checkout_grounding.py#L78), [`_service`](../../tests/codereview/test_reviewer.py#L196), [`test_llm_reviewer_degrades_on_garbage`](../../tests/codereview/test_reviewer.py#L95), [`test_llm_reviewer_parses_findings`](../../tests/codereview/test_reviewer.py#L58), [`test_llm_reviewer_skips_malformed_findings`](../../tests/codereview/test_reviewer.py#L102), [`test_llm_reviewer_tolerates_code_fence`](../../tests/codereview/test_reviewer.py#L86), [`test_review_service_carries_grounding_verifier`](../../tests/codereview/test_grounding.py#L245), [`test_review_service_posts_pkg_impact_comment`](../../tests/codereview/test_grounding.py#L115), [`test_reviewer_injects_grounding_into_prompt`](../../tests/codereview/test_grounding.py#L75), [`test_reviewer_without_grounder_has_no_impact_section`](../../tests/codereview/test_grounding.py#L82)
 - **Fields**: `_grounder`, `_llm`, `_model`
 
 ### `ReviewGrounder`
@@ -49,8 +49,9 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/codereview/reviewer.py:252`](../../src/orchestrator/codereview/reviewer.py#L252)
 
-- **Called by** (2 production · 3 test): [`_build_review_service`](../../src/orchestrator/codereview/webhook.py#L177), [`_main`](../../scripts/live_review.py#L32), [`_service`](../../tests/codereview/test_reviewer.py#L196), [`test_review_service_carries_grounding_verifier`](../../tests/codereview/test_grounding.py#L153), [`test_review_service_posts_pkg_impact_comment`](../../tests/codereview/test_grounding.py#L115)
-- **Fields**: `_audit`, `_github`, `_impact_source`, `_reviewer`, `_verifiers`
+- **Called by** (2 production · 4 test): [`_build_review_service`](../../src/orchestrator/codereview/webhook.py#L177), [`_main`](../../scripts/live_review.py#L32), [`_service`](../../tests/codereview/test_checkout_grounding.py#L78), [`_service`](../../tests/codereview/test_reviewer.py#L196), [`test_review_service_carries_grounding_verifier`](../../tests/codereview/test_grounding.py#L245), [`test_review_service_posts_pkg_impact_comment`](../../tests/codereview/test_grounding.py#L115)
+- **Fields**: `_audit`, `_github`, `_grounding`, `_impact_source`, `_reviewer`, `_verifiers`
+- **Documented in**: `CHANGELOG.md`
 
 ## Functions
 
@@ -92,7 +93,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/codereview/reviewer.py:185`](../../src/orchestrator/codereview/reviewer.py#L185)
 
 - **Called by** (1): [`build_review_submission`](../../src/orchestrator/codereview/reviewer.py#L197)
-- **Calls** (1): [`iter_added_lines`](../../src/orchestrator/codereview/diff_utils.py#L26)
+- **Calls** (1): [`iter_added_lines`](../../src/orchestrator/codereview/diff_utils.py#L39)
 
 ### `_verdict`
 
@@ -105,8 +106,8 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/codereview/reviewer.py:197`](../../src/orchestrator/codereview/reviewer.py#L197)
 
-- **Called by** (1 production · 3 test): [`_compute`](../../src/orchestrator/codereview/reviewer.py#L270), [`test_submission_anchors_inline_vs_floating_and_blocks`](../../tests/codereview/test_reviewer.py#L121), [`test_submission_clean_diff_comments_not_approves`](../../tests/codereview/test_reviewer.py#L145), [`test_submission_warnings_only_does_not_block`](../../tests/codereview/test_reviewer.py#L138)
-- **Calls** (6): [`ReviewComment`](../../src/orchestrator/codereview/github_client.py#L94), [`ReviewSubmission`](../../src/orchestrator/codereview/github_client.py#L104), [`_format_comment`](../../src/orchestrator/codereview/reviewer.py#L224), [`_format_summary`](../../src/orchestrator/codereview/reviewer.py#L228), [`_valid_anchors`](../../src/orchestrator/codereview/reviewer.py#L185), [`_verdict`](../../src/orchestrator/codereview/reviewer.py#L215)
+- **Called by** (1 production · 3 test): [`_assemble`](../../src/orchestrator/codereview/reviewer.py#L300), [`test_submission_anchors_inline_vs_floating_and_blocks`](../../tests/codereview/test_reviewer.py#L121), [`test_submission_clean_diff_comments_not_approves`](../../tests/codereview/test_reviewer.py#L145), [`test_submission_warnings_only_does_not_block`](../../tests/codereview/test_reviewer.py#L138)
+- **Calls** (6): [`ReviewComment`](../../src/orchestrator/codereview/github_client.py#L99), [`ReviewSubmission`](../../src/orchestrator/codereview/github_client.py#L109), [`_format_comment`](../../src/orchestrator/codereview/reviewer.py#L224), [`_format_summary`](../../src/orchestrator/codereview/reviewer.py#L228), [`_valid_anchors`](../../src/orchestrator/codereview/reviewer.py#L185), [`_verdict`](../../src/orchestrator/codereview/reviewer.py#L215)
 
 ## Imports
 
@@ -114,4 +115,4 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.codereview.webhook`](../../src/orchestrator/codereview/webhook.py#L1), [`scripts.live_review`](../../scripts/live_review.py#L1), [`tests.codereview.test_grounding`](../../tests/codereview/test_grounding.py#L1), [`tests.codereview.test_reviewer`](../../tests/codereview/test_reviewer.py#L1)
+[`orchestrator.codereview.webhook`](../../src/orchestrator/codereview/webhook.py#L1), [`scripts.live_review`](../../scripts/live_review.py#L1), [`tests.codereview.test_checkout_grounding`](../../tests/codereview/test_checkout_grounding.py#L1), [`tests.codereview.test_grounding`](../../tests/codereview/test_grounding.py#L1), [`tests.codereview.test_reviewer`](../../tests/codereview/test_reviewer.py#L1)

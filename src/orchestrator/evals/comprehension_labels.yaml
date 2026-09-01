@@ -1,0 +1,331 @@
+# G6 gold set — hand-labelled issues, and where their fixes actually landed.
+#
+# EMPTY ON PURPOSE. Localization reports `not_measured` until this file has entries, which is
+# the truth: a 0 here would be indistinguishable from never having measured (G6 D2).
+#
+# ── How to add one ────────────────────────────────────────────────────────────
+#
+#   1. Pick a closed issue from one of the five pinned repositories, fixed AFTER the commit
+#      that repository is pinned at (see comprehension_corpus.yaml). The corpus tree is the
+#      pre-fix state, which is the point: we ask whether Spine can find where the fix WILL go.
+#   2. Find the commit that fixed it.
+#   3. See what that commit changed:
+#
+#        orchestrator pkg fix-sites <repo-name> <fix-commit-sha>
+#
+#      That prints the paths and symbols the commit touched, straight from git. It does not
+#      choose for you — a commit usually touches tests, changelogs and incidental tidying, and
+#      deciding which change IS the fix is the judgement this gold set exists to capture.
+#   4. Record the real fix site(s) below. Validate with:
+#
+#        orchestrator pkg labels --check
+#
+# ── Why the answer comes from the fix commit ──────────────────────────────────
+#
+# What the fixing commit changed IS the answer — that is git, not an opinion. An answer read
+# off the ticket the way `investigate` reads it would not be independent of the thing being
+# scored: it would measure two readers of the same clues agreeing, and report it as accuracy.
+#
+# ── Fields ────────────────────────────────────────────────────────────────────
+#
+#   repo        a name from comprehension_corpus.yaml (vue-core | gin | fmt | libuv | flask)
+#   issue       the issue URL, so any row can be checked upstream
+#   title       the ticket text handed to `investigate` — stored so a re-run needs no network
+#   body        optional; more ticket text, same purpose
+#   fix_commit  the FULL 40-character commit. Abbreviations are refused at load
+#   fix_sites   where the fix landed: a path, optionally with the symbol
+#   note        optional; anything a reader would want to know about a judgement call
+#
+# ── A worked example, commented out ───────────────────────────────────────────
+#
+# labels:
+#   - repo: flask
+#     issue: https://github.com/pallets/flask/issues/0000
+#     title: "send_file() sets the wrong mimetype for .mjs"
+#     fix_commit: 0000000000000000000000000000000000000000
+#     fix_sites:
+#       - path: src/flask/helpers.py
+#         symbol: send_file
+#     note: the same commit updated CHANGES.rst and a test; neither is the fix
+
+version: 1
+
+labels:
+  - repo: flask
+    issue: https://github.com/pallets/flask/issues/6093
+    title: 'IPv6 addresses parsed incorrectly because of `.partition(":")`?'
+    fix_commit: 05e9c6bd630ecf4ec0ec884b1fc7901663737bc7
+    fix_sites:
+      - path: src/flask/app.py
+      - path: src/flask/testing.py
+
+  - repo: flask
+    issue: https://github.com/pallets/flask/issues/5916
+    title: '`provide_automatic_options` is weird'
+    fix_commit: 12e95c93b488725f80753f34b2e0d24838ca4646
+    fix_sites:
+      - path: src/flask/sansio/app.py
+
+  - repo: flask
+    issue: https://github.com/pallets/flask/issues/5816
+    title: 'deprecate `should_ignore_error`'
+    fix_commit: 4b8bde97d4fa3486e18dce21c3c5f75570d50164
+    fix_sites:
+      - path: src/flask/app.py
+      - path: src/flask/sansio/app.py
+
+  - repo: flask
+    issue: https://github.com/pallets/flask/issues/5895
+    title: 'change default redirect code to 303'
+    fix_commit: 809d5a8869d4ffe8656680b2438b10f7c8845613
+    fix_sites:
+      - path: src/flask/helpers.py
+      - path: src/flask/sansio/app.py
+
+  - repo: vue-core
+    issue: https://github.com/vuejs/core/issues/15332
+    title: 'Suspense `timeout` + Transition `out-in`: parent update during the fallback swap permanently drops the resolved branch'
+    fix_commit: cd1974562357dd73101d048f207a694a4e5310ec
+    fix_sites:
+      - path: packages/runtime-core/src/components/Suspense.ts
+
+  - repo: vue-core
+    issue: https://github.com/vuejs/core/issues/15320
+    title: 'looseEqual() reports Map and Set instances with different contents as equal'
+    fix_commit: ef82a26775952a665545d3771788bd23b2efec91
+    fix_sites:
+      - path: packages/shared/src/looseEqual.ts
+
+  - repo: vue-core
+    issue: https://github.com/vuejs/core/issues/12680
+    title: '$el of templateRef points to comment VNode instead of first real child of component'
+    fix_commit: 8654f35118a1165ac30fd398ceaff8849c44d9d5
+    fix_sites:
+      - path: packages/runtime-core/src/componentPublicInstance.ts
+
+  - repo: vue-core
+    issue: https://github.com/vuejs/core/issues/10505
+    title: 'Clearing `select`''s value in change handler behaviour changed since 3.4.15 via webdriver'
+    fix_commit: 6eaecc14d8151a7d258b80ce0519e5ecc17a2bef
+    fix_sites:
+      - path: packages/runtime-dom/src/directives/vModel.ts
+
+  - repo: vue-core
+    issue: https://github.com/vuejs/core/issues/15288
+    title: 'KeepAlive caches a never-mounted vnode when a switch lands while an ancestor Suspense is pending'
+    fix_commit: b535917d46d5c6e28c1d3b9185bfa1665127c73a
+    fix_sites:
+      - path: packages/runtime-core/src/components/KeepAlive.ts
+
+  - repo: vue-core
+    issue: https://github.com/vuejs/core/issues/5081
+    title: 'Throw an error on createVNode with using `innerHTML` and `children` at the same time'
+    fix_commit: 684a8defd2fdcba7eafa0c817b97ae1fab2c8b75
+    fix_sites:
+      - path: packages/runtime-core/src/vnode.ts
+
+  - repo: vue-core
+    issue: https://github.com/vuejs/core/issues/15174
+    title: 'compiler-sfc: recursive type + indexed access makes compileScript walk a cyclic AST (RangeError: Maximum call stack size exceeded)'
+    fix_commit: c9389cc65e44b6cd60e56e2a7db1c4d2721501d5
+    fix_sites:
+      - path: packages/compiler-sfc/src/script/resolveType.ts
+
+  - repo: vue-core
+    issue: https://github.com/vuejs/core/issues/15153
+    title: 'Custom elements: async components nested ≥3 levels crash with `TypeError: Cannot read properties of null (reading ''provides'')` — chained child resolve races its parent''s mount'
+    fix_commit: 71f9ff58a2a8748b2c1ec26c55c89f7343b86110
+    fix_sites:
+      - path: packages/runtime-dom/src/apiCustomElement.ts
+
+  - repo: gin
+    issue: https://github.com/gin-gonic/gin/issues/4622
+    title: 'SaveUploadedFile: unexpected chmod on existing directories (breaks /tmp usage)'
+    fix_commit: d9307dbcbbe796a64d9e0ef23452da888dd7f904
+    fix_sites:
+      - path: context.go
+
+  - repo: gin
+    issue: https://github.com/gin-gonic/gin/issues/2088
+    title: 'Recovery middleware does not add error to context'
+    fix_commit: 4a3eb31fb15b2a2d78b4bdbe0c31a2c564b1977a
+    fix_sites:
+      - path: recovery.go
+
+  - repo: gin
+    issue: https://github.com/gin-gonic/gin/issues/2959
+    title: 'With RedirectFixedPath enabled, the request execution panics when a 404 is expected'
+    fix_commit: 472d086af2acd924cb4b9d7be0525f7d790f69bc
+    fix_sites:
+      - path: tree.go
+
+  - repo: gin
+    issue: https://github.com/gin-gonic/gin/issues/4468
+    title: 'ClientIP from RemoteIPHeaders calculation should concatenate all header values'
+    fix_commit: 9914178584e42458ff7d23891463a880f58c9d86
+    fix_sites:
+      - path: context.go
+
+  - repo: fmt
+    issue: https://github.com/fmtlib/fmt/issues/4851
+    title: 'Inconsistent widths when UTF8 characters are used'
+    fix_commit: d0cec7ae2ec6d01714db314983aa6fb9d53184ab
+    fix_sites:
+      - path: include/fmt/format.h
+
+  - repo: fmt
+    issue: https://github.com/fmtlib/fmt/issues/4894
+    title: 'inf and nan are left-aligned with a bare width'
+    fix_commit: e76a9520a3c339d2cb6a1510db43a05ea9bd8ae6
+    fix_sites:
+      - path: include/fmt/format.h
+
+  - repo: fmt
+    issue: https://github.com/fmtlib/fmt/issues/4794
+    title: 'FMT_COMPILE with user-defined type formatted via format_as fails to compile'
+    fix_commit: af2d9f2b78d68e2fa8f7d5f120da3127e954ec05
+    fix_sites:
+      - path: include/fmt/compile.h
+
+  - repo: fmt
+    issue: https://github.com/fmtlib/fmt/issues/4811
+    title: 'Breakage of x86 (32bit) builds'
+    fix_commit: 588b3a0f8f6a8bcf2a959cae882d5b2703e86737
+    fix_sites:
+      - path: include/fmt/format.h
+
+  - repo: fmt
+    issue: https://github.com/fmtlib/fmt/issues/4741
+    title: 'sprintf reads past end of format string on trailing %'
+    fix_commit: 4ccf1d4faf977a77f157fcad2b96b663109f59cb
+    fix_sites:
+      - path: include/fmt/printf.h
+
+  - repo: fmt
+    issue: https://github.com/fmtlib/fmt/issues/4714
+    title: 'std::format_to_n() doesn''t work with wchar_t and fmt::runtime()'
+    fix_commit: ea85b81ccdb28dda636351e80a1888b1d279f325
+    fix_sites:
+      - path: include/fmt/xchar.h
+
+  - repo: fmt
+    issue: https://github.com/fmtlib/fmt/issues/4683
+    title: 'Feature request: Provide public interface to destruct a `"name"_a=value` argument'
+    fix_commit: db4bea83d615facc0506c0151fc64fe8a9e139d4
+    fix_sites:
+      - path: include/fmt/args.h
+      - path: include/fmt/base.h
+      - path: include/fmt/xchar.h
+
+  - repo: fmt
+    issue: https://github.com/fmtlib/fmt/issues/4123
+    title: 'Cannot suppress range formatter when type has a container_type member type.'
+    fix_commit: 5cc5072aa68c48a8c67f4d09ef1b9fcb9ab15a26
+    fix_sites:
+      - path: include/fmt/ranges.h
+
+  - repo: libuv
+    issue: https://github.com/libuv/libuv/issues/5205
+    title: 'Should `uv_cancel` be documented to be UB on write requests to closing streams?'
+    fix_commit: ff8ce838bee78e0763c5090a4a3d5b1b200945a9
+    fix_sites:
+      - path: src/threadpool.c
+
+  - repo: libuv
+    issue: https://github.com/libuv/libuv/issues/5182
+    title: 'unix: trailing zero-length buffer in uv_write() performance issue'
+    fix_commit: 9d51562c10be60bc1126a3d71803b1038f4fbb7e
+    fix_sites:
+      - path: src/unix/stream.c
+
+  - repo: libuv
+    issue: https://github.com/libuv/libuv/issues/5178
+    title: 'make libuv compatible with Windows AppContainer'
+    fix_commit: 2cadaa40167050baf7c6905ac897e6fb57afb2c6
+    fix_sites:
+      - path: src/win/pipe.c
+
+  - repo: libuv
+    issue: https://github.com/libuv/libuv/issues/5161
+    title: 'invalid data used in `recvmmsg` handling'
+    fix_commit: 895cd04bf7cadd2f8993c0d6fc7e55eaaec60bc9
+    fix_sites:
+      - path: src/unix/udp.c
+
+  - repo: libuv
+    issue: https://github.com/libuv/libuv/issues/5010
+    title: 'win: Assertion failure in fs_event_watch_dir_short_path'
+    fix_commit: e640dc93c79e1b930e320853a5f9f65fa489158d
+    fix_sites:
+      - path: src/win/fs-event.c
+
+  - repo: libuv
+    issue: https://github.com/libuv/libuv/issues/5114
+    title: 'aix,ibmi: _PATH_DEFPATH and NAME_MAX undefined after posix_spawn changes'
+    fix_commit: 79b923ea3385af80c6e252632fe688e604b953c4
+    fix_sites:
+      - path: src/unix/process.c
+
+  - repo: libuv
+    issue: https://github.com/libuv/libuv/issues/5106
+    title: 'uv_tcp_keepalive_ex is making Node.js net keep alive tests flaky on windows'
+    fix_commit: aabb7651de73ec2f1a74361ca3430eed1a62e402
+    fix_sites:
+      - path: src/win/tcp.c
+
+  - repo: libuv
+    issue: https://github.com/libuv/libuv/issues/5086
+    title: 'unix: unchecked getsockopt(SO_ERROR) in uv__stream_connect'
+    fix_commit: 1c1dadaf28d78690cfc08afc47202a4742b4e1f4
+    fix_sites:
+      - path: src/unix/stream.c
+
+  - repo: libuv
+    issue: https://github.com/libuv/libuv/issues/5083
+    title: 'unix: unchecked uv_mutex_init() in process title initialization'
+    fix_commit: 40178b916e5937ed43c557aa051bdb3f86f6ca93
+    fix_sites:
+      - path: src/unix/ibmi.c
+      - path: src/unix/proctitle.c
+
+  - repo: libuv
+    issue: https://github.com/libuv/libuv/issues/5081
+    title: 'unix: unchecked uv__cloexec() return value on kqueue fd in uv__kqueue_init'
+    fix_commit: 3d09fed7b3c7568391ba5d472da55e3662882c14
+    fix_sites:
+      - path: src/unix/kqueue.c
+
+  - repo: libuv
+    issue: https://github.com/libuv/libuv/issues/1490
+    title: 'win process spawn: race condition in inheriting handles'
+    fix_commit: 9f5306fa36b2f39aed6470189269cba5e4c9ab42
+    fix_sites:
+      - path: src/win/process.c
+
+  - repo: libuv
+    issue: https://github.com/libuv/libuv/issues/5092
+    title: 'android: only enable fdsan on api >= 29'
+    fix_commit: e3a27e07287f910b955e2778189413da02172c4b
+    fix_sites:
+      - path: src/unix/linux.c
+
+  - repo: libuv
+    issue: https://github.com/libuv/libuv/issues/5080
+    title: 'unix: unchecked uv__nonblock_fcntl() return value in process.c'
+    fix_commit: 1f56978a2822fe228f17d4f9a2f4ba4ed628686f
+    fix_sites:
+      - path: src/unix/process.c
+
+  - repo: libuv
+    issue: https://github.com/libuv/libuv/issues/5051
+    title: '-Wpedantic warnings: converts between void pointer and function pointer'
+    fix_commit: a43e543dbffba93f014fe8360a5edbe8d6ce8500
+    fix_sites:
+      - path: src/unix/fs.c
+      - path: src/uv-common.c
+
+# Issues examined and set aside. Recorded rather than dropped: an exclusion says what the
+# corpus does NOT cover, and silently omitting it is how a benchmark implies coverage it never
+# had. Give a real reason — "spans three repositories, no single landing site" is a reason,
+# "not suitable" is not.
+excluded: []

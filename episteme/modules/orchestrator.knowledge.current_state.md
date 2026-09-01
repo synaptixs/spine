@@ -9,7 +9,7 @@
 
 ## Changing this safely
 
-**Tested by** (5): `tests.knowledge.test_current_state`, `tests.knowledge.test_report_html`, `tests.knowledge.test_report_svg`, `tests.knowledge.test_report_svg_clusters`, `tests.knowledge.test_shared_analysis`
+**Tested by** (6): `tests.knowledge.test_current_state`, `tests.knowledge.test_report_html`, `tests.knowledge.test_report_svg`, `tests.knowledge.test_report_svg_clusters`, `tests.knowledge.test_shared_analysis`, `tests.pkg.test_accuracy`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
@@ -198,7 +198,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:841`](../../src/orchestrator/knowledge/current_state.py#L841)
 
-- **Called by** (4): [`_render_state_html`](../../src/orchestrator/cli.py#L2272), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L859), [`run`](../../src/orchestrator/plugin/server.py#L781), [`run`](../../src/orchestrator/plugin/server.py#L350)
+- **Called by** (4 production · 1 test): [`_render_state_html`](../../src/orchestrator/cli.py#L2272), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L859), [`run`](../../src/orchestrator/plugin/server.py#L781), [`run`](../../src/orchestrator/plugin/server.py#L350), [`test_the_gate_number_is_the_number_state_reports`](../../tests/pkg/test_accuracy.py#L454)
 - **Calls** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
@@ -215,4 +215,4 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 ## Imported by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.renderers`](orchestrator.knowledge.renderers.md), [`orchestrator.knowledge.report_html`](orchestrator.knowledge.report_html.md), [`orchestrator.knowledge.report_svg`](../../src/orchestrator/knowledge/report_svg.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.registry.api.capabilities`](orchestrator.registry.api.capabilities.md), [`orchestrator.sdlc.comprehension`](../../src/orchestrator/sdlc/comprehension.py#L1), [`tests.knowledge.test_current_state`](../../tests/knowledge/test_current_state.py#L1), [`tests.knowledge.test_report_html`](../../tests/knowledge/test_report_html.py#L1), [`tests.knowledge.test_report_svg`](../../tests/knowledge/test_report_svg.py#L1), [`tests.knowledge.test_report_svg_clusters`](../../tests/knowledge/test_report_svg_clusters.py#L1), [`tests.knowledge.test_shared_analysis`](../../tests/knowledge/test_shared_analysis.py#L1)
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.renderers`](orchestrator.knowledge.renderers.md), [`orchestrator.knowledge.report_html`](orchestrator.knowledge.report_html.md), [`orchestrator.knowledge.report_svg`](../../src/orchestrator/knowledge/report_svg.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.registry.api.capabilities`](orchestrator.registry.api.capabilities.md), [`orchestrator.sdlc.comprehension`](../../src/orchestrator/sdlc/comprehension.py#L1), [`tests.knowledge.test_current_state`](../../tests/knowledge/test_current_state.py#L1), [`tests.knowledge.test_report_html`](../../tests/knowledge/test_report_html.py#L1), [`tests.knowledge.test_report_svg`](../../tests/knowledge/test_report_svg.py#L1), [`tests.knowledge.test_report_svg_clusters`](../../tests/knowledge/test_report_svg_clusters.py#L1), [`tests.knowledge.test_shared_analysis`](../../tests/knowledge/test_shared_analysis.py#L1), [`tests.pkg.test_accuracy`](../../tests/pkg/test_accuracy.py#L1)

@@ -8,6 +8,7 @@ moves the number it annotates.
 from __future__ import annotations
 
 import json
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -375,3 +376,86 @@ def test_an_unmeasured_language_is_not_gated() -> None:
         }
     )
     assert compare_scoreboard(board, board) == []
+
+
+# ---- documentation drift, and why the gate is on the rate (WI-2 phase 3) ----
+
+
+def _drift_repo(tmp_path: Path, *, doc: str) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "m.py").write_text("def real_symbol():\n    return 1\n", encoding="utf-8")
+    (repo / "README.md").write_text(doc, encoding="utf-8")
+    return repo
+
+
+def test_drift_counts_claims_the_graph_cannot_support(tmp_path: Path) -> None:
+    from orchestrator.pkg.accuracy import score_drift
+
+    repo = _drift_repo(tmp_path, doc="# Guide\n\nCall `absent_symbol` after `real_symbol`.\n")
+    report = score_drift(repo)
+    assert report.count == 1 and report.docs >= 1 and report.measured
+    # The denominator is every claim, so the bound one counts too.
+    assert report.mentions >= 2 and report.rate is not None and report.rate < 1
+
+
+def test_no_documentation_is_not_a_clean_result(tmp_path: Path) -> None:
+    """Zero drift on zero docs must be legible as 'nothing measured' (§9)."""
+    from orchestrator.pkg.accuracy import score_drift
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "m.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+
+    report = score_drift(repo)
+    assert report.count == 0 and report.docs == 0
+    assert not report.measured
+
+
+def test_drift_never_fails_a_build() -> None:
+    """The gate shipped 2026-08-31 and was withdrawn the same day, one PR later.
+
+    It failed a documentation change — the work it existed to protect — and fixing its
+    denominator did not rescue it, because about a tenth of the population cannot bind by
+    construction. Recorded and trended instead; see GATES for what would make it gate material.
+    """
+    from orchestrator.pkg.accuracy import GATES, compare_scoreboard
+
+    assert GATES["drift"] is False
+    much_worse = {"metrics": {"drift": {"count": 500, "mentions": 1000, "docs": 100}}}
+    was = {"metrics": {"drift": {"count": 10, "mentions": 1000, "docs": 100}}}
+    assert [r for r in compare_scoreboard(was, much_worse) if r.metric == "drift"] == []
+
+
+def test_the_denominator_is_claims_made_not_sections() -> None:
+    """A section count does not move when prose inside a section is edited.
+
+    That was the first defect: any added claim raised the figure with nothing able to dilute
+    it, and the result was not bounded by 1, so it was not a rate.
+    """
+    from orchestrator.pkg.accuracy import DriftReport
+
+    report = DriftReport(count=10, docs=100, mentions=1000)
+    assert report.rate == Fraction(1, 100)
+
+    # The old shape: more drift claims than sections, a "rate" above 1.
+    assert DriftReport(count=893, docs=1532, mentions=0).rate is None
+
+
+def test_an_edited_section_dilutes_when_it_adds_bound_claims() -> None:
+    """What the corrected denominator buys, even though it is no longer gated on."""
+    from orchestrator.pkg.accuracy import DriftReport
+
+    before = DriftReport(count=10, docs=100, mentions=1000)
+    after = DriftReport(count=10, docs=100, mentions=1200)  # same section, 200 more claims
+    assert after.rate is not None and before.rate is not None and after.rate < before.rate
+
+
+def test_the_gate_number_is_the_number_state_reports(tmp_path: Path) -> None:
+    """A reader who sees one number in the report and another in the gate can act on neither."""
+    from orchestrator.knowledge.current_state import load_current_state
+    from orchestrator.pkg.accuracy import score_drift
+
+    repo = _drift_repo(tmp_path, doc="# Guide\n\nCall `absent_symbol` and `also_absent`.\n")
+    state, _ = load_current_state(repo)
+    assert score_drift(repo).count == state.doc_drift_total

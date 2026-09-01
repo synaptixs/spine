@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L225) — reaches **22** symbols
-- [`repo_state`](../../src/orchestrator/pkg/persistence.py#L144) — reaches **21** symbols
-- [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L218) — reaches **20** symbols
-- [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L154) — reaches **20** symbols
-- [`load_facts`](../../src/orchestrator/pkg/persistence.py#L123) — reaches **18** symbols
-- [`save_facts`](../../src/orchestrator/pkg/persistence.py#L116) — reaches **18** symbols
-- [`_git`](../../src/orchestrator/pkg/persistence.py#L137) — reaches **17** symbols
-- [`extractor_fingerprint`](../../src/orchestrator/pkg/persistence.py#L177) — reaches **13** symbols
+- [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L225) — reaches **30** symbols
+- [`repo_state`](../../src/orchestrator/pkg/persistence.py#L144) — reaches **27** symbols
+- [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L218) — reaches **26** symbols
+- [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L154) — reaches **26** symbols
+- [`load_facts`](../../src/orchestrator/pkg/persistence.py#L123) — reaches **24** symbols
+- [`save_facts`](../../src/orchestrator/pkg/persistence.py#L116) — reaches **24** symbols
+- [`_git`](../../src/orchestrator/pkg/persistence.py#L137) — reaches **21** symbols
+- [`extractor_fingerprint`](../../src/orchestrator/pkg/persistence.py#L177) — reaches **17** symbols
 
 ## Documented in
 
@@ -140,7 +140,7 @@
 
 [`src/orchestrator/pkg/persistence.py:225`](../../src/orchestrator/pkg/persistence.py#L225)
 
-- **Called by** (2): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L366)
+- **Called by** (4): [`_baseline_drift`](../../src/orchestrator/codereview/checkout.py#L134), [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L366), [`score_label`](../../src/orchestrator/evals/localization.py#L73)
 - **Calls** (7): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L577), [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L218), [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L154), [`load_facts`](../../src/orchestrator/pkg/persistence.py#L123), `pathlib.Path`, [`repo_state`](../../src/orchestrator/pkg/persistence.py#L144), [`save_facts`](../../src/orchestrator/pkg/persistence.py#L116)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#phases`, `docs/specs/design-and-comprehension-milestones.md#what-it-does-all-existing-deterministic-no-llm`, `docs/specs/multi-language-java.md#slice-1-java-comprehension-this-build`, `docs/specs/multi-repo-roadmap.md#exit-3a-met-3bs-own-results-are-in-the-section-below`, `docs/specs/project-comprehension-memory-bank.md#two-branches-same-output-shape`, `docs/specs/python-frontend-parity.md#9-explicitly-out-of-scope`
 
@@ -173,4 +173,4 @@
 
 ## Imported by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.understand`](../../src/orchestrator/knowledge/understand.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`tests.pkg.test_join_link`](../../tests/pkg/test_join_link.py#L1), [`tests.pkg.test_multi_repo_load`](../../tests/pkg/test_multi_repo_load.py#L1), [`tests.pkg.test_persistence`](../../tests/pkg/test_persistence.py#L1)
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview.checkout`](../../src/orchestrator/codereview/checkout.py#L1), [`orchestrator.evals.localization`](../../src/orchestrator/evals/localization.py#L1), [`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.understand`](../../src/orchestrator/knowledge/understand.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`tests.pkg.test_join_link`](../../tests/pkg/test_join_link.py#L1), [`tests.pkg.test_multi_repo_load`](../../tests/pkg/test_multi_repo_load.py#L1), [`tests.pkg.test_persistence`](../../tests/pkg/test_persistence.py#L1)

@@ -13,8 +13,8 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
+- [`CppExtractor`](../../src/orchestrator/pkg/cpp_extractor.py#L57) — reaches **8** symbols
 - [`_qualified_text`](../../src/orchestrator/pkg/cpp_extractor.py#L469) — reaches **8** symbols · **no test path visible**
-- [`CppExtractor`](../../src/orchestrator/pkg/cpp_extractor.py#L57) — reaches **6** symbols
 - [`_join`](../../src/orchestrator/pkg/cpp_extractor.py#L505) — reaches **5** symbols · **no test path visible**
 - [`_base_types`](../../src/orchestrator/pkg/cpp_extractor.py#L493) — reaches **4** symbols · **no test path visible**
 - [`_cpp_parser`](../../src/orchestrator/pkg/cpp_extractor.py#L515) — reaches **4** symbols

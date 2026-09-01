@@ -392,6 +392,88 @@ def score_parity(repo: Path | str, *, sql_dialect: str | None = None) -> ParityR
     return ParityReport(tuple(source_parity_counts(batch, root)))
 
 
+@dataclass(frozen=True)
+class DriftReport:
+    """Documentation drift for a repository: prose the graph cannot support.
+
+    ``mentions`` is the denominator — every code-intent claim the docs make, bound or not.
+    **It was ``docs`` (sections) until 2026-08-31, and that was wrong twice over:** a section
+    count does not move when prose inside an existing section is edited, which is what a
+    documentation change usually is, so any added claim raised the "rate" with nothing able to
+    dilute it; and the resulting figure was not bounded by 1, so it was not a rate at all.
+
+    ``docs`` is still carried, because a zero has to be readable. A repository with no
+    documentation scores zero drift and so does one whose documentation is perfectly accurate —
+    not the same result, and the same reason ``corpus`` records ``skipped_languages`` and
+    ``invention`` records a per-language ``status``.
+    """
+
+    count: int
+    docs: int
+    mentions: int = 0
+
+    @property
+    def measured(self) -> bool:
+        """False when there was nothing to measure — no docs, so no claim to check."""
+        return self.docs > 0
+
+    @property
+    def rate(self) -> Fraction | None:
+        """Unbound claims over claims made. Exact; floats are for display only."""
+        return Fraction(self.count, self.mentions) if self.mentions else None
+
+
+def score_drift(repo: Path | str, *, sql_dialect: str | None = None) -> DriftReport:
+    """Symbol-shaped doc claims the graph cannot support, and how many docs were read.
+
+    **Symbol-shaped only**, via :func:`doc_link.symbolish_drift` — the same filter the
+    ``state`` surfaces and the review path already apply. Gating a noisier population than
+    the one reported would be a gate nobody trusts: a reader who sees 12 in the report and
+    41 in the gate cannot act on either.
+
+    Deterministic and no-LLM, like everything else on the scoreboard.
+    """
+    from orchestrator.pkg.doc_link import symbolish_drift
+    from orchestrator.pkg.doc_source import read_doc_pages
+    from orchestrator.pkg.docs import DocReconciler
+
+    root = Path(repo)
+    if not root.is_dir():
+        raise CorpusError(f"{root}: not a directory")
+    # Sections, not files — `read_doc_pages` splits on headings. Kept for the zero case.
+    pages = read_doc_pages(root)
+    if not pages:
+        return DriftReport(count=0, docs=0, mentions=0)
+    batch = RepoCodeExtractor(sql_dialect=sql_dialect).extract(root)
+    # Reconcile once and keep both halves. `doc_drift` throws the bindings away, and the
+    # bindings are the denominator: every claim the docs make, which is what an added
+    # paragraph moves.
+    bindings, drift = DocReconciler(batch, repo_root=root).reconcile(pages)
+    symbolish = [f for f in drift if symbolish_drift(f.mention)]
+    return DriftReport(count=len(symbolish), docs=len(pages), mentions=len(bindings))
+
+
+def score_comprehension(repo: Path | str, *, sql_dialect: str | None = None) -> Any:
+    """Provenance validity for ``repo`` — do facts open to a line that names them?
+
+    The fifth oracle, and the first that asks about the *answer* rather than the shape. Lives
+    in ``evals`` (G6 owns that package); this is the seam that puts it on the one scoreboard
+    rather than starting a second.
+
+    **Measured on the repository under test, offline.** The pinned five-repository corpus is
+    reached by ``evals.corpus_fetch`` and run explicitly, for the same reason ``runtime`` is
+    opt-in: a gate CI runs by default must not depend on the network, and a metric that fails
+    because a clone timed out teaches people to ignore it.
+    """
+    from orchestrator.evals.comprehension import score_provenance
+
+    root = Path(repo)
+    if not root.is_dir():
+        raise CorpusError(f"{root}: not a directory")
+    batch = RepoCodeExtractor(sql_dialect=sql_dialect).extract(root)
+    return score_provenance(batch, root)
+
+
 # ---- the scoreboard --------------------------------------------------------
 
 SCOREBOARD_VERSION = 1
@@ -430,7 +512,52 @@ BASELINE = Path(__file__).with_name("scoreboard.json")
 # front-end that fabricates some other way passes this gate. Corpus precision catches that only
 # if the corpus happens to carry the shape — which is why `corpus/*/shadowed_calls` exists, and
 # why a new invention class needs a fixture as well as a detector.
-GATES = {"corpus": "strict", "parity": "ratchet", "invention": "strict", "runtime": False}
+# Drift is RECORDED AND NEVER GATED — `False`, like `runtime`. It shipped as a `ratchet` on
+# 2026-08-31 and the gate was withdrawn the same day, one pull request later, because that pull
+# request was a documentation change and the gate failed it. The argument for the gate said "a
+# gate that fires on the work it is meant to protect gets switched off, and then it protects
+# nothing." It then did exactly that, which is the clearest evidence available that it was not
+# ready.
+#
+# Two things were wrong, and the second is why fixing the first is not enough:
+#
+#   1. The denominator was `docs` (sections). A section count does not move when prose inside an
+#      existing section is edited — which is what a documentation change usually is — so any
+#      added claim raised the figure with nothing able to dilute it. It was also not bounded by
+#      1, so it was not a rate. Fixed: the denominator is now `mentions`, every code-intent
+#      claim the docs make. 893/8,885 = 0.1005 here, against the old 893/1,532 = 0.5829.
+#
+#   2. **About a tenth of the population cannot bind by construction.** The four claims that
+#      failed that pull request were `impact_source` (a constructor parameter), `not_measured`
+#      (a string literal), `_TEMPERATURE_REFUSED` (a module-level constant) and
+#      `llm.temperature_skipped` (a log event name). The graph has no node kind for any of them.
+#      So a design record naming implementation detail — which is what design records do — sits
+#      at or above the average and trips a strict comparison. With the corrected denominator
+#      that pull request *still* failed, 0.100506 -> 0.100517.
+#
+# A tolerance band is not the answer, for the reason stated below for invention: it is an
+# arbitrary number that eventually fires on something legitimate and gets widened until it means
+# nothing.
+#
+# **What would make this gate material:** excluding mentions the graph cannot model, so the
+# population is claims that *could* bind. Until then the number is an upper bound on drift, and
+# an upper bound with a tenth of it structural noise is not something to fail a build over. The
+# measurement stays — `state` reports it, `--oracle drift` reports it, `--check` trends it.
+#
+# `docs` is recorded beside `count` because zero drift on zero documents is not a clean result.
+# Comprehension is `ratchet` and, unlike drift, it fails when the number goes DOWN: it is an
+# accuracy, not a defect count. It reads 1.0000 on 10,788 anchored facts here, which is the
+# claim worth protecting — every Function, Type and Field fact opens to a line naming it. The
+# localization half stays `not_measured` until a gold set exists (G6 D1/D2); a zero there would
+# be indistinguishable from never having measured, which is the failure §9 describes.
+GATES = {
+    "corpus": "strict",
+    "parity": "ratchet",
+    "invention": "strict",
+    "drift": False,
+    "comprehension": "ratchet",
+    "runtime": False,
+}
 
 
 @dataclass(frozen=True)
@@ -455,8 +582,50 @@ def _score_entry(s: KindScore) -> dict[str, int]:
     return {"expected": s.expected, "emitted": s.emitted, "matched": s.matched}
 
 
+def localization_entry(report: Any = None) -> dict[str, Any]:
+    """The `localization` block: a measurement when one was taken, a reason when not.
+
+    ``report`` is a :class:`evals.localization.LocalizationReport` from a run against the pinned
+    corpus. Without one this is *not measured*, and the reason tells "no gold set yet" apart from
+    "not scored on this run" — an offline scoreboard cannot compute it, because the corpus has to
+    be on disk and a gate CI runs by default must not depend on the network.
+    """
+    from orchestrator.evals.labels import gold_digest, load_labels
+
+    try:
+        gold = load_labels()
+    except Exception:  # noqa: BLE001 — a malformed gold set must not break the scoreboard
+        return {"status": "not_measured", "reason": "gold set could not be read"}
+
+    if report is not None and report.measured:
+        return {
+            "status": "measured",
+            "labelled": len(report.results),
+            # What was scored. `compare_scoreboard` gates only when this matches: localization is
+            # a ratio over a fixed denominator, so adding a label the tool gets wrong lowers every
+            # rate, and a gate blind to that would fail a pull request for GROWING the corpus —
+            # exactly how the doc-drift gate died a day earlier.
+            "gold_digest": gold_digest(gold),
+            "top_k": {str(k): report.hits_at(k) for k in report.ks},
+            # Apart from a bad ranking: "returned nothing" is a different failure, and keeping
+            # them separate is what made a whole-corpus plumbing failure legible when it scored
+            # 0.00 at every k.
+            "empty_results": int(report.as_dict()["empty_results"]),
+        }
+    if not gold.labels:
+        return {"status": "not_measured", "reason": "no gold set — G6 D1"}
+    return {
+        "status": "not_measured",
+        "reason": f"gold set of {len(gold.labels)} — run `pkg accuracy --scoreboard --pinned-corpus`",
+    }
+
+
 def build_scoreboard(
-    corpus_root: Path | str = "corpus", repo: Path | str = ".", *, runtime: bool = False
+    corpus_root: Path | str = "corpus",
+    repo: Path | str = ".",
+    *,
+    runtime: bool = False,
+    localization: Any = None,
 ) -> dict[str, Any]:
     """The committed baseline: every oracle's numbers, and whether each one is gated.
 
@@ -484,6 +653,8 @@ def build_scoreboard(
 
     parity = score_parity(repo)
     invention = score_invention(repo)
+    drift = score_drift(repo)
+    provenance = score_comprehension(repo)
 
     board: dict[str, Any] = {
         "version": SCOREBOARD_VERSION,
@@ -503,6 +674,36 @@ def build_scoreboard(
                 "surplus": parity.surplus,
                 "declared": parity.declared,
                 "in_graph": parity.in_graph,
+            },
+            "comprehension": {
+                "gated": GATES["comprehension"],
+                "provenance": {
+                    "anchored": provenance.anchored,
+                    "resolved": provenance.resolved,
+                    # Kinds named by construction rather than by a token at the site — Module,
+                    # Endpoint, Entity. Recorded so "not scored" cannot be read as "passed".
+                    "excluded": provenance.excluded,
+                    "unreadable": provenance.unreadable,
+                },
+                # Named, not omitted. An absent key reads as an oversight; this reads as a
+                # measurement nobody has taken *here*, which is the truth. The two reasons are
+                # different and are told apart: an empty gold set is work not yet done, while a
+                # populated one simply cannot be scored offline — localization needs the pinned
+                # corpus on disk, and a gate CI runs by default must not depend on the network.
+                "localization": localization_entry(localization),
+                "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
+            },
+            "drift": {
+                "gated": GATES["drift"],
+                "count": drift.count,
+                # `mentions` is the denominator; `docs` stays so a zero is legible as "nothing
+                # to measure" rather than "nothing wrong".
+                "mentions": drift.mentions,
+                "docs": drift.docs,
+                "note": (
+                    "recorded, never gated — an upper bound: a tenth of the population "
+                    "cannot bind by construction. See GATES"
+                ),
             },
             "invention": {
                 "gated": GATES["invention"],
@@ -616,6 +817,50 @@ def compare_scoreboard(baseline: dict[str, Any], current: dict[str, Any]) -> lis
             if count:
                 out.append(Regression("invention", f"{lang}: fabricated CALLS edge(s)", "0", str(count)))
 
+    # Comprehension: an accuracy, so a DROP fails — the opposite direction to drift below.
+    base_prov = baseline.get("metrics", {}).get("comprehension", {}).get("provenance", {})
+    cur_prov = current.get("metrics", {}).get("comprehension", {}).get("provenance", {})
+    before_prov = _ratio(int(base_prov.get("resolved", 0)), int(base_prov.get("anchored", 0)))
+    after_prov = _ratio(int(cur_prov.get("resolved", 0)), int(cur_prov.get("anchored", 0)))
+    if before_prov is not None and after_prov is not None and after_prov < before_prov:
+        out.append(
+            Regression(
+                "comprehension",
+                f"provenance validity fell ({cur_prov.get('resolved')} of {cur_prov.get('anchored')} facts "
+                "open to a line naming them)",
+                f"{float(before_prov):.4f}",
+                f"{float(after_prov):.4f}",
+            )
+        )
+
+    # Localization: an accuracy, so a DROP fails — and gated ONLY when the gold set is
+    # unchanged. Comparing across different label sets would fail a pull request for adding a
+    # label the tool gets wrong, which is corpus growth, not regression — the exact mistake that
+    # killed the doc-drift gate a day earlier. Both sides must also have been *measured*: an
+    # offline run has no number, and reading its absence as zero would report a catastrophe
+    # every time CI ran without the network.
+    base_loc = baseline.get("metrics", {}).get("comprehension", {}).get("localization", {})
+    cur_loc = current.get("metrics", {}).get("comprehension", {}).get("localization", {})
+    if (
+        base_loc.get("status") == "measured"
+        and cur_loc.get("status") == "measured"
+        and base_loc.get("gold_digest") == cur_loc.get("gold_digest")
+    ):
+        for k in ("1", "10"):
+            was_hits = base_loc.get("top_k", {}).get(k)
+            now_hits = cur_loc.get("top_k", {}).get(k)
+            if was_hits is None or now_hits is None or now_hits >= was_hits:
+                continue
+            n = cur_loc.get("labelled", 0)
+            out.append(
+                Regression(
+                    "comprehension",
+                    f"top-{k} localization fell on an unchanged gold set of {n}",
+                    f"{was_hits}/{n}",
+                    f"{now_hits}/{n}",
+                )
+            )
+
     was_short = baseline.get("metrics", {}).get("parity", {}).get("shortfall")
     now_short = current.get("metrics", {}).get("parity", {}).get("shortfall")
     if was_short is not None and now_short is not None and now_short > was_short:
@@ -651,6 +896,12 @@ def scoreboard_improvements(baseline: dict[str, Any], current: dict[str, Any]) -
     b, c = baseline.get("metrics", {}).get("parity", {}), current.get("metrics", {}).get("parity", {})
     if b.get("shortfall") is not None and c.get("shortfall") is not None and c["shortfall"] < b["shortfall"]:
         out.append(f"parity shortfall: {b['shortfall']} -> {c['shortfall']}")
+    bp = baseline.get("metrics", {}).get("comprehension", {}).get("provenance", {})
+    cp = current.get("metrics", {}).get("comprehension", {}).get("provenance", {})
+    before_prov = _ratio(int(bp.get("resolved", 0)), int(bp.get("anchored", 0)))
+    after_prov = _ratio(int(cp.get("resolved", 0)), int(cp.get("anchored", 0)))
+    if before_prov is not None and after_prov is not None and after_prov > before_prov:
+        out.append(f"provenance validity: {float(before_prov):.4f} -> {float(after_prov):.4f}")
     return out
 
 

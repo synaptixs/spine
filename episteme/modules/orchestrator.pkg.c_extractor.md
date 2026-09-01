@@ -19,8 +19,8 @@
 - [`_field_text`](../../src/orchestrator/pkg/c_extractor.py#L486) — reaches **10** symbols · **no test path visible**
 - [`_declared_names`](../../src/orchestrator/pkg/c_extractor.py#L432) — reaches **9** symbols · **no test path visible**
 - [`_member_type_name`](../../src/orchestrator/pkg/c_extractor.py#L445) — reaches **9** symbols · **no test path visible**
+- [`CExtractor`](../../src/orchestrator/pkg/c_extractor.py#L63) — reaches **8** symbols
 - [`_has_body`](../../src/orchestrator/pkg/c_extractor.py#L465) — reaches **7** symbols · **no test path visible**
-- [`_header_index`](../../src/orchestrator/pkg/c_extractor.py#L325) — reaches **7** symbols · **no test path visible**
 
 _17 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 

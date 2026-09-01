@@ -13,7 +13,7 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`SqlExtractor`](../../src/orchestrator/pkg/sql_extractor.py#L136) — reaches **6** symbols
+- [`SqlExtractor`](../../src/orchestrator/pkg/sql_extractor.py#L136) — reaches **8** symbols
 - [`detect_dialect`](../../src/orchestrator/pkg/sql_extractor.py#L125) — reaches **6** symbols
 - [`_TableBuilder`](../../src/orchestrator/pkg/sql_extractor.py#L327) — reaches **5** symbols · **no test path visible**
 - [`_touch_entity`](../../src/orchestrator/pkg/sql_extractor.py#L362) — reaches **5** symbols · **no test path visible**

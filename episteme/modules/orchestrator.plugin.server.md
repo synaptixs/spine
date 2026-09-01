@@ -241,7 +241,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 3 test): [`test_regression_gaps_flags_untested_caller`](../../tests/plugin/test_server.py#L156), [`test_regression_gaps_needs_symbol_or_trace`](../../tests/plugin/test_server.py#L163), [`test_the_nudge_reaches_every_comprehension_tool_that_takes_one_repo`](../../tests/plugin/test_server.py#L759)
 - **Calls** (1): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L262)
-- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#using-the-understand-codebase-skill`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`, `codex-marketplace/README.md#what-it-exposes`
+- **Documented in**: `BENCHMARK.md#what-these-numbers-do-not-show`, `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#using-the-understand-codebase-skill`, `CODEX_GUIDE.md#6-the-tools-spine-exposes`, `USER_GUIDE.md#step-10-call-it-from-claude-codex-or-your-ide-mcp-server`
 
 ### `root_cause`
 

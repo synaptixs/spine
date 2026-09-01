@@ -11,15 +11,17 @@ Deterministic and read-only: the grounding is graph lookups, not an LLM call.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
-from orchestrator.codereview.diff_utils import iter_added_lines
+from orchestrator.codereview.diff_utils import iter_added_lines, iter_removed_lines
 from orchestrator.codereview.github_client import PRDiff
 from orchestrator.codereview.verifiers import Finding, Severity
 from orchestrator.pkg import (
     FactBatch,
     FactStore,
     GroundedRetriever,
+    GroundingFinding,
     GroundingVerifier,
     RepoCodeExtractor,
     load_or_extract,
@@ -99,6 +101,35 @@ class PKGReviewGrounder:
         return findings
 
 
+_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def _removed_identifiers(diff: PRDiff) -> set[str]:
+    """Every identifier-shaped token this diff **took away**.
+
+    The second of the two ways a pull request creates documentation drift, and the one a
+    doc-file filter alone cannot see: rename ``foo`` and the docs that still name it are
+    nowhere in your diff. Pairing these tokens with a drift finding makes that attributable
+    without a second extraction — a drift finding exists *only* when the graph has no such
+    symbol, so "the graph lacks it" plus "this diff deleted it" is this change's doing. Were
+    the symbol still there, there would be no finding to attribute.
+
+    **Bounded honestly.** A token is matched wherever it was removed, not only at a
+    definition, so removing a *call* to a symbol that no longer exists also attributes. That
+    over-attributes to someone who touched the name, which is the harmless direction: the
+    drift is real either way, and they are the person best placed to fix it. Blind to a
+    deletion whose patch body GitHub truncates, and to drift a previous merge caused — the
+    latter deliberately, since it is not this author's to answer for.
+    """
+    return {
+        token
+        for f in diff.files
+        if f.patch
+        for line in iter_removed_lines(f.patch)
+        for token in _IDENTIFIER.findall(line)
+    }
+
+
 class PKGGroundingVerifier:
     """``CodeVerifier`` adapter for the PKG GroundingVerifier (Track 1.4).
 
@@ -119,19 +150,51 @@ class PKGGroundingVerifier:
         *,
         root: Path,
         shapes_path: Path | str | None = None,
+        baseline_drift: set[tuple[str, str]] | None = None,
     ) -> None:
         self._verifier = GroundingVerifier(batch, shapes_path=shapes_path)
         self._root = root
+        #: Drift the PR's *base* already had, keyed `(page_title, mention)`. When present the
+        #: doc-drift finding is a **delta** — what this change introduced — and the heuristic
+        #: filters are not used, because the delta answers their question exactly rather than
+        #: approximating it.
+        self._baseline_drift = baseline_drift
 
     @classmethod
-    def from_repo(cls, root: Path | str, *, shapes_path: Path | str | None = None) -> PKGGroundingVerifier:
-        return cls(load_or_extract(root), root=Path(root), shapes_path=shapes_path)
+    def from_repo(
+        cls,
+        root: Path | str,
+        *,
+        shapes_path: Path | str | None = None,
+        baseline_drift: set[tuple[str, str]] | None = None,
+    ) -> PKGGroundingVerifier:
+        return cls(
+            load_or_extract(root),
+            root=Path(root),
+            shapes_path=shapes_path,
+            baseline_drift=baseline_drift,
+        )
+
+    def _doc_findings(self, diff: PRDiff, changed: list[str]) -> list[GroundingFinding]:
+        """Drift attributable to this change — by delta when a base is available.
+
+        Without a base the two heuristics stand: the document is in the diff, or its mention
+        was removed by the patch. They are good and they are approximations — blind to drift a
+        truncated patch body hides, and to a symbol removed indirectly by a build change. The
+        delta is neither, because it asks the question directly: was this claim already broken
+        before? Drift a previous merge introduced stays out either way; it is not this author's
+        to answer for.
+        """
+        if self._baseline_drift is not None:
+            return self._verifier.doc_findings(self._root, exclude=self._baseline_drift)
+        return self._verifier.doc_findings(self._root, files=changed, mentions=_removed_identifiers(diff))
 
     def scan(self, diff: PRDiff) -> list[Finding]:
         changed = [f.filename for f in diff.files if f.patch or f.status == "removed"]
         grounding = [
             *self._verifier.stale_findings(self._root, changed),
             *self._verifier.shacl_findings(),
+            *self._doc_findings(diff, changed),
         ]
         findings: list[Finding] = []
         for g in grounding:

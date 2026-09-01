@@ -40,7 +40,7 @@
 [`src/orchestrator/intake/factory.py:196`](../../src/orchestrator/intake/factory.py#L196)
 
 - **Called by** (5): [`build_confluence_service`](../../src/orchestrator/intake/factory.py#L107), [`build_jira_service`](../../src/orchestrator/intake/factory.py#L134), [`build_mcp_confluence_service`](../../src/orchestrator/intake/factory.py#L222), [`build_mcp_jira_service`](../../src/orchestrator/intake/factory.py#L234), [`build_mcp_service`](../../src/orchestrator/intake/factory.py#L245)
-- **Calls** (4): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`MCPSourceAdapter`](../../src/orchestrator/intake/mcp_source.py#L208), [`_build_service`](../../src/orchestrator/intake/factory.py#L40), [`from_config`](../../src/orchestrator/mcp/registry.py#L66)
+- **Calls** (4): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`MCPSourceAdapter`](../../src/orchestrator/intake/mcp_source.py#L208), [`_build_service`](../../src/orchestrator/intake/factory.py#L40), [`from_config`](../../src/orchestrator/mcp/registry.py#L75)
 
 ### `_build_service`
 

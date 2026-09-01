@@ -14,8 +14,8 @@
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`_text`](../../src/orchestrator/pkg/go_extractor.py#L500) — reaches **12** symbols · **no test path visible**
+- [`GoExtractor`](../../src/orchestrator/pkg/go_extractor.py#L99) — reaches **8** symbols
 - [`_field_text`](../../src/orchestrator/pkg/go_extractor.py#L495) — reaches **7** symbols · **no test path visible**
-- [`GoExtractor`](../../src/orchestrator/pkg/go_extractor.py#L99) — reaches **6** symbols
 - [`_base_type_name`](../../src/orchestrator/pkg/go_extractor.py#L394) — reaches **6** symbols · **no test path visible**
 - [`_field_children`](../../src/orchestrator/pkg/go_extractor.py#L490) — reaches **6** symbols · **no test path visible**
 - [`_arity`](../../src/orchestrator/pkg/go_extractor.py#L369) — reaches **4** symbols · **no test path visible**

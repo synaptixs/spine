@@ -23,6 +23,19 @@ from collections.abc import Iterator
 _HUNK_HEADER = re.compile(r"^@@ .*?\+(\d+)")
 
 
+def iter_removed_lines(patch: str) -> Iterator[str]:
+    """Yield the content of each removed (``-``) line in a patch.
+
+    No line number: a removed line does not exist in the new file, so there is nothing to
+    anchor a comment to. Callers want the *text* — what this change took away — which is
+    what makes a doc claim about it attributable to this diff.
+    """
+    for raw in patch.splitlines():
+        if raw.startswith("---") or not raw.startswith("-"):
+            continue
+        yield raw[1:]
+
+
 def iter_added_lines(patch: str) -> Iterator[tuple[int, str]]:
     """Yield ``(new_file_line, content)`` for each added line in a patch.
 

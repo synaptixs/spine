@@ -1,5 +1,27 @@
 {
   "metrics": {
+    "comprehension": {
+      "gated": "ratchet",
+      "localization": {
+        "empty_results": 2,
+        "gold_digest": "0a6ecf8c7bd22fd8",
+        "labelled": 38,
+        "status": "measured",
+        "top_k": {
+          "1": 12,
+          "10": 27,
+          "3": 18,
+          "5": 22
+        }
+      },
+      "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
+      "provenance": {
+        "anchored": 10916,
+        "excluded": 767,
+        "resolved": 10916,
+        "unreadable": 0
+      }
+    },
     "corpus": {
       "gated": "strict",
       "languages": {
@@ -420,6 +442,13 @@
       },
       "skipped_languages": []
     },
+    "drift": {
+      "count": 895,
+      "docs": 1533,
+      "gated": false,
+      "mentions": 8917,
+      "note": "recorded, never gated \u2014 an upper bound: a tenth of the population cannot bind by construction. See GATES"
+    },
     "invention": {
       "count": 0,
       "gated": "strict",
@@ -429,12 +458,12 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 16411,
+          "total_calls": 17100,
           "unexamined": 0
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 16411
+      "total_calls": 17100
     },
     "parity": {
       "declared": 75,

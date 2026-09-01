@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 43 modules — 99 types and 333 functions. Nothing here depends on other areas, but 14 areas depend on it — it's a foundation, so changes ripple outward.
+**`orchestrator.pkg`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 43 modules — 100 types and 336 functions. It sits in the middle of the graph: 1 area below it, 14 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -24,11 +24,12 @@ flowchart LR
   n6 --> n0
   n7 --> n0
   n8 --> n0
+  n0 --> n5
 ```
 
 **In the diagram:** **`orchestrator.pkg`** (this area) · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.codereview`](orchestrator.codereview.md) · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.mcp`](orchestrator.mcp.md) · [`orchestrator.plugin`](orchestrator.plugin.md)
 
-_Showing 8 of 14 neighbouring areas._
+_Showing 9 of 15 neighbouring areas._
 
 ## Modules
 
@@ -75,6 +76,10 @@ _Showing 8 of 14 neighbouring areas._
 - [`orchestrator.pkg.typescript_extractor`](../modules/orchestrator.pkg.typescript_extractor.md)
 - [`orchestrator.pkg.verifier`](../../src/orchestrator/pkg/verifier.py#L1)
 - [`orchestrator.pkg.verify`](../modules/orchestrator.pkg.verify.md)
+
+## Depends on
+
+[`orchestrator.evals`](orchestrator.evals.md)
 
 ## Depended on by
 

@@ -35,7 +35,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/worker.py:163`](../../src/orchestrator/sdlc/worker.py#L163)
 
 - **Called by** (1): [`build_deps`](../../src/orchestrator/sdlc/worker.py#L183)
-- **Calls** (6): [`GHACIAdapter`](../../src/orchestrator/sdlc/ci.py#L55), [`GitHubAppAuth`](../../src/orchestrator/codereview/auth.py#L69), [`GitHubAppConfig`](../../src/orchestrator/codereview/config.py#L25), [`GitHubClient`](../../src/orchestrator/codereview/github_client.py#L110), [`StubCIAdapter`](../../src/orchestrator/sdlc/ci.py#L47), `getenv`
+- **Calls** (6): [`GHACIAdapter`](../../src/orchestrator/sdlc/ci.py#L55), [`GitHubAppAuth`](../../src/orchestrator/codereview/auth.py#L69), [`GitHubAppConfig`](../../src/orchestrator/codereview/config.py#L25), [`GitHubClient`](../../src/orchestrator/codereview/github_client.py#L115), [`StubCIAdapter`](../../src/orchestrator/sdlc/ci.py#L47), `getenv`
 
 ### `_build_codegen`
 

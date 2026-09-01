@@ -85,14 +85,23 @@ you confidently into a function nobody wrote. We hold precision at 1.00 and let 
 imperfect because that trade is the right way round for whoever reads it — and the
 **invented-edge count is gated at zero**, per language, on every commit.
 
-**3 · We measured whether any of it helps, with a control.** Across 260 ticket-runs on two
+**3 · We measured whether it finds the right file, on code we don't control.** Given a real
+bug report — the title alone — the file that actually fixed it is in Spine's top 10 **27 times
+out of 38**, and its first guess is right 12 times. Picking ten files at random from the same
+repositories would score 0.085. The corpus is five open-source projects pinned by commit, the
+answer key comes from each bug's own fixing commit, and the whole thing is reproducible with one
+command. The limits are published beside it — n=38, so top-1 sits in a 0.17–0.47 interval, and
+the bugs are cleaner than average. See
+[BENCHMARK.md](https://github.com/synaptixs/spine/blob/main/BENCHMARK.md).
+
+**4 · We measured whether any of it helps, with a control.** Across 260 ticket-runs on two
 frontier models: **47 of 68** new modules integrated correctly with the graph in context,
 against **3 of 68** without. The control — tickets that already named their target file —
 scored **122 of 124 either way**, which is what rules out "more context just helps". Every
 published benchmark we could find in this category measures *efficiency* ("70% fewer
 tokens"). That answers *how cheap*, not *is it right*.
 
-**4 · Comprehension is deterministic, so it can be gated.** Same commit in, same bytes out
+**5 · Comprehension is deterministic, so it can be gated.** Same commit in, same bytes out
 — no model, no cost, no variance. That's why `understand --check` can prove a knowledge
 base is current rather than hoping, why extraction can be cached per commit, and why a
 run's evidence can be replayed and diffed.
@@ -104,7 +113,17 @@ the product.** Where it can't know something, it says so and stops.
 
 ## What's new
 
-**3.25.1 (current)** — **the issue type finally reaches the run.** Spine has been issue-type
+**3.26.0 (current)** — **Spine measures whether it finds the right file, and publishes the
+number.** Given a real bug report, the file that actually fixed it is in the top 10 for **27 of
+38** issues and the first guess is right for **12**; picking ten files at random from the same
+repositories scores 0.085. The corpus is five open-source projects pinned by commit, the answer
+key is each bug's own fixing commit, and one command reproduces it —
+[BENCHMARK.md](https://github.com/synaptixs/spine/blob/main/BENCHMARK.md), which also states the
+limits. Building it turned up three checks that were passing while measuring nothing: fact
+freshness parsed every language as Python, the graph-grounded review layer never ran on a pull
+request at all, and a drift finding was rendered that nothing called.
+
+**3.25.1** — **the issue type finally reaches the run.** Spine has been issue-type
 shaped since 3.21.0 — the profile selector, the localization check, the `bug`/`enhancement`
 profiles — and nothing ever supplied the type, so every run took the `default` profile. A Bug
 now gets root-cause analysis and must localize; an enhancement gets a churn reading over its
@@ -166,6 +185,7 @@ public issue.
 | **[Features & Capabilities](https://github.com/synaptixs/spine/blob/main/FEATURES.md)** | The capability catalog — everything Spine can do today, its status, the command/flag to use it, and a link to each deep dive. |
 | **[Architecture](https://github.com/synaptixs/spine/blob/main/ARCHITECTURE.md)** | How the whole platform fits together — the six layers, all components, the two human gates, and the knowledge graph they all read from. Includes an animated diagram. |
 | **[Knowledge Graph (PKG)](https://github.com/synaptixs/spine/blob/main/KNOWLEDGE_GRAPH.md)** | How Spine understands your codebase — the code-native graph, its model, the CLI, and how it powers brownfield *and* greenfield work. |
+| **[Benchmark](https://github.com/synaptixs/spine/blob/main/BENCHMARK.md)** | How well it actually works, measured — top-k localization on 38 real bugs across five languages, the corpus with its commit SHAs, what the numbers do **not** show, and the command to reproduce them yourself. |
 | **[CLI Reference](https://github.com/synaptixs/spine/blob/main/CLI_REFERENCE.md)** | Every `orchestrator` command across all 7 areas — arguments, options, and defaults. Run `orchestrator <command> --help` for the live version. |
 | **[Operations & Developer Guide](https://github.com/synaptixs/spine/blob/main/OPERATIONS.md)** | How to operate it: deployment modes, the full environment-variable reference, and standing up each advanced capability — including the semantic spine (ontomesh × infodrift). |
 | **[Community brief](https://github.com/synaptixs/spine/blob/main/COMMUNITY.md)** | A one-page overview to share — what it does, lifecycle coverage, how to try it, and the feedback we're looking for. |

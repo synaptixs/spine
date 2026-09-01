@@ -18,12 +18,19 @@ from it.
 
 ```mermaid
 flowchart LR
-    repo["Repo"] --> pkg["PKG (facts)"]
-    pkg --> cs["Current State\n(synthesis, 2 lenses)"]
-    backlog["Backlog / intents"] --> cs
-    health["Tests / CI"] --> cs
-    activity["Git activity"] --> cs
-    cs --> teams["Teams: devs + stakeholders"]
+    repo["Repo"]
+    pkg["PKG (facts)"]
+    backlog["Backlog / intents"]
+    health["Tests / CI"]
+    activity["Git activity"]
+    cs["Current State<br/>(synthesis, 2 lenses)"]
+    teams["Teams: devs + stakeholders"]
+    repo --> pkg
+    pkg --> cs
+    backlog --> cs
+    health --> cs
+    activity --> cs
+    cs --> teams
 ```
 
 ## Inputs (PKG + more — this is why it's a layer above the graph)

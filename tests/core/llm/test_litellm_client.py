@@ -67,6 +67,20 @@ async def test_explicit_schema_wins_over_json_object(monkeypatch: pytest.MonkeyP
 # --- a model that accepts `temperature` but only at its own value -----------
 
 
+@pytest.fixture(autouse=True)
+def _forget_temperature_refusals() -> Any:
+    """The refusal cache is module-level and outlives a client, so it outlives a test.
+
+    Without this every test after the first refusal would exercise the *cached* path while
+    appearing to exercise the retry — a green suite that stopped testing what it names.
+    """
+    from orchestrator.core.llm import litellm_client
+
+    litellm_client._TEMPERATURE_REFUSED.clear()
+    yield
+    litellm_client._TEMPERATURE_REFUSED.clear()
+
+
 def _install_temperature_refusing_litellm(
     monkeypatch: pytest.MonkeyPatch, calls: list[dict[str, Any]]
 ) -> None:
@@ -121,6 +135,69 @@ async def test_the_lost_determinism_is_logged(
         getattr(r, "event", "") == "llm.temperature_unsupported" and getattr(r, "temperature", None) == 0.0
         for r in caplog.records
     )
+
+
+async def test_the_refusal_is_learned_once_not_per_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The cost this closes: a failed round-trip on *every* call, not just the first."""
+    calls: list[dict[str, Any]] = []
+    _install_temperature_refusing_litellm(monkeypatch, calls)
+
+    # Two separate clients, because callers construct one per operation as well as one per
+    # run — an instance-level cache would pass a same-client test and change nothing there.
+    await LiteLLMClient().complete(
+        [Message(role="user", content="hi")], model="claude-opus-5", temperature=0.0
+    )
+    await LiteLLMClient().complete(
+        [Message(role="user", content="hi")], model="claude-opus-5", temperature=0.0
+    )
+
+    # Call 1 carried it and failed, its retry did not, and call 2 never tried: three
+    # round-trips for two completions rather than four.
+    assert [("temperature" in c) for c in calls] == [True, False, False]
+
+
+async def test_the_refusal_is_remembered_per_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    """One model's refusal must not silently drop the parameter for every other model."""
+    calls: list[dict[str, Any]] = []
+    _install_temperature_refusing_litellm(monkeypatch, calls)
+
+    await LiteLLMClient().complete(
+        [Message(role="user", content="hi")], model="claude-opus-5", temperature=0.0
+    )
+    await LiteLLMClient().complete([Message(role="user", content="hi")], model="gpt-4o", temperature=0.0)
+
+    # `gpt-4o` was asked — it refuses too, under this fake, and pays its own one-off retry.
+    # What must not happen is inheriting the other model's refusal and never being asked.
+    asked = [(c["model"], "temperature" in c) for c in calls]
+    assert ("gpt-4o", True) in asked
+
+
+async def test_the_determinism_warning_is_not_repeated(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Warn once. Six identical warnings in one run read as six failures."""
+    _install_temperature_refusing_litellm(monkeypatch, [])
+    with caplog.at_level("WARNING", logger="orchestrator.core.llm"):
+        for _ in range(3):
+            await LiteLLMClient().complete(
+                [Message(role="user", content="hi")], model="claude-opus-5", temperature=0.0
+            )
+    assert [getattr(r, "event", "") for r in caplog.records].count("llm.temperature_unsupported") == 1
+
+
+async def test_the_skipped_calls_are_still_explicable(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Warn-once must not mean *silent* — a spec that varies has to be traceable to this."""
+    _install_temperature_refusing_litellm(monkeypatch, [])
+    with caplog.at_level("DEBUG", logger="orchestrator.core.llm"):
+        for _ in range(2):
+            await LiteLLMClient().complete(
+                [Message(role="user", content="hi")], model="claude-opus-5", temperature=0.0
+            )
+    events = [getattr(r, "event", "") for r in caplog.records]
+    assert events.count("llm.temperature_unsupported") == 1  # the refusal, warned
+    assert events.count("llm.temperature_skipped") == 1  # the second call, at debug
 
 
 async def test_an_unrelated_failure_is_not_retried(monkeypatch: pytest.MonkeyPatch) -> None:
