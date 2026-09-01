@@ -3,7 +3,7 @@
 **The one document to read.** Verified against source on **2026-09-01**, at the 3.26.1 release
 cut. Every number below was re-measured that day.
 
-> **Why this exists.** `docs/specs/` holds **79** markdown files — **76 specs** plus this
+> **Why this exists.** `docs/specs/` holds **80** markdown files — **77 specs** plus this
 > page, [`README`](README.md) and [`SPEC-INDEX`](SPEC-INDEX.md) — with 6 archived, 10 build
 > documents, and 17 root-level user documents.
 > Answering "where do we stand?" required opening five of them and reconciling three that
