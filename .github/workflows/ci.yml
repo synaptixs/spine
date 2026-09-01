@@ -117,6 +117,14 @@ jobs:
       - name: Capability matrix counts match the table
         run: uv run python scripts/matrix-count.py --check
 
+      # STATE-OF-SPINE ends with "a number here without a 'how it is known' is a number that
+      # should not be here". The derivations were written down and nothing ran them, so they
+      # rotted: on 2026-09-01 the spec-file count, the CLI command count and the version string
+      # were all stale at once, and two were caught only because an unrelated gate happened to
+      # fail. This runs them.
+      - name: STATE-OF-SPINE's numbers match the source
+        run: uv run python scripts/state-numbers.py --check
+
       # Spine's own episteme has to describe Spine's own HEAD — but it is regenerated
       # *after* merge (.github/workflows/episteme.yml), not carried on branches. A PR
       # cannot keep it current: CI checks the merge ref, so the moment anything lands on
