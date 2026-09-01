@@ -324,7 +324,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 3428 symbols; 
 | `_docx_paragraph_text` | [`orchestrator.pkg.doc_source`](modules/orchestrator.pkg.doc_source.md#_docx_paragraph_text) | [`_docx_paragraph_text`](../src/orchestrator/pkg/doc_source.py#L332) |
 | `_domain_allowed` | `orchestrator.gateway.tools.fetch_url` | [`_domain_allowed`](../src/orchestrator/gateway/tools/fetch_url.py#L52) |
 | `_dot_id` | `orchestrator.pkg.graph_export` | [`_dot_id`](../src/orchestrator/pkg/graph_export.py#L150) |
-| `_drift_oracle` | [`orchestrator.cli`](modules/orchestrator.cli.md#_drift_oracle) | [`_drift_oracle`](../src/orchestrator/cli.py#L3334) |
+| `_drift_oracle` | [`orchestrator.cli`](modules/orchestrator.cli.md#_drift_oracle) | [`_drift_oracle`](../src/orchestrator/cli.py#L3345) |
 | `_drive` | `orchestrator.agentic.loop` | [`_drive`](../src/orchestrator/agentic/loop.py#L289) |
 | `_drive_to_green` | `orchestrator.sdlc.workflows` | [`_drive_to_green`](../src/orchestrator/sdlc/workflows.py#L389) |
 | `_drop_versioned_table` | `migrations.versions.0001_initial_registry_tables` | [`_drop_versioned_table`](../migrations/versions/0001_initial_registry_tables.py#L59) |
@@ -529,7 +529,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 3428 symbols; 
 | `_intents_gate_description` | `orchestrator.sdlc.workflows` | [`_intents_gate_description`](../src/orchestrator/sdlc/workflows.py#L995) |
 | `_intents_table` | [`orchestrator.intake.report`](modules/orchestrator.intake.report.md#_intents_table) | [`_intents_table`](../src/orchestrator/intake/report.py#L68) |
 | `_interface_methods` | [`orchestrator.pkg.go_extractor`](modules/orchestrator.pkg.go_extractor.md#_interface_methods) | [`_interface_methods`](../src/orchestrator/pkg/go_extractor.py#L207) |
-| `_invention_oracle` | [`orchestrator.cli`](modules/orchestrator.cli.md#_invention_oracle) | [`_invention_oracle`](../src/orchestrator/cli.py#L3376) |
+| `_invention_oracle` | [`orchestrator.cli`](modules/orchestrator.cli.md#_invention_oracle) | [`_invention_oracle`](../src/orchestrator/cli.py#L3387) |
 | `_ip_is_internal` | [`orchestrator.registry.api.workspace`](modules/orchestrator.registry.api.workspace.md#_ip_is_internal) | [`_ip_is_internal`](../src/orchestrator/registry/api/workspace.py#L103) |
 | `_ir_from_pinned_template` | `orchestrator.registry.api.tasks` | [`_ir_from_pinned_template`](../src/orchestrator/registry/api/tasks.py#L449) |
 | `_is_code_file` | `orchestrator.codereview.verifiers` | [`_is_code_file`](../src/orchestrator/codereview/verifiers.py#L83) |
@@ -1017,7 +1017,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 3428 symbols; 
 | `_score` | `orchestrator.spine.mapper` | [`_score`](../src/orchestrator/spine/mapper.py#L84) |
 | `_score_entry` | [`orchestrator.pkg.accuracy`](modules/orchestrator.pkg.accuracy.md#_score_entry) | [`_score_entry`](../src/orchestrator/pkg/accuracy.py#L581) |
 | `_score_kinds` | [`orchestrator.pkg.accuracy`](modules/orchestrator.pkg.accuracy.md#_score_kinds) | [`_score_kinds`](../src/orchestrator/pkg/accuracy.py#L214) |
-| `_scoreboard` | [`orchestrator.cli`](modules/orchestrator.cli.md#_scoreboard) | [`_scoreboard`](../src/orchestrator/cli.py#L3468) |
+| `_scoreboard` | [`orchestrator.cli`](modules/orchestrator.cli.md#_scoreboard) | [`_scoreboard`](../src/orchestrator/cli.py#L3479) |
 | `_sdlc_config` | [`orchestrator.sdlc.worker`](modules/orchestrator.sdlc.worker.md#_sdlc_config) | [`_sdlc_config`](../src/orchestrator/sdlc/worker.py#L220) |
 | `_search` | `orchestrator.intake.jira_source` | [`_search`](../src/orchestrator/intake/jira_source.py#L234) |
 | `_search_tree` | `orchestrator.intake.jira_source` | [`_search_tree`](../src/orchestrator/intake/jira_source.py#L219) |
