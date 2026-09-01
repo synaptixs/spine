@@ -2470,6 +2470,14 @@ def investigate(
         str | None,
         typer.Option("--repos", help="A `.spine/repos.yaml` — research across every declared repo."),
     ] = None,
+    intents: Annotated[
+        bool,
+        typer.Option(
+            "--intents",
+            help="Also report which ticket each landing symbol was last changed for. Costs a "
+            "`git blame` pass; single-repo only.",
+        ),
+    ] = False,
 ) -> None:
     """Investigation brief: a ticket × the codebase, before you design.
 
@@ -2510,11 +2518,31 @@ def investigate(
         # `root=None`: `episteme/` belongs to one repository, and a merged brief has no single
         # owner for it. The section is omitted rather than filled from an arbitrary repo — the
         # brief is written to be honest when a section has nothing grounded.
+        if intents:
+            # Single-repo only: blame is per checkout, and a merged graph has several. Said
+            # rather than ignored — a flag that silently does nothing is worse than one that
+            # is refused.
+            typer.echo("investigate: --intents does not apply with --repos (blame is per repo)", err=True)
         inv = build_investigation(ticket_title, problem, store=FactStore(merged.batch), root=None)
     else:
         with _repo_arg(path) as (repo, _):
             extractor = RepoCodeExtractor(sql_dialect=dialect)
             batch = extractor.extract(repo) if refresh else load_or_extract(repo, extractor=extractor)
+            if intents:
+                from orchestrator.pkg.intent_link import link_intents
+
+                coverage = link_intents(batch, repo)
+                rate = f"{coverage.rate:.1%}" if coverage.rate is not None else "n/a"
+                # The rate goes to stderr beside the brief, not into it: the brief is the
+                # artifact a human reads and a run records, and a coverage figure belongs with
+                # the scan that produced it. Without it, a landing with no ticket reads as a
+                # symbol with no prior work, and here that would be nine landings in ten.
+                typer.echo(
+                    f"  recorded intent: {coverage.intents} ticket(s) from "
+                    f"{', '.join(coverage.prefixes_used) or 'no prefix'}; "
+                    f"{coverage.symbols_attributed}/{coverage.symbols_total} symbols ({rate})",
+                    err=True,
+                )
             inv = build_investigation(ticket_title, problem, store=FactStore(batch), root=repo)
 
     md = render_investigation_md(inv)
