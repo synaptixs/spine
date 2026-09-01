@@ -73,7 +73,7 @@
 [`src/orchestrator/sdlc/evidence.py:339`](../../src/orchestrator/sdlc/evidence.py#L339)
 
 - **Called by** (1): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L178)
-- **Calls** (1): [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L112)
+- **Calls** (1): [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L117)
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#half-one-parallel-fan-out-measured-30ms-available-declined`
 
 ### `_tool_rca`
