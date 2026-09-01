@@ -51,6 +51,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (2 production · 4 test): [`_build_review_service`](../../src/orchestrator/codereview/webhook.py#L177), [`_main`](../../scripts/live_review.py#L32), [`_service`](../../tests/codereview/test_checkout_grounding.py#L78), [`_service`](../../tests/codereview/test_reviewer.py#L196), [`test_review_service_carries_grounding_verifier`](../../tests/codereview/test_grounding.py#L245), [`test_review_service_posts_pkg_impact_comment`](../../tests/codereview/test_grounding.py#L115)
 - **Fields**: `_audit`, `_github`, `_grounding`, `_impact_source`, `_reviewer`, `_verifiers`
+- **Documented in**: `CHANGELOG.md`
 
 ## Functions
 
