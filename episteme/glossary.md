@@ -31,9 +31,9 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **PKGCodegenGrounder** | [`PKGCodegenGrounder`](../src/orchestrator/sdlc/grounding.py#L31) | `KNOWLEDGE_GRAPH.md#7-how-grounding-uses-the-pkg`, `docs/specs/README.md#3-gap-taxonomy-g1g17` |
 | **PlannerError** | [`PlannerError`](../src/orchestrator/planner/v0.py#L38) | — |
 | **Provenance** | [`Provenance`](../src/orchestrator/pkg/facts.py#L81) | — |
-| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L151) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#8-outstanding-everything-else` |
+| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L152) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#8-outstanding-everything-else` |
 | **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L84) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
-| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L577) | `docs/specs/README.md#44-build-phases-per-repo-split`, `docs/specs/archive/PKG-INTEGRATION-PLAN.md#phase-1-repo-code-extractor-track-11-34-wks` |
+| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L589) | `docs/specs/README.md#44-build-phases-per-repo-split`, `docs/specs/archive/PKG-INTEGRATION-PLAN.md#phase-1-repo-code-extractor-track-11-34-wks` |
 | **RepoConfigError** | [`RepoConfigError`](../src/orchestrator/pkg/repos.py#L47) | — |
 | **RunBudget** | [`RunBudget`](../src/orchestrator/core/llm/budget.py#L42) | `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/README.md#autonomous-agent-scorecard` |
 | **RunContext** | [`RunContext`](../src/orchestrator/sdlc/autorun.py#L65) | `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/graphir-sdlc-workflow.md#appendix-what-was-rejected-from-the-source-analysis` |

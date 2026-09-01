@@ -30,7 +30,7 @@ _16 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_orm.py:99`](../../src/orchestrator/pkg/python_orm.py#L99)
 
-- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L161)
+- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L162)
 - **Fields**: `accesses`, `entities`
 
 ### `PendingAccess`
@@ -127,14 +127,14 @@ _16 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_orm.py:293`](../../src/orchestrator/pkg/python_orm.py#L293)
 
-- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L193)
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L205)
 - **Calls** (2): [`Edge`](../../src/orchestrator/pkg/facts.py#L137), [`Node`](../../src/orchestrator/pkg/facts.py#L121)
 
 ### `scan_module`
 
 [`src/orchestrator/pkg/python_orm.py:268`](../../src/orchestrator/pkg/python_orm.py#L268)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/extractor.py#L175)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/extractor.py#L176)
 - **Calls** (8): [`PendingEntity`](../../src/orchestrator/pkg/python_orm.py#L79), [`Provenance`](../../src/orchestrator/pkg/facts.py#L81), [`_collect_accesses`](../../src/orchestrator/pkg/python_orm.py#L234), [`_columns_and_refs`](../../src/orchestrator/pkg/python_orm.py#L203), [`_django_model_base`](../../src/orchestrator/pkg/python_orm.py#L127), [`_django_table`](../../src/orchestrator/pkg/python_orm.py#L160), [`_tablename`](../../src/orchestrator/pkg/python_orm.py#L149), `walk`
 
 ## Imports

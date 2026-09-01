@@ -37,7 +37,7 @@ _13 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_routes.py:75`](../../src/orchestrator/pkg/python_routes.py#L75)
 
-- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L161)
+- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L162)
 - **Fields**: `local_prefixes`, `mounts`, `routes`
 
 ## Functions
@@ -105,7 +105,7 @@ _13 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_routes.py:283`](../../src/orchestrator/pkg/python_routes.py#L283)
 
-- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L193)
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L205)
 - **Calls** (3): [`Edge`](../../src/orchestrator/pkg/facts.py#L137), [`Node`](../../src/orchestrator/pkg/facts.py#L121), [`_join`](../../src/orchestrator/pkg/python_routes.py#L117)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-3-build.md#9-facts-the-generator-needs`, `docs/specs/build-documents/PKG-ACC-3-build.md#why-the-analysis-is-90`
 
@@ -113,7 +113,7 @@ _13 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_routes.py:160`](../../src/orchestrator/pkg/python_routes.py#L160)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/extractor.py#L175)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/extractor.py#L176)
 - **Calls** (3): [`_collect_django`](../../src/orchestrator/pkg/python_routes.py#L248), [`_collect_routers`](../../src/orchestrator/pkg/python_routes.py#L175), [`_collect_routes`](../../src/orchestrator/pkg/python_routes.py#L204)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-3-build.md#61-count-with-the-ast-not-the-regex`, `docs/specs/build-documents/PKG-ACC-3-build.md#9-facts-the-generator-needs`
 
