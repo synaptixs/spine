@@ -1,4 +1,4 @@
-# TypeScript call resolution — what the 0.57 actually is
+# TypeScript call resolution — what the number actually is
 
 **Status:** **Written 2026-09-01 against 3.26.1.** Not started, and this spec argues the obvious
 approach is the wrong one to start with.
@@ -11,15 +11,20 @@ of the premise.
 
 ---
 
-## 1. The number is 0.57, and it was 0.50 in three places
+## 1. The number moved twice, and neither move was the code changing
 
-| | |
-|---|---|
-| Scoreboard, today | **4 matched of 7 expected — 0.571** |
-| `STATE-OF-SPINE` §2 and §3 | 0.50 |
-| `README.md` | 0.50 |
+| | recall | why |
+|---|---|---|
+| Published in three places | 0.50 | stale — nothing derives it |
+| Scoreboard, 2026-09-01 | **0.571** (4 of 7) | what it had actually been |
+| Scoreboard, after step 1 | **0.357** (5 of 14) | the corpus doubled |
 
-Corrected in all three by this change. Nothing derives that figure — `scripts/state-numbers.py`
+**The drop to 0.36 is measurement, not regression.** No extractor changed. Two fixtures were
+added for shapes nothing was testing — one that works, one family that does not — and the
+denominator went from 7 labelled edges to 14. A number that falls when you look harder was
+always that number.
+
+Corrected in all three places. Nothing derives that figure — `scripts/state-numbers.py`
 covers eight claims and `CALLS` recall is not among them — so it aged silently the way every
 hand-carried number in this repository has.
 
@@ -128,11 +133,16 @@ unknowable.**
 
 **So the honest sequence is not "build Option A".** It is:
 
-1. **Extend the corpus first** with the shapes probed above and the ones still unprobed — a
-   generic parameter, a union-typed variable, a destructured binding, an imported instance —
-   **including `this.method()`, which works today and is tested nowhere.** A shape that works
-   and is untested is one refactor from silently not working, and the fixtures are what would
-   say so.
+1. ~~**Extend the corpus first**~~ ✅ **done 2026-09-01.** Two cases added:
+   `typescript/this_calls` pins the shape that works and was tested nowhere, and
+   `typescript/receiver_shapes` puts a number on the family that does not — `new Handler().run()`,
+   a `let` with an annotation, and a call through an object-literal field. It scores **CALLS
+   recall 0.00 on 6 expected edges**, which is the honest cost of a resolver that handles only a
+   bare identifier and `this`.
+
+   **Still unprobed, and deliberately not invented:** generics, union-typed variables and
+   destructured bindings. Each needs a judgement about what the *correct* edge is before it can
+   be labelled, and a fixture asserting a contested truth is worse than no fixture.
 2. **Then Option A**, sized against what the widened corpus actually shows.
 3. **Option B only if** the widened corpus shows the loss is dominated by shapes no local pass
    can reach — and even then, only confined to first-party source, for the determinism reason
@@ -146,7 +156,7 @@ Skipping step 1 means building a fix for the one shape we happen to have written
 |---|---|---|
 | **D1** | Chase the compiler API now? | **No.** Every measured miss is reachable without it, and its determinism cost is disqualifying as normally implemented |
 | **D2** | Build Option A now? | **Not yet.** It would take the corpus to 7/7 and teach us nothing about real TypeScript. Widen the corpus first |
-| **D3** | What is step 1 worth? | ~half a day, no dependencies, and it converts an unmeasurable question into a measured one. **This is the piece to schedule** |
+| **D3** | ~~What is step 1 worth?~~ | ✅ **Done 2026-09-01.** It cost an afternoon and moved the published figure from 0.57 to 0.36 — measurement, not regression. **What it bought:** the family now has a number and a regression guard, and `this.method()` can no longer break silently |
 | **D4** | Extend the `runtime` oracle to TypeScript? | Out of scope here, and the only thing that would make TS recall properly measurable. Worth its own row: it is currently the last Python-only oracle |
 
 ## 6. Invariants
