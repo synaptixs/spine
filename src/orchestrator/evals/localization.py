@@ -94,13 +94,22 @@ def score_label(label: Label, root: Path | str, *, max_symbols: int = max(DEFAUL
 
 
 def score_localization(gold: GoldSet, roots: dict[str, Path]) -> LocalizationReport:
-    """Score every label whose repository was materialised.
+    """Score every label whose repository is **on disk right now**.
 
-    A label naming a repository absent from ``roots`` is **skipped, not missed** — a corpus that
-    could not be fetched must not read as a tool that could not find anything.
+    A label whose repository is absent from ``roots``, or whose root no longer exists, is
+    **skipped, not missed**. A corpus that could not be fetched must not read as a tool that
+    could not find anything.
+
+    The existence check is not defensive padding — it is here because the omission shipped and
+    scored. The first run of this scorer reported **0.00 at every k across 24 labels**, a clean
+    and entirely publishable-looking number, because the caller held the checkouts in a
+    ``TemporaryDirectory`` that had already exited: every path was gone, every extraction
+    returned an empty graph, and every label scored as "no landing site". A total plumbing
+    failure is indistinguishable from a catastrophic result unless something refuses to score
+    what it cannot read.
     """
-    results = [score_label(label, roots[label.repo]) for label in gold.labels if label.repo in roots]
-    return LocalizationReport(results=tuple(results))
+    scored = [label for label in gold.labels if label.repo in roots and Path(roots[label.repo]).is_dir()]
+    return LocalizationReport(results=tuple(score_label(label, roots[label.repo]) for label in scored))
 
 
 __all__ = [

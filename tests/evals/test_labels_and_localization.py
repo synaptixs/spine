@@ -46,11 +46,34 @@ def _write(tmp_path: Path, text: str) -> Path:
 # ---- the shipped file -------------------------------------------------------
 
 
-def test_the_shipped_gold_set_is_valid_and_empty() -> None:
-    """Empty is the honest state: localization reports not_measured, never 0."""
-    gold = load_labels()
+def test_the_shipped_gold_set_is_valid() -> None:
+    """It parses, and every row carries what a reader needs to check it upstream."""
+    from orchestrator.evals.corpus_fetch import load_manifest
+
+    gold = load_labels(known_repos={r.name for r in load_manifest()})
     assert isinstance(gold, GoldSet)
-    assert not gold.measured
+    for label in gold.labels:
+        assert len(label.fix_commit) == 40
+        assert label.issue.startswith("https://")
+        assert label.title.strip()
+        assert label.paths
+
+
+def test_the_gold_set_is_not_dominated_by_one_repository() -> None:
+    """Six labels from one repo and one from the rest measures that repo, not the tool.
+
+    D3 chose five repositories for language spread; a gold set that drifts back into one of
+    them quietly undoes that, and the number would read as general.
+    """
+    from collections import Counter
+
+    from orchestrator.evals.corpus_fetch import load_manifest
+
+    gold = load_labels(known_repos={r.name for r in load_manifest()})
+    if not gold.labels:
+        return  # nothing to skew yet
+    counts = Counter(label.repo for label in gold.labels)
+    assert max(counts.values()) <= len(gold.labels) // 2, f"one repository dominates: {dict(counts)}"
 
 
 # ---- what a label must prove ------------------------------------------------
@@ -183,3 +206,32 @@ def test_a_repo_that_did_not_materialise_is_skipped_not_missed(tmp_path: Path) -
     )
     report = score_localization(gold, {})
     assert not report.measured  # skipped, so nothing is scored — not scored as a miss
+
+
+def test_a_root_that_no_longer_exists_is_skipped_not_scored(tmp_path: Path) -> None:
+    """A plumbing failure must not be reportable as a measurement.
+
+    The first run of this scorer reported 0.00 at every k across 24 labels — a clean,
+    publishable-looking number — because the caller held the checkouts in a TemporaryDirectory
+    that had already exited. Every path was gone, every extraction returned an empty graph, and
+    every label scored as "no landing site". Nothing distinguished that from the tool genuinely
+    finding nothing.
+    """
+    from orchestrator.evals.labels import FixSite
+
+    gold = GoldSet(
+        labels=(
+            Label(
+                repo="flask",
+                issue="https://example.com/1",
+                title="t",
+                fix_commit="a" * 40,
+                fix_sites=(FixSite(path="x.py"),),
+            ),
+        )
+    )
+    vanished = tmp_path / "deleted-by-the-context-manager"
+    report = score_localization(gold, {"flask": vanished})
+
+    assert not report.measured  # not measured — NOT 0/1
+    assert report.rate_at(1) is None

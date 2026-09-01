@@ -3244,11 +3244,17 @@ def _comprehension_oracle(repo: str, as_json: bool, pinned_corpus: bool) -> None
                         "rate": rate,
                     }
                 )
-        from orchestrator.evals.labels import load_labels
-        from orchestrator.evals.localization import score_localization
 
-        gold = load_labels(known_repos={r.name for r in pinned})
-        localization = score_localization(gold, roots) if gold.measured else None
+            # Inside the `with`, and it has to be: scoring reads the checkouts, and the
+            # temporary directory is gone the moment this block exits. Run outside it, every
+            # path is missing, extraction yields an empty graph, and all 24 labels score as
+            # "no landing site" — a total failure that looks exactly like the tool finding
+            # nothing, which is the reading that would have been published.
+            from orchestrator.evals.labels import load_labels
+            from orchestrator.evals.localization import score_localization
+
+            gold = load_labels(known_repos={r.name for r in pinned})
+            localization = score_localization(gold, roots) if gold.measured else None
 
         if as_json:
             _print(
