@@ -114,11 +114,46 @@ so the corpus arrives pinned and already known to extract.
 
 | Repo | Language | Pin | Why this one earns a slot |
 |---|---|---|---|
-| **vuejs/core** | TypeScript | `e2bede96134f` | TS has the weakest `CALLS` recall we ship — **0.50**. Measure it or it hides |
-| **gin-gonic/gin** | Go | `dcaa4296d111` | Mid-size, dense HTTP routing — exercises `Endpoint`/`EXPOSES` alongside localization |
-| **fmtlib/fmt** | C++ | `e27cc20bd93a` | The hardest extraction shape we ship, and it carried 43 of the 47 fabricated edges the invention widening found |
-| **libuv/libuv** | C | `f87c8e4f70f2` | C is where `invention` originally could not see; it is also the front-end with `CALLS` recall 1.00, so a poor localization score here is *not* a recall artefact |
-| **pallets/flask** | Python | **to be pinned in Phase 1** | The largest front-end and the language most users point Spine at. The one slot with no recorded SHA — pinning it is Phase 1's first act, not an assumption |
+| **vuejs/core** | TypeScript | `25ebe3a42cd8` | TS has the weakest `CALLS` recall we ship — **0.50**. Measure it or it hides |
+| **gin-gonic/gin** | Go | `f416d1e594a0` | Mid-size, dense HTTP routing — exercises `Endpoint`/`EXPOSES` alongside localization |
+| **fmtlib/fmt** | C++ | `2d839bbc6165` | The hardest extraction shape we ship, and it carried 43 of the 47 fabricated edges the invention widening found |
+| **libuv/libuv** | C | `8fc70344df78` | C is where `invention` originally could not see; it is also the front-end with `CALLS` recall 1.00, so a poor localization score here is *not* a recall artefact |
+| **pallets/flask** | Python | `ad68a12645d9` | The largest front-end and the language most users point Spine at |
+
+> **These are late-November-2025 commits, and the date is the point.** The pins were inherited
+> from the invention oracle, where a *recent* tree is exactly right — that oracle counts
+> fabricated edges in whatever the code is now. **Localization needs the opposite:** the tree
+> must be the **pre-fix** state, so every labelled issue has to have been fixed *after* the pin.
+>
+> Measured against the inherited pins on the day labelling started, that window was empty:
+>
+> | | merged PRs after the pin |
+> |---|---|
+> | vuejs/core | 35 |
+> | fmtlib/fmt | 7 |
+> | libuv/libuv | 2 |
+> | gin-gonic/gin | **0** |
+> | pallets/flask | **0** |
+>
+> A 30–50 issue gold set was unreachable, and four fifths of what existed sat in one repository
+> — exactly the Python-heavy-by-accident failure D3 chose this corpus to avoid, with the
+> imbalance pointing at TypeScript instead. At the current pins the windows are 200+ / 93 / 147 /
+> 71 / 17: every front-end can be labelled. **Found by trying to label, not by review** — the
+> corpus looked fine until someone asked it for an issue.
+>
+> The invention record is untouched; that is a separate eleven-repository corpus these five only
+> borrowed SHAs from.
+
+**Provenance validity at these pins**, measured 2026-08-31 — the spread is why measuring on code
+we do not control is worth the fetch:
+
+| | | |
+|---|---|---|
+| vue-core | TypeScript | **1.0000** |
+| gin | Go | **1.0000** |
+| flask | Python | 0.9955 |
+| fmt | C++ | 0.9857 |
+| libuv | C | 0.9850 |
 
 **Excluded, and why — required by "bound honestly".**
 
