@@ -88,7 +88,7 @@ Each reader converts its format into **markdown-shaped text**: HTML's `<h1>`, Wo
 style and a spreadsheet's sheet name all become an ATX `#` heading. Everything downstream reads
 that one shape and never learns which format it came from.
 
-The splitter then cuts on headings. **Measured here: 1,560 `Doc` nodes** across the repository —
+The splitter then cuts on headings. **Measured here: 1,572 `Doc` nodes** across the repository —
 sections, not files.
 
 Our subject becomes:
@@ -118,7 +118,7 @@ precedence:
 | `CAMEL` | `DocReconciler` |
 | `FILE` | `src/orchestrator/pkg/store.py` |
 
-Our section yields **12 mentions**. Repository-wide: **9,104**.
+Our section yields **12 mentions**. Repository-wide: **9,109**.
 
 One rule worth knowing: a bare CamelCase word — "GitHub", "Python" — binds if it happens to
 resolve, but **never counts as drift**. Prose capitalisation is not a code claim.
@@ -166,14 +166,29 @@ Repository-wide, every mention lands in exactly one of four buckets:
 
 | | count | share |
 |---|---|---|
-| **one symbol anchor → `MENTIONS` edge** | **2,472** | 27% |
+| **one symbol anchor → `MENTIONS` edge** | **2,475** | 27% |
 | more than one symbol anchor → skipped | 1,937 | 21% |
-| resolved to a **file**, no symbol | 1,370 | 15% |
+| resolved to a **file**, no symbol | 1,372 | 15% |
 | nothing at all | 3,325 | 37% |
-| **total mentions** | **9,104** | |
+| **total mentions** | **9,109** | |
 
-2,447 edges are drawn from those 2,472 — the 25 difference is de-duplication, where one section
+2,450 edges are drawn from those 2,475 — the 25 difference is de-duplication, where one section
 names the same symbol twice.
+
+> **These seven figures are derived, and reported rather than gated.**
+> `scripts/state-numbers.py` re-computes every one of them and prints a `[trend]` line when the
+> table has aged. It does **not** fail the build on them, and measuring is what decided that:
+> they moved within an hour of first being written, because they count mentions across every
+> markdown file and anchors across every symbol, so any commit touching either moves them.
+> Gating that would fail nearly every pull request for refreshing seven numbers in a
+> walkthrough — the failure that un-gated the doc-drift ratchet a day earlier.
+>
+> Deriving them still catches the error they exist for: a figure wrong **when written**, as
+> opposed to one that has merely aged. Re-derive with:
+>
+> ```bash
+> python scripts/state-numbers.py
+> ```
 
 > **This table replaced a wrong one on 2026-09-01, and the error is worth keeping visible.** The
 > first version reported "at least one anchor: 5,721" and "more than one → skipped: 2,317",
