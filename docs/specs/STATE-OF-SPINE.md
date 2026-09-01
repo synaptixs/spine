@@ -28,7 +28,7 @@ gates (before building, before merging). The product is **Spine**; it ships as
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
 | CLI commands | **57** | `grep -c '\.command(' src/orchestrator/cli.py` |
 | Source modules | **332** | `find src/orchestrator -name '*.py'` |
-| Test functions | **2,837** across 297 files | `grep -rh '^def test_\|^async def test_' tests`; files via the same pattern with `-rl` |
+| Test functions | **2,841** across 297 files | `grep -rh '^def test_\|^async def test_' tests`; files via the same pattern with `-rl` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
 | `CALLS` recall | **1.00** (C, SQL) → **0.50** (TypeScript) | same |
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |
@@ -357,6 +357,7 @@ and never promoted. A list that claims to be the authority has to actually absor
 | Item | State |
 |---|---|
 | Upgrade local `uv` past 0.8.0 | user's machine |
+| `orchestrator --version` | ✅ **added 2026-09-01.** It errored with *"No such option"* — the first thing anyone runs after installing, and the path [`BENCHMARK.md`](../../BENCHMARK.md) now sends strangers down. It prints the installed version **and where it is running from**, because CONTRIBUTING's own warning is that a bare command resolves to whatever is on `PATH`. Found alongside it: `orchestrator.__version__` was the literal `"0.0.0"` and no release step ever touched it, so every version ever shipped reported 0.0.0 to anything that imported it — now derived from the installed distribution |
 | RBAC role-gating beyond the approval decision + secrets vault | parked |
 | CI gate on spec-status drift | 🟡 **the numbers half shipped 2026-09-01** — `scripts/state-numbers.py --check`, in CI, re-derives the eight figures this page and `SPEC-INDEX` state and fails when prose and source disagree. It caught a stale test count on its first run, and again when adding its own tests moved the number. **The judgement half is still open:** whether a spec's *status line* matches shipped reality is not mechanically checkable, and that is the class that produced the multi-repo row reading "not started" while the code was in `src/` |
 | Decide `--intents` — shipped with no reader, no export | undecided |

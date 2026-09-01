@@ -31,6 +31,36 @@ import httpx
 import typer
 
 app = typer.Typer(help="Orchestrator registry client.", no_args_is_help=True)
+
+
+def _version(show: bool) -> None:
+    """`--version`: what is installed, and *where it came from*.
+
+    The path is not decoration. CONTRIBUTING warns that "a bare command resolves to whichever
+    install is on your PATH, which may be an older release that has no `pkg accuracy` at all" —
+    and the first thing anyone does after installing is check the version. Printing only a
+    number answers "which version exists"; printing the location answers "which one am I
+    actually running", which is the question behind it.
+    """
+    if not show:
+        return
+    from orchestrator import __version__
+
+    typer.echo(f"Spine {__version__}  (synaptixs-spine)")
+    typer.echo(f"  running from {Path(__file__).resolve().parent}")
+    raise typer.Exit()
+
+
+@app.callback()
+def _root(
+    version: Annotated[
+        bool,
+        typer.Option("--version", callback=_version, is_eager=True, help="Show the version and exit."),
+    ] = False,
+) -> None:
+    """Spine — requirement in, reviewed pull request out, grounded in a graph of your code."""
+
+
 template_app = typer.Typer(help="Manage agent templates.", no_args_is_help=True)
 contract_app = typer.Typer(help="Manage tool contracts.", no_args_is_help=True)
 task_app = typer.Typer(help="Submit tasks for execution.", no_args_is_help=True)
