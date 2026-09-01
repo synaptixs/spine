@@ -7,6 +7,10 @@ what each format does, what it costs, and what a document has to look like to be
 ingesting at all. Every number here was measured on this repository the day it was written,
 and the commands are given so they can be re-run rather than trusted.
 
+For the binding step specifically — the six stages traced through one real page, with the anchor
+counts that explain why three mentions of twelve become edges — see
+[`doc-binding-walkthrough.md`](doc-binding-walkthrough.md).
+
 Its sibling for code is [`parsing-and-the-pkg.md`](parsing-and-the-pkg.md) — that page covers
 how *source* becomes graph facts, front-end by front-end. This one covers *prose*.
 
