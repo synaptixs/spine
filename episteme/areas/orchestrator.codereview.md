@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.codereview`** is one of 52 areas in this repo, in the `orchestrator` zone. It holds 12 modules — 34 types and 25 functions. It sits in the middle of the graph: 4 areas below it, 4 above. Changes here can reach both ways.
+**`orchestrator.codereview`** is one of 53 areas in this repo, in the `orchestrator` zone. It holds 12 modules — 34 types and 25 functions. It sits in the middle of the graph: 4 areas below it, 4 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR

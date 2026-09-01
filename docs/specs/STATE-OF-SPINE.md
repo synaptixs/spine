@@ -1,9 +1,9 @@
-# State of Spine — 3.26.1
+# State of Spine — 3.27.0
 
-**The one document to read.** Verified against source on **2026-09-01**, at the 3.26.1 release
+**The one document to read.** Verified against source on **2026-09-01**, at the 3.27.0 release
 cut. Every number below was re-measured that day.
 
-> **Why this exists.** `docs/specs/` holds **78** markdown files — **75 specs** plus this
+> **Why this exists.** `docs/specs/` holds **81** markdown files — **78 specs** plus this
 > page, [`README`](README.md) and [`SPEC-INDEX`](SPEC-INDEX.md) — with 6 archived, 10 build
 > documents, and 17 root-level user documents.
 > Answering "where do we stand?" required opening five of them and reconciling three that
@@ -24,13 +24,13 @@ gates (before building, before merging). The product is **Spine**; it ships as
 
 | | Value | How it is known |
 |---|---|---|
-| Version | **3.26.1** | cutting now; 3.25.0 is the last on PyPI until this ships |
+| Version | **3.27.0** | cutting now; 3.26.1 is the last on PyPI until this ships |
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
 | CLI commands | **57** | `grep -c '\.command(' src/orchestrator/cli.py` |
 | Source modules | **332** | `find src/orchestrator -name '*.py'` |
-| Test functions | **2,832** across 296 files | `grep -rh '^def test_\|^async def test_' tests`; files via the same pattern with `-rl` |
+| Test functions | **2,864** across 297 files | `grep -rh '^def test_\|^async def test_' tests`; files via the same pattern with `-rl` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
-| `CALLS` recall | **1.00** (C, SQL) → **0.50** (TypeScript) | same |
+| `CALLS` recall | **1.00** (C, SQL) → **0.86** (TypeScript, on 14 labelled edges) | same |
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |
 | Same, across two codebases | **47/68 vs 3/68** | replicated on an unrelated external repo |
 | Control (`edit` tickets, target file named) | **122/124 either arm** | rules out a generic more-context effect |
@@ -98,7 +98,7 @@ Measured against a hand-labelled corpus, all 8 languages
 |---|---|
 | **Precision** | **1.00** on every node kind and every edge kind, all 8 languages — *on the corpus*, and see the caveat below |
 | **Recall** | 1.00 on every kind **except `CALLS`** |
-| `CALLS` recall | 1.00 (c, sql) · 0.73 (python) · 0.67 (cpp, csharp, go, java) · **0.50 (typescript)** |
+| `CALLS` recall | 1.00 (c, sql) · 0.73 (python) · 0.67 (cpp, csharp, go, java) · **0.86 (typescript)** — every one of the four denominators is small; TypeScript's is 14 labelled edges, doubled on 2026-09-01 |
 | Invention | **0** on this repo and on 11 pinned public repos across 6 front-ends, gated `strict` at zero per language (2026-08-24) |
 
 **That precision row was a corpus score over a corpus missing a shape, and both have been
@@ -135,7 +135,7 @@ for this section:
 
 The fix was one line, shipped in 3.18.0: return `None` instead of a guess. That is why the
 invention oracle exists as a standing measurement rather than a one-off, and why `CALLS` recall
-is allowed to sit at 0.50 on TypeScript instead of being padded.
+is allowed to sit below 1.00 on TypeScript instead of being padded.
 
 ### Why this matters
 
@@ -170,8 +170,12 @@ that. Nothing in the pipeline has to ration it.
 
 ### Where it is honestly weak
 
-- **`CALLS` recall on TypeScript is 0.50** — half the call edges are missed. Structure is
-  complete; the call graph is not.
+- **`CALLS` recall on TypeScript is 0.86**, on 14 labelled edges — up from 0.36 on 2026-09-01, and the remaining loss is one shape,
+  not a family: a receiver typed only by an object-literal field (`{ h: new Handler() }`). Every
+  other probed shape — annotated parameter, `const`/`let` with `new`, and `new Handler().run()` —
+  resolves, through a local pass over the same tree-sitter CST with no new dependency. Scoped in
+  [`typescript-call-resolution.md`](typescript-call-resolution.md), which argues against the
+  compiler API on determinism grounds and did not need it.
 - **`runtime` is still Python-only** (PEP 669) — the last of the four oracles with that
   limit. On a non-Python repo it reports nothing, and that is *not measured*, not clean.
   `invention` was the same until 2026-08-24 and now walks six front-ends, naming Java and SQL
@@ -357,9 +361,10 @@ and never promoted. A list that claims to be the authority has to actually absor
 | Item | State |
 |---|---|
 | Upgrade local `uv` past 0.8.0 | user's machine |
+| `orchestrator --version` | ✅ **added 2026-09-01.** It errored with *"No such option"* — the first thing anyone runs after installing, and the path [`BENCHMARK.md`](../../BENCHMARK.md) now sends strangers down. It prints the installed version **and where it is running from**, because CONTRIBUTING's own warning is that a bare command resolves to whatever is on `PATH`. Found alongside it: `orchestrator.__version__` was the literal `"0.0.0"` and no release step ever touched it, so every version ever shipped reported 0.0.0 to anything that imported it — now derived from the installed distribution |
 | RBAC role-gating beyond the approval decision + secrets vault | parked |
-| CI gate on spec-status drift | not started |
-| Decide `--intents` — shipped with no reader, no export | undecided |
+| CI gate on spec-status drift | 🟡 **the numbers half shipped 2026-09-01** — `scripts/state-numbers.py --check`, in CI, re-derives the eight figures this page and `SPEC-INDEX` state and fails when prose and source disagree. It caught a stale test count on its first run, and again when adding its own tests moved the number. **The judgement half is still open:** whether a spec's *status line* matches shipped reality is not mechanically checkable, and that is the class that produced the multi-repo row reading "not started" while the code was in `src/` |
+| Decide `--intents` — shipped with no reader, no export | ✅ **closed 2026-09-01** — decided *keep*, and phases 1–3 shipped the same day: it reaches the export, `FactStore` answers both directions, and `investigate --intents` names the tickets each landing was last changed for. Precision fixed on the way (§6.1: `SHA-256` and `ISO-8601` were being read as tickets). Spec: [`recorded-intent-tier.md`](recorded-intent-tier.md). Not abandoned and not obsolete: the producer works and is measured (37 intents, 1,418 `SERVES`, 11.5% of symbols, 3.0s), and **nothing reads it**. The export gap is narrower than recorded: the exporters do not filter by kind, `pkg export` simply has no `--intents` flag while `understand`/`state` do, so `link_intents` is missing beside the `link_docs` post-pass whose own comment makes the same argument. Phase 1 is ~2 hours. **The standing risk is that the tier's value is a function of the customer's commit hygiene**, and this repository — squashed on import — is a bad demo of it |
 | Rust front-end | not started |
 | Express endpoint extraction (TypeScript) | unscheduled |
 | Deployment image + reusable CI workflow for central adoption | not started. **Not a G4 phase** — it was recommended as though it were; it needs adding to that spec before it can be scheduled |
@@ -371,12 +376,12 @@ and never promoted. A list that claims to be the authority has to actually absor
 | **G6 comprehension benchmark — COMPLETE** | ✅ **2026-09-01, all three phases.** Scope decided 2026-08-30, harness 2026-08-31, gold set 2026-09-01. D1–D4 taken and written into [`gap6-benchmarks-roadmap.md`](gap6-benchmarks-roadmap.md): hand-labelled gold set only, two metrics (top-k localization + provenance validity), five pinned repositories, ratchet gate. The harness is in: a validated five-repo manifest, fetch-and-persist materialisation, **provenance validity at 1.0000 on 10,789 anchored facts** (ratcheted), and `pkg accuracy --oracle comprehension`. **Localization is measured: top-1 0.32, top-10 0.71 on 38 labelled issues**, against 0.085 for picking ten files at random — roughly 8× chance, from an issue title alone. Every label's issue link is confirmed against GitHub's own closing references and every path verified present in the pinned tree. **n=38 puts the 95% interval on top-1 at 0.17–0.47**, the labels are fixes touching 1–3 files so the number is optimistic, and `investigate` got the title only so it is also pessimistic. **Phase 2 landed 2026-09-01: localization is gated** on the ratchet tier, but only when the gold set's digest is unchanged and both sides were measured — so reshaping the corpus is a rebaseline, not a regression, and an offline run cannot ratchet it down. `--scoreboard --pinned-corpus` records it, `--check --pinned-corpus` compares it; CI's default gate stays offline. **Phase 3 published 2026-09-01: [`BENCHMARK.md`](../../BENCHMARK.md)**, linked from the README — corpus SHAs, label derivation, both metrics, the 0.085 chance baseline, six numbered limitations and the commands that produced the figures. Writing it for an outsider caught a reproducibility hole: the numbers depend on installed language extras, and without them a front-end silently yields no facts and the score drops for reasons unrelated to Spine — `--pinned-corpus` now warns by name. **G6 is complete.** Note: `stale_findings` could not be the provenance metric the spec assumed — it is zero by construction on a fresh extraction |
 | LLM temperature refusal is re-learned every call | ✅ **closed 2026-08-30.** `temperature` was popped from a **local** dict, so every call to a refusing model paid a failed round-trip and printed the same warning. Now a process-local `_TEMPERATURE_REFUSED` set, written at the refusal and read at param assembly: two completions cost three round-trips instead of four, and the determinism warning is said **once** — the later skips stay recoverable at `debug` under `llm.temperature_skipped`. Not persisted, so a fresh process re-probes rather than downgrading a model on one bad call |
 | MCP server spawned per operation | 🟡 **halved 2026-08-30, pooling declined.** `MCPRegistry.call` opened **two** sessions for one structured call — `_encoded` re-asked for a schema discovery had already been told. Schemas are now cached on the registry at discovery, so it opens one. **Full session pooling is not done and is not scheduled:** it would push an async lifecycle onto every caller, `registry/api/connections.py` included, to save a session the cache already saves — and nothing counts MCP calls per run, so "call volume warrants it" ([`mcp/client.py`](../../src/orchestrator/mcp/client.py) docstring) is still unanswerable. Measure before building it |
-| Stale second `## Unreleased` heading in the changelog | not started. `CHANGELOG.md:1182`, between the 3.14-era entries and `## 3.13.0`. Trivial, but it needs someone who knows which release those entries actually shipped in — which is why it was flagged rather than guessed at |
+| Stale second `## Unreleased` heading in the changelog | ✅ **fixed 2026-09-01.** The row said it needed *"someone who knows which release those entries actually shipped in"* — **git knew.** The entries were committed in `bbe912a` on 2026-08-06; `3.14.0` was cut the same day in `cd88136` with `bbe912a` as its ancestor, and 3.14.0's own section never mentioned them. So they shipped in 3.14.0 and the cut simply never renamed the heading. Folded into that section, where they already physically sat. **The row was blocked on a question nobody had asked the repository** |
 | **56% of `Doc` sections bind to nothing** | not started, and **not a parsing defect** — those sections are perfectly-parsed markdown with no identifier in them. Closing it needs semantic matching, which means a model, which collides with the determinism that makes `understand --check` a gate. Any fix belongs in a labelled second tier, measured and declared the way GraphIR Phase 2b was. [Record](document-ingestion-reference.md) |
 | PDF, `.rst`/`.txt` and media collapse to one `Doc` node per file | unscheduled. Media is the one fixable without a new dependency — its segments already carry `start_ms`/`end_ms` and could become timestamped sections. **Unmeasured** |
 | Diagram arrows never become graph edges | **idea, no spec.** A mermaid flowchart is read as text; its labels bind to nothing and `intake --> design` produces no relationship. The more promising framing is the inverse — a diagram as a set of assertions to *check* against the graph rather than facts to add to it |
 | Shadowed-name `CALLS` invention in TypeScript, Go, C++, C# | ✅ **closed 2026-08-24** — oracle widened to 6 front-ends, all four fixed, 4 corpus cases added, `invention` gated `strict` at zero per language. 47 fabricated edges removed with no true edge lost. [Record](invention-oracle-cross-language.md) |
-| TypeScript resolution via the TS compiler API | **idea, not scheduled** (2026-08-21). `CALLS` recall is **0.50** for TypeScript against 1.00 for C and SQL — tree-sitter parses the syntax correctly but has no symbol table, so a call site resolves to the wrong target or none. The language's own toolchain would fix that. Costs: a Node runtime dependency, loss of tree-sitter's error tolerance, and a determinism risk if resolution depends on installed packages — the same commit could then give different graphs on different machines |
+| TypeScript resolution via the TS compiler API | 🟡 **scoped 2026-09-01, and the spec argues against it** — [`typescript-call-resolution.md`](typescript-call-resolution.md). The number was **0.50 in three places, is 0.36**, and moved twice on the way: 0.50 was stale (the scoreboard said 0.571), and widening the corpus on 2026-09-01 took it to **5 of 14**. **The drop is measurement, not regression** — the code did not change; two fixtures were added for shapes nothing was testing. Probing six call shapes showed the loss is one family: `this.method()` resolves, every call through a *variable* misses — including `new Handler().run()`, which needs no type inference at all. Four of five missed shapes are reachable with a **local** pass over the same tree-sitter CST, no new dependency and no determinism risk, so the compiler API is not the first move. Its third cost is disqualifying as normally implemented: resolution that reads `node_modules` gives a different graph for the same commit, which invariant 2 forbids. **The scheduled piece is widening the corpus first** — 7 labelled edges cannot tell you whether a fix works |
 | G4 adoption — friction audit | ✅ **Phase 1 done 2026-08-19** — ≈28s cold start, no key; channels/proof/measurement outstanding |
 | `episteme.yml` main-branch path produces orphan branches | ✅ **fixed 2026-08-19** — regeneration is `develop`-only; `main` inherits the bank verbatim |
 
@@ -415,4 +420,8 @@ Do not read these to answer "where do we stand" — read them to act on a specif
 | Every spec and its status | [SPEC-INDEX.md](SPEC-INDEX.md) |
 
 **Maintenance rule.** This page is refreshed at each release, from source, in one pass. A number
-here without a "how it is known" is a number that should not be here.
+here without a "how it is known" is a number that should not be here — and since 2026-09-01 that
+rule is enforced rather than trusted: `scripts/state-numbers.py --check` runs in CI and fails when
+any stated figure disagrees with the source it claims to come from. It was written because the
+rule had been true and unpoliced, and three of these numbers were stale simultaneously during one
+release cut.

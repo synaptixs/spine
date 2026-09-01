@@ -126,7 +126,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/scope.py:466`](../../src/orchestrator/pkg/scope.py#L466)
 
 - **Called by** (1): [`scopes_for_source`](../../src/orchestrator/pkg/scope.py#L491)
-- **Calls** (5): [`_c_parser`](../../src/orchestrator/pkg/c_extractor.py#L497), [`_cpp_parser`](../../src/orchestrator/pkg/cpp_extractor.py#L515), [`_csharp_parser`](../../src/orchestrator/pkg/csharp_extractor.py#L727), [`_go_parser`](../../src/orchestrator/pkg/go_extractor.py#L506), [`_ts_parser`](../../src/orchestrator/pkg/typescript_extractor.py#L568)
+- **Calls** (5): [`_c_parser`](../../src/orchestrator/pkg/c_extractor.py#L497), [`_cpp_parser`](../../src/orchestrator/pkg/cpp_extractor.py#L515), [`_csharp_parser`](../../src/orchestrator/pkg/csharp_extractor.py#L727), [`_go_parser`](../../src/orchestrator/pkg/go_extractor.py#L506), [`_ts_parser`](../../src/orchestrator/pkg/typescript_extractor.py#L732)
 
 ### `_text`
 

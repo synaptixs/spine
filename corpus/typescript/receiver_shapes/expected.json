@@ -1,0 +1,33 @@
+{
+  "language": "typescript",
+  "case": "receiver_shapes",
+  "why": "The variable-receiver family, measured. `instance_calls` records two shapes; probing on 2026-09-01 found the miss is wider and not really about types — `new Handler().run()` has no variable and no inference to do, and misses anyway. Ground truth here is what a reader would expect the graph to say; the recall this scores is the honest cost of the resolver handling only a bare identifier and `this`. Following `instance_calls`, a `new T()` is recorded as CALLS to the Type, there being no constructor node.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "ts:app/handler", "kind": "Module"},
+    {"id": "ts:app/callers", "kind": "Module"},
+
+    {"id": "ts:app/handler.Handler", "kind": "Type"},
+
+    {"id": "ts:app/handler.Handler.run", "kind": "Function"},
+    {"id": "ts:app/callers.viaChain", "kind": "Function"},
+    {"id": "ts:app/callers.viaLet", "kind": "Function"},
+    {"id": "ts:app/callers.viaField", "kind": "Function"}
+  ],
+  "edges": [
+    {"src": "ts:app/callers", "dst": "ts:app/handler", "kind": "IMPORTS"},
+
+    {"src": "ts:app/handler", "dst": "ts:app/handler.Handler", "kind": "CONTAINS"},
+    {"src": "ts:app/handler.Handler", "dst": "ts:app/handler.Handler.run", "kind": "CONTAINS"},
+    {"src": "ts:app/callers", "dst": "ts:app/callers.viaChain", "kind": "CONTAINS"},
+    {"src": "ts:app/callers", "dst": "ts:app/callers.viaLet", "kind": "CONTAINS"},
+    {"src": "ts:app/callers", "dst": "ts:app/callers.viaField", "kind": "CONTAINS"},
+
+    {"src": "ts:app/callers.viaChain", "dst": "ts:app/handler.Handler", "kind": "CALLS"},
+    {"src": "ts:app/callers.viaChain", "dst": "ts:app/handler.Handler.run", "kind": "CALLS"},
+    {"src": "ts:app/callers.viaLet", "dst": "ts:app/handler.Handler", "kind": "CALLS"},
+    {"src": "ts:app/callers.viaLet", "dst": "ts:app/handler.Handler.run", "kind": "CALLS"},
+    {"src": "ts:app/callers.viaField", "dst": "ts:app/handler.Handler", "kind": "CALLS"},
+    {"src": "ts:app/callers.viaField", "dst": "ts:app/handler.Handler.run", "kind": "CALLS"}
+  ]
+}

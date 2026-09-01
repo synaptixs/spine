@@ -53,6 +53,11 @@ class Landing:
     #: cannot tell which checkout to open. `where` does not disambiguate either: both say
     #: `app/models.py:14`.
     repo: str = ""
+    #: Tickets this symbol was **last changed for**, from `SERVES`. Empty unless the recorded
+    #: intent tier was scanned (`--intents`), and empty is *"not scanned or not attributed"* —
+    #: never *"no prior work"*. The distinction is why the report states coverage once rather
+    #: than leaving a reader to infer it from blanks.
+    intents: tuple[str, ...] = ()
 
     @property
     def location(self) -> str:
@@ -144,6 +149,10 @@ def build_investigation(
                 module=module,
                 repo=repo,
                 cross_repo=_cross_repo_dependents(store, n.id, repo),
+                # Sorted so the brief is byte-identical for a given commit: `SERVES` edges come
+                # out in blame order, which is stable but not meaningful, and a brief that
+                # reorders between runs cannot be diffed.
+                intents=tuple(sorted(i.name for i in store.intents_for(n.id))),
             )
         )
         # Areas are qualified by repo, or two services that both have `app.models` collapse
@@ -193,7 +202,27 @@ def render_investigation_md(inv: Investigation) -> str:
             # facts, and an HTTP handler with 0 callers and 3 dependents in another service is
             # exactly the row a reader must not skim past.
             reach = f", **{hit.cross_repo} dependent(s) in other repos**" if hit.cross_repo else ""
-            out.append(f"- {prefix}`{hit.name}` ({hit.kind}, {hit.callers} caller(s){reach}){in_mod}{loc}")
+            # Bounded at three: a symbol edited across a dozen tickets says "this is hot", which
+            # the count conveys, and listing all twelve would bury the landing site itself.
+            served = ""
+            if hit.intents:
+                shown = ", ".join(hit.intents[:3])
+                more = f" +{len(hit.intents) - 3} more" if len(hit.intents) > 3 else ""
+                served = f" — last changed for {shown}{more}"
+            out.append(
+                f"- {prefix}`{hit.name}` ({hit.kind}, {hit.callers} caller(s){reach}){in_mod}{loc}{served}"
+            )
+        if any(hit.intents for hit in inv.landing):
+            # Stated once, at report level, and only when the tier actually ran. Per symbol it
+            # would be noise on every line; omitted entirely, a reader would take the symbols
+            # with no ticket for symbols with no prior work — and on this repository that is
+            # nine landings in ten. The rate is the difference between a finding and a claim.
+            attributed = sum(1 for hit in inv.landing if hit.intents)
+            out.append(
+                f"\n_Recorded intent covers {attributed} of {len(inv.landing)} landing(s). "
+                "A landing with no ticket was not attributed — which is not the same as "
+                "having no prior work; see the coverage rate the scan reports._"
+            )
         if len(inv.repos) > 1:
             out.append(f"\n_This ticket lands in {len(inv.repos)} repositories: {', '.join(inv.repos)}._")
         if inv.elided:

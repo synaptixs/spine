@@ -4,6 +4,67 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.27.0 — TypeScript stops skipping the calls it could not type
+
+The headline is a number that moved for a real reason, and a second number that
+moved because we finally looked at it.
+
+### Added
+
+- **TypeScript call resolution: `CALLS` recall 0.36 → 0.86.** `h.run()` where
+  `h` is a parameter annotated `Handler`, or a local from `new Handler()`, was
+  skipped rather than guessed — tree-sitter sees an identifier and a property,
+  not a type. A bounded local-type pass now reads the receiver's type from the
+  annotation or the `new` in the same tree, and a whole-repo `finalize` emits
+  the edge **only where the target exists in the merged graph**. Precision holds
+  at **1.00** and the invention oracle stays at zero.
+
+  **The TypeScript compiler API was scoped and argued against**
+  ([`docs/specs/typescript-call-resolution.md`](docs/specs/typescript-call-resolution.md)).
+  It resolves against installed packages, so the same commit yields a different
+  graph depending on whether `node_modules` is present — which breaks the
+  determinism that makes `understand --check` a gate at all. Every measured miss
+  was reachable without it.
+
+- **A recorded-intent tier**: `git blame` plus issue keys in commit messages
+  become `Intent` nodes and `SERVES` edges, so `investigate` can answer *why*
+  this code exists, not only what calls it.
+
+- **`orchestrator --version`.**
+
+### Fixed
+
+- **The drift list stopped calling 58 filenames missing code.** `md.js`,
+  `graph.html` and `compose.dev.yml` are dotted, lowercase and multi-segment —
+  shaped exactly like symbol paths — and the FILE pattern does not recognise
+  their extensions, so they arrived as symbol claims. Drift **1,658 → 1,600**
+  with **not one `MENTIONS` edge changed**: a naming asymmetry, not a coverage
+  gap. `README.md` and `src/a/b.py` keep their disk check, because a document
+  linking a file that is not there is a real finding.
+
+  Investigated first as a *binding* defect, which it is not. `bind`'s leaf-only
+  fallback looked reckless enough to delete on sight; measured, it rescues **76**
+  mentions onto a correct anchor (`store.find` → `FactStore.find`) and mis-binds
+  no filename at all.
+
+### Changed
+
+- **`scripts/state-numbers.py` re-derives eighteen published claims**, up from
+  eight — the TypeScript recall figures quoted in three places, and the eight
+  doc-binding figures in the walkthrough. Structural claims are gated; figures
+  that move with ordinary commits print `[trend]` and never fail the build.
+
+  This exists because every hand-carried number in this repository has aged
+  silently. The TypeScript figure was published as 0.50 while it was actually
+  0.571, then 0.357 once the corpus doubled.
+
+- **How a document binds to the graph is now written down**
+  ([`docs/specs/doc-binding-walkthrough.md`](docs/specs/doc-binding-walkthrough.md)),
+  in six steps and then traced through one real page. It records a wrong table
+  it replaced: the first version conflated file anchors with symbol anchors and
+  concluded "ambiguity, not absence, is the larger loss", which is false —
+  absence is 3,360 mentions against ambiguity's 1,962.
+
 ## 3.26.1 — The benchmark's own command stops looking broken
 
 ### Fixed
@@ -1269,8 +1330,6 @@ down.
   render surface (`intake.service.spec_to_issue_request`, `intake.report`,
   `intake.web.app`) show the proposed set under its own label rather than dropping it.
   Specs with no proposed criteria render exactly as before.
-
-## Unreleased
 
 - **Codegen's source-context budget goes from 40 KB to 200 KB.** 40 KB is ~10k tokens —
   about 1% of the default model's window, and a leftover rather than a limit. It shaped

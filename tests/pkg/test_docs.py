@@ -140,3 +140,46 @@ def test_file_mentions_bind_against_repo_root(tmp_path: Path) -> None:
     drifted = {f.mention for f in drift}
     assert "README.md" not in drifted  # exists on disk → bound
     assert "MISSING.md" in drifted  # doc references a file that isn't there
+
+
+# ---- a dotted filename is not a symbol path (doc-binding audit, 2026-09-01) --------
+
+
+def test_a_filename_is_not_drift(tmp_path: Path) -> None:
+    """`md.js` is a file, and the drift list was calling it a missing symbol.
+
+    Dotted, lowercase, multi-segment tokens are shaped exactly like symbol paths, so
+    filenames match nothing and arrive as claims the prose made and the code failed to
+    support. Measured 2026-09-01: 55 of them, against zero `MENTIONS` edges either way —
+    drift precision, not binding coverage.
+    """
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "m.py").write_text("X = 1\n", encoding="utf-8")
+    rec = DocReconciler(RepoCodeExtractor().extract(repo), repo_root=repo)
+    page = DocPage(
+        title="x",
+        text="Rendered by `md.js` and `graph.html`, brought up with compose.dev.yml.",
+    )
+    _bindings, drift = rec.reconcile([page])
+    assert [d.mention for d in drift] == []
+
+
+def test_the_leaf_only_fallback_still_rescues_a_qualified_name(tmp_path: Path) -> None:
+    """Prose writes `store.find`; the symbol is `FactStore.find`. That binding is deliberate.
+
+    `bind`'s last resort matches the final segment alone, which looks reckless enough to
+    delete on sight. It was audited on 2026-09-01: it rescues 76 mentions on this repository
+    and mis-binds no filename. This pins it so the audit does not have to be repeated.
+    """
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "m.py").write_text("class FactStore:\n    def find(self):\n        return 1\n", encoding="utf-8")
+    rec = DocReconciler(RepoCodeExtractor().extract(repo), repo_root=repo)
+    page = DocPage(title="x", text="Call `store.find`.")
+    (mention,) = [m for m in extract_mentions(page) if m.text == "store.find"]
+    assert rec.bind(mention, base_dir="").anchor_ids == ["py:m.FactStore.find"]

@@ -22,6 +22,7 @@ skipped — they'd need type inference, and a guessed edge poisons grounding.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -48,6 +49,39 @@ class TypeScriptExtractor:
 
     language: str = "typescript"
     suffixes: tuple[str, ...] = (".ts", ".tsx")
+
+    def __init__(self) -> None:
+        #: Member calls whose receiver type is known but whose target is unproven until the
+        #: whole repository is in hand. Drained by `finalize`.
+        self._pending_calls: list[_PendingCall] = []
+
+    def finalize(self, batch: FactBatch) -> FactBatch:
+        """Emit the deferred member calls whose target actually exists in the merged graph.
+
+        A single file can resolve `h: Handler` to `ts:app/handler.Handler`, and cannot know
+        whether that type has a `run`. Minting the id anyway is the fabrication that cost 497
+        edges in Python and 47 across four front-ends. So the check is existence, here, once
+        every file has been read: **if the node is not in the graph, no edge is drawn** — the
+        same skip-rather-than-guess rule, moved to the only place with enough information to
+        apply it.
+
+        Clears the queue so a later extraction starts clean, as Go's finalize does.
+        """
+        pending = self._pending_calls
+        self._pending_calls = []
+        if not pending:
+            return batch
+        known = {n.id for n in batch.nodes}
+        for call in pending:
+            target = f"{call.type_id}.{call.method}"
+            if target in known:
+                batch.add_edge(Edge(call.caller, target, EdgeKind.CALLS, Provenance(call.rel, call.line)))
+            # The receiver's own type is a call only when it was *constructed* here.
+            if call.constructed and call.type_id in known:
+                batch.add_edge(
+                    Edge(call.caller, call.type_id, EdgeKind.CALLS, Provenance(call.rel, call.line))
+                )
+        return batch
 
     def module_name(self, path: Path, root: Path) -> str:
         # TS modules are path-addressed (no package decl): repo-relative path
@@ -94,7 +128,21 @@ class TypeScriptExtractor:
             elif node.type in _FUNC_CONST_DECLS:
                 self._emit_const_functions(node, module_id, source, rel, batch, funcs, local_funcs)
         for fid, type_id, body in funcs:
-            _calls(fid, type_id, body, type_methods, local_funcs, imports, namespaces, source, rel, batch)
+            _calls(
+                fid,
+                type_id,
+                body,
+                type_methods,
+                local_funcs,
+                imports,
+                namespaces,
+                source,
+                rel,
+                batch,
+                local_types,
+                module_id,
+                self._pending_calls,
+            )
         return batch
 
     def _imports(
@@ -320,10 +368,14 @@ def _calls(
     source: bytes,
     rel: str,
     batch: FactBatch,
+    local_types: set[str],
+    module_id: str,
+    pending: list[_PendingCall],
 ) -> None:
     """Emit CALLS for precisely-resolvable ``call_expression`` sites in a body."""
     siblings = type_methods.get(type_id or "", set())
     bound = _bound_names(body, source)
+    typed, constructors = _typed_locals(body, source)
     stack = list(body.named_children)
     while stack:
         n = stack.pop()
@@ -343,7 +395,119 @@ def _calls(
             if target is not None:
                 _ensure_external(batch, target)
                 batch.add_edge(Edge(caller, target, EdgeKind.CALLS, Provenance(rel, n.start_point[0] + 1)))
+            elif fn is not None and fn.type == "member_expression":
+                _defer_member_call(
+                    caller, fn, typed, constructors, imports, local_types, module_id, rel, source, pending
+                )
         stack.extend(n.named_children)
+
+
+@dataclass(frozen=True)
+class _PendingCall:
+    """A ``receiver.method()`` whose receiver type is known but whose target is not yet proven."""
+
+    caller: str
+    type_id: str
+    method: str
+    rel: str
+    line: int
+    #: Whether the receiver was *constructed* at the call site. `new Handler().run()` reaches
+    #: the constructor and the method; `h.run()` on an annotated parameter reaches only the
+    #: method — the caller received the instance, it did not build one. Emitting the type edge
+    #: for both cost 0.20 precision the moment it was measured.
+    constructed: bool
+
+
+def _typed_locals(body: TSNode, src: bytes) -> tuple[dict[str, str], dict[str, bool]]:
+    """``{identifier: type name}`` for the receivers a function body states the type of.
+
+    Three forms, all of them **in the same tree as the call** — no inference, no symbol table:
+
+    ===========================  ===========================================
+    `function f(h: Handler)`     the parameter's `type_annotation`
+    `let h: Handler`             the declarator's `type_annotation`
+    `const h = new Handler()`    the `new_expression`'s constructor name
+    ===========================  ===========================================
+
+    Everything else — a call's return value, a destructured binding, a field of an object
+    literal — is left out on purpose. Each needs an answer this pass does not have, and a
+    receiver typed by guess is the fabricated edge that `_resolve_call` exists to refuse.
+    """
+    found: dict[str, str] = {}
+    constructed: dict[str, bool] = {}
+    # Parameters are siblings of the body, not inside it — walking only the body finds every
+    # local and no annotated parameter, which is the single most common typed receiver there is.
+    params = body.parent.child_by_field_name("parameters") if body.parent is not None else None
+    stack = list(body.named_children) + (list(params.named_children) if params is not None else [])
+    # The whole body, function scopes included: a nested arrow sees the outer `const`, and
+    # stopping at the boundary would drop the receivers most likely to appear in a callback.
+    while stack:
+        n = stack.pop()
+        if n.type in ("required_parameter", "optional_parameter", "variable_declarator"):
+            name_node = n.child_by_field_name("pattern") or n.child_by_field_name("name")
+            name = _text(name_node, src) if name_node is not None and name_node.type == "identifier" else ""
+            if name:
+                annotated = n.child_by_field_name("type")
+                value = n.child_by_field_name("value")
+                built = value is not None and value.type == "new_expression"
+                if annotated is not None:
+                    # `: Handler` — the annotation node keeps its colon.
+                    found.setdefault(name, _text(annotated, src).lstrip(":").strip())
+                    constructed.setdefault(name, built)
+                elif built and value is not None:
+                    ctor = value.child_by_field_name("constructor")
+                    if ctor is not None:
+                        found.setdefault(name, _text(ctor, src))
+                        constructed.setdefault(name, True)
+        stack.extend(n.named_children)
+    return found, constructed
+
+
+def _defer_member_call(
+    caller: str,
+    fn: TSNode,
+    typed: dict[str, str],
+    constructors: dict[str, bool],
+    imports: dict[str, str],
+    local_types: set[str],
+    module_id: str,
+    rel: str,
+    source: bytes,
+    pending: list[_PendingCall],
+) -> None:
+    """Record ``receiver.method()`` for the whole-repo pass, when the receiver's type is stated.
+
+    **Deferred rather than emitted**, and that is the point. The type resolves here — `Handler`
+    is an import or a sibling — but whether `Handler` *has* a `run` cannot be known from one
+    file, and minting `ts:app/handler.Handler.run` unchecked is precisely the invented edge that
+    cost 497 fabrications in Python. `finalize` sees the merged graph and emits only where the
+    target node actually exists.
+    """
+    obj = fn.child_by_field_name("object")
+    prop = fn.child_by_field_name("property")
+    pname = _text(prop, source) if prop is not None else ""
+    if obj is None or not pname:
+        return
+
+    constructed = False
+    if obj.type == "new_expression":  # `new Handler().run()` — the receiver IS the constructor
+        ctor = obj.child_by_field_name("constructor")
+        base = _text(ctor, source) if ctor is not None else ""
+        constructed = True
+    elif obj.type == "identifier":
+        name = _text(obj, source)
+        base = typed.get(name, "")
+        # A local whose type came from `new T()` was constructed in this body; one whose type
+        # came from an annotation was handed in.
+        constructed = bool(base) and constructors.get(name, False)
+    else:
+        return
+    if not base:
+        return
+
+    type_id = _resolve_type(base, imports, local_types, module_id, rel)
+    if type_id is not None:
+        pending.append(_PendingCall(caller, type_id, pname, rel, fn.start_point[0] + 1, constructed))
 
 
 def _pattern_names(node: TSNode | None, src: bytes) -> list[str]:

@@ -30,8 +30,68 @@ from orchestrator.pkg.facts import FactBatch, Node
 
 _BACKTICK_RE = re.compile(r"`([^`\n]{2,120})`")
 _DOTTED_RE = re.compile(r"\b[a-z_]\w*(?:\.[A-Za-z_]\w*){2,}\b")  # a.b.C at least
-# Last segments that mark a URL/domain rather than a code path.
-_URL_TAILS = frozenset({"com", "net", "org", "io", "dev", "ai", "html", "www"})
+# Tails that make a dotted token something other than a symbol path. Domains were the original
+# reason; file extensions were the omission. `compose.dev.yml`, `docs.astral.sh` and
+# `orchestrator.pkg.persistence.md` are dotted, lowercase and multi-segment, so they read as
+# symbol paths, match nothing, and land in the drift list as claims the code failed to support.
+# They are filenames. This list drops 12 of them at extraction; `_can_drift` drops a further 43
+# that arrive backticked. Measured 2026-09-01: **55 fewer drift findings, 1,651 -> 1,596, and
+# zero change to MENTIONS edges** — this is drift precision, not binding coverage.
+#
+# It was investigated as a *binding* defect and is not one. See `test_docs.py` for what the
+# leaf-only fallback in `bind` actually does: on this repository it rescues 76 mentions like
+# `store.find` onto `FactStore.find` and mis-binds no filename at all.
+_URL_TAILS = frozenset(
+    {
+        # domains
+        "com",
+        "net",
+        "org",
+        "io",
+        "dev",
+        "ai",
+        "www",
+        # file extensions — a dotted token ending in one names a FILE, never a symbol
+        "html",
+        "json",
+        "yaml",
+        "yml",
+        "toml",
+        "md",
+        "rst",
+        "txt",
+        "cfg",
+        "ini",
+        "lock",
+        "png",
+        "svg",
+        "jpg",
+        "jpeg",
+        "gif",
+        "pdf",
+        "csv",
+        "tsv",
+        "sh",
+        "bat",
+        "sql",
+        # Source extensions. Measured zero edges either way on this repository; listed
+        # because the rule is identical — `handler.py` names a file. A genuine path
+        # mention takes the FILE branch and resolves against real paths.
+        "py",
+        "ts",
+        "tsx",
+        "js",
+        "jsx",
+        "go",
+        "java",
+        "cs",
+        "c",
+        "h",
+        "cc",
+        "cpp",
+        "rs",
+    }
+)
 _SNAKE_RE = re.compile(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b")
 _CAMEL_RE = re.compile(r"\b[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)+\b")
 _IDENT_RE = re.compile(r"[A-Za-z_][\w.]*")
@@ -195,8 +255,14 @@ class DocReconciler:
             # partial dotted tail: "pkg.persistence" ⊂ "orchestrator.pkg.persistence"
             binding.anchor_ids = [ids[0] for tail, ids in self._suffixes.items() if tail.endswith(f".{text}")]
         if not binding.anchor_ids and "." in text:
+            # Last resort: the leaf alone, which throws the qualifier away — this is what
+            # binds `store.find` onto `FactStore.find`, 76 times here. The guard is repeated
+            # rather than left to `extract_mentions` because a BACKTICK mention never passes
+            # through the dotted-token filter, so `` `a.b.json` `` arrives intact. Nothing in
+            # this repository currently reaches it; the asymmetry is the trap, not a live bug.
             leaf = text.rsplit(".", 1)[-1]
-            binding.anchor_ids = list(self._names.get(leaf, []))
+            if leaf.lower() not in _URL_TAILS:
+                binding.anchor_ids = list(self._names.get(leaf, []))
         return binding
 
     def _can_drift(self, mention: DocMention) -> bool:
@@ -205,8 +271,21 @@ class DocReconciler:
         CamelCase prose, ALL-CAPS tokens (env vars/config keys), and single
         plain lowercase words (tool, branch, command names) bind when they
         resolve but never count against the docs.
+
+        So do **filenames the FILE pattern does not recognise**. `md.js`, `graph.html`
+        and `compose.dev.yml` are dotted, lowercase and multi-segment — indistinguishable
+        from a symbol path by shape — and arrived as BACKTICK claims, so the drift list
+        reported 55 of them as prose naming code that does not exist. A *recognised*
+        extension (`README.md`, `src/a/b.py`) is a FILE mention and keeps its disk check:
+        naming a file that is not there is a real finding, and must still drift.
         """
         if mention.kind is MentionKind.CAMEL:
+            return False
+        if (
+            mention.kind is not MentionKind.FILE
+            and "." in mention.text
+            and mention.text.rsplit(".", 1)[-1].lower() in _URL_TAILS
+        ):
             return False
         if _ALL_CAPS_RE.match(mention.text):
             return False

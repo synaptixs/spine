@@ -31,6 +31,36 @@ import httpx
 import typer
 
 app = typer.Typer(help="Orchestrator registry client.", no_args_is_help=True)
+
+
+def _version(show: bool) -> None:
+    """`--version`: what is installed, and *where it came from*.
+
+    The path is not decoration. CONTRIBUTING warns that "a bare command resolves to whichever
+    install is on your PATH, which may be an older release that has no `pkg accuracy` at all" —
+    and the first thing anyone does after installing is check the version. Printing only a
+    number answers "which version exists"; printing the location answers "which one am I
+    actually running", which is the question behind it.
+    """
+    if not show:
+        return
+    from orchestrator import __version__
+
+    typer.echo(f"Spine {__version__}  (synaptixs-spine)")
+    typer.echo(f"  running from {Path(__file__).resolve().parent}")
+    raise typer.Exit()
+
+
+@app.callback()
+def _root(
+    version: Annotated[
+        bool,
+        typer.Option("--version", callback=_version, is_eager=True, help="Show the version and exit."),
+    ] = False,
+) -> None:
+    """Spine — requirement in, reviewed pull request out, grounded in a graph of your code."""
+
+
 template_app = typer.Typer(help="Manage agent templates.", no_args_is_help=True)
 contract_app = typer.Typer(help="Manage tool contracts.", no_args_is_help=True)
 task_app = typer.Typer(help="Submit tasks for execution.", no_args_is_help=True)
@@ -2440,6 +2470,14 @@ def investigate(
         str | None,
         typer.Option("--repos", help="A `.spine/repos.yaml` — research across every declared repo."),
     ] = None,
+    intents: Annotated[
+        bool,
+        typer.Option(
+            "--intents",
+            help="Also report which ticket each landing symbol was last changed for. Costs a "
+            "`git blame` pass; single-repo only.",
+        ),
+    ] = False,
 ) -> None:
     """Investigation brief: a ticket × the codebase, before you design.
 
@@ -2480,11 +2518,31 @@ def investigate(
         # `root=None`: `episteme/` belongs to one repository, and a merged brief has no single
         # owner for it. The section is omitted rather than filled from an arbitrary repo — the
         # brief is written to be honest when a section has nothing grounded.
+        if intents:
+            # Single-repo only: blame is per checkout, and a merged graph has several. Said
+            # rather than ignored — a flag that silently does nothing is worse than one that
+            # is refused.
+            typer.echo("investigate: --intents does not apply with --repos (blame is per repo)", err=True)
         inv = build_investigation(ticket_title, problem, store=FactStore(merged.batch), root=None)
     else:
         with _repo_arg(path) as (repo, _):
             extractor = RepoCodeExtractor(sql_dialect=dialect)
             batch = extractor.extract(repo) if refresh else load_or_extract(repo, extractor=extractor)
+            if intents:
+                from orchestrator.pkg.intent_link import link_intents
+
+                coverage = link_intents(batch, repo)
+                rate = f"{coverage.rate:.1%}" if coverage.rate is not None else "n/a"
+                # The rate goes to stderr beside the brief, not into it: the brief is the
+                # artifact a human reads and a run records, and a coverage figure belongs with
+                # the scan that produced it. Without it, a landing with no ticket reads as a
+                # symbol with no prior work, and here that would be nine landings in ten.
+                typer.echo(
+                    f"  recorded intent: {coverage.intents} ticket(s) from "
+                    f"{', '.join(coverage.prefixes_used) or 'no prefix'}; "
+                    f"{coverage.symbols_attributed}/{coverage.symbols_total} symbols ({rate})",
+                    err=True,
+                )
             inv = build_investigation(ticket_title, problem, store=FactStore(batch), root=repo)
 
     md = render_investigation_md(inv)
@@ -3898,6 +3956,22 @@ def pkg_export(
         Path | None,
         typer.Option("--out", "-o", help="Output file. Defaults to pkg-facts.<ext> for the format."),
     ] = None,
+    intents: Annotated[
+        bool,
+        typer.Option(
+            "--intents",
+            help="Also emit Intent nodes + SERVES edges (which ticket a symbol was last "
+            "changed for). Costs a `git blame` pass; ignored for --format sqlite.",
+        ),
+    ] = False,
+    intent_prefix: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--intent-prefix",
+            help="Issue-key prefix to accept, repeatable (e.g. --intent-prefix PROJ). Default: "
+            "infer the repository's dominant prefix, which the run reports.",
+        ),
+    ] = None,
     db: Annotated[
         Path | None,
         typer.Option("--db", help="DEPRECATED alias for --out (sqlite only). Use --out."),
@@ -3947,6 +4021,14 @@ def pkg_export(
     # --db predates --format and is published surface, so it keeps working rather than being
     # silently ignored — that would break a script without saying so. It only ever meant sqlite.
     if db is not None:
+        if intents and fmt == "sqlite":
+            # Said, not silently ignored. That schema is kind-per-table and is a contract with
+            # the ontomesh consumer; `link_docs` is excluded from it for the same reason.
+            typer.echo(
+                "  note: --intents does not apply to --format sqlite (kind-per-table schema, "
+                "no intent table)",
+                err=True,
+            )
         if fmt != "sqlite":
             typer.echo(f"--db only applies to --format sqlite (got {fmt!r}). Use --out instead.")
             raise typer.Exit(code=2)
@@ -3970,6 +4052,42 @@ def pkg_export(
             from orchestrator.pkg import link_docs
 
             batch = link_docs(batch, repo)
+
+            # Same post-pass argument, same modality problem: Intent nodes and SERVES edges
+            # come from `link_intents`, so without this the recorded-intent tier is invisible
+            # in the export exactly as docs would be. The exporters do not filter by kind —
+            # `export_json` emits every node — so the facts were absent because nothing added
+            # them, not because anything rejected them.
+            #
+            # Opt-in rather than unconditional, unlike docs: blame roughly doubles the cost of
+            # an extraction, and on a repository whose commits carry no issue keys it buys
+            # nothing at all.
+            if intents:
+                from orchestrator.pkg.intent_link import link_intents
+
+                coverage = link_intents(batch, repo, prefixes=intent_prefix or None)
+                rate = f"{coverage.rate:.1%}" if coverage.rate is not None else "n/a"
+                # What it decided, not just what it found. The generic key pattern reads
+                # `SHA-256` and `ISO-8601` as tickets, so which prefixes were accepted is the
+                # difference between a measurement and a guess — and an operator who can see
+                # the rejects can correct them with --intent-prefix.
+                typer.echo(
+                    f"  intent prefixes: accepted {', '.join(coverage.prefixes_used) or 'none'}"
+                    + (
+                        f"; rejected as not tickets: {', '.join(coverage.prefixes_rejected)}"
+                        if coverage.prefixes_rejected
+                        else ""
+                    ),
+                    err=True,
+                )
+                # The denominator travels with the facts. A tier that attributes 12 of 4,000
+                # symbols is working as designed and says almost nothing, and only the ratio
+                # makes that visible to whoever reads the export.
+                typer.echo(
+                    f"  intents: {coverage.intents} from {coverage.commits_keyed} keyed commit(s); "
+                    f"{coverage.symbols_attributed}/{coverage.symbols_total} symbols attributed ({rate})",
+                    err=True,
+                )
     counts = export_sqlite(batch, target) if fmt == "sqlite" else WRITERS[fmt](batch, target)
     typer.echo(f"Exported {path} → {target} ({fmt})")
     for label, n in counts.items():

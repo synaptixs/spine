@@ -76,7 +76,7 @@ about it.
 **1 · The graph is built by parsers, not by a model — and its accuracy is published.**
 Eight language front-ends, every fact carrying `file:line`. Scored against a hand-labelled
 corpus in CI: **precision 1.00 on every node and edge kind**. Where it's weaker, that's
-published too — `CALLS` recall runs 1.00 on C and SQL down to 0.50 on TypeScript, reported
+published too — `CALLS` recall runs 1.00 on C and SQL down to 0.86 on TypeScript, reported
 separately rather than averaged into something flattering.
 
 **2 · The failure mode is silence, not fiction.** Everything the graph asserts exists;
@@ -113,7 +113,16 @@ the product.** Where it can't know something, it says so and stops.
 
 ## What's new
 
-**3.26.1 (current)** — **Spine measures whether it finds the right file, and publishes the
+**3.27.0 (current)** — **TypeScript stops skipping the calls it could not type.** `h.run()`,
+where `h` is a parameter annotated `Handler` or a local from `new Handler()`, used to be dropped
+rather than guessed — so `CALLS` recall on TypeScript was **0.36**. It is now **0.86**, with
+precision still at 1.00 and no fabricated edges. The TypeScript compiler API was scoped and
+argued against: it resolves against installed packages, so the same commit would yield a
+different graph depending on whether `node_modules` is present. Also new: a recorded-intent tier,
+so `investigate` can say *why* code exists and not only what calls it; and `orchestrator
+--version`.
+
+**3.26.1** — **Spine measures whether it finds the right file, and publishes the
 number.** Given a real bug report, the file that actually fixed it is in the top 10 for **27 of
 38** issues and the first guess is right for **12**; picking ten files at random from the same
 repositories scores 0.085. The corpus is five open-source projects pinned by commit, the answer

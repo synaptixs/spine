@@ -133,6 +133,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237)
 - **Calls** (5): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L46), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L472), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L270), `nullcontext`, [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L623)
+- **Documented in**: `docs/specs/recorded-intent-tier.md#41-what-phases-2-and-3-look-like-in-practice`
 
 ### `_stage_intake`
 
@@ -146,7 +147,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/autorun.py:838`](../../src/orchestrator/sdlc/autorun.py#L838)
 
 - **Called by** (2 production · 5 test): [`_run`](../../scripts/phase2a_parity_gate.py#L88), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237), [`test_a_design_naming_invented_code_parks_the_run`](../../tests/sdlc/test_research_pass.py#L173), [`test_design_is_handed_the_evidence_blast_radius`](../../tests/sdlc/test_research_pass.py#L135), [`test_investigate_reads_the_evidence_instead_of_deriving_it_again`](../../tests/sdlc/test_research_pass.py#L64), [`test_the_imperative_path_still_derives_its_own_view`](../../tests/sdlc/test_research_pass.py#L113), [`test_the_landing_facts_survive_the_stage_boundary`](../../tests/sdlc/test_research_pass.py#L76)
-- **Calls** (4): [`_adopt_evidence`](../../src/orchestrator/sdlc/autorun.py#L871), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L635), [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L112), [`render_investigation_md`](../../src/orchestrator/sdlc/investigate.py#L176)
+- **Calls** (4): [`_adopt_evidence`](../../src/orchestrator/sdlc/autorun.py#L871), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L635), [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L117), [`render_investigation_md`](../../src/orchestrator/sdlc/investigate.py#L185)
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#phase-1-the-tool-node-type-the-evidence-artifact-and-the-sdlc-ir-in-shadow`
 
 ### `_stage_review`
@@ -175,7 +176,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/autorun.py:237`](../../src/orchestrator/sdlc/autorun.py#L237)
 
-- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L1130), [`_run`](../../tests/sdlc/test_autorun.py#L566)
+- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L1160), [`_run`](../../tests/sdlc/test_autorun.py#L566)
 - **Calls** (27): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L46), [`RunContext`](../../src/orchestrator/sdlc/autorun.py#L65), [`RunRecord`](../../src/orchestrator/sdlc/runstate.py#L43), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L90), [`TokenLedger`](../../src/orchestrator/core/llm/recording.py#L58), [`_journal_outcome`](../../src/orchestrator/sdlc/autorun.py#L420), [`_load_graph`](../../src/orchestrator/sdlc/autorun.py#L824), [`_log_run_cost`](../../src/orchestrator/sdlc/autorun.py#L441), [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L476), [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L503), [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L640), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L472), [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L957), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1025), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L551), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L838), [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L1105), [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L892), [`_write_case`](../../src/orchestrator/sdlc/autorun.py#L813), [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L227), `getpid`, `monotonic`, `orchestrator.core.llm.RunBudget`, `pathlib.Path`, [`span`](../../src/orchestrator/obs/tracing.py#L137), +2 more
 - **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/build-document.md#6-what-changes-about-a-run`, `docs/specs/build-document.md#command-shape`, `docs/specs/build-document.md#phase-1-orchestrator-sdlc-plan-built`
 
@@ -183,7 +184,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/autorun.py:227`](../../src/orchestrator/sdlc/autorun.py#L227)
 
-- **Called by** (2 production · 1 test): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237), [`sdlc_explain`](../../src/orchestrator/cli.py#L740), [`test_the_default_artifact_dir_is_not_the_repo`](../../tests/sdlc/test_autorun.py#L188)
+- **Called by** (2 production · 1 test): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237), [`sdlc_explain`](../../src/orchestrator/cli.py#L770), [`test_the_default_artifact_dir_is_not_the_repo`](../../tests/sdlc/test_autorun.py#L188)
 - **Calls** (3): `getenv`, `gettempdir`, `pathlib.Path`
 - **Documented in**: `docs/specs/build-document.md#5-document-identity-name-place-and-the-commit-it-was-derived-at`
 
@@ -191,7 +192,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/autorun.py:1138`](../../src/orchestrator/sdlc/autorun.py#L1138)
 
-- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L1130), [`test_the_summary_reports_every_stage`](../../tests/sdlc/test_autorun.py#L239)
+- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L1160), [`test_the_summary_reports_every_stage`](../../tests/sdlc/test_autorun.py#L239)
 
 ## Imports
 

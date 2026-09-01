@@ -364,3 +364,64 @@ def test_understand_leads_with_what_it_learned_not_a_file_listing(tmp_path: Path
     # it printed `['python']` at a stranger on their first run.
     assert "['python']" not in rendered
     assert "f0.md" not in rendered, "the file listing belongs behind --json"
+
+
+# ---- `--version`, and the version that was a literal --------------------------
+
+
+def test_version_reports_the_installed_distribution() -> None:
+    """`orchestrator --version` errored with "No such option" until 2026-09-01.
+
+    It is the first thing anyone runs after installing, and BENCHMARK.md now sends strangers
+    down exactly that path.
+    """
+    from importlib.metadata import version as installed
+
+    from typer.testing import CliRunner
+
+    from orchestrator.cli import app
+
+    result = CliRunner().invoke(app, ["--version"])
+    assert result.exit_code == 0
+    assert installed("synaptixs-spine") in result.stdout
+    assert "synaptixs-spine" in result.stdout
+
+
+def test_version_says_where_it_is_running_from() -> None:
+    """CONTRIBUTING warns a bare command resolves to whatever is on PATH.
+
+    A number alone answers "which version exists"; the path answers "which one am I actually
+    running", which is the question behind it.
+    """
+    from typer.testing import CliRunner
+
+    from orchestrator.cli import app
+
+    result = CliRunner().invoke(app, ["--version"])
+    assert "running from" in result.stdout
+    assert "orchestrator" in result.stdout
+
+
+def test_the_package_version_is_derived_not_a_literal() -> None:
+    """`__version__` was hardcoded `"0.0.0"` and no release step touched it.
+
+    Every version ever shipped reported 0.0.0 to anything that imported it. A version string
+    nothing derives is a version string nobody can trust.
+    """
+    from importlib.metadata import version as installed
+
+    import orchestrator
+
+    assert orchestrator.__version__ == installed("synaptixs-spine")
+    assert orchestrator.__version__ != "0.0.0"
+
+
+def test_the_root_callback_did_not_break_subcommands() -> None:
+    """Adding a callback to a Typer app is where subcommand dispatch quietly stops working."""
+    from typer.testing import CliRunner
+
+    from orchestrator.cli import app
+
+    result = CliRunner().invoke(app, ["pkg", "--help"])
+    assert result.exit_code == 0
+    assert "accuracy" in result.stdout

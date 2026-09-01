@@ -3,22 +3,14 @@
     "comprehension": {
       "gated": "ratchet",
       "localization": {
-        "empty_results": 2,
-        "gold_digest": "0a6ecf8c7bd22fd8",
-        "labelled": 38,
-        "status": "measured",
-        "top_k": {
-          "1": 12,
-          "10": 27,
-          "3": 18,
-          "5": 22
-        }
+        "reason": "gold set of 38 \u2014 run `pkg accuracy --scoreboard --pinned-corpus`",
+        "status": "not_measured"
       },
       "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
       "provenance": {
-        "anchored": 10916,
-        "excluded": 767,
-        "resolved": 10916,
+        "anchored": 10994,
+        "excluded": 769,
+        "resolved": 10994,
         "unreadable": 0
       }
     },
@@ -396,14 +388,14 @@
         "typescript": {
           "edges": {
             "CALLS": {
-              "emitted": 4,
-              "expected": 7,
-              "matched": 4
+              "emitted": 12,
+              "expected": 14,
+              "matched": 12
             },
             "CONTAINS": {
-              "emitted": 25,
-              "expected": 25,
-              "matched": 25
+              "emitted": 33,
+              "expected": 33,
+              "matched": 33
             },
             "IMPLEMENTS": {
               "emitted": 2,
@@ -411,9 +403,9 @@
               "matched": 2
             },
             "IMPORTS": {
-              "emitted": 2,
-              "expected": 2,
-              "matched": 2
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
             }
           },
           "nodes": {
@@ -423,19 +415,19 @@
               "matched": 4
             },
             "Function": {
-              "emitted": 15,
-              "expected": 15,
-              "matched": 15
+              "emitted": 21,
+              "expected": 21,
+              "matched": 21
             },
             "Module": {
-              "emitted": 6,
-              "expected": 6,
-              "matched": 6
+              "emitted": 9,
+              "expected": 9,
+              "matched": 9
             },
             "Type": {
-              "emitted": 6,
-              "expected": 6,
-              "matched": 6
+              "emitted": 8,
+              "expected": 8,
+              "matched": 8
             }
           }
         }
@@ -443,10 +435,10 @@
       "skipped_languages": []
     },
     "drift": {
-      "count": 895,
-      "docs": 1533,
+      "count": 913,
+      "docs": 1583,
       "gated": false,
-      "mentions": 8917,
+      "mentions": 9151,
       "note": "recorded, never gated \u2014 an upper bound: a tenth of the population cannot bind by construction. See GATES"
     },
     "invention": {
@@ -458,12 +450,12 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 17100,
+          "total_calls": 17232,
           "unexamined": 0
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 17100
+      "total_calls": 17232
     },
     "parity": {
       "declared": 75,

@@ -556,10 +556,11 @@ reviews honest.
   is treated as **authoritative** and those FKs become ground truth (see §4).
 - **Domain meaning is separate.** The PKG knows *structure*, not business intent — that's
   ontomesh's job, and it's optional.
-- **The `Intent` tier has no reader.** `Intent` nodes and `SERVES` edges are produced only
-  under the opt-in `--intents` flag, and **nothing renders or queries them** — not
-  `understand`, not `state`, not the web UI, and no export format. They are a graph-level
-  capability with no presentation yet (see §10).
+- **The `Intent` tier is read by two surfaces, not by the comprehension pages.** `Intent`
+  nodes and `SERVES` edges are produced only under the opt-in `--intents` flag. Since 3.27.0
+  `investigate --intents` names the ticket each landing symbol was last changed for and
+  `pkg export --intents` writes them out; `understand`, `state` and the web UI still do not
+  render them, and `pkg extract` has no `--intents` flag (see §10).
 
 ---
 
