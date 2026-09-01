@@ -36,6 +36,19 @@
 
 Set up your environment and run the platform.
 
+### `orchestrator --version`
+
+Prints the installed version **and the path it is running from**:
+
+```
+Spine 3.27.0  (synaptixs-spine)
+  running from /path/to/site-packages/orchestrator
+```
+
+The second line is the point. `orchestrator` resolves to whichever install is first on your
+`PATH`, so a checkout and a `pip install` can disagree about what "the current version" means —
+and a bug report that names a version without a path is not reproducible.
+
 ### `orchestrator init`
 
 Scaffold a new project: create a .env from the template, then guide setup.
@@ -215,12 +228,12 @@ current. Note it reads docs **from disk regardless of git** — an untracked or 
 Markdown file under a scanned directory still becomes a `Doc` node, and `--check` will report
 the bank stale for a diff CI cannot reproduce.
 
-> **`--intents` is opt-in because nothing reads its output yet.** It adds `Intent` nodes and
-> `SERVES` edges to the graph, but no surface renders them — the only visible effect is a
-> count in the graph-size line of `README.md` and `architecture.md` (e.g. `· 34 intents`). No
-> page tells you which ticket a symbol serves, and `pkg export` / `pkg extract` have no
-> `--intents` flag, so the facts cannot be read back out. Cost is roughly **3× CPU** (one
-> `git blame` per file, 8 workers). It becomes a default when something renders it.
+> **`--intents` is opt-in because it costs a `git blame` pass**, roughly **3× CPU** (one blame
+> per file, 8 workers) — not because nothing reads it. Two consumers shipped in 3.27.0:
+> `orchestrator investigate --intents` reports which ticket each landing symbol was last
+> changed for, and `pkg export --intents` writes the `Intent` nodes and `SERVES` edges out.
+> `pkg extract` still has no `--intents` flag. `--intents` does not apply with `--repos`:
+> blame is per repository.
 
 ### `orchestrator state`
 

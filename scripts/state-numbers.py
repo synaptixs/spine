@@ -274,7 +274,7 @@ CLAIMS: tuple[Claim, ...] = (
     Claim(
         "binding: drift findings",
         WALKTHROUGH,
-        re.compile(r"\*\*1,658 → ([\d,]+)\*\* and \*\*not one"),
+        re.compile(r"\*\*[\d,]+ → ([\d,]+)\*\* and \*\*not one"),
         lambda: _binding()["drift"],
         gated=False,
     ),

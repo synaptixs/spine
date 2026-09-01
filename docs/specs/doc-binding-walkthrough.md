@@ -118,7 +118,7 @@ precedence:
 | `CAMEL` | `DocReconciler` |
 | `FILE` | `src/orchestrator/pkg/store.py` |
 
-Our section yields **12 mentions**. Repository-wide: **9,177**.
+Our section yields **12 mentions**. Repository-wide: **9,190**.
 
 One rule worth knowing: a bare CamelCase word — "GitHub", "Python" — binds if it happens to
 resolve, but **never counts as drift**. Prose capitalisation is not a code claim.
@@ -166,13 +166,13 @@ Repository-wide, every mention lands in exactly one of four buckets:
 
 | | count | share |
 |---|---|---|
-| **one symbol anchor → `MENTIONS` edge** | **2,479** | 27% |
-| more than one symbol anchor → skipped | 1,962 | 21% |
-| resolved to a **file**, no symbol | 1,376 | 15% |
-| nothing at all | 3,360 | 37% |
-| **total mentions** | **9,177** | |
+| **one symbol anchor → `MENTIONS` edge** | **2,481** | 27% |
+| more than one symbol anchor → skipped | 1,965 | 21% |
+| resolved to a **file**, no symbol | 1,377 | 15% |
+| nothing at all | 3,367 | 37% |
+| **total mentions** | **9,190** | |
 
-2,453 edges are drawn from those 2,479 — the 26 difference is de-duplication, where one section
+2,453 edges are drawn from those 2,481 — the 28 difference is de-duplication, where one section
 names the same symbol twice.
 
 > **These seven figures are derived, and reported rather than gated.**
@@ -201,20 +201,20 @@ names the same symbol twice.
 > The conclusion followed the bad number. It read *"ambiguity, not absence, is the larger
 > loss"*, and that is **false**: absence is 3,343 against ambiguity's 1,959.
 
-**What is true, and still worth saying:** ambiguity is not a rounding error. **1,962 mentions
+**What is true, and still worth saying:** ambiguity is not a rounding error. **1,965 mentions
 found real code and were deliberately dropped** for naming more than one thing — 29% of
-everything that fails to become an edge. That is qualitatively different from the 3,360 that
+everything that fails to become an edge. That is qualitatively different from the 3,367 that
 found nothing, and it matters for how the gap gets closed: reducing it means answering *which*
 symbol was meant, not *whether* one exists. Doing that by proximity, or by "the most likely", is
 precisely the guess this tier does not make.
 
-The 1,376 file-only mentions are a third category and mostly correct behaviour: prose citing
+The 1,377 file-only mentions are a third category and mostly correct behaviour: prose citing
 `src/orchestrator/pkg/store.py` is naming a path, not a symbol, and there is no symbol edge to
 draw.
 
 ## Step 6 — drift, in detail
 
-Of the 3,360 mentions that matched nothing, most are prose: ordinary words in backticks, URLs,
+Of the 3,367 mentions that matched nothing, most are prose: ordinary words in backticks, URLs,
 filenames. `symbolish_drift` narrows to identifier-shaped claims, leaving **about 900** on this
 repository. Examples, all real:
 
@@ -255,7 +255,7 @@ never as a defect count.
 > exactly like symbol paths; the FILE pattern does not recognise their extensions, so they arrived
 > as symbol claims and the drift list reported **58 filenames as prose naming code that does not
 > exist**. Extensions were added to `_URL_TAILS` and checked in `_can_drift`. Drift went
-> **1,658 → 1,600** and **not one `MENTIONS` edge changed** — the same 2,453 (source, target)
+> **1,661 → 1,603** and **not one `MENTIONS` edge changed** — the same 2,453 (source, target)
 > pairs before and after, and the only binding bucket that moves is *nothing at all*, by the 12
 > filenames that stop being mentions at all. A naming asymmetry, not a coverage gap.
 > `README.md` and `src/a/b.py` keep their disk check, because a document linking a file that is
@@ -294,8 +294,8 @@ inference over the graph changing, not the graph being rewritten.
 
 **56% of `Doc` sections bind to nothing at all.** Section 2 shows why in miniature: prose that
 explains *why* something exists often names no identifier, and prose that does name one often
-names an ambiguous one. Both causes are real, and **absence is the larger of the two** — 3,360
-mentions against 1,962 — though the smaller one is the more interesting, because those 1,962
+names an ambiguous one. Both causes are real, and **absence is the larger of the two** — 3,367
+mentions against 1,965 — though the smaller one is the more interesting, because those 1,965
 found the code and were refused.
 
 Closing it needs semantic matching — meaning rather than string equality — which means a model,
