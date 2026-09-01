@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import ast
 import os
+import warnings
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Protocol
@@ -173,7 +174,18 @@ class PythonExtractor:
         return module_qualname(path, root)
 
     def extract(self, *, path: Path, module: str, rel: str) -> FactBatch:
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
+        # `ast.parse` compiles, and compiling emits `SyntaxWarning` for things like an invalid
+        # escape sequence in the *target's* source. Spine is reading that code, not running it,
+        # and the author of the repository being extracted is not the person at this terminal —
+        # so the warning is noise they cannot act on. Extracting the five pinned benchmark
+        # repositories printed ~60 lines of it before any result, which is what a reader
+        # following BENCHMARK.md would have seen and reasonably read as "something is broken".
+        #
+        # Scoped to this one call, and to `SyntaxWarning` only: a genuine `SyntaxError` still
+        # raises and still reaches the caller, which is what marks a file unparseable.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", SyntaxWarning)
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
         batch = FactBatch()
         module_id = f"py:{module}" if module else "py:<root>"
         batch.add_node(Node(module_id, NodeKind.MODULE, module or rel, "python", Provenance(rel, 1)))
