@@ -98,9 +98,9 @@ The concrete payoff is in the surfaces that already exist:
 
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
-| **1 — reach the export** | `--intents` on `pkg export`, applying `link_intents` beside `link_docs` for non-sqlite formats. No exporter change: they already emit every kind | ~2 h | `pkg export . --format json --intents` yields non-zero `Intent`/`SERVES`; a test asserts it |
+| **1 — reach the export** ✅ **2026-09-01** | `--intents` on `pkg export`, applying `link_intents` beside `link_docs` for non-sqlite formats. No exporter change was needed: they already emit every kind | ~2 h | ✅ 37 `Intent` + 1,418 `SERVES` in the JSON export, coverage printed beside it. **And it immediately exposed §6.1** |
 | **2 — a query seam** | `intents_for(symbol)` / `symbols_serving(intent)` on `FactStore`, mirroring `docs_for` / `mentions_of`. An MCP tool only if Phase 3 wants one | ~0.5 d | The question is answerable in-process and from a script |
-| **3 — one real consumer** | `investigate`'s landing report names the tickets a landing symbol serves, bounded and labelled *last changed for* | ~1 d | A ticket landing on an attributed symbol reports it; one landing on an unattributed symbol says nothing, and says nothing *loudly* — never a blank that reads as "no prior work" |
+| **3 — one real consumer** | `investigate`'s landing report names the tickets a landing symbol serves, bounded and labelled *last changed for*. **Blocked on §6.1** — noise in an export is inspectable, noise in a landing report is a tool misinforming an engineer | ~1 d | A ticket landing on an attributed symbol reports it; one landing on an unattributed symbol says nothing, and says nothing *loudly* — never a blank that reads as "no prior work" |
 | **4 — the "built for" half** | `git log -L` per symbol to recover the introducing commit | ~1–2 d | Deferred on purpose. One subprocess per symbol against 11,022 symbols needs its own measurement before anyone commits to it |
 
 **Phase 1 is the one that removes "no reader".** Everything after it is about *which* reader.
@@ -113,6 +113,51 @@ The concrete payoff is in the surfaces that already exist:
 | **D2** | Opt-in, or on by default? | **Stays opt-in.** It costs 3.0s here against 2.8s for the whole extraction — it roughly *doubles* comprehension time, and on a repository with no issue keys it buys nothing. A default that doubles the cost of the cheap path for a repo-dependent payoff is the wrong default |
 | **D3** | Which consumer first? | **`investigate`.** It already reads the graph, already renders per-symbol context, and "what was this last changed for" is the question a ticket-landing report exists to answer |
 | **D4** | Add an `intent` table to the sqlite export? | **No.** That schema is kind-per-table and is a contract with the ontomesh consumer; `link_docs` is already excluded from it for the same reason. Revisit only if ontomesh asks |
+
+## 6.1 — Precision: about an eighth of the "intents" are not tickets
+
+**Found the moment Phase 1 made the facts readable, which is the argument for Phase 1.** The key
+pattern is deliberately generic — `\b[A-Z][A-Z0-9]{1,9}-\d+\b`, so that no repository is locked
+out by a hard-coded prefix — and it matches things that are not issue keys at all:
+
+| Claimed intent | Symbols | What it actually is |
+|---|---|---|
+| `SHA-256` | 31 | a hash algorithm named in a commit message |
+| `ISO-8601` | 27 | a date standard |
+| `CHANGE-2046` | 19 | not an issue key |
+| `UTF-16` | 8 | a text encoding |
+| `CB-676` | 7 | ambiguous |
+
+**5 of 37 intents (13.5%) and 92 of 1,418 `SERVES` edges (6.5%).** The join itself is correct —
+those commit messages really do contain those strings — but reading them as tickets is wrong, and
+a `SERVES` edge to `intent:SHA-256` asserts a symbol was changed for a ticket nobody ever filed.
+
+**This was invisible while the tier rendered only a count.** `34 intents` in a size line is as
+true of a good tier as a noisy one. Phase 1's whole value is that the facts became legible enough
+to be wrong out loud.
+
+**A deterministic discriminator exists, and it is the shape of the data.** A real tracker prefix
+appears with *many distinct numbers* — `SSPN-2`, `SSPN-3`, … `SSPN-49`. A standard appears with
+*one*: `SHA` only ever `256`, `ISO` only ever `8601`, `UTF` only ever `16`. Counting distinct
+numbers per prefix separates them without a list of standards to maintain.
+
+**It is not sufficient alone.** `WI-2` is a legitimate intent from the watch-items work and has
+exactly one number, so a naive "≥2 distinct numbers" rule would discard it. Options, none free:
+
+| Approach | Cost |
+|---|---|
+| Distinct-number threshold | Drops legitimate low-volume prefixes like `WI-2` |
+| Configurable prefix allow-list (`--intent-prefix SSPN`) | Correct and explicit; requires the operator to know their own prefix |
+| Require a conventional position (`fixes #`, `refs`, message prefix) | Precise; discards keys mentioned mid-sentence, which is most of them here |
+| Denylist of standards (`SHA-`, `ISO-`, `UTF-`, `RFC-`, `CVE-`) | Fragile, endless, and wrong the first time someone files `RFC-12` in their tracker |
+
+**Recommendation: the allow-list, defaulting to the distinct-number heuristic**, with the derived
+prefixes reported so an operator can see what was inferred and override it. That keeps a
+zero-config repository working and gives a precise answer to anyone who wants one.
+
+**This blocks Phase 3, not Phase 1.** Noise in an export is inspectable; noise in `investigate`'s
+landing report is a tool telling an engineer their change relates to `SHA-256`. **Fix precision
+before the tier faces a user.**
 
 ## 6. The risk, stated plainly
 

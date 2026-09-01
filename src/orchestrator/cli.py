@@ -3928,6 +3928,14 @@ def pkg_export(
         Path | None,
         typer.Option("--out", "-o", help="Output file. Defaults to pkg-facts.<ext> for the format."),
     ] = None,
+    intents: Annotated[
+        bool,
+        typer.Option(
+            "--intents",
+            help="Also emit Intent nodes + SERVES edges (which ticket a symbol was last "
+            "changed for). Costs a `git blame` pass; ignored for --format sqlite.",
+        ),
+    ] = False,
     db: Annotated[
         Path | None,
         typer.Option("--db", help="DEPRECATED alias for --out (sqlite only). Use --out."),
@@ -3977,6 +3985,14 @@ def pkg_export(
     # --db predates --format and is published surface, so it keeps working rather than being
     # silently ignored — that would break a script without saying so. It only ever meant sqlite.
     if db is not None:
+        if intents and fmt == "sqlite":
+            # Said, not silently ignored. That schema is kind-per-table and is a contract with
+            # the ontomesh consumer; `link_docs` is excluded from it for the same reason.
+            typer.echo(
+                "  note: --intents does not apply to --format sqlite (kind-per-table schema, "
+                "no intent table)",
+                err=True,
+            )
         if fmt != "sqlite":
             typer.echo(f"--db only applies to --format sqlite (got {fmt!r}). Use --out instead.")
             raise typer.Exit(code=2)
@@ -4000,6 +4016,29 @@ def pkg_export(
             from orchestrator.pkg import link_docs
 
             batch = link_docs(batch, repo)
+
+            # Same post-pass argument, same modality problem: Intent nodes and SERVES edges
+            # come from `link_intents`, so without this the recorded-intent tier is invisible
+            # in the export exactly as docs would be. The exporters do not filter by kind —
+            # `export_json` emits every node — so the facts were absent because nothing added
+            # them, not because anything rejected them.
+            #
+            # Opt-in rather than unconditional, unlike docs: blame roughly doubles the cost of
+            # an extraction, and on a repository whose commits carry no issue keys it buys
+            # nothing at all.
+            if intents:
+                from orchestrator.pkg.intent_link import link_intents
+
+                coverage = link_intents(batch, repo)
+                rate = f"{coverage.rate:.1%}" if coverage.rate is not None else "n/a"
+                # The denominator travels with the facts. A tier that attributes 12 of 4,000
+                # symbols is working as designed and says almost nothing, and only the ratio
+                # makes that visible to whoever reads the export.
+                typer.echo(
+                    f"  intents: {coverage.intents} from {coverage.commits_keyed} keyed commit(s); "
+                    f"{coverage.symbols_attributed}/{coverage.symbols_total} symbols attributed ({rate})",
+                    err=True,
+                )
     counts = export_sqlite(batch, target) if fmt == "sqlite" else WRITERS[fmt](batch, target)
     typer.echo(f"Exported {path} → {target} ({fmt})")
     for label, n in counts.items():
