@@ -118,7 +118,7 @@ precedence:
 | `CAMEL` | `DocReconciler` |
 | `FILE` | `src/orchestrator/pkg/store.py` |
 
-Our section yields **12 mentions**. Repository-wide: **9,033**.
+Our section yields **12 mentions**. Repository-wide: **9,104**.
 
 One rule worth knowing: a bare CamelCase word — "GitHub", "Python" — binds if it happens to
 resolve, but **never counts as drift**. Prose capitalisation is not a code claim.
@@ -162,24 +162,45 @@ Our section, every mention, with its real anchor count:
 concept in this codebase — but because `Module` is the name of seven different things and the
 binder will not pick one.
 
-Repository-wide the same shape holds:
+Repository-wide, every mention lands in exactly one of four buckets:
 
-| | count |
-|---|---|
-| mentions | 9,033 |
-| at least one anchor | 5,721 |
-| **more than one anchor → skipped** | **2,317** |
-| no anchor at all | 3,312 |
-| `MENTIONS` edges actually drawn | **2,420** |
+| | count | share |
+|---|---|---|
+| **one symbol anchor → `MENTIONS` edge** | **2,472** | 27% |
+| more than one symbol anchor → skipped | 1,937 | 21% |
+| resolved to a **file**, no symbol | 1,370 | 15% |
+| nothing at all | 3,325 | 37% |
+| **total mentions** | **9,104** | |
 
-**Ambiguity, not absence, is the larger loss.** 2,317 mentions found real code and were dropped
-for naming more than one thing. Any attempt to reduce that has to answer *which* one — and doing
-that by proximity, or by "the most likely", is precisely the guess this tier does not make.
+2,447 edges are drawn from those 2,472 — the 25 difference is de-duplication, where one section
+names the same symbol twice.
+
+> **This table replaced a wrong one on 2026-09-01, and the error is worth keeping visible.** The
+> first version reported "at least one anchor: 5,721" and "more than one → skipped: 2,317",
+> having **conflated file anchors with symbol anchors**: 1,370 mentions resolve to a real file
+> and no symbol, so they cannot produce a `MENTIONS` edge — that edge points at a symbol id —
+> and counting them as bound inflated both figures. `DocBinding.bound` is true for either kind;
+> `link_docs` draws an edge only for `anchor_ids`. Two names for two different things, and the
+> summary used the wrong one.
+>
+> The conclusion followed the bad number. It read *"ambiguity, not absence, is the larger
+> loss"*, and that is **false**: absence is 3,325 against ambiguity's 1,937.
+
+**What is true, and still worth saying:** ambiguity is not a rounding error. **1,937 mentions
+found real code and were deliberately dropped** for naming more than one thing — 29% of
+everything that fails to become an edge. That is qualitatively different from the 3,325 that
+found nothing, and it matters for how the gap gets closed: reducing it means answering *which*
+symbol was meant, not *whether* one exists. Doing that by proximity, or by "the most likely", is
+precisely the guess this tier does not make.
+
+The 1,370 file-only mentions are a third category and mostly correct behaviour: prose citing
+`src/orchestrator/pkg/store.py` is naming a path, not a symbol, and there is no symbol edge to
+draw.
 
 ## Step 6 — drift, in detail
 
-Of the 3,312 mentions that matched nothing, most are prose: ordinary words in backticks, URLs,
-filenames. `symbolish_drift` narrows to identifier-shaped claims, leaving **901** on this
+Of the 3,325 mentions that matched nothing, most are prose: ordinary words in backticks, URLs,
+filenames. `symbolish_drift` narrows to identifier-shaped claims, leaving **about 900** on this
 repository. Examples, all real:
 
 ```
@@ -220,7 +241,9 @@ inference over the graph changing, not the graph being rewritten.
 
 **56% of `Doc` sections bind to nothing at all.** Section 2 shows why in miniature: prose that
 explains *why* something exists often names no identifier, and prose that does name one often
-names an ambiguous one.
+names an ambiguous one. Both causes are real, and **absence is the larger of the two** — 3,325
+mentions against 1,937 — though the smaller one is the more interesting, because those 1,937
+found the code and were refused.
 
 Closing it needs semantic matching — meaning rather than string equality — which means a model,
 which collides with the determinism that makes `understand --check` a gate at all. Any fix
