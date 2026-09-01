@@ -41,6 +41,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 STATE = ROOT / "docs" / "specs" / "STATE-OF-SPINE.md"
 SPEC_INDEX = ROOT / "docs" / "specs" / "SPEC-INDEX.md"
+WALKTHROUGH = ROOT / "docs" / "specs" / "doc-binding-walkthrough.md"
 
 
 _TEST_DEF = re.compile(r"^(?:async )?def test_", re.M)
@@ -70,6 +71,49 @@ def spec_files() -> int:
     return len(list((ROOT / "docs" / "specs").glob("*.md")))
 
 
+#: The doc-binding figures come from one expensive pass — a full extraction plus a doc walk,
+#: about ten seconds — so it is done once and every claim reads from it.
+_BINDING: dict[str, int] | None = None
+
+
+def _binding() -> dict[str, int]:
+    """Every mention, sorted into the four buckets the walkthrough tabulates.
+
+    The buckets partition the mentions: a mention has exactly one symbol anchor, or more than
+    one, or none but a file, or nothing. `link_docs` draws an edge only for the first, and the
+    difference between that count and the edges drawn is de-duplication.
+
+    That distinction is the whole reason these claims exist. The walkthrough's first table
+    reported `DocBinding.bound` — true for a symbol anchor *or* a file anchor — as though it
+    meant "will become an edge", inflating two figures and hiding the file-only bucket
+    entirely. Nothing derived them, so it stood for a day.
+    """
+    global _BINDING
+    if _BINDING is not None:
+        return _BINDING
+
+    from orchestrator.pkg.doc_link import link_docs
+    from orchestrator.pkg.doc_source import read_doc_pages
+    from orchestrator.pkg.docs import DocReconciler
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+    from orchestrator.pkg.facts import EdgeKind, NodeKind
+
+    batch = RepoCodeExtractor().extract(ROOT)
+    bindings, _drift = DocReconciler(batch, repo_root=ROOT).reconcile(read_doc_pages(ROOT))
+    linked = link_docs(RepoCodeExtractor().extract(ROOT), ROOT)
+
+    _BINDING = {
+        "mentions": len(bindings),
+        "one_symbol": sum(1 for b in bindings if len(b.anchor_ids) == 1),
+        "many_symbols": sum(1 for b in bindings if len(b.anchor_ids) > 1),
+        "file_only": sum(1 for b in bindings if not b.anchor_ids and b.anchor_files),
+        "nothing": sum(1 for b in bindings if not b.anchor_ids and not b.anchor_files),
+        "edges": sum(1 for e in linked.edges if e.kind is EdgeKind.MENTIONS),
+        "doc_nodes": sum(1 for n in linked.nodes if n.kind is NodeKind.DOC),
+    }
+    return _BINDING
+
+
 def package_version() -> str:
     import tomllib
 
@@ -89,6 +133,18 @@ class Claim:
     derive: Callable[[], object]
     #: Digits only: the prose writes thousands with a comma, and the derivation does not.
     numeric: bool = True
+    #: Whether a mismatch fails the build.
+    #:
+    #: The doc-binding figures are **not** gated, and measuring is what decided that: they moved
+    #: within an hour of being written, because they count mentions across every markdown file
+    #: and anchors across every symbol — so any commit touching either moves them. Gating that
+    #: would fail nearly every pull request for refreshing seven numbers in a walkthrough, which
+    #: is the failure that killed the doc-drift ratchet a day earlier: a gate firing on ordinary
+    #: work gets switched off, and then it protects nothing.
+    #:
+    #: They are still derived and still reported, which is what catches the error they exist
+    #: for — a figure wrong *when written*, as opposed to one that has merely aged.
+    gated: bool = True
 
 
 CLAIMS: tuple[Claim, ...] = (
@@ -126,13 +182,71 @@ CLAIMS: tuple[Claim, ...] = (
         package_version,
         numeric=False,
     ),
+    # The doc-binding walkthrough. Every figure below is a partition of the same population, so
+    # a miscategorisation moves two of them in opposite directions — which is exactly what went
+    # unnoticed for a day when nothing derived them.
+    Claim(
+        "binding: total mentions",
+        WALKTHROUGH,
+        re.compile(r"\| \*\*total mentions\*\* \| \*\*([\d,]+)\*\*"),
+        lambda: _binding()["mentions"],
+        gated=False,
+    ),
+    Claim(
+        "binding: one symbol anchor",
+        WALKTHROUGH,
+        re.compile(r"\| \*\*one symbol anchor → `MENTIONS` edge\*\* \| \*\*([\d,]+)\*\*"),
+        lambda: _binding()["one_symbol"],
+        gated=False,
+    ),
+    Claim(
+        "binding: ambiguous",
+        WALKTHROUGH,
+        re.compile(r"\| more than one symbol anchor → skipped \| ([\d,]+) \|"),
+        lambda: _binding()["many_symbols"],
+        gated=False,
+    ),
+    Claim(
+        "binding: file only",
+        WALKTHROUGH,
+        re.compile(r"\| resolved to a \*\*file\*\*, no symbol \| ([\d,]+) \|"),
+        lambda: _binding()["file_only"],
+        gated=False,
+    ),
+    Claim(
+        "binding: no anchor",
+        WALKTHROUGH,
+        re.compile(r"\| nothing at all \| ([\d,]+) \|"),
+        lambda: _binding()["nothing"],
+        gated=False,
+    ),
+    Claim(
+        "binding: edges drawn",
+        WALKTHROUGH,
+        re.compile(r"\n([\d,]+) edges are drawn from those"),
+        lambda: _binding()["edges"],
+        gated=False,
+    ),
+    Claim(
+        "binding: Doc nodes",
+        WALKTHROUGH,
+        re.compile(r"\*\*Measured here: ([\d,]+) `Doc` nodes\*\*"),
+        lambda: _binding()["doc_nodes"],
+        gated=False,
+    ),
 )
 
 
-def check() -> list[str]:
-    """Every claim that disagrees with its derivation, or that could not be found at all."""
+def check(*, gated_only: bool = True) -> list[str]:
+    """Claims that disagree with their derivation, or that could not be found at all.
+
+    ``gated_only`` keeps the ungated ones out of the build's verdict while still allowing a
+    caller to ask for everything — which is how they are reported as a trend.
+    """
     problems: list[str] = []
     for claim in CLAIMS:
+        if gated_only and not claim.gated:
+            continue
         text = claim.path.read_text(encoding="utf-8")
         found = claim.pattern.search(text)
         if found is None:
@@ -158,11 +272,16 @@ def main() -> int:
         return 0
     for problem in problems:
         print(f"[STALE] {problem}")
+    # Ungated claims are reported and never fail — the same standing `invention` and `drift`
+    # have, and for the same reason: they move with ordinary commits.
+    for drifted in [p for p in check(gated_only=False) if p not in problems]:
+        print(f"[trend] {drifted}")
     if problems:
         print(f"\nstate-numbers --check: FAILED — {len(problems)} claim(s) disagree with the source.")
         print("Refresh them, or the page's own maintenance rule is a rule nothing enforces.")
         return 1
-    print(f"state-numbers --check: OK — {len(CLAIMS)} claims match the source.")
+    gated = sum(1 for c in CLAIMS if c.gated)
+    print(f"state-numbers --check: OK — {gated} gated claim(s) match; {len(CLAIMS) - gated} trended.")
     return 0
 
 

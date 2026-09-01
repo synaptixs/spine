@@ -90,3 +90,71 @@ def test_a_disagreement_is_reported_with_both_numbers(tmp_path: Path) -> None:
 def test_the_headline_claims_are_covered(label: str) -> None:
     """These four went stale during one release cut; none may quietly leave the gate."""
     assert any(c.label == label for c in _module().CLAIMS)
+
+
+# ---- gated vs trended (the walkthrough figures) ------------------------------
+
+
+def test_the_binding_figures_are_trended_not_gated() -> None:
+    """They move on any commit touching a doc or a symbol, which is nearly every one.
+
+    Gating them would fail a pull request for refreshing seven numbers in a walkthrough — the
+    failure that un-gated the doc-drift ratchet. They are still derived, which is what catches
+    a figure wrong *when written* as opposed to one that has merely aged.
+    """
+    mod = _module()
+    binding = [c for c in mod.CLAIMS if c.label.startswith("binding:")]
+    assert binding, "the walkthrough figures must be derived at all"
+    assert all(not c.gated for c in binding)
+
+
+def test_the_headline_claims_stay_gated() -> None:
+    """Trending is for figures that move with ordinary work — not an escape hatch."""
+    mod = _module()
+    gated = {c.label for c in mod.CLAIMS if c.gated}
+    assert {"CLI commands", "source modules", "test functions", "version"} <= gated
+
+
+def test_an_ungated_mismatch_does_not_fail_the_build(tmp_path: Path) -> None:
+    from typing import Any as _Any
+
+    mod = _module()
+    doc = tmp_path / "doc.md"
+    doc.write_text("| Widgets | 41 |\n", encoding="utf-8")
+
+    stale: _Any = mod.Claim(
+        label="trended",
+        path=doc,
+        pattern=mod.re.compile(r"\| Widgets \| (\d+) \|"),
+        derive=lambda: 42,
+        gated=False,
+    )
+    original = mod.CLAIMS
+    mod.CLAIMS = (stale,)
+    try:
+        assert mod.check() == []  # the build's verdict ignores it
+        assert mod.check(gated_only=False) != []  # and it is still visible
+    finally:
+        mod.CLAIMS = original
+
+
+def test_the_binding_buckets_partition_the_mentions() -> None:
+    """A structural invariant, not a snapshot — it holds at every commit.
+
+    The four buckets are disjoint and exhaustive by construction, so a refactor that
+    double-counts or drops a mention breaks the sum. This is the check that survives the
+    figures themselves being trended rather than gated.
+    """
+    b = _module()._binding()
+    assert b["one_symbol"] + b["many_symbols"] + b["file_only"] + b["nothing"] == b["mentions"]
+
+
+def test_edges_never_exceed_single_anchor_mentions() -> None:
+    """`link_docs` draws an edge only for a mention with exactly one *symbol* anchor.
+
+    The gap is de-duplication. Edges exceeding that count would mean an edge drawn from an
+    ambiguous or file-only mention — the conflation that put a wrong table in this repository
+    for a day.
+    """
+    b = _module()._binding()
+    assert b["edges"] <= b["one_symbol"]
