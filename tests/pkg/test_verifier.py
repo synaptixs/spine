@@ -249,3 +249,26 @@ def test_doc_findings_flag_stale_symbol_claims(tmp_path: Path) -> None:
 def test_doc_findings_empty_without_docs(tmp_path: Path) -> None:
     repo, batch = _extracted_repo(tmp_path)
     assert GroundingVerifier(batch).doc_findings(repo) == []
+
+
+def test_extracting_a_file_with_a_bad_escape_prints_nothing(tmp_path: Path, capsys: object) -> None:
+    """Spine reads the target's code; it does not run it, and it is not their linter.
+
+    `ast.parse` compiles, and compiling emits `SyntaxWarning` for an invalid escape sequence in
+    the source being read. Extracting the five pinned benchmark repositories printed ~60 lines of
+    it before any result — which is what a reader following BENCHMARK.md would have seen, and
+    would reasonably have read as "something is broken".
+    """
+    import warnings as _warnings
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    # A regex-ish string with a bare backslash: valid Python, warns on compile.
+    (repo / "m.py").write_text('PATTERN = "\\d+"\n\n\ndef f():\n    return PATTERN\n', encoding="utf-8")
+
+    with _warnings.catch_warnings(record=True) as caught:
+        _warnings.simplefilter("always")
+        batch = RepoCodeExtractor().extract(repo)
+
+    assert [w for w in caught if issubclass(w.category, SyntaxWarning)] == []
+    assert any(n.name == "f" for n in batch.nodes), "and it still extracted the file"
