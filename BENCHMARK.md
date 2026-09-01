@@ -1,6 +1,6 @@
 # How well does Spine actually work?
 
-**Measured 2026-09-01, released in Spine 3.26.0.** Everything on this page is reproducible from a
+**Measured 2026-09-01, released in Spine 3.26.1.** Everything on this page is reproducible from a
 checkout; the commands are at the bottom and they are the same ones that produced these numbers.
 
 Spine's central claim is that it can read a bug report and tell you where in a codebase the fix
@@ -150,7 +150,7 @@ That is a different programme, deliberately separate, with no number yet.
 
 ## Reproduce it
 
-These commands ship in **3.26.0**. Install with **every language extra** — this matters more
+These commands ship in **3.26.1**. Install with **every language extra** — this matters more
 than it looks:
 
 ```bash

@@ -113,7 +113,7 @@ the product.** Where it can't know something, it says so and stops.
 
 ## What's new
 
-**3.26.0 (current)** — **Spine measures whether it finds the right file, and publishes the
+**3.26.1 (current)** — **Spine measures whether it finds the right file, and publishes the
 number.** Given a real bug report, the file that actually fixed it is in the top 10 for **27 of
 38** issues and the first guess is right for **12**; picking ten files at random from the same
 repositories scores 0.085. The corpus is five open-source projects pinned by commit, the answer

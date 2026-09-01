@@ -4,6 +4,27 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.26.1 — The benchmark's own command stops looking broken
+
+### Fixed
+
+- **Extraction no longer prints the target repository's compile warnings.**
+  Running the command [BENCHMARK.md](BENCHMARK.md) publishes emitted roughly
+  sixty lines of `SyntaxWarning: invalid escape sequence` before any result —
+  from the *corpus repositories'* own Python, because `ast.parse` compiles and
+  compiling warns. Spine reads that code rather than running it, and the person
+  at the terminal did not write it, so the warning is noise they cannot act on.
+  On the one command a benchmark page exists to invite people to run, it read
+  as "something is broken".
+
+  Scoped to the single `ast.parse` call and to `SyntaxWarning` only: a genuine
+  `SyntaxError` still raises, still reaches the caller, and still marks the file
+  skipped.
+
+  Found by running the published command as an outsider would — which is the
+  only way this class of thing turns up, and the reason 3.26.0 is superseded
+  before it reached PyPI.
+
 ## 3.26.0 — Spine measures whether it finds the right file, and publishes the number
 
 The headline is a number that did not exist before: given a real bug report,

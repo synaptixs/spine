@@ -313,7 +313,7 @@ now prints a warning naming any repository that yielded nothing, and the page sa
 
 **The commands were unreleased when the page was written.** `pkg fix-sites`, `pkg labels` and
 `--pinned-corpus` were not in 3.25.1 on PyPI, so the page told a reader to build from source
-rather than handing them an install line that could not work. **They ship in 3.26.0** and the
+rather than handing them an install line that could not work. **They ship in 3.26.1** — 3.26.0 was superseded before it reached PyPI, by the fix for the warning noise its own reproduce step printed — and the
 page now leads with `pip install 'synaptixs-spine[languages]'` — a published benchmark whose
 commands need a source build is half published.
 
