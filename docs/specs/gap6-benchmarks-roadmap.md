@@ -3,7 +3,9 @@
 > **"G6" is a label, not a position in a queue.** It's gap #6 in the Graphify comparison. The specs
 > are not ordered and do not run in sequence.
 
-**Status:** **Phase 1 complete 2026-09-01 — localization is measured.** 38 hand-verified labels
+**Status:** ✅ **G6 COMPLETE 2026-09-01 — measured, gated, published.**
+[`BENCHMARK.md`](../../BENCHMARK.md) is the public page; this spec is the design record behind it.
+**Phase 1 — localization is measured.** 38 hand-verified labels
 across five front-ends; top-1 **0.32**, top-10 **0.71**, against **0.085** for picking ten files
 at random. Scope decided 2026-08-30 (D1–D4 below).
 **Rewritten 2026-08-15 against 3.18.1**; decisions taken and the text reconciled to them
@@ -221,7 +223,7 @@ repositories are what make that limit visible rather than invisible.
 | **1c — the gold set** ✅ **2026-09-01** | 38 labels, every issue link confirmed against GitHub's own `closingIssuesReferences` and every path verified present in the pinned tree | — | ✅ top-1 0.32 · top-3 0.47 · top-5 0.58 · top-10 0.71 |
 | **1 — A gold set, two metrics, into the existing scoreboard** | Pin the corpus in a **manifest the harness reads** (five repositories, D3), then hand-label **30–50 real issues** — one fix site per issue, taken from the fixing commit, recorded with the issue URL and the commit SHA so anyone can re-derive it. Metrics: **top-k localization** and **provenance validity** (D2). Deterministic, no LLM anywhere in scoring or in labelling. Land them as a **`comprehension` key in `scoreboard.json`**, written by `pkg accuracy --scoreboard`. | ~2 d harness + **~3 d labelling** | `pkg accuracy` prints comprehension alongside corpus/invention/parity; one baseline, one file; every label re-derivable from its recorded SHA |
 | **2 — Gate + trend** ✅ **2026-09-01** | `localization` recorded on the one scoreboard and gated on the **ratchet** tier (D4), **only when the gold set is unchanged** and **only when both sides were measured** | ~2–3 d | ✅ A drop in top-1 or top-10 on the same labels fails `--check --pinned-corpus`; reshaping the corpus and running offline both pass |
-| **3 — Publish** | Public methodology + results: the corpus **with its commit SHAs**, how each label was derived, the two metrics, the numbers, and a **reproducible command**. States what was *not* measured — impact recall, fault-site top-1, `regression_gaps` precision, C#, and the Python-only oracles — rather than implying broader coverage. | ~3–4 d | A public benchmark page and a command an outsider can run |
+| **3 — Publish** ✅ **2026-09-01** | [`BENCHMARK.md`](../../BENCHMARK.md) at the repository root, linked from the README's documentation table and from its evidence section. Corpus with commit SHAs and dates, label derivation, both metrics, the chance baseline, six numbered limitations, and four commands that produced the figures | ~3–4 d | ✅ A public page and a command an outsider can run |
 
 **Which phase buys what.** Phases 1–2 make the claim *checkable*; Phase 3 makes it *a market
 position*. Phase 3 is not optional polish — an unpublished benchmark changes nothing outside the
@@ -296,6 +298,29 @@ this one must not depend on the network.
 top-1 by 0.026, so the gate catches a *drop in count* on identical inputs — a real regression by
 construction — and says nothing about whether 0.32 is drifting. A trend series worth reading needs
 the larger corpus §"The first localization numbers" describes.
+
+## What publishing added that measuring did not
+
+Shipped 2026-09-01 as [`BENCHMARK.md`](../../BENCHMARK.md). Writing it for an outsider surfaced
+two things an internal record would never have caught.
+
+**The reproduce command was not reproducible.** The numbers depend on which language extras are
+installed: without them a front-end produces no facts, every label in that repository becomes
+unfindable, and localization drops for a reason that has nothing to do with Spine. Someone
+following the page in good faith would have got a worse number and believed it. `--pinned-corpus`
+now prints a warning naming any repository that yielded nothing, and the page says to install
+`--all-extras` and to heed that warning before quoting anything.
+
+**The commands are unreleased.** `pkg fix-sites`, `pkg labels` and `--pinned-corpus` are not in
+3.25.1 on PyPI, so the page tells a reader to build from source rather than handing them an
+install line that cannot work.
+
+**What the page refuses to do**, and this is the part worth keeping: it states six numbered
+limitations, including the two that cut against us — a 0.17–0.47 interval at n=38, and a corpus
+of deliberately clean bugs that makes the figure optimistic — and it names four things this
+programme measures *not at all*. It also says outright that no competitor publishes retrieval
+correctness, so "better than chance" is the only baseline available, rather than implying a field
+of rivals we beat. A benchmark whose limits are not published is marketing.
 
 ## Invariants you must not break
 

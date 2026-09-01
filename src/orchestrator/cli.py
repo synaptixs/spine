@@ -3271,6 +3271,17 @@ def _comprehension_oracle(repo: str, as_json: bool, pinned_corpus: bool) -> None
             typer.echo(
                 f"  {r['repo']:10s} {r['language']:11s} {r['resolved']:6d}/{r['anchored']:<6d} {shown}"
             )
+        # A repository that yielded nothing almost always means its language extra is absent,
+        # and the consequence is not a missing row — it is a LOWER localization number, because
+        # every label in that repository becomes unfindable. Silent, that reads as the tool
+        # performing badly. Said out loud instead.
+        empty = [str(r["repo"]) for r in rows if not r["anchored"]]
+        if empty:
+            typer.echo(
+                f"\n  WARNING: {', '.join(empty)} produced no facts — almost certainly a missing\n"
+                "  language extra. Install them before quoting any number here; labels in those\n"
+                "  repositories cannot be found at all: pip install 'synaptixs-spine[languages]'"
+            )
         if localization is not None:
             typer.echo(f"\ntop-k localization — {len(localization.results)} labelled issues")
             for k in localization.ks:
