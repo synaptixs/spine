@@ -30,7 +30,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/cpp_extractor.py:57`](../../src/orchestrator/pkg/cpp_extractor.py#L57)
 
-- **Called by** (1 production · 1 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L530), [`_extract`](../../tests/pkg/test_cpp_extractor.py#L19)
+- **Called by** (1 production · 1 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L542), [`_extract`](../../tests/pkg/test_cpp_extractor.py#L19)
 - **Fields**: `language`, `suffixes`
 - **Documented in**: `docs/specs/language-support-roadmap.md#track-3-c-cpp-cc-cxx-hpp-hh-hxx-do-third-builds-on-c`
 

@@ -105,7 +105,7 @@
 [`src/orchestrator/pkg/invention.py:412`](../../src/orchestrator/pkg/invention.py#L412)
 
 - **Called by** (2): [`_invention_oracle`](../../src/orchestrator/cli.py#L3387), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L623)
-- **Calls** (3): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L577), [`find_invented_calls`](../../src/orchestrator/pkg/invention.py#L328), `pathlib.Path`
+- **Calls** (3): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L589), [`find_invented_calls`](../../src/orchestrator/pkg/invention.py#L328), `pathlib.Path`
 
 ## Imports
 
