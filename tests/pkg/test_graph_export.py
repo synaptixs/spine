@@ -352,3 +352,73 @@ def test_an_explicit_prefix_overrides_the_inference(tmp_path: Path) -> None:
 
     assert coverage.prefixes_used == ("OPS",)
     assert coverage.intents == 1
+
+
+# ---- TypeScript receiver typing (call-resolution spec, Option A) --------------
+
+
+def _ts_repo(tmp_path: Path, callers: str) -> Path:
+    repo = tmp_path / "repo"
+    (repo / "app").mkdir(parents=True)
+    (repo / "app" / "handler.ts").write_text(
+        'export class Handler {\n  run(): string { return "x"; }\n}\n', encoding="utf-8"
+    )
+    (repo / "app" / "callers.ts").write_text(
+        'import { Handler } from "./handler";\n\n' + callers, encoding="utf-8"
+    )
+    return repo
+
+
+def _ts_calls(repo: Path) -> set[tuple[str, str]]:
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+    from orchestrator.pkg.facts import EdgeKind
+
+    batch = RepoCodeExtractor().extract(repo)
+    return {(e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.CALLS}
+
+
+def test_a_method_on_an_annotated_parameter_resolves(tmp_path: Path) -> None:
+    pytest.importorskip("tree_sitter_typescript", reason="install the 'typescript' extra")
+    repo = _ts_repo(tmp_path, "export function f(h: Handler): string { return h.run(); }\n")
+    assert ("ts:app/callers.f", "ts:app/handler.Handler.run") in _ts_calls(repo)
+
+
+def test_receiving_an_instance_is_not_calling_its_constructor(tmp_path: Path) -> None:
+    """The precision bug the corpus caught within a minute of the feature working.
+
+    `new Handler().run()` reaches the constructor *and* the method. `h.run()` on an annotated
+    parameter reaches only the method — the caller was handed the instance. Emitting the type
+    edge for both read as a call to `Handler` that never happens, and cost 0.20 precision.
+    """
+    pytest.importorskip("tree_sitter_typescript", reason="install the 'typescript' extra")
+    repo = _ts_repo(tmp_path, "export function f(h: Handler): string { return h.run(); }\n")
+    assert ("ts:app/callers.f", "ts:app/handler.Handler") not in _ts_calls(repo)
+
+
+def test_constructing_then_calling_reaches_both(tmp_path: Path) -> None:
+    pytest.importorskip("tree_sitter_typescript", reason="install the 'typescript' extra")
+    repo = _ts_repo(tmp_path, "export function f(): string { return new Handler().run(); }\n")
+    calls = _ts_calls(repo)
+    assert ("ts:app/callers.f", "ts:app/handler.Handler.run") in calls
+    assert ("ts:app/callers.f", "ts:app/handler.Handler") in calls
+
+
+def test_a_method_the_type_does_not_have_is_not_invented(tmp_path: Path) -> None:
+    """The whole reason resolution is deferred to `finalize`.
+
+    One file can resolve `h: Handler` and cannot know whether `Handler` has a `missing`.
+    Minting the id anyway is the fabrication that cost 497 edges in Python — so the check is
+    existence in the merged graph, and absence means no edge.
+    """
+    pytest.importorskip("tree_sitter_typescript", reason="install the 'typescript' extra")
+    repo = _ts_repo(tmp_path, "export function f(h: Handler): string { return h.missing(); }\n")
+    calls = _ts_calls(repo)
+    assert not any(dst.endswith(".missing") for _src, dst in calls)
+    assert not any("missing" in dst for _src, dst in calls)
+
+
+def test_an_unknown_receiver_type_resolves_to_nothing(tmp_path: Path) -> None:
+    """Skip rather than guess: a receiver whose type is not stated stays unresolved."""
+    pytest.importorskip("tree_sitter_typescript", reason="install the 'typescript' extra")
+    repo = _ts_repo(tmp_path, "export function f(h): string { return h.run(); }\n")
+    assert ("ts:app/callers.f", "ts:app/handler.Handler.run") not in _ts_calls(repo)

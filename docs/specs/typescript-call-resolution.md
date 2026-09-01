@@ -1,7 +1,8 @@
 # TypeScript call resolution — what the number actually is
 
-**Status:** **Written 2026-09-01 against 3.26.1.** Not started, and this spec argues the obvious
-approach is the wrong one to start with.
+**Status:** **Written and delivered 2026-09-01 against 3.26.1.** Steps 1 and 2 shipped the same
+day; the compiler API (Option B) was argued against and not built. TypeScript `CALLS` recall
+went **0.36 → 0.86** without a new dependency.
 **Owner:** _unassigned_
 
 `STATE-OF-SPINE` §8 has carried *"TypeScript resolution via the TS compiler API"* as an idea
@@ -143,7 +144,29 @@ unknowable.**
    **Still unprobed, and deliberately not invented:** generics, union-typed variables and
    destructured bindings. Each needs a judgement about what the *correct* edge is before it can
    be labelled, and a fixture asserting a contested truth is worse than no fixture.
-2. **Then Option A**, sized against what the widened corpus actually shows.
+2. ~~**Then Option A**~~ ✅ **done 2026-09-01.** `_typed_locals` reads the receiver's type from
+   the annotation or the `new` in the same tree, and `finalize` emits the call **only where the
+   target node exists in the merged graph**. Recall went **0.36 → 0.86** (12 of 14), precision
+   held at **1.00** on every case, and the invention oracle stayed at zero.
+
+   Of the six originally probed shapes, five now resolve. The one that does not is the receiver
+   typed by an object-literal field — the case §3 called the rarest and left open.
+
+   **Two things the corpus caught within a minute of it working**, both precision, both now
+   pinned by tests:
+
+   - **Receiving an instance is not calling its constructor.** `new Handler().run()` reaches
+     the constructor and the method; `h.run()` on an annotated parameter reaches only the
+     method. Emitting the type edge for both cost 0.20 precision immediately.
+   - **A method the type does not have must not be minted.** One file can resolve `h: Handler`
+     and cannot know whether `Handler` has a `missing`. That is why resolution defers to
+     `finalize`: the check is existence in the merged graph, and absence means no edge.
+
+   And one the corpus caught that was not precision at all: a `ValueError` from a half-finished
+   refactor was swallowed by `RepoCodeExtractor`'s `(SyntaxError, UnicodeDecodeError, ValueError)`
+   handler and reported as an unparseable file, so a whole module silently vanished from the
+   `generics` case. **A bug in extractor logic is indistinguishable from malformed source**, and
+   only the corpus said so.
 3. **Option B only if** the widened corpus shows the loss is dominated by shapes no local pass
    can reach — and even then, only confined to first-party source, for the determinism reason
    in §3.
@@ -155,7 +178,7 @@ Skipping step 1 means building a fix for the one shape we happen to have written
 | | Decision | Recommendation |
 |---|---|---|
 | **D1** | Chase the compiler API now? | **No.** Every measured miss is reachable without it, and its determinism cost is disqualifying as normally implemented |
-| **D2** | Build Option A now? | **Not yet.** It would take the corpus to 7/7 and teach us nothing about real TypeScript. Widen the corpus first |
+| **D2** | ~~Build Option A now?~~ | ✅ **Built 2026-09-01, after step 1.** The order mattered: against the original 7 edges it would have scored 7/7 and proved nothing. Against 14 it scores 12, and the two it misses are one named, understood shape |
 | **D3** | ~~What is step 1 worth?~~ | ✅ **Done 2026-09-01.** It cost an afternoon and moved the published figure from 0.57 to 0.36 — measurement, not regression. **What it bought:** the family now has a number and a regression guard, and `this.method()` can no longer break silently |
 | **D4** | Extend the `runtime` oracle to TypeScript? | Out of scope here, and the only thing that would make TS recall properly measurable. Worth its own row: it is currently the last Python-only oracle |
 

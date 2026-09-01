@@ -28,9 +28,9 @@ gates (before building, before merging). The product is **Spine**; it ships as
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
 | CLI commands | **57** | `grep -c '\.command(' src/orchestrator/cli.py` |
 | Source modules | **332** | `find src/orchestrator -name '*.py'` |
-| Test functions | **2,857** across 297 files | `grep -rh '^def test_\|^async def test_' tests`; files via the same pattern with `-rl` |
+| Test functions | **2,862** across 297 files | `grep -rh '^def test_\|^async def test_' tests`; files via the same pattern with `-rl` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
-| `CALLS` recall | **1.00** (C, SQL) → **0.36** (TypeScript, on 14 labelled edges) | same |
+| `CALLS` recall | **1.00** (C, SQL) → **0.86** (TypeScript, on 14 labelled edges) | same |
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |
 | Same, across two codebases | **47/68 vs 3/68** | replicated on an unrelated external repo |
 | Control (`edit` tickets, target file named) | **122/124 either arm** | rules out a generic more-context effect |
@@ -98,7 +98,7 @@ Measured against a hand-labelled corpus, all 8 languages
 |---|---|
 | **Precision** | **1.00** on every node kind and every edge kind, all 8 languages — *on the corpus*, and see the caveat below |
 | **Recall** | 1.00 on every kind **except `CALLS`** |
-| `CALLS` recall | 1.00 (c, sql) · 0.73 (python) · 0.67 (cpp, csharp, go, java) · **0.36 (typescript)** — every one of the four denominators is small; TypeScript's is 14 labelled edges, doubled on 2026-09-01 |
+| `CALLS` recall | 1.00 (c, sql) · 0.73 (python) · 0.67 (cpp, csharp, go, java) · **0.86 (typescript)** — every one of the four denominators is small; TypeScript's is 14 labelled edges, doubled on 2026-09-01 |
 | Invention | **0** on this repo and on 11 pinned public repos across 6 front-ends, gated `strict` at zero per language (2026-08-24) |
 
 **That precision row was a corpus score over a corpus missing a shape, and both have been
@@ -135,7 +135,7 @@ for this section:
 
 The fix was one line, shipped in 3.18.0: return `None` instead of a guess. That is why the
 invention oracle exists as a standing measurement rather than a one-off, and why `CALLS` recall
-is allowed to sit at 0.36 on TypeScript instead of being padded.
+is allowed to sit below 1.00 on TypeScript instead of being padded.
 
 ### Why this matters
 
@@ -170,11 +170,12 @@ that. Nothing in the pipeline has to ration it.
 
 ### Where it is honestly weak
 
-- **`CALLS` recall on TypeScript is 0.36**, on 14 labelled edges — and the loss is one family,
-  not a spread. `this.method()` resolves; every call through a *variable* is missed, including
-  `new Handler().run()`, which needs no type inference at all. Measured 2026-09-01 and scoped in
+- **`CALLS` recall on TypeScript is 0.86**, on 14 labelled edges — up from 0.36 on 2026-09-01, and the remaining loss is one shape,
+  not a family: a receiver typed only by an object-literal field (`{ h: new Handler() }`). Every
+  other probed shape — annotated parameter, `const`/`let` with `new`, and `new Handler().run()` —
+  resolves, through a local pass over the same tree-sitter CST with no new dependency. Scoped in
   [`typescript-call-resolution.md`](typescript-call-resolution.md), which argues against the
-  compiler API on determinism grounds.
+  compiler API on determinism grounds and did not need it.
 - **`runtime` is still Python-only** (PEP 669) — the last of the four oracles with that
   limit. On a non-Python repo it reports nothing, and that is *not measured*, not clean.
   `invention` was the same until 2026-08-24 and now walks six front-ends, naming Java and SQL

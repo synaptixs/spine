@@ -8,9 +8,9 @@
       },
       "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
       "provenance": {
-        "anchored": 10981,
+        "anchored": 10994,
         "excluded": 769,
-        "resolved": 10981,
+        "resolved": 10994,
         "unreadable": 0
       }
     },
@@ -388,9 +388,9 @@
         "typescript": {
           "edges": {
             "CALLS": {
-              "emitted": 5,
+              "emitted": 12,
               "expected": 14,
-              "matched": 5
+              "matched": 12
             },
             "CONTAINS": {
               "emitted": 33,
@@ -438,7 +438,7 @@
       "count": 913,
       "docs": 1583,
       "gated": false,
-      "mentions": 9148,
+      "mentions": 9151,
       "note": "recorded, never gated \u2014 an upper bound: a tenth of the population cannot bind by construction. See GATES"
     },
     "invention": {
@@ -450,12 +450,12 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 17217,
+          "total_calls": 17232,
           "unexamined": 0
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 17217
+      "total_calls": 17232
     },
     "parity": {
       "declared": 75,
