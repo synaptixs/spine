@@ -472,10 +472,11 @@ changed for as `Intent` nodes and `SERVES` edges, read from `git blame` plus com
 orchestrator understand . --intents
 ```
 
-> **It is opt-in because nothing reads it yet.** The facts land in the graph, but no surface
-> renders them — the only visible effect is a count in the graph-size line (`· 34 intents`), and
-> `pkg export` / `pkg extract` have no `--intents` flag, so you cannot read the mapping back
-> out. It costs roughly **3× the CPU** of a plain run. Leave it off until a surface consumes it.
+> **It is opt-in because it costs roughly 3× the CPU** of a plain run — one `git blame` per
+> file. Two surfaces read it, both since 3.27.0: `orchestrator investigate --intents` names the
+> ticket each landing symbol was last changed for, and `pkg export --intents` writes the facts
+> back out. `pkg extract` still has no `--intents` flag, and `--intents` does not apply with
+> `--repos`, because blame is per repository.
 
 ---
 
