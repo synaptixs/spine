@@ -172,6 +172,30 @@ def load_labels(path: Path | str = LABELS, *, known_repos: set[str] | None = Non
     return GoldSet(labels=tuple(labels), excluded=tuple(excluded))
 
 
+def gold_digest(gold: GoldSet) -> str:
+    """A stable fingerprint of the labels being scored.
+
+    The gate compares localization only when this is unchanged, and that condition is the whole
+    design. Localization is a **ratio over a fixed denominator**: add one label the tool gets
+    wrong and every rate falls, so a gate comparing rates across different gold sets would fail
+    a pull request **for growing the corpus** — the exact mistake that killed the doc-drift gate
+    one day earlier, where the denominator did not move and every added claim read as a
+    regression.
+
+    So the gate holds `investigate` to account and stays silent about corpus growth, which is a
+    rebaseline rather than a regression.
+
+    Ordering-independent and content-addressed: what is scored, not how the file is arranged.
+    """
+    import hashlib
+
+    parts = sorted(
+        f"{label.repo}|{label.issue}|{label.fix_commit}|{','.join(sorted(label.paths))}"
+        for label in gold.labels
+    )
+    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()[:16]
+
+
 def unresolvable_paths(label: Label, root: Path | str) -> list[str]:
     """Labelled paths that do not exist in the checked-out tree.
 
@@ -191,6 +215,7 @@ __all__ = [
     "GoldSet",
     "Label",
     "LabelError",
+    "gold_digest",
     "load_labels",
     "unresolvable_paths",
 ]

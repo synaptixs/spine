@@ -582,24 +582,50 @@ def _score_entry(s: KindScore) -> dict[str, int]:
     return {"expected": s.expected, "emitted": s.emitted, "matched": s.matched}
 
 
-def _localization_status() -> dict[str, str]:
-    """Why localization has no number in an offline scoreboard — precisely which reason."""
-    try:
-        from orchestrator.evals.labels import load_labels
+def localization_entry(report: Any = None) -> dict[str, Any]:
+    """The `localization` block: a measurement when one was taken, a reason when not.
 
-        labelled = len(load_labels().labels)
+    ``report`` is a :class:`evals.localization.LocalizationReport` from a run against the pinned
+    corpus. Without one this is *not measured*, and the reason tells "no gold set yet" apart from
+    "not scored on this run" — an offline scoreboard cannot compute it, because the corpus has to
+    be on disk and a gate CI runs by default must not depend on the network.
+    """
+    from orchestrator.evals.labels import gold_digest, load_labels
+
+    try:
+        gold = load_labels()
     except Exception:  # noqa: BLE001 — a malformed gold set must not break the scoreboard
         return {"status": "not_measured", "reason": "gold set could not be read"}
-    if not labelled:
+
+    if report is not None and report.measured:
+        return {
+            "status": "measured",
+            "labelled": len(report.results),
+            # What was scored. `compare_scoreboard` gates only when this matches: localization is
+            # a ratio over a fixed denominator, so adding a label the tool gets wrong lowers every
+            # rate, and a gate blind to that would fail a pull request for GROWING the corpus —
+            # exactly how the doc-drift gate died a day earlier.
+            "gold_digest": gold_digest(gold),
+            "top_k": {str(k): report.hits_at(k) for k in report.ks},
+            # Apart from a bad ranking: "returned nothing" is a different failure, and keeping
+            # them separate is what made a whole-corpus plumbing failure legible when it scored
+            # 0.00 at every k.
+            "empty_results": int(report.as_dict()["empty_results"]),
+        }
+    if not gold.labels:
         return {"status": "not_measured", "reason": "no gold set — G6 D1"}
     return {
         "status": "not_measured",
-        "reason": f"gold set of {labelled} — run `pkg accuracy --oracle comprehension --pinned-corpus`",
+        "reason": f"gold set of {len(gold.labels)} — run `pkg accuracy --scoreboard --pinned-corpus`",
     }
 
 
 def build_scoreboard(
-    corpus_root: Path | str = "corpus", repo: Path | str = ".", *, runtime: bool = False
+    corpus_root: Path | str = "corpus",
+    repo: Path | str = ".",
+    *,
+    runtime: bool = False,
+    localization: Any = None,
 ) -> dict[str, Any]:
     """The committed baseline: every oracle's numbers, and whether each one is gated.
 
@@ -664,7 +690,7 @@ def build_scoreboard(
                 # different and are told apart: an empty gold set is work not yet done, while a
                 # populated one simply cannot be scored offline — localization needs the pinned
                 # corpus on disk, and a gate CI runs by default must not depend on the network.
-                "localization": _localization_status(),
+                "localization": localization_entry(localization),
                 "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
             },
             "drift": {
@@ -806,6 +832,34 @@ def compare_scoreboard(baseline: dict[str, Any], current: dict[str, Any]) -> lis
                 f"{float(after_prov):.4f}",
             )
         )
+
+    # Localization: an accuracy, so a DROP fails — and gated ONLY when the gold set is
+    # unchanged. Comparing across different label sets would fail a pull request for adding a
+    # label the tool gets wrong, which is corpus growth, not regression — the exact mistake that
+    # killed the doc-drift gate a day earlier. Both sides must also have been *measured*: an
+    # offline run has no number, and reading its absence as zero would report a catastrophe
+    # every time CI ran without the network.
+    base_loc = baseline.get("metrics", {}).get("comprehension", {}).get("localization", {})
+    cur_loc = current.get("metrics", {}).get("comprehension", {}).get("localization", {})
+    if (
+        base_loc.get("status") == "measured"
+        and cur_loc.get("status") == "measured"
+        and base_loc.get("gold_digest") == cur_loc.get("gold_digest")
+    ):
+        for k in ("1", "10"):
+            was_hits = base_loc.get("top_k", {}).get(k)
+            now_hits = cur_loc.get("top_k", {}).get(k)
+            if was_hits is None or now_hits is None or now_hits >= was_hits:
+                continue
+            n = cur_loc.get("labelled", 0)
+            out.append(
+                Regression(
+                    "comprehension",
+                    f"top-{k} localization fell on an unchanged gold set of {n}",
+                    f"{was_hits}/{n}",
+                    f"{now_hits}/{n}",
+                )
+            )
 
     was_short = baseline.get("metrics", {}).get("parity", {}).get("shortfall")
     now_short = current.get("metrics", {}).get("parity", {}).get("shortfall")

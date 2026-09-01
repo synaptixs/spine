@@ -220,7 +220,7 @@ repositories are what make that limit visible rather than invisible.
 | **1b — the scaffolding** ✅ **2026-08-31** | `evals/comprehension_labels.yaml` + a validator that refuses anything unreproducible, `pkg fix-sites` to read what a fixing commit changed, `pkg labels --check`, and the top-k scorer | ~0.5 d | ✅ Labelling is now a form to fill in, and every field is checked |
 | **1c — the gold set** ✅ **2026-09-01** | 38 labels, every issue link confirmed against GitHub's own `closingIssuesReferences` and every path verified present in the pinned tree | — | ✅ top-1 0.32 · top-3 0.47 · top-5 0.58 · top-10 0.71 |
 | **1 — A gold set, two metrics, into the existing scoreboard** | Pin the corpus in a **manifest the harness reads** (five repositories, D3), then hand-label **30–50 real issues** — one fix site per issue, taken from the fixing commit, recorded with the issue URL and the commit SHA so anyone can re-derive it. Metrics: **top-k localization** and **provenance validity** (D2). Deterministic, no LLM anywhere in scoring or in labelling. Land them as a **`comprehension` key in `scoreboard.json`**, written by `pkg accuracy --scoreboard`. | ~2 d harness + **~3 d labelling** | `pkg accuracy` prints comprehension alongside corpus/invention/parity; one baseline, one file; every label re-derivable from its recorded SHA |
-| **2 — Gate + trend** | Extend `pkg accuracy --check` to the new key on the **ratchet** tier (D4). Track a trend series across releases — with the honest caveat that at n=30–50 a small move is noise, so the gate is a floor, not a graph. | ~2–3 d | A PR that degrades localization is visible before merge, using the gate that already exists |
+| **2 — Gate + trend** ✅ **2026-09-01** | `localization` recorded on the one scoreboard and gated on the **ratchet** tier (D4), **only when the gold set is unchanged** and **only when both sides were measured** | ~2–3 d | ✅ A drop in top-1 or top-10 on the same labels fails `--check --pinned-corpus`; reshaping the corpus and running offline both pass |
 | **3 — Publish** | Public methodology + results: the corpus **with its commit SHAs**, how each label was derived, the two metrics, the numbers, and a **reproducible command**. States what was *not* measured — impact recall, fault-site top-1, `regression_gaps` precision, C#, and the Python-only oracles — rather than implying broader coverage. | ~3–4 d | A public benchmark page and a command an outsider can run |
 
 **Which phase buys what.** Phases 1–2 make the claim *checkable*; Phase 3 makes it *a market
@@ -264,6 +264,38 @@ with no access to the fix.
 their post-pin windows contain few qualifying fixes, not because Python and Go were deprioritised.
 A test refuses a gold set where one repository exceeds half the labels, so this cannot quietly
 drift back into measuring one project.
+
+## How the localization gate avoids the trap the drift gate fell into
+
+Shipped 2026-09-01. Three conditions, and each one exists because of a way this could have gone
+wrong:
+
+**It gates on hit *counts*, only when the gold set's digest is unchanged.** Localization is a
+ratio over a fixed denominator, so any change to the labels moves it without `investigate` having
+moved at all — swap five easy issues for five hard ones and the count falls on its own. A gate
+blind to that would fail a pull request for **reshaping or growing the corpus**, which is the work
+it exists to protect. `gold_digest` is a content hash of what was scored; a different digest means
+*rebaseline*, not *regression*. **This is the exact failure that killed the doc-drift gate the day
+before**, where the denominator could not move and every added claim read as a defect.
+
+**It gates only when both sides say `measured`.** Localization needs the pinned corpus on disk, so
+an ordinary offline `--check` has no number. Reading that absence as zero would report a
+catastrophe on every run without a network — and the tests cover the dangerous shape too, an entry
+marked `not_measured` that still carries numbers, because `status` has to be what decides.
+
+**A corpus that will not fetch records nothing at all.** `measure_pinned` returns `None`, never an
+empty report: an empty report is a *number*, and it would ratchet the gate down on a bad
+afternoon.
+
+**Where it runs.** `pkg accuracy --scoreboard --pinned-corpus` records it; `--check
+--pinned-corpus` compares it. Off by default, so CI's ordinary gate stays offline and fast — the
+same reason `runtime` is opt-in, one cause further along: that one must not execute a test suite,
+this one must not depend on the network.
+
+**What it does not do.** It is a floor, not a trend line. At n=38 a single label flipping moves
+top-1 by 0.026, so the gate catches a *drop in count* on identical inputs — a real regression by
+construction — and says nothing about whether 0.32 is drifting. A trend series worth reading needs
+the larger corpus §"The first localization numbers" describes.
 
 ## Invariants you must not break
 

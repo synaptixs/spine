@@ -8,6 +8,7 @@ where a bad label becomes a wrong number is much too late.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -235,3 +236,96 @@ def test_a_root_that_no_longer_exists_is_skipped_not_scored(tmp_path: Path) -> N
 
     assert not report.measured  # not measured — NOT 0/1
     assert report.rate_at(1) is None
+
+
+# ---- the gate (G6 phase 2) ---------------------------------------------------
+
+
+def _board(status: str, digest: str, top1: int, top10: int, n: int = 38) -> dict[str, Any]:
+    return {
+        "metrics": {
+            "comprehension": {
+                "localization": {
+                    "status": status,
+                    "gold_digest": digest,
+                    "labelled": n,
+                    "top_k": {"1": top1, "10": top10},
+                }
+            }
+        }
+    }
+
+
+def test_a_real_regression_fails_the_gate() -> None:
+    from orchestrator.pkg.accuracy import compare_scoreboard
+
+    hits = [r for r in compare_scoreboard(_board("measured", "A", 12, 27), _board("measured", "A", 9, 27))]
+    assert len(hits) == 1
+    assert "top-1 localization fell" in hits[0].detail
+
+
+def test_a_changed_gold_set_is_not_a_regression() -> None:
+    """The mistake that killed the doc-drift gate, refused here by construction.
+
+    Hits can legitimately FALL when the labels change — swap five easy issues for five hard ones
+    and the count drops without `investigate` having moved at all. Gating across different label
+    sets would fail a pull request for reshaping the corpus, which is the work the gate exists to
+    protect, not to punish. The digest is what tells the two apart.
+    """
+    from orchestrator.pkg.accuracy import compare_scoreboard
+
+    was = _board("measured", "A", 12, 27, n=38)
+    # Different gold set AND fewer hits — the shape that must not fail.
+    changed = _board("measured", "B", 8, 20, n=38)
+    assert compare_scoreboard(was, changed) == []
+
+    # ... and the identical drop on the SAME gold set must fail, or the guard is vacuous.
+    same = _board("measured", "A", 8, 20, n=38)
+    assert [r for r in compare_scoreboard(was, same)]
+
+
+def test_an_offline_run_cannot_ratchet_the_gate_down() -> None:
+    """Localization needs the network; its absence must never read as zero."""
+    from orchestrator.pkg.accuracy import compare_scoreboard
+
+    was = _board("measured", "A", 12, 27)
+
+    # The ordinary offline shape: no numbers at all.
+    bare = {
+        "metrics": {"comprehension": {"localization": {"status": "not_measured", "reason": "no corpus here"}}}
+    }
+    assert compare_scoreboard(was, bare) == []
+
+    # And the dangerous shape: `not_measured`, but carrying numbers anyway — a partially written
+    # entry, or a hand-edited baseline. `status` is what must decide, not the presence of a
+    # `top_k`, because zeros from a run that never happened are the failure this whole session
+    # kept finding.
+    stale = _board("not_measured", "A", 0, 0)
+    assert compare_scoreboard(was, stale) == []
+
+
+def test_the_digest_ignores_ordering_but_not_content() -> None:
+    from orchestrator.evals.labels import FixSite, GoldSet, gold_digest
+
+    def label(issue: str, path: str) -> Label:
+        return Label(
+            repo="flask", issue=issue, title="t", fix_commit="a" * 40, fix_sites=(FixSite(path=path),)
+        )
+
+    a, b = label("https://e/1", "x.py"), label("https://e/2", "y.py")
+    assert gold_digest(GoldSet(labels=(a, b))) == gold_digest(GoldSet(labels=(b, a)))
+    assert gold_digest(GoldSet(labels=(a,))) != gold_digest(GoldSet(labels=(a, b)))
+    assert gold_digest(GoldSet(labels=(a,))) != gold_digest(GoldSet(labels=(label("https://e/1", "z.py"),)))
+
+
+def test_a_corpus_that_will_not_fetch_records_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """None, never an empty report — an empty report is a number, and it would ratchet."""
+    from orchestrator.evals import localization as loc
+    from orchestrator.evals.corpus_fetch import CorpusFetchError
+
+    def boom(*_a: object, **_k: object) -> None:
+        raise CorpusFetchError("network is down")
+
+    monkeypatch.setattr(loc, "score_localization", boom)
+    monkeypatch.setattr("orchestrator.evals.corpus_fetch.materialize", boom)
+    assert loc.measure_pinned() is None

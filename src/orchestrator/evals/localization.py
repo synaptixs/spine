@@ -112,10 +112,41 @@ def score_localization(gold: GoldSet, roots: dict[str, Path]) -> LocalizationRep
     return LocalizationReport(results=tuple(score_label(label, roots[label.repo]) for label in scored))
 
 
+def measure_pinned() -> LocalizationReport | None:
+    """Materialise the pinned corpus and score the gold set against it.
+
+    ``None`` when there is nothing to measure or the corpus cannot be fetched — never an empty
+    report, because an empty report is a *number* and would ratchet a gate down on a network
+    failure. All-or-nothing for the same reason ``materialize_all`` is: a partial corpus scores
+    a denominator that moved with the weather.
+    """
+    import tempfile
+
+    from orchestrator.evals.corpus_fetch import CorpusFetchError, load_manifest, materialize
+    from orchestrator.evals.labels import load_labels
+
+    try:
+        pinned = load_manifest()
+        gold = load_labels(known_repos={r.name for r in pinned})
+    except Exception:  # noqa: BLE001 — an unreadable corpus or gold set is "not measured"
+        return None
+    if not gold.measured:
+        return None
+    with tempfile.TemporaryDirectory(prefix="spine-g6-score-") as tmp:
+        try:
+            roots = {entry.name: materialize(entry, tmp) for entry in pinned}
+        except CorpusFetchError:
+            return None
+        # Inside the block: the checkouts are read here and gone the moment it exits. Scoring
+        # outside it once reported 0.00 at every k across the whole gold set.
+        return score_localization(gold, roots)
+
+
 __all__ = [
     "DEFAULT_KS",
     "LocalizationReport",
     "LocalizationResult",
+    "measure_pinned",
     "score_label",
     "score_localization",
 ]
