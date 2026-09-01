@@ -28,7 +28,7 @@ gates (before building, before merging). The product is **Spine**; it ships as
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
 | CLI commands | **57** | `grep -c '\.command(' src/orchestrator/cli.py` |
 | Source modules | **332** | `find src/orchestrator -name '*.py'` |
-| Test functions | **2,832** across 296 files | `grep -rh '^def test_\|^async def test_' tests`; files via the same pattern with `-rl` |
+| Test functions | **2,837** across 297 files | `grep -rh '^def test_\|^async def test_' tests`; files via the same pattern with `-rl` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
 | `CALLS` recall | **1.00** (C, SQL) → **0.50** (TypeScript) | same |
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |
@@ -358,7 +358,7 @@ and never promoted. A list that claims to be the authority has to actually absor
 |---|---|
 | Upgrade local `uv` past 0.8.0 | user's machine |
 | RBAC role-gating beyond the approval decision + secrets vault | parked |
-| CI gate on spec-status drift | not started |
+| CI gate on spec-status drift | 🟡 **the numbers half shipped 2026-09-01** — `scripts/state-numbers.py --check`, in CI, re-derives the eight figures this page and `SPEC-INDEX` state and fails when prose and source disagree. It caught a stale test count on its first run, and again when adding its own tests moved the number. **The judgement half is still open:** whether a spec's *status line* matches shipped reality is not mechanically checkable, and that is the class that produced the multi-repo row reading "not started" while the code was in `src/` |
 | Decide `--intents` — shipped with no reader, no export | undecided |
 | Rust front-end | not started |
 | Express endpoint extraction (TypeScript) | unscheduled |
@@ -415,4 +415,8 @@ Do not read these to answer "where do we stand" — read them to act on a specif
 | Every spec and its status | [SPEC-INDEX.md](SPEC-INDEX.md) |
 
 **Maintenance rule.** This page is refreshed at each release, from source, in one pass. A number
-here without a "how it is known" is a number that should not be here.
+here without a "how it is known" is a number that should not be here — and since 2026-09-01 that
+rule is enforced rather than trusted: `scripts/state-numbers.py --check` runs in CI and fails when
+any stated figure disagrees with the source it claims to come from. It was written because the
+rule had been true and unpoliced, and three of these numbers were stale simultaneously during one
+release cut.
