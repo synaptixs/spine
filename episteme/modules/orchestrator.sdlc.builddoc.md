@@ -58,7 +58,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/builddoc.py:649`](../../src/orchestrator/sdlc/builddoc.py#L649)
 
 - **Called by** (1 production · 3 test): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L926), [`test_an_unmeasured_language_keeps_the_original_wording`](../../tests/sdlc/test_builddoc.py#L814), [`test_the_caveat_says_what_the_number_was_measured_against`](../../tests/sdlc/test_builddoc.py#L803), [`test_the_caveat_states_measured_recall_for_a_measured_language`](../../tests/sdlc/test_builddoc.py#L790)
-- **Calls** (2): [`_is_test_module`](../../src/orchestrator/sdlc/builddoc.py#L644), [`measured_recall`](../../src/orchestrator/pkg/accuracy.py#L717)
+- **Calls** (2): [`_is_test_module`](../../src/orchestrator/sdlc/builddoc.py#L644), [`measured_recall`](../../src/orchestrator/pkg/accuracy.py#L743)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-6-build.md#10-codegen-prompt`, `docs/specs/build-documents/PKG-ACC-6-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/PKG-ACC-6-build.md#7-files`, `docs/specs/build-documents/PKG-ACC-6-build.md#9-facts-the-generator-needs`
 
 ### `_confidence_block`

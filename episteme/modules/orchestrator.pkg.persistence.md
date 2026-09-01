@@ -13,12 +13,12 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L225) — reaches **28** symbols
-- [`repo_state`](../../src/orchestrator/pkg/persistence.py#L144) — reaches **26** symbols
-- [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L218) — reaches **25** symbols
-- [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L154) — reaches **25** symbols
-- [`load_facts`](../../src/orchestrator/pkg/persistence.py#L123) — reaches **23** symbols
-- [`save_facts`](../../src/orchestrator/pkg/persistence.py#L116) — reaches **23** symbols
+- [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L225) — reaches **30** symbols
+- [`repo_state`](../../src/orchestrator/pkg/persistence.py#L144) — reaches **27** symbols
+- [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L218) — reaches **26** symbols
+- [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L154) — reaches **26** symbols
+- [`load_facts`](../../src/orchestrator/pkg/persistence.py#L123) — reaches **24** symbols
+- [`save_facts`](../../src/orchestrator/pkg/persistence.py#L116) — reaches **24** symbols
 - [`_git`](../../src/orchestrator/pkg/persistence.py#L137) — reaches **21** symbols
 - [`extractor_fingerprint`](../../src/orchestrator/pkg/persistence.py#L177) — reaches **17** symbols
 

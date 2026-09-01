@@ -45,7 +45,7 @@ _Everything imported from outside this codebase, by how often — standard libra
 
 - `__future__.annotations` — imported 640 times
 - `pathlib.Path` — imported 266 times
-- `typing.Any` — imported 239 times
+- `typing.Any` — imported 240 times
 - `pytest` — imported 182 times
 - `dataclasses.dataclass` — imported 141 times
 - `json` — imported 135 times
