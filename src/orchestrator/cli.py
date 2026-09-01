@@ -3465,15 +3465,30 @@ def _invention_oracle(repo: str, sample: int, kind: str, as_json: bool) -> None:
 SCOREBOARD_FILE = "src/orchestrator/pkg/scoreboard.json"
 
 
-def _scoreboard(repo: str, write: bool, as_json: bool) -> None:
-    """`--scoreboard` writes the committed baseline; `--check` compares against it."""
+def _scoreboard(repo: str, write: bool, as_json: bool, pinned_corpus: bool = False) -> None:
+    """`--scoreboard` writes the committed baseline; `--check` compares against it.
+
+    ``pinned_corpus`` additionally fetches the five pinned repositories and scores localization.
+    Off by default, and that is the contract: the baseline CI compares on every pull request must
+    not depend on the network, so an ordinary run records localization as *not measured* and the
+    gate skips it rather than reading its absence as zero.
+    """
     import json as _json
 
     from orchestrator.pkg.accuracy import build_scoreboard, compare_scoreboard, scoreboard_improvements
 
     root = Path(repo)
     path = root / SCOREBOARD_FILE
-    current = build_scoreboard(root / "corpus", root)
+    localization = None
+    if pinned_corpus:
+        from orchestrator.evals.localization import measure_pinned
+
+        typer.echo("  fetching the pinned corpus to score localization ...", err=True)
+        localization = measure_pinned()
+        if localization is None:
+            typer.echo("pkg accuracy: the pinned corpus could not be scored — refusing to record a number")
+            raise typer.Exit(code=1)
+    current = build_scoreboard(root / "corpus", root, localization=localization)
     rendered = _json.dumps(current, indent=2, sort_keys=True) + "\n"
 
     if write:
@@ -3739,7 +3754,7 @@ def pkg_accuracy(
     from orchestrator.pkg.accuracy import CorpusError, score_corpus
 
     if scoreboard or check:
-        _scoreboard(path or ".", scoreboard, as_json)
+        _scoreboard(path or ".", scoreboard, as_json, pinned_corpus)
         return
 
     if oracle is not None:
