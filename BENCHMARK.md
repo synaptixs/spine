@@ -1,6 +1,6 @@
 # How well does Spine actually work?
 
-**Measured 2026-09-01 against Spine 3.25.1.** Everything on this page is reproducible from a
+**Measured 2026-09-01, released in Spine 3.26.0.** Everything on this page is reproducible from a
 checkout; the commands are at the bottom and they are the same ones that produced these numbers.
 
 Spine's central claim is that it can read a bug report and tell you where in a codebase the fix
@@ -150,17 +150,17 @@ That is a different programme, deliberately separate, with no number yet.
 
 ## Reproduce it
 
-From a checkout of the tagged release (these commands are unreleased on PyPI as of 3.25.1, so
-build from source):
+These commands ship in **3.26.0**. Install with **every language extra** — this matters more
+than it looks:
 
 ```bash
-git clone https://github.com/synaptixs/spine.git && cd spine
+pip install 'synaptixs-spine[languages]'
 ```
 
-Install with **every language extra** — this matters more than it looks:
+Or from a checkout, which is what produced the figures below:
 
 ```bash
-uv sync --all-extras
+git clone https://github.com/synaptixs/spine.git && cd spine && uv sync --all-extras
 ```
 
 Without the extras a front-end silently produces no facts, every label in that repository becomes
@@ -171,19 +171,19 @@ Then, in one command — it fetches the five pinned repositories (shallow, at th
 and scores both metrics:
 
 ```bash
-uv run orchestrator pkg accuracy . --oracle comprehension --pinned-corpus
+orchestrator pkg accuracy . --oracle comprehension --pinned-corpus
 ```
 
 Inspect the answer key itself, and check every label against the pinned trees:
 
 ```bash
-uv run orchestrator pkg labels --check --paths
+orchestrator pkg labels --check --paths
 ```
 
 And see what any fixing commit actually changed, which is how each label was derived:
 
 ```bash
-uv run orchestrator pkg fix-sites flask 05e9c6bd630ecf4ec0ec884b1fc7901663737bc7
+orchestrator pkg fix-sites flask 05e9c6bd630ecf4ec0ec884b1fc7901663737bc7
 ```
 
 The gold set is [`src/orchestrator/evals/comprehension_labels.yaml`](src/orchestrator/evals/comprehension_labels.yaml)

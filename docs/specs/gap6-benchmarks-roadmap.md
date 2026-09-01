@@ -311,9 +311,11 @@ following the page in good faith would have got a worse number and believed it. 
 now prints a warning naming any repository that yielded nothing, and the page says to install
 `--all-extras` and to heed that warning before quoting anything.
 
-**The commands are unreleased.** `pkg fix-sites`, `pkg labels` and `--pinned-corpus` are not in
-3.25.1 on PyPI, so the page tells a reader to build from source rather than handing them an
-install line that cannot work.
+**The commands were unreleased when the page was written.** `pkg fix-sites`, `pkg labels` and
+`--pinned-corpus` were not in 3.25.1 on PyPI, so the page told a reader to build from source
+rather than handing them an install line that could not work. **They ship in 3.26.0** and the
+page now leads with `pip install 'synaptixs-spine[languages]'` — a published benchmark whose
+commands need a source build is half published.
 
 **What the page refuses to do**, and this is the part worth keeping: it states six numbered
 limitations, including the two that cut against us — a 0.17–0.47 interval at n=38, and a corpus

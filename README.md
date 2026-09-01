@@ -113,7 +113,17 @@ the product.** Where it can't know something, it says so and stops.
 
 ## What's new
 
-**3.25.1 (current)** — **the issue type finally reaches the run.** Spine has been issue-type
+**3.26.0 (current)** — **Spine measures whether it finds the right file, and publishes the
+number.** Given a real bug report, the file that actually fixed it is in the top 10 for **27 of
+38** issues and the first guess is right for **12**; picking ten files at random from the same
+repositories scores 0.085. The corpus is five open-source projects pinned by commit, the answer
+key is each bug's own fixing commit, and one command reproduces it —
+[BENCHMARK.md](https://github.com/synaptixs/spine/blob/main/BENCHMARK.md), which also states the
+limits. Building it turned up three checks that were passing while measuring nothing: fact
+freshness parsed every language as Python, the graph-grounded review layer never ran on a pull
+request at all, and a drift finding was rendered that nothing called.
+
+**3.25.1** — **the issue type finally reaches the run.** Spine has been issue-type
 shaped since 3.21.0 — the profile selector, the localization check, the `bug`/`enhancement`
 profiles — and nothing ever supplied the type, so every run took the `default` profile. A Bug
 now gets root-cause analysis and must localize; an enhancement gets a churn reading over its

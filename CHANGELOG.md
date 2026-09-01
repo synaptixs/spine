@@ -4,6 +4,76 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.26.0 — Spine measures whether it finds the right file, and publishes the number
+
+The headline is a number that did not exist before: given a real bug report,
+**the file that actually fixed it is in Spine's top 10 for 27 of 38 issues, and its
+first guess is right for 12**. Picking ten files at random from the same repositories
+scores 0.085. See [BENCHMARK.md](BENCHMARK.md), which also states at length what those
+numbers do *not* show.
+
+Getting there turned up three defects on the paths that were supposed to be checking
+this product, and every one of them had been reporting success.
+
+### Added — the comprehension benchmark (G6, all three phases)
+
+- **A pinned five-repository corpus** — vuejs/core, gin, fmt, libuv, flask, each at an
+  exact commit — materialised by `evals/corpus_fetch` and scored offline. Fetch, verify
+  `rev-parse`, write the marker **last**, so a process that dies mid-fetch leaves a
+  directory that does not read as complete.
+- **Provenance validity**: of every `Function`, `Type` and `Field` fact, does the
+  recorded line actually name that symbol? 1.0000 on TypeScript and Go, 0.9850 on C.
+  The spec proposed `stale_findings` for this and it could not work — on a freshly
+  extracted tree it is zero by construction, a constant rather than a measurement.
+- **A hand-labelled gold set** of 38 issues, with `pkg fix-sites` to read what a fixing
+  commit changed and `pkg labels --check --paths` to refuse anything unreproducible: an
+  abbreviated commit, an issue GitHub does not record the PR as closing, a path absent
+  from the pinned tree.
+- **Top-k localization on the scoreboard, gated** — but only when the gold set's digest
+  is unchanged, so reshaping the corpus is a rebaseline rather than a regression.
+
+### Fixed — three checks that were passing while measuring nothing
+
+- **Fact freshness re-extracted every changed file with `PythonExtractor`.** On any
+  other language the parse raised and the `except` treated an unparseable file as
+  "everything in it is stale", so a polyglot pull request got a stale-graph warning per
+  symbol when nothing was stale — Python 0, TypeScript 2/2, Go 3/3 on an unmodified
+  repo. Dispatch is now per suffix through the same registry extraction uses.
+- **The PKG-grounded review layer never ran on a pull request.** `webhook.py` built
+  `ReviewService` without `verifiers` or `impact_source`, and nothing outside tests ever
+  constructed `PKGGroundingVerifier`. All of it needs a checkout, and that path had
+  none. Opt-in via `ORCHESTRATOR_REVIEW_CHECKOUT=1`; a checkout that cannot be made
+  degrades rather than blocking, and the review says so in its body.
+- **`doc_findings` rendered a drift finding nothing called.** Now wired, and reported as
+  a **delta against the pull request's base** — what this change broke — rather than
+  inferred from what the patch removed.
+
+### Changed — a gate shipped and withdrawn the same day
+
+`drift` was gated on a ratchet and un-gated one pull request later, after it failed a
+documentation change. Its denominator was sections, which prose edits do not move, and
+about a tenth of the population cannot bind by construction — parameters, module
+constants, string literals and log event names have no node kind. The denominator is
+corrected to *claims made* (0.1005, not 0.5829) and the number is recorded and trended
+as an **upper bound**, never failing a build. Gating it needs the population narrowed
+first.
+
+### Changed — smaller
+
+- The temperature refusal a model returns is learned **once per process** rather than
+  re-discovered on every call, and the determinism warning is said once.
+- `MCPRegistry.call` opened two sessions for one structured call; schemas are cached at
+  discovery, so it opens one.
+- The `current-state` diagram renders instead of falling back to `<pre>`; all 47 mermaid
+  blocks across every tracked markdown file now render.
+
+### Documentation
+
+- [BENCHMARK.md](BENCHMARK.md) — the public methodology, with six numbered limitations
+  and the commands that produced the figures.
+- `docs/specs/watch-items-roadmap.md` — a spec three pages had linked for a month and
+  nobody had written.
+
 ## 3.25.1 — The README catches up, and is made to stay caught up
 
 ### Fixed — the first thing anyone reads was three releases stale
