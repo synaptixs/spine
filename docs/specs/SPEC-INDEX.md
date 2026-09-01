@@ -1,8 +1,8 @@
 # Spec index — every design record, and where it stands
 
 **Generated 2026-08-15 against 3.18.1; refreshed 2026-08-21 for the completed GraphIR
-programme; recounted 2026-08-28 at 3.25.1.** `docs/specs/` holds **77** markdown files —
-**74 specs** plus three navigation documents ([README](README.md), this index,
+programme; recounted 2026-09-01 at 3.26.0.** `docs/specs/` holds **78** markdown files —
+**75 specs** plus three navigation documents ([README](README.md), this index,
 [STATE-OF-SPINE](STATE-OF-SPINE.md)) — with 6 archived and 10 build documents. The count read
 *63* until 2026-08-21, and **five specs were not listed at all**, including this file's own
 companion matrix and both measurements it cites as evidence. An inventory that silently omits
@@ -10,7 +10,7 @@ things is the failure it was built to catch, so the count is now stated as a der
 can re-run:
 
 ```
-ls docs/specs/*.md | wc -l          # 77
+ls docs/specs/*.md | wc -l          # 78
 ```
 
 **It rotted anyway.** The line read *70* from 2026-08-21 until 2026-08-28 while the directory
@@ -40,8 +40,8 @@ Graphify-gap series only. This file is the complete inventory.
 
 ---
 
-> **Start with [STATE-OF-SPINE.md](STATE-OF-SPINE.md)** — one page, verified 2026-08-28 against
-> 3.25.1, covering where the product stands, what is measured, the active programme, and what is
+> **Start with [STATE-OF-SPINE.md](STATE-OF-SPINE.md)** — one page, verified 2026-09-01 against
+> 3.26.0, covering where the product stands, what is measured, the active programme, and what is
 > outstanding. Come here for the per-spec inventory.
 
 ---
