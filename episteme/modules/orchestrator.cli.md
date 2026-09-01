@@ -211,7 +211,7 @@ _35 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/cli.py:135`](../../src/orchestrator/cli.py#L135)
 
-- **Called by** (13 production · 1 test): [`catalog_plan`](../../src/orchestrator/cli.py#L2785), [`design`](../../src/orchestrator/cli.py#L2336), [`investigate`](../../src/orchestrator/cli.py#L2447), [`localize`](../../src/orchestrator/cli.py#L2554), [`pkg_docs`](../../src/orchestrator/cli.py#L4049), [`pkg_export`](../../src/orchestrator/cli.py#L3918), [`pkg_extract`](../../src/orchestrator/cli.py#L2810), [`pkg_verify`](../../src/orchestrator/cli.py#L3085), [`profile`](../../src/orchestrator/cli.py#L2092), [`rca`](../../src/orchestrator/cli.py#L2604), [`regression`](../../src/orchestrator/cli.py#L2692), [`state`](../../src/orchestrator/cli.py#L2242), [`understand`](../../src/orchestrator/cli.py#L2121), [`test_repo_arg_classifies_local_vs_git`](../../tests/test_cli.py#L325)
+- **Called by** (13 production · 1 test): [`catalog_plan`](../../src/orchestrator/cli.py#L2785), [`design`](../../src/orchestrator/cli.py#L2336), [`investigate`](../../src/orchestrator/cli.py#L2447), [`localize`](../../src/orchestrator/cli.py#L2554), [`pkg_docs`](../../src/orchestrator/cli.py#L4070), [`pkg_export`](../../src/orchestrator/cli.py#L3918), [`pkg_extract`](../../src/orchestrator/cli.py#L2810), [`pkg_verify`](../../src/orchestrator/cli.py#L3085), [`profile`](../../src/orchestrator/cli.py#L2092), [`rca`](../../src/orchestrator/cli.py#L2604), [`regression`](../../src/orchestrator/cli.py#L2692), [`state`](../../src/orchestrator/cli.py#L2242), [`understand`](../../src/orchestrator/cli.py#L2121), [`test_repo_arg_classifies_local_vs_git`](../../tests/test_cli.py#L325)
 - **Calls** (5): `Exit`, [`Settings`](../../src/orchestrator/registry/api/config.py#L12), `echo`, [`materialize_repo_source`](../../src/orchestrator/registry/api/workspace.py#L216), [`resolve_repo_source`](../../src/orchestrator/registry/api/workspace.py#L166)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-1-build.md#9-facts-the-generator-needs`, `docs/specs/build-documents/SSPN-49-build.md#4-pkg-what-the-graph-knows`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
@@ -436,7 +436,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 ### `media_extract`
 
-[`src/orchestrator/cli.py:4081`](../../src/orchestrator/cli.py#L4081)
+[`src/orchestrator/cli.py:4102`](../../src/orchestrator/cli.py#L4102)
 
 - **Calls** (7): [`ApiAsrBackend`](../../src/orchestrator/pkg/media_asr.py#L96), `Exit`, [`LocalWhisperBackend`](../../src/orchestrator/pkg/media_asr.py#L73), `echo`, [`extract_image`](../../src/orchestrator/pkg/media_extract.py#L186), [`extract_media`](../../src/orchestrator/pkg/media_asr.py#L227), [`iter_media_files`](../../src/orchestrator/pkg/media_extract.py#L245)
 
@@ -466,7 +466,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 ### `pkg_docs`
 
-[`src/orchestrator/cli.py:4049`](../../src/orchestrator/cli.py#L4049)
+[`src/orchestrator/cli.py:4070`](../../src/orchestrator/cli.py#L4070)
 
 - **Calls** (7): `Exit`, [`_repo_arg`](../../src/orchestrator/cli.py#L135), `echo`, `orchestrator.pkg.DocPage`, `orchestrator.pkg.DocReconciler`, `orchestrator.pkg.load_or_extract`, `pathlib.Path`
 
@@ -474,7 +474,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/cli.py:3918`](../../src/orchestrator/cli.py#L3918)
 
-- **Calls** (10): `Exit`, [`_repo_arg`](../../src/orchestrator/cli.py#L135), `echo`, [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49), [`link_intents`](../../src/orchestrator/pkg/intent_link.py#L122), `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.export_sqlite`, `orchestrator.pkg.link_docs`, `pathlib.Path`, [`write_vault`](../../src/orchestrator/knowledge/wikilinks.py#L84)
+- **Calls** (10): `Exit`, [`_repo_arg`](../../src/orchestrator/cli.py#L135), `echo`, [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49), [`link_intents`](../../src/orchestrator/pkg/intent_link.py#L171), `orchestrator.pkg.RepoCodeExtractor`, `orchestrator.pkg.export_sqlite`, `orchestrator.pkg.link_docs`, `pathlib.Path`, [`write_vault`](../../src/orchestrator/knowledge/wikilinks.py#L84)
 
 ### `pkg_extract`
 
