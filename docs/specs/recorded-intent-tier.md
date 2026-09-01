@@ -99,11 +99,47 @@ The concrete payoff is in the surfaces that already exist:
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
 | **1 — reach the export** ✅ **2026-09-01** | `--intents` on `pkg export`, applying `link_intents` beside `link_docs` for non-sqlite formats. No exporter change was needed: they already emit every kind | ~2 h | ✅ 37 `Intent` + 1,418 `SERVES` in the JSON export, coverage printed beside it. **And it immediately exposed §6.1** |
-| **2 — a query seam** | `intents_for(symbol)` / `symbols_serving(intent)` on `FactStore`, mirroring `docs_for` / `mentions_of`. An MCP tool only if Phase 3 wants one | ~0.5 d | The question is answerable in-process and from a script |
-| **3 — one real consumer** | `investigate`'s landing report names the tickets a landing symbol serves, bounded and labelled *last changed for*. **Unblocked 2026-09-01** — §6.1 fixed | ~1 d | A ticket landing on an attributed symbol reports it; one landing on an unattributed symbol says nothing, and says nothing *loudly* — never a blank that reads as "no prior work" |
+| **2 — a query seam** ✅ **2026-09-01** | `intents_for(symbol)` / `symbols_serving(intent)` on `FactStore`, mirroring `docs_for` / `mentions_of`. No MCP tool: Phase 3 did not want one | ~0.5 d | ✅ Both directions, asserted inverse; an unscanned graph answers empty rather than raising |
+| **3 — one real consumer** ✅ **2026-09-01** | `investigate --intents` names the tickets each landing was last changed for, bounded at three with `+N more`, and states coverage **once at report level** | ~1 d | A ticket landing on an attributed symbol reports it; one landing on an unattributed symbol says nothing, and says nothing *loudly* — never a blank that reads as "no prior work" |
 | **4 — the "built for" half** | `git log -L` per symbol to recover the introducing commit | ~1–2 d | Deferred on purpose. One subprocess per symbol against 11,022 symbols needs its own measurement before anyone commits to it |
 
 **Phase 1 is the one that removes "no reader".** Everything after it is about *which* reader.
+
+## 4.1 — What phases 2 and 3 look like in practice
+
+```
+$ orchestrator investigate . --title "autorun should record the run context" --intents
+  recorded intent: 31 ticket(s) from SSPN; 1120/11040 symbols (10.1%)
+
+- `RunContext` (Type, 3 caller(s)) … autorun.py:65 — last changed for SSPN-22, SSPN-23, SSPN-24 +5 more
+- `record_stage` (Function, 0 caller(s)) … autorun.py:146 — last changed for SSPN-22, SSPN-23
+- `_stage_implement` (Function, 1 caller(s)) … autorun.py:1025 — last changed for SSPN-14, SSPN-22, SSPN-23 +3 more
+- `needs_context` (Function, 0 caller(s)) … security_verify.py:154
+
+_Recorded intent covers 4 of 10 landing(s). A landing with no ticket was not attributed —
+which is not the same as having no prior work._
+```
+
+**Four decisions in that output.**
+
+**Bounded at three, with `+N more`.** A symbol edited across a dozen tickets says *this is hot*,
+which the count conveys; listing twelve keys would bury the landing site the line exists to name.
+
+**Coverage stated once, at report level, and only when the tier ran.** Per symbol it would be
+noise on every line. Omitted entirely, a reader takes the six unattributed landings for symbols
+with no prior work — and here that would be wrong for nine landings in ten. A run that never
+scanned says *nothing at all* rather than claiming 0%, because 0% and "not measured" are
+different facts and this codebase has confused them before.
+
+**The rate goes to stderr, the findings to the brief.** The brief is the artifact a human reads
+and a run records; a coverage figure belongs with the scan that produced it.
+
+**Intents cannot become landing sites.** They are ungrounded by construction and
+`relevant_symbols` skips ungrounded nodes, so a ticket key can never be returned as a place in
+the code. The invariant in §7 was written before this consumer existed and is what makes it safe.
+
+**`--intents` is refused with `--repos`** rather than silently ignored: blame is per checkout and
+a merged graph has several. A flag that quietly does nothing is worse than one that says no.
 
 ## 5. Decisions
 

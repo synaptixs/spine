@@ -196,3 +196,91 @@ def test_analysis_scans_intents_when_asked(tmp_path: Path) -> None:
     found = sorted(n.id for n in result.batch.nodes if n.kind is NodeKind.INTENT)
     assert found == ["intent:SSPN-10", "intent:SSPN-9"]
     assert any(e.kind is EdgeKind.SERVES for e in result.batch.edges)
+
+
+# ---- the query seam, and the consumer (spec phases 2 and 3) ------------------
+
+
+def test_intents_for_and_symbols_serving_are_inverses(tmp_path: Path) -> None:
+    from orchestrator.pkg.store import FactStore
+
+    root = _repo(tmp_path, message="feat: x (SSPN-9)")
+    (root / "app" / "b.py").write_text("def g():\n    return 2\n", encoding="utf-8")
+    _commit(root, "feat: y (SSPN-10)")
+    batch, _ = _scan(root)
+    store = FactStore(batch)
+
+    served = [n for n in batch.nodes if store.intents_for(n.id)]
+    assert served, "the fixture must attribute something, or this proves nothing"
+
+    for symbol in served:
+        for intent in store.intents_for(symbol.id):
+            assert symbol.id in {s.id for s in store.symbols_serving(intent.id)}
+
+
+def test_an_unscanned_graph_reports_no_intents_rather_than_failing(tmp_path: Path) -> None:
+    """Empty means "not scanned or not attributed", never "no prior work".
+
+    `intents_for` is called unconditionally by `build_investigation`, so a graph that never had
+    the tier run must answer quietly rather than raise.
+    """
+    from orchestrator.pkg.store import FactStore
+
+    root = _repo(tmp_path, message="feat: x (SSPN-9)")
+    batch = RepoCodeExtractor().extract(root)  # no link_intents
+    store = FactStore(batch)
+
+    assert all(store.intents_for(n.id) == [] for n in batch.nodes)
+
+
+def test_a_landing_carries_the_tickets_it_was_last_changed_for(tmp_path: Path) -> None:
+    from orchestrator.pkg.store import FactStore
+    from orchestrator.sdlc.investigate import build_investigation, render_investigation_md
+
+    root = _repo(tmp_path, message="feat: handler (SSPN-9)")
+    (root / "app" / "b.py").write_text("def g():\n    return 2\n", encoding="utf-8")
+    _commit(root, "feat: more (SSPN-10)")
+    batch, _ = _scan(root)
+
+    # The fixture's symbols are `helper` and `Widget`; retrieval is lexical, so the query has
+    # to name one or nothing lands and the assertion below would be about retrieval, not intent.
+    inv = build_investigation("helper returns the wrong int", "fix helper", store=FactStore(batch), root=None)
+    assert any(hit.intents for hit in inv.landing), "a landing should carry its ticket"
+
+    md = render_investigation_md(inv)
+    assert "last changed for" in md
+    assert "Recorded intent covers" in md
+
+
+def test_the_brief_says_nothing_about_intent_when_the_tier_did_not_run(tmp_path: Path) -> None:
+    """A coverage note on an unscanned run would claim 0% where the truth is "not measured"."""
+    from orchestrator.pkg.store import FactStore
+    from orchestrator.sdlc.investigate import build_investigation, render_investigation_md
+
+    root = _repo(tmp_path, message="feat: handler (SSPN-9)")
+    batch = RepoCodeExtractor().extract(root)  # no link_intents
+
+    md = render_investigation_md(
+        build_investigation("helper returns the wrong int", "fix helper", store=FactStore(batch), root=None)
+    )
+    assert "last changed for" not in md
+    assert "Recorded intent covers" not in md
+
+
+def test_the_landing_order_is_stable_for_a_commit(tmp_path: Path) -> None:
+    """`SERVES` comes out in blame order — stable, but not meaningful.
+
+    A brief that reorders between runs on the same commit cannot be diffed, which is the
+    property every comprehension surface here is built on.
+    """
+    from orchestrator.pkg.store import FactStore
+    from orchestrator.sdlc.investigate import build_investigation
+
+    root = _repo(tmp_path, message="feat: handler (SSPN-9)")
+    (root / "app" / "b.py").write_text("def g():\n    return 2\n", encoding="utf-8")
+    _commit(root, "feat: more (SSPN-10)")
+    batch, _ = _scan(root)
+
+    first = build_investigation("helper", "fix helper", store=FactStore(batch), root=None)
+    second = build_investigation("helper", "fix helper", store=FactStore(batch), root=None)
+    assert [h.intents for h in first.landing] == [h.intents for h in second.landing]
