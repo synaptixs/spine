@@ -1270,8 +1270,6 @@ down.
   `intake.web.app`) show the proposed set under its own label rather than dropping it.
   Specs with no proposed criteria render exactly as before.
 
-## Unreleased
-
 - **Codegen's source-context budget goes from 40 KB to 200 KB.** 40 KB is ~10k tokens —
   about 1% of the default model's window, and a leftover rather than a limit. It shaped
   work instead of bounding it: a change spanning five files totalled 113 KB, so every file
