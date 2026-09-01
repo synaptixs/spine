@@ -152,19 +152,19 @@ _The repo's own prose folded into the graph (`Doc` nodes + `MENTIONS` edges). A 
 
 **1545 docs** ingested, naming **655 of 8720 symbols** (8% doc coverage).
 
-**898 potential drift** — the docs name code the graph doesn't have (renamed or removed symbols, or prose the binder can't resolve).
+**899 potential drift** — the docs name code the graph doesn't have (renamed or removed symbols, or prose the binder can't resolve).
 
 | The docs claim… | …in |
 |---|---|
 | `comprehension_labels` | BENCHMARK.md#reproduce-it |
 | `comprehension_corpus` | BENCHMARK.md#reproduce-it |
+| `SyntaxWarning` | CHANGELOG.md |
+| `SyntaxError` | CHANGELOG.md |
 | `profile_select` | CHANGELOG.md |
 | `Bug` | CHANGELOG.md |
 | `rule_compiler` | CHANGELOG.md |
 | `n_rca` | CHANGELOG.md |
-| `n_churn` | CHANGELOG.md |
-| `repo_path` | CHANGELOG.md |
-| … | _+890 more_ |
+| … | _+891 more_ |
 
 ## Possibly unused
 _**147 of 1277 internal symbols** have no caller, subclass or doc reference in the graph. **Candidates, not verdicts**: calls through an attribute chain are skipped rather than guessed at, and dynamic dispatch, registries and reflection are invisible. Public symbols are excluded — having no in-repo caller is what being an API looks like._
