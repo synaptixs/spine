@@ -118,7 +118,7 @@ precedence:
 | `CAMEL` | `DocReconciler` |
 | `FILE` | `src/orchestrator/pkg/store.py` |
 
-Our section yields **12 mentions**. Repository-wide: **9,167**.
+Our section yields **12 mentions**. Repository-wide: **9,177**.
 
 One rule worth knowing: a bare CamelCase word — "GitHub", "Python" — binds if it happens to
 resolve, but **never counts as drift**. Prose capitalisation is not a code claim.
@@ -169,8 +169,8 @@ Repository-wide, every mention lands in exactly one of four buckets:
 | **one symbol anchor → `MENTIONS` edge** | **2,479** | 27% |
 | more than one symbol anchor → skipped | 1,962 | 21% |
 | resolved to a **file**, no symbol | 1,376 | 15% |
-| nothing at all | 3,350 | 37% |
-| **total mentions** | **9,167** | |
+| nothing at all | 3,360 | 37% |
+| **total mentions** | **9,177** | |
 
 2,453 edges are drawn from those 2,479 — the 26 difference is de-duplication, where one section
 names the same symbol twice.
@@ -203,7 +203,7 @@ names the same symbol twice.
 
 **What is true, and still worth saying:** ambiguity is not a rounding error. **1,962 mentions
 found real code and were deliberately dropped** for naming more than one thing — 29% of
-everything that fails to become an edge. That is qualitatively different from the 3,350 that
+everything that fails to become an edge. That is qualitatively different from the 3,360 that
 found nothing, and it matters for how the gap gets closed: reducing it means answering *which*
 symbol was meant, not *whether* one exists. Doing that by proximity, or by "the most likely", is
 precisely the guess this tier does not make.
@@ -214,7 +214,7 @@ draw.
 
 ## Step 6 — drift, in detail
 
-Of the 3,350 mentions that matched nothing, most are prose: ordinary words in backticks, URLs,
+Of the 3,360 mentions that matched nothing, most are prose: ordinary words in backticks, URLs,
 filenames. `symbolish_drift` narrows to identifier-shaped claims, leaving **about 900** on this
 repository. Examples, all real:
 
@@ -253,11 +253,22 @@ never as a defect count.
 > **What the audit did find was a drift-precision defect, in a different place.** `md.js`,
 > `graph.html` and `compose.dev.yml` are dotted, lowercase and multi-segment, so they are shaped
 > exactly like symbol paths; the FILE pattern does not recognise their extensions, so they arrived
-> as symbol claims and the drift list reported **55 filenames as prose naming code that does not
+> as symbol claims and the drift list reported **58 filenames as prose naming code that does not
 > exist**. Extensions were added to `_URL_TAILS` and checked in `_can_drift`. Drift went
-> **1,651 → 1,596** and **not one `MENTIONS` edge changed** — a naming asymmetry, not a coverage
-> gap. `README.md` and `src/a/b.py` keep their disk check, because a document linking a file that
-> is not there is a real finding.
+> **1,658 → 1,600** and **not one `MENTIONS` edge changed** — the same 2,453 (source, target)
+> pairs before and after, and the only binding bucket that moves is *nothing at all*, by the 12
+> filenames that stop being mentions at all. A naming asymmetry, not a coverage gap.
+> `README.md` and `src/a/b.py` keep their disk check, because a document linking a file that is
+> not there is a real finding.
+>
+> **Twenty of the 58 name a file that exists in this repository** — `md.js`, `schema.sql`,
+> `uv.lock`, `setup.cfg`, `main.go` — which settles what they are. Most of the rest are
+> illustrative filenames in examples (`money.test.ts`, `CalculatorTest.java`, `compose.dev.yml`).
+> **Four are removed for the wrong reason and are worth naming:** `javax.ws.rs` and
+> `jakarta.ws.rs` are Java *package* prefixes, and `a.b.C` is a placeholder from a regex comment.
+> They match because `rs` and `c` are also file extensions. The outcome is right — none is this
+> project's code, so they were noise of the `SyntaxError` kind — but a package path whose last
+> segment collides with an extension is a real limit of a shape-based rule, not a filename.
 
 ## What is added, and what is not
 
@@ -283,7 +294,7 @@ inference over the graph changing, not the graph being rewritten.
 
 **56% of `Doc` sections bind to nothing at all.** Section 2 shows why in miniature: prose that
 explains *why* something exists often names no identifier, and prose that does name one often
-names an ambiguous one. Both causes are real, and **absence is the larger of the two** — 3,350
+names an ambiguous one. Both causes are real, and **absence is the larger of the two** — 3,360
 mentions against 1,962 — though the smaller one is the more interesting, because those 1,962
 found the code and were refused.
 

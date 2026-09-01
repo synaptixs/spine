@@ -99,7 +99,7 @@ def _binding() -> dict[str, int]:
     from orchestrator.pkg.facts import EdgeKind, NodeKind
 
     batch = RepoCodeExtractor().extract(ROOT)
-    bindings, _drift = DocReconciler(batch, repo_root=ROOT).reconcile(read_doc_pages(ROOT))
+    bindings, drift = DocReconciler(batch, repo_root=ROOT).reconcile(read_doc_pages(ROOT))
     linked = link_docs(RepoCodeExtractor().extract(ROOT), ROOT)
 
     _BINDING = {
@@ -110,6 +110,10 @@ def _binding() -> dict[str, int]:
         "nothing": sum(1 for b in bindings if not b.anchor_ids and not b.anchor_files),
         "edges": sum(1 for e in linked.edges if e.kind is EdgeKind.MENTIONS),
         "doc_nodes": sum(1 for n in linked.nodes if n.kind is NodeKind.DOC),
+        # The audit box in the walkthrough quotes this. It is prose, nothing derived it, and
+        # the two figures beside it went stale within the hour they were written — the same
+        # way every hand-carried number in this repository has.
+        "drift": len(drift),
     }
     return _BINDING
 
@@ -265,6 +269,13 @@ CLAIMS: tuple[Claim, ...] = (
         WALKTHROUGH,
         re.compile(r"\n([\d,]+) edges are drawn from those"),
         lambda: _binding()["edges"],
+        gated=False,
+    ),
+    Claim(
+        "binding: drift findings",
+        WALKTHROUGH,
+        re.compile(r"\*\*1,658 → ([\d,]+)\*\* and \*\*not one"),
+        lambda: _binding()["drift"],
         gated=False,
     ),
     Claim(
