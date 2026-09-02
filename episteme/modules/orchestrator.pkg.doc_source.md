@@ -24,6 +24,10 @@
 
 _5 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
+## Documented in
+
+`docs/specs/doc-ingestion-spec.md#components-where-the-code-goes`, `docs/specs/gap-roadmap-index.md#everything-left-can-run-in-parallel`, `docs/specs/gap2-document-modality-roadmap.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`, `docs/specs/gap3-media-ingestion-roadmap.md#before-you-start`
+
 ## Types
 
 ### `DocReader`

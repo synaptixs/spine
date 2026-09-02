@@ -22,6 +22,10 @@
 - [`AreaFacts`](../../src/orchestrator/knowledge/renderers.py#L680) — reaches **4** symbols
 - [`_anchor`](../../src/orchestrator/knowledge/renderers.py#L1660) — reaches **4** symbols
 
+## Documented in
+
+`CLAUDE.md#layout-where-things-live`, `docs/specs/document-ingestion-reference.md#where-these-facts-are-consumed`, `docs/specs/gap5-visualization-roadmap.md#open-questions`, `docs/specs/gap5-visualization-roadmap.md#phase-1-shipped`, `docs/specs/gap5-visualization-roadmap.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/knowledge-graph-architecture.md#7-projections`
+
 ## Types
 
 ### `AreaFacts`

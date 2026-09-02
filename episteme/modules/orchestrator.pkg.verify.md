@@ -24,7 +24,7 @@
 
 ## Documented in
 
-`docs/specs/build-documents/PKG-ACC-1-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/PKG-ACC-2-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/PKG-ACC-3-build.md#4-pkg-what-the-graph-knows`
+`docs/specs/build-documents/PKG-ACC-1-build.md#10-codegen-prompt`, `docs/specs/build-documents/PKG-ACC-1-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/PKG-ACC-2-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/PKG-ACC-3-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/PKG-ACC-3-build.md#7-files`, `docs/specs/pkg-accuracy-roadmap.md#what-exists-today`
 
 ## Types
 

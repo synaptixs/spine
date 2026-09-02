@@ -22,7 +22,7 @@
 
 ## Documented in
 
-`docs/specs/build-documents/SSPN-49-build.md#4-pkg-what-the-graph-knows`
+`docs/specs/archive/BLOCK-C-DESIGN.md#10-increment-breakdown-build-order-once-approved`, `docs/specs/build-documents/SSPN-49-build.md#4-pkg-what-the-graph-knows`
 
 ## Types
 

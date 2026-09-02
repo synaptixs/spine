@@ -22,6 +22,10 @@
 - [`_terminal_name`](../../src/orchestrator/pkg/invention.py#L214) — reaches **7** symbols
 - [`_visible_names`](../../src/orchestrator/pkg/invention.py#L207) — reaches **7** symbols
 
+## Documented in
+
+`docs/specs/build-documents/PKG-ACC-4-build.md#7-files`, `docs/specs/multi-repo-roadmap.md#phase-1-the-identity-decision-complete`
+
 ## Types
 
 ### `InventedCall`
