@@ -4,6 +4,59 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.28.0 — A cross-repo edge stops pointing at a node that does not exist
+
+### Fixed
+
+- **`pkg extract --repos` and `investigate --repos` could place a `CONSUMES`
+  edge from a node the graph does not contain.** Both pass one extractor for
+  every repository, and `unresolved_calls` — the cross-repo join candidates —
+  accumulates on the **front-ends**, which are built once and reused.
+  `ClientState.clear()` preserves `unmatched` on purpose, so clearing the
+  extractor's own list left the previous repository's calls in place for the
+  next one to inherit. The joiner scopes a candidate to the repository it is
+  examining, so web's call became `py:billing@...` — a fabricated edge, which is
+  the one thing this graph exists to refuse.
+
+  `RepoCodeExtractor.reset_unresolved()` clears the front-ends too, and the merge
+  loop now resets before each repository rather than trusting a fresh object.
+
+  **Live in 3.27.0.** `pkg joins` was unaffected — it builds a fresh extractor
+  per repository — which meant the joins report and the extracted graph could
+  disagree with each other.
+
+  The corpus could not have caught it: `pkg/accuracy.py` builds a fresh extractor
+  per root, so the multirepo fixtures score a different code path from the one
+  the CLI runs.
+
+### Added
+
+- **A document citing a path now binds to the module built from that path.**
+  `src/orchestrator/pkg/store.py` resolves, maps to exactly one `Module` node by
+  the extractor's own provenance, and drew no edge — the anchor was recorded and
+  discarded. **534 `MENTIONS` edges, and 55 `Doc` sections that bound to nothing
+  now bind**; sections binding to nothing went from 55% to **52%**. Exactly one
+  matching file and exactly one owning module, or no edge.
+
+### Changed
+
+- **What the doc-binding gap actually is, measured.** "52% of sections bind to
+  nothing" reads as half the documentation failing to bind. Of the 809 unbound
+  mentions in those sections, **603 are not code claims at all** — `OpenSpec`,
+  `TypeScript`, `GitHub` — which the tier's own rule already refuses. **82% of
+  those sections contain nothing bindable**, and at most **60 sections of 1,602**
+  hold a mention a smarter tier could reach. That is the population a model tier
+  would chase, against a determinism cost on every gated surface.
+  `scripts/classify-unbound-mentions.py` re-derives it.
+
+- **`CONTRIBUTING.md` lists all four of CI's generated-artifact checks**, not
+  one. A release failed on a diagram nobody had re-rendered while `mypy`, `ruff`
+  and the tests were green. The three things that trip a `develop → main`
+  promotion are written down beside them.
+
+- **A two-page multi-repo walkthrough** — declare, extract, merge, join, read —
+  beside the roadmap's 624-line design record.
+
 ## 3.27.0 — TypeScript stops skipping the calls it could not type
 
 The headline is a number that moved for a real reason, and a second number that

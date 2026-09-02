@@ -149,4 +149,5 @@ fixture built to be joinable, and should not be quoted as what your repositories
 > candidates therefore include the first repo's calls, which can place a `CONSUMES` edge whose
 > source node does not exist in the graph. `pkg joins` is unaffected — it builds a fresh
 > extractor per repo — which means **the joins report and the extracted graph can disagree**.
-> Reproduced against 3.27.0; not yet fixed.
+> Reproduced against 3.27.0 and **fixed in 3.28.0**: `RepoCodeExtractor.reset_unresolved()`
+> clears the front-ends' lists too, and the merge loop resets before each repository.
