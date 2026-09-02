@@ -607,6 +607,25 @@ class RepoCodeExtractor:
         #: candidates. A side-channel, never facts: see `python_client.emit`.
         self.unresolved_calls: list[PendingCall] = []
 
+    def reset_unresolved(self) -> None:
+        """Drop every collected join candidate, **including the front-ends' own**.
+
+        ``self.unresolved_calls`` is a *copy*: :meth:`extract` extends it from each front-end
+        that ran. The originals live on the front-ends, which are built once in ``__init__``
+        and reused for the life of this object, and ``ClientState.clear()`` preserves
+        ``unmatched`` on purpose — it is the run's output, not scratch state.
+
+        So clearing only this list leaves the previous repository's calls sitting on the
+        front-end, ready to be extended back in on the next :meth:`extract`. Reusing one
+        extractor across repositories then attributes web's calls to billing, which is a
+        `CONSUMES` edge from a node id that does not exist in the graph.
+        """
+        self.unresolved_calls.clear()
+        for front_end in dict.fromkeys(self._by_suffix.values()):
+            state = getattr(front_end, "unresolved_calls", None)
+            if state is not None:
+                state.clear()
+
     def extract(self, root: Path | str) -> FactBatch:
         root_path = Path(root)
         batch = FactBatch()

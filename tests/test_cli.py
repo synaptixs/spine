@@ -410,10 +410,10 @@ def test_the_package_version_is_derived_not_a_literal() -> None:
     """
     from importlib.metadata import version as installed
 
-    import orchestrator
+    from orchestrator import __version__
 
-    assert orchestrator.__version__ == installed("synaptixs-spine")
-    assert orchestrator.__version__ != "0.0.0"
+    assert __version__ == installed("synaptixs-spine")
+    assert __version__ != "0.0.0"
 
 
 def test_the_root_callback_did_not_break_subcommands() -> None:
