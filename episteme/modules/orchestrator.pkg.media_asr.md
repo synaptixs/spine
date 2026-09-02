@@ -26,7 +26,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 
 ## Documented in
 
-`docs/specs/gap3-media-ingestion-roadmap.md#g3-media-ingestion-images-audio-video`
+`docs/specs/codex-plugin-keyless-roadmap.md#phases`, `docs/specs/gap3-media-ingestion-roadmap.md#g3-media-ingestion-images-audio-video`
 
 ## Types
 

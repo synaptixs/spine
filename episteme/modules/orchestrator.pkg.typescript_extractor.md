@@ -26,7 +26,7 @@ _18 of the symbols other code depends on here have no test path the graph can se
 
 ## Documented in
 
-`docs/specs/pkg-code-grounded-understanding.md#2a-typescripttsx-component-extractor-pkgtypescript-extractorpy`, `docs/specs/typescript-codegen.md#design-multi-language-support-typescript`, `docs/specs/typescript-codegen.md#first-step`, `docs/specs/typescript-codegen.md#slice-1-typescript-comprehension-ships-first-cheap`
+`docs/specs/build-documents/PKG-ACC-1-build.md#61-the-corpus-corpuslanguagecase`, `docs/specs/doc-binding-walkthrough.md#step-5-the-three-outcomes-in-detail`, `docs/specs/doc-file-binding.md#22-and-a-second-rule-prose-names-a-file-by-its-stem`, `docs/specs/pkg-code-grounded-understanding.md#2a-typescripttsx-component-extractor-pkgtypescript-extractorpy`, `docs/specs/typescript-codegen.md#design-multi-language-support-typescript`, `docs/specs/typescript-codegen.md#first-step`
 
 ## Types
 

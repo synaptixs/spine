@@ -26,7 +26,7 @@ _13 of the symbols other code depends on here have no test path the graph can se
 
 ## Documented in
 
-`docs/specs/sql-support-roadmap.md#8-packaging-wiring-changes`, `docs/specs/sql-support-roadmap.md#a1-ddl-entityfieldreferences-mostly-reuse-s-done`, `docs/specs/sql-support-roadmap.md#a2-dml-stored-procedures-readswritescalls-m-done`
+`docs/specs/STATE-OF-SPINE.md#ast-or-cst-spine-uses-whichever-one-the-languages-own-toolchain-uses`, `docs/specs/sql-support-roadmap.md#8-packaging-wiring-changes`, `docs/specs/sql-support-roadmap.md#a1-ddl-entityfieldreferences-mostly-reuse-s-done`, `docs/specs/sql-support-roadmap.md#a2-dml-stored-procedures-readswritescalls-m-done`
 
 ## Types
 

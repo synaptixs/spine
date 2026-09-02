@@ -26,7 +26,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ## Documented in
 
-`docs/specs/doc-ingestion-spec.md#components-where-the-code-goes`, `docs/specs/gap-roadmap-index.md#everything-left-can-run-in-parallel`, `docs/specs/gap2-document-modality-roadmap.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`, `docs/specs/gap3-media-ingestion-roadmap.md#before-you-start`
+`docs/specs/build-document.md#phase-1-orchestrator-sdlc-plan-built`, `docs/specs/doc-ingestion-spec.md#components-where-the-code-goes`, `docs/specs/enhancement-index.md#e1-project-constitution`, `docs/specs/gap-roadmap-index.md#everything-left-can-run-in-parallel`, `docs/specs/gap2-document-modality-roadmap.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/gap2-document-modality-roadmap.md#what-shipped-382`
 
 ## Types
 
