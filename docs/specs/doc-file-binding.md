@@ -84,6 +84,23 @@ sections, **367 contain no symbol-shaped mention at all** — a heading, a table
 paragraph of prose. There is nothing to bind and no failure to fix. The real failure population
 is **507 sections**, and 108 of them are reached here.
 
+### 2.2 — And a second rule: prose names a file by its stem
+
+Shipped alongside, 2026-09-02. `typescript_extractor` means `typescript_extractor.py`;
+`comprehension_labels` means the YAML beside it. A module's node name is its *dotted path*, so a
+bare stem matches no name and no id tail, and a `.yaml` file has no node at all — the tree is
+walked instead, with **exactly one** applied twice: one file with that stem, then one module
+owning it.
+
+**74 `MENTIONS` edges, 98 fewer drift findings, 11 more sections bound.** The drift half is the
+larger one: prose naming a real file was being reported as prose naming code that does not exist.
+
+**It is restricted to snake-shaped tokens, and that restriction is the rule.** Matching any stem
+binds `bug`, `enhancement`, `invention` and `validity` to modules that happen to share the name,
+when the prose meant the English words — **149 bindings against 88, and the extra 61 are exactly
+that mistake**. An underscore is what makes a token code-shaped rather than a word, which is why
+`_SNAKE_RE` exists at all.
+
 ## 3. What is *not* reachable, which is the more important half
 
 The walkthrough's "what would count as progress" recommends resolving the 1,966 ambiguous
