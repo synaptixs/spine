@@ -127,6 +127,15 @@ class TypeScriptExtractor:
                 _emit_function(node, module_id, source, rel, batch, funcs, local_funcs)
             elif node.type in _FUNC_CONST_DECLS:
                 self._emit_const_functions(node, module_id, source, rel, batch, funcs, local_funcs)
+        # Express routes: top-level expression statements the declaration walk above skips.
+        # Emitted here rather than in `finalize` because a mount (`app.use("/v1", r)`) and the
+        # router it mounts are the same variable in the same module; a router imported from
+        # another file keeps its local path, which `emit` documents as the deliberate exception.
+        from orchestrator.pkg.typescript_routes import emit as _emit_routes
+        from orchestrator.pkg.typescript_routes import scan_module as _scan_routes
+
+        _emit_routes(_scan_routes(decls, source, rel, local_funcs), batch)
+
         for fid, type_id, body in funcs:
             _calls(
                 fid,
