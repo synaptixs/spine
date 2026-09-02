@@ -113,7 +113,16 @@ the product.** Where it can't know something, it says so and stops.
 
 ## What's new
 
-**3.27.0 (current)** — **TypeScript stops skipping the calls it could not type.** `h.run()`,
+**3.28.0 (current)** — **a cross-repo edge stops pointing at a node that does not exist.**
+`pkg extract --repos` and `investigate --repos` reused one extractor across every repository, and
+the cross-repo join candidates accumulate on the language front-ends — so one service's HTTP
+calls were inherited by the next, and could be drawn as an edge from a caller that does not live
+there. Fixed, with the regression pinned. Also: a document citing `src/orchestrator/pkg/store.py`
+now binds to that module instead of discarding the match — **534 new `MENTIONS` edges** — and the
+doc-binding gap is measured rather than asserted, which argues against the model tier it looked
+like it needed.
+
+**3.27.0** — **TypeScript stops skipping the calls it could not type.** `h.run()`,
 where `h` is a parameter annotated `Handler` or a local from `new Handler()`, used to be dropped
 rather than guessed — so `CALLS` recall on TypeScript was **0.36**. It is now **0.86**, with
 precision still at 1.00 and no fabricated edges. The TypeScript compiler API was scoped and
