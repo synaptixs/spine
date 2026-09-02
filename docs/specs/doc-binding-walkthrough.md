@@ -89,7 +89,7 @@ Each reader converts its format into **markdown-shaped text**: HTML's `<h1>`, Wo
 style and a spreadsheet's sheet name all become an ATX `#` heading. Everything downstream reads
 that one shape and never learns which format it came from.
 
-The splitter then cuts on headings. **Measured here: 1,592 `Doc` nodes** across the repository —
+The splitter then cuts on headings. **Measured here: 1,601 `Doc` nodes** across the repository —
 sections, not files.
 
 Our subject becomes:
@@ -119,7 +119,7 @@ precedence:
 | `CAMEL` | `DocReconciler` |
 | `FILE` | `src/orchestrator/pkg/store.py` |
 
-Our section yields **12 mentions**. Repository-wide: **9,218**.
+Our section yields **12 mentions**. Repository-wide: **9,246**.
 
 One rule worth knowing: a bare CamelCase word — "GitHub", "Python" — binds if it happens to
 resolve, but **never counts as drift**. Prose capitalisation is not a code claim.
@@ -167,13 +167,13 @@ Repository-wide, every mention lands in exactly one of four buckets:
 
 | | count | share |
 |---|---|---|
-| **one symbol anchor → `MENTIONS` edge** | **2,493** | 27% |
-| more than one symbol anchor → skipped | 1,974 | 21% |
-| resolved to a **file**, no symbol | 1,382 | 15% |
-| nothing at all | 3,369 | 37% |
-| **total mentions** | **9,218** | |
+| **one symbol anchor → `MENTIONS` edge** | **2,497** | 27% |
+| more than one symbol anchor → skipped | 1,982 | 21% |
+| resolved to a **file**, no symbol | 1,383 | 15% |
+| nothing at all | 3,384 | 37% |
+| **total mentions** | **9,246** | |
 
-2,465 edges are drawn from those 2,493 — the 28 difference is de-duplication, where one section
+2,469 edges are drawn from those 2,497 — the 28 difference is de-duplication, where one section
 names the same symbol twice.
 
 > **These seven figures are derived, and reported rather than gated.**
@@ -202,20 +202,20 @@ names the same symbol twice.
 > The conclusion followed the bad number. It read *"ambiguity, not absence, is the larger
 > loss"*, and that is **false**: absence is 3,343 against ambiguity's 1,959.
 
-**What is true, and still worth saying:** ambiguity is not a rounding error. **1,974 mentions
+**What is true, and still worth saying:** ambiguity is not a rounding error. **1,982 mentions
 found real code and were deliberately dropped** for naming more than one thing — 29% of
-everything that fails to become an edge. That is qualitatively different from the 3,369 that
+everything that fails to become an edge. That is qualitatively different from the 3,384 that
 found nothing, and it matters for how the gap gets closed: reducing it means answering *which*
 symbol was meant, not *whether* one exists. Doing that by proximity, or by "the most likely", is
 precisely the guess this tier does not make.
 
-The 1,382 file-only mentions are a third category and mostly correct behaviour: prose citing
+The 1,383 file-only mentions are a third category and mostly correct behaviour: prose citing
 `src/orchestrator/pkg/store.py` is naming a path, not a symbol, and there is no symbol edge to
 draw.
 
 ## Step 6 — drift, in detail
 
-Of the 3,369 mentions that matched nothing, most are prose: ordinary words in backticks, URLs,
+Of the 3,384 mentions that matched nothing, most are prose: ordinary words in backticks, URLs,
 filenames. `symbolish_drift` narrows to identifier-shaped claims, leaving **about 900** on this
 repository. Examples, all real:
 
@@ -258,7 +258,7 @@ never as a defect count.
 > as symbol claims and the drift list reported **58 filenames as prose naming code that does not
 > exist**. Extensions were added to `_URL_TAILS` and checked in `_can_drift` — shipped in
 > **3.27.0**. Drift went
-> **1,662 → 1,604** and **not one `MENTIONS` edge changed** — the same 2,465 (source, target)
+> **1,665 → 1,607** and **not one `MENTIONS` edge changed** — the same 2,469 (source, target)
 > pairs before and after, and the only binding bucket that moves is *nothing at all*, by the 12
 > filenames that stop being mentions at all. A naming asymmetry, not a coverage gap.
 > `README.md` and `src/a/b.py` keep their disk check, because a document linking a file that is
@@ -295,10 +295,10 @@ inference over the graph changing, not the graph being rewritten.
 
 ## The open gap
 
-**876 of 1,592 `Doc` sections — 55% — bind to nothing at all.** Section 2 shows why in miniature:
+**882 of 1,601 `Doc` sections — 55% — bind to nothing at all.** Section 2 shows why in miniature:
 prose that explains *why* something exists often names no identifier, and prose that does name one
 often names an ambiguous one. Both causes are real, and **absence is the larger of the two** —
-3,369 mentions against 1,974 — though the smaller one is the more interesting, because those 1,974
+3,384 mentions against 1,982 — though the smaller one is the more interesting, because those 1,982
 found the code and were refused.
 
 **Nothing above closed any of it, and that is worth stating plainly.** The 2026-09-01 audit ran at
@@ -314,11 +314,11 @@ promotion was, and never smuggled into the deterministic path.
 
 **What would count as progress**, in the order the evidence supports:
 
-1. **Answer *which* symbol was meant for the 1,974 ambiguous mentions.** They found real code and
+1. **Answer *which* symbol was meant for the 1,982 ambiguous mentions.** They found real code and
    were refused; the anchor set is already computed. This is the tractable half, and it is the
    half a deterministic rule might still reach — a mention in a document that already binds to
    one module is likelier to mean that module's symbol.
-2. **Characterise the 3,369 that found nothing** before trying to bind them. About a tenth cannot
+2. **Characterise the 3,384 that found nothing** before trying to bind them. About a tenth cannot
    bind by construction — parameters, module constants, string literals, log event names,
    builtins have no node kind — and that share should be a number, not an estimate, before any
    model is pointed at the remainder.
