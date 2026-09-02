@@ -167,13 +167,13 @@ Repository-wide, every mention lands in exactly one of four buckets:
 
 | | count | share |
 |---|---|---|
-| **one symbol anchor → `MENTIONS` edge** | **3,145** | 34% |
-| more than one symbol anchor → skipped | 2,001 | 21% |
+| **one symbol anchor → `MENTIONS` edge** | **3,141** | 34% |
+| more than one symbol anchor → skipped | 2,005 | 21% |
 | resolved to a **file**, no symbol | 871 | 9% |
 | nothing at all | 3,347 | 36% |
 | **total mentions** | **9,364** | |
 
-3,098 edges are drawn from those 3,145 — the 47 difference is de-duplication, where one section
+3,094 edges are drawn from those 3,141 — the 47 difference is de-duplication, where one section
 names the same symbol twice.
 
 > **These seven figures are derived, and reported rather than gated.**
@@ -202,7 +202,7 @@ names the same symbol twice.
 > The conclusion followed the bad number. It read *"ambiguity, not absence, is the larger
 > loss"*, and that is **false**: absence is 3,343 against ambiguity's 1,959.
 
-**What is true, and still worth saying:** ambiguity is not a rounding error. **2,001 mentions
+**What is true, and still worth saying:** ambiguity is not a rounding error. **2,005 mentions
 found real code and were deliberately dropped** for naming more than one thing — 29% of
 everything that fails to become an edge. That is qualitatively different from the 3,347 that
 found nothing, and it matters for how the gap gets closed: reducing it means answering *which*
@@ -314,10 +314,10 @@ inference over the graph changing, not the graph being rewritten.
 
 ## The open gap
 
-**819 of 1,611 `Doc` sections — 51% — bind to nothing at all.** Section 2 shows why in miniature:
+**821 of 1,611 `Doc` sections — 51% — bind to nothing at all.** Section 2 shows why in miniature:
 prose that explains *why* something exists often names no identifier, and prose that does name one
 often names an ambiguous one. Both causes are real, and **absence is the larger of the two** —
-3,347 mentions against 2,001 — though the smaller one is the more interesting, because those 2,001
+3,347 mentions against 2,005 — though the smaller one is the more interesting, because those 2,005
 found the code and were refused.
 
 > **Measured 2026-09-02: most of that 52% never made a claim.** The headline invites the
@@ -354,7 +354,7 @@ promotion was, and never smuggled into the deterministic path.
 
 1. ~~**Answer *which* symbol was meant for the ambiguous mentions** — "the tractable half, and
    the half a deterministic rule might still reach."~~ **Measured 2026-09-02 and withdrawn.**
-   Only **48 of 2,001** ambiguous mentions (2%) have every candidate anchor in one owning
+   Only **48 of 2,005** ambiguous mentions (2%) have every candidate anchor in one owning
    module, which rescues **5 sections**. And the compounding idea in that sentence — bind the
    file first, then use its module to pick among a mention's candidates — rescues **0**. It
    sounded right, cost nothing to check, and was wrong.

@@ -142,6 +142,13 @@ class GoExtractor:
             elif kind == "method_declaration":
                 self._method(node, module_id, source, rel, batch, type_methods, bodies)
 
+        # Gin routes: inside function bodies, so scanned over the whole tree rather than the
+        # top-level declarations. Runs after pass 1 so `local_funcs` can resolve a handler name.
+        from orchestrator.pkg.go_routes import emit as _emit_routes
+        from orchestrator.pkg.go_routes import scan_tree as _scan_routes
+
+        _emit_routes(_scan_routes(tree.root_node, source, rel), module_id, local_funcs, batch)
+
         # Pass 2: resolve the precisely-resolvable call sites in each body.
         for body in bodies:
             self._resolve_calls(body, module_id, source, rel, batch, local_funcs, type_methods)

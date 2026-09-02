@@ -1,0 +1,59 @@
+{
+  "language": "go",
+  "case": "gin_routes",
+  "why": "The Go half of the same gap: no Go front-end emitted `Endpoint`, so a Gin handler had zero callers and a Go service could not be a *provider* in a cross-repo join. Pins `Group` prefix composition, the inline-handler shape that must yield an endpoint but no fabricated `EXPOSES`, and the control: a path held in a variable yields nothing. `net/http`'s verbless `HandleFunc` is deliberately unread \u2014 see `endpoints-typescript-go.md` D2.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "go:<root>",
+      "kind": "Module"
+    },
+    {
+      "id": "go:<root>.listOrders",
+      "kind": "Function"
+    },
+    {
+      "id": "go:<root>.main",
+      "kind": "Function"
+    },
+    {
+      "id": "go:endpoint:GET /v1/orders",
+      "kind": "Endpoint"
+    },
+    {
+      "id": "go:endpoint:POST /v1/orders",
+      "kind": "Endpoint"
+    },
+    {
+      "id": "go:endpoint:GET /health",
+      "kind": "Endpoint"
+    }
+  ],
+  "edges": [
+    {
+      "src": "go:<root>",
+      "dst": "go:github.com/gin-gonic/gin",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "go:<root>",
+      "dst": "go:<root>.listOrders",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "go:<root>",
+      "dst": "go:<root>.main",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "go:endpoint:GET /v1/orders",
+      "dst": "go:<root>.listOrders",
+      "kind": "EXPOSES"
+    },
+    {
+      "src": "go:endpoint:GET /health",
+      "dst": "go:<root>.listOrders",
+      "kind": "EXPOSES"
+    }
+  ]
+}

@@ -127,11 +127,11 @@ a variable yields no edge, because a wrong edge is worse than an absent one.
 |---|---|---|---|---|---|---|---|---|
 | `python` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · |
 | `java` | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · |
-| `typescript` | ✓ | ✓ | ✓ | ✓ | · | · | · | · |
+| `typescript` | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · |
 | `csharp` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · |
 | `c` | ✓ | ✓ | ✓ | ✓ | · | · | · | · |
 | `cpp` | ✓ | ✓ | ✓ | ✓ | · | · | · | · |
-| `go` | ✓ | ✓ | ✓ | ✓ | · | · | · | · |
+| `go` | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · |
 | `sql` | ✓ | · | ✓ | ✓ | · | ✓ | · | · |
 
 **Edges**
@@ -140,11 +140,11 @@ a variable yields no edge, because a wrong edge is worse than an absent one.
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | `python` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · |
 | `java` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | · | · | · |
-| `typescript` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | · | · | · |
+| `typescript` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | · | · | · |
 | `csharp` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · |
 | `c` | ✓ | ✓ | ✓ | · | · | · | · | · | ✓ | · | · |
 | `cpp` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | ✓ | · | · |
-| `go` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | ✓ | · | · |
+| `go` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · |
 | `sql` | · | ✓ | ✓ | · | ✓ | ✓ | · | · | ✓ | · | · |
 
 Read a `·` as *this front-end has no code that emits that kind* — not as *your repo
