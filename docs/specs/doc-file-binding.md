@@ -1,7 +1,7 @@
 # Binding a document to the module it cites
 
-**Status:** **Scoped 2026-09-01 against 3.27.0.** Not built. Approved to build as Option A
-(§4).
+**Status:** **Scoped 2026-09-01, built 2026-09-02 as Option A (§4).** The build changed the
+numbers this spec predicted — see §2.1, which is kept rather than corrected in place.
 **Owner:** _unassigned_
 
 `docs/specs/doc-binding-walkthrough.md` closes on a number: **55% of `Doc` sections bind to
@@ -45,6 +45,31 @@ the graph — is false for every path the extractor produced a module from.
 
 938 mentions collapse to **~926 distinct `(section, module)` edges** after per-section
 de-duplication.
+
+### 2.1 — What was built, and why the prediction above was wrong
+
+**Predicted ~926 edges and 108 sections. Delivered 534 edges and 55 sections; the gap moved
+55% → 52%, not 48%.**
+
+The estimate was taken with the same defect the implementation then exposed. A `FILE` mention
+resolves by scanning `DocReconciler._files` — **a `set`** — so the matching comprehension
+yielded results in hash order. Nothing had ever read that order, because `anchor_files` was
+only used as a boolean and to count the file-only bucket. Taking `[0]` to find the owning
+module made the order significant, and the edge count then varied per process: **3392 / 3394 /
+3390 across `PYTHONHASHSEED` values**, on one unchanged commit.
+
+That is invariant 2 — *same code in, same output out* — broken by this change, caught before it
+shipped by varying the seed rather than by re-running.
+
+Two corrections went in together:
+
+- **`anchor_files` is sorted**, so the order is the same on every machine.
+- **A mention must match exactly one file**, not merely at least one. A text matching several
+  paths is ambiguous about *which file* it means before it is ambiguous about which module, and
+  the earlier estimate was silently binding those to an arbitrary one — which is where the
+  inflated 926 came from.
+
+The delivered number is smaller and it is the honest one.
 
 ### What it does to the gap
 

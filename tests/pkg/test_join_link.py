@@ -340,3 +340,69 @@ def test_a_genuinely_third_party_import_stays_external() -> None:
 def test_base_is_refused_on_a_kind_where_it_means_nothing() -> None:
     with pytest.raises(RepoConfigError, match="applies to http only"):
         joins_from_list([{"kind": "data", "consumer": "a", "provider": "b", "base": "/v1"}])
+
+
+# ---- the shared-extractor leak (2026-09-02) --------------------------------
+
+
+QUIET = """def total():
+    return 1
+"""
+
+
+def test_a_shared_extractor_does_not_carry_one_repos_calls_into_another(tmp_path: Path) -> None:
+    """`pkg extract --repos` and `investigate --repos` both pass one extractor for every repo.
+
+    `unresolved_calls` on the extractor is a copy; the originals live on the front-ends, which
+    are built once and reused, and `ClientState.clear()` preserves `unmatched` on purpose. So
+    clearing only the extractor's list left the earlier repo's calls on the front-end for the
+    next one to inherit — and the joiner scopes a candidate to the repo it is examining, so a
+    `CONSUMES` edge is drawn from `py:zeta@app.client.order`, a node that does not exist.
+
+    Repos run in key order, so `api` (which calls) precedes `zeta` (which does not), and only
+    `zeta` is declared as a consumer. Without the leak `zeta` has no candidates and the join
+    places nothing.
+
+    The corpus could not catch this: `pkg/accuracy.py` builds a fresh extractor per root, so
+    the multirepo fixtures score a different code path from the one the CLI runs.
+    """
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+    from orchestrator.pkg.persistence import load_or_extract_repos
+
+    _repo(tmp_path / "api", "client.py", WEB)  # makes POST /v1/orders
+    _repo(tmp_path / "billing", "routes.py", BILLING)  # serves it
+    _repo(tmp_path / "zeta", "svc.py", QUIET)  # makes no HTTP calls at all
+    repo_set = from_mapping(
+        {"api": "api", "billing": "billing", "zeta": "zeta"},
+        base=tmp_path,
+        joins=[{"kind": "http", "consumer": "zeta", "provider": "billing"}],
+    )
+
+    merged = load_or_extract_repos(repo_set, cache_dir=tmp_path / "cache", extractor=RepoCodeExtractor())
+    assert [r.key for r in merged.repos] == ["api", "billing", "zeta"], "precondition: all ran"
+
+    assert merged.joins is not None
+    assert merged.joins.joined == 0, "zeta makes no calls; it cannot consume anything"
+
+    # And the invariant the leak broke: every edge endpoint is a node the graph actually has.
+    ids = {n.id for n in merged.batch.nodes}
+    dangling = [(e.kind.value, e.src, e.dst) for e in merged.batch.edges if e.src not in ids]
+    assert not dangling
+
+
+def test_reset_unresolved_clears_the_front_ends_too(tmp_path: Path) -> None:
+    """The narrow unit: clearing only the extractor's own list is not enough."""
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+
+    (tmp_path / "web").mkdir()
+    (tmp_path / "web" / "client.py").write_text(WEB, encoding="utf-8")
+    (tmp_path / "quiet").mkdir()
+    (tmp_path / "quiet" / "svc.py").write_text(QUIET, encoding="utf-8")
+
+    ex = RepoCodeExtractor()
+    ex.extract(tmp_path / "web")
+    assert ex.unresolved_calls, "precondition: web makes a call it does not serve"
+
+    ex.reset_unresolved()
+    ex.extract(tmp_path / "quiet")
+    assert not ex.unresolved_calls, "quiet makes no HTTP calls at all"

@@ -183,3 +183,58 @@ def test_the_leaf_only_fallback_still_rescues_a_qualified_name(tmp_path: Path) -
     page = DocPage(title="x", text="Call `store.find`.")
     (mention,) = [m for m in extract_mentions(page) if m.text == "store.find"]
     assert rec.bind(mention, base_dir="").anchor_ids == ["py:m.FactStore.find"]
+
+
+# ---- a cited path names its module (doc-file-binding, 2026-09-02) ------------
+
+
+def test_a_cited_path_binds_to_the_module_built_from_it(tmp_path: Path) -> None:
+    """The fact was already in the graph and was being discarded.
+
+    `bind` recorded the hit in `anchor_files`; `link_docs` emits only for `anchor_ids`. The
+    path maps to exactly one `Module` node by the extractor's own provenance — not a guess.
+    Measured 2026-09-01: 938 such mentions, and 108 `Doc` sections that bound to nothing.
+    """
+    from orchestrator.pkg.doc_link import link_docs
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+    from orchestrator.pkg.facts import EdgeKind
+
+    repo = tmp_path / "repo"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "store.py").write_text("def find():\n    return 1\n", encoding="utf-8")
+    (repo / "README.md").write_text("# Guide\n\nThe store lives in `src/store.py`.\n", encoding="utf-8")
+
+    batch = link_docs(RepoCodeExtractor().extract(repo), repo)
+    targets = {e.dst for e in batch.edges if e.kind is EdgeKind.MENTIONS}
+    assert any(t.endswith("store") for t in targets), targets
+
+
+def test_a_path_owned_by_two_modules_binds_to_neither() -> None:
+    """Exactly one, or nothing — the same rule that holds `CALLS` precision at 1.00."""
+    b = FactBatch()
+    for mid in ("c:alpha", "c:beta"):
+        b.add_node(Node(mid, NodeKind.MODULE, mid.split(":")[1], "c", Provenance("src/shared.h", 1)))
+    rec = DocReconciler(b)
+    page = DocPage(title="t", text="See `src/shared.h`.")
+    (mention,) = [m for m in extract_mentions(page) if m.text == "src/shared.h"]
+    assert rec.bind(mention, base_dir="").anchor_ids == []
+
+
+def test_a_path_matching_several_files_binds_to_nothing() -> None:
+    """Ambiguous about *which file* before it is ambiguous about which module.
+
+    `_files` is a set, so the matching comprehension yielded hash order. Nothing read that
+    order until file mentions began naming a module — and then `anchor_files[0]` picked a
+    different file per process, so the graph changed between runs of the same commit. Caught
+    by varying `PYTHONHASHSEED`; the count moved 3392/3394/3390 and is now fixed.
+    """
+    b = FactBatch()
+    for path in ("src/a/store.py", "src/b/store.py"):
+        mid = "py:" + path.replace("/", ".").removesuffix(".py")
+        b.add_node(Node(mid, NodeKind.MODULE, mid, "python", Provenance(path, 1)))
+    rec = DocReconciler(b)
+    page = DocPage(title="t", text="See `store.py`.")
+    (mention,) = [m for m in extract_mentions(page) if m.text == "store.py"]
+    binding = rec.bind(mention, base_dir="")
+    assert binding.anchor_files == ["src/a/store.py", "src/b/store.py"], "sorted, not hash order"
+    assert binding.anchor_ids == []

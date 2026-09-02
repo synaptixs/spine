@@ -119,7 +119,7 @@ precedence:
 | `CAMEL` | `DocReconciler` |
 | `FILE` | `src/orchestrator/pkg/store.py` |
 
-Our section yields **12 mentions**. Repository-wide: **9,246**.
+Our section yields **12 mentions**. Repository-wide: **9,247**.
 
 One rule worth knowing: a bare CamelCase word — "GitHub", "Python" — binds if it happens to
 resolve, but **never counts as drift**. Prose capitalisation is not a code claim.
@@ -167,13 +167,13 @@ Repository-wide, every mention lands in exactly one of four buckets:
 
 | | count | share |
 |---|---|---|
-| **one symbol anchor → `MENTIONS` edge** | **2,497** | 27% |
+| **one symbol anchor → `MENTIONS` edge** | **3,036** | 33% |
 | more than one symbol anchor → skipped | 1,982 | 21% |
-| resolved to a **file**, no symbol | 1,383 | 15% |
+| resolved to a **file**, no symbol | 845 | 9% |
 | nothing at all | 3,384 | 37% |
-| **total mentions** | **9,246** | |
+| **total mentions** | **9,247** | |
 
-2,469 edges are drawn from those 2,497 — the 28 difference is de-duplication, where one section
+3,003 edges are drawn from those 3,036 — the 33 difference is de-duplication, where one section
 names the same symbol twice.
 
 > **These seven figures are derived, and reported rather than gated.**
@@ -209,9 +209,18 @@ found nothing, and it matters for how the gap gets closed: reducing it means ans
 symbol was meant, not *whether* one exists. Doing that by proximity, or by "the most likely", is
 precisely the guess this tier does not make.
 
-The 1,383 file-only mentions are a third category and mostly correct behaviour: prose citing
-`src/orchestrator/pkg/store.py` is naming a path, not a symbol, and there is no symbol edge to
-draw.
+> **This paragraph used to be wrong, and the correction shipped as a change.** It read: *"prose
+> citing `src/orchestrator/pkg/store.py` is naming a path, not a symbol, and there is no symbol
+> edge to draw."* **A `Module` is a node.** The path maps to the module the extractor built from
+> it, by its own provenance — so there was an exact, deterministic edge to draw, and 941 of them
+> were being discarded. Fixed 2026-09-02 per [`doc-file-binding.md`](doc-file-binding.md): a
+> cited path binds to its module when the text matches **exactly one file** and **exactly one
+> module** owns it — 534 edges, and 55 sections that bound to nothing now bind.
+
+The 845 file-only mentions that remain are of two kinds: those with no module to name at
+all — images, config files, other documents — and those whose text matches **more than one**
+file, which is ambiguous about *which file* before it is ambiguous about which module. Both
+are correctly unbound.
 
 ## Step 6 — drift, in detail
 
@@ -295,7 +304,7 @@ inference over the graph changing, not the graph being rewritten.
 
 ## The open gap
 
-**882 of 1,601 `Doc` sections — 55% — bind to nothing at all.** Section 2 shows why in miniature:
+**827 of 1,601 `Doc` sections — 52% — bind to nothing at all.** Section 2 shows why in miniature:
 prose that explains *why* something exists often names no identifier, and prose that does name one
 often names an ambiguous one. Both causes are real, and **absence is the larger of the two** —
 3,384 mentions against 1,982 — though the smaller one is the more interesting, because those 1,982
@@ -314,10 +323,12 @@ promotion was, and never smuggled into the deterministic path.
 
 **What would count as progress**, in the order the evidence supports:
 
-1. **Answer *which* symbol was meant for the 1,982 ambiguous mentions.** They found real code and
-   were refused; the anchor set is already computed. This is the tractable half, and it is the
-   half a deterministic rule might still reach — a mention in a document that already binds to
-   one module is likelier to mean that module's symbol.
+1. ~~**Answer *which* symbol was meant for the ambiguous mentions** — "the tractable half, and
+   the half a deterministic rule might still reach."~~ **Measured 2026-09-02 and withdrawn.**
+   Only **48 of 1,982** ambiguous mentions (2%) have every candidate anchor in one owning
+   module, which rescues **5 sections**. And the compounding idea in that sentence — bind the
+   file first, then use its module to pick among a mention's candidates — rescues **0**. It
+   sounded right, cost nothing to check, and was wrong.
 2. **Characterise the 3,384 that found nothing** before trying to bind them. About a tenth cannot
    bind by construction — parameters, module constants, string literals, log event names,
    builtins have no node kind — and that share should be a number, not an estimate, before any

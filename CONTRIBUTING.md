@@ -22,6 +22,19 @@ maintainer opens a `develop → main` release PR, which requires a code-owner re
 and a passing `security scan` check before it merges. Each `main` release gets
 published release notes.
 
+**Three things trip a promotion PR, and all three have.** Budget for them:
+
+- **Its workflow runs land in `action_required` and must be approved by hand.** The head of a
+  promotion PR is usually the `chore(episteme)` bot commit that lands after the release PR
+  merges, and runs triggered by a bot are held. Nothing is wrong; approve them.
+- **Any commit to `develop` dismisses a standing approval**, because the ruleset dismisses
+  stale reviews on push — and the episteme bot commits after *every* merge. Approve and merge
+  back to back; anything landing in between restarts the cycle.
+- **An unresolved review thread blocks the merge**, including a Code-scanning comment at
+  `Note` severity. The ruleset sets `required_review_thread_resolution`, which does not appear
+  in `reviewDecision` — so the API reports reviews and checks as satisfied while the merge
+  stays blocked. Resolve the thread.
+
 For larger features, the core team often develops them ahead of time and publishes
 them on a release cadence — so opening an issue first avoids duplicated effort.
 
@@ -34,9 +47,16 @@ them on a release cadence — so opening an issue first avoids duplicated effort
    ```bash
    mypy src tests
    ruff format --check .
-   python scripts/render_architecture_svg.py --check   # the diagram's numbers come from source
+   python scripts/render_architecture_svg.py --check        # the diagram stamps the version
+   python scripts/render_knowledge_foundation_svg.py --check
+   python scripts/matrix-count.py --check
+   python scripts/state-numbers.py --check                  # claims re-derived from source
    uv run orchestrator pkg accuracy --check
    ```
+   **The four `--check` scripts are generated-artifact gates and CI runs every one of them.**
+   They are listed together because running only the first is how a release PR failed on a
+   diagram nobody had re-rendered: `mypy`, `ruff` and the tests were all green, and the version
+   the picture claims comes from `pyproject.toml`. If you bump a version, re-run all four.
    That last one is the **accuracy gate**: it re-measures the graph and fails if a *gated*
    number has dropped. Only metrics scored against the committed fixtures in `corpus/` are
    gated strictly, plus per-file parity as a one-way ratchet. The invention count is recorded
