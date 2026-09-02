@@ -26,7 +26,7 @@ _13 of the symbols other code depends on here have no test path the graph can se
 
 ## Documented in
 
-`docs/specs/build-documents/PKG-ACC-3-build.md#3-root-cause-and-why-this-phase-is-not-what-the-roadmap-thought`, `docs/specs/python-frontend-parity.md#design-plan-python-front-end-parity-endpoint-entity-readswrites`
+`docs/specs/build-documents/PKG-ACC-3-build.md#3-root-cause-and-why-this-phase-is-not-what-the-roadmap-thought`, `docs/specs/endpoints-typescript-go.md#1-it-is-not-one-language-and-it-silently-limits-a-feature-that-shipped`, `docs/specs/python-frontend-parity.md#design-plan-python-front-end-parity-endpoint-entity-readswrites`
 
 ## Types
 

@@ -165,7 +165,7 @@ _18 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (1): [`_calls`](../../src/orchestrator/pkg/typescript_extractor.py#L360)
 - **Calls** (1): [`_text`](../../src/orchestrator/pkg/typescript_extractor.py#L726)
-- **Documented in**: `docs/specs/typescript-call-resolution.md#4-the-blocking-unknown-we-cannot-measure-this`
+- **Documented in**: `docs/specs/endpoints-typescript-go.md#2-the-design-is-settled-by-precedent-not-invention`, `docs/specs/typescript-call-resolution.md#4-the-blocking-unknown-we-cannot-measure-this`
 
 ### `_unwrap`
 
