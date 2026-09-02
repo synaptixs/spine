@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.mcp`** is one of 53 areas in this repo, in the `orchestrator` zone. It holds 10 modules — 11 types and 25 functions. It sits in the middle of the graph: 3 areas below it, 5 above. Changes here can reach both ways.
+**`orchestrator.mcp`** is one of 54 areas in this repo, in the `orchestrator` zone. It holds 10 modules — 11 types and 25 functions. It sits in the middle of the graph: 3 areas below it, 5 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
