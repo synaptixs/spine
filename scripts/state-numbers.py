@@ -114,6 +114,15 @@ def _binding() -> dict[str, int]:
         # the two figures beside it went stale within the hour they were written — the same
         # way every hand-carried number in this repository has.
         "drift": len(drift),
+        # The gap section's headline. It was written as "56%" and had drifted to 55.2% by the
+        # time anyone re-measured — a section-level count, so it moves whenever a heading is
+        # added, not only when binding changes.
+        "unbound_sections": sum(
+            1
+            for n in linked.nodes
+            if n.kind is NodeKind.DOC
+            and n.id not in {e.src for e in linked.edges if e.kind is EdgeKind.MENTIONS}
+        ),
     }
     return _BINDING
 
@@ -276,6 +285,13 @@ CLAIMS: tuple[Claim, ...] = (
         WALKTHROUGH,
         re.compile(r"\*\*[\d,]+ → ([\d,]+)\*\* and \*\*not one"),
         lambda: _binding()["drift"],
+        gated=False,
+    ),
+    Claim(
+        "binding: unbound sections",
+        WALKTHROUGH,
+        re.compile(r"\*\*([\d,]+) of [\d,]+ `Doc` sections"),
+        lambda: _binding()["unbound_sections"],
         gated=False,
     ),
     Claim(
