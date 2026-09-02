@@ -22,6 +22,10 @@
 - [`_python_files`](../../src/orchestrator/sdlc/scaffold.py#L155) — reaches **8** symbols
 - [`_sql_files`](../../src/orchestrator/sdlc/scaffold.py#L138) — reaches **8** symbols
 
+## Documented in
+
+`docs/specs/java-codegen.md#whats-python-shaped-today-the-surfaces-to-generalize`, `docs/specs/multi-language-java.md#slice-2-java-codegen-follow-on`, `docs/specs/sandboxed-test-execution.md#file-level-change-list`, `docs/specs/sdlc-target-layout-scaffold.md#33-scaffolder-template-based-idempotent`, `docs/specs/sql-support-roadmap.md#8-packaging-wiring-changes`, `docs/specs/sql-support-roadmap.md#the-build-runner-model-the-new-part`
+
 ## Functions
 
 ### `_c_files`

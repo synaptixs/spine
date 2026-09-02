@@ -22,6 +22,10 @@
 - [`register_sdlc_tools`](../../src/orchestrator/sdlc/evidence.py#L415) — reaches **8** symbols
 - [`to_dict`](../../src/orchestrator/sdlc/evidence.py#L228) — reaches **6** symbols
 
+## Documented in
+
+`docs/specs/graphir-sdlc-workflow.md#phase-1-the-tool-node-type-the-evidence-artifact-and-the-sdlc-ir-in-shadow`
+
 ## Types
 
 ### `Evidence`

@@ -24,6 +24,10 @@
 
 _3 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
+## Documented in
+
+`docs/specs/bet2c-in-loop-approval.md#2-activity-layer-sdlcactivitiespy-sdlccodegenpy`, `docs/specs/design-and-comprehension-milestones.md#codegen-consumes-the-design`, `docs/specs/java-codegen.md#whats-python-shaped-today-the-surfaces-to-generalize`, `docs/specs/persona-skill-system.md#where-skills-stand-today-the-gap`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
+
 ## Types
 
 ### `CodeChange`

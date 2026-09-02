@@ -22,6 +22,10 @@
 - [`_spotlight`](../../src/orchestrator/knowledge/report_html.py#L145) — reaches **4** symbols
 - [`_activity_section`](../../src/orchestrator/knowledge/report_html.py#L327) — reaches **3** symbols
 
+## Documented in
+
+`docs/specs/gap5-visualization-roadmap.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes`
+
 ## Functions
 
 ### `_activity_section`

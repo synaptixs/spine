@@ -24,6 +24,10 @@
 
 _8 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
+## Documented in
+
+`CLI_REFERENCE.md`, `docs/specs/build-document.md#2-section-map-where-each-part-comes-from`, `docs/specs/build-document.md#phase-2-close-the-deterministic-gaps-built`, `docs/specs/unified-ui.md#1-the-unify-layer-the-backbone-the-real-work`, `docs/specs/unified-ui.md#5-face-c-developer-tui-follow-on`, `docs/specs/unified-ui.md#6-the-better-alternative-a-headless-frontend-reactvite-or-lighter`
+
 ## Types
 
 ### `PlannerV1`

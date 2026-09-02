@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-from orchestrator.pkg.facts import FactBatch, Node
+from orchestrator.pkg.facts import FactBatch, Node, NodeKind
 
 _BACKTICK_RE = re.compile(r"`([^`\n]{2,120})`")
 _DOTTED_RE = re.compile(r"\b[a-z_]\w*(?:\.[A-Za-z_]\w*){2,}\b")  # a.b.C at least
@@ -228,6 +228,12 @@ class DocReconciler:
         self._names: dict[str, list[str]] = {}
         self._suffixes: dict[str, list[str]] = {}
         self._files: set[str] = set()
+        #: repo-relative path -> the Module nodes owning it. A document citing a path names
+        #: that module, and the identity is the extractor's own provenance — not a guess. Only
+        #: emitted when exactly one module owns the path: a C/C++ header can back several, and
+        #: an ambiguous anchor is the fabrication this tier refuses. See
+        #: `docs/specs/doc-file-binding.md`.
+        self._modules_for_file: dict[str, list[str]] = {}
         for n in nodes:
             if not n.grounded:
                 continue
@@ -236,18 +242,34 @@ class DocReconciler:
             self._suffixes.setdefault(tail.lower(), []).append(n.id)
             if n.provenance is not None:
                 self._files.add(n.provenance.file)
+                if n.kind is NodeKind.MODULE:
+                    self._modules_for_file.setdefault(n.provenance.file, []).append(n.id)
 
     def bind(self, mention: DocMention, *, base_dir: str = "") -> DocBinding:
         binding = DocBinding(mention=mention)
         text = mention.text.lower()
         if mention.kind is MentionKind.FILE:
             rel = mention.text.strip("/")
-            binding.anchor_files = [f for f in self._files if f.endswith(mention.text) or mention.text in f]
+            # **Sorted**: `_files` is a set, so an unsorted comprehension yields hash order and
+            # a caller taking `[0]` gets a different answer per process. Nothing read the order
+            # until file mentions began naming a module, which is exactly how a latent
+            # non-determinism becomes a live one.
+            binding.anchor_files = sorted(
+                f for f in self._files if f.endswith(mention.text) or mention.text in f
+            )
             if not binding.anchor_files and self._root is not None:
                 for candidate in (rel, f"{base_dir}/{rel}" if base_dir else rel):
                     if (self._root / candidate).exists():
                         binding.anchor_files = [candidate]
                         break
+            # A cited path names the module the extractor built from it. Exactly one, or
+            # nothing — see `docs/specs/doc-file-binding.md`.
+            # One file, owned by one module, or nothing. A mention matching several paths is
+            # ambiguous about which file it means before it is ambiguous about which module.
+            if len(binding.anchor_files) == 1:
+                owners = self._modules_for_file.get(binding.anchor_files[0], [])
+                if len(owners) == 1:
+                    binding.anchor_ids = list(owners)
             return binding
         # dotted path → match the id tail; names → exact symbol-name match.
         binding.anchor_ids = list(self._suffixes.get(text, [])) or list(self._names.get(text, []))

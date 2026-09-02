@@ -1,7 +1,8 @@
 # How a document binds to the graph — a walkthrough
 
-**Written 2026-09-01 against 3.26.1.** Every number here was measured on this repository the day
-it was written.
+**Written 2026-09-01 against 3.26.1; the fix it describes shipped in 3.27.0.** Every number here
+is measured on this repository, and `scripts/state-numbers.py` re-derives nine of them — it prints
+a `[trend]` line when this page has aged rather than failing the build.
 
 Two sections. **The first is the whole mechanism in six steps** — read that if you want to know
 what happens and when. **The second walks one real page through every one of those steps**, with
@@ -88,7 +89,7 @@ Each reader converts its format into **markdown-shaped text**: HTML's `<h1>`, Wo
 style and a spreadsheet's sheet name all become an ATX `#` heading. Everything downstream reads
 that one shape and never learns which format it came from.
 
-The splitter then cuts on headings. **Measured here: 1,583 `Doc` nodes** across the repository —
+The splitter then cuts on headings. **Measured here: 1,602 `Doc` nodes** across the repository —
 sections, not files.
 
 Our subject becomes:
@@ -118,7 +119,7 @@ precedence:
 | `CAMEL` | `DocReconciler` |
 | `FILE` | `src/orchestrator/pkg/store.py` |
 
-Our section yields **12 mentions**. Repository-wide: **9,190**.
+Our section yields **12 mentions**. Repository-wide: **9,287**.
 
 One rule worth knowing: a bare CamelCase word — "GitHub", "Python" — binds if it happens to
 resolve, but **never counts as drift**. Prose capitalisation is not a code claim.
@@ -166,13 +167,13 @@ Repository-wide, every mention lands in exactly one of four buckets:
 
 | | count | share |
 |---|---|---|
-| **one symbol anchor → `MENTIONS` edge** | **2,481** | 27% |
-| more than one symbol anchor → skipped | 1,965 | 21% |
-| resolved to a **file**, no symbol | 1,377 | 15% |
-| nothing at all | 3,367 | 37% |
-| **total mentions** | **9,190** | |
+| **one symbol anchor → `MENTIONS` edge** | **3,047** | 33% |
+| more than one symbol anchor → skipped | 1,986 | 21% |
+| resolved to a **file**, no symbol | 847 | 9% |
+| nothing at all | 3,407 | 37% |
+| **total mentions** | **9,287** | |
 
-2,453 edges are drawn from those 2,481 — the 28 difference is de-duplication, where one section
+3,014 edges are drawn from those 3,047 — the 33 difference is de-duplication, where one section
 names the same symbol twice.
 
 > **These seven figures are derived, and reported rather than gated.**
@@ -201,20 +202,29 @@ names the same symbol twice.
 > The conclusion followed the bad number. It read *"ambiguity, not absence, is the larger
 > loss"*, and that is **false**: absence is 3,343 against ambiguity's 1,959.
 
-**What is true, and still worth saying:** ambiguity is not a rounding error. **1,965 mentions
+**What is true, and still worth saying:** ambiguity is not a rounding error. **1,986 mentions
 found real code and were deliberately dropped** for naming more than one thing — 29% of
-everything that fails to become an edge. That is qualitatively different from the 3,367 that
+everything that fails to become an edge. That is qualitatively different from the 3,407 that
 found nothing, and it matters for how the gap gets closed: reducing it means answering *which*
 symbol was meant, not *whether* one exists. Doing that by proximity, or by "the most likely", is
 precisely the guess this tier does not make.
 
-The 1,377 file-only mentions are a third category and mostly correct behaviour: prose citing
-`src/orchestrator/pkg/store.py` is naming a path, not a symbol, and there is no symbol edge to
-draw.
+> **This paragraph used to be wrong, and the correction shipped as a change.** It read: *"prose
+> citing `src/orchestrator/pkg/store.py` is naming a path, not a symbol, and there is no symbol
+> edge to draw."* **A `Module` is a node.** The path maps to the module the extractor built from
+> it, by its own provenance — so there was an exact, deterministic edge to draw, and 941 of them
+> were being discarded. Fixed 2026-09-02 per [`doc-file-binding.md`](doc-file-binding.md): a
+> cited path binds to its module when the text matches **exactly one file** and **exactly one
+> module** owns it — 534 edges, and 55 sections that bound to nothing now bind.
+
+The 845 file-only mentions that remain are of two kinds: those with no module to name at
+all — images, config files, other documents — and those whose text matches **more than one**
+file, which is ambiguous about *which file* before it is ambiguous about which module. Both
+are correctly unbound.
 
 ## Step 6 — drift, in detail
 
-Of the 3,367 mentions that matched nothing, most are prose: ordinary words in backticks, URLs,
+Of the 3,407 mentions that matched nothing, most are prose: ordinary words in backticks, URLs,
 filenames. `symbolish_drift` narrows to identifier-shaped claims, leaving **about 900** on this
 repository. Examples, all real:
 
@@ -232,7 +242,8 @@ population cannot bind by construction — parameters, module constants, string 
 event names and builtins have no node kind. The number stands as an **upper bound** on drift,
 never as a defect count.
 
-> **The leaf-only fallback was audited on 2026-09-01 and cleared.** `bind`'s last resort, when a
+> **The leaf-only fallback was audited on 2026-09-01, cleared, and the real defect fixed in
+> 3.27.0.** `bind`'s last resort, when a
 > dotted mention matches no id tail, is to match its **final segment alone** — throwing the
 > qualifier away. That looks like a fabrication waiting to happen: with exactly one symbol named
 > `json` in this repository, every `.json` filename could bind to `DummyResponse.json`, a test
@@ -254,8 +265,9 @@ never as a defect count.
 > `graph.html` and `compose.dev.yml` are dotted, lowercase and multi-segment, so they are shaped
 > exactly like symbol paths; the FILE pattern does not recognise their extensions, so they arrived
 > as symbol claims and the drift list reported **58 filenames as prose naming code that does not
-> exist**. Extensions were added to `_URL_TAILS` and checked in `_can_drift`. Drift went
-> **1,661 → 1,603** and **not one `MENTIONS` edge changed** — the same 2,453 (source, target)
+> exist**. Extensions were added to `_URL_TAILS` and checked in `_can_drift` — shipped in
+> **3.27.0**. Drift went
+> **1,685 → 1,627** and **not one `MENTIONS` edge changed** — the same 2,469 (source, target)
 > pairs before and after, and the only binding bucket that moves is *nothing at all*, by the 12
 > filenames that stop being mentions at all. A naming asymmetry, not a coverage gap.
 > `README.md` and `src/a/b.py` keep their disk check, because a document linking a file that is
@@ -292,13 +304,58 @@ inference over the graph changing, not the graph being rewritten.
 
 ## The open gap
 
-**56% of `Doc` sections bind to nothing at all.** Section 2 shows why in miniature: prose that
-explains *why* something exists often names no identifier, and prose that does name one often
-names an ambiguous one. Both causes are real, and **absence is the larger of the two** — 3,367
-mentions against 1,965 — though the smaller one is the more interesting, because those 1,965
+**827 of 1,602 `Doc` sections — 52% — bind to nothing at all.** Section 2 shows why in miniature:
+prose that explains *why* something exists often names no identifier, and prose that does name one
+often names an ambiguous one. Both causes are real, and **absence is the larger of the two** —
+3,407 mentions against 1,986 — though the smaller one is the more interesting, because those 1,986
 found the code and were refused.
 
+> **Measured 2026-09-02: most of that 52% never made a claim.** The headline invites the
+> reading that half the documentation failed to bind. It did not.
+>
+> Of the **809** unbound mentions in the 338 sections that bind to nothing:
+>
+> | | | |
+> |---|---|---|
+> | **not a claim at all** | **603** | 74.5% — `OpenSpec`, `TypeScript`, `ReAct`, `GitHub`, `OpenTelemetry`. The tier's own `_can_drift` already refuses these: CamelCase prose and plain words are not code claims |
+> | no node kind exists | 68 | 8.4% — `repo_path`, `Context`: parameters, locals, attributes |
+> | a file stem, cited without its extension | 16 | 2.0% — `comprehension_labels` for `comprehension_labels.yaml`. Deterministically reachable |
+> | third-party or builtin | 19 | 2.4% — `SyntaxError` will drift for ever, correctly |
+> | **found nothing, and is claim-shaped** | **103** | 12.7% — `startup_timeout_sec`, `bug_report`, `action_required`: mostly config keys and template filenames |
+>
+> **278 of those 338 sections — 82% — contain nothing bindable at all.** At most **60 sections
+> of 1,602 (3.7%)** hold a mention a better tier could plausibly reach.
+>
+> That is the number a second tier would be chasing, and it is not 827. Re-derive with
+> `python scripts/classify-unbound-mentions.py`.
+
+**Nothing above closed any of it, and that is worth stating plainly.** The 2026-09-01 audit ran at
+this gap and came back with a *drift-precision* fix: 58 filenames that the drift list was calling
+missing code. Real, worth having, and **it moved this number by zero** — not one `MENTIONS` edge
+changed. The investigation that goes looking for coverage and returns with precision has not
+failed, but it has not made progress on the thing it set out to measure either.
+
 Closing it needs semantic matching — meaning rather than string equality — which means a model,
-which collides with the determinism that makes `understand --check` a gate at all. Any fix
-belongs in a clearly-labelled second tier, measured and declared the way GraphIR Phase 2b's
-design promotion was, and never smuggled into the deterministic path.
+which collides with the determinism that makes `understand --check` a gate at all. Any fix belongs
+in a clearly-labelled second tier, measured and declared the way GraphIR Phase 2b's design
+promotion was, and never smuggled into the deterministic path.
+
+**What would count as progress**, in the order the evidence supports:
+
+1. ~~**Answer *which* symbol was meant for the ambiguous mentions** — "the tractable half, and
+   the half a deterministic rule might still reach."~~ **Measured 2026-09-02 and withdrawn.**
+   Only **48 of 1,986** ambiguous mentions (2%) have every candidate anchor in one owning
+   module, which rescues **5 sections**. And the compounding idea in that sentence — bind the
+   file first, then use its module to pick among a mention's candidates — rescues **0**. It
+   sounded right, cost nothing to check, and was wrong.
+2. ~~**Characterise the 3,407 that found nothing** before trying to bind them.~~ ✅ **Done
+   2026-09-02** — the box above. The estimate was "about a tenth cannot bind by construction".
+   Measured, it is **87%**, and the dominant reason is not a missing node kind: three quarters
+   of them are not code claims at all. **The cheapest remaining deterministic win is the file
+   stem** — 16 mentions naming a file without its extension.
+
+   This is the measurement that should precede any model tier, and it argues against one: the
+   reachable population is ~60 sections, against a determinism cost that applies to every
+   surface `understand --check` gates.
+3. **Only then a second tier.** Measured against these figures, declared as non-deterministic, and
+   kept out of the path `understand --check` gates.

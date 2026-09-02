@@ -24,6 +24,10 @@
 
 _5 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
+## Documented in
+
+`CHANGELOG.md`, `docs/specs/java-codegen.md#whats-python-shaped-today-the-surfaces-to-generalize`, `docs/specs/sandboxed-test-execution.md#file-level-change-list`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
+
 ## Types
 
 ### `CTestRunner`

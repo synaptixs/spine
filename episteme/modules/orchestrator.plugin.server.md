@@ -24,6 +24,10 @@
 
 _3 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
+## Documented in
+
+`docs/specs/autonomous-run-agent.md#9-open-decisions`, `docs/specs/codex-plugin-keyless-roadmap.md#1-what-is-actually-true-in-3181`, `docs/specs/codex-plugin-keyless-roadmap.md#tools-that-genuinely-need-a-model-2`, `docs/specs/comprehension-skill-spec.md#phases`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/document-ingestion-reference.md#where-these-facts-are-consumed`
+
 ## Types
 
 ### `HttpServer`

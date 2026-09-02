@@ -22,6 +22,10 @@
 - [`CurrentState`](../../src/orchestrator/knowledge/current_state.py#L118) — reaches **10** symbols
 - [`_app_type`](../../src/orchestrator/knowledge/current_state.py#L606) — reaches **10** symbols
 
+## Documented in
+
+`CLAUDE.md#invariants-break-these-and-things-get-subtly-wrong`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/doc-ingestion-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/gap-roadmap-index.md#who-owns-which-files`, `docs/specs/knowledge-graph-architecture.md#7-projections`, `docs/specs/pkg-navigable-reports.md#diagrams-what-is-and-isnt-derivable`
+
 ## Types
 
 ### `CurrentState`

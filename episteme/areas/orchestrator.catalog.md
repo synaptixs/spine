@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.catalog`** is one of 53 areas in this repo, in the `orchestrator` zone. It holds 8 modules — 13 types and 25 functions. It sits in the middle of the graph: 1 area below it, 6 above. Changes here can reach both ways.
+**`orchestrator.catalog`** is one of 54 areas in this repo, in the `orchestrator` zone. It holds 8 modules — 13 types and 25 functions. It sits in the middle of the graph: 1 area below it, 6 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR

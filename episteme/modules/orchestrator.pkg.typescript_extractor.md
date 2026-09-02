@@ -24,6 +24,10 @@
 
 _18 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
+## Documented in
+
+`docs/specs/pkg-code-grounded-understanding.md#2a-typescripttsx-component-extractor-pkgtypescript-extractorpy`, `docs/specs/typescript-codegen.md#design-multi-language-support-typescript`, `docs/specs/typescript-codegen.md#first-step`, `docs/specs/typescript-codegen.md#slice-1-typescript-comprehension-ships-first-cheap`
+
 ## Types
 
 ### `TypeScriptExtractor`

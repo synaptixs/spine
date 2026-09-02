@@ -390,9 +390,13 @@ def load_or_extract_repos(
         sha, dirty = repo_state(root)
         cache_file = _cache_path(cache_dir or default_cache_dir(), root, sha) if sha and not dirty else None
         was_cached = cache_file is not None and cache_file.exists()
-        # A fresh extractor per repo: `unresolved_calls` accumulates on the instance, and one
-        # shared extractor would attribute web's calls to billing.
+        # `unresolved_calls` accumulates on the extractor **and on its front-ends**, so a
+        # caller-supplied instance carries the previous repo's calls into this one — which
+        # would attribute web's calls to billing and place a `CONSUMES` edge from a node id
+        # that does not exist. Callers do supply one (`pkg extract --repos`,
+        # `investigate --repos`), so reset before the run rather than trusting a fresh object.
         per_repo = extractor or RepoCodeExtractor()
+        per_repo.reset_unresolved()
         batches[key] = load_or_extract(root, cache_dir=cache_dir, extractor=per_repo)
 
         # The side-channel has to survive the cache. On a warm hit `load_or_extract` never runs
@@ -404,13 +408,13 @@ def load_or_extract_repos(
             if was_cached:
                 # Facts cached, calls missing: re-extract for the side-channel only, and write
                 # it so this happens once rather than every load.
-                per_repo.unresolved_calls.clear()
+                per_repo.reset_unresolved()
                 per_repo.extract(root)
             cached_calls = list(per_repo.unresolved_calls)
             if sidecar is not None:
                 _save_calls(cached_calls, sidecar)
         unresolved[key] = cached_calls
-        per_repo.unresolved_calls.clear()
+        per_repo.reset_unresolved()
         states.append(RepoState(key, root, sha, dirty, cached=was_cached))
 
     merged = merge_repos(batches)

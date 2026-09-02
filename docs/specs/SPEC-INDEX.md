@@ -1,7 +1,7 @@
 # Spec index — every design record, and where it stands
 
 **Generated 2026-08-15 against 3.18.1; refreshed 2026-08-21 for the completed GraphIR
-programme; recounted 2026-09-01 at 3.27.0.** `docs/specs/` holds **81** markdown files —
+programme; recounted 2026-09-02 at 3.28.0.** `docs/specs/` holds **83** markdown files —
 **78 specs** plus three navigation documents ([README](README.md), this index,
 [STATE-OF-SPINE](STATE-OF-SPINE.md)) — with 6 archived and 10 build documents. The count read
 *63* until 2026-08-21, and **five specs were not listed at all**, including this file's own
@@ -10,7 +10,7 @@ things is the failure it was built to catch, so the count is now stated as a der
 can re-run:
 
 ```
-ls docs/specs/*.md | wc -l          # 81
+ls docs/specs/*.md | wc -l          # 83
 ```
 
 **It rotted anyway.** The line read *70* from 2026-08-21 until 2026-08-28 while the directory
@@ -41,7 +41,7 @@ Graphify-gap series only. This file is the complete inventory.
 ---
 
 > **Start with [STATE-OF-SPINE.md](STATE-OF-SPINE.md)** — one page, verified 2026-09-01 against
-> 3.27.0, covering where the product stands, what is measured, the active programme, and what is
+> 3.28.0, covering where the product stands, what is measured, the active programme, and what is
 > outstanding. Come here for the per-spec inventory.
 
 ---
@@ -129,6 +129,8 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | [codegen-model-comparison-results](codegen-model-comparison-results.md) · [external-repo-grounding-results](external-repo-grounding-results.md) | The two measurements behind the matrix's ⁴ rows — 200 and 60 ticket-runs (2026-08-16) |
 | [parsing-and-the-pkg](parsing-and-the-pkg.md) | How source becomes graph facts, front-end by front-end (2026-08-16) |
 | [document-ingestion-reference](document-ingestion-reference.md) | How *prose* becomes graph facts, format by format — the five stages, per-format behaviour, bounds, and the measured cost of losing headings (2026-08-29) |
+| [multi-repo-walkthrough](multi-repo-walkthrough.md) | What happens when you point Spine at three repositories: declare, extract, merge with scoped ids, join across the boundary, read. The mechanism at two pages, beside the roadmap's design record (2026-09-01) |
+| [doc-file-binding](doc-file-binding.md) | The first deterministic move against the 55% of `Doc` sections that bind to nothing: a cited path owns exactly one `Module`, and the edge was being discarded. Measures what it reaches — 108 sections — and, more usefully, what nothing deterministic reaches (2026-09-01) |
 | [doc-binding-walkthrough](doc-binding-walkthrough.md) | How prose becomes a `MENTIONS` edge, in six steps and then traced through one real page with the actual anchor counts — the mechanism, not the format-by-format reference beside it (2026-09-01) |
 | [ticket-to-landing-sites](ticket-to-landing-sites.md) | How a ticket's words become `file:line` landing sites — tokenising, scoring, and what the result is bound to (2026-08-25) |
 | [competitive-landscape](competitive-landscape.md) | Competitive **narrative and strategy** (2026-08-21). Its duplicate scored matrix was removed — see `capability-matrix.md` |

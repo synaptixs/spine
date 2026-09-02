@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`scripts.render_knowledge_foundation_svg`** is one of 53 areas in this repo, in the `scripts` zone. It holds 1 module — 2 types and 14 functions. It has no import edges to or from other areas — it stands alone.
+**`scripts.render_knowledge_foundation_svg`** is one of 54 areas in this repo, in the `scripts` zone. It holds 1 module — 2 types and 14 functions. It has no import edges to or from other areas — it stands alone.
 
 ## Modules
 

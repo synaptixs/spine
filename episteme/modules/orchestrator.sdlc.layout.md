@@ -22,6 +22,10 @@
 - [`_resolve_cpp_layout`](../../src/orchestrator/sdlc/layout.py#L467) — reaches **8** symbols
 - [`_resolve_csharp_layout`](../../src/orchestrator/sdlc/layout.py#L331) — reaches **8** symbols
 
+## Documented in
+
+`docs/specs/java-codegen.md#whats-python-shaped-today-the-surfaces-to-generalize`, `docs/specs/multi-language-java.md#slice-2-java-codegen-follow-on`, `docs/specs/project-comprehension-memory-bank.md#two-branches-same-output-shape`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
+
 ## Types
 
 ### `TargetLayout`

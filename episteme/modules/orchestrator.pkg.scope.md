@@ -24,6 +24,10 @@
 
 _8 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
+## Documented in
+
+`CHANGELOG.md`, `docs/specs/invention-oracle-cross-language.md#what-phase-1-built`, `docs/specs/parsing-and-the-pkg.md#the-same-class-in-four-more-front-ends-found-2026-08-24`
+
 ## Types
 
 ### `BareCall`
