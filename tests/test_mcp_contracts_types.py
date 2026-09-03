@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
-import orchestrator.cli as cli_mod
+import orchestrator.cli.registry as cli_mod
 from orchestrator.cli import app
 from orchestrator.mcp.config import MCPServerConfig
 from orchestrator.mcp.handler import MCPRegisteredTool, MCPToolHandler, build_mcp_tools

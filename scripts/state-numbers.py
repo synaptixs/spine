@@ -52,7 +52,10 @@ def _test_files() -> list[Path]:
 
 
 def cli_commands() -> int:
-    return len(re.findall(r"\.command\(", (ROOT / "src" / "orchestrator" / "cli.py").read_text()))
+    return sum(
+        len(re.findall(r"\.command\(", p.read_text()))
+        for p in (ROOT / "src" / "orchestrator" / "cli").glob("*.py")
+    )
 
 
 def source_modules() -> int:

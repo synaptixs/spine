@@ -313,7 +313,7 @@ src/orchestrator/
 ├── approval/          # Approval Pydantic models + repository (Sprint 14)
 ├── gateway/           # MCP tool gateway + invocation handlers
 ├── storage/           # Object-store client (MinIO/S3)
-└── cli.py             # `orchestrator` CLI
+└── cli/               # `orchestrator` CLI, one module per help panel
 
 migrations/versions/   # Alembic revisions 0001–0004
 examples/              # Agent template YAMLs + tool contracts

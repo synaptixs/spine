@@ -1991,9 +1991,10 @@ def apply_files(
                 f"standard-library module {target.stem!r}"
             )
         # First-party shadow guard: the same failure one layer in. A model that wants
-        # `orchestrator.cli.regression` will happily create `orchestrator/cli/__init__.py`
-        # beside the existing `cli.py` — which does not extend the CLI, it hides it, and
-        # every command in the product stops resolving. Observed on a real run.
+        # `orchestrator.cli.regression` happily created `orchestrator/cli/__init__.py`
+        # beside the then-single `cli.py` — which did not extend the CLI, it hid it, and
+        # every command in the product stopped resolving. Observed on a real run; the CLI
+        # is a package now, but the guard is general.
         shadowed = _shadows_first_party(root, target)
         if not target.exists() and shadowed is not None:
             raise CodegenError(
