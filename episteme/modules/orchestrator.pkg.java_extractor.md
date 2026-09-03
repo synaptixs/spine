@@ -26,7 +26,7 @@ _15 of the symbols other code depends on here have no test path the graph can se
 
 ## Documented in
 
-`CHANGELOG.md`, `docs/specs/multi-language-java.md#where-java-stands-today`
+`CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#ast-or-cst-spine-uses-whichever-one-the-languages-own-toolchain-uses`, `docs/specs/go-support-roadmap.md#design-plan-adding-go-to-the-pkg-8th-language`, `docs/specs/language-support-roadmap.md#design-plan-adding-c-c-and-c-to-the-pkg-sequential-per-language`, `docs/specs/multi-language-java.md#where-java-stands-today`
 
 ## Types
 

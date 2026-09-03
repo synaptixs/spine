@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 54 areas in this repo, in the `orchestrator` zone. It holds 43 modules — 101 types and 339 functions. It sits in the middle of the graph: 1 area below it, 16 above. Changes here can reach both ways.
+**`orchestrator.pkg`** is one of 54 areas in this repo, in the `orchestrator` zone. It holds 45 modules — 105 types and 354 functions. It sits in the middle of the graph: 1 area below it, 16 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -47,6 +47,7 @@ _Showing 9 of 17 neighbouring areas._
 - [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1)
 - [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1)
 - [`orchestrator.pkg.go_extractor`](../modules/orchestrator.pkg.go_extractor.md)
+- [`orchestrator.pkg.go_routes`](../../src/orchestrator/pkg/go_routes.py#L1)
 - [`orchestrator.pkg.graph_export`](../../src/orchestrator/pkg/graph_export.py#L1)
 - [`orchestrator.pkg.import_link`](../../src/orchestrator/pkg/import_link.py#L1)
 - [`orchestrator.pkg.intent_link`](../../src/orchestrator/pkg/intent_link.py#L1)
@@ -74,6 +75,7 @@ _Showing 9 of 17 neighbouring areas._
 - [`orchestrator.pkg.stats`](../../src/orchestrator/pkg/stats.py#L1)
 - [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1)
 - [`orchestrator.pkg.typescript_extractor`](../modules/orchestrator.pkg.typescript_extractor.md)
+- [`orchestrator.pkg.typescript_routes`](../../src/orchestrator/pkg/typescript_routes.py#L1)
 - [`orchestrator.pkg.verifier`](../../src/orchestrator/pkg/verifier.py#L1)
 - [`orchestrator.pkg.verify`](../modules/orchestrator.pkg.verify.md)
 

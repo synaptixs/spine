@@ -13,16 +13,20 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_text`](../../src/orchestrator/pkg/go_extractor.py#L500) — reaches **12** symbols · **no test path visible**
+- [`_text`](../../src/orchestrator/pkg/go_extractor.py#L507) — reaches **12** symbols · **no test path visible**
 - [`GoExtractor`](../../src/orchestrator/pkg/go_extractor.py#L99) — reaches **8** symbols
-- [`_field_text`](../../src/orchestrator/pkg/go_extractor.py#L495) — reaches **7** symbols · **no test path visible**
-- [`_base_type_name`](../../src/orchestrator/pkg/go_extractor.py#L394) — reaches **6** symbols · **no test path visible**
-- [`_field_children`](../../src/orchestrator/pkg/go_extractor.py#L490) — reaches **6** symbols · **no test path visible**
-- [`_arity`](../../src/orchestrator/pkg/go_extractor.py#L369) — reaches **4** symbols · **no test path visible**
-- [`_descendants`](../../src/orchestrator/pkg/go_extractor.py#L407) — reaches **4** symbols · **no test path visible**
-- [`_go_parser`](../../src/orchestrator/pkg/go_extractor.py#L506) — reaches **4** symbols
+- [`_field_text`](../../src/orchestrator/pkg/go_extractor.py#L502) — reaches **7** symbols · **no test path visible**
+- [`_base_type_name`](../../src/orchestrator/pkg/go_extractor.py#L401) — reaches **6** symbols · **no test path visible**
+- [`_field_children`](../../src/orchestrator/pkg/go_extractor.py#L497) — reaches **6** symbols · **no test path visible**
+- [`_arity`](../../src/orchestrator/pkg/go_extractor.py#L376) — reaches **4** symbols · **no test path visible**
+- [`_descendants`](../../src/orchestrator/pkg/go_extractor.py#L414) — reaches **4** symbols · **no test path visible**
+- [`_go_parser`](../../src/orchestrator/pkg/go_extractor.py#L513) — reaches **4** symbols
 
 _11 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+
+## Documented in
+
+`docs/specs/go-support-roadmap.md#track-4-go-go`
 
 ## Types
 
@@ -38,67 +42,67 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/go_extractor.py:90`](../../src/orchestrator/pkg/go_extractor.py#L90)
 
-- **Called by** (2): [`_function`](../../src/orchestrator/pkg/go_extractor.py#L230), [`_method`](../../src/orchestrator/pkg/go_extractor.py#L253)
+- **Called by** (2): [`_function`](../../src/orchestrator/pkg/go_extractor.py#L237), [`_method`](../../src/orchestrator/pkg/go_extractor.py#L260)
 - **Fields**: `caller_id`, `node`, `recv_type`, `recv_var`
 
 ### `_Iface`
 
 [`src/orchestrator/pkg/go_extractor.py:82`](../../src/orchestrator/pkg/go_extractor.py#L82)
 
-- **Called by** (1): [`_interface_methods`](../../src/orchestrator/pkg/go_extractor.py#L207)
+- **Called by** (1): [`_interface_methods`](../../src/orchestrator/pkg/go_extractor.py#L214)
 - **Fields**: `embeds`, `methods`
 
 ## Functions
 
 ### `_all_of_type`
 
-[`src/orchestrator/pkg/go_extractor.py:478`](../../src/orchestrator/pkg/go_extractor.py#L478)
+[`src/orchestrator/pkg/go_extractor.py:485`](../../src/orchestrator/pkg/go_extractor.py#L485)
 
-- **Called by** (2): [`_bound_names`](../../src/orchestrator/pkg/go_extractor.py#L420), [`_resolve_calls`](../../src/orchestrator/pkg/go_extractor.py#L281)
+- **Called by** (2): [`_bound_names`](../../src/orchestrator/pkg/go_extractor.py#L427), [`_resolve_calls`](../../src/orchestrator/pkg/go_extractor.py#L288)
 
 ### `_arity`
 
-[`src/orchestrator/pkg/go_extractor.py:369`](../../src/orchestrator/pkg/go_extractor.py#L369)
+[`src/orchestrator/pkg/go_extractor.py:376`](../../src/orchestrator/pkg/go_extractor.py#L376)
 
-- **Called by** (2): [`_interface_methods`](../../src/orchestrator/pkg/go_extractor.py#L207), [`_method`](../../src/orchestrator/pkg/go_extractor.py#L253)
-- **Calls** (1): [`_field_children`](../../src/orchestrator/pkg/go_extractor.py#L490)
+- **Called by** (2): [`_interface_methods`](../../src/orchestrator/pkg/go_extractor.py#L214), [`_method`](../../src/orchestrator/pkg/go_extractor.py#L260)
+- **Calls** (1): [`_field_children`](../../src/orchestrator/pkg/go_extractor.py#L497)
 
 ### `_base_type_name`
 
-[`src/orchestrator/pkg/go_extractor.py:394`](../../src/orchestrator/pkg/go_extractor.py#L394)
+[`src/orchestrator/pkg/go_extractor.py:401`](../../src/orchestrator/pkg/go_extractor.py#L401)
 
-- **Called by** (4): [`_base_type_name`](../../src/orchestrator/pkg/go_extractor.py#L394), [`_interface_methods`](../../src/orchestrator/pkg/go_extractor.py#L207), [`_receiver`](../../src/orchestrator/pkg/go_extractor.py#L383), [`_struct_fields`](../../src/orchestrator/pkg/go_extractor.py#L182)
-- **Calls** (2): [`_base_type_name`](../../src/orchestrator/pkg/go_extractor.py#L394), [`_text`](../../src/orchestrator/pkg/go_extractor.py#L500)
+- **Called by** (4): [`_base_type_name`](../../src/orchestrator/pkg/go_extractor.py#L401), [`_interface_methods`](../../src/orchestrator/pkg/go_extractor.py#L214), [`_receiver`](../../src/orchestrator/pkg/go_extractor.py#L390), [`_struct_fields`](../../src/orchestrator/pkg/go_extractor.py#L189)
+- **Calls** (2): [`_base_type_name`](../../src/orchestrator/pkg/go_extractor.py#L401), [`_text`](../../src/orchestrator/pkg/go_extractor.py#L507)
 
 ### `_bound_names`
 
-[`src/orchestrator/pkg/go_extractor.py:420`](../../src/orchestrator/pkg/go_extractor.py#L420)
+[`src/orchestrator/pkg/go_extractor.py:427`](../../src/orchestrator/pkg/go_extractor.py#L427)
 
-- **Called by** (1): [`_resolve_calls`](../../src/orchestrator/pkg/go_extractor.py#L281)
-- **Calls** (2): [`_all_of_type`](../../src/orchestrator/pkg/go_extractor.py#L478), [`_text`](../../src/orchestrator/pkg/go_extractor.py#L500)
+- **Called by** (1): [`_resolve_calls`](../../src/orchestrator/pkg/go_extractor.py#L288)
+- **Calls** (2): [`_all_of_type`](../../src/orchestrator/pkg/go_extractor.py#L485), [`_text`](../../src/orchestrator/pkg/go_extractor.py#L507)
 
 ### `_descendants`
 
-[`src/orchestrator/pkg/go_extractor.py:407`](../../src/orchestrator/pkg/go_extractor.py#L407)
+[`src/orchestrator/pkg/go_extractor.py:414`](../../src/orchestrator/pkg/go_extractor.py#L414)
 
-- **Called by** (2): [`_imports`](../../src/orchestrator/pkg/go_extractor.py#L150), [`_receiver`](../../src/orchestrator/pkg/go_extractor.py#L383)
+- **Called by** (2): [`_imports`](../../src/orchestrator/pkg/go_extractor.py#L157), [`_receiver`](../../src/orchestrator/pkg/go_extractor.py#L390)
 
 ### `_field_children`
 
-[`src/orchestrator/pkg/go_extractor.py:490`](../../src/orchestrator/pkg/go_extractor.py#L490)
+[`src/orchestrator/pkg/go_extractor.py:497`](../../src/orchestrator/pkg/go_extractor.py#L497)
 
-- **Called by** (2): [`_arity`](../../src/orchestrator/pkg/go_extractor.py#L369), [`_struct_fields`](../../src/orchestrator/pkg/go_extractor.py#L182)
+- **Called by** (2): [`_arity`](../../src/orchestrator/pkg/go_extractor.py#L376), [`_struct_fields`](../../src/orchestrator/pkg/go_extractor.py#L189)
 
 ### `_field_text`
 
-[`src/orchestrator/pkg/go_extractor.py:495`](../../src/orchestrator/pkg/go_extractor.py#L495)
+[`src/orchestrator/pkg/go_extractor.py:502`](../../src/orchestrator/pkg/go_extractor.py#L502)
 
-- **Called by** (6): [`_function`](../../src/orchestrator/pkg/go_extractor.py#L230), [`_imports`](../../src/orchestrator/pkg/go_extractor.py#L150), [`_interface_methods`](../../src/orchestrator/pkg/go_extractor.py#L207), [`_method`](../../src/orchestrator/pkg/go_extractor.py#L253), [`_receiver`](../../src/orchestrator/pkg/go_extractor.py#L383), [`_type_decl`](../../src/orchestrator/pkg/go_extractor.py#L160)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/go_extractor.py#L500)
+- **Called by** (6): [`_function`](../../src/orchestrator/pkg/go_extractor.py#L237), [`_imports`](../../src/orchestrator/pkg/go_extractor.py#L157), [`_interface_methods`](../../src/orchestrator/pkg/go_extractor.py#L214), [`_method`](../../src/orchestrator/pkg/go_extractor.py#L260), [`_receiver`](../../src/orchestrator/pkg/go_extractor.py#L390), [`_type_decl`](../../src/orchestrator/pkg/go_extractor.py#L167)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/go_extractor.py#L507)
 
 ### `_go_parser`
 
-[`src/orchestrator/pkg/go_extractor.py:506`](../../src/orchestrator/pkg/go_extractor.py#L506)
+[`src/orchestrator/pkg/go_extractor.py:513`](../../src/orchestrator/pkg/go_extractor.py#L513)
 
 - **Called by** (2): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L466), [`extract`](../../src/orchestrator/pkg/go_extractor.py#L121)
 - **Calls** (3): `language`, `tree_sitter.Language`, `tree_sitter.Parser`
@@ -106,20 +110,20 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 ### `_receiver`
 
-[`src/orchestrator/pkg/go_extractor.py:383`](../../src/orchestrator/pkg/go_extractor.py#L383)
+[`src/orchestrator/pkg/go_extractor.py:390`](../../src/orchestrator/pkg/go_extractor.py#L390)
 
-- **Called by** (1): [`_method`](../../src/orchestrator/pkg/go_extractor.py#L253)
-- **Calls** (3): [`_base_type_name`](../../src/orchestrator/pkg/go_extractor.py#L394), [`_descendants`](../../src/orchestrator/pkg/go_extractor.py#L407), [`_field_text`](../../src/orchestrator/pkg/go_extractor.py#L495)
+- **Called by** (1): [`_method`](../../src/orchestrator/pkg/go_extractor.py#L260)
+- **Calls** (3): [`_base_type_name`](../../src/orchestrator/pkg/go_extractor.py#L401), [`_descendants`](../../src/orchestrator/pkg/go_extractor.py#L414), [`_field_text`](../../src/orchestrator/pkg/go_extractor.py#L502)
 
 ### `_text`
 
-[`src/orchestrator/pkg/go_extractor.py:500`](../../src/orchestrator/pkg/go_extractor.py#L500)
+[`src/orchestrator/pkg/go_extractor.py:507`](../../src/orchestrator/pkg/go_extractor.py#L507)
 
-- **Called by** (5): [`_base_type_name`](../../src/orchestrator/pkg/go_extractor.py#L394), [`_bound_names`](../../src/orchestrator/pkg/go_extractor.py#L420), [`_field_text`](../../src/orchestrator/pkg/go_extractor.py#L495), [`_resolve_calls`](../../src/orchestrator/pkg/go_extractor.py#L281), [`_struct_fields`](../../src/orchestrator/pkg/go_extractor.py#L182)
+- **Called by** (5): [`_base_type_name`](../../src/orchestrator/pkg/go_extractor.py#L401), [`_bound_names`](../../src/orchestrator/pkg/go_extractor.py#L427), [`_field_text`](../../src/orchestrator/pkg/go_extractor.py#L502), [`_resolve_calls`](../../src/orchestrator/pkg/go_extractor.py#L288), [`_struct_fields`](../../src/orchestrator/pkg/go_extractor.py#L189)
 
 ## Imports
 
-`__future__.annotations`, `collections.defaultdict`, `dataclasses.dataclass`, [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), `pathlib.Path`, `tree_sitter.Language`, `tree_sitter.Node`, `tree_sitter.Parser`, `tree_sitter_go`, `typing.Any`, `typing.TYPE_CHECKING`
+`__future__.annotations`, `collections.defaultdict`, `dataclasses.dataclass`, [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.go_routes`](../../src/orchestrator/pkg/go_routes.py#L1), `pathlib.Path`, `tree_sitter.Language`, `tree_sitter.Node`, `tree_sitter.Parser`, `tree_sitter_go`, `typing.Any`, `typing.TYPE_CHECKING`
 
 ## Imported by
 

@@ -12,7 +12,7 @@ from orchestrator.pkg import (
     NodeKind,
     Provenance,
 )
-from orchestrator.pkg.docs import MentionKind, extract_mentions
+from orchestrator.pkg.docs import DocBinding, MentionKind, extract_mentions
 
 
 def _batch() -> FactBatch:
@@ -238,3 +238,73 @@ def test_a_path_matching_several_files_binds_to_nothing() -> None:
     binding = rec.bind(mention, base_dir="")
     assert binding.anchor_files == ["src/a/store.py", "src/b/store.py"], "sorted, not hash order"
     assert binding.anchor_ids == []
+
+
+# ---- prose names a file by its stem (2026-09-02) -----------------------------
+
+
+def test_a_snake_case_stem_binds_to_the_file_and_its_module(tmp_path: Path) -> None:
+    """`doc_source` in prose means `doc_source.py`; `comprehension_labels` means the YAML.
+
+    A module's node name is its dotted path — `orchestrator.pkg.doc_source` — so a bare stem
+    matches no name and no id tail. And the extractor's provenance covers only files it
+    parsed, so a `.yaml` stem has no node at all. The tree is walked instead, with "exactly
+    one" applied twice: one file with that stem, then one module owning it.
+    """
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+
+    repo = tmp_path / "repo"
+    (repo / "src" / "orchestrator" / "pkg").mkdir(parents=True)
+    (repo / "src" / "orchestrator" / "pkg" / "doc_source.py").write_text(
+        "def read():\n    return 1\n", encoding="utf-8"
+    )
+    (repo / "evals").mkdir()
+    (repo / "evals" / "comprehension_labels.yaml").write_text("a: 1\n", encoding="utf-8")
+    rec = DocReconciler(RepoCodeExtractor().extract(repo), repo_root=repo)
+
+    def bind(token: str) -> DocBinding:
+        page = DocPage(title="t", text=f"See `{token}`.")
+        (mention,) = [m for m in extract_mentions(page) if m.text == token]
+        return rec.bind(mention, base_dir="")
+
+    module = bind("doc_source")
+    assert module.anchor_files == ["src/orchestrator/pkg/doc_source.py"]
+    assert module.anchor_ids == ["py:orchestrator.pkg.doc_source"]
+
+    # A data file has no module. It still stops being drift: the prose named something real.
+    data = bind("comprehension_labels")
+    assert data.anchor_files == ["evals/comprehension_labels.yaml"]
+    assert data.anchor_ids == []
+
+
+def test_a_plain_word_stem_does_not_bind(tmp_path: Path) -> None:
+    """`bug` is an English word here, and `bug.yaml` exists. Binding them is the guess.
+
+    Measured 2026-09-02: matching any stem produced 149 bindings against snake-case's 88, and
+    the extra 61 were `bug`, `enhancement`, `invention`, `validity` — prose, bound to modules
+    that happen to share a filename.
+    """
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+
+    repo = tmp_path / "repo"
+    (repo / "profiles").mkdir(parents=True)
+    (repo / "profiles" / "bug.yaml").write_text("name: bug\n", encoding="utf-8")
+    rec = DocReconciler(RepoCodeExtractor().extract(repo), repo_root=repo)
+    page = DocPage(title="t", text="Report a `bug` when it misbehaves.")
+    (mention,) = [m for m in extract_mentions(page) if m.text == "bug"]
+    assert rec.bind(mention, base_dir="").anchor_files == []
+
+
+def test_a_stem_owned_by_two_files_binds_to_neither(tmp_path: Path) -> None:
+    """Exactly one, or nothing — before the module question is even asked."""
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+
+    repo = tmp_path / "repo"
+    for pkg in ("a", "b"):
+        (repo / pkg).mkdir(parents=True)
+        (repo / pkg / "doc_source.py").write_text("x = 1\n", encoding="utf-8")
+    rec = DocReconciler(RepoCodeExtractor().extract(repo), repo_root=repo)
+    page = DocPage(title="t", text="See `doc_source`.")
+    (mention,) = [m for m in extract_mentions(page) if m.text == "doc_source"]
+    binding = rec.bind(mention, base_dir="")
+    assert binding.anchor_files == [] and binding.anchor_ids == []

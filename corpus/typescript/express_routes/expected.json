@@ -1,0 +1,50 @@
+{
+  "language": "typescript",
+  "case": "express_routes",
+  "why": "Before this, no TypeScript front-end emitted `Endpoint` \u2014 so a route handler had zero callers and `impact_of` called a public endpoint safe to refactor, and a Node service could not be a *provider* in a cross-repo join at all. Pins the composed mount (`app.use` + `router.get`), the inline-arrow shape that must yield an endpoint but no fabricated `EXPOSES`, and the control: a template-literal path yields nothing. See `endpoints-typescript-go.md`.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:app/server",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:app/server.listOrders",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:endpoint:GET /v1/orders",
+      "kind": "Endpoint"
+    },
+    {
+      "id": "ts:endpoint:POST /v1/orders",
+      "kind": "Endpoint"
+    },
+    {
+      "id": "ts:endpoint:GET /health",
+      "kind": "Endpoint"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:app/server",
+      "dst": "ts:express",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:app/server",
+      "dst": "ts:app/server.listOrders",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:endpoint:GET /v1/orders",
+      "dst": "ts:app/server.listOrders",
+      "kind": "EXPOSES"
+    },
+    {
+      "src": "ts:endpoint:GET /health",
+      "dst": "ts:app/server.listOrders",
+      "kind": "EXPOSES"
+    }
+  ]
+}

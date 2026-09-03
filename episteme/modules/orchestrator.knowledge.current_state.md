@@ -24,7 +24,7 @@
 
 ## Documented in
 
-`CLAUDE.md#invariants-break-these-and-things-get-subtly-wrong`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/doc-ingestion-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/gap-roadmap-index.md#who-owns-which-files`, `docs/specs/knowledge-graph-architecture.md#7-projections`, `docs/specs/pkg-navigable-reports.md#diagrams-what-is-and-isnt-derivable`
+`CHANGELOG.md`, `CLAUDE.md#invariants-break-these-and-things-get-subtly-wrong`, `docs/specs/capability-recommendations-kg-grounded.md#c2-kg-grounded-bug-fix-rca-pipeline-effort-l-net-new-headline`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/doc-ingestion-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/gap-roadmap-index.md#who-owns-which-files`
 
 ## Types
 

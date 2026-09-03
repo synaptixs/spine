@@ -26,7 +26,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 ## Documented in
 
-`CHANGELOG.md`, `README.md#how-it-works`
+`CHANGELOG.md`, `CONTRIBUTING.md#opening-a-pull-request`, `README.md#how-it-works`
 
 ## Types
 

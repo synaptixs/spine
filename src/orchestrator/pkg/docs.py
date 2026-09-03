@@ -234,6 +234,10 @@ class DocReconciler:
         #: an ambiguous anchor is the fabrication this tier refuses. See
         #: `docs/specs/doc-file-binding.md`.
         self._modules_for_file: dict[str, list[str]] = {}
+        #: lowercase file stem -> repo-relative paths, built lazily on first use. Prose cites a
+        #: file by its stem — `comprehension_labels` for `comprehension_labels.yaml` — and the
+        #: extractor's provenance only covers files it parsed, so this walks the tree instead.
+        self._stems: dict[str, list[str]] | None = None
         for n in nodes:
             if not n.grounded:
                 continue
@@ -244,6 +248,26 @@ class DocReconciler:
                 self._files.add(n.provenance.file)
                 if n.kind is NodeKind.MODULE:
                     self._modules_for_file.setdefault(n.provenance.file, []).append(n.id)
+
+    def _stem_index(self) -> dict[str, list[str]]:
+        """Every file in the repository, keyed by its lowercase stem.
+
+        Sorted at both levels: this feeds an "exactly one" test, and an unsorted walk would
+        make *which* file a stem resolves to depend on filesystem order. The same directory
+        exclusions as `doc_source` — a dot-directory is where the fixture corpora live, and
+        binding prose to a fixture would be worse than not binding it.
+        """
+        if self._stems is None:
+            index: dict[str, list[str]] = {}
+            if self._root is not None:
+                for path in sorted(self._root.rglob("*")):
+                    rel = path.relative_to(self._root)
+                    if any(part.startswith(".") or part == "node_modules" for part in rel.parts):
+                        continue
+                    if path.is_file():
+                        index.setdefault(path.stem.lower(), []).append(str(rel))
+            self._stems = {k: sorted(v) for k, v in index.items()}
+        return self._stems
 
     def bind(self, mention: DocMention, *, base_dir: str = "") -> DocBinding:
         binding = DocBinding(mention=mention)
@@ -285,6 +309,21 @@ class DocReconciler:
             leaf = text.rsplit(".", 1)[-1]
             if leaf.lower() not in _URL_TAILS:
                 binding.anchor_ids = list(self._names.get(leaf, []))
+        # Last resort: prose naming a file by its stem — `typescript_extractor` for
+        # `typescript_extractor.py`, `comprehension_labels` for the YAML beside it.
+        #
+        # **Restricted to snake-shaped tokens, and that restriction is the whole rule.** Matching
+        # any stem binds `bug`, `enhancement`, `invention` and `validity` to modules that happen
+        # to share the name, when the prose meant the English words — measured at 149 bindings
+        # against 88, with the extra 61 being exactly that mistake. An underscore is what makes a
+        # token code-shaped rather than a word, which is why `_SNAKE_RE` exists at all.
+        if not binding.anchor_ids and not binding.anchor_files and "_" in text:
+            paths = self._stem_index().get(text, [])
+            if len(paths) == 1:
+                binding.anchor_files = list(paths)
+                owners = self._modules_for_file.get(paths[0], [])
+                if len(owners) == 1:
+                    binding.anchor_ids = list(owners)
         return binding
 
     def _can_drift(self, mention: DocMention) -> bool:

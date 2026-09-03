@@ -24,7 +24,7 @@
 
 ## Documented in
 
-`docs/specs/gap5-visualization-roadmap.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes`
+`docs/specs/gap5-visualization-roadmap.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/knowledge-graph-architecture.md#7-projections`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes`
 
 ## Functions
 

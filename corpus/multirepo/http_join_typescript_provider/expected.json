@@ -1,0 +1,36 @@
+{
+  "language": "multirepo",
+  "case": "http_join_typescript_provider",
+  "requires": ["python", "typescript"],
+  "roots": {
+    "api": ".api",
+    "web": ".web"
+  },
+  "joins": [
+    {"kind": "http", "consumer": "web", "provider": "api"}
+  ],
+  "why": "The first cross-repo edge in the PKG whose provider is not Python, Java or C#. The `http` joiner matches a consumer's unresolved calls against the *provider's* `Endpoint` nodes, and no TypeScript or Go front-end emitted any — so a Node service could not be a provider at all, and multi-repo comprehension silently worked only for three languages. This is the fixture that says so: it scored zero CONSUMES before `typescript_routes` existed. A Node *consumer* is still impossible — the unresolved-call side-channel is Python-only — which is why the consumer here is Python.",
+  "nodes": [
+    {"id": "py:web@app.client", "kind": "Module"},
+    {"id": "py:web@app.client.place_order", "kind": "Function"},
+    {"id": "py:web@app.client.check_health", "kind": "Function"},
+    {"id": "ts:api@app/server", "kind": "Module"},
+    {"id": "ts:api@app/server.createOrder", "kind": "Function"},
+    {"id": "ts:api@endpoint:POST /v1/orders", "kind": "Endpoint"}
+  ],
+  "edges": [
+    {"src": "py:web@app.client", "dst": "py:web@app.client.place_order", "kind": "CONTAINS"},
+    {"src": "py:web@app.client", "dst": "py:web@app.client.check_health", "kind": "CONTAINS"},
+    {"src": "ts:api@app/server", "dst": "ts:api@app/server.createOrder", "kind": "CONTAINS"},
+    {"src": "py:web@app.client", "dst": "py:httpx", "kind": "IMPORTS"},
+    {"src": "ts:api@app/server", "dst": "ts:express", "kind": "IMPORTS"},
+    {"src": "py:web@app.client.place_order", "dst": "py:httpx.post", "kind": "CALLS"},
+    {"src": "py:web@app.client.check_health", "dst": "py:httpx.get", "kind": "CALLS"},
+    {"src": "ts:api@endpoint:POST /v1/orders", "dst": "ts:api@app/server.createOrder", "kind": "EXPOSES"},
+    {"src": "py:web@app.client.place_order", "dst": "ts:api@endpoint:POST /v1/orders", "kind": "CONSUMES"}
+  ],
+  "false_positives": [],
+  "excluded": [
+    "`check_health` calling GET /health is NOT labelled: the TypeScript provider does not serve it, so no edge is correct. It is the control — a joiner that matched everything would emit an edge here and lose precision."
+  ]
+}

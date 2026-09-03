@@ -111,8 +111,38 @@ the lowest-commitment first touch we have — the equivalent of `/graphify`.
 | **3 — Proof assets** | Publish the G6 benchmark page; a short "what Spine tells you that grep doesn't" walkthrough on a well-known OSS repo; the G5 export as a shareable artifact. Public, reproducible, honest. | ~4–5 d | Linkable evidence for each headline claim |
 | **4 — Measure** | Opt-in, privacy-respecting install/usage signal (or, if that's unacceptable, PyPI download + plugin-install counts). Decide *before* Phase 1 what "working" looks like numerically. | ~2–3 d | We can tell whether phases 1–3 moved anything, instead of guessing |
 
+| **5 — Central adoption** | An org adopting Spine across N repositories, rather than a developer installing it once. **Two deliverables with different audiences, and they should not be built together — see below.** **5a:** a reusable GitHub Actions workflow (`workflow_call`) a repo references in one line to run read-only comprehension on a pull request. **5b:** a container image of Spine itself, for an org *hosting* the governed pipeline. | 5a ~2–3 d · 5b ~5–8 d | 5a: a repository outside this one adds ≤ 5 lines and gets a grounded PR comment, with **no credentials**. 5b: `docker run` brings up the registry API against the documented dependencies |
+
 **Phase 1 is the one that matters most.** Every channel added in Phase 2 multiplies whatever
 conversion rate Phase 1 leaves us with; widening the funnel before fixing the leak wastes both.
+
+### Phase 5, and why its two halves are not one piece of work
+
+`STATE-OF-SPINE` §8 carried *"Deployment image + reusable CI workflow for central adoption"* as a
+single row, and as *"not started. **Not a G4 phase** — it was recommended as though it were; it
+needs adding to that spec before it can be scheduled."* This is that addition, and scoping it
+split the row in two.
+
+**They serve different people.** 5a is for a repository that wants Spine to *read* it in CI —
+the credential-free comprehension path, no infrastructure at all. 5b is for an organisation
+*hosting* the governed pipeline, which needs Postgres, Temporal and MinIO (already described by
+`docker-compose.dev.yml`, which today brings up **only those dependencies — there is no image of
+Spine**).
+
+**Measured 2026-09-02, and it removes the reason to bundle them:** a cold
+`pip install 'synaptixs-spine[languages]'` into a clean virtualenv takes **21 seconds**, with all
+seven tree-sitter grammars arriving as prebuilt wheels. The obvious argument for a container in
+CI — *"installing eight parsers is slow"* — is false. **5a needs no image**, which makes it a
+small, independent piece of work rather than something blocked behind 5b.
+
+**5a is the higher-impact half by G4's own logic.** The three levers are friction, channels and
+proof; 5a is a *channel* that multiplies across every repository in an organisation at the cost
+of five lines each, and it stays inside the read-only, credential-free invariant that makes the
+first touch safe. 5b is a deployment concern for the write path, and carries the credential and
+governance surface that comes with it.
+
+**Recommendation: build 5a; schedule 5b only against a named operator who wants to self-host.**
+An image nobody has asked to run is a maintenance burden with a version number.
 
 ## Invariants you must not break
 
