@@ -1,6 +1,6 @@
 # Secrets, and the identity work still open
 
-**Status:** **Scoped 2026-09-02 against 3.28.0.** Not built. D1–D4 open.
+**Status:** **Scoped 2026-09-02 against 3.28.0.** Not built. **D2 decided 2026-09-03** (§3.1); D1, D3, D4 open.
 **Owner:** _unassigned_
 
 `STATE-OF-SPINE` §8 carries *"RBAC role-gating beyond the approval decision + secrets vault —
@@ -56,6 +56,39 @@ ever learns it exists — the same two-mode shape as `resolve_principal_from_key
    *optional* quietly becoming *required* eighteen months later, which is the real failure mode —
    not the initial design, which nobody gets wrong.
 
+### 3.1 — Which provider first, and the one that was rejected
+
+**Decided 2026-09-03: HashiCorp Vault, with OpenBao covered by the same client, behind the
+`[vault]` extra.** Environment stays the default. Cloud-specific managers — AWS Secrets Manager,
+Azure Key Vault, Google Secret Manager, OCI Vault — come **one named customer each**, never
+speculatively, each behind its own extra.
+
+Why that one, against an agnostic charter:
+
+- **It is the only cloud-neutral option.** Each cloud manager picks a winner the customer may not
+  be in; Vault runs on-prem and in all four.
+- **It is the standard the others converge on.** OpenBao is API-compatible (the Linux Foundation
+  fork, if a customer's licence review needs it), and Akeyless, Conjur and the cloud managers all
+  carry Vault-shaped migration paths. One client covers the largest share of *bring your own*.
+- **It is the implementation that actually tests the seam.** A real vault needs an auth method
+  (token, AppRole, Kubernetes), path addressing, and lease/TTL handling. The environment provider
+  can exercise none of that, so it cannot by itself prove `get_secret` is an abstraction rather
+  than a wrapper around one case. Vault is the second implementation that does.
+- **It also covers the injection pattern.** Vault Agent renders secrets into the environment for
+  operators who prefer that, and the default provider handles it with no code at all.
+
+**Rejected: a file provider as the "safe, dependency-free" second implementation.** It looked
+attractive — every platform can mount a secret as a file, and it costs nothing — and it is not
+safe. A plaintext secret on disk is a static secret with a new attack surface: readable by any
+process with the right uid, baked into an image by accident, swept into a backup, with no rotation
+and no audit trail. It is precisely what a security review flags, and it advances the vault story
+not at all. Recorded because it will be proposed again for the same reason it was proposed here.
+
+**Effect on the plan:** phase 3 is no longer *"which vault?"*. It is Vault/OpenBao, still gated on
+an operator who wants **direct fetch** rather than injection — because for operators on ESO, ECS
+task secrets, Container Apps references or Vault Agent, the environment default already covers
+them and there is no phase 3 at all.
+
 ## 4. The invariant, and why it is testable today
 
 > **No read-only surface gains a credential, a tenant, or a configuration requirement.**
@@ -79,7 +112,7 @@ first touch dies and the adoption argument dies with it.
 |---|---|---|---|
 | **1 — The invariant test** | Assert the read-only path runs with an empty environment. No feature work. | ~0.5 d | CI fails if `state`/`understand` ever needs configuration |
 | **2 — The secrets seam** | `get_secret` with the env-var implementation as default; `Settings` reads through it. **No vault yet.** | ~1–2 d | Behaviour byte-identical; nothing new is required or installed |
-| **3 — One vault provider** | A single implementation behind the `[vault]` extra, chosen against a named operator's actual vault. | ~3–5 d | An operator configures it and nothing else changes |
+| **3 — HashiCorp Vault / OpenBao** | One client behind the `[vault]` extra — token, AppRole and Kubernetes auth, path addressing, lease/TTL. Built when an operator wants **direct fetch** rather than injection; for injection the phase-2 default already suffices. | ~3–5 d | An operator configures it and nothing else changes; the default install still imports no client |
 | **4 — The remaining identity work** | Quorum, then the untenanted tables, then JWT/OIDC — in that order, each against a named buyer. | unscoped | — |
 
 **Phase 1 is worth doing whatever happens to the rest**, including if item 4 stays parked: it costs
@@ -94,7 +127,7 @@ nobody asked for.
 | | Decision | Recommendation |
 |---|---|---|
 | **D1** | Build the seam before any vault exists? | **Yes.** It is a refactor with no behaviour change, and it is what makes the vault a plug rather than a rewrite |
-| **D2** | Which vault first? | **None, until a named operator says which one they run.** Building for a vault nobody uses is a maintenance burden with a version number |
+| **D2** | Which vault first? | ✅ **Decided 2026-09-03: HashiCorp Vault / OpenBao**, behind `[vault]` — the only cloud-neutral option and the one that actually exercises the seam (§3.1). Cloud-specific managers follow one named customer each. A file provider was considered as the dependency-free alternative and **rejected** as a static secret with a new attack surface |
 | **D3** | Should the seam cover the CLI's LLM key too, or only the service? | **Service only.** The CLI's key is the user's own, in their own environment; routing it through a provider adds a concept for no gain |
 | **D4** | Do quorum and OIDC belong in this spec? | **Named, not scoped.** They are the RBAC spec's follow-ups and belong to it; this spec exists to separate them from the secrets work they were bundled with |
 
@@ -106,5 +139,5 @@ nobody asked for.
 
 ## 8. Open questions
 
-1. **Is there a named operator for phase 3?** D2 turns on it, and nothing else in this spec is blocked by the answer.
+1. **Is there an operator who wants direct fetch rather than injection?** That, not *"which vault"*, is what gates phase 3 now — for an operator whose platform already injects into the environment, phase 2 is the whole story. Nothing else in this spec is blocked by the answer.
 2. **Does anything outside `registry/api` read a credential?** Unmeasured. The seam's blast radius is whatever that answer is, and it should be counted before phase 2 rather than discovered during it.
