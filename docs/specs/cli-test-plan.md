@@ -88,7 +88,7 @@ turns on a file, name the path.
 **Commit:** `<sha>`  ·  **Machine:** <os / arch>  ·  **Model configured:** <id or none>
 **Tiers run:** 0–1  ·  **Not run:** 2–4 (no registry API, no credentials)
 
-**Result:** N pass · N fail · N partial · N blocked · N skipped  (of 50)
+**Result:** N pass · N fail · N partial · N blocked · N skipped  (of 49)
 
 **New defects found:** <links or "none">
 ```
@@ -590,14 +590,6 @@ orchestrator up
 - Brings the local stack up and opens the inbox; a port already in use is reported rather
   than left as a failed connection later.
 
-### `orchestrator tui`
-```bash
-orchestrator tui
-```
-**Prereq:** An interactive terminal, and ideally a run in flight to watch.
-- Watches runs and clears gates. **It must not be the only way to clear one** — every gate
-  it can clear has a non-interactive equivalent, or an unattended run cannot proceed.
-
 ---
 
 ## What this plan does not cover
@@ -668,6 +660,5 @@ that decides it. 50 commands.
 | 4 | `sdlc baseline` | | | |
 | 4 | `audit` | | | |
 | 4 | `up` | | | |
-| 4 | `tui` | | | |
 
-**Totals:** __ pass · __ fail · __ partial · __ blocked · __ skipped  (of 50)
+**Totals:** __ pass · __ fail · __ partial · __ blocked · __ skipped  (of 49)

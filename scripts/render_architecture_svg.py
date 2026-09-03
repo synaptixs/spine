@@ -253,8 +253,8 @@ def render(f: Facts) -> str:
         y,
         "A",
         "SURFACES",
-        "You ask for something — from a terminal, your AI assistant, the web inbox, or the TUI. "
-        "Same engine behind all four.",
+        "You ask for something — from a terminal, your AI assistant, or the web inbox. "
+        "Same engine behind all three.",
     )
     parts.append(block)
     block, y = cards(
@@ -263,7 +263,6 @@ def render(f: Facts) -> str:
             ("Command line", f"{f.commands} commands · the main surface", "cli/"),
             ("Assistant plugin", "Claude Code & Codex call it as tools", "plugin/"),
             ("Web app + API", "the operator inbox — approvals live here", "registry/"),
-            ("Terminal UI", "watch runs, clear gates, keyboard-only", "tui/"),
         ],
     )
     parts.append(block)

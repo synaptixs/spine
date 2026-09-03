@@ -4,6 +4,18 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## Unreleased
+
+### Removed
+
+- **The terminal UI (`orchestrator tui`) and the `tui` extra.** Every action it
+  offered — watch runs, clear gates, delegate a run — is the web inbox or a CLI
+  command over the same `/v1` API, so it carried an optional `textual` dependency
+  and a mypy carve-out for no capability the other surfaces lacked. The
+  assistant-facing surface remains the MCP plugin, which already drives the `sdlc`
+  pipeline. `pip install 'synaptixs-spine[tui]'` now fails on an unknown extra;
+  drop it from your install line.
+
 ## 3.30.0 — Three lines in another repository, and a place to plug a vault
 
 ### Added

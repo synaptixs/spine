@@ -63,7 +63,6 @@ orchestrator --help
 
 Optional extras, added when you need them:
 - `pip install 'synaptixs-spine[sdlc]'` — run the generated tests (the `sdlc feature`/`run` path)
-- `pip install 'synaptixs-spine[tui]'` — the `orchestrator tui` terminal UI (Step 7)
 - `pip install 'synaptixs-spine[all]'` — everything below at once: every language front-end,
   the MCP server and doc ingestion. This is the right install for the Claude Code / Codex
   plugin; `[languages]` is the front-ends on their own.
@@ -944,10 +943,6 @@ by environment variables you opt into:
 > Non-GitHub private repos authenticate via your **ambient git credentials**
 > (SSH agent / credential helper / a token in the URL); GitHub uses `GITHUB_TOKEN`
 > or a GitHub App. Public repos need nothing.
-
-> Prefer the terminal? `pip install 'synaptixs-spine[tui]'` then `orchestrator tui`
-> — the same watch-runs / clear-gates / delegate actions, keyboard-driven, over the
-> same API (`ORCHESTRATOR_API_URL` + `ORCHESTRATOR_API_KEY`, or `--api-url`/`--api-key`).
 
 For raw test output and per-activity detail, the **Temporal UI** (or the worker
 logs) is the source of truth.
