@@ -111,7 +111,7 @@ the lowest-commitment first touch we have — the equivalent of `/graphify`.
 | **3 — Proof assets** | Publish the G6 benchmark page; a short "what Spine tells you that grep doesn't" walkthrough on a well-known OSS repo; the G5 export as a shareable artifact. Public, reproducible, honest. | ~4–5 d | Linkable evidence for each headline claim |
 | **4 — Measure** | Opt-in, privacy-respecting install/usage signal (or, if that's unacceptable, PyPI download + plugin-install counts). Decide *before* Phase 1 what "working" looks like numerically. | ~2–3 d | We can tell whether phases 1–3 moved anything, instead of guessing |
 
-| **5 — Central adoption** | An org adopting Spine across N repositories, rather than a developer installing it once. **Two deliverables with different audiences, and they should not be built together — see below.** **5a:** a reusable GitHub Actions workflow (`workflow_call`) a repo references in one line to run read-only comprehension on a pull request. **5b:** a container image of Spine itself, for an org *hosting* the governed pipeline. | 5a ~2–3 d · 5b ~5–8 d | 5a: a repository outside this one adds ≤ 5 lines and gets a grounded PR comment, with **no credentials**. 5b: `docker run` brings up the registry API against the documented dependencies |
+| **5 — Central adoption** ✅ 5a | An org adopting Spine across N repositories, rather than a developer installing it once. **Two deliverables with different audiences, and they should not be built together — see below.** **5a:** a reusable GitHub Actions workflow (`workflow_call`) a repo references in one line to run read-only comprehension on a pull request. **5b:** a container image of Spine itself, for an org *hosting* the governed pipeline. | 5a ~2–3 d · 5b ~5–8 d | 5a: a repository outside this one adds ≤ 5 lines and gets a grounded PR comment, with **no credentials**. 5b: `docker run` brings up the registry API against the documented dependencies |
 
 **Phase 1 is the one that matters most.** Every channel added in Phase 2 multiplies whatever
 conversion rate Phase 1 leaves us with; widening the funnel before fixing the leak wastes both.
@@ -141,7 +141,28 @@ of five lines each, and it stays inside the read-only, credential-free invariant
 first touch safe. 5b is a deployment concern for the write path, and carries the credential and
 governance surface that comes with it.
 
-**Recommendation: build 5a; schedule 5b only against a named operator who wants to self-host.**
+**✅ 5a shipped 2026-09-02** — [`.github/workflows/spine-comprehension.yml`](../../.github/workflows/spine-comprehension.yml).
+A calling repository adds **three lines**:
+
+```yaml
+jobs:
+  spine:
+    uses: synaptixs/spine/.github/workflows/spine-comprehension.yml@v3.29.1
+```
+
+and gets a pull-request comment saying where its own change lands in its own code, with
+`file:line` and caller counts. **It declares no `secrets:`** — `investigate` is deterministic and
+model-free, and the only token is the caller's own `GITHUB_TOKEN`, used to post the comment.
+Permissions are `contents: read` and `pull-requests: write`; `comment: false` writes nothing at
+all. The comment is **updated in place** rather than appended, because a bot that comments on
+every push is a bot people mute, and a muted check is not a check.
+
+One property is worth naming because it is the failure mode of reusable workflows generally: a
+pull-request title is **attacker-controlled**, and interpolating `${{ github.event.pull_request.title }}`
+inside a `run:` block lets a title containing `$(…)` execute. It is passed through `env:` and
+quoted, and a test asserts no step interpolates event data into a shell.
+
+**5b remains unscheduled: build it only against a named operator who wants to self-host.**
 An image nobody has asked to run is a maintenance burden with a version number.
 
 ## Invariants you must not break
