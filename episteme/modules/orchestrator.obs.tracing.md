@@ -109,7 +109,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/obs/tracing.py:116`](../../src/orchestrator/obs/tracing.py#L116)
 
-- **Called by** (1 production · 2 test): [`connect_client`](../../src/orchestrator/temporal/config.py#L61), [`test_temporal_interceptors_empty_when_disabled`](../../tests/obs/test_tracing.py#L35), [`test_temporal_interceptors_present_when_enabled`](../../tests/obs/test_tracing.py#L39)
+- **Called by** (1 production · 2 test): [`connect_client`](../../src/orchestrator/temporal/config.py#L62), [`test_temporal_interceptors_empty_when_disabled`](../../tests/obs/test_tracing.py#L35), [`test_temporal_interceptors_present_when_enabled`](../../tests/obs/test_tracing.py#L39)
 - **Calls** (2): [`get_tracer`](../../src/orchestrator/obs/tracing.py#L110), `temporalio.contrib.opentelemetry.TracingInterceptor`
 - **Documented in**: `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/live-observability-otel.md#design-live-observability-opentelemetry-over-the-existing-trace-id`, `docs/specs/live-observability-otel.md#layer-3-temporal-activities-the-cross-process-trace-live-verified`, `docs/specs/live-observability-otel.md#phasing`
 

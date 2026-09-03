@@ -91,7 +91,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/worker.py:220`](../../src/orchestrator/sdlc/worker.py#L220)
 
 - **Called by** (1): [`run_sdlc_worker`](../../src/orchestrator/sdlc/worker.py#L259)
-- **Calls** (3): [`from_env`](../../src/orchestrator/temporal/config.py#L44), `replace`, [`sdlc_task_queue`](../../src/orchestrator/sdlc/worker.py#L65)
+- **Calls** (3): [`from_env`](../../src/orchestrator/temporal/config.py#L45), `replace`, [`sdlc_task_queue`](../../src/orchestrator/sdlc/worker.py#L65)
 
 ### `build_deps`
 
@@ -112,7 +112,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/worker.py:259`](../../src/orchestrator/sdlc/worker.py#L259)
 
 - **Called by** (2): [`_main`](../../src/orchestrator/sdlc/worker.py#L305), [`main`](../../scripts/live_sdlc_worker.py#L44)
-- **Calls** (8): [`SDLCActivities`](../../src/orchestrator/sdlc/activities.py#L44), [`_sdlc_config`](../../src/orchestrator/sdlc/worker.py#L220), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L183), [`connect_client`](../../src/orchestrator/temporal/config.py#L61), `create_task`, [`sdlc_activity_methods`](../../src/orchestrator/sdlc/worker.py#L226), `temporalio.worker.Worker`, `wait`
+- **Calls** (8): [`SDLCActivities`](../../src/orchestrator/sdlc/activities.py#L44), [`_sdlc_config`](../../src/orchestrator/sdlc/worker.py#L220), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L183), [`connect_client`](../../src/orchestrator/temporal/config.py#L62), `create_task`, [`sdlc_activity_methods`](../../src/orchestrator/sdlc/worker.py#L226), `temporalio.worker.Worker`, `wait`
 - **Documented in**: `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout`, `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration`
 
 ### `sdlc_activity_methods`
