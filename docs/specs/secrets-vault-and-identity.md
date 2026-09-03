@@ -1,6 +1,6 @@
 # Secrets, and the identity work still open
 
-**Status:** **Scoped 2026-09-02 against 3.28.0. Phase 1 shipped 2026-09-03.** D1, D2, D3 decided; D4 stays *named, not scoped*.
+**Status:** **Scoped 2026-09-02 against 3.28.0. Phases 1 and 2 shipped 2026-09-03.** D1, D2, D3 decided; D4 stays *named, not scoped*. Phase 3 waits on an operator who wants direct fetch.
 **Owner:** _unassigned_
 
 `STATE-OF-SPINE` §8 carries *"RBAC role-gating beyond the approval decision + secrets vault —
@@ -111,7 +111,7 @@ first touch dies and the adoption argument dies with it.
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
 | **1 — The invariant test** ✅ | `tests/test_read_path_needs_no_configuration.py` — `state`, `understand`, `investigate` and `pkg extract` each run in a process holding only `PATH` and `HOME`, via the console script. A fifth test proves the harness observes a non-zero exit, so it cannot pass by construction. **Shipped 2026-09-03.** | 0.5 d | CI fails if any read-only command ever needs configuration |
-| **2 — The secrets seam** | `get_secret` with the env-var implementation as default; `Settings` reads through it. **No vault yet.** | ~1–2 d | Behaviour byte-identical; nothing new is required or installed |
+| **2 — The secrets seam** ✅ | `core/secrets.py`: `get_secret(name)` with `EnvSecretProvider` as the default, selected by `ORCHESTRATOR_SECRETS_PROVIDER`, and `register_provider` for anything behind an extra. `Settings` reads its four credential fields through a pydantic source ordered *after* init kwargs and *before* env; Temporal, MCP auth and the object store call `get_secret` directly. **Shipped 2026-09-03.** | 1 d | Behaviour byte-identical under the default; a fake provider registered in-test is consulted by `Settings` and the object store, proving the seam is an abstraction; a fresh interpreter importing `core.secrets` loads no client |
 | **3 — HashiCorp Vault / OpenBao** | One client behind the `[vault]` extra — token, AppRole and Kubernetes auth, path addressing, lease/TTL. Built when an operator wants **direct fetch** rather than injection; for injection the phase-2 default already suffices. | ~3–5 d | An operator configures it and nothing else changes; the default install still imports no client |
 | **4 — The remaining identity work** | Quorum, then the untenanted tables, then JWT/OIDC — in that order, each against a named buyer. | unscoped | — |
 
@@ -140,4 +140,11 @@ nobody asked for.
 ## 8. Open questions
 
 1. **Is there an operator who wants direct fetch rather than injection?** That, not *"which vault"*, is what gates phase 3 now — for an operator whose platform already injects into the environment, phase 2 is the whole story. Nothing else in this spec is blocked by the answer.
-2. **Does anything outside `registry/api` read a credential?** Unmeasured. The seam's blast radius is whatever that answer is, and it should be counted before phase 2 rather than discovered during it.
+2. ~~**Does anything outside `registry/api` read a credential?**~~ **Measured 2026-09-03, before
+   phase 2 was built.** Four service-side sites, now all behind the seam: `Settings` (four fields —
+   `database_url`, `api_key`, `principals`, `session_secret`), `temporal/config.py`
+   (`TEMPORAL_API_KEY`), `plugin/auth.py` (`ORCHESTRATOR_MCP_TOKEN`,
+   `ORCHESTRATOR_MCP_INTROSPECTION_CLIENT_SECRET`) and `storage/client.py` (the object-store key
+   pair). **Deliberately left alone under D3:** `cli/_common.py`, which reads the *client's* key to
+   call the service, and `cli/start.py`, the launcher that seeds the service's environment — both
+   are the user's own environment, and the read-only path phase 1 pins must stay untouched.
