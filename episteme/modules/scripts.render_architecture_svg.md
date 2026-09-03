@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`esc`](../../scripts/render_architecture_svg.py#L115) — reaches **8** symbols · **no test path visible**
-- [`rect`](../../scripts/render_architecture_svg.py#L108) — reaches **6** symbols · **no test path visible**
-- [`label`](../../scripts/render_architecture_svg.py#L119) — reaches **5** symbols · **no test path visible**
-- [`_wrap`](../../scripts/render_architecture_svg.py#L173) — reaches **4** symbols · **no test path visible**
-- [`atext`](../../scripts/render_architecture_svg.py#L90) — reaches **4** symbols · **no test path visible**
-- [`band`](../../scripts/render_architecture_svg.py#L191) — reaches **2** symbols · **no test path visible**
-- [`cards`](../../scripts/render_architecture_svg.py#L150) — reaches **2** symbols · **no test path visible**
-- [`gate`](../../scripts/render_architecture_svg.py#L203) — reaches **2** symbols · **no test path visible**
+- [`esc`](../../scripts/render_architecture_svg.py#L118) — reaches **8** symbols · **no test path visible**
+- [`rect`](../../scripts/render_architecture_svg.py#L111) — reaches **6** symbols · **no test path visible**
+- [`label`](../../scripts/render_architecture_svg.py#L122) — reaches **5** symbols · **no test path visible**
+- [`_wrap`](../../scripts/render_architecture_svg.py#L176) — reaches **4** symbols · **no test path visible**
+- [`atext`](../../scripts/render_architecture_svg.py#L93) — reaches **4** symbols · **no test path visible**
+- [`band`](../../scripts/render_architecture_svg.py#L194) — reaches **2** symbols · **no test path visible**
+- [`cards`](../../scripts/render_architecture_svg.py#L153) — reaches **2** symbols · **no test path visible**
+- [`gate`](../../scripts/render_architecture_svg.py#L206) — reaches **2** symbols · **no test path visible**
 
 _11 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -41,83 +41,83 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 ### `_rasterise`
 
-[`scripts/render_architecture_svg.py:464`](../../scripts/render_architecture_svg.py#L464)
+[`scripts/render_architecture_svg.py:467`](../../scripts/render_architecture_svg.py#L467)
 
-- **Called by** (1): [`main`](../../scripts/render_architecture_svg.py#L447)
+- **Called by** (1): [`main`](../../scripts/render_architecture_svg.py#L450)
 - **Calls** (2): `run`, `which`
 
 ### `_wrap`
 
-[`scripts/render_architecture_svg.py:173`](../../scripts/render_architecture_svg.py#L173)
+[`scripts/render_architecture_svg.py:176`](../../scripts/render_architecture_svg.py#L176)
 
-- **Called by** (2): [`band`](../../scripts/render_architecture_svg.py#L191), [`cards`](../../scripts/render_architecture_svg.py#L150)
+- **Called by** (2): [`band`](../../scripts/render_architecture_svg.py#L194), [`cards`](../../scripts/render_architecture_svg.py#L153)
 
 ### `atext`
 
-[`scripts/render_architecture_svg.py:90`](../../scripts/render_architecture_svg.py#L90)
+[`scripts/render_architecture_svg.py:93`](../../scripts/render_architecture_svg.py#L93)
 
-- **Called by** (2): [`band`](../../scripts/render_architecture_svg.py#L191), [`gate`](../../scripts/render_architecture_svg.py#L203)
-- **Calls** (1): [`esc`](../../scripts/render_architecture_svg.py#L115)
+- **Called by** (2): [`band`](../../scripts/render_architecture_svg.py#L194), [`gate`](../../scripts/render_architecture_svg.py#L206)
+- **Calls** (1): [`esc`](../../scripts/render_architecture_svg.py#L118)
 
 ### `band`
 
-[`scripts/render_architecture_svg.py:191`](../../scripts/render_architecture_svg.py#L191)
+[`scripts/render_architecture_svg.py:194`](../../scripts/render_architecture_svg.py#L194)
 
-- **Called by** (1): [`render`](../../scripts/render_architecture_svg.py#L216)
-- **Calls** (4): [`_wrap`](../../scripts/render_architecture_svg.py#L173), [`atext`](../../scripts/render_architecture_svg.py#L90), [`label`](../../scripts/render_architecture_svg.py#L119), [`rect`](../../scripts/render_architecture_svg.py#L108)
+- **Called by** (1): [`render`](../../scripts/render_architecture_svg.py#L219)
+- **Calls** (4): [`_wrap`](../../scripts/render_architecture_svg.py#L176), [`atext`](../../scripts/render_architecture_svg.py#L93), [`label`](../../scripts/render_architecture_svg.py#L122), [`rect`](../../scripts/render_architecture_svg.py#L111)
 
 ### `cards`
 
-[`scripts/render_architecture_svg.py:150`](../../scripts/render_architecture_svg.py#L150)
+[`scripts/render_architecture_svg.py:153`](../../scripts/render_architecture_svg.py#L153)
 
-- **Called by** (1): [`render`](../../scripts/render_architecture_svg.py#L216)
-- **Calls** (3): [`_wrap`](../../scripts/render_architecture_svg.py#L173), [`label`](../../scripts/render_architecture_svg.py#L119), [`rect`](../../scripts/render_architecture_svg.py#L108)
+- **Called by** (1): [`render`](../../scripts/render_architecture_svg.py#L219)
+- **Calls** (3): [`_wrap`](../../scripts/render_architecture_svg.py#L176), [`label`](../../scripts/render_architecture_svg.py#L122), [`rect`](../../scripts/render_architecture_svg.py#L111)
 
 ### `esc`
 
-[`scripts/render_architecture_svg.py:115`](../../scripts/render_architecture_svg.py#L115)
+[`scripts/render_architecture_svg.py:118`](../../scripts/render_architecture_svg.py#L118)
 
-- **Called by** (2): [`atext`](../../scripts/render_architecture_svg.py#L90), [`label`](../../scripts/render_architecture_svg.py#L119)
+- **Called by** (2): [`atext`](../../scripts/render_architecture_svg.py#L93), [`label`](../../scripts/render_architecture_svg.py#L122)
 
 ### `gate`
 
-[`scripts/render_architecture_svg.py:203`](../../scripts/render_architecture_svg.py#L203)
+[`scripts/render_architecture_svg.py:206`](../../scripts/render_architecture_svg.py#L206)
 
-- **Called by** (1): [`render`](../../scripts/render_architecture_svg.py#L216)
-- **Calls** (2): [`atext`](../../scripts/render_architecture_svg.py#L90), [`rect`](../../scripts/render_architecture_svg.py#L108)
+- **Called by** (1): [`render`](../../scripts/render_architecture_svg.py#L219)
+- **Calls** (2): [`atext`](../../scripts/render_architecture_svg.py#L93), [`rect`](../../scripts/render_architecture_svg.py#L111)
 
 ### `label`
 
-[`scripts/render_architecture_svg.py:119`](../../scripts/render_architecture_svg.py#L119)
+[`scripts/render_architecture_svg.py:122`](../../scripts/render_architecture_svg.py#L122)
 
-- **Called by** (4): [`band`](../../scripts/render_architecture_svg.py#L191), [`cards`](../../scripts/render_architecture_svg.py#L150), [`render`](../../scripts/render_architecture_svg.py#L216), [`section`](../../scripts/render_architecture_svg.py#L128)
-- **Calls** (1): [`esc`](../../scripts/render_architecture_svg.py#L115)
+- **Called by** (4): [`band`](../../scripts/render_architecture_svg.py#L194), [`cards`](../../scripts/render_architecture_svg.py#L153), [`render`](../../scripts/render_architecture_svg.py#L219), [`section`](../../scripts/render_architecture_svg.py#L131)
+- **Calls** (1): [`esc`](../../scripts/render_architecture_svg.py#L118)
 
 ### `main`
 
-[`scripts/render_architecture_svg.py:447`](../../scripts/render_architecture_svg.py#L447)
+[`scripts/render_architecture_svg.py:450`](../../scripts/render_architecture_svg.py#L450)
 
-- **Calls** (2): [`_rasterise`](../../scripts/render_architecture_svg.py#L464), [`render`](../../scripts/render_architecture_svg.py#L216)
+- **Calls** (2): [`_rasterise`](../../scripts/render_architecture_svg.py#L467), [`render`](../../scripts/render_architecture_svg.py#L219)
 
 ### `rect`
 
-[`scripts/render_architecture_svg.py:108`](../../scripts/render_architecture_svg.py#L108)
+[`scripts/render_architecture_svg.py:111`](../../scripts/render_architecture_svg.py#L111)
 
-- **Called by** (5): [`band`](../../scripts/render_architecture_svg.py#L191), [`cards`](../../scripts/render_architecture_svg.py#L150), [`gate`](../../scripts/render_architecture_svg.py#L203), [`render`](../../scripts/render_architecture_svg.py#L216), [`section`](../../scripts/render_architecture_svg.py#L128)
+- **Called by** (5): [`band`](../../scripts/render_architecture_svg.py#L194), [`cards`](../../scripts/render_architecture_svg.py#L153), [`gate`](../../scripts/render_architecture_svg.py#L206), [`render`](../../scripts/render_architecture_svg.py#L219), [`section`](../../scripts/render_architecture_svg.py#L131)
 
 ### `render`
 
-[`scripts/render_architecture_svg.py:216`](../../scripts/render_architecture_svg.py#L216)
+[`scripts/render_architecture_svg.py:219`](../../scripts/render_architecture_svg.py#L219)
 
-- **Called by** (1): [`main`](../../scripts/render_architecture_svg.py#L447)
-- **Calls** (6): [`band`](../../scripts/render_architecture_svg.py#L191), [`cards`](../../scripts/render_architecture_svg.py#L150), [`gate`](../../scripts/render_architecture_svg.py#L203), [`label`](../../scripts/render_architecture_svg.py#L119), [`rect`](../../scripts/render_architecture_svg.py#L108), [`section`](../../scripts/render_architecture_svg.py#L128)
+- **Called by** (1): [`main`](../../scripts/render_architecture_svg.py#L450)
+- **Calls** (6): [`band`](../../scripts/render_architecture_svg.py#L194), [`cards`](../../scripts/render_architecture_svg.py#L153), [`gate`](../../scripts/render_architecture_svg.py#L206), [`label`](../../scripts/render_architecture_svg.py#L122), [`rect`](../../scripts/render_architecture_svg.py#L111), [`section`](../../scripts/render_architecture_svg.py#L131)
 
 ### `section`
 
-[`scripts/render_architecture_svg.py:128`](../../scripts/render_architecture_svg.py#L128)
+[`scripts/render_architecture_svg.py:131`](../../scripts/render_architecture_svg.py#L131)
 
-- **Called by** (1): [`render`](../../scripts/render_architecture_svg.py#L216)
-- **Calls** (2): [`label`](../../scripts/render_architecture_svg.py#L119), [`rect`](../../scripts/render_architecture_svg.py#L108)
+- **Called by** (1): [`render`](../../scripts/render_architecture_svg.py#L219)
+- **Calls** (2): [`label`](../../scripts/render_architecture_svg.py#L122), [`rect`](../../scripts/render_architecture_svg.py#L111)
 
 ## Imports
 

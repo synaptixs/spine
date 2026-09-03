@@ -101,14 +101,14 @@
 
 [`src/orchestrator/pkg/invention.py:391`](../../src/orchestrator/pkg/invention.py#L391)
 
-- **Called by** (1 production · 2 test): [`_invention_oracle`](../../src/orchestrator/cli.py#L3519), [`test_an_empty_or_zero_sample_is_empty`](../../tests/pkg/test_invention.py#L208), [`test_the_sample_is_deterministic`](../../tests/pkg/test_invention.py#L196)
+- **Called by** (1 production · 2 test): [`_invention_oracle`](../../src/orchestrator/cli/pkg.py#L627), [`test_an_empty_or_zero_sample_is_empty`](../../tests/pkg/test_invention.py#L208), [`test_the_sample_is_deterministic`](../../tests/pkg/test_invention.py#L196)
 - **Documented in**: `docs/specs/STATE-OF-SPINE.md#where-it-is-honestly-weak`, `docs/specs/enhancement-index.md#e5-oracle-coverage-gaps`, `docs/specs/invention-oracle-cross-language.md#what-the-numbers-mean-and-what-is-left`
 
 ### `score_invention`
 
 [`src/orchestrator/pkg/invention.py:412`](../../src/orchestrator/pkg/invention.py#L412)
 
-- **Called by** (2): [`_invention_oracle`](../../src/orchestrator/cli.py#L3519), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L623)
+- **Called by** (2): [`_invention_oracle`](../../src/orchestrator/cli/pkg.py#L627), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L623)
 - **Calls** (3): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L589), [`find_invented_calls`](../../src/orchestrator/pkg/invention.py#L328), `pathlib.Path`
 
 ## Imports
@@ -117,4 +117,4 @@
 
 ## Imported by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.pkg.accuracy`](orchestrator.pkg.accuracy.md), [`orchestrator.pkg.verify`](orchestrator.pkg.verify.md), [`tests.pkg.test_invention`](../../tests/pkg/test_invention.py#L1)
+[`orchestrator.cli.pkg`](orchestrator.cli.pkg.md), [`orchestrator.pkg.accuracy`](orchestrator.pkg.accuracy.md), [`orchestrator.pkg.verify`](orchestrator.pkg.verify.md), [`tests.pkg.test_invention`](../../tests/pkg/test_invention.py#L1)

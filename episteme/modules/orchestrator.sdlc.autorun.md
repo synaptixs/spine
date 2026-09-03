@@ -180,7 +180,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/autorun.py:237`](../../src/orchestrator/sdlc/autorun.py#L237)
 
-- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L1234), [`_run`](../../tests/sdlc/test_autorun.py#L566)
+- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L664), [`_run`](../../tests/sdlc/test_autorun.py#L566)
 - **Calls** (27): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L46), [`RunContext`](../../src/orchestrator/sdlc/autorun.py#L65), [`RunRecord`](../../src/orchestrator/sdlc/runstate.py#L43), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L90), [`TokenLedger`](../../src/orchestrator/core/llm/recording.py#L58), [`_journal_outcome`](../../src/orchestrator/sdlc/autorun.py#L420), [`_load_graph`](../../src/orchestrator/sdlc/autorun.py#L824), [`_log_run_cost`](../../src/orchestrator/sdlc/autorun.py#L441), [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L476), [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L503), [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L640), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L472), [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L957), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1025), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L551), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L838), [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L1105), [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L892), [`_write_case`](../../src/orchestrator/sdlc/autorun.py#L813), [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L227), `getpid`, `monotonic`, `orchestrator.core.llm.RunBudget`, `pathlib.Path`, [`span`](../../src/orchestrator/obs/tracing.py#L137), +2 more
 - **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/build-document.md#6-what-changes-about-a-run`, `docs/specs/build-document.md#command-shape`, `docs/specs/build-document.md#phase-1-orchestrator-sdlc-plan-built`
 
@@ -188,7 +188,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/autorun.py:227`](../../src/orchestrator/sdlc/autorun.py#L227)
 
-- **Called by** (2 production · 1 test): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237), [`sdlc_explain`](../../src/orchestrator/cli.py#L844), [`test_the_default_artifact_dir_is_not_the_repo`](../../tests/sdlc/test_autorun.py#L188)
+- **Called by** (2 production · 1 test): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237), [`sdlc_explain`](../../src/orchestrator/cli/sdlc.py#L274), [`test_the_default_artifact_dir_is_not_the_repo`](../../tests/sdlc/test_autorun.py#L188)
 - **Calls** (3): `getenv`, `gettempdir`, `pathlib.Path`
 - **Documented in**: `docs/specs/build-document.md#5-document-identity-name-place-and-the-commit-it-was-derived-at`
 
@@ -196,7 +196,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/autorun.py:1138`](../../src/orchestrator/sdlc/autorun.py#L1138)
 
-- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli.py#L1234), [`test_the_summary_reports_every_stage`](../../tests/sdlc/test_autorun.py#L239)
+- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L664), [`test_the_summary_reports_every_stage`](../../tests/sdlc/test_autorun.py#L239)
 
 ## Imports
 
@@ -204,4 +204,4 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`scripts.phase2a_parity_gate`](../../scripts/phase2a_parity_gate.py#L1), [`tests.sdlc.test_autorun`](../../tests/sdlc/test_autorun.py#L1), [`tests.sdlc.test_research_pass`](../../tests/sdlc/test_research_pass.py#L1)
+[`orchestrator.cli.sdlc`](orchestrator.cli.sdlc.md), [`scripts.phase2a_parity_gate`](../../scripts/phase2a_parity_gate.py#L1), [`tests.sdlc.test_autorun`](../../tests/sdlc/test_autorun.py#L1), [`tests.sdlc.test_research_pass`](../../tests/sdlc/test_research_pass.py#L1)
