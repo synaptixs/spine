@@ -15,6 +15,8 @@ from typing import Any
 import aioboto3  # type: ignore[import-untyped]
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
+from orchestrator.core.secrets import get_secret
+
 
 class ObjectStoreError(RuntimeError):
     """Base class for object-store failures."""
@@ -38,8 +40,8 @@ class ObjectStoreSettings:
         return cls(
             endpoint_url=os.getenv("OBJECT_STORE_ENDPOINT_URL", "http://localhost:9000") or None,
             region_name=os.getenv("OBJECT_STORE_REGION", "us-east-1"),
-            access_key_id=os.getenv("OBJECT_STORE_ACCESS_KEY_ID", "minio_admin"),
-            secret_access_key=os.getenv("OBJECT_STORE_SECRET_ACCESS_KEY", "minio_admin_password"),
+            access_key_id=get_secret("OBJECT_STORE_ACCESS_KEY_ID", "minio_admin"),
+            secret_access_key=get_secret("OBJECT_STORE_SECRET_ACCESS_KEY", "minio_admin_password"),
             artifacts_bucket=os.getenv("OBJECT_STORE_ARTIFACTS_BUCKET", "artifacts"),
             documents_bucket=os.getenv("OBJECT_STORE_DOCUMENTS_BUCKET", "documents"),
         )

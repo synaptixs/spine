@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from temporalio.client import Client
 from temporalio.service import TLSConfig
 
+from orchestrator.core.secrets import get_secret
 from orchestrator.obs import tracing
 
 
@@ -47,7 +48,7 @@ class TemporalConfig:
         Defaults match ``docker-compose.dev.yml``: ``localhost:7233``, the
         ``default`` namespace, and a ``orchestrator-tasks`` task queue.
         """
-        api_key = os.getenv("TEMPORAL_API_KEY") or None
+        api_key = get_secret("TEMPORAL_API_KEY") or None
         return cls(
             host=os.getenv("TEMPORAL_HOST", "localhost:7233"),
             namespace=os.getenv("TEMPORAL_NAMESPACE", "default"),

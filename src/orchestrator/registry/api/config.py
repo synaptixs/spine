@@ -6,11 +6,64 @@ import json
 from typing import Any
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic.fields import FieldInfo
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+
+#: The fields that are credentials. These, and only these, are asked of the secrets provider —
+#: by their **environment-variable name** (``ORCHESTRATOR_API_KEY``), so a vault path mirrors the
+#: variable an operator already knows. Everything else stays plain pydantic-settings.
+SECRET_FIELDS: frozenset[str] = frozenset({"database_url", "api_key", "principals", "session_secret"})
+
+
+class SecretProviderSource(PydanticBaseSettingsSource):
+    """A settings source that reads ``SECRET_FIELDS`` through ``core.secrets``.
+
+    Ordered **after** init kwargs and **before** the environment: a test that builds
+    ``Settings(api_key=...)`` is untouched, and under the default ``env`` provider this source
+    reads the very variable the env source would have — so the result is byte-identical, which is
+    the whole promise of the seam's phase 2. A vault provider changes only who answers.
+    """
+
+    def get_field_value(self, field: FieldInfo, field_name: str) -> tuple[Any, str, bool]:
+        if field_name not in SECRET_FIELDS:
+            return None, field_name, False
+        from orchestrator.core.secrets import get_secret
+
+        prefix = self.config.get("env_prefix") or ""
+        return get_secret(f"{prefix}{field_name}".upper()), field_name, False
+
+    def __call__(self) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        for name, field in self.settings_cls.model_fields.items():
+            value, key, _complex = self.get_field_value(field, name)
+            if value is not None:
+                out[key] = value
+        return out
 
 
 class Settings(BaseSettings):
-    """Process-wide settings, populated from environment variables."""
+    """Process-wide settings, populated from environment variables.
+
+    Credentials (``SECRET_FIELDS``) are read through the secrets seam in ``core.secrets``, which
+    defaults to the environment — so this docstring stays true until an operator selects a vault.
+    """
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (
+            init_settings,
+            SecretProviderSource(settings_cls),
+            env_settings,
+            dotenv_settings,
+            file_secret_settings,
+        )
 
     model_config = SettingsConfigDict(env_prefix="ORCHESTRATOR_", env_file=".env", extra="ignore")
 
