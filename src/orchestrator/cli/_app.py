@@ -36,7 +36,6 @@ _COMMAND_ORDER: tuple[str, ...] = (
     "doctor",
     "up",
     "models",
-    "tui",
     # Understand a codebase
     "profile",
     "understand",

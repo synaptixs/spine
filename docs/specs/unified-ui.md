@@ -1,7 +1,7 @@
 # Design: unified UI — one backbone, three faces
 
-**Status:** **P0–P3 IMPLEMENTED** (the buildable UI; P4 TUI + P5 SPA remain the optional,
-when-complexity-warrants follow-ons). P0 — one app + one nav + one stylesheet + real static
+**Status:** **P0–P3 IMPLEMENTED** (the buildable UI; P5 SPA remains the optional,
+when-complexity-warrants follow-on; **P4 TUI shipped in 1.18.0 and was removed after 3.30.0** — see §5). P0 — one app + one nav + one stylesheet + real static
 assets, console/backlog folded in, **login/session auth** (shipped in 1.16.0). P1 — `GET /v1/stream`
 SSE run-state feed (tails the audit log; `TraceIdMiddleware` rewritten to pure ASGI so streaming
 works) + `/v1/personas` + `/v1/skills` read API. P2 — the **delegation inbox** (`/app/inbox`): live
@@ -16,7 +16,7 @@ surface: three separate embedded-in-Python web UIs on different ports, inconsist
 auth, no shared navigation, plus Temporal UI / MinIO as further islands. The strategy is **unify
 the existing surfaces under one app + one auth + one real-time core ("the backbone"), then expose
 three faces over it**: a **delegation inbox** (home), an **operator console** (the full views),
-and a **developer TUI** (follow-on). Not a from-scratch SPA — but built **headless-ready** so a
+and a **developer TUI** (shipped, later removed — §5). Not a from-scratch SPA — but built **headless-ready** so a
 React/Vite (or lighter SvelteKit/Solid) frontend is a clean later swap (§6), in a wheel-isolated
 `web/` folder that never touches the orchestrator package.
 
@@ -99,10 +99,14 @@ the `trace.py` timeline; the approvals queue (`console.py`'s core); backlog (the
 preview); a **personas/skills browser** (new — the catalog + registry). The inbox is a curated
 lens; the console is the full table — one API underneath.
 
-### 5. Face C — developer TUI (follow-on)
-A Textual app against the same `/v1` API + SSE: runs list, trace, approvals, a "new" composer,
-keyboard-driven. Cheap *because* the API is unified; the existing `orchestrator` CLI stays, the
-TUI is its interactive cousin.
+### 5. Face C — developer TUI (shipped 1.18.0, removed after 3.30.0)
+A Textual app against the same `/v1` API: runs list, approvals, a "new" composer,
+keyboard-driven. It was cheap *because* the API is unified — and that is also why it went: every
+action it offered (watch runs, clear gates, delegate) is the web inbox or a CLI command over the
+same `/v1` contract, so it added an optional `textual` extra and a mypy carve-out for no capability
+the other faces lacked. The assistant-facing surface is the MCP plugin (`plugin/`), which already
+drives the `sdlc` pipeline; an operator-ops tool set there (list runs / approvals) is the natural
+successor if a non-browser face is ever wanted again.
 
 ### 6. The "better alternative" — a headless frontend (React/Vite or lighter)
 The server-rendered templates (P0/P3) are **deliberately disposable**. The durable contract is the
@@ -167,7 +171,7 @@ against the live API*, with the SSE event types shared from one schema source.
   consolidated read API (+ `GET /v1/personas`, `/v1/skills`). Nothing visual changes yet.
 - **P2 — Inbox**: composer + feed + inline approvals over the stream — the differentiated front door.
 - **P3 — Console**: runs / trace / approvals / backlog / personas under the shell.
-- **P4 — TUI**: Textual app on the same API + SSE.
+- **P4 — TUI**: Textual app on the same API + SSE. *(Shipped 1.18.0; removed after 3.30.0 — §5.)*
 - **P5 — Headless frontend** (optional; only when complexity warrants): a React/Vite — or SvelteKit /
   SolidStart — SPA in `web/`, OpenAPI-typed, consuming the **unchanged** `/v1` + SSE, migrated page by
   page. Triggered by HTMX/template sprawl, not adopted by default. Discards templates, keeps the backbone.
