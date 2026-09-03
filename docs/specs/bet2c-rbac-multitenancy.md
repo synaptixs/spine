@@ -176,6 +176,12 @@ installs run alembic; note in the PR.)
 
 ## Out of scope (follow-ups)
 
+> **Scoped 2026-09-02 into [`secrets-vault-and-identity.md`](secrets-vault-and-identity.md)**,
+> together with the secrets seam these were bundled with in `STATE-OF-SPINE` §8. That row read
+> *"RBAC role-gating beyond the approval decision + secrets vault — parked"*, which reads as
+> though the work below is the whole story and RBAC is unbuilt. It is built; these are the
+> remainder, and they stay unscoped until a buyer needs them.
+
 - **Quorum** (`min_required` N-of-M) — needs the decide path to collect N approvals
   before the workflow signal; changes the signal contract.
 - **Tenant-scoping the other registry tables** (templates / glossary / calibration)
