@@ -1,6 +1,9 @@
 # `Endpoint` nodes for TypeScript and Go
 
-**Status:** **Scoped 2026-09-02 against 3.28.0.** Not built. Decisions D1–D3 open.
+**Status:** ✅ **Built 2026-09-02, shipping in 3.29.0.** Scoped and delivered the same day, on
+D1–D3 as recommended: Express and Gin only, `net/http`'s verbless `HandleFunc` unread, both
+languages under one spec. `Endpoint` and `EXPOSES` now score 1.00 for `typescript` and `go`, and
+cross-repo `CONSUMES` went 2/3 → 3/4 with the first non-Python, non-JVM provider.
 **Owner:** _unassigned_
 
 `STATE-OF-SPINE` §8 carries this as *"Express endpoint extraction (TypeScript), unscheduled"*.

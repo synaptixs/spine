@@ -4,6 +4,59 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.29.0 — A Node or Go service can finally be the thing you call
+
+### Added
+
+- **`Endpoint` nodes for TypeScript (Express) and Go (Gin).** Only Java and C#
+  emitted them among the tree-sitter front-ends, and that had a consequence
+  nobody had stated: the multi-repo `http` joiner matches a consumer's calls
+  against the **provider's** endpoints, so **a Node or Go service could not be a
+  provider in a cross-repo join at all.** Multi-repo comprehension has shipped
+  since 3.22.0 and worked only when the provider was Java, C# or Python.
+
+  Single-repo, it closes the wrong answer `python_routes.py` exists to kill:
+  nothing *calls* an HTTP handler — the framework does, at runtime — so a route
+  handler had zero callers and `impact_of` answered *"safe to refactor"* about a
+  public endpoint. That was live for every Go and TypeScript service.
+
+  Mounts compose: `app.use("/v1", router)` and `r.Group("/v1")`. Three precision
+  rules, each pinned by a control in the corpus: **a computed path yields
+  nothing** (a template literal, or a path in a variable); **an inline handler
+  yields an endpoint but no `EXPOSES`**, because there is no named symbol and
+  inventing one is fabrication; and **`net/http`'s verbless `HandleFunc` is
+  deliberately unread**, since the joiner matches on verb equality.
+
+      typescript   Endpoint 3/3, EXPOSES 2/2   neither existed
+      go           Endpoint 3/3, EXPOSES 2/2   neither existed
+      multirepo    CONSUMES 2/3 -> 3/4
+
+- **Prose that names a file by its stem now binds.** `typescript_extractor` means
+  `typescript_extractor.py`; `comprehension_labels` means the YAML beside it. 74
+  edges, and **98 fewer drift findings** — the larger half, since prose naming a
+  real file was being reported as prose naming code that does not exist.
+
+  Restricted to snake-shaped tokens, and the restriction is the rule: matching
+  any stem binds `bug`, `enhancement`, `invention` and `validity` to modules that
+  happen to share a filename, when the prose meant the English words.
+
+### Changed
+
+- **The doc-binding gap is 51%, and the headline is misleading.** Of the 809
+  unbound mentions in sections that bind to nothing, **603 are not code claims at
+  all** — `OpenSpec`, `TypeScript`, `GitHub` — which the tier's own rule already
+  refuses. **81% of those sections contain nothing bindable**, and at most 60 of
+  1,621 hold a mention a smarter tier could reach. That is the population a model
+  tier would chase, against a determinism cost on every gated surface, and the
+  measurement argues **against** building one.
+
+- Two roadmap blockers cleared, both by scoping rather than building: **G4 gains
+  Phase 5** (central adoption, split into a reusable workflow and a deployment
+  image — measured: a cold install with every language extra is **21 seconds**,
+  so the workflow needs no image), and **the RBAC row is separated from the
+  secrets seam it was bundled with** — RBAC is built and already opt-in; the
+  seam does not exist in any spec.
+
 ## 3.28.0 — A cross-repo edge stops pointing at a node that does not exist
 
 ### Fixed

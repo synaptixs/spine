@@ -113,7 +113,15 @@ the product.** Where it can't know something, it says so and stops.
 
 ## What's new
 
-**3.28.0 (current)** — **a cross-repo edge stops pointing at a node that does not exist.**
+**3.29.0 (current)** — **a Node or Go service can finally be the thing you call.** Only Java and
+C# emitted `Endpoint` among the tree-sitter front-ends, which meant the cross-repo joiner — it
+matches a consumer's calls against the *provider's* endpoints — **could not reach a Node or Go
+provider at all**. Express and Gin routes now become endpoints, mounts and groups compose, and a
+computed path still yields nothing rather than a wrong one. Single-repo, it stops `impact_of`
+calling every Go and TypeScript route handler safe to refactor. Also: prose naming a file by its
+stem now binds, cutting 98 false drift findings.
+
+**3.28.0** — **a cross-repo edge stops pointing at a node that does not exist.**
 `pkg extract --repos` and `investigate --repos` reused one extractor across every repository, and
 the cross-repo join candidates accumulate on the language front-ends — so one service's HTTP
 calls were inherited by the next, and could be drawn as an edge from a caller that does not live
