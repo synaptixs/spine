@@ -9,7 +9,7 @@
 <rect x="64" y="350" width="353" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
 <text x="84" y="384" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Command line</text>
 <text x="84" y="410" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">57 commands · the main surface</text>
-<text x="84" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">cli.py</text>
+<text x="84" y="443" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="400" fill="#8A94A6">cli/</text>
 <rect x="437" y="350" width="353" height="109" rx="10" fill="#111A31" stroke="#2A3757" stroke-width="1.5"/>
 <text x="457" y="384" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#F5F7FA">Assistant plugin</text>
 <text x="457" y="410" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">Claude Code &amp; Codex call it as tools</text>

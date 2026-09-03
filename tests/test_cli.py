@@ -31,7 +31,7 @@ def test_top_level_help_is_grouped_into_panels_in_workflow_order(runner: CliRunn
     import typer.main
     from typer.core import TyperGroup
 
-    from orchestrator.cli import _COMMAND_ORDER
+    from orchestrator.cli._app import _COMMAND_ORDER
 
     result = runner.invoke(app, ["--help"], env={"COLUMNS": "200"})
     assert result.exit_code == 0
@@ -286,7 +286,7 @@ def test_profile_and_plan_for_a_python_repo(runner: CliRunner, tmp_path: Path) -
 
 
 def test_issue_key_derived_from_feature_branch() -> None:
-    from orchestrator.cli import _issue_key_from_branch
+    from orchestrator.cli.sdlc import _issue_key_from_branch
 
     assert _issue_key_from_branch("feat/f32ef54d82f34aae/PROJ-27") == "PROJ-27"
     assert _issue_key_from_branch("main") is None
@@ -304,7 +304,7 @@ def test_register_loads_json_payload(
     runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Smoke: payload parsing succeeds; we stub the HTTP client so no real call goes out."""
-    from orchestrator import cli as cli_module
+    from orchestrator.cli import registry as cli_module
 
     f = tmp_path / "t.json"
     f.write_text(json.dumps({"metadata": {}, "spec": {}}))
@@ -355,7 +355,7 @@ def test_analysis_command_accepts_local_path(runner: CliRunner, tmp_path: Path) 
 
 
 def test_repo_arg_classifies_local_vs_git(tmp_path: Path) -> None:
-    from orchestrator.cli import _repo_arg
+    from orchestrator.cli._common import _repo_arg
 
     with _repo_arg(str(tmp_path)) as (path, is_remote):
         assert path == tmp_path.resolve()
@@ -370,7 +370,7 @@ def test_understand_leads_with_what_it_learned_not_a_file_listing(tmp_path: Path
     Asserts on the rendered lines rather than by running the CLI: the summary is the thing under
     test, and driving `understand` needs a real repo and several seconds.
     """
-    from orchestrator.cli import _understand_summary
+    from orchestrator.cli.understand import _understand_summary
 
     lines = _understand_summary(
         {

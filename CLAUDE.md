@@ -25,7 +25,7 @@ casually; they're contracts. Get the dir from `understand.BANK_DIRNAME` /
 | `registry/` | FastAPI service + the operator web UI (`registry/api/web/`) |
 | `sdlc/` | The feature/run pipeline (largest package) |
 | `catalog/`, `intake/`, `agentic/`, `personas/`, `evals/` | profiling, sources→intents, the codegen tool-use loop, personas, measurement |
-| `cli.py` | Every command surface (single module) |
+| `cli/` | Every command surface — one module per help panel, `sdlc.py` and `pkg.py` on their own; `_app.py` holds the root app and panels, `_common.py` the shared helpers |
 
 Design records live in **`docs/specs/`** — read the relevant spec before changing a
 subsystem; that's where the *why* is. `docs/specs/README.md` indexes them.
@@ -87,7 +87,7 @@ Keep new design records in here rather than in an untracked scratch directory.
   **`.repo/`** and the leading dot is load-bearing — see `corpus/README.md`. `pkg verify`
   does *not* catch this: fixture modules are perfectly self-consistent, so nothing will
   remind you. Same trap for any future on-disk fixture tree, not just this corpus.
-- **`--language` is not validated in `cli.py`** — an unsupported language silently
+- **`--language` is not validated in `cli/`** — an unsupported language silently
   scaffolds a *Python* project (every dispatch chain falls through to the Python branch).
   Detection (`catalog/profile.py`) and extraction (`pkg/`) are independent systems; a
   language can be detected but yield zero graph nodes.

@@ -6,7 +6,7 @@
 nobody can regenerate goes stale silently, and there is no check that would ever notice.
 
 So every number on this diagram is computed here, at render time, from the thing it describes:
-the version from `pyproject.toml`, the command count from `cli.py`, the node and edge kinds from
+the version from `pyproject.toml`, the command count from `cli/`, the node and edge kinds from
 `pkg.facts`, the front-end count from the extractor's dispatch table. Re-run it and the picture is
 true again; if it cannot be re-run, that is a build failure rather than a slow drift.
 
@@ -71,7 +71,10 @@ class Facts:
         from orchestrator.pkg.facts import EdgeKind, NodeKind
 
         version = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
-        commands = len(re.findall(r"\.command\(", (REPO / "src/orchestrator/cli.py").read_text()))
+        commands = sum(
+            len(re.findall(r"\.command\(", p.read_text()))
+            for p in (REPO / "src/orchestrator/cli").glob("*.py")
+        )
         dispatch = (REPO / "src/orchestrator/pkg/extractor.py").read_text()
         # The dispatch table names one module per front-end; `default` is the Python fall-through,
         # so it counts as a language rather than being excluded.
@@ -257,7 +260,7 @@ def render(f: Facts) -> str:
     block, y = cards(
         y,
         [
-            ("Command line", f"{f.commands} commands · the main surface", "cli.py"),
+            ("Command line", f"{f.commands} commands · the main surface", "cli/"),
             ("Assistant plugin", "Claude Code & Codex call it as tools", "plugin/"),
             ("Web app + API", "the operator inbox — approvals live here", "registry/"),
             ("Terminal UI", "watch runs, clear gates, keyboard-only", "tui/"),
