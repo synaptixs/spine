@@ -24,7 +24,7 @@ truth, and an **observability + audit** rail that records every step.
 ### A · Surfaces — how you talk to it
 | Component | Package | Role |
 |---|---|---|
-| CLI | `cli.py` | 41 commands — the primary surface |
+| CLI | `cli/` | 41 commands — the primary surface |
 | MCP plugin server | `plugin/` | Spine *as* an MCP server, so Claude Code / Codex call its tools |
 | Web UI + REST API | `registry/` | FastAPI service + the operator web inbox at `/app` |
 | Terminal UI | `tui/` | Keyboard-driven run watcher over the same API |

@@ -64,7 +64,7 @@ _Showing 16 of 30 neighbouring areas._
 - [`orchestrator.registry.api.middleware`](../../src/orchestrator/registry/api/middleware.py#L1)
 - [`orchestrator.registry.api.personas`](../../src/orchestrator/registry/api/personas.py#L1)
 - [`orchestrator.registry.api.routes`](../../src/orchestrator/registry/api/routes.py#L1)
-- [`orchestrator.registry.api.runs`](../modules/orchestrator.registry.api.runs.md)
+- [`orchestrator.registry.api.runs`](../../src/orchestrator/registry/api/runs.py#L1)
 - [`orchestrator.registry.api.session`](../../src/orchestrator/registry/api/session.py#L1)
 - [`orchestrator.registry.api.stream`](../../src/orchestrator/registry/api/stream.py#L1)
 - [`orchestrator.registry.api.system`](../../src/orchestrator/registry/api/system.py#L1)

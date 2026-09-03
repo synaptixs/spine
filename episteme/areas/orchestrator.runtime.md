@@ -36,7 +36,7 @@ flowchart LR
 - [`orchestrator.runtime.checkpointer`](../../src/orchestrator/runtime/checkpointer.py#L1)
 - [`orchestrator.runtime.failure_dispatch`](../../src/orchestrator/runtime/failure_dispatch.py#L1)
 - [`orchestrator.runtime.graphs`](../../src/orchestrator/runtime/graphs.py#L1)
-- [`orchestrator.runtime.manager_graph`](../modules/orchestrator.runtime.manager_graph.md)
+- [`orchestrator.runtime.manager_graph`](../../src/orchestrator/runtime/manager_graph.py#L1)
 - [`orchestrator.runtime.post_conditions`](../../src/orchestrator/runtime/post_conditions.py#L1)
 - [`orchestrator.runtime.specialist`](../../src/orchestrator/runtime/specialist.py#L1)
 - [`orchestrator.runtime.task_orchestration`](../modules/orchestrator.runtime.task_orchestration.md)

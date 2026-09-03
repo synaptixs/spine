@@ -1,7 +1,7 @@
 # Spec index — every design record, and where it stands
 
 **Generated 2026-08-15 against 3.18.1; refreshed 2026-08-21 for the completed GraphIR
-programme; recounted 2026-09-02 at 3.29.0.** `docs/specs/` holds **85** markdown files —
+programme; recounted 2026-09-02 at 3.29.1.** `docs/specs/` holds **85** markdown files —
 **78 specs** plus three navigation documents ([README](README.md), this index,
 [STATE-OF-SPINE](STATE-OF-SPINE.md)) — with 6 archived and 10 build documents. The count read
 *63* until 2026-08-21, and **five specs were not listed at all**, including this file's own
@@ -41,7 +41,7 @@ Graphify-gap series only. This file is the complete inventory.
 ---
 
 > **Start with [STATE-OF-SPINE.md](STATE-OF-SPINE.md)** — one page, verified 2026-09-01 against
-> 3.29.0, covering where the product stands, what is measured, the active programme, and what is
+> 3.29.1, covering where the product stands, what is measured, the active programme, and what is
 > outstanding. Come here for the per-spec inventory.
 
 ---

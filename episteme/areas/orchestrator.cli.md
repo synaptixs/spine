@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.cli`** is one of 54 areas in this repo, in the `orchestrator` zone. It holds 1 module — 0 types and 98 functions. No other area imports it, and it draws on 19 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
+**`orchestrator.cli`** is one of 54 areas in this repo, in the `orchestrator` zone. It holds 11 modules — 1 types and 98 functions. No other area imports it, and it draws on 19 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
 
 ```mermaid
 flowchart LR
@@ -32,7 +32,17 @@ _Showing 8 of 19 neighbouring areas._
 
 ## Modules
 
-- [`orchestrator.cli`](../modules/orchestrator.cli.md)
+- [`orchestrator.cli`](../../src/orchestrator/cli/__init__.py#L1)
+- [`orchestrator.cli._app`](../../src/orchestrator/cli/_app.py#L1)
+- [`orchestrator.cli._common`](../../src/orchestrator/cli/_common.py#L1)
+- [`orchestrator.cli.build`](../../src/orchestrator/cli/build.py#L1)
+- [`orchestrator.cli.change`](../../src/orchestrator/cli/change.py#L1)
+- [`orchestrator.cli.media`](../../src/orchestrator/cli/media.py#L1)
+- [`orchestrator.cli.pkg`](../modules/orchestrator.cli.pkg.md)
+- [`orchestrator.cli.registry`](../modules/orchestrator.cli.registry.md)
+- [`orchestrator.cli.sdlc`](../modules/orchestrator.cli.sdlc.md)
+- [`orchestrator.cli.start`](../../src/orchestrator/cli/start.py#L1)
+- [`orchestrator.cli.understand`](../../src/orchestrator/cli/understand.py#L1)
 
 ## Depends on
 

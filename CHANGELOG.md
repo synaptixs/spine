@@ -4,6 +4,30 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.29.1 — The help screen reads as a workflow
+
+### Changed
+
+- **`orchestrator --help` is grouped into six panels.** It printed 26 entries in
+  registration order — the order features were added, which is a changelog, not a
+  map. They now read top to bottom as a workflow: *Get started* (init, doctor, up,
+  models, tui), *Understand a codebase* (profile, understand, state, audit),
+  *Investigate & design a change* (investigate, design, localize, rca,
+  regression), *Plan & build* (ingest, backlog, openspec, sdlc), *Knowledge graph*
+  (pkg, media), *Registry & integrations* (template, contract, task, mcp,
+  catalog). The top-level blurb describes Spine rather than a "registry client",
+  and internal roadmap codes are gone from user-facing help. A test pins the panel
+  order and fails if a command is left unpanelled. (#306)
+
+- **`cli.py` is a package.** The single 4,300-line module is `orchestrator/cli/`,
+  one module per help panel with `sdlc` and `pkg` on their own, `_app.py` holding
+  the root app and `_common.py` the shared helpers. Mechanical: no function body
+  changed, and `--help` for all 67 entries is byte-identical before and after. The
+  console entry point `orchestrator.cli:app` is unchanged. Scripts that counted
+  commands by reading `cli.py` now read the package. (#307)
+
+No behaviour, command name, path or option changed in this release.
+
 ## 3.29.0 — A Node or Go service can finally be the thing you call
 
 ### Added

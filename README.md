@@ -113,7 +113,13 @@ the product.** Where it can't know something, it says so and stops.
 
 ## What's new
 
-**3.29.0 (current)** — **a Node or Go service can finally be the thing you call.** Only Java and
+**3.29.1 (current)** — **the help screen reads as a workflow.** `orchestrator --help` listed 26
+entries in the order features were added; they are now six panels — get started, understand a
+codebase, investigate & design a change, plan & build, knowledge graph, registry & integrations —
+and the 4,300-line `cli.py` behind them is a package cut along the same lines. No command,
+path or option moved: every `--help` is byte-identical to 3.29.0.
+
+**3.29.0** — **a Node or Go service can finally be the thing you call.** Only Java and
 C# emitted `Endpoint` among the tree-sitter front-ends, which meant the cross-repo joiner — it
 matches a consumer's calls against the *provider's* endpoints — **could not reach a Node or Go
 provider at all**. Express and Gin routes now become endpoints, mounts and groups compose, and a
