@@ -1,6 +1,6 @@
 # Secrets, and the identity work still open
 
-**Status:** **Scoped 2026-09-02 against 3.28.0.** Not built. **D2 decided 2026-09-03** (§3.1); D1, D3, D4 open.
+**Status:** **Scoped 2026-09-02 against 3.28.0. Phase 1 shipped 2026-09-03.** D1, D2, D3 decided; D4 stays *named, not scoped*.
 **Owner:** _unassigned_
 
 `STATE-OF-SPINE` §8 carries *"RBAC role-gating beyond the approval decision + secrets vault —
@@ -110,7 +110,7 @@ first touch dies and the adoption argument dies with it.
 
 | Phase | Work | Effort | Exit |
 |---|---|---|---|
-| **1 — The invariant test** | Assert the read-only path runs with an empty environment. No feature work. | ~0.5 d | CI fails if `state`/`understand` ever needs configuration |
+| **1 — The invariant test** ✅ | `tests/test_read_path_needs_no_configuration.py` — `state`, `understand`, `investigate` and `pkg extract` each run in a process holding only `PATH` and `HOME`, via the console script. A fifth test proves the harness observes a non-zero exit, so it cannot pass by construction. **Shipped 2026-09-03.** | 0.5 d | CI fails if any read-only command ever needs configuration |
 | **2 — The secrets seam** | `get_secret` with the env-var implementation as default; `Settings` reads through it. **No vault yet.** | ~1–2 d | Behaviour byte-identical; nothing new is required or installed |
 | **3 — HashiCorp Vault / OpenBao** | One client behind the `[vault]` extra — token, AppRole and Kubernetes auth, path addressing, lease/TTL. Built when an operator wants **direct fetch** rather than injection; for injection the phase-2 default already suffices. | ~3–5 d | An operator configures it and nothing else changes; the default install still imports no client |
 | **4 — The remaining identity work** | Quorum, then the untenanted tables, then JWT/OIDC — in that order, each against a named buyer. | unscoped | — |
@@ -126,9 +126,9 @@ nobody asked for.
 
 | | Decision | Recommendation |
 |---|---|---|
-| **D1** | Build the seam before any vault exists? | **Yes.** It is a refactor with no behaviour change, and it is what makes the vault a plug rather than a rewrite |
+| **D1** | Build the seam before any vault exists? | ✅ **Decided 2026-09-03: yes.** A refactor with no behaviour change, and what makes the vault a plug rather than a rewrite |
 | **D2** | Which vault first? | ✅ **Decided 2026-09-03: HashiCorp Vault / OpenBao**, behind `[vault]` — the only cloud-neutral option and the one that actually exercises the seam (§3.1). Cloud-specific managers follow one named customer each. A file provider was considered as the dependency-free alternative and **rejected** as a static secret with a new attack surface |
-| **D3** | Should the seam cover the CLI's LLM key too, or only the service? | **Service only.** The CLI's key is the user's own, in their own environment; routing it through a provider adds a concept for no gain |
+| **D3** | Should the seam cover the CLI's LLM key too, or only the service? | ✅ **Decided 2026-09-03: service only.** The CLI's key is the user's own, in their own environment; routing it through a provider adds a concept for no gain — and keeps the read path untouched, which phase 1 now enforces |
 | **D4** | Do quorum and OIDC belong in this spec? | **Named, not scoped.** They are the RBAC spec's follow-ups and belong to it; this spec exists to separate them from the secrets work they were bundled with |
 
 ## 7. Non-goals
