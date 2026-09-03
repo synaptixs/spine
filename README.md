@@ -113,7 +113,14 @@ the product.** Where it can't know something, it says so and stops.
 
 ## What's new
 
-**3.29.1 (current)** — **the help screen reads as a workflow.** `orchestrator --help` listed 26
+**3.30.0 (current)** — **three lines in another repository, and a place to plug a vault.** A
+repo adds `uses: synaptixs/spine/.github/workflows/spine-comprehension.yml@v3.30.0` and gets a
+grounded pull-request comment about its own code — `file:line`, caller counts, **no credentials**
+(the only token is its own `GITHUB_TOKEN`, to post). Behind the scenes, every credential the
+service reads now goes through one seam whose default is the environment, so a vault becomes a
+plug rather than a rewrite; and a test guarantees the read-only path needs nothing at all.
+
+**3.29.1** — **the help screen reads as a workflow.** `orchestrator --help` listed 26
 entries in the order features were added; they are now six panels — get started, understand a
 codebase, investigate & design a change, plan & build, knowledge graph, registry & integrations —
 and the 4,300-line `cli.py` behind them is a package cut along the same lines. No command,

@@ -1,6 +1,6 @@
 {
   "name": "spine",
-  "version": "3.29.1",
+  "version": "3.30.0",
   "description": "Spine — understand any codebase, then ship changes to it. Read-only comprehension tools hand you engineering decisions (what breaks if you change X, what's untested, where a ticket lands, which docs describe it) from a deterministic Product Knowledge Graph, across one repository or several. Then plan, and on confirm get a reviewed, tested PR. Greenfield + brownfield across Python, Java, TypeScript, C#, C, C++, Go, and SQL.",
   "author": {
     "name": "Synaptixs",
