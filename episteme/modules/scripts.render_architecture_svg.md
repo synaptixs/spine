@@ -41,9 +41,9 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 ### `_rasterise`
 
-[`scripts/render_architecture_svg.py:467`](../../scripts/render_architecture_svg.py#L467)
+[`scripts/render_architecture_svg.py:466`](../../scripts/render_architecture_svg.py#L466)
 
-- **Called by** (1): [`main`](../../scripts/render_architecture_svg.py#L450)
+- **Called by** (1): [`main`](../../scripts/render_architecture_svg.py#L449)
 - **Calls** (2): `run`, `which`
 
 ### `_wrap`
@@ -95,9 +95,9 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 ### `main`
 
-[`scripts/render_architecture_svg.py:450`](../../scripts/render_architecture_svg.py#L450)
+[`scripts/render_architecture_svg.py:449`](../../scripts/render_architecture_svg.py#L449)
 
-- **Calls** (2): [`_rasterise`](../../scripts/render_architecture_svg.py#L467), [`render`](../../scripts/render_architecture_svg.py#L219)
+- **Calls** (2): [`_rasterise`](../../scripts/render_architecture_svg.py#L466), [`render`](../../scripts/render_architecture_svg.py#L219)
 
 ### `rect`
 
@@ -109,7 +109,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`scripts/render_architecture_svg.py:219`](../../scripts/render_architecture_svg.py#L219)
 
-- **Called by** (1): [`main`](../../scripts/render_architecture_svg.py#L450)
+- **Called by** (1): [`main`](../../scripts/render_architecture_svg.py#L449)
 - **Calls** (6): [`band`](../../scripts/render_architecture_svg.py#L194), [`cards`](../../scripts/render_architecture_svg.py#L153), [`gate`](../../scripts/render_architecture_svg.py#L206), [`label`](../../scripts/render_architecture_svg.py#L122), [`rect`](../../scripts/render_architecture_svg.py#L111), [`section`](../../scripts/render_architecture_svg.py#L131)
 
 ### `section`
