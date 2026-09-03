@@ -26,6 +26,38 @@ def test_top_level_help_lists_command_groups(runner: CliRunner) -> None:
     assert "contract" in result.stdout
 
 
+def test_top_level_help_is_grouped_into_panels_in_workflow_order(runner: CliRunner) -> None:
+    """Every top-level entry sits in a named panel, and the panels print set-up first, plumbing last."""
+    import typer.main
+    from typer.core import TyperGroup
+
+    from orchestrator.cli import _COMMAND_ORDER
+
+    result = runner.invoke(app, ["--help"], env={"COLUMNS": "200"})
+    assert result.exit_code == 0
+    panels = [
+        "Get started",
+        "Understand a codebase",
+        "Investigate & design a change",
+        "Plan & build",
+        "Knowledge graph",
+        "Registry & integrations",
+    ]
+    positions = [result.stdout.index(name) for name in panels]
+    assert positions == sorted(positions), "panels are out of workflow order"
+    assert "─ Commands ─" not in result.stdout, "some command has no rich_help_panel"
+
+    group = typer.main.get_command(app)
+    assert isinstance(group, TyperGroup)
+    registered = set(group.commands)
+    assert registered == set(_COMMAND_ORDER), (
+        f"unlisted: {registered - set(_COMMAND_ORDER)}; stale: {set(_COMMAND_ORDER) - registered}"
+    )
+    # Internal roadmap codes stay out of user-facing help.
+    assert "Block C" not in result.stdout
+    assert "(G3)" not in result.stdout
+
+
 def test_template_help_lists_subcommands(runner: CliRunner) -> None:
     result = runner.invoke(app, ["template", "--help"])
     assert result.exit_code == 0

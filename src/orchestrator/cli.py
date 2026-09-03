@@ -29,8 +29,82 @@ from typing import Annotated, Any
 
 import httpx
 import typer
+from typer.core import TyperGroup
 
-app = typer.Typer(help="Orchestrator registry client.", no_args_is_help=True)
+# ---------------------------------------------------------------------------
+# Top-level help layout.
+#
+# Typer prints commands in registration order, which here is the order features were
+# added — a changelog, not a map. Every command and sub-app below declares one of these
+# panels, and ``_SpineGroup`` lists them in ``_COMMAND_ORDER`` so the help screen reads as
+# a workflow: set up, understand, investigate, build, then the plumbing. Names and
+# behaviour are untouched; only the presentation is.
+# ---------------------------------------------------------------------------
+
+PANEL_START = "Get started"
+PANEL_UNDERSTAND = "Understand a codebase"
+PANEL_CHANGE = "Investigate & design a change"
+PANEL_BUILD = "Plan & build"
+PANEL_GRAPH = "Knowledge graph"
+PANEL_PLUMBING = "Registry & integrations"
+
+_COMMAND_ORDER: tuple[str, ...] = (
+    # Get started
+    "init",
+    "doctor",
+    "up",
+    "models",
+    "tui",
+    # Understand a codebase
+    "profile",
+    "understand",
+    "state",
+    "audit",
+    # Investigate & design a change
+    "investigate",
+    "design",
+    "localize",
+    "rca",
+    "regression",
+    # Plan & build
+    "ingest",
+    "backlog",
+    "openspec",
+    "sdlc",
+    # Knowledge graph
+    "pkg",
+    "media",
+    # Registry & integrations
+    "template",
+    "contract",
+    "task",
+    "mcp",
+    "catalog",
+)
+
+
+class _SpineGroup(TyperGroup):
+    """List top-level commands in ``_COMMAND_ORDER``; anything unlisted trails, in registration order.
+
+    Rich groups commands into panels in the order it first meets each panel, so this
+    ordering is what makes "Get started" print first rather than whichever panel holds
+    the oldest command.
+    """
+
+    def list_commands(self, ctx: object) -> list[str]:  # ctx unused; typed loosely since Typer vendors Click
+        rank = {name: i for i, name in enumerate(_COMMAND_ORDER)}
+        names = list(self.commands)
+        return sorted(names, key=lambda n: (rank.get(n, len(rank)), names.index(n)))
+
+
+app = typer.Typer(
+    help=(
+        "Spine — understand a codebase, then design and deliver changes against it, all "
+        "grounded in one code-true knowledge graph."
+    ),
+    no_args_is_help=True,
+    cls=_SpineGroup,
+)
 
 
 def _version(show: bool) -> None:
@@ -61,31 +135,31 @@ def _root(
     """Spine — requirement in, reviewed pull request out, grounded in a graph of your code."""
 
 
-template_app = typer.Typer(help="Manage agent templates.", no_args_is_help=True)
-contract_app = typer.Typer(help="Manage tool contracts.", no_args_is_help=True)
-task_app = typer.Typer(help="Submit tasks for execution.", no_args_is_help=True)
-sdlc_app = typer.Typer(help="Run the end-to-end SDLC orchestration (Block C).", no_args_is_help=True)
-mcp_app = typer.Typer(help="Onboard external MCP servers (DBs, Atlassian, …).", no_args_is_help=True)
-catalog_app = typer.Typer(
-    help="Capability catalog — inspect what the orchestrator can assemble.", no_args_is_help=True
+template_app = typer.Typer(help="Manage agent templates in the registry.", no_args_is_help=True)
+contract_app = typer.Typer(help="Manage tool contracts in the registry.", no_args_is_help=True)
+task_app = typer.Typer(help="Submit tasks to the registry for execution.", no_args_is_help=True)
+sdlc_app = typer.Typer(
+    help="Run the end-to-end SDLC pipeline: plan, approve, build, review, complete.", no_args_is_help=True
 )
+mcp_app = typer.Typer(help="Onboard external MCP servers (DBs, Atlassian, …).", no_args_is_help=True)
+catalog_app = typer.Typer(help="Capability catalog — inspect what Spine can assemble.", no_args_is_help=True)
 openspec_app = typer.Typer(help="Spec-driven development with OpenSpec (openspec.dev).", no_args_is_help=True)
-app.add_typer(template_app, name="template")
-app.add_typer(contract_app, name="contract")
-app.add_typer(task_app, name="task")
-app.add_typer(sdlc_app, name="sdlc")
-app.add_typer(mcp_app, name="mcp")
-app.add_typer(catalog_app, name="catalog")
-app.add_typer(openspec_app, name="openspec")
 media_app = typer.Typer(
     help=(
-        "Media ingestion (G3) — OCR images and transcribe audio/video into graph content. "
+        "Media ingestion — OCR images and transcribe audio/video into graph content.\n\n"
         "Explicit and opt-in; local by default, and `--asr api` uploads off-machine only with "
         "`--allow-remote`."
     ),
     no_args_is_help=True,
 )
-app.add_typer(media_app, name="media")
+app.add_typer(template_app, name="template", rich_help_panel=PANEL_PLUMBING)
+app.add_typer(contract_app, name="contract", rich_help_panel=PANEL_PLUMBING)
+app.add_typer(task_app, name="task", rich_help_panel=PANEL_PLUMBING)
+app.add_typer(sdlc_app, name="sdlc", rich_help_panel=PANEL_BUILD)
+app.add_typer(mcp_app, name="mcp", rich_help_panel=PANEL_PLUMBING)
+app.add_typer(catalog_app, name="catalog", rich_help_panel=PANEL_PLUMBING)
+app.add_typer(openspec_app, name="openspec", rich_help_panel=PANEL_BUILD)
+app.add_typer(media_app, name="media", rich_help_panel=PANEL_GRAPH)
 
 
 def _client() -> httpx.Client:
@@ -294,7 +368,7 @@ def task_submit(
         _print(_check(client.post("/v1/tasks", json=body)))
 
 
-@app.command("ingest")
+@app.command("ingest", rich_help_panel=PANEL_BUILD)
 def ingest(
     source: Annotated[
         str,
@@ -478,7 +552,7 @@ async def _run_openspec_draft(source: str, *, out: str, refresh: bool, overwrite
     )
 
 
-@app.command("backlog")
+@app.command("backlog", rich_help_panel=PANEL_BUILD)
 def backlog(
     source: Annotated[
         str,
@@ -1864,10 +1938,10 @@ def mcp_call(
 # ---------------------------------------------------------------------------
 
 pkg_app = typer.Typer(help="Product Knowledge Graph — code extraction (read-only).", no_args_is_help=True)
-app.add_typer(pkg_app, name="pkg")
+app.add_typer(pkg_app, name="pkg", rich_help_panel=PANEL_GRAPH)
 
 
-@app.command("tui")
+@app.command("tui", rich_help_panel=PANEL_START)
 def tui(
     api_url: Annotated[
         str, typer.Option("--api-url", help="Registry API base URL.", envvar="ORCHESTRATOR_API_URL")
@@ -1889,7 +1963,7 @@ def tui(
     run_tui(api_url, api_key)
 
 
-@app.command("models")
+@app.command("models", rich_help_panel=PANEL_START)
 def models_cmd(
     provider: Annotated[
         str | None,
@@ -1923,7 +1997,7 @@ def models_cmd(
     typer.echo(catalog.render(rows, current=catalog.resolve("codegen")))
 
 
-@app.command("doctor")
+@app.command("doctor", rich_help_panel=PANEL_START)
 def doctor() -> None:
     """Check environment readiness and print a diagnostic report.
 
@@ -1946,7 +2020,7 @@ def doctor() -> None:
         raise typer.Exit(code=1)
 
 
-@app.command("init")
+@app.command("init", rich_help_panel=PANEL_START)
 def init(
     path: Annotated[Path, typer.Option("--path", help="Directory to scaffold the .env into.")] = Path("."),
     force: Annotated[
@@ -1995,7 +2069,7 @@ def init(
     raise typer.Exit(code=1)
 
 
-@app.command("up")
+@app.command("up", rich_help_panel=PANEL_START)
 def up(
     port: Annotated[int, typer.Option("--port", help="Port for the web UI + API.")] = 8000,
     host: Annotated[str, typer.Option("--host", help="Bind address for the API.")] = "127.0.0.1",
@@ -2040,7 +2114,7 @@ def up(
     raise typer.Exit(code=code)
 
 
-@app.command("audit")
+@app.command("audit", rich_help_panel=PANEL_UNDERSTAND)
 def audit(
     path: Annotated[Path, typer.Argument(help="Repo or directory to audit.")] = Path("."),
     focus: Annotated[
@@ -2088,7 +2162,7 @@ def audit(
         typer.echo(f"Wrote run bundle {bundle}.")
 
 
-@app.command("profile")
+@app.command("profile", rich_help_panel=PANEL_UNDERSTAND)
 def profile(
     path: Annotated[str, typer.Argument(help="Repo path or git URL to profile.")] = ".",
     intent: Annotated[
@@ -2117,7 +2191,7 @@ def profile(
     typer.echo(f"task type:      {prof.task_type}")
 
 
-@app.command("understand")
+@app.command("understand", rich_help_panel=PANEL_UNDERSTAND)
 def understand(
     path: Annotated[str, typer.Argument(help="Repo path or git URL to comprehend.")] = ".",
     out: Annotated[
@@ -2238,7 +2312,7 @@ def _understand_summary(result: dict[str, Any]) -> list[str]:
     return out
 
 
-@app.command("state")
+@app.command("state", rich_help_panel=PANEL_UNDERSTAND)
 def state(
     path: Annotated[str, typer.Argument(help="Repo path or git URL to summarize.")] = ".",
     lens: Annotated[str, typer.Option("--lens", help="Audience: developer | stakeholder.")] = "developer",
@@ -2332,7 +2406,7 @@ def _render_state_html(
     )
 
 
-@app.command("design")
+@app.command("design", rich_help_panel=PANEL_CHANGE)
 def design(
     path: Annotated[str, typer.Argument(help="Repo path or git URL to design against.")] = ".",
     title: Annotated[str, typer.Option("--title", "-t", help="Feature title (the thing to build).")] = "",
@@ -2443,7 +2517,7 @@ def _read_design_bank(repo: Path) -> dict[str, str]:
     return out
 
 
-@app.command("investigate")
+@app.command("investigate", rich_help_panel=PANEL_CHANGE)
 def investigate(
     path: Annotated[str, typer.Argument(help="Repo path or git URL to research against.")] = ".",
     source: Annotated[
@@ -2578,7 +2652,7 @@ def _load_ticket(source: str | None, title: str, text: str) -> tuple[str, str]:
     return title, text
 
 
-@app.command("localize")
+@app.command("localize", rich_help_panel=PANEL_CHANGE)
 def localize(
     path: Annotated[str, typer.Argument(help="Repo path or git URL to resolve the trace against.")] = ".",
     trace: Annotated[
@@ -2628,7 +2702,7 @@ def localize(
         typer.echo(md)
 
 
-@app.command("rca")
+@app.command("rca", rich_help_panel=PANEL_CHANGE)
 def rca(
     path: Annotated[str, typer.Argument(help="Repo path or git URL to analyze against.")] = ".",
     source: Annotated[
@@ -2716,7 +2790,7 @@ def _load_bug_text(source: str | None, trace: Path | None, text: str) -> str:
     return sys.stdin.read() if not sys.stdin.isatty() else ""
 
 
-@app.command("regression")
+@app.command("regression", rich_help_panel=PANEL_CHANGE)
 def regression(
     path: Annotated[str, typer.Argument(help="Repo path or git URL to analyze.")] = ".",
     symbol: Annotated[
