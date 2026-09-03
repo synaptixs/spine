@@ -105,7 +105,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:183`](../../src/orchestrator/plugin/server.py#L183)
 
 - **Called by** (3): [`_in_repo`](../../src/orchestrator/plugin/server.py#L251), [`_repo_store`](../../src/orchestrator/plugin/server.py#L195), [`sdlc_plan`](../../src/orchestrator/plugin/server.py#L668)
-- **Calls** (3): [`Settings`](../../src/orchestrator/registry/api/config.py#L12), [`materialize_repo_source`](../../src/orchestrator/registry/api/workspace.py#L216), [`resolve_repo_source`](../../src/orchestrator/registry/api/workspace.py#L166)
+- **Calls** (3): [`Settings`](../../src/orchestrator/registry/api/config.py#L44), [`materialize_repo_source`](../../src/orchestrator/registry/api/workspace.py#L216), [`resolve_repo_source`](../../src/orchestrator/registry/api/workspace.py#L166)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#phases`
 
 ### `_register_tools`
@@ -155,7 +155,7 @@ _3 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:989`](../../src/orchestrator/plugin/server.py#L989)
 
 - **Called by** (1 production · 3 test): [`main`](../../src/orchestrator/plugin/__main__.py#L52), [`test_http_server_loopback_unauthenticated_is_allowed`](../../tests/plugin/test_server.py#L386), [`test_http_server_refuses_public_bind_without_auth`](../../tests/plugin/test_server.py#L376), [`test_http_server_wires_static_auth`](../../tests/plugin/test_server.py#L396)
-- **Calls** (4): [`HttpServer`](../../src/orchestrator/plugin/server.py#L974), [`_import_server_class`](../../src/orchestrator/plugin/server.py#L943), [`_register_tools`](../../src/orchestrator/plugin/server.py#L958), [`build_auth_from_env`](../../src/orchestrator/plugin/auth.py#L122)
+- **Calls** (4): [`HttpServer`](../../src/orchestrator/plugin/server.py#L974), [`_import_server_class`](../../src/orchestrator/plugin/server.py#L943), [`_register_tools`](../../src/orchestrator/plugin/server.py#L958), [`build_auth_from_env`](../../src/orchestrator/plugin/auth.py#L124)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `build_server`

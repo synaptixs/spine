@@ -4,6 +4,55 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.30.0 — Three lines in another repository, and a place to plug a vault
+
+### Added
+
+- **A reusable comprehension workflow — G4 Phase 5a.** A repository adds three
+  lines and gets a pull-request comment saying where its own change lands in its
+  own code, with `file:line` and caller counts:
+
+      jobs:
+        spine:
+          uses: synaptixs/spine/.github/workflows/spine-comprehension.yml@v3.30.0
+
+  **It declares no `secrets:`.** `investigate` is deterministic and model-free;
+  the only token is the caller's own `GITHUB_TOKEN`, used to post the comment, and
+  `comment: false` writes nothing at all. No container image — a cold install with
+  every language extra measured **21 seconds**, so the usual reason for one does
+  not hold. The comment is updated in place rather than appended, and the
+  pull-request title reaches the shell through `env:` rather than inline
+  interpolation, because a title is attacker-controlled.
+
+  **Note on the pin:** this snippet is the first that works. The one published
+  on `develop` before this cut pinned `@v3.29.1`, a tag that predates the file —
+  copying it produced "workflow not found". Fixed here, where the snippet and the
+  tag land together.
+
+- **A secrets seam.** `core/secrets.py`: `get_secret(name)` with the environment
+  as the default provider, `ORCHESTRATOR_SECRETS_PROVIDER` to select another, and
+  `register_provider` for anything behind an extra. `Settings`, Temporal, MCP auth
+  and the object store all read credentials through it, **byte-identically** —
+  under the default it *is* `os.environ.get`. A vault is now a plug rather than a
+  rewrite, and a fresh interpreter importing the seam loads no client. The first
+  provider, when an operator wants direct fetch rather than injection, will be
+  HashiCorp Vault / OpenBao behind `[vault]`; a file provider was considered and
+  rejected as a static secret with a new attack surface.
+
+- **The read-only path is now guaranteed to need nothing.** A test runs `state`,
+  `understand`, `investigate` and `pkg extract` in a process holding only `PATH`
+  and `HOME`. This is the property the developer-adoption story rests on — no
+  key, no account, no service — and until now nothing defended it. With a fake
+  requirement injected, four of five tests fail; that is the point.
+
+### Changed
+
+- **RBAC was already built and already opt-in**, and `STATE-OF-SPINE` §8 read as
+  though it were not. Separated from the secrets work it was bundled with: roles
+  are enforced on the decide path, runs and approvals are tenant-scoped, and with
+  no `principals` map the single API key resolves to today's behaviour. What
+  remains — quorum, the untenanted tables, OIDC — is named and waits on a buyer.
+
 ## 3.29.1 — The help screen reads as a workflow
 
 ### Changed

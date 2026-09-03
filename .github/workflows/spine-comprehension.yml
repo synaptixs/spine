@@ -1,0 +1,102 @@
+# Reusable read-only comprehension for any repository — G4 Phase 5a.
+#
+# A calling repository adds three lines and gets a grounded pull-request comment saying where
+# its own change lands in its own code, with `file:line` and caller counts:
+#
+#     jobs:
+#       spine:
+#         uses: synaptixs/spine/.github/workflows/spine-comprehension.yml@v3.30.0
+#
+# **Spine itself needs no credentials here.** `investigate` is deterministic and model-free — no
+# API key, no database, no service. The only token used is the caller's own `GITHUB_TOKEN`, and
+# only to post the comment; remove `comment: false` and nothing is written anywhere.
+#
+# **No container image**, deliberately. A cold `pip install 'synaptixs-spine[languages]'` with all
+# seven tree-sitter grammars measured **21 seconds** on 2026-09-02, so the usual argument for one
+# — "installing the parsers is slow" — does not hold. See `docs/specs/gap4-adoption-distribution-roadmap.md`.
+name: Spine comprehension
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Spine version to install. Pin it; an unpinned tool changes under you."
+        type: string
+        default: ""
+      python-version:
+        description: "Python used to run Spine, not the version of the code being read."
+        type: string
+        default: "3.12"
+      comment:
+        description: "Post the brief as a pull-request comment. Set false to only log it."
+        type: boolean
+        default: true
+      title:
+        description: "Ticket title to investigate. Defaults to the pull request's own title."
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  comprehend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: Spine's cache is commit-keyed and only trusted on a clean tree.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install Spine
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            pip install --quiet "synaptixs-spine[languages]==${{ inputs.version }}"
+          else
+            pip install --quiet "synaptixs-spine[languages]"
+          fi
+          orchestrator --version
+
+      - name: Investigate where this change lands
+        id: brief
+        env:
+          # The pull request title, via the environment rather than inline, so a title containing
+          # quotes or backticks is data and never shell.
+          PR_TITLE: ${{ inputs.title || github.event.pull_request.title || github.ref_name }}
+        run: |
+          set -euo pipefail
+          orchestrator investigate . --title "$PR_TITLE" --out brief.md
+          echo "--- brief ---"
+          cat brief.md
+
+      - name: Comment on the pull request
+        if: ${{ inputs.comment && github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          MARKER="<!-- spine-comprehension -->"
+          {
+            echo "$MARKER"
+            cat brief.md
+            echo
+            echo "_Read-only and deterministic — no model, no credentials. "
+            echo "[Spine](https://github.com/synaptixs/spine) \`$(orchestrator --version | head -1)\`._"
+          } > comment.md
+          # Update the existing comment rather than adding one per push: a bot that appends on
+          # every commit is a bot people mute, and a muted check is not a check.
+          existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" \
+            --jq "[.[] | select(.body | startswith(\"$MARKER\"))] | first | .id // empty")
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" \
+              -f body="$(cat comment.md)" > /dev/null
+            echo "updated comment $existing"
+          else
+            gh pr comment "$PR" --body-file comment.md
+          fi

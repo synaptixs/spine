@@ -27,6 +27,8 @@ import os
 import time
 from typing import TYPE_CHECKING, Any
 
+from orchestrator.core.secrets import get_secret
+
 if TYPE_CHECKING:
     from mcp.server.auth.provider import AccessToken, TokenVerifier
     from mcp.server.auth.settings import AuthSettings
@@ -136,14 +138,14 @@ def build_auth_from_env() -> tuple[AuthSettings | None, TokenVerifier | None]:
     scopes = _scopes_from_env(os.getenv("ORCHESTRATOR_MCP_REQUIRED_SCOPES"))
 
     introspection_url = os.getenv("ORCHESTRATOR_MCP_INTROSPECTION_URL")
-    static_secret = os.getenv("ORCHESTRATOR_MCP_TOKEN")
+    static_secret = get_secret("ORCHESTRATOR_MCP_TOKEN")
 
     verifier: TokenVerifier | None
     if introspection_url:
         verifier = IntrospectionTokenVerifier(
             introspection_url,
             client_id=os.getenv("ORCHESTRATOR_MCP_INTROSPECTION_CLIENT_ID"),
-            client_secret=os.getenv("ORCHESTRATOR_MCP_INTROSPECTION_CLIENT_SECRET"),
+            client_secret=get_secret("ORCHESTRATOR_MCP_INTROSPECTION_CLIENT_SECRET"),
         )
     elif static_secret:
         verifier = StaticTokenVerifier(static_secret, scopes=scopes)
