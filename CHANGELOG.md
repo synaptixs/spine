@@ -8,6 +8,17 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Added
 
+- **Operator tools in the MCP plugin — the terminal UI's successor.** `registry_runs`,
+  `registry_approvals`, `registry_trace` and `registry_decide` answer "what is
+  running, what is waiting on me" and decide a gate, over HTTP to the registry
+  (`orchestrator up`) with the same `ORCHESTRATOR_API_URL` / `ORCHESTRATOR_API_KEY`
+  every other client reads — so the plugin process needs no database or Temporal
+  access, the registry scopes results to the key's tenant, and the audit log
+  records the key as the actor. `registry_trace` is bounded: the newest `tail`
+  entries plus a `truncated` count. A registry that is down returns `error` + a
+  `hint` rather than failing the call. Deciding is annotated destructive, because
+  a rejection ends the run.
+
 - **The MCP server's tiers are metadata a host can act on.** Every plugin tool is
   registered with MCP tool annotations derived from its tier — read-only,
   destructive, idempotent, open-world — so a host that confirms before destructive

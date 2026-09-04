@@ -201,6 +201,11 @@ At a glance:
 | [`sdlc_approve`](#sdlc_approve) | Record that a **human** read that document and decided. Binds to a digest of it, so a plan that changes afterwards reads as *stale* rather than still approved. | `.spine/` |
 | [`sdlc_feature`](#sdlc_feature) | **Ship it.** One intent end‑to‑end: spec → grounded codegen → tests → branch → *(optionally)* PR. | gated |
 | [`sdlc_start_run` + gate tools](#the-autonomous-run-sdlc_start_run--friends) | Drive the long, autonomous, gated run as a job (needs the Mode‑B backend). | gated |
+| **Operate — what is running, what is waiting on me** | | |
+| [`registry_runs`](#operating-runs-registry_runs--friends) | Recent runs at the registry: id, state, last action, timestamps. | no |
+| [`registry_approvals`](#operating-runs-registry_runs--friends) | The gates waiting on a human, latest first, with risk and the run they belong to. | no |
+| [`registry_trace`](#operating-runs-registry_runs--friends) | A run's audit trail and tool invocations, newest `tail` entries, with what was left out. | no |
+| [`registry_decide`](#operating-runs-registry_runs--friends) | Approve / reject / modify a pending approval so its run continues (or stops). | gated |
 
 > **The comprehension tools are read‑only, need no credentials, and are deterministic** (only
 > `root_cause`'s opt‑in `use_llm` uses a model). They ship with an **`understand-codebase` skill**
@@ -550,6 +555,40 @@ result.
 // tool: sdlc_run_result
 { "sdlc_id": "<id>" }
 ```
+
+#### Operating runs (`registry_runs` + friends)
+
+"What is running, and what is waiting on me?" — the operator questions the web inbox answers,
+for an assistant. These go **over HTTP to the registry** (`orchestrator up`, or
+`ORCHESTRATOR_API_URL` pointing at a running one, with `ORCHESTRATOR_API_KEY`), so the plugin
+needs no database or Temporal access of its own; the registry scopes what you see to your key's
+tenant and records your key as the actor, exactly as it does for the inbox. If the registry is
+down, each returns `error` + a `hint` instead of failing.
+
+> **Ask Claude:** "What's waiting on me?" · "Show me the trace for run `<id>`." · "Approve
+> `sdlc-<id>-0`, rationale: reviewed the intents."
+
+```jsonc
+// tool: registry_runs        → { count, items: [{ sdlc_id, state, last_action, updated_at, … }], markdown }
+{ "limit": 20 }
+
+// tool: registry_approvals   → { count, items: [{ id, title, risk_classification, task_id, … }], markdown }
+{ "limit": 50 }
+
+// tool: registry_trace       → newest `tail` audit entries + tool invocations; `truncated` says what was left out
+{ "sdlc_id": "<id>", "tail": 50 }
+
+// tool: registry_decide      → destructive: a rejection ends the run
+{
+  "approval_id": "sdlc-<id>-0",
+  "action": "approve",              // "approve" | "reject" | "modify_input" (needs modified_input)
+  "rationale": "reviewed the intents"
+}
+```
+
+`sdlc_decide_gate` decides the same gates **in‑process** (no registry, but Temporal + Postgres
+access from the plugin); use it for a run this plugin started when there is no registry, and
+`registry_decide` when there is.
 
 ---
 
