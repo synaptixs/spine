@@ -1,6 +1,6 @@
 # The MCP plugin surface — what it is, what it lacks, and the order to extend it
 
-**Status:** Phase 1 in progress — steps 1–4 shipped, steps 5–6 open. **Written 2026-09-04 against 3.30.0**,
+**Status:** Phase 1 in progress — steps 1–5 shipped, step 6 open. **Written 2026-09-04 against 3.30.0**,
 after #316 removed the terminal UI and left the plugin as the only non-browser operator face.
 **Owner:** _unassigned_
 
@@ -38,9 +38,18 @@ because a host's cwd is not the repo.
 
 **Auth (HTTP only).** An OAuth 2.1 resource server: it verifies bearer tokens and never mints
 them. Introspection (`ORCHESTRATOR_MCP_INTROSPECTION_URL` + client id/secret, issuer and resource
-URLs) or a static shared secret (`ORCHESTRATOR_MCP_TOKEN`, constant-time compare). One scope list
-for the whole server (`ORCHESTRATOR_MCP_REQUIRED_SCOPES`, default `sdlc`). A non-loopback bind
-with neither configured is refused unless `--allow-unauthenticated`.
+URLs) or a static shared secret (`ORCHESTRATOR_MCP_TOKEN`, constant-time compare). A non-loopback
+bind with neither configured is refused unless `--allow-unauthenticated`.
+
+**Scopes follow the tiers (Phase 1 step 5).** `spine:read` for comprehension and observing a
+run, `spine:plan` for the build document and its approval, `spine:run` for anything that spends
+money or writes where it cannot be taken back. The SDK checks scopes once, server-wide, and only
+for the floor (`spine:read`); each registered tool is wrapped in a guard that reads the verified
+token at call time and refuses — naming the scope it needed and the scopes the token has — when
+the tier's scope is missing. Over stdio there is no token and the guard passes.
+`ORCHESTRATOR_MCP_REQUIRED_SCOPES` is what the **static token carries** (default: all three), so
+a read-only token is that variable set to `spine:read`. The legacy `sdlc` scope expands to all
+three for one release.
 
 **Packaging.** A Claude Code plugin at `plugins/spine/` bundling the `understand-codebase` skill;
 marketplace entry in `.claude-plugin/marketplace.json`; `pip install 'synaptixs-spine[all]'`.
@@ -89,6 +98,7 @@ Numbered, because §5 retires them by number.
 3. **The tiers were prose only.** A host could not tell a read-only tool from a money-spending
    one. *(Closed in Phase 1 — §2.)*
 4. **One scope for everything.** A token that may call `map_repo` may call `sdlc_feature`.
+   *(Closed in Phase 1 step 5: per-tier scopes, checked per call on HTTP — §1.)*
 5. **The back half of the pipeline is CLI-only.** `sdlc address-review`, `sdlc complete`,
    `sdlc remediate`, `sdlc baseline`, `design`, `audit`, `profile`, `understand`, `state` exist
    as commands and not as tools. An assistant can open the PR but cannot drive what follows.
@@ -112,8 +122,11 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
   because the plugin process then needs no database or Temporal credentials, the registry
   enforces tenant scoping, and the audit log records the key's principal as the actor.
   `registry_trace` is bounded — the newest `tail` entries plus a `truncated` count.
-- **4.3 Per-tier scopes on HTTP.** `spine:read`, `spine:plan`, `spine:run`, checked per tool at
-  registration; `sdlc` accepted as an alias for one release.
+- **4.3 Per-tier scopes on HTTP.** *(Shipped.)* `spine:read`, `spine:plan`, `spine:run`, each
+  tier naming its scope beside its annotations, enforced by a call-time guard around every
+  registered tool — the SDK only checks scopes server-wide, and a request does not name its tool
+  until the protocol layer has parsed it. Stdio is untouched. `sdlc` expands to all three for one
+  release, then goes.
 - **4.4 `understand_repo` and `current_state` as tools.** Both deterministic by invariant, so
   they fit tier 2 without new policy. Today `read_memory_bank` can only read a bank someone
   already committed.
@@ -141,8 +154,8 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
 | 2 | 2 | Sync `__all__`; a test holds it. | **this PR** |
 | 3 | 3 | 4.1 annotations (typed output deferred). | **this PR** |
 | 4 | 1 | 4.2 operator-ops tools. | **shipped** |
-| 5 | 4 | 4.3 scopes — before step 4 is served over HTTP to anyone else. | next |
-| 6 | 5 | 4.4, then 4.5. | after 5 |
+| 5 | 4 | 4.3 scopes — before step 4 is served over HTTP to anyone else. | **shipped** |
+| 6 | 5 | 4.4, then 4.5. | next |
 
 ### Phase 2 — extensions, once §3 is empty
 
@@ -153,6 +166,9 @@ typed-output half of 4.1 on its own.
 
 - **A tool without a tier does not register.** The refusal lives in `_register_tools`, not in a
   review checklist.
+- **A tool's scope is its tier's scope.** `tool_scope(name)` reads the same `_TIER` row as
+  `tool_annotations(name)`; the guard is applied at registration to every tool, so a tool cannot
+  be reachable on HTTP without a scope check any more than without a tier.
 - **Annotations are derived, never hand-copied.** `tool_annotations(name)` is the one source;
   the protocol-level test compares what a host sees against it field for field.
 - **Tier 1 and 2 stay model-free and credential-free.** That is the property the keyless

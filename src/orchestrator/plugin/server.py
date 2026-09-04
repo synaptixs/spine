@@ -53,16 +53,28 @@ tier model is enforced by the client rather than by a docstring a model may not 
 A tool without a tier does not register — ``_register_tools`` raises, and a test says so
 before a host does.
 
+**And the tiers are scopes, on HTTP.** Each tier names the OAuth scope a bearer token needs
+(``spine:read`` / ``spine:plan`` / ``spine:run``, in ``orchestrator.plugin.auth``), and every
+registered tool is wrapped in a guard that reads the verified token at call time and
+refuses — naming the scope it needed and the scopes the token has — when it is missing.
+The SDK only checks scopes server-wide, so the per-tool check has to live here. Over stdio
+there is no token, and the guard passes: a local subprocess a host launched already holds
+the user's ``.env``.
+
 Tool *implementations* are module-level functions (unit-testable without the ``mcp``
 extra); ``build_server`` lazy-imports the SDK's server class and registers them.
 """
 
 from __future__ import annotations
 
+import functools
+import inspect
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
+
+from orchestrator.plugin.auth import SCOPE_PLAN, SCOPE_READ, SCOPE_RUN
 
 
 def doctor() -> dict[str, Any]:
@@ -1113,27 +1125,35 @@ _TOOLS = (
 
 @dataclass(frozen=True)
 class Tier:
-    """What a tool can cost you if it is wrong, in the four hints MCP hosts understand."""
+    """What a tool can cost you if it is wrong — the four hints MCP hosts understand, and
+    the OAuth scope a bearer token needs on the HTTP transport."""
 
     name: str
     read_only: bool
     destructive: bool
     idempotent: bool
     open_world: bool
+    scope: str
 
 
 #: Read-only comprehension. ``open_world`` because ``repo_path`` may be a git URL (a
 #: shallow clone) and a requirements ``source`` may be Confluence or Notion.
-COMPREHEND = Tier("comprehend", read_only=True, destructive=False, idempotent=True, open_world=True)
+COMPREHEND = Tier(
+    "comprehend", read_only=True, destructive=False, idempotent=True, open_world=True, scope=SCOPE_READ
+)
 #: The same, for tools that only ever read this machine.
-COMPREHEND_LOCAL = Tier("comprehend", read_only=True, destructive=False, idempotent=True, open_world=False)
+COMPREHEND_LOCAL = Tier(
+    "comprehend", read_only=True, destructive=False, idempotent=True, open_world=False, scope=SCOPE_READ
+)
 #: Plan and decide: writes under ``.spine/`` only, re-running rewrites the same document.
-PLAN = Tier("plan", read_only=False, destructive=False, idempotent=True, open_world=False)
+PLAN = Tier("plan", read_only=False, destructive=False, idempotent=True, open_world=False, scope=SCOPE_PLAN)
 #: Observing a run: reads Temporal state, changes nothing.
-RUN_OBSERVE = Tier("run", read_only=True, destructive=False, idempotent=True, open_world=True)
+RUN_OBSERVE = Tier(
+    "run", read_only=True, destructive=False, idempotent=True, open_world=True, scope=SCOPE_READ
+)
 #: Driving a run: spends money, and with ``live``/``confirm`` writes where it cannot be
 #: taken back. A rejected gate ends a run, which is why deciding one is destructive too.
-RUN = Tier("run", read_only=False, destructive=True, idempotent=False, open_world=True)
+RUN = Tier("run", read_only=False, destructive=True, idempotent=False, open_world=True, scope=SCOPE_RUN)
 
 #: Every registered tool's tier, by function name. Keep it total: registration refuses a
 #: tool that is missing here, and ``tests/plugin`` asserts the two stay in step.
@@ -1181,6 +1201,49 @@ def tool_annotations(name: str) -> dict[str, bool]:
     }
 
 
+def tool_scope(name: str) -> str:
+    """The OAuth scope a bearer token needs to call ``name`` over HTTP. ``KeyError`` for a
+    tool with no tier — the same refusal as ``tool_annotations``."""
+    return _TIER[name].scope
+
+
+def scope_denial(name: str, scope: str) -> dict[str, Any] | None:
+    """``None`` when the current caller may call ``name``; otherwise the error to return.
+
+    The caller is the verified bearer token the SDK put in its auth context for this
+    request. No token — stdio, or an unauthenticated loopback bind — means no check.
+    """
+    try:
+        from mcp.server.auth.middleware.auth_context import get_access_token
+    except ImportError:  # pragma: no cover - without the `mcp` extra nothing is served
+        return None
+    token = get_access_token()
+    if token is None or scope in token.scopes:
+        return None
+    return {
+        "error": f"{name} needs scope {scope!r}; this token has {sorted(token.scopes)}",
+        "needs": scope,
+        "has": sorted(token.scopes),
+        "hint": "Ask for a token that carries the scope, or use a tier this token is allowed.",
+    }
+
+
+def _scoped(fn: Callable[..., Any], scope: str) -> Callable[..., Any]:
+    """Wrap a tool so the scope guard runs before it. ``functools.wraps`` carries the
+    signature, annotations and docstring across, which is what the SDK builds the input
+    schema and description from — a guarded tool advertises exactly what the bare one did."""
+
+    @functools.wraps(fn)
+    async def guarded(*args: Any, **kwargs: Any) -> Any:
+        denied = scope_denial(fn.__name__, scope)
+        if denied is not None:
+            return denied
+        out = fn(*args, **kwargs)
+        return await out if inspect.isawaitable(out) else out
+
+    return guarded
+
+
 def _import_server_class() -> Any:
     """The SDK's server class — ``MCPServer`` since v2 (was ``mcp.server.fastmcp.FastMCP``).
 
@@ -1211,7 +1274,7 @@ def _register_tools(server: Any) -> Any:
                 idempotent_hint=hints["idempotent_hint"],
                 open_world_hint=hints["open_world_hint"],
             )
-        )(fn)
+        )(_scoped(fn, tool_scope(fn.__name__)))
     return server
 
 
@@ -1304,6 +1367,7 @@ __all__ = [
     "registry_trace",
     "regression_gaps",
     "root_cause",
+    "scope_denial",
     "sdlc_approve",
     "sdlc_decide_gate",
     "sdlc_feature",
@@ -1313,4 +1377,5 @@ __all__ = [
     "sdlc_start_run",
     "Tier",
     "tool_annotations",
+    "tool_scope",
 ]

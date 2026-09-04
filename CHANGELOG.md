@@ -8,6 +8,18 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Added
 
+- **Scopes follow the tiers on the MCP server's HTTP transport.** `spine:read`
+  (comprehension, observing a run), `spine:plan` (`sdlc_plan`, `sdlc_approve`),
+  `spine:run` (anything that spends money or writes where it cannot be taken
+  back). Every registered tool is wrapped in a guard that reads the verified
+  bearer token at call time and refuses — naming the scope it needed and the
+  scopes the token has — when the tier's scope is missing; the SDK only checks
+  scopes server-wide, so the per-tool check lives in the plugin. Over stdio there
+  is no token and no check. `ORCHESTRATOR_MCP_REQUIRED_SCOPES` now means what the
+  static token *carries* (default: all three, so a self-host behaves as before),
+  and `spine:read` alone makes it a read-only token. The legacy `sdlc` scope
+  expands to all three for one release, with a logged warning, then goes.
+
 - **Operator tools in the MCP plugin — the terminal UI's successor.** `registry_runs`,
   `registry_approvals`, `registry_trace` and `registry_decide` answer "what is
   running, what is waiting on me" and decide a gate, over HTTP to the registry
