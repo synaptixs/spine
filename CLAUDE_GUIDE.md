@@ -196,6 +196,10 @@ At a glance:
 | [`read_memory_bank`](#read_memory_bank) | Read a repo's committed `episteme/` (code‑true project knowledge). | no |
 | [`pkg_grounding`](#pkg_grounding) | The existing‑code context a repo's Product Knowledge Graph surfaces for a spec — real APIs/types Spine would reuse, with `file:line`. | no |
 | [`ingest_preview`](#ingest_preview) | Preview the backlog (derived intents + gaps) for a requirements source — dry‑run. | no |
+| `understand_repo` | **Build the `episteme/` knowledge base** a repo has none of yet (then `read_memory_bank` it), or `check=true` to verify the committed one still matches the code — missing / stale / orphaned pages named. Deterministic, no model. Refuses a build on a git URL unless `out` is an absolute directory. | `episteme/` |
+| `profile_repo` | Languages, framework, database + migrations, test runner, and the task type for an `intent` — the profile the catalog picks skills from. | no |
+| `design_change` | A grounded design for one spec (the same `spec` object as `sdlc_plan`): approach, **blast radius**, **unverified references**. Deterministic; `use_llm=true` writes the prose. Never writes. | no |
+| `sdlc_baseline` | Score the run agent against a corpus of tickets with known answers, plus the durable run records — false and missed refusals counted separately. Free. | no |
 | **Plan it, then decide — before anything is built** | | |
 | [`sdlc_plan`](#sdlc_plan) | **The build document.** Twelve grounded sections for one ticket: requirement, intent, root cause, what the graph knows, blast radius, design, files, acceptance criteria, the codegen prompt, cost and confidence — each labelled with where it came from. **No model, no credentials, nothing spent.** | `.spine/` |
 | [`sdlc_approve`](#sdlc_approve) | Record that a **human** read that document and decided. Binds to a digest of it, so a plan that changes afterwards reads as *stale* rather than still approved. | `.spine/` |
@@ -208,7 +212,8 @@ At a glance:
 | [`registry_decide`](#operating-runs-registry_runs--friends) | Approve / reject / modify a pending approval so its run continues (or stops). | gated |
 
 > **The comprehension tools are read‑only, need no credentials, and are deterministic** (only
-> `root_cause`'s opt‑in `use_llm` uses a model). They ship with an **`understand-codebase` skill**
+> `root_cause`'s and `design_change`'s opt‑in `use_llm` use a model). There is no `state` tool
+> because `map_repo` *is* `orchestrator state` — same engine, same rendering. They ship with an **`understand-codebase` skill**
 > that tells Claude *when* to reach for each — so you can just ask in plain language and Claude picks
 > the tool. Try: *"Map this repo and tell me what's untested,"* or *"What breaks if I change
 > `create_app`?"* `repo_path` is a **local path or a git URL** (shallow‑cloned behind the CLI's host

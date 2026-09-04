@@ -417,6 +417,133 @@ def test_http_server_wires_static_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     assert built.transport["port"] == 8080 and built.transport["host"] == "0.0.0.0"
 
 
+# ---- the free half of the back half: understand, profile, design, baseline ----------
+
+
+def _ledger_repo(tmp_path: Path) -> Path:
+    (tmp_path / "ledger.py").write_text(LEDGER, encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_ledger.py").write_text(
+        "from ledger import TokenLedger\n\n\ndef test_record():\n    TokenLedger().record('s', None)\n",
+        encoding="utf-8",
+    )
+    return tmp_path
+
+
+def test_understand_repo_builds_the_bank_and_names_where_to_start(tmp_path: Path) -> None:
+    from orchestrator.knowledge.understand import BANK_DIRNAME
+    from orchestrator.plugin.server import read_memory_bank, understand_repo
+
+    repo = _ledger_repo(tmp_path)
+    out = understand_repo(str(repo))
+    assert "error" not in out, out
+    assert out["dir"] == str(repo / BANK_DIRNAME)
+    assert out["files_written"] > 0 and (repo / BANK_DIRNAME / "README.md").exists()
+    assert "README.md" in out["entry_pages"]
+    assert "read_memory_bank" in out["markdown"]
+    # The point of the tool: a bank an assistant can now read.
+    bank = read_memory_bank(str(repo))
+    assert "error" not in bank
+
+
+def test_understand_repo_check_is_current_then_stale(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import understand_repo
+
+    repo = _ledger_repo(tmp_path)
+    assert understand_repo(str(repo), check=True)["absent"] is True  # nothing built yet
+    understand_repo(str(repo))
+    current = understand_repo(str(repo), check=True)
+    assert current["ok"] is True and "current" in current["summary"]
+    # The code moves on; the committed pages no longer describe it.
+    (repo / "router.py").write_text("class WebhookRouter:\n    pass\n", encoding="utf-8")
+    stale = understand_repo(str(repo), check=True)
+    assert stale["ok"] is False and (stale["stale"] or stale["missing"])
+    assert "stale" in stale["summary"]
+
+
+def test_understand_repo_refuses_to_build_into_a_clone_that_vanishes(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import understand_repo
+
+    out = understand_repo("https://github.com/example/repo.git")  # allow-listed host, never cloned
+    assert "error" in out and "out=" in out["error"]
+    # A relative `out` is the same trap in a subprocess whose cwd is not the repo.
+    assert "error" in understand_repo("https://github.com/example/repo.git", out="episteme")
+
+
+def test_understand_repo_writes_where_out_says(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import understand_repo
+
+    (tmp_path / "repo").mkdir()
+    repo = _ledger_repo(tmp_path / "repo")
+    target = tmp_path / "elsewhere"
+    out = understand_repo(str(repo), out=str(target))
+    assert out["dir"] == str(target) and (target / "README.md").exists()
+
+
+def test_profile_repo_reads_the_project(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import profile_repo
+
+    out = profile_repo(str(_ledger_repo(tmp_path)), intent="Add a refund endpoint")
+    assert "python" in out["languages"]
+    assert out["task_type"] and "task type:" in out["markdown"]
+
+
+async def test_design_change_is_grounded_and_never_writes(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import design_change
+
+    repo = _ledger_repo(tmp_path)
+    before = sorted(p.name for p in repo.rglob("*") if p.is_file())
+    out = await design_change(
+        str(repo),
+        {
+            "intent_id": "LED-1",
+            "title": "Persist the ledger",
+            "summary": "Write it to disk",
+            "acceptance_criteria": ["survives restart"],
+        },
+    )
+    assert "error" not in out, out
+    assert out["title"] == "Persist the ledger" and out["used_llm"] is False
+    assert "Persist the ledger" in out["markdown"]
+    assert isinstance(out["unverified_references"], list)
+    assert sorted(p.name for p in repo.rglob("*") if p.is_file()) == before  # nothing written
+
+
+async def test_design_change_refuses_a_bad_spec_naming_the_valid_fields(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import design_change
+
+    out = await design_change(str(_ledger_repo(tmp_path)), {"title": "x", "invented": True})
+    assert "error" in out and "title" in out["valid_fields"]
+    assert "error" in await design_change(str(tmp_path), "not an object")  # type: ignore[arg-type]
+
+
+async def test_design_change_with_llm_needs_a_model(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.plugin.server import design_change
+
+    # The catalog can resolve a default model from a real .env, and this test must never
+    # reach a provider — so make the model unresolvable the way the root_cause test does.
+    monkeypatch.setattr("orchestrator.sdlc.codegen.resolve_codegen_model", lambda *a, **k: None)
+    out = await design_change(
+        str(_ledger_repo(tmp_path)),
+        {"intent_id": "X-1", "title": "x", "acceptance_criteria": ["works"]},
+        use_llm=True,
+    )
+    assert "error" in out and "ORCHESTRATOR_INTAKE_MODEL" in out["error"]
+
+
+def test_sdlc_baseline_scores_the_gate_over_this_repos_graph(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from orchestrator.plugin.server import sdlc_baseline
+
+    monkeypatch.setenv("SPINE_RUN_STATE", str(tmp_path / "state"))  # an empty run store
+    out = sdlc_baseline(str(_ledger_repo(tmp_path)))
+    assert "error" not in out, out
+    assert out["gate"]["cases"] > 0 and 0.0 <= out["gate"]["accuracy"] <= 1.0
+    assert out["runs"]["runs"] == 0
+    assert "refus" in out["markdown"].lower()
+
+
 # ---- operator tools: over the registry, with a mock transport ----------------------
 
 
@@ -578,7 +705,7 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
 
     hints = {fn.__name__: tool_annotations(fn.__name__) for fn in _TOOLS}
     spends_and_writes = {"sdlc_feature", "sdlc_start_run", "sdlc_decide_gate", "registry_decide"}
-    plans = {"sdlc_plan", "sdlc_approve"}
+    plans = {"sdlc_plan", "sdlc_approve", "understand_repo"}  # the last: a write under episteme/
     observes_a_run = {
         "sdlc_run_status",
         "sdlc_run_result",

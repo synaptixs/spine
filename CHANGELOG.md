@@ -8,6 +8,18 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Added
 
+- **The free half of the pipeline's back half, as MCP tools.** `understand_repo`
+  builds a repo's `episteme/` knowledge base — or, with `check=true`, verifies the
+  committed one still matches the code, naming the missing, stale and orphaned
+  pages — so an assistant can bootstrap a repo that has no bank and then
+  `read_memory_bank` it. It refuses a build on a git URL unless `out` is an
+  absolute directory, because the clone vanishes. `profile_repo` (languages,
+  framework, database, test runner, task type), `design_change` (a grounded
+  design with blast radius and unverified references, for the same `spec` object
+  `sdlc_plan` takes; `use_llm` opt-in) and `sdlc_baseline` (the agent-corpus
+  gate and run metrics) join it. All deterministic, no credentials. There is no
+  `state` tool because `map_repo` already is it.
+
 - **Scopes follow the tiers on the MCP server's HTTP transport.** `spine:read`
   (comprehension, observing a run), `spine:plan` (`sdlc_plan`, `sdlc_approve`),
   `spine:run` (anything that spends money or writes where it cannot be taken
