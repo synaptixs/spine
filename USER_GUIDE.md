@@ -1224,7 +1224,13 @@ orchestrator-mcp --http --host 0.0.0.0 --port 8080     # behind TLS in productio
 ```
 Pick one auth mode (a public bind without either is refused):
 - **Shared secret** — set `ORCHESTRATOR_MCP_TOKEN` + `ORCHESTRATOR_MCP_RESOURCE_URL`; the client sends that token as its bearer.
-- **OAuth introspection** — set `ORCHESTRATOR_MCP_ISSUER_URL`, `…_INTROSPECTION_URL`, client id/secret, and `…_REQUIRED_SCOPES` to validate every token against your IdP.
+- **OAuth introspection** — set `ORCHESTRATOR_MCP_ISSUER_URL`, `…_INTROSPECTION_URL` and client id/secret to validate every token against your IdP.
+
+Scopes follow the tool tiers and are checked **per call**: `spine:read` (comprehension, observing
+a run), `spine:plan` (`sdlc_plan`, `sdlc_approve`), `spine:run` (anything that spends money or
+writes where it cannot be taken back). An IdP-issued token needs the scope of the tier it calls;
+a shared-secret token carries all three unless `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it —
+`spine:read` makes it read-only. The legacy `sdlc` scope reads as all three for one release.
 
 Destructive tools stay gated regardless of auth: `sdlc_feature(live=true)` and
 `sdlc_start_run(create_jira=true)` both need an explicit `confirm=true`.

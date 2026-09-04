@@ -214,7 +214,13 @@ At a glance:
 > `create_app`?"* `repo_path` is a **local path or a git URL** (shallow‑cloned behind the CLI's host
 > allow‑list); each returns structured fields **plus** a `markdown` rendering, bounded (top‑N +
 > `file:line`). To serve them to a **remote** host over HTTP, run the streamable‑HTTP server
-> (`orchestrator-mcp --http`, bearer/OAuth auth from env) — it registers the same tools.
+> (`orchestrator-mcp --http`, bearer/OAuth auth from env) — it registers the same tools, and
+> **checks a scope per tier** on each call: `spine:read` (comprehension, observing a run),
+> `spine:plan` (`sdlc_plan`, `sdlc_approve`), `spine:run` (`sdlc_feature`, `sdlc_start_run`,
+> `sdlc_decide_gate`, `registry_decide`). A token missing the tier's scope gets `error` + `needs`
+> + `has` back, not a 403. A static token carries all three unless
+> `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it (`spine:read` = a read-only token); the legacy
+> `sdlc` scope still reads as all three for one release. Over stdio there is no token and no check.
 
 > **The tiers are metadata your host can act on.** Every tool is registered with MCP tool
 > annotations derived from its tier — *read‑only*, *destructive*, *idempotent*, *open‑world* — so a

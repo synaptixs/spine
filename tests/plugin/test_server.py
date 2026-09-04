@@ -649,6 +649,120 @@ def test_registration_refuses_a_tool_without_a_tier(monkeypatch: pytest.MonkeyPa
         mod.build_server()
 
 
+# ---- the tiers are scopes: the guard on the HTTP transport ---------------------------
+
+
+def test_every_tier_names_a_scope_and_it_follows_the_hints() -> None:
+    from orchestrator.plugin.auth import SCOPE_PLAN, SCOPE_READ, SCOPE_RUN
+    from orchestrator.plugin.server import _TOOLS, tool_annotations, tool_scope
+
+    for fn in _TOOLS:
+        name = fn.__name__
+        hints, scope = tool_annotations(name), tool_scope(name)
+        if hints["read_only_hint"]:
+            assert scope == SCOPE_READ, name
+        elif hints["destructive_hint"]:
+            assert scope == SCOPE_RUN, name
+        else:
+            assert scope == SCOPE_PLAN, name
+    assert tool_scope("registry_decide") == SCOPE_RUN and tool_scope("sdlc_plan") == SCOPE_PLAN
+
+
+def test_an_untiered_tool_has_no_scope_either() -> None:
+    from orchestrator.plugin.server import tool_scope
+
+    with pytest.raises(KeyError):
+        tool_scope("a_tool_nobody_classified")
+
+
+@pytest.fixture
+def _as_token(monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Run the rest of the test as a caller whose verified bearer token carries `scopes`."""
+    pytest.importorskip("mcp")
+    from mcp.server.auth.middleware.auth_context import (  # type: ignore[attr-defined]
+        AuthenticatedUser,
+        auth_context_var,
+    )
+    from mcp.server.auth.provider import AccessToken
+
+    def as_token(scopes: list[str] | None) -> None:
+        if scopes is None:
+            auth_context_var.set(None)
+            return
+        user = AuthenticatedUser(AccessToken(token="t", client_id="c", scopes=scopes, expires_at=None))
+        auth_context_var.set(user)
+
+    yield as_token
+    auth_context_var.set(None)
+
+
+def test_the_guard_refuses_a_token_without_the_tools_scope(_as_token: Any) -> None:
+    from orchestrator.plugin.auth import SCOPE_READ, SCOPE_RUN
+    from orchestrator.plugin.server import scope_denial
+
+    _as_token([SCOPE_READ])
+    denied = scope_denial("registry_decide", SCOPE_RUN)
+    assert denied is not None
+    assert denied["needs"] == SCOPE_RUN and denied["has"] == [SCOPE_READ]
+    assert "registry_decide" in denied["error"] and SCOPE_RUN in denied["error"]
+
+
+def test_the_guard_passes_a_token_with_the_scope_and_no_token_at_all(_as_token: Any) -> None:
+    from orchestrator.plugin.auth import SCOPE_RUN
+    from orchestrator.plugin.server import scope_denial
+
+    _as_token([SCOPE_RUN])
+    assert scope_denial("registry_decide", SCOPE_RUN) is None
+    _as_token(None)  # stdio, or an unauthenticated loopback bind: nothing to check against
+    assert scope_denial("registry_decide", SCOPE_RUN) is None
+
+
+async def test_a_guarded_tool_returns_the_denial_instead_of_running(
+    _as_token: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """End to end through the wrapper the server registers: a read-only token calling a
+    run-tier tool never reaches the registry."""
+    from orchestrator.plugin.auth import SCOPE_READ, SCOPE_RUN
+    from orchestrator.plugin.server import _scoped, registry_decide
+
+    def handler(request: object) -> None:
+        raise AssertionError("must not reach the registry")
+
+    _registry_with(handler, monkeypatch)
+    guarded = _scoped(registry_decide, SCOPE_RUN)
+    _as_token([SCOPE_READ])
+    out = await guarded("g1", "approve")
+    assert out["needs"] == SCOPE_RUN
+
+
+async def test_a_guarded_sync_tool_still_runs_when_allowed(_as_token: Any) -> None:
+    from orchestrator.plugin.auth import SCOPE_READ
+    from orchestrator.plugin.server import _scoped, doctor
+
+    _as_token([SCOPE_READ])
+    out = await _scoped(doctor, SCOPE_READ)()
+    assert "all_passed" in out  # the sync tool ran, through the async wrapper
+
+
+@pytest.mark.skipif(importlib.util.find_spec("mcp") is None, reason="needs the 'mcp' extra")
+async def test_the_guard_does_not_change_what_a_host_sees() -> None:
+    """The wrapper must be invisible in `list_tools`: same names, same input schema, same
+    annotations, same description — the SDK builds those from what `functools.wraps` carries."""
+    from orchestrator.plugin.server import _TOOLS, build_server, registry_decide, tool_annotations
+
+    tools = {t.name: t for t in await build_server().list_tools()}
+    assert set(tools) == {fn.__name__ for fn in _TOOLS}
+    decide = tools["registry_decide"]
+    assert set(decide.input_schema["properties"]) == {"approval_id", "action", "rationale", "modified_input"}
+    assert decide.input_schema["required"] == ["approval_id", "action"]
+    assert decide.description == registry_decide.__doc__
+    for name, tool in tools.items():
+        assert tool.annotations is not None
+        assert tool.annotations.model_dump(exclude_none=True, exclude={"title"}) == tool_annotations(name), (
+            name
+        )
+
+
 # ---- dogfood: drive the real stdio server (needs the `mcp` extra) -----------
 
 

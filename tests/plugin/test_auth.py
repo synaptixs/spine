@@ -8,10 +8,15 @@ import pytest
 
 pytest.importorskip("mcp", reason="needs the 'mcp' extra")
 
-from orchestrator.plugin.auth import (  # noqa: E402
+from orchestrator.plugin.auth import (
+    ALL_SCOPES,
+    SCOPE_PLAN,
+    SCOPE_READ,
+    SCOPE_RUN,
     IntrospectionTokenVerifier,
     StaticTokenVerifier,
     build_auth_from_env,
+    expand_scopes,  # noqa: E402
 )
 
 _MCP_ENV = (
@@ -35,9 +40,9 @@ def _clean_mcp_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 async def test_static_accepts_exact_secret() -> None:
-    v = StaticTokenVerifier("s3cret", scopes=["sdlc"])
+    v = StaticTokenVerifier("s3cret", scopes=[SCOPE_READ])
     tok = await v.verify_token("s3cret")
-    assert tok is not None and tok.scopes == ["sdlc"] and tok.client_id == "static"
+    assert tok is not None and tok.scopes == [SCOPE_READ] and tok.client_id == "static"
 
 
 async def test_static_rejects_wrong_or_empty_token() -> None:
@@ -75,7 +80,8 @@ async def test_introspection_active_token_maps_scopes(monkeypatch: pytest.Monkey
     v = IntrospectionTokenVerifier("https://idp.example/introspect")
     tok = await v.verify_token("opaque")
     assert tok is not None and tok.client_id == "app-1"
-    assert set(tok.scopes) == {"sdlc", "admin"}
+    # The IdP's scopes as issued — with the legacy `sdlc` expanded to the three tier scopes.
+    assert set(tok.scopes) == {"admin", *ALL_SCOPES}
 
 
 async def test_introspection_inactive_token_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -113,13 +119,17 @@ def test_env_no_verifier_returns_none() -> None:
     assert build_auth_from_env() == (None, None)
 
 
-def test_env_static_token_builds_resource_server(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_env_static_token_builds_resource_server(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ORCHESTRATOR_MCP_TOKEN", "s3cret")
     monkeypatch.setenv("ORCHESTRATOR_MCP_RESOURCE_URL", "https://mcp.example.com")
     monkeypatch.setenv("ORCHESTRATOR_MCP_REQUIRED_SCOPES", "sdlc, admin")
     settings, verifier = build_auth_from_env()
     assert isinstance(verifier, StaticTokenVerifier)
-    assert settings is not None and settings.required_scopes == ["sdlc", "admin"]
+    # The env var is what the static token *carries* (legacy `sdlc` expanded); what the SDK
+    # requires of every token is the floor, `spine:read` — the tiers above are per tool.
+    assert settings is not None and settings.required_scopes == [SCOPE_READ]
+    tok = await verifier.verify_token("s3cret")
+    assert tok is not None and set(tok.scopes) == {"admin", *ALL_SCOPES}
     # issuer defaults to the resource URL for the static (no real AS) path.
     assert str(settings.issuer_url).startswith("https://mcp.example.com")
 
@@ -137,3 +147,32 @@ def test_env_verifier_without_any_url_errors(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setenv("ORCHESTRATOR_MCP_TOKEN", "s3cret")  # no issuer/resource URL
     with pytest.raises(ValueError, match="ISSUER_URL"):
         build_auth_from_env()
+
+
+# ---- scopes follow the tiers -------------------------------------------------------
+
+
+def test_the_legacy_scope_expands_to_every_tier_once() -> None:
+    """A token minted for the one `sdlc` scope keeps working for a release: it reads as all
+    three tier scopes. Anything else passes through untouched, order kept."""
+    assert expand_scopes(["sdlc"]) == ALL_SCOPES
+    assert expand_scopes(["admin", "sdlc"]) == ["admin", *ALL_SCOPES]
+    assert expand_scopes([SCOPE_READ]) == [SCOPE_READ]
+    assert expand_scopes([SCOPE_RUN, "sdlc"]) == [SCOPE_RUN, SCOPE_READ, SCOPE_PLAN]  # no duplicate
+
+
+async def test_a_static_token_carries_every_tier_by_default() -> None:
+    """Unset env → the single-tenant self-host behaves as before: one token, every tier."""
+    tok = await StaticTokenVerifier("s3cret").verify_token("s3cret")
+    assert tok is not None and tok.scopes == ALL_SCOPES
+
+
+async def test_a_read_only_static_token_is_one_env_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ORCHESTRATOR_MCP_TOKEN", "s3cret")
+    monkeypatch.setenv("ORCHESTRATOR_MCP_RESOURCE_URL", "https://mcp.example.com")
+    monkeypatch.setenv("ORCHESTRATOR_MCP_REQUIRED_SCOPES", SCOPE_READ)
+    settings, verifier = build_auth_from_env()
+    assert settings is not None and verifier is not None
+    tok = await verifier.verify_token("s3cret")
+    assert tok is not None and tok.scopes == [SCOPE_READ]
+    assert settings.required_scopes == [SCOPE_READ]  # the floor lets it in; the guard keeps it to tier 1
