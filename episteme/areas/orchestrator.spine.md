@@ -3,20 +3,22 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.spine`** is one of 53 areas in this repo, in the `orchestrator` zone. It holds 14 modules — 33 types and 19 functions. It sits in the middle of the graph: 1 area below it, 2 above. Changes here can reach both ways.
+**`orchestrator.spine`** is one of 53 areas in this repo, in the `orchestrator` zone. It holds 14 modules — 33 types and 19 functions. It sits in the middle of the graph: 1 area below it, 3 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
   n0["orchestrator.spine"]
   n1["orchestrator.cli"]
-  n2["orchestrator.sdlc"]
-  n3["orchestrator.pkg"]
+  n2["orchestrator.plugin"]
+  n3["orchestrator.sdlc"]
+  n4["orchestrator.pkg"]
   n1 --> n0
   n2 --> n0
-  n0 --> n3
+  n3 --> n0
+  n0 --> n4
 ```
 
-**In the diagram:** **`orchestrator.spine`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · [`orchestrator.pkg`](orchestrator.pkg.md)
+**In the diagram:** **`orchestrator.spine`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · [`orchestrator.pkg`](orchestrator.pkg.md)
 
 ## Modules
 
@@ -41,4 +43,4 @@ flowchart LR
 
 ## Depended on by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.sdlc`](orchestrator.sdlc.md)
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.sdlc`](orchestrator.sdlc.md)

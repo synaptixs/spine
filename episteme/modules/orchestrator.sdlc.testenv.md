@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_autoheal_allowed`](../../src/orchestrator/sdlc/testenv.py#L463) — reaches **10** symbols
-- [`parse_missing_module`](../../src/orchestrator/sdlc/testenv.py#L457) — reaches **10** symbols
-- [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L470) — reaches **10** symbols
-- [`_c_compiler_available`](../../src/orchestrator/sdlc/testenv.py#L341) — reaches **9** symbols
-- [`CToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L240) — reaches **8** symbols
-- [`DotnetToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L213) — reaches **8** symbols
-- [`GoToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L265) — reaches **8** symbols
-- [`JavaToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L164) — reaches **8** symbols
+- [`_autoheal_allowed`](../../src/orchestrator/sdlc/testenv.py#L463) — reaches **11** symbols
+- [`parse_missing_module`](../../src/orchestrator/sdlc/testenv.py#L457) — reaches **11** symbols
+- [`run_with_autoheal`](../../src/orchestrator/sdlc/testenv.py#L470) — reaches **11** symbols
+- [`_c_compiler_available`](../../src/orchestrator/sdlc/testenv.py#L341) — reaches **10** symbols
+- [`CToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L240) — reaches **9** symbols
+- [`DotnetToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L213) — reaches **9** symbols
+- [`GoToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L265) — reaches **9** symbols
+- [`JavaToolEnvironment`](../../src/orchestrator/sdlc/testenv.py#L164) — reaches **9** symbols
 
 _4 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 

@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`is_effectively_empty`](../../src/orchestrator/sdlc/layout.py#L598) — reaches **21** symbols
-- [`TargetLayout`](../../src/orchestrator/sdlc/layout.py#L79) — reaches **16** symbols
-- [`derive_package_name`](../../src/orchestrator/sdlc/layout.py#L106) — reaches **15** symbols
-- [`_csharp_dirs`](../../src/orchestrator/sdlc/layout.py#L301) — reaches **8** symbols
-- [`_detect_c_build_tool`](../../src/orchestrator/sdlc/layout.py#L354) — reaches **8** symbols
-- [`_resolve_c_layout`](../../src/orchestrator/sdlc/layout.py#L430) — reaches **8** symbols
-- [`_resolve_cpp_layout`](../../src/orchestrator/sdlc/layout.py#L467) — reaches **8** symbols
-- [`_resolve_csharp_layout`](../../src/orchestrator/sdlc/layout.py#L331) — reaches **8** symbols
+- [`is_effectively_empty`](../../src/orchestrator/sdlc/layout.py#L598) — reaches **22** symbols
+- [`TargetLayout`](../../src/orchestrator/sdlc/layout.py#L79) — reaches **17** symbols
+- [`derive_package_name`](../../src/orchestrator/sdlc/layout.py#L106) — reaches **16** symbols
+- [`_csharp_dirs`](../../src/orchestrator/sdlc/layout.py#L301) — reaches **9** symbols
+- [`_resolve_c_layout`](../../src/orchestrator/sdlc/layout.py#L430) — reaches **9** symbols
+- [`_resolve_cpp_layout`](../../src/orchestrator/sdlc/layout.py#L467) — reaches **9** symbols
+- [`_resolve_csharp_layout`](../../src/orchestrator/sdlc/layout.py#L331) — reaches **9** symbols
+- [`_resolve_go_layout`](../../src/orchestrator/sdlc/layout.py#L575) — reaches **9** symbols
 
 ## Documented in
 

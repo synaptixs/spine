@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`SubprocessTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L95) — reaches **20** symbols
+- [`SubprocessTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L95) — reaches **22** symbols
 - [`TestRunResult`](../../src/orchestrator/sdlc/testrunner.py#L78) — reaches **11** symbols
-- [`CTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L268) — reaches **8** symbols
-- [`DotnetTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L189) — reaches **8** symbols
-- [`GoTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L327) — reaches **8** symbols
-- [`MavenTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L153) — reaches **8** symbols
-- [`MesonTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L299) — reaches **8** symbols
-- [`NodeTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L234) — reaches **8** symbols
+- [`CTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L268) — reaches **9** symbols
+- [`DotnetTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L189) — reaches **9** symbols
+- [`GoTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L327) — reaches **9** symbols
+- [`MavenTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L153) — reaches **9** symbols
+- [`MesonTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L299) — reaches **9** symbols
+- [`NodeTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L234) — reaches **9** symbols
 
 _5 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 

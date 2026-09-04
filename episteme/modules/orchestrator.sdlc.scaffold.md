@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_c_files`](../../src/orchestrator/sdlc/scaffold.py#L346) — reaches **8** symbols
-- [`_cpp_files`](../../src/orchestrator/sdlc/scaffold.py#L412) — reaches **8** symbols
-- [`_csharp_files`](../../src/orchestrator/sdlc/scaffold.py#L229) — reaches **8** symbols
-- [`_ensure_build_ignores`](../../src/orchestrator/sdlc/scaffold.py#L113) — reaches **8** symbols
-- [`_go_files`](../../src/orchestrator/sdlc/scaffold.py#L474) — reaches **8** symbols
-- [`_java_files`](../../src/orchestrator/sdlc/scaffold.py#L176) — reaches **8** symbols
-- [`_python_files`](../../src/orchestrator/sdlc/scaffold.py#L155) — reaches **8** symbols
-- [`_sql_files`](../../src/orchestrator/sdlc/scaffold.py#L138) — reaches **8** symbols
+- [`_c_files`](../../src/orchestrator/sdlc/scaffold.py#L346) — reaches **9** symbols
+- [`_cpp_files`](../../src/orchestrator/sdlc/scaffold.py#L412) — reaches **9** symbols
+- [`_csharp_files`](../../src/orchestrator/sdlc/scaffold.py#L229) — reaches **9** symbols
+- [`_ensure_build_ignores`](../../src/orchestrator/sdlc/scaffold.py#L113) — reaches **9** symbols
+- [`_go_files`](../../src/orchestrator/sdlc/scaffold.py#L474) — reaches **9** symbols
+- [`_java_files`](../../src/orchestrator/sdlc/scaffold.py#L176) — reaches **9** symbols
+- [`_python_files`](../../src/orchestrator/sdlc/scaffold.py#L155) — reaches **9** symbols
+- [`_sql_files`](../../src/orchestrator/sdlc/scaffold.py#L138) — reaches **9** symbols
 
 ## Documented in
 
