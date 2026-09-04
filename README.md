@@ -113,7 +113,18 @@ the product.** Where it can't know something, it says so and stops.
 
 ## What's new
 
-**3.31.0 (current)** — **the plugin grows from twenty tools to thirty-two, and every one says
+**3.32.0 (current)** — **the plugin speaks the whole protocol.** Spine's MCP server now carries
+more than tools. Five **prompts** hand Codex, Claude Desktop and claude.ai the same "which tool, in
+which order" workflow a Claude Code skill gives; five `spine://` **resources** make the committed
+knowledge base, the build documents and the state report readable by URI. The long tools report
+**progress** per stage, in the engine's own words. Every comprehension tool that can answer across
+repositories now does — a change reaching a *different* service nothing tests is `uncovered_elsewhere`,
+and a trace frame two services could own is reported as ambiguous rather than guessed. Over HTTP,
+every run-scope call and every scope denial is **audited against the token's principal**. And every
+tool advertises **what it returns** as a schema, with a drift guard in the test suite that failed on an
+undeclared key the first time it ran. The pre-tier `sdlc` scope alias is retired.
+
+**3.31.0** — **the plugin grows from twenty tools to thirty-two, and every one says
 what it can cost.** Spine's MCP server now carries the whole pipeline: operator tools that answer
 "what is running, what is waiting on me" and decide a gate (the terminal UI's successor — the TUI
 is gone); `understand_repo` to build a repo's knowledge base from nothing; a grounded
