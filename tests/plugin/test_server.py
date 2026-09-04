@@ -544,6 +544,171 @@ def test_sdlc_baseline_scores_the_gate_over_this_repos_graph(
     assert "refus" in out["markdown"].lower()
 
 
+# ---- the gated half of the back half: address-review, complete, remediate, audit ----
+
+
+async def test_the_gated_tools_refuse_without_confirm_before_touching_anything(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.plugin.server import sdlc_address_review, sdlc_complete, sdlc_remediate
+
+    def boom(*a: Any, **k: Any) -> Any:
+        raise AssertionError("must not reach the engine")
+
+    monkeypatch.setattr("orchestrator.sdlc.review_response.checkout_pr_worktree", boom)
+    monkeypatch.setattr("orchestrator.sdlc.complete.complete_issue_for_pr", boom)
+    monkeypatch.setattr("orchestrator.spine.execute_remediations", boom)
+
+    out = await sdlc_address_review("https://gh/o/r/pull/1")
+    assert "confirm=true" in out["error"] and "push" in out["error"]
+    out = await sdlc_complete("https://gh/o/r/pull/1")
+    assert "confirm=true" in out["error"] and "tracker" in out["error"]
+    out = await sdlc_remediate("r.json", "m.json", live=True)
+    assert "confirm=true" in out["error"] and "PR" in out["error"]
+
+
+async def test_sdlc_address_review_checks_out_then_responds(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.plugin.server import sdlc_address_review
+    from orchestrator.sdlc.review_response import ReviewResponse
+
+    seen: dict[str, Any] = {}
+
+    async def checkout(repo_url: str, pr: str, **kw: Any) -> tuple[Path, str]:
+        seen["clone"] = (repo_url, pr)
+        return tmp_path, "feat/abc/PROJ-1"
+
+    async def respond(deps: Any, **kw: Any) -> ReviewResponse:
+        seen["respond"] = kw
+        return ReviewResponse(comments=2, addressed=True, green=True, refines=1, detail="pushed")
+
+    monkeypatch.setattr("orchestrator.sdlc.review_response.checkout_pr_worktree", checkout)
+    monkeypatch.setattr("orchestrator.sdlc.review_response.respond_to_pr_feedback", respond)
+    monkeypatch.setattr("orchestrator.sdlc.worker.build_deps", lambda: object())
+    monkeypatch.delenv("SDLC_REPO_URL", raising=False)
+    monkeypatch.chdir(tmp_path)  # no .env to bridge SDLC_REPO_URL back in
+
+    assert "SDLC_REPO_URL" in (await sdlc_address_review("pr", confirm=True))["error"]
+    out = await sdlc_address_review(
+        "https://gh/o/r/pull/1", repo="https://gh/o/r.git", bot_login="bot", confirm=True
+    )
+    assert out["addressed"] and out["branch"] == "feat/abc/PROJ-1" and out["comments"] == 2
+    assert seen["clone"] == ("https://gh/o/r.git", "https://gh/o/r/pull/1")
+    assert seen["respond"]["branch"] == "feat/abc/PROJ-1" and seen["respond"]["bot_login"] == "bot"
+
+
+async def test_sdlc_address_review_reports_a_failed_checkout_step(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.plugin.server import sdlc_address_review
+    from orchestrator.sdlc.review_response import PRCheckoutError
+
+    async def checkout(repo_url: str, pr: str, **kw: Any) -> Any:
+        raise PRCheckoutError("gh", "not logged in")
+
+    monkeypatch.setattr("orchestrator.sdlc.review_response.checkout_pr_worktree", checkout)
+    out = await sdlc_address_review("pr", repo="u", confirm=True)
+    assert out["step"] == "gh" and "not logged in" in out["error"]
+
+
+async def test_sdlc_complete_returns_the_completion_or_the_coded_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.plugin.server import sdlc_complete
+    from orchestrator.sdlc.complete import CompleteError, CompletionResult
+
+    async def ok(pr: str, **kw: Any) -> CompletionResult:
+        return CompletionResult(issue="PROJ-1", pr=pr, merged=True, status=kw["status"], backlog_done=False)
+
+    monkeypatch.setattr("orchestrator.sdlc.complete.complete_issue_for_pr", ok)
+    out = await sdlc_complete("https://gh/o/r/pull/1", status="Closed", confirm=True)
+    assert out["issue"] == "PROJ-1" and out["status"] == "Closed"
+
+    async def unmerged(pr: str, **kw: Any) -> CompletionResult:
+        raise CompleteError("PR is not merged", code=3)
+
+    monkeypatch.setattr("orchestrator.sdlc.complete.complete_issue_for_pr", unmerged)
+    out = await sdlc_complete("pr", confirm=True)
+    assert out["code"] == 3 and "not merged" in out["error"]
+
+
+async def test_sdlc_remediate_needs_readable_inputs_and_a_known_severity(tmp_path: Path) -> None:
+    from orchestrator.plugin.server import sdlc_remediate
+
+    assert "min_severity" in (await sdlc_remediate("r", "m", min_severity="loud"))["error"]
+    out = await sdlc_remediate(str(tmp_path / "missing.json"), str(tmp_path / "m.json"))
+    assert "drift report" in out["error"]
+
+
+async def test_sdlc_remediate_runs_each_material_finding_in_safe_mode(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import json as _json
+
+    from orchestrator.plugin.server import sdlc_remediate
+
+    report = tmp_path / "report.json"
+    report.write_text(_json.dumps({"findings": []}), encoding="utf-8")
+    mappings = tmp_path / "mappings.json"
+    mappings.write_text("{}", encoding="utf-8")
+
+    class _Store:
+        def __init__(self, path: str) -> None:
+            pass
+
+        def load(self) -> dict[str, Any]:
+            return {}
+
+        def code_for_iri(self) -> dict[str, list[str]]:
+            return {}
+
+    class _Outcome:
+        entity_key, title, ok, detail, result = "Order", "Fix Order", True, "branch left", "feat/x"
+
+    seen: dict[str, Any] = {}
+
+    async def execute(report: Any, *, runner: Any, **kw: Any) -> list[Any]:
+        seen["min_severity"] = kw["min_severity"]
+        return [_Outcome()]
+
+    monkeypatch.setattr("orchestrator.spine.MappingStore", _Store)
+    monkeypatch.setattr("orchestrator.spine.infer_entity_iris", lambda report, mappings: {})
+    monkeypatch.setattr("orchestrator.spine.execute_remediations", execute)
+
+    out = await sdlc_remediate(str(report), str(mappings), min_severity="critical")
+    assert out["live"] is False and out["tasks"] == 1 and out["ok"] == 1
+    assert out["outcomes"][0]["entity"] == "Order" and "[OK] `Order`" in out["markdown"]
+    assert seen["min_severity"] == "critical"
+
+
+async def test_audit_repo_needs_a_model_and_then_reports_findings(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.plugin.server import audit_repo
+
+    monkeypatch.setattr("orchestrator.sdlc.codegen.resolve_codegen_model", lambda *a, **k: None)
+    assert "ORCHESTRATOR_INTAKE_MODEL" in (await audit_repo(str(tmp_path)))["error"]
+
+    from orchestrator.personas.auditor import AuditResult, Finding
+
+    async def fake_audit(root: Any, *, llm: Any, model: str, focus: str, **kw: Any) -> AuditResult:
+        return AuditResult(
+            summary=f"looked for {focus}",
+            findings=[Finding(title="Unchecked input", file="a.py", line=3, severity="warning", detail="d")],
+            unresolved=[],
+            steps=4,
+            stopped_reason="submitted",
+        )
+
+    monkeypatch.setattr("orchestrator.sdlc.codegen.resolve_codegen_model", lambda *a, **k: "some-model")
+    monkeypatch.setattr("orchestrator.personas.run_audit", fake_audit)
+    monkeypatch.setattr("orchestrator.core.llm.LiteLLMClient", lambda *a, **k: object())
+    (tmp_path / "a.py").write_text("x = 1\n", encoding="utf-8")
+    out = await audit_repo(str(tmp_path), focus="input handling")
+    assert out["summary"] == "looked for input handling" and out["steps"] == 4
+    assert out["findings"][0]["file"] == "a.py" and out["findings"][0]["line"] == 3
+    assert "Unchecked input" in out["markdown"]
+
+
 # ---- operator tools: over the registry, with a mock transport ----------------------
 
 
@@ -704,7 +869,15 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
     from orchestrator.plugin.server import _TOOLS, tool_annotations
 
     hints = {fn.__name__: tool_annotations(fn.__name__) for fn in _TOOLS}
-    spends_and_writes = {"sdlc_feature", "sdlc_start_run", "sdlc_decide_gate", "registry_decide"}
+    spends_and_writes = {
+        "sdlc_feature",
+        "sdlc_start_run",
+        "sdlc_decide_gate",
+        "registry_decide",
+        "sdlc_address_review",
+        "sdlc_complete",
+        "sdlc_remediate",
+    }
     plans = {"sdlc_plan", "sdlc_approve", "understand_repo"}  # the last: a write under episteme/
     observes_a_run = {
         "sdlc_run_status",
@@ -786,7 +959,9 @@ def test_every_tier_names_a_scope_and_it_follows_the_hints() -> None:
     for fn in _TOOLS:
         name = fn.__name__
         hints, scope = tool_annotations(name), tool_scope(name)
-        if hints["read_only_hint"]:
+        if hints["read_only_hint"] and not hints["idempotent_hint"]:
+            assert scope == SCOPE_RUN, name  # reads only, but a model ran: audit_repo
+        elif hints["read_only_hint"]:
             assert scope == SCOPE_READ, name
         elif hints["destructive_hint"]:
             assert scope == SCOPE_RUN, name

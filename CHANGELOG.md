@@ -8,6 +8,19 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Added
 
+- **The gated half of the pipeline's back half, as MCP tools — and with it, every
+  gap in the plugin's design record is closed.** `sdlc_address_review` addresses
+  the human review comments on an open PR and pushes a fix to its branch;
+  `sdlc_complete` closes the tracker issue for a merged PR; both have no local
+  mode and need `confirm=true` on every call. `sdlc_remediate` turns a drift
+  report into remediation runs, safe by default, `live` gated like
+  `sdlc_feature`. `audit_repo` runs the codebase-auditor persona and reports
+  findings anchored to real `file:line` — writes nothing, spends tokens, so it is
+  read-only for the host and run scope for the token. The clone-and-checkout and
+  the merge→Done logic moved from the CLI into the engine (`checkout_pr_worktree`,
+  `orchestrator.sdlc.complete`), so the CLI and the plugin share one
+  implementation.
+
 - **The free half of the pipeline's back half, as MCP tools.** `understand_repo`
   builds a repo's `episteme/` knowledge base — or, with `check=true`, verifies the
   committed one still matches the code, naming the missing, stale and orphaned

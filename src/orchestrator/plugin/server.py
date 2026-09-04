@@ -43,6 +43,12 @@ bank; the one write, under the repo), ``profile_repo``, ``design_change`` and
 ``sdlc_baseline``. Deterministic, no credentials, apart from ``design_change``'s opt-in
 ``use_llm``. ``state`` has no tool of its own because ``map_repo`` already is it.
 
+**The gated half of the back half** — ``sdlc_address_review`` (push a fix for review
+comments to the PR branch), ``sdlc_complete`` (transition the merged PR's ticket),
+``sdlc_remediate`` (drift report → remediation runs; ``live`` opens PRs) and ``audit_repo``
+(a persona reads the repo on a model, writes nothing). The first two have no local mode and
+need ``confirm=true`` on every call; ``remediate`` gates ``live`` like ``sdlc_feature``.
+
 **Operator tools** — ``registry_runs`` / ``registry_approvals`` / ``registry_decide`` /
 ``registry_trace``. "What is running, what is waiting on me", over HTTP to the registry
 (``orchestrator up``) — the successor to the removed terminal UI. Observing is read-only;
@@ -1160,6 +1166,209 @@ def sdlc_baseline(repo_path: str) -> dict[str, Any]:
     return _in_repo(repo_path, run, hint=False)
 
 
+# ---- the gated half of the back half: address-review, complete, remediate, audit ------
+#
+# Each spends money or writes outside the repo — a push to a PR branch, a ticket
+# transition, opened PRs, a model run — so each is run scope. The two that have no local
+# mode (address-review pushes, complete transitions) need ``confirm=true`` on every call;
+# ``remediate`` has a safe mode and gates ``live`` the way ``sdlc_feature`` does.
+
+_CONFIRM_HINT = (
+    "pass confirm=true to authorize it — an explicit human authorization, on top of the host's own."
+)
+
+
+async def sdlc_address_review(
+    pr: str,
+    repo: str | None = None,
+    bot_login: str | None = None,
+    max_refines: int = 3,
+    confirm: bool = False,
+) -> dict[str, Any]:
+    """Address the human review comments on an open PR and **push a fix to its branch**:
+    clone the repo, check the PR out, feed the comments to codegen, re-drive the change to
+    green (tests + preflight), push. **Gated — needs ``confirm=true``**: there is no local
+    mode, a successful call writes to the PR. Spends tokens. Needs ``git``, an authenticated
+    ``gh``, a model, and the run backend's database. ``repo`` defaults to ``SDLC_REPO_URL``;
+    ``bot_login`` skips the agent's own comments."""
+    if not confirm:
+        return {"error": f"sdlc_address_review pushes to the PR branch; {_CONFIRM_HINT}"}
+    import os
+
+    from orchestrator.core.env import load_local_env
+
+    load_local_env()
+    repo_url = repo or os.getenv("SDLC_REPO_URL")
+    if not repo_url:
+        return {"error": "pass repo, or set SDLC_REPO_URL to the repo clone URL."}
+
+    from orchestrator.sdlc.review_response import (
+        PRCheckoutError,
+        checkout_pr_worktree,
+        respond_to_pr_feedback,
+    )
+    from orchestrator.sdlc.worker import build_deps
+
+    try:
+        workdir, branch = await checkout_pr_worktree(repo_url, pr)
+    except PRCheckoutError as exc:
+        return {"error": str(exc), "step": exc.step}
+    result = await respond_to_pr_feedback(
+        build_deps(),
+        pr_url=pr,
+        branch=branch,
+        path=str(workdir),
+        bot_login=bot_login,
+        max_refines=max_refines,
+    )
+    return {"pr": pr, "branch": branch, **result.__dict__}
+
+
+async def sdlc_complete(
+    pr: str,
+    issue: str | None = None,
+    status: str = "Done",
+    allow_unmerged: bool = False,
+    confirm: bool = False,
+) -> dict[str, Any]:
+    """Close the tracker issue for a **merged** PR — the merge → Done bookend. Verifies the
+    PR is merged (``gh``), derives the issue key from its head branch
+    (``feat/<sdlc_id>/<KEY>``) unless ``issue`` is given, transitions the issue to
+    ``status``, comments the merge, and marks the backlog intent done. **Gated — needs
+    ``confirm=true``**: it writes to the tracker for real, never dry-run. Needs an
+    authenticated ``gh`` and Jira credentials."""
+    if not confirm:
+        return {"error": f"sdlc_complete transitions a real tracker issue; {_CONFIRM_HINT}"}
+    from orchestrator.core.env import load_local_env
+    from orchestrator.sdlc.complete import CompleteError, complete_issue_for_pr
+
+    load_local_env()
+    try:
+        result = await complete_issue_for_pr(pr, issue=issue, status=status, allow_unmerged=allow_unmerged)
+    except CompleteError as exc:
+        return {"error": str(exc), "code": exc.code}
+    return dict(result.__dict__)
+
+
+async def sdlc_remediate(
+    report_path: str,
+    mappings_path: str,
+    repo: str | None = None,
+    min_severity: str = "warning",
+    live: bool = False,
+    confirm: bool = False,
+) -> dict[str, Any]:
+    """Turn an infodrift drift report into remediation feature runs, one per material
+    finding at or above ``min_severity`` (``warning`` | ``critical``). ``report_path`` is
+    the ``full_report`` JSON, ``mappings_path`` the confirmed code↔ontology mapping store —
+    both on this machine. Spends tokens. Safe by default (``live=false``): each task leaves
+    a local branch + diff; ``live=true`` opens PRs and is **gated on ``confirm=true``**, like
+    ``sdlc_feature``. ``repo`` defaults to ``SDLC_REPO_URL``."""
+    if live and not confirm:
+        return {"error": f"live=true opens real PRs; {_CONFIRM_HINT}"}
+    if min_severity not in ("warning", "critical"):
+        return {"error": "min_severity must be 'warning' or 'critical'"}
+    import json
+
+    from orchestrator.sdlc.feature_runner import FeatureRunError, run_feature
+    from orchestrator.spine import (
+        DriftReport,
+        MappingStore,
+        RemediationTask,
+        execute_remediations,
+        infer_entity_iris,
+    )
+
+    try:
+        payload = json.loads(Path(report_path).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return {"error": f"could not read the drift report at {report_path!r}: {exc}"}
+    report = DriftReport.from_infodrift(payload)
+    try:
+        store = MappingStore(mappings_path)
+        mappings = store.load()
+    except (OSError, ValueError) as exc:
+        return {"error": f"could not read the mapping store at {mappings_path!r}: {exc}"}
+    entity_iris = infer_entity_iris(report, mappings)
+
+    async def runner(task: RemediationTask) -> str:
+        result = await run_feature(source="spine://remediation", spec=task.spec, repo=repo, live=live)
+        return result.branch
+
+    try:
+        outcomes = await execute_remediations(
+            report,
+            runner=runner,
+            entity_iris=entity_iris,
+            code_for_iri=store.code_for_iri(),
+            min_severity=min_severity,
+        )
+    except FeatureRunError as exc:
+        return {"error": str(exc), "code": exc.code}
+    return {
+        "live": live,
+        "tasks": len(outcomes),
+        "ok": sum(1 for o in outcomes if o.ok),
+        "outcomes": [
+            {"entity": o.entity_key, "title": o.title, "ok": o.ok, "detail": o.detail, "result": o.result}
+            for o in outcomes
+        ],
+        "markdown": "_No material drift findings — nothing to remediate._"
+        if not outcomes
+        else "\n".join(
+            f"- [{'OK' if o.ok else 'FAILED'}] `{o.entity_key}`: {o.detail}"
+            + (f" → {o.result}" if o.result else "")
+            for o in outcomes
+        ),
+    }
+
+
+def _finding_dict(f: Any) -> dict[str, Any]:
+    return {"title": f.title, "file": f.file, "line": f.line, "severity": f.severity, "detail": f.detail}
+
+
+async def audit_repo(
+    repo_path: str, focus: str = "general code quality, correctness risks, and security"
+) -> dict[str, Any]:
+    """A codebase-auditor persona reads the repo — the graph plus file reads, **no writes**
+    — and reports findings anchored to a real ``file:line`` (claims that resolve to nothing
+    are listed separately as ``unresolved``). **Spends tokens**: needs a tool-calling model
+    (``ORCHESTRATOR_INTAKE_MODEL``). ``repo_path`` is a local path or a git URL; ``focus``
+    says what to look for."""
+    from orchestrator.core.env import load_local_env
+    from orchestrator.sdlc.codegen import resolve_codegen_model
+
+    load_local_env()
+    model = resolve_codegen_model()
+    if not model:
+        return {
+            "error": "audit_repo needs a tool-calling model — "
+            "set ORCHESTRATOR_INTAKE_MODEL (or SDLC_CODEGEN_MODEL)."
+        }
+
+    async def run(repo: Any) -> dict[str, Any]:
+        from orchestrator.core.llm import LiteLLMClient
+        from orchestrator.personas import render_findings_markdown, run_audit
+
+        result = await run_audit(repo, llm=LiteLLMClient(), model=model, focus=focus)
+        return {
+            "summary": result.summary,
+            "findings": [_finding_dict(f) for f in result.findings],
+            "unresolved": [_finding_dict(f) for f in result.unresolved],
+            "steps": result.steps,
+            "stopped_reason": result.stopped_reason,
+            "markdown": render_findings_markdown(result, title=f"Audit — {Path(repo).resolve().name}"),
+        }
+
+    from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
+
+    try:
+        with _open_repo(repo_path) as repo:
+            return await run(repo)
+    except (RepoSourceError, RepoPathError) as exc:
+        return {"error": str(exc)}
+
+
 # ---- operator tools: what is running, what is waiting on me — over the registry -------
 #
 # The successor to the terminal UI removed in #316. These go over HTTP to the registry
@@ -1339,6 +1548,11 @@ _TOOLS = (
     profile_repo,
     design_change,
     sdlc_baseline,
+    # the gated half of the back half (gap 5): each spends money or writes externally
+    sdlc_address_review,
+    sdlc_complete,
+    sdlc_remediate,
+    audit_repo,
     # operator: what is running, what is waiting on me — over the registry
     registry_runs,
     registry_approvals,
@@ -1381,6 +1595,9 @@ PLAN_REMOTE = Tier(
 RUN_OBSERVE = Tier(
     "run", read_only=True, destructive=False, idempotent=True, open_world=True, scope=SCOPE_READ
 )
+#: An agent that only reads, on a model: ``audit_repo`` writes nothing, but it spends
+#: tokens and no two runs are the same — read-only for the host, run scope for the token.
+AUDIT = Tier("audit", read_only=True, destructive=False, idempotent=False, open_world=True, scope=SCOPE_RUN)
 #: Driving a run: spends money, and with ``live``/``confirm`` writes where it cannot be
 #: taken back. A rejected gate ends a run, which is why deciding one is destructive too.
 RUN = Tier("run", read_only=False, destructive=True, idempotent=False, open_world=True, scope=SCOPE_RUN)
@@ -1412,6 +1629,10 @@ _TIER: dict[str, Tier] = {
     "profile_repo": COMPREHEND,
     "design_change": COMPREHEND,  # `use_llm` spends tokens; it still never writes
     "sdlc_baseline": COMPREHEND,
+    "sdlc_address_review": RUN,  # pushes to the PR branch
+    "sdlc_complete": RUN,  # transitions a real tracker issue
+    "sdlc_remediate": RUN,  # spends tokens; live opens PRs
+    "audit_repo": AUDIT,
     "registry_runs": RUN_OBSERVE,
     "registry_approvals": RUN_OBSERVE,
     "registry_decide": RUN,  # a rejection ends a run
@@ -1581,6 +1802,7 @@ def build_http_server(
 
 
 __all__ = [
+    "audit_repo",
     "blast_radius",
     "build_http_server",
     "build_server",
@@ -1604,11 +1826,14 @@ __all__ = [
     "regression_gaps",
     "root_cause",
     "scope_denial",
+    "sdlc_address_review",
     "sdlc_approve",
     "sdlc_baseline",
+    "sdlc_complete",
     "sdlc_decide_gate",
     "sdlc_feature",
     "sdlc_plan",
+    "sdlc_remediate",
     "sdlc_run_result",
     "sdlc_run_status",
     "sdlc_start_run",
