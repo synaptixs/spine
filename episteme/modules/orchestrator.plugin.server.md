@@ -248,7 +248,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:1985`](../../src/orchestrator/plugin/server.py#L1985)
 
 - **Called by** (1 production · 3 test): [`main`](../../src/orchestrator/plugin/__main__.py#L52), [`test_http_server_loopback_unauthenticated_is_allowed`](../../tests/plugin/test_server.py#L398), [`test_http_server_refuses_public_bind_without_auth`](../../tests/plugin/test_server.py#L388), [`test_http_server_wires_static_auth`](../../tests/plugin/test_server.py#L408)
-- **Calls** (4): [`HttpServer`](../../src/orchestrator/plugin/server.py#L1970), [`_import_server_class`](../../src/orchestrator/plugin/server.py#L1899), [`_register_all`](../../src/orchestrator/plugin/server.py#L1955), [`build_auth_from_env`](../../src/orchestrator/plugin/auth.py#L162)
+- **Calls** (4): [`HttpServer`](../../src/orchestrator/plugin/server.py#L1970), [`_import_server_class`](../../src/orchestrator/plugin/server.py#L1899), [`_register_all`](../../src/orchestrator/plugin/server.py#L1955), [`build_auth_from_env`](../../src/orchestrator/plugin/auth.py#L142)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `build_server`
