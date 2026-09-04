@@ -56,7 +56,7 @@ _Showing 9 of 17 neighbouring areas._
 - [`orchestrator.pkg.join_link`](../../src/orchestrator/pkg/join_link.py#L1)
 - [`orchestrator.pkg.joins_propose`](../../src/orchestrator/pkg/joins_propose.py#L1)
 - [`orchestrator.pkg.media`](../../src/orchestrator/pkg/media.py#L1)
-- [`orchestrator.pkg.media_asr`](../modules/orchestrator.pkg.media_asr.md)
+- [`orchestrator.pkg.media_asr`](../../src/orchestrator/pkg/media_asr.py#L1)
 - [`orchestrator.pkg.media_extract`](../modules/orchestrator.pkg.media_extract.md)
 - [`orchestrator.pkg.migrations`](../../src/orchestrator/pkg/migrations.py#L1)
 - [`orchestrator.pkg.overview`](../../src/orchestrator/pkg/overview.py#L1)

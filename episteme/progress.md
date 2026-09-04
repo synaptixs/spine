@@ -5,7 +5,7 @@
 _Derived from the graph — untested components, oversized types, duplicate names. Advisory, and only as good as what the graph can see._
 
 - **P2** — Refactor 1 god-classes (>40 members), e.g. `LLMCodegenAdapter` (53), `CurrentState` (36).
-- **P3** — De-duplicate type names: `_FakeLLM`×6, `_FakeClient`×6, `_StubSession`×6, `_Plan`×4.
+- **P3** — De-duplicate type names: `_FakeLLM`×6, `_FakeClient`×6, `_StubSession`×6, `Finding`×4.
 
 ## Feature tracking
 Feature progress is tracked in **`BACKLOG.md`** (written by `sdlc feature` / `orchestrator backlog`): `[ ]` todo, `[~]` in progress, `[x]` done (PR merged).
