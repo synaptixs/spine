@@ -241,6 +241,27 @@ run after a refine does not move it backwards — and a line the stage table doe
 on the current step as its message. Nothing changes in the tools' schemas, and a client that sends
 no token sees exactly what it saw before.
 
+### What each tool returns, as a schema
+
+Every tool advertises an **output schema** — a type per tool, with no required key, because
+every tool has an error path (`error` + `hint`) and most have several shapes (found / not
+found; single‑repo / multi‑repo). A host reads the fields — `found`, `matches[].where`,
+`uncovered_elsewhere` — before it calls, and the structured result validates against them. A key
+the type happens to miss still reaches the host (the types allow extras); the test suite's drift
+guard is what keeps the declarations honest. Open shapes — the twelve‑section build document, a
+run's Temporal status, the engine's design dict — stay untyped objects on purpose.
+
+### Who did what, over HTTP
+
+Over stdio a local subprocess acts for one user; nothing to attribute. Over HTTP several people
+may share one server, so every **run‑scope** call (`sdlc_feature`, `sdlc_start_run`,
+`sdlc_decide_gate`, `registry_decide`, `sdlc_address_review`, `sdlc_complete`, `sdlc_remediate`,
+`audit_repo`) and every **scope denial** is recorded against the token's principal in the
+registry's audit log (`POST /v1/audit`, with the plugin's own `ORCHESTRATOR_API_KEY` as the
+writer): the principal, the tool, its scope, the argument *names* and a digest of the values —
+never the values — and the outcome. `registry_trace` and `GET /v1/audit?resource_type=mcp_tool`
+read it back. A registry that is down degrades to a log line; the audit never fails the call.
+
 ### Asking across several repositories
 
 The comprehension tools take **one** repository by default, and for a service that is called

@@ -1,6 +1,6 @@
 # The MCP plugin surface — what it is, what it lacks, and the order to extend it
 
-**Status:** **Phase 1 COMPLETE** — all six steps shipped, all six gaps closed. Phase 2 in progress — steps 1 (prompts + resources), 2 (progress) and 3 (multi-repo parity) shipped. **Written 2026-09-04 against 3.30.0**,
+**Status:** **Phase 1 COMPLETE** — all six steps shipped, all six gaps closed. **Phase 2 COMPLETE** — prompts + resources, progress, multi-repo parity, per-principal audit, typed output all shipped. Only the `sdlc` scope alias retirement remains, for the next cut. **Written 2026-09-04 against 3.30.0**,
 after #316 removed the terminal UI and left the plugin as the only non-browser operator face.
 **Owner:** _unassigned_
 
@@ -121,9 +121,15 @@ Numbered, because §5 retires them by number.
 
 Each is scoped to one PR. The number is a name, not an order — §5 is the order.
 
-- **4.1 Annotations and typed output.** Annotations: Phase 1. Typed output schemas (a model per
-  tool instead of `dict[str, Any]`) are deferred to their own PR: the SDK already advertises an
-  open-object schema, and real models touch twenty return shapes and their tests.
+- **4.1 Annotations and typed output.** Annotations: Phase 1. Typed output: *(shipped in Phase 2
+  step 5)* — a `TypedDict` per tool in `plugin/outputs.py` with no required key (every tool has
+  an error path; most have several shapes), attached to the registered function's signature so
+  the SDK derives an output schema and validates the result while the tool keeps its plain
+  `dict`. Pydantic drops a key a `TypedDict` does not declare from the structured result
+  *silently*, so the types allow extras and the test suite's drift guard
+  (`tests/plugin/conftest.py`) wraps every tool and fails on any returned key its type does not
+  declare. Open shapes (the build document, Temporal status, the design dict) stay
+  `dict[str, Any]` on purpose. A tool without a type does not register.
 - **4.2 Operator-ops tools.** *(Shipped.)* `registry_runs`, `registry_approvals`,
   `registry_trace`, `registry_decide` over the registry `/v1` API with `X-API-Key`, through
   `plugin/registry_client.py` (the removed TUI client, reinstated and extended). Config via
@@ -172,8 +178,13 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
   fans out per repository instead of merging — a document describes the repository it lives
   in, and binding one repo's docs to another's symbols by name would be a false edge — each
   entry carrying its own `reproducible` flag.
-- **4.11 Per-principal audit on HTTP.** Tier-3 invocations recorded against the token principal,
-  in the registry's existing audit log.
+- **4.11 Per-principal audit on HTTP.** *(Shipped in Phase 2 step 4.)* Every `spine:run` call
+  and every scope denial is recorded against the token's principal in the registry's audit log
+  through a new `POST /v1/audit` — the actor and tenant come from the authenticated principal,
+  never from the body — with the principal, tool, scope, the argument *names* and a digest of the
+  values (never the values), and the outcome. The scope guard records it; the plugin keeps no
+  database credentials, so the registry is the one writer; an unreachable registry degrades to a
+  structured log line and never fails the call. Read-scope calls are not recorded.
 
 ## 5. Order — gaps first
 
@@ -196,8 +207,8 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
 | 1 | 4.7 prompts + 4.6 resources — protocol parity for non-Claude hosts | **shipped** |
 | 2 | 4.8 progress notifications from the long tools | **shipped** |
 | 3 | 4.10 multi-repo parity for `explain_symbol`, `regression_gaps`, `localize`, `docs_for` | **shipped** |
-| 4 | 4.11 per-principal audit on HTTP | next |
-| 5 | typed output (the deferred half of 4.1) | last — every return shape |
+| 4 | 4.11 per-principal audit on HTTP | **shipped** |
+| 5 | typed output (the deferred half of 4.1) | **shipped** |
 | — | retire the `sdlc` scope alias | the release after 3.31.0 |
 
 ## Invariants

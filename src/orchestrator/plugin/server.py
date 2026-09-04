@@ -72,6 +72,11 @@ The SDK only checks scopes server-wide, so the per-tool check has to live here. 
 there is no token, and the guard passes: a local subprocess a host launched already holds
 the user's ``.env``.
 
+**Every tool advertises what it returns** (``plugin/outputs.py``): a ``TypedDict`` per tool,
+attached to the registered function so the SDK derives an output schema and validates the
+result, while the tool keeps returning a plain ``dict``. The test suite's drift guard fails
+on any returned key the type does not declare.
+
 **Prompts and resources, for hosts that are not Claude Code** (``plugin/prompts.py``,
 ``plugin/resources.py``). The ``understand-codebase`` skill's "which tool, in which order"
 ships as five MCP prompts; the committed ``episteme/`` bank, the build documents and the
@@ -1847,6 +1852,8 @@ def _scoped(fn: Callable[..., Any], scope: str) -> Callable[..., Any]:
     signature, annotations and docstring across, which is what the SDK builds the input
     schema and description from — a guarded tool advertises exactly what the bare one did."""
 
+    from orchestrator.plugin.outputs import OUTPUTS
+
     @functools.wraps(fn)
     async def guarded(*args: Any, **kwargs: Any) -> Any:
         from orchestrator.plugin.audit import AUDITED_SCOPES, record_invocation
@@ -1873,6 +1880,19 @@ def _scoped(fn: Callable[..., Any], scope: str) -> Callable[..., Any]:
             )
         return result
 
+    # The tool's declared output type rides on the registered function, so the SDK derives
+    # an output schema from it and validates the result — while the tool itself keeps its
+    # plain `dict` signature. A tool without a type does not register, like one without a tier.
+    try:
+        out_type = OUTPUTS[fn.__name__]
+    except KeyError as exc:
+        raise RuntimeError(
+            f"tool {fn.__name__!r} has no output type in OUTPUTS — say what it returns"
+        ) from exc
+    guarded.__annotations__ = {**fn.__annotations__, "return": out_type}
+    # The SDK takes the return type from `inspect.signature`, which follows `__wrapped__` to
+    # the tool's own `dict[str, Any]` — so the wrapper carries an explicit signature.
+    guarded.__signature__ = inspect.signature(fn).replace(return_annotation=out_type)  # type: ignore[attr-defined]
     return guarded
 
 
