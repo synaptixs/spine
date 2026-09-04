@@ -6,6 +6,19 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Fixed
+
+- **An empty codegen submission gets a second correction — a bad draw is not a
+  loop.** The corrective retry allowed one correction per failure kind, on the
+  reasoning that a kind failing twice is looping rather than fixing. That holds for
+  a deterministic failure (the same bad edit anchor, the same unparseable output)
+  and not for an empty submission: codegen samples at the provider default, so a
+  run that answered `summary='placeholder'` and no files drew badly rather than
+  reasoned badly, and the remedy for a bad draw is another draw. `empty` now gets
+  two corrections (`_CORRECTIONS_PER_KIND`), every other kind keeps one, and the
+  overall attempt cap grows by exactly one so the allowance is spendable. Follows
+  #154, which routed placeholder-only submissions into this retry.
+
 ### Removed
 
 - **The terminal UI (`orchestrator tui`) and the `tui` extra.** Every action it

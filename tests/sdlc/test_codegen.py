@@ -212,13 +212,17 @@ async def test_a_submission_with_no_files_is_retried_then_refused(tmp_path: Path
     the right shape and simply submitted nothing — the schema allows it, since `required`
     means present, not non-empty. A live run died here after a clean implement pass
     because author_tests came back empty and nothing asked it to try again."""
-    llm = _ScriptedLLM(['{"summary": "I did nothing"}', '{"summary": "still nothing"}'])
+    llm = _ScriptedLLM(
+        ['{"summary": "I did nothing"}', '{"summary": "still nothing"}', '{"summary": "nor now"}']
+    )
     adapter = LLMCodegenAdapter(llm)
 
     with pytest.raises(CodegenError):
         await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="SDLC-1")
 
-    assert len(llm.calls) == 2  # one corrective retry, then it gives up
+    # Two corrective retries for `empty`, then it gives up — an empty submission is a bad
+    # sample rather than a loop, so the second correction is another draw, not a repeat.
+    assert len(llm.calls) == 3
     assert "SUBMITTED NO FILES" in llm.calls[1][1].content
     assert "I did nothing" in llm.calls[1][1].content  # its own words, fed back
 
@@ -824,15 +828,18 @@ async def test_anchor_repair_gives_up_after_one_retry(tmp_path: Path) -> None:
     assert len(llm.calls) == 2  # initial + exactly one repair
 
 
-async def test_the_empty_retry_is_spent_once(tmp_path: Path) -> None:
-    """One corrective pass, not a loop: a model that submits nothing twice has said its
-    piece, and a third call would just pay to watch it repeat."""
+async def test_the_empty_retry_is_bounded(tmp_path: Path) -> None:
+    """Was `..._is_spent_once`, on the reasoning that "a third call would just pay to watch
+    it repeat". That holds for a deterministic failure and not for this one: codegen samples
+    at the provider default, so an empty submission is a bad *draw* — a live run answered
+    `summary='placeholder'` — and the remedy for a bad draw is another draw. Two
+    corrections, then it stops: still bounded, just not at one."""
     empty = json.dumps({"files": [], "summary": "nothing"})
-    llm = _ScriptedLLM([empty, empty])
+    llm = _ScriptedLLM([empty, empty, empty])
     adapter = LLMCodegenAdapter(llm)
     with pytest.raises(CodegenError, match="no 'files'"):
         await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
-    assert len(llm.calls) == 2
+    assert len(llm.calls) == 3
 
 
 async def test_new_root_module_shadowing_stdlib_is_rejected(tmp_path: Path) -> None:
@@ -2078,3 +2085,67 @@ async def test_refine_with_nothing_to_do_is_still_a_no_op(tmp_path: Path) -> Non
 
     assert change.files == []
     assert "nothing to change" in change.summary
+
+
+# --- a bad draw is not a loop --------------------------------------------------------
+#
+# One correction per kind, because a kind that fails twice is looping rather than fixing.
+# True of a deterministic failure — the same bad anchor, the same unparseable output — and
+# false of an empty submission: codegen samples at the provider default, so a run that
+# answered `summary='placeholder'` with no files drew badly rather than reasoned badly. The
+# remedy for a bad draw is another draw.
+
+
+async def test_an_empty_submission_gets_a_second_correction(tmp_path: Path) -> None:
+    """Two bad draws in a row must not end the run; the third gets its chance."""
+    from orchestrator.sdlc.codegen import LLMCodegenAdapter
+
+    empty = json.dumps({"summary": "placeholder", "files": []})
+    good = json.dumps({"summary": "done", "files": [{"path": "a.py", "content": "X = 1\n"}]})
+    llm = _ScriptedLLM([empty, empty, good])
+
+    change = await LLMCodegenAdapter(llm).implement(spec={"title": "t"}, path=str(tmp_path), issue_key="S-1")
+
+    assert [Path(f).name for f in change.files] == ["a.py"]
+
+
+async def test_three_empty_submissions_still_stop(tmp_path: Path) -> None:
+    """Bounded: two corrections, not unlimited resampling."""
+    from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter
+
+    empty = json.dumps({"summary": "placeholder", "files": []})
+    llm = _ScriptedLLM([empty] * 6)
+
+    with pytest.raises(CodegenError):
+        await LLMCodegenAdapter(llm).implement(spec={"title": "t"}, path=str(tmp_path), issue_key="S-1")
+
+
+async def test_a_deterministic_kind_still_gets_only_one_correction(tmp_path: Path) -> None:
+    """An anchor that misses twice is a loop — that reasoning is unchanged."""
+    from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter
+
+    (tmp_path / "a.py").write_text("VALUE = 1\n", encoding="utf-8")
+    bad = json.dumps(
+        {"summary": "s", "files": [{"path": "a.py", "edits": [{"find": "NOT THERE", "replace": "x"}]}]}
+    )
+    llm = _ScriptedLLM([bad] * 6)
+
+    with pytest.raises(CodegenError):
+        await LLMCodegenAdapter(llm).implement(spec={"title": "t"}, path=str(tmp_path), issue_key="S-1")
+
+    # First try plus exactly one correction — not two.
+    assert len(llm.calls) == 2
+
+
+def test_the_allowance_table_is_explicit() -> None:
+    """The exception is named, so a reader sees which kind is treated as a draw."""
+    from orchestrator.sdlc.codegen import (
+        _CORRECTIONS_PER_KIND,
+        _DEFAULT_CORRECTIONS,
+        _MAX_GENERATE_ATTEMPTS,
+    )
+
+    assert _CORRECTIONS_PER_KIND == {"empty": 2}
+    assert _DEFAULT_CORRECTIONS == 1
+    # The loop must be able to spend the largest allowance plus the first try.
+    assert max(_CORRECTIONS_PER_KIND.values()) + 1 <= _MAX_GENERATE_ATTEMPTS
