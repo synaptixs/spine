@@ -474,16 +474,26 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
     return _in_repo_store(repo_path, run)
 
 
-def explain_symbol(repo_path: str, symbol: str) -> dict[str, Any]:
+def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
     """What a symbol is and how it connects: kind, location, who calls it, what it calls, and
-    what it contains. Deterministic (no LLM)."""
+    what it contains. Deterministic (no LLM).
+
+    Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to explain it across every
+    declared repository: each match then says which repository it lives in and lists the
+    symbols in *other* repositories a change to it reaches — the callers a single-repo graph
+    cannot see."""
+    if not symbol:
+        return {"error": "provide a symbol"}
+    if bool(repo_path) == bool(repos):
+        return {"error": "provide exactly one of repo_path or repos"}
 
     def run(store: Any, _repo: Any) -> dict[str, Any]:
         matches = store.find(symbol)
         if not matches:
             return {"symbol": symbol, "found": False, "matches": []}
-        out = [
-            {
+        out: list[dict[str, Any]] = []
+        for node in matches[:5]:
+            entry: dict[str, Any] = {
                 "id": node.id,
                 "kind": node.kind.value,
                 "name": node.name,
@@ -493,11 +503,24 @@ def explain_symbol(repo_path: str, symbol: str) -> dict[str, Any]:
                 "calls": [n.id for n in store.callees_of(node.id)[:15]],
                 "contains": [n.id for n in store.children_of(node.id)[:25]],
             }
-            for node in matches[:5]
-        ]
+            if repos:
+                entry["repo"] = _repo_of_node(node)
+                reach = _cross_repo_reach(store, node.id)
+                entry["cross_repo_count"] = len(reach)
+                entry["cross_repo"] = reach[:25]
+            out.append(entry)
         return {"symbol": symbol, "found": True, "matches": out}
 
+    if repos:
+        return _in_repos_store(repos, run)
     return _in_repo_store(repo_path, run)
+
+
+def _repo_of_node(node: Any) -> str:
+    """Which repository a merged-graph node belongs to: its provenance, else its scoped id."""
+    from orchestrator.pkg.scoping import unscope_id
+
+    return (node.provenance.repo if node.provenance else "") or unscope_id(node.id)[0]
 
 
 def investigate(
@@ -613,11 +636,18 @@ def _joins_report(merged: Any) -> dict[str, Any]:
     }
 
 
-def localize(repo_path: str, trace: str) -> dict[str, Any]:
+def localize(repo_path: str = "", trace: str = "", repos: str | None = None) -> dict[str, Any]:
     """Resolve a stack trace / traceback to the repo symbols it names, pointing at the likely
-    fault site and its callers. Deterministic (no LLM)."""
+    fault site and its callers. Deterministic (no LLM).
+
+    Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` for a trace that crosses
+    services: each resolved frame then says which repository it landed in, and a frame whose
+    path exists in more than one repository is reported as **ambiguous** with the candidates —
+    the first match does not win silently."""
     if not trace.strip():
         return {"error": "provide a stack trace / traceback text"}
+    if bool(repo_path) == bool(repos):
+        return {"error": "provide exactly one of repo_path or repos"}
 
     def run(store: Any, _repo: Any) -> dict[str, Any]:
         from orchestrator.sdlc.localize import localize_trace, render_localization_md
@@ -638,21 +668,43 @@ def localize(repo_path: str, trace: str) -> dict[str, Any]:
                     "resolved": f.resolved,
                     "id": f.node_id,
                     "where": f.where,
+                    **({"repo": f.repo, "candidates": f.candidates} if repos else {}),
                 }
                 for f in loc.frames
             ],
             "callers": loc.callers,
+            **(
+                {
+                    "ambiguous_frames": [
+                        {"trace_at": f"{f.file}:{f.line}", "resolved": f.node_id, "also": f.candidates}
+                        for f in loc.frames
+                        if f.candidates
+                    ]
+                }
+                if repos
+                else {}
+            ),
             "markdown": render_localization_md(loc),
         }
 
+    if repos:
+        return _in_repos_store(repos, run)
     return _in_repo_store(repo_path, run)
 
 
-def regression_gaps(repo_path: str, symbol: str = "", trace: str = "") -> dict[str, Any]:
+def regression_gaps(
+    repo_path: str = "", symbol: str = "", trace: str = "", repos: str | None = None
+) -> dict[str, Any]:
     """Blast-radius test-coverage gaps for a change: the production symbols a change to
-    ``symbol`` (or the fault site in ``trace``) reaches that **no test covers**. Deterministic."""
+    ``symbol`` (or the fault site in ``trace``) reaches that **no test covers**. Deterministic.
+
+    Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to answer across every
+    declared repository: each impacted symbol then names its repository, and ``uncovered_elsewhere``
+    is the headline — a change reaching a *different* service that has no test for it."""
     if not symbol and not trace.strip():
         return {"error": "provide a symbol name or a stack trace"}
+    if bool(repo_path) == bool(repos):
+        return {"error": "provide exactly one of repo_path or repos"}
 
     def run(store: Any, _repo: Any) -> dict[str, Any]:
         from orchestrator.sdlc.coverage import (
@@ -671,18 +723,33 @@ def regression_gaps(repo_path: str, symbol: str = "", trace: str = "") -> dict[s
         if not target_id:
             return {"target": symbol or "(trace)", "found": False}
         plan = build_regression_plan(store, target_id)
-        return {
+        out: dict[str, Any] = {
             "target": plan.target,
             "found": True,
             "target_covered": plan.target_covered,
             "call_graph_available": plan.call_graph_available,
             "impacted_count": len(plan.impacted),
-            "uncovered": [{"name": i.name, "where": i.where} for i in plan.impacted if not i.covered],
+            "uncovered": [
+                {"name": i.name, "where": i.where, **({"repo": i.repo} if repos else {})}
+                for i in plan.impacted
+                if not i.covered
+            ],
             "covering_tests": plan.covering_tests,
             "truncated": plan.truncated,
             "markdown": render_regression_plan_md(plan),
         }
+        if repos:
+            home = _repo_of_node(store.node(target_id)) if store.node(target_id) else ""
+            out["target_repo"] = home
+            out["uncovered_elsewhere"] = [
+                {"name": i.name, "where": i.where, "repo": i.repo}
+                for i in plan.impacted
+                if not i.covered and i.repo and i.repo != home
+            ]
+        return out
 
+    if repos:
+        return _in_repos_store(repos, run)
     return _in_repo_store(repo_path, run)
 
 
@@ -831,12 +898,19 @@ def sdlc_approve(
     return _in_repo(repo_path, run, hint=False)
 
 
-def docs_for(repo_path: str, symbol: str = "") -> dict[str, Any]:
+def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
     """Which docs describe the code — the doc-ingestion surface. With a ``symbol``, the doc pages
     that **MENTION** it (grounded to the repo's docs). Without one, a doc-coverage summary: how many
     docs are ingested, how many symbols they name, and the top **potential drift** (doc claims the
     graph can't resolve — renamed/removed code). Deterministic (no LLM). ``repo_path`` is a local
-    path or a git URL."""
+    path or a git URL.
+
+    Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to ask every declared
+    repository — **each on its own**, keyed by repository. Docs are not merged across repos: a
+    document describes the repository it lives in, and binding one repo's docs to another's
+    symbols by name would be a false edge. Each entry carries its own ``reproducible`` flag."""
+    if bool(repo_path) == bool(repos):
+        return {"error": "provide exactly one of repo_path or repos"}
 
     def run(repo: Any) -> dict[str, Any]:
         from orchestrator.knowledge.current_state import load_current_state
@@ -888,7 +962,39 @@ def docs_for(repo_path: str, symbol: str = "") -> dict[str, Any]:
             "markdown": "\n".join(lines),
         }
 
+    if repos:
+        return _per_repo(repos, run)
     return _in_repo(repo_path, run)
+
+
+def _per_repo(repos: str, fn: Callable[[Any], dict[str, Any]]) -> dict[str, Any]:
+    """Run ``fn(root)`` for every repository a ``repos.yaml`` declares, keyed by repository —
+    for questions that do not merge (docs describe their own repo). Each entry says whether
+    that checkout is reproducible, the way a merged graph's ``standing`` does for all of them."""
+    from orchestrator.pkg.persistence import repo_state
+    from orchestrator.pkg.repos import RepoConfigError, load_repo_config
+
+    try:
+        repo_set = load_repo_config(repos)
+    except RepoConfigError as exc:
+        return {"error": str(exc)}
+    out: dict[str, Any] = {}
+    for key, root in repo_set.roots:
+        sha, dirty = repo_state(root)
+        entry = fn(root)
+        entry["reproducible"] = sha is not None and not dirty
+        out[key] = entry
+    return {
+        "repos": out,
+        "standing": {
+            "repos": [k for k, _ in repo_set.roots],
+            "reproducible": all(v["reproducible"] for v in out.values()),
+            "untrusted": [k for k, v in out.items() if not v["reproducible"]],
+        },
+        "markdown": "\n\n".join(
+            f"## {key}\n\n{v.get('markdown') or v.get('note') or ''}" for key, v in out.items()
+        ),
+    }
 
 
 def _blast_markdown(matches: list[dict[str, Any]]) -> str:

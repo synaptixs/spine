@@ -291,8 +291,8 @@ over HTTP that is a trap rather than a limitation. `blast_radius` on a route han
 **`0 caller(s)`** — which is *true*, nothing in its own source calls it — and reads as safe to
 change.
 
-Declare your services in a **`.spine/repos.yaml`** and pass it as `repos=` to `blast_radius`
-or `investigate` instead of `repo_path`:
+Declare your services in a **`.spine/repos.yaml`** and pass it as `repos=` — to `blast_radius`,
+`investigate`, `explain_symbol`, `regression_gaps`, `localize` or `docs_for` — instead of `repo_path`:
 
 ```yaml
 repos:

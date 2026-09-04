@@ -1,6 +1,6 @@
 # The MCP plugin surface — what it is, what it lacks, and the order to extend it
 
-**Status:** **Phase 1 COMPLETE** — all six steps shipped, all six gaps closed. Phase 2 in progress — steps 1 (prompts + resources) and 2 (progress) shipped. **Written 2026-09-04 against 3.30.0**,
+**Status:** **Phase 1 COMPLETE** — all six steps shipped, all six gaps closed. Phase 2 in progress — steps 1 (prompts + resources), 2 (progress) and 3 (multi-repo parity) shipped. **Written 2026-09-04 against 3.30.0**,
 after #316 removed the terminal UI and left the plugin as the only non-browser operator face.
 **Owner:** _unassigned_
 
@@ -160,8 +160,18 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
   per-step hook. `root_cause(use_llm)` and `design_change(use_llm)` are single model calls and
   stay as they are.
 - **4.9 Self-describing `doctor`.** Phase 1.
-- **4.10 Multi-repo parity.** `explain_symbol`, `regression_gaps`, `localize`, `docs_for` take
-  `repos` like `blast_radius` and `investigate` do.
+- **4.10 Multi-repo parity.** *(Shipped in Phase 2 step 3.)* `explain_symbol`,
+  `regression_gaps`, `localize` and `docs_for` take `repos` like `blast_radius` and `investigate`
+  do, with the same "exactly one of `repo_path` or `repos`" contract and a `standing` block.
+  `explain_symbol` names each match's repo and its cross-repo reach. `regression_gaps` names
+  each impacted symbol's repo and reports `uncovered_elsewhere` — a change reaching a different
+  service nothing tests — which needed the plan to follow the one hop that crosses a service
+  boundary (EXPOSES + CONSUMES through the endpoint node; the endpoint itself is the wire, not
+  an item). `localize` reports each frame's repo, and a frame two services could own is
+  `ambiguous` with its candidates rather than the first match winning silently. `docs_for`
+  fans out per repository instead of merging — a document describes the repository it lives
+  in, and binding one repo's docs to another's symbols by name would be a false edge — each
+  entry carrying its own `reproducible` flag.
 - **4.11 Per-principal audit on HTTP.** Tier-3 invocations recorded against the token principal,
   in the registry's existing audit log.
 
@@ -185,8 +195,8 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
 |---|---|---|
 | 1 | 4.7 prompts + 4.6 resources — protocol parity for non-Claude hosts | **shipped** |
 | 2 | 4.8 progress notifications from the long tools | **shipped** |
-| 3 | 4.10 multi-repo parity for `explain_symbol`, `regression_gaps`, `localize`, `docs_for` | next |
-| 4 | 4.11 per-principal audit on HTTP | |
+| 3 | 4.10 multi-repo parity for `explain_symbol`, `regression_gaps`, `localize`, `docs_for` | **shipped** |
+| 4 | 4.11 per-principal audit on HTTP | next |
 | 5 | typed output (the deferred half of 4.1) | last — every return shape |
 | — | retire the `sdlc` scope alias | the release after 3.31.0 |
 

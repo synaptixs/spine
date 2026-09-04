@@ -40,6 +40,14 @@ _PATH_RE = re.compile(r"(?<![\w/])(?P<path>[\w][\w./-]*\.[A-Za-z][A-Za-z0-9+#]{0
 
 @dataclass(frozen=True)
 class Frame:
+    """One trace frame, resolved against the graph when it can be.
+
+    ``repo`` and ``candidates`` matter only in a merged multi-repo graph: a path like
+    ``app/routes.py`` can exist in two services, and a trace does not say which. The best
+    match still wins (``node_id``), but ``candidates`` lists the ids that matched in *other*
+    repositories so the caller can say "ambiguous" instead of pointing at the wrong service.
+    """
+
     """One trace frame, and the PKG symbol it resolved to (if any)."""
 
     file: str  # as written in the trace
@@ -48,6 +56,8 @@ class Frame:
     node_id: str = ""  # resolved grounded node id, or ""
     where: str = ""  # resolved node provenance "file:line"
     module: str = ""  # owning module
+    repo: str = ""  # which repository the resolved node lives in (merged graphs only)
+    candidates: list[str] = field(default_factory=list)  # matching ids in *other* repositories
 
     @property
     def resolved(self) -> bool:
@@ -132,16 +142,24 @@ def _owning_module(store: FactStore, node_id: str, parents: dict[str, str]) -> s
     return (node.provenance.file if node and node.provenance else "") or ""
 
 
-def _resolve_frame(store: FactStore, file: str, line: int) -> Node | None:
-    """The smallest grounded symbol whose file matches ``file`` and span covers ``line``.
+def _repo_of(node: Node) -> str:
+    from orchestrator.pkg.scoping import unscope_id
 
-    Path match is lenient (suffix or basename) because a trace path is usually
-    absolute while provenance is repo-relative.
+    return (node.provenance.repo if node.provenance else "") or unscope_id(node.id)[0]
+
+
+def _resolve_frame_candidates(store: FactStore, file: str, line: int) -> list[Node]:
+    """The smallest grounded symbol whose file matches ``file`` and span covers ``line`` —
+    **one per repository**, best first.
+
+    Path match is lenient (suffix or basename) because a trace path is usually absolute while
+    provenance is repo-relative. In a single-repo graph the list has at most one entry; in a
+    merged graph it has one per repository whose file matched, so the caller can tell an
+    unambiguous frame from one that two services could own.
     """
     norm = file.replace("\\", "/")
     base = _basename(norm)
-    best: Node | None = None
-    best_size = 1 << 62
+    best_by_repo: dict[str, tuple[int, Node]] = {}
     for node in store.nodes:
         prov = node.provenance
         if not node.grounded or prov is None:
@@ -153,9 +171,16 @@ def _resolve_frame(store: FactStore, file: str, line: int) -> Node | None:
         end = prov.end_line if prov.end_line is not None else prov.line
         if prov.line <= line <= end:
             size = end - prov.line
-            if size < best_size:
-                best, best_size = node, size
-    return best
+            repo = _repo_of(node)
+            if repo not in best_by_repo or size < best_by_repo[repo][0]:
+                best_by_repo[repo] = (size, node)
+    return [node for _size, node in sorted(best_by_repo.values(), key=lambda t: (t[0], t[1].id))]
+
+
+def _resolve_frame(store: FactStore, file: str, line: int) -> Node | None:
+    """The single best match — the first of :func:`_resolve_frame_candidates`."""
+    found = _resolve_frame_candidates(store, file, line)
+    return found[0] if found else None
 
 
 def localize_trace(text: str, *, store: FactStore) -> Localization:
@@ -165,13 +190,16 @@ def localize_trace(text: str, *, store: FactStore) -> Localization:
 
     frames: list[Frame] = []
     for file, line, func in raw_frames:
-        node = _resolve_frame(store, file, line)
+        found = _resolve_frame_candidates(store, file, line)
+        node = found[0] if found else None
         if node is not None:
             # repo-relative file (from provenance) + the *trace* line (where it failed),
             # not the symbol's definition line — that's the actionable fault point.
             repo_file = node.provenance.file if node.provenance else file
             frames.append(
                 Frame(
+                    repo=_repo_of(node),
+                    candidates=[c.id for c in found[1:]],
                     file=file,
                     line=line,
                     func=func,
