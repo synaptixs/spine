@@ -286,7 +286,7 @@ def test_profile_and_plan_for_a_python_repo(runner: CliRunner, tmp_path: Path) -
 
 
 def test_issue_key_derived_from_feature_branch() -> None:
-    from orchestrator.cli.sdlc import _issue_key_from_branch
+    from orchestrator.sdlc.complete import issue_key_from_branch as _issue_key_from_branch
 
     assert _issue_key_from_branch("feat/f32ef54d82f34aae/PROJ-27") == "PROJ-27"
     assert _issue_key_from_branch("main") is None

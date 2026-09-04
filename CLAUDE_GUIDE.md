@@ -210,6 +210,11 @@ At a glance:
 | [`registry_approvals`](#operating-runs-registry_runs--friends) | The gates waiting on a human, latest first, with risk and the run they belong to. | no |
 | [`registry_trace`](#operating-runs-registry_runs--friends) | A run's audit trail and tool invocations, newest `tail` entries, with what was left out. | no |
 | [`registry_decide`](#operating-runs-registry_runs--friends) | Approve / reject / modify a pending approval so its run continues (or stops). | gated |
+| **Close the loop — after the PR** | | |
+| `sdlc_address_review` | Address the human review comments on an open PR and **push a fix to its branch** (clone, `gh pr checkout`, codegen with the comments as feedback, tests + preflight, push). No local mode — **`confirm=true` on every call**. Needs `git`, `gh`, a model, the run backend. | gated |
+| `sdlc_complete` | Close the tracker issue for a **merged** PR: verify the merge via `gh`, derive the key from `feat/<id>/<KEY>` (or pass `issue`), transition, comment, mark the backlog intent done. Real Jira, never dry-run — **`confirm=true`**. | gated |
+| `sdlc_remediate` | Turn an infodrift drift report (+ the confirmed mapping store, both files on this machine) into remediation runs at or above `min_severity`. Safe by default (branch + diff); `live=true` opens PRs and needs `confirm=true`, like `sdlc_feature`. | gated |
+| `audit_repo` | A codebase-auditor persona reads the repo on a model and reports findings anchored to real `file:line` (claims that don't resolve are listed as `unresolved`). Writes nothing; spends tokens; needs `ORCHESTRATOR_INTAKE_MODEL`. | no |
 
 > **The comprehension tools are read‑only, need no credentials, and are deterministic** (only
 > `root_cause`'s and `design_change`'s opt‑in `use_llm` use a model). There is no `state` tool

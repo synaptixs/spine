@@ -166,7 +166,7 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
 | 6a | 5 | The free half: `understand_repo`, `profile_repo`, `design_change`, `sdlc_baseline`. | **shipped** |
 | 6b | 5 | The gated half: `sdlc_address_review`, `sdlc_complete`, `sdlc_remediate`, `audit`. | next |
 
-### Phase 2 — extensions, once §3 is empty
+### Phase 2 — extensions (§3 is empty as of 6b; none started)
 
 4.7 and 4.6 (protocol parity), then 4.8, 4.10, 4.11 as the run tier sees real use, and the
 typed-output half of 4.1 on its own.
