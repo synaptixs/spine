@@ -5,7 +5,7 @@
 #
 #     jobs:
 #       spine:
-#         uses: synaptixs/spine/.github/workflows/spine-comprehension.yml@v3.30.0
+#         uses: synaptixs/spine/.github/workflows/spine-comprehension.yml@v3.31.0
 #
 # **Spine itself needs no credentials here.** `investigate` is deterministic and model-free — no
 # API key, no database, no service. The only token used is the caller's own `GITHUB_TOKEN`, and
