@@ -230,7 +230,7 @@ At a glance:
 > `sdlc_decide_gate`, `registry_decide`). A token missing the tier's scope gets `error` + `needs`
 > + `has` back, not a 403. A static token carries all three unless
 > `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it (`spine:read` = a read-only token); the legacy
-> `sdlc` scope still reads as all three for one release. Over stdio there is no token and no check.
+> `sdlc` scope is retired — grant the three. Over stdio there is no token and no check.
 
 ### Prompts and resources — the workflow and the documents, through the protocol
 

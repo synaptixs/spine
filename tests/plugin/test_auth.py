@@ -16,7 +16,6 @@ from orchestrator.plugin.auth import (
     IntrospectionTokenVerifier,
     StaticTokenVerifier,
     build_auth_from_env,
-    expand_scopes,  # noqa: E402
 )
 
 _MCP_ENV = (
@@ -80,8 +79,9 @@ async def test_introspection_active_token_maps_scopes(monkeypatch: pytest.Monkey
     v = IntrospectionTokenVerifier("https://idp.example/introspect")
     tok = await v.verify_token("opaque")
     assert tok is not None and tok.client_id == "app-1"
-    # The IdP's scopes as issued — with the legacy `sdlc` expanded to the three tier scopes.
-    assert set(tok.scopes) == {"admin", *ALL_SCOPES}
+    # The IdP's scopes exactly as issued. `sdlc` is no longer an alias for the tiers: a token
+    # that carries only it has no tier scope, and the floor refuses it.
+    assert set(tok.scopes) == {"admin", "sdlc"}
 
 
 async def test_introspection_inactive_token_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -125,11 +125,13 @@ async def test_env_static_token_builds_resource_server(monkeypatch: pytest.Monke
     monkeypatch.setenv("ORCHESTRATOR_MCP_REQUIRED_SCOPES", "sdlc, admin")
     settings, verifier = build_auth_from_env()
     assert isinstance(verifier, StaticTokenVerifier)
-    # The env var is what the static token *carries* (legacy `sdlc` expanded); what the SDK
-    # requires of every token is the floor, `spine:read` — the tiers above are per tool.
+    # The env var is what the static token *carries*, verbatim; what the SDK requires of every
+    # token is the floor, `spine:read` — the tiers above are per tool. A static token set to
+    # the retired `sdlc` scope therefore fails the floor: the deprecation #322 announced.
     assert settings is not None and settings.required_scopes == [SCOPE_READ]
     tok = await verifier.verify_token("s3cret")
-    assert tok is not None and set(tok.scopes) == {"admin", *ALL_SCOPES}
+    assert tok is not None and set(tok.scopes) == {"admin", "sdlc"}
+    assert SCOPE_READ not in tok.scopes
     # issuer defaults to the resource URL for the static (no real AS) path.
     assert str(settings.issuer_url).startswith("https://mcp.example.com")
 
@@ -152,13 +154,13 @@ def test_env_verifier_without_any_url_errors(monkeypatch: pytest.MonkeyPatch) ->
 # ---- scopes follow the tiers -------------------------------------------------------
 
 
-def test_the_legacy_scope_expands_to_every_tier_once() -> None:
-    """A token minted for the one `sdlc` scope keeps working for a release: it reads as all
-    three tier scopes. Anything else passes through untouched, order kept."""
-    assert expand_scopes(["sdlc"]) == ALL_SCOPES
-    assert expand_scopes(["admin", "sdlc"]) == ["admin", *ALL_SCOPES]
-    assert expand_scopes([SCOPE_READ]) == [SCOPE_READ]
-    assert expand_scopes([SCOPE_RUN, "sdlc"]) == [SCOPE_RUN, SCOPE_READ, SCOPE_PLAN]  # no duplicate
+def test_the_retired_sdlc_scope_is_not_an_alias_any_more() -> None:
+    """3.31.0 accepted `sdlc` as all three tiers for one release, with a warning. That release
+    has shipped; a token carrying only `sdlc` now has no tier scope at all."""
+    import orchestrator.plugin.auth as auth
+
+    assert not hasattr(auth, "expand_scopes") and not hasattr(auth, "LEGACY_SCOPE")
+    assert "sdlc" not in {SCOPE_READ, SCOPE_PLAN, SCOPE_RUN}
 
 
 async def test_a_static_token_carries_every_tier_by_default() -> None:
