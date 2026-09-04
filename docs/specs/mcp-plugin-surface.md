@@ -1,6 +1,6 @@
 # The MCP plugin surface — what it is, what it lacks, and the order to extend it
 
-**Status:** **Phase 1 COMPLETE** — all six steps shipped, all six gaps closed. **Phase 2 COMPLETE** — prompts + resources, progress, multi-repo parity, per-principal audit, typed output all shipped. Only the `sdlc` scope alias retirement remains, for the next cut. **Written 2026-09-04 against 3.30.0**,
+**Status:** **Phase 1 COMPLETE** — all six steps shipped, all six gaps closed. **Phase 2 COMPLETE** — prompts + resources, progress, multi-repo parity, per-principal audit, typed output all shipped. The `sdlc` scope alias is retired. Nothing remains open. **Written 2026-09-04 against 3.30.0**,
 after #316 removed the terminal UI and left the plugin as the only non-browser operator face.
 **Owner:** _unassigned_
 
@@ -48,8 +48,8 @@ for the floor (`spine:read`); each registered tool is wrapped in a guard that re
 token at call time and refuses — naming the scope it needed and the scopes the token has — when
 the tier's scope is missing. Over stdio there is no token and the guard passes.
 `ORCHESTRATOR_MCP_REQUIRED_SCOPES` is what the **static token carries** (default: all three), so
-a read-only token is that variable set to `spine:read`. The legacy `sdlc` scope expands to all
-three for one release.
+a read-only token is that variable set to `spine:read`. The pre-3.31 `sdlc` scope was accepted
+as an alias for all three through 3.31.x and is retired.
 
 **Packaging.** A Claude Code plugin at `plugins/spine/` bundling the `understand-codebase` skill;
 marketplace entry in `.claude-plugin/marketplace.json`; `pip install 'synaptixs-spine[all]'`.
@@ -141,8 +141,8 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
 - **4.3 Per-tier scopes on HTTP.** *(Shipped.)* `spine:read`, `spine:plan`, `spine:run`, each
   tier naming its scope beside its annotations, enforced by a call-time guard around every
   registered tool — the SDK only checks scopes server-wide, and a request does not name its tool
-  until the protocol layer has parsed it. Stdio is untouched. `sdlc` expands to all three for one
-  release, then goes.
+  until the protocol layer has parsed it. Stdio is untouched. `sdlc` was accepted as all three for one
+  release (3.31.x) and is retired.
 - **4.4 `understand_repo` and `current_state` as tools.** *(Shipped in 6a — `understand_repo`
   builds or checks the bank; `current_state` was already `map_repo`.)* `understand_repo` refuses
   a build on a git URL unless `out` is absolute: the clone vanishes, and a bank written into it
@@ -209,7 +209,7 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
 | 3 | 4.10 multi-repo parity for `explain_symbol`, `regression_gaps`, `localize`, `docs_for` | **shipped** |
 | 4 | 4.11 per-principal audit on HTTP | **shipped** |
 | 5 | typed output (the deferred half of 4.1) | **shipped** |
-| — | retire the `sdlc` scope alias | the release after 3.31.0 |
+| — | retire the `sdlc` scope alias | **shipped** (for the release after 3.31.0) |
 
 ## Invariants
 

@@ -23,8 +23,8 @@ only ever on loopback).
 spends money or writes where it cannot be taken back). The SDK checks scopes once,
 server-wide, and only for the floor (``spine:read``); the per-tool check is
 ``plugin.server``'s scope guard, which reads the verified token at call time and
-refuses with the scope it needed. A token carrying the legacy ``sdlc`` scope is
-treated as carrying all three for one release (``expand_scopes``).
+refuses with the scope it needed. (The pre-3.31 ``sdlc`` scope was accepted as an alias for
+all three through 3.31.x and is retired: a token carrying only ``sdlc`` now fails the floor.)
 """
 
 from __future__ import annotations
@@ -47,9 +47,6 @@ SCOPE_READ = "spine:read"
 SCOPE_PLAN = "spine:plan"
 SCOPE_RUN = "spine:run"
 ALL_SCOPES = [SCOPE_READ, SCOPE_PLAN, SCOPE_RUN]
-#: The scope every token had before the tiers had scopes. Expands to all three for one
-#: release so an existing static token or IdP grant keeps working; remove after.
-LEGACY_SCOPE = "sdlc"
 
 #: What the static token carries when ``ORCHESTRATOR_MCP_REQUIRED_SCOPES`` is unset: every
 #: tier, so a single-tenant self-host behaves as it did with the one ``sdlc`` scope.
@@ -57,23 +54,6 @@ _DEFAULT_SCOPES = list(ALL_SCOPES)
 #: What the SDK requires of every token before any request reaches a tool. The floor is
 #: read: a token that cannot comprehend has no business at any tier.
 _SERVER_FLOOR = [SCOPE_READ]
-
-_legacy_warned = False
-
-
-def expand_scopes(scopes: list[str]) -> list[str]:
-    """``sdlc`` → all three tier scopes (once-warned); everything else passes through."""
-    global _legacy_warned
-    if LEGACY_SCOPE not in scopes:
-        return list(scopes)
-    if not _legacy_warned:
-        logger.warning(
-            "plugin.auth.legacy_scope",
-            extra={"detail": f"scope {LEGACY_SCOPE!r} is deprecated; grant {' '.join(ALL_SCOPES)} instead"},
-        )
-        _legacy_warned = True
-    out = [s for s in scopes if s != LEGACY_SCOPE]
-    return out + [s for s in ALL_SCOPES if s not in out]
 
 
 def _scopes_from_env(value: str | None) -> list[str]:
@@ -95,7 +75,7 @@ class StaticTokenVerifier:
         if not secret:
             raise ValueError("StaticTokenVerifier needs a non-empty secret")
         self._secret = secret
-        self._scopes = expand_scopes(scopes or list(_DEFAULT_SCOPES))
+        self._scopes = scopes or list(_DEFAULT_SCOPES)
 
     async def verify_token(self, token: str) -> AccessToken | None:
         from mcp.server.auth.provider import AccessToken
@@ -149,7 +129,7 @@ class IntrospectionTokenVerifier:
         exp = data.get("exp")
         if isinstance(exp, (int, float)) and exp < time.time():
             return None
-        scopes = expand_scopes(_scopes_from_env(data.get("scope"))) if data.get("scope") else []
+        scopes = _scopes_from_env(data.get("scope")) if data.get("scope") else []
         return AccessToken(
             token=token,
             client_id=str(data.get("client_id", "introspected")),
@@ -214,12 +194,10 @@ def build_auth_from_env() -> tuple[AuthSettings | None, TokenVerifier | None]:
 
 __all__ = [
     "ALL_SCOPES",
-    "LEGACY_SCOPE",
     "SCOPE_PLAN",
     "SCOPE_READ",
     "SCOPE_RUN",
     "IntrospectionTokenVerifier",
     "StaticTokenVerifier",
     "build_auth_from_env",
-    "expand_scopes",
 ]

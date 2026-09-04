@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Removed
+
+- **The `sdlc` scope alias.** 3.31.0 accepted the pre-tier `sdlc` scope as all three
+  tier scopes for one release, with a warning. That release has shipped. A bearer
+  token carrying only `sdlc` now has no tier scope and fails the server's
+  `spine:read` floor; grant `spine:read spine:plan spine:run` (or the subset the
+  token should have). `ORCHESTRATOR_MCP_REQUIRED_SCOPES` is taken verbatim.
+
 ### Added
 
 - **Every MCP tool advertises what it returns.** A type per tool
