@@ -38,6 +38,11 @@ open PR — which is why ``live`` additionally requires ``confirm=true``, an exp
 authorization on top of whatever confirmation the host already asks for. Safe mode
 (``live=false``) still costs tokens; it just keeps every write local.
 
+**Operator tools** — ``registry_runs`` / ``registry_approvals`` / ``registry_decide`` /
+``registry_trace``. "What is running, what is waiting on me", over HTTP to the registry
+(``orchestrator up``) — the successor to the removed terminal UI. Observing is read-only;
+deciding a gate is destructive, because a rejection ends a run.
+
 An assistant should work down the tiers, not up: comprehend, then plan and get the plan
 approved, then build. A run that starts at tier 3 is one nobody reviewed.
 
@@ -924,6 +929,156 @@ async def sdlc_run_result(sdlc_id: str) -> dict[str, Any]:
     return await run_result(sdlc_id)
 
 
+# ---- operator tools: what is running, what is waiting on me — over the registry -------
+#
+# The successor to the terminal UI removed in #316. These go over HTTP to the registry
+# (``plugin/registry_client.py`` says why), so they need ``orchestrator up`` — or a
+# ``ORCHESTRATOR_API_URL`` pointing at a running one — and nothing else.
+
+
+async def _registry(fn: Callable[[Any], Any]) -> dict[str, Any]:
+    """Run ``fn(client)`` against the registry; an unreachable or refusing registry returns
+    ``{"error": …, "hint": …}`` rather than raising, like a bad ``repo_path`` does."""
+    from orchestrator.plugin.registry_client import RegistryError, registry_client
+
+    client = registry_client()
+    try:
+        out = await fn(client)
+        return dict(out)
+    except RegistryError as exc:
+        return {"error": str(exc), "hint": exc.hint, "registry": client.base_url}
+    finally:
+        await client.aclose()
+
+
+async def registry_runs(limit: int = 20) -> dict[str, Any]:
+    """Recent SDLC runs at the registry, most recently active first: id, state
+    (``running`` / ``merged`` / ``failed`` / ``denied`` / ``cancelled``), last action and
+    timestamps. Read-only; scoped to the API key's tenant. Needs the registry up
+    (``orchestrator up``). ``limit`` is capped at 200 by the server."""
+
+    async def go(client: Any) -> dict[str, Any]:
+        items = await client.runs(limit=limit)
+        return {"count": len(items), "items": items, "markdown": _runs_markdown(items)}
+
+    return await _registry(go)
+
+
+async def registry_approvals(limit: int = 50) -> dict[str, Any]:
+    """Pending approvals at the registry — the gates waiting on a human — latest first,
+    each with its id, title, risk classification and the run it belongs to. Read-only.
+    Decide one with ``registry_decide``. Needs the registry up."""
+
+    async def go(client: Any) -> dict[str, Any]:
+        items = await client.approvals(limit=limit)
+        return {"count": len(items), "items": items, "markdown": _approvals_markdown(items)}
+
+    return await _registry(go)
+
+
+async def registry_decide(
+    approval_id: str,
+    action: str,
+    rationale: str = "",
+    modified_input: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Decide a pending approval at the registry so its run continues (or stops).
+
+    ``action`` is ``approve``, ``reject`` or ``modify_input`` (which requires
+    ``modified_input``, the patch the run should continue with). A rejection ends the
+    run, which is why a host treats this as destructive. The registry records the API-key
+    principal as the actor and signals the workflow — the same path as the web inbox.
+    ``sdlc_decide_gate`` does the same in-process for a run this plugin started; use that
+    when there is no registry, and this when there is."""
+    if action not in ("approve", "reject", "modify_input"):
+        return {"error": f"action must be approve, reject or modify_input, not {action!r}"}
+    if action == "modify_input" and not modified_input:
+        return {"error": "modify_input needs a non-empty modified_input patch"}
+
+    async def go(client: Any) -> dict[str, Any]:
+        record = await client.decide(
+            approval_id, action, rationale=rationale or None, modified_input=modified_input
+        )
+        return {"approval_id": approval_id, "action": action, "approval": record}
+
+    return await _registry(go)
+
+
+async def registry_trace(sdlc_id: str, tail: int = 50) -> dict[str, Any]:
+    """A run's trace at the registry: the newest ``tail`` audit entries and tool
+    invocations, the verifier outcome, and the replan count against its budget. Bounded —
+    ``truncated`` says how many older entries were left out. Read-only. Pass the run id as
+    ``registry_runs`` lists it — the same id the web console links its trace with."""
+
+    async def go(client: Any) -> dict[str, Any]:
+        # The audit rows of an SDLC run carry the run id itself (`trace_id == resource_id ==
+        # sdlc_id`); `task-<id>` is the *Temporal workflow* id, and the trace endpoint does
+        # not know it. The console fetches `/v1/tasks/<sdlc_id>/trace`, so do the same.
+        task_id = sdlc_id
+        trace = await client.trace(task_id)
+        audit = list(trace.get("audit") or [])
+        tools = list(trace.get("tool_invocations") or [])
+        kept_audit, kept_tools = audit[-tail:] if tail > 0 else [], tools[-tail:] if tail > 0 else []
+        return {
+            "sdlc_id": sdlc_id,
+            "task_id": task_id,
+            "verifier_outcome": trace.get("verifier_outcome"),
+            "workflow_pattern": trace.get("workflow_pattern"),
+            "replan_count": trace.get("replan_count", 0),
+            "replan_budget": trace.get("replan_budget", 0),
+            "audit": kept_audit,
+            "tool_invocations": kept_tools,
+            "truncated": {
+                "audit": max(len(audit) - len(kept_audit), 0),
+                "tool_invocations": max(len(tools) - len(kept_tools), 0),
+            },
+            "markdown": _trace_markdown(task_id, trace, kept_audit, len(audit)),
+        }
+
+    return await _registry(go)
+
+
+def _runs_markdown(items: list[dict[str, Any]]) -> str:
+    if not items:
+        return "_No runs recorded at this registry._"
+    lines = ["| run | state | last action | updated |", "|---|---|---|---|"]
+    for r in items:
+        lines.append(
+            f"| `{r.get('sdlc_id', '')}` | {r.get('state', '')} | {r.get('last_action', '')} | "
+            f"{r.get('updated_at', '')} |"
+        )
+    return "\n".join(lines)
+
+
+def _approvals_markdown(items: list[dict[str, Any]]) -> str:
+    if not items:
+        return "_Nothing is waiting on a decision._"
+    lines = ["| approval | risk | run | title |", "|---|---|---|---|"]
+    for a in items:
+        lines.append(
+            f"| `{a.get('id', '')}` | {a.get('risk_classification', '')} | `{a.get('task_id', '')}` | "
+            f"{a.get('title', '')} |"
+        )
+    return "\n".join(lines)
+
+
+def _trace_markdown(task_id: str, trace: dict[str, Any], audit: list[dict[str, Any]], total: int) -> str:
+    head = [
+        f"**{task_id}** — verifier: {trace.get('verifier_outcome') or '—'} · "
+        f"replans: {trace.get('replan_count', 0)}/{trace.get('replan_budget', 0)}",
+    ]
+    if not audit:
+        return head[0] + "\n\n_No audit entries._"
+    shown = f"last {len(audit)} of {total}" if total > len(audit) else f"all {total}"
+    lines = [*head, "", f"Audit ({shown}):", "", "| when | actor | action | resource |", "|---|---|---|---|"]
+    for e in audit:
+        lines.append(
+            f"| {e.get('timestamp', '')} | {e.get('actor', '')} | {e.get('action', '')} | "
+            f"{e.get('resource_type', '')}:{e.get('resource_id', '')} |"
+        )
+    return "\n".join(lines)
+
+
 _TOOLS = (
     doctor,
     ingest_preview,
@@ -948,6 +1103,11 @@ _TOOLS = (
     sdlc_run_status,
     sdlc_decide_gate,
     sdlc_run_result,
+    # operator: what is running, what is waiting on me — over the registry
+    registry_runs,
+    registry_approvals,
+    registry_decide,
+    registry_trace,
 )
 
 
@@ -998,6 +1158,10 @@ _TIER: dict[str, Tier] = {
     "sdlc_run_status": RUN_OBSERVE,
     "sdlc_decide_gate": RUN,
     "sdlc_run_result": RUN_OBSERVE,
+    "registry_runs": RUN_OBSERVE,
+    "registry_approvals": RUN_OBSERVE,
+    "registry_decide": RUN,  # a rejection ends a run
+    "registry_trace": RUN_OBSERVE,
 }
 
 
@@ -1134,6 +1298,10 @@ __all__ = [
     "pkg_grounding",
     "pkg_joins",
     "read_memory_bank",
+    "registry_approvals",
+    "registry_decide",
+    "registry_runs",
+    "registry_trace",
     "regression_gaps",
     "root_cause",
     "sdlc_approve",

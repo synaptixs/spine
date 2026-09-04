@@ -1,10 +1,10 @@
 # The MCP plugin surface — what it is, what it lacks, and the order to extend it
 
-**Status:** Phase 1 in progress (this record's first PR). **Written 2026-09-04 against 3.30.0**,
+**Status:** Phase 1 in progress — steps 1–4 shipped, steps 5–6 open. **Written 2026-09-04 against 3.30.0**,
 after #316 removed the terminal UI and left the plugin as the only non-browser operator face.
 **Owner:** _unassigned_
 
-**One-liner:** Spine already *is* an MCP server with 20 tools in three tiers; the work is not a
+**One-liner:** Spine already *is* an MCP server with 20 tools in three tiers (24 after Phase 1); the work is not a
 new server but closing six known gaps in this one, in an order that retires the gaps before
 adding any surface.
 
@@ -45,7 +45,7 @@ with neither configured is refused unless `--allow-unauthenticated`.
 **Packaging.** A Claude Code plugin at `plugins/spine/` bundling the `understand-codebase` skill;
 marketplace entry in `.claude-plugin/marketplace.json`; `pip install 'synaptixs-spine[all]'`.
 
-## 2. The 20 tools, in three tiers
+## 2. The 24 tools, in three tiers plus an operator set
 
 The tiers are separated by what a tool can cost you if it is wrong. An assistant works **down**
 them: comprehend, then plan and get the plan approved, then build.
@@ -54,6 +54,7 @@ them: comprehend, then plan and get the plan approved, then build.
 |---|---|---|
 | **1 · comprehend** | `doctor`, `map_repo`, `blast_radius`, `explain_symbol`, `investigate`, `localize`, `regression_gaps`, `root_cause`, `docs_for`, `pkg_joins`, `read_memory_bank`, `pkg_grounding`, `ingest_preview` | No credentials, no model, deterministic. `root_cause(use_llm=true)` is the one opt-in model call, and it still never changes code. `repo_path` is a local path or a git URL; `blast_radius` and `investigate` answer across repositories via `repos` (`.spine/repos.yaml`). |
 | **2 · plan** | `sdlc_plan`, `sdlc_approve` | Writes only under `.spine/`. Still no model, no credentials — which is what lets a host with its own model drive Spine on a machine where Spine has neither. |
+| **operate** | `registry_runs`, `registry_approvals`, `registry_trace`, `registry_decide` | Over HTTP to the registry (`orchestrator up`); needs only the API URL and key. Observing is read-only; `registry_decide` is destructive because a rejection ends a run. |
 | **3 · run** | `sdlc_feature`, `sdlc_start_run`, `sdlc_run_status`, `sdlc_decide_gate`, `sdlc_run_result` | Spends tokens. `live=true` (or `create_jira=true`) writes where it cannot be taken back and needs `confirm=true` on top of the host's own confirmation. The run set needs the Temporal backend. |
 
 ### The tiers as annotations (Phase 1)
@@ -67,6 +68,8 @@ what to confirm. From Phase 1 every registration carries the four hints, derived
 | `doctor`, `pkg_joins` | yes | no | yes | no — local only |
 | `sdlc_plan`, `sdlc_approve` | no | no | yes — re-running rewrites the same document | no |
 | `sdlc_run_status`, `sdlc_run_result` | yes | no | yes | yes — they read Temporal |
+| `registry_runs`, `registry_approvals`, `registry_trace` | yes | no | yes | yes — they read the registry |
+| `registry_decide` | no | yes | no | yes |
 | `sdlc_feature`, `sdlc_start_run`, `sdlc_decide_gate` | no | yes | no | yes |
 
 Deciding a gate is destructive because a rejection ends a run. `_TIER` is total by construction:
@@ -79,6 +82,8 @@ Numbered, because §5 retires them by number.
 
 1. **No operator-ops tools.** Nothing lists registry runs or pending approvals generically;
    `sdlc_decide_gate` covers only an sdlc run's own gates. This is what the removed TUI did.
+   *(Closed in Phase 1 step 4: `registry_runs`, `registry_approvals`, `registry_trace`,
+   `registry_decide` — §2, operator tools.)*
 2. **`__all__` drifted from `_TOOLS`.** Four registered tools were not exported. *(Closed in
    Phase 1, with a test.)*
 3. **The tiers were prose only.** A host could not tell a read-only tool from a money-spending
@@ -99,9 +104,14 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
 - **4.1 Annotations and typed output.** Annotations: Phase 1. Typed output schemas (a model per
   tool instead of `dict[str, Any]`) are deferred to their own PR: the SDK already advertises an
   open-object schema, and real models touch twenty return shapes and their tests.
-- **4.2 Operator-ops tools.** `runs_list`, `run_trace`, `approvals_list`, `approval_decide` over
-  the registry `/v1` API with `X-API-Key`, reinstating the removed 52-line registry client as
-  `plugin/registry_client.py`. Config via `ORCHESTRATOR_API_URL` / `ORCHESTRATOR_API_KEY`.
+- **4.2 Operator-ops tools.** *(Shipped.)* `registry_runs`, `registry_approvals`,
+  `registry_trace`, `registry_decide` over the registry `/v1` API with `X-API-Key`, through
+  `plugin/registry_client.py` (the removed TUI client, reinstated and extended). Config via
+  `ORCHESTRATOR_API_URL` / `ORCHESTRATOR_API_KEY`. The `registry_` prefix mirrors `sdlc_`: it
+  names the surface, and says the tool needs the server up. Over HTTP rather than in-process
+  because the plugin process then needs no database or Temporal credentials, the registry
+  enforces tenant scoping, and the audit log records the key's principal as the actor.
+  `registry_trace` is bounded — the newest `tail` entries plus a `truncated` count.
 - **4.3 Per-tier scopes on HTTP.** `spine:read`, `spine:plan`, `spine:run`, checked per tool at
   registration; `sdlc` accepted as an alias for one release.
 - **4.4 `understand_repo` and `current_state` as tools.** Both deterministic by invariant, so
@@ -130,8 +140,8 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
 | 1 | 6 | Fix the stale install; ship 4.9. | **this PR** |
 | 2 | 2 | Sync `__all__`; a test holds it. | **this PR** |
 | 3 | 3 | 4.1 annotations (typed output deferred). | **this PR** |
-| 4 | 1 | 4.2 operator-ops tools. | next |
-| 5 | 4 | 4.3 scopes — before step 4 is served over HTTP to anyone else. | after 4 |
+| 4 | 1 | 4.2 operator-ops tools. | **shipped** |
+| 5 | 4 | 4.3 scopes — before step 4 is served over HTTP to anyone else. | next |
 | 6 | 5 | 4.4, then 4.5. | after 5 |
 
 ### Phase 2 — extensions, once §3 is empty

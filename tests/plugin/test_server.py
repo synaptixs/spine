@@ -417,6 +417,151 @@ def test_http_server_wires_static_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     assert built.transport["port"] == 8080 and built.transport["host"] == "0.0.0.0"
 
 
+# ---- operator tools: over the registry, with a mock transport ----------------------
+
+
+def _registry_with(handler: object, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Point the tools at a RegistryClient over a MockTransport — no server."""
+    import httpx
+
+    import orchestrator.plugin.registry_client as rc
+
+    monkeypatch.setattr(
+        rc,
+        "registry_client",
+        lambda: rc.RegistryClient("http://test", "k", transport=httpx.MockTransport(handler)),  # type: ignore[arg-type]
+    )
+
+
+async def test_registry_runs_lists_with_a_table(monkeypatch: pytest.MonkeyPatch) -> None:
+    import httpx
+
+    from orchestrator.plugin.server import registry_runs
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/runs" and request.url.params["limit"] == "5"
+        return httpx.Response(
+            200,
+            json={
+                "items": [
+                    {"sdlc_id": "R1", "state": "running", "last_action": "sdlc.plan", "updated_at": "t"}
+                ]
+            },
+        )
+
+    _registry_with(handler, monkeypatch)
+    out = await registry_runs(limit=5)
+    assert out["count"] == 1 and out["items"][0]["sdlc_id"] == "R1"
+    assert "| `R1` | running |" in out["markdown"]
+
+
+async def test_registry_approvals_lists_what_waits(monkeypatch: pytest.MonkeyPatch) -> None:
+    import httpx
+
+    from orchestrator.plugin.server import registry_approvals
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "items": [
+                    {
+                        "id": "sdlc-R1-0",
+                        "title": "Approve intents",
+                        "risk_classification": "medium",
+                        "task_id": "task-R1",
+                    }
+                ]
+            },
+        )
+
+    _registry_with(handler, monkeypatch)
+    out = await registry_approvals()
+    assert out["count"] == 1
+    assert "`sdlc-R1-0`" in out["markdown"] and "Approve intents" in out["markdown"]
+
+
+async def test_registry_decide_posts_the_action(monkeypatch: pytest.MonkeyPatch) -> None:
+    import json as _json
+
+    import httpx
+
+    from orchestrator.plugin.server import registry_decide
+
+    seen: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["path"], seen["body"] = request.url.path, _json.loads(request.content)
+        return httpx.Response(200, json={"id": "g1", "status": "rejected"})
+
+    _registry_with(handler, monkeypatch)
+    out = await registry_decide("g1", "reject", rationale="scope creep")
+    assert out["action"] == "reject" and out["approval"]["status"] == "rejected"
+    assert seen["path"] == "/v1/approvals/g1/reject" and seen["body"] == {"rationale": "scope creep"}
+
+
+async def test_registry_decide_refuses_a_bad_action_before_any_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.plugin.server import registry_decide
+
+    def handler(request: object) -> None:
+        raise AssertionError("must not reach the registry")
+
+    _registry_with(handler, monkeypatch)
+    assert "error" in await registry_decide("g1", "shrug")
+    assert "modified_input" in (await registry_decide("g1", "modify_input"))["error"]
+
+
+async def test_registry_trace_is_bounded_and_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
+    import httpx
+
+    from orchestrator.plugin.server import registry_trace
+
+    audit = [
+        {
+            "timestamp": f"t{i}",
+            "actor": "a",
+            "action": f"step.{i}",
+            "resource_type": "sdlc",
+            "resource_id": "R1",
+        }
+        for i in range(120)
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/tasks/R1/trace"  # the run id as listed — what the console uses
+        return httpx.Response(
+            200,
+            json={
+                "task_id": "R1",
+                "audit": audit,
+                "tool_invocations": [],
+                "verifier_outcome": "pass",
+                "replan_count": 1,
+                "replan_budget": 3,
+            },
+        )
+
+    _registry_with(handler, monkeypatch)
+    out = await registry_trace("R1", tail=50)
+    assert len(out["audit"]) == 50 and out["audit"][-1]["action"] == "step.119"  # the newest, kept
+    assert out["truncated"] == {"audit": 70, "tool_invocations": 0}
+    assert "last 50 of 120" in out["markdown"] and "replans: 1/3" in out["markdown"]
+
+
+async def test_a_registry_that_is_down_is_an_error_with_a_hint(monkeypatch: pytest.MonkeyPatch) -> None:
+    import httpx
+
+    from orchestrator.plugin.server import registry_approvals, registry_runs
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused")
+
+    _registry_with(handler, monkeypatch)
+    for tool in (registry_runs, registry_approvals):
+        out = await tool()
+        assert "error" in out and "orchestrator up" in out["hint"] and out["registry"] == "http://test"
+
+
 # ---- the tiers are metadata: annotations a host can act on -------------------------
 
 
@@ -432,9 +577,15 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
     from orchestrator.plugin.server import _TOOLS, tool_annotations
 
     hints = {fn.__name__: tool_annotations(fn.__name__) for fn in _TOOLS}
-    spends_and_writes = {"sdlc_feature", "sdlc_start_run", "sdlc_decide_gate"}
+    spends_and_writes = {"sdlc_feature", "sdlc_start_run", "sdlc_decide_gate", "registry_decide"}
     plans = {"sdlc_plan", "sdlc_approve"}
-    observes_a_run = {"sdlc_run_status", "sdlc_run_result"}
+    observes_a_run = {
+        "sdlc_run_status",
+        "sdlc_run_result",
+        "registry_runs",
+        "registry_approvals",
+        "registry_trace",
+    }
     comprehension = set(hints) - spends_and_writes - plans - observes_a_run
 
     for name in comprehension | observes_a_run:
