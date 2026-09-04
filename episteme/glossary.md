@@ -9,7 +9,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **AuditLogRepo** | [`AuditLogRepo`](../src/orchestrator/registry/repositories.py#L161) | `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist`, `docs/specs/bet2-trust-spine.md#why-this-stands-out` |
 | **AuditLogRow** | [`AuditLogRow`](../src/orchestrator/registry/db/models.py#L186) | `docs/specs/cross-run-semantic-memory.md#data-model`, `docs/specs/cross-run-semantic-memory.md#design-cross-run-semantic-memory-the-experience-true-layer` |
 | **AutorunError** | [`AutorunError`](../src/orchestrator/sdlc/autorun.py#L46) | — |
-| **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L283) | `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this` |
+| **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L284) | `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this` |
 | **CorpusError** | [`CorpusError`](../src/orchestrator/pkg/accuracy.py#L53) | — |
 | **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L118) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
 | **DocPage** | [`DocPage`](../src/orchestrator/pkg/docs.py#L112) | `docs/specs/doc-ingestion-spec.md#components-where-the-code-goes`, `docs/specs/doc-ingestion-spec.md#design-decisions` |
@@ -24,7 +24,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **GroundingVerifier** | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L52) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#2-what-ontomesh-produced-evidence`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
 | **JiraAdapter** | [`JiraAdapter`](../src/orchestrator/intake/jira.py#L114) | `docs/specs/capability-recommendations-kg-grounded.md#where-we-are-today-the-honest-baseline` |
-| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L826) | `CHANGELOG.md`, `docs/specs/cross-run-semantic-memory.md#design-cross-run-semantic-memory-the-experience-true-layer` |
+| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L827) | `CHANGELOG.md`, `docs/specs/cross-run-semantic-memory.md#design-cross-run-semantic-memory-the-experience-true-layer` |
 | **MemoryRow** | [`MemoryRow`](../src/orchestrator/registry/db/models.py#L216) | `KNOWLEDGE_GRAPH.md#where-each-artifact-is-persisted`, `docs/specs/README.md#autonomous-agent-scorecard` |
 | **Node** | [`Node`](../src/orchestrator/pkg/facts.py#L121) | — |
 | **NodeKind** | [`NodeKind`](../src/orchestrator/pkg/facts.py#L38) | `CLAUDE.md#layout-where-things-live`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#the-coercion-kind-per-table-projection` |
