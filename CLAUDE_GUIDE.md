@@ -211,6 +211,14 @@ At a glance:
 > `file:line`). To serve them to a **remote** host over HTTP, run the streamable‑HTTP server
 > (`orchestrator-mcp --http`, bearer/OAuth auth from env) — it registers the same tools.
 
+> **The tiers are metadata your host can act on.** Every tool is registered with MCP tool
+> annotations derived from its tier — *read‑only*, *destructive*, *idempotent*, *open‑world* — so a
+> host that asks before destructive calls asks before `sdlc_feature`, `sdlc_start_run` and
+> `sdlc_decide_gate`, and not before `map_repo`. The comprehension tools are read‑only and
+> idempotent; `sdlc_plan`/`sdlc_approve` write (under `.spine/`) but destroy nothing; only
+> `doctor`, `pkg_joins`, `sdlc_plan` and `sdlc_approve` never leave the machine — everything else
+> may clone a URL or read a remote source. See [`docs/specs/mcp-plugin-surface.md`](docs/specs/mcp-plugin-surface.md).
+
 ### Asking across several repositories
 
 The comprehension tools take **one** repository by default, and for a service that is called
@@ -689,6 +697,7 @@ name. Run `orchestrator pkg accuracy` to see the current numbers yourself.
 | Claude doesn't see Spine's tools | Restart Claude Code or run `/reload-plugins`. Check `/mcp` and `/plugin`. |
 | `doctor` says the LLM provider is missing | Your `.env` isn't being found — launch Claude Code from a project with a `.env`, or use the raw‑MCP form (§3b) and set `ORCHESTRATOR_DOTENV` to its **absolute** path. |
 | `orchestrator-mcp: command not found` | The server isn't on PATH. `pip install 'synaptixs-spine[all]'`, or point `command` at the absolute path of the console script. |
+| The server connects and dies ("Connection closed"), or tools are missing | A **stale** `orchestrator-mcp` on PATH — a console script left by an older checkout's venv. Ask Claude to run `doctor` (or run `orchestrator doctor`): its `server` block names the **version, interpreter and MCP SDK** answering. If they aren't the install you expect: `uv tool install --force 'synaptixs-spine[all]'` (or reinstall into the venv you meant), then restart the host. |
 | Codegen times out | Set a faster model: `ORCHESTRATOR_INTAKE_MODEL=...` (or `SDLC_CODEGEN_MODEL`). |
 | "live needs a repo to push to" | Pass `repo=...` or set `SDLC_REPO_URL`; ensure `GITHUB_TOKEN`/`GH_TOKEN` is set. |
 | A `live` call refuses to write | That's the gate — pass `confirm=true` together with `live=true`. |
