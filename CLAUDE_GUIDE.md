@@ -232,6 +232,38 @@ At a glance:
 > `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it (`spine:read` = a read-only token); the legacy
 > `sdlc` scope still reads as all three for one release. Over stdio there is no token and no check.
 
+### Prompts and resources — the workflow and the documents, through the protocol
+
+Two things the plugin exposes besides tools, for any MCP host:
+
+**Prompts** carry the *which tool, in which order* workflow the `understand-codebase` skill
+describes, so a host that has no skills (Codex, Claude Desktop, claude.ai) gets the same ordered
+guidance. A host lists them and fills the arguments in its own UI.
+
+| Prompt | Arguments | Walks the host through |
+|---|---|---|
+| `orient` | `repo_path` (optional) | `map_repo` → `read_memory_bank` |
+| `investigate-ticket` | `title`, `problem` | `investigate` → `blast_radius` → `regression_gaps` — change nothing |
+| `triage-bug` | `bug` | `localize` → `regression_gaps` → `root_cause` — analysis only |
+| `plan-then-approve` | `title`, `summary`, `criteria` | `sdlc_plan` → a **human** reads → `sdlc_approve` → only then `sdlc_feature` |
+| `whats-waiting-on-me` | — | `registry_approvals` → `registry_trace` → `registry_decide` (a rejection ends the run) |
+
+**Resources** are the documents Spine has already written, readable by URI and attachable as
+context — a tool result scrolls away; a resource can be read again.
+
+| URI | Content |
+|---|---|
+| `spine://bank` | The committed `episteme/` index and section list — or a note that `understand_repo` builds one |
+| `spine://bank/{section}` | One page: `architecture`, `domain-model`, `conventions`, … |
+| `spine://plans` | The build documents under `.spine/plans`, each with its approval state |
+| `spine://plan/{intent_id}` | One build document, approval state on top |
+| `spine://state` | The current‑state report (developer lens), from the commit‑keyed cache |
+
+Resources describe the **default repository**: the process working directory, or
+`SPINE_REPO_ROOT` when set — a stdio plugin is launched per project, so that is the repo the host
+is in. The tools keep taking `repo_path` as before. All read‑only; over HTTP the `spine:read` floor
+covers them.
+
 > **The tiers are metadata your host can act on.** Every tool is registered with MCP tool
 > annotations derived from its tier — *read‑only*, *destructive*, *idempotent*, *open‑world* — so a
 > host that asks before destructive calls asks before `sdlc_feature`, `sdlc_start_run` and

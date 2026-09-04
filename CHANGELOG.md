@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## Unreleased
+
+### Added
+
+- **MCP prompts and resources — the workflow and the documents, for hosts that are
+  not Claude Code.** Five prompts carry the `understand-codebase` skill's "which
+  tool, in which order" through the protocol (`orient`, `investigate-ticket`,
+  `triage-bug`, `plan-then-approve`, `whats-waiting-on-me`), so Codex, Claude
+  Desktop and claude.ai get the same ordered guidance a Claude Code skill gives; the
+  prompts module is the source, because the skill directory is not in the wheel,
+  and a test holds the skill to the same tools. Five `spine://` resources make the
+  committed `episteme/` bank, the build documents under `.spine/plans` (with their
+  approval state) and the current-state report readable by URI and attachable as
+  context. Resources address the default repository — the working directory, or
+  `SPINE_REPO_ROOT` — because a URI segment cannot carry a path; the tools keep
+  taking `repo_path`.
+
 ## 3.31.0 — the plugin grows from twenty tools to thirty-two, and every one says what it can cost
 
 ### Added

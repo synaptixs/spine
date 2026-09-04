@@ -1,6 +1,6 @@
 # The MCP plugin surface — what it is, what it lacks, and the order to extend it
 
-**Status:** **Phase 1 COMPLETE** — all six steps shipped, all six gaps closed. Phase 2 (extensions) not started. **Written 2026-09-04 against 3.30.0**,
+**Status:** **Phase 1 COMPLETE** — all six steps shipped, all six gaps closed. Phase 2 in progress — step 1 (prompts + resources) shipped. **Written 2026-09-04 against 3.30.0**,
 after #316 removed the terminal UI and left the plugin as the only non-browser operator face.
 **Owner:** _unassigned_
 
@@ -146,9 +146,9 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
   `sdlc_remediate` as tier-3 tools under the same `confirm` gate as `sdlc_feature(live=true)`
   (the first two on every call — they have no local mode), and `audit_repo`, which spends
   tokens on a persona loop — read-only in annotations, run scope, its own tier row.
-- **4.6 Resources.** `spine://episteme/{repo}/{section}`, `spine://plan/{repo}/{intent}`,
+- **4.6 Resources.** *(Shipped in Phase 2 step 1 — for the default repository, `SPINE_REPO_ROOT` or the cwd, because a URI segment cannot carry a path; `spine://bank`, `spine://bank/{section}`, `spine://plans`, `spine://plan/{intent_id}`, `spine://state`.)* Originally sketched as `spine://episteme/{repo}/{section}`, `spine://plan/{repo}/{intent}`,
   `spine://state/{repo}` as MCP resources — listable, subscribable, attachable as context.
-- **4.7 Prompts.** The `understand-codebase` skill's guidance registered as MCP prompts so Codex,
+- **4.7 Prompts.** *(Shipped in Phase 2 step 1 — five prompts in `plugin/prompts.py`, the source of the workflow because the skill is not in the wheel; a test holds the skill to the same tools.)* The `understand-codebase` skill's guidance registered as MCP prompts so Codex,
   Desktop and claude.ai get the "which tool, in which order" workflow through the protocol.
 - **4.8 Progress.** Per-phase progress notifications from `sdlc_feature` and
   `root_cause(use_llm=true)`, which run for minutes with no signal today.
@@ -172,10 +172,16 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
 | 6a | 5 | The free half: `understand_repo`, `profile_repo`, `design_change`, `sdlc_baseline`. | **shipped** |
 | 6b | 5 | The gated half: `sdlc_address_review`, `sdlc_complete`, `sdlc_remediate`, `audit_repo`. | **shipped** |
 
-### Phase 2 — extensions (§3 is empty as of 6b; none started)
+### Phase 2 — extensions (§3 is empty as of 6b)
 
-4.7 and 4.6 (protocol parity), then 4.8, 4.10, 4.11 as the run tier sees real use, and the
-typed-output half of 4.1 on its own.
+| Step | Proposals | State |
+|---|---|---|
+| 1 | 4.7 prompts + 4.6 resources — protocol parity for non-Claude hosts | **shipped** |
+| 2 | 4.8 progress notifications from the long tools | next |
+| 3 | 4.10 multi-repo parity for `explain_symbol`, `regression_gaps`, `localize`, `docs_for` | |
+| 4 | 4.11 per-principal audit on HTTP | |
+| 5 | typed output (the deferred half of 4.1) | last — every return shape |
+| — | retire the `sdlc` scope alias | the release after 3.31.0 |
 
 ## Invariants
 

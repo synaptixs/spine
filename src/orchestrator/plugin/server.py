@@ -72,6 +72,11 @@ The SDK only checks scopes server-wide, so the per-tool check has to live here. 
 there is no token, and the guard passes: a local subprocess a host launched already holds
 the user's ``.env``.
 
+**Prompts and resources, for hosts that are not Claude Code** (``plugin/prompts.py``,
+``plugin/resources.py``). The ``understand-codebase`` skill's "which tool, in which order"
+ships as five MCP prompts; the committed ``episteme/`` bank, the build documents and the
+state report are readable as ``spine://`` resources. Both register beside the tools.
+
 Tool *implementations* are module-level functions (unit-testable without the ``mcp``
 extra); ``build_server`` lazy-imports the SDK's server class and registers them.
 """
@@ -1733,13 +1738,40 @@ def _register_tools(server: Any) -> Any:
     return server
 
 
+def _register_prompts(server: Any) -> Any:
+    """The skill's workflow as MCP prompts — ``plugin.prompts`` says why they live there."""
+    from orchestrator.plugin.prompts import _PROMPTS
+
+    for name, fn in _PROMPTS:
+        first_line = (fn.__doc__ or "").strip().splitlines()[0] if fn.__doc__ else None
+        server.prompt(name=name, description=first_line)(fn)
+    return server
+
+
+def _register_resources(server: Any) -> Any:
+    """The committed bank, the build documents and the state report as MCP resources —
+    ``plugin.resources`` says why they address the default repository."""
+    from orchestrator.plugin.resources import _RESOURCES
+
+    for spec in _RESOURCES:
+        server.resource(spec.uri, name=spec.name, description=spec.description, mime_type="text/markdown")(
+            spec.fn
+        )
+    return server
+
+
+def _register_all(server: Any) -> Any:
+    return _register_resources(_register_prompts(_register_tools(server)))
+
+
 def build_server() -> Any:
-    """Build the FastMCP server with the orchestrator's plugin tools registered.
+    """Build the FastMCP server with the orchestrator's plugin tools, prompts and
+    resources registered.
 
     Stdio transport (Phase A): the local plugin a desktop host launches as a
     subprocess. For the remote HTTP transport see ``build_http_server``.
     """
-    return _register_tools(_import_server_class()("synaptixs-spine"))
+    return _register_all(_import_server_class()("synaptixs-spine"))
 
 
 @dataclass(frozen=True)
@@ -1791,7 +1823,7 @@ def build_http_server(
     # here (where the refusal above lives) rather than at the call site.
     server = server_cls("synaptixs-spine", auth=auth_settings, token_verifier=verifier)
     return HttpServer(
-        server=_register_tools(server),
+        server=_register_all(server),
         transport={
             "host": host,
             "port": port,
