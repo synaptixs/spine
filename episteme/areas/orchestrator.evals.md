@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.evals`** is one of 53 areas in this repo, in the `orchestrator` zone. It holds 12 modules — 21 types and 37 functions. It sits in the middle of the graph: 4 areas below it, 8 above. Changes here can reach both ways.
+**`orchestrator.evals`** is one of 53 areas in this repo, in the `orchestrator` zone. It holds 12 modules — 21 types and 37 functions. It sits in the middle of the graph: 4 areas below it, 9 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -11,11 +11,11 @@ flowchart LR
   n1["orchestrator.cli"]
   n2["orchestrator.personas"]
   n3["orchestrator.pkg"]
-  n4["scripts.agentic_eval"]
-  n5["scripts.audit_eval"]
-  n6["scripts.codegen_benchmark"]
-  n7["scripts.skill_ab"]
-  n8["scripts.skill_promote"]
+  n4["orchestrator.plugin"]
+  n5["scripts.agentic_eval"]
+  n6["scripts.audit_eval"]
+  n7["scripts.codegen_benchmark"]
+  n8["scripts.skill_ab"]
   n9["orchestrator.catalog"]
   n10["orchestrator.core"]
   n11["orchestrator.sdlc"]
@@ -33,7 +33,9 @@ flowchart LR
   n0 --> n11
 ```
 
-**In the diagram:** **`orchestrator.evals`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.personas`](orchestrator.personas.md) · [`orchestrator.pkg`](orchestrator.pkg.md) · `scripts.agentic_eval` · `scripts.audit_eval` · [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md) · `scripts.skill_ab` · `scripts.skill_promote` · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md)
+**In the diagram:** **`orchestrator.evals`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.personas`](orchestrator.personas.md) · [`orchestrator.pkg`](orchestrator.pkg.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · `scripts.agentic_eval` · `scripts.audit_eval` · [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md) · `scripts.skill_ab` · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md)
+
+_Showing 12 of 13 neighbouring areas._
 
 ## Modules
 
@@ -56,4 +58,4 @@ flowchart LR
 
 ## Depended on by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.pkg`](orchestrator.pkg.md), `scripts.agentic_eval`, `scripts.audit_eval`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.skill_ab`, `scripts.skill_promote`
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.plugin`](orchestrator.plugin.md), `scripts.agentic_eval`, `scripts.audit_eval`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.skill_ab`, `scripts.skill_promote`

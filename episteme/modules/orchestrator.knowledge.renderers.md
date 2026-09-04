@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_link`](../../src/orchestrator/knowledge/renderers.py#L179) — reaches **20** symbols
-- [`_under_tests`](../../src/orchestrator/knowledge/renderers.py#L173) — reaches **20** symbols
-- [`_doc`](../../src/orchestrator/knowledge/renderers.py#L114) — reaches **16** symbols
-- [`Importance`](../../src/orchestrator/knowledge/renderers.py#L216) — reaches **10** symbols
-- [`_is_test_module`](../../src/orchestrator/knowledge/renderers.py#L164) — reaches **9** symbols
-- [`_mermaid_id`](../../src/orchestrator/knowledge/renderers.py#L781) — reaches **5** symbols
-- [`AreaFacts`](../../src/orchestrator/knowledge/renderers.py#L680) — reaches **4** symbols
-- [`_anchor`](../../src/orchestrator/knowledge/renderers.py#L1660) — reaches **4** symbols
+- [`_link`](../../src/orchestrator/knowledge/renderers.py#L179) — reaches **21** symbols
+- [`_under_tests`](../../src/orchestrator/knowledge/renderers.py#L173) — reaches **21** symbols
+- [`_doc`](../../src/orchestrator/knowledge/renderers.py#L114) — reaches **17** symbols
+- [`Importance`](../../src/orchestrator/knowledge/renderers.py#L216) — reaches **11** symbols
+- [`_is_test_module`](../../src/orchestrator/knowledge/renderers.py#L164) — reaches **10** symbols
+- [`AreaFacts`](../../src/orchestrator/knowledge/renderers.py#L680) — reaches **5** symbols
+- [`_anchor`](../../src/orchestrator/knowledge/renderers.py#L1660) — reaches **5** symbols
+- [`_api_split_block`](../../src/orchestrator/knowledge/renderers.py#L1119) — reaches **5** symbols
 
 ## Documented in
 

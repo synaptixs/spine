@@ -13,7 +13,7 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`is_effectively_empty`](../../src/orchestrator/sdlc/layout.py#L598) — reaches **20** symbols
+- [`is_effectively_empty`](../../src/orchestrator/sdlc/layout.py#L598) — reaches **21** symbols
 - [`TargetLayout`](../../src/orchestrator/sdlc/layout.py#L79) — reaches **16** symbols
 - [`derive_package_name`](../../src/orchestrator/sdlc/layout.py#L106) — reaches **15** symbols
 - [`_csharp_dirs`](../../src/orchestrator/sdlc/layout.py#L301) — reaches **8** symbols

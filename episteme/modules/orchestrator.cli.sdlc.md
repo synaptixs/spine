@@ -82,7 +82,7 @@ _6 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/sdlc.py:155`](../../src/orchestrator/cli/sdlc.py#L155)
 
 - **Calls** (2): [`_run_address_review`](../../src/orchestrator/cli/sdlc.py#L180), `run`
-- **Documented in**: `docs/specs/mcp-plugin-surface.md#4-proposals`
+- **Documented in**: `docs/specs/mcp-plugin-surface.md#4-proposals`, `docs/specs/mcp-plugin-surface.md#phase-1-retire-the-gaps`
 
 ### `sdlc_approve`
 
@@ -101,14 +101,13 @@ _6 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/sdlc.py:225`](../../src/orchestrator/cli/sdlc.py#L225)
 
 - **Calls** (8): [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L90), `dumps`, `echo`, `orchestrator.pkg.FactStore`, `orchestrator.pkg.load_or_extract`, [`render_report`](../../src/orchestrator/evals/agent_corpus.py#L300), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`score_runs`](../../src/orchestrator/evals/agent_corpus.py#L282)
-- **Documented in**: `docs/specs/mcp-plugin-surface.md#4-proposals`
 
 ### `sdlc_complete`
 
 [`src/orchestrator/cli/sdlc.py:1092`](../../src/orchestrator/cli/sdlc.py#L1092)
 
 - **Calls** (2): [`_run_sdlc_complete`](../../src/orchestrator/cli/sdlc.py#L1126), `run`
-- **Documented in**: `docs/specs/mcp-plugin-surface.md#4-proposals`
+- **Documented in**: `docs/specs/mcp-plugin-surface.md#4-proposals`, `docs/specs/mcp-plugin-surface.md#phase-1-retire-the-gaps`
 
 ### `sdlc_explain`
 
@@ -133,7 +132,7 @@ _6 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/sdlc.py:999`](../../src/orchestrator/cli/sdlc.py#L999)
 
 - **Calls** (2): [`_run_sdlc_remediate`](../../src/orchestrator/cli/sdlc.py#L1041), `run`
-- **Documented in**: `docs/specs/mcp-plugin-surface.md#4-proposals`
+- **Documented in**: `docs/specs/mcp-plugin-surface.md#4-proposals`, `docs/specs/mcp-plugin-surface.md#phase-1-retire-the-gaps`
 
 ### `sdlc_run`
 
