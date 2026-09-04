@@ -1,6 +1,6 @@
 # The MCP plugin surface — what it is, what it lacks, and the order to extend it
 
-**Status:** Phase 1 in progress — steps 1–5 shipped, step 6 open. **Written 2026-09-04 against 3.30.0**,
+**Status:** Phase 1 in progress — steps 1–5 and 6a shipped, 6b open. **Written 2026-09-04 against 3.30.0**,
 after #316 removed the terminal UI and left the plugin as the only non-browser operator face.
 **Owner:** _unassigned_
 
@@ -54,7 +54,7 @@ three for one release.
 **Packaging.** A Claude Code plugin at `plugins/spine/` bundling the `understand-codebase` skill;
 marketplace entry in `.claude-plugin/marketplace.json`; `pip install 'synaptixs-spine[all]'`.
 
-## 2. The 24 tools, in three tiers plus an operator set
+## 2. The 28 tools, in three tiers plus an operator set
 
 The tiers are separated by what a tool can cost you if it is wrong. An assistant works **down**
 them: comprehend, then plan and get the plan approved, then build.
@@ -63,6 +63,7 @@ them: comprehend, then plan and get the plan approved, then build.
 |---|---|---|
 | **1 · comprehend** | `doctor`, `map_repo`, `blast_radius`, `explain_symbol`, `investigate`, `localize`, `regression_gaps`, `root_cause`, `docs_for`, `pkg_joins`, `read_memory_bank`, `pkg_grounding`, `ingest_preview` | No credentials, no model, deterministic. `root_cause(use_llm=true)` is the one opt-in model call, and it still never changes code. `repo_path` is a local path or a git URL; `blast_radius` and `investigate` answer across repositories via `repos` (`.spine/repos.yaml`). |
 | **2 · plan** | `sdlc_plan`, `sdlc_approve` | Writes only under `.spine/`. Still no model, no credentials — which is what lets a host with its own model drive Spine on a machine where Spine has neither. |
+| **the free back half** | `understand_repo`, `profile_repo`, `design_change`, `sdlc_baseline` | Deterministic, no credentials (`design_change(use_llm=true)` is the opt-in model call). `understand_repo` is the one write — under `episteme/` or `out` — so it carries plan scope; the rest are tier 1. |
 | **operate** | `registry_runs`, `registry_approvals`, `registry_trace`, `registry_decide` | Over HTTP to the registry (`orchestrator up`); needs only the API URL and key. Observing is read-only; `registry_decide` is destructive because a rejection ends a run. |
 | **3 · run** | `sdlc_feature`, `sdlc_start_run`, `sdlc_run_status`, `sdlc_decide_gate`, `sdlc_run_result` | Spends tokens. `live=true` (or `create_jira=true`) writes where it cannot be taken back and needs `confirm=true` on top of the host's own confirmation. The run set needs the Temporal backend. |
 
@@ -76,6 +77,7 @@ what to confirm. From Phase 1 every registration carries the four hints, derived
 | Tier 1 | yes | no | yes | yes — `repo_path` may be a URL, a `source` may be remote |
 | `doctor`, `pkg_joins` | yes | no | yes | no — local only |
 | `sdlc_plan`, `sdlc_approve` | no | no | yes — re-running rewrites the same document | no |
+| `understand_repo` | no | no | yes | yes — `repo_path` may be a URL; the write stays under `episteme/` |
 | `sdlc_run_status`, `sdlc_run_result` | yes | no | yes | yes — they read Temporal |
 | `registry_runs`, `registry_approvals`, `registry_trace` | yes | no | yes | yes — they read the registry |
 | `registry_decide` | no | yes | no | yes |
@@ -102,6 +104,9 @@ Numbered, because §5 retires them by number.
 5. **The back half of the pipeline is CLI-only.** `sdlc address-review`, `sdlc complete`,
    `sdlc remediate`, `sdlc baseline`, `design`, `audit`, `profile`, `understand`, `state` exist
    as commands and not as tools. An assistant can open the PR but cannot drive what follows.
+   *(Half closed in Phase 1 step 6a — the free, deterministic half: `understand_repo`,
+   `profile_repo`, `design_change`, `sdlc_baseline`; `state` turned out to be `map_repo`
+   already. The gated half — address-review, complete, remediate, audit — is step 6b.)*
 6. **A stale install was invisible.** The `orchestrator-mcp` on one machine's PATH pointed at
    another checkout's venv (Spine 3.9.3, no `mcp` module); the host saw "Connection closed" and
    nothing said why. *(Closed in Phase 1: `doctor` reports version, interpreter, SDK and extras,
@@ -127,11 +132,14 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
   registered tool — the SDK only checks scopes server-wide, and a request does not name its tool
   until the protocol layer has parsed it. Stdio is untouched. `sdlc` expands to all three for one
   release, then goes.
-- **4.4 `understand_repo` and `current_state` as tools.** Both deterministic by invariant, so
-  they fit tier 2 without new policy. Today `read_memory_bank` can only read a bank someone
-  already committed.
-- **4.5 The post-PR loop.** `sdlc_address_review`, `sdlc_complete`, `sdlc_remediate`,
-  `sdlc_baseline`, `design` as tier-3 tools under the same `live`/`confirm` gate.
+- **4.4 `understand_repo` and `current_state` as tools.** *(Shipped in 6a — `understand_repo`
+  builds or checks the bank; `current_state` was already `map_repo`.)* `understand_repo` refuses
+  a build on a git URL unless `out` is absolute: the clone vanishes, and a bank written into it
+  with it. It returns the three entry pages and the counts, not every path.
+- **4.5 The post-PR loop.** Split by cost. *6a (shipped):* `profile_repo`, `design_change`,
+  `sdlc_baseline` — deterministic, free, tier 1. *6b:* `sdlc_address_review`, `sdlc_complete`,
+  `sdlc_remediate` as tier-3 tools under the same `confirm` gate as `sdlc_feature(live=true)`,
+  and `audit`, which spends tokens on a persona loop — read-only in annotations, run scope.
 - **4.6 Resources.** `spine://episteme/{repo}/{section}`, `spine://plan/{repo}/{intent}`,
   `spine://state/{repo}` as MCP resources — listable, subscribable, attachable as context.
 - **4.7 Prompts.** The `understand-codebase` skill's guidance registered as MCP prompts so Codex,
@@ -155,7 +163,8 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
 | 3 | 3 | 4.1 annotations (typed output deferred). | **this PR** |
 | 4 | 1 | 4.2 operator-ops tools. | **shipped** |
 | 5 | 4 | 4.3 scopes — before step 4 is served over HTTP to anyone else. | **shipped** |
-| 6 | 5 | 4.4, then 4.5. | next |
+| 6a | 5 | The free half: `understand_repo`, `profile_repo`, `design_change`, `sdlc_baseline`. | **shipped** |
+| 6b | 5 | The gated half: `sdlc_address_review`, `sdlc_complete`, `sdlc_remediate`, `audit`. | next |
 
 ### Phase 2 — extensions, once §3 is empty
 

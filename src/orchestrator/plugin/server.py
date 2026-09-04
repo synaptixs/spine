@@ -38,6 +38,11 @@ open PR — which is why ``live`` additionally requires ``confirm=true``, an exp
 authorization on top of whatever confirmation the host already asks for. Safe mode
 (``live=false``) still costs tokens; it just keeps every write local.
 
+**The free half of the back half** — ``understand_repo`` (build or check the ``episteme/``
+bank; the one write, under the repo), ``profile_repo``, ``design_change`` and
+``sdlc_baseline``. Deterministic, no credentials, apart from ``design_change``'s opt-in
+``use_llm``. ``state`` has no tool of its own because ``map_repo`` already is it.
+
 **Operator tools** — ``registry_runs`` / ``registry_approvals`` / ``registry_decide`` /
 ``registry_trace``. "What is running, what is waiting on me", over HTTP to the registry
 (``orchestrator up``) — the successor to the removed terminal UI. Observing is read-only;
@@ -72,6 +77,7 @@ import inspect
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from orchestrator.plugin.auth import SCOPE_PLAN, SCOPE_READ, SCOPE_RUN
@@ -941,6 +947,219 @@ async def sdlc_run_result(sdlc_id: str) -> dict[str, Any]:
     return await run_result(sdlc_id)
 
 
+# ---- the free half of the back half: understand, profile, design, baseline -----------
+#
+# Commands that existed only in the CLI (gap 5 of docs/specs/mcp-plugin-surface.md). These
+# four are deterministic and need no credentials; the gated half — address-review,
+# complete, remediate, audit — is its own step, because each of those spends money or
+# writes outside the repo. ``state`` is not here because ``map_repo`` already is it.
+
+#: The three pages a reader starts from. Named rather than "N files written", the way the
+#: CLI reports it — an index is not a place to start.
+_BANK_ENTRY_PAGES = ("README.md", "architecture.md", "domain-model.md")
+
+
+def understand_repo(
+    repo_path: str, check: bool = False, refresh: bool = False, out: str | None = None
+) -> dict[str, Any]:
+    """Build a repo's ``episteme/`` knowledge base — or, with ``check=true``, verify the
+    committed one still matches the code. **Deterministic, no LLM, no credentials**: the
+    same pages ``orchestrator understand`` writes, so an assistant can bootstrap a repo
+    that has no bank yet, then ``read_memory_bank`` it. Writes only under ``episteme/``
+    (or ``out``). ``check`` writes nothing and reports the pages that are missing, stale
+    (the code moved on) or orphaned (describing code that is gone). ``refresh`` re-extracts
+    the graph instead of using the commit cache. A **build on a git URL is refused** unless
+    ``out`` is an absolute directory — the clone vanishes, and a bank written into it with
+    it; ``check`` on a URL is fine. Returns the three entry pages and the counts, not every
+    path."""
+    from orchestrator.knowledge.understand import build_memory_bank, check_memory_bank
+    from orchestrator.registry.api.config import Settings
+    from orchestrator.registry.api.workspace import RepoSourceError, resolve_repo_source
+
+    try:
+        source = resolve_repo_source(repo_path, Settings(repo_allow_any_local=True))
+    except RepoSourceError as exc:
+        return {"error": str(exc)}
+    out_dir = Path(out).expanduser() if out else None
+    if source.kind == "git" and not check and (out_dir is None or not out_dir.is_absolute()):
+        return {
+            "error": "understand_repo writes into the repo, and a git URL is a clone that vanishes — "
+            "pass a local repo_path, or out=<absolute directory> to keep the bank.",
+        }
+
+    def run(repo: Any) -> dict[str, Any]:
+        if check:
+            report = check_memory_bank(repo, out_dir=out_dir, refresh=refresh)
+            return {
+                "ok": report.ok,
+                "absent": report.absent,
+                "bank_dir": str(report.bank_dir),
+                "missing": list(report.missing),
+                "stale": list(report.stale),
+                "orphaned": list(report.orphaned),
+                "commit": report.commit,
+                "dirty": report.dirty,
+                "summary": report.summary_line(),
+            }
+        result = build_memory_bank(repo, out_dir=out_dir, refresh=refresh)
+        files = list(result.get("files") or [])
+        return {
+            "dir": result["dir"],
+            "greenfield": result.get("greenfield", False),
+            "entry_pages": [f for f in _BANK_ENTRY_PAGES if f in files],
+            "files_written": len(files),
+            "summary": result.get("summary") or {},
+            "profile": result.get("profile") or {},
+            "markdown": f"Wrote {len(files)} pages to `{result['dir']}`. Start with "
+            + ", ".join(f"`{f}`" for f in _BANK_ENTRY_PAGES if f in files)
+            + ". Read them with `read_memory_bank`.",
+        }
+
+    return _in_repo(repo_path, run, hint=False)
+
+
+def profile_repo(repo_path: str, intent: str | None = None) -> dict[str, Any]:
+    """Profile a project: languages, framework, database and migrations, test runner, and
+    — given an ``intent`` title — the task type Spine would classify it as. Read-only,
+    deterministic; the same profile the catalog uses to pick skills. ``repo_path`` is a
+    local path or a git URL."""
+
+    def run(repo: Any) -> dict[str, Any]:
+        from orchestrator.catalog import ProjectProfile
+
+        prof = ProjectProfile.from_repo(repo, intent_title=intent)
+        data = prof.to_dict()
+        lines = [
+            f"languages: {', '.join(sorted(prof.languages)) or '(none detected)'}",
+            f"framework: {prof.framework or '-'}",
+            f"database: {'yes' if prof.has_db else 'no'} "
+            f"(migrations: {'yes' if prof.has_migrations else 'no'})",
+            f"test runner: {prof.test_runner or '-'}",
+            f"task type: {prof.task_type}",
+        ]
+        return {**data, "markdown": "\n".join(f"- {ln}" for ln in lines)}
+
+    return _in_repo(repo_path, run, hint=False)
+
+
+async def design_change(repo_path: str, spec: dict[str, Any], use_llm: bool = False) -> dict[str, Any]:
+    """A grounded design for one feature: the spec × the knowledge graph → an approach
+    anchored to the repo's real structure, its **blast radius** (modules touched, who
+    depends on them, call hotspots) and any **unverified references** (paths the spec names
+    that the graph does not have). Takes the same ``spec`` object as ``sdlc_plan``
+    (``intent_id``, ``title``, ``summary``, ``acceptance_criteria``), validated the same way.
+    **Deterministic by default**; ``use_llm=true`` lets a model write the prose (needs
+    ``ORCHESTRATOR_INTAKE_MODEL``). Returns the design and its markdown — it never writes.
+    For the full twelve-section build document, use ``sdlc_plan``."""
+    from orchestrator.intake.specs import FeatureSpec
+    from orchestrator.sdlc.spec_file import SpecFileError, validate_spec
+
+    if not isinstance(spec, dict):
+        return {"error": f"spec must be an object, got {type(spec).__name__}"}
+    try:
+        resolved = validate_spec(spec, where="spec")
+    except SpecFileError as exc:
+        return {"error": str(exc), "valid_fields": sorted(FeatureSpec.model_fields)}
+
+    client: Any = None
+    if use_llm:
+        from orchestrator.core.env import load_local_env
+        from orchestrator.sdlc.codegen import resolve_codegen_model
+
+        load_local_env()
+        if not resolve_codegen_model():
+            return {
+                "error": "use_llm=true needs a model — set ORCHESTRATOR_INTAKE_MODEL (or SDLC_CODEGEN_MODEL)."
+            }
+        from orchestrator.core.llm import LiteLLMClient
+
+        client = LiteLLMClient()
+
+    async def run(repo: Any) -> dict[str, Any]:
+        from orchestrator.pkg import FactStore, load_or_extract
+        from orchestrator.pkg.overview import build_overview
+        from orchestrator.sdlc.design import produce_design, render_design_md
+
+        batch = load_or_extract(repo)
+        design = await produce_design(
+            resolved,
+            overview=build_overview(batch),
+            memory_bank=_design_bank(repo),
+            store=FactStore(batch),
+            llm=client,
+            root=repo,
+        )
+        unverified = (design.get("blast_radius") or {}).get("unverified_references") or []
+        return {
+            "title": resolved.get("title"),
+            "design": design,
+            "unverified_references": unverified,
+            "used_llm": client is not None,
+            "markdown": render_design_md(resolved, design),
+        }
+
+    from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
+
+    try:
+        with _open_repo(repo_path) as repo:
+            return await run(repo)
+    except (RepoSourceError, RepoPathError) as exc:
+        return {"error": str(exc)}
+
+
+def _design_bank(repo: Path) -> dict[str, str]:
+    """The committed ``episteme/`` pages a design draws conventions from, when present —
+    the same three the CLI's ``design`` reads."""
+    import contextlib
+
+    from orchestrator.knowledge.understand import existing_bank_dir
+
+    out: dict[str, str] = {}
+    with contextlib.suppress(Exception):
+        bank = existing_bank_dir(repo)
+        for name in ("domain-model.md", "tech-context.md", "conventions.md"):
+            page = bank / name
+            if page.exists():
+                out[name] = page.read_text(encoding="utf-8")
+    return out
+
+
+def sdlc_baseline(repo_path: str) -> dict[str, Any]:
+    """Score the run agent against a corpus of tickets whose right answer is known, and
+    summarize the durable run records. **Deterministic and free**: the validity gate reads
+    each ticket and this repo's real graph; run metrics are observations of what ran.
+    False refusals and missed refusals are counted separately — one accuracy number would
+    let each hide behind the other. ``repo_path`` is a local path or a git URL."""
+
+    def run(repo: Any) -> dict[str, Any]:
+        from orchestrator.evals.agent_corpus import render_report, score_gate, score_runs
+        from orchestrator.pkg import FactStore, load_or_extract
+        from orchestrator.sdlc.runstate import RunStore
+
+        gate = score_gate(FactStore(load_or_extract(repo)))
+        runs = score_runs(RunStore().all())
+        return {
+            "gate": {
+                "accuracy": gate.accuracy,
+                "cases": len(gate.results),
+                "false_refusals": gate.false_refusals,
+                "missed_refusals": gate.missed_refusals,
+            },
+            "runs": {
+                "runs": runs.runs,
+                "completed": runs.completed,
+                "parked": runs.parked,
+                "failed": runs.failed,
+                "completion_rate": runs.completion_rate,
+                "intervention_rate": runs.intervention_rate,
+                "mean_cost_usd": runs.mean_cost_usd,
+            },
+            "markdown": render_report(gate, runs),
+        }
+
+    return _in_repo(repo_path, run, hint=False)
+
+
 # ---- operator tools: what is running, what is waiting on me — over the registry -------
 #
 # The successor to the terminal UI removed in #316. These go over HTTP to the registry
@@ -1115,6 +1334,11 @@ _TOOLS = (
     sdlc_run_status,
     sdlc_decide_gate,
     sdlc_run_result,
+    # the free half of the back half (gap 5): understand, profile, design, baseline
+    understand_repo,
+    profile_repo,
+    design_change,
+    sdlc_baseline,
     # operator: what is running, what is waiting on me — over the registry
     registry_runs,
     registry_approvals,
@@ -1147,6 +1371,12 @@ COMPREHEND_LOCAL = Tier(
 )
 #: Plan and decide: writes under ``.spine/`` only, re-running rewrites the same document.
 PLAN = Tier("plan", read_only=False, destructive=False, idempotent=True, open_world=False, scope=SCOPE_PLAN)
+#: Plan-tier semantics for a local write that may follow a clone: ``understand_repo``
+#: writes under ``episteme/`` (or ``out``) and nowhere else, but its ``repo_path`` may be a
+#: URL, so it is not local-only the way ``sdlc_plan`` is.
+PLAN_REMOTE = Tier(
+    "plan", read_only=False, destructive=False, idempotent=True, open_world=True, scope=SCOPE_PLAN
+)
 #: Observing a run: reads Temporal state, changes nothing.
 RUN_OBSERVE = Tier(
     "run", read_only=True, destructive=False, idempotent=True, open_world=True, scope=SCOPE_READ
@@ -1178,6 +1408,10 @@ _TIER: dict[str, Tier] = {
     "sdlc_run_status": RUN_OBSERVE,
     "sdlc_decide_gate": RUN,
     "sdlc_run_result": RUN_OBSERVE,
+    "understand_repo": PLAN_REMOTE,
+    "profile_repo": COMPREHEND,
+    "design_change": COMPREHEND,  # `use_llm` spends tokens; it still never writes
+    "sdlc_baseline": COMPREHEND,
     "registry_runs": RUN_OBSERVE,
     "registry_approvals": RUN_OBSERVE,
     "registry_decide": RUN,  # a rejection ends a run
@@ -1350,6 +1584,7 @@ __all__ = [
     "blast_radius",
     "build_http_server",
     "build_server",
+    "design_change",
     "docs_for",
     "doctor",
     "explain_symbol",
@@ -1360,6 +1595,7 @@ __all__ = [
     "map_repo",
     "pkg_grounding",
     "pkg_joins",
+    "profile_repo",
     "read_memory_bank",
     "registry_approvals",
     "registry_decide",
@@ -1369,6 +1605,7 @@ __all__ = [
     "root_cause",
     "scope_denial",
     "sdlc_approve",
+    "sdlc_baseline",
     "sdlc_decide_gate",
     "sdlc_feature",
     "sdlc_plan",
@@ -1378,4 +1615,5 @@ __all__ = [
     "Tier",
     "tool_annotations",
     "tool_scope",
+    "understand_repo",
 ]
