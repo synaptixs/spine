@@ -1,7 +1,7 @@
 {
   "name": "spine",
   "displayName": "Spine",
-  "version": "3.30.0",
+  "version": "3.31.0",
   "description": "Understand any codebase, then ship changes to it. Read-only comprehension tools (map_repo, blast_radius, explain_symbol, investigate, localize, regression_gaps, root_cause, docs_for) hand you engineering decisions — what breaks if you change X, what's untested, where a ticket or bug lands, which docs describe it — from a deterministic Product Knowledge Graph (no LLM, no credentials, every fact file:line-grounded). Declare several repositories in .spine/repos.yaml and the same questions answer across them: an HTTP handler with zero callers in its own source reports the service that depends on it, and pkg_joins proposes or checks that topology. Then plan (sdlc_plan / sdlc_approve — a twelve-section build document, still no model and no credentials), and on confirm get a reviewed, tested PR. Greenfield + brownfield across Python, Java, TypeScript, C#, C, C++, Go, and SQL. Safe by default: local branch + diff, no external writes; live writes are gated behind an explicit confirm.",
   "author": {
     "name": "Synaptixs",
