@@ -200,7 +200,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 1 test): [`test_audit_repo_needs_a_model_and_then_reports_findings`](../../tests/plugin/test_server.py#L683)
 - **Calls** (3): [`_open_repo`](../../src/orchestrator/plugin/server.py#L223), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L45)
-- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`
+- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`, `docs/specs/mcp-plugin-surface.md#phase-1-retire-the-gaps`
 
 ### `blast_radius`
 
@@ -231,7 +231,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 3 test): [`test_design_change_is_grounded_and_never_writes`](../../tests/plugin/test_server.py#L491), [`test_design_change_refuses_a_bad_spec_naming_the_valid_fields`](../../tests/plugin/test_server.py#L512), [`test_design_change_with_llm_needs_a_model`](../../tests/plugin/test_server.py#L520)
 - **Calls** (5): [`_open_repo`](../../src/orchestrator/plugin/server.py#L223), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `orchestrator.core.llm.LiteLLMClient`, [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L45), [`validate_spec`](../../src/orchestrator/sdlc/spec_file.py#L60)
-- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `docs/specs/mcp-plugin-surface.md#2-the-28-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`, `docs/specs/mcp-plugin-surface.md#phase-1-retire-the-gaps`
+- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `README.md#whats-new`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`
 
 ### `docs_for`
 
@@ -306,7 +306,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 1 test): [`test_profile_repo_reads_the_project`](../../tests/plugin/test_server.py#L483)
 - **Calls** (1): [`_in_repo`](../../src/orchestrator/plugin/server.py#L291)
-- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `docs/specs/mcp-plugin-surface.md#2-the-28-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`, `docs/specs/mcp-plugin-surface.md#phase-1-retire-the-gaps`
+- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`, `docs/specs/mcp-plugin-surface.md#phase-1-retire-the-gaps`
 
 ### `read_memory_bank`
 
@@ -321,7 +321,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 1 test): [`test_registry_approvals_lists_what_waits`](../../tests/plugin/test_server.py#L750)
 - **Calls** (1): [`_registry`](../../src/orchestrator/plugin/server.py#L1379)
-- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#operating-runs-registry-runs-friends`, `docs/specs/mcp-plugin-surface.md#2-the-28-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`
+- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#operating-runs-registry-runs-friends`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`
 
 ### `registry_decide`
 
@@ -329,7 +329,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 2 test): [`test_registry_decide_posts_the_action`](../../tests/plugin/test_server.py#L776), [`test_registry_decide_refuses_a_bad_action_before_any_call`](../../tests/plugin/test_server.py#L795)
 - **Calls** (1): [`_registry`](../../src/orchestrator/plugin/server.py#L1379)
-- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#operating-runs-registry-runs-friends`, `docs/specs/mcp-plugin-surface.md#2-the-28-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`
+- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#operating-runs-registry-runs-friends`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`
 
 ### `registry_runs`
 
@@ -337,7 +337,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 1 test): [`test_registry_runs_lists_with_a_table`](../../tests/plugin/test_server.py#L728)
 - **Calls** (1): [`_registry`](../../src/orchestrator/plugin/server.py#L1379)
-- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#operating-runs-registry-runs-friends`, `docs/specs/mcp-plugin-surface.md#2-the-28-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`
+- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#operating-runs-registry-runs-friends`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`
 
 ### `registry_trace`
 
@@ -345,7 +345,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 1 test): [`test_registry_trace_is_bounded_and_says_so`](../../tests/plugin/test_server.py#L806)
 - **Calls** (1): [`_registry`](../../src/orchestrator/plugin/server.py#L1379)
-- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#operating-runs-registry-runs-friends`, `docs/specs/mcp-plugin-surface.md#2-the-28-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`
+- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `CLAUDE_GUIDE.md#operating-runs-registry-runs-friends`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`
 
 ### `regression_gaps`
 
@@ -433,7 +433,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 1 test): [`test_sdlc_run_status_and_result_delegate`](../../tests/plugin/test_server.py#L369)
 - **Calls** (1): [`run_result`](../../src/orchestrator/sdlc/run_control.py#L181)
-- **Documented in**: `CLAUDE_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `CODEX_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `docs/specs/codex-plugin-keyless-roadmap.md#tools-needing-no-credentials-at-all-17-of-19`, `docs/specs/mcp-plugin-surface.md#2-the-28-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#the-tiers-as-annotations-phase-1`, `docs/specs/sdlc-tracking-blueprint.md#10-surfacing-where-the-numbers-show-up`
+- **Documented in**: `CLAUDE_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `CODEX_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `docs/specs/codex-plugin-keyless-roadmap.md#tools-needing-no-credentials-at-all-17-of-19`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#the-tiers-as-annotations-phase-1`, `docs/specs/sdlc-tracking-blueprint.md#10-surfacing-where-the-numbers-show-up`
 
 ### `sdlc_run_status`
 
@@ -441,7 +441,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 1 test): [`test_sdlc_run_status_and_result_delegate`](../../tests/plugin/test_server.py#L369)
 - **Calls** (1): [`run_status`](../../src/orchestrator/sdlc/run_control.py#L102)
-- **Documented in**: `CLAUDE_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `CODEX_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `docs/specs/codex-plugin-keyless-roadmap.md#tools-needing-no-credentials-at-all-17-of-19`, `docs/specs/mcp-plugin-surface.md#2-the-28-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#the-tiers-as-annotations-phase-1`
+- **Documented in**: `CLAUDE_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `CODEX_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `docs/specs/codex-plugin-keyless-roadmap.md#tools-needing-no-credentials-at-all-17-of-19`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#the-tiers-as-annotations-phase-1`
 
 ### `sdlc_start_run`
 
@@ -469,7 +469,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (0 production · 4 test): [`test_understand_repo_builds_the_bank_and_names_where_to_start`](../../tests/plugin/test_server.py#L433), [`test_understand_repo_check_is_current_then_stale`](../../tests/plugin/test_server.py#L449), [`test_understand_repo_refuses_to_build_into_a_clone_that_vanishes`](../../tests/plugin/test_server.py#L464), [`test_understand_repo_writes_where_out_says`](../../tests/plugin/test_server.py#L473)
 - **Calls** (4): [`Settings`](../../src/orchestrator/registry/api/config.py#L44), [`_in_repo`](../../src/orchestrator/plugin/server.py#L291), `pathlib.Path`, [`resolve_repo_source`](../../src/orchestrator/registry/api/workspace.py#L166)
-- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `docs/specs/mcp-plugin-surface.md#2-the-28-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`, `docs/specs/mcp-plugin-surface.md#phase-1-retire-the-gaps`
+- **Documented in**: `CHANGELOG.md`, `CLAUDE_GUIDE.md#6-the-tools-spine-exposes`, `README.md#whats-new`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`, `docs/specs/mcp-plugin-surface.md#3-the-gaps`, `docs/specs/mcp-plugin-surface.md#4-proposals`
 
 ## Imports
 
