@@ -1,6 +1,6 @@
 # The MCP plugin surface — what it is, what it lacks, and the order to extend it
 
-**Status:** **Phase 1 COMPLETE** — all six steps shipped, all six gaps closed. Phase 2 in progress — step 1 (prompts + resources) shipped. **Written 2026-09-04 against 3.30.0**,
+**Status:** **Phase 1 COMPLETE** — all six steps shipped, all six gaps closed. Phase 2 in progress — steps 1 (prompts + resources) and 2 (progress) shipped. **Written 2026-09-04 against 3.30.0**,
 after #316 removed the terminal UI and left the plugin as the only non-browser operator face.
 **Owner:** _unassigned_
 
@@ -150,8 +150,15 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
   `spine://state/{repo}` as MCP resources — listable, subscribable, attachable as context.
 - **4.7 Prompts.** *(Shipped in Phase 2 step 1 — five prompts in `plugin/prompts.py`, the source of the workflow because the skill is not in the wheel; a test holds the skill to the same tools.)* The `understand-codebase` skill's guidance registered as MCP prompts so Codex,
   Desktop and claude.ai get the "which tool, in which order" workflow through the protocol.
-- **4.8 Progress.** Per-phase progress notifications from `sdlc_feature` and
-  `root_cause(use_llm=true)`, which run for minutes with no signal today.
+- **4.8 Progress.** *(Shipped in Phase 2 step 2.)* The five long tools receive the SDK
+  `Context` through an optional parameter the scope wrapper passes through untouched and the
+  schema never shows. The phases come from the engines' existing log hooks — the feature
+  runner's bracketed prefixes, mapped to ordered steps in `plugin/progress.py` — not from new
+  instrumentation, so the CLI and the plugin describe the same stages. Monotonic (a high-water
+  mark); an unknown line rides on the current step as its message, because MCP's separate
+  logging capability is deprecated (SEP-2577). `audit_repo` is start/done only: its loop has no
+  per-step hook. `root_cause(use_llm)` and `design_change(use_llm)` are single model calls and
+  stay as they are.
 - **4.9 Self-describing `doctor`.** Phase 1.
 - **4.10 Multi-repo parity.** `explain_symbol`, `regression_gaps`, `localize`, `docs_for` take
   `repos` like `blast_radius` and `investigate` do.
@@ -177,8 +184,8 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
 | Step | Proposals | State |
 |---|---|---|
 | 1 | 4.7 prompts + 4.6 resources — protocol parity for non-Claude hosts | **shipped** |
-| 2 | 4.8 progress notifications from the long tools | next |
-| 3 | 4.10 multi-repo parity for `explain_symbol`, `regression_gaps`, `localize`, `docs_for` | |
+| 2 | 4.8 progress notifications from the long tools | **shipped** |
+| 3 | 4.10 multi-repo parity for `explain_symbol`, `regression_gaps`, `localize`, `docs_for` | next |
 | 4 | 4.11 per-principal audit on HTTP | |
 | 5 | typed output (the deferred half of 4.1) | last — every return shape |
 | — | retire the `sdlc` scope alias | the release after 3.31.0 |

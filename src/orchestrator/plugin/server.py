@@ -92,6 +92,16 @@ from pathlib import Path
 from typing import Any
 
 from orchestrator.plugin.auth import SCOPE_PLAN, SCOPE_READ, SCOPE_RUN
+from orchestrator.plugin.progress import Reporter
+
+# The SDK injects its ``Context`` into a parameter annotated with this class and keeps it
+# out of the input schema — but it resolves the annotation through this module's globals
+# at registration, so the name must exist at runtime. Without the ``mcp`` extra (the tool
+# implementations stay importable without it) it aliases to ``Any`` and nothing changes.
+try:
+    from mcp.server.mcpserver import Context
+except ImportError:  # pragma: no cover - only without the extra
+    Context = Any  # type: ignore[assignment,misc]
 
 
 def doctor() -> dict[str, Any]:
@@ -140,8 +150,11 @@ async def sdlc_feature(
     live: bool = False,
     confirm: bool = False,
     max_refine: int = 3,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
-    """Build ONE intent end to end: spec → grounded codegen → tests → branch.
+    """Build ONE intent end to end: spec → grounded codegen → tests → branch. Reports
+    progress per stage (spec, layout, design, implement, tests, refine, judge, PR) when the
+    host asks for it.
 
     Works for **greenfield and brownfield**:
     - ``repo`` — a git URL/owner-slug to branch from (e.g. ``https://github.com/me/app``
@@ -164,6 +177,7 @@ async def sdlc_feature(
         )
     from orchestrator.sdlc.feature_runner import FeatureRunError, run_feature
 
+    progress = Reporter(ctx)
     try:
         result = await run_feature(
             source,
@@ -174,6 +188,7 @@ async def sdlc_feature(
             package_name=package_name,
             live=live,
             max_refine=max_refine,
+            log=progress.as_log(),
         )
     except FeatureRunError as exc:
         return {"passed": False, "error": str(exc)}
@@ -970,8 +985,12 @@ async def sdlc_run_result(sdlc_id: str) -> dict[str, Any]:
 _BANK_ENTRY_PAGES = ("README.md", "architecture.md", "domain-model.md")
 
 
-def understand_repo(
-    repo_path: str, check: bool = False, refresh: bool = False, out: str | None = None
+async def understand_repo(
+    repo_path: str,
+    check: bool = False,
+    refresh: bool = False,
+    out: str | None = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Build a repo's ``episteme/`` knowledge base — or, with ``check=true``, verify the
     committed one still matches the code. **Deterministic, no LLM, no credentials**: the
@@ -998,9 +1017,12 @@ def understand_repo(
             "pass a local repo_path, or out=<absolute directory> to keep the bank.",
         }
 
+    progress = Reporter(ctx, phases=("extract", "understand"))
+    await progress.step(1, 2, "[extract] extracting the graph and rendering the pages")
+
     def run(repo: Any) -> dict[str, Any]:
         if check:
-            report = check_memory_bank(repo, out_dir=out_dir, refresh=refresh)
+            report = check_memory_bank(repo, out_dir=out_dir, refresh=refresh, log=progress.as_log())
             return {
                 "ok": report.ok,
                 "absent": report.absent,
@@ -1012,7 +1034,7 @@ def understand_repo(
                 "dirty": report.dirty,
                 "summary": report.summary_line(),
             }
-        result = build_memory_bank(repo, out_dir=out_dir, refresh=refresh)
+        result = build_memory_bank(repo, out_dir=out_dir, refresh=refresh, log=progress.as_log())
         files = list(result.get("files") or [])
         return {
             "dir": result["dir"],
@@ -1189,6 +1211,7 @@ async def sdlc_address_review(
     bot_login: str | None = None,
     max_refines: int = 3,
     confirm: bool = False,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Address the human review comments on an open PR and **push a fix to its branch**:
     clone the repo, check the PR out, feed the comments to codegen, re-drive the change to
@@ -1214,10 +1237,13 @@ async def sdlc_address_review(
     )
     from orchestrator.sdlc.worker import build_deps
 
+    progress = Reporter(ctx, phases=("checkout", "respond", "done"))
+    await progress.step(1, 3, f"[checkout] cloning and checking out {pr}")
     try:
         workdir, branch = await checkout_pr_worktree(repo_url, pr)
     except PRCheckoutError as exc:
         return {"error": str(exc), "step": exc.step}
+    await progress.step(2, 3, f"[respond] addressing review comments on {branch}")
     result = await respond_to_pr_feedback(
         build_deps(),
         pr_url=pr,
@@ -1225,6 +1251,9 @@ async def sdlc_address_review(
         path=str(workdir),
         bot_login=bot_login,
         max_refines=max_refines,
+    )
+    await progress.step(
+        3, 3, f"[done] {result.detail or ('pushed' if result.addressed else 'nothing to push')}"
     )
     return {"pr": pr, "branch": branch, **result.__dict__}
 
@@ -1262,6 +1291,7 @@ async def sdlc_remediate(
     min_severity: str = "warning",
     live: bool = False,
     confirm: bool = False,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Turn an infodrift drift report into remediation feature runs, one per material
     finding at or above ``min_severity`` (``warning`` | ``critical``). ``report_path`` is
@@ -1296,7 +1326,13 @@ async def sdlc_remediate(
         return {"error": f"could not read the mapping store at {mappings_path!r}: {exc}"}
     entity_iris = infer_entity_iris(report, mappings)
 
+    progress = Reporter(ctx)
+    done = 0
+
     async def runner(task: RemediationTask) -> str:
+        nonlocal done
+        done += 1
+        await progress.step(done, done, f"[remediate #{done}] {task.spec.get('title', task.entity_key)}")
         result = await run_feature(source="spine://remediation", spec=task.spec, repo=repo, live=live)
         return result.branch
 
@@ -1333,13 +1369,16 @@ def _finding_dict(f: Any) -> dict[str, Any]:
 
 
 async def audit_repo(
-    repo_path: str, focus: str = "general code quality, correctness risks, and security"
+    repo_path: str,
+    focus: str = "general code quality, correctness risks, and security",
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """A codebase-auditor persona reads the repo — the graph plus file reads, **no writes**
     — and reports findings anchored to a real ``file:line`` (claims that resolve to nothing
     are listed separately as ``unresolved``). **Spends tokens**: needs a tool-calling model
     (``ORCHESTRATOR_INTAKE_MODEL``). ``repo_path`` is a local path or a git URL; ``focus``
-    says what to look for."""
+    says what to look for. Progress is start and done only — the audit loop has no
+    per-step hook."""
     from orchestrator.core.env import load_local_env
     from orchestrator.sdlc.codegen import resolve_codegen_model
 
@@ -1355,7 +1394,10 @@ async def audit_repo(
         from orchestrator.core.llm import LiteLLMClient
         from orchestrator.personas import render_findings_markdown, run_audit
 
+        progress = Reporter(ctx, phases=("audit", "done"))
+        await progress.step(1, 2, f"[audit] reading the repo with focus: {focus}")
         result = await run_audit(repo, llm=LiteLLMClient(), model=model, focus=focus)
+        await progress.step(2, 2, f"[done] {len(result.findings)} finding(s); {result.stopped_reason}")
         return {
             "summary": result.summary,
             "findings": [_finding_dict(f) for f in result.findings],
