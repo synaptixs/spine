@@ -63,7 +63,6 @@ orchestrator --help
 
 Optional extras, added when you need them:
 - `pip install 'synaptixs-spine[sdlc]'` — run the generated tests (the `sdlc feature`/`run` path)
-- `pip install 'synaptixs-spine[tui]'` — the `orchestrator tui` terminal UI (Step 7)
 - `pip install 'synaptixs-spine[all]'` — everything below at once: every language front-end,
   the MCP server and doc ingestion. This is the right install for the Claude Code / Codex
   plugin; `[languages]` is the front-ends on their own.
@@ -945,10 +944,6 @@ by environment variables you opt into:
 > (SSH agent / credential helper / a token in the URL); GitHub uses `GITHUB_TOKEN`
 > or a GitHub App. Public repos need nothing.
 
-> Prefer the terminal? `pip install 'synaptixs-spine[tui]'` then `orchestrator tui`
-> — the same watch-runs / clear-gates / delegate actions, keyboard-driven, over the
-> same API (`ORCHESTRATOR_API_URL` + `ORCHESTRATOR_API_KEY`, or `--api-url`/`--api-key`).
-
 For raw test output and per-activity detail, the **Temporal UI** (or the worker
 logs) is the source of truth.
 
@@ -1229,7 +1224,13 @@ orchestrator-mcp --http --host 0.0.0.0 --port 8080     # behind TLS in productio
 ```
 Pick one auth mode (a public bind without either is refused):
 - **Shared secret** — set `ORCHESTRATOR_MCP_TOKEN` + `ORCHESTRATOR_MCP_RESOURCE_URL`; the client sends that token as its bearer.
-- **OAuth introspection** — set `ORCHESTRATOR_MCP_ISSUER_URL`, `…_INTROSPECTION_URL`, client id/secret, and `…_REQUIRED_SCOPES` to validate every token against your IdP.
+- **OAuth introspection** — set `ORCHESTRATOR_MCP_ISSUER_URL`, `…_INTROSPECTION_URL` and client id/secret to validate every token against your IdP.
+
+Scopes follow the tool tiers and are checked **per call**: `spine:read` (comprehension, observing
+a run), `spine:plan` (`sdlc_plan`, `sdlc_approve`), `spine:run` (anything that spends money or
+writes where it cannot be taken back). An IdP-issued token needs the scope of the tier it calls;
+a shared-secret token carries all three unless `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it —
+`spine:read` makes it read-only. The legacy `sdlc` scope reads as all three for one release.
 
 Destructive tools stay gated regardless of auth: `sdlc_feature(live=true)` and
 `sdlc_start_run(create_jira=true)` both need an explicit `confirm=true`.

@@ -5,7 +5,7 @@
 #
 #     jobs:
 #       spine:
-#         uses: synaptixs/spine/.github/workflows/spine-comprehension.yml@v3.30.0
+#         uses: synaptixs/spine/.github/workflows/spine-comprehension.yml@v3.31.0
 #
 # **Spine itself needs no credentials here.** `investigate` is deterministic and model-free — no
 # API key, no database, no service. The only token used is the caller's own `GITHUB_TOKEN`, and
@@ -44,12 +44,12 @@ jobs:
   comprehend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Full history: Spine's cache is commit-keyed and only trusted on a clean tree.
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ inputs.python-version }}
 

@@ -1,8 +1,8 @@
 # Spec index — every design record, and where it stands
 
 **Generated 2026-08-15 against 3.18.1; refreshed 2026-08-21 for the completed GraphIR
-programme; recounted 2026-09-03 at 3.30.0.** `docs/specs/` holds **85** markdown files —
-**78 specs** plus three navigation documents ([README](README.md), this index,
+programme; recounted 2026-09-04 at 3.31.0.** `docs/specs/` holds **86** markdown files —
+**79 specs** plus three navigation documents ([README](README.md), this index,
 [STATE-OF-SPINE](STATE-OF-SPINE.md)) — with 6 archived and 10 build documents. The count read
 *63* until 2026-08-21, and **five specs were not listed at all**, including this file's own
 companion matrix and both measurements it cites as evidence. An inventory that silently omits
@@ -10,7 +10,7 @@ things is the failure it was built to catch, so the count is now stated as a der
 can re-run:
 
 ```
-ls docs/specs/*.md | wc -l          # 85
+ls docs/specs/*.md | wc -l          # 86
 ```
 
 **It rotted anyway.** The line read *70* from 2026-08-21 until 2026-08-28 while the directory
@@ -40,8 +40,8 @@ Graphify-gap series only. This file is the complete inventory.
 
 ---
 
-> **Start with [STATE-OF-SPINE.md](STATE-OF-SPINE.md)** — one page, verified 2026-09-01 against
-> 3.30.0, covering where the product stands, what is measured, the active programme, and what is
+> **Start with [STATE-OF-SPINE.md](STATE-OF-SPINE.md)** — one page, verified 2026-09-04 against
+> 3.31.0, covering where the product stands, what is measured, the active programme, and what is
 > outstanding. Come here for the per-spec inventory.
 
 ---
@@ -93,6 +93,7 @@ Graphify-gap series only. This file is the complete inventory.
 | [gap6-benchmarks-roadmap](gap6-benchmarks-roadmap.md) | ✅ **Complete 2026-09-01** | All three phases: harness, 38-label gold set, ratchet gate. top-1 0.32 / top-10 0.71 against 0.085 chance; published as [BENCHMARK.md](../../BENCHMARK.md). This row read *Not started* for a day after the spec said COMPLETE |
 | [codegen-benchmark-roadmap](codegen-benchmark-roadmap.md) | Not started | **New 2026-08-15.** SWE-bench comparability → `resolved`-vs-`mergeable` delta |
 | [codex-plugin-keyless-roadmap](codex-plugin-keyless-roadmap.md) | Not started | **New 2026-08-15.** Phase 0 is a blocking spike |
+| [mcp-plugin-surface](mcp-plugin-surface.md) | ✅ **Phase 1 complete 2026-09-04**; Phase 2 not started | **New 2026-09-04.** The MCP server's 20 tools, the tier model as machine-readable annotations, six gaps, and the extension order — gaps first |
 | [phase5-agentic-codegen-loop](phase5-agentic-codegen-loop.md) | Proposed, under review | "The hinge phase" |
 | [autonomous-run-agent](autonomous-run-agent.md) | Proposed, no branch | 9 phases; 0–3 strictly serial |
 | [catalog-then-compose-roadmap](catalog-then-compose-roadmap.md) | Proposed, under review | Scope confirmed: Phases 0–3 |

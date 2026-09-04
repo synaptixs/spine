@@ -1,6 +1,6 @@
 [project]
 name = "synaptixs-spine"
-version = "3.30.0"
+version = "3.31.0"
 description = "Agent orchestration platform — planner, registry, runtime, verifier."
 readme = "README.md"
 license = { text = "MIT" }
@@ -130,11 +130,6 @@ sdlc = [
     "pytest>=8",
     "pytest-asyncio>=0.24",
 ]
-# The developer TUI (P4). Textual is lazy-imported by the `tui` CLI command, so
-# the base install (and the web UI) stay Textual-free.
-tui = [
-    "textual>=0.50",
-]
 # Live OpenTelemetry tracing (G16). orchestrator.obs.tracing lazy-imports this and
 # stays a no-op unless OTEL_EXPORTER_OTLP_ENDPOINT is set, so the base install is
 # unaffected: pip install 'synaptixs-spine[otel]'.
@@ -173,7 +168,7 @@ languages = [
 # What the plugin install should be: every language, the MCP server, and doc
 # ingestion. Deliberately NOT everything — `security` (semgrep), `media`/`asr`
 # (tesseract/whisper need system binaries), `sql-postgres` (testcontainers wants
-# Docker), `tui`, `otel` and `dev` stay opt-in, because an install that pulls a
+# Docker), `otel` and `dev` stay opt-in, because an install that pulls a
 # container runtime to answer "what breaks if I change X" is one nobody finishes.
 all = [
     "synaptixs-spine[languages,mcp,docs,office,sdlc]",
@@ -293,19 +288,6 @@ files = ["src", "tests"]
 [[tool.mypy.overrides]]
 module = ["tree_sitter", "tree_sitter.*", "tree_sitter_java", "tree_sitter_typescript", "tree_sitter_c_sharp", "tree_sitter_c", "tree_sitter_cpp", "tree_sitter_go"]
 ignore_missing_imports = true
-
-# `textual` is the optional `tui` extra; not installed in the default/CI env.
-[[tool.mypy.overrides]]
-module = ["textual", "textual.*"]
-ignore_missing_imports = true
-
-# The Textual app is thin glue whose base classes are `Any` when the `tui` extra
-# is absent (CI), which trips "cannot subclass Any". Skip type-checking that one
-# module so the result is stable whether or not textual is installed; the
-# dependency-light `tui.client` keeps full mypy coverage.
-[[tool.mypy.overrides]]
-module = ["orchestrator.tui.app"]
-ignore_errors = true
 
 # `mcp` is an optional extra (the MCP client transport), lazy-imported; not in
 # the default/CI env, so don't fail type-checking on its absence.

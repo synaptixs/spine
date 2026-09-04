@@ -196,20 +196,49 @@ At a glance:
 | [`read_memory_bank`](#read_memory_bank) | Read a repo's committed `episteme/` (code‑true project knowledge). | no |
 | [`pkg_grounding`](#pkg_grounding) | The existing‑code context a repo's Product Knowledge Graph surfaces for a spec — real APIs/types Spine would reuse, with `file:line`. | no |
 | [`ingest_preview`](#ingest_preview) | Preview the backlog (derived intents + gaps) for a requirements source — dry‑run. | no |
+| `understand_repo` | **Build the `episteme/` knowledge base** a repo has none of yet (then `read_memory_bank` it), or `check=true` to verify the committed one still matches the code — missing / stale / orphaned pages named. Deterministic, no model. Refuses a build on a git URL unless `out` is an absolute directory. | `episteme/` |
+| `profile_repo` | Languages, framework, database + migrations, test runner, and the task type for an `intent` — the profile the catalog picks skills from. | no |
+| `design_change` | A grounded design for one spec (the same `spec` object as `sdlc_plan`): approach, **blast radius**, **unverified references**. Deterministic; `use_llm=true` writes the prose. Never writes. | no |
+| `sdlc_baseline` | Score the run agent against a corpus of tickets with known answers, plus the durable run records — false and missed refusals counted separately. Free. | no |
 | **Plan it, then decide — before anything is built** | | |
 | [`sdlc_plan`](#sdlc_plan) | **The build document.** Twelve grounded sections for one ticket: requirement, intent, root cause, what the graph knows, blast radius, design, files, acceptance criteria, the codegen prompt, cost and confidence — each labelled with where it came from. **No model, no credentials, nothing spent.** | `.spine/` |
 | [`sdlc_approve`](#sdlc_approve) | Record that a **human** read that document and decided. Binds to a digest of it, so a plan that changes afterwards reads as *stale* rather than still approved. | `.spine/` |
 | [`sdlc_feature`](#sdlc_feature) | **Ship it.** One intent end‑to‑end: spec → grounded codegen → tests → branch → *(optionally)* PR. | gated |
 | [`sdlc_start_run` + gate tools](#the-autonomous-run-sdlc_start_run--friends) | Drive the long, autonomous, gated run as a job (needs the Mode‑B backend). | gated |
+| **Operate — what is running, what is waiting on me** | | |
+| [`registry_runs`](#operating-runs-registry_runs--friends) | Recent runs at the registry: id, state, last action, timestamps. | no |
+| [`registry_approvals`](#operating-runs-registry_runs--friends) | The gates waiting on a human, latest first, with risk and the run they belong to. | no |
+| [`registry_trace`](#operating-runs-registry_runs--friends) | A run's audit trail and tool invocations, newest `tail` entries, with what was left out. | no |
+| [`registry_decide`](#operating-runs-registry_runs--friends) | Approve / reject / modify a pending approval so its run continues (or stops). | gated |
+| **Close the loop — after the PR** | | |
+| `sdlc_address_review` | Address the human review comments on an open PR and **push a fix to its branch** (clone, `gh pr checkout`, codegen with the comments as feedback, tests + preflight, push). No local mode — **`confirm=true` on every call**. Needs `git`, `gh`, a model, the run backend. | gated |
+| `sdlc_complete` | Close the tracker issue for a **merged** PR: verify the merge via `gh`, derive the key from `feat/<id>/<KEY>` (or pass `issue`), transition, comment, mark the backlog intent done. Real Jira, never dry-run — **`confirm=true`**. | gated |
+| `sdlc_remediate` | Turn an infodrift drift report (+ the confirmed mapping store, both files on this machine) into remediation runs at or above `min_severity`. Safe by default (branch + diff); `live=true` opens PRs and needs `confirm=true`, like `sdlc_feature`. | gated |
+| `audit_repo` | A codebase-auditor persona reads the repo on a model and reports findings anchored to real `file:line` (claims that don't resolve are listed as `unresolved`). Writes nothing; spends tokens; needs `ORCHESTRATOR_INTAKE_MODEL`. | no |
 
 > **The comprehension tools are read‑only, need no credentials, and are deterministic** (only
-> `root_cause`'s opt‑in `use_llm` uses a model). They ship with an **`understand-codebase` skill**
+> `root_cause`'s and `design_change`'s opt‑in `use_llm` use a model). There is no `state` tool
+> because `map_repo` *is* `orchestrator state` — same engine, same rendering. They ship with an **`understand-codebase` skill**
 > that tells Claude *when* to reach for each — so you can just ask in plain language and Claude picks
 > the tool. Try: *"Map this repo and tell me what's untested,"* or *"What breaks if I change
 > `create_app`?"* `repo_path` is a **local path or a git URL** (shallow‑cloned behind the CLI's host
 > allow‑list); each returns structured fields **plus** a `markdown` rendering, bounded (top‑N +
 > `file:line`). To serve them to a **remote** host over HTTP, run the streamable‑HTTP server
-> (`orchestrator-mcp --http`, bearer/OAuth auth from env) — it registers the same tools.
+> (`orchestrator-mcp --http`, bearer/OAuth auth from env) — it registers the same tools, and
+> **checks a scope per tier** on each call: `spine:read` (comprehension, observing a run),
+> `spine:plan` (`sdlc_plan`, `sdlc_approve`), `spine:run` (`sdlc_feature`, `sdlc_start_run`,
+> `sdlc_decide_gate`, `registry_decide`). A token missing the tier's scope gets `error` + `needs`
+> + `has` back, not a 403. A static token carries all three unless
+> `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it (`spine:read` = a read-only token); the legacy
+> `sdlc` scope still reads as all three for one release. Over stdio there is no token and no check.
+
+> **The tiers are metadata your host can act on.** Every tool is registered with MCP tool
+> annotations derived from its tier — *read‑only*, *destructive*, *idempotent*, *open‑world* — so a
+> host that asks before destructive calls asks before `sdlc_feature`, `sdlc_start_run` and
+> `sdlc_decide_gate`, and not before `map_repo`. The comprehension tools are read‑only and
+> idempotent; `sdlc_plan`/`sdlc_approve` write (under `.spine/`) but destroy nothing; only
+> `doctor`, `pkg_joins`, `sdlc_plan` and `sdlc_approve` never leave the machine — everything else
+> may clone a URL or read a remote source. See [`docs/specs/mcp-plugin-surface.md`](docs/specs/mcp-plugin-surface.md).
 
 ### Asking across several repositories
 
@@ -543,6 +572,40 @@ result.
 { "sdlc_id": "<id>" }
 ```
 
+#### Operating runs (`registry_runs` + friends)
+
+"What is running, and what is waiting on me?" — the operator questions the web inbox answers,
+for an assistant. These go **over HTTP to the registry** (`orchestrator up`, or
+`ORCHESTRATOR_API_URL` pointing at a running one, with `ORCHESTRATOR_API_KEY`), so the plugin
+needs no database or Temporal access of its own; the registry scopes what you see to your key's
+tenant and records your key as the actor, exactly as it does for the inbox. If the registry is
+down, each returns `error` + a `hint` instead of failing.
+
+> **Ask Claude:** "What's waiting on me?" · "Show me the trace for run `<id>`." · "Approve
+> `sdlc-<id>-0`, rationale: reviewed the intents."
+
+```jsonc
+// tool: registry_runs        → { count, items: [{ sdlc_id, state, last_action, updated_at, … }], markdown }
+{ "limit": 20 }
+
+// tool: registry_approvals   → { count, items: [{ id, title, risk_classification, task_id, … }], markdown }
+{ "limit": 50 }
+
+// tool: registry_trace       → newest `tail` audit entries + tool invocations; `truncated` says what was left out
+{ "sdlc_id": "<id>", "tail": 50 }
+
+// tool: registry_decide      → destructive: a rejection ends the run
+{
+  "approval_id": "sdlc-<id>-0",
+  "action": "approve",              // "approve" | "reject" | "modify_input" (needs modified_input)
+  "rationale": "reviewed the intents"
+}
+```
+
+`sdlc_decide_gate` decides the same gates **in‑process** (no registry, but Temporal + Postgres
+access from the plugin); use it for a run this plugin started when there is no registry, and
+`registry_decide` when there is.
+
 ---
 
 ## 7. Walkthrough — greenfield
@@ -689,6 +752,7 @@ name. Run `orchestrator pkg accuracy` to see the current numbers yourself.
 | Claude doesn't see Spine's tools | Restart Claude Code or run `/reload-plugins`. Check `/mcp` and `/plugin`. |
 | `doctor` says the LLM provider is missing | Your `.env` isn't being found — launch Claude Code from a project with a `.env`, or use the raw‑MCP form (§3b) and set `ORCHESTRATOR_DOTENV` to its **absolute** path. |
 | `orchestrator-mcp: command not found` | The server isn't on PATH. `pip install 'synaptixs-spine[all]'`, or point `command` at the absolute path of the console script. |
+| The server connects and dies ("Connection closed"), or tools are missing | A **stale** `orchestrator-mcp` on PATH — a console script left by an older checkout's venv. Ask Claude to run `doctor` (or run `orchestrator doctor`): its `server` block names the **version, interpreter and MCP SDK** answering. If they aren't the install you expect: `uv tool install --force 'synaptixs-spine[all]'` (or reinstall into the venv you meant), then restart the host. |
 | Codegen times out | Set a faster model: `ORCHESTRATOR_INTAKE_MODEL=...` (or `SDLC_CODEGEN_MODEL`). |
 | "live needs a repo to push to" | Pass `repo=...` or set `SDLC_REPO_URL`; ensure `GITHUB_TOKEN`/`GH_TOKEN` is set. |
 | A `live` call refuses to write | That's the gate — pass `confirm=true` together with `live=true`. |

@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.catalog`** is one of 54 areas in this repo, in the `orchestrator` zone. It holds 8 modules — 13 types and 25 functions. It sits in the middle of the graph: 1 area below it, 6 above. Changes here can reach both ways.
+**`orchestrator.catalog`** is one of 53 areas in this repo, in the `orchestrator` zone. It holds 8 modules — 13 types and 25 functions. It sits in the middle of the graph: 1 area below it, 7 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -12,19 +12,21 @@ flowchart LR
   n2["orchestrator.evals"]
   n3["orchestrator.knowledge"]
   n4["orchestrator.personas"]
-  n5["orchestrator.registry"]
-  n6["orchestrator.sdlc"]
-  n7["orchestrator.pkg"]
+  n5["orchestrator.plugin"]
+  n6["orchestrator.registry"]
+  n7["orchestrator.sdlc"]
+  n8["orchestrator.pkg"]
   n1 --> n0
   n2 --> n0
   n3 --> n0
   n4 --> n0
   n5 --> n0
   n6 --> n0
-  n0 --> n7
+  n7 --> n0
+  n0 --> n8
 ```
 
-**In the diagram:** **`orchestrator.catalog`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.personas`](orchestrator.personas.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · [`orchestrator.pkg`](orchestrator.pkg.md)
+**In the diagram:** **`orchestrator.catalog`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.personas`](orchestrator.personas.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · [`orchestrator.pkg`](orchestrator.pkg.md)
 
 ## Modules
 
@@ -43,4 +45,4 @@ flowchart LR
 
 ## Depended on by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md)
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md)

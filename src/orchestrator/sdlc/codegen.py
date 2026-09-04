@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+from collections import Counter
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -1536,7 +1537,7 @@ class LLMCodegenAdapter:
         nothing there is a real failure.
         """
         text = await self._complete(system, user)
-        # One corrective attempt per KIND of failure, not one shared by all of them.
+        # A corrective allowance per KIND of failure, not one shared by all of them.
         #
         # It used to be a single retry for every kind, and a live run showed why that is
         # too few: the model submitted no files, spent the one retry recovering from that,
@@ -1544,20 +1545,23 @@ class LLMCodegenAdapter:
         # very thing the retry exists for, had no attempt left. Same shape as three checks
         # sharing one `--max-refine` pool.
         #
-        # Per-kind also keeps the old guarantee: a kind that fails twice is looping, not
-        # fixing, so it stops. `_MAX_GENERATE_ATTEMPTS` bounds the whole thing regardless.
-        spent: set[str] = set()
+        # Per-kind also keeps the old guarantee: a kind that fails past its allowance is
+        # looping, not fixing, so it stops. The allowance is one for a deterministic kind
+        # and two for `empty` — see `_CORRECTIONS_PER_KIND` for why an empty submission is
+        # a bad draw rather than a loop. `_MAX_GENERATE_ATTEMPTS` bounds the whole thing
+        # regardless.
+        spent: Counter[str] = Counter()
         for _ in range(_MAX_GENERATE_ATTEMPTS):
             try:
                 return self._apply(text, root, allow_empty=allow_empty)
             except CodegenError as exc:
                 kind = _failure_kind(exc)
-                if kind in spent:  # already corrected this once — a third go is a loop
+                if spent[kind] >= _CORRECTIONS_PER_KIND.get(kind, _DEFAULT_CORRECTIONS):
                     raise
                 suffix = self._corrective_suffix(exc, root)
                 if suffix is None:
                     raise
-                spent.add(kind)
+                spent[kind] += 1
                 text = await self._complete(system, f"{user}{suffix}")
         raise CodegenError("codegen retries did not produce a usable change")  # unreachable
 
@@ -2351,7 +2355,15 @@ def _coverage_gap_block(gaps: list[str]) -> str:
     )
 
 
-_MAX_GENERATE_ATTEMPTS = 4  # first try plus one correction per failure kind
+_MAX_GENERATE_ATTEMPTS = 5  # first try plus the corrections allowed below
+# One correction per kind, because a kind that fails twice is looping rather than fixing —
+# the same bad anchor, the same unparseable output. That reasoning holds for a deterministic
+# failure and not for an empty submission: codegen samples at the provider default, so a run
+# that answered `summary='placeholder'` and no files drew badly rather than reasoned badly,
+# and the remedy for a bad draw is another draw. `_MAX_GENERATE_ATTEMPTS` still bounds the
+# whole loop, so the worst case grows by one attempt.
+_CORRECTIONS_PER_KIND: dict[str, int] = {"empty": 2}
+_DEFAULT_CORRECTIONS = 1
 
 
 def _failure_kind(exc: CodegenError) -> str:

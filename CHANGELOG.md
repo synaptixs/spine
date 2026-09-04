@@ -4,6 +4,99 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.31.0 — the plugin grows from twenty tools to thirty-two, and every one says what it can cost
+
+### Added
+
+- **The gated half of the pipeline's back half, as MCP tools — and with it, every
+  gap in the plugin's design record is closed.** `sdlc_address_review` addresses
+  the human review comments on an open PR and pushes a fix to its branch;
+  `sdlc_complete` closes the tracker issue for a merged PR; both have no local
+  mode and need `confirm=true` on every call. `sdlc_remediate` turns a drift
+  report into remediation runs, safe by default, `live` gated like
+  `sdlc_feature`. `audit_repo` runs the codebase-auditor persona and reports
+  findings anchored to real `file:line` — writes nothing, spends tokens, so it is
+  read-only for the host and run scope for the token. The clone-and-checkout and
+  the merge→Done logic moved from the CLI into the engine (`checkout_pr_worktree`,
+  `orchestrator.sdlc.complete`), so the CLI and the plugin share one
+  implementation.
+
+- **The free half of the pipeline's back half, as MCP tools.** `understand_repo`
+  builds a repo's `episteme/` knowledge base — or, with `check=true`, verifies the
+  committed one still matches the code, naming the missing, stale and orphaned
+  pages — so an assistant can bootstrap a repo that has no bank and then
+  `read_memory_bank` it. It refuses a build on a git URL unless `out` is an
+  absolute directory, because the clone vanishes. `profile_repo` (languages,
+  framework, database, test runner, task type), `design_change` (a grounded
+  design with blast radius and unverified references, for the same `spec` object
+  `sdlc_plan` takes; `use_llm` opt-in) and `sdlc_baseline` (the agent-corpus
+  gate and run metrics) join it. All deterministic, no credentials. There is no
+  `state` tool because `map_repo` already is it.
+
+- **Scopes follow the tiers on the MCP server's HTTP transport.** `spine:read`
+  (comprehension, observing a run), `spine:plan` (`sdlc_plan`, `sdlc_approve`),
+  `spine:run` (anything that spends money or writes where it cannot be taken
+  back). Every registered tool is wrapped in a guard that reads the verified
+  bearer token at call time and refuses — naming the scope it needed and the
+  scopes the token has — when the tier's scope is missing; the SDK only checks
+  scopes server-wide, so the per-tool check lives in the plugin. Over stdio there
+  is no token and no check. `ORCHESTRATOR_MCP_REQUIRED_SCOPES` now means what the
+  static token *carries* (default: all three, so a self-host behaves as before),
+  and `spine:read` alone makes it a read-only token. The legacy `sdlc` scope
+  expands to all three for one release, with a logged warning, then goes.
+
+- **Operator tools in the MCP plugin — the terminal UI's successor.** `registry_runs`,
+  `registry_approvals`, `registry_trace` and `registry_decide` answer "what is
+  running, what is waiting on me" and decide a gate, over HTTP to the registry
+  (`orchestrator up`) with the same `ORCHESTRATOR_API_URL` / `ORCHESTRATOR_API_KEY`
+  every other client reads — so the plugin process needs no database or Temporal
+  access, the registry scopes results to the key's tenant, and the audit log
+  records the key as the actor. `registry_trace` is bounded: the newest `tail`
+  entries plus a `truncated` count. A registry that is down returns `error` + a
+  `hint` rather than failing the call. Deciding is annotated destructive, because
+  a rejection ends the run.
+
+- **The MCP server's tiers are metadata a host can act on.** Every plugin tool is
+  registered with MCP tool annotations derived from its tier — read-only,
+  destructive, idempotent, open-world — so a host that confirms before destructive
+  calls confirms before `sdlc_feature`, `sdlc_start_run` and `sdlc_decide_gate`,
+  and not before `map_repo`. The tier table is total by construction: a tool
+  registered without one is refused, and a test says so first. Design record:
+  `docs/specs/mcp-plugin-surface.md`, which also fixes the extension order — the
+  six known gaps before any new surface.
+- **`doctor` says which install is answering.** The tool and the CLI both report
+  the package version, interpreter, MCP SDK version and the extras present. The
+  case it exists for: a host launched an `orchestrator-mcp` console script left
+  behind by an older checkout's venv (Spine 3.9.3, no `mcp` module) and the only
+  symptom was "Connection closed".
+
+### Fixed
+
+- **`__all__` in `orchestrator.plugin.server` exports every registered tool.** Four
+  (`sdlc_plan`, `sdlc_approve`, `docs_for`, `pkg_joins`) were registered but not
+  exported; a test now holds the two in step.
+
+- **An empty codegen submission gets a second correction — a bad draw is not a
+  loop.** The corrective retry allowed one correction per failure kind, on the
+  reasoning that a kind failing twice is looping rather than fixing. That holds for
+  a deterministic failure (the same bad edit anchor, the same unparseable output)
+  and not for an empty submission: codegen samples at the provider default, so a
+  run that answered `summary='placeholder'` and no files drew badly rather than
+  reasoned badly, and the remedy for a bad draw is another draw. `empty` now gets
+  two corrections (`_CORRECTIONS_PER_KIND`), every other kind keeps one, and the
+  overall attempt cap grows by exactly one so the allowance is spendable. Follows
+  #154, which routed placeholder-only submissions into this retry.
+
+### Removed
+
+- **The terminal UI (`orchestrator tui`) and the `tui` extra.** Every action it
+  offered — watch runs, clear gates, delegate a run — is the web inbox or a CLI
+  command over the same `/v1` API, so it carried an optional `textual` dependency
+  and a mypy carve-out for no capability the other surfaces lacked. The
+  assistant-facing surface remains the MCP plugin, which already drives the `sdlc`
+  pipeline. `pip install 'synaptixs-spine[tui]'` now fails on an unknown extra;
+  drop it from your install line.
+
 ## 3.30.0 — Three lines in another repository, and a place to plug a vault
 
 ### Added

@@ -9,7 +9,7 @@
 ## Command map
 
 **Getting started & operations** — Set up your environment and run the platform.  
-`init` · `doctor` · `models` · `up` · `tui` · `task submit`
+`init` · `doctor` · `models` · `up` · `task submit`
 
 **Understand a codebase — the Knowledge Graph** — Extract and read the Product Knowledge Graph (PKG). Deterministic, no LLM. All accept a local path OR a git URL.  
 `understand` · `state` · `profile` · `catalog list` · `catalog plan` · `pkg extract` · `pkg export` · `pkg docs` · `pkg capabilities` · `pkg verify` · `pkg accuracy` · `pkg joins` · `media extract`
@@ -41,7 +41,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.30.0  (synaptixs-spine)
+Spine 3.31.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -148,22 +148,6 @@ orchestrator up [OPTIONS]
 | `--no-docker` | Don't manage Docker; assume Postgres + Temporal are already up. |
 | `--no-worker` | Skip the Temporal worker (browse-only; can't delegate runs). |
 | `--compose-file` | Override the docker compose file to use. |
-
-### `orchestrator tui`
-
-Launch the terminal UI: watch runs, clear gates, and delegate a run.
-
-A keyboard-driven cousin of the web inbox over the same `/v1` API. Needs the
-`tui` extra: `pip install 'synaptixs-spine[tui]'`.
-
-```
-orchestrator tui [OPTIONS]
-```
-
-| Option | Description |
-|---|---|
-| `--api-url` | Registry API base URL. (default: `http://localhost:8000`) |
-| `--api-key` | API key for the registry. (default: `dev-key`) |
 
 ### `orchestrator task submit`
 

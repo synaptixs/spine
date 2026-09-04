@@ -27,7 +27,6 @@ truth, and an **observability + audit** rail that records every step.
 | CLI | `cli/` | 41 commands — the primary surface |
 | MCP plugin server | `plugin/` | Spine *as* an MCP server, so Claude Code / Codex call its tools |
 | Web UI + REST API | `registry/` | FastAPI service + the operator web inbox at `/app` |
-| Terminal UI | `tui/` | Keyboard-driven run watcher over the same API |
 
 ### B · Intake & comprehension — understand before acting *(deterministic, no LLM)*
 | Component | Package | Role |
@@ -108,7 +107,7 @@ PR** — deployment is out of scope by design.
 
 ```mermaid
 flowchart TB
-    surf["Surfaces<br/>CLI · MCP plugin · Web/API · TUI"]
+    surf["Surfaces<br/>CLI · MCP plugin · Web/API"]
     intake["Intake + Catalog<br/>requirements → specs"]
     pkg["Product Knowledge Graph<br/>source of truth · file:line"]
     plan["Planner → GraphIR<br/>the typed plan"]

@@ -3,31 +3,33 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.personas`** is one of 54 areas in this repo, in the `orchestrator` zone. It holds 5 modules — 5 types and 10 functions. It sits in the middle of the graph: 5 areas below it, 4 above. Changes here can reach both ways.
+**`orchestrator.personas`** is one of 53 areas in this repo, in the `orchestrator` zone. It holds 5 modules — 5 types and 10 functions. It sits in the middle of the graph: 5 areas below it, 5 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
   n0["orchestrator.personas"]
   n1["orchestrator.cli"]
-  n2["orchestrator.registry"]
-  n3["orchestrator.sdlc"]
-  n4["scripts.audit_eval"]
-  n5["orchestrator.agentic"]
-  n6["orchestrator.catalog"]
-  n7["orchestrator.core"]
-  n8["orchestrator.evals"]
+  n2["orchestrator.plugin"]
+  n3["orchestrator.registry"]
+  n4["orchestrator.sdlc"]
+  n5["scripts.audit_eval"]
+  n6["orchestrator.agentic"]
+  n7["orchestrator.catalog"]
+  n8["orchestrator.core"]
+  n9["orchestrator.evals"]
   n1 --> n0
   n2 --> n0
   n3 --> n0
   n4 --> n0
-  n0 --> n5
+  n5 --> n0
   n0 --> n6
   n0 --> n7
   n0 --> n8
-  n0 --> n2
+  n0 --> n9
+  n0 --> n3
 ```
 
-**In the diagram:** **`orchestrator.personas`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · `scripts.audit_eval` · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.evals`](orchestrator.evals.md)
+**In the diagram:** **`orchestrator.personas`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · `scripts.audit_eval` · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.evals`](orchestrator.evals.md)
 
 ## Modules
 
@@ -43,4 +45,4 @@ flowchart LR
 
 ## Depended on by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), `scripts.audit_eval`
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), `scripts.audit_eval`

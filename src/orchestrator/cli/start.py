@@ -1,4 +1,4 @@
-"""Get started: init, doctor, up, models, tui."""
+"""Get started: init, doctor, up, models."""
 
 from __future__ import annotations
 
@@ -9,28 +9,6 @@ from typing import Annotated
 import typer
 
 from ._app import PANEL_START, app
-
-
-@app.command("tui", rich_help_panel=PANEL_START)
-def tui(
-    api_url: Annotated[
-        str, typer.Option("--api-url", help="Registry API base URL.", envvar="ORCHESTRATOR_API_URL")
-    ] = "http://localhost:8000",
-    api_key: Annotated[
-        str, typer.Option("--api-key", help="API key for the registry.", envvar="ORCHESTRATOR_API_KEY")
-    ] = "dev-key",
-) -> None:
-    """Launch the terminal UI: watch runs, clear gates, and delegate a run.
-
-    A keyboard-driven cousin of the web inbox over the same ``/v1`` API. Needs the
-    ``tui`` extra: ``pip install 'synaptixs-spine[tui]'``.
-    """
-    try:
-        from orchestrator.tui.app import run_tui
-    except ImportError as exc:  # textual is the optional `tui` extra
-        typer.echo("The TUI needs the 'tui' extra. Install it: pip install 'synaptixs-spine[tui]'.", err=True)
-        raise typer.Exit(code=2) from exc
-    run_tui(api_url, api_key)
 
 
 @app.command("models", rich_help_panel=PANEL_START)
@@ -76,12 +54,15 @@ def doctor() -> None:
     real exported variable still wins over the file.
     """
     from orchestrator.core.env import load_local_env
-    from orchestrator.doctor import render_report, run_env_checks
+    from orchestrator.doctor import render_identity, render_report, run_env_checks, server_identity
 
     loaded = load_local_env()
     if loaded:
         typer.echo(f"Loaded {loaded} variable(s) from .env\n")
 
+    # Which install is answering, before what it found: a stale console script on PATH
+    # reports on the wrong version's environment, and nothing below would say so.
+    typer.echo(render_identity(server_identity()) + "\n")
     results = run_env_checks()
     report = render_report(results)
     typer.echo(report)

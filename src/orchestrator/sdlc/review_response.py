@@ -15,13 +15,58 @@ adapters as the pipeline, so it is fully exercised by the same stubs/fakes.
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from orchestrator.sdlc.deps import SDLCDeps
 from orchestrator.sdlc.forge import format_review_feedback
 
 logger = logging.getLogger("orchestrator.sdlc.review_response")
+
+
+class PRCheckoutError(RuntimeError):
+    """A ``git`` / ``gh`` step of :func:`checkout_pr_worktree` failed; ``step`` says which."""
+
+    def __init__(self, step: str, output: str) -> None:
+        super().__init__(f"{step} failed: {output[-300:]}")
+        self.step = step
+        self.output = output
+
+
+async def _run_cmd(*argv: str, cwd: str) -> str:
+    import asyncio
+
+    proc = await asyncio.create_subprocess_exec(
+        *argv, cwd=cwd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
+    )
+    raw, _ = await proc.communicate()
+    out = raw.decode("utf-8", "replace")
+    if proc.returncode != 0:
+        raise PRCheckoutError(argv[0], out)
+    return out
+
+
+async def checkout_pr_worktree(
+    repo_url: str, pr: str, *, run: Callable[..., Awaitable[str]] | None = None
+) -> tuple[Path, str]:
+    """Clone ``repo_url`` into a fresh temp worktree and check out ``pr`` with ``gh``.
+
+    Returns ``(worktree, branch)`` — what :func:`respond_to_pr_feedback` needs. Shared by
+    the CLI and the MCP plugin so the clone-and-checkout dance exists once. ``run`` is the
+    subprocess runner, injectable for tests; the default raises :class:`PRCheckoutError`
+    naming the step that failed.
+    """
+    import tempfile
+
+    runner = run or _run_cmd
+    workdir = Path(tempfile.mkdtemp(prefix="sdlc-address-review-")) / "wt"
+    workdir.mkdir(parents=True)
+    await runner("git", "clone", "--quiet", repo_url, str(workdir), cwd=str(workdir.parent))
+    await runner("gh", "pr", "checkout", pr, cwd=str(workdir))
+    branch = (await runner("git", "rev-parse", "--abbrev-ref", "HEAD", cwd=str(workdir))).strip()
+    return workdir, branch
 
 
 @dataclass(frozen=True)

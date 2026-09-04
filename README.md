@@ -113,7 +113,19 @@ the product.** Where it can't know something, it says so and stops.
 
 ## What's new
 
-**3.30.0 (current)** — **three lines in another repository, and a place to plug a vault.** A
+**3.31.0 (current)** — **the plugin grows from twenty tools to thirty-two, and every one says
+what it can cost.** Spine's MCP server now carries the whole pipeline: operator tools that answer
+"what is running, what is waiting on me" and decide a gate (the terminal UI's successor — the TUI
+is gone); `understand_repo` to build a repo's knowledge base from nothing; a grounded
+`design_change`; and the back half — address review comments and push, close the merged ticket,
+remediate drift, audit. Every tool is registered with MCP annotations derived from its tier
+(read-only, destructive, idempotent, open-world) and, on HTTP, a scope checked per call —
+`spine:read` / `spine:plan` / `spine:run` — so a host confirms before `sdlc_feature` and not
+before `map_repo`, and a read-only token is one env value. A tool without a tier does not
+register. `doctor` names the install that is answering, which is how a stale console script on
+PATH stopped reading as "Connection closed".
+
+**3.30.0** — **three lines in another repository, and a place to plug a vault.** A
 repo adds `uses: synaptixs/spine/.github/workflows/spine-comprehension.yml@v3.30.0` and gets a
 grounded pull-request comment about its own code — `file:line`, caller counts, **no credentials**
 (the only token is its own `GITHUB_TOKEN`, to post). Behind the scenes, every credential the

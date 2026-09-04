@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.temporal`** is one of 54 areas in this repo, in the `orchestrator` zone. It holds 6 modules — 7 types and 11 functions. It sits in the middle of the graph: 7 areas below it, 3 above. Changes here can reach both ways.
+**`orchestrator.temporal`** is one of 53 areas in this repo, in the `orchestrator` zone. It holds 6 modules — 7 types and 11 functions. It sits in the middle of the graph: 7 areas below it, 3 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR

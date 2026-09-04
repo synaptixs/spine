@@ -178,12 +178,14 @@ def sdlc_address_review(
 
 
 async def _run_address_review(*, pr: str, repo: str | None, bot_login: str | None, max_refines: int) -> None:
-    import asyncio
     import os
-    import tempfile
 
     from orchestrator.core.env import load_local_env
-    from orchestrator.sdlc.review_response import respond_to_pr_feedback
+    from orchestrator.sdlc.review_response import (
+        PRCheckoutError,
+        checkout_pr_worktree,
+        respond_to_pr_feedback,
+    )
     from orchestrator.sdlc.worker import build_deps
 
     load_local_env()
@@ -192,23 +194,12 @@ async def _run_address_review(*, pr: str, repo: str | None, bot_login: str | Non
         typer.echo("Set --repo or SDLC_REPO_URL to the repo clone URL.", err=True)
         raise typer.Exit(code=2)
 
-    async def _run(*argv: str, cwd: str) -> str:
-        proc = await asyncio.create_subprocess_exec(
-            *argv, cwd=cwd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
-        )
-        raw, _ = await proc.communicate()
-        out = raw.decode("utf-8", "replace")
-        if proc.returncode != 0:
-            typer.echo(f"{argv[0]} failed: {out[-300:]}", err=True)
-            raise typer.Exit(code=1)
-        return out
-
-    workdir = Path(tempfile.mkdtemp(prefix="sdlc-address-review-")) / "wt"
-    workdir.mkdir(parents=True)
     typer.echo(f"Cloning and checking out PR {pr} …")
-    await _run("git", "clone", "--quiet", repo_url, str(workdir), cwd=str(workdir.parent))
-    await _run("gh", "pr", "checkout", pr, cwd=str(workdir))
-    branch = (await _run("git", "rev-parse", "--abbrev-ref", "HEAD", cwd=str(workdir))).strip()
+    try:
+        workdir, branch = await checkout_pr_worktree(repo_url, pr)
+    except PRCheckoutError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
 
     result = await respond_to_pr_feedback(
         build_deps(),
@@ -1115,82 +1106,14 @@ def sdlc_complete(
     asyncio.run(_run_sdlc_complete(pr=pr, issue=issue, status=status, allow_unmerged=allow_unmerged))
 
 
-def _issue_key_from_branch(branch: str) -> str | None:
-    """Issue key from a feature branch ``feat/<sdlc_id>/<ISSUE-KEY>``."""
-    parts = branch.split("/")
-    if len(parts) >= 3 and parts[0] == "feat" and parts[-1]:
-        return parts[-1]
-    return None
-
-
 async def _run_sdlc_complete(*, pr: str, issue: str | None, status: str, allow_unmerged: bool) -> None:
-    import asyncio
-    import json
-
     from orchestrator.core.env import load_local_env
-    from orchestrator.intake.jira import IssueTrackerError, JiraAdapter, JiraConfig
+    from orchestrator.sdlc.complete import CompleteError, complete_issue_for_pr
 
     load_local_env()
-
-    # Inspect the PR via gh: merge state + head branch (to derive the issue key).
-    proc = await asyncio.create_subprocess_exec(
-        "gh",
-        "pr",
-        "view",
-        pr,
-        "--json",
-        "state,mergedAt,headRefName",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT,
-    )
-    raw, _ = await proc.communicate()
-    out = raw.decode("utf-8", "replace")
-    if proc.returncode != 0:
-        typer.echo(f"gh pr view failed: {out[-300:]}", err=True)
-        raise typer.Exit(code=1)
-    info = json.loads(out)
-    merged = bool(info.get("mergedAt")) or str(info.get("state", "")).upper() == "MERGED"
-    if not merged and not allow_unmerged:
-        typer.echo(
-            f"PR {pr} is not merged (state={info.get('state')}). Pass --allow-unmerged to override.",
-            err=True,
-        )
-        raise typer.Exit(code=3)
-
-    issue_key = issue or _issue_key_from_branch(str(info.get("headRefName") or ""))
-    if not issue_key:
-        typer.echo("Could not derive the issue key from the PR branch; pass --issue.", err=True)
-        raise typer.Exit(code=2)
-
-    # Force a real (non-dry-run) tracker — closing the ticket is the whole point.
-    jira = JiraAdapter(JiraConfig(dry_run=False))
     try:
-        moved = await jira.transition_issue(issue_key, status)
-        await jira.comment_issue(issue_key, f"Merged via {pr}.")
-    except IssueTrackerError as exc:
+        result = await complete_issue_for_pr(pr, issue=issue, status=status, allow_unmerged=allow_unmerged)
+    except CompleteError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
-    finally:
-        await jira.aclose()
-
-    # Mark the backlog intent done (done = PR merged) and refresh the local ledger.
-    backlog_done = False
-    if merged:
-        from orchestrator.intake.backlog_doc import backlog_path, write_backlog
-        from orchestrator.intake.cache import complete_by_pr, load_progress
-
-        matched = complete_by_pr(pr)
-        if matched is not None:
-            src, plan = matched
-            write_backlog(backlog_path(), src, plan, load_progress(src))
-            backlog_done = True
-
-    _print(
-        {
-            "issue": issue_key,
-            "pr": pr,
-            "merged": merged,
-            "status": moved or status,
-            "backlog_done": backlog_done,
-        }
-    )
+        raise typer.Exit(code=exc.code) from exc
+    _print(result.__dict__)
