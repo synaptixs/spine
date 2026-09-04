@@ -36,7 +36,7 @@ and they cite their sources.
 | see what a change could break silently | **`regression_gaps(symbol=… or trace=…)`** — blast-radius symbols with **no covering test** |
 | root-cause a bug (hypotheses + fix approach) | **`root_cause(bug=…)`** — fault site, ranked hypotheses with evidence, regression surface, fix approach; deterministic (add `use_llm=true` for richer hypotheses) |
 | find which docs describe code (or how documented it is) | **`docs_for(symbol=…)`** — the doc pages that mention a symbol; call with no symbol for a doc-coverage summary + top drift. Ingests `.md`/`.rst`/`.txt`/PDF |
-| ask any of the above **across several repositories** | **`blast_radius(repos=…)`** / **`investigate(repos=…)`** — pass a `.spine/repos.yaml` instead of `repo_path` |
+| ask any of the above **across several repositories** | **`blast_radius`**, **`investigate`**, **`explain_symbol`**, **`regression_gaps`**, **`localize`**, **`docs_for`** all take **`repos=…`** — pass a `.spine/repos.yaml` instead of `repo_path`. `regression_gaps` then reports `uncovered_elsewhere` (a change reaching a *different* service nothing tests); `localize` says which repo each frame landed in and lists `ambiguous_frames`; `docs_for` answers each repo on its own |
 | see or sanity-check the cross-repo topology | **`pkg_joins(config=…, mode="propose"\|"check")`** — read-only; it never writes a config |
 
 Read a repo's committed knowledge base with **`read_memory_bank`** when one exists (built by
@@ -51,7 +51,8 @@ When a change's real blast radius leaves the repo, a single-repo answer is worse
 An HTTP handler reports **`0 caller(s)`** — which is *true*, nothing in its own source calls it —
 and reads as safe to change.
 
-If the project declares its services in a **`.spine/repos.yaml`**, pass it as `repos=` to
+If the project declares its services in a **`.spine/repos.yaml`**, pass it as `repos=` to any of
+`blast_radius`, `investigate`, `explain_symbol`, `regression_gaps`, `localize` or `docs_for` — e.g. to
 `blast_radius` or `investigate` instead of `repo_path`. Every match then also reports the
 dependents it has **in other repositories**:
 

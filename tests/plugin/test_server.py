@@ -1308,6 +1308,95 @@ def test_blast_radius_reports_dependents_in_another_repo(tmp_path: Path) -> None
     assert "Dependents in other repos" in out["markdown"]
 
 
+def test_explain_symbol_across_repos_names_the_repo_and_the_reach(tmp_path: Path) -> None:
+    out = explain_symbol(symbol="create_order", repos=_repos_config(tmp_path))
+    assert out["found"], out
+    match = out["matches"][0]
+    assert match["repo"] == "billing"
+    assert match["cross_repo_count"] >= 1 and any(c["repo"] == "web" for c in match["cross_repo"])
+    assert out["standing"]["repos"] == ["billing", "web"]
+    # Single-repo answers do not grow multi-repo keys.
+    single = explain_symbol(str(tmp_path / "billing"), "create_order")
+    assert "repo" not in single["matches"][0] and "standing" not in single
+
+
+def test_regression_gaps_across_repos_flags_the_uncovered_symbol_in_the_other_service(tmp_path: Path) -> None:
+    out = regression_gaps(symbol="create_order", repos=_repos_config(tmp_path))
+    assert out["found"], out
+    assert out["target_repo"] == "billing"
+    assert all("repo" in u for u in out["uncovered"])
+    # The headline: a change to billing's handler reaches web's caller, which nothing tests.
+    elsewhere = out["uncovered_elsewhere"]
+    assert elsewhere and all(u["repo"] == "web" for u in elsewhere)
+    assert any(u["name"] == "place_order" for u in elsewhere)
+    single = regression_gaps(str(tmp_path / "billing"), symbol="create_order")
+    assert "uncovered_elsewhere" not in single and all("repo" not in u for u in single["uncovered"])
+
+
+_TRACE_ROUTES = """\
+Traceback (most recent call last):
+  File "/srv/app/routes.py", line 8, in create_order
+    return {"id": 1}
+KeyError: 'id'
+"""
+
+
+def test_localize_across_repos_says_which_repo_a_frame_landed_in(tmp_path: Path) -> None:
+    out = localize(trace=_TRACE_ROUTES, repos=_repos_config(tmp_path))
+    resolved = [f for f in out["frames"] if f["resolved"]]
+    assert resolved and resolved[0]["repo"] == "billing" and resolved[0]["candidates"] == []
+    assert out["ambiguous_frames"] == []
+    assert out["standing"]["repos"] == ["billing", "web"]
+    single = localize(str(tmp_path / "billing"), _TRACE_ROUTES)
+    assert "repo" not in single["frames"][0] and "ambiguous_frames" not in single
+
+
+def test_localize_across_repos_reports_a_frame_two_services_could_own(tmp_path: Path) -> None:
+    """Both repos have app/routes.py with a function covering line 8: the first match must
+    not win silently."""
+    a = _repo_at(tmp_path / "svc-a", "routes.py", _BILLING)
+    b = _repo_at(tmp_path / "svc-b", "routes.py", _BILLING)
+    cfg = tmp_path / "repos.yaml"
+    cfg.write_text(f"repos:\n  svc-a: {a}\n  svc-b: {b}\n", encoding="utf-8")
+    out = localize(trace=_TRACE_ROUTES, repos=str(cfg))
+    frame = next(f for f in out["frames"] if f["resolved"])
+    assert frame["candidates"], frame  # the other repo's match is listed, not dropped
+    assert {frame["repo"], *(c.split("@")[0].split(":")[-1] for c in frame["candidates"])} == {
+        "svc-a",
+        "svc-b",
+    }
+    assert out["ambiguous_frames"] and out["ambiguous_frames"][0]["also"] == frame["candidates"]
+
+
+def test_docs_for_across_repos_answers_each_repo_on_its_own(tmp_path: Path) -> None:
+    cfg = _repos_config(tmp_path)
+    (tmp_path / "billing" / "README.md").write_text(
+        "# Billing\n\n`create_order` handles POST /v1/orders.\n", encoding="utf-8"
+    )
+    out = docs_for(symbol="create_order", repos=cfg)
+    assert set(out["repos"]) == {"billing", "web"}
+    assert out["repos"]["billing"]["found"] and out["repos"]["billing"]["matches"][0]["docs"]
+    assert out["repos"]["web"].get("found") is not True  # no docs there at all
+    # The README is uncommitted, so billing is not reproducible; web still is.
+    assert out["repos"]["billing"]["reproducible"] is False and out["repos"]["web"]["reproducible"] is True
+    assert out["standing"] == {"repos": ["billing", "web"], "reproducible": False, "untrusted": ["billing"]}
+    assert "## billing" in out["markdown"] and "## web" in out["markdown"]
+    coverage = docs_for(repos=cfg)
+    assert coverage["repos"]["billing"]["docs"] >= 1
+
+
+def test_every_multi_repo_tool_refuses_both_or_neither_of_repo_path_and_repos(tmp_path: Path) -> None:
+    cfg = _repos_config(tmp_path)
+    both = str(tmp_path / "billing")
+    assert "exactly one" in explain_symbol(repo_path=both, symbol="x", repos=cfg)["error"]
+    assert "exactly one" in explain_symbol(symbol="x")["error"]
+    assert "exactly one" in regression_gaps(repo_path=both, symbol="x", repos=cfg)["error"]
+    assert "exactly one" in localize(repo_path=both, trace="t\n", repos=cfg)["error"]
+    assert "exactly one" in docs_for(repo_path=both, repos=cfg)["error"]
+    assert "exactly one" in docs_for()["error"]
+    assert "error" in docs_for(repos=str(tmp_path / "missing.yaml"))
+
+
 def test_multi_repo_answers_carry_their_standing(tmp_path: Path) -> None:
     """A graph built over a dirty tree looks identical to one that is reproducible."""
     cfg = _repos_config(tmp_path)

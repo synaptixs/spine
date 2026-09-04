@@ -8,6 +8,18 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Added
 
+- **Every comprehension tool that can answer across repositories now does.**
+  `explain_symbol`, `regression_gaps`, `localize` and `docs_for` take `repos=` (a
+  `.spine/repos.yaml`) like `blast_radius` and `investigate`, with the same
+  contract and `standing` block. `regression_gaps` reports `uncovered_elsewhere` —
+  a change reaching a *different* service nothing tests — which needed the plan
+  to follow the one hop that crosses a service boundary (handler → endpoint →
+  consumer); the endpoint itself is the wire, not an item. `localize` says which
+  repository each frame landed in, and a frame two services could own is reported
+  as ambiguous with its candidates instead of the first match winning silently.
+  `docs_for` answers each repository on its own rather than merging, because a
+  document describes the repository it lives in.
+
 - **The long MCP tools report progress.** `sdlc_feature` per stage in the runner's
   own order (spec, layout, design, implement, tests, refine, judge, PR),
   `sdlc_remediate` per task, `sdlc_address_review` at checkout / respond / done,

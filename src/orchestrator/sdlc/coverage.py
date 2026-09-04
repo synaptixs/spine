@@ -43,6 +43,7 @@ class CoverageItem:
     name: str
     where: str  # "file:line"
     covered: bool  # reachable from a test through the call graph
+    repo: str = ""  # which repository, in a merged multi-repo graph; "" for a single repo
 
 
 @dataclass
@@ -143,16 +144,23 @@ def build_regression_plan(store: FactStore, target_id: str, *, max_impacted: int
         return RegressionPlan(grounded=grounded, call_graph_available=call_graph)
 
     where = str(node.provenance) if node.provenance else ""
-    impact = store.impact_across(target_id, kinds=(EdgeKind.CALLS,), max_depth=4)
+    # CALLS is the blast radius inside a process. EXPOSES + CONSUMES is the one hop that
+    # crosses a service boundary — a handler, its endpoint, the client that calls the
+    # endpoint — which is exactly the reach a merged multi-repo graph exists to show. The
+    # endpoint node itself is the wire, not a symbol a test covers, so it is not an item.
+    impact = store.impact_across(
+        target_id, kinds=(EdgeKind.CALLS, EdgeKind.EXPOSES, EdgeKind.CONSUMES), max_depth=4
+    )
     covering = [f"{n.name} @ {n.provenance}" for n, _ in impact if is_test_node(n)]
 
-    production = [n for n, _ in impact if not is_test_node(n)]
+    production = [n for n, _ in impact if not is_test_node(n) and n.kind is not NodeKind.ENDPOINT]
     clipped = production[:max_impacted]
     items = [
         CoverageItem(
             name=n.name,
             where=str(n.provenance) if n.provenance else "",
             covered=_is_reached_by_test(store, n.id),
+            repo=(n.provenance.repo if n.provenance else "") or _repo_of(n.id),
         )
         for n in clipped
     ]
@@ -165,6 +173,12 @@ def build_regression_plan(store: FactStore, target_id: str, *, max_impacted: int
         grounded=grounded,
         call_graph_available=call_graph,
     )
+
+
+def _repo_of(node_id: str) -> str:
+    from orchestrator.pkg.scoping import unscope_id
+
+    return unscope_id(node_id)[0]
 
 
 def resolve_target(store: FactStore, name: str) -> str | None:
