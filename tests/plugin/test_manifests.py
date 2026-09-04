@@ -147,3 +147,18 @@ def test_the_skill_tells_an_assistant_how_to_cross_a_repo_boundary() -> None:
     assert "repos=" in body
     # The standing block is what separates a reproducible answer from one that only looks it.
     assert "standing" in body and "reproducible" in body
+
+
+def test_the_skill_and_the_prompts_sequence_the_same_tools() -> None:
+    """The skill (Claude Code) and the MCP prompts (every other host) carry the same
+    workflow. The prompts module is the source, because the skill is not in the wheel; this
+    holds the skill to it. Only the comprehension and plan tools are the skill's remit — the
+    operator prompt's `registry_*` tools are documented in the guides instead."""
+    from orchestrator.plugin.prompts import PROMPT_TOOLS
+
+    body = _SKILL.read_text(encoding="utf-8")
+    for name, tools in PROMPT_TOOLS.items():
+        if name == "whats-waiting-on-me":
+            continue
+        for tool in tools:
+            assert tool in body, f"prompt {name!r} sequences {tool}, which the skill never mentions"

@@ -27,8 +27,8 @@ gates (before building, before merging). The product is **Spine**; it ships as
 | Version | **3.31.0** | cutting now; 3.30.0 is the last on PyPI until this ships |
 | Languages extracted | **8** front-ends | Python, Java, TypeScript, C#, C, C++, Go, SQL |
 | CLI commands | **56** | `grep -c '\.command(' src/orchestrator/cli/*.py`, summed |
-| Source modules | **344** | `find src/orchestrator -name '*.py'` |
-| Test functions | **2,949** across 303 files | `grep -rh '^def test_\|^async def test_' tests`; files via the same pattern with `-rl` |
+| Source modules | **346** | `find src/orchestrator -name '*.py'` |
+| Test functions | **2,964** across 305 files | `grep -rh '^def test_\|^async def test_' tests`; files via the same pattern with `-rl` |
 | Graph precision | **1.00** on every node and edge kind, all 8 front-ends | `orchestrator pkg accuracy` against a hand-labelled corpus |
 | `CALLS` recall | **1.00** (C, SQL) → **0.86** (TypeScript, on 14 labelled edges) | same |
 | Grounding effect, `create` tickets | **29/50 grounded, 0/50 ungrounded** | 200-run controlled A/B, 2 frontier models, 5 passes |
