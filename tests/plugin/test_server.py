@@ -430,12 +430,12 @@ def _ledger_repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_understand_repo_builds_the_bank_and_names_where_to_start(tmp_path: Path) -> None:
+async def test_understand_repo_builds_the_bank_and_names_where_to_start(tmp_path: Path) -> None:
     from orchestrator.knowledge.understand import BANK_DIRNAME
     from orchestrator.plugin.server import read_memory_bank, understand_repo
 
     repo = _ledger_repo(tmp_path)
-    out = understand_repo(str(repo))
+    out = await understand_repo(str(repo))
     assert "error" not in out, out
     assert out["dir"] == str(repo / BANK_DIRNAME)
     assert out["files_written"] > 0 and (repo / BANK_DIRNAME / "README.md").exists()
@@ -446,37 +446,37 @@ def test_understand_repo_builds_the_bank_and_names_where_to_start(tmp_path: Path
     assert "error" not in bank
 
 
-def test_understand_repo_check_is_current_then_stale(tmp_path: Path) -> None:
+async def test_understand_repo_check_is_current_then_stale(tmp_path: Path) -> None:
     from orchestrator.plugin.server import understand_repo
 
     repo = _ledger_repo(tmp_path)
-    assert understand_repo(str(repo), check=True)["absent"] is True  # nothing built yet
-    understand_repo(str(repo))
-    current = understand_repo(str(repo), check=True)
+    assert (await understand_repo(str(repo), check=True))["absent"] is True  # nothing built yet
+    await understand_repo(str(repo))
+    current = await understand_repo(str(repo), check=True)
     assert current["ok"] is True and "current" in current["summary"]
     # The code moves on; the committed pages no longer describe it.
     (repo / "router.py").write_text("class WebhookRouter:\n    pass\n", encoding="utf-8")
-    stale = understand_repo(str(repo), check=True)
+    stale = await understand_repo(str(repo), check=True)
     assert stale["ok"] is False and (stale["stale"] or stale["missing"])
     assert "stale" in stale["summary"]
 
 
-def test_understand_repo_refuses_to_build_into_a_clone_that_vanishes(tmp_path: Path) -> None:
+async def test_understand_repo_refuses_to_build_into_a_clone_that_vanishes(tmp_path: Path) -> None:
     from orchestrator.plugin.server import understand_repo
 
-    out = understand_repo("https://github.com/example/repo.git")  # allow-listed host, never cloned
+    out = await understand_repo("https://github.com/example/repo.git")  # allow-listed host, never cloned
     assert "error" in out and "out=" in out["error"]
     # A relative `out` is the same trap in a subprocess whose cwd is not the repo.
-    assert "error" in understand_repo("https://github.com/example/repo.git", out="episteme")
+    assert "error" in await understand_repo("https://github.com/example/repo.git", out="episteme")
 
 
-def test_understand_repo_writes_where_out_says(tmp_path: Path) -> None:
+async def test_understand_repo_writes_where_out_says(tmp_path: Path) -> None:
     from orchestrator.plugin.server import understand_repo
 
     (tmp_path / "repo").mkdir()
     repo = _ledger_repo(tmp_path / "repo")
     target = tmp_path / "elsewhere"
-    out = understand_repo(str(repo), out=str(target))
+    out = await understand_repo(str(repo), out=str(target))
     assert out["dir"] == str(target) and (target / "README.md").exists()
 
 

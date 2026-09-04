@@ -50,10 +50,10 @@ def test_a_missing_bank_is_a_note_naming_what_builds_it(repo: Path) -> None:
     assert "No knowledge base" in bank_section("architecture")  # same note, not an error
 
 
-def test_a_built_bank_is_readable_by_index_and_by_section(repo: Path) -> None:
+async def test_a_built_bank_is_readable_by_index_and_by_section(repo: Path) -> None:
     from orchestrator.plugin.server import understand_repo
 
-    assert "error" not in understand_repo(str(repo))
+    assert "error" not in await understand_repo(str(repo))
     index = bank_index()
     assert "spine://bank/architecture" in index and "spine://bank/conventions" in index
     page = bank_section("architecture")
@@ -61,11 +61,11 @@ def test_a_built_bank_is_readable_by_index_and_by_section(repo: Path) -> None:
     assert "No section" in bank_section("no-such-page")
 
 
-def test_a_section_cannot_escape_the_bank(repo: Path) -> None:
+async def test_a_section_cannot_escape_the_bank(repo: Path) -> None:
     from orchestrator.plugin.server import understand_repo
 
     (repo.parent / "secret.md").write_text("SECRET", encoding="utf-8")
-    understand_repo(str(repo))
+    await understand_repo(str(repo))
     assert "SECRET" not in bank_section("../../secret")
     assert "SECRET" not in bank_section("../secret")
 
@@ -117,7 +117,7 @@ def test_state_report_renders_the_repo(repo: Path) -> None:
 async def test_resources_reach_the_host_and_read_back(repo: Path) -> None:
     from orchestrator.plugin.server import build_server, understand_repo
 
-    understand_repo(str(repo))
+    await understand_repo(str(repo))
     server = build_server()
     direct = {str(r.uri): r for r in await server.list_resources()}
     templates = {t.uri_template: t for t in await server.list_resource_templates()}

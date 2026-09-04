@@ -264,6 +264,18 @@ Resources describe the **default repository**: the process working directory, or
 is in. The tools keep taking `repo_path` as before. All read‑only; over HTTP the `spine:read` floor
 covers them.
 
+### Progress from the long tools
+
+`sdlc_feature`, `understand_repo`, `sdlc_remediate`, `sdlc_address_review` and `audit_repo` run for
+seconds to minutes. When the host asks for progress (an MCP progress token on the call — most
+hosts send one), each reports it as it goes: `sdlc_feature` per stage in the runner's own order
+(spec, layout, design, implement, tests, refine, judge, PR), `sdlc_remediate` per task,
+`sdlc_address_review` at checkout / respond / done, `understand_repo` at extract / write, and
+`audit_repo` at start / done (its loop has no per‑step hook). The bar is monotonic — a second test
+run after a refine does not move it backwards — and a line the stage table does not know rides
+on the current step as its message. Nothing changes in the tools' schemas, and a client that sends
+no token sees exactly what it saw before.
+
 > **The tiers are metadata your host can act on.** Every tool is registered with MCP tool
 > annotations derived from its tier — *read‑only*, *destructive*, *idempotent*, *open‑world* — so a
 > host that asks before destructive calls asks before `sdlc_feature`, `sdlc_start_run` and

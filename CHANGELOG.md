@@ -8,6 +8,17 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Added
 
+- **The long MCP tools report progress.** `sdlc_feature` per stage in the runner's
+  own order (spec, layout, design, implement, tests, refine, judge, PR),
+  `sdlc_remediate` per task, `sdlc_address_review` at checkout / respond / done,
+  `understand_repo` at extract / write, `audit_repo` at start / done — whenever the
+  host sends a progress token; a client that sends none sees what it saw before.
+  The phases are the engines' existing log prefixes mapped to ordered steps
+  (`plugin/progress.py`), so the CLI and the plugin describe the same stages; the
+  bar is monotonic, and an unknown line rides on the current step as its message.
+  The tools' schemas are unchanged: the SDK context arrives through an optional
+  parameter the scope wrapper passes through and the schema never shows.
+
 - **MCP prompts and resources — the workflow and the documents, for hosts that are
   not Claude Code.** Five prompts carry the `understand-codebase` skill's "which
   tool, in which order" through the protocol (`orient`, `investigate-ticket`,
