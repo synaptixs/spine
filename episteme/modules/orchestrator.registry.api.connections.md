@@ -113,7 +113,7 @@ _9 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/registry/api/connections.py:116`](../../src/orchestrator/registry/api/connections.py#L116)
 
-- **Calls** (10): [`CheckInfo`](../../src/orchestrator/registry/api/connections.py#L54), [`ConnectionsResponse`](../../src/orchestrator/registry/api/connections.py#L63), [`ServerInfo`](../../src/orchestrator/registry/api/connections.py#L40), [`_factory`](../../src/orchestrator/registry/api/connections.py#L73), [`_test_server`](../../src/orchestrator/registry/api/connections.py#L90), [`_writable`](../../src/orchestrator/registry/api/connections.py#L79), `gather`, `orchestrator.mcp.load_mcp_configs`, [`resolve_config_path`](../../src/orchestrator/mcp/config.py#L94), [`run_env_checks`](../../src/orchestrator/doctor.py#L125)
+- **Calls** (10): [`CheckInfo`](../../src/orchestrator/registry/api/connections.py#L54), [`ConnectionsResponse`](../../src/orchestrator/registry/api/connections.py#L63), [`ServerInfo`](../../src/orchestrator/registry/api/connections.py#L40), [`_factory`](../../src/orchestrator/registry/api/connections.py#L73), [`_test_server`](../../src/orchestrator/registry/api/connections.py#L90), [`_writable`](../../src/orchestrator/registry/api/connections.py#L79), `gather`, `orchestrator.mcp.load_mcp_configs`, [`resolve_config_path`](../../src/orchestrator/mcp/config.py#L94), [`run_env_checks`](../../src/orchestrator/doctor.py#L130)
 
 ### `remove_server`
 

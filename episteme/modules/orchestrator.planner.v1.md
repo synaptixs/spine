@@ -26,7 +26,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 ## Documented in
 
-`CHANGELOG.md`, `docs/specs/build-document.md#2-section-map-where-each-part-comes-from`, `docs/specs/build-document.md#phase-2-close-the-deterministic-gaps-built`, `docs/specs/unified-ui.md#1-the-unify-layer-the-backbone-the-real-work`, `docs/specs/unified-ui.md#5-face-c-developer-tui-shipped-1180-removed-after-3300`, `docs/specs/unified-ui.md#6-the-better-alternative-a-headless-frontend-reactvite-or-lighter`
+`CHANGELOG.md`, `docs/specs/build-document.md#2-section-map-where-each-part-comes-from`, `docs/specs/build-document.md#phase-2-close-the-deterministic-gaps-built`, `docs/specs/mcp-plugin-surface.md#4-proposals`, `docs/specs/unified-ui.md#1-the-unify-layer-the-backbone-the-real-work`, `docs/specs/unified-ui.md#5-face-c-developer-tui-shipped-1180-removed-after-3300`
 
 ## Types
 

@@ -15,9 +15,9 @@
 
 
 **Naming**
-- **Functions** are `snake_case` (100% of 2966).
-- **Types** are `PascalCase` (100% of 671).
-- **1208 of 2966 functions** are underscore-private — the public surface is the rest.
+- **Functions** are `snake_case` (100% of 2971).
+- **Types** are `PascalCase` (100% of 672).
+- **1210 of 2971 functions** are underscore-private — the public surface is the rest.
 
 **Tests**
 
