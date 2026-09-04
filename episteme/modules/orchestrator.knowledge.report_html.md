@@ -47,7 +47,7 @@
 [`src/orchestrator/knowledge/report_html.py:220`](../../src/orchestrator/knowledge/report_html.py#L220)
 
 - **Called by** (1): [`_coverage_section`](../../src/orchestrator/knowledge/report_html.py#L257)
-- **Calls** (3): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_top_hotspot_id`](../../src/orchestrator/knowledge/report_html.py#L129), [`build_regression_plan`](../../src/orchestrator/sdlc/coverage.py#L137)
+- **Calls** (3): [`_e`](../../src/orchestrator/knowledge/report_html.py#L44), [`_top_hotspot_id`](../../src/orchestrator/knowledge/report_html.py#L129), [`build_regression_plan`](../../src/orchestrator/sdlc/coverage.py#L138)
 
 ### `_blast_radius_section`
 

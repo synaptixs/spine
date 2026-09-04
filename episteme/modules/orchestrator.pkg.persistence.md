@@ -13,13 +13,13 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L225) — reaches **32** symbols
-- [`repo_state`](../../src/orchestrator/pkg/persistence.py#L144) — reaches **29** symbols
-- [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L218) — reaches **27** symbols
-- [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L154) — reaches **27** symbols
+- [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L225) — reaches **35** symbols
+- [`repo_state`](../../src/orchestrator/pkg/persistence.py#L144) — reaches **34** symbols
+- [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L218) — reaches **30** symbols
+- [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L154) — reaches **30** symbols
 - [`load_facts`](../../src/orchestrator/pkg/persistence.py#L123) — reaches **25** symbols
 - [`save_facts`](../../src/orchestrator/pkg/persistence.py#L116) — reaches **25** symbols
-- [`_git`](../../src/orchestrator/pkg/persistence.py#L137) — reaches **22** symbols
+- [`_git`](../../src/orchestrator/pkg/persistence.py#L137) — reaches **24** symbols
 - [`extractor_fingerprint`](../../src/orchestrator/pkg/persistence.py#L177) — reaches **17** symbols
 
 ## Documented in
@@ -156,7 +156,7 @@
 
 [`src/orchestrator/pkg/persistence.py:144`](../../src/orchestrator/pkg/persistence.py#L144)
 
-- **Called by** (5): [`_render_state_html`](../../src/orchestrator/cli/understand.py#L275), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L314), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L225), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L366), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
+- **Called by** (6): [`_per_repo`](../../src/orchestrator/plugin/server.py#L970), [`_render_state_html`](../../src/orchestrator/cli/understand.py#L275), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L314), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L225), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L366), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122)
 - **Calls** (2): [`_git`](../../src/orchestrator/pkg/persistence.py#L137), `pathlib.Path`
 - **Documented in**: `docs/specs/pkg-accuracy-gaps.md#6-operational-open-right-now`
 
