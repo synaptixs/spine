@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from orchestrator.doctor import CheckResult, render_report, run_env_checks
+from orchestrator.doctor import (
+    EXTRA_PROBES,
+    CheckResult,
+    render_identity,
+    render_report,
+    run_env_checks,
+    server_identity,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -316,3 +323,67 @@ class TestCheckResult:
         assert r.name == "foo"
         assert r.passed is False
         assert r.detail == "missing bar"
+
+
+# ---- server_identity: which install is answering ------------------------------------
+
+
+def test_server_identity_names_the_running_install() -> None:
+    import sys
+
+    ident = server_identity()
+    assert ident["package"] == "synaptixs-spine"
+    assert ident["interpreter"] == sys.executable
+    assert ident["python"].count(".") == 2
+    # The dev checkout is installed as a distribution, so the version is known here.
+    assert ident["version"] is not None
+    # Every probed extra answers with a bool — never a missing key, never an exception.
+    assert set(ident["extras"]) == set(EXTRA_PROBES)
+    assert all(isinstance(v, bool) for v in ident["extras"].values())
+
+
+def test_extra_probes_are_modules_not_distributions() -> None:
+    """The probe is an import name (``docx``), not the PyPI name (``python-docx``):
+    ``find_spec`` answers for modules, and a probe that names a distribution is a probe
+    that always says "absent"."""
+    assert all("-" not in module for module in EXTRA_PROBES.values())
+
+
+def test_render_identity_is_comparable_against_which_and_pip_show() -> None:
+    text = render_identity(
+        {
+            "package": "synaptixs-spine",
+            "version": "3.9.3",
+            "python": "3.12.4",
+            "interpreter": "/old/checkout/.venv/bin/python3",
+            "mcp_sdk": None,
+            "extras": {"mcp": False, "java": True},
+        }
+    )
+    lines = text.splitlines()
+    assert lines[0] == "synaptixs-spine 3.9.3 · python 3.12.4 · mcp sdk not installed"
+    assert lines[1] == "interpreter: /old/checkout/.venv/bin/python3"
+    assert lines[2] == "extras: java"
+
+
+def test_render_identity_survives_an_uninstalled_distribution() -> None:
+    text = render_identity(
+        {
+            "package": "synaptixs-spine",
+            "version": None,
+            "python": "3.12.4",
+            "interpreter": "/x",
+            "mcp_sdk": "2.1.0",
+            "extras": {},
+        }
+    )
+    assert "not installed as a distribution" in text and "extras: none" in text
+
+
+def test_a_dotted_probe_with_no_parent_package_reads_absent() -> None:
+    """``find_spec("opentelemetry.sdk")`` raises when ``opentelemetry`` itself is missing;
+    the probe must answer False, not crash the whole report."""
+    from orchestrator.doctor import _importable
+
+    assert _importable("no_such_parent_pkg_xyz.child") is False
+    assert _importable("os.path") is True

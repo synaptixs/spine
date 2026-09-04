@@ -47,6 +47,18 @@ def test_doctor_returns_readiness_structure() -> None:
     assert {"LLM provider", "Confluence", "Jira"} <= names
 
 
+def test_doctor_says_which_install_is_answering() -> None:
+    """The stale-install case: a host launched an ``orchestrator-mcp`` from an old venv
+    and saw only "Connection closed". The tool now names its version, interpreter and SDK
+    so the host can see the mismatch."""
+    import sys
+
+    server = doctor()["server"]
+    assert server["package"] == "synaptixs-spine"
+    assert server["interpreter"] == sys.executable
+    assert "mcp" in server["extras"]
+
+
 def test_pkg_grounding_surfaces_existing_symbols(tmp_path: Path) -> None:
     (tmp_path / "ledger.py").write_text(LEDGER, encoding="utf-8")
     out = pkg_grounding(str(tmp_path), "persist the token ledger to disk")
@@ -403,6 +415,87 @@ def test_http_server_wires_static_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     # Auth is configured, so a public bind is permitted and the tools are registered.
     assert built.server.settings.auth is not None
     assert built.transport["port"] == 8080 and built.transport["host"] == "0.0.0.0"
+
+
+# ---- the tiers are metadata: annotations a host can act on -------------------------
+
+
+def test_every_registered_tool_has_a_tier() -> None:
+    """Total by construction: a tool added to ``_TOOLS`` without a ``_TIER`` entry fails
+    here, before it reaches a host with its cost unstated."""
+    from orchestrator.plugin.server import _TIER, _TOOLS
+
+    assert {fn.__name__ for fn in _TOOLS} == set(_TIER)
+
+
+def test_tiers_say_what_a_tool_can_cost() -> None:
+    from orchestrator.plugin.server import _TOOLS, tool_annotations
+
+    hints = {fn.__name__: tool_annotations(fn.__name__) for fn in _TOOLS}
+    spends_and_writes = {"sdlc_feature", "sdlc_start_run", "sdlc_decide_gate"}
+    plans = {"sdlc_plan", "sdlc_approve"}
+    observes_a_run = {"sdlc_run_status", "sdlc_run_result"}
+    comprehension = set(hints) - spends_and_writes - plans - observes_a_run
+
+    for name in comprehension | observes_a_run:
+        assert hints[name]["read_only_hint"] and not hints[name]["destructive_hint"], name
+    for name in plans:
+        assert not hints[name]["read_only_hint"] and not hints[name]["destructive_hint"], name
+        assert hints[name]["idempotent_hint"], name  # re-running rewrites the same document
+    for name in spends_and_writes:
+        assert not hints[name]["read_only_hint"] and hints[name]["destructive_hint"], name
+        assert not hints[name]["idempotent_hint"], name
+    # `use_llm` spends tokens, but the tool still never changes code.
+    assert hints["root_cause"]["read_only_hint"]
+    # Only these never leave the machine; everything else may clone a URL or read a source.
+    assert {n for n, h in hints.items() if not h["open_world_hint"]} == {
+        "doctor",
+        "pkg_joins",
+        "sdlc_plan",
+        "sdlc_approve",
+    }
+
+
+def test_an_untiered_tool_is_refused_at_registration() -> None:
+    from orchestrator.plugin.server import tool_annotations
+
+    with pytest.raises(KeyError):
+        tool_annotations("a_tool_nobody_classified")
+
+
+def test_all_exports_every_registered_tool() -> None:
+    """``__all__`` drifted from ``_TOOLS`` once (four tools registered but not exported);
+    the export list is what a reader and ``from … import *`` trust."""
+    import orchestrator.plugin.server as mod
+
+    assert {fn.__name__ for fn in mod._TOOLS} <= set(mod.__all__)
+    assert mod.__all__ == sorted(mod.__all__, key=lambda x: (x.lower(), x))
+
+
+@pytest.mark.skipif(importlib.util.find_spec("mcp") is None, reason="needs the 'mcp' extra")
+async def test_annotations_reach_the_host() -> None:
+    """What the host sees is the tier table, field for field — not a hand-copied subset."""
+    from orchestrator.plugin.server import _TOOLS, build_server, tool_annotations
+
+    tools = {t.name: t for t in await build_server().list_tools()}
+    assert set(tools) == {fn.__name__ for fn in _TOOLS}
+    for name, tool in tools.items():
+        assert tool.annotations is not None, name
+        assert tool.annotations.model_dump(exclude_none=True, exclude={"title"}) == tool_annotations(name), (
+            name
+        )
+
+
+@pytest.mark.skipif(importlib.util.find_spec("mcp") is None, reason="needs the 'mcp' extra")
+def test_registration_refuses_a_tool_without_a_tier(monkeypatch: pytest.MonkeyPatch) -> None:
+    import orchestrator.plugin.server as mod
+
+    def orphan() -> dict[str, Any]:
+        return {}
+
+    monkeypatch.setattr(mod, "_TOOLS", (*mod._TOOLS, orphan))
+    with pytest.raises(RuntimeError, match="no tier"):
+        mod.build_server()
 
 
 # ---- dogfood: drive the real stdio server (needs the `mcp` extra) -----------

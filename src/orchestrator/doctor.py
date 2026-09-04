@@ -7,9 +7,14 @@ scaffold can never drift apart.
 
 from __future__ import annotations
 
+import importlib.metadata
+import importlib.util
 import os
+import platform
+import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -127,6 +132,81 @@ def run_env_checks(env: Mapping[str, str] | None = None) -> list[CheckResult]:
     if env is None:
         env = os.environ
     return [check_group(group, env) for group in ENV_GROUPS]
+
+
+#: Which importable module proves an optional extra is installed. One probe per extra —
+#: the first package the extra pulls in that nothing else does — so the answer is
+#: "is this extra present", not "is some dependency present".
+EXTRA_PROBES: Mapping[str, str] = {
+    "mcp": "mcp",
+    "java": "tree_sitter_java",
+    "typescript": "tree_sitter_typescript",
+    "csharp": "tree_sitter_c_sharp",
+    "c": "tree_sitter_c",
+    "cpp": "tree_sitter_cpp",
+    "go": "tree_sitter_go",
+    "sql": "sqlglot",
+    "docs": "pypdf",
+    "office": "docx",
+    "sdlc": "pytest",
+    "security": "semgrep",
+    "otel": "opentelemetry.sdk",
+}
+
+PACKAGE = "synaptixs-spine"
+
+
+def _dist_version(name: str) -> str | None:
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
+def server_identity() -> dict[str, Any]:
+    """Who is answering: the package version, the interpreter, the SDK, the extras.
+
+    The readiness checks say whether the *environment* is ready; this says which
+    *install* is doing the checking. The case it exists for: a host launched an
+    ``orchestrator-mcp`` console script left behind by an older checkout's venv —
+    Spine 3.9.3 with no ``mcp`` module — and the only symptom was "Connection
+    closed". With the interpreter path and the version in the report, that is a
+    one-line diagnosis instead of an afternoon.
+    """
+    return {
+        "package": PACKAGE,
+        "version": _dist_version(PACKAGE),
+        "python": platform.python_version(),
+        "interpreter": sys.executable,
+        "mcp_sdk": _dist_version("mcp"),
+        "extras": {extra: _importable(module) for extra, module in EXTRA_PROBES.items()},
+    }
+
+
+def _importable(module: str) -> bool:
+    """``find_spec`` without the trap: for a dotted name it imports the parent first, and
+    raises ``ModuleNotFoundError`` when that parent is absent — which is exactly the case
+    an "is this extra installed" probe exists to answer with ``False``."""
+    try:
+        return importlib.util.find_spec(module) is not None
+    except ModuleNotFoundError:
+        return False
+
+
+def render_identity(identity: Mapping[str, Any]) -> str:
+    """Three lines a human can compare against ``pip show`` / ``which``."""
+    version = identity.get("version") or "not installed as a distribution"
+    sdk = identity.get("mcp_sdk")
+    extras = identity.get("extras") or {}
+    present = ", ".join(sorted(k for k, v in extras.items() if v)) or "none"
+    return "\n".join(
+        [
+            f"{identity.get('package')} {version} · python {identity.get('python')} · "
+            f"mcp sdk {sdk or 'not installed'}",
+            f"interpreter: {identity.get('interpreter')}",
+            f"extras: {present}",
+        ]
+    )
 
 
 def render_report(results: Sequence[CheckResult]) -> str:

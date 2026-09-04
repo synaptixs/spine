@@ -41,8 +41,15 @@ authorization on top of whatever confirmation the host already asks for. Safe mo
 An assistant should work down the tiers, not up: comprehend, then plan and get the plan
 approved, then build. A run that starts at tier 3 is one nobody reviewed.
 
+**The tiers are metadata, not only prose.** Every tool is registered with MCP
+``ToolAnnotations`` derived from its tier (``_TIER`` → ``tool_annotations``): read-only,
+destructive, idempotent, open-world. A host uses those for its confirmation UX, so the
+tier model is enforced by the client rather than by a docstring a model may not read.
+A tool without a tier does not register — ``_register_tools`` raises, and a test says so
+before a host does.
+
 Tool *implementations* are module-level functions (unit-testable without the ``mcp``
-extra); ``build_server`` lazy-imports ``FastMCP`` and registers them.
+extra); ``build_server`` lazy-imports the SDK's server class and registers them.
 """
 
 from __future__ import annotations
@@ -54,12 +61,16 @@ from typing import Any
 
 
 def doctor() -> dict[str, Any]:
-    """Report environment readiness (LLM provider, Confluence/Jira, MCP, …)."""
-    from orchestrator.doctor import run_env_checks
+    """Report environment readiness (LLM provider, Confluence/Jira, MCP, …) and which
+    install is answering: ``server`` carries the package version, the interpreter, the
+    MCP SDK version and the extras present — so a stale console script on a host's PATH
+    is visible from the host, not just from a shell."""
+    from orchestrator.doctor import run_env_checks, server_identity
 
     results = run_env_checks()
     return {
         "all_passed": all(r.passed for r in results),
+        "server": server_identity(),
         "checks": [{"name": r.name, "passed": r.passed, "detail": r.detail} for r in results],
     }
 
@@ -940,6 +951,72 @@ _TOOLS = (
 )
 
 
+@dataclass(frozen=True)
+class Tier:
+    """What a tool can cost you if it is wrong, in the four hints MCP hosts understand."""
+
+    name: str
+    read_only: bool
+    destructive: bool
+    idempotent: bool
+    open_world: bool
+
+
+#: Read-only comprehension. ``open_world`` because ``repo_path`` may be a git URL (a
+#: shallow clone) and a requirements ``source`` may be Confluence or Notion.
+COMPREHEND = Tier("comprehend", read_only=True, destructive=False, idempotent=True, open_world=True)
+#: The same, for tools that only ever read this machine.
+COMPREHEND_LOCAL = Tier("comprehend", read_only=True, destructive=False, idempotent=True, open_world=False)
+#: Plan and decide: writes under ``.spine/`` only, re-running rewrites the same document.
+PLAN = Tier("plan", read_only=False, destructive=False, idempotent=True, open_world=False)
+#: Observing a run: reads Temporal state, changes nothing.
+RUN_OBSERVE = Tier("run", read_only=True, destructive=False, idempotent=True, open_world=True)
+#: Driving a run: spends money, and with ``live``/``confirm`` writes where it cannot be
+#: taken back. A rejected gate ends a run, which is why deciding one is destructive too.
+RUN = Tier("run", read_only=False, destructive=True, idempotent=False, open_world=True)
+
+#: Every registered tool's tier, by function name. Keep it total: registration refuses a
+#: tool that is missing here, and ``tests/plugin`` asserts the two stay in step.
+_TIER: dict[str, Tier] = {
+    "doctor": COMPREHEND_LOCAL,
+    "ingest_preview": COMPREHEND,
+    "pkg_grounding": COMPREHEND,
+    "read_memory_bank": COMPREHEND,
+    "map_repo": COMPREHEND,
+    "blast_radius": COMPREHEND,
+    "explain_symbol": COMPREHEND,
+    "investigate": COMPREHEND,
+    "localize": COMPREHEND,
+    "regression_gaps": COMPREHEND,
+    "root_cause": COMPREHEND,  # `use_llm` spends tokens; it still never changes code
+    "pkg_joins": COMPREHEND_LOCAL,
+    "sdlc_plan": PLAN,
+    "sdlc_approve": PLAN,
+    "docs_for": COMPREHEND,
+    "sdlc_feature": RUN,
+    "sdlc_start_run": RUN,
+    "sdlc_run_status": RUN_OBSERVE,
+    "sdlc_decide_gate": RUN,
+    "sdlc_run_result": RUN_OBSERVE,
+}
+
+
+def tool_annotations(name: str) -> dict[str, bool]:
+    """The MCP ``ToolAnnotations`` fields for a registered tool, as plain data.
+
+    Plain so it is testable without the ``mcp`` extra; ``_register_tools`` wraps it in
+    the SDK type. Raises ``KeyError`` for a tool with no tier — deliberately, so a new
+    tool cannot reach a host with its cost unstated.
+    """
+    tier = _TIER[name]
+    return {
+        "read_only_hint": tier.read_only,
+        "destructive_hint": tier.destructive,
+        "idempotent_hint": tier.idempotent,
+        "open_world_hint": tier.open_world,
+    }
+
+
 def _import_server_class() -> Any:
     """The SDK's server class — ``MCPServer`` since v2 (was ``mcp.server.fastmcp.FastMCP``).
 
@@ -956,8 +1033,21 @@ def _import_server_class() -> Any:
 
 
 def _register_tools(server: Any) -> Any:
+    from mcp.types import ToolAnnotations
+
     for fn in _TOOLS:
-        server.tool()(fn)
+        try:
+            hints = tool_annotations(fn.__name__)
+        except KeyError as exc:
+            raise RuntimeError(f"tool {fn.__name__!r} has no tier in _TIER — say what it can cost") from exc
+        server.tool(
+            annotations=ToolAnnotations(
+                read_only_hint=hints["read_only_hint"],
+                destructive_hint=hints["destructive_hint"],
+                idempotent_hint=hints["idempotent_hint"],
+                open_world_hint=hints["open_world_hint"],
+            )
+        )(fn)
     return server
 
 
@@ -1030,23 +1120,29 @@ def build_http_server(
 
 
 __all__ = [
-    "HttpServer",
     "blast_radius",
     "build_http_server",
     "build_server",
+    "docs_for",
     "doctor",
     "explain_symbol",
+    "HttpServer",
     "ingest_preview",
     "investigate",
     "localize",
     "map_repo",
     "pkg_grounding",
+    "pkg_joins",
     "read_memory_bank",
     "regression_gaps",
     "root_cause",
+    "sdlc_approve",
     "sdlc_decide_gate",
     "sdlc_feature",
+    "sdlc_plan",
     "sdlc_run_result",
     "sdlc_run_status",
     "sdlc_start_run",
+    "Tier",
+    "tool_annotations",
 ]

@@ -6,7 +6,27 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Added
+
+- **The MCP server's tiers are metadata a host can act on.** Every plugin tool is
+  registered with MCP tool annotations derived from its tier — read-only,
+  destructive, idempotent, open-world — so a host that confirms before destructive
+  calls confirms before `sdlc_feature`, `sdlc_start_run` and `sdlc_decide_gate`,
+  and not before `map_repo`. The tier table is total by construction: a tool
+  registered without one is refused, and a test says so first. Design record:
+  `docs/specs/mcp-plugin-surface.md`, which also fixes the extension order — the
+  six known gaps before any new surface.
+- **`doctor` says which install is answering.** The tool and the CLI both report
+  the package version, interpreter, MCP SDK version and the extras present. The
+  case it exists for: a host launched an `orchestrator-mcp` console script left
+  behind by an older checkout's venv (Spine 3.9.3, no `mcp` module) and the only
+  symptom was "Connection closed".
+
 ### Fixed
+
+- **`__all__` in `orchestrator.plugin.server` exports every registered tool.** Four
+  (`sdlc_plan`, `sdlc_approve`, `docs_for`, `pkg_joins`) were registered but not
+  exported; a test now holds the two in step.
 
 - **An empty codegen submission gets a second correction — a bad draw is not a
   loop.** The corrective retry allowed one correction per failure kind, on the
