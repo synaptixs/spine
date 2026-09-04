@@ -72,6 +72,16 @@ The SDK only checks scopes server-wide, so the per-tool check has to live here. 
 there is no token, and the guard passes: a local subprocess a host launched already holds
 the user's ``.env``.
 
+**Every tool advertises what it returns** (``plugin/outputs.py``): a ``TypedDict`` per tool,
+attached to the registered function so the SDK derives an output schema and validates the
+result, while the tool keeps returning a plain ``dict``. The test suite's drift guard fails
+on any returned key the type does not declare.
+
+**Prompts and resources, for hosts that are not Claude Code** (``plugin/prompts.py``,
+``plugin/resources.py``). The ``understand-codebase`` skill's "which tool, in which order"
+ships as five MCP prompts; the committed ``episteme/`` bank, the build documents and the
+state report are readable as ``spine://`` resources. Both register beside the tools.
+
 Tool *implementations* are module-level functions (unit-testable without the ``mcp``
 extra); ``build_server`` lazy-imports the SDK's server class and registers them.
 """
@@ -87,6 +97,16 @@ from pathlib import Path
 from typing import Any
 
 from orchestrator.plugin.auth import SCOPE_PLAN, SCOPE_READ, SCOPE_RUN
+from orchestrator.plugin.progress import Reporter
+
+# The SDK injects its ``Context`` into a parameter annotated with this class and keeps it
+# out of the input schema — but it resolves the annotation through this module's globals
+# at registration, so the name must exist at runtime. Without the ``mcp`` extra (the tool
+# implementations stay importable without it) it aliases to ``Any`` and nothing changes.
+try:
+    from mcp.server.mcpserver import Context
+except ImportError:  # pragma: no cover - only without the extra
+    Context = Any  # type: ignore[assignment,misc]
 
 
 def doctor() -> dict[str, Any]:
@@ -135,8 +155,11 @@ async def sdlc_feature(
     live: bool = False,
     confirm: bool = False,
     max_refine: int = 3,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
-    """Build ONE intent end to end: spec → grounded codegen → tests → branch.
+    """Build ONE intent end to end: spec → grounded codegen → tests → branch. Reports
+    progress per stage (spec, layout, design, implement, tests, refine, judge, PR) when the
+    host asks for it.
 
     Works for **greenfield and brownfield**:
     - ``repo`` — a git URL/owner-slug to branch from (e.g. ``https://github.com/me/app``
@@ -159,6 +182,7 @@ async def sdlc_feature(
         )
     from orchestrator.sdlc.feature_runner import FeatureRunError, run_feature
 
+    progress = Reporter(ctx)
     try:
         result = await run_feature(
             source,
@@ -169,6 +193,7 @@ async def sdlc_feature(
             package_name=package_name,
             live=live,
             max_refine=max_refine,
+            log=progress.as_log(),
         )
     except FeatureRunError as exc:
         return {"passed": False, "error": str(exc)}
@@ -454,16 +479,26 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
     return _in_repo_store(repo_path, run)
 
 
-def explain_symbol(repo_path: str, symbol: str) -> dict[str, Any]:
+def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
     """What a symbol is and how it connects: kind, location, who calls it, what it calls, and
-    what it contains. Deterministic (no LLM)."""
+    what it contains. Deterministic (no LLM).
+
+    Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to explain it across every
+    declared repository: each match then says which repository it lives in and lists the
+    symbols in *other* repositories a change to it reaches — the callers a single-repo graph
+    cannot see."""
+    if not symbol:
+        return {"error": "provide a symbol"}
+    if bool(repo_path) == bool(repos):
+        return {"error": "provide exactly one of repo_path or repos"}
 
     def run(store: Any, _repo: Any) -> dict[str, Any]:
         matches = store.find(symbol)
         if not matches:
             return {"symbol": symbol, "found": False, "matches": []}
-        out = [
-            {
+        out: list[dict[str, Any]] = []
+        for node in matches[:5]:
+            entry: dict[str, Any] = {
                 "id": node.id,
                 "kind": node.kind.value,
                 "name": node.name,
@@ -473,11 +508,24 @@ def explain_symbol(repo_path: str, symbol: str) -> dict[str, Any]:
                 "calls": [n.id for n in store.callees_of(node.id)[:15]],
                 "contains": [n.id for n in store.children_of(node.id)[:25]],
             }
-            for node in matches[:5]
-        ]
+            if repos:
+                entry["repo"] = _repo_of_node(node)
+                reach = _cross_repo_reach(store, node.id)
+                entry["cross_repo_count"] = len(reach)
+                entry["cross_repo"] = reach[:25]
+            out.append(entry)
         return {"symbol": symbol, "found": True, "matches": out}
 
+    if repos:
+        return _in_repos_store(repos, run)
     return _in_repo_store(repo_path, run)
+
+
+def _repo_of_node(node: Any) -> str:
+    """Which repository a merged-graph node belongs to: its provenance, else its scoped id."""
+    from orchestrator.pkg.scoping import unscope_id
+
+    return (node.provenance.repo if node.provenance else "") or unscope_id(node.id)[0]
 
 
 def investigate(
@@ -593,11 +641,18 @@ def _joins_report(merged: Any) -> dict[str, Any]:
     }
 
 
-def localize(repo_path: str, trace: str) -> dict[str, Any]:
+def localize(repo_path: str = "", trace: str = "", repos: str | None = None) -> dict[str, Any]:
     """Resolve a stack trace / traceback to the repo symbols it names, pointing at the likely
-    fault site and its callers. Deterministic (no LLM)."""
+    fault site and its callers. Deterministic (no LLM).
+
+    Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` for a trace that crosses
+    services: each resolved frame then says which repository it landed in, and a frame whose
+    path exists in more than one repository is reported as **ambiguous** with the candidates —
+    the first match does not win silently."""
     if not trace.strip():
         return {"error": "provide a stack trace / traceback text"}
+    if bool(repo_path) == bool(repos):
+        return {"error": "provide exactly one of repo_path or repos"}
 
     def run(store: Any, _repo: Any) -> dict[str, Any]:
         from orchestrator.sdlc.localize import localize_trace, render_localization_md
@@ -618,21 +673,43 @@ def localize(repo_path: str, trace: str) -> dict[str, Any]:
                     "resolved": f.resolved,
                     "id": f.node_id,
                     "where": f.where,
+                    **({"repo": f.repo, "candidates": f.candidates} if repos else {}),
                 }
                 for f in loc.frames
             ],
             "callers": loc.callers,
+            **(
+                {
+                    "ambiguous_frames": [
+                        {"trace_at": f"{f.file}:{f.line}", "resolved": f.node_id, "also": f.candidates}
+                        for f in loc.frames
+                        if f.candidates
+                    ]
+                }
+                if repos
+                else {}
+            ),
             "markdown": render_localization_md(loc),
         }
 
+    if repos:
+        return _in_repos_store(repos, run)
     return _in_repo_store(repo_path, run)
 
 
-def regression_gaps(repo_path: str, symbol: str = "", trace: str = "") -> dict[str, Any]:
+def regression_gaps(
+    repo_path: str = "", symbol: str = "", trace: str = "", repos: str | None = None
+) -> dict[str, Any]:
     """Blast-radius test-coverage gaps for a change: the production symbols a change to
-    ``symbol`` (or the fault site in ``trace``) reaches that **no test covers**. Deterministic."""
+    ``symbol`` (or the fault site in ``trace``) reaches that **no test covers**. Deterministic.
+
+    Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to answer across every
+    declared repository: each impacted symbol then names its repository, and ``uncovered_elsewhere``
+    is the headline — a change reaching a *different* service that has no test for it."""
     if not symbol and not trace.strip():
         return {"error": "provide a symbol name or a stack trace"}
+    if bool(repo_path) == bool(repos):
+        return {"error": "provide exactly one of repo_path or repos"}
 
     def run(store: Any, _repo: Any) -> dict[str, Any]:
         from orchestrator.sdlc.coverage import (
@@ -651,18 +728,33 @@ def regression_gaps(repo_path: str, symbol: str = "", trace: str = "") -> dict[s
         if not target_id:
             return {"target": symbol or "(trace)", "found": False}
         plan = build_regression_plan(store, target_id)
-        return {
+        out: dict[str, Any] = {
             "target": plan.target,
             "found": True,
             "target_covered": plan.target_covered,
             "call_graph_available": plan.call_graph_available,
             "impacted_count": len(plan.impacted),
-            "uncovered": [{"name": i.name, "where": i.where} for i in plan.impacted if not i.covered],
+            "uncovered": [
+                {"name": i.name, "where": i.where, **({"repo": i.repo} if repos else {})}
+                for i in plan.impacted
+                if not i.covered
+            ],
             "covering_tests": plan.covering_tests,
             "truncated": plan.truncated,
             "markdown": render_regression_plan_md(plan),
         }
+        if repos:
+            home = _repo_of_node(store.node(target_id)) if store.node(target_id) else ""
+            out["target_repo"] = home
+            out["uncovered_elsewhere"] = [
+                {"name": i.name, "where": i.where, "repo": i.repo}
+                for i in plan.impacted
+                if not i.covered and i.repo and i.repo != home
+            ]
+        return out
 
+    if repos:
+        return _in_repos_store(repos, run)
     return _in_repo_store(repo_path, run)
 
 
@@ -811,12 +903,19 @@ def sdlc_approve(
     return _in_repo(repo_path, run, hint=False)
 
 
-def docs_for(repo_path: str, symbol: str = "") -> dict[str, Any]:
+def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
     """Which docs describe the code — the doc-ingestion surface. With a ``symbol``, the doc pages
     that **MENTION** it (grounded to the repo's docs). Without one, a doc-coverage summary: how many
     docs are ingested, how many symbols they name, and the top **potential drift** (doc claims the
     graph can't resolve — renamed/removed code). Deterministic (no LLM). ``repo_path`` is a local
-    path or a git URL."""
+    path or a git URL.
+
+    Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to ask every declared
+    repository — **each on its own**, keyed by repository. Docs are not merged across repos: a
+    document describes the repository it lives in, and binding one repo's docs to another's
+    symbols by name would be a false edge. Each entry carries its own ``reproducible`` flag."""
+    if bool(repo_path) == bool(repos):
+        return {"error": "provide exactly one of repo_path or repos"}
 
     def run(repo: Any) -> dict[str, Any]:
         from orchestrator.knowledge.current_state import load_current_state
@@ -868,7 +967,39 @@ def docs_for(repo_path: str, symbol: str = "") -> dict[str, Any]:
             "markdown": "\n".join(lines),
         }
 
+    if repos:
+        return _per_repo(repos, run)
     return _in_repo(repo_path, run)
+
+
+def _per_repo(repos: str, fn: Callable[[Any], dict[str, Any]]) -> dict[str, Any]:
+    """Run ``fn(root)`` for every repository a ``repos.yaml`` declares, keyed by repository —
+    for questions that do not merge (docs describe their own repo). Each entry says whether
+    that checkout is reproducible, the way a merged graph's ``standing`` does for all of them."""
+    from orchestrator.pkg.persistence import repo_state
+    from orchestrator.pkg.repos import RepoConfigError, load_repo_config
+
+    try:
+        repo_set = load_repo_config(repos)
+    except RepoConfigError as exc:
+        return {"error": str(exc)}
+    out: dict[str, Any] = {}
+    for key, root in repo_set.roots:
+        sha, dirty = repo_state(root)
+        entry = fn(root)
+        entry["reproducible"] = sha is not None and not dirty
+        out[key] = entry
+    return {
+        "repos": out,
+        "standing": {
+            "repos": [k for k, _ in repo_set.roots],
+            "reproducible": all(v["reproducible"] for v in out.values()),
+            "untrusted": [k for k, v in out.items() if not v["reproducible"]],
+        },
+        "markdown": "\n\n".join(
+            f"## {key}\n\n{v.get('markdown') or v.get('note') or ''}" for key, v in out.items()
+        ),
+    }
 
 
 def _blast_markdown(matches: list[dict[str, Any]]) -> str:
@@ -965,8 +1096,12 @@ async def sdlc_run_result(sdlc_id: str) -> dict[str, Any]:
 _BANK_ENTRY_PAGES = ("README.md", "architecture.md", "domain-model.md")
 
 
-def understand_repo(
-    repo_path: str, check: bool = False, refresh: bool = False, out: str | None = None
+async def understand_repo(
+    repo_path: str,
+    check: bool = False,
+    refresh: bool = False,
+    out: str | None = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Build a repo's ``episteme/`` knowledge base — or, with ``check=true``, verify the
     committed one still matches the code. **Deterministic, no LLM, no credentials**: the
@@ -993,9 +1128,12 @@ def understand_repo(
             "pass a local repo_path, or out=<absolute directory> to keep the bank.",
         }
 
+    progress = Reporter(ctx, phases=("extract", "understand"))
+    await progress.step(1, 2, "[extract] extracting the graph and rendering the pages")
+
     def run(repo: Any) -> dict[str, Any]:
         if check:
-            report = check_memory_bank(repo, out_dir=out_dir, refresh=refresh)
+            report = check_memory_bank(repo, out_dir=out_dir, refresh=refresh, log=progress.as_log())
             return {
                 "ok": report.ok,
                 "absent": report.absent,
@@ -1007,7 +1145,7 @@ def understand_repo(
                 "dirty": report.dirty,
                 "summary": report.summary_line(),
             }
-        result = build_memory_bank(repo, out_dir=out_dir, refresh=refresh)
+        result = build_memory_bank(repo, out_dir=out_dir, refresh=refresh, log=progress.as_log())
         files = list(result.get("files") or [])
         return {
             "dir": result["dir"],
@@ -1184,6 +1322,7 @@ async def sdlc_address_review(
     bot_login: str | None = None,
     max_refines: int = 3,
     confirm: bool = False,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Address the human review comments on an open PR and **push a fix to its branch**:
     clone the repo, check the PR out, feed the comments to codegen, re-drive the change to
@@ -1209,10 +1348,13 @@ async def sdlc_address_review(
     )
     from orchestrator.sdlc.worker import build_deps
 
+    progress = Reporter(ctx, phases=("checkout", "respond", "done"))
+    await progress.step(1, 3, f"[checkout] cloning and checking out {pr}")
     try:
         workdir, branch = await checkout_pr_worktree(repo_url, pr)
     except PRCheckoutError as exc:
         return {"error": str(exc), "step": exc.step}
+    await progress.step(2, 3, f"[respond] addressing review comments on {branch}")
     result = await respond_to_pr_feedback(
         build_deps(),
         pr_url=pr,
@@ -1220,6 +1362,9 @@ async def sdlc_address_review(
         path=str(workdir),
         bot_login=bot_login,
         max_refines=max_refines,
+    )
+    await progress.step(
+        3, 3, f"[done] {result.detail or ('pushed' if result.addressed else 'nothing to push')}"
     )
     return {"pr": pr, "branch": branch, **result.__dict__}
 
@@ -1257,6 +1402,7 @@ async def sdlc_remediate(
     min_severity: str = "warning",
     live: bool = False,
     confirm: bool = False,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Turn an infodrift drift report into remediation feature runs, one per material
     finding at or above ``min_severity`` (``warning`` | ``critical``). ``report_path`` is
@@ -1291,7 +1437,13 @@ async def sdlc_remediate(
         return {"error": f"could not read the mapping store at {mappings_path!r}: {exc}"}
     entity_iris = infer_entity_iris(report, mappings)
 
+    progress = Reporter(ctx)
+    done = 0
+
     async def runner(task: RemediationTask) -> str:
+        nonlocal done
+        done += 1
+        await progress.step(done, done, f"[remediate #{done}] {task.spec.get('title', task.entity_key)}")
         result = await run_feature(source="spine://remediation", spec=task.spec, repo=repo, live=live)
         return result.branch
 
@@ -1328,13 +1480,16 @@ def _finding_dict(f: Any) -> dict[str, Any]:
 
 
 async def audit_repo(
-    repo_path: str, focus: str = "general code quality, correctness risks, and security"
+    repo_path: str,
+    focus: str = "general code quality, correctness risks, and security",
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """A codebase-auditor persona reads the repo — the graph plus file reads, **no writes**
     — and reports findings anchored to a real ``file:line`` (claims that resolve to nothing
     are listed separately as ``unresolved``). **Spends tokens**: needs a tool-calling model
     (``ORCHESTRATOR_INTAKE_MODEL``). ``repo_path`` is a local path or a git URL; ``focus``
-    says what to look for."""
+    says what to look for. Progress is start and done only — the audit loop has no
+    per-step hook."""
     from orchestrator.core.env import load_local_env
     from orchestrator.sdlc.codegen import resolve_codegen_model
 
@@ -1350,7 +1505,10 @@ async def audit_repo(
         from orchestrator.core.llm import LiteLLMClient
         from orchestrator.personas import render_findings_markdown, run_audit
 
+        progress = Reporter(ctx, phases=("audit", "done"))
+        await progress.step(1, 2, f"[audit] reading the repo with focus: {focus}")
         result = await run_audit(repo, llm=LiteLLMClient(), model=model, focus=focus)
+        await progress.step(2, 2, f"[done] {len(result.findings)} finding(s); {result.stopped_reason}")
         return {
             "summary": result.summary,
             "findings": [_finding_dict(f) for f in result.findings],
@@ -1662,17 +1820,23 @@ def tool_scope(name: str) -> str:
     return _TIER[name].scope
 
 
-def scope_denial(name: str, scope: str) -> dict[str, Any] | None:
-    """``None`` when the current caller may call ``name``; otherwise the error to return.
-
-    The caller is the verified bearer token the SDK put in its auth context for this
-    request. No token — stdio, or an unauthenticated loopback bind — means no check.
-    """
+def current_token() -> Any:
+    """The verified bearer token the SDK put in its auth context for this request, or
+    ``None`` — stdio, an unauthenticated loopback bind, or no ``mcp`` extra at all."""
     try:
         from mcp.server.auth.middleware.auth_context import get_access_token
     except ImportError:  # pragma: no cover - without the `mcp` extra nothing is served
         return None
-    token = get_access_token()
+    return get_access_token()
+
+
+def scope_denial(name: str, scope: str, token: Any = None) -> dict[str, Any] | None:
+    """``None`` when the current caller may call ``name``; otherwise the error to return.
+
+    The caller is the verified bearer token for this request (looked up when not given).
+    No token — stdio, or an unauthenticated loopback bind — means no check.
+    """
+    token = token if token is not None else current_token()
     if token is None or scope in token.scopes:
         return None
     return {
@@ -1688,14 +1852,47 @@ def _scoped(fn: Callable[..., Any], scope: str) -> Callable[..., Any]:
     signature, annotations and docstring across, which is what the SDK builds the input
     schema and description from — a guarded tool advertises exactly what the bare one did."""
 
+    from orchestrator.plugin.outputs import OUTPUTS
+
     @functools.wraps(fn)
     async def guarded(*args: Any, **kwargs: Any) -> Any:
-        denied = scope_denial(fn.__name__, scope)
+        from orchestrator.plugin.audit import AUDITED_SCOPES, record_invocation
+
+        token = current_token()
+        denied = scope_denial(fn.__name__, scope, token)
         if denied is not None:
+            # Every denial is recorded: a token probing above its tier is worth knowing about.
+            await record_invocation(
+                token=token,
+                tool=fn.__name__,
+                scope=scope,
+                arguments=kwargs,
+                outcome="denied",
+                denied_scope=scope,
+            )
             return denied
         out = fn(*args, **kwargs)
-        return await out if inspect.isawaitable(out) else out
+        result = await out if inspect.isawaitable(out) else out
+        if token is not None and scope in AUDITED_SCOPES:
+            outcome = "error" if isinstance(result, dict) and "error" in result else "ok"
+            await record_invocation(
+                token=token, tool=fn.__name__, scope=scope, arguments=kwargs, outcome=outcome
+            )
+        return result
 
+    # The tool's declared output type rides on the registered function, so the SDK derives
+    # an output schema from it and validates the result — while the tool itself keeps its
+    # plain `dict` signature. A tool without a type does not register, like one without a tier.
+    try:
+        out_type = OUTPUTS[fn.__name__]
+    except KeyError as exc:
+        raise RuntimeError(
+            f"tool {fn.__name__!r} has no output type in OUTPUTS — say what it returns"
+        ) from exc
+    guarded.__annotations__ = {**fn.__annotations__, "return": out_type}
+    # The SDK takes the return type from `inspect.signature`, which follows `__wrapped__` to
+    # the tool's own `dict[str, Any]` — so the wrapper carries an explicit signature.
+    guarded.__signature__ = inspect.signature(fn).replace(return_annotation=out_type)  # type: ignore[attr-defined]
     return guarded
 
 
@@ -1733,13 +1930,40 @@ def _register_tools(server: Any) -> Any:
     return server
 
 
+def _register_prompts(server: Any) -> Any:
+    """The skill's workflow as MCP prompts — ``plugin.prompts`` says why they live there."""
+    from orchestrator.plugin.prompts import _PROMPTS
+
+    for name, fn in _PROMPTS:
+        first_line = (fn.__doc__ or "").strip().splitlines()[0] if fn.__doc__ else None
+        server.prompt(name=name, description=first_line)(fn)
+    return server
+
+
+def _register_resources(server: Any) -> Any:
+    """The committed bank, the build documents and the state report as MCP resources —
+    ``plugin.resources`` says why they address the default repository."""
+    from orchestrator.plugin.resources import _RESOURCES
+
+    for spec in _RESOURCES:
+        server.resource(spec.uri, name=spec.name, description=spec.description, mime_type="text/markdown")(
+            spec.fn
+        )
+    return server
+
+
+def _register_all(server: Any) -> Any:
+    return _register_resources(_register_prompts(_register_tools(server)))
+
+
 def build_server() -> Any:
-    """Build the FastMCP server with the orchestrator's plugin tools registered.
+    """Build the FastMCP server with the orchestrator's plugin tools, prompts and
+    resources registered.
 
     Stdio transport (Phase A): the local plugin a desktop host launches as a
     subprocess. For the remote HTTP transport see ``build_http_server``.
     """
-    return _register_tools(_import_server_class()("synaptixs-spine"))
+    return _register_all(_import_server_class()("synaptixs-spine"))
 
 
 @dataclass(frozen=True)
@@ -1791,7 +2015,7 @@ def build_http_server(
     # here (where the refusal above lives) rather than at the call site.
     server = server_cls("synaptixs-spine", auth=auth_settings, token_verifier=verifier)
     return HttpServer(
-        server=_register_tools(server),
+        server=_register_all(server),
         transport={
             "host": host,
             "port": port,

@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/registry/api/audit.py`](../../src/orchestrator/registry/api/audit.py)
 
-3 types · 9 functions · python
+4 types · 10 functions · python
 
 ## Changing this safely
 
@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_iso`](../../src/orchestrator/registry/api/audit.py#L58) — reaches **5** symbols · **no test path visible**
-- [`_budget_cap_usd`](../../src/orchestrator/registry/api/audit.py#L51) — reaches **3** symbols · **no test path visible**
-- [`AuditRow`](../../src/orchestrator/registry/api/audit.py#L65) — reaches **2** symbols · **no test path visible**
-- [`_fetch_run`](../../src/orchestrator/registry/api/audit.py#L126) — reaches **2** symbols · **no test path visible**
-- [`_governance`](../../src/orchestrator/registry/api/audit.py#L147) — reaches **2** symbols · **no test path visible**
-- [`AuditPage`](../../src/orchestrator/registry/api/audit.py#L77) — reaches **1** symbol · **no test path visible**
-- [`GovernanceResponse`](../../src/orchestrator/registry/api/audit.py#L194) — reaches **1** symbol · **no test path visible**
-- [`_derive_state`](../../src/orchestrator/registry/api/audit.py#L139) — reaches **1** symbol · **no test path visible**
+- [`_iso`](../../src/orchestrator/registry/api/audit.py#L61) — reaches **6** symbols · **no test path visible**
+- [`AuditRow`](../../src/orchestrator/registry/api/audit.py#L68) — reaches **3** symbols · **no test path visible**
+- [`_budget_cap_usd`](../../src/orchestrator/registry/api/audit.py#L54) — reaches **3** symbols · **no test path visible**
+- [`_fetch_run`](../../src/orchestrator/registry/api/audit.py#L165) — reaches **2** symbols · **no test path visible**
+- [`_governance`](../../src/orchestrator/registry/api/audit.py#L186) — reaches **2** symbols · **no test path visible**
+- [`_to_row`](../../src/orchestrator/registry/api/audit.py#L122) — reaches **2** symbols · **no test path visible**
+- [`AuditPage`](../../src/orchestrator/registry/api/audit.py#L80) — reaches **1** symbol · **no test path visible**
+- [`GovernanceResponse`](../../src/orchestrator/registry/api/audit.py#L233) — reaches **1** symbol · **no test path visible**
 
 _9 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -32,91 +32,104 @@ _9 of the symbols other code depends on here have no test path the graph can see
 
 ### `AuditPage`
 
-[`src/orchestrator/registry/api/audit.py:77`](../../src/orchestrator/registry/api/audit.py#L77)
+[`src/orchestrator/registry/api/audit.py:80`](../../src/orchestrator/registry/api/audit.py#L80)
 
 - **Extends** (1): `pydantic.BaseModel`
-- **Called by** (1): [`query_audit`](../../src/orchestrator/registry/api/audit.py#L96)
+- **Called by** (1): [`query_audit`](../../src/orchestrator/registry/api/audit.py#L135)
 - **Fields**: `items`, `model_config`
 
 ### `AuditRow`
 
-[`src/orchestrator/registry/api/audit.py:65`](../../src/orchestrator/registry/api/audit.py#L65)
+[`src/orchestrator/registry/api/audit.py:68`](../../src/orchestrator/registry/api/audit.py#L68)
 
 - **Extends** (1): `pydantic.BaseModel`
-- **Called by** (1): [`_to_row`](../../src/orchestrator/registry/api/audit.py#L83)
+- **Called by** (1): [`_to_row`](../../src/orchestrator/registry/api/audit.py#L122)
 - **Fields**: `action`, `actor`, `after`, `model_config`, `resource_id`, `resource_type`, `timestamp`, `trace_id`
+
+### `AuditWrite`
+
+[`src/orchestrator/registry/api/audit.py:86`](../../src/orchestrator/registry/api/audit.py#L86)
+
+- **Extends** (1): `pydantic.BaseModel`
+- **Fields**: `action`, `after`, `before`, `model_config`, `resource_id`, `resource_type`, `trace_id`
 
 ### `GovernanceResponse`
 
-[`src/orchestrator/registry/api/audit.py:194`](../../src/orchestrator/registry/api/audit.py#L194)
+[`src/orchestrator/registry/api/audit.py:233`](../../src/orchestrator/registry/api/audit.py#L233)
 
 - **Extends** (1): `pydantic.BaseModel`
-- **Called by** (1): [`run_governance`](../../src/orchestrator/registry/api/audit.py#L205)
+- **Called by** (1): [`run_governance`](../../src/orchestrator/registry/api/audit.py#L244)
 - **Fields**: `approvals`, `model_config`, `note`, `policy`, `run_id`, `spend`
 
 ## Functions
 
 ### `_budget_cap_usd`
 
-[`src/orchestrator/registry/api/audit.py:51`](../../src/orchestrator/registry/api/audit.py#L51)
+[`src/orchestrator/registry/api/audit.py:54`](../../src/orchestrator/registry/api/audit.py#L54)
 
-- **Called by** (1): [`_governance`](../../src/orchestrator/registry/api/audit.py#L147)
+- **Called by** (1): [`_governance`](../../src/orchestrator/registry/api/audit.py#L186)
 - **Calls** (1): `getenv`
 
 ### `_derive_state`
 
-[`src/orchestrator/registry/api/audit.py:139`](../../src/orchestrator/registry/api/audit.py#L139)
+[`src/orchestrator/registry/api/audit.py:178`](../../src/orchestrator/registry/api/audit.py#L178)
 
-- **Called by** (1): [`export_run`](../../src/orchestrator/registry/api/audit.py#L216)
+- **Called by** (1): [`export_run`](../../src/orchestrator/registry/api/audit.py#L255)
 
 ### `_fetch_run`
 
-[`src/orchestrator/registry/api/audit.py:126`](../../src/orchestrator/registry/api/audit.py#L126)
+[`src/orchestrator/registry/api/audit.py:165`](../../src/orchestrator/registry/api/audit.py#L165)
 
-- **Called by** (2): [`export_run`](../../src/orchestrator/registry/api/audit.py#L216), [`run_governance`](../../src/orchestrator/registry/api/audit.py#L205)
+- **Called by** (2): [`export_run`](../../src/orchestrator/registry/api/audit.py#L255), [`run_governance`](../../src/orchestrator/registry/api/audit.py#L244)
 - **Calls** (2): `sqlalchemy.or_`, `sqlalchemy.select`
 
 ### `_governance`
 
-[`src/orchestrator/registry/api/audit.py:147`](../../src/orchestrator/registry/api/audit.py#L147)
+[`src/orchestrator/registry/api/audit.py:186`](../../src/orchestrator/registry/api/audit.py#L186)
 
-- **Called by** (2): [`export_run`](../../src/orchestrator/registry/api/audit.py#L216), [`run_governance`](../../src/orchestrator/registry/api/audit.py#L205)
-- **Calls** (3): [`_budget_cap_usd`](../../src/orchestrator/registry/api/audit.py#L51), [`_iso`](../../src/orchestrator/registry/api/audit.py#L58), `suppress`
+- **Called by** (2): [`export_run`](../../src/orchestrator/registry/api/audit.py#L255), [`run_governance`](../../src/orchestrator/registry/api/audit.py#L244)
+- **Calls** (3): [`_budget_cap_usd`](../../src/orchestrator/registry/api/audit.py#L54), [`_iso`](../../src/orchestrator/registry/api/audit.py#L61), `suppress`
 
 ### `_iso`
 
-[`src/orchestrator/registry/api/audit.py:58`](../../src/orchestrator/registry/api/audit.py#L58)
+[`src/orchestrator/registry/api/audit.py:61`](../../src/orchestrator/registry/api/audit.py#L61)
 
-- **Called by** (3): [`_governance`](../../src/orchestrator/registry/api/audit.py#L147), [`_to_row`](../../src/orchestrator/registry/api/audit.py#L83), [`export_run`](../../src/orchestrator/registry/api/audit.py#L216)
+- **Called by** (3): [`_governance`](../../src/orchestrator/registry/api/audit.py#L186), [`_to_row`](../../src/orchestrator/registry/api/audit.py#L122), [`export_run`](../../src/orchestrator/registry/api/audit.py#L255)
 
 ### `_to_row`
 
-[`src/orchestrator/registry/api/audit.py:83`](../../src/orchestrator/registry/api/audit.py#L83)
+[`src/orchestrator/registry/api/audit.py:122`](../../src/orchestrator/registry/api/audit.py#L122)
 
-- **Called by** (1): [`query_audit`](../../src/orchestrator/registry/api/audit.py#L96)
-- **Calls** (2): [`AuditRow`](../../src/orchestrator/registry/api/audit.py#L65), [`_iso`](../../src/orchestrator/registry/api/audit.py#L58)
+- **Called by** (2): [`query_audit`](../../src/orchestrator/registry/api/audit.py#L135), [`record_audit`](../../src/orchestrator/registry/api/audit.py#L102)
+- **Calls** (2): [`AuditRow`](../../src/orchestrator/registry/api/audit.py#L68), [`_iso`](../../src/orchestrator/registry/api/audit.py#L61)
 
 ### `export_run`
 
-[`src/orchestrator/registry/api/audit.py:216`](../../src/orchestrator/registry/api/audit.py#L216)
+[`src/orchestrator/registry/api/audit.py:255`](../../src/orchestrator/registry/api/audit.py#L255)
 
-- **Calls** (7): [`_derive_state`](../../src/orchestrator/registry/api/audit.py#L139), [`_fetch_run`](../../src/orchestrator/registry/api/audit.py#L126), [`_governance`](../../src/orchestrator/registry/api/audit.py#L147), [`_iso`](../../src/orchestrator/registry/api/audit.py#L58), `dumps`, `fastapi.HTTPException`, `fastapi.Response`
+- **Calls** (7): [`_derive_state`](../../src/orchestrator/registry/api/audit.py#L178), [`_fetch_run`](../../src/orchestrator/registry/api/audit.py#L165), [`_governance`](../../src/orchestrator/registry/api/audit.py#L186), [`_iso`](../../src/orchestrator/registry/api/audit.py#L61), `dumps`, `fastapi.HTTPException`, `fastapi.Response`
 
 ### `query_audit`
 
-[`src/orchestrator/registry/api/audit.py:96`](../../src/orchestrator/registry/api/audit.py#L96)
+[`src/orchestrator/registry/api/audit.py:135`](../../src/orchestrator/registry/api/audit.py#L135)
 
-- **Calls** (4): [`AuditPage`](../../src/orchestrator/registry/api/audit.py#L77), [`_to_row`](../../src/orchestrator/registry/api/audit.py#L83), `sqlalchemy.or_`, `sqlalchemy.select`
+- **Calls** (4): [`AuditPage`](../../src/orchestrator/registry/api/audit.py#L80), [`_to_row`](../../src/orchestrator/registry/api/audit.py#L122), `sqlalchemy.or_`, `sqlalchemy.select`
+
+### `record_audit`
+
+[`src/orchestrator/registry/api/audit.py:102`](../../src/orchestrator/registry/api/audit.py#L102)
+
+- **Calls** (2): [`AuditLogRepo`](../../src/orchestrator/registry/repositories.py#L161), [`_to_row`](../../src/orchestrator/registry/api/audit.py#L122)
 
 ### `run_governance`
 
-[`src/orchestrator/registry/api/audit.py:205`](../../src/orchestrator/registry/api/audit.py#L205)
+[`src/orchestrator/registry/api/audit.py:244`](../../src/orchestrator/registry/api/audit.py#L244)
 
-- **Calls** (4): [`GovernanceResponse`](../../src/orchestrator/registry/api/audit.py#L194), [`_fetch_run`](../../src/orchestrator/registry/api/audit.py#L126), [`_governance`](../../src/orchestrator/registry/api/audit.py#L147), `fastapi.HTTPException`
+- **Calls** (4): [`GovernanceResponse`](../../src/orchestrator/registry/api/audit.py#L233), [`_fetch_run`](../../src/orchestrator/registry/api/audit.py#L165), [`_governance`](../../src/orchestrator/registry/api/audit.py#L186), `fastapi.HTTPException`
 
 ## Imports
 
-`__future__.annotations`, `contextlib`, `fastapi.APIRouter`, `fastapi.HTTPException`, `fastapi.Response`, `fastapi.status`, `json`, [`orchestrator.registry.api.deps`](../../src/orchestrator/registry/api/deps.py#L1), [`orchestrator.registry.db.models`](../../src/orchestrator/registry/db/models.py#L1), `os`, `pydantic.BaseModel`, `pydantic.ConfigDict`, `sqlalchemy.or_`, `sqlalchemy.select`, `typing.Any`
+`__future__.annotations`, `contextlib`, `fastapi.APIRouter`, `fastapi.HTTPException`, `fastapi.Response`, `fastapi.status`, `json`, [`orchestrator.registry.api.deps`](../../src/orchestrator/registry/api/deps.py#L1), [`orchestrator.registry.db.models`](../../src/orchestrator/registry/db/models.py#L1), [`orchestrator.registry.repositories`](../../src/orchestrator/registry/repositories.py#L1), `os`, `pydantic.BaseModel`, `pydantic.ConfigDict`, `pydantic.Field`, `sqlalchemy.or_`, `sqlalchemy.select`, `typing.Any`
 
 ## Imported by
 

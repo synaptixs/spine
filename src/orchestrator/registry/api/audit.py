@@ -5,6 +5,8 @@ All three read the append-only ``audit_log`` — the single source of truth:
 - ``GET /v1/audit``                    — C1: filterable audit-log query.
 - ``GET /v1/audit/{run_id}/governance`` — C2: per-run spend vs cap + policy/approval decisions.
 - ``GET /v1/audit/{run_id}/export``     — C3: the run's full timeline as a downloadable bundle.
+- ``POST /v1/audit``                   — an authenticated caller records its own action (the MCP
+  plugin's per-principal invocation audit; the actor is the principal, never the body).
 
 Honesty notes baked into the responses: the *agentic tool-call* allow/deny policy
 is trace/OTel-only (never persisted), so governance surfaces only what the audit
@@ -19,11 +21,12 @@ import os
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Response, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import or_, select
 
-from orchestrator.registry.api.deps import PrincipalDep, SessionDep
+from orchestrator.registry.api.deps import PrincipalDep, SessionDep, TraceIdDep
 from orchestrator.registry.db.models import AuditLogRow
+from orchestrator.registry.repositories import AuditLogRepo
 
 router = APIRouter(prefix="/v1/audit", tags=["audit"])
 
@@ -78,6 +81,42 @@ class AuditPage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     items: list[AuditRow]
+
+
+class AuditWrite(BaseModel):
+    """What a caller may record about its own action. ``actor`` and the tenant are not here on
+    purpose: they come from the authenticated principal, so a caller cannot write history as
+    someone else."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    action: str = Field(min_length=1, max_length=128)
+    resource_type: str = Field(min_length=1, max_length=64)
+    resource_id: str = Field(min_length=1, max_length=256)
+    before: dict[str, Any] | None = None
+    after: dict[str, Any] | None = None
+    trace_id: str | None = Field(default=None, max_length=128)
+
+
+@router.post("", response_model=AuditRow, status_code=status.HTTP_201_CREATED)
+async def record_audit(
+    body: AuditWrite, session: SessionDep, principal: PrincipalDep, request_trace: TraceIdDep
+) -> AuditRow:
+    """Append one row as the caller. The MCP plugin uses this to record, per principal, every
+    run-scope tool invocation and every scope denial on its HTTP transport — the plugin
+    process keeps no database credentials, so the registry is the one writer."""
+    row = await AuditLogRepo(session).write(
+        actor=principal.id,
+        action=body.action,
+        resource_type=body.resource_type,
+        resource_id=body.resource_id,
+        before=body.before,
+        after=body.after,
+        trace_id=body.trace_id or request_trace,
+        tenant_id=principal.tenant_id,
+    )
+    await session.commit()
+    return _to_row(row)
 
 
 def _to_row(r: AuditLogRow) -> AuditRow:

@@ -1230,7 +1230,9 @@ Scopes follow the tool tiers and are checked **per call**: `spine:read` (compreh
 a run), `spine:plan` (`sdlc_plan`, `sdlc_approve`), `spine:run` (anything that spends money or
 writes where it cannot be taken back). An IdP-issued token needs the scope of the tier it calls;
 a shared-secret token carries all three unless `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it —
-`spine:read` makes it read-only. The legacy `sdlc` scope reads as all three for one release.
+`spine:read` makes it read-only. (The pre-3.31 `sdlc` scope is retired; grant the three scopes.)
+Every run-scope call and every scope denial over HTTP is recorded against the token's principal
+in the registry's audit log (`POST /v1/audit`; read it back with `resource_type=mcp_tool`).
 
 Destructive tools stay gated regardless of auth: `sdlc_feature(live=true)` and
 `sdlc_start_run(create_jira=true)` both need an explicit `confirm=true`.

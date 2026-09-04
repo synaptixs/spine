@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.plugin`** is one of 53 areas in this repo, in the `orchestrator` zone. It holds 5 modules — 6 types and 66 functions. No other area imports it, and it draws on 11 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
+**`orchestrator.plugin`** is one of 53 areas in this repo, in the `orchestrator` zone. It holds 10 modules — 69 types and 89 functions. No other area imports it, and it draws on 11 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
 
 ```mermaid
 flowchart LR
@@ -34,8 +34,13 @@ _Showing 8 of 11 neighbouring areas._
 
 - [`orchestrator.plugin`](../../src/orchestrator/plugin/__init__.py#L1)
 - [`orchestrator.plugin.__main__`](../../src/orchestrator/plugin/__main__.py#L1)
+- [`orchestrator.plugin.audit`](../../src/orchestrator/plugin/audit.py#L1)
 - [`orchestrator.plugin.auth`](../../src/orchestrator/plugin/auth.py#L1)
+- [`orchestrator.plugin.outputs`](../modules/orchestrator.plugin.outputs.md)
+- [`orchestrator.plugin.progress`](../../src/orchestrator/plugin/progress.py#L1)
+- [`orchestrator.plugin.prompts`](../../src/orchestrator/plugin/prompts.py#L1)
 - [`orchestrator.plugin.registry_client`](../../src/orchestrator/plugin/registry_client.py#L1)
+- [`orchestrator.plugin.resources`](../../src/orchestrator/plugin/resources.py#L1)
 - [`orchestrator.plugin.server`](../modules/orchestrator.plugin.server.md)
 
 ## Depends on

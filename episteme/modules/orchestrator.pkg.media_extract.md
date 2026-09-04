@@ -125,4 +125,4 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.cli.media`](../../src/orchestrator/cli/media.py#L1), [`orchestrator.pkg.media_asr`](orchestrator.pkg.media_asr.md), [`tests.pkg.test_media_extract`](../../tests/pkg/test_media_extract.py#L1)
+[`orchestrator.cli.media`](../../src/orchestrator/cli/media.py#L1), [`orchestrator.pkg.media_asr`](../../src/orchestrator/pkg/media_asr.py#L1), [`tests.pkg.test_media_extract`](../../tests/pkg/test_media_extract.py#L1)

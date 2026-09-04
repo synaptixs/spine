@@ -4,6 +4,70 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.32.0 — the plugin speaks the whole protocol
+
+### Removed
+
+- **The `sdlc` scope alias.** 3.31.0 accepted the pre-tier `sdlc` scope as all three
+  tier scopes for one release, with a warning. That release has shipped. A bearer
+  token carrying only `sdlc` now has no tier scope and fails the server's
+  `spine:read` floor; grant `spine:read spine:plan spine:run` (or the subset the
+  token should have). `ORCHESTRATOR_MCP_REQUIRED_SCOPES` is taken verbatim.
+
+### Added
+
+- **Every MCP tool advertises what it returns.** A type per tool
+  (`plugin/outputs.py`) with no required key, attached to the registered function
+  so the SDK derives an output schema and validates the result while the tool
+  keeps returning a plain dict. A host reads `found`, `matches[].where`,
+  `uncovered_elsewhere` before it calls. The types allow extras — pydantic would
+  otherwise drop an undeclared key from the structured result silently — and the
+  test suite's drift guard wraps every tool and fails on any returned key its type
+  does not declare. A tool without a type does not register.
+- **Per-principal audit on the MCP server's HTTP transport.** Every run-scope call
+  and every scope denial is recorded against the token's principal in the
+  registry's audit log through a new `POST /v1/audit` (the actor and tenant come
+  from the authenticated principal, never from the body): the principal, tool,
+  scope, the argument *names* and a digest of the values — never the values — and
+  the outcome. An unreachable registry degrades to a log line; the audit never
+  fails the call. Stdio records nothing: a local subprocess acts for one user.
+
+- **Every comprehension tool that can answer across repositories now does.**
+  `explain_symbol`, `regression_gaps`, `localize` and `docs_for` take `repos=` (a
+  `.spine/repos.yaml`) like `blast_radius` and `investigate`, with the same
+  contract and `standing` block. `regression_gaps` reports `uncovered_elsewhere` —
+  a change reaching a *different* service nothing tests — which needed the plan
+  to follow the one hop that crosses a service boundary (handler → endpoint →
+  consumer); the endpoint itself is the wire, not an item. `localize` says which
+  repository each frame landed in, and a frame two services could own is reported
+  as ambiguous with its candidates instead of the first match winning silently.
+  `docs_for` answers each repository on its own rather than merging, because a
+  document describes the repository it lives in.
+
+- **The long MCP tools report progress.** `sdlc_feature` per stage in the runner's
+  own order (spec, layout, design, implement, tests, refine, judge, PR),
+  `sdlc_remediate` per task, `sdlc_address_review` at checkout / respond / done,
+  `understand_repo` at extract / write, `audit_repo` at start / done — whenever the
+  host sends a progress token; a client that sends none sees what it saw before.
+  The phases are the engines' existing log prefixes mapped to ordered steps
+  (`plugin/progress.py`), so the CLI and the plugin describe the same stages; the
+  bar is monotonic, and an unknown line rides on the current step as its message.
+  The tools' schemas are unchanged: the SDK context arrives through an optional
+  parameter the scope wrapper passes through and the schema never shows.
+
+- **MCP prompts and resources — the workflow and the documents, for hosts that are
+  not Claude Code.** Five prompts carry the `understand-codebase` skill's "which
+  tool, in which order" through the protocol (`orient`, `investigate-ticket`,
+  `triage-bug`, `plan-then-approve`, `whats-waiting-on-me`), so Codex, Claude
+  Desktop and claude.ai get the same ordered guidance a Claude Code skill gives; the
+  prompts module is the source, because the skill directory is not in the wheel,
+  and a test holds the skill to the same tools. Five `spine://` resources make the
+  committed `episteme/` bank, the build documents under `.spine/plans` (with their
+  approval state) and the current-state report readable by URI and attachable as
+  context. Resources address the default repository — the working directory, or
+  `SPINE_REPO_ROOT` — because a URI segment cannot carry a path; the tools keep
+  taking `repo_path`.
+
 ## 3.31.0 — the plugin grows from twenty tools to thirty-two, and every one says what it can cost
 
 ### Added

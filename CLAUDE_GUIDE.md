@@ -230,7 +230,72 @@ At a glance:
 > `sdlc_decide_gate`, `registry_decide`). A token missing the tier's scope gets `error` + `needs`
 > + `has` back, not a 403. A static token carries all three unless
 > `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it (`spine:read` = a read-only token); the legacy
-> `sdlc` scope still reads as all three for one release. Over stdio there is no token and no check.
+> `sdlc` scope is retired — grant the three. Over stdio there is no token and no check.
+
+### Prompts and resources — the workflow and the documents, through the protocol
+
+Two things the plugin exposes besides tools, for any MCP host:
+
+**Prompts** carry the *which tool, in which order* workflow the `understand-codebase` skill
+describes, so a host that has no skills (Codex, Claude Desktop, claude.ai) gets the same ordered
+guidance. A host lists them and fills the arguments in its own UI.
+
+| Prompt | Arguments | Walks the host through |
+|---|---|---|
+| `orient` | `repo_path` (optional) | `map_repo` → `read_memory_bank` |
+| `investigate-ticket` | `title`, `problem` | `investigate` → `blast_radius` → `regression_gaps` — change nothing |
+| `triage-bug` | `bug` | `localize` → `regression_gaps` → `root_cause` — analysis only |
+| `plan-then-approve` | `title`, `summary`, `criteria` | `sdlc_plan` → a **human** reads → `sdlc_approve` → only then `sdlc_feature` |
+| `whats-waiting-on-me` | — | `registry_approvals` → `registry_trace` → `registry_decide` (a rejection ends the run) |
+
+**Resources** are the documents Spine has already written, readable by URI and attachable as
+context — a tool result scrolls away; a resource can be read again.
+
+| URI | Content |
+|---|---|
+| `spine://bank` | The committed `episteme/` index and section list — or a note that `understand_repo` builds one |
+| `spine://bank/{section}` | One page: `architecture`, `domain-model`, `conventions`, … |
+| `spine://plans` | The build documents under `.spine/plans`, each with its approval state |
+| `spine://plan/{intent_id}` | One build document, approval state on top |
+| `spine://state` | The current‑state report (developer lens), from the commit‑keyed cache |
+
+Resources describe the **default repository**: the process working directory, or
+`SPINE_REPO_ROOT` when set — a stdio plugin is launched per project, so that is the repo the host
+is in. The tools keep taking `repo_path` as before. All read‑only; over HTTP the `spine:read` floor
+covers them.
+
+### Progress from the long tools
+
+`sdlc_feature`, `understand_repo`, `sdlc_remediate`, `sdlc_address_review` and `audit_repo` run for
+seconds to minutes. When the host asks for progress (an MCP progress token on the call — most
+hosts send one), each reports it as it goes: `sdlc_feature` per stage in the runner's own order
+(spec, layout, design, implement, tests, refine, judge, PR), `sdlc_remediate` per task,
+`sdlc_address_review` at checkout / respond / done, `understand_repo` at extract / write, and
+`audit_repo` at start / done (its loop has no per‑step hook). The bar is monotonic — a second test
+run after a refine does not move it backwards — and a line the stage table does not know rides
+on the current step as its message. Nothing changes in the tools' schemas, and a client that sends
+no token sees exactly what it saw before.
+
+### What each tool returns, as a schema
+
+Every tool advertises an **output schema** — a type per tool, with no required key, because
+every tool has an error path (`error` + `hint`) and most have several shapes (found / not
+found; single‑repo / multi‑repo). A host reads the fields — `found`, `matches[].where`,
+`uncovered_elsewhere` — before it calls, and the structured result validates against them. A key
+the type happens to miss still reaches the host (the types allow extras); the test suite's drift
+guard is what keeps the declarations honest. Open shapes — the twelve‑section build document, a
+run's Temporal status, the engine's design dict — stay untyped objects on purpose.
+
+### Who did what, over HTTP
+
+Over stdio a local subprocess acts for one user; nothing to attribute. Over HTTP several people
+may share one server, so every **run‑scope** call (`sdlc_feature`, `sdlc_start_run`,
+`sdlc_decide_gate`, `registry_decide`, `sdlc_address_review`, `sdlc_complete`, `sdlc_remediate`,
+`audit_repo`) and every **scope denial** is recorded against the token's principal in the
+registry's audit log (`POST /v1/audit`, with the plugin's own `ORCHESTRATOR_API_KEY` as the
+writer): the principal, the tool, its scope, the argument *names* and a digest of the values —
+never the values — and the outcome. `registry_trace` and `GET /v1/audit?resource_type=mcp_tool`
+read it back. A registry that is down degrades to a log line; the audit never fails the call.
 
 > **The tiers are metadata your host can act on.** Every tool is registered with MCP tool
 > annotations derived from its tier — *read‑only*, *destructive*, *idempotent*, *open‑world* — so a
@@ -247,8 +312,8 @@ over HTTP that is a trap rather than a limitation. `blast_radius` on a route han
 **`0 caller(s)`** — which is *true*, nothing in its own source calls it — and reads as safe to
 change.
 
-Declare your services in a **`.spine/repos.yaml`** and pass it as `repos=` to `blast_radius`
-or `investigate` instead of `repo_path`:
+Declare your services in a **`.spine/repos.yaml`** and pass it as `repos=` — to `blast_radius`,
+`investigate`, `explain_symbol`, `regression_gaps`, `localize` or `docs_for` — instead of `repo_path`:
 
 ```yaml
 repos:

@@ -1,6 +1,6 @@
 # The MCP plugin surface — what it is, what it lacks, and the order to extend it
 
-**Status:** **Phase 1 COMPLETE** — all six steps shipped, all six gaps closed. Phase 2 (extensions) not started. **Written 2026-09-04 against 3.30.0**,
+**Status:** **Phase 1 COMPLETE** — all six steps shipped, all six gaps closed. **Phase 2 COMPLETE** — prompts + resources, progress, multi-repo parity, per-principal audit, typed output all shipped. The `sdlc` scope alias is retired. Nothing remains open. **Written 2026-09-04 against 3.30.0**,
 after #316 removed the terminal UI and left the plugin as the only non-browser operator face.
 **Owner:** _unassigned_
 
@@ -48,8 +48,8 @@ for the floor (`spine:read`); each registered tool is wrapped in a guard that re
 token at call time and refuses — naming the scope it needed and the scopes the token has — when
 the tier's scope is missing. Over stdio there is no token and the guard passes.
 `ORCHESTRATOR_MCP_REQUIRED_SCOPES` is what the **static token carries** (default: all three), so
-a read-only token is that variable set to `spine:read`. The legacy `sdlc` scope expands to all
-three for one release.
+a read-only token is that variable set to `spine:read`. The pre-3.31 `sdlc` scope was accepted
+as an alias for all three through 3.31.x and is retired.
 
 **Packaging.** A Claude Code plugin at `plugins/spine/` bundling the `understand-codebase` skill;
 marketplace entry in `.claude-plugin/marketplace.json`; `pip install 'synaptixs-spine[all]'`.
@@ -121,9 +121,15 @@ Numbered, because §5 retires them by number.
 
 Each is scoped to one PR. The number is a name, not an order — §5 is the order.
 
-- **4.1 Annotations and typed output.** Annotations: Phase 1. Typed output schemas (a model per
-  tool instead of `dict[str, Any]`) are deferred to their own PR: the SDK already advertises an
-  open-object schema, and real models touch twenty return shapes and their tests.
+- **4.1 Annotations and typed output.** Annotations: Phase 1. Typed output: *(shipped in Phase 2
+  step 5)* — a `TypedDict` per tool in `plugin/outputs.py` with no required key (every tool has
+  an error path; most have several shapes), attached to the registered function's signature so
+  the SDK derives an output schema and validates the result while the tool keeps its plain
+  `dict`. Pydantic drops a key a `TypedDict` does not declare from the structured result
+  *silently*, so the types allow extras and the test suite's drift guard
+  (`tests/plugin/conftest.py`) wraps every tool and fails on any returned key its type does not
+  declare. Open shapes (the build document, Temporal status, the design dict) stay
+  `dict[str, Any]` on purpose. A tool without a type does not register.
 - **4.2 Operator-ops tools.** *(Shipped.)* `registry_runs`, `registry_approvals`,
   `registry_trace`, `registry_decide` over the registry `/v1` API with `X-API-Key`, through
   `plugin/registry_client.py` (the removed TUI client, reinstated and extended). Config via
@@ -135,8 +141,8 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
 - **4.3 Per-tier scopes on HTTP.** *(Shipped.)* `spine:read`, `spine:plan`, `spine:run`, each
   tier naming its scope beside its annotations, enforced by a call-time guard around every
   registered tool — the SDK only checks scopes server-wide, and a request does not name its tool
-  until the protocol layer has parsed it. Stdio is untouched. `sdlc` expands to all three for one
-  release, then goes.
+  until the protocol layer has parsed it. Stdio is untouched. `sdlc` was accepted as all three for one
+  release (3.31.x) and is retired.
 - **4.4 `understand_repo` and `current_state` as tools.** *(Shipped in 6a — `understand_repo`
   builds or checks the bank; `current_state` was already `map_repo`.)* `understand_repo` refuses
   a build on a git URL unless `out` is absolute: the clone vanishes, and a bank written into it
@@ -146,17 +152,39 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
   `sdlc_remediate` as tier-3 tools under the same `confirm` gate as `sdlc_feature(live=true)`
   (the first two on every call — they have no local mode), and `audit_repo`, which spends
   tokens on a persona loop — read-only in annotations, run scope, its own tier row.
-- **4.6 Resources.** `spine://episteme/{repo}/{section}`, `spine://plan/{repo}/{intent}`,
+- **4.6 Resources.** *(Shipped in Phase 2 step 1 — for the default repository, `SPINE_REPO_ROOT` or the cwd, because a URI segment cannot carry a path; `spine://bank`, `spine://bank/{section}`, `spine://plans`, `spine://plan/{intent_id}`, `spine://state`.)* Originally sketched as `spine://episteme/{repo}/{section}`, `spine://plan/{repo}/{intent}`,
   `spine://state/{repo}` as MCP resources — listable, subscribable, attachable as context.
-- **4.7 Prompts.** The `understand-codebase` skill's guidance registered as MCP prompts so Codex,
+- **4.7 Prompts.** *(Shipped in Phase 2 step 1 — five prompts in `plugin/prompts.py`, the source of the workflow because the skill is not in the wheel; a test holds the skill to the same tools.)* The `understand-codebase` skill's guidance registered as MCP prompts so Codex,
   Desktop and claude.ai get the "which tool, in which order" workflow through the protocol.
-- **4.8 Progress.** Per-phase progress notifications from `sdlc_feature` and
-  `root_cause(use_llm=true)`, which run for minutes with no signal today.
+- **4.8 Progress.** *(Shipped in Phase 2 step 2.)* The five long tools receive the SDK
+  `Context` through an optional parameter the scope wrapper passes through untouched and the
+  schema never shows. The phases come from the engines' existing log hooks — the feature
+  runner's bracketed prefixes, mapped to ordered steps in `plugin/progress.py` — not from new
+  instrumentation, so the CLI and the plugin describe the same stages. Monotonic (a high-water
+  mark); an unknown line rides on the current step as its message, because MCP's separate
+  logging capability is deprecated (SEP-2577). `audit_repo` is start/done only: its loop has no
+  per-step hook. `root_cause(use_llm)` and `design_change(use_llm)` are single model calls and
+  stay as they are.
 - **4.9 Self-describing `doctor`.** Phase 1.
-- **4.10 Multi-repo parity.** `explain_symbol`, `regression_gaps`, `localize`, `docs_for` take
-  `repos` like `blast_radius` and `investigate` do.
-- **4.11 Per-principal audit on HTTP.** Tier-3 invocations recorded against the token principal,
-  in the registry's existing audit log.
+- **4.10 Multi-repo parity.** *(Shipped in Phase 2 step 3.)* `explain_symbol`,
+  `regression_gaps`, `localize` and `docs_for` take `repos` like `blast_radius` and `investigate`
+  do, with the same "exactly one of `repo_path` or `repos`" contract and a `standing` block.
+  `explain_symbol` names each match's repo and its cross-repo reach. `regression_gaps` names
+  each impacted symbol's repo and reports `uncovered_elsewhere` — a change reaching a different
+  service nothing tests — which needed the plan to follow the one hop that crosses a service
+  boundary (EXPOSES + CONSUMES through the endpoint node; the endpoint itself is the wire, not
+  an item). `localize` reports each frame's repo, and a frame two services could own is
+  `ambiguous` with its candidates rather than the first match winning silently. `docs_for`
+  fans out per repository instead of merging — a document describes the repository it lives
+  in, and binding one repo's docs to another's symbols by name would be a false edge — each
+  entry carrying its own `reproducible` flag.
+- **4.11 Per-principal audit on HTTP.** *(Shipped in Phase 2 step 4.)* Every `spine:run` call
+  and every scope denial is recorded against the token's principal in the registry's audit log
+  through a new `POST /v1/audit` — the actor and tenant come from the authenticated principal,
+  never from the body — with the principal, tool, scope, the argument *names* and a digest of the
+  values (never the values), and the outcome. The scope guard records it; the plugin keeps no
+  database credentials, so the registry is the one writer; an unreachable registry degrades to a
+  structured log line and never fails the call. Read-scope calls are not recorded.
 
 ## 5. Order — gaps first
 
@@ -172,10 +200,16 @@ Each is scoped to one PR. The number is a name, not an order — §5 is the orde
 | 6a | 5 | The free half: `understand_repo`, `profile_repo`, `design_change`, `sdlc_baseline`. | **shipped** |
 | 6b | 5 | The gated half: `sdlc_address_review`, `sdlc_complete`, `sdlc_remediate`, `audit_repo`. | **shipped** |
 
-### Phase 2 — extensions (§3 is empty as of 6b; none started)
+### Phase 2 — extensions (§3 is empty as of 6b)
 
-4.7 and 4.6 (protocol parity), then 4.8, 4.10, 4.11 as the run tier sees real use, and the
-typed-output half of 4.1 on its own.
+| Step | Proposals | State |
+|---|---|---|
+| 1 | 4.7 prompts + 4.6 resources — protocol parity for non-Claude hosts | **shipped** |
+| 2 | 4.8 progress notifications from the long tools | **shipped** |
+| 3 | 4.10 multi-repo parity for `explain_symbol`, `regression_gaps`, `localize`, `docs_for` | **shipped** |
+| 4 | 4.11 per-principal audit on HTTP | **shipped** |
+| 5 | typed output (the deferred half of 4.1) | **shipped** |
+| — | retire the `sdlc` scope alias | **shipped** (for the release after 3.31.0) |
 
 ## Invariants
 
