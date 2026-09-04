@@ -147,7 +147,7 @@ A calling repository adds **three lines**:
 ```yaml
 jobs:
   spine:
-    uses: synaptixs/spine/.github/workflows/spine-comprehension.yml@v3.31.0
+    uses: synaptixs/spine/.github/workflows/spine-comprehension.yml@v3.32.0
 ```
 
 and gets a pull-request comment saying where its own change lands in its own code, with
