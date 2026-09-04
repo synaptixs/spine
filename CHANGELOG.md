@@ -8,6 +8,22 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Added
 
+- **Every MCP tool advertises what it returns.** A type per tool
+  (`plugin/outputs.py`) with no required key, attached to the registered function
+  so the SDK derives an output schema and validates the result while the tool
+  keeps returning a plain dict. A host reads `found`, `matches[].where`,
+  `uncovered_elsewhere` before it calls. The types allow extras — pydantic would
+  otherwise drop an undeclared key from the structured result silently — and the
+  test suite's drift guard wraps every tool and fails on any returned key its type
+  does not declare. A tool without a type does not register.
+- **Per-principal audit on the MCP server's HTTP transport.** Every run-scope call
+  and every scope denial is recorded against the token's principal in the
+  registry's audit log through a new `POST /v1/audit` (the actor and tenant come
+  from the authenticated principal, never from the body): the principal, tool,
+  scope, the argument *names* and a digest of the values — never the values — and
+  the outcome. An unreachable registry degrades to a log line; the audit never
+  fails the call. Stdio records nothing: a local subprocess acts for one user.
+
 - **Every comprehension tool that can answer across repositories now does.**
   `explain_symbol`, `regression_gaps`, `localize` and `docs_for` take `repos=` (a
   `.spine/repos.yaml`) like `blast_radius` and `investigate`, with the same

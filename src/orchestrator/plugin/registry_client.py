@@ -82,6 +82,22 @@ class RegistryClient:
     async def trace(self, task_id: str) -> dict[str, Any]:
         return await self._json("GET", f"/v1/tasks/{task_id}/trace")
 
+    async def audit(
+        self,
+        *,
+        action: str,
+        resource_type: str,
+        resource_id: str,
+        after: dict[str, Any] | None = None,
+        timeout: float = 5.0,
+    ) -> dict[str, Any]:
+        """Record one row as this key's principal (``POST /v1/audit``). Short timeout: an audit
+        write must not add a registry's worth of latency to the tool it describes."""
+        body: dict[str, Any] = {"action": action, "resource_type": resource_type, "resource_id": resource_id}
+        if after is not None:
+            body["after"] = after
+        return await self._json("POST", "/v1/audit", json=body, timeout=timeout)
+
     async def _items(self, path: str, *, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         data = await self._json("GET", path, params=params)
         return list(data.get("items", []))
