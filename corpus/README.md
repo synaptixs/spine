@@ -63,6 +63,14 @@ Labelling in the wrong vocabulary scores 0.00 and reads as a catastrophic front-
 | **`cpp`** | `cpp:src/cart.cpp` *(a path)* | **bare: `cpp:Cart`** | **`::`** |
 | `sql` | `sql:schema.sql` | `sql:customer` *(an Entity)* | `.` |
 
+### Endpoint node IDs
+
+Endpoint nodes use a separate vocabulary from modules and types. For the Java front-end:
+
+| front-end | endpoint id | example |
+|---|---|---|
+| `java` | `java:endpoint:{VERB} {path}` | `java:endpoint:GET /widgets/{id}` |
+
 C and C++ ids are **bare symbols, not module-qualified** — a symbol, not a location. Python's
 scheme applied to either scores zero.
 
