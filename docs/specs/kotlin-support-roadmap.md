@@ -1,18 +1,29 @@
-# Design + Plan: adding Kotlin to the PKG (10th language) — comprehension first, on a real Android app
+# Design + Plan: adding Kotlin to the PKG (10th language) — the whole language, on real apps
 
-**Status:** 🟡 **P0 done** (this plan, the branch, the baseline) · P1–P5 not started.
+**Status:** 🟡 **P0 done** (this plan, the branch, the baseline) · P1–P11 not started.
 **Branch:** `feat/kotlin-support` off `develop` at `d84e666` (3.33.2). **Opened:** 2026-09-10.
-**Validation repository:** [`synaptixs/aiandroid`](https://github.com/synaptixs/aiandroid) — a mirror of
-Now in Android: 263 `.kt` files, 22,662 lines, 28 Gradle modules, Jetpack Compose, Hilt, Room, Retrofit.
-Used ephemerally (shallow clone to a scratch dir, extraction on a `.git`-less copy, deleted after);
-its name lives in `docs/` only, never in `src/` or `tests/`.
+**Scope decided 2026-09-10: complete.** Comprehension, call graph, Room and Retrofit, Compose
+navigation and Hilt bindings, Gradle `.kts` modules, Ktor and Spring server routes, Kotlin
+Multiplatform, and codegen for Kotlin/JVM and Android — nothing of the language is left for a
+follow-on track. **One MR to `develop`** when every phase is done and tested (§5, §12).
+
+**Validation repositories** (ephemeral: shallow clone to a scratch dir, extraction on a `.git`-less
+copy, deleted after; names live in `docs/` only, never in `src/` or `tests/`):
+
+| Repository | Exercises |
+|---|---|
+| [`synaptixs/aiandroid`](https://github.com/synaptixs/aiandroid) — a mirror of Now in Android: 263 `.kt` files, 22,662 lines, 28 Gradle modules, Compose, Hilt, Room, Retrofit | P1–P5, P9 (Android brownfield codegen) — the primary repository |
+| [`spring-petclinic/spring-petclinic-kotlin`](https://github.com/spring-petclinic/spring-petclinic-kotlin) | P6 Spring routes; P8 Kotlin/JVM codegen on a Gradle project |
+| [`ktorio/ktor-samples`](https://github.com/ktorio/ktor-samples) | P6 Ktor routes |
+| [`touchlab/KaMPKit`](https://github.com/touchlab/KaMPKit) | P7 Kotlin Multiplatform source sets, `expect`/`actual` |
 
 > Same track shape as PHP ([php-support-roadmap.md](php-support-roadmap.md)) and Go
 > ([go-support-roadmap.md](go-support-roadmap.md)), with two things this track adds on purpose:
 > **§8 measures the blast radius from the PKG before each phase touches code**, and **§9 carries
-> generic work** — pieces built here that every later language or feature reuses, so the next
-> track is shorter than this one. **Codegen is out** (§10): Android needs the SDK, and the Java
-> plumbing the expansion roadmap assumed Kotlin would reuse is Maven-only (§9.3).
+> generic work** — pieces built here that every later language or feature reuses. Two phases
+> change Spine beyond one front-end and are called out as such: **P4 adds an edge kind**
+> (`PROVIDES`, D15) because dependency injection has no vocabulary today, and **P8 adds the Gradle
+> runner** the Java track never had (§9.3).
 
 ## Roadmap currency — the rule this document follows
 
@@ -37,9 +48,15 @@ updated **in the same commit** as the work, never after. §9.1 turns the rule in
 | **D8** | CALLS — see §3.2 | precision-first, seven shapes, no type inference | The one **net-new** rule: **typed receivers are the norm, not the exception** — Kotlin declares the type of every property and parameter, so `dao.getTopics()` resolves exactly through the import map. This is P2, not a later phase, because it is most of the call graph in this style of code. |
 | **D9** | Invention oracle (`pkg/scope.py`) | (a) a `_Kotlin` walker, (b) `NOT_APPLICABLE` | **(a).** Unlike Java, a Kotlin local *can* shadow a call: `val helper = ::other; helper()` invokes the local through `invoke`. The TypeScript walker is the template (scope nodes: `function_declaration`, `lambda_literal`, `anonymous_function`; bindings: `property_declaration` / `variable_declaration` and parameters). A `shadowed_calls` corpus case pins it. |
 | **D10** | Framework edges — an Android app is a **client** | Retrofit `@GET("topics")` → a **`CONSUMES` candidate**, not an `Endpoint`; Room `@Entity` → `Entity`; Ktor server routes deferred | Nothing in an Android app *exposes* a route; it calls one. `python_client.py`'s `PendingCall` side-channel exists for exactly this — an unmatched call is a **cross-repo join candidate**, and `pkg joins` matches it against a provider's `Endpoint`s by verb and path. This makes a Kotlin app the first mobile **consumer** in the multi-repo join, which no other front-end can be today. Path from the annotation literal; base URL from a literal `baseUrl("…")` when present, else path-only. |
-| **D11** | `.kts` Gradle scripts | (a) not registered, (b) parse as Kotlin | **(a).** 33 build scripts whose "functions" are DSL calls (`implementation(libs.x)`); parsing them would add a phantom component per module. Read as **markers** by the profiler instead (D12). |
+| **D11** | `.kts` Gradle scripts | (a) not registered, (b) parse as Kotlin source, (c) a **dedicated reader** for the Gradle DSL only | **(c), in P5.** 33 build scripts whose "functions" are DSL calls; parsed as Kotlin they would add a phantom component per module. Read as what they are instead: `settings.gradle.kts` `include(":core:data")` declares the **Gradle modules**, and each module's `dependencies { implementation(project(":core:model")) }` declares **module-to-module dependencies** — the architecture of an Android app, which nothing else states. `Module` nodes `gradle:core/data` (own prefix; the id is the module path) and `IMPORTS` between them; `libs.versions.toml` and version catalogs feed the profiler (D12). Every `.kt` file's package module gets a `CONTAINS`-free link to its Gradle module through provenance path only — no fabricated ownership edge. Until P5 the profiler reads them as markers. |
 | **D12** | Profiler | `.kt` → `kotlin`; `build.gradle.kts` / `settings.gradle.kts` / `gradle/libs.versions.toml` read as markers; `androidx`/`compose` → framework `android`, `io.ktor` → `ktor`, `springframework` (already) → `spring`; `junit` (already) → `junit` | Today `profile_repo` on the validation repository returns **`languages: []`** — only `build.gradle` (no `.kts`) is read, and `.kt` maps to nothing. |
-| **D13** | Codegen | deferred to a follow-on spec | Android codegen needs the SDK and an emulator-free test target; even Kotlin/JVM codegen cannot reuse the Java track as assumed, because `MavenTestRunner` is the only JVM runner and aiandroid, like most Kotlin, is Gradle. `"kotlin"` stays out of `SUPPORTED_LANGUAGES` so `--language kotlin` exits 2 rather than scaffolding Python. §9.3 proposes the Gradle runner as generic work. |
+| **D13** | Codegen | (a) Kotlin/JVM first (P8), then Android brownfield (P9); (b) Android first | **(a).** Neither can reuse the Java track as the expansion roadmap assumed: `MavenTestRunner` is the only JVM runner and aiandroid, like most Kotlin, is Gradle. P8 builds `GradleTestRunner` + `KotlinToolEnvironment` (§9.3 — it unblocks Java Gradle projects too) and a greenfield `kotlin("jvm")` scaffold proven against real `./gradlew test`. P9 adds Android: placement into the right Gradle module, `package` from the module's existing sources, and tests through `./gradlew :module:testDebugUnitTest` — JVM unit tests, **never an emulator**; instrumented tests are the one thing explicitly out (§10). `"kotlin"` enters `SUPPORTED_LANGUAGES` **only in P8**, together with layout/scaffold/testenv/testrunner/prompts/`kotlin-conventions`; until then `--language kotlin` exits 2 rather than scaffolding Python. |
+| **D14** | Compose navigation as routes | (a) `Endpoint` with verb `NAV` + `EXPOSES`/`CONSUMES`, (b) a new node kind, (c) nothing | **(a), in P4.** `NavHost { composable("topic/{topicId}") { TopicRoute(…) } }` declares a route and `navController.navigate("topic/$id")` consumes it — the same shape as an HTTP route, with the app as both provider and consumer. `java:endpoint:NAV topic/{topicId}`; `EXPOSES` to the one named composable the lambda calls (none if zero or several — the closure rule); `CONSUMES` from the function containing a **literal** `navigate("…")`; a template string with a segment is kept literal (`topic/{topicId}` ↔ `"topic/$id"` normalise to the same path). `NAV` cannot collide with an HTTP verb in `pkg joins`, so the D2 no-`ANY` rule is respected. No new node kind. |
+| **D15** | Hilt / Dagger bindings | (a) a new **`PROVIDES`** edge kind + a consumer in the same phase, (b) reuse `IMPLEMENTS`, (c) nothing | **(a), in P4.** `@Binds fun binds(impl: OfflineRepo): Repo` and `@Provides fun provide(): Repo` say *which* implementation reaches every `Repo` injection site — the fact that answers "what breaks if I change `OfflineRepo`" for a DI codebase, and no existing edge carries it (`IMPLEMENTS` is already true of `OfflineRepo`, so (b) would be lossy and wrong for `@Provides`). `EdgeKind.PROVIDES`: provider → the provided `Type`; `@Inject constructor` parameters and `@Inject` fields become `REFERENCES`-free **injection sites** read by `blast_radius`, which in the same phase learns to follow `PROVIDES` from a type to its injection sites. The closed enum grows by one member with a consumer that reads it — the `facts.py` rule ("grow as needed"), honoured the way `INTENT`/`SERVES` did. `KNOWLEDGE_GRAPH.md` matrices, `corpus/README.md` and the capability matrix change with it. |
+| **D16** | Ktor and Spring server routes | Ktor `routing { get("/x") { } }` → `Endpoint` (closure → no `EXPOSES`; `get("/x", ::handler)` → `EXPOSES`); Spring `@GetMapping`/`@RequestMapping(method=…)` on `@RestController` methods → `Endpoint` + `EXPOSES` with the class-level prefix | **In P6, for Kotlin and Java at once.** The Java front-end reads JAX-RS only; Spring in Java is the same missing reader, so the Spring reader lives in a shared `jvm_routes.py` and both front-ends call it. Verb-less `@RequestMapping` → nothing (the no-`ANY` rule). Ktor route groups (`route("/api") { … }`) compose like Laravel groups; a computed path silences the group (the PHP lesson). |
+| **D17** | Kotlin Multiplatform | source sets and `expect`/`actual` | **In P7.** One `Function`/`Type` id per declaration, the package rule unchanged; an `actual` declaration's id carries its source set as a suffix (`java:pkg.platform@androidMain`) because two declarations with one id would collide and lose provenance; `IMPLEMENTS` actual → expect (an `actual` fulfils a contract exactly as a class fulfils an interface). `state` groups by source set. iOS **native** code (`.swift`, Objective-C) stays outside — Kotlin's own declarations for it are inside. |
+| **D18** | Second validation repositories | one per shape the primary repository lacks | aiandroid has no Ktor, Spring, or KMP code, so P6 and P7 validate on the repositories in the header. Each is used exactly as the primary: ephemeral, `.git`-less copy, numbers pasted into §5. |
+| **D19** | One MR, opened as a **draft** at the end of P1 | (a) draft MR early, merge once at the end; (b) MR only at the very end; (c) an MR per phase | **(a).** The decision is one merge, not one MR per phase; a draft that exists from P1 lets maintainers watch a 45–60 day branch and comment on the phase they know, without merging anything. It is converted from draft only when §5 is entirely DONE and `/review-pr` says mergeable. |
 
 ---
 
@@ -144,7 +161,25 @@ Because the PKG is the substrate, each phase is visible in the shipped surfaces 
 P1 → `understand`, `state`, `map_repo`, `docs_for` (the 57 drift claims start binding); P2 →
 `blast_radius`, `explain_symbol`, `investigate`, `localize`, `regression_gaps`, "Call graph:
 available"; P3 → `pkg joins` can join an Android consumer to a Java/Go/PHP provider; Room entities
-reconcile with a `.sql` schema through `data_layer_link` with no Kotlin-specific code.
+reconcile with a `.sql` schema through `data_layer_link` with no Kotlin-specific code; P4 →
+`blast_radius` on a repository class reaches every screen that injects its interface, and the
+in-app navigation graph is queryable; P5 → `state`'s architecture layers come from the Gradle
+module graph instead of package-name heuristics; P6 → a Kotlin service is a **provider** in
+`pkg joins`; P7 → a KMP repo renders per source set; P8/P9 → `sdlc feature --language kotlin`
+generates, builds and tests code, greenfield and into the validation app.
+
+### 3.5 The added scopes — fact mapping
+
+| Scope | Source shape | Fact | Precision rule |
+|---|---|---|---|
+| **Compose navigation** (P4, D14) | `composable("topic/{topicId}") { TopicRoute(…) }` inside `NavHost`; `navigate("topic/$id")`, `navigate(Screen.Topic.route)` | `Endpoint` `java:endpoint:NAV topic/{topicId}` + `EXPOSES` → the single named composable called in the lambda; `CONSUMES` from the enclosing function to the route | literal route string, or a `const val route = "…"` resolved in the same file/imports; a computed route → nothing; a lambda calling several composables → `Endpoint` without `EXPOSES` |
+| **Hilt bindings** (P4, D15) | `@Binds fun bind(impl: OfflineRepo): Repo`; `@Provides fun provide(...): Repo`; `@Inject constructor(private val repo: Repo)`; `@HiltViewModel`; `@Module @InstallIn(...)` | `PROVIDES` provider `Function` → provided `Type`; the provided type is resolved by the return type; injection sites are the typed constructor/field `Field`s that already exist (D6), joined to the provided type by their declared type | a `@Provides` whose return type is a generic or a type alias resolves only when the alias/type is declared in scope; qualifiers (`@Named`, custom qualifier annotations) are recorded on the edge's provenance only — two providers for one type with different qualifiers both get an edge, and `blast_radius` says "2 providers", never picks one |
+| **Gradle modules** (P5, D11) | `settings.gradle.kts` `include(":core:data", ":feature:foryou")`; `build.gradle.kts` `dependencies { implementation(project(":core:model")); api(project(...)); testImplementation(...) }`; `plugins { alias(libs.plugins.nowinandroid.android.library) }` | `Module` `gradle:core/data` per included module; `IMPORTS` module → module for `implementation`/`api`/`compileOnly`/`runtimeOnly` on a literal `project(":…")`; the plugin alias names feed the profiler's framework detection (`android.application` → framework `android`) | only literal `project(":…")` strings; `libs.x` library coordinates are third-party and produce no node; a `project()` call with a variable → nothing; test configurations produce edges tagged in provenance so `state`'s test-coverage section can read them |
+| **Ktor routes** (P6, D16) | `routing { route("/api") { get("/topics") { … } } }`; `get("/x", ::handler)`; `install(...)` ignored | `Endpoint` `java:endpoint:GET /api/topics`; `EXPOSES` only for a function reference or a single named call | computed path or group → nothing inside it |
+| **Spring routes** (P6, D16) | `@RestController @RequestMapping("/api") class C { @GetMapping("/topics") fun list() }`, `@PostMapping`, `@RequestMapping(method = [RequestMethod.GET])` | `Endpoint` + `EXPOSES` → the method; read by `jvm_routes.py` for `.kt` and `.java` alike | verb-less `@RequestMapping` → nothing; a class prefix that is not a literal silences the class |
+| **KMP** (P7, D17) | `src/commonMain`, `src/androidMain`, `src/iosMain`, `src/jvmMain`; `expect fun platform(): String` / `actual fun platform(): String` | the `expect` gets the plain id; each `actual` gets `@<sourceSet>`; `IMPLEMENTS` actual → expect; `Module` provenance records the source set | an `actual` with no matching `expect` in the tree gets no `IMPLEMENTS` (external placeholder for the expect, honestly) |
+| **Kotlin/JVM codegen** (P8, D13) | greenfield: `settings.gradle.kts`, `build.gradle.kts` with `kotlin("jvm")` + `kotlin("test")`, `src/main/kotlin`, `src/test/kotlin`; brownfield: place into the existing module's package | `GradleTestRunner` (`./gradlew test --console=plain`, wrapper if present, else `gradle`), `KotlinToolEnvironment`, `kotlin-conventions` skill, prompts | the runner runs the module that owns the changed files (the Go 4.5 lesson); a repo with no wrapper and no `gradle` on PATH is a `FeatureRunError` with the hint, never a silent pass |
+| **Android codegen** (P9, D13) | brownfield into aiandroid: choose the Gradle module by the target package, honour its existing `package`, add a Compose screen or a repository function with a JVM unit test | `./gradlew :module:testDebugUnitTest`; `android_toolchain_available()` checks `ANDROID_HOME`/`sdkmanager` and the wrapper | never an emulator or instrumented test; a generated screen gets a JVM-testable ViewModel/repository slice, and the UI test is left as an explicit TODO in the build document — said, not hidden |
 
 ---
 
@@ -180,11 +215,19 @@ result disagrees with this document, the document changes.
 | **P1 Comprehension** | `kotlin_extractor.py` (§3.1, D1–D7, D11); `jvm_names.py` leaf if Java helpers are shared; registration: `default_extractors`, `FRONT_ENDS`, `EXTRA_PROBES`, `_GRAMMAR_MODULES`, profiler (D12), `scope.py` placeholder until P2, `docs.py`/`doc_link.py` `kt`; packaging (`kotlin` extra, `languages` meta-extra, mypy override, `ci.yml`); tests per [docs/reviewing/language-frontend-checklist.md](../reviewing/language-frontend-checklist.md); docs per [docs/reviewing/docs-matrix.md](../reviewing/docs-matrix.md) | 4–6 d | `map_repo` on the validation repo: modules/types/functions/fields > 0 with the census as the ceiling (232 / 43+ / 738 / 799); `pkg verify` 0 errors; drift claims below 57; **every P1 row of §7.1 updated** and `scripts/docs_audit.py` reports no STALE/MISSING; gate green with `--extra kotlin` | ⬜ | | | |
 | **P2 Corpus + CALLS + invention walker** | `corpus/kotlin/{plain,typed_receivers,extensions,companions,shadowed_calls,mixed_java}` labelled from source first; §3.2 rows; `_Kotlin` walker (D9); `--scoreboard` | 4–5 d | precision 1.00 on every kind; `invention` `MEASURED` with 0; `state` "Call graph: available"; `blast_radius` on a validation-repo repository class lists its DI callers | ⬜ | | | |
 | **P3 Room + Retrofit** | `kotlin_room.py` (Entity/Field/REFERENCES; DAO READS/WRITES via sqlglot when present), `kotlin_http.py` (Retrofit `CONSUMES` candidates through the `PendingCall` side-channel); corpus `room`, `retrofit_consumer`; a two-repo `pkg joins` fixture with a tiny provider | 3–5 d | 6 entities on the validation repo; `pkg joins` proposes the consumer→provider join; `data_layer_link` reconciles against a `.sql` schema | ⬜ | | | |
-| **P4 Generic work** (§9.1, §9.2, §9.4) | `scripts/roadmap-status.py --check`; `scripts/validate-frontend.py`; reverse-DNS area grouping | 3–4 d | each item's own exit in §9; this table passes its own check | ⬜ | | | |
-| **P5 Review + MR** | `/review-pr` on the branch (self-review with the same checklist a maintainer will run); fix; open the MR to `develop` with the phase table as its body | 1 d | verdict "mergeable"; the review's docs-audit table shows every §7.1 row updated; CI green; no `episteme/` in the diff | ⬜ | | | |
+| **P4 Compose navigation + Hilt** (D14, D15) | `kotlin_nav.py` (routes as `NAV` endpoints, `EXPOSES`/`CONSUMES`); `EdgeKind.PROVIDES` in `facts.py` + `kotlin_di.py`; `blast_radius` follows `PROVIDES` to injection sites; `KNOWLEDGE_GRAPH.md` matrices; corpus `compose_nav`, `hilt_bindings` | 4–6 d | on aiandroid: a `NAV` endpoint per `composable(...)` route with a literal string; `blast_radius` on `OfflineTopicsRepository` lists the screens that inject `TopicsRepository`; precision 1.00 | ⬜ | | | |
+| **P5 Gradle modules** (D11) | `gradle_extractor.py` for `settings.gradle.kts` + `build.gradle.kts` (`gradle:` modules, `IMPORTS` from `project(":…")`); profiler reads version catalogs; `state` architecture layers use the module graph; corpus `gradle_modules` | 3–4 d | 28 `gradle:` modules on aiandroid with the `core/` ← `feature/` dependency direction visible in `state`; zero edges from `libs.x` coordinates | ⬜ | | | |
+| **P6 Ktor + Spring routes** (D16) | `jvm_routes.py` shared by the Kotlin and Java front-ends; Ktor DSL reader; corpus `ktor_routes`, `spring_routes` (Kotlin and Java) | 3–5 d | `Endpoint`s on the Spring and Ktor validation repos; a Kotlin service joins as a **provider** in `pkg joins`; Java Spring repos gain endpoints too | ⬜ | | | |
+| **P7 Kotlin Multiplatform** (D17) | source-set aware module naming, `expect`/`actual` ids and `IMPLEMENTS`; `state` per source set; corpus `kmp_expect_actual` | 2–4 d | KaMPKit renders per source set; every `actual` has an `IMPLEMENTS` to its `expect`; no id collisions (`pkg verify` clean) | ⬜ | | | |
+| **P8 Kotlin/JVM codegen** (D13, §9.3) | `GradleTestRunner`, `KotlinToolEnvironment`, `kotlin_toolchain_available`; layout/scaffold for `kotlin("jvm")`; prompts + `kotlin-conventions`; `"kotlin"` into `SUPPORTED_LANGUAGES`; preflight via `./gradlew check` when `ktlint`/`detekt` are configured | 5–7 d | greenfield `sdlc feature --language kotlin` → real `./gradlew test` green **and** red proven (the Go 4.2 pair); brownfield on the Spring validation repo green, independently re-run | ⬜ | | | |
+| **P9 Android codegen** (D13) | module placement by package, existing-`package` matching, `testDebugUnitTest` runner, `android_toolchain_available`, Android guidance in the prompts | 5–8 d | brownfield on aiandroid: a repository function + JVM unit test placed in the right `core/` module, `./gradlew :core:data:testDebugUnitTest` **genuinely green, independently verified**; grounding uses the P1–P5 graph | ⬜ | | | |
+| **P10 Generic work** (§9.1, §9.2, §9.4) | `scripts/roadmap-status.py --check`; `scripts/validate-frontend.py`; reverse-DNS area grouping | 3–4 d | each item's own exit in §9; this table passes its own check | ⬜ | | | |
+| **P11 Review + MR** (D19) | `/review-pr` on the branch (self-review with the same checklist a maintainer will run); fix; convert the draft MR to ready with the phase table and every validation number as its body | 1–2 d | verdict "mergeable"; the review's docs-audit table shows every §7.1 row updated; full suite with CI's extras green; no `episteme/` in the diff | ⬜ | | | |
 
-Rough total: **16–22 days**, one engineer familiar with the PKG. Each of P1–P3 is release-worthy
-on its own; the MR may be one PR or one per phase if a maintainer prefers smaller reviews.
+Rough total: **45–60 days**, one engineer familiar with the PKG. **Delivery is one merge** (D19):
+the branch carries every phase, a draft MR exists from P1 for visibility, and it is converted to
+ready only when the whole table is DONE with evidence. Phase order is fixed: P8 depends on P5's
+module graph for placement, P9 on P8's runner, P6 on P1's Java-shared helpers.
 
 ---
 
@@ -204,15 +247,32 @@ Per `corpus/README.md`: `.repo/` fixture, `expected.json` from the source before
 | `mixed_java` (`requires: [java, kotlin]`) | a Kotlin class extending a Java class in the same package, and a Java class calling a Kotlin top-level function | one graph, `java:` ids on both sides, `IMPLEMENTS` and `CALLS` across the language boundary |
 | `room` (P3) | two entities, a `@ForeignKey`, a `@Dao` with `@Query`/`@Upsert` | `REFERENCES`; `READS`/`WRITES` only with the `sql` extra |
 | `retrofit_consumer` (P3) | an `@GET`/`@POST` interface, one computed path | two `CONSUMES` candidates; the computed one yields nothing |
+| `compose_nav` (P4) | a `NavHost` with a literal route, a `const val` route, a computed route, a lambda calling two composables | two `NAV` endpoints, one with `EXPOSES`; the computed one yields nothing; `CONSUMES` from a `navigate("…")` literal |
+| `hilt_bindings` (P4) | `@Binds`, `@Provides`, two providers with qualifiers, an `@Inject constructor` site | `PROVIDES` edges; both qualified providers kept; `blast_radius` reaches the injection site |
+| `gradle_modules` (P5) | three modules, `implementation(project(":a"))`, `api(project(":b"))`, a `libs.x` coordinate, a `project(variable)` | two `IMPORTS`; nothing from the coordinate or the variable |
+| `ktor_routes`, `spring_routes` (P6) | Ktor group + closure + function reference; Spring class prefix + verb-less mapping (Kotlin **and** Java fixtures) | `Endpoint`s with the composed prefix; closure without `EXPOSES`; verb-less → nothing |
+| `kmp_expect_actual` (P7) | `commonMain` `expect`, `androidMain` + `jvmMain` `actual`s, one `actual` without an `expect` | two `IMPLEMENTS`; the orphan `actual` has an external `expect` placeholder |
+
+Codegen phases (P8, P9) are proven the Go way — a real toolchain, green **and** red — in
+`tests/sdlc/test_kotlin_integration.py`, gated on `kotlin_toolchain_available()`, not in the corpus.
 
 ---
 
 ## 7. Files to change
 
 **New:** `src/orchestrator/pkg/kotlin_extractor.py`, `kotlin_room.py`, `kotlin_http.py`,
-optionally `jvm_names.py`; `tests/pkg/test_kotlin_extractor.py`, `test_kotlin_room.py`,
-`test_kotlin_http.py`; `corpus/kotlin/*`; `scripts/roadmap-status.py`, `scripts/validate-frontend.py`
-(§9); this file.
+`kotlin_nav.py`, `kotlin_di.py`, `gradle_extractor.py`, `jvm_routes.py`, optionally `jvm_names.py`;
+`sdlc/kotlin.py` (layout, scaffold, Android placement), `GradleTestRunner` + `KotlinToolEnvironment`
+in the existing `testrunner.py`/`testenv.py`; `tests/pkg/test_kotlin_*.py`, `test_gradle_extractor.py`,
+`test_jvm_routes.py`, `tests/sdlc/test_kotlin_codegen.py`, `test_kotlin_integration.py`;
+`corpus/kotlin/*`; `scripts/roadmap-status.py`, `scripts/validate-frontend.py` (§9); this file.
+
+**Modified beyond the front-end (the phases that change Spine itself):** `pkg/facts.py`
+(`EdgeKind.PROVIDES`, P4) and every renderer that enumerates edge kinds; `knowledge/current_state.py`
+(architecture layers from `gradle:` modules, P5; source sets, P7); `sdlc/feature_runner.py`
+(`SUPPORTED_LANGUAGES`, `_resolve_language`, P8), `layout.py`, `scaffold.py`, `codegen.py` prompts,
+`catalog/catalog.py` + `skills.py` (`kotlin-conventions`), `preflight.py` (P8); `java_extractor.py`
+gains the Spring reader through `jvm_routes.py` (P6).
 
 **Modified (P1):** `pkg/extractor.py`, `pkg/capabilities.py`, `pkg/persistence.py`
 (`_GRAMMAR_MODULES` — the PHP omission), `doctor.py`, `catalog/profile.py`, `pkg/scope.py`,
@@ -222,8 +282,8 @@ optionally `jvm_names.py`; `tests/pkg/test_kotlin_extractor.py`, `test_kotlin_ro
 new front-end, `corpus/README.md`, `docs/specs/STATE-OF-SPINE.md`, `SPEC-INDEX.md`,
 `language-expansion-roadmap.md`, `assets/spine-architecture.svg` via its script.
 
-**Untouched:** `sdlc/*` (D13), `SUPPORTED_LANGUAGES`, the Java extractor's behaviour (Kotlin only
-imports its helpers).
+**Untouched until their phase:** `sdlc/*` and `SUPPORTED_LANGUAGES` until P8 (D13); the Java
+extractor's declaration behaviour throughout (P6 adds a reader it calls, nothing it does changes).
 
 ### 7.1 User-facing documentation — what changes, in which phase, and what proves it
 
@@ -247,6 +307,9 @@ report no STALE or MISSING line before that commit. `/review-pr` walks
 | `plugins/spine/skills/*/SKILL.md` | the language line | P1 |
 | `docs/specs/STATE-OF-SPINE.md` | front-end count, the precision row's "all N front-ends", the `CALLS` recall row (Kotlin's number and denominator), source-module and test counts (`state-numbers.py --check`) | P1, P2 |
 | `docs/specs/SPEC-INDEX.md`, `language-expansion-roadmap.md` | this spec's row and the expansion roadmap's Kotlin line, updated to the phase reached — never ahead of it | every phase |
+| `USER_GUIDE.md` toolchain passages, `CLAUDE_GUIDE.md`/`CODEX_GUIDE.md` toolchain tables, `SETUP.md` | Kotlin/JVM and Android codegen rows: the `gradle` wrapper, `ANDROID_HOME`, `testDebugUnitTest`, and what is never run (emulator) | P8, P9 |
+| `KNOWLEDGE_GRAPH.md`, `corpus/README.md`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md`, `assets/spine-architecture.svg` | the `PROVIDES` edge kind: matrices, decided rules, "N node kinds · M edge kinds" | P4 |
+| `FEATURES.md`, `README.md` | rows/lines for Compose navigation, Hilt, Gradle modules, Ktor/Spring, KMP, and codegen as each lands | P4–P9 |
 | `CHANGELOG.md` | one entry under Unreleased per merged phase, in the house voice (what it does, what it refuses to guess, the extra to install) | every phase |
 | `assets/spine-architecture.svg` (+ `.png`) | "across N language front-ends" — re-rendered by its script, which the gate checks | P1 |
 | `docs/reviewing/language-frontend-checklist.md` | any registration site this track discovers that the list lacks (the way PHP added the cache key) | as found |
@@ -326,11 +389,20 @@ and Kotlin scanners share the emit path; one new scanner is under 150 lines.
 
 ---
 
-## 10. Deferred (explicitly out of this track)
+## 10. Out of scope — and why each is not "deferred"
 
-Codegen (Android or JVM — D13, §9.3 first); Ktor/Spring server routes; Compose navigation graphs as
-edges (no vocabulary); Hilt bindings as edges (no vocabulary); Kotlin Multiplatform source sets;
-`.kts` build-logic comprehension; local functions as `Function` nodes.
+Everything of the Kotlin language and its mainstream frameworks is in §5. What stays out is not
+Kotlin:
+
+- **Instrumented and emulator tests** (`androidTest`, Espresso, Compose UI tests) — they need a
+  device; P9 proves codegen with JVM unit tests and states the UI test as an explicit TODO.
+- **iOS and desktop native code** reached from KMP (`.swift`, Objective-C, C interop) — other
+  languages; Kotlin's own `iosMain` declarations are in P7.
+- **Generated sources** (`build/generated`, KSP/kapt output, Hilt's `_Factory` classes) — build
+  output, skipped by directory like `obj/` and `bin/`.
+- **Local functions** as `Function` nodes — no consumer asks for them; they are walked for calls.
+- **Gradle Groovy DSL** (`build.gradle`) beyond the profiler marker — the Kotlin DSL is the
+  Android default; add the Groovy reader when a validation repository needs it.
 
 ## 11. Risks and gotchas
 
@@ -347,10 +419,16 @@ edges (no vocabulary); Hilt bindings as edges (no vocabulary); Kotlin Multiplatf
 ## 12. Sequence
 
 ```
-P0 plan + baseline           ✅ 2026-09-10   this document, branch, census, blast radius
-P1 comprehension             → map_repo shows the app; drift < 57
-P2 corpus + CALLS + walker   → precision 1.00; call graph available; invention measured
-P3 Room + Retrofit           → entities; first mobile consumer in pkg joins
-P4 generic work              → roadmap-status check, validate-frontend script, reverse-DNS areas
-P5 /review-pr, then the MR   → maintainers review with the same checklist
+P0  plan + baseline            ✅ 2026-09-10   this document, branch, census, blast radius
+P1  comprehension              → map_repo shows the app; drift < 57; draft MR opened (D19)
+P2  corpus + CALLS + walker    → precision 1.00; call graph available; invention measured
+P3  Room + Retrofit            → entities; first mobile consumer in pkg joins
+P4  Compose nav + Hilt         → NAV endpoints; PROVIDES edge kind + blast_radius consumer
+P5  Gradle modules             → gradle: modules and their dependency graph in state
+P6  Ktor + Spring routes       → a Kotlin (and Java Spring) service as a provider
+P7  Kotlin Multiplatform       → source sets; expect/actual
+P8  Kotlin/JVM codegen         → GradleTestRunner; sdlc feature --language kotlin green + red
+P9  Android codegen            → brownfield into the validation app; testDebugUnitTest green
+P10 generic work               → roadmap-status check, validate-frontend script, reverse-DNS areas
+P11 /review-pr, MR to ready    → one merge into develop
 ```
