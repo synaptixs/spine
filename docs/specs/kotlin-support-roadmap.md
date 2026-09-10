@@ -177,11 +177,11 @@ result disagrees with this document, the document changes.
 | Phase | Work | Effort | Exit criteria | Status | Started | Finished | Evidence |
 |---|---|---|---|---|---|---|---|
 | **P0 Plan + baseline** | This document; branch `feat/kotlin-support`; grammar census; `profile_repo`/`map_repo` baseline; PKG blast radius (§8) | 1 d | Decisions D1–D13 recorded with evidence; baseline numbers in §1 | ✅ DONE | 2026-09-10 | 2026-09-10 | §1, §8, D1 census (0/263 files with ERROR) |
-| **P1 Comprehension** | `kotlin_extractor.py` (§3.1, D1–D7, D11); `jvm_names.py` leaf if Java helpers are shared; registration: `default_extractors`, `FRONT_ENDS`, `EXTRA_PROBES`, `_GRAMMAR_MODULES`, profiler (D12), `scope.py` placeholder until P2, `docs.py`/`doc_link.py` `kt`; packaging (`kotlin` extra, `languages` meta-extra, mypy override, `ci.yml`); tests per [docs/reviewing/language-frontend-checklist.md](../reviewing/language-frontend-checklist.md); docs per [docs/reviewing/docs-matrix.md](../reviewing/docs-matrix.md) | 4–6 d | `map_repo` on the validation repo: modules/types/functions/fields > 0 with the census as the ceiling (232 / 43+ / 738 / 799); `pkg verify` 0 errors; drift claims below 57; `scripts/docs_audit.py` clean; gate green with `--extra kotlin` | ⬜ | | | |
+| **P1 Comprehension** | `kotlin_extractor.py` (§3.1, D1–D7, D11); `jvm_names.py` leaf if Java helpers are shared; registration: `default_extractors`, `FRONT_ENDS`, `EXTRA_PROBES`, `_GRAMMAR_MODULES`, profiler (D12), `scope.py` placeholder until P2, `docs.py`/`doc_link.py` `kt`; packaging (`kotlin` extra, `languages` meta-extra, mypy override, `ci.yml`); tests per [docs/reviewing/language-frontend-checklist.md](../reviewing/language-frontend-checklist.md); docs per [docs/reviewing/docs-matrix.md](../reviewing/docs-matrix.md) | 4–6 d | `map_repo` on the validation repo: modules/types/functions/fields > 0 with the census as the ceiling (232 / 43+ / 738 / 799); `pkg verify` 0 errors; drift claims below 57; **every P1 row of §7.1 updated** and `scripts/docs_audit.py` reports no STALE/MISSING; gate green with `--extra kotlin` | ⬜ | | | |
 | **P2 Corpus + CALLS + invention walker** | `corpus/kotlin/{plain,typed_receivers,extensions,companions,shadowed_calls,mixed_java}` labelled from source first; §3.2 rows; `_Kotlin` walker (D9); `--scoreboard` | 4–5 d | precision 1.00 on every kind; `invention` `MEASURED` with 0; `state` "Call graph: available"; `blast_radius` on a validation-repo repository class lists its DI callers | ⬜ | | | |
 | **P3 Room + Retrofit** | `kotlin_room.py` (Entity/Field/REFERENCES; DAO READS/WRITES via sqlglot when present), `kotlin_http.py` (Retrofit `CONSUMES` candidates through the `PendingCall` side-channel); corpus `room`, `retrofit_consumer`; a two-repo `pkg joins` fixture with a tiny provider | 3–5 d | 6 entities on the validation repo; `pkg joins` proposes the consumer→provider join; `data_layer_link` reconciles against a `.sql` schema | ⬜ | | | |
 | **P4 Generic work** (§9.1, §9.2, §9.4) | `scripts/roadmap-status.py --check`; `scripts/validate-frontend.py`; reverse-DNS area grouping | 3–4 d | each item's own exit in §9; this table passes its own check | ⬜ | | | |
-| **P5 Review + MR** | `/review-pr` on the branch (self-review with the same checklist a maintainer will run); fix; open the MR to `develop` with the phase table as its body | 1 d | verdict "mergeable"; CI green; no `episteme/` in the diff | ⬜ | | | |
+| **P5 Review + MR** | `/review-pr` on the branch (self-review with the same checklist a maintainer will run); fix; open the MR to `develop` with the phase table as its body | 1 d | verdict "mergeable"; the review's docs-audit table shows every §7.1 row updated; CI green; no `episteme/` in the diff | ⬜ | | | |
 
 Rough total: **16–22 days**, one engineer familiar with the PKG. Each of P1–P3 is release-worthy
 on its own; the MR may be one PR or one per phase if a maintainer prefers smaller reviews.
@@ -224,6 +224,36 @@ new front-end, `corpus/README.md`, `docs/specs/STATE-OF-SPINE.md`, `SPEC-INDEX.m
 
 **Untouched:** `sdlc/*` (D13), `SUPPORTED_LANGUAGES`, the Java extractor's behaviour (Kotlin only
 imports its helpers).
+
+### 7.1 User-facing documentation — what changes, in which phase, and what proves it
+
+A front-end is not shipped until the documents a user reads say so. The PHP track landed with
+fifteen stale "eight front-ends" lines across nine documents because the lists were updated and
+the counts were not. This table is the contract for this track: each row is updated **in the
+phase that makes it true**, in the same commit as the code, and `scripts/docs_audit.py` must
+report no STALE or MISSING line before that commit. `/review-pr` walks
+[docs/reviewing/docs-matrix.md](../reviewing/docs-matrix.md) against it.
+
+| Document | What must change | Phase |
+|---|---|---|
+| `README.md` | the intro language list, the "Works across …" line, the "Add a language" row (count **and** the next-language list); the "What's new" paragraph at the release cut | P1 · release |
+| `FEATURES.md` | a Kotlin capability row (namespaces, objects/companions, extensions, typed-receiver call graph, Room entities, Retrofit consumers, codegen not shipped); the "Measured graph accuracy … all N front-ends" row count | P1, P3 |
+| `USER_GUIDE.md` | the extras list (`[kotlin]`), the "Multi-language" blockquote (language, extra, `.kt` suffix, `.kts` not parsed), the corpus-results line; the multi-repo section gains "an Android app as a consumer" once P3 lands | P1, P3 |
+| `KNOWLEDGE_GRAPH.md` | node and edge matrices, the language table row, the "Parser coverage" paragraph, a fact-mapping note on D2 (Kotlin shares `java:` ids) and D4/D5 (extensions, companions) | P1, P3 |
+| `CLAUDE_GUIDE.md`, `CODEX_GUIDE.md` | the language sentence and "N front-ends"; the toolchain table gets **no** Kotlin row (D13) and says why | P1 |
+| `CLI_REFERENCE.md`, `EXAMPLE.md`, `BENCHMARK.md` | corpus-results counts ("N fixture cases, N front-ends", "the other N front-ends") | P2 |
+| `SETUP.md` | the `[kotlin]` extra where extras are enumerated | P1 |
+| `corpus/README.md` | the id-vocabulary row: language `kotlin`, prefix **`java:`** (D2) — the third exception the table must explain, after C/C++ | P2 |
+| `plugins/spine/skills/*/SKILL.md` | the language line | P1 |
+| `docs/specs/STATE-OF-SPINE.md` | front-end count, the precision row's "all N front-ends", the `CALLS` recall row (Kotlin's number and denominator), source-module and test counts (`state-numbers.py --check`) | P1, P2 |
+| `docs/specs/SPEC-INDEX.md`, `language-expansion-roadmap.md` | this spec's row and the expansion roadmap's Kotlin line, updated to the phase reached — never ahead of it | every phase |
+| `CHANGELOG.md` | one entry under Unreleased per merged phase, in the house voice (what it does, what it refuses to guess, the extra to install) | every phase |
+| `assets/spine-architecture.svg` (+ `.png`) | "across N language front-ends" — re-rendered by its script, which the gate checks | P1 |
+| `docs/reviewing/language-frontend-checklist.md` | any registration site this track discovers that the list lacks (the way PHP added the cache key) | as found |
+
+What to grep before each commit, beyond the audit script: the number word ("nine", "ten") as
+well as the digit; `Go and PHP` / `Go, PHP` list tails; and `[php]` wherever extras are
+enumerated, because a new extra is usually added to the first list and not the second.
 
 ---
 
