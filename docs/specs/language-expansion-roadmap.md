@@ -3,7 +3,7 @@
 **Status:** Roadmap / prioritization. **Scope decided: Go · Rust · Kotlin · PHP** (Go shipped, PHP
 comprehension + `CALLS` shipped, Rust/Kotlin still proposals). Open question 1 (below) resolved
 PHP over Ruby for the 4th slot on 2026-09-08 — Ruby stays queued, not dropped.
-**Date:** 2026-07-21 · spine v3.6.0
+**Date:** 2026-07-21 · spine v3.6.0 · **Kotlin track opened 2026-09-10** on `feat/kotlin-support` — see [kotlin-support-roadmap.md](kotlin-support-roadmap.md) (comprehension first; the "reuses Java/Gradle plumbing" assumption below is only half true: the JVM test runner is Maven-only, so codegen is deferred and a Gradle runner is proposed as generic work).
 **Why:** the PKG is the substrate every grounded capability stands on — `understand`, `state`,
 `design`, `investigate`, `localize`, `rca`, `regression`, and grounded codegen all consume it.
 Adding a language doesn't add *one* feature; it makes **every feature work on more codebases**,
