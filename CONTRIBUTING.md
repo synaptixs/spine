@@ -56,7 +56,8 @@ the repository keeps the two reference documents and the script, which need no a
 
 ## Opening a pull request
 
-1. Fork the repo and create a branch from `main` (e.g. `fix/email-validator-edge-case`).
+1. Fork the repo and create a branch from **`develop`** (e.g. `fix/email-validator-edge-case`).
+   `main` only moves through a release promotion, so a branch cut from it is already behind.
 2. Make your change with tests; keep it focused — one concern per PR.
 3. Make sure the quality gate is green locally — note `mypy src tests`, **not** just `src`;
    typing `src` alone passes here and fails CI:
@@ -112,7 +113,8 @@ the repository keeps the two reference documents and the script, which need no a
    working rather than a contributor carrying the artifact, so the check skips when the base
    is `main`. Since 3.20.0 that promotion is the **only** way `main`'s bank moves:
    regeneration runs on `develop` alone, and `main` inherits it verbatim.
-4. Open the PR with a clear description of **what** and **why**, linking any issue.
+4. Open the PR **against `develop`** — GitHub pre-selects `main`, the default branch; change
+   it — with a clear description of **what** and **why**, linking any issue.
 5. A maintainer reviews; the `security scan` check must pass.
 
 ### When a check fails on something you didn't change
