@@ -402,6 +402,16 @@ class FactStore:
         ids = [e.dst for e in self._edges if e.kind is EdgeKind.MENTIONS and e.src == doc_id]
         return [self._nodes[i] for i in ids if i in self._nodes]
 
+    def intents_for(self, symbol_id: str) -> list[Node]:
+        """The tickets a symbol was last changed for (outgoing ``SERVES`` edges)."""
+        ids = [e.dst for e in self._edges if e.kind is EdgeKind.SERVES and e.src == symbol_id]
+        return [self._nodes[i] for i in ids if i in self._nodes]
+
+    def symbols_serving(self, intent_id: str) -> list[Node]:
+        """The symbols last changed for a ticket (incoming ``SERVES`` edges)."""
+        ids = [e.src for e in self._edges if e.kind is EdgeKind.SERVES and e.dst == intent_id]
+        return [self._nodes[i] for i in ids if i in self._nodes]
+
     def summary(self) -> dict[str, int]:
         """Counts of what was extracted, including edges **per kind**.
 
