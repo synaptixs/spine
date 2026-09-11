@@ -1,19 +1,5 @@
 {
   "metrics": {
-    "comprehension": {
-      "gated": "ratchet",
-      "localization": {
-        "reason": "gold set of 38 \u2014 run `pkg accuracy --scoreboard --pinned-corpus`",
-        "status": "not_measured"
-      },
-      "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
-      "provenance": {
-        "anchored": 11894,
-        "excluded": 805,
-        "resolved": 11894,
-        "unreadable": 0
-      }
-    },
     "corpus": {
       "gated": "strict",
       "languages": {
@@ -133,46 +119,31 @@
               "matched": 3
             },
             "CONTAINS": {
-              "emitted": 17,
-              "expected": 17,
-              "matched": 17
-            },
-            "EXPOSES": {
-              "emitted": 2,
-              "expected": 2,
-              "matched": 2
+              "emitted": 15,
+              "expected": 15,
+              "matched": 15
             },
             "IMPLEMENTS": {
-              "emitted": 1,
-              "expected": 1,
-              "matched": 1
-            },
-            "IMPORTS": {
               "emitted": 1,
               "expected": 1,
               "matched": 1
             }
           },
           "nodes": {
-            "Endpoint": {
-              "emitted": 3,
-              "expected": 3,
-              "matched": 3
-            },
             "Field": {
               "emitted": 2,
               "expected": 2,
               "matched": 2
             },
             "Function": {
-              "emitted": 12,
-              "expected": 12,
-              "matched": 12
+              "emitted": 10,
+              "expected": 10,
+              "matched": 10
             },
             "Module": {
-              "emitted": 4,
-              "expected": 4,
-              "matched": 4
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
             },
             "Type": {
               "emitted": 3,
@@ -189,178 +160,51 @@
               "matched": 2
             },
             "CONTAINS": {
-              "emitted": 11,
-              "expected": 11,
-              "matched": 11
+              "emitted": 13,
+              "expected": 13,
+              "matched": 13
+            },
+            "EXPOSES": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
             },
             "IMPLEMENTS": {
               "emitted": 1,
               "expected": 1,
               "matched": 1
-            }
-          },
-          "nodes": {
-            "Field": {
-              "emitted": 1,
-              "expected": 1,
-              "matched": 1
             },
-            "Function": {
-              "emitted": 6,
-              "expected": 6,
-              "matched": 6
-            },
-            "Module": {
+            "IMPORTS": {
               "emitted": 2,
               "expected": 2,
               "matched": 2
-            },
-            "Type": {
-              "emitted": 4,
-              "expected": 4,
-              "matched": 4
-            }
-          }
-        },
-        "multirepo": {
-          "edges": {
-            "CALLS": {
-              "emitted": 12,
-              "expected": 12,
-              "matched": 12
-            },
-            "CONSUMES": {
-              "emitted": 3,
-              "expected": 4,
-              "matched": 3
-            },
-            "CONTAINS": {
-              "emitted": 25,
-              "expected": 25,
-              "matched": 25
-            },
-            "EXPOSES": {
-              "emitted": 3,
-              "expected": 3,
-              "matched": 3
-            },
-            "IMPLEMENTS": {
-              "emitted": 5,
-              "expected": 5,
-              "matched": 5
-            },
-            "IMPORTS": {
-              "emitted": 11,
-              "expected": 11,
-              "matched": 11
-            },
-            "READS": {
-              "emitted": 3,
-              "expected": 3,
-              "matched": 3
-            },
-            "WRITES": {
-              "emitted": 1,
-              "expected": 1,
-              "matched": 1
             }
           },
           "nodes": {
             "Endpoint": {
-              "emitted": 3,
-              "expected": 3,
-              "matched": 3
-            },
-            "Entity": {
-              "emitted": 2,
-              "expected": 2,
-              "matched": 2
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
             },
             "Field": {
-              "emitted": 3,
-              "expected": 3,
-              "matched": 3
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
             },
             "Function": {
-              "emitted": 15,
-              "expected": 15,
-              "matched": 15
-            },
-            "Module": {
-              "emitted": 8,
-              "expected": 8,
-              "matched": 8
-            },
-            "Type": {
-              "emitted": 5,
-              "expected": 5,
-              "matched": 5
-            }
-          }
-        },
-        "php": {
-          "edges": {
-            "CALLS": {
-              "emitted": 6,
-              "expected": 8,
-              "matched": 6
-            },
-            "CONTAINS": {
-              "emitted": 38,
-              "expected": 38,
-              "matched": 38
-            },
-            "EXPOSES": {
-              "emitted": 3,
-              "expected": 3,
-              "matched": 3
-            },
-            "IMPLEMENTS": {
               "emitted": 7,
               "expected": 7,
               "matched": 7
             },
-            "IMPORTS": {
-              "emitted": 4,
-              "expected": 4,
-              "matched": 4
-            },
-            "REFERENCES": {
-              "emitted": 3,
-              "expected": 3,
-              "matched": 3
-            }
-          },
-          "nodes": {
-            "Endpoint": {
-              "emitted": 4,
-              "expected": 4,
-              "matched": 4
-            },
-            "Entity": {
-              "emitted": 3,
-              "expected": 3,
-              "matched": 3
-            },
-            "Field": {
-              "emitted": 3,
-              "expected": 3,
-              "matched": 3
-            },
-            "Function": {
-              "emitted": 20,
-              "expected": 20,
-              "matched": 20
-            },
             "Module": {
-              "emitted": 10,
-              "expected": 10,
-              "matched": 10
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
             },
             "Type": {
-              "emitted": 15,
-              "expected": 15,
-              "matched": 15
+              "emitted": 5,
+              "expected": 5,
+              "matched": 5
             }
           }
         },
@@ -469,19 +313,14 @@
         "typescript": {
           "edges": {
             "CALLS": {
-              "emitted": 12,
-              "expected": 14,
-              "matched": 12
+              "emitted": 4,
+              "expected": 7,
+              "matched": 4
             },
             "CONTAINS": {
-              "emitted": 34,
-              "expected": 34,
-              "matched": 34
-            },
-            "EXPOSES": {
-              "emitted": 2,
-              "expected": 2,
-              "matched": 2
+              "emitted": 25,
+              "expected": 25,
+              "matched": 25
             },
             "IMPLEMENTS": {
               "emitted": 2,
@@ -489,48 +328,36 @@
               "matched": 2
             },
             "IMPORTS": {
-              "emitted": 4,
-              "expected": 4,
-              "matched": 4
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
             }
           },
           "nodes": {
-            "Endpoint": {
-              "emitted": 3,
-              "expected": 3,
-              "matched": 3
-            },
             "Field": {
               "emitted": 4,
               "expected": 4,
               "matched": 4
             },
             "Function": {
-              "emitted": 22,
-              "expected": 22,
-              "matched": 22
+              "emitted": 15,
+              "expected": 15,
+              "matched": 15
             },
             "Module": {
-              "emitted": 10,
-              "expected": 10,
-              "matched": 10
+              "emitted": 6,
+              "expected": 6,
+              "matched": 6
             },
             "Type": {
-              "emitted": 8,
-              "expected": 8,
-              "matched": 8
+              "emitted": 6,
+              "expected": 6,
+              "matched": 6
             }
           }
         }
       },
       "skipped_languages": []
-    },
-    "drift": {
-      "count": 909,
-      "docs": 1659,
-      "gated": false,
-      "mentions": 10233,
-      "note": "recorded, never gated \u2014 an upper bound: a tenth of the population cannot bind by construction. See GATES"
     },
     "invention": {
       "count": 0,
@@ -541,19 +368,19 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 18122,
+          "total_calls": 16046,
           "unexamined": 0
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 18122
+      "total_calls": 16046
     },
     "parity": {
       "declared": 75,
       "gated": "ratchet",
-      "in_graph": 84,
+      "in_graph": 83,
       "shortfall": 0,
-      "surplus": 9
+      "surplus": 8
     }
   },
   "version": 1
