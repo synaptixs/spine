@@ -8,8 +8,9 @@ backs a Postgres/graph store without changing callers.
 
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, deque
 from dataclasses import dataclass
+from enum import Enum
 
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node
 
@@ -20,6 +21,59 @@ class CallSite:
 
     caller: Node
     at: str  # "file:line"
+
+
+class PathDirection(str, Enum):
+    """How a path query may traverse the directed PKG facts."""
+
+    FORWARD = "forward"
+    REVERSE = "reverse"
+    BOTH = "both"
+
+
+# The default deliberately favors developer-meaningful relations. Structural relationships
+# (CONTAINS and IMPORTS) are useful in a graph browser but can create a technically short,
+# semantically unhelpful path between otherwise unrelated symbols, so callers must opt in.
+DEFAULT_PATH_KINDS: tuple[EdgeKind, ...] = (
+    EdgeKind.CALLS,
+    EdgeKind.EXPOSES,
+    EdgeKind.CONSUMES,
+    EdgeKind.READS,
+    EdgeKind.WRITES,
+    EdgeKind.REFERENCES,
+    EdgeKind.IMPLEMENTS,
+)
+
+
+@dataclass(frozen=True)
+class PathHop:
+    """One evidence-bearing step in a graph path.
+
+    ``edge`` always keeps its extracted source-to-destination orientation. ``reversed`` only
+    says that the query crossed it from destination to source, so a rendered path can never
+    make an edge look like a different fact than the extractor emitted.
+    """
+
+    source: Node
+    edge: Edge
+    target: Node
+    reversed: bool = False
+
+
+@dataclass(frozen=True)
+class GraphPath:
+    """A shortest, bounded path over existing PKG facts."""
+
+    source: Node
+    target: Node
+    hops: tuple[PathHop, ...]
+    direction: PathDirection
+    kinds: tuple[EdgeKind, ...]
+
+    @property
+    def distance(self) -> int:
+        """The number of graph edges in the path."""
+        return len(self.hops)
 
 
 class FactStore:
@@ -221,6 +275,94 @@ class FactStore:
                         queue.append((src, depth + 1))
         return out
 
+    def path_between(
+        self,
+        source_id: str,
+        target_id: str,
+        *,
+        kinds: tuple[EdgeKind, ...] = DEFAULT_PATH_KINDS,
+        direction: PathDirection = PathDirection.FORWARD,
+        max_depth: int = 4,
+    ) -> GraphPath | None:
+        """Return one stable shortest extracted path between two existing nodes.
+
+        This is intentionally a path over *facts*, not a claim that no runtime relationship
+        exists when it returns ``None``. A missing static edge is safer than a fabricated one.
+        Traversal is bounded and its neighbour ordering is explicit, so equal-length paths do
+        not depend on extraction or dictionary insertion order.
+
+        ``direction`` controls whether extracted edges are followed source-to-destination,
+        destination-to-source, or both. Each reverse step remains marked on its :class:`PathHop`
+        rather than rewriting the underlying fact.
+        """
+        if max_depth < 0:
+            raise ValueError("max_depth must be non-negative")
+        if not kinds:
+            raise ValueError("at least one edge kind is required")
+        source = self.node(source_id)
+        target = self.node(target_id)
+        if source is None or target is None:
+            return None
+        if source_id == target_id:
+            return GraphPath(source, target, (), direction, kinds)
+
+        kindset = set(kinds)
+        adjacency: dict[str, list[PathHop]] = {}
+        for edge in self._edges:
+            if edge.kind not in kindset:
+                continue
+            edge_source = self._nodes.get(edge.src)
+            edge_target = self._nodes.get(edge.dst)
+            # A dangling edge cannot form evidence for a path. ``pkg verify`` reports it
+            # independently; query code is defensive so a corrupt external fact batch does not
+            # make traversal crash or invent a placeholder node.
+            if edge_source is None or edge_target is None:
+                continue
+            if direction in (PathDirection.FORWARD, PathDirection.BOTH):
+                adjacency.setdefault(edge.src, []).append(PathHop(edge_source, edge, edge_target))
+            if direction in (PathDirection.REVERSE, PathDirection.BOTH):
+                adjacency.setdefault(edge.dst, []).append(
+                    PathHop(edge_target, edge, edge_source, reversed=True)
+                )
+
+        # BFS returns the first target at minimum depth. Sorting all paths by fact identity makes
+        # that choice reproducible when multiple equally short chains exist.
+        for hops in adjacency.values():
+            hops.sort(
+                key=lambda hop: (
+                    hop.edge.kind.value,
+                    hop.target.id,
+                    str(hop.edge.provenance) if hop.edge.provenance else "",
+                    hop.edge.src,
+                    hop.edge.dst,
+                    hop.reversed,
+                )
+            )
+
+        seen = {source_id}
+        previous: dict[str, PathHop] = {}
+        queue: deque[tuple[str, int]] = deque([(source_id, 0)])
+        while queue:
+            node_id, depth = queue.popleft()
+            if depth >= max_depth:
+                continue
+            for hop in adjacency.get(node_id, ()):
+                if hop.target.id in seen:
+                    continue
+                seen.add(hop.target.id)
+                previous[hop.target.id] = hop
+                if hop.target.id == target_id:
+                    chain: list[PathHop] = []
+                    cursor = target_id
+                    while cursor != source_id:
+                        step = previous[cursor]
+                        chain.append(step)
+                        cursor = step.source.id
+                    chain.reverse()
+                    return GraphPath(source, target, tuple(chain), direction, kinds)
+                queue.append((hop.target.id, depth + 1))
+        return None
+
     def references_of(self, entity_id: str) -> list[Node]:
         """Entities this one points at via a foreign key (REFERENCES out-edges)."""
         ids = [e.dst for e in self._edges if e.kind is EdgeKind.REFERENCES and e.src == entity_id]
@@ -260,26 +402,6 @@ class FactStore:
         ids = [e.dst for e in self._edges if e.kind is EdgeKind.MENTIONS and e.src == doc_id]
         return [self._nodes[i] for i in ids if i in self._nodes]
 
-    def intents_for(self, symbol_id: str) -> list[Node]:
-        """The tickets a symbol was last changed for (outgoing ``SERVES`` edges).
-
-        Empty unless ``pkg.intent_link`` has run — it is opt-in, because it costs a `git blame`
-        pass and buys nothing on a repository whose commits carry no issue keys. Empty is
-        therefore *"not scanned or not attributed"*, never *"no prior work"*, and a caller that
-        renders it must not let a blank read as the second.
-        """
-        ids = [e.dst for e in self._edges if e.kind is EdgeKind.SERVES and e.src == symbol_id]
-        return [self._nodes[i] for i in ids if i in self._nodes]
-
-    def symbols_serving(self, intent_id: str) -> list[Node]:
-        """The symbols last changed for a ticket (incoming ``SERVES`` edges).
-
-        The reverse of :meth:`intents_for`: "what did SSPN-49 touch?" — the blast radius of a
-        past ticket, read off history rather than guessed.
-        """
-        ids = [e.src for e in self._edges if e.kind is EdgeKind.SERVES and e.dst == intent_id]
-        return [self._nodes[i] for i in ids if i in self._nodes]
-
     def summary(self) -> dict[str, int]:
         """Counts of what was extracted, including edges **per kind**.
 
@@ -305,4 +427,11 @@ class FactStore:
         return out
 
 
-__all__ = ["CallSite", "FactStore"]
+__all__ = [
+    "CallSite",
+    "DEFAULT_PATH_KINDS",
+    "FactStore",
+    "GraphPath",
+    "PathDirection",
+    "PathHop",
+]

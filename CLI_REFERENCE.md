@@ -362,6 +362,37 @@ a healthy-looking total.
 Precision is ~1.00 by construction — nothing can join to a repository nobody declared — so the
 number this prints is **recall**, and it is the one worth watching.
 
+### `orchestrator pkg path`
+
+Trace one shortest **extracted** path between two PKG nodes. It is a compact proof for questions such as “how does this client reach this handler?” or “which document section describes this symbol?” Every hop shows the extracted edge orientation, type, and available `file:line` provenance; reverse traversal adds a note without rewriting the fact. The command is read-only, deterministic, and does not call an LLM.
+
+```
+orchestrator pkg path SOURCE TARGET [OPTIONS]
+```
+
+**Arguments**
+
+- `SOURCE` — Exact node ID, or a uniquely matching node name.
+- `TARGET` — Exact node ID, or a uniquely matching node name.
+
+| Option | Description |
+|---|---|
+| `--path`, `-p` | Repo path or git URL to scan. _(default: current directory)_ |
+| `--direction` | `forward` \| `reverse` \| `both`. The output keeps extracted edge orientation and adds a reverse-traversal note. _(default: `forward`)_ |
+| `--max-hops` | Maximum extracted edges to traverse. _(default: `4`)_ |
+| `--kind` | Allowed edge kind; repeat to select several. Defaults to semantic code/API/data relations, including `IMPLEMENTS`. `MENTIONS` is explicit-only. |
+| `--include-structural` | Also allow `CONTAINS` and `IMPORTS` when `--kind` is omitted. Structural paths are opt-in; with `--kind`, the flag is ignored with a warning. |
+| `--refresh` | Re-extract the PKG instead of using the commit-keyed cache. |
+| `--json` | Emit node metadata, hops, provenance, query options, and the static-analysis caveat as JSON. |
+
+```bash
+orchestrator pkg path caller helper --path .
+orchestrator pkg path helper caller --path . --direction reverse
+orchestrator pkg path README.md#guide helper --path . --kind mentions --json
+```
+
+A miss exits non-zero and says **“no extracted path.”** It does not prove that no runtime relationship exists. `SERVES` is rejected in v1 because Intent nodes do not carry source-file provenance; `CONTAINS` and `IMPORTS` are structural and opt-in because they can make technically short but semantically noisy paths.
+
 ### `orchestrator pkg export`
 
 Export the whole graph in a format another tool can read — so you can explore it in software
