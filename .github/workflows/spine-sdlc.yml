@@ -229,7 +229,7 @@ jobs:
             cat ../build-document.md
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: spine-plan
           path: |
@@ -331,7 +331,7 @@ jobs:
             "$mode" --max-cost "$MAX_COST" --no-review \
             --out ../run-artifacts
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: spine-run
