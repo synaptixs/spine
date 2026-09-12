@@ -521,15 +521,24 @@ orchestrator pkg accuracy [PATH] [OPTIONS]
 | `--tests` | Test target(s) for `--oracle runtime`; defaults to the repo's own. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
 
-**Current corpus results** (38 fixture cases — 34 single-language, 4 multi-repo — across all 9
-front-ends). Precision is **1.00 on every node kind and every edge kind in all 9 languages**; recall is 1.00 on every kind except `CALLS`:
+**Current corpus results** (47 fixture cases — 43 single-language, 4 multi-repo — across
+all 10 front-ends, Perl's own corpus grown across P2–P5 of its track: 9 cases). Precision is
+**1.00 on every node kind and every edge kind in every language**; recall is 1.00 on every
+kind except `CALLS`:
 
 | language | `CALLS` recall |
 |---|---|
 | `c` `sql` | 1.00 |
+| `perl` | 0.89 |
 | `python` | 0.73 |
 | `cpp` `csharp` `go` `java` | 0.67 |
 | `typescript` | 0.50 |
+
+Perl's 0.89 is 8 of 9 labelled `CALLS` edges in its own corpus — the one miss is a
+permanent, documented one (`instance_calls`, an untyped parameter with no declared type to
+resolve a method call through); the other predicted P2/P3-boundary miss was resolved in P3
+(a literal same-sub constructor now resolves), and `super_calls` (P5) added 3 more, all
+resolved.
 
 Every remaining loss is the documented instance-dispatch skip — a call whose receiver is a
 variable rather than a name. Invention stands at **0 invented targets across 15,212 call
@@ -554,7 +563,7 @@ is not computable from a trace, and the report says so on every run.
 **Two coverage limits worth knowing before you quote a number:**
 
 - **`--oracle runtime` is Python-only.** It uses `sys.monitoring` (PEP 669), which has no
-  equivalent in the other eight front-ends. "Runtime-verified" means "runtime-verified for
+  equivalent in the other nine front-ends. "Runtime-verified" means "runtime-verified for
   Python".
 - **`--oracle invention` only examines Python.** It resolves caller-scope bindings with
   Python's `ast`, so calls in other languages are counted as *unexaminable* rather than

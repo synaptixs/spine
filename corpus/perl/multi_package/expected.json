@@ -1,0 +1,23 @@
+{
+  "language": "perl",
+  "case": "multi_package",
+  "why": "Package-scope tracking across both forms in one file: statement-form (`package Shop::First;`, scope runs to the next package or EOF) followed by block-form (`package Shop::Second { ... }`, scope is exactly the block). `in_second` must belong to Shop::Second, not leak onto Shop::First or the module — the case a naive 'current package' global would get wrong if it didn't reset per form.",
+  "root": ".repo",
+  "nodes": [
+    { "id": "perl:Multi.pm", "kind": "Module" },
+    { "id": "perl:Shop.First", "kind": "Type" },
+    { "id": "perl:Shop.Second", "kind": "Type" },
+    { "id": "perl:Shop.First.in_first", "kind": "Function" },
+    { "id": "perl:Shop.Second.in_second", "kind": "Function" }
+  ],
+  "edges": [
+    { "src": "perl:Multi.pm", "dst": "perl:Shop.First", "kind": "CONTAINS" },
+    { "src": "perl:Multi.pm", "dst": "perl:Shop.Second", "kind": "CONTAINS" },
+    { "src": "perl:Shop.First", "dst": "perl:Shop.First.in_first", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Second", "dst": "perl:Shop.Second.in_second", "kind": "CONTAINS" }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": []
+}

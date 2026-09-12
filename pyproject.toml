@@ -79,6 +79,14 @@ php = [
     "tree-sitter>=0.21",
     "tree-sitter-php>=0.23",
 ]
+# Perl PKG front-end (.pl/.pm/.t). Same lazy-import contract as the `java` extra. Uses
+# tree-sitter-perl 2.0.0 (abi3 wheels for macOS/manylinux/musl/win) — its own
+# `core` extra pins tree-sitter~=0.24, kept optional so it coexists with our 0.26
+# — see docs/specs/perl-support-roadmap.md D1.
+perl = [
+    "tree-sitter>=0.21",
+    "tree-sitter-perl>=2.0.0",
+]
 # SQL PKG front-end (.sql). Uses sqlglot (pure-Python, multi-dialect DDL+DML
 # AST — no tree-sitter). Lazy-imported by pkg/sql_extractor.py, so the base
 # install stays dependency-free: pip install 'synaptixs-spine[sql]'.
@@ -169,7 +177,7 @@ dev = [
 # and silently so: a repo whose language has no front-end yields zero nodes rather
 # than an error, which reads as "nothing here" instead of "nothing parsed".
 languages = [
-    "synaptixs-spine[c,cpp,csharp,go,java,php,sql,typescript]",
+    "synaptixs-spine[c,cpp,csharp,go,java,perl,php,sql,typescript]",
 ]
 # What the plugin install should be: every language, the MCP server, and doc
 # ingestion. Deliberately NOT everything — `security` (semgrep), `media`/`asr`
@@ -292,7 +300,7 @@ files = ["src", "tests"]
 # tree-sitter is an optional extra (the `java`/`typescript` PKG front-ends); not
 # installed in the default/CI env, so don't fail type-checking on its absence.
 [[tool.mypy.overrides]]
-module = ["tree_sitter", "tree_sitter.*", "tree_sitter_java", "tree_sitter_typescript", "tree_sitter_c_sharp", "tree_sitter_c", "tree_sitter_cpp", "tree_sitter_go", "tree_sitter_php"]
+module = ["tree_sitter", "tree_sitter.*", "tree_sitter_java", "tree_sitter_typescript", "tree_sitter_c_sharp", "tree_sitter_c", "tree_sitter_cpp", "tree_sitter_go", "tree_sitter_php", "tree_sitter_perl"]
 ignore_missing_imports = true
 
 # `mcp` is an optional extra (the MCP client transport), lazy-imported; not in

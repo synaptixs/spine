@@ -3746,6 +3746,7 @@ all = [
     { name = "tree-sitter-cpp" },
     { name = "tree-sitter-go" },
     { name = "tree-sitter-java" },
+    { name = "tree-sitter-perl" },
     { name = "tree-sitter-php" },
     { name = "tree-sitter-typescript" },
 ]
@@ -3798,6 +3799,7 @@ languages = [
     { name = "tree-sitter-cpp" },
     { name = "tree-sitter-go" },
     { name = "tree-sitter-java" },
+    { name = "tree-sitter-perl" },
     { name = "tree-sitter-php" },
     { name = "tree-sitter-typescript" },
 ]
@@ -3815,6 +3817,10 @@ office = [
 otel = [
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-sdk" },
+]
+perl = [
+    { name = "tree-sitter" },
+    { name = "tree-sitter-perl" },
 ]
 php = [
     { name = "tree-sitter" },
@@ -3884,7 +3890,7 @@ requires-dist = [
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0" },
     { name = "sqlglot", marker = "extra == 'dev'", specifier = ">=25" },
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=25" },
-    { name = "synaptixs-spine", extras = ["c", "cpp", "csharp", "go", "java", "php", "sql", "typescript"], marker = "extra == 'languages'" },
+    { name = "synaptixs-spine", extras = ["c", "cpp", "csharp", "go", "java", "perl", "php", "sql", "typescript"], marker = "extra == 'languages'" },
     { name = "synaptixs-spine", extras = ["languages", "mcp", "docs", "office", "sdlc"], marker = "extra == 'all'" },
     { name = "temporalio", specifier = ">=1.7" },
     { name = "testcontainers", marker = "extra == 'sql-postgres'", specifier = ">=4" },
@@ -3893,6 +3899,7 @@ requires-dist = [
     { name = "tree-sitter", marker = "extra == 'csharp'", specifier = ">=0.21" },
     { name = "tree-sitter", marker = "extra == 'go'", specifier = ">=0.21" },
     { name = "tree-sitter", marker = "extra == 'java'", specifier = ">=0.21" },
+    { name = "tree-sitter", marker = "extra == 'perl'", specifier = ">=0.21" },
     { name = "tree-sitter", marker = "extra == 'php'", specifier = ">=0.21" },
     { name = "tree-sitter", marker = "extra == 'typescript'", specifier = ">=0.21" },
     { name = "tree-sitter-c", marker = "extra == 'c'", specifier = ">=0.21" },
@@ -3900,6 +3907,7 @@ requires-dist = [
     { name = "tree-sitter-cpp", marker = "extra == 'cpp'", specifier = ">=0.21" },
     { name = "tree-sitter-go", marker = "extra == 'go'", specifier = ">=0.21" },
     { name = "tree-sitter-java", marker = "extra == 'java'", specifier = ">=0.21" },
+    { name = "tree-sitter-perl", marker = "extra == 'perl'", specifier = ">=2.0.0" },
     { name = "tree-sitter-php", marker = "extra == 'php'", specifier = ">=0.23" },
     { name = "tree-sitter-typescript", marker = "extra == 'typescript'", specifier = ">=0.21" },
     { name = "typer", specifier = ">=0.12" },
@@ -3907,7 +3915,7 @@ requires-dist = [
     { name = "types-pyyaml", specifier = ">=6.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
-provides-extras = ["security", "java", "typescript", "csharp", "c", "cpp", "go", "php", "sql", "sql-postgres", "docs", "office", "mcp", "media", "asr", "sdlc", "otel", "dev", "languages", "all"]
+provides-extras = ["security", "java", "typescript", "csharp", "c", "cpp", "go", "php", "perl", "sql", "sql-postgres", "docs", "office", "mcp", "media", "asr", "sdlc", "otel", "dev", "languages", "all"]
 
 [[package]]
 name = "temporalio"
@@ -4197,6 +4205,20 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/43/56/7d06b23ddd09bde816a131aa504ee11a1bbe87c6b62ab9b2ed23849a3382/tree_sitter_java-0.23.5-cp39-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:aae84449e330363b55b14a2af0585e4e0dae75eb64ea509b7e5b0e1de536846a", size = 82564, upload-time = "2024-12-21T18:24:20.493Z" },
     { url = "https://files.pythonhosted.org/packages/da/d6/0528c7e1e88a18221dbd8ccee3825bf274b1fa300f745fd74eb343878043/tree_sitter_java-0.23.5-cp39-abi3-win_amd64.whl", hash = "sha256:1ee45e790f8d31d416bc84a09dac2e2c6bc343e89b8a2e1d550513498eedfde7", size = 60650, upload-time = "2024-12-21T18:24:22.902Z" },
     { url = "https://files.pythonhosted.org/packages/72/57/5bab54d23179350356515526fff3cc0f3ac23bfbc1a1d518a15978d4880e/tree_sitter_java-0.23.5-cp39-abi3-win_arm64.whl", hash = "sha256:402efe136104c5603b429dc26c7e75ae14faaca54cfd319ecc41c8f2534750f4", size = 59059, upload-time = "2024-12-21T18:24:24.934Z" },
+]
+
+[[package]]
+name = "tree-sitter-perl"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/90/aa/671028366bb7bad7ca1b2a7d8fe7fb4e2aae20d41fd7f3c802b3d1cb8610/tree_sitter_perl-2.0.0.tar.gz", hash = "sha256:41419edfd905b181d2490b9194e76ee846e49726650f115bafcaa1e1a16c3c8c", size = 1724969, upload-time = "2026-09-06T14:29:54.571Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/64/38/d68da591d046431409f6369d26e4b76955d5d9c98b45f90a9325b976e3b0/tree_sitter_perl-2.0.0-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:3ed9dfef4495e777bd0dffd0e0b42c284be9df56c06230232174c4476be8d122", size = 346852, upload-time = "2026-09-06T14:29:45.184Z" },
+    { url = "https://files.pythonhosted.org/packages/5c/cd/0caf44e896910241ec53367df45cbeaec1fb8eef7c83a905cb83fde5d787/tree_sitter_perl-2.0.0-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:17bfb0f99bcbfaa040e76a853d48a8d5ecc7c965ea6119b5b2d9e17535500ea5", size = 408171, upload-time = "2026-09-06T14:29:47.121Z" },
+    { url = "https://files.pythonhosted.org/packages/b9/11/6ea3a9e705b2dff3c60b0e582de8af579be4d94e42ad567157db329b4495/tree_sitter_perl-2.0.0-cp39-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bf552ddc93f3a01567bcdfe385b5e5e5c2fca27094a44dca7acdc3e9d462cbcf", size = 384629, upload-time = "2026-09-06T14:29:48.542Z" },
+    { url = "https://files.pythonhosted.org/packages/3d/b5/3a9fcafee55954f631cfa2e2b909dafaa533265e4a14fbeeec5b56044e13/tree_sitter_perl-2.0.0-cp39-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:65a12198aec6aeed6928a4cd73cf099a8e0acee5de3ef95798159a891302f835", size = 370325, upload-time = "2026-09-06T14:29:49.91Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/89/6b96587288fd2976565ea308fd8aa81078d6ed36ca6202fda37a9a704c79/tree_sitter_perl-2.0.0-cp39-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:3f25665b2bdd2d106f19592ffceb9f39de74d144fff4865c3b3fe084901185d0", size = 372622, upload-time = "2026-09-06T14:29:51.453Z" },
+    { url = "https://files.pythonhosted.org/packages/ee/57/5fe5eb5dd94231bd9592f7c4c636fbdb34dc6c880e2424c397cd3bdc32ce/tree_sitter_perl-2.0.0-cp39-abi3-win_amd64.whl", hash = "sha256:7542b8ed26b8c3071a1528c7b8122214a17c6558f84277e9cb6aca8249ec7286", size = 319753, upload-time = "2026-09-06T14:29:52.879Z" },
 ]
 
 [[package]]

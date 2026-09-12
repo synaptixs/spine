@@ -4,6 +4,142 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## Unreleased
+
+### Added
+
+- **Perl comprehension (P1 of the Perl support track).** The 10th PKG front-end:
+  `pkg/perl_extractor.py` maps `.pl`/`.pm`/`.t` source onto `Module` (always path-keyed —
+  a Perl file may hold zero, one, or several packages), `Type` (every `package`/5.38
+  `class` — a package is both namespace and class, D2), `Function` (subs and 5.38
+  methods), and `Field` (Moo/Moose `has`, `Class::Accessor` `mk_accessors`, 5.38 `field`).
+  Inheritance resolves across five literal spellings into `IMPLEMENTS` (`use parent`/
+  `use base`, `our @ISA`/`push @ISA`, Moo/Moose `extends`, `use Mojo::Base`, 5.38
+  `:isa(...)`) — a computed `@ISA` yields nothing, never a guess. `CALLS`, framework
+  routes, and codegen are later phases of the same track
+  ([perl-support-roadmap.md](docs/specs/perl-support-roadmap.md)); `perl` stays out of
+  `SUPPORTED_LANGUAGES` until the codegen track lands. `pip install 'synaptixs-spine[perl]'`.
+- **`scripts/parse-census.py`** — parses every file of a language with its grammar and
+  reports the recall ceiling (files with a parse `ERROR`, lines inside `ERROR` spans,
+  declaration counts by CST kind) independent of any one front-end's extraction logic;
+  reusable by every future language track for its own parser-choice evidence.
+- **Perl `CALLS` (P2 of the Perl support track).** Six call shapes, precision-first:
+  `$self`/`$class`/`__PACKAGE__`/`shift` calls to a sibling sub or field, `SUPER::` to the
+  first D5-resolved parent, a qualified `X->m()`/`X::f()` call, and a bare call resolved
+  same-file, via an explicit `use X qw(f)` import, or — verified-only, never guessed — a
+  first-party `@EXPORT`/`@ISA` chain. Built on a new shared
+  `pkg/finalize_names.py` whole-repo name-resolution helper (`declared_ids` +
+  `resolve_or_drop`); Perl's D10 fallback is its first implementation, reusable by C#/PHP
+  when next touched. `corpus/perl/{plain,instance_calls,exporter_default,isa_spellings,
+  legacy_main,multi_package}` added, labelled from source before scoring.
+- **Perl routes + typed receivers (P3).** `pkg/perl_routes.py`: Mojolicious full-app route
+  chains (`$r->get('/x')->to(...)`, `under('/api')` groups) and Mojolicious::Lite/Dancer2's
+  shared bareword DSL (`get '/x' => sub {...}` / `\&handler`) become `Endpoint` + `EXPOSES`
+  — a verb-less/`any` registration or a computed path emits nothing, a closure handler
+  emits an `Endpoint` with no `EXPOSES`. `$obj->m()` also now resolves when `$obj` holds a
+  literal same-sub constructor (`my $log = Shop::Log->new`). `corpus/perl/mojo_routes`
+  added.
+- **Perl DBIx::Class data layer (P4).** `pkg/perl_orm.py`: `__PACKAGE__->table('orders')`
+  is the literal marker for a Result class (never guessed from base class or shape),
+  `add_columns(...)` (bareword list or `name => {...}` hash, keys only) become `Field`s on
+  a new `Entity` (`perl:entity:Dotted.Path`, alongside the package's own `Type` node), and
+  `belongs_to`/`has_many`/`might_have` become `REFERENCES` — `src` always the declaring
+  entity, a target this repo never declares still gets the edge, to an external `Entity`
+  placeholder. Runs in `finalize()`, like `CALLS`: a relation target's local-vs-external
+  classification needs every file's declarations known first. `data_layer_link.py` needed
+  no Perl-specific wiring. `corpus/perl/dbic` added.
+- **`scripts/roadmap-status.py`** — the roadmap-currency gate for every language track's
+  phase table (§8.1 of `docs/specs/templates/language-track.md`): a DONE phase with no
+  Evidence/Finished, a codegen phase started before its named comprehension dependency is
+  DONE, a document's own top Status line contradicting its own phase table, an unindexed
+  roadmap, or a broken relative link. Deliberately narrower than the free-prose spec-status
+  classifier `STATE-OF-SPINE.md` §8 tried and withdrew at 33% precision — every check here
+  reads structured table cells or compares a document against itself.
+- **`scripts/validate-frontend.py`** — the real-repository smoke test as a script (§8.2):
+  shallow-clone, extract, verify, the `state` stack line, node counts by language, top
+  unresolved import targets, delete. Reuses the same SSRF-guarded `resolve_repo_source`/
+  `materialize_repo_source` the CLI's repo-argument resolution already uses.
+- **`docs/specs/templates/language-track.md`** — the shared roadmap skeleton (§8.4),
+  generalized from `perl-support-roadmap.md`'s own section shape for the next language
+  track to start from instead of re-deriving it.
+
+### Fixed
+
+- **Perl `SUPER::m()` could fabricate a method id nothing declared.** Found live on the
+  first full real-repo run this track completed (`validate-frontend.py` against
+  `mojolicious/mojo`): 10 dangling `CALLS` edges, all `SUPER::new()` into a `Mojo::Base`
+  -style parent that never declares an explicit `sub new` (the constructor comes from
+  further up the chain). `perl_extractor.py`'s `SUPER::` handling now reuses the
+  already-verified `Shop::Log->new` policy — call the resolved `Type` itself when it
+  doesn't declare the method, rather than guessing `<base>.<method>`. `corpus/perl/
+  super_calls` added; no case had exercised `SUPER::` before this.
+- **Perl `belongs_to`/`has_many`/`might_have` could target the wrong entity (P6 review).**
+  `perl_extractor.py` took "the first string literal in the argument list" as the DBIx::Class
+  relation target — correct only when the relation name was a bareword
+  (`belongs_to(customer => 'App::Schema::Result::Customer', ...)`). A quoted name
+  (`belongs_to('customer', 'App::Schema::Result::Customer', ...)`, equally valid
+  DBIx::Class) made it pick the *name* as the target, fabricating a `REFERENCES` edge to a
+  node the source never declares. Now reads DBIx::Class's own positional signature —
+  the target is always argument position 1, regardless of how the name is spelled.
+  `corpus/perl/dbic` extended to exercise the quoted spelling.
+- **`scripts/validate-frontend.py` could crash on one bad repo and abort the rest of an
+  unattended multi-repo run (P6 review).** The clone/extract/verify/state block had no
+  exception handling; a clone timeout or an extraction edge case on one URL took the whole
+  run down with a raw traceback. Now a per-repo boundary: reports the failure and moves to
+  the next URL, matching the script's own purpose.
+- **`scripts/roadmap-status.py` could silently drop a whole document from every check (P6
+  review).** A malformed first data row after a matched phase-table header (wrong column
+  count) made the document vanish from the results with no diagnostic. Now reported
+  explicitly as its own finding instead of failing silent.
+- **`scripts/roadmap-status.py` could silently drop every row *after* a malformed one,
+  even mid-table.** A live instance: `perl-support-roadmap.md`'s own P5 evidence quoted
+  an example table row inside a code span, and the literal `|` characters in it split
+  that row into 10 cells — the parser treated the bad row as the end of the table,
+  dropping P5 and P6 with no diagnostic. `--check` stayed green because every check it
+  ran was against the 4 rows it *was* handed. Found only when asked to render the table
+  and two phases were missing. A malformed row is now skipped, not treated as
+  end-of-table, so later valid rows are no longer swallowed by an earlier bad one — and
+  the skip itself is reported.
+- **A second, deeper maintainer review of the Perl track found and fixed 11 real
+  precision/correctness bugs, all confirmed against the actual code (several against real
+  Perl semantics probed with tree-sitter-perl directly).** `PerlExtractor` leaked facts
+  across repos in a multi-repo run (`finalize()` never reset its own accumulators);
+  `use X qw(f)` imports were treated as file-scoped when Perl scopes them per-package;
+  D10 wrongly resolved a bare call through `@ISA` (real Perl never dispatches a bare call
+  through inheritance); `&Pkg::f()` embedded a literal `&` in its emitted id instead of
+  being excluded like every other ampersand-form call; a fully-qualified `sub
+  Pkg::Sub::name {}` kept the wrong owning package; Dancer2's `del` verb uppercased to
+  "DEL" instead of the real HTTP method "DELETE"; a Mojolicious route registered from a
+  helper method resolved its controller against the helper's own package instead of the
+  app class; a hyphenated controller name (`foo-bar`) produced a literal `::` next to
+  dots in an id, never matching the real declaration; five of nine corpus cases listed an
+  external placeholder as an expected node, silently deflating their own recall numbers
+  (the `plain` control scored 0.33/0.75 against its own claimed "1.00/1.00 by design");
+  Perl was never added to `scoreboard.json`, so a regression to 0.00 precision would not
+  have failed a build; and `exporter_default`'s own fixture set `@EXPORT` without
+  inheriting `Exporter`, so the labelled edge wasn't true of the fixture's own code — D10
+  now verifies the inheritance too. Every corpus case now scores exactly 1.00 precision
+  and 1.00 recall on every node and edge kind except one permanent, predicted known gap.
+  Also closed: a role consumed via `with 'Role'` used to feed the same list `SUPER::`
+  reads as real inheritance (a role never participates in `SUPER::` dispatch in real
+  Perl); `has_one` was missing from the recognized DBIx::Class relations; `use parent`/
+  `use base`/`use Mojo::Base` now also emit `IMPORTS` (they really do load the named
+  class) except when `-norequire` says otherwise; a whole-repo name-resolution helper
+  rebuilt its declared-id set on every single call, genuinely quadratic in repo size, now
+  computed once per pass; and a unit test claiming to exercise the `require`-path-join
+  end-to-end placed the requiring script under `bin/` (walker-ignored), passing by
+  accident for a reason unrelated to what it claimed.
+- **`$self->SUPER::m()` always resolved through the first parent in `@ISA`, not the
+  first parent that actually declares the method — a re-review of the Perl track found
+  it live: `use parent qw(A B)` plus `SUPER::bmeth()`, declared only on `B`, emitted a
+  `CALLS` edge to `A` and none to `B`.** Perl's default MRO is depth-first, left to
+  right across `@ISA`; the resolver now walks every resolved parent in that order and
+  stops at the first one that declares the method, falling back to the old "call the
+  type" backstop only when exactly one parent is resolved, and skipping the call
+  entirely (rather than naming a guess) when several parents are resolved and none of
+  them declares it. Single-parent shapes are unaffected — `corpus/perl/super_calls`
+  still scores 1.00 precision/recall on every kind unchanged.
+
 ## 3.33.2 — the SDLC runs as a pipeline, and PHP builds
 
 ### Added

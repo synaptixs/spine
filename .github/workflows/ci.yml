@@ -53,11 +53,12 @@ jobs:
       # repo's own graph is unchanged (it is pure Python outside the corpus fixtures). `php`
       # joined the same way (php-support-roadmap.md P1) — without it, `PhpExtractor` never
       # registers and the biconditional test in test_default_extractors.py proves nothing.
+      # `perl` joined the same way (perl-support-roadmap.md P1).
       - name: Install project
         run: >-
           uv sync --extra dev --extra mcp
           --extra typescript --extra java --extra csharp
-          --extra c --extra cpp --extra go --extra php
+          --extra c --extra cpp --extra go --extra php --extra perl
 
       - name: Lint (ruff)
         run: uv run ruff check .

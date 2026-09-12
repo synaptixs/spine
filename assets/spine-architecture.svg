@@ -37,7 +37,7 @@
 <rect x="64" y="688" width="1472" height="126" rx="10" fill="#16224180" stroke="#2DD4BF" stroke-width="1.5"/>
 <text x="88" y="726" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#F5F7FA">Product Knowledge Graph</text>
 <text x="88" y="752" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="400" fill="#5DCAA5">the source of truth · pkg/</text>
-<text x="1512" y="728" text-anchor="end" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">Every fact points at a file and a line. 8 node kinds · 11 edge kinds, across 9 language front-ends,</text>
+<text x="1512" y="728" text-anchor="end" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">Every fact points at a file and a line. 8 node kinds · 11 edge kinds, across 10 language front-ends,</text>
 <text x="1512" y="750" text-anchor="end" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">built from code and docs. No LLM — the same commit always gives the same graph. Everything above and</text>
 <text x="1512" y="772" text-anchor="end" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#C9D2E0">below reads from it.</text>
 <text x="64" y="844" font-family="Inter, -apple-system, Segoe UI, Arial, sans-serif" font-size="17" font-weight="600" fill="#5DCAA5" letter-spacing="2.5">C · RESEARCH</text>

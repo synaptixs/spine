@@ -26,8 +26,8 @@ The PKG is built **from your code** (deterministic, no LLM). Spine reads it befo
 writes anything, so generated code matches your repo's real structure and conventions.
 
 Its accuracy is measured rather than asserted: **precision 1.00 on every node and edge kind
-across all 9 front-ends** — nothing in the graph is invented — with the remaining gap being
-missing `CALLS` edges, not wrong ones (§10).
+across all 10 of Spine's front-ends** — nothing in the graph is invented — with the
+remaining gap being missing `CALLS` edges, not wrong ones (§10).
 
 ---
 
@@ -133,6 +133,7 @@ a variable yields no edge, because a wrong edge is worse than an absent one.
 | `cpp` | ✓ | ✓ | ✓ | ✓ | · | · | · | · |
 | `go` | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · |
 | `php` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · |
+| `perl` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · |
 | `sql` | ✓ | · | ✓ | ✓ | · | ✓ | · | · |
 
 **Edges**
@@ -147,6 +148,7 @@ a variable yields no edge, because a wrong edge is worse than an absent one.
 | `cpp` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | ✓ | · | · |
 | `go` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · |
 | `php` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · |
+| `perl` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · |
 | `sql` | · | ✓ | ✓ | · | ✓ | ✓ | · | · | ✓ | · | · |
 
 Read a `·` as *this front-end has no code that emits that kind* — not as *your repo
@@ -245,6 +247,7 @@ flowchart LR
   | C++ | ✅ classes/namespaces/inheritance | `pip install 'synaptixs-spine[cpp]'` |
   | Go | ✅ + interface satisfaction (`IMPLEMENTS`) | `pip install 'synaptixs-spine[go]'` |
   | PHP | ✅ + call graph (traits as `IMPLEMENTS`; `$this`/`self`/`parent`/`new`/static-call resolution, incl. typed receivers) + Laravel/Slim/Symfony routes + Eloquent/Doctrine entities | `pip install 'synaptixs-spine[php]'` |
+  | Perl | ✅ comprehension + call graph + routes + data layer (every `package`/5.38 `class` is its own `Type`; inheritance across its five spellings as `IMPLEMENTS`; `$self->`/`SUPER::`/qualified/bare `CALLS` incl. a typed-receiver rule; Mojolicious/Mojolicious::Lite/Dancer2 routes as `Endpoint`+`EXPOSES`; DBIx::Class `__PACKAGE__->table(...)` as `Entity`, `add_columns` as `Field`, `belongs_to`/`has_many`/`might_have`/`has_one` as `REFERENCES`) | `pip install 'synaptixs-spine[perl]'` |
 
   Java lifts JAX-RS / Jakarta REST resource methods into `Endpoint` nodes with
   `EXPOSES` edges to their handlers. Both `javax.ws.rs` and `jakarta.ws.rs`
@@ -275,6 +278,26 @@ flowchart LR
   value **and** pointer receivers — so a type that structurally satisfies an interface is
   linked to it. `CALLS` resolve same-package functions and receiver-method calls, and a
   struct field whose type is another same-package type becomes a `REFERENCES` edge.
+
+  Perl's `Module` is always **path-keyed** (`perl:lib/Shop/Cart.pm`) — unlike a
+  namespace-keyed language, a Perl file has no single reliable namespace of its own (it
+  may hold zero, one, or several packages). D2's load-bearing decision: a `package` **is**
+  both the namespace and the class (`bless` makes any package a class), so **every**
+  `package`/5.38 `class` declaration becomes its own `Type`, dotted from the source `::`
+  (`perl:Shop.Cart`). Inheritance resolves across five literal spellings into `IMPLEMENTS`
+  (`use parent`/`use base`, `our @ISA`/`push @ISA`, Moo/Moose `extends`, `use Mojo::Base`,
+  5.38 `:isa(...)`) — a computed `@ISA` yields nothing. `has`/`Class::Accessor`/5.38 `field`
+  become `Field`s. `CALLS` resolves six shapes precision-first — `$self`/`$class`/
+  `__PACKAGE__`/`shift` calls to a sibling sub or field, `SUPER::` to the first resolved
+  parent, a qualified `X->m()`/`X::f()` call, and a bare call resolved same-file, via an
+  explicit `use X qw(f)` import, or (verified-only) a first-party `@EXPORT`/`@ISA` chain —
+  never a dynamic dispatch (`$self->$m()`, `&$code`, string `eval`); a typed-receiver rule
+  additionally resolves `$obj->m()` when `$obj` holds a literal same-sub constructor.
+  Mojolicious full-app routes (`$r->get('/x')->to(...)`, `under('/api')` groups) and
+  Mojolicious::Lite/Dancer2's shared bareword DSL become `Endpoint` + `EXPOSES` — a
+  verb-less/`any` registration or a computed path yields nothing, a closure handler yields
+  an `Endpoint` with no `EXPOSES`. Data-layer entities (DBIx::Class) are a later phase of
+  the same track.
 - **Cached per commit.** Re-running on an unchanged tree reuses the cache; `--refresh`
   forces a re-extract. So `understand` is cheap to re-run as the code evolves.
 
@@ -546,8 +569,8 @@ reviews honest.
 
 - **Static, not runtime.** The PKG is built from source structure; it doesn't capture
   runtime behavior, dynamic dispatch it can't see, or values only known at execution.
-- **Parser coverage.** Python/Java/TypeScript/C#/C/C++/**Go** and **SQL** today — eight
-  front-ends. Other languages aren't extracted yet (their files are simply not
+- **Parser coverage.** Python/Java/TypeScript/C#/C/C++/**Go**/**PHP**/**Perl** and **SQL**
+  today — ten front-ends. Other languages aren't extracted yet (their files are simply not
   represented). For C, parsing is
   pre-preprocessor — heavy macro use yields partial facts (we never run `cpp`). For SQL, the
   dialect is auto-detected (override with `--dialect`); UTF-16 and `GO`-separated SQL Server
@@ -570,15 +593,16 @@ reviews honest.
 ## 10. How right is it? — measured, not asserted
 
 "Grounded" is an adjective; this is a number. `orchestrator pkg accuracy` scores the graph
-against a committed corpus of **19 hand-labelled fixture repositories across all 8
+against a committed corpus of **47 hand-labelled fixture cases across all 10
 front-ends**, and the baseline lives in `src/orchestrator/pkg/scoreboard.json`.
 
-**Precision is 1.00 on every node kind and every edge kind, in all 8 languages.** Recall is
+**Precision is 1.00 on every node kind and every edge kind, in all 10 languages.** Recall is
 1.00 on every kind except `CALLS`:
 
 | language | `CALLS` recall |
 |---|---|
 | `c` `sql` | 1.00 |
+| `perl` | 0.89 |
 | `python` | 0.73 |
 | `cpp` `csharp` `go` `java` | 0.67 |
 | `typescript` | 0.50 |

@@ -42,6 +42,12 @@ Only the matching rule is per-language:
   importing file has no namespace) is a repo-relative path ending in ``.php``,
   matched as a path-suffix exactly like C's ``#include`` — genuinely this
   module's job, since D7's target is deliberately *not* the exact grounded id.
+- **perl** — same two-shapes split as PHP, for the same reason (D2 vs. D7 of
+  ``perl-support-roadmap.md``): a ``use``/bareword-``require`` target names a
+  *package*, which is a ``Type`` under D2, so it already joins via the exact
+  dotted id and needs no prefix walk (not in ``_DOTTED_PREFIXES`` — Perl has no
+  re-export mechanism either). Only a literal ``require "path.pl"`` — a
+  ``Module``, path-keyed by construction — needs the C-style path-suffix match.
 """
 
 from __future__ import annotations
@@ -75,6 +81,13 @@ class _Index:
         # and never ends in ``.php``, so this list holds exactly the path-shaped ones.
         self.php_paths: list[str] = sorted(
             mid[len("php:") :] for mid in self.modules if mid.startswith("php:") and mid.endswith(".php")
+        )
+        # Every Perl Module id is path-keyed (D2 — no namespace-keyed form exists at all),
+        # so this is every grounded Perl module, not a subset like PHP's.
+        self.perl_paths: list[str] = sorted(
+            mid[len("perl:") :]
+            for mid in self.modules
+            if mid.startswith("perl:") and mid.endswith((".pl", ".pm", ".t"))
         )
         self.go_module = self._read_go_module(root)
 
@@ -161,13 +174,24 @@ def _match_php_path(dst_id: str, idx: _Index) -> str | None:
     return hits[0] if len(hits) == 1 else None
 
 
+def _match_perl_path(dst_id: str, idx: _Index) -> str | None:
+    """A literal ``require "path.pl"`` target (D7 of perl-support-roadmap.md) — the
+    same path-suffix discipline as ``_match_c``/``_match_php_path``."""
+    raw = dst_id.partition(":")[2]
+    hits = [f"perl:{body}" for body in idx.perl_paths if body == raw or body.endswith("/" + raw)]
+    return hits[0] if len(hits) == 1 else None
+
+
 def _resolve(edge: Edge, idx: _Index) -> str | None:
     prefix, _, body = edge.dst.partition(":")
-    # Checked before the dotted-prefix branch below (php IS in _DOTTED_PREFIXES, for its
-    # `use`-import targets): a `.php`-suffixed body is a D7 require/include path, never
-    # a dotted namespace, so it needs the C-style matcher instead.
+    # Checked before the dotted-prefix branch below: neither php nor perl is in
+    # _DOTTED_PREFIXES (both rely on exact-id dedup for their `use`-shaped imports — see
+    # the module docstring), so a path-shaped body needs the C-style matcher instead, or
+    # it would fall through every branch below and stay unresolved.
     if prefix == "php" and body.endswith(".php"):
         return _match_php_path(edge.dst, idx)
+    if prefix == "perl" and body.endswith((".pl", ".pm", ".t")):
+        return _match_perl_path(edge.dst, idx)
     if prefix in _DOTTED_PREFIXES:
         return _match_dotted(edge.dst, idx)
     if prefix == "ts":

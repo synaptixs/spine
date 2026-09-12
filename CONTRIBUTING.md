@@ -47,12 +47,18 @@ of a feature you took out. Stdlib only; runs on any ref. The reviewer runs it on
 
 **Reviewing a pull request as a maintainer.** The checklist a merge or promotion decision
 needs — the gate with CI's extras, fan-out code review, a real-repository smoke test for
-front-end changes, and the documentation audit above walked against
+front-end changes (`python scripts/validate-frontend.py <language> <git-url> [<git-url>
+...]` — shallow-clones each repo, extracts, verifies, and prints the `state` stack line and
+top unresolved import targets, so this no longer needs re-deriving by hand each time), and
+the documentation audit above walked against
 [docs/reviewing/docs-matrix.md](docs/reviewing/docs-matrix.md) (plus
 [docs/reviewing/language-frontend-checklist.md](docs/reviewing/language-frontend-checklist.md)
-when a front-end changed). Maintainers who use Claude Code carry it as a local `/review-pr`
+when a front-end changed). A language-track roadmap's own phase table is checked by
+`python scripts/roadmap-status.py --check` — a DONE phase with no Evidence, a stale
+top-of-document Status line, or a codegen phase started before its comprehension
+dependency landed. Maintainers who use Claude Code carry it as a local `/review-pr`
 skill and a `pr-reviewer` subagent under `.claude/`, which this repository does not track;
-the repository keeps the two reference documents and the script, which need no assistant.
+the repository keeps the reference documents and the scripts, which need no assistant.
 
 ## Opening a pull request
 

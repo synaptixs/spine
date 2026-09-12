@@ -16,7 +16,7 @@ description: >-
 
 Spine reads a repository's **Product Knowledge Graph** — a deterministic, no-LLM index of its
 modules, types, functions, call sites, and blast radius, with every fact grounded to `file:line`.
-It covers Python, Java, TypeScript, C#, C, C++, Go, PHP and SQL.
+It covers Python, Java, TypeScript, C#, C, C++, Go, PHP, Perl and SQL.
 These MCP tools turn that graph into *decisions*, not just lookups: what a change breaks, what's
 untested, where work lands. They're **read-only, need no credentials**, and take a local
 `repo_path` (default: the current repository).

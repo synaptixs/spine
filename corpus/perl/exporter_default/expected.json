@@ -1,0 +1,32 @@
+{
+  "language": "perl",
+  "case": "exporter_default",
+  "why": "D10: `use Shop::Util;` (no list) pulls in `fmt` only because Shop::Util's own literal `@EXPORT` names it, Shop::Util itself declares `sub fmt`, AND Shop::Util actually inherits `Exporter` (`our @ISA = qw(Exporter)`) — all three verified, in-repo. The third check is P6 review's own fix: `@EXPORT` is inert unless something reads it, and only `Exporter`'s `import()` does; a package that sets `@EXPORT` without inheriting `Exporter` has `fmt()` never actually reachable this way, so the original fixture (missing the `@ISA` line) labelled an edge that wasn't true of the code. `use Carp;` (also bare) then `croak('bad')` is the control: Carp is never declared anywhere in this repo, so D10 must find no first-party package to verify against and refuse the edge entirely — not a miss to explain, a fact never claimed (see 'excluded').",
+  "root": ".repo",
+  "nodes": [
+    { "id": "perl:Util.pm", "kind": "Module" },
+    { "id": "perl:Cart.pm", "kind": "Module" },
+    { "id": "perl:Shop.Util", "kind": "Type" },
+    { "id": "perl:Shop.Cart", "kind": "Type" },
+    { "id": "perl:Shop.Util.fmt", "kind": "Function" },
+    { "id": "perl:Shop.Cart.total", "kind": "Function" }
+  ],
+  "edges": [
+    { "src": "perl:Util.pm", "dst": "perl:Shop.Util", "kind": "CONTAINS" },
+    { "src": "perl:Cart.pm", "dst": "perl:Shop.Cart", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Util", "dst": "perl:Shop.Util.fmt", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Cart", "dst": "perl:Shop.Cart.total", "kind": "CONTAINS" },
+    { "src": "perl:Util.pm", "dst": "perl:Exporter", "kind": "IMPORTS" },
+    { "src": "perl:Shop.Util", "dst": "perl:Exporter", "kind": "IMPLEMENTS" },
+    { "src": "perl:Cart.pm", "dst": "perl:Shop.Util", "kind": "IMPORTS" },
+    { "src": "perl:Cart.pm", "dst": "perl:Carp", "kind": "IMPORTS" },
+    { "src": "perl:Shop.Cart.total", "dst": "perl:Shop.Util.fmt", "kind": "CALLS" }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "`croak('bad')` -> Carp's croak — Carp is never declared in this repo, so there is no first-party @EXPORT to verify `croak` against; not a fact this corpus claims, and the extractor emitting it would be a precision failure, not a recall gap",
+    "perl:Exporter and perl:Carp are both external (CPAN core modules, never declared as packages anywhere in this repo) — excluded from the node ratio per corpus/README.md's rule; the IMPORTS/IMPLEMENTS edges to them above still count"
+  ],
+  "open_questions": []
+}

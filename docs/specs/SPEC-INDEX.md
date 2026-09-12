@@ -1,8 +1,9 @@
 # Spec index — every design record, and where it stands
 
 **Generated 2026-08-15 against 3.18.1; refreshed 2026-08-21 for the completed GraphIR
-programme; recounted 2026-09-10 at 3.33.2.** `docs/specs/` holds **88** markdown files —
-**80 specs** plus three navigation documents ([README](README.md), this index,
+programme; recounted 2026-09-11 at 3.33.2 for perl-support-roadmap.md and perl-codegen-roadmap.md.**
+`docs/specs/` holds **90** markdown files —
+**82 specs** plus three navigation documents ([README](README.md), this index,
 [STATE-OF-SPINE](STATE-OF-SPINE.md)) — with 6 archived and 10 build documents. The count read
 *63* until 2026-08-21, and **five specs were not listed at all**, including this file's own
 companion matrix and both measurements it cites as evidence. An inventory that silently omits
@@ -10,7 +11,7 @@ things is the failure it was built to catch, so the count is now stated as a der
 can re-run:
 
 ```
-ls docs/specs/*.md | wc -l          # 88
+ls docs/specs/*.md | wc -l          # 90
 ```
 
 **It rotted anyway.** The line read *70* from 2026-08-21 until 2026-08-28 while the directory
@@ -77,7 +78,9 @@ Graphify-gap series only. This file is the complete inventory.
 | [capability-recommendations-kg-grounded](capability-recommendations-kg-grounded.md) | C1–C6, C8–C10 (9 of 10) | **C7** — observability→defect |
 | [sql-support-roadmap](sql-support-roadmap.md) | Track A complete, released 2.7.0 | **Track B** — greenfield SQL codegen |
 | [go-support-roadmap](go-support-roadmap.md) | Phase 4.1 comprehension **done**; Go ships in 3.18.1 | Later phases; branch `feat/go-support` |
+| [perl-support-roadmap](perl-support-roadmap.md) | **In progress — P1–P6 landed with evidence** (10th front-end: every `package`/5.38 `class` as `Type`, inheritance across five spellings, `CALLS` across six shapes incl. D10's verified-only default-export resolution (never `@ISA` — a bare call never dispatches through inheritance in real Perl), Mojolicious/Lite/Dancer2 routes as `Endpoint`+`EXPOSES`, typed-receiver `CALLS`, DBIx::Class `Entity`/`Field`/`REFERENCES` via `__PACKAGE__->table(...)`, P5's `roadmap-status.py`/`validate-frontend.py`/language-track template, P6's two review passes — every confirmed finding fixed with a regression test); full-repo validation on both validation repos still pending, MR blocked on PAT scope | Open the MR (needs `pull_requests: write`); branch `feat/perl-support` |
 | [php-codegen-roadmap](php-codegen-roadmap.md) | P0–P5 complete; merge PR #350 | Composer/PHAR PHPUnit, legacy layouts, aiemr validation |
+| [perl-codegen-roadmap](perl-codegen-roadmap.md) | Proposed 2026-09-10 — `sdlc feature --language perl` built and tested with `prove`; own branch `feat/perl-codegen` once the support track merges; one MR | C-1 machinery (green + red) → C-2 greenfield live-proven → C-3 brownfield on Mojolicious → C-4 preflight + MR |
 | [php-support-roadmap](php-support-roadmap.md) | ✅ **All four phases done** — 9th front-end: comprehension, `CALLS` (incl. typed receivers), Laravel/Slim/Symfony routes, Eloquent/Doctrine entities | Codegen implemented in the follow-on below |
 | [java-codegen](java-codegen.md) | 2a (1.8.0), 2b + 2c (1.9.0) | Remaining slices |
 | [typescript-codegen](typescript-codegen.md) | Slice 1 comprehension (1.11.0) | Codegen slices |
@@ -162,7 +165,7 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | State | Count |
 |---|---|
 | ✅ Complete | 17 |
-| 🟡 Partial | 13 |
+| 🟡 Partial | 14 |
 | 📋 Outstanding | 15 |
 | ⚠️ Stale status | 2 |
 | 📖 Reference | 25 |

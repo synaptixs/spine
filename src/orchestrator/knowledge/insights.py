@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 # conventions, not one universal rule — assuming Python's underscore everywhere
 # reported 19,212 public vs 32 internal on a C codebase, which is a number that
 # looks computed and means nothing.
-_UNDERSCORE_LANGS = frozenset({"python", "typescript", "javascript"})
+_UNDERSCORE_LANGS = frozenset({"python", "typescript", "javascript", "perl"})
 _C_LANGS = frozenset({"c", "cpp"})
 
 #: Human-readable rule per language, so a page can say how it decided.
@@ -43,6 +43,7 @@ VISIBILITY_RULES = {
     "c": "`static` (internal linkage)",
     "cpp": "`static` (internal linkage)",
     "go": "a lower-case initial (unexported)",
+    "perl": "a leading underscore",
 }
 
 

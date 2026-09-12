@@ -1,0 +1,24 @@
+{
+  "language": "perl",
+  "case": "legacy_main",
+  "why": "D2's implicit-main fallback: two scripts with no `package` statement at all, both declaring `usage` — proving the ids stay distinct and path-keyed (`perl:scripts/a.pl.usage` vs `perl:scripts/b.pl.usage`) rather than colliding the way a single shared `main` Type would. `require \"common.pl\";` (a bare filename, not the full `lib/common.pl` path) exercises `import_link.py`'s C-style path-suffix matcher, the D7 case a namespace-keyed `use` target never needs. Deliberately NOT named `bin/` — that directory is in `extractor.DEFAULT_IGNORE_DIRS` (\".NET build output\", shared across every front-end), which would silently drop these fixture files; a real-world Perl repo keeping its scripts in `bin/` hits the same silent drop and is recorded as a known limitation in perl-support-roadmap.md, not fixed here (shared, cross-language infra, out of this track's scope).",
+  "root": ".repo",
+  "nodes": [
+    { "id": "perl:scripts/a.pl", "kind": "Module" },
+    { "id": "perl:scripts/b.pl", "kind": "Module" },
+    { "id": "perl:lib/common.pl", "kind": "Module" },
+    { "id": "perl:scripts/a.pl.usage", "kind": "Function" },
+    { "id": "perl:scripts/b.pl.usage", "kind": "Function" },
+    { "id": "perl:lib/common.pl.helper", "kind": "Function" }
+  ],
+  "edges": [
+    { "src": "perl:scripts/a.pl", "dst": "perl:scripts/a.pl.usage", "kind": "CONTAINS" },
+    { "src": "perl:scripts/b.pl", "dst": "perl:scripts/b.pl.usage", "kind": "CONTAINS" },
+    { "src": "perl:lib/common.pl", "dst": "perl:lib/common.pl.helper", "kind": "CONTAINS" },
+    { "src": "perl:scripts/a.pl", "dst": "perl:lib/common.pl", "kind": "IMPORTS" }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": []
+}

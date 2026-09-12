@@ -66,7 +66,7 @@ Optional extras, added when you need them:
 - `pip install 'synaptixs-spine[all]'` — everything below at once: every language front-end,
   the MCP server and doc ingestion. This is the right install for the Claude Code / Codex
   plugin; `[languages]` is the front-ends on their own.
-- `[java]`, `[typescript]`, `[csharp]`, `[c]`, `[cpp]`, `[go]`, `[php]`, `[sql]` — language
+- `[java]`, `[typescript]`, `[csharp]`, `[c]`, `[cpp]`, `[go]`, `[php]`, `[perl]`, `[sql]` — language
   parsers for comprehension + grounding (Python needs no extra). C# codegen also needs the **.NET
   SDK** (`dotnet`) on PATH; C / C++ codegen needs a C / C++ compiler plus **CMake** (greenfield) or
   **Meson + Ninja** (matching the target repo's build system); **Go** codegen needs the **`go`
@@ -74,7 +74,9 @@ Optional extras, added when you need them:
   comprehension (schema/queries/procedures + migration folding) — no toolchain needed. `[php]`
   adds `.php` comprehension + a call graph (namespaces, classes/interfaces/traits, `CALLS`,
   typed-receiver resolution) + Laravel/Slim/Symfony routes + Eloquent/Doctrine entities —
-  codegen uses Composer or a pinned PHPUnit PHAR.
+  codegen uses Composer or a pinned PHPUnit PHAR. `[perl]` adds `.pl`/`.pm`/`.t` comprehension
+  (every package is its own type, inheritance across its five spellings) — comprehension only
+  so far; codegen is a separate, not-yet-started track.
 - `[docs]` — **PDF** doc ingestion; `[office]` — **Word/Excel** (`.docx`/`.xlsx`) ingestion.
   Markdown, `.rst`, `.txt` and **HTML** need no extra. Without an extra those files are simply
   skipped, so a base install still ingests everything it can read.
@@ -355,11 +357,12 @@ is: `orchestrator understand .` → commit `episteme/`, then re-run whenever the
 > greenfield projects.
 
 > **Multi-language.** Comprehension covers **Python** out of the box and **Java**,
-> **TypeScript**, **C#**, **C**, **C++**, **Go**, **PHP**, and **SQL** when the matching parser
+> **TypeScript**, **C#**, **C**, **C++**, **Go**, **PHP**, **Perl**, and **SQL** when the matching parser
 > extra is installed (`pip install 'synaptixs-spine[java]'` / `[typescript]` / `[csharp]` / `[c]`
-> / `[cpp]` / `[go]` / `[php]` / `[sql]`). `understand`, codegen grounding, and `pkg extract` then
-> process `.java` / `.ts` / `.cs` / `.c` / `.h` / `.cpp` / `.hpp` / `.go` / `.php` / `.sql` too
-> (`.blade.php` is skipped as a template, not PHP source). PHP also builds and tests code with Composer or a pinned PHPUnit PHAR. For **SQL**, the
+> / `[cpp]` / `[go]` / `[php]` / `[perl]` / `[sql]`). `understand`, codegen grounding, and `pkg extract` then
+> process `.java` / `.ts` / `.cs` / `.c` / `.h` / `.cpp` / `.hpp` / `.go` / `.php` / `.pl` / `.pm` / `.t` / `.sql` too
+> (`.blade.php` is skipped as a template, not PHP source). PHP also builds and tests code with Composer or a pinned PHPUnit PHAR.
+> Perl is comprehension-only for now — its codegen track is separate and not yet started. For **SQL**, the
 > graph models the **data layer from source** — `CREATE TABLE`/columns → `Entity`/`Field`,
 > foreign keys → `REFERENCES`, views and `SELECT`/`INSERT`/`UPDATE`/`DELETE` → `READS`/
 > `WRITES`, and stored procedures → `Function` + `CALLS`. A `migrations/` folder is folded
@@ -435,13 +438,14 @@ orchestrator pkg verify .        # does the graph contradict itself? (dangling e
 orchestrator pkg accuracy        # precision & recall per kind, per language, vs a labelled corpus
 ```
 
-Against the committed corpus of 38 fixture cases (34 single-language, 4 multi-repo) across all
-9 front-ends, **precision is 1.00 on every node kind and every edge kind in all 9 languages**, and recall is 1.00 on every
+Against the committed corpus of 47 fixture cases (43 single-language, 4 multi-repo) across
+all 10 of Spine's front-ends, **precision is 1.00 on every node kind and every edge kind in every language**, and recall is 1.00 on every
 kind except `CALLS`:
 
 | language | `CALLS` recall |
 |---|---|
 | `c` `sql` | 1.00 |
+| `perl` | 0.89 |
 | `python` | 0.73 |
 | `cpp` `csharp` `go` `java` | 0.67 |
 | `typescript` | 0.50 |

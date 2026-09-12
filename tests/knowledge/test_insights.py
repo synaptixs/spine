@@ -211,6 +211,9 @@ def test_visibility_uses_each_language_own_rule() -> None:
     # Python keeps the underscore convention
     assert is_public(_sym("py:m._hidden", "python", "_hidden")) is False
     assert is_public(_sym("py:m.shown", "python", "shown")) is True
+    # Perl keeps the same leading-underscore convention
+    assert is_public(_sym("perl:Shop.Cart._hidden", "perl", "_hidden")) is False
+    assert is_public(_sym("perl:Shop.Cart.shown", "perl", "shown")) is True
 
 
 def test_visibility_declines_to_guess_where_the_graph_cannot_tell() -> None:

@@ -691,7 +691,8 @@ approval — Spine refuses a live write without it. `live=true` needs a reachabl
 
 ## 10. Language support & toolchains
 
-Comprehension covers **nine front-ends**. Spine only needs a language's toolchain when it **builds/tests** generated code in
+Comprehension covers **ten front-ends** (Perl is comprehension-only so far — no row below,
+see the note after the table). Spine only needs a language's toolchain when it **builds/tests** generated code in
 that language:
 
 | Language | Build/test needs on PATH |
@@ -705,6 +706,11 @@ that language:
 | Go | the **`go` toolchain** (`go build` / `go test`); multi-module aware |
 | PHP | **PHP** (8.3 recommended); **Composer** when `composer.json` exists, otherwise a verified PHPUnit PHAR is downloaded outside the worktree |
 | SQL | nothing extra — schema, queries, stored procedures, ordered-migration folding |
+
+**Perl has no row above on purpose:** it comprehends (`understand`/`state`/`design`/
+`investigate` all work on a Perl codebase), but `sdlc feature --language perl` still exits
+2 — codegen is a separate, not-yet-started track, so `perl` stays out of
+`SUPPORTED_LANGUAGES` until that track lands.
 
 Comprehension front-ends beyond Python install as extras — one at a time
 (`pip install 'synaptixs-spine[go]'`) or all at once with `[languages]`, which `[all]`

@@ -161,6 +161,11 @@ _SOURCES: dict[str, tuple[str, str, str]] = {
         "App.php",
         "<?php\nnamespace App;\n\nclass Greeter {\n    public function greet(): string { return 'hi'; }\n}\n",
     ),
+    ".pm": (
+        "tree_sitter_perl",
+        "App.pm",
+        "package App::Greeter;\n\nsub greet {\n    return 'hi';\n}\n",
+    ),
 }
 
 

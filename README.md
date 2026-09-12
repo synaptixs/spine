@@ -74,8 +74,9 @@ Plenty of tools read your codebase. The difference is what they'll let themselve
 about it.
 
 **1 · The graph is built by parsers, not by a model — and its accuracy is published.**
-Nine language front-ends, every fact carrying `file:line`. Scored against a hand-labelled
-corpus in CI: **precision 1.00 on every node and edge kind**. Where it's weaker, that's
+Ten language front-ends, every fact carrying `file:line`. Scored against a hand-labelled
+corpus in CI, all ten: **precision 1.00 on every node and edge kind**.
+Where it's weaker, that's
 published too — `CALLS` recall runs 1.00 on C and SQL down to 0.86 on TypeScript, reported
 separately rather than averaged into something flattering.
 
@@ -319,7 +320,7 @@ published in full
 · [replicated on an unrelated codebase](https://github.com/synaptixs/spine/blob/main/docs/specs/external-repo-grounding-results.md)),
 and the harness ships with the package so you can get your own number.
 
-Works across **Python, Java, TypeScript, C#, C, C++, Go and PHP**, plus **SQL** data-layer
+Works across **Python, Java, TypeScript, C#, C, C++, Go, PHP and Perl**, plus **SQL** data-layer
 comprehension (schema, queries, stored procedures, migration folding). It reads your
 **documentation** too — Markdown, reST, plain text and **PDF** — folding it in as `Doc` nodes
 linked to the code they describe, so you can ask *which docs cover this symbol* and *where
@@ -428,7 +429,10 @@ Comprehension and codegen cover **Python, Java, TypeScript, C#, C, C++, Go and P
 front-end going beyond structure into what that stack actually does (Java and C# REST
 endpoints, EF Core entities, C's `#include` graph, C++ templates and namespaces, Go
 interface satisfaction by method-set matching). **PHP** adds a call graph too (namespaces,
-classes, interfaces, traits, `CALLS`), plus Composer/PHAR PHPUnit codegen with changed-file lint. **SQL** adds data-layer comprehension plus
+classes, interfaces, traits, `CALLS`), plus Composer/PHAR PHPUnit codegen with changed-file lint.
+**Perl** adds a call graph too (packages, inheritance across its five spellings,
+`$self`/`SUPER::`/qualified/bare `CALLS`) — its codegen track is separate and not
+yet started. **SQL** adds data-layer comprehension plus
 greenfield migration codegen validated against an ephemeral database. **Docs** fold in
 automatically; **media** (diagrams, screenshots, recorded reviews) via the opt-in
 `media extract`. Any LiteLLM provider — Anthropic, OpenAI, Bedrock — or a local Ollama
@@ -464,7 +468,7 @@ fixture.
 
 | If you want to… | Look at |
 |---|---|
-| **Add a language** | `pkg/*_extractor.py`. Nine front-ends today; each is one file plus a labelled corpus case. Rust, Kotlin, Ruby and Perl are the obvious next four. |
+| **Add a language** | `pkg/*_extractor.py`. Ten front-ends today; each is one file plus a labelled corpus case. Rust, Kotlin and Ruby are the obvious next three. |
 | **Improve accuracy** | `corpus/` — hand-written fixtures with expected facts. Adding a case that *fails* is a real contribution; it's how the last four front-end bugs were found. |
 | **Fix something we've written down** | [`STATE-OF-SPINE` §8](https://github.com/synaptixs/spine/blob/main/docs/specs/STATE-OF-SPINE.md) is a standing list of what's broken or missing, kept honest at each release. |
 | **Work on a bigger idea** | [`docs/specs/`](https://github.com/synaptixs/spine/tree/main/docs/specs) — every design record, including the ones we closed *unshipped* and why. |
