@@ -48,7 +48,7 @@ _17 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/c_extractor.py:497`](../../src/orchestrator/pkg/c_extractor.py#L497)
 
-- **Called by** (2): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L468), [`extract`](../../src/orchestrator/pkg/c_extractor.py#L73)
+- **Called by** (2): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L471), [`extract`](../../src/orchestrator/pkg/c_extractor.py#L73)
 - **Calls** (3): `language`, `tree_sitter.Language`, `tree_sitter.Parser`
 
 ### `_calls_in`

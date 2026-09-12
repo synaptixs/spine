@@ -92,7 +92,7 @@ _26 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/csharp_extractor.py:727`](../../src/orchestrator/pkg/csharp_extractor.py#L727)
 
-- **Called by** (2): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L468), [`extract`](../../src/orchestrator/pkg/csharp_extractor.py#L143)
+- **Called by** (2): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L471), [`extract`](../../src/orchestrator/pkg/csharp_extractor.py#L143)
 - **Calls** (3): `language`, `tree_sitter.Language`, `tree_sitter.Parser`
 
 ### `_endpoint_edges`

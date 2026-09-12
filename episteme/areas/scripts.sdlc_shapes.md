@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`scripts.sdlc_shapes`** is one of 55 areas in this repo, in the `scripts` zone. It holds 1 module — 2 types and 17 functions. No other area imports it, and it draws on 1 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
+**`scripts.sdlc_shapes`** is one of 58 areas in this repo, in the `scripts` zone. It holds 1 module — 2 types and 17 functions. No other area imports it, and it draws on 1 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
 
 ```mermaid
 flowchart LR

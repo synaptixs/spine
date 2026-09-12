@@ -26,7 +26,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 ## Documented in
 
-`CHANGELOG.md`, `docs/specs/java-codegen.md#whats-python-shaped-today-the-surfaces-to-generalize`, `docs/specs/php-codegen-roadmap.md#5-files-to-change`, `docs/specs/sandboxed-test-execution.md#file-level-change-list`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
+`CHANGELOG.md`, `docs/specs/java-codegen.md#whats-python-shaped-today-the-surfaces-to-generalize`, `docs/specs/perl-codegen-roadmap.md#2-design`, `docs/specs/php-codegen-roadmap.md#5-files-to-change`, `docs/specs/sandboxed-test-execution.md#file-level-change-list`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
 ## Types
 
@@ -36,7 +36,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 2 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L537), [`test_ctest_runner_passes_when_all_steps_succeed`](../../tests/sdlc/test_testenv.py#L455), [`test_ctest_runner_short_circuits_on_compile_error`](../../tests/sdlc/test_testenv.py#L471)
 - **Fields**: `_cmake`, `_ctest`, `_timeout`
-- **Documented in**: `docs/specs/go-support-roadmap.md#why-go-now-and-why-it-is-cheaper-than-cc`, `docs/specs/language-support-roadmap.md#track-2-c-c-h-do-second-new-model-but-simplest-language`, `docs/specs/language-support-roadmap.md#track-3-c-cpp-cc-cxx-hpp-hh-hxx-do-third-builds-on-c`
+- **Documented in**: `docs/specs/go-support-roadmap.md#why-go-now-and-why-it-is-cheaper-than-cc`, `docs/specs/language-support-roadmap.md#track-2-c-c-h-do-second-new-model-but-simplest-language`, `docs/specs/language-support-roadmap.md#track-3-c-cpp-cc-cxx-hpp-hh-hxx-do-third-builds-on-c`, `docs/specs/perl-codegen-roadmap.md#0-decisions-surfaced-up-front`, `docs/specs/perl-codegen-roadmap.md#1-what-is-reused`, `docs/specs/perl-codegen-roadmap.md#53-the-build-then-test-runner-template-shared-exists`
 
 ### `DotnetTestRunner`
 
@@ -52,7 +52,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 7 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L537), [`test_go_build_and_test_pass_for_correct_code`](../../tests/sdlc/test_go_integration.py#L34), [`test_go_build_fails_for_compile_error`](../../tests/sdlc/test_go_integration.py#L58), [`test_go_runner_short_circuits_on_build_error`](../../tests/sdlc/test_testenv.py#L663), [`test_go_runner_tests_root_when_root_files_change`](../../tests/sdlc/test_testenv.py#L629), [`test_go_runner_tests_the_changed_submodule`](../../tests/sdlc/test_testenv.py#L645), [`test_go_test_fails_for_wrong_code`](../../tests/sdlc/test_go_integration.py#L46), [`test_scaffold_alone_is_green`](../../tests/sdlc/test_go_integration.py#L27)
 - **Fields**: `_go`, `_timeout`
-- **Documented in**: `docs/specs/go-support-roadmap.md#design-plan-adding-go-to-the-pkg-8th-language`, `docs/specs/go-support-roadmap.md#track-4-go-go`, `docs/specs/language-expansion-roadmap.md#where-we-are-today`
+- **Documented in**: `docs/specs/go-support-roadmap.md#design-plan-adding-go-to-the-pkg-8th-language`, `docs/specs/go-support-roadmap.md#track-4-go-go`, `docs/specs/language-expansion-roadmap.md#where-we-are-today`, `docs/specs/perl-codegen-roadmap.md#0-decisions-surfaced-up-front`, `docs/specs/perl-codegen-roadmap.md#1-what-is-reused`, `docs/specs/perl-codegen-roadmap.md#53-the-build-then-test-runner-template-shared-exists`
 
 ### `MavenTestRunner`
 
@@ -84,7 +84,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 2 test): [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L537), [`test_runner_lints_then_targets_each_changed_test`](../../tests/sdlc/test_php_codegen.py#L147), [`test_runner_never_false_green`](../../tests/sdlc/test_php_codegen.py#L186)
 - **Fields**: `_php`, `_phpunit`, `_timeout`
-- **Documented in**: `docs/specs/php-codegen-roadmap.md#34-test-runner-testrunnerpy-phpunittestrunner`, `docs/specs/php-codegen-roadmap.md#4-phases`, `docs/specs/php-codegen-roadmap.md#5-files-to-change`, `docs/specs/php-support-roadmap.md#9-deferred-explicitly-out-of-this-track`
+- **Documented in**: `docs/specs/perl-codegen-roadmap.md#53-the-build-then-test-runner-template-shared-exists`, `docs/specs/php-codegen-roadmap.md#34-test-runner-testrunnerpy-phpunittestrunner`, `docs/specs/php-codegen-roadmap.md#4-phases`, `docs/specs/php-codegen-roadmap.md#5-files-to-change`, `docs/specs/php-support-roadmap.md#9-deferred-explicitly-out-of-this-track`
 
 ### `PostgresSqlTestRunner`
 
@@ -140,7 +140,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/testrunner.py:445`](../../src/orchestrator/sdlc/testrunner.py#L445)
 
 - **Called by** (4): [`run`](../../src/orchestrator/sdlc/testrunner.py#L283), [`run`](../../src/orchestrator/sdlc/testrunner.py#L398), [`run`](../../src/orchestrator/sdlc/testrunner.py#L313), [`run`](../../src/orchestrator/sdlc/testrunner.py#L335)
-- **Documented in**: `docs/specs/go-support-roadmap.md#why-go-now-and-why-it-is-cheaper-than-cc`
+- **Documented in**: `docs/specs/go-support-roadmap.md#why-go-now-and-why-it-is-cheaper-than-cc`, `docs/specs/perl-codegen-roadmap.md#0-decisions-surfaced-up-front`, `docs/specs/perl-codegen-roadmap.md#53-the-build-then-test-runner-template-shared-exists`
 
 ### `_discover_dotnet_target`
 

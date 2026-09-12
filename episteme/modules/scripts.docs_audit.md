@@ -26,7 +26,7 @@ _23 of the symbols other code depends on here have no test path the graph can se
 
 ## Documented in
 
-`CHANGELOG.md`, `CONTRIBUTING.md#how-changes-get-reviewed-and-shipped`, `docs/reviewing/docs-matrix.md#user-facing-documentation-matrix-what-a-change-obliges-you-to-update`
+`CHANGELOG.md`, `CONTRIBUTING.md#how-changes-get-reviewed-and-shipped`, `docs/reviewing/docs-matrix.md#user-facing-documentation-matrix-what-a-change-obliges-you-to-update`, `docs/specs/perl-support-roadmap.md#4-phases-the-living-table`, `docs/specs/perl-support-roadmap.md#61-user-facing-documentation-what-changes-in-which-phase`
 
 ## Functions
 
@@ -133,7 +133,7 @@ _23 of the symbols other code depends on here have no test path the graph can se
 
 - **Called by** (1): [`main`](../../scripts/docs_audit.py#L473)
 - **Calls** (2): [`_read`](../../scripts/docs_audit.py#L146), `findall`
-- **Documented in**: `docs/reviewing/docs-matrix.md#counts-that-rot`, `docs/reviewing/language-frontend-checklist.md#registration-src`, `docs/specs/php-support-roadmap.md#4-phases`
+- **Documented in**: `docs/reviewing/docs-matrix.md#counts-that-rot`, `docs/reviewing/language-frontend-checklist.md#registration-src`, `docs/specs/perl-support-roadmap.md#4-phases-the-living-table`, `docs/specs/php-support-roadmap.md#4-phases`
 
 ### `github_slug`
 
@@ -193,6 +193,7 @@ _23 of the symbols other code depends on here have no test path the graph can se
 [`scripts/docs_audit.py:153`](../../scripts/docs_audit.py#L153)
 
 - **Called by** (4): [`check_counts`](../../scripts/docs_audit.py#L168), [`check_enumerations`](../../scripts/docs_audit.py#L192), [`check_links`](../../scripts/docs_audit.py#L355), [`check_removed`](../../scripts/docs_audit.py#L441)
+- **Documented in**: `docs/specs/perl-support-roadmap.md#4-phases-the-living-table`
 
 ## Imports
 

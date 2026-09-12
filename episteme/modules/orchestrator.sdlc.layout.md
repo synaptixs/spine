@@ -13,7 +13,7 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`is_effectively_empty`](../../src/orchestrator/sdlc/layout.py#L653) — reaches **23** symbols
+- [`is_effectively_empty`](../../src/orchestrator/sdlc/layout.py#L653) — reaches **25** symbols
 - [`TargetLayout`](../../src/orchestrator/sdlc/layout.py#L80) — reaches **18** symbols
 - [`derive_package_name`](../../src/orchestrator/sdlc/layout.py#L109) — reaches **16** symbols
 - [`_csharp_dirs`](../../src/orchestrator/sdlc/layout.py#L304) — reaches **9** symbols
@@ -24,7 +24,7 @@
 
 ## Documented in
 
-`docs/specs/java-codegen.md#whats-python-shaped-today-the-surfaces-to-generalize`, `docs/specs/multi-language-java.md#slice-2-java-codegen-follow-on`, `docs/specs/php-codegen-roadmap.md#5-files-to-change`, `docs/specs/project-comprehension-memory-bank.md#two-branches-same-output-shape`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
+`docs/specs/java-codegen.md#whats-python-shaped-today-the-surfaces-to-generalize`, `docs/specs/multi-language-java.md#slice-2-java-codegen-follow-on`, `docs/specs/perl-codegen-roadmap.md#2-design`, `docs/specs/php-codegen-roadmap.md#5-files-to-change`, `docs/specs/project-comprehension-memory-bank.md#two-branches-same-output-shape`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
 ## Types
 
@@ -300,7 +300,7 @@
 
 - **Called by** (1 production · 29 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L629), [`_scaffold_and_install`](../../tests/sdlc/test_typescript_integration.py#L29), [`_scaffold_go`](../../tests/sdlc/test_go_integration.py#L22), [`_scaffold_java`](../../tests/sdlc/test_java_integration.py#L23), [`test_auto_detects_existing_migrations_dir`](../../tests/sdlc/test_layout.py#L346), [`test_auto_empty_repo_is_new_with_src_layout`](../../tests/sdlc/test_layout.py#L70), [`test_auto_existing_csharp_is_not_scaffolded`](../../tests/sdlc/test_layout.py#L208), [`test_auto_existing_go_is_not_scaffolded`](../../tests/sdlc/test_layout.py#L331), [`test_auto_existing_java_is_not_scaffolded`](../../tests/sdlc/test_layout.py#L132), [`test_auto_existing_make_project`](../../tests/sdlc/test_layout.py#L237), [`test_auto_existing_package_is_existing`](../../tests/sdlc/test_layout.py#L78), [`test_auto_existing_ts_reads_name_and_pm`](../../tests/sdlc/test_layout.py#L165), [`test_detects_meson_build_tool`](../../tests/sdlc/test_layout.py#L242), [`test_existing_without_package_falls_back_no_scaffold`](../../tests/sdlc/test_layout.py#L91), [`test_invalid_config_is_not_silently_ignored`](../../tests/sdlc/test_php_codegen.py#L110), [`test_layout_shapes`](../../tests/sdlc/test_php_codegen.py#L41), [`test_module_rel_path`](../../tests/sdlc/test_layout.py#L101), [`test_new_c_cmake_layout`](../../tests/sdlc/test_layout.py#L220), [`test_new_cpp_cmake_layout`](../../tests/sdlc/test_layout.py#L257), [`test_new_csharp_layout`](../../tests/sdlc/test_layout.py#L189), [`test_new_forces_scaffold_even_with_existing`](../../tests/sdlc/test_layout.py#L85), [`test_new_go_layout_is_root_package`](../../tests/sdlc/test_layout.py#L285), [`test_new_java_maven_layout`](../../tests/sdlc/test_layout.py#L112), [`test_new_sql_layout_is_migrations_dir`](../../tests/sdlc/test_layout.py#L338), [`test_new_typescript_layout`](../../tests/sdlc/test_layout.py#L151), +5 more
 - **Calls** (12): [`TargetLayout`](../../src/orchestrator/sdlc/layout.py#L80), [`_resolve_c_layout`](../../src/orchestrator/sdlc/layout.py#L433), [`_resolve_cpp_layout`](../../src/orchestrator/sdlc/layout.py#L470), [`_resolve_csharp_layout`](../../src/orchestrator/sdlc/layout.py#L334), [`_resolve_go_layout`](../../src/orchestrator/sdlc/layout.py#L578), [`_resolve_java_layout`](../../src/orchestrator/sdlc/layout.py#L195), [`_resolve_php_layout`](../../src/orchestrator/sdlc/layout.py#L623), [`_resolve_sql_layout`](../../src/orchestrator/sdlc/layout.py#L448), [`_resolve_typescript_layout`](../../src/orchestrator/sdlc/layout.py#L264), [`derive_package_name`](../../src/orchestrator/sdlc/layout.py#L109), [`detect_existing_package`](../../src/orchestrator/sdlc/layout.py#L130), `pathlib.Path`
-- **Documented in**: `docs/specs/sdlc-target-layout-scaffold.md#34-wiring-into-feature-runner`, `docs/specs/sdlc-target-layout-scaffold.md#6-testing-plan`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
+- **Documented in**: `docs/specs/perl-codegen-roadmap.md#22-blast-radius-measured-from-the-pkg`, `docs/specs/sdlc-target-layout-scaffold.md#34-wiring-into-feature-runner`, `docs/specs/sdlc-target-layout-scaffold.md#6-testing-plan`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
 ## Imports
 

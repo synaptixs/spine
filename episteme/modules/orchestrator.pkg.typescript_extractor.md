@@ -155,7 +155,7 @@ _18 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/typescript_extractor.py:741`](../../src/orchestrator/pkg/typescript_extractor.py#L741)
 
-- **Called by** (2): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L468), [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L101)
+- **Called by** (2): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L471), [`extract`](../../src/orchestrator/pkg/typescript_extractor.py#L101)
 - **Calls** (4): `language_tsx`, `language_typescript`, `tree_sitter.Language`, `tree_sitter.Parser`
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-1-build.md#9-facts-the-generator-needs`
 

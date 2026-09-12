@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`scripts.docs_audit`** is one of 55 areas in this repo, in the `scripts` zone. It holds 1 module — 0 types and 24 functions. It has no import edges to or from other areas — it stands alone.
+**`scripts.docs_audit`** is one of 58 areas in this repo, in the `scripts` zone. It holds 1 module — 0 types and 24 functions. It has no import edges to or from other areas — it stands alone.
 
 ## Modules
 

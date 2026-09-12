@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 55 areas in this repo, in the `orchestrator` zone. It holds 49 modules — 109 types and 419 functions. It sits in the middle of the graph: 1 area below it, 17 above. Changes here can reach both ways.
+**`orchestrator.pkg`** is one of 58 areas in this repo, in the `orchestrator` zone. It holds 53 modules — 114 types and 453 functions. It sits in the middle of the graph: 1 area below it, 18 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -29,7 +29,7 @@ flowchart LR
 
 **In the diagram:** **`orchestrator.pkg`** (this area) · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.codereview`](orchestrator.codereview.md) · [`orchestrator.evals`](orchestrator.evals.md) · [`orchestrator.knowledge`](orchestrator.knowledge.md) · [`orchestrator.mcp`](orchestrator.mcp.md) · [`orchestrator.plugin`](orchestrator.plugin.md)
 
-_Showing 9 of 18 neighbouring areas._
+_Showing 9 of 19 neighbouring areas._
 
 ## Modules
 
@@ -46,6 +46,7 @@ _Showing 9 of 18 neighbouring areas._
 - [`orchestrator.pkg.export`](../../src/orchestrator/pkg/export.py#L1)
 - [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1)
 - [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1)
+- [`orchestrator.pkg.finalize_names`](../../src/orchestrator/pkg/finalize_names.py#L1)
 - [`orchestrator.pkg.go_extractor`](../modules/orchestrator.pkg.go_extractor.md)
 - [`orchestrator.pkg.go_routes`](../../src/orchestrator/pkg/go_routes.py#L1)
 - [`orchestrator.pkg.graph_export`](../../src/orchestrator/pkg/graph_export.py#L1)
@@ -60,6 +61,9 @@ _Showing 9 of 18 neighbouring areas._
 - [`orchestrator.pkg.media_extract`](../modules/orchestrator.pkg.media_extract.md)
 - [`orchestrator.pkg.migrations`](../../src/orchestrator/pkg/migrations.py#L1)
 - [`orchestrator.pkg.overview`](../../src/orchestrator/pkg/overview.py#L1)
+- [`orchestrator.pkg.perl_extractor`](../modules/orchestrator.pkg.perl_extractor.md)
+- [`orchestrator.pkg.perl_orm`](../../src/orchestrator/pkg/perl_orm.py#L1)
+- [`orchestrator.pkg.perl_routes`](../modules/orchestrator.pkg.perl_routes.md)
 - [`orchestrator.pkg.persistence`](../modules/orchestrator.pkg.persistence.md)
 - [`orchestrator.pkg.php_extractor`](../modules/orchestrator.pkg.php_extractor.md)
 - [`orchestrator.pkg.php_names`](../../src/orchestrator/pkg/php_names.py#L1)
@@ -89,4 +93,4 @@ _Showing 9 of 18 neighbouring areas._
 
 ## Depended on by
 
-[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.spine`](orchestrator.spine.md), `scripts.classify-unbound-mentions`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.phase2a_parity_gate`, `scripts.render_architecture_svg`, [`scripts.sdlc_shapes`](scripts.sdlc_shapes.md), `scripts.state-numbers`
+[`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.codereview`](orchestrator.codereview.md), [`orchestrator.evals`](orchestrator.evals.md), [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.mcp`](orchestrator.mcp.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.spine`](orchestrator.spine.md), `scripts.classify-unbound-mentions`, [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), `scripts.phase2a_parity_gate`, `scripts.render_architecture_svg`, [`scripts.sdlc_shapes`](scripts.sdlc_shapes.md), `scripts.state-numbers`, `scripts.validate-frontend`

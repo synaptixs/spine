@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.knowledge`** is one of 55 areas in this repo, in the `orchestrator` zone. It holds 14 modules — 13 types and 142 functions. It sits in the middle of the graph: 5 areas below it, 4 above. Changes here can reach both ways.
+**`orchestrator.knowledge`** is one of 58 areas in this repo, in the `orchestrator` zone. It holds 14 modules — 13 types and 142 functions. It sits in the middle of the graph: 5 areas below it, 5 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -12,21 +12,23 @@ flowchart LR
   n2["orchestrator.plugin"]
   n3["orchestrator.registry"]
   n4["orchestrator.sdlc"]
-  n5["orchestrator.catalog"]
-  n6["orchestrator.core"]
-  n7["orchestrator.pkg"]
+  n5["scripts.validate-frontend"]
+  n6["orchestrator.catalog"]
+  n7["orchestrator.core"]
+  n8["orchestrator.pkg"]
   n1 --> n0
   n2 --> n0
   n3 --> n0
   n4 --> n0
-  n0 --> n5
+  n5 --> n0
   n0 --> n6
   n0 --> n7
+  n0 --> n8
   n0 --> n3
   n0 --> n4
 ```
 
-**In the diagram:** **`orchestrator.knowledge`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.pkg`](orchestrator.pkg.md)
+**In the diagram:** **`orchestrator.knowledge`** (this area) · [`orchestrator.cli`](orchestrator.cli.md) · [`orchestrator.plugin`](orchestrator.plugin.md) · [`orchestrator.registry`](orchestrator.registry.md) · [`orchestrator.sdlc`](orchestrator.sdlc.md) · `scripts.validate-frontend` · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · [`orchestrator.pkg`](orchestrator.pkg.md)
 
 ## Modules
 
@@ -51,4 +53,4 @@ flowchart LR
 
 ## Depended on by
 
-[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md)
+[`orchestrator.cli`](orchestrator.cli.md), [`orchestrator.plugin`](orchestrator.plugin.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), `scripts.validate-frontend`

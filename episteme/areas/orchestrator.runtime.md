@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.runtime`** is one of 55 areas in this repo, in the `orchestrator` zone. It holds 20 modules — 52 types and 45 functions. It sits in the middle of the graph: 5 areas below it, 4 above. Changes here can reach both ways.
+**`orchestrator.runtime`** is one of 58 areas in this repo, in the `orchestrator` zone. It holds 20 modules — 52 types and 45 functions. It sits in the middle of the graph: 5 areas below it, 4 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -39,7 +39,7 @@ flowchart LR
 - [`orchestrator.runtime.manager_graph`](../../src/orchestrator/runtime/manager_graph.py#L1)
 - [`orchestrator.runtime.post_conditions`](../../src/orchestrator/runtime/post_conditions.py#L1)
 - [`orchestrator.runtime.specialist`](../../src/orchestrator/runtime/specialist.py#L1)
-- [`orchestrator.runtime.task_orchestration`](../modules/orchestrator.runtime.task_orchestration.md)
+- [`orchestrator.runtime.task_orchestration`](../../src/orchestrator/runtime/task_orchestration.py#L1)
 - [`orchestrator.runtime.tool_registry`](../../src/orchestrator/runtime/tool_registry.py#L1)
 - [`orchestrator.runtime.verifier`](../../src/orchestrator/runtime/verifier.py#L1)
 - [`orchestrator.runtime.verifiers`](../../src/orchestrator/runtime/verifiers/__init__.py#L1)

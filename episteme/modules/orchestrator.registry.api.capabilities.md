@@ -171,7 +171,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/registry/api/capabilities.py:86`](../../src/orchestrator/registry/api/capabilities.py#L86)
 
-- **Calls** (4): [`ProfileResponse`](../../src/orchestrator/registry/api/capabilities.py#L79), [`_in_repo`](../../src/orchestrator/registry/api/capabilities.py#L55), [`_source`](../../src/orchestrator/registry/api/capabilities.py#L46), [`from_repo`](../../src/orchestrator/catalog/profile.py#L63)
+- **Calls** (4): [`ProfileResponse`](../../src/orchestrator/registry/api/capabilities.py#L79), [`_in_repo`](../../src/orchestrator/registry/api/capabilities.py#L55), [`_source`](../../src/orchestrator/registry/api/capabilities.py#L46), [`from_repo`](../../src/orchestrator/catalog/profile.py#L66)
 
 ### `state`
 
@@ -187,7 +187,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 
 ## Imports
 
-`__future__.annotations`, `asyncio`, `fastapi.APIRouter`, `fastapi.HTTPException`, `fastapi.Request`, `fastapi.status`, `json`, [`orchestrator.catalog.catalog`](../../src/orchestrator/catalog/catalog.py#L1), [`orchestrator.catalog.planner`](../../src/orchestrator/catalog/planner.py#L1), [`orchestrator.catalog.profile`](../../src/orchestrator/catalog/profile.py#L1), [`orchestrator.knowledge`](../../src/orchestrator/knowledge/__init__.py#L1), [`orchestrator.knowledge.current_state`](orchestrator.knowledge.current_state.md), [`orchestrator.knowledge.understand`](../../src/orchestrator/knowledge/understand.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.pkg.overview`](../../src/orchestrator/pkg/overview.py#L1), [`orchestrator.registry.api.deps`](../../src/orchestrator/registry/api/deps.py#L1), [`orchestrator.registry.api.jobs`](orchestrator.registry.api.jobs.md), [`orchestrator.registry.api.workspace`](orchestrator.registry.api.workspace.md), `pathlib.Path`, `pydantic.BaseModel`, `pydantic.ConfigDict`, `pydantic.Field`, `tempfile`, `typing.Any`
+`__future__.annotations`, `asyncio`, `fastapi.APIRouter`, `fastapi.HTTPException`, `fastapi.Request`, `fastapi.status`, `json`, [`orchestrator.catalog.catalog`](../../src/orchestrator/catalog/catalog.py#L1), [`orchestrator.catalog.planner`](../../src/orchestrator/catalog/planner.py#L1), [`orchestrator.catalog.profile`](../../src/orchestrator/catalog/profile.py#L1), [`orchestrator.knowledge`](../../src/orchestrator/knowledge/__init__.py#L1), [`orchestrator.knowledge.current_state`](orchestrator.knowledge.current_state.md), [`orchestrator.knowledge.understand`](../../src/orchestrator/knowledge/understand.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.pkg.overview`](../../src/orchestrator/pkg/overview.py#L1), [`orchestrator.registry.api.deps`](../../src/orchestrator/registry/api/deps.py#L1), [`orchestrator.registry.api.jobs`](../../src/orchestrator/registry/api/jobs.py#L1), [`orchestrator.registry.api.workspace`](orchestrator.registry.api.workspace.md), `pathlib.Path`, `pydantic.BaseModel`, `pydantic.ConfigDict`, `pydantic.Field`, `tempfile`, `typing.Any`
 
 ## Imported by
 

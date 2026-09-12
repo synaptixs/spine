@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`ParityCount`](../../src/orchestrator/pkg/verify.py#L276) — reaches **9** symbols
-- [`_count_python_constructs`](../../src/orchestrator/pkg/verify.py#L317) — reaches **9** symbols
-- [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L62) — reaches **8** symbols
-- [`source_parity_counts`](../../src/orchestrator/pkg/verify.py#L355) — reaches **8** symbols
-- [`_examples`](../../src/orchestrator/pkg/verify.py#L87) — reaches **7** symbols
+- [`ParityCount`](../../src/orchestrator/pkg/verify.py#L276) — reaches **10** symbols
+- [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L62) — reaches **10** symbols
+- [`_count_python_constructs`](../../src/orchestrator/pkg/verify.py#L317) — reaches **10** symbols
+- [`source_parity_counts`](../../src/orchestrator/pkg/verify.py#L355) — reaches **10** symbols
+- [`_examples`](../../src/orchestrator/pkg/verify.py#L87) — reaches **9** symbols
 - [`_path_shaped`](../../src/orchestrator/pkg/verify.py#L297) — reaches **7** symbols
-- [`_basename`](../../src/orchestrator/pkg/verify.py#L142) — reaches **3** symbols
-- [`_module_of`](../../src/orchestrator/pkg/verify.py#L172) — reaches **3** symbols
+- [`_basename`](../../src/orchestrator/pkg/verify.py#L142) — reaches **5** symbols
+- [`_module_of`](../../src/orchestrator/pkg/verify.py#L172) — reaches **5** symbols
 
 ## Documented in
 
@@ -143,7 +143,7 @@
 
 [`src/orchestrator/pkg/verify.py:516`](../../src/orchestrator/pkg/verify.py#L516)
 
-- **Called by** (1 production · 26 test): [`pkg_verify`](../../src/orchestrator/cli/pkg.py#L295), [`test_a_computed_path_is_counted_as_declared`](../../tests/pkg/test_verify.py#L252), [`test_a_language_with_no_patterns_is_never_flagged`](../../tests/pkg/test_verify.py#L202), [`test_a_route_decorator_inside_a_string_is_not_counted`](../../tests/pkg/test_verify.py#L239), [`test_an_endpoint_declared_in_two_files_is_credited_to_both`](../../tests/pkg/test_verify.py#L311), [`test_computed_tablename_is_not_a_declaration`](../../tests/pkg/test_verify.py#L197), [`test_counts_are_per_file_not_per_language`](../../tests/pkg/test_verify.py#L296), [`test_dangling_edge_is_an_error`](../../tests/pkg/test_verify.py#L35), [`test_healthy_extracted_repo_passes`](../../tests/pkg/test_verify.py#L24), [`test_joined_import_graph_passes_the_rates`](../../tests/pkg/test_verify.py#L81), [`test_more_nodes_than_declarations_never_warns`](../../tests/pkg/test_verify.py#L271), [`test_no_false_positive_on_a_plain_library`](../../tests/pkg/test_verify.py#L185), [`test_non_route_attribute_calls_are_not_routes`](../../tests/pkg/test_verify.py#L190), [`test_parity_is_a_warning_never_an_error`](../../tests/pkg/test_verify.py#L163), [`test_python_route_decorators_no_longer_trip_the_check`](../../tests/pkg/test_verify.py#L141), [`test_python_tablenames_no_longer_trip_the_check`](../../tests/pkg/test_verify.py#L152), [`test_regex_counted_languages_are_labelled_approximate`](../../tests/pkg/test_verify.py#L289), [`test_silent_when_the_graph_already_has_the_kind`](../../tests/pkg/test_verify.py#L176), [`test_small_fixtures_are_exempt_from_rates`](../../tests/pkg/test_verify.py#L101), [`test_stale_provenance_is_an_error`](../../tests/pkg/test_verify.py#L45), [`test_the_warning_names_the_file_and_line`](../../tests/pkg/test_verify.py#L265), [`test_typeorm_entity_decorator_warns`](../../tests/pkg/test_verify.py#L229), [`test_typescript_express_routes_warn`](../../tests/pkg/test_verify.py#L217), [`test_typescript_map_get_is_not_a_route`](../../tests/pkg/test_verify.py#L222), [`test_typescript_nest_decorators_warn`](../../tests/pkg/test_verify.py#L210), +2 more
+- **Called by** (2 production · 26 test): [`pkg_verify`](../../src/orchestrator/cli/pkg.py#L295), [`validate_one`](../../scripts/validate-frontend.py#L49), [`test_a_computed_path_is_counted_as_declared`](../../tests/pkg/test_verify.py#L252), [`test_a_language_with_no_patterns_is_never_flagged`](../../tests/pkg/test_verify.py#L202), [`test_a_route_decorator_inside_a_string_is_not_counted`](../../tests/pkg/test_verify.py#L239), [`test_an_endpoint_declared_in_two_files_is_credited_to_both`](../../tests/pkg/test_verify.py#L311), [`test_computed_tablename_is_not_a_declaration`](../../tests/pkg/test_verify.py#L197), [`test_counts_are_per_file_not_per_language`](../../tests/pkg/test_verify.py#L296), [`test_dangling_edge_is_an_error`](../../tests/pkg/test_verify.py#L35), [`test_healthy_extracted_repo_passes`](../../tests/pkg/test_verify.py#L24), [`test_joined_import_graph_passes_the_rates`](../../tests/pkg/test_verify.py#L81), [`test_more_nodes_than_declarations_never_warns`](../../tests/pkg/test_verify.py#L271), [`test_no_false_positive_on_a_plain_library`](../../tests/pkg/test_verify.py#L185), [`test_non_route_attribute_calls_are_not_routes`](../../tests/pkg/test_verify.py#L190), [`test_parity_is_a_warning_never_an_error`](../../tests/pkg/test_verify.py#L163), [`test_python_route_decorators_no_longer_trip_the_check`](../../tests/pkg/test_verify.py#L141), [`test_python_tablenames_no_longer_trip_the_check`](../../tests/pkg/test_verify.py#L152), [`test_regex_counted_languages_are_labelled_approximate`](../../tests/pkg/test_verify.py#L289), [`test_silent_when_the_graph_already_has_the_kind`](../../tests/pkg/test_verify.py#L176), [`test_small_fixtures_are_exempt_from_rates`](../../tests/pkg/test_verify.py#L101), [`test_stale_provenance_is_an_error`](../../tests/pkg/test_verify.py#L45), [`test_the_warning_names_the_file_and_line`](../../tests/pkg/test_verify.py#L265), [`test_typeorm_entity_decorator_warns`](../../tests/pkg/test_verify.py#L229), [`test_typescript_express_routes_warn`](../../tests/pkg/test_verify.py#L217), [`test_typescript_map_get_is_not_a_route`](../../tests/pkg/test_verify.py#L222), +3 more
 - **Calls** (8): [`VerifyReport`](../../src/orchestrator/pkg/verify.py#L71), [`_check_dangling_edges`](../../src/orchestrator/pkg/verify.py#L93), [`_check_invention`](../../src/orchestrator/pkg/verify.py#L492), [`_check_phantoms`](../../src/orchestrator/pkg/verify.py#L148), [`_check_provenance`](../../src/orchestrator/pkg/verify.py#L108), [`_check_rates`](../../src/orchestrator/pkg/verify.py#L185), [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L462), `pathlib.Path`
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-1-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/PKG-ACC-1-build.md#5-blast-radius-impact-neighbourhood`
 
@@ -153,4 +153,4 @@
 
 ## Imported by
 
-[`orchestrator.cli.pkg`](orchestrator.cli.pkg.md), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.pkg.accuracy`](orchestrator.pkg.accuracy.md), [`tests.pkg.test_intent_link`](../../tests/pkg/test_intent_link.py#L1), [`tests.pkg.test_verify`](../../tests/pkg/test_verify.py#L1)
+[`orchestrator.cli.pkg`](orchestrator.cli.pkg.md), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.pkg.accuracy`](orchestrator.pkg.accuracy.md), [`scripts.validate-frontend`](../../scripts/validate-frontend.py#L1), [`tests.pkg.test_intent_link`](../../tests/pkg/test_intent_link.py#L1), [`tests.pkg.test_verify`](../../tests/pkg/test_verify.py#L1)

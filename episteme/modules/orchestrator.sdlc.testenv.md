@@ -26,7 +26,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 ## Documented in
 
-`docs/specs/java-codegen.md#whats-python-shaped-today-the-surfaces-to-generalize`, `docs/specs/php-codegen-roadmap.md#5-files-to-change`, `docs/specs/sandboxed-test-execution.md#build-plan-reliable-isolated-autonomous-execution`, `docs/specs/sandboxed-test-execution.md#file-level-change-list`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
+`docs/specs/java-codegen.md#whats-python-shaped-today-the-surfaces-to-generalize`, `docs/specs/perl-codegen-roadmap.md#2-design`, `docs/specs/php-codegen-roadmap.md#5-files-to-change`, `docs/specs/sandboxed-test-execution.md#build-plan-reliable-isolated-autonomous-execution`, `docs/specs/sandboxed-test-execution.md#file-level-change-list`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
 ## Types
 
@@ -237,7 +237,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 - **Called by** (1 production · 11 test): [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L629), [`test_dispatch_and_php_source_recognition`](../../tests/sdlc/test_php_codegen.py#L123), [`test_engine_env_selects_postgres_runner`](../../tests/sdlc/test_sql_build.py#L118), [`test_factories_wire_sql_language`](../../tests/sdlc/test_sql_build.py#L88), [`test_make_test_environment_and_runner_for_cpp`](../../tests/sdlc/test_testenv.py#L555), [`test_make_test_environment_and_runner_for_go`](../../tests/sdlc/test_testenv.py#L579), [`test_make_test_runner_picks_ctest_for_c`](../../tests/sdlc/test_testenv.py#L422), [`test_make_test_runner_picks_dotnet_for_csharp`](../../tests/sdlc/test_testenv.py#L306), [`test_make_test_runner_picks_maven_for_java`](../../tests/sdlc/test_testenv.py#L161), [`test_make_test_runner_picks_meson_when_build_tool_is_meson`](../../tests/sdlc/test_testenv.py#L499), [`test_make_test_runner_picks_node_for_typescript`](../../tests/sdlc/test_testenv.py#L229), [`test_real_composer_and_phar`](../../tests/sdlc/test_php_codegen.py#L280)
 - **Calls** (11): [`CTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L268), [`DotnetTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L189), [`GoTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L382), [`MavenTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L153), [`MesonTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L299), [`NodeTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L234), [`PhpUnitTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L327), [`PostgresSqlTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L519), [`SqlTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L485), [`SubprocessTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L95), `getenv`
-- **Documented in**: `docs/specs/java-codegen.md#build-spec-java-codegen-multi-language-slice-2`, `docs/specs/php-codegen-roadmap.md#4-phases`, `docs/specs/sql-support-roadmap.md#phases`, `docs/specs/typescript-codegen.md#design-multi-language-support-typescript`, `docs/specs/typescript-codegen.md#test-runner-env`
+- **Documented in**: `docs/specs/java-codegen.md#build-spec-java-codegen-multi-language-slice-2`, `docs/specs/perl-codegen-roadmap.md#22-blast-radius-measured-from-the-pkg`, `docs/specs/php-codegen-roadmap.md#4-phases`, `docs/specs/sql-support-roadmap.md#phases`, `docs/specs/typescript-codegen.md#design-multi-language-support-typescript`, `docs/specs/typescript-codegen.md#test-runner-env`
 
 ### `meson_toolchain_available`
 

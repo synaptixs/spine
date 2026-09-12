@@ -24,7 +24,7 @@ _6 of the symbols other code depends on here have no test path the graph can see
 
 ## Documented in
 
-`CLAUDE.md#layout-where-things-live`
+`CLAUDE.md#layout-where-things-live`, `docs/specs/perl-codegen-roadmap.md#22-blast-radius-measured-from-the-pkg`
 
 ## Functions
 

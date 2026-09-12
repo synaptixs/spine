@@ -26,7 +26,7 @@ _12 of the symbols other code depends on here have no test path the graph can se
 
 ## Documented in
 
-`CHANGELOG.md`, `CONTRIBUTING.md#opening-a-pull-request`
+`CHANGELOG.md`, `CONTRIBUTING.md#opening-a-pull-request`, `docs/specs/perl-support-roadmap.md#4-phases-the-living-table`
 
 ## Types
 
@@ -137,7 +137,7 @@ _12 of the symbols other code depends on here have no test path the graph can se
 [`scripts/sdlc_shapes.py:278`](../../scripts/sdlc_shapes.py#L278)
 
 - **Called by** (1): [`run_shape`](../../scripts/sdlc_shapes.py#L329)
-- **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L367), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L207)
+- **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L368), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L207)
 
 ### `check_plan_is_deterministic`
 
