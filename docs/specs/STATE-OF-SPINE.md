@@ -25,7 +25,7 @@ gates (before building, before merging). The product is **Spine**; it ships as
 | | Value | How it is known |
 |---|---|---|
 | Version | **3.33.2** | cutting now; 3.33.1 is the last on PyPI until this ships |
-| Languages extracted | **10** front-ends | Python, Java, TypeScript, C#, C, C++, Go, PHP, Perl, SQL — Perl has comprehension + `CALLS` + routes + data layer (P1–P4 of [perl-support-roadmap.md](perl-support-roadmap.md)) |
+| Languages extracted | **10** front-ends | Python, Java, TypeScript, C#, C, C++, Go, PHP, Perl, SQL — Perl has comprehension + `CALLS` + routes + data layer (all six phases of [perl-support-roadmap.md](perl-support-roadmap.md)) |
 | PHP delivery | Composer or pinned PHPUnit PHAR | Configured test layout, changed-file lint, modern PHPUnit; [validation roadmap](php-codegen-roadmap.md) |
 | CLI commands | **56** | `grep -c '\.command(' src/orchestrator/cli/*.py`, summed |
 | Source modules | **358** | `find src/orchestrator -name '*.py'` |
