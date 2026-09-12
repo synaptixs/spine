@@ -35,6 +35,9 @@ _LANG_BY_SUFFIX = {
     ".rb": "ruby",
     ".sql": "sql",
     ".php": "php",
+    ".pl": "perl",
+    ".pm": "perl",
+    ".t": "perl",
 }
 
 
@@ -108,7 +111,18 @@ def _detect_languages(root: Path) -> frozenset[str]:
 def _read_markers(root: Path) -> str:
     """Concatenate a few small dependency/manifest files (lowercased) to scan."""
     blobs: list[str] = []
-    for rel in ("pyproject.toml", "package.json", "pom.xml", "build.gradle", "go.mod", "composer.json"):
+    for rel in (
+        "pyproject.toml",
+        "package.json",
+        "pom.xml",
+        "build.gradle",
+        "go.mod",
+        "composer.json",
+        "cpanfile",
+        "Makefile.PL",
+        "Build.PL",
+        "dist.ini",
+    ):
         path = root / rel
         if path.is_file():
             blobs.append(_safe_read(path))
@@ -149,6 +163,9 @@ def _detect_framework(markers: str, languages: frozenset[str]) -> str | None:
         ("microsoft.net.sdk.web", "aspnet"),
         ('"laravel/framework"', "laravel"),
         ('"symfony/', "symfony"),
+        ("mojolicious", "mojolicious"),
+        ("catalyst::runtime", "catalyst"),
+        ("dancer2", "dancer2"),
     ):
         if needle in markers:
             return name
@@ -186,6 +203,8 @@ def _detect_test_runner(root: Path, markers: str, languages: frozenset[str]) -> 
         return "pest"
     if '"phpunit/phpunit"' in markers:
         return "phpunit"
+    if "perl" in languages and (root / "t").is_dir():
+        return "prove"
     if "python" in languages:
         return "pytest"
     return None

@@ -462,6 +462,9 @@ NOT_APPLICABLE: dict[str, str] = {
     "python": "measured by the stdlib-ast detector in `invention`, not by a tree-sitter walk",
     "php": "variables carry a `$` sigil — `f()` and `$f()` are distinct CST node shapes, so a "
     "local cannot shadow a bare call (D8, php-support-roadmap.md)",
+    "perl": "variables carry a sigil — `my $f` and a bare call `f()` are distinct CST node "
+    "shapes, and `&$code`/`$self->$m()` are excluded as invention rather than measured "
+    "shadowing (D8, perl-support-roadmap.md)",
 }
 
 

@@ -1,0 +1,35 @@
+{
+  "language": "perl",
+  "case": "instance_calls",
+  "why": "The documented P2/P3 boundary (roadmap §3.2 row 7), now on the P3 side of it: `my $log = Shop::Log->new; $log->write` resolves via P3's typed-receiver rule (a file-local constructor-assignment map); `$thing->write` on an untyped parameter has no declared type to resolve from and stays a permanent miss. `Shop::Log->new` itself (a qualified-receiver call, §3.2 row 3) is unrelated to this boundary and resolved back in P2 — this case's job is to prove P3 resolves exactly the literal-constructor shape and nothing more.",
+  "root": ".repo",
+  "nodes": [
+    { "id": "perl:Calls.pm", "kind": "Module" },
+    { "id": "perl:Shop.Log", "kind": "Type" },
+    { "id": "perl:Shop.Cart", "kind": "Type" },
+    { "id": "perl:Shop.Log.new", "kind": "Function" },
+    { "id": "perl:Shop.Log.write", "kind": "Function" },
+    { "id": "perl:Shop.Cart.via_literal", "kind": "Function" },
+    { "id": "perl:Shop.Cart.via_param", "kind": "Function" }
+  ],
+  "edges": [
+    { "src": "perl:Calls.pm", "dst": "perl:Shop.Log", "kind": "CONTAINS" },
+    { "src": "perl:Calls.pm", "dst": "perl:Shop.Cart", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Log", "dst": "perl:Shop.Log.new", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Log", "dst": "perl:Shop.Log.write", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Cart", "dst": "perl:Shop.Cart.via_literal", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Cart", "dst": "perl:Shop.Cart.via_param", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Cart.via_literal", "dst": "perl:Shop.Log.new", "kind": "CALLS" },
+    { "src": "perl:Shop.Cart.via_literal", "dst": "perl:Shop.Log.write", "kind": "CALLS" },
+    { "src": "perl:Shop.Cart.via_param", "dst": "perl:Shop.Log.write", "kind": "CALLS" }
+  ],
+  "known_gaps": [
+    {
+      "edge": { "src": "perl:Shop.Cart.via_param", "dst": "perl:Shop.Log.write", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING, still true after P3. `$thing` is an untyped parameter with no declared type to resolve from — a permanent miss, not a phase boundary."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": []
+}

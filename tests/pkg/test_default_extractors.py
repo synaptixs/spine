@@ -58,6 +58,12 @@ def test_default_includes_php_when_available() -> None:
     assert ("php" in langs) == have_php
 
 
+def test_default_includes_perl_when_available() -> None:
+    have_perl = importlib.util.find_spec("tree_sitter_perl") is not None
+    langs = {e.language for e in default_extractors()}
+    assert ("perl" in langs) == have_perl
+
+
 def test_repo_extractor_default_handles_go(tmp_path: Path) -> None:
     pytest.importorskip("tree_sitter_go", reason="install the 'go' extra")
     pkg = tmp_path / "trace"
@@ -141,3 +147,14 @@ def test_repo_extractor_default_handles_php(tmp_path: Path) -> None:
     batch = RepoCodeExtractor().extract(tmp_path)
     types = {n.name for n in batch.nodes if n.kind is NodeKind.TYPE and n.language == "php"}
     assert "Widget" in types
+
+
+def test_repo_extractor_default_handles_perl(tmp_path: Path) -> None:
+    pytest.importorskip("tree_sitter_perl", reason="install the 'perl' extra")
+    (tmp_path / "Widget.pm").write_text(
+        "package Demo::Widget;\n\nsub score {\n    return 1;\n}\n", encoding="utf-8"
+    )
+    # Default RepoCodeExtractor (no explicit extractors) must now pick up .pm.
+    batch = RepoCodeExtractor().extract(tmp_path)
+    types = {n.name for n in batch.nodes if n.kind is NodeKind.TYPE and n.language == "perl"}
+    assert "Demo::Widget" in types

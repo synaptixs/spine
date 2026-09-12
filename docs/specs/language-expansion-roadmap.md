@@ -2,7 +2,11 @@
 
 **Status:** Roadmap / prioritization. **Scope decided: Go · Rust · Kotlin · PHP** (Go shipped, PHP
 comprehension + `CALLS` shipped, Rust/Kotlin still proposals). Open question 1 (below) resolved
-PHP over Ruby for the 4th slot on 2026-09-08 — Ruby stays queued, not dropped.
+PHP over Ruby for the 4th slot on 2026-09-08 — Ruby stays queued, not dropped. **Perl is not
+in this four-language set** — it is a demand-pulled addition, admitted under this document's
+first prioritisation criterion; its own track is
+[perl-support-roadmap.md](perl-support-roadmap.md) (P1–P5 landed with evidence, P6 review in
+progress).
 **Date:** 2026-07-21 · spine v3.6.0
 **Why:** the PKG is the substrate every grounded capability stands on — `understand`, `state`,
 `design`, `investigate`, `localize`, `rca`, `regression`, and grounded codegen all consume it.

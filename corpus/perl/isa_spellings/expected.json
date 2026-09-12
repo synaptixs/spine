@@ -1,0 +1,36 @@
+{
+  "language": "perl",
+  "case": "isa_spellings",
+  "why": "D5's five literal inheritance spellings, one package each (A: use parent, B: our @ISA, C: extends, D: use Mojo::Base, F: 5.38 :isa), plus E's computed @ISA — the negative control. All five resolve to IMPLEMENTS; the computed one yields nothing, exercising the 'literal-only' half of D5 as strictly as the five spellings exercise the 'five' half. Base1-4/6 are never declared in this single-file fixture — external by construction (found wrong in review: they were listed as expected nodes, not excluded per corpus/README.md's rule). A also pins the `-norequire` half of a second review fix: `use parent`/`use base`/`use Mojo::Base` now also emit IMPORTS (they really do load the named class) — except when `-norequire` says the pragma won't; A uses `-norequire` (no new IMPORTS edge), D doesn't (one new IMPORTS edge to Base4).",
+  "root": ".repo",
+  "nodes": [
+    { "id": "perl:Isa.pm", "kind": "Module" },
+    { "id": "perl:Shop.A", "kind": "Type" },
+    { "id": "perl:Shop.B", "kind": "Type" },
+    { "id": "perl:Shop.C", "kind": "Type" },
+    { "id": "perl:Shop.D", "kind": "Type" },
+    { "id": "perl:Shop.E", "kind": "Type" },
+    { "id": "perl:Shop.F", "kind": "Type" }
+  ],
+  "edges": [
+    { "src": "perl:Isa.pm", "dst": "perl:Shop.A", "kind": "CONTAINS" },
+    { "src": "perl:Isa.pm", "dst": "perl:Shop.B", "kind": "CONTAINS" },
+    { "src": "perl:Isa.pm", "dst": "perl:Shop.C", "kind": "CONTAINS" },
+    { "src": "perl:Isa.pm", "dst": "perl:Shop.D", "kind": "CONTAINS" },
+    { "src": "perl:Isa.pm", "dst": "perl:Shop.E", "kind": "CONTAINS" },
+    { "src": "perl:Isa.pm", "dst": "perl:Shop.F", "kind": "CONTAINS" },
+    { "src": "perl:Shop.A", "dst": "perl:Shop.Base1", "kind": "IMPLEMENTS" },
+    { "src": "perl:Shop.B", "dst": "perl:Shop.Base2", "kind": "IMPLEMENTS" },
+    { "src": "perl:Shop.C", "dst": "perl:Shop.Base3", "kind": "IMPLEMENTS" },
+    { "src": "perl:Shop.D", "dst": "perl:Shop.Base4", "kind": "IMPLEMENTS" },
+    { "src": "perl:Shop.F", "dst": "perl:Shop.Base6", "kind": "IMPLEMENTS" },
+    { "src": "perl:Isa.pm", "dst": "perl:Shop.Base4", "kind": "IMPORTS" }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "Shop::E's `our @ISA = (compute_base());` — a computed base, no literal name exists for a human to assert, so there is no fact to miss, only one that could never be claimed",
+    "Base1, Base2, Base3, Base4, Base6 are external — none is declared anywhere in this single-file fixture — and stay out of the node ratio per corpus/README.md's rule; the five IMPLEMENTS edges to them above still count"
+  ],
+  "open_questions": []
+}

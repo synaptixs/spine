@@ -219,7 +219,7 @@ def test_bare_calls_are_recorded_with_their_line() -> None:
 
 def test_java_and_sql_are_excluded_with_a_reason_not_a_walker() -> None:
     """Silence is the failure mode this project keeps having — so absence carries a why."""
-    for language in ("java", "sql", "php"):
+    for language in ("java", "sql", "php", "perl"):
         assert language not in WALKERS
         assert NOT_APPLICABLE[language]
 

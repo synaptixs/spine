@@ -776,8 +776,9 @@ approval — Spine refuses a live write without it. `live=true` needs a reachabl
 
 ## 10. Language support & toolchains
 
-Comprehension covers **nine front-ends**. Spine only needs a language's toolchain when it
-**builds/tests** generated code in that language:
+Comprehension covers **ten front-ends** (Perl is comprehension-only so far — see below).
+Spine only needs a language's toolchain when it **builds/tests** generated code in that
+language:
 
 | Language | Build/test needs on PATH |
 |---|---|
@@ -800,11 +801,18 @@ endpoints and EF Core entities into the graph; for C/C++ it builds the `#include
 merges header declarations with their definitions; for Go it computes **interface
 satisfaction** (`IMPLEMENTS`) by matching method sets.
 
+**Perl has no row above on purpose.** It's the tenth front-end and comprehends a codebase
+(`understand`/`state`/`design`/`investigate`/`blast_radius`/`explain_symbol` all work on
+one), but `sdlc feature --language perl` still exits 2 — codegen (`cpanm --installdeps .` →
+`prove -l t/`) is a separate, not-yet-started track, so `perl` deliberately stays out of
+`SUPPORTED_LANGUAGES` until that track's first commit adds the whole machinery.
+
 **How accurate is the graph these tools read?** Measured against a committed corpus covering
-all nine front-ends: **precision 1.00 on every node and edge kind, in every language** —
-nothing is invented. Recall is 1.00 on everything except `CALLS`, which ranges from 1.00
-(C, SQL) to 0.50 (TypeScript); the gap is calls whose receiver is a variable rather than a
-name. Run `orchestrator pkg accuracy` to see the current numbers yourself.
+all 10 of Spine's front-ends: **precision 1.00 on every node and edge kind, in every
+corpus-scored language** — nothing is invented. Recall is 1.00 on everything except `CALLS`,
+which ranges from 1.00 (C, SQL) to 0.50 (TypeScript); the gap is calls whose receiver is a
+variable rather than a name. Run `orchestrator pkg accuracy` to see the current numbers
+yourself.
 
 > Use `--language php` for PHP delivery. Existing PHPUnit layout and bootstrap settings
 > are preserved; only changed PHP files are linted and changed tests executed. See the

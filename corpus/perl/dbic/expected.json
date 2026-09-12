@@ -1,0 +1,40 @@
+{
+  "language": "perl",
+  "case": "dbic",
+  "why": "P4's DBIx::Class reader (§3.4): the real ORM marker (`__PACKAGE__->table(...)`, never the shape of the package), `add_columns(...)` becoming `Field`s on the `Entity` (not the `Type`), and `belongs_to`/`has_many` becoming `REFERENCES` in both directions between two declared Result classes — plus one relation to a class this repo never declares. That third-party target still gets a `REFERENCES` edge, to an external `Entity` node — 'the outside target stays external', not silently dropped. `Order.pm` spells the relation name as a bareword (`belongs_to(customer => ...)`), `OrderItem.pm` spells it as a quoted string (`belongs_to('order', ...)`) — both valid DBIx::Class, and the target must resolve to the same place (DBIx::Class's own positional argument 1) regardless of which spelling names the relation. A P5 review found the extractor reading 'the first string literal in the list' instead, which the quoted-name spelling breaks (it would pick the name, not the target) — this case now pins both spellings.",
+  "root": ".repo",
+  "nodes": [
+    { "id": "perl:Order.pm", "kind": "Module" },
+    { "id": "perl:OrderItem.pm", "kind": "Module" },
+    { "id": "perl:App.Schema.Result.Order", "kind": "Type" },
+    { "id": "perl:App.Schema.Result.OrderItem", "kind": "Type" },
+    { "id": "perl:entity:App.Schema.Result.Order", "kind": "Entity" },
+    { "id": "perl:entity:App.Schema.Result.OrderItem", "kind": "Entity" },
+    { "id": "perl:entity:App.Schema.Result.Order.id", "kind": "Field" },
+    { "id": "perl:entity:App.Schema.Result.Order.customer_id", "kind": "Field" },
+    { "id": "perl:entity:App.Schema.Result.OrderItem.id", "kind": "Field" },
+    { "id": "perl:entity:App.Schema.Result.OrderItem.order_id", "kind": "Field" }
+  ],
+  "edges": [
+    { "src": "perl:Order.pm", "dst": "perl:App.Schema.Result.Order", "kind": "CONTAINS" },
+    { "src": "perl:OrderItem.pm", "dst": "perl:App.Schema.Result.OrderItem", "kind": "CONTAINS" },
+    { "src": "perl:App.Schema.Result.Order", "dst": "perl:DBIx.Class.Core", "kind": "IMPLEMENTS" },
+    { "src": "perl:App.Schema.Result.OrderItem", "dst": "perl:DBIx.Class.Core", "kind": "IMPLEMENTS" },
+    { "src": "perl:Order.pm", "dst": "perl:DBIx.Class.Core", "kind": "IMPORTS" },
+    { "src": "perl:OrderItem.pm", "dst": "perl:DBIx.Class.Core", "kind": "IMPORTS" },
+    { "src": "perl:entity:App.Schema.Result.Order", "dst": "perl:entity:App.Schema.Result.Order.id", "kind": "CONTAINS" },
+    { "src": "perl:entity:App.Schema.Result.Order", "dst": "perl:entity:App.Schema.Result.Order.customer_id", "kind": "CONTAINS" },
+    { "src": "perl:entity:App.Schema.Result.OrderItem", "dst": "perl:entity:App.Schema.Result.OrderItem.id", "kind": "CONTAINS" },
+    { "src": "perl:entity:App.Schema.Result.OrderItem", "dst": "perl:entity:App.Schema.Result.OrderItem.order_id", "kind": "CONTAINS" },
+    { "src": "perl:entity:App.Schema.Result.Order", "dst": "perl:entity:App.Schema.Result.Customer", "kind": "REFERENCES" },
+    { "src": "perl:entity:App.Schema.Result.Order", "dst": "perl:entity:App.Schema.Result.OrderItem", "kind": "REFERENCES" },
+    { "src": "perl:entity:App.Schema.Result.OrderItem", "dst": "perl:entity:App.Schema.Result.Order", "kind": "REFERENCES" }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "perl:entity:App.Schema.Result.Customer is not listed as a node — it's external, and an external node stays out of the node ratio while an edge pointing at one still counts (corpus/README.md's decided rule); the REFERENCES edge to it above still does.",
+    "perl:DBIx.Class.Core is also external — never declared anywhere in this fixture, only referenced via `use base 'DBIx::Class::Core'` — excluded from the node ratio the same way; the IMPLEMENTS and IMPORTS edges to it above still count (found wrong in review: it was listed as an expected node; the IMPORTS edges are a second review fix — `use base`/`use parent`/`use Mojo::Base` genuinely load the named class unless `-norequire` says otherwise, and neither file here uses `-norequire`)."
+  ],
+  "open_questions": []
+}

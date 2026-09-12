@@ -140,6 +140,10 @@ _FIXTURES: dict[str, tuple[str, str]] = {
         "<?php\nnamespace Demo;\n\nuse Demo\\Base;\n\nclass Thing extends Base {\n"
         "    public function go(): void {}\n}\n",
     ),
+    "perl": (
+        "sample.pm",
+        "package Demo::Thing;\nuse parent -norequire, 'Demo::Base';\n\nsub go {\n    return 1;\n}\n",
+    ),
 }
 
 

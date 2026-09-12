@@ -8,9 +8,9 @@
       },
       "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
       "provenance": {
-        "anchored": 11894,
-        "excluded": 805,
-        "resolved": 11894,
+        "anchored": 12291,
+        "excluded": 825,
+        "resolved": 12291,
         "unreadable": 0
       }
     },
@@ -298,6 +298,72 @@
             }
           }
         },
+        "perl": {
+          "edges": {
+            "CALLS": {
+              "emitted": 8,
+              "expected": 9,
+              "matched": 8
+            },
+            "CONTAINS": {
+              "emitted": 42,
+              "expected": 42,
+              "matched": 42
+            },
+            "EXPOSES": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "IMPLEMENTS": {
+              "emitted": 12,
+              "expected": 12,
+              "matched": 12
+            },
+            "IMPORTS": {
+              "emitted": 9,
+              "expected": 9,
+              "matched": 9
+            },
+            "REFERENCES": {
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
+            }
+          },
+          "nodes": {
+            "Endpoint": {
+              "emitted": 3,
+              "expected": 3,
+              "matched": 3
+            },
+            "Entity": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
+            },
+            "Field": {
+              "emitted": 4,
+              "expected": 4,
+              "matched": 4
+            },
+            "Function": {
+              "emitted": 19,
+              "expected": 19,
+              "matched": 19
+            },
+            "Module": {
+              "emitted": 15,
+              "expected": 15,
+              "matched": 15
+            },
+            "Type": {
+              "emitted": 19,
+              "expected": 19,
+              "matched": 19
+            }
+          }
+        },
         "php": {
           "edges": {
             "CALLS": {
@@ -526,10 +592,10 @@
       "skipped_languages": []
     },
     "drift": {
-      "count": 909,
-      "docs": 1659,
+      "count": 1065,
+      "docs": 1741,
       "gated": false,
-      "mentions": 10233,
+      "mentions": 11446,
       "note": "recorded, never gated \u2014 an upper bound: a tenth of the population cannot bind by construction. See GATES"
     },
     "invention": {
@@ -541,12 +607,12 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 18122,
+          "total_calls": 18966,
           "unexamined": 0
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 18122
+      "total_calls": 18966
     },
     "parity": {
       "declared": 75,

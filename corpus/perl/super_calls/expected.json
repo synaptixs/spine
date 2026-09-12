@@ -1,0 +1,38 @@
+{
+  "language": "perl",
+  "case": "super_calls",
+  "why": "§3.2 row 2 (`$self->SUPER::m()`), pinned against the precision bug found live against Mojolicious (P5, `validate-frontend.py`): a resolved base that declares the method (`Shop::Cart::total` -> `Shop::Base::helper`) resolves to the exact sub; a resolved, locally-declared base that does NOT declare the method (`Shop::Cart::new` -> `Shop::Base`, which has no `sub new`) falls back to 'call the type' rather than fabricating `Shop.Base.new` — row 3's own already-verified policy, reused rather than reinvented; and a base that is never declared anywhere in this repo (`Shop::Widget::build` -> `Vendor::External`, from `use parent`) falls back to the same policy with the target marked external. No case exercised `SUPER::` at all before this — the gap that let the bug through undetected.",
+  "root": ".repo",
+  "nodes": [
+    { "id": "perl:Base.pm", "kind": "Module" },
+    { "id": "perl:Cart.pm", "kind": "Module" },
+    { "id": "perl:Widget.pm", "kind": "Module" },
+    { "id": "perl:Shop.Base", "kind": "Type" },
+    { "id": "perl:Shop.Cart", "kind": "Type" },
+    { "id": "perl:Shop.Widget", "kind": "Type" },
+    { "id": "perl:Shop.Base.helper", "kind": "Function" },
+    { "id": "perl:Shop.Cart.total", "kind": "Function" },
+    { "id": "perl:Shop.Cart.new", "kind": "Function" },
+    { "id": "perl:Shop.Widget.build", "kind": "Function" }
+  ],
+  "edges": [
+    { "src": "perl:Base.pm", "dst": "perl:Shop.Base", "kind": "CONTAINS" },
+    { "src": "perl:Cart.pm", "dst": "perl:Shop.Cart", "kind": "CONTAINS" },
+    { "src": "perl:Widget.pm", "dst": "perl:Shop.Widget", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Base", "dst": "perl:Shop.Base.helper", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Cart", "dst": "perl:Shop.Cart.total", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Cart", "dst": "perl:Shop.Cart.new", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Widget", "dst": "perl:Shop.Widget.build", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Cart", "dst": "perl:Shop.Base", "kind": "IMPLEMENTS" },
+    { "src": "perl:Shop.Widget", "dst": "perl:Vendor.External", "kind": "IMPLEMENTS" },
+    { "src": "perl:Shop.Cart.total", "dst": "perl:Shop.Base.helper", "kind": "CALLS" },
+    { "src": "perl:Shop.Cart.new", "dst": "perl:Shop.Base", "kind": "CALLS" },
+    { "src": "perl:Shop.Widget.build", "dst": "perl:Vendor.External", "kind": "CALLS" }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "perl:Vendor.External is not listed as a node — it's external (never declared as a package anywhere in this repo), and an external node stays out of the node ratio while edges pointing at it still count (corpus/README.md's decided rule); both the IMPLEMENTS and the CALLS edge to it above still do."
+  ],
+  "open_questions": []
+}

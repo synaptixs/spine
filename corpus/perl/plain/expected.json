@@ -1,0 +1,29 @@
+{
+  "language": "perl",
+  "case": "plain",
+  "why": "The Perl control: a package with `use parent`, an explicit `use X qw(f)` import, three subs, and every P2 CALLS shape that never needs a guess — `$self->` (row 1), a bare call resolved via an explicit qw() import (row 5), and a fully-qualified call (row 4). Precision 1.00/1.00 by design; recall on the *first-party* declarations is 1.00 by design too — `Shop::Base`/`Shop::Tax`/`Shop::Tax::rate` are never declared anywhere in this single-file fixture and are external by construction, so per corpus/README.md's rule they are excluded from 'nodes', not counted as a recall miss (found wrong in review: they were listed as expected nodes, which silently scored this control's own Type/Function recall at 0.33/0.75 against its own claim of '1.00/1.00 by design' — the labelling bug, not the extractor, was wrong).",
+  "root": ".repo",
+  "nodes": [
+    { "id": "perl:Cart.pm", "kind": "Module" },
+    { "id": "perl:Shop.Cart", "kind": "Type" },
+    { "id": "perl:Shop.Cart.new", "kind": "Function" },
+    { "id": "perl:Shop.Cart.total", "kind": "Function" },
+    { "id": "perl:Shop.Cart.helper", "kind": "Function" }
+  ],
+  "edges": [
+    { "src": "perl:Cart.pm", "dst": "perl:Shop.Cart", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Cart", "dst": "perl:Shop.Cart.new", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Cart", "dst": "perl:Shop.Cart.total", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Cart", "dst": "perl:Shop.Cart.helper", "kind": "CONTAINS" },
+    { "src": "perl:Shop.Cart", "dst": "perl:Shop.Base", "kind": "IMPLEMENTS" },
+    { "src": "perl:Cart.pm", "dst": "perl:Shop.Tax", "kind": "IMPORTS" },
+    { "src": "perl:Shop.Cart.total", "dst": "perl:Shop.Cart.helper", "kind": "CALLS" },
+    { "src": "perl:Shop.Cart.total", "dst": "perl:Shop.Tax.rate", "kind": "CALLS" }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "perl:Shop.Base, perl:Shop.Tax, and perl:Shop.Tax.rate are external — none are declared anywhere in this single-file fixture — and stay out of the node ratio per corpus/README.md's rule; the IMPLEMENTS/IMPORTS/CALLS edges to them above still count."
+  ],
+  "open_questions": []
+}

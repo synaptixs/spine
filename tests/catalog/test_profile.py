@@ -73,6 +73,16 @@ def test_php_laravel_with_pest(tmp_path: Path) -> None:
     assert prof.test_runner == "pest"
 
 
+def test_perl_mojolicious_with_prove(tmp_path: Path) -> None:
+    _write(tmp_path, "lib/Shop/Cart.pm", "package Shop::Cart;\n\nsub total { 0 }\n")
+    _write(tmp_path, "t/cart.t", "use Test::More;\ndone_testing;\n")
+    _write(tmp_path, "cpanfile", "requires 'Mojolicious';\nrequires 'Test::More';\n")
+    prof = ProjectProfile.from_repo(tmp_path)
+    assert "perl" in prof.languages
+    assert prof.framework == "mojolicious"
+    assert prof.test_runner == "prove"
+
+
 def test_greenfield_empty_repo(tmp_path: Path) -> None:
     prof = ProjectProfile.from_repo(tmp_path)
     assert prof.languages == frozenset()

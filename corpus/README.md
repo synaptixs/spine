@@ -59,6 +59,7 @@ Labelling in the wrong vocabulary scores 0.00 and reads as a catastrophic front-
 | `csharp` | `csharp:Namespace` | `csharp:App.Cart` | `.` |
 | `go` | `go:package` | `go:cart.Cart` | `.` |
 | `php` | `php:App.Svc` | `php:App.Svc.Cart` | `.` |
+| `perl` | `perl:lib/Shop/Cart.pm` *(always a path)* | `perl:Shop.Cart` | `.` |
 | **`c`** | `c:src/cart.c` *(a path)* | — | **bare symbol: `c:subtotal`** |
 | **`cpp`** | `cpp:src/cart.cpp` *(a path)* | **bare: `cpp:Cart`** | **`::`** |
 | `sql` | `sql:schema.sql` | `sql:customer` *(an Entity)* | `.` |
@@ -71,6 +72,13 @@ PHP's module id is namespace-keyed like C#/Java **only when the file has one**. 
 `php:inc/legacy.php`, not a dotted form — which is also what makes a literal `require`/`include`
 target path-suffix-matchable, C-style. A `legacy_require`-shaped case labels module ids in that
 path form, not the dotted one.
+
+Perl's module id is **always** path-keyed — never dotted, unlike PHP's fallback — because a
+Perl file has no single reliable namespace of its own (D2, perl-support-roadmap.md): it may
+hold zero, one, or several `package`/5.38 `class` declarations, each its own dotted `Type`.
+A `require "path.pl"` target (D7, the same path-suffix matcher as PHP's and C's) is
+therefore *also* a path-shaped `perl:` id — the two shapes never collide the way they can't
+in PHP either, since a `Type` id is dotted and a `Module` id ends in `.pl`/`.pm`/`.t`.
 
 | | form | example |
 |---|---|---|
