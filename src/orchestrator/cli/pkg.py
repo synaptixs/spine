@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
+
+if TYPE_CHECKING:
+    from orchestrator.pkg.facts import EdgeKind, Node
+    from orchestrator.pkg.store import FactStore
 
 from ._common import _print, _repo_arg
 
@@ -1122,6 +1126,164 @@ def pkg_accuracy(
         )
         typer.echo("  Not scored zero: an absent optional extra is not a regression.")
     typer.echo(f"\npkg accuracy: {len(report.cases)} case(s) scored. Reporting only — nothing gated.")
+
+
+def _path_node_payload(node: Node) -> dict[str, object]:
+    """Return the stable source-oriented node shape used by ``pkg path --json``."""
+    return {
+        "id": node.id,
+        "kind": node.kind.value,
+        "name": node.name,
+        "language": node.language,
+        "at": str(node.provenance) if node.provenance else None,
+        "external": node.external,
+    }
+
+
+def _resolve_path_node(store: FactStore, query: str, role: str) -> Node:
+    """Resolve a path endpoint without choosing between equally named symbols."""
+    exact = store.node(query)
+    if exact is not None:
+        return exact
+    matches = store.find(query)
+    if len(matches) == 1:
+        return matches[0]
+    if not matches:
+        typer.echo(f"No {role} node matches '{query}'.", err=True)
+    else:
+        typer.echo(f"Ambiguous {role} '{query}'; use an exact node ID:", err=True)
+        for node in matches:
+            at = f" @ {node.provenance}" if node.provenance else ""
+            typer.echo(f"  - {node.id} ({node.kind.value}){at}", err=True)
+    raise typer.Exit(code=2)
+
+
+def _path_edge_kinds(raw_kinds: list[str] | None, include_structural: bool) -> tuple[EdgeKind, ...]:
+    """Validate the CLI edge-kind selection against the PKG vocabulary."""
+    from orchestrator.pkg.facts import EdgeKind
+    from orchestrator.pkg.store import DEFAULT_PATH_KINDS
+
+    if raw_kinds:
+        if include_structural:
+            typer.echo("Warning: --include-structural is ignored when --kind is provided.", err=True)
+        known = {kind.value.lower(): kind for kind in EdgeKind}
+        kinds: list[EdgeKind] = []
+        for raw in raw_kinds:
+            kind = known.get(raw.lower())
+            if kind is None:
+                typer.echo(f"Unknown edge kind '{raw}'.", err=True)
+                raise typer.Exit(code=2)
+            if kind is EdgeKind.SERVES:
+                typer.echo(
+                    "SERVES is not supported by pkg path v1: Intent nodes have no source provenance.",
+                    err=True,
+                )
+                raise typer.Exit(code=2)
+            kinds.append(kind)
+        return tuple(dict.fromkeys(kinds))
+
+    kinds = list(DEFAULT_PATH_KINDS)
+    if include_structural:
+        kinds.extend((EdgeKind.CONTAINS, EdgeKind.IMPORTS))
+    return tuple(kinds)
+
+
+@pkg_app.command("path")
+def pkg_path(
+    source: Annotated[str, typer.Argument(help="Source node ID or unique node name.")],
+    target: Annotated[str, typer.Argument(help="Target node ID or unique node name.")],
+    path: Annotated[str, typer.Option("--path", "-p", help="Repo path or git URL to scan.")] = ".",
+    direction: Annotated[
+        str, typer.Option("--direction", help="forward | reverse | both (default: forward).")
+    ] = "forward",
+    max_hops: Annotated[
+        int, typer.Option("--max-hops", min=0, help="Maximum extracted edges (default: 4).")
+    ] = 4,
+    kinds: Annotated[
+        list[str] | None,
+        typer.Option("--kind", help="Allowed edge kind; repeat to select more than one."),
+    ] = None,
+    include_structural: Annotated[
+        bool,
+        typer.Option("--include-structural", help="Also allow CONTAINS and IMPORTS when --kind is omitted."),
+    ] = False,
+    refresh: Annotated[
+        bool, typer.Option("--refresh", help="Re-extract instead of using the commit-keyed cache.")
+    ] = False,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Emit a stable machine-readable path result.")
+    ] = False,
+    dialect: Annotated[
+        str | None, typer.Option("--dialect", help="SQL dialect; default: auto-detect.")
+    ] = None,
+) -> None:
+    """Trace one shortest path over existing grounded facts (read-only, deterministic, no LLM)."""
+    from orchestrator.pkg import FactStore, RepoCodeExtractor, link_docs, load_or_extract
+    from orchestrator.pkg.store import PathDirection
+
+    try:
+        path_direction = PathDirection(direction.lower())
+    except ValueError as exc:
+        typer.echo("--direction must be one of: forward, reverse, both.", err=True)
+        raise typer.Exit(code=2) from exc
+    allowed_kinds = _path_edge_kinds(kinds, include_structural)
+
+    with _repo_arg(path) as (repo, _):
+        extractor = RepoCodeExtractor(sql_dialect=dialect)
+        batch = extractor.extract(repo) if refresh else load_or_extract(repo, extractor=extractor)
+        store = FactStore(link_docs(batch, repo))
+    source_node = _resolve_path_node(store, source, "source")
+    target_node = _resolve_path_node(store, target, "target")
+    result = store.path_between(
+        source_node.id,
+        target_node.id,
+        kinds=allowed_kinds,
+        direction=path_direction,
+        max_depth=max_hops,
+    )
+    caveat = "Paths use extracted static facts only; no path does not prove no runtime relationship."
+    if as_json:
+        _print(
+            {
+                "source": _path_node_payload(source_node),
+                "target": _path_node_payload(target_node),
+                "found": result is not None,
+                "distance": result.distance if result is not None else None,
+                "direction": path_direction.value,
+                "max_hops": max_hops,
+                "edge_kinds": [kind.value for kind in allowed_kinds],
+                "hops": (
+                    [
+                        {
+                            "source": _path_node_payload(hop.source),
+                            "target": _path_node_payload(hop.target),
+                            "kind": hop.edge.kind.value,
+                            "at": str(hop.edge.provenance) if hop.edge.provenance else None,
+                            "reversed": hop.reversed,
+                        }
+                        for hop in result.hops
+                    ]
+                    if result is not None
+                    else []
+                ),
+                "caveat": caveat,
+            }
+        )
+    elif result is None:
+        typer.echo(
+            f"No extracted path within {max_hops} hop(s) from {source_node.id} to {target_node.id} "
+            f"(direction={path_direction.value}; kinds={', '.join(kind.value for kind in allowed_kinds)})."
+        )
+        typer.echo(f"Caveat: {caveat}")
+    else:
+        typer.echo(f"{result.distance} extracted hop(s): {source_node.id} → {target_node.id}")
+        for hop in result.hops:
+            note = " (traversed reverse)" if hop.reversed else ""
+            at = f" @ {hop.edge.provenance}" if hop.edge.provenance else ""
+            typer.echo(f"  {hop.edge.src} --{hop.edge.kind.value}--> {hop.edge.dst}{note}{at}")
+        typer.echo(f"Caveat: {caveat}")
+    if result is None:
+        raise typer.Exit(code=1)
 
 
 @pkg_app.command("export")
