@@ -99,10 +99,15 @@ def test_sdlc_feature_rejects_unknown_language(runner: CliRunner) -> None:
     assert "not supported" in result.output and "rust" in result.output
 
 
-def test_sdlc_feature_accepts_go_language(runner: CliRunner) -> None:
+def test_sdlc_feature_accepts_go_language(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # `go` is a supported language: validation passes it through (the run then fails
     # later for lack of a configured source/LLM — never the "not supported" error).
+    # run_feature loads .env itself, so keep it away from a developer's credentials.
+    monkeypatch.chdir(tmp_path)
     result = runner.invoke(app, ["sdlc", "feature", "--source", "jira://X-1", "--language", "go"])
+    assert result.exit_code == 2
     assert "not supported" not in result.output
 
 

@@ -39,6 +39,10 @@ To look at your own repo first, run `orchestrator state /path/to/repo`. It write
 nothing unless you request an output file. `orchestrator understand` builds the
 reviewable `episteme/` knowledge base; it is the comprehension command that writes.
 
+The optional `[clang]` extra adds C/C++ member-call edges between existing
+symbols. It is included in `[all]`; installation details and limits are in
+[SETUP.md](https://github.com/synaptixs/spine/blob/main/SETUP.md#optional-extras).
+
 ## What is measured
 
 The graph comes from parsers, with `file:line` provenance. CI scores its precision
@@ -58,6 +62,12 @@ an arm without the graph and tickets that already name their target file. Read t
 [internal results](https://github.com/synaptixs/spine/blob/main/docs/specs/codegen-model-comparison-results.md)
 and [external replication](https://github.com/synaptixs/spine/blob/main/docs/specs/external-repo-grounding-results.md)
 for the models, commands, counts and limits.
+
+C/C++ semantic recovery and runtime vary widely by repository. Repository-local
+include roots can improve resolution, while missing standard/generated headers
+and unsupported identities still limit it. Recovered pending-site fractions are
+not whole-repository recall. See the
+[five-repository evaluation](https://github.com/synaptixs/spine/blob/main/docs/evals/clang-semantic-step3b.md).
 
 ## What's new
 
@@ -95,10 +105,11 @@ in [CLI_REFERENCE.md](https://github.com/synaptixs/spine/blob/main/CLI_REFERENCE
 | Durable multi-feature pipeline and approval dashboard | ✅ | `sdlc run`, `up`; [Operations](https://github.com/synaptixs/spine/blob/main/OPERATIONS.md) |
 | Inspect the execution graph, node results and selected workflow | ✅ | `sdlc explain`, `sdlc workflow` |
 | Python, Java, TypeScript, C#, C, C++, Go, PHP and Perl comprehension/codegen | ✅ | `pkg extract`, `sdlc feature --language`; [toolchains](https://github.com/synaptixs/spine/blob/main/AGENT_GUIDE.md#10-language-support--toolchains) |
+| Optional C/C++ member-call enrichment between grounded symbols; measured coverage limits | 🟡 | `[clang]` (also in `[all]`); [validation](https://github.com/synaptixs/spine/blob/main/docs/evals/clang-semantic-validation.md) |
 | SQL schema/query/procedure comprehension, migration folding, UTF-16 and SQL Server `GO` batches | ✅ | `[sql]`; `pkg extract`, `understand` |
 | SQL migration codegen validated in SQLite or opt-in Docker Postgres | ✅ | `sdlc feature --language sql`; `[sql-postgres]` |
 | Framework endpoints and data-layer edges, including JAX-RS, ASP.NET Core and EF Core | ✅ | [Knowledge Graph](https://github.com/synaptixs/spine/blob/main/KNOWLEDGE_GRAPH.md) |
-| C/C++ include graphs and header/source merging; CMake or brownfield Meson builds | ✅ | `sdlc feature --language c` / `cpp` |
+| C/C++ include graphs, C++ routing for included `.h` files and header/source merging; CMake or brownfield Meson builds | ✅ | `sdlc feature --language c` / `cpp` |
 | Go packages, calls and interface satisfaction; multi-module build/test selection | ✅ | `sdlc feature --language go` |
 | PHP namespaces/traits/calls, Laravel/Slim/Symfony routes, Eloquent/Doctrine entities; Composer/PHAR PHPUnit | ✅ | [PHP workflow](https://github.com/synaptixs/spine/blob/main/USER_GUIDE.md#php-code-generation) |
 | Perl packages/inheritance/fields/calls, routes and data layer; syntax checks and `prove` | ✅ | [Perl workflow](https://github.com/synaptixs/spine/blob/main/USER_GUIDE.md#perl-code-generation) |

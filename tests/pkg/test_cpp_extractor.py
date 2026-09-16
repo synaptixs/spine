@@ -181,3 +181,44 @@ def test_a_function_pointer_parameters_own_names_bind_nothing(tmp_path: Path) ->
     """In `void (*cb)(const char *x)`, `x` names a parameter of the pointed-to function."""
     src = "void x() {}\nvoid run(void (*cb)(const char *x)) { x(); }\n"
     assert ("cpp:run", "cpp:x") in _cpp_calls(tmp_path, src)
+
+
+def test_h_headers_route_transitively_without_clang(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from orchestrator.pkg import RepoCodeExtractor, clang_link
+    from orchestrator.pkg.c_extractor import CExtractor
+
+    monkeypatch.setattr(clang_link, "clang_available", lambda: False)
+    _write(tmp_path, "main.cpp", '#include "bridge.hpp"\nint Widget::run() { return 1; }')
+    _write(tmp_path, "bridge.hpp", '#include "widget.h"\n')
+    _write(tmp_path, "widget.h", '#include "bridge.hpp"\nclass Widget { public: int run(); };')
+    _write(tmp_path, "unused.h", "struct Unused { int x; };")
+    ex = RepoCodeExtractor([CExtractor(), CppExtractor()])
+    b = ex.extract(tmp_path)
+    ids = {n.id: n for n in b.nodes}
+    assert ids["cpp:Widget"].grounded
+    assert ids["cpp:Widget::run"].grounded
+    assert "c:Unused" in ids and "cpp:Unused" not in ids
+    assert "c:widget.h" not in ids
+    assert ids["cpp:Widget::run"].provenance is not None
+    assert ids["cpp:Widget::run"].provenance.file == "main.cpp"
+
+
+def test_header_routing_angle_includes_and_ambiguous_names(tmp_path: Path) -> None:
+    from orchestrator.pkg.c_extractor import cpp_header_paths
+
+    _write(tmp_path, "main.cpp", '#include <good.h>\n#include "ambiguous.h"\n')
+    _write(tmp_path, "include/good.h", "class Good {};")
+    _write(tmp_path, "one/ambiguous.h", "class First {};")
+    _write(tmp_path, "two/ambiguous.h", "class Second {};")
+    assert cpp_header_paths(tmp_path, list(tmp_path.rglob("*"))) == frozenset({"include/good.h"})
+
+
+def test_header_routing_ignores_nested_repositories_and_hidden_fixtures(tmp_path: Path) -> None:
+    from orchestrator.pkg import RepoCodeExtractor
+
+    _write(tmp_path, "main.cpp", '#include "hidden.h"\n#include "nested.h"\n')
+    _write(tmp_path, ".repo/hidden.h", "class Hidden {};")
+    _write(tmp_path, "child/nested.h", "class Nested {};")
+    _write(tmp_path, "child/.git", "gitdir: somewhere")
+    b = RepoCodeExtractor().extract(tmp_path)
+    assert not {"cpp:Hidden", "cpp:Nested"} & {n.id for n in b.nodes}

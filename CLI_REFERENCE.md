@@ -309,6 +309,14 @@ orchestrator catalog plan [PATH] [OPTIONS]
 
 ### `orchestrator pkg extract`
 
+For single-repository C/C++ extraction, text output includes `clang: resolved N of M unresolved call
+sites in K of T TUs`, with diagnostic and failure counts. The optional `clang` extra
+adds only grounded CALLS edges; unavailable headers and unsupported symbols remain
+unresolved. `pkg verify` prints the same bounded extraction summary. Counts refer
+to distinct call sites (including nested calls), not unique graph edges. No new
+command flag is needed; install the language parsers plus `[clang]`. See the
+[measured coverage limits](docs/evals/clang-semantic-validation.md).
+
 Extract grounded code facts from a repo and print a summary (read-only).
 
 SQL extraction handles UTF-16 scripts and SQL Server `GO` batch separators, including
@@ -524,18 +532,19 @@ orchestrator pkg accuracy [PATH] [OPTIONS]
 | `--tests` | Test target(s) for `--oracle runtime`; defaults to the repo's own. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
 
-**Current corpus results** (47 fixture cases — 43 single-language, 4 multi-repo — across
+**Current corpus results** (49 fixture cases — 45 single-language, 4 multi-repo — across
 all 10 front-ends, Perl's own corpus grown across P2–P5 of its track: 9 cases). Precision is
 **1.00 on every node kind and every edge kind in every language**; recall is 1.00 on every
 kind except `CALLS`:
 
 | language | `CALLS` recall |
 |---|---|
-| `c` `sql` | 1.00 |
+| `c` `cpp` (with `clang`) `sql` | 1.00 |
 | `perl` | 0.89 |
 | `python` | 0.73 |
-| `cpp` `csharp` `go` `java` | 0.67 |
-| `typescript` | 0.50 |
+| `csharp` `go` `php` | 0.75 |
+| `java` | 0.67 |
+| `typescript` | 0.86 |
 
 Perl's 0.89 is 8 of 9 labelled `CALLS` edges in its own corpus — the one miss is a
 permanent, documented one (`instance_calls`, an untyped parameter with no declared type to

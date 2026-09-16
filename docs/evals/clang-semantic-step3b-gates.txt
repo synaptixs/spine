@@ -1,0 +1,46 @@
+Step 3b local validation
+
+3798 passed, 4 skipped, 51 deselected, 182 warnings in 211.78s (0:03:31)
+
+## phase-gate
+Success: no issues found in 723 source files
+All checks passed!
+760 files already formatted
+[trend] binding: total mentions: doc-binding-walkthrough.md says 9482, the source says 12709
+[trend] binding: one symbol anchor: doc-binding-walkthrough.md says 3168, the source says 3895
+[trend] binding: ambiguous: doc-binding-walkthrough.md says 2030, the source says 2629
+[trend] binding: file only: doc-binding-walkthrough.md says 891, the source says 1220
+[trend] binding: no anchor: doc-binding-walkthrough.md says 3393, the source says 4965
+[trend] binding: edges drawn: doc-binding-walkthrough.md says 3120, the source says 3841
+[trend] binding: drift findings: doc-binding-walkthrough.md says 1556, the source says 2574
+[trend] binding: unbound sections: doc-binding-walkthrough.md says 826, the source says 997
+[trend] binding: Doc nodes: doc-binding-walkthrough.md says 1622, the source says 1904
+state-numbers --check: OK — 14 gated claim(s) match; 9 trended.
+46 capability rows
+21 where Spine stands alone
+3 where Spine is ❌
+3 at 🟡
+assets/spine-architecture.svg is current
+assets/knowledge-foundation.svg is current, and its layout checks pass
+roadmap-status --check: OK — 3 phase table(s) checked, 7 checks each.
+
+## accuracy
+[trend]      doc drift: 1173 -> 1639 (ungated — a tenth of it cannot bind by construction; see GATES)
+
+pkg accuracy --check: OK — 0 gated regression(s), 0 improvement(s).
+
+## shapes
+building 4 shape(s) under /var/folders/2c/q2v76xf106gb1bbhlghqt2_h0000gn/T/sdlc-shapes-tpovuhsk
+  single     ok    plan deterministic
+  monorepo   ok    plan deterministic
+  multirepo  ok    plan deterministic, declared repos clean, merged graph trusted, cross-repo brief
+  submodule  ok    plan deterministic, declared repos clean, merged graph trusted, cross-repo brief
+
+all shapes hold
+
+## verify
+[warning] phantom-module: 8 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): py:codegen_benchmark (vs py:scripts.codegen_benchmark), py:bench_tickets_ontomesh.build (vs py:orchestrator.cli.build), py:opentelemetry.trace (vs py:orchestrator.registry.api.trace), py:functools.cache (vs py:orchestrator.intake.cache), py:coverage (vs py:orchestrator.sdlc.coverage), +3 more
+pkg verify: OK — 0 error(s), 1 warning(s).
+
+## mcp
+MCP tool table is current.

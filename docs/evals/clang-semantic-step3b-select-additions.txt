@@ -1,0 +1,61 @@
+"""Build reproducible review packets after the five-repository comparison.
+
+OpenCV keeps its pre-fix selection; other repositories use the same frozen rule.
+Run from the Spine root. Verdicts are a separate manual source-review step.
+"""
+import json,hashlib,re
+from pathlib import Path
+from collections import defaultdict,Counter
+from orchestrator.pkg.facts import Provenance
+D=Path('docs/evals');R=Path('/tmp/spine-step3b-results')
+manifest=json.loads((D/'clang-semantic-step3b-manifest.json').read_text())
+changes=[json.loads(l) for l in (R/'edge-changes.jsonl').read_text().splitlines()]
+population=[];selection=[];receipts={}
+for repo in manifest['repositories']:
+ name=repo['name']
+ if name=='opencv':continue
+ rows=[r for r in changes if r['repository']==name];root=Path(repo['root']);sources={};sites=defaultdict(list)
+ for p in json.loads((R/name/'C/pending.json').read_text()):sites[(p['caller'],p['file'],p['line'])].append(p)
+ for r in rows:
+  p=r['provenance'];src=sources.setdefault(p['file'],(root/p['file']).read_bytes());method=r['dst'].split('::')[-1]
+  expressions=[src[s['offset']:s['end_offset']].decode(errors='replace') for s in sites[(r['src'],p['file'],p['line'])]]
+  expressions=[e for e in expressions if re.search(r'(?:\.|->)\s*'+re.escape(method)+r'\s*\(',e)] or expressions
+  r['pending_expressions']=expressions;expression=' '.join(expressions)
+  receiver='chain' if len(re.findall(r'\.|->',expression))>1 else 'pointer' if '->' in expression else 'object' if '.' in expression else 'other'
+  caller='special' if any(s in r['src'] for s in ['operator','::~']) else 'scoped' if '::' in r['src'] else 'free'
+  filetype='header' if Path(p['file']).suffix in {'.h','.hpp','.hh','.hxx'} else 'source'
+  macro='macro_context' if re.search(r'\b[A-Z][A-Z0-9_]+\s*\(',r['call_context']) else 'ordinary'
+  r['stratum']=':'.join([filetype,caller,receiver,macro]);k=(r['src'],r['dst'],r['kind'],str(Provenance(**p)))
+  r['selection_hash']=hashlib.sha256(('step3b-added-v1:'+name+repr(k)).encode()).hexdigest()
+  r['audit_role']='removed' if r['direction']=='removed' else 'not_reviewed'
+ strata=defaultdict(list)
+ for r in rows:
+  if r['direction']=='added':strata[r['stratum']].append(r)
+ for group in strata.values():group.sort(key=lambda r:r['selection_hash'])
+ n=sum(map(len,strata.values()));quota={s:len(v) for s,v in strata.items()}
+ if n>200:
+  quota={s:1 for s in strata};remain=200-len(quota);capacity=n-len(quota);fractions={}
+  for s,v in strata.items():
+   ideal=remain*(len(v)-1)/capacity;quota[s]+=int(ideal);fractions[s]=ideal-int(ideal)
+  for s in sorted(strata,key=lambda s:(-fractions[s],s))[:200-sum(quota.values())]:quota[s]+=1
+ chosen=[]
+ for s,group in sorted(strata.items()):
+  for r in group[:quota[s]]:r['audit_role']='all_additions' if n<=200 else 'fixed_sample';chosen.append(r)
+ for shape,predicate in [('special_caller',lambda r:':special:' in r['stratum']),('macro_context',lambda r:r['stratum'].endswith(':macro_context')),('header',lambda r:r['stratum'].startswith('header:'))]:
+  for r in sorted((r for r in rows if r['direction']=='added' and r['audit_role']=='not_reviewed' and predicate(r)),key=lambda r:r['selection_hash'])[:5]:r['audit_role']='supplement_'+shape;chosen.append(r)
+ for r in rows:
+  if r['direction']=='added' and r['src']==r['dst'] and r['audit_role']=='not_reviewed':r['audit_role']='targeted_self_edge';chosen.append(r)
+ chosen.extend(r for r in rows if r['direction']=='removed')
+ for i,r in enumerate(chosen,1):r['audit_id']=f'{name}-{i:03d}'
+ population+=rows;selection+=chosen
+ receipts[name]=dict(added=n,removed=sum(r['direction']=='removed' for r in rows),roles=dict(Counter(r['audit_role'] for r in chosen)),strata={s:dict(population=len(strata[s]),selected=quota[s]) for s in sorted(strata)})
+ with (R/(name+'-review.txt')).open('w') as out:
+  for r in chosen:
+   out.write(f"{r['audit_id']} {r['audit_role']} {r['src']} => {r['dst']}\n{r['call_context']}\nEXPR {' | '.join(r['pending_expressions'])}\n")
+   for role in ['caller','target']:
+    p=r[role+'_declaration']['provenance'];lines=sources.setdefault(p['file'],(root/p['file']).read_bytes()).decode(errors='replace').splitlines();out.write(f"{role}: {p['file']}:{p['line']} "+' '.join(lines[p['line']-1:p['line']+3])+'\n')
+   out.write('\n')
+(D/'clang-semantic-step3b-other-population.jsonl').write_text(''.join(json.dumps(r,sort_keys=True)+'\n' for r in population))
+(R/'other-audit-selected.jsonl').write_text(''.join(json.dumps(r,sort_keys=True)+'\n' for r in selection))
+(D/'clang-semantic-step3b-other-selection.json').write_text(json.dumps(receipts,indent=2,sort_keys=True)+'\n')
+print(json.dumps(receipts,indent=2))

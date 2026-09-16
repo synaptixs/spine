@@ -93,3 +93,23 @@ def test_main_passes_when_every_repo_passes(validate: ModuleType, monkeypatch: p
     monkeypatch.setattr(sys, "argv", ["validate-frontend.py", "perl", "a", "b"])
 
     assert validate.main() == 0
+
+
+def test_semantic_metrics_keep_site_and_tu_denominators(
+    validate: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import json
+
+    pytest.importorskip("clang.cindex")
+    pytest.importorskip("tree_sitter_cpp")
+    (tmp_path / "a.cpp").write_text("struct A { int f() { return 1; } }; int use(A& a) { return a.f(); }")
+    (tmp_path / "b.cpp").write_text("int clean() { return 1; }")
+    (tmp_path / "ignored.cu").write_text("invalid CUDA source")
+    assert validate.validate_one("cpp", str(tmp_path))
+    out = capsys.readouterr().out
+    line = next(line for line in out.splitlines() if "semantic metrics:" in line)
+    metrics = json.loads(line.split("semantic metrics: ", 1)[1])
+    assert metrics["resolved_sites"] == metrics["pending_sites"] == 1
+    assert metrics["unresolved_reasons"] == {}
+    assert metrics["parsed_tus"] == 1 and metrics["total_tus"] == 2
+    assert metrics["unsupported_source_nodes"] == metrics["dangling_edges"] == 0

@@ -1,0 +1,79 @@
+[
+  {
+    "extent": [
+      14112,
+      14129
+    ],
+    "file": "test/scan.h",
+    "line": 515,
+    "parent": "c:@N@fmt@N@v11@S@scan_context",
+    "target": "begin",
+    "target_usr": "c:@N@fmt@N@v11@S@scan_context@F@begin#1"
+  },
+  {
+    "extent": [
+      14231,
+      14248
+    ],
+    "file": "test/scan.h",
+    "line": 519,
+    "parent": "c:@N@fmt@N@v11@S@scan_context",
+    "target": "begin",
+    "target_usr": "c:@N@fmt@N@v11@S@scan_context@F@begin#1"
+  },
+  {
+    "extent": [
+      14374,
+      14398
+    ],
+    "file": "test/scan.h",
+    "line": 523,
+    "parent": "c:@N@fmt@N@v11@S@scan_context",
+    "target": "advance_to",
+    "target_usr": "c:@N@fmt@N@v11@S@scan_context@F@advance_to#$@N@fmt@N@v11@N@detail@S@scan_buffer@S@iterator#"
+  },
+  {
+    "extent": [
+      14921,
+      14938
+    ],
+    "file": "test/scan.h",
+    "line": 539,
+    "parent": "c:@N@fmt@N@v11@S@scan_context",
+    "target": "begin",
+    "target_usr": "c:@N@fmt@N@v11@S@scan_context@F@begin#1"
+  },
+  {
+    "extent": [
+      15001,
+      15057
+    ],
+    "file": "test/scan.h",
+    "line": 541,
+    "parent": "c:@N@fmt@N@v11@S@scan_context",
+    "target": "advance_to",
+    "target_usr": "c:@N@fmt@N@v11@S@scan_context@F@advance_to#$@N@fmt@N@v11@N@detail@S@scan_buffer@S@iterator#"
+  },
+  {
+    "extent": [
+      15467,
+      15537
+    ],
+    "file": "test/scan.h",
+    "line": 552,
+    "parent": "c:@N@fmt@N@v11@S@scan_context",
+    "target": "advance_to",
+    "target_usr": "c:@N@fmt@N@v11@S@scan_context@F@advance_to#$@N@fmt@N@v11@N@detail@S@scan_buffer@S@iterator#"
+  },
+  {
+    "extent": [
+      15510,
+      15527
+    ],
+    "file": "test/scan.h",
+    "line": 552,
+    "parent": "c:@N@fmt@N@v11@S@scan_context",
+    "target": "begin",
+    "target_usr": "c:@N@fmt@N@v11@S@scan_context@F@begin#1"
+  }
+]

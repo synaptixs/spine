@@ -1,0 +1,189 @@
+{
+  "method": "Same pinned commits as P5; diagnostic extraction plus verify_batch; final .git-less copies; D3 node/edge assertions included in final timing; no concurrent full pytest during final extraction; state stage not run.",
+  "measurements": {
+    "tiny-old": {
+      "seconds": 0.392,
+      "nodes": 425,
+      "grounded": 332,
+      "edges": 1598,
+      "cc_nodes": 413,
+      "cc_grounded": 324,
+      "cc_edges": 1587,
+      "cc_calls": 1068,
+      "cc_calls_ungrounded": 412,
+      "dangling_ids": 91,
+      "dangling_edges": 581,
+      "header_types": 6,
+      "unsupported_source_nodes": 0,
+      "report": {
+        "available": true,
+        "pending": 1178,
+        "resolved": 13,
+        "total_tus": 3,
+        "parsed_tus": 3,
+        "failed_tus": 0,
+        "diagnostic_tus": 3,
+        "unresolved_reasons": {
+          "indirect_or_unsupported_target": 119,
+          "no_matching_call": 319,
+          "ungrounded_target": 51,
+          "unsupported_usr": 676
+        }
+      }
+    },
+    "opencv-old": {
+      "seconds": 67.603,
+      "nodes": 87181,
+      "grounded": 80422,
+      "edges": 397290,
+      "cc_nodes": 77682,
+      "cc_grounded": 72101,
+      "cc_edges": 374747,
+      "cc_calls": 243181,
+      "cc_calls_ungrounded": 177532,
+      "dangling_ids": 19982,
+      "dangling_edges": 190485,
+      "header_types": 1517,
+      "unsupported_source_nodes": 0,
+      "report": {
+        "available": true,
+        "pending": 130001,
+        "resolved": 121,
+        "total_tus": 2468,
+        "parsed_tus": 1981,
+        "failed_tus": 0,
+        "diagnostic_tus": 1950,
+        "unresolved_reasons": {
+          "indirect_or_unsupported_target": 27388,
+          "no_matching_call": 99204,
+          "ungrounded_target": 337,
+          "unsupported_usr": 2951
+        }
+      }
+    },
+    "tiny-revised": {
+      "seconds": 0.3,
+      "nodes": 425,
+      "grounded": 332,
+      "edges": 1965,
+      "cc_nodes": 413,
+      "cc_grounded": 324,
+      "cc_edges": 1954,
+      "cc_calls": 1435,
+      "cc_calls_ungrounded": 412,
+      "dangling_ids": 91,
+      "dangling_edges": 581,
+      "header_types": 6,
+      "unsupported_source_nodes": 0,
+      "report": {
+        "available": true,
+        "pending": 1178,
+        "resolved": 383,
+        "total_tus": 3,
+        "parsed_tus": 3,
+        "failed_tus": 0,
+        "diagnostic_tus": 3,
+        "unresolved_reasons": {
+          "conflicting_targets": 24,
+          "indirect_or_unsupported_target": 119,
+          "no_matching_call": 319,
+          "ungrounded_target": 319,
+          "unsupported_usr": 14
+        }
+      }
+    },
+    "opencv-revised": {
+      "seconds": 65.775,
+      "nodes": 87181,
+      "grounded": 80422,
+      "edges": 397995,
+      "cc_nodes": 77682,
+      "cc_grounded": 72101,
+      "cc_edges": 375452,
+      "cc_calls": 243886,
+      "cc_calls_ungrounded": 177532,
+      "dangling_ids": 19982,
+      "dangling_edges": 190485,
+      "header_types": 1517,
+      "unsupported_source_nodes": 0,
+      "report": {
+        "available": true,
+        "pending": 130001,
+        "resolved": 944,
+        "total_tus": 2468,
+        "parsed_tus": 1981,
+        "failed_tus": 0,
+        "diagnostic_tus": 1950,
+        "unresolved_reasons": {
+          "conflicting_targets": 5,
+          "indirect_or_unsupported_target": 27388,
+          "no_matching_call": 99204,
+          "ungrounded_caller": 3,
+          "ungrounded_target": 2259,
+          "unsupported_usr": 198
+        }
+      }
+    },
+    "tiny-final": {
+      "seconds": 0.3,
+      "nodes": 425,
+      "grounded": 332,
+      "edges": 2013,
+      "cc_nodes": 413,
+      "cc_grounded": 324,
+      "cc_edges": 2002,
+      "cc_calls": 1483,
+      "cc_calls_ungrounded": 412,
+      "dangling_ids": 91,
+      "dangling_edges": 581,
+      "header_types": 6,
+      "unsupported_source_nodes": 0,
+      "report": {
+        "available": true,
+        "pending": 1379,
+        "resolved": 434,
+        "total_tus": 3,
+        "parsed_tus": 3,
+        "failed_tus": 0,
+        "diagnostic_tus": 3,
+        "unresolved_reasons": {
+          "indirect_or_unsupported_target": 168,
+          "no_matching_call": 413,
+          "ungrounded_target": 350,
+          "unsupported_usr": 14
+        }
+      }
+    },
+    "opencv-final": {
+      "seconds": 63.16,
+      "nodes": 87181,
+      "grounded": 80422,
+      "edges": 398001,
+      "cc_nodes": 77682,
+      "cc_grounded": 72101,
+      "cc_edges": 375458,
+      "cc_calls": 243892,
+      "cc_calls_ungrounded": 177532,
+      "dangling_ids": 19982,
+      "dangling_edges": 190485,
+      "header_types": 1517,
+      "unsupported_source_nodes": 0,
+      "report": {
+        "available": true,
+        "pending": 135633,
+        "resolved": 949,
+        "total_tus": 2468,
+        "parsed_tus": 1981,
+        "failed_tus": 0,
+        "diagnostic_tus": 1950,
+        "unresolved_reasons": {
+          "indirect_or_unsupported_target": 28426,
+          "no_matching_call": 104040,
+          "ungrounded_caller": 1,
+          "ungrounded_target": 2072,
+          "unsupported_usr": 145
+        }
+      }
+    }
+  }
+}

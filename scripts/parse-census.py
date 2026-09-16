@@ -118,6 +118,43 @@ def _node_kind_counts(root_node: Any, counts: Counter[str]) -> None:
         stack.extend(n.children)
 
 
+def _clang_census(root: Path, files: list[Path]) -> dict[str, Any]:
+    """Diagnostic census with wheel-bundled clang and repository-only includes.
+
+    Diagnostics measure parse coverage, not call-resolution recall. Never consult a
+    compilation database or a host SDK. This adapter is independent of PKG extraction.
+    """
+    cindex = importlib.import_module("clang.cindex")
+    index = cindex.Index.create()
+    headers = {p.parent for p in _iter_files(root, (".h", ".hpp", ".hh", ".hxx"))}
+    includes = [f"-I{p.resolve()}" for p in sorted(headers)]
+    diagnostics: dict[str, list[str]] = {}
+    kinds: Counter[str] = Counter()
+    for path in files:
+        language = "c" if path.suffix == ".c" else "c++"
+        standard = "c11" if language == "c" else "c++17"
+        tu = index.parse(
+            str(path.resolve()),
+            args=["-x", language, f"-std={standard}", "-nostdinc", "-ferror-limit=0", *includes],
+        )
+        diagnostics[path.relative_to(root).as_posix()] = [
+            d.spelling for d in tu.diagnostics if d.severity >= cindex.Diagnostic.Error
+        ]
+        stack = [tu.cursor]
+        while stack:
+            cursor = stack.pop()
+            if cursor.location.file and Path(cursor.location.file.name).resolve() == path.resolve():
+                kinds[cursor.kind.name] += 1
+            stack.extend(cursor.get_children())
+    return {
+        "parser": "clang",
+        "files_scanned": len(files),
+        "files_with_error": sum(bool(v) for v in diagnostics.values()),
+        "diagnostics_per_tu": diagnostics,
+        "node_kind_counts": dict(kinds.most_common()),
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("grammar_module", help="importable tree-sitter grammar module, e.g. tree_sitter_perl")
@@ -128,6 +165,10 @@ def main() -> int:
     )
     ap.add_argument("--json", action="store_true", help="emit machine-readable JSON instead of a report")
     args = ap.parse_args()
+
+    if args.grammar_module == "clang":
+        print(json.dumps(_clang_census(args.dir, _iter_files(args.dir, tuple(args.suffix))), indent=2))
+        return 0
 
     language = _load_language(args.grammar_module, args.language_attr)
     parser = _make_parser(language)

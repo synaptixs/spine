@@ -1,0 +1,9 @@
+........................................................................ [ 76%]
+......................                                                   [100%]
+=============================== warnings summary ===============================
+tests/pkg/test_clang_link.py: 30 warnings
+  /Users/falcon/projects/ai/spine/src/orchestrator/pkg/perl_extractor.py:1100: DeprecationWarning: int argument support is deprecated
+    return Language(raw)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+94 passed, 30 warnings in 0.51s

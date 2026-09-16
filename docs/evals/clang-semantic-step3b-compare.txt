@@ -1,0 +1,77 @@
+"""Compare all 45 frozen runs; write complete measurements and edge audit packets."""
+import hashlib,json,pickle,statistics,runpy
+from collections import Counter,defaultdict
+from dataclasses import asdict
+from pathlib import Path
+
+HERE=Path('docs/evals'); ROOT=Path('/tmp/spine-step3b-results')
+manifest=json.loads((HERE/'clang-semantic-step3b-manifest.json').read_text())
+gold=[json.loads(l) for l in (HERE/'clang-semantic-step3b-supported.jsonl').read_text().splitlines()]
+old=[json.loads(l) for l in (HERE/'clang-semantic-correctness-sample.jsonl').read_text().splitlines()]
+step3=[json.loads(l) for l in (HERE/'clang-semantic-recovery-added-edges.jsonl').read_text().splitlines()]
+def key(r):
+ p=r.get('provenance',r)
+ return r['src'],r['dst'],p['file'],p['line']
+def relationship(e):return e.src,e.dst,e.provenance.file,e.provenance.line
+result=dict(baseline_commit=manifest['baseline_commit'],configuration_order=manifest['configuration_order'],frozen_inputs=json.loads((ROOT/'frozen-inputs.json').read_text()),repositories={})
+changes=[];observed=[]
+helpers=runpy.run_path(str(HERE/'clang-semantic-step3b-harness.txt'))
+for path,expected in result['frozen_inputs'].items():
+ assert hashlib.sha256(Path(path).read_bytes()).hexdigest()==expected,path
+for repo in manifest['repositories']:
+ name=repo['name'];folder=ROOT/name;data={};graphs={}
+ assert helpers['source_digest'](Path(repo['root']))==repo['source_manifest']
+ for config in ['A','B','C']:
+  runs=[json.loads(p.read_text()) for p in sorted((folder/config).glob('[1-9]-*.json'))];assert len(runs)==3,(name,config)
+  static=[{k:v for k,v in r.items() if k not in ['index','seconds','phase_seconds']} for r in runs]
+  assert all(r==static[0] for r in static),(name,config,'repeatability')
+  times=[r['seconds'] for r in runs];data[config]=dict(runs=runs,median_seconds=statistics.median(times),min_seconds=min(times),max_seconds=max(times))
+  graphs[config]=pickle.loads((folder/config/('off.pickle' if config=='A' else 'on.pickle')).read_bytes())
+ a,b,c=(data[x]['runs'][0] for x in ['A','B','C'])
+ from orchestrator.pkg.clang_link import _tu_files
+ tus,_,files=_tu_files(graphs['A'])
+ dirs=sorted({str(Path(f).parent) for f in files if Path(f).suffix in {'.h','.hpp','.hh','.hxx'}})
+ data['baseline_include_directories']=dirs
+ data['additional_include_directories']=c['additional_include_roots']
+ data['fixed_flags_by_language']={lang:['-x','c' if lang=='c' else 'c++','-std=c11' if lang=='c' else '-std=c++17','-nostdinc','-target','x86_64-unknown-linux-gnu','-ferror-limit=0'] for lang in sorted(set(tus.values()))}
+ for field in ['node_sha256','pending_sha256','routed_headers_sha256','nodes','header_types','dangling_edges','verify']:
+  assert a[field]==b[field]==c[field],(name,field)
+ assert a['clang']['pending']==b['clang']['pending']==c['clang']['pending']
+ assert a['clang']['total_tus']==b['clang']['total_tus']==c['clang']['total_tus']
+ assert b['clang']['parsed_tus']==c['clang']['parsed_tus']
+ es={x:{e.key():e for e in graphs[x].edges} for x in graphs};ns={n.id:n for n in graphs['A'].nodes}
+ assert es['A'].keys()<=es['B'].keys() and es['A'].keys()<=es['C'].keys(),(name,'CST preservation')
+ for config in ['B','C']:
+  for k in es[config].keys()-es['A'].keys():
+   e=es[config][k];assert e.kind.value=='CALLS' and ns[e.src].grounded and ns[e.dst].grounded and ns[e.src].kind.value==ns[e.dst].kind.value=='Function'
+ added=es['C'].keys()-es['B'].keys();removed=es['B'].keys()-es['C'].keys()
+ changed_sites={direction:defaultdict(set) for direction in ['added','removed']}
+ for direction,keys,config in [('added',added,'C'),('removed',removed,'B')]:
+  for k in keys:
+   e=es[config][k];changed_sites[direction][(e.src,e.provenance.file,e.provenance.line)].add(e.dst)
+ data['potential_retargeted_relationships']=[dict(caller=k[0],file=k[1],line=k[2],before=sorted(changed_sites['removed'][k]),after=sorted(changed_sites['added'][k])) for k in sorted(changed_sites['added'].keys() & changed_sites['removed'].keys())]
+ for direction,keys,config in [('added',added,'C'),('removed',removed,'B')]:
+  for k in sorted(keys):
+   e=es[config][k];r=asdict(e);r.update(repository=name,direction=direction,caller_declaration=asdict(ns[e.src]),target_declaration=asdict(ns[e.dst]))
+   p=e.provenance;lines=(Path(repo['root'])/p.file).read_text(errors='replace').splitlines();r['call_context']='\n'.join(f'{i+1}: {lines[i]}' for i in range(max(0,p.line-4),min(len(lines),p.line+2)))
+   r['selection_hash']=hashlib.sha256(('step3b-added-v1:'+name+repr(k)).encode()).hexdigest();changes.append(r)
+ rels={x:{relationship(e) for e in graphs[x].edges if e.kind.value=='CALLS' and e.provenance} for x in graphs}
+ coverage={}
+ for r in [r for r in gold if r['repository']==name]:
+  seen={x:key(r) in rels[x] for x in graphs};observed.append(dict(label=r,present=seen))
+ for x in graphs:
+  selected=[r for r in gold if r['repository']==name];coverage[x]=dict(present=sum(key(r) in rels[x] for r in selected),labels=len(selected))
+ old_repo=[r for r in old if r['repository']==name];old_retained={x:[r['audit_id'] for r in old_repo if key(r) in rels[x]] for x in ['B','C']}
+ negatives=[r['audit_id'] for r in old_repo if r['verdict_before']!='correct_at_name_id_level' and key(r) in rels['C']];assert not negatives,negatives
+ step3_retained={x:[r['audit_id'] for r in step3 if r['repository']==name and key(r) in rels[x]] for x in ['B','C']}
+ changed_retained=[r for r in old_repo if (key(r) in rels['B'])!=(key(r) in rels['C'])]
+ added_shapes=Counter('bundled_gtest' if name=='fmt' and es['C'][k].provenance.file.startswith('test/gtest/') else 'fmt_owned' if name=='fmt' else 'repository_total' for k in es['C'].keys()-es['A'].keys())
+ data.update(added_vs_baseline=len(added),removed_vs_baseline=len(removed),baseline_edges_over_off=len(es['B'].keys()-es['A'].keys()),candidate_edges_over_off=len(es['C'].keys()-es['A'].keys()),candidate_contribution_by_area=dict(added_shapes),supported_relationship_coverage=coverage,old_audit_retained=old_retained,old_audit_changed=[r['audit_id'] for r in changed_retained],negative_audit_present=negatives,step3_additions_retained=step3_retained,checks=dict(repeatability=True,nodes_routing_pending_equal=True,cst_edges_preserved=True,added_endpoints_grounded=True,verify_equal=True,source_manifest_unchanged=True))
+ data['phase_median_seconds']={x:{phase:statistics.median(r['phase_seconds'][phase] for r in data[x]['runs']) for phase in data[x]['runs'][0]['phase_seconds']} for x in graphs}
+ data['candidate_minus_baseline_seconds']=data['C']['median_seconds']-data['B']['median_seconds'];data['candidate_minus_off_seconds']=data['C']['median_seconds']-data['A']['median_seconds'];data['candidate_to_baseline_ratio']=data['C']['median_seconds']/data['B']['median_seconds'];data['candidate_to_off_ratio']=data['C']['median_seconds']/data['A']['median_seconds']
+ result['repositories'][name]=data
+ print(name,'B',b['clang'],'C',c['clang'],'added',len(added),'removed',len(removed),'coverage',coverage,'times',[round(data[x]['median_seconds'],3) for x in graphs])
+(HERE/'clang-semantic-step3b-results.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
+(HERE/'clang-semantic-step3b-observations.jsonl').write_text(''.join(json.dumps(r,sort_keys=True)+'\n' for r in observed))
+(ROOT/'edge-changes.jsonl').write_text(''.join(json.dumps(r,sort_keys=True)+'\n' for r in changes))
+print('ALL COMPARISON ASSERTIONS PASS')

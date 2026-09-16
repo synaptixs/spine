@@ -1,0 +1,21 @@
+{
+  "configuration": "B",
+  "sites": {
+    "('apps/traincascade/boost.cpp', 15828, 15862)": "resolved",
+    "('apps/traincascade/boost.cpp', 18116, 18150)": "resolved",
+    "('modules/core/src/lda.cpp', 34713, 34747)": "resolved",
+    "('modules/dnn/src/darknet/darknet_io.cpp', 33652, 33785)": "resolved",
+    "('modules/dnn/src/darknet/darknet_io.cpp', 36200, 36286)": "resolved",
+    "('modules/dnn/src/torch/torch_importer.cpp', 48672, 48693)": "resolved"
+  },
+  "report": {
+    "available": true,
+    "pending": 6,
+    "resolved": 6,
+    "total_tus": 2468,
+    "parsed_tus": 4,
+    "failed_tus": 0,
+    "diagnostic_tus": 4,
+    "unresolved_reasons": {}
+  }
+}

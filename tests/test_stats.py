@@ -320,3 +320,51 @@ class TestMedianCallCount:
         counts = list(range(1, 101))  # 1..100, median = 50.5
         funcs = [self._fcf(c) for c in counts]
         assert median_call_count(funcs) == 50.5
+
+
+def test_summary_counts_match_callers_with_a_bounded_edge_scan() -> None:
+    from collections.abc import Iterator
+
+    from orchestrator.pkg.facts import Provenance
+
+    nodes = [_make_node(f"f{i}", f"function{i}", NodeKind.FUNCTION) for i in range(80)]
+    nodes.append(_make_node("module", "module", NodeKind.MODULE))
+    nodes.append(Node("external", NodeKind.FUNCTION, "external", external=True))
+    edges = [Edge(f"f{i}", f"f{i % 7}", EdgeKind.CALLS, Provenance("a.cpp", i + 1)) for i in range(80)]
+    edges.extend(
+        [
+            Edge("f0", "f1", EdgeKind.CALLS, Provenance("a.cpp", 100)),
+            Edge("f0", "f1", EdgeKind.CALLS, Provenance("a.cpp", 101)),
+            _make_edge("missing", "f0", EdgeKind.CALLS),
+            _make_edge("f0", "missing", EdgeKind.CALLS),
+            _make_edge("module", "external", EdgeKind.CALLS),
+            _make_edge("f0", "module", EdgeKind.CALLS),
+            _make_edge("module", "f0", EdgeKind.CONTAINS),
+        ]
+    )
+    store = FactStore(_make_batch(nodes=nodes, edges=edges))
+    expected = []
+    for node in store.nodes:
+        if node.kind is NodeKind.FUNCTION:
+            count = len(store.callers_of(node.id))
+            if count:
+                expected.append((node.id, count))
+    expected.sort(key=lambda pair: (-pair[1], pair[0]))
+
+    class CountingEdges(list[Edge]):
+        visits = 0
+
+        def __iter__(self) -> Iterator[Edge]:
+            for edge in super().__iter__():
+                self.visits += 1
+                yield edge
+
+    counted = CountingEdges(store._edges)
+    store._edges = counted
+    result = summarise_store(store, top_n=100)
+    assert [(item.node_id, item.call_count) for item in result.top_called_functions] == expected
+    assert result.total_edges == len(edges)
+    assert result.edge_counts == {EdgeKind.CALLS: len(edges) - 1, EdgeKind.CONTAINS: 1}
+    assert counted.visits <= 2 * len(edges)
+    assert store.nodes == nodes
+    assert list(store._edges) == edges

@@ -51,6 +51,8 @@ uv tool install 'synaptixs-spine[all]'
 
 `[all]` includes language front-ends, document ingestion and the MCP server. `[mcp]`
 alone does not install the language grammars; `[languages]` contains the front-ends.
+`[all]` additionally installs the optional `[clang]` semantic pass; see
+[its size and coverage limits](SETUP.md#optional-extras).
 See [SETUP.md](SETUP.md) for the complete installation options.
 
 ### Claude Code
@@ -769,6 +771,14 @@ already includes.
 endpoints and EF Core entities into the graph; for C/C++ it builds the `#include` graph and
 merges header declarations with their definitions; for Go it computes **interface
 satisfaction** (`IMPLEMENTS`) by matching method sets.
+
+C++ translation units route the `.h` headers they reach through literal includes
+to the C++ parser. With `[clang]` installed alongside the language extras, the
+optional semantic pass adds member-call edges only between grounded symbols.
+Overloads retain one name-based ID; virtual calls use the static target. Read the
+`resolved N of M ... in K of T TUs` extraction summary as a coverage bound.
+Missing headers, unsupported declarations and ungrounded targets remain misses;
+[real-repository recovery is limited](docs/evals/clang-semantic-validation.md).
 
 Perl codegen uses `perl -c` followed by owning tests and the whole `prove` suite.
 Nested suites run recursively; `cpanm` is optional and its absence is logged.

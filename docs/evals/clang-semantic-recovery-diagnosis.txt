@@ -1,0 +1,55 @@
+"""Step 3 baseline diagnosis, outside timed performance comparisons.
+
+Run with the pinned, gitless archives and the environment described in the
+Step 1 A/B harness: python this-file.txt tinyxml2 /tmp/new-diagnosis (then opencv).
+Writes full site observations and diagnostics under /tmp/spine-step3-diagnosis;
+use a fresh output directory. Never reads a compilation database or host SDK.
+The companion recovery report documents the fixed-hash 100-site selection.
+"""
+import sys,json,hashlib,runpy,subprocess
+from pathlib import Path
+from dataclasses import asdict
+from collections import Counter
+from orchestrator.pkg import clang_link
+from clang import cindex
+# Reproduce pre-fix observations even from the later review commit.
+base_source=subprocess.check_output(['git','show','4e368e18aed9f250e2c928c47119a413bc76d4bc:src/orchestrator/pkg/clang_link.py'],text=True)
+exec(compile(base_source,clang_link.__file__,'exec'),clang_link.__dict__)
+name=sys.argv[1]; root=Path('/tmp/spine-clang-ab-'+name).resolve(); out=Path(sys.argv[2] if len(sys.argv)>2 else '/tmp/spine-step3-diagnosis')/name;out.mkdir(parents=True,exist_ok=False)
+observed={}; diagnostics={}
+original=clang_link._caller_matches
+
+def matches(caller,site,node,language,root):
+    result=original(caller,site,node,language,root)
+    if not result:
+        key=(site.file,site.offset,site.end_offset)
+        observed[key]={'usr':caller.get_usr() if caller else None,'kind':caller.kind.name if caller else None,'clang_file':clang_link._repo_file(caller.location.file.name,root) if caller and caller.location.file else None,'cst_id':site.caller,'cst_file':node.provenance.file if node.provenance else None}
+    return result
+clang_link._caller_matches=matches
+parse=cindex.Index.parse
+
+def capture_parse(self,path,*args,**kwargs):
+    tu=parse(self,path,*args,**kwargs)
+    diagnostics[str(Path(path).relative_to(root))]=[str(d) for d in tu.diagnostics][:8]
+    return tu
+cindex.Index.parse=capture_parse
+original_link=clang_link.link_clang
+source=base_source
+source=source.replace('    report.resolved = len(resolved)','    capture(locals())\n    report.resolved = len(resolved)')
+
+def capture(state):
+    rows=[]
+    for key,stage in state['progress'].items():
+        if key in state['resolved']:continue
+        p=state['sites'][key]
+        rows.append({**asdict(p),'reason':state['stages'][stage],'observed':observed.get(key),'selection_hash':hashlib.sha256(('clang-misses-v1:'+repr(key)).encode()).hexdigest()})
+    (out/'misses.json').write_text(json.dumps(rows,indent=2)+'\n')
+    (out/'diagnostics.json').write_text(json.dumps(diagnostics,indent=2)+'\n')
+    print(name,'misses',dict(Counter(r['reason'] for r in rows)),flush=True)
+    print(name,'caller mismatch kinds',dict(Counter(r['observed']['kind'] for r in rows if r['reason']=='caller_identity_mismatch' and r['observed'])),flush=True)
+ns=dict(clang_link.__dict__);ns['capture']=capture
+exec(compile(source,clang_link.__file__,'exec'),ns)
+clang_link.link_clang=ns['link_clang']
+# The temporary module's globals must retain the observation wrapper.
+ns['_caller_matches']=matches
+runpy.run_path('docs/evals/clang-semantic-ab-harness.txt')['run'](root,'on',1,out)

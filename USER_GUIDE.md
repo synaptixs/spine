@@ -245,6 +245,12 @@ is: `orchestrator understand .` → commit `episteme/`, then re-run whenever the
 > [KNOWLEDGE_GRAPH.md](KNOWLEDGE_GRAPH.md). Build tools and test runners are in the
 > [agent guide's toolchain table](AGENT_GUIDE.md#10-language-support--toolchains);
 > the [CLI reference](CLI_REFERENCE.md) covers language, dialect and layout flags.
+> For C/C++, the optional `[clang]` extra adds member-call edges between grounded
+> symbols; included `.h` files use C++ routing when reached from a C++ source file.
+> Check the reported recovered-site and parsed-TU counts: missing headers can
+> leave most calls unresolved. Repository include roots are inferred conservatively;
+> benefit and runtime vary by codebase. See the
+> [five-repository evaluation](docs/evals/clang-semantic-step3b.md).
 > Python needs no parser extra. SQL uses SQLite by default; `[sql-postgres]` adds
 > Docker-backed Postgres validation. See the dedicated [PHP](#php-code-generation)
 > and [Perl](#perl-code-generation) sections below for brownfield behavior.

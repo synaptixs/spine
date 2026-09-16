@@ -1,0 +1,132 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+________ test_prefixed_include_root_recovers_grounded_call[False-False] ________
+
+tmp_path = PosixPath('/private/var/folders/2c/q2v76xf106gb1bbhlghqt2_h0000gn/T/pytest-of-falcon/pytest-195/test_prefixed_include_root_rec0')
+quoted = False, transitive = False
+
+    @pytest.mark.parametrize("quoted", [False, True])
+    @pytest.mark.parametrize("transitive", [False, True])
+    def test_prefixed_include_root_recovers_grounded_call(
+        tmp_path: Path, quoted: bool, transitive: bool
+    ) -> None:
+        pytest.importorskip("clang.cindex")
+        pytest.importorskip("tree_sitter_cpp")
+        headers = tmp_path / "include" / "api"
+        headers.mkdir(parents=True)
+        (headers / "worker.hpp").write_text("struct Worker { void run() {} };\n")
+        entry = "worker.hpp"
+        if transitive:
+            (headers / "entry.hpp").write_text("#include <api/worker.hpp>\n")
+            entry = "entry.hpp"
+        include = f'"api/{entry}"' if quoted else f"<api/{entry}>"
+        (tmp_path / "main.cpp").write_text(f"#include {include}\nvoid use(Worker& w) {{ w.run(); }}\n")
+        extractor = RepoCodeExtractor()
+        batch = extractor.extract(tmp_path)
+        assert any(n.id == "cpp:Worker::run" and n.grounded for n in batch.nodes)
+        assert any(n.id == "cpp:use" and n.grounded for n in batch.nodes)
+>       assert ("cpp:use", "cpp:Worker::run") in {
+            (e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.CALLS
+        }
+E       AssertionError: assert ('cpp:use', 'cpp:Worker::run') in set()
+
+tests/pkg/test_clang_includes.py:31: AssertionError
+________ test_prefixed_include_root_recovers_grounded_call[False-True] _________
+
+tmp_path = PosixPath('/private/var/folders/2c/q2v76xf106gb1bbhlghqt2_h0000gn/T/pytest-of-falcon/pytest-195/test_prefixed_include_root_rec1')
+quoted = True, transitive = False
+
+    @pytest.mark.parametrize("quoted", [False, True])
+    @pytest.mark.parametrize("transitive", [False, True])
+    def test_prefixed_include_root_recovers_grounded_call(
+        tmp_path: Path, quoted: bool, transitive: bool
+    ) -> None:
+        pytest.importorskip("clang.cindex")
+        pytest.importorskip("tree_sitter_cpp")
+        headers = tmp_path / "include" / "api"
+        headers.mkdir(parents=True)
+        (headers / "worker.hpp").write_text("struct Worker { void run() {} };\n")
+        entry = "worker.hpp"
+        if transitive:
+            (headers / "entry.hpp").write_text("#include <api/worker.hpp>\n")
+            entry = "entry.hpp"
+        include = f'"api/{entry}"' if quoted else f"<api/{entry}>"
+        (tmp_path / "main.cpp").write_text(f"#include {include}\nvoid use(Worker& w) {{ w.run(); }}\n")
+        extractor = RepoCodeExtractor()
+        batch = extractor.extract(tmp_path)
+        assert any(n.id == "cpp:Worker::run" and n.grounded for n in batch.nodes)
+        assert any(n.id == "cpp:use" and n.grounded for n in batch.nodes)
+>       assert ("cpp:use", "cpp:Worker::run") in {
+            (e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.CALLS
+        }
+E       AssertionError: assert ('cpp:use', 'cpp:Worker::run') in set()
+
+tests/pkg/test_clang_includes.py:31: AssertionError
+________ test_prefixed_include_root_recovers_grounded_call[True-False] _________
+
+tmp_path = PosixPath('/private/var/folders/2c/q2v76xf106gb1bbhlghqt2_h0000gn/T/pytest-of-falcon/pytest-195/test_prefixed_include_root_rec2')
+quoted = False, transitive = True
+
+    @pytest.mark.parametrize("quoted", [False, True])
+    @pytest.mark.parametrize("transitive", [False, True])
+    def test_prefixed_include_root_recovers_grounded_call(
+        tmp_path: Path, quoted: bool, transitive: bool
+    ) -> None:
+        pytest.importorskip("clang.cindex")
+        pytest.importorskip("tree_sitter_cpp")
+        headers = tmp_path / "include" / "api"
+        headers.mkdir(parents=True)
+        (headers / "worker.hpp").write_text("struct Worker { void run() {} };\n")
+        entry = "worker.hpp"
+        if transitive:
+            (headers / "entry.hpp").write_text("#include <api/worker.hpp>\n")
+            entry = "entry.hpp"
+        include = f'"api/{entry}"' if quoted else f"<api/{entry}>"
+        (tmp_path / "main.cpp").write_text(f"#include {include}\nvoid use(Worker& w) {{ w.run(); }}\n")
+        extractor = RepoCodeExtractor()
+        batch = extractor.extract(tmp_path)
+        assert any(n.id == "cpp:Worker::run" and n.grounded for n in batch.nodes)
+        assert any(n.id == "cpp:use" and n.grounded for n in batch.nodes)
+>       assert ("cpp:use", "cpp:Worker::run") in {
+            (e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.CALLS
+        }
+E       AssertionError: assert ('cpp:use', 'cpp:Worker::run') in set()
+
+tests/pkg/test_clang_includes.py:31: AssertionError
+_________ test_prefixed_include_root_recovers_grounded_call[True-True] _________
+
+tmp_path = PosixPath('/private/var/folders/2c/q2v76xf106gb1bbhlghqt2_h0000gn/T/pytest-of-falcon/pytest-195/test_prefixed_include_root_rec3')
+quoted = True, transitive = True
+
+    @pytest.mark.parametrize("quoted", [False, True])
+    @pytest.mark.parametrize("transitive", [False, True])
+    def test_prefixed_include_root_recovers_grounded_call(
+        tmp_path: Path, quoted: bool, transitive: bool
+    ) -> None:
+        pytest.importorskip("clang.cindex")
+        pytest.importorskip("tree_sitter_cpp")
+        headers = tmp_path / "include" / "api"
+        headers.mkdir(parents=True)
+        (headers / "worker.hpp").write_text("struct Worker { void run() {} };\n")
+        entry = "worker.hpp"
+        if transitive:
+            (headers / "entry.hpp").write_text("#include <api/worker.hpp>\n")
+            entry = "entry.hpp"
+        include = f'"api/{entry}"' if quoted else f"<api/{entry}>"
+        (tmp_path / "main.cpp").write_text(f"#include {include}\nvoid use(Worker& w) {{ w.run(); }}\n")
+        extractor = RepoCodeExtractor()
+        batch = extractor.extract(tmp_path)
+        assert any(n.id == "cpp:Worker::run" and n.grounded for n in batch.nodes)
+        assert any(n.id == "cpp:use" and n.grounded for n in batch.nodes)
+>       assert ("cpp:use", "cpp:Worker::run") in {
+            (e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.CALLS
+        }
+E       AssertionError: assert ('cpp:use', 'cpp:Worker::run') in set()
+
+tests/pkg/test_clang_includes.py:31: AssertionError
+=========================== short test summary info ============================
+FAILED tests/pkg/test_clang_includes.py::test_prefixed_include_root_recovers_grounded_call[False-False]
+FAILED tests/pkg/test_clang_includes.py::test_prefixed_include_root_recovers_grounded_call[False-True]
+FAILED tests/pkg/test_clang_includes.py::test_prefixed_include_root_recovers_grounded_call[True-False]
+FAILED tests/pkg/test_clang_includes.py::test_prefixed_include_root_recovers_grounded_call[True-True]
+4 failed in 0.26s

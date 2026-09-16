@@ -12,7 +12,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 from orchestrator.pkg.facts import EdgeKind, FactBatch, NodeKind
-from orchestrator.pkg.store import CallSite, FactStore
+from orchestrator.pkg.store import FactStore
 
 
 @dataclass
@@ -120,39 +120,28 @@ def summarise_store(
     """
     # --- node counts ---------------------------------------------------------
     node_counter: Counter[NodeKind] = Counter()
-    for node in store.nodes:
+    nodes = store.nodes
+    for node in nodes:
         node_counter[node.kind] += 1
 
     node_counts: dict[NodeKind, int] = dict(node_counter)
     total_nodes: int = sum(node_counter.values())
 
-    # --- edge counts ---------------------------------------------------------
-    # FactStore exposes edges indirectly; we reconstruct via callers_of and the
-    # public .nodes list.  However FactStore._edges is a private attribute, so
-    # we derive edge statistics from the FactBatch directly if available.
-    # Since summarise_store may be called with a FactStore that was *not* built
-    # here, we use the standard public surface: iterate all nodes and query
-    # relevant edge types through the public API.
-    #
-    # For a complete edge tally we rebuild a FactStore-aware counter by
-    # inspecting callers_of for every function node (CALLS edges) and deriving
-    # the remaining edge kinds from the FactStore's internal list which, while
-    # private, is the only authoritative source — consistent with the BROWNFIELD
-    # rule that we must not re-parse source or add a new schema.
+    # Count edges and incoming calls together. Calling callers_of for every
+    # function rescans the graph once per function and makes large-repo state
+    # summaries quadratic. Preserve its semantics: the caller must exist, the
+    # destination must be a Function, and distinct call-site edges count separately.
+    function_ids = {n.id for n in nodes if n.kind is NodeKind.FUNCTION}
+    node_ids = {n.id for n in nodes}
     edge_counter: Counter[EdgeKind] = Counter()
-    for edge in store._edges:  # noqa: SLF001  # FactStore has no public edges iterator
+    call_counts: Counter[str] = Counter()
+    for edge in store._edges:  # noqa: SLF001  # FactStore has no public all-edges iterator
         edge_counter[edge.kind] += 1
+        if edge.kind is EdgeKind.CALLS and edge.dst in function_ids and edge.src in node_ids:
+            call_counts[edge.dst] += 1
 
     edge_counts: dict[EdgeKind, int] = dict(edge_counter)
     total_edges: int = sum(edge_counter.values())
-
-    # --- most-called functions -----------------------------------------------
-    call_counts: Counter[str] = Counter()
-    function_nodes = [n for n in store.nodes if n.kind is NodeKind.FUNCTION]
-    for fn_node in function_nodes:
-        callers: list[CallSite] = store.callers_of(fn_node.id)
-        if callers:
-            call_counts[fn_node.id] = len(callers)
 
     # Tie-break on node_id: `most_common` leaves equal counts in insertion order,
     # so unrelated code movement could reshuffle this list — and it is rendered into

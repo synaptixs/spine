@@ -1,0 +1,15 @@
+import json,runpy,subprocess,sys,hashlib
+from pathlib import Path
+ns=runpy.run_path('docs/evals/clang-semantic-step3b-harness.txt')
+manifest=json.loads(Path('docs/evals/clang-semantic-step3b-manifest.json').read_text())
+out=Path('/tmp/spine-step3b-results');out.mkdir(exist_ok=True)
+paths=['src/orchestrator/pkg/clang_link.py','src/orchestrator/pkg/clang_includes.py','src/orchestrator/pkg/extractor.py','docs/evals/clang-semantic-step3b-supported.jsonl','docs/evals/clang-semantic-step3b-harness.txt']
+frozen={p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths}
+(out/'frozen-inputs.json').write_text(json.dumps(frozen,indent=2)+'\n')
+for repo in manifest['repositories']:
+ root=Path(repo['root']);assert ns['source_digest'](root)==repo['source_manifest'],repo['name']
+ for index,config in enumerate(manifest['configuration_order'],1):
+  assert all(hashlib.sha256(Path(p).read_bytes()).hexdigest()==v for p,v in frozen.items())
+  subprocess.run([sys.executable,'docs/evals/clang-semantic-step3b-harness.txt',config,str(root),str(index),str(out/repo['name']/config)],check=True)
+ assert ns['source_digest'](root)==repo['source_manifest']
+print('All 45 runs completed; source manifests and implementation hashes unchanged.',flush=True)

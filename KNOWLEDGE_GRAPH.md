@@ -156,10 +156,11 @@ has none*. A front-end that can emit `Endpoint` still emits none for a repo with
 routes; `pkg verify`'s `source-parity` check is what answers that question.
 
 `Doc` is empty down the whole column because no *language* produces it. These passes
-do, for every language, and they are why the matrix is not the full picture:
+extend the graph under the conditions shown below:
 
 | Pass | Runs for | Emits |
 |---|---|---|
+| `pkg/clang_link.py` | C/C++ TUs with unresolved calls, only with the `clang` extra | `CALLS` |
 | `pkg/doc_link.py` | documentation ingestion — runs for every language | `Doc`, `MENTIONS` |
 | `pkg/import_link.py` | the whole-repo import join | `Module`, `IMPORTS` |
 | `pkg/data_layer_link.py` | a live database, via `mcp ingest-db` | `Entity`, `CONTAINS`, `REFERENCES` |
@@ -269,6 +270,20 @@ flowchart LR
   (multiple inheritance → multiple edges), member functions merge an in-class
   declaration with an out-of-line `Class::method` definition, templates emit their
   `Type`/`Function`, and `CALLS`/`REFERENCES` carry over.
+
+  Headers ending in `.h` reached by literal includes from C++ translation units
+  use the C++ CST parser, transitively; other `.h` files remain C. The optional
+  `[clang]` post-pass adds `CALLS` only between functions the CST already grounded.
+  It matches full source ranges, resolves ordinary argument/qualifier signatures
+  to existing name-based IDs, and keeps static virtual targets. It creates no
+  nodes and does not distinguish overloads or instantiate templates.
+  Literal include paths can add unambiguous roots from admitted repository headers;
+  existing include-directory precedence is preserved. Only TUs with reachable
+  unresolved sites are parsed, using synthesized repository flags with no
+  compilation database or host SDK. Missing system headers constrain coverage.
+  The [five-repository evaluation](docs/evals/clang-semantic-step3b.md) separates
+  recovered pending-site fractions, source-labelled relationships and runtime;
+  pending-site recovery is not whole-repository call-graph recall.
 
   Go's module unit is the **package (its directory)** — every `.go` file in a dir merges
   onto one `Module`. Structs/interfaces/aliases become `Type` nodes, funcs and receiver
@@ -593,7 +608,7 @@ reviews honest.
 ## 10. How right is it? — measured, not asserted
 
 "Grounded" is an adjective; this is a number. `orchestrator pkg accuracy` scores the graph
-against a committed corpus of **47 hand-labelled fixture cases across all 10
+against a committed corpus of **49 hand-labelled fixture cases across all 10
 front-ends**, and the baseline lives in `src/orchestrator/pkg/scoreboard.json`.
 
 **Precision is 1.00 on every node kind and every edge kind, in all 10 languages.** Recall is

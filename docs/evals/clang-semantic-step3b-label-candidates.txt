@@ -1,0 +1,23 @@
+import json,pickle,re,hashlib
+from pathlib import Path
+from collections import Counter
+for name in ['pugixml','fmt','googletest']:
+ folder=Path('/tmp/spine-step3b-labels')/name;root=Path('/tmp/spine-step3b-'+name)
+ batch=pickle.loads((folder/'off.pickle').read_bytes());nodes={n.id:n for n in batch.nodes if n.kind.value=='Function' and n.grounded and n.language=='cpp'};targets={}
+ for n in nodes.values():targets.setdefault(n.id.split('::')[-1].removeprefix('cpp:'),[]).append(n.id)
+ rows=[]
+ for r in json.loads((folder/'pending.json').read_text()):
+  caller=nodes.get(r['caller'])
+  if not caller or caller.provenance.file!=r['file'] or any(x in r['caller'] for x in ['TEST','<','operator','~']):continue
+  source=(root/r['file']).read_bytes();expr=source[r['offset']:r['end_offset']].decode(errors='replace');m=re.search(r'(?:\.|->)([A-Za-z_]\w*)\s*\([^()]*\)\s*$',expr)
+  if not m or m[1] not in targets:continue
+  possible=[t for t in targets[m[1]] if '<' not in t]
+  if not possible:continue
+  r.update(expression=expr,possible_targets=possible,selection_hash=hashlib.sha256(('step3b-supported-v1:'+name+':'+repr((r['file'],r['offset'],r['end_offset']))).encode()).hexdigest())
+  rows.append(r)
+ rows.sort(key=lambda r:r['selection_hash']);(folder/'label-candidates.json').write_text(json.dumps(rows,indent=2)+'\n')
+ print(name,len(rows))
+ with (folder/'label-packet.txt').open('w') as f:
+  for i,r in enumerate(rows[:110],1):
+   r['label_index']=i;lines=(root/r['file']).read_text(errors='replace').splitlines();n=r['line']
+   f.write(f"{i} {r['file']}:{n} {r['caller']} {r['expression']} TARGETS={r['possible_targets']}\n"+'\n'.join(f'{j+1}: {lines[j]}' for j in range(max(0,n-4),min(len(lines),n+2)))+'\n\n')

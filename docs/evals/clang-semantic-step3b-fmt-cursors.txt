@@ -1,0 +1,16 @@
+import json
+from pathlib import Path
+from clang import cindex
+from orchestrator.pkg.clang_link import clang_available
+D=Path('docs/evals');root=Path('/tmp/spine-step3b-fmt')
+r=json.loads((D/'clang-semantic-step3b-results.json').read_text())['repositories']['fmt']
+args=r['fixed_flags_by_language']['cpp']+['-I'+str(root/d) for d in r['baseline_include_directories']+r['additional_include_directories']]
+cindex.Config.set_library_file(str(Path(cindex.__file__).parent/'native/libclang.dylib'))
+tu=cindex.Index.create().parse(str(root/'test/scan-test.cc'),args=args)
+rows=[]
+for c in tu.cursor.walk_preorder():
+ if c.kind.name=='CALL_EXPR' and c.location.file and c.location.file.name==str(root/'test/scan.h') and c.location.line in {515,519,523,539,541,552}:
+  t=c.referenced
+  if t and t.spelling in {'begin','advance_to'}:rows.append(dict(file='test/scan.h',line=c.location.line,extent=[c.extent.start.offset,c.extent.end.offset],target=t.spelling,target_usr=t.get_usr(),parent=t.semantic_parent.get_usr()))
+assert rows
+(D/'clang-semantic-step3b-fmt-cursors.json').write_text(json.dumps(rows,indent=2,sort_keys=True)+'\n');print(json.dumps(rows,indent=2))

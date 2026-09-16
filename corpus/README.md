@@ -67,6 +67,11 @@ Labelling in the wrong vocabulary scores 0.00 and reads as a catastrophic front-
 C and C++ ids are **bare symbols, not module-qualified** — a symbol, not a location. Python's
 scheme applied to either scores zero.
 
+With the optional `clang` extra, the C++ `instance_calls` reference-parameter call
+is resolved by a semantic post-pass. At the P3 checkpoint, aggregate C++ CALLS was 4 expected / 4 emitted /
+4 matched (3 emitted / 3 matched without the extra). Ground truth and node ids are
+unchanged; the historical `known_gaps` entry records the CST-only limitation.
+
 PHP's module id is namespace-keyed like C#/Java **only when the file has one**. A file with no
 `namespace` (WordPress-style, legacy code) keys on its repo-relative path instead —
 `php:inc/legacy.php`, not a dotted form — which is also what makes a literal `require`/`include`
@@ -150,3 +155,12 @@ legible rather than mysterious — it never suppresses the penalty. Same contrac
 
 Step 3 before step 4 is the discipline that keeps the corpus honest. A gap recorded after
 seeing the output is a rationalisation; one recorded before is a prediction.
+
+## Header routing fixtures
+
+| Case | What it proves |
+|---|---|
+| `cpp/header_classes` | A class declared in a reached `.h` header and defined in `.cpp` is grounded by C++; the optional semantic pass resolves its reference-parameter call. |
+| `c/header_unaffected` | A C-only `.h` stays C; its struct, field and free-function ids and calls are unchanged. |
+
+Both fixture roots are `.repo/`, so their source does not enter Spine's graph.

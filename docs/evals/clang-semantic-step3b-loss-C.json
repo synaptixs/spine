@@ -1,0 +1,24 @@
+{
+  "configuration": "C",
+  "sites": {
+    "('apps/traincascade/boost.cpp', 15828, 15862)": "no_matching_call",
+    "('apps/traincascade/boost.cpp', 18116, 18150)": "no_matching_call",
+    "('modules/core/src/lda.cpp', 34713, 34747)": "no_matching_call",
+    "('modules/dnn/src/darknet/darknet_io.cpp', 33652, 33785)": "no_matching_call",
+    "('modules/dnn/src/darknet/darknet_io.cpp', 36200, 36286)": "no_matching_call",
+    "('modules/dnn/src/torch/torch_importer.cpp', 48672, 48693)": "caller_identity_mismatch"
+  },
+  "report": {
+    "available": true,
+    "pending": 6,
+    "resolved": 0,
+    "total_tus": 2468,
+    "parsed_tus": 4,
+    "failed_tus": 0,
+    "diagnostic_tus": 4,
+    "unresolved_reasons": {
+      "caller_identity_mismatch": 1,
+      "no_matching_call": 5
+    }
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "language": "c",
+  "case": "header_unaffected",
+  "root": ".repo",
+  "why": "A C-only header remains C, with the original struct, field and function ids.",
+  "nodes": [
+    {
+      "id": "c:src/main.c",
+      "kind": "Module"
+    },
+    {
+      "id": "c:src/widget.h",
+      "kind": "Module"
+    },
+    {
+      "id": "c:Widget",
+      "kind": "Type"
+    },
+    {
+      "id": "c:Widget.value",
+      "kind": "Field"
+    },
+    {
+      "id": "c:run",
+      "kind": "Function"
+    },
+    {
+      "id": "c:use",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "c:src/main.c",
+      "dst": "c:src/widget.h",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "c:src/main.c",
+      "dst": "c:run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:src/main.c",
+      "dst": "c:use",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:src/widget.h",
+      "dst": "c:Widget",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:src/widget.h",
+      "dst": "c:run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:Widget",
+      "dst": "c:Widget.value",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "c:use",
+      "dst": "c:run",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": []
+}

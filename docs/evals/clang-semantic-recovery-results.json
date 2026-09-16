@@ -1,0 +1,2311 @@
+{
+  "base_commit": "4e368e18aed9f250e2c928c47119a413bc76d4bc",
+  "baseline_diagnosis": {
+    "opencv": {
+      "caller_mismatch_diagnosis": {
+        "caller_extension_same_file_candidate": 27,
+        "mapped_identity_different_file": 61,
+        "mapped_identity_disagrees": 1107,
+        "unsupported_identity_or_mismatched_extended_identity": 324
+      },
+      "unresolved": {
+        "caller_identity_mismatch": 1519,
+        "indirect_or_unsupported_target": 28426,
+        "no_matching_call": 104040,
+        "ungrounded_caller": 1,
+        "ungrounded_target": 832,
+        "unsupported_usr": 145
+      }
+    },
+    "tinyxml2": {
+      "caller_mismatch_diagnosis": {
+        "caller_extension_same_file_candidate": 1,
+        "mapped_identity_different_file": 1,
+        "mapped_identity_disagrees": 16,
+        "unsupported_identity_or_mismatched_extended_identity": 13
+      },
+      "unresolved": {
+        "caller_identity_mismatch": 31,
+        "indirect_or_unsupported_target": 168,
+        "no_matching_call": 413,
+        "ungrounded_target": 338,
+        "unsupported_usr": 14
+      }
+    }
+  },
+  "correct_edges_retained_from_fixed_200_sample": 166,
+  "environment": {
+    "machine": "arm64",
+    "method": "Fresh subprocess per extraction; only clang_available is forced false in off mode. Hashing and verify_batch outside timer. Source hashing pre-reads every input before the first run. No extraction cache. No parallel benchmark or test suite.",
+    "order": [
+      "off",
+      "on",
+      "on",
+      "off",
+      "off",
+      "on"
+    ],
+    "packages": {
+      "Jinja2": "3.1.6",
+      "Mako": "1.3.12",
+      "MarkupSafe": "3.0.3",
+      "PyJWT": "2.13.0",
+      "PyYAML": "6.0.3",
+      "Pygments": "2.20.0",
+      "SQLAlchemy": "2.0.49",
+      "aioboto3": "15.5.0",
+      "aiobotocore": "2.25.1",
+      "aiofiles": "25.1.0",
+      "aiohappyeyeballs": "2.6.1",
+      "aiohttp": "3.14.3",
+      "aioitertools": "0.13.0",
+      "aiosignal": "1.4.0",
+      "aiosqlite": "0.22.1",
+      "alembic": "1.19.2",
+      "annotated-doc": "0.0.4",
+      "annotated-types": "0.7.0",
+      "anyio": "4.13.0",
+      "asgi-lifespan": "2.1.0",
+      "ast_serialize": "0.6.0",
+      "attrs": "26.1.0",
+      "boto3": "1.40.61",
+      "botocore": "1.40.61",
+      "certifi": "2026.4.22",
+      "cffi": "2.0.0",
+      "cfgv": "3.5.0",
+      "charset-normalizer": "3.4.7",
+      "click": "8.1.8",
+      "coverage": "7.14.0",
+      "cryptography": "50.0.0",
+      "distlib": "0.4.0",
+      "distro": "1.9.0",
+      "et_xmlfile": "2.0.0",
+      "fastapi": "0.141.1",
+      "fastuuid": "0.14.0",
+      "filelock": "3.29.0",
+      "frozenlist": "1.8.0",
+      "fsspec": "2026.4.0",
+      "greenlet": "3.5.5",
+      "h11": "0.16.0",
+      "hf-xet": "1.5.0",
+      "html5rdf": "1.2.1",
+      "httpcore": "1.0.9",
+      "httpcore2": "2.9.1",
+      "httptools": "0.7.1",
+      "httpx": "0.28.1",
+      "httpx2": "2.9.1",
+      "huggingface_hub": "1.15.0",
+      "identify": "2.6.19",
+      "idna": "3.18",
+      "importlib_metadata": "8.7.1",
+      "iniconfig": "2.3.0",
+      "jiter": "0.14.0",
+      "jmespath": "1.1.0",
+      "jsonpatch": "1.33",
+      "jsonpointer": "3.1.1",
+      "jsonschema": "4.25.1",
+      "jsonschema-specifications": "2025.9.1",
+      "langchain-core": "1.4.9",
+      "langchain-protocol": "0.0.18",
+      "langgraph": "1.2.11",
+      "langgraph-checkpoint": "4.1.1",
+      "langgraph-checkpoint-postgres": "3.1.2",
+      "langgraph-prebuilt": "1.1.0",
+      "langgraph-sdk": "0.4.2",
+      "langsmith": "0.10.6",
+      "libclang": "18.1.1",
+      "librt": "0.13.0",
+      "litellm": "1.97.0",
+      "lxml": "6.1.1",
+      "markdown-it-py": "4.2.0",
+      "mcp": "2.2.0",
+      "mcp-types": "2.2.0",
+      "mdurl": "0.1.2",
+      "multidict": "6.7.1",
+      "mypy": "2.3.1",
+      "mypy_extensions": "1.1.0",
+      "nexus-rpc": "1.4.0",
+      "nodeenv": "1.10.0",
+      "openai": "2.36.0",
+      "openpyxl": "3.1.5",
+      "opentelemetry-api": "1.44.0",
+      "opentelemetry-sdk": "1.44.0",
+      "opentelemetry-semantic-conventions": "0.65b0",
+      "orjson": "3.11.9",
+      "ormsgpack": "1.12.2",
+      "owlrl": "7.6.2",
+      "packaging": "26.2",
+      "pathspec": "1.1.1",
+      "platformdirs": "4.9.6",
+      "pluggy": "1.6.0",
+      "pre_commit": "4.6.2",
+      "prettytable": "3.17.0",
+      "propcache": "0.5.2",
+      "protobuf": "6.33.6",
+      "psycopg": "3.3.4",
+      "psycopg-binary": "3.3.4",
+      "psycopg-pool": "3.3.1",
+      "pycparser": "3.0",
+      "pydantic": "2.13.5",
+      "pydantic-settings": "2.15.0",
+      "pydantic_core": "2.46.5",
+      "pyparsing": "3.3.2",
+      "pypdf": "6.18.0",
+      "pyshacl": "0.40.1",
+      "pytest": "9.1.1",
+      "pytest-asyncio": "1.4.0",
+      "pytest-cov": "7.1.0",
+      "python-dateutil": "2.9.0.post0",
+      "python-discovery": "1.3.1",
+      "python-docx": "1.2.0",
+      "python-dotenv": "1.2.2",
+      "python-multipart": "0.0.32",
+      "rdflib": "7.6.0",
+      "referencing": "0.37.0",
+      "regex": "2026.5.9",
+      "requests": "2.34.2",
+      "requests-toolbelt": "1.0.0",
+      "rich": "15.0.0",
+      "rpds-py": "0.30.0",
+      "ruff": "0.16.6",
+      "s3transfer": "0.14.0",
+      "shellingham": "1.5.4",
+      "six": "1.17.0",
+      "sniffio": "1.3.1",
+      "sqlglot": "30.18.0",
+      "sse-starlette": "3.4.4",
+      "starlette": "1.3.1",
+      "synaptixs-spine": "3.34.2",
+      "temporalio": "1.32.0",
+      "tenacity": "9.1.4",
+      "tiktoken": "0.13.0",
+      "tokenizers": "0.23.1",
+      "tqdm": "4.67.3",
+      "tree-sitter": "0.26.0",
+      "tree-sitter-c": "0.24.2",
+      "tree-sitter-c-sharp": "0.23.5",
+      "tree-sitter-cpp": "0.23.4",
+      "tree-sitter-go": "0.25.0",
+      "tree-sitter-java": "0.23.5",
+      "tree-sitter-perl": "2.0.0",
+      "tree-sitter-php": "0.24.1",
+      "tree-sitter-typescript": "0.23.2",
+      "truststore": "0.10.4",
+      "typer": "0.27.2",
+      "types-PyYAML": "6.0.12.20260906",
+      "types-aiobotocore-s3": "3.9.0",
+      "types-protobuf": "6.32.1.20260221",
+      "typing-inspection": "0.4.2",
+      "typing_extensions": "4.15.0",
+      "urllib3": "2.7.0",
+      "uuid_utils": "0.15.0",
+      "uvicorn": "0.47.0",
+      "uvloop": "0.22.1",
+      "virtualenv": "21.3.3",
+      "watchfiles": "1.1.1",
+      "wcwidth": "0.8.1",
+      "websockets": "15.0.1",
+      "wrapt": "1.17.3",
+      "xxhash": "3.7.0",
+      "yarl": "1.23.0",
+      "zipp": "3.23.1",
+      "zstandard": "0.25.0"
+    },
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "python": "3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 08:22:19) [Clang 14.0.6 ]",
+    "repositories": {
+      "opencv": {
+        "after": {
+          "files": 7654,
+          "sha256": "abd800b990f056983066e2ffaad6f3670afd097f8bec0a819dfc53e09cc8a32a"
+        },
+        "before": {
+          "files": 7654,
+          "sha256": "abd800b990f056983066e2ffaad6f3670afd097f8bec0a819dfc53e09cc8a32a"
+        },
+        "commit": "b4c5ec4042f097e2a5b386b9d413ec7333d0a184"
+      },
+      "tinyxml2": {
+        "after": {
+          "files": 273,
+          "sha256": "a2c8a77b94ed3b0dd7a3f9ff37d39efc62d5cdbcb483061b29b22fb7966ff392"
+        },
+        "before": {
+          "files": 273,
+          "sha256": "a2c8a77b94ed3b0dd7a3f9ff37d39efc62d5cdbcb483061b29b22fb7966ff392"
+        },
+        "commit": "8224e427b655b83dae5e2298f1e6919523a78737"
+      }
+    },
+    "spine_commit": "4e368e18aed9f250e2c928c47119a413bc76d4bc"
+  },
+  "implementation_sha256": "477f3676cd7a1b65a573fcafd2b77292caf3113d034e824840f99e96201037f4",
+  "incorrect_or_ambiguous_edges_retained": 0,
+  "new_edge_verdicts": {
+    "correct_at_name_id_level": 27
+  },
+  "new_edges_reviewed": 27,
+  "repositories": {
+    "opencv": {
+      "added_since_step2": 26,
+      "checks": {
+        "all_32_incorrect_or_ambiguous_gold_edges_remain_refused": true,
+        "all_new_edges_grounded_calls": true,
+        "diagnostic_run_reproduces_step2_graph_and_report": true,
+        "nodes_identical_to_step2": true,
+        "step2_edges_preserved": true,
+        "step2_pending_routing_verification_unchanged": true
+      },
+      "correct_sample_retained": 83,
+      "gold_sample": [
+        {
+          "audit_id": "O001",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O002",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O003",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "O004",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "O005",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "O006",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "O007",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "O008",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "O009",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "O010",
+          "retained_step2": false,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O011",
+          "retained_step2": false,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O012",
+          "retained_step2": false,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O013",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O014",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O015",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O016",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O017",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O018",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O019",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O020",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O021",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O022",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O023",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O024",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O025",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O026",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O027",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O028",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O029",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O030",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O031",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O032",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O033",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O034",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O035",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O036",
+          "retained_step2": false,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O037",
+          "retained_step2": false,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O038",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O039",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O040",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O041",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O042",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O043",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O044",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O045",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O046",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O047",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O048",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "O049",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O050",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O051",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O052",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O053",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O054",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O055",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O056",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O057",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O058",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O059",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O060",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O061",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O062",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O063",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O064",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O065",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O066",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O067",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O068",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O069",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O070",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O071",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O072",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O073",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O074",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O075",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O076",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "O077",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "O078",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "O079",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "O080",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O081",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "ambiguous"
+        },
+        {
+          "audit_id": "O082",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O083",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O084",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O085",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O086",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O087",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O088",
+          "retained_step2": false,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O089",
+          "retained_step2": false,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O090",
+          "retained_step2": false,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O091",
+          "retained_step2": false,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O092",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O093",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O094",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O095",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O096",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O097",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "O098",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "O099",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "O100",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        }
+      ],
+      "metrics": {
+        "calls": 253612,
+        "clang": {
+          "available": true,
+          "diagnostic_tus": 1950,
+          "failed_tus": 0,
+          "parsed_tus": 1981,
+          "pending": 135633,
+          "resolved": 696,
+          "total_tus": 2468,
+          "unresolved_reasons": {
+            "caller_identity_mismatch": 1492,
+            "indirect_or_unsupported_target": 28426,
+            "no_matching_call": 104040,
+            "ungrounded_caller": 1,
+            "ungrounded_target": 833,
+            "unsupported_usr": 145
+          }
+        },
+        "dangling_edges": 190485,
+        "edge_sha256": "4848d1f78d873bdcb22174c876fceec4df0ed96558e423910ee558ded8aa914e",
+        "edges": 397860,
+        "header_types": 1517,
+        "index": 2,
+        "mode": "on",
+        "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+        "nodes": 87181,
+        "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+        "routed_headers": 421,
+        "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+        "seconds": 62.55244275002042,
+        "verification_errors": 3,
+        "verification_warnings": 2,
+        "verify": {
+          "issues": [
+            {
+              "check": "dangling-edge",
+              "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+              "severity": "error"
+            },
+            {
+              "check": "orphan-rate",
+              "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+              "severity": "error"
+            },
+            {
+              "check": "orphan-rate",
+              "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+              "severity": "error"
+            },
+            {
+              "check": "phantom-module",
+              "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+              "severity": "warning"
+            },
+            {
+              "check": "invented-call",
+              "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+              "severity": "warning"
+            }
+          ]
+        }
+      },
+      "repeated_ab": {
+        "added_edges": 686,
+        "checks": {
+          "added_edges_only_calls_between_preexisting_grounded_functions": true,
+          "existing_edges_preserved": true,
+          "identical_node_order": true,
+          "identical_nodes": true,
+          "identical_nodes_all_runs": true,
+          "identical_pending_all_runs": true,
+          "identical_routing_all_runs": true,
+          "identical_verification_all_runs": true,
+          "off_clang_report_repeatable": true,
+          "off_edges_repeatable": true,
+          "on_clang_report_repeatable": true,
+          "on_edges_repeatable": true
+        },
+        "invalid_added_edges": 0,
+        "removed_edges": 0,
+        "runs": [
+          {
+            "calls": 252926,
+            "clang": {
+              "available": false,
+              "diagnostic_tus": 0,
+              "failed_tus": 0,
+              "parsed_tus": 0,
+              "pending": 135633,
+              "resolved": 0,
+              "total_tus": 2468,
+              "unresolved_reasons": {
+                "extra_unavailable": 135633
+              }
+            },
+            "dangling_edges": 190485,
+            "edge_sha256": "e2ddb170fa38446a96c4a51927e299a45948d8e22b7fdb5a328017a823c8f311",
+            "edges": 397174,
+            "header_types": 1517,
+            "index": 1,
+            "mode": "off",
+            "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+            "nodes": 87181,
+            "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+            "routed_headers": 421,
+            "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+            "seconds": 30.705727999971714,
+            "verification_errors": 3,
+            "verification_warnings": 2,
+            "verify": {
+              "issues": [
+                {
+                  "check": "dangling-edge",
+                  "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "orphan-rate",
+                  "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "orphan-rate",
+                  "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "phantom-module",
+                  "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+                  "severity": "warning"
+                },
+                {
+                  "check": "invented-call",
+                  "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+                  "severity": "warning"
+                }
+              ]
+            }
+          },
+          {
+            "calls": 253612,
+            "clang": {
+              "available": true,
+              "diagnostic_tus": 1950,
+              "failed_tus": 0,
+              "parsed_tus": 1981,
+              "pending": 135633,
+              "resolved": 696,
+              "total_tus": 2468,
+              "unresolved_reasons": {
+                "caller_identity_mismatch": 1492,
+                "indirect_or_unsupported_target": 28426,
+                "no_matching_call": 104040,
+                "ungrounded_caller": 1,
+                "ungrounded_target": 833,
+                "unsupported_usr": 145
+              }
+            },
+            "dangling_edges": 190485,
+            "edge_sha256": "4848d1f78d873bdcb22174c876fceec4df0ed96558e423910ee558ded8aa914e",
+            "edges": 397860,
+            "header_types": 1517,
+            "index": 2,
+            "mode": "on",
+            "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+            "nodes": 87181,
+            "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+            "routed_headers": 421,
+            "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+            "seconds": 62.55244275002042,
+            "verification_errors": 3,
+            "verification_warnings": 2,
+            "verify": {
+              "issues": [
+                {
+                  "check": "dangling-edge",
+                  "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "orphan-rate",
+                  "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "orphan-rate",
+                  "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "phantom-module",
+                  "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+                  "severity": "warning"
+                },
+                {
+                  "check": "invented-call",
+                  "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+                  "severity": "warning"
+                }
+              ]
+            }
+          },
+          {
+            "calls": 253612,
+            "clang": {
+              "available": true,
+              "diagnostic_tus": 1950,
+              "failed_tus": 0,
+              "parsed_tus": 1981,
+              "pending": 135633,
+              "resolved": 696,
+              "total_tus": 2468,
+              "unresolved_reasons": {
+                "caller_identity_mismatch": 1492,
+                "indirect_or_unsupported_target": 28426,
+                "no_matching_call": 104040,
+                "ungrounded_caller": 1,
+                "ungrounded_target": 833,
+                "unsupported_usr": 145
+              }
+            },
+            "dangling_edges": 190485,
+            "edge_sha256": "4848d1f78d873bdcb22174c876fceec4df0ed96558e423910ee558ded8aa914e",
+            "edges": 397860,
+            "header_types": 1517,
+            "index": 3,
+            "mode": "on",
+            "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+            "nodes": 87181,
+            "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+            "routed_headers": 421,
+            "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+            "seconds": 66.70544179098215,
+            "verification_errors": 3,
+            "verification_warnings": 2,
+            "verify": {
+              "issues": [
+                {
+                  "check": "dangling-edge",
+                  "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "orphan-rate",
+                  "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "orphan-rate",
+                  "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "phantom-module",
+                  "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+                  "severity": "warning"
+                },
+                {
+                  "check": "invented-call",
+                  "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+                  "severity": "warning"
+                }
+              ]
+            }
+          },
+          {
+            "calls": 252926,
+            "clang": {
+              "available": false,
+              "diagnostic_tus": 0,
+              "failed_tus": 0,
+              "parsed_tus": 0,
+              "pending": 135633,
+              "resolved": 0,
+              "total_tus": 2468,
+              "unresolved_reasons": {
+                "extra_unavailable": 135633
+              }
+            },
+            "dangling_edges": 190485,
+            "edge_sha256": "e2ddb170fa38446a96c4a51927e299a45948d8e22b7fdb5a328017a823c8f311",
+            "edges": 397174,
+            "header_types": 1517,
+            "index": 4,
+            "mode": "off",
+            "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+            "nodes": 87181,
+            "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+            "routed_headers": 421,
+            "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+            "seconds": 32.531579457980115,
+            "verification_errors": 3,
+            "verification_warnings": 2,
+            "verify": {
+              "issues": [
+                {
+                  "check": "dangling-edge",
+                  "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "orphan-rate",
+                  "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "orphan-rate",
+                  "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "phantom-module",
+                  "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+                  "severity": "warning"
+                },
+                {
+                  "check": "invented-call",
+                  "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+                  "severity": "warning"
+                }
+              ]
+            }
+          },
+          {
+            "calls": 252926,
+            "clang": {
+              "available": false,
+              "diagnostic_tus": 0,
+              "failed_tus": 0,
+              "parsed_tus": 0,
+              "pending": 135633,
+              "resolved": 0,
+              "total_tus": 2468,
+              "unresolved_reasons": {
+                "extra_unavailable": 135633
+              }
+            },
+            "dangling_edges": 190485,
+            "edge_sha256": "e2ddb170fa38446a96c4a51927e299a45948d8e22b7fdb5a328017a823c8f311",
+            "edges": 397174,
+            "header_types": 1517,
+            "index": 5,
+            "mode": "off",
+            "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+            "nodes": 87181,
+            "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+            "routed_headers": 421,
+            "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+            "seconds": 32.43099904200062,
+            "verification_errors": 3,
+            "verification_warnings": 2,
+            "verify": {
+              "issues": [
+                {
+                  "check": "dangling-edge",
+                  "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "orphan-rate",
+                  "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "orphan-rate",
+                  "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "phantom-module",
+                  "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+                  "severity": "warning"
+                },
+                {
+                  "check": "invented-call",
+                  "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+                  "severity": "warning"
+                }
+              ]
+            }
+          },
+          {
+            "calls": 253612,
+            "clang": {
+              "available": true,
+              "diagnostic_tus": 1950,
+              "failed_tus": 0,
+              "parsed_tus": 1981,
+              "pending": 135633,
+              "resolved": 696,
+              "total_tus": 2468,
+              "unresolved_reasons": {
+                "caller_identity_mismatch": 1492,
+                "indirect_or_unsupported_target": 28426,
+                "no_matching_call": 104040,
+                "ungrounded_caller": 1,
+                "ungrounded_target": 833,
+                "unsupported_usr": 145
+              }
+            },
+            "dangling_edges": 190485,
+            "edge_sha256": "4848d1f78d873bdcb22174c876fceec4df0ed96558e423910ee558ded8aa914e",
+            "edges": 397860,
+            "header_types": 1517,
+            "index": 6,
+            "mode": "on",
+            "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+            "nodes": 87181,
+            "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+            "routed_headers": 421,
+            "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+            "seconds": 65.61692933400627,
+            "verification_errors": 3,
+            "verification_warnings": 2,
+            "verify": {
+              "issues": [
+                {
+                  "check": "dangling-edge",
+                  "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "orphan-rate",
+                  "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "orphan-rate",
+                  "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "phantom-module",
+                  "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+                  "severity": "warning"
+                },
+                {
+                  "check": "invented-call",
+                  "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+                  "severity": "warning"
+                }
+              ]
+            }
+          }
+        ],
+        "timing": {
+          "median_delta_seconds": 33.18593029200565,
+          "median_ratio": 2.023278075677759,
+          "off": {
+            "max": 32.531579457980115,
+            "median": 32.43099904200062,
+            "min": 30.705727999971714,
+            "runs": [
+              30.705727999971714,
+              32.531579457980115,
+              32.43099904200062
+            ]
+          },
+          "on": {
+            "max": 66.70544179098215,
+            "median": 65.61692933400627,
+            "min": 62.55244275002042,
+            "runs": [
+              62.55244275002042,
+              66.70544179098215,
+              65.61692933400627
+            ]
+          }
+        }
+      }
+    },
+    "tinyxml2": {
+      "added_since_step2": 1,
+      "checks": {
+        "all_32_incorrect_or_ambiguous_gold_edges_remain_refused": true,
+        "all_new_edges_grounded_calls": true,
+        "diagnostic_run_reproduces_step2_graph_and_report": true,
+        "nodes_identical_to_step2": true,
+        "step2_edges_preserved": true,
+        "step2_pending_routing_verification_unchanged": true
+      },
+      "correct_sample_retained": 83,
+      "gold_sample": [
+        {
+          "audit_id": "T001",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T002",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T003",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T004",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T005",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T006",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T007",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T008",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T009",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T010",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T011",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T012",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T013",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T014",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T015",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T016",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T017",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T018",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T019",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T020",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T021",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T022",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T023",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T024",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T025",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T026",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T027",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T028",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T029",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T030",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T031",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T032",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T033",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T034",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T035",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T036",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T037",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T038",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T039",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T040",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T041",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T042",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T043",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T044",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T045",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T046",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T047",
+          "retained_step2": false,
+          "retained_step3": false,
+          "verdict_before": "incorrect"
+        },
+        {
+          "audit_id": "T048",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T049",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T050",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T051",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T052",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T053",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T054",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T055",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T056",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T057",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T058",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T059",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T060",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T061",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T062",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T063",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T064",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T065",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T066",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T067",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T068",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T069",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T070",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T071",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T072",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T073",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T074",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T075",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T076",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T077",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T078",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T079",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T080",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T081",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T082",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T083",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T084",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T085",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T086",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T087",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T088",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T089",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T090",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T091",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T092",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T093",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T094",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T095",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T096",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T097",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T098",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T099",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        },
+        {
+          "audit_id": "T100",
+          "retained_step2": true,
+          "retained_step3": true,
+          "verdict_before": "correct_at_name_id_level"
+        }
+      ],
+      "metrics": {
+        "calls": 1466,
+        "clang": {
+          "available": true,
+          "diagnostic_tus": 3,
+          "failed_tus": 0,
+          "parsed_tus": 3,
+          "pending": 1379,
+          "resolved": 416,
+          "total_tus": 3,
+          "unresolved_reasons": {
+            "caller_identity_mismatch": 30,
+            "indirect_or_unsupported_target": 168,
+            "no_matching_call": 413,
+            "ungrounded_target": 338,
+            "unsupported_usr": 14
+          }
+        },
+        "dangling_edges": 581,
+        "edge_sha256": "1156a0ed3077474282d2725ef843cadb6ff8d77b6854e1fbee6f1932042aecfd",
+        "edges": 1995,
+        "header_types": 6,
+        "index": 2,
+        "mode": "on",
+        "node_sha256": "c3e0014836019a3120f78ec790a18687bf322c26e7215867d4755a7a6d07f8a5",
+        "nodes": 425,
+        "pending_sha256": "80ac770db9437e4142ad120588222dcb7be8c7b05bb976eeba0378e0cb567dc5",
+        "routed_headers": 1,
+        "routed_headers_sha256": "a8234f2ced3c4d7dcbc929c5d7d04e4975e4a28547eace745d0f80f2392ce1b4",
+        "seconds": 0.34100937499897555,
+        "verification_errors": 1,
+        "verification_warnings": 1,
+        "verify": {
+          "issues": [
+            {
+              "check": "dangling-edge",
+              "message": "581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more",
+              "severity": "error"
+            },
+            {
+              "check": "phantom-module",
+              "message": "14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more",
+              "severity": "warning"
+            }
+          ]
+        }
+      },
+      "repeated_ab": {
+        "added_edges": 410,
+        "checks": {
+          "added_edges_only_calls_between_preexisting_grounded_functions": true,
+          "existing_edges_preserved": true,
+          "identical_node_order": true,
+          "identical_nodes": true,
+          "identical_nodes_all_runs": true,
+          "identical_pending_all_runs": true,
+          "identical_routing_all_runs": true,
+          "identical_verification_all_runs": true,
+          "off_clang_report_repeatable": true,
+          "off_edges_repeatable": true,
+          "on_clang_report_repeatable": true,
+          "on_edges_repeatable": true
+        },
+        "invalid_added_edges": 0,
+        "removed_edges": 0,
+        "runs": [
+          {
+            "calls": 1056,
+            "clang": {
+              "available": false,
+              "diagnostic_tus": 0,
+              "failed_tus": 0,
+              "parsed_tus": 0,
+              "pending": 1379,
+              "resolved": 0,
+              "total_tus": 3,
+              "unresolved_reasons": {
+                "extra_unavailable": 1379
+              }
+            },
+            "dangling_edges": 581,
+            "edge_sha256": "4236d09f7ec83c32538da14bcf5eb478774c2f8e95d41a12c43aa6899f1cdead",
+            "edges": 1585,
+            "header_types": 6,
+            "index": 1,
+            "mode": "off",
+            "node_sha256": "c3e0014836019a3120f78ec790a18687bf322c26e7215867d4755a7a6d07f8a5",
+            "nodes": 425,
+            "pending_sha256": "80ac770db9437e4142ad120588222dcb7be8c7b05bb976eeba0378e0cb567dc5",
+            "routed_headers": 1,
+            "routed_headers_sha256": "a8234f2ced3c4d7dcbc929c5d7d04e4975e4a28547eace745d0f80f2392ce1b4",
+            "seconds": 0.10197079199133441,
+            "verification_errors": 1,
+            "verification_warnings": 1,
+            "verify": {
+              "issues": [
+                {
+                  "check": "dangling-edge",
+                  "message": "581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "phantom-module",
+                  "message": "14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more",
+                  "severity": "warning"
+                }
+              ]
+            }
+          },
+          {
+            "calls": 1466,
+            "clang": {
+              "available": true,
+              "diagnostic_tus": 3,
+              "failed_tus": 0,
+              "parsed_tus": 3,
+              "pending": 1379,
+              "resolved": 416,
+              "total_tus": 3,
+              "unresolved_reasons": {
+                "caller_identity_mismatch": 30,
+                "indirect_or_unsupported_target": 168,
+                "no_matching_call": 413,
+                "ungrounded_target": 338,
+                "unsupported_usr": 14
+              }
+            },
+            "dangling_edges": 581,
+            "edge_sha256": "1156a0ed3077474282d2725ef843cadb6ff8d77b6854e1fbee6f1932042aecfd",
+            "edges": 1995,
+            "header_types": 6,
+            "index": 2,
+            "mode": "on",
+            "node_sha256": "c3e0014836019a3120f78ec790a18687bf322c26e7215867d4755a7a6d07f8a5",
+            "nodes": 425,
+            "pending_sha256": "80ac770db9437e4142ad120588222dcb7be8c7b05bb976eeba0378e0cb567dc5",
+            "routed_headers": 1,
+            "routed_headers_sha256": "a8234f2ced3c4d7dcbc929c5d7d04e4975e4a28547eace745d0f80f2392ce1b4",
+            "seconds": 0.34100937499897555,
+            "verification_errors": 1,
+            "verification_warnings": 1,
+            "verify": {
+              "issues": [
+                {
+                  "check": "dangling-edge",
+                  "message": "581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "phantom-module",
+                  "message": "14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more",
+                  "severity": "warning"
+                }
+              ]
+            }
+          },
+          {
+            "calls": 1466,
+            "clang": {
+              "available": true,
+              "diagnostic_tus": 3,
+              "failed_tus": 0,
+              "parsed_tus": 3,
+              "pending": 1379,
+              "resolved": 416,
+              "total_tus": 3,
+              "unresolved_reasons": {
+                "caller_identity_mismatch": 30,
+                "indirect_or_unsupported_target": 168,
+                "no_matching_call": 413,
+                "ungrounded_target": 338,
+                "unsupported_usr": 14
+              }
+            },
+            "dangling_edges": 581,
+            "edge_sha256": "1156a0ed3077474282d2725ef843cadb6ff8d77b6854e1fbee6f1932042aecfd",
+            "edges": 1995,
+            "header_types": 6,
+            "index": 3,
+            "mode": "on",
+            "node_sha256": "c3e0014836019a3120f78ec790a18687bf322c26e7215867d4755a7a6d07f8a5",
+            "nodes": 425,
+            "pending_sha256": "80ac770db9437e4142ad120588222dcb7be8c7b05bb976eeba0378e0cb567dc5",
+            "routed_headers": 1,
+            "routed_headers_sha256": "a8234f2ced3c4d7dcbc929c5d7d04e4975e4a28547eace745d0f80f2392ce1b4",
+            "seconds": 0.33555295900441706,
+            "verification_errors": 1,
+            "verification_warnings": 1,
+            "verify": {
+              "issues": [
+                {
+                  "check": "dangling-edge",
+                  "message": "581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "phantom-module",
+                  "message": "14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more",
+                  "severity": "warning"
+                }
+              ]
+            }
+          },
+          {
+            "calls": 1056,
+            "clang": {
+              "available": false,
+              "diagnostic_tus": 0,
+              "failed_tus": 0,
+              "parsed_tus": 0,
+              "pending": 1379,
+              "resolved": 0,
+              "total_tus": 3,
+              "unresolved_reasons": {
+                "extra_unavailable": 1379
+              }
+            },
+            "dangling_edges": 581,
+            "edge_sha256": "4236d09f7ec83c32538da14bcf5eb478774c2f8e95d41a12c43aa6899f1cdead",
+            "edges": 1585,
+            "header_types": 6,
+            "index": 4,
+            "mode": "off",
+            "node_sha256": "c3e0014836019a3120f78ec790a18687bf322c26e7215867d4755a7a6d07f8a5",
+            "nodes": 425,
+            "pending_sha256": "80ac770db9437e4142ad120588222dcb7be8c7b05bb976eeba0378e0cb567dc5",
+            "routed_headers": 1,
+            "routed_headers_sha256": "a8234f2ced3c4d7dcbc929c5d7d04e4975e4a28547eace745d0f80f2392ce1b4",
+            "seconds": 0.09975062502780929,
+            "verification_errors": 1,
+            "verification_warnings": 1,
+            "verify": {
+              "issues": [
+                {
+                  "check": "dangling-edge",
+                  "message": "581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "phantom-module",
+                  "message": "14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more",
+                  "severity": "warning"
+                }
+              ]
+            }
+          },
+          {
+            "calls": 1056,
+            "clang": {
+              "available": false,
+              "diagnostic_tus": 0,
+              "failed_tus": 0,
+              "parsed_tus": 0,
+              "pending": 1379,
+              "resolved": 0,
+              "total_tus": 3,
+              "unresolved_reasons": {
+                "extra_unavailable": 1379
+              }
+            },
+            "dangling_edges": 581,
+            "edge_sha256": "4236d09f7ec83c32538da14bcf5eb478774c2f8e95d41a12c43aa6899f1cdead",
+            "edges": 1585,
+            "header_types": 6,
+            "index": 5,
+            "mode": "off",
+            "node_sha256": "c3e0014836019a3120f78ec790a18687bf322c26e7215867d4755a7a6d07f8a5",
+            "nodes": 425,
+            "pending_sha256": "80ac770db9437e4142ad120588222dcb7be8c7b05bb976eeba0378e0cb567dc5",
+            "routed_headers": 1,
+            "routed_headers_sha256": "a8234f2ced3c4d7dcbc929c5d7d04e4975e4a28547eace745d0f80f2392ce1b4",
+            "seconds": 0.09883720899233595,
+            "verification_errors": 1,
+            "verification_warnings": 1,
+            "verify": {
+              "issues": [
+                {
+                  "check": "dangling-edge",
+                  "message": "581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "phantom-module",
+                  "message": "14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more",
+                  "severity": "warning"
+                }
+              ]
+            }
+          },
+          {
+            "calls": 1466,
+            "clang": {
+              "available": true,
+              "diagnostic_tus": 3,
+              "failed_tus": 0,
+              "parsed_tus": 3,
+              "pending": 1379,
+              "resolved": 416,
+              "total_tus": 3,
+              "unresolved_reasons": {
+                "caller_identity_mismatch": 30,
+                "indirect_or_unsupported_target": 168,
+                "no_matching_call": 413,
+                "ungrounded_target": 338,
+                "unsupported_usr": 14
+              }
+            },
+            "dangling_edges": 581,
+            "edge_sha256": "1156a0ed3077474282d2725ef843cadb6ff8d77b6854e1fbee6f1932042aecfd",
+            "edges": 1995,
+            "header_types": 6,
+            "index": 6,
+            "mode": "on",
+            "node_sha256": "c3e0014836019a3120f78ec790a18687bf322c26e7215867d4755a7a6d07f8a5",
+            "nodes": 425,
+            "pending_sha256": "80ac770db9437e4142ad120588222dcb7be8c7b05bb976eeba0378e0cb567dc5",
+            "routed_headers": 1,
+            "routed_headers_sha256": "a8234f2ced3c4d7dcbc929c5d7d04e4975e4a28547eace745d0f80f2392ce1b4",
+            "seconds": 0.32505004201084375,
+            "verification_errors": 1,
+            "verification_warnings": 1,
+            "verify": {
+              "issues": [
+                {
+                  "check": "dangling-edge",
+                  "message": "581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more",
+                  "severity": "error"
+                },
+                {
+                  "check": "phantom-module",
+                  "message": "14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more",
+                  "severity": "warning"
+                }
+              ]
+            }
+          }
+        ],
+        "timing": {
+          "median_delta_seconds": 0.23580233397660777,
+          "median_ratio": 3.3639183605202363,
+          "off": {
+            "max": 0.10197079199133441,
+            "median": 0.09975062502780929,
+            "min": 0.09883720899233595,
+            "runs": [
+              0.10197079199133441,
+              0.09975062502780929,
+              0.09883720899233595
+            ]
+          },
+          "on": {
+            "max": 0.34100937499897555,
+            "median": 0.33555295900441706,
+            "min": 0.32505004201084375,
+            "runs": [
+              0.34100937499897555,
+              0.33555295900441706,
+              0.32505004201084375
+            ]
+          }
+        }
+      }
+    }
+  }
+}

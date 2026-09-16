@@ -347,6 +347,7 @@ def test_extra_probes_are_modules_not_distributions() -> None:
     ``find_spec`` answers for modules, and a probe that names a distribution is a probe
     that always says "absent"."""
     assert all("-" not in module for module in EXTRA_PROBES.values())
+    assert EXTRA_PROBES["clang"] == "clang"
 
 
 def test_render_identity_is_comparable_against_which_and_pip_show() -> None:

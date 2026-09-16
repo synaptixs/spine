@@ -23,9 +23,10 @@ Emitted (precision-first):
   calls on other objects need type inference and are not resolved (documented).
 - ``REFERENCES`` — a data member whose type is another class/struct (the data edge).
 
-``.h`` headers stay with the C front-end (most are C-compatible); a C++ project that
-uses ``.h`` for class headers will have those parsed as C — classes there are not
-captured. Preprocessor caveat carries over: parsing is pre-expansion.
+``.h`` headers reached by literal includes from C++ translation units are routed
+here by RepoCodeExtractor, transitively. Other ``.h`` files remain C. Preprocessor
+branches are all visited; parsing is pre-expansion. The optional clang semantic
+post-pass can resolve additional member calls between already-grounded nodes.
 """
 
 from __future__ import annotations
@@ -45,6 +46,7 @@ from orchestrator.pkg.c_extractor import (
     _string_content,
     _text,
 )
+from orchestrator.pkg.clang_link import PendingMemberCall
 from orchestrator.pkg.extractor import rel_module_name
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 
@@ -59,6 +61,9 @@ class CppExtractor:
 
     language: str = "cpp"
     suffixes: tuple[str, ...] = (".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx")
+
+    def __init__(self) -> None:
+        self.unresolved_member_calls: list[PendingMemberCall] = []
 
     def module_name(self, path: Path, root: Path) -> str:
         return rel_module_name(path, root)
@@ -303,12 +308,19 @@ class CppExtractor:
                     # `cpp:<name>` — correct for a function declared in a header, wrong here:
                     # the callee is whatever the caller passed in. 46 of the 47 edges the
                     # cross-language invention oracle found were this shape.
+                    self.unresolved_member_calls.append(
+                        PendingMemberCall(caller, ctx.rel, n.start_byte, line, n.end_byte)
+                    )
                     stack.extend(n.named_children)
                     continue
                 target = _resolve_callee(fn, ctx.source, siblings, type_id, ctx.free_funcs)
                 if target is not None:
                     ctx.batch.add_edge(
                         Edge(caller, target, EdgeKind.CALLS, Provenance(ctx.rel, n.start_point[0] + 1))
+                    )
+                else:
+                    self.unresolved_member_calls.append(
+                        PendingMemberCall(caller, ctx.rel, n.start_byte, line, n.end_byte)
                     )
             stack.extend(n.named_children)
 

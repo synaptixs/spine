@@ -1,0 +1,36 @@
+import hashlib,json
+from pathlib import Path
+rows=[json.loads(x) for x in Path('docs/evals/clang-semantic-ab-added-edges.jsonl').read_text().splitlines()]
+def stratum(r):
+ f=r['provenance']['file']
+ if f.endswith(('.h','.hpp','.hh')):return 'header'
+ if r['repository']=='tinyxml2':return f
+ if f.startswith('3rdparty/'):return 'thirdparty'
+ if f.startswith(('apps/','samples/')):return 'apps_samples'
+ return 'modules'
+def rank(r):return hashlib.sha256(('clang-correctness-v1\0'+json.dumps(r,sort_keys=True)).encode()).hexdigest()
+quotas={'opencv':{'header':10,'thirdparty':20,'apps_samples':20,'modules':50},'tinyxml2':{'header':16,'tinyxml2.cpp':30,'xmltest.cpp':53,'contrib/html5-printer.cpp':1}}
+selected=[]
+for repo, strata in quotas.items():
+ chosen=[]
+ for s,n in strata.items():
+  pool=[r for r in rows if r['repository']==repo and stratum(r)==s]
+  for r in sorted(pool,key=rank)[:n]:chosen.append(dict(r,stratum=s,selection_hash=rank(r)))
+ for i,r in enumerate(sorted(chosen,key=lambda r:(r['provenance']['file'],r['provenance']['line'],r['dst'])),1):
+  r['audit_id']=('O' if repo=='opencv' else 'T')+f'{i:03}'
+  selected.append(r)
+Path('/tmp/spine-audit-selected.json').write_text(json.dumps(selected,indent=2)+'\n')
+for repo in quotas:
+ root=Path('/tmp/spine-clang-ab-'+repo)
+ rs=[r for r in selected if r['repository']==repo]
+ text=[]
+ for r in rs:
+  p=r['provenance'];lines=(root/p['file']).read_text(errors='replace').splitlines()
+  t=r['target_declaration'];tl=(root/t['file']).read_text(errors='replace').splitlines()
+  c=r['caller_declaration'];cl=(root/c['file']).read_text(errors='replace').splitlines()
+  text += [f"\n{r['audit_id']} {p['file']}:{p['line']} {r['src']} -> {r['dst']}"]
+  text += [f' {i+1}: {lines[i]}' for i in range(max(0,p['line']-3),min(len(lines),p['line']+2))]
+  text += [f" CALLER {c['file']}:{c['line']} "+' '.join(cl[c['line']-1:c['line']+2])]
+  text += [f" TARGET {t['file']}:{t['line']} "+' '.join(tl[t['line']-1:t['line']+2])]
+ Path('/tmp/spine-audit-'+repo+'.txt').write_text('\n'.join(text)+'\n')
+print('Selected',len(selected),'edges; fixed quotas',quotas)

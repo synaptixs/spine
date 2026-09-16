@@ -1,0 +1,100 @@
+{
+  "population": 1858,
+  "added": 1852,
+  "removed": 6,
+  "fixed_sample": 200,
+  "supplemental": 14,
+  "strata": {
+    "header:free:object:ordinary": {
+      "population": 9,
+      "selected": 2
+    },
+    "header:scoped:object:macro_context": {
+      "population": 1,
+      "selected": 1
+    },
+    "header:scoped:object:ordinary": {
+      "population": 8,
+      "selected": 2
+    },
+    "header:scoped:pointer:ordinary": {
+      "population": 1,
+      "selected": 1
+    },
+    "source:free:chain:ordinary": {
+      "population": 9,
+      "selected": 2
+    },
+    "source:free:object:macro_context": {
+      "population": 2,
+      "selected": 1
+    },
+    "source:free:object:ordinary": {
+      "population": 64,
+      "selected": 7
+    },
+    "source:free:other:ordinary": {
+      "population": 1,
+      "selected": 1
+    },
+    "source:free:pointer:ordinary": {
+      "population": 5,
+      "selected": 1
+    },
+    "source:scoped:chain:macro_context": {
+      "population": 38,
+      "selected": 5
+    },
+    "source:scoped:chain:ordinary": {
+      "population": 253,
+      "selected": 26
+    },
+    "source:scoped:object:macro_context": {
+      "population": 193,
+      "selected": 20
+    },
+    "source:scoped:object:ordinary": {
+      "population": 1030,
+      "selected": 103
+    },
+    "source:scoped:other:ordinary": {
+      "population": 8,
+      "selected": 2
+    },
+    "source:scoped:pointer:macro_context": {
+      "population": 16,
+      "selected": 2
+    },
+    "source:scoped:pointer:ordinary": {
+      "population": 207,
+      "selected": 21
+    },
+    "source:special:chain:ordinary": {
+      "population": 2,
+      "selected": 1
+    },
+    "source:special:object:ordinary": {
+      "population": 3,
+      "selected": 1
+    },
+    "source:special:pointer:ordinary": {
+      "population": 2,
+      "selected": 1
+    }
+  },
+  "targeted_self_edges_outside_initial_sample": 17,
+  "verdicts_before": {
+    "correct_at_name_id_level": 224,
+    "incorrect": 13
+  },
+  "after_status_counts": {
+    "retained": 219,
+    "refused_incorrect": 13,
+    "known_correct_loss": 5
+  },
+  "complete_traversal_comparison": {
+    "removed": 12,
+    "added": 0,
+    "all_changes_source_reviewed_precision_refusals": true
+  }
+}

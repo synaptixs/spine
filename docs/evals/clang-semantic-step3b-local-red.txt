@@ -1,0 +1,129 @@
+FFFFFF                                                                   [100%]
+=================================== FAILURES ===================================
+_ test_usr_refuses_local_declaration_scope_after_parameters[c:@S@Runner@F@run#@Sa@F@operator()#1] _
+
+usr = 'c:@S@Runner@F@run#@Sa@F@operator()#1'
+
+    @pytest.mark.parametrize(
+        "usr",
+        [
+            "c:@S@Runner@F@run#@Sa@F@operator()#1",
+            "c:@S@Runner@F@run#@S@Local@F@run#",
+            "c:@N@api@F@run#I#@S@Local@F@method#",
+        ],
+    )
+    def test_usr_refuses_local_declaration_scope_after_parameters(usr: str) -> None:
+>       assert usr_to_id(usr, language="cpp", rel="main.cpp") is None
+E       AssertionError: assert 'cpp:Runner::run' is None
+E        +  where 'cpp:Runner::run' = usr_to_id('c:@S@Runner@F@run#@Sa@F@operator()#1', language='cpp', rel='main.cpp')
+
+tests/pkg/test_clang_link.py:441: AssertionError
+_ test_usr_refuses_local_declaration_scope_after_parameters[c:@S@Runner@F@run#@S@Local@F@run#] _
+
+usr = 'c:@S@Runner@F@run#@S@Local@F@run#'
+
+    @pytest.mark.parametrize(
+        "usr",
+        [
+            "c:@S@Runner@F@run#@Sa@F@operator()#1",
+            "c:@S@Runner@F@run#@S@Local@F@run#",
+            "c:@N@api@F@run#I#@S@Local@F@method#",
+        ],
+    )
+    def test_usr_refuses_local_declaration_scope_after_parameters(usr: str) -> None:
+>       assert usr_to_id(usr, language="cpp", rel="main.cpp") is None
+E       AssertionError: assert 'cpp:Runner::run' is None
+E        +  where 'cpp:Runner::run' = usr_to_id('c:@S@Runner@F@run#@S@Local@F@run#', language='cpp', rel='main.cpp')
+
+tests/pkg/test_clang_link.py:441: AssertionError
+_ test_usr_refuses_local_declaration_scope_after_parameters[c:@N@api@F@run#I#@S@Local@F@method#] _
+
+usr = 'c:@N@api@F@run#I#@S@Local@F@method#'
+
+    @pytest.mark.parametrize(
+        "usr",
+        [
+            "c:@S@Runner@F@run#@Sa@F@operator()#1",
+            "c:@S@Runner@F@run#@S@Local@F@run#",
+            "c:@N@api@F@run#I#@S@Local@F@method#",
+        ],
+    )
+    def test_usr_refuses_local_declaration_scope_after_parameters(usr: str) -> None:
+>       assert usr_to_id(usr, language="cpp", rel="main.cpp") is None
+E       AssertionError: assert 'cpp:api::run' is None
+E        +  where 'cpp:api::run' = usr_to_id('c:@N@api@F@run#I#@S@Local@F@method#', language='cpp', rel='main.cpp')
+
+tests/pkg/test_clang_link.py:441: AssertionError
+_ test_local_callables_cannot_become_enclosing_self_calls[auto work = []() {};\nwork();] _
+
+tmp_path = PosixPath('/private/var/folders/2c/q2v76xf106gb1bbhlghqt2_h0000gn/T/pytest-of-falcon/pytest-201/test_local_callables_cannot_be0')
+clang_ready = None, body = 'auto work = []() {};\nwork();'
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            "auto work = []() {};\nwork();",
+            "struct Local { void run() {} }; Local item; item.run();",
+        ],
+    )
+    def test_local_callables_cannot_become_enclosing_self_calls(
+        tmp_path: Path, clang_ready: None, body: str
+    ) -> None:
+        (tmp_path / "main.cpp").write_text(f"struct Runner {{ void run() {{ {body} }} }};\n")
+        batch = RepoCodeExtractor().extract(tmp_path)
+        assert any(n.id == "cpp:Runner::run" and n.grounded for n in batch.nodes)
+>       assert ("cpp:Runner::run", "cpp:Runner::run") not in _calls(batch)
+E       AssertionError: assert ('cpp:Runner::run', 'cpp:Runner::run') not in {('cpp:Runner::run', 'cpp:Runner::run')}
+E        +  where {('cpp:Runner::run', 'cpp:Runner::run')} = _calls(FactBatch(_nodes={'cpp:main.cpp': Node(id='cpp:main.cpp', kind=<NodeKind.MODULE: 'Module'>, name='main.cpp', language=...Runner::run', kind=<EdgeKind.CALLS: 'CALLS'>, provenance=Provenance(file='main.cpp', line=2, end_line=None, repo=''))}))
+
+tests/pkg/test_clang_link.py:457: AssertionError
+_ test_local_callables_cannot_become_enclosing_self_calls[struct Local { void run() {} }; Local item; item.run();] _
+
+tmp_path = PosixPath('/private/var/folders/2c/q2v76xf106gb1bbhlghqt2_h0000gn/T/pytest-of-falcon/pytest-201/test_local_callables_cannot_be1')
+clang_ready = None
+body = 'struct Local { void run() {} }; Local item; item.run();'
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            "auto work = []() {};\nwork();",
+            "struct Local { void run() {} }; Local item; item.run();",
+        ],
+    )
+    def test_local_callables_cannot_become_enclosing_self_calls(
+        tmp_path: Path, clang_ready: None, body: str
+    ) -> None:
+        (tmp_path / "main.cpp").write_text(f"struct Runner {{ void run() {{ {body} }} }};\n")
+        batch = RepoCodeExtractor().extract(tmp_path)
+        assert any(n.id == "cpp:Runner::run" and n.grounded for n in batch.nodes)
+>       assert ("cpp:Runner::run", "cpp:Runner::run") not in _calls(batch)
+E       AssertionError: assert ('cpp:Runner::run', 'cpp:Runner::run') not in {('cpp:Runner::run', 'cpp:Runner::run')}
+E        +  where {('cpp:Runner::run', 'cpp:Runner::run')} = _calls(FactBatch(_nodes={'cpp:main.cpp': Node(id='cpp:main.cpp', kind=<NodeKind.MODULE: 'Module'>, name='main.cpp', language=...Runner::run', kind=<EdgeKind.CALLS: 'CALLS'>, provenance=Provenance(file='main.cpp', line=1, end_line=None, repo=''))}))
+
+tests/pkg/test_clang_link.py:457: AssertionError
+_____________ test_local_class_body_cannot_borrow_enclosing_caller _____________
+
+tmp_path = PosixPath('/private/var/folders/2c/q2v76xf106gb1bbhlghqt2_h0000gn/T/pytest-of-falcon/pytest-201/test_local_class_body_cannot_b0')
+clang_ready = None
+
+    def test_local_class_body_cannot_borrow_enclosing_caller(tmp_path: Path, clang_ready: None) -> None:
+        (tmp_path / "main.cpp").write_text(
+            "struct Target { void go() {} };\n"
+            "struct Runner { void run() {\n"
+            "  struct Local { void method(Target& t) { t.go(); } };\n"
+            "} };\n"
+        )
+        batch = RepoCodeExtractor().extract(tmp_path)
+>       assert ("cpp:Runner::run", "cpp:Target::go") not in _calls(batch)
+E       AssertionError: assert ('cpp:Runner::run', 'cpp:Target::go') not in {('cpp:Runner::run', 'cpp:Target::go')}
+E        +  where {('cpp:Runner::run', 'cpp:Target::go')} = _calls(FactBatch(_nodes={'cpp:main.cpp': Node(id='cpp:main.cpp', kind=<NodeKind.MODULE: 'Module'>, name='main.cpp', language=...:Target::go', kind=<EdgeKind.CALLS: 'CALLS'>, provenance=Provenance(file='main.cpp', line=3, end_line=None, repo=''))}))
+
+tests/pkg/test_clang_link.py:468: AssertionError
+=========================== short test summary info ============================
+FAILED tests/pkg/test_clang_link.py::test_usr_refuses_local_declaration_scope_after_parameters[c:@S@Runner@F@run#@Sa@F@operator()#1]
+FAILED tests/pkg/test_clang_link.py::test_usr_refuses_local_declaration_scope_after_parameters[c:@S@Runner@F@run#@S@Local@F@run#]
+FAILED tests/pkg/test_clang_link.py::test_usr_refuses_local_declaration_scope_after_parameters[c:@N@api@F@run#I#@S@Local@F@method#]
+FAILED tests/pkg/test_clang_link.py::test_local_callables_cannot_become_enclosing_self_calls[auto work = []() {};\nwork();]
+FAILED tests/pkg/test_clang_link.py::test_local_callables_cannot_become_enclosing_self_calls[struct Local { void run() {} }; Local item; item.run();]
+FAILED tests/pkg/test_clang_link.py::test_local_class_body_cannot_borrow_enclosing_caller
+6 failed, 65 deselected in 0.25s

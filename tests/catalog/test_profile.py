@@ -111,3 +111,30 @@ def test_profile_is_deterministic(tmp_path: Path) -> None:
     _write(tmp_path, "a.py")
     _write(tmp_path, "b.ts")
     assert ProjectProfile.from_repo(tmp_path) == ProjectProfile.from_repo(tmp_path)
+
+
+def test_cpp_reached_headers_do_not_falsely_report_c(tmp_path: Path) -> None:
+    import pytest
+
+    pytest.importorskip("tree_sitter_cpp")
+    _write(tmp_path, "main.cpp", '#include "api.h"\n')
+    _write(tmp_path, "api.h", "class Widget {};")
+    assert ProjectProfile.from_repo(tmp_path).languages == frozenset({"cpp"})
+    _write(tmp_path, "unused.h", "struct CRecord { int value; };")
+    assert ProjectProfile.from_repo(tmp_path).languages == frozenset({"c", "cpp"})
+
+
+def test_cpp_header_routing_stops_at_nested_checkout(tmp_path: Path) -> None:
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+
+    for marker in ("directory", "file"):
+        root = tmp_path / marker
+        _write(root, "api.h", "struct Entry { int value; };\n")
+        _write(root, "child/main.cpp", '#include "../api.h"\n')
+        if marker == "directory":
+            (root / "child/.git").mkdir()
+        else:
+            _write(root, "child/.git", "gitdir: /unused/submodule\n")
+        assert ProjectProfile.from_repo(root).languages == frozenset({"c"})
+        batch = RepoCodeExtractor().extract(root)
+        assert not any(n.language == "cpp" for n in batch.nodes)

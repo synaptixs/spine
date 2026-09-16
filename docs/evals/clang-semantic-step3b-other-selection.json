@@ -1,0 +1,67 @@
+{
+  "fmt": {
+    "added": 0,
+    "after_status_counts": {
+      "refused_incorrect": 7
+    },
+    "removed": 7,
+    "roles": {
+      "removed": 7
+    },
+    "strata": {},
+    "verdicts": {
+      "incorrect": 7
+    }
+  },
+  "googletest": {
+    "added": 54,
+    "after_status_counts": {
+      "retained": 54
+    },
+    "removed": 0,
+    "roles": {
+      "all_additions": 54
+    },
+    "strata": {
+      "header:scoped:pointer:ordinary": {
+        "population": 1,
+        "selected": 1
+      },
+      "source:scoped:chain:ordinary": {
+        "population": 7,
+        "selected": 7
+      },
+      "source:scoped:object:ordinary": {
+        "population": 17,
+        "selected": 17
+      },
+      "source:scoped:pointer:ordinary": {
+        "population": 26,
+        "selected": 26
+      },
+      "source:special:pointer:ordinary": {
+        "population": 3,
+        "selected": 3
+      }
+    },
+    "verdicts": {
+      "correct_at_name_id_level": 54
+    }
+  },
+  "pugixml": {
+    "added": 0,
+    "after_status_counts": {},
+    "removed": 0,
+    "roles": {},
+    "strata": {},
+    "verdicts": {}
+  },
+  "tinyxml2": {
+    "added": 0,
+    "after_status_counts": {},
+    "removed": 0,
+    "roles": {},
+    "strata": {},
+    "verdicts": {}
+  }
+}

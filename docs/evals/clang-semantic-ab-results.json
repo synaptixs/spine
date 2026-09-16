@@ -1,0 +1,773 @@
+{
+  "environment": {
+    "machine": "arm64",
+    "method": "Fresh subprocess per extraction; only clang_available is forced false in off mode. Hashing and verify_batch outside timer. Source hashing pre-reads every input before the first run. No extraction cache. No parallel benchmark or test suite.",
+    "order": [
+      "off",
+      "on",
+      "on",
+      "off",
+      "off",
+      "on"
+    ],
+    "packages": {
+      "libclang": "18.1.1",
+      "synaptixs-spine": "3.34.2",
+      "tree-sitter": "0.26.0",
+      "tree-sitter-c": "0.24.2",
+      "tree-sitter-c-sharp": "0.23.5",
+      "tree-sitter-cpp": "0.23.4",
+      "tree-sitter-go": "0.25.0",
+      "tree-sitter-java": "0.23.5",
+      "tree-sitter-perl": "2.0.0",
+      "tree-sitter-php": "0.24.1",
+      "tree-sitter-typescript": "0.23.2"
+    },
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "python": "3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 08:22:19) [Clang 14.0.6 ]",
+    "repositories": {
+      "opencv": {
+        "after": {
+          "files": 7654,
+          "sha256": "abd800b990f056983066e2ffaad6f3670afd097f8bec0a819dfc53e09cc8a32a"
+        },
+        "before": {
+          "files": 7654,
+          "sha256": "abd800b990f056983066e2ffaad6f3670afd097f8bec0a819dfc53e09cc8a32a"
+        },
+        "commit": "b4c5ec4042f097e2a5b386b9d413ec7333d0a184"
+      },
+      "tinyxml2": {
+        "after": {
+          "files": 273,
+          "sha256": "a2c8a77b94ed3b0dd7a3f9ff37d39efc62d5cdbcb483061b29b22fb7966ff392"
+        },
+        "before": {
+          "files": 273,
+          "sha256": "a2c8a77b94ed3b0dd7a3f9ff37d39efc62d5cdbcb483061b29b22fb7966ff392"
+        },
+        "commit": "8224e427b655b83dae5e2298f1e6919523a78737"
+      }
+    },
+    "spine_commit": "5d3b2fdb20a0083c54f3dd81f112719218ccf40a"
+  },
+  "repositories": {
+    "opencv": {
+      "added_edges": 827,
+      "checks": {
+        "added_edges_only_calls_between_preexisting_grounded_functions": true,
+        "existing_edges_preserved": true,
+        "identical_node_order": true,
+        "identical_nodes": true,
+        "identical_nodes_all_runs": true,
+        "identical_pending_all_runs": true,
+        "identical_routing_all_runs": true,
+        "identical_verification_all_runs": true,
+        "off_clang_report_repeatable": true,
+        "off_edges_repeatable": true,
+        "on_clang_report_repeatable": true,
+        "on_edges_repeatable": true
+      },
+      "invalid_added_edges": 0,
+      "removed_edges": 0,
+      "runs": [
+        {
+          "calls": 252926,
+          "clang": {
+            "available": false,
+            "diagnostic_tus": 0,
+            "failed_tus": 0,
+            "parsed_tus": 0,
+            "pending": 135633,
+            "resolved": 0,
+            "total_tus": 2468,
+            "unresolved_reasons": {
+              "extra_unavailable": 135633
+            }
+          },
+          "dangling_edges": 190485,
+          "edge_sha256": "e2ddb170fa38446a96c4a51927e299a45948d8e22b7fdb5a328017a823c8f311",
+          "edges": 397174,
+          "header_types": 1517,
+          "index": 1,
+          "mode": "off",
+          "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+          "nodes": 87181,
+          "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+          "routed_headers": 421,
+          "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+          "seconds": 32.67583141702926,
+          "verification_errors": 3,
+          "verification_warnings": 2,
+          "verify": {
+            "issues": [
+              {
+                "check": "dangling-edge",
+                "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+                "severity": "error"
+              },
+              {
+                "check": "orphan-rate",
+                "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+                "severity": "error"
+              },
+              {
+                "check": "orphan-rate",
+                "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+                "severity": "error"
+              },
+              {
+                "check": "phantom-module",
+                "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+                "severity": "warning"
+              },
+              {
+                "check": "invented-call",
+                "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+                "severity": "warning"
+              }
+            ]
+          }
+        },
+        {
+          "calls": 253753,
+          "clang": {
+            "available": true,
+            "diagnostic_tus": 1950,
+            "failed_tus": 0,
+            "parsed_tus": 1981,
+            "pending": 135633,
+            "resolved": 949,
+            "total_tus": 2468,
+            "unresolved_reasons": {
+              "indirect_or_unsupported_target": 28426,
+              "no_matching_call": 104040,
+              "ungrounded_caller": 1,
+              "ungrounded_target": 2072,
+              "unsupported_usr": 145
+            }
+          },
+          "dangling_edges": 190485,
+          "edge_sha256": "0437431c8547ee43eb3252cbc34ec3ada200805c8208f9d684d260591675b118",
+          "edges": 398001,
+          "header_types": 1517,
+          "index": 2,
+          "mode": "on",
+          "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+          "nodes": 87181,
+          "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+          "routed_headers": 421,
+          "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+          "seconds": 62.05120824999176,
+          "verification_errors": 3,
+          "verification_warnings": 2,
+          "verify": {
+            "issues": [
+              {
+                "check": "dangling-edge",
+                "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+                "severity": "error"
+              },
+              {
+                "check": "orphan-rate",
+                "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+                "severity": "error"
+              },
+              {
+                "check": "orphan-rate",
+                "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+                "severity": "error"
+              },
+              {
+                "check": "phantom-module",
+                "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+                "severity": "warning"
+              },
+              {
+                "check": "invented-call",
+                "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+                "severity": "warning"
+              }
+            ]
+          }
+        },
+        {
+          "calls": 253753,
+          "clang": {
+            "available": true,
+            "diagnostic_tus": 1950,
+            "failed_tus": 0,
+            "parsed_tus": 1981,
+            "pending": 135633,
+            "resolved": 949,
+            "total_tus": 2468,
+            "unresolved_reasons": {
+              "indirect_or_unsupported_target": 28426,
+              "no_matching_call": 104040,
+              "ungrounded_caller": 1,
+              "ungrounded_target": 2072,
+              "unsupported_usr": 145
+            }
+          },
+          "dangling_edges": 190485,
+          "edge_sha256": "0437431c8547ee43eb3252cbc34ec3ada200805c8208f9d684d260591675b118",
+          "edges": 398001,
+          "header_types": 1517,
+          "index": 3,
+          "mode": "on",
+          "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+          "nodes": 87181,
+          "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+          "routed_headers": 421,
+          "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+          "seconds": 62.74985891702818,
+          "verification_errors": 3,
+          "verification_warnings": 2,
+          "verify": {
+            "issues": [
+              {
+                "check": "dangling-edge",
+                "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+                "severity": "error"
+              },
+              {
+                "check": "orphan-rate",
+                "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+                "severity": "error"
+              },
+              {
+                "check": "orphan-rate",
+                "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+                "severity": "error"
+              },
+              {
+                "check": "phantom-module",
+                "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+                "severity": "warning"
+              },
+              {
+                "check": "invented-call",
+                "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+                "severity": "warning"
+              }
+            ]
+          }
+        },
+        {
+          "calls": 252926,
+          "clang": {
+            "available": false,
+            "diagnostic_tus": 0,
+            "failed_tus": 0,
+            "parsed_tus": 0,
+            "pending": 135633,
+            "resolved": 0,
+            "total_tus": 2468,
+            "unresolved_reasons": {
+              "extra_unavailable": 135633
+            }
+          },
+          "dangling_edges": 190485,
+          "edge_sha256": "e2ddb170fa38446a96c4a51927e299a45948d8e22b7fdb5a328017a823c8f311",
+          "edges": 397174,
+          "header_types": 1517,
+          "index": 4,
+          "mode": "off",
+          "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+          "nodes": 87181,
+          "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+          "routed_headers": 421,
+          "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+          "seconds": 31.784609915979672,
+          "verification_errors": 3,
+          "verification_warnings": 2,
+          "verify": {
+            "issues": [
+              {
+                "check": "dangling-edge",
+                "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+                "severity": "error"
+              },
+              {
+                "check": "orphan-rate",
+                "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+                "severity": "error"
+              },
+              {
+                "check": "orphan-rate",
+                "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+                "severity": "error"
+              },
+              {
+                "check": "phantom-module",
+                "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+                "severity": "warning"
+              },
+              {
+                "check": "invented-call",
+                "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+                "severity": "warning"
+              }
+            ]
+          }
+        },
+        {
+          "calls": 252926,
+          "clang": {
+            "available": false,
+            "diagnostic_tus": 0,
+            "failed_tus": 0,
+            "parsed_tus": 0,
+            "pending": 135633,
+            "resolved": 0,
+            "total_tus": 2468,
+            "unresolved_reasons": {
+              "extra_unavailable": 135633
+            }
+          },
+          "dangling_edges": 190485,
+          "edge_sha256": "e2ddb170fa38446a96c4a51927e299a45948d8e22b7fdb5a328017a823c8f311",
+          "edges": 397174,
+          "header_types": 1517,
+          "index": 5,
+          "mode": "off",
+          "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+          "nodes": 87181,
+          "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+          "routed_headers": 421,
+          "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+          "seconds": 31.235113792004995,
+          "verification_errors": 3,
+          "verification_warnings": 2,
+          "verify": {
+            "issues": [
+              {
+                "check": "dangling-edge",
+                "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+                "severity": "error"
+              },
+              {
+                "check": "orphan-rate",
+                "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+                "severity": "error"
+              },
+              {
+                "check": "orphan-rate",
+                "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+                "severity": "error"
+              },
+              {
+                "check": "phantom-module",
+                "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+                "severity": "warning"
+              },
+              {
+                "check": "invented-call",
+                "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+                "severity": "warning"
+              }
+            ]
+          }
+        },
+        {
+          "calls": 253753,
+          "clang": {
+            "available": true,
+            "diagnostic_tus": 1950,
+            "failed_tus": 0,
+            "parsed_tus": 1981,
+            "pending": 135633,
+            "resolved": 949,
+            "total_tus": 2468,
+            "unresolved_reasons": {
+              "indirect_or_unsupported_target": 28426,
+              "no_matching_call": 104040,
+              "ungrounded_caller": 1,
+              "ungrounded_target": 2072,
+              "unsupported_usr": 145
+            }
+          },
+          "dangling_edges": 190485,
+          "edge_sha256": "0437431c8547ee43eb3252cbc34ec3ada200805c8208f9d684d260591675b118",
+          "edges": 398001,
+          "header_types": 1517,
+          "index": 6,
+          "mode": "on",
+          "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+          "nodes": 87181,
+          "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+          "routed_headers": 421,
+          "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+          "seconds": 61.3379515830311,
+          "verification_errors": 3,
+          "verification_warnings": 2,
+          "verify": {
+            "issues": [
+              {
+                "check": "dangling-edge",
+                "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+                "severity": "error"
+              },
+              {
+                "check": "orphan-rate",
+                "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+                "severity": "error"
+              },
+              {
+                "check": "orphan-rate",
+                "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+                "severity": "error"
+              },
+              {
+                "check": "phantom-module",
+                "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+                "severity": "warning"
+              },
+              {
+                "check": "invented-call",
+                "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+                "severity": "warning"
+              }
+            ]
+          }
+        }
+      ],
+      "timing": {
+        "median_delta_seconds": 30.266598334012087,
+        "median_ratio": 1.9522406728923105,
+        "off": {
+          "max": 32.67583141702926,
+          "median": 31.784609915979672,
+          "min": 31.235113792004995,
+          "runs": [
+            32.67583141702926,
+            31.784609915979672,
+            31.235113792004995
+          ]
+        },
+        "on": {
+          "max": 62.74985891702818,
+          "median": 62.05120824999176,
+          "min": 61.3379515830311,
+          "runs": [
+            62.05120824999176,
+            62.74985891702818,
+            61.3379515830311
+          ]
+        }
+      }
+    },
+    "tinyxml2": {
+      "added_edges": 428,
+      "checks": {
+        "added_edges_only_calls_between_preexisting_grounded_functions": true,
+        "existing_edges_preserved": true,
+        "identical_node_order": true,
+        "identical_nodes": true,
+        "identical_nodes_all_runs": true,
+        "identical_pending_all_runs": true,
+        "identical_routing_all_runs": true,
+        "identical_verification_all_runs": true,
+        "off_clang_report_repeatable": true,
+        "off_edges_repeatable": true,
+        "on_clang_report_repeatable": true,
+        "on_edges_repeatable": true
+      },
+      "invalid_added_edges": 0,
+      "removed_edges": 0,
+      "runs": [
+        {
+          "calls": 1056,
+          "clang": {
+            "available": false,
+            "diagnostic_tus": 0,
+            "failed_tus": 0,
+            "parsed_tus": 0,
+            "pending": 1379,
+            "resolved": 0,
+            "total_tus": 3,
+            "unresolved_reasons": {
+              "extra_unavailable": 1379
+            }
+          },
+          "dangling_edges": 581,
+          "edge_sha256": "4236d09f7ec83c32538da14bcf5eb478774c2f8e95d41a12c43aa6899f1cdead",
+          "edges": 1585,
+          "header_types": 6,
+          "index": 1,
+          "mode": "off",
+          "node_sha256": "c3e0014836019a3120f78ec790a18687bf322c26e7215867d4755a7a6d07f8a5",
+          "nodes": 425,
+          "pending_sha256": "80ac770db9437e4142ad120588222dcb7be8c7b05bb976eeba0378e0cb567dc5",
+          "routed_headers": 1,
+          "routed_headers_sha256": "a8234f2ced3c4d7dcbc929c5d7d04e4975e4a28547eace745d0f80f2392ce1b4",
+          "seconds": 0.12887966696871445,
+          "verification_errors": 1,
+          "verification_warnings": 1,
+          "verify": {
+            "issues": [
+              {
+                "check": "dangling-edge",
+                "message": "581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more",
+                "severity": "error"
+              },
+              {
+                "check": "phantom-module",
+                "message": "14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more",
+                "severity": "warning"
+              }
+            ]
+          }
+        },
+        {
+          "calls": 1484,
+          "clang": {
+            "available": true,
+            "diagnostic_tus": 3,
+            "failed_tus": 0,
+            "parsed_tus": 3,
+            "pending": 1379,
+            "resolved": 434,
+            "total_tus": 3,
+            "unresolved_reasons": {
+              "indirect_or_unsupported_target": 168,
+              "no_matching_call": 413,
+              "ungrounded_target": 350,
+              "unsupported_usr": 14
+            }
+          },
+          "dangling_edges": 581,
+          "edge_sha256": "86dae13a988d4b365bdc263492be2817d621645271921046c76e1cc173f1035b",
+          "edges": 2013,
+          "header_types": 6,
+          "index": 2,
+          "mode": "on",
+          "node_sha256": "c3e0014836019a3120f78ec790a18687bf322c26e7215867d4755a7a6d07f8a5",
+          "nodes": 425,
+          "pending_sha256": "80ac770db9437e4142ad120588222dcb7be8c7b05bb976eeba0378e0cb567dc5",
+          "routed_headers": 1,
+          "routed_headers_sha256": "a8234f2ced3c4d7dcbc929c5d7d04e4975e4a28547eace745d0f80f2392ce1b4",
+          "seconds": 0.4111255840398371,
+          "verification_errors": 1,
+          "verification_warnings": 1,
+          "verify": {
+            "issues": [
+              {
+                "check": "dangling-edge",
+                "message": "581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more",
+                "severity": "error"
+              },
+              {
+                "check": "phantom-module",
+                "message": "14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more",
+                "severity": "warning"
+              }
+            ]
+          }
+        },
+        {
+          "calls": 1484,
+          "clang": {
+            "available": true,
+            "diagnostic_tus": 3,
+            "failed_tus": 0,
+            "parsed_tus": 3,
+            "pending": 1379,
+            "resolved": 434,
+            "total_tus": 3,
+            "unresolved_reasons": {
+              "indirect_or_unsupported_target": 168,
+              "no_matching_call": 413,
+              "ungrounded_target": 350,
+              "unsupported_usr": 14
+            }
+          },
+          "dangling_edges": 581,
+          "edge_sha256": "86dae13a988d4b365bdc263492be2817d621645271921046c76e1cc173f1035b",
+          "edges": 2013,
+          "header_types": 6,
+          "index": 3,
+          "mode": "on",
+          "node_sha256": "c3e0014836019a3120f78ec790a18687bf322c26e7215867d4755a7a6d07f8a5",
+          "nodes": 425,
+          "pending_sha256": "80ac770db9437e4142ad120588222dcb7be8c7b05bb976eeba0378e0cb567dc5",
+          "routed_headers": 1,
+          "routed_headers_sha256": "a8234f2ced3c4d7dcbc929c5d7d04e4975e4a28547eace745d0f80f2392ce1b4",
+          "seconds": 0.3066447919700295,
+          "verification_errors": 1,
+          "verification_warnings": 1,
+          "verify": {
+            "issues": [
+              {
+                "check": "dangling-edge",
+                "message": "581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more",
+                "severity": "error"
+              },
+              {
+                "check": "phantom-module",
+                "message": "14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more",
+                "severity": "warning"
+              }
+            ]
+          }
+        },
+        {
+          "calls": 1056,
+          "clang": {
+            "available": false,
+            "diagnostic_tus": 0,
+            "failed_tus": 0,
+            "parsed_tus": 0,
+            "pending": 1379,
+            "resolved": 0,
+            "total_tus": 3,
+            "unresolved_reasons": {
+              "extra_unavailable": 1379
+            }
+          },
+          "dangling_edges": 581,
+          "edge_sha256": "4236d09f7ec83c32538da14bcf5eb478774c2f8e95d41a12c43aa6899f1cdead",
+          "edges": 1585,
+          "header_types": 6,
+          "index": 4,
+          "mode": "off",
+          "node_sha256": "c3e0014836019a3120f78ec790a18687bf322c26e7215867d4755a7a6d07f8a5",
+          "nodes": 425,
+          "pending_sha256": "80ac770db9437e4142ad120588222dcb7be8c7b05bb976eeba0378e0cb567dc5",
+          "routed_headers": 1,
+          "routed_headers_sha256": "a8234f2ced3c4d7dcbc929c5d7d04e4975e4a28547eace745d0f80f2392ce1b4",
+          "seconds": 0.10376170801464468,
+          "verification_errors": 1,
+          "verification_warnings": 1,
+          "verify": {
+            "issues": [
+              {
+                "check": "dangling-edge",
+                "message": "581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more",
+                "severity": "error"
+              },
+              {
+                "check": "phantom-module",
+                "message": "14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more",
+                "severity": "warning"
+              }
+            ]
+          }
+        },
+        {
+          "calls": 1056,
+          "clang": {
+            "available": false,
+            "diagnostic_tus": 0,
+            "failed_tus": 0,
+            "parsed_tus": 0,
+            "pending": 1379,
+            "resolved": 0,
+            "total_tus": 3,
+            "unresolved_reasons": {
+              "extra_unavailable": 1379
+            }
+          },
+          "dangling_edges": 581,
+          "edge_sha256": "4236d09f7ec83c32538da14bcf5eb478774c2f8e95d41a12c43aa6899f1cdead",
+          "edges": 1585,
+          "header_types": 6,
+          "index": 5,
+          "mode": "off",
+          "node_sha256": "c3e0014836019a3120f78ec790a18687bf322c26e7215867d4755a7a6d07f8a5",
+          "nodes": 425,
+          "pending_sha256": "80ac770db9437e4142ad120588222dcb7be8c7b05bb976eeba0378e0cb567dc5",
+          "routed_headers": 1,
+          "routed_headers_sha256": "a8234f2ced3c4d7dcbc929c5d7d04e4975e4a28547eace745d0f80f2392ce1b4",
+          "seconds": 0.10919187497347593,
+          "verification_errors": 1,
+          "verification_warnings": 1,
+          "verify": {
+            "issues": [
+              {
+                "check": "dangling-edge",
+                "message": "581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more",
+                "severity": "error"
+              },
+              {
+                "check": "phantom-module",
+                "message": "14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more",
+                "severity": "warning"
+              }
+            ]
+          }
+        },
+        {
+          "calls": 1484,
+          "clang": {
+            "available": true,
+            "diagnostic_tus": 3,
+            "failed_tus": 0,
+            "parsed_tus": 3,
+            "pending": 1379,
+            "resolved": 434,
+            "total_tus": 3,
+            "unresolved_reasons": {
+              "indirect_or_unsupported_target": 168,
+              "no_matching_call": 413,
+              "ungrounded_target": 350,
+              "unsupported_usr": 14
+            }
+          },
+          "dangling_edges": 581,
+          "edge_sha256": "86dae13a988d4b365bdc263492be2817d621645271921046c76e1cc173f1035b",
+          "edges": 2013,
+          "header_types": 6,
+          "index": 6,
+          "mode": "on",
+          "node_sha256": "c3e0014836019a3120f78ec790a18687bf322c26e7215867d4755a7a6d07f8a5",
+          "nodes": 425,
+          "pending_sha256": "80ac770db9437e4142ad120588222dcb7be8c7b05bb976eeba0378e0cb567dc5",
+          "routed_headers": 1,
+          "routed_headers_sha256": "a8234f2ced3c4d7dcbc929c5d7d04e4975e4a28547eace745d0f80f2392ce1b4",
+          "seconds": 0.2953960829763673,
+          "verification_errors": 1,
+          "verification_warnings": 1,
+          "verify": {
+            "issues": [
+              {
+                "check": "dangling-edge",
+                "message": "581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more",
+                "severity": "error"
+              },
+              {
+                "check": "phantom-module",
+                "message": "14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more",
+                "severity": "warning"
+              }
+            ]
+          }
+        }
+      ],
+      "timing": {
+        "median_delta_seconds": 0.19745291699655354,
+        "median_ratio": 2.808311442994429,
+        "off": {
+          "max": 0.12887966696871445,
+          "median": 0.10919187497347593,
+          "min": 0.10376170801464468,
+          "runs": [
+            0.12887966696871445,
+            0.10376170801464468,
+            0.10919187497347593
+          ]
+        },
+        "on": {
+          "max": 0.4111255840398371,
+          "median": 0.3066447919700295,
+          "min": 0.2953960829763673,
+          "runs": [
+            0.4111255840398371,
+            0.3066447919700295,
+            0.2953960829763673
+          ]
+        }
+      }
+    }
+  }
+}

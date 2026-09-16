@@ -4,6 +4,39 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## Unreleased
+
+### Added
+
+- Optional C/C++ semantic `CALLS` enrichment with `[clang]`, included in `[all]`.
+  Wheel-bundled libclang adds edges only between existing grounded symbols and
+  reports recovered call sites and parsed translation units. Ordinary overloads
+  retain the graph's existing name-based IDs. Synthesized repository flags ignore
+  compilation databases and system SDKs; standard-library resolution remains
+  unavailable. See the [parser design](docs/specs/parsing-and-the-pkg.md#optional-clang-semantic-pass)
+  and [validation results](docs/evals/clang-semantic-validation.md).
+
+### Changed
+
+- Clang derives additional repository include roots from literal include paths,
+  preserving existing precedence and refusing ambiguous or excluded resolutions.
+  Local lambda/class scopes can no longer collapse to their enclosing function;
+  actual declaration parents must agree with the existing grounded identity.
+  See the [Step 3b evaluation](docs/evals/clang-semantic-step3b.md).
+
+- Clang recovers calls inside grounded C++ file-static functions, exact destructors
+  and call operators while retaining caller scope and source-file checks.
+
+- Clang verifies the enclosing function against the grounded caller before adding
+  a call. Mismatched scope, macro bodies and unrelated entrypoints are refused;
+  nodes and IDs remain unchanged. See the [source audit](docs/evals/clang-semantic-correctness-audit.md).
+- `state` graph statistics count incoming calls in one edge pass, preserving
+  existing counts while avoiding a full edge scan per function on large repos.
+- Headers ending in `.h` reached through literal C++ includes use the C++ CST
+  parser, including transitive includes. Other `.h` files retain C routing.
+- Semantic validation reports why pending calls remain unresolved. Full source
+  ranges keep nested calls with the same starting offset distinct.
+
 ## 3.34.2 — 2026-09-14
 
 ### Added

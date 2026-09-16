@@ -8,9 +8,9 @@
       },
       "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
       "provenance": {
-        "anchored": 12291,
-        "excluded": 825,
-        "resolved": 12291,
+        "anchored": 12518,
+        "excluded": 837,
+        "resolved": 12518,
         "unreadable": 0
       }
     },
@@ -20,45 +20,19 @@
         "c": {
           "edges": {
             "CALLS": {
-              "emitted": 2,
-              "expected": 2,
-              "matched": 2
-            },
-            "CONTAINS": {
-              "emitted": 7,
-              "expected": 7,
-              "matched": 7
-            },
-            "IMPORTS": {
-              "emitted": 1,
-              "expected": 1,
-              "matched": 1
-            }
-          },
-          "nodes": {
-            "Function": {
-              "emitted": 5,
-              "expected": 5,
-              "matched": 5
-            },
-            "Module": {
               "emitted": 3,
               "expected": 3,
               "matched": 3
-            }
-          }
-        },
-        "cpp": {
-          "edges": {
-            "CALLS": {
-              "emitted": 3,
-              "expected": 4,
-              "matched": 3
             },
             "CONTAINS": {
-              "emitted": 11,
-              "expected": 11,
-              "matched": 11
+              "emitted": 12,
+              "expected": 12,
+              "matched": 12
+            },
+            "IMPORTS": {
+              "emitted": 2,
+              "expected": 2,
+              "matched": 2
             }
           },
           "nodes": {
@@ -68,19 +42,60 @@
               "matched": 1
             },
             "Function": {
-              "emitted": 8,
-              "expected": 8,
-              "matched": 8
+              "emitted": 7,
+              "expected": 7,
+              "matched": 7
             },
             "Module": {
+              "emitted": 5,
+              "expected": 5,
+              "matched": 5
+            },
+            "Type": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            }
+          }
+        },
+        "cpp": {
+          "edges": {
+            "CALLS": {
+              "emitted": 5,
+              "expected": 5,
+              "matched": 5
+            },
+            "CONTAINS": {
+              "emitted": 14,
+              "expected": 14,
+              "matched": 14
+            },
+            "IMPORTS": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            }
+          },
+          "nodes": {
+            "Field": {
+              "emitted": 1,
+              "expected": 1,
+              "matched": 1
+            },
+            "Function": {
+              "emitted": 10,
+              "expected": 10,
+              "matched": 10
+            },
+            "Module": {
+              "emitted": 5,
+              "expected": 5,
+              "matched": 5
+            },
+            "Type": {
               "emitted": 3,
               "expected": 3,
               "matched": 3
-            },
-            "Type": {
-              "emitted": 2,
-              "expected": 2,
-              "matched": 2
             }
           }
         },
@@ -592,10 +607,10 @@
       "skipped_languages": []
     },
     "drift": {
-      "count": 1065,
-      "docs": 1741,
+      "count": 1173,
+      "docs": 1800,
       "gated": false,
-      "mentions": 11446,
+      "mentions": 11822,
       "note": "recorded, never gated \u2014 an upper bound: a tenth of the population cannot bind by construction. See GATES"
     },
     "invention": {
@@ -607,12 +622,12 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 18966,
+          "total_calls": 19331,
           "unexamined": 0
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 18966
+      "total_calls": 19331
     },
     "parity": {
       "declared": 75,

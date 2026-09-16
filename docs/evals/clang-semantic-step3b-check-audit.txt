@@ -1,0 +1,44 @@
+import json,pickle,hashlib
+from pathlib import Path
+from collections import Counter,defaultdict
+from orchestrator.pkg.facts import Provenance
+D=Path('docs/evals'); R=Path('/tmp/spine-step3b-results')
+rows=[json.loads(l) for l in (D/'clang-semantic-step3b-audit.jsonl').read_text().splitlines()]
+pop=[json.loads(l) for l in (D/'clang-semantic-step3b-audit-population.jsonl').read_text().splitlines()]
+def key(r):return r['src'],r['dst'],r['provenance']['file'],r['provenance']['line']
+def edges(path):
+ g=pickle.loads(path.read_bytes())
+ return {(e.src,e.dst,e.provenance.file,e.provenance.line) for e in g.edges if e.kind.value=='CALLS' and e.provenance}
+# Reproduce fixed selection, preserving the original pre-fix population.
+strata=defaultdict(list)
+for r in pop:
+ k=(r['src'],r['dst'],r['kind'],str(Provenance(**r['provenance'])))
+ assert r['selection_hash']==hashlib.sha256(('step3b-added-v1:opencv'+repr(k)).encode()).hexdigest()
+ if r['direction']=='added':strata[r['stratum']].append(r)
+for group in strata.values():group.sort(key=lambda r:r['selection_hash'])
+quota={s:1 for s in strata};remain=200-len(quota);capacity=sum(len(v)-1 for v in strata.values());fractions={}
+for s,v in strata.items():
+ ideal=remain*(len(v)-1)/capacity;quota[s]+=int(ideal);fractions[s]=ideal-int(ideal)
+for s in sorted(strata,key=lambda s:(-fractions[s],s))[:200-sum(quota.values())]:quota[s]+=1
+selected={key(r) for s,group in strata.items() for r in group[:quota[s]]}
+assert selected=={key(r) for r in rows if r['audit_role']=='fixed_sample'}
+current=edges(R/'opencv/C/on.pickle')
+wrong={key(r) for r in rows if r['verdict_before']=='incorrect'}
+reference=json.loads((D/'clang-semantic-step3b-traversal-reference.json').read_text())
+record=json.loads((R/'opencv/C/3-on.json').read_text())
+assert record['edge_sha256']==reference['expected_after_edge_sha256']
+assert record['edges']==reference['expected_after_edges']
+assert record['clang']['resolved']==reference['expected_after_resolved']
+for field in ['node_sha256','pending_sha256','routed_headers_sha256','verify']:
+ assert record[field]==reference['pre_fix_run'][field],field
+assert {key(r) for r in reference['reviewed_precision_refusals']} <= wrong
+assert not wrong & current
+for r in rows:
+ present=key(r) in current
+ r['after_status']='retained' if present else 'refused_incorrect' if r['verdict_before']=='incorrect' else 'known_correct_loss'
+ if r['verdict_before']=='correct_at_name_id_level' and r['direction']!='removed':assert present,r['audit_id']
+(D/'clang-semantic-step3b-audit.jsonl').write_text(''.join(json.dumps(r,sort_keys=True)+'\n' for r in rows))
+receipt=json.loads((D/'clang-semantic-step3b-audit-selection.json').read_text())
+receipt['after_status_counts']=dict(Counter(r['after_status'] for r in rows));receipt['complete_traversal_comparison']=dict(removed=12,added=0,all_changes_source_reviewed_precision_refusals=True)
+(D/'clang-semantic-step3b-audit-selection.json').write_text(json.dumps(receipt,indent=2)+'\n')
+print(receipt['after_status_counts']);print('Fixed sample reproduced; only the 12 reviewed precision refusals differ from full traversal.')

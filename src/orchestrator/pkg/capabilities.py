@@ -54,10 +54,11 @@ FRONT_ENDS: tuple[FrontEnd, ...] = (
     FrontEnd("sql", "sql_extractor.py", "SqlExtractor"),
 )
 
-# Passes that add facts for *every* language, so their kinds belong in no front-end's column.
+# Whole-repo passes, with explicit conditions: their kinds belong in no front-end column.
 # Without them the matrix reads as "no language can do docs", which is exactly backwards.
 # Only the module and the reason are written here; the kinds are derived, like the rest.
 SHARED_PASSES: tuple[tuple[str, str], ...] = (
+    ("clang_link.py", "C/C++ TUs with unresolved calls, only with the `clang` extra"),
     ("doc_link.py", "documentation ingestion — runs for every language"),
     ("import_link.py", "the whole-repo import join"),
     ("data_layer_link.py", "a live database, via `mcp ingest-db`"),
@@ -210,7 +211,7 @@ def render_markdown(caps: tuple[Capability, ...] | None = None) -> str:
         "routes; `pkg verify`'s `source-parity` check is what answers that question.",
         "",
         "`Doc` is empty down the whole column because no *language* produces it. These passes",
-        "do, for every language, and they are why the matrix is not the full picture:",
+        "extend the graph under the conditions shown below:",
         "",
         "| Pass | Runs for | Emits |",
         "|---|---|---|",

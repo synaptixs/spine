@@ -1,0 +1,235 @@
+{
+  "expected_after_edge_sha256": "21d67d5d8bcd6eb392e792b3efa0db1df5c7a27e5068a8c8e4af2d01f2a677e8",
+  "expected_after_edges": 399694,
+  "expected_after_resolved": 2597,
+  "pre_fix_run": {
+    "additional_include_roots": [
+      "3rdparty/dlpack/include",
+      "3rdparty/flatbuffers/include",
+      "3rdparty/include",
+      "3rdparty/include/opencl/1.2",
+      "3rdparty/libwebp",
+      "3rdparty/libwebp/src",
+      "hal/carotene/include",
+      "modules/calib3d/include",
+      "modules/core/include",
+      "modules/dnn/include",
+      "modules/features2d/include",
+      "modules/flann/include",
+      "modules/gapi/include",
+      "modules/gapi/src/3rdparty/vasot/include",
+      "modules/highgui/include",
+      "modules/imgcodecs/include",
+      "modules/imgproc/include",
+      "modules/ml/include",
+      "modules/objdetect/include",
+      "modules/photo/include",
+      "modules/stitching/include",
+      "modules/ts/include",
+      "modules/video/include",
+      "modules/videoio/include",
+      "modules/world/include"
+    ],
+    "calls": 255458,
+    "clang": {
+      "available": true,
+      "diagnostic_tus": 1950,
+      "failed_tus": 0,
+      "parsed_tus": 1981,
+      "pending": 135633,
+      "resolved": 2609,
+      "total_tus": 2468,
+      "unresolved_reasons": {
+        "caller_identity_mismatch": 6923,
+        "indirect_or_unsupported_target": 19912,
+        "no_matching_call": 101140,
+        "ungrounded_caller": 5,
+        "ungrounded_target": 4427,
+        "unsupported_usr": 617
+      }
+    },
+    "configuration": "C",
+    "dangling_edges": 190485,
+    "edge_sha256": "86f23705e8f5b96654a7c2ae6ea7d6d9a53a38239c00295556736d137da72fc7",
+    "edges": 399706,
+    "header_types": 1517,
+    "index": 3,
+    "mode": "on",
+    "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+    "nodes": 87181,
+    "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+    "phase_seconds": {
+      "include_roots_seconds": 12.58502891700482,
+      "native_parse_seconds": 167.91796556883492,
+      "semantic_total_seconds": 468.34625079104444
+    },
+    "routed_headers": 421,
+    "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+    "seconds": 498.5669593339553,
+    "verification_errors": 3,
+    "verification_warnings": 2,
+    "verify": {
+      "issues": [
+        {
+          "check": "dangling-edge",
+          "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+          "severity": "error"
+        },
+        {
+          "check": "orphan-rate",
+          "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+          "severity": "error"
+        },
+        {
+          "check": "orphan-rate",
+          "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+          "severity": "error"
+        },
+        {
+          "check": "phantom-module",
+          "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+          "severity": "warning"
+        },
+        {
+          "check": "invented-call",
+          "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+          "severity": "warning"
+        }
+      ]
+    }
+  },
+  "reviewed_precision_refusals": [
+    {
+      "dst": "cpp:cv::usac::FundamentalDegeneracyImpl::recoverIfDegenerate",
+      "kind": "CALLS",
+      "provenance": {
+        "end_line": null,
+        "file": "modules/calib3d/src/usac/degeneracy.cpp",
+        "line": 351,
+        "repo": ""
+      },
+      "src": "cpp:cv::usac::FundamentalDegeneracyImpl::recoverIfDegenerate"
+    },
+    {
+      "dst": "cpp:cv::usac::FundamentalDegeneracyImpl::recoverIfDegenerate",
+      "kind": "CALLS",
+      "provenance": {
+        "end_line": null,
+        "file": "modules/calib3d/src/usac/degeneracy.cpp",
+        "line": 352,
+        "repo": ""
+      },
+      "src": "cpp:cv::usac::FundamentalDegeneracyImpl::recoverIfDegenerate"
+    },
+    {
+      "dst": "cpp:cv::usac::FundamentalDegeneracyImpl::recoverIfDegenerate",
+      "kind": "CALLS",
+      "provenance": {
+        "end_line": null,
+        "file": "modules/calib3d/src/usac/degeneracy.cpp",
+        "line": 365,
+        "repo": ""
+      },
+      "src": "cpp:cv::usac::FundamentalDegeneracyImpl::recoverIfDegenerate"
+    },
+    {
+      "dst": "cpp:cv::usac::FundamentalDegeneracyImpl::recoverIfDegenerate",
+      "kind": "CALLS",
+      "provenance": {
+        "end_line": null,
+        "file": "modules/calib3d/src/usac/degeneracy.cpp",
+        "line": 368,
+        "repo": ""
+      },
+      "src": "cpp:cv::usac::FundamentalDegeneracyImpl::recoverIfDegenerate"
+    },
+    {
+      "dst": "cpp:cv::usac::FundamentalDegeneracyImpl::recoverIfDegenerate",
+      "kind": "CALLS",
+      "provenance": {
+        "end_line": null,
+        "file": "modules/calib3d/src/usac/degeneracy.cpp",
+        "line": 373,
+        "repo": ""
+      },
+      "src": "cpp:cv::usac::FundamentalDegeneracyImpl::recoverIfDegenerate"
+    },
+    {
+      "dst": "cpp:cv::usac::Ransac::getIndependentInliers",
+      "kind": "CALLS",
+      "provenance": {
+        "end_line": null,
+        "file": "modules/calib3d/src/usac/ransac_solvers.cpp",
+        "line": 594,
+        "repo": ""
+      },
+      "src": "cpp:cv::usac::Ransac::getIndependentInliers"
+    },
+    {
+      "dst": "cpp:cv::usac::Ransac::getIndependentInliers",
+      "kind": "CALLS",
+      "provenance": {
+        "end_line": null,
+        "file": "modules/calib3d/src/usac/ransac_solvers.cpp",
+        "line": 601,
+        "repo": ""
+      },
+      "src": "cpp:cv::usac::Ransac::getIndependentInliers"
+    },
+    {
+      "dst": "cpp:cv::usac::Ransac::run",
+      "kind": "CALLS",
+      "provenance": {
+        "end_line": null,
+        "file": "modules/calib3d/src/usac/ransac_solvers.cpp",
+        "line": 709,
+        "repo": ""
+      },
+      "src": "cpp:cv::usac::Ransac::run"
+    },
+    {
+      "dst": "cpp:cv::usac::Ransac::run",
+      "kind": "CALLS",
+      "provenance": {
+        "end_line": null,
+        "file": "modules/calib3d/src/usac/ransac_solvers.cpp",
+        "line": 718,
+        "repo": ""
+      },
+      "src": "cpp:cv::usac::Ransac::run"
+    },
+    {
+      "dst": "cpp:cv::usac::Ransac::run",
+      "kind": "CALLS",
+      "provenance": {
+        "end_line": null,
+        "file": "modules/calib3d/src/usac/ransac_solvers.cpp",
+        "line": 730,
+        "repo": ""
+      },
+      "src": "cpp:cv::usac::Ransac::run"
+    },
+    {
+      "dst": "cpp:cv::usac::SimpleLocalOptimizationImpl::refineModel",
+      "kind": "CALLS",
+      "provenance": {
+        "end_line": null,
+        "file": "modules/calib3d/src/usac/local_optimization.cpp",
+        "line": 393,
+        "repo": ""
+      },
+      "src": "cpp:cv::usac::SimpleLocalOptimizationImpl::refineModel"
+    },
+    {
+      "dst": "cpp:cv::usac::SimpleLocalOptimizationImpl::refineModel",
+      "kind": "CALLS",
+      "provenance": {
+        "end_line": null,
+        "file": "modules/calib3d/src/usac/local_optimization.cpp",
+        "line": 422,
+        "repo": ""
+      },
+      "src": "cpp:cv::usac::SimpleLocalOptimizationImpl::refineModel"
+    }
+  ]
+}

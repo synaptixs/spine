@@ -36,7 +36,9 @@ that turns out to be multi-language *is* a finding.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
+import time
 from collections import Counter
 from pathlib import Path
 
@@ -50,7 +52,7 @@ def validate_one(language: str, url: str) -> bool:
     """Returns whether the repo passed `pkg verify` with no errors."""
     from orchestrator.knowledge.current_state import load_current_state
     from orchestrator.pkg import FactStore, RepoCodeExtractor
-    from orchestrator.pkg.facts import EdgeKind
+    from orchestrator.pkg.facts import EdgeKind, NodeKind
     from orchestrator.pkg.verify import verify_batch
     from orchestrator.registry.api.config import Settings
     from orchestrator.registry.api.workspace import (
@@ -74,13 +76,54 @@ def validate_one(language: str, url: str) -> bool:
     # relies on this function never raising.
     try:
         with materialize_repo_source(source, log=lambda m: print(f"  {m}")) as repo:
-            batch = RepoCodeExtractor().extract(repo)
+            extractor = RepoCodeExtractor()
+            started = time.perf_counter()
+            batch = extractor.extract(repo)
+            elapsed = time.perf_counter() - started
             store = FactStore(batch)
             summary = store.summary()
             print(
                 f"  extract: {summary['grounded_nodes']} grounded nodes, "
                 f"{summary['external_nodes']} external, {summary['edges']} edges"
             )
+            if extractor.clang_report.total_tus:
+                print("  " + extractor.clang_report.summary())
+                ids = {n.id for n in batch.nodes}
+                grounded = {n.id for n in batch.nodes if n.grounded}
+                cc_nodes = [n for n in batch.nodes if n.language in {"c", "cpp"}]
+                cc_edges = [e for e in batch.edges if e.src.startswith(("c:", "cpp:"))]
+                calls = [e for e in cc_edges if e.kind is EdgeKind.CALLS]
+                missing = {i for e in batch.edges for i in (e.src, e.dst) if i not in ids}
+                metrics = {
+                    "extraction_seconds": round(elapsed, 3),
+                    "nodes": len(batch.nodes),
+                    "edges": len(batch.edges),
+                    "dangling_ids": len(missing),
+                    "dangling_edges": sum(e.src not in ids or e.dst not in ids for e in batch.edges),
+                    "cc_nodes": len(cc_nodes),
+                    "cc_grounded": sum(n.grounded for n in cc_nodes),
+                    "cc_edges": len(cc_edges),
+                    "cc_calls": len(calls),
+                    "cc_calls_ungrounded": sum(e.dst not in grounded for e in calls),
+                    "header_types": sum(
+                        n.kind is NodeKind.TYPE
+                        and n.provenance is not None
+                        and n.provenance.file.endswith(".h")
+                        for n in cc_nodes
+                    ),
+                    "unsupported_source_nodes": sum(
+                        n.provenance is not None and n.provenance.file.endswith((".cu", ".mm"))
+                        for n in cc_nodes
+                    ),
+                    "resolved_sites": extractor.clang_report.resolved,
+                    "pending_sites": extractor.clang_report.pending,
+                    "parsed_tus": extractor.clang_report.parsed_tus,
+                    "total_tus": extractor.clang_report.total_tus,
+                    "diagnostic_tus": extractor.clang_report.diagnostic_tus,
+                    "failed_tus": extractor.clang_report.failed_tus,
+                    "unresolved_reasons": extractor.clang_report.unresolved_reasons,
+                }
+                print("  semantic metrics: " + json.dumps(metrics, sort_keys=True))
             per_kind = {k[len("edges_") :]: v for k, v in summary.items() if k.startswith("edges_")}
             if per_kind:
                 print("    " + "  ".join(f"{k.upper()} {v}" for k, v in per_kind.items()))

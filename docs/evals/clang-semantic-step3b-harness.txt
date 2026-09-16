@@ -1,0 +1,128 @@
+"""Current-revision clang A/B measurement; no production files are modified."""
+import hashlib
+import importlib.metadata
+import json
+import pickle
+import platform
+import statistics
+import subprocess
+import sys
+import time
+from dataclasses import asdict
+from pathlib import Path
+
+
+def dump(path, value):
+    path.write_text(json.dumps(value, indent=2, sort_keys=True) + '\n')
+
+
+def digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def source_digest(root):
+    h = hashlib.sha256()
+    files = sorted(p for p in root.rglob('*') if p.is_file())
+    for path in files:
+        h.update(path.relative_to(root).as_posix().encode() + b'\0')
+        h.update(hashlib.sha256(path.read_bytes()).digest())
+    return {'files': len(files), 'sha256': h.hexdigest()}
+
+
+def run(root, mode, index, out):
+    from orchestrator.pkg import c_extractor, clang_link
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+    from orchestrator.pkg.facts import EdgeKind, NodeKind
+    from orchestrator.pkg.verify import verify_batch
+
+    assert clang_link.clang_available(), 'Installed wheel required for both modes'
+    if mode == 'off':
+        clang_link.clang_available = lambda: False
+    from orchestrator.pkg import clang_includes
+    roots = []
+    timing = {"include_roots_seconds": 0.0, "native_parse_seconds": 0.0, "semantic_total_seconds": 0.0}
+    from clang import cindex
+    original_parse = cindex.Index.parse
+    def parse(*args, **kwargs):
+        start = time.perf_counter()
+        try:
+            return original_parse(*args, **kwargs)
+        finally:
+            timing["native_parse_seconds"] += time.perf_counter() - start
+    cindex.Index.parse = parse
+    original_infer = clang_includes.infer_include_roots
+    def infer(*args, **kwargs):
+        start = time.perf_counter()
+        result = original_infer(*args, **kwargs)
+        timing["include_roots_seconds"] += time.perf_counter() - start
+        roots.extend(result)
+        return result
+    clang_includes.infer_include_roots = infer
+    routed = []
+    original_headers = c_extractor.cpp_header_paths
+    original_link = clang_link.link_clang
+    pending_snapshot = []
+
+    def headers(*args, **kwargs):
+        result = original_headers(*args, **kwargs)
+        routed.append(result)
+        return result
+
+    def link(batch, root, *, pending, report, **kwargs):
+        pending_snapshot.extend(pending)
+        start = time.perf_counter()
+        try:
+            return original_link(batch, root, pending=pending, report=report, **(kwargs if CONFIG == "C" else {}))
+        finally:
+            timing["semantic_total_seconds"] += time.perf_counter() - start
+
+    c_extractor.cpp_header_paths = headers
+    clang_link.link_clang = link
+    start = time.perf_counter()
+    extractor = RepoCodeExtractor()
+    batch = extractor.extract(root)
+    elapsed = time.perf_counter() - start
+    # All hashing, serialization and verification are outside the extraction timer.
+    nodes, edges = batch.nodes, batch.edges
+    ids = {n.id for n in nodes}
+    grounded = {n.id for n in nodes if n.grounded}
+    verification = verify_batch(batch, root)
+    node_records = [asdict(n) for n in sorted(nodes, key=lambda n: n.id)]
+    edge_records = [asdict(e) for e in sorted(edges, key=lambda e: e.key())]
+    pending_records = [asdict(p) for p in sorted(pending_snapshot, key=lambda p: (p.file, p.offset, p.end_offset, p.caller))]
+    assert len(routed) == 1
+    report = asdict(extractor.clang_report)
+    assert report['available'] == (mode == 'on')
+    if mode == 'off':
+        assert report['resolved'] == report['parsed_tus'] == 0
+    record = {
+        'configuration': CONFIG, 'additional_include_roots': roots, 'phase_seconds': timing,
+        'mode': mode, 'index': index, 'seconds': elapsed,
+        'nodes': len(nodes), 'edges': len(edges),
+        'node_sha256': digest(node_records), 'edge_sha256': digest(edge_records),
+        'pending_sha256': digest(pending_records),
+        'routed_headers': len(routed[0]), 'routed_headers_sha256': digest(sorted(routed[0])),
+        'header_types': sum(n.kind is NodeKind.TYPE and n.provenance is not None and n.provenance.file.endswith('.h') and n.language in {'c','cpp'} for n in nodes),
+        'calls': sum(e.kind is EdgeKind.CALLS for e in edges),
+        'dangling_edges': sum(e.src not in ids or e.dst not in ids for e in edges),
+        'clang': report, 'verify': asdict(verification),
+        'verification_errors': len(verification.errors), 'verification_warnings': len(verification.warnings),
+    }
+    dump(out / f'{index}-{mode}.json', record)
+    snapshot = out / f'{mode}.pickle'
+    if not (out / 'pending.json').exists():
+        dump(out / 'pending.json', pending_records)
+    if not snapshot.exists():
+        snapshot.write_bytes(pickle.dumps(batch))
+    print(json.dumps({'repo': root.name, 'mode': mode, 'index': index, 'seconds': round(elapsed,3), 'nodes': len(nodes), 'edges': len(edges), 'resolved': report['resolved'], 'errors':len(verification.errors), 'warnings':len(verification.warnings)}), flush=True)
+
+
+if __name__ == '__main__':
+    CONFIG = sys.argv[1]
+    assert CONFIG in {'A','B','C'}
+    from orchestrator.pkg import clang_link
+    if CONFIG != 'C':
+        baseline = subprocess.check_output(['git','show','49508990346dcd9733eb416c91a5ba1183ca3e3c:src/orchestrator/pkg/clang_link.py'],text=True)
+        exec(compile(baseline,clang_link.__file__,'exec'),clang_link.__dict__)
+    out=Path(sys.argv[4]);out.mkdir(parents=True,exist_ok=True)
+    run(Path(sys.argv[2]),'off' if CONFIG=='A' else 'on',int(sys.argv[3]),out)

@@ -58,7 +58,7 @@ jobs:
         run: >-
           uv sync --extra dev --extra mcp
           --extra typescript --extra java --extra csharp
-          --extra c --extra cpp --extra go --extra php --extra perl
+          --extra c --extra cpp --extra go --extra php --extra perl --extra clang
 
       - name: Lint (ruff)
         run: uv run ruff check .

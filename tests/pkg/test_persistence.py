@@ -250,5 +250,30 @@ def test_every_grammar_extra_is_in_the_cache_key() -> None:
     from orchestrator.doctor import EXTRA_PROBES
     from orchestrator.pkg.persistence import _GRAMMAR_MODULES
 
-    grammars = {m for m in EXTRA_PROBES.values() if m.startswith("tree_sitter_") or m == "sqlglot"}
+    grammars = {m for m in EXTRA_PROBES.values() if m.startswith("tree_sitter_") or m in {"sqlglot", "clang"}}
     assert grammars <= set(_GRAMMAR_MODULES), sorted(grammars - set(_GRAMMAR_MODULES))
+
+
+def test_clang_presence_and_version_change_fingerprint(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import importlib.machinery
+    import importlib.metadata
+    import importlib.util
+
+    pkg = tmp_path / "pkg"
+    pkg.mkdir()
+    (pkg / "extractor.py").write_text("# stable source\n")
+    original = importlib.util.find_spec
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None if name == "clang" else original(name))
+    absent = extractor_fingerprint(package_dir=pkg)
+    monkeypatch.setattr(
+        importlib.util,
+        "find_spec",
+        lambda name: importlib.machinery.ModuleSpec("clang", None) if name == "clang" else original(name),
+    )
+    monkeypatch.setattr(importlib.metadata, "version", lambda name: "18.1.1")
+    present = extractor_fingerprint(package_dir=pkg)
+    assert present != absent
+    monkeypatch.setattr(importlib.metadata, "version", lambda name: "19.0.0")
+    assert extractor_fingerprint(package_dir=pkg) not in {present, absent}

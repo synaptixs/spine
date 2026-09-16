@@ -228,6 +228,269 @@ reason.
 
 ---
 
+### Optional clang semantic pass
+
+C/C++ nodes still come from tree-sitter. After the CST front-ends finalize their
+facts, `pkg/clang_link.py` can add `CALLS` between already-grounded functions.
+It runs before `link_imports`; `FRONT_ENDS` and graph IDs remain unchanged.
+Headers ending in `.h` reached by literal C++ includes are routed to the C++ CST,
+independently of whether clang is installed.
+
+The `[clang]` extra supplies a bundled libclang library; `[all]` includes it and
+`[languages]` does not. The cache fingerprint includes availability and wheel
+version. Flags are synthesized from repository header directories, a fixed target
+and C11/C++17 modes, with system includes disabled. Compilation databases and host
+SDKs are never consulted.
+
+The CST side channel identifies pending calls by file and full byte range. Only
+source TUs with pending sites in their reachable headers/source are parsed. Clang
+must resolve an eligible declaration in an admitted repository file, whose USR
+maps to an existing grounded function ID. The enclosing clang function must also
+map to the CST caller ID. Its source file must agree with the grounded caller,
+or the grounded overload must lie within its class declaration in a header.
+This refuses scope-stripped callers, macro test bodies, destructor/constructor
+collisions and unrelated program entrypoints without changing nodes or IDs.
+Caller mapping also accepts file-static C++ functions, exact destructor names
+and `operator()` when the same identity and grounding checks succeed. Unsupported
+caller shapes remain refused. Ordinary parameter and method qualifiers collapse
+to the existing name-based identity. Template/local/anonymous declaration identities
+and operator targets remain refused. Virtual calls use the static declaration;
+conflicting candidates are refused. The pass never changes the node set.
+
+The report states recovered sites, total pending sites, parsed/total TUs,
+diagnostic/failed TUs, and a partition of unresolved sites by the furthest stage
+observed. These are coverage observations, not proof of complete resolution or
+attribution of every miss to missing headers. See the
+[Step 3b evaluation](../evals/clang-semantic-step3b.md) for the expanded five-repository
+comparison and the [validation record](../evals/clang-semantic-validation.md) for
+historical results. Literal include suffixes can supply additional roots from
+admitted repository headers. Existing search precedence is retained; conflicting
+new resolutions are refused. Caller and target projections must also agree with
+clang's actual namespace/record parents; a local lambda or class cannot borrow
+its enclosing function's ID through a USR parameter suffix. Path canonicalization
+is cached per extraction to avoid repeating filesystem work for header cursors
+in many translation units. Within each parsed TU, functions outside the wanted
+files and their actual clang include ancestors are skipped; unknown paths remain
+conservative. This changes traversal cost, not the source-TU selection.
+
+#### Step 3b — repository include roots and representative validation
+
+**Status: complete; implementation, evaluation and local gates passed.** Documented 2026-09-15 at the
+user's request. This is a follow-up to confidence Step 3, not a replacement for
+P0–P6. See the [completed measurements and source audit](../evals/clang-semantic-step3b.md). The implementation
+baseline is `4950899`; [Step 3 evidence](../evals/clang-semantic-recovery.md) remains
+historical. Execution authorized by the user; the evaluation manifest is frozen before candidate implementation.
+
+**Objective:** determine whether better repository-local include resolution adds
+correct, useful semantic relationships at an acceptable cost, and describe which
+repository profiles benefit from the optional extra.
+
+**Hypothesis:** the current flags add directories containing headers, which can
+miss the root required by a prefixed include. For example, an admitted header at
+`modules/core/include/opencv2/core.hpp` and an include of `<opencv2/core.hpp>`
+require `-I modules/core/include`. Adding `modules/core/include/opencv2` alone
+does not supply that root. This is a testable gap in synthesized flags; it does
+not establish the cause of every unresolved expression. Missing standard or
+generated headers may continue to limit recovery after this change.
+
+##### Boundaries — preserve D1–D6
+
+- **D1:** clang remains an optional post-pass beside import linking; CST suffix
+  ownership and frontend registration stay unchanged.
+- **D2:** derive candidate include roots only from admitted repository files and
+  literal includes. Keep fixed target/language modes, wheel-bundled libclang and
+  disabled system includes. Do not read compilation databases, use host SDKs,
+  infer build-specific defines, or synthesize missing headers/types.
+- **D3:** add only edges between existing grounded functions. Preserve nodes,
+  IDs, kinds, caller identity/source checks and target validation. CST macro/scope
+  repair, new identities and broader USR support are outside this follow-up.
+- **D4:** preserve existing `.h` routing; improve only the semantic pass's inputs.
+- **D5:** keep `[clang]` in `[all]` and outside `[languages]`.
+- **D6:** retain the existing selection of source translation units with reachable
+  pending sites. Diagnostic header-only parses do not count as recovered sites or
+  production TUs. Report distinct sites and TUs honestly.
+
+##### Work sequence and deliverables
+
+| Work item | Planned action | Completion evidence |
+|---|---|---|
+| **3b.1 — Freeze evaluation inputs** | Record the baseline implementation hash, environment and repository pins. Retain OpenCV and TinyXML-2; select three additional repositories covering self-contained C++, template/STL-heavy code and macro/generated-header-heavy code. Record names, commit hashes, selection reasons and input manifests before observing candidate results. | Committed evaluation manifest; all five repositories selected before tuning. Selection and pins are recorded in [the manifest](../evals/clang-semantic-step3b-manifest.json). |
+| **3b.2 — Prove the include-root gap** | Add minimal failing fixtures under pytest temporary directories or `.repo/`. Cover prefixed angle/quoted includes, transitive includes and headers whose parent directory is insufficient. Record the current failure before changing production flags. | Four prefixed-include cases failed before the change; all pass afterward (`test_prefixed_include_root_recovers_grounded_call`). |
+| **3b.3 — Implement bounded root synthesis** | Derive roots from exact literal include suffixes matched to admitted repository header paths. Define deterministic precedence and ambiguity handling; verify the complete search-path list cannot silently shadow another header. Preserve existing successful relative-include behavior and repository boundaries. | `clang_includes.py`; 94 focused tests pass. Algorithm, performance adjustments and source-audit-driven P1 restriction recorded in the evaluation report. |
+| **3b.4 — Measure contribution and cost** | Run the three configurations below on each pinned repository, in fresh processes, with three runs per configuration and a recorded interleaved order. Keep fixtures, environment and source inputs fixed; separate diagnostic collection from timing. | All 45 runs complete; `clang-semantic-step3b-results.json` records flags, timings, graph hashes and passing preservation/repeatability assertions. |
+| **3b.5 — Review correctness** | Recheck the fixed Step 2 audit and Step 3 additions; inspect every removed/retargeted semantic edge. Review new additions from source using the bounded audit rule below. | Fixed 200 OpenCV additions: 198 retained, 2 wrong lambda calls fixed/refused; all 54 GoogleTest additions correct. All removals reviewed; five known correct OpenCV losses disclosed. Old negative cases remain absent; all 27 Step 3 additions retained. |
+| **3b.6 — Define supported use cases** | Complete applicable repository gates and summarize results by repository profile. State limitations and the cost/benefit of opt-in support separately from any future default-enablement proposal. | Evaluation report recommends profile-dependent optional use; no general coverage claim. Required local gates passed; MR #379 remains draft. |
+
+Required regression coverage for 3b.3:
+
+- Correct nested include roots and transitive resolution; existing local includes
+  retain precedence.
+- Duplicate basenames, duplicate full include suffixes and interacting added
+  roots cannot select an arbitrary declaration. Alphabetical order alone is not
+  evidence that a header is correct; unresolved ambiguity must retain a refusal.
+- Ignored files, nested checkouts and symlinks escaping the repository cannot
+  supply inferred roots or grounded targets.
+- Different checkout locations and file enumeration order yield identical
+  repository-relative roots and graph facts.
+- Existing caller guards, grounded-target checks, corpus additivity and bounded
+  TU selection remain intact.
+
+##### Measurement and audit contract
+
+Compare **A: baseline clang off**, **B: baseline clang on** and **C: candidate
+clang on**. B versus A measures the existing contribution; C versus B isolates
+the complete candidate, including documented performance fixes and the stricter
+refusal of local declaration scopes discovered during the source audit. These
+fixes preserve D1–D6 and do not broaden P1's accepted identities. Rerun these current comparisons, not the original
+roadmap's already-recorded probes or baseline. Use the existing A/B harness as
+the starting point and record the extension for the third configuration.
+
+For each repository report:
+
+- Recovered sites / the **unchanged original pending denominator**, plus the
+  unresolved-stage partition. Preserve casts and inactive sites in the historical
+  denominator for comparability; explain them separately rather than improving
+  the percentage by filtering them away.
+- Added, removed and retargeted CALLS edges; node equality; grounded endpoints;
+  parsed/total TUs; diagnostic/failed TUs; complete verification findings.
+- Median, minimum and maximum extraction times, absolute added seconds and time
+  ratios. A large ratio on a subsecond repository has a different practical cost
+  from tens of additional seconds on a large repository.
+- A preselected, source-labelled sample of 50 supported calls per repository
+  (all eligible calls if fewer), spread across available source/header and
+  receiver shapes. Record expected caller and target identities before inspecting
+  candidate answers, with sample shortfalls and selection rules stated. Use it to
+  measure supported-case correctness/coverage; never define eligibility by
+  whether clang happened to resolve the call.
+
+Retain the Step 2 fixed 200-edge sample and all 27 Step 3 increment verdicts.
+All 31 incorrect and one ambiguous Step 2 relationship must remain absent.
+Account explicitly for any loss among the 166 retained correct sample edges or
+27 Step 3 additions; an explained source-level correction is preferable to
+preserving a demonstrated error. D3 requires preservation of the CST baseline
+edges; it does not require retaining every previous semantic addition blindly.
+
+Audit every new edge when a repository has at most 200 additions. Above that,
+select 200 by a recorded fixed hash within source/header, macro/template and
+receiver-shape strata; supplement with newly affected high-risk shapes and report
+those checks separately. Record the full population, selection rule, reviewed
+count and correct/incorrect/ambiguous verdicts. Do not refill a failed sample or
+claim population-wide precision from a sample. Any discovered incorrect or
+ambiguous addition requires a fix/refusal and re-evaluation before acceptance.
+
+##### Exit criteria and decision
+
+Step 3b implementation is complete when:
+
+1. The demonstrated include-root fixture recovers the expected call, and the
+   ambiguity, boundary and determinism regressions pass.
+2. All five preselected repository comparisons finish with reproducible graph
+   and report results, identical nodes/routing/pending inputs, preserved CST
+   edges and grounded semantic additions. Verification changes and every lost
+   semantic edge are explained; introduced defects are fixed.
+3. The existing negative audit cases remain refused and the new-edge audit has
+   no unresolved incorrect or ambiguous reviewed additions.
+4. Required phase checks, focused tests, full pytest, accuracy gate, repository
+   shapes, self-verification and documentation review pass. Keep workspace files
+   frozen during full pytest; exclude `episteme/` and the working root roadmap
+   from commits; use the existing draft MR #379.
+5. The report states where opt-in clang provides useful correct relationships,
+   its runtime cost and its remaining limits, including profiles with little or
+   no benefit. Keep implementation completion separate from release approval.
+
+There is no universal recovery-percentage threshold and no OpenCV-only release
+veto. No real-repository gain is also a valid measurement outcome: record it and
+recommend whether the added complexity is justified. Do not relax correctness
+checks, alter denominators, or cross D1–D6 to force an improvement. If repository
+include roots do not materially address the observed misses, use the evidence to
+scope the next decision rather than expanding this implementation silently.
+
+#### Step 4 — release readiness
+
+**Status: planned; scope documented, execution not started.** Defined at the
+user's request after Step 3b. This confidence step follows the completed P0–P6
+implementation track; it is distinct from the original P4 header-routing phase.
+The starting candidate is `3b0eea8`, with the
+[Step 3b evaluation](../evals/clang-semantic-step3b.md) as its evidence baseline
+and [draft MR #379](https://github.com/synaptixs/spine/pull/379) as the delivery vehicle.
+
+**Objective:** determine whether the current optional clang support is ready for
+maintainer merge and release review, with an explicit support contract, accepted
+limitations and evidence tied to the candidate being reviewed. Completing this
+plan does not itself authorize merging the MR or publishing a release.
+
+##### Scope and boundaries
+
+- Preserve **D1–D6** as recorded above. This is a release-readiness review, not a
+  new recovery-expansion track. Compilation databases, host SDKs, generated
+  stubs, CST identity repair and broader USR support remain outside scope.
+- Keep `[clang]` optional, included in `[all]` and excluded from `[languages]`.
+  Explain that installing it enables the pass for eligible C/C++ extraction;
+  users of `[all]` also incur its cost. Verify the documented installation and
+  omission paths rather than assuming an unimplemented enable/disable flag.
+- Describe support as **repository-dependent enrichment between existing
+  grounded functions**. The measured pending-site fraction and selected label
+  coverage are not whole-repository recall or population-wide precision.
+- Reuse the frozen Step 3b repositories, labels, source audits and timing
+  methodology. A documentation-only change does not require another 45-run
+  benchmark. If fixes change semantic behavior or cost, rerun the affected
+  comparisons and audit their differences before using the old conclusions;
+  shared mapper, include-root or traversal changes affect all five repositories.
+- Keep `episteme/` and the working root roadmap out of commits. Continue on the
+  existing MR; this plan introduces no new release, version bump or promotion PR.
+
+##### Work sequence and deliverables
+
+All work items below are **planned**. Prior Step 3b checks are inputs to this
+review, not evidence that Step 4 has already been executed.
+
+| Work item | Planned action | Required completion evidence |
+|---|---|---|
+| **4.1 — Define the support contract** | Reconcile README, SETUP, USER_GUIDE and parser documentation around optional activation, supported identity shapes, repository profiles, fixed flags, platform evidence and coverage limits. Distinguish wheel availability from a successful runtime test. | A support matrix linking each claim to an existing test or measured result; installation/omission guidance that matches actual behavior, including `[all]`. Untested platforms and unsupported shapes are stated explicitly. |
+| **4.2 — Review correctness and known losses** | Review the five correct OpenCV losses individually, the lambda and namespace corrections, the fixed negative cases and retained Step 3 additions. Record what is diagnosed and what remains unexplained. | A source-linked disposition for each correct loss: accept as a documented limitation, fix and revalidate, or hold release. The three partial-AST losses must not acquire an invented root-cause explanation. No unresolved reviewed incorrect or ambiguous additions; retained/refused audit relationships remain accounted for. |
+| **4.3 — Review operational cost** | Assess the measured cost for each supported use case, including automatic activation through `[all]`. Review existing cache behavior and invalidation if cached operation is used to justify usability. | Explicit disposition of OpenCV's 29.501 s clang-off, 58.381 s previous-clang and 300.296 s candidate medians, with the recorded ranges and single-host limits. State when batch use is acceptable and when the extra offers insufficient benefit. Any cache-hit claim has a measured hit/miss and invalidation receipt separate from the fresh-extraction benchmark. |
+| **4.4 — Validate the final candidate** | Pin the candidate commit and reconcile its code with the measured hashes. Review packaging and run absent/present-extra smoke checks in isolated environments. Complete applicable CONTRIBUTING gates, the documentation matrix and semantic-pass checklist; inspect CI on the final revision. | A candidate-specific validation record: focused regressions, full pytest summary, mypy/ruff, generated checks, accuracy, repository shapes, self-verification, documentation audit and CI links. Record skips and existing warnings. Keep workspace files frozen during full pytest. Explain any reused measurements and any changes since `3b0eea8`; resolve new failures before readiness. |
+| **4.5 — Record the maintainer decision** | Present the support contract, correctness dispositions, cost assessment and candidate checks for final review on MR #379. | A dated decision identifying the reviewed commit and reviewer, accepted limitations, remaining blockers and follow-up ownership. Record **ready for merge/release review**, **hold for specified fixes**, or **defer support**. Merge/publish actions require the subsequent maintainer authorization and normal release process. |
+
+The planned output is `docs/evals/clang-semantic-release-readiness.md`, linked
+from this section and the existing MR when created. It must contain the support
+matrix, per-loss and per-profile decisions, validation receipts, and final
+decision. Update this status, SPEC-INDEX, STATE-OF-SPINE and the MR together as
+work completes; do not mark readiness from a checklist with pending evidence.
+
+##### Decision inputs that must remain visible
+
+- **Correctness:** five correct OpenCV relationships were lost; two have
+  MAX-expansion range evidence and three lack matching calls in the partial AST
+  without a fully isolated cause. The fixed old audit retains 164 of its previous
+  166 correct relationships; all 32 old negative/ambiguous cases remain absent,
+  and all 27 Step 3 additions remain. The new fixed OpenCV sample retains 198
+  correct additions and refuses two wrong ones; all 54 GoogleTest additions were
+  source-reviewed. These are bounded reviews, not an independent population audit.
+- **Benefit and cost:** OpenCV gains 1,844 relationships over the previous pass
+  at +241.914 s median extraction cost. TinyXML-2 retains useful existing
+  contribution with no new edges; GoogleTest gains 54. pugixml recovers zero;
+  fmt contributes only 24 bundled-test relationships and no fmt-owned ones.
+  Include all five profiles in the decision, including those with no useful gain.
+- **Claim limits:** frozen supported-label presence is 48/50 OpenCV, 50/50
+  TinyXML-2, 0/6 pugixml, 1/50 fmt and 2/50 GoogleTest. The fmt labels come from
+  bundled GoogleTest and the pugixml sample is short of 50. Keep those selection
+  limits, unchanged denominators and the complete timing ranges attached to claims.
+
+##### Exit criteria
+
+Step 4 is complete when the readiness record and final MR review identify an
+explicit decision for the pinned candidate, with every correctness/cost concern
+either accepted with evidence or assigned a concrete blocking disposition.
+**Completion may result in a hold or defer decision; it does not imply shipment.**
+
+A **ready** recommendation additionally requires passing applicable local and
+remote gates, a verified support contract, no unresolved reviewed wrong/ambiguous
+additions, and explicit acceptance of the remaining correct-edge losses and
+runtime cost by the decision owner. An unresolved concern produces a hold;
+metrics must not be improved by changing labels, denominators or D1–D6.
+There is no universal recovery threshold and no automatic OpenCV-only veto.
+
 ## 6. What this buys, measured
 
 The parser choice is not an aesthetic preference. It is what makes the accuracy claim possible:
@@ -236,7 +499,7 @@ The parser choice is not an aesthetic preference. It is what makes the accuracy 
 |---|---|
 | Precision | **1.00** on every node kind and every edge kind, all 10 languages — on the corpus, which now includes the shadowed-callee shape (§3) |
 | Recall | 1.00 on every kind except `CALLS` |
-| `CALLS` recall | 1.00 (c, sql) · 0.89 (perl) · 0.86 (typescript) · 0.75 (cpp, csharp, go, php) · 0.73 (python) · 0.67 (java) |
+| `CALLS` recall | 1.00 (c, sql) · 0.89 (perl) · 0.86 (typescript) · 1.00 (cpp with clang) · 0.75 (csharp, go, php) · 0.73 (python) · 0.67 (java) |
 | Invention | **0** on this repo, and **0** across 11 pinned public repos in 6 front-ends (2026-08-24). Java and SQL are recorded *not-applicable* with reasons rather than scored 0 |
 | Invention gate | **`strict`, zero per language** — the one metric gated on an absolute value rather than against the baseline, because it is the one with a correct value |
 

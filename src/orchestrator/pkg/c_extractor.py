@@ -40,6 +40,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from orchestrator.pkg.clang_link import PendingMemberCall
 from orchestrator.pkg.extractor import rel_module_name
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 
@@ -65,6 +66,9 @@ class CExtractor:
 
     language: str = "c"
     suffixes: tuple[str, ...] = (".c", ".h")
+
+    def __init__(self) -> None:
+        self.unresolved_member_calls: list[PendingMemberCall] = []
 
     def module_name(self, path: Path, root: Path) -> str:
         # The translation unit is the file; its name is the repo-relative path.
@@ -274,12 +278,21 @@ class CExtractor:
         # translation unit, which is the normal case and must keep its `c:name` id. So the
         # test is "did this function bind the name", not "can we resolve it".
         bound = _bound_names(fdeclr, body, source)
-        for callee, line in _calls_in(body, source):
-            if callee in bound:
-                continue
-            # A local static callee keeps its file-scoped id; everything else is global.
-            target = local_funcs.get(callee, f"c:{callee}")
-            batch.add_edge(Edge(caller, target, EdgeKind.CALLS, Provenance(rel, line)))
+        stack = list(body.named_children)
+        while stack:
+            n = stack.pop()
+            if n.type == "call_expression":
+                fn = n.child_by_field_name("function")
+                line = n.start_point[0] + 1
+                callee = _text(fn, source) if fn is not None and fn.type == "identifier" else ""
+                if not callee or callee in bound:
+                    self.unresolved_member_calls.append(
+                        PendingMemberCall(caller, rel, n.start_byte, line, n.end_byte)
+                    )
+                else:
+                    target = local_funcs.get(callee, f"c:{callee}")
+                    batch.add_edge(Edge(caller, target, EdgeKind.CALLS, Provenance(rel, line)))
+            stack.extend(n.named_children)
 
 
 # --- helpers ---------------------------------------------------------------
@@ -297,7 +310,9 @@ def _iter_top_level(root: TSNode) -> list[TSNode]:
     return out
 
 
-def _resolve_include(path: Path, rel: str, include: str) -> str | None:
+def _resolve_include(
+    path: Path, rel: str, include: str, *, headers: dict[str, str] | None = None
+) -> str | None:
     """Resolve a ``"quoted"`` include to a repo-relative path of an EXISTING in-repo
     file, or ``None`` (→ external). Tries, in order: relative to the including file,
     relative to the repo root, then — for a bare ``"foo.h"`` reached via an ``-I``
@@ -316,7 +331,7 @@ def _resolve_include(path: Path, rel: str, include: str) -> str | None:
         if cand.is_file():
             return within.as_posix()
     # Include-dir convention: a header named like the include, unique in the repo.
-    return _header_index(root).get(Path(include).name)
+    return (headers if headers is not None else _header_index(root)).get(Path(include).name)
 
 
 _HEADER_INDEX_CACHE: dict[str, dict[str, str]] = {}
@@ -513,3 +528,53 @@ def _c_parser() -> Any:
 
 
 __all__ = ["CExtractor"]
+
+
+def cpp_header_paths(root: Path, files: list[Path]) -> frozenset[str]:
+    """`.h` files reached through literal includes from a C++ source TU.
+
+    Include discovery uses the CST, including preprocessor branches. Only files
+    admitted by the repository walker participate; cycles and ambiguous basename
+    matches do not expand the routing set. No clang extra or build database needed.
+    """
+    from orchestrator.pkg.cpp_extractor import _cpp_parser
+
+    known: dict[str, Path] = {}
+    for path in files:
+        if path.suffix in {".h", ".hpp", ".hh", ".hxx", ".cpp", ".cc", ".cxx"}:
+            try:
+                known[path.resolve().relative_to(root.resolve()).as_posix()] = path
+            except ValueError:
+                continue
+    pending = sorted(rel for rel in known if Path(rel).suffix in {".cpp", ".cc", ".cxx"})
+    if not pending or not any(Path(rel).suffix == ".h" for rel in known):
+        return frozenset()
+    names: dict[str, list[str]] = {}
+    for rel in known:
+        if Path(rel).suffix in {".h", ".hpp", ".hh", ".hxx"}:
+            names.setdefault(Path(rel).name, []).append(rel)
+    headers = {name: rels[0] for name, rels in names.items() if len(rels) == 1}
+    parser = _cpp_parser()
+    visited: set[str] = set()
+    while pending:
+        rel = pending.pop()
+        if rel in visited:
+            continue
+        visited.add(rel)
+        path = known[rel]
+        try:
+            source = path.read_bytes()
+        except OSError:
+            continue
+        stack = [parser.parse(source).root_node]
+        while stack:
+            node = stack.pop()
+            if node.type == "preproc_include":
+                target = node.child_by_field_name("path")
+                if target is not None and target.type in {"string_literal", "system_lib_string"}:
+                    raw = _text(target, source).strip('<>"')
+                    reached = _resolve_include(path, rel, raw, headers=headers)
+                    if reached in known and reached not in visited:
+                        pending.append(reached)
+            stack.extend(node.named_children)
+    return frozenset(rel for rel in visited if Path(rel).suffix == ".h")

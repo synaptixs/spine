@@ -1,0 +1,95 @@
+
+=== cpp: /tmp/spine-p5-return-tinyxml2-validation ===
+  extract: 332 grounded nodes, 93 external, 2013 edges
+  clang: resolved 434 of 1379 unresolved call sites in 3 of 3 TUs; 3 with diagnostics, 0 failed
+  semantic metrics: {"cc_calls": 1483, "cc_calls_ungrounded": 412, "cc_edges": 2002, "cc_grounded": 324, "cc_nodes": 413, "dangling_edges": 581, "dangling_ids": 91, "diagnostic_tus": 3, "edges": 2013, "extraction_seconds": 0.282, "failed_tus": 0, "header_types": 6, "nodes": 425, "parsed_tus": 3, "pending_sites": 1379, "resolved_sites": 434, "total_tus": 3, "unresolved_reasons": {"indirect_or_unsupported_target": 168, "no_matching_call": 413, "ungrounded_target": 350, "unsupported_usr": 14}, "unsupported_source_nodes": 0}
+    IMPORTS 33  CONTAINS 491  CALLS 1484  IMPLEMENTS 2  READS 0  WRITES 0  EXPOSES 0  CONSUMES 0  REFERENCES 3  MENTIONS 0  SERVES 0
+  nodes by language:
+    cpp          Field      76
+    cpp          Function   236
+    cpp          Module     4
+    cpp          Type       8
+    python       Function   7
+    python       Module     1
+  [error] dangling-edge: 581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more
+  [warning] phantom-module: 14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more
+  pkg verify: FAILED — 1 error(s), 1 warning(s)
+  state: languages=['cpp', 'javascript', 'python'] framework=— size=5 namespaces (~2 areas) · 5 modules · 8 types · 243 functions · 76 fields · 319 docs call_graph=available
+  top unresolved import targets:
+       2  cstdlib
+       2  cstring
+       1  re
+       1  sys
+       1  optparse
+       1  new
+       1  stddef.h
+       1  stdarg.h
+       1  cstddef
+       1  cstdarg
+
+=== cpp: /tmp/spine-p5-return-opencv-validation ===
+  extract: 80422 grounded nodes, 6759 external, 398001 edges
+  clang: resolved 949 of 135633 unresolved call sites in 1981 of 2468 TUs; 1950 with diagnostics, 0 failed
+  semantic metrics: {"cc_calls": 243892, "cc_calls_ungrounded": 177532, "cc_edges": 375458, "cc_grounded": 72101, "cc_nodes": 77682, "dangling_edges": 190485, "dangling_ids": 19982, "diagnostic_tus": 1950, "edges": 398001, "extraction_seconds": 56.368, "failed_tus": 0, "header_types": 1517, "nodes": 87181, "parsed_tus": 1981, "pending_sites": 135633, "resolved_sites": 949, "total_tus": 2468, "unresolved_reasons": {"indirect_or_unsupported_target": 28426, "no_matching_call": 104040, "ungrounded_caller": 1, "ungrounded_target": 2072, "unsupported_usr": 145}, "unsupported_source_nodes": 0}
+    IMPORTS 21559  CONTAINS 114442  CALLS 253753  IMPLEMENTS 2424  READS 0  WRITES 0  EXPOSES 0  CONSUMES 0  REFERENCES 5823  MENTIONS 0  SERVES 0
+  nodes by language:
+    c            Field      4197
+    c            Function   5816
+    c            Module     923
+    c            Type       461
+    cpp          Field      19499
+    cpp          Function   31901
+    cpp          Module     3348
+    cpp          Type       5956
+    csharp       Field      29
+    csharp       Function   32
+    csharp       Module     7
+    csharp       Type       8
+    java         Field      879
+    java         Function   2411
+    java         Module     98
+    java         Type       281
+    perl         Module     2
+    python       Field      1289
+    python       Function   2461
+    python       Module     374
+    python       Type       450
+<unknown>:74: SyntaxWarning: invalid escape sequence '\('
+<unknown>:13: SyntaxWarning: invalid escape sequence '\w'
+<unknown>:15: SyntaxWarning: invalid escape sequence '\w'
+<unknown>:29: SyntaxWarning: invalid escape sequence '\s'
+<unknown>:30: SyntaxWarning: invalid escape sequence '\s'
+<unknown>:31: SyntaxWarning: invalid escape sequence '\s'
+<unknown>:127: SyntaxWarning: invalid escape sequence '\g'
+<unknown>:128: SyntaxWarning: invalid escape sequence '\g'
+<unknown>:2: SyntaxWarning: invalid escape sequence '\Y'
+<unknown>:50: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:51: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:251: SyntaxWarning: invalid escape sequence '\Y'
+<unknown>:49: SyntaxWarning: invalid escape sequence '\s'
+<unknown>:76: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:79: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:88: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:295: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:296: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:297: SyntaxWarning: invalid escape sequence '\d'
+  [error] dangling-edge: 190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more
+  [error] orphan-rate: java: 92 of 98 first-party modules (94%) are imported by nothing — import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more
+  [error] orphan-rate: python: 346 of 374 first-party modules (93%) are imported by nothing — import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more
+  [warning] phantom-module: 701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more
+  [warning] invented-call: 8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope — a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more
+  pkg verify: FAILED — 3 error(s), 2 warning(s)
+  state: languages=['c', 'cpp', 'csharp', 'java', 'javascript', 'perl', 'python'] framework=— size=4752 namespaces (~73 areas) · 4752 modules · 7156 types · 42621 functions · 25893 fields · 1981 docs call_graph=available
+  top unresolved import targets:
+     368  iostream
+     271  vector
+     238  cv2
+     220  numpy
+     202  string
+     188  algorithm
+     182  __future__.print_function
+     182  sys
+     175  stdio.h
+     168  stdlib.h
+
+validate-frontend: FAILED — 2 repo(s) checked.

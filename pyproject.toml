@@ -68,6 +68,9 @@ cpp = [
     "tree-sitter>=0.21",
     "tree-sitter-cpp>=0.21",
 ]
+# Optional C/C++ semantic post-pass; wheel-bundled LLVM, no system toolchain.
+clang = ["libclang>=18"]
+
 # Go PKG front-end (.go). Same lazy-import contract as the `java` extra.
 go = [
     "tree-sitter>=0.21",
@@ -185,7 +188,7 @@ languages = [
 # Docker), `otel` and `dev` stay opt-in, because an install that pulls a
 # container runtime to answer "what breaks if I change X" is one nobody finishes.
 all = [
-    "synaptixs-spine[languages,mcp,docs,office,sdlc]",
+    "synaptixs-spine[clang,languages,mcp,docs,office,sdlc]",
 ]
 
 [project.scripts]
@@ -342,3 +345,7 @@ markers = [
     "integration: tests that require a running Postgres (run with -m integration)",
     "real_llm: tests that hit a real LLM provider (run with -m real_llm; needs API keys)",
 ]
+
+[[tool.mypy.overrides]]
+module = ["clang", "clang.cindex"]
+ignore_missing_imports = true

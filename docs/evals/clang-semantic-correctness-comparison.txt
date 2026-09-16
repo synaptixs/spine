@@ -1,0 +1,27 @@
+import json,pickle
+from pathlib import Path
+from dataclasses import asdict
+from collections import Counter
+from orchestrator.pkg.facts import Edge,EdgeKind,Provenance
+rows=json.loads(Path('/tmp/spine-audit-reviewed.json').read_text())
+results={}
+for name in ['opencv','tinyxml2']:
+ oldroot=Path('/tmp/spine-clang-ab-results')/name; newroot=Path('/tmp/spine-clang-audit-after')/name
+ off=pickle.loads((oldroot/'off.pickle').read_bytes());old=pickle.loads((oldroot/'on.pickle').read_bytes());new=pickle.loads((newroot/'on.pickle').read_bytes())
+ before=set(old.edges);after=set(new.edges);base=set(off.edges);grounded={n.id for n in off.nodes if n.grounded}
+ oldmetrics=json.loads((oldroot/'2-on.json').read_text());metrics=json.loads((newroot/'1-on.json').read_text())
+ checks={'identical_nodes':new.nodes==off.nodes==old.nodes,'baseline_edges_preserved':base<=after,'no_new_edges_beyond_previous_on_graph':after<=before,'all_additions_grounded_calls':all(e.kind is EdgeKind.CALLS and e.src in grounded and e.dst in grounded for e in after-base),'verification_unchanged':metrics['verify']==oldmetrics['verify'],'routing_unchanged':metrics['routed_headers_sha256']==oldmetrics['routed_headers_sha256'],'pending_unchanged':metrics['pending_sha256']==oldmetrics['pending_sha256']}
+ for r in rows:
+  if r['repository']!=name:continue
+  e=Edge(r['src'],r['dst'],EdgeKind.CALLS,Provenance(**r['provenance']))
+  assert e in before and e not in base
+  r['retained_after']=e in after
+ group=[r for r in rows if r['repository']==name]
+ checks['no_incorrect_or_ambiguous_sample_edges_retained']=all(not r['retained_after'] for r in group if r['verdict_before']!='correct_at_name_id_level')
+ removed=sorted(before-after,key=lambda e:e.key())
+ (newroot/'removed.json').write_text(json.dumps([asdict(e) for e in removed],indent=2)+'\n')
+ results[name]={'checks':checks,'metrics_after':metrics,'added_edges_after':len(after-base),'removed_semantic_edges':len(removed),'sample_before':dict(Counter(r['verdict_before'] for r in group)),'sample_retained':dict(Counter(r['verdict_before'] for r in group if r['retained_after']))}
+ print(name,results[name]['sample_before'],results[name]['sample_retained'],'removed',len(removed),'checks',checks)
+ assert all(checks.values()),checks
+Path('/tmp/spine-audit-reviewed.json').write_text(json.dumps(rows,indent=2)+'\n')
+Path('/tmp/spine-audit-comparison.json').write_text(json.dumps(results,indent=2)+'\n')

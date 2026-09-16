@@ -16,6 +16,16 @@ declaration counts by CST kind) independent of any extraction logic, so the D1 r
 in the roadmap's own evidence is measured before a line of `pkg/<lang>_extractor.py` exists,
 not reverse-engineered from it afterward.
 
+## Semantic post-passes
+
+A second-parser semantic pass enriches an existing front-end. Review its wiring,
+optional dependency/fingerprint, bounding, deterministic flags, corpus behavior,
+and real-repository measurements. The `default_extractors()` / `FRONT_ENDS` rows
+below do not apply when no new language front-end is registered. For the clang
+pass, check identical node sets with the extra absent/present, grounded endpoints
+for every added edge, and narrow C++ routing of included `.h` files. Packaging and
+applicable documentation obligations still apply.
+
 ## Registration (src)
 
 | Site | What | Failure if missed |

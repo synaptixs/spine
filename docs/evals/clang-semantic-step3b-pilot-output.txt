@@ -1,0 +1,46 @@
+<unknown>:74: SyntaxWarning: invalid escape sequence '\('
+<unknown>:13: SyntaxWarning: invalid escape sequence '\w'
+<unknown>:15: SyntaxWarning: invalid escape sequence '\w'
+<unknown>:29: SyntaxWarning: invalid escape sequence '\s'
+<unknown>:30: SyntaxWarning: invalid escape sequence '\s'
+<unknown>:31: SyntaxWarning: invalid escape sequence '\s'
+<unknown>:127: SyntaxWarning: invalid escape sequence '\g'
+<unknown>:128: SyntaxWarning: invalid escape sequence '\g'
+<unknown>:2: SyntaxWarning: invalid escape sequence '\Y'
+<unknown>:50: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:51: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:251: SyntaxWarning: invalid escape sequence '\Y'
+<unknown>:49: SyntaxWarning: invalid escape sequence '\s'
+<unknown>:76: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:79: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:88: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:295: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:296: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:297: SyntaxWarning: invalid escape sequence '\d'
+{"repo": "spine-clang-ab-opencv", "mode": "off", "index": 1, "seconds": 30.339, "nodes": 87181, "edges": 397174, "resolved": 0, "errors": 3, "warnings": 2}
+<unknown>:74: SyntaxWarning: invalid escape sequence '\('
+<unknown>:13: SyntaxWarning: invalid escape sequence '\w'
+<unknown>:15: SyntaxWarning: invalid escape sequence '\w'
+<unknown>:29: SyntaxWarning: invalid escape sequence '\s'
+<unknown>:30: SyntaxWarning: invalid escape sequence '\s'
+<unknown>:31: SyntaxWarning: invalid escape sequence '\s'
+<unknown>:127: SyntaxWarning: invalid escape sequence '\g'
+<unknown>:128: SyntaxWarning: invalid escape sequence '\g'
+<unknown>:2: SyntaxWarning: invalid escape sequence '\Y'
+<unknown>:50: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:51: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:251: SyntaxWarning: invalid escape sequence '\Y'
+<unknown>:49: SyntaxWarning: invalid escape sequence '\s'
+<unknown>:76: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:79: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:88: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:295: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:296: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:297: SyntaxWarning: invalid escape sequence '\d'
+{"repo": "spine-clang-ab-opencv", "mode": "on", "index": 2, "seconds": 58.956, "nodes": 87181, "edges": 397860, "resolved": 696, "errors": 3, "warnings": 2}
+Traceback (most recent call last):
+  File "/tmp/spine-step3b-run.py", line 13, in <module>
+    subprocess.run([sys.executable,'docs/evals/clang-semantic-step3b-harness.txt',config,str(root),str(index),str(out/repo['name']/config)],check=True)
+  File "/opt/anaconda3/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['/Users/falcon/projects/ai/spine/.venv/bin/python', 'docs/evals/clang-semantic-step3b-harness.txt', 'C', '/tmp/spine-clang-ab-opencv', '3', '/tmp/spine-step3b-results/opencv/C']' died with <Signals.SIGTERM: 15>.

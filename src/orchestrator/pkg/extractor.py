@@ -632,6 +632,9 @@ class RepoCodeExtractor:
             for suffix in ex.suffixes:
                 self._by_suffix[suffix] = ex
         self._ignore_dirs = ignore_dirs
+        from orchestrator.pkg.clang_link import ClangReport
+
+        self.clang_report = ClangReport()
         self.skipped: list[str] = []
         #: HTTP calls that matched no endpoint in this repository — the cross-repo join
         #: candidates. A side-channel, never facts: see `python_client.emit`.
@@ -658,10 +661,25 @@ class RepoCodeExtractor:
 
     def extract(self, root: Path | str) -> FactBatch:
         root_path = Path(root)
+        from orchestrator.pkg.clang_link import ClangReport, PendingMemberCall, link_clang
+
+        self.clang_report = ClangReport()
+        for front_end in dict.fromkeys(self._by_suffix.values()):
+            state = getattr(front_end, "unresolved_member_calls", None)
+            if state is not None:
+                state.clear()
         batch = FactBatch()
         used: list[LanguageExtractor] = []
-        for path in self._iter_files(root_path):
-            extractor = self._by_suffix.get(path.suffix)
+        paths = list(self._iter_files(root_path))
+        cpp = self._by_suffix.get(".cpp")
+        cpp_headers: frozenset[str] = frozenset()
+        if cpp is not None:
+            from orchestrator.pkg.c_extractor import cpp_header_paths
+
+            cpp_headers = cpp_header_paths(root_path, paths)
+        for path in paths:
+            rel = path.resolve().relative_to(root_path.resolve()).as_posix()
+            extractor = cpp if rel in cpp_headers else self._by_suffix.get(path.suffix)
             if extractor is None:
                 continue
             if extractor not in used:
@@ -695,6 +713,16 @@ class RepoCodeExtractor:
             if state:
                 self.unresolved_calls.extend(state)
 
+        pending: list[PendingMemberCall] = []
+        for extractor in used:
+            pending.extend(getattr(extractor, "unresolved_member_calls", ()))
+        batch = link_clang(
+            batch,
+            root_path,
+            pending=pending,
+            report=self.clang_report,
+            admitted_files={path.relative_to(root_path).as_posix() for path in paths},
+        )
         return link_imports(batch, root_path)
 
     def _iter_files(self, root: Path) -> Iterator[Path]:

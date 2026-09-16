@@ -235,7 +235,8 @@ async def test_fetch_tree_jql_root() -> None:
 
 
 async def test_unconfigured_adapter_raises() -> None:
-    adapter = JiraSourceAdapter(JiraConfig())  # no creds
+    # The shared fixture clears process credentials; also disable the local .env.
+    adapter = JiraSourceAdapter(JiraConfig(_env_file=None))  # type: ignore[call-arg]
     with pytest.raises(IssueTrackerError):
         await adapter.fetch_document("PROJ-1")
 

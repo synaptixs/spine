@@ -79,6 +79,8 @@ def pkg_extract(
     per_kind = {k[len("edges_") :]: v for k, v in summary.items() if k.startswith("edges_")}
     if per_kind:
         typer.echo("  " + "  ".join(f"{k.upper()} {v}" for k, v in per_kind.items()))
+    if merged is None and extractor.clang_report.total_tus:
+        typer.echo(extractor.clang_report.summary())
     if extractor.skipped:
         typer.echo(f"  (skipped {len(extractor.skipped)} unparseable file(s))")
 
@@ -324,6 +326,8 @@ def pkg_verify(
             }
         )
     else:
+        if extractor.clang_report.total_tus:
+            typer.echo(extractor.clang_report.summary())
         for issue in report.issues:
             typer.echo(f"[{issue.severity}] {issue.check}: {issue.message}")
         typer.echo(

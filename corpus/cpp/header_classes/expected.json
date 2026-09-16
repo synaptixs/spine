@@ -1,0 +1,59 @@
+{
+  "language": "cpp",
+  "case": "header_classes",
+  "root": ".repo",
+  "why": "A header reached from a C++ TU grounds the class and its out-of-line method.",
+  "nodes": [
+    {
+      "id": "cpp:src/main.cpp",
+      "kind": "Module"
+    },
+    {
+      "id": "cpp:src/widget.h",
+      "kind": "Module"
+    },
+    {
+      "id": "cpp:Widget",
+      "kind": "Type"
+    },
+    {
+      "id": "cpp:Widget::run",
+      "kind": "Function"
+    },
+    {
+      "id": "cpp:use",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "cpp:src/main.cpp",
+      "dst": "cpp:src/widget.h",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "cpp:src/main.cpp",
+      "dst": "cpp:use",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:src/widget.h",
+      "dst": "cpp:Widget",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:Widget",
+      "dst": "cpp:Widget::run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "cpp:use",
+      "dst": "cpp:Widget::run",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": []
+}

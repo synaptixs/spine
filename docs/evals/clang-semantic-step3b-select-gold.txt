@@ -1,0 +1,42 @@
+import json,re,pickle,hashlib
+from pathlib import Path
+from dataclasses import asdict
+rows=[]
+old=[json.loads(l) for l in Path('docs/evals/clang-semantic-correctness-sample.jsonl').read_text().splitlines()]
+for name in ['opencv','tinyxml2']:
+ good=[r for r in old if r['repository']==name and r['verdict_before']=='correct_at_name_id_level' and r.get('retained_after')]
+ good.sort(key=lambda r:hashlib.sha256(('step3b-supported-v1:'+r['audit_id']).encode()).hexdigest())
+ for r in good[:50]:
+  rows.append(dict(repository=name,src=r['src'],dst=r['dst'],file=r['provenance']['file'],line=r['provenance']['line'],prior_audit_id=r['audit_id'],source_review=r['source_review'],caller_declaration=r['caller_declaration'],target_declaration=r['target_declaration'],stratum=r['stratum']))
+for name in ['pugixml','fmt','googletest']:
+ folder=Path('/tmp/spine-step3b-labels')/name;root=Path('/tmp/spine-step3b-'+name)
+ candidates=json.loads((folder/'label-candidates.json').read_text());batch=pickle.loads((folder/'off.pickle').read_bytes());nodes={n.id:n for n in batch.nodes};chosen=[]
+ for i,r in enumerate(candidates):
+
+  if any(x in r['caller'] for x in ['WindowsDeathTest', 'InitGoogleTestImpl']):continue
+  expr=' '.join(r['expression'].split());m=re.search(r'([A-Za-z_]\w*)\s*\([^()]*\)\s*$',expr)
+  if not m:continue
+  cls=None;note=None
+  if name=='pugixml' and i<6:
+   target=r['possible_targets'][0];cls=target.rsplit('::',1)[0];note='writer is a local concrete '+cls.removeprefix('cpp:')+'; the named member is declared on that class.'
+  elif r['caller'].startswith('cpp:testing::') and (r['file'].endswith('gtest.cc') or r['file'].endswith('gmock-gtest-all.cc') or r['file'].endswith('gtest-internal-inl.h')):
+   if re.fullmatch(r'unit_test(?:\.|->)\w+\([^()]*\)',expr):
+    cls='cpp:testing::UnitTest';note='unit_test is the explicitly typed UnitTest parameter of this reporter callback.'
+   elif re.fullmatch(r'impl\(\)->\w+\([^()]*\)',expr) and r['caller'].startswith('cpp:testing::UnitTest::'):
+    cls='cpp:testing::internal::UnitTestImpl';note='UnitTest::impl() returns internal::UnitTestImpl*; this forwarding member names its concrete implementation target.'
+   elif re.fullmatch(r'(?:internal::)?GetUnitTestImpl\(\)->\w+\([^()]*\)',expr):
+    cls='cpp:testing::internal::UnitTestImpl';note='GetUnitTestImpl() returns UnitTestImpl* in testing::internal; the named member is declared there.'
+   elif re.fullmatch(r'(?:internal::)?GetUnitTestImpl\(\)->current_test_result\(\)->\w+\([^()]*\)',expr):
+    cls='cpp:testing::TestResult';note='UnitTestImpl::current_test_result() returns TestResult*; the named result member is declared on TestResult.'
+   elif re.fullmatch(r'UnitTest::GetInstance\(\)->\w+\([^()]*\)',expr):
+    cls='cpp:testing::UnitTest';note='UnitTest::GetInstance() returns UnitTest*; the named member is declared on UnitTest.'
+  if not cls:continue
+  target=cls+'::'+m[1]
+  if target not in r['possible_targets']:continue
+  chosen.append(dict(repository=name,src=r['caller'],dst=target,file=r['file'],line=r['line'],offset=r['offset'],end_offset=r['end_offset'],expression=r['expression'],selection_hash=r['selection_hash'],source_review=note,caller_declaration=asdict(nodes[r['caller']].provenance),target_declaration=asdict(nodes[target].provenance),stratum='bundled_gtest' if name=='fmt' else 'repository'))
+ chosen=chosen[:50];print(name,len(chosen));rows.extend(chosen)
+ with (folder/'gold-review.txt').open('w') as f:
+  for i,r in enumerate(chosen):
+   source=(root/r['file']).read_text().splitlines();c=r['caller_declaration'];t=r['target_declaration'];decl=(root/c['file']).read_text().splitlines();td=(root/t['file']).read_text().splitlines()
+   f.write(f"{i+1}: {r['file']}:{r['line']} {r['src']} => {r['dst']}\nCALL {r['expression']}\nCALLER "+' '.join(decl[c['line']-1:c['line']+3])+f"\nTARGET {t['file']}:{t['line']} "+' '.join(td[t['line']-1:t['line']+2])+'\n\n')
+Path('/tmp/spine-step3b-provisional-gold.jsonl').write_text(''.join(json.dumps(r,sort_keys=True)+'\n' for r in rows))

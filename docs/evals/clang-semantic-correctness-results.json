@@ -1,0 +1,165 @@
+{
+  "base_commit": "eccefbced03a3dd8c4602e1c6e2acdaf2c5dfed4",
+  "implementation_sha256": "a187c218bd2871c3ecfda1a0bae0bfb728e8b191e5aae483e3a3eafff66ba587",
+  "population": {
+    "opencv": 827,
+    "tinyxml2": 428
+  },
+  "repositories": {
+    "opencv": {
+      "added_edges_after": 660,
+      "checks": {
+        "all_additions_grounded_calls": true,
+        "baseline_edges_preserved": true,
+        "identical_nodes": true,
+        "no_incorrect_or_ambiguous_sample_edges_retained": true,
+        "no_new_edges_beyond_previous_on_graph": true,
+        "pending_unchanged": true,
+        "routing_unchanged": true,
+        "verification_unchanged": true
+      },
+      "metrics_after": {
+        "calls": 253586,
+        "clang": {
+          "available": true,
+          "diagnostic_tus": 1950,
+          "failed_tus": 0,
+          "parsed_tus": 1981,
+          "pending": 135633,
+          "resolved": 670,
+          "total_tus": 2468,
+          "unresolved_reasons": {
+            "caller_identity_mismatch": 1519,
+            "indirect_or_unsupported_target": 28426,
+            "no_matching_call": 104040,
+            "ungrounded_caller": 1,
+            "ungrounded_target": 832,
+            "unsupported_usr": 145
+          }
+        },
+        "dangling_edges": 190485,
+        "edge_sha256": "e85b7f8ad53fd2adba2545ee25db56c79c0d106c06944cc32d1acd6e7aaf75d1",
+        "edges": 397834,
+        "header_types": 1517,
+        "index": 1,
+        "mode": "on",
+        "node_sha256": "14625e6b4eb5470f589dd2969a1ff0f13152b519aa4a19b48c8e07fb78a7b947",
+        "nodes": 87181,
+        "pending_sha256": "d14d0ad7fa1af6bc114d204f0631eaf1fe1ea2c47ab8da035433bf21d585b65b",
+        "routed_headers": 421,
+        "routed_headers_sha256": "639e287321dcfcbbd14a84c9aea3ce27eab513db081bedfe5f5cc87c9909f768",
+        "seconds": 65.59749920800095,
+        "verification_errors": 3,
+        "verification_warnings": 2,
+        "verify": {
+          "issues": [
+            {
+              "check": "dangling-edge",
+              "message": "190485 edge(s) reference a node that doesn't exist: c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:close, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:strerror, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:read, c:3rdparty/cpufeatures/cpu-features.c::get_file_size -CALLS-> c:D, +190480 more",
+              "severity": "error"
+            },
+            {
+              "check": "orphan-rate",
+              "message": "java: 92 of 98 first-party modules (94%) are imported by nothing \u2014 import resolution is likely broken. E.g. java:org.opencv.test.calib3d, java:org.opencv.test.core, java:org.opencv.test.dnn, java:org.opencv.test.features2d, java:org.opencv.test.imgcodecs, +87 more",
+              "severity": "error"
+            },
+            {
+              "check": "orphan-rate",
+              "message": "python: 346 of 374 first-party modules (93%) are imported by nothing \u2014 import resolution is likely broken. E.g. py:apps.python_app_test, py:apps.pattern-tools.generate_pattern, py:apps.pattern-tools.svgfig, py:apps.pattern-tools.test_charuco_board, py:doc.tools.add_signatures, +341 more",
+              "severity": "error"
+            },
+            {
+              "check": "phantom-module",
+              "message": "701 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): c:dlfcn.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:errno.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:fcntl.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:pthread.h (vs c:3rdparty/cpufeatures/cpu-features.h), c:stdio.h (vs c:3rdparty/cpufeatures/cpu-features.h), +696 more",
+              "severity": "warning"
+            },
+            {
+              "check": "invented-call",
+              "message": "8 CALLS edge(s) (0.0% of all calls) target a name bound in the caller's own scope \u2014 a parameter or local, not a module outside the tree: modules/gapi/src/backends/cpu/gcpuimgproc.cpp:48 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/src/backends/cpu/gcpuimgproc.cpp:49 cpp:GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:75 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), modules/gapi/test/gapi_planar_test.cpp:93 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:in (in is local), modules/gapi/test/gapi_planar_test.cpp:94 cpp:opencv_test::GAPI_OCV_KERNEL -CALLS-> cpp:out (out is local), +3 more",
+              "severity": "warning"
+            }
+          ]
+        }
+      },
+      "removed_semantic_edges": 167,
+      "sample_before": {
+        "ambiguous": 1,
+        "correct_at_name_id_level": 85,
+        "incorrect": 14
+      },
+      "sample_retained": {
+        "correct_at_name_id_level": 74
+      }
+    },
+    "tinyxml2": {
+      "added_edges_after": 409,
+      "checks": {
+        "all_additions_grounded_calls": true,
+        "baseline_edges_preserved": true,
+        "identical_nodes": true,
+        "no_incorrect_or_ambiguous_sample_edges_retained": true,
+        "no_new_edges_beyond_previous_on_graph": true,
+        "pending_unchanged": true,
+        "routing_unchanged": true,
+        "verification_unchanged": true
+      },
+      "metrics_after": {
+        "calls": 1465,
+        "clang": {
+          "available": true,
+          "diagnostic_tus": 3,
+          "failed_tus": 0,
+          "parsed_tus": 3,
+          "pending": 1379,
+          "resolved": 415,
+          "total_tus": 3,
+          "unresolved_reasons": {
+            "caller_identity_mismatch": 31,
+            "indirect_or_unsupported_target": 168,
+            "no_matching_call": 413,
+            "ungrounded_target": 338,
+            "unsupported_usr": 14
+          }
+        },
+        "dangling_edges": 581,
+        "edge_sha256": "480c8bfde1d3d1a09eb4a8c208dea3b2b8f509b129a52ea947d74866c93f5963",
+        "edges": 1994,
+        "header_types": 6,
+        "index": 1,
+        "mode": "on",
+        "node_sha256": "c3e0014836019a3120f78ec790a18687bf322c26e7215867d4755a7a6d07f8a5",
+        "nodes": 425,
+        "pending_sha256": "80ac770db9437e4142ad120588222dcb7be8c7b05bb976eeba0378e0cb567dc5",
+        "routed_headers": 1,
+        "routed_headers_sha256": "a8234f2ced3c4d7dcbc929c5d7d04e4975e4a28547eace745d0f80f2392ce1b4",
+        "seconds": 0.34835491701960564,
+        "verification_errors": 1,
+        "verification_warnings": 1,
+        "verify": {
+          "issues": [
+            {
+              "check": "dangling-edge",
+              "message": "581 edge(s) reference a node that doesn't exist: cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::~StrPair, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::TransferTo, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::Reset, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::SetStr, cpp:tinyxml2::StrPair -CONTAINS-> cpp:tinyxml2::StrPair::ParseText, +576 more",
+              "severity": "error"
+            },
+            {
+              "check": "phantom-module",
+              "message": "14 external module(s) share a first-party module's basename (stdlib shadowing, or an unjoined import): cpp:stddef.h (vs cpp:tinyxml2.h), cpp:stdarg.h (vs cpp:tinyxml2.h), cpp:ctype.h (vs cpp:tinyxml2.h), cpp:limits.h (vs cpp:tinyxml2.h), cpp:stdio.h (vs cpp:tinyxml2.h), +9 more",
+              "severity": "warning"
+            }
+          ]
+        }
+      },
+      "removed_semantic_edges": 19,
+      "sample_before": {
+        "correct_at_name_id_level": 83,
+        "incorrect": 17
+      },
+      "sample_retained": {
+        "correct_at_name_id_level": 83
+      }
+    }
+  },
+  "sample_seed": "clang-correctness-v1",
+  "sample_unit": "added graph edge including call-site provenance; repeated same-line relationships may coalesce"
+}

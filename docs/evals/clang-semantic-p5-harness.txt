@@ -1,0 +1,75 @@
+import sys, json, time
+from collections import Counter
+from pathlib import Path
+from dataclasses import asdict
+from orchestrator.pkg import clang_link
+from orchestrator.pkg.extractor import RepoCodeExtractor
+from orchestrator.pkg.facts import EdgeKind, NodeKind
+from orchestrator.pkg.verify import verify_batch
+
+root = Path(sys.argv[1]).resolve()
+label = sys.argv[2]
+rejected = Counter()
+original_mapper = clang_link.usr_to_id
+original_link = clang_link.link_clang
+
+
+def mapper(usr, **kw):
+    result = original_mapper(usr, **kw)
+    if result is None:
+        rejected[usr] += 1
+    return result
+
+
+clang_link.usr_to_id = mapper
+
+
+def link(batch, root, *, pending, report):
+    nodes = list(batch.nodes)
+    edges = set(batch.edges)
+    result = original_link(batch, root, pending=pending, report=report)
+    grounded = {n.id for n in nodes if n.grounded}
+    added = set(result.edges) - edges
+    assert result.nodes == nodes
+    assert edges <= set(result.edges)
+    assert all(e.src in grounded and e.dst in grounded for e in added)
+    print("D3:", len(added), "additional edges; identical nodes; grounded endpoints", flush=True)
+    return result
+
+
+clang_link.link_clang = link
+started = time.perf_counter()
+ex = RepoCodeExtractor()
+batch = ex.extract(root)
+elapsed = time.perf_counter() - started
+ids = {n.id for n in batch.nodes}
+grounded = {n.id for n in batch.nodes if n.grounded}
+cc = [n for n in batch.nodes if n.language in {"c", "cpp"}]
+edges = [e for e in batch.edges if e.src.startswith(("c:", "cpp:"))]
+calls = [e for e in edges if e.kind is EdgeKind.CALLS]
+metrics = dict(
+    seconds=round(elapsed, 3),
+    nodes=len(batch.nodes),
+    grounded=len(grounded),
+    edges=len(batch.edges),
+    cc_nodes=len(cc),
+    cc_grounded=sum(n.grounded for n in cc),
+    cc_edges=len(edges),
+    cc_calls=len(calls),
+    cc_calls_ungrounded=sum(e.dst not in grounded for e in calls),
+    dangling_ids=len({i for e in batch.edges for i in (e.src, e.dst) if i not in ids}),
+    dangling_edges=sum(e.src not in ids or e.dst not in ids for e in batch.edges),
+    header_types=sum(
+        n.kind is NodeKind.TYPE and n.provenance is not None and n.provenance.file.endswith(".h") for n in cc
+    ),
+    unsupported_source_nodes=sum(
+        n.provenance is not None and n.provenance.file.endswith((".cu", ".mm")) for n in cc
+    ),
+    report=asdict(ex.clang_report),
+)
+print(json.dumps(metrics, sort_keys=True), flush=True)
+print("rejected USR observations:", json.dumps(rejected.most_common(40)), flush=True)
+report = verify_batch(batch, root)
+for issue in report.issues:
+    print(issue, flush=True)
+Path("/tmp/spine-clang-" + label + "-metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")

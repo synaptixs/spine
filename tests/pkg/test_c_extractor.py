@@ -198,3 +198,15 @@ def test_a_cross_translation_unit_call_still_resolves(tmp_path: Path) -> None:
     assert {"c:helper", "c:printf", "c:other_tu_function"} <= targets
     assert "c:cb" not in targets
     assert "c:y" not in targets, "an initializer binds y; the call inside it is still a call"
+
+
+def test_c_only_header_routing_is_unchanged(tmp_path: Path) -> None:
+    from orchestrator.pkg import RepoCodeExtractor
+    from orchestrator.pkg.c_extractor import cpp_header_paths
+
+    _write(tmp_path, "main.c", '#include "api.h"\nint run(void) { return 1; }')
+    _write(tmp_path, "api.h", "struct Record { int value; }; int run(void);")
+    assert not cpp_header_paths(tmp_path, list(tmp_path.iterdir()))
+    b = RepoCodeExtractor([CExtractor()]).extract(tmp_path)
+    assert {"c:Record", "c:Record.value", "c:run"} <= {n.id for n in b.nodes}
+    assert all(n.language == "c" for n in b.nodes)
