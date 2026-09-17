@@ -35,12 +35,20 @@ from orchestrator.pkg.persistence import (
 )
 from orchestrator.pkg.rdf import facts_to_graph
 from orchestrator.pkg.retrieval import GroundedRetriever, SymbolImpact
-from orchestrator.pkg.store import CallSite, FactStore
+from orchestrator.pkg.store import (
+    DEFAULT_PATH_KINDS,
+    CallSite,
+    FactStore,
+    GraphPath,
+    PathDirection,
+    PathHop,
+)
 from orchestrator.pkg.verifier import GroundingFinding, GroundingVerifier
 from orchestrator.pkg.verify import VerifyIssue, VerifyReport, verify_batch
 
 __all__ = [
     "CallSite",
+    "DEFAULT_PATH_KINDS",
     "DocBinding",
     "doc_drift",
     "link_docs",
@@ -55,6 +63,7 @@ __all__ = [
     "FactStore",
     "GroundedRetriever",
     "GroundingFinding",
+    "GraphPath",
     "GroundingVerifier",
     "LanguageExtractor",
     "link_imports",
@@ -62,6 +71,8 @@ __all__ = [
     "NodeKind",
     "Provenance",
     "JavaExtractor",
+    "PathDirection",
+    "PathHop",
     "PythonExtractor",
     "RepoCodeExtractor",
     "SymbolImpact",
