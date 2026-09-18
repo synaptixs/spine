@@ -1429,3 +1429,288 @@ async def test_perl_missing_toolchain_hint(monkeypatch: pytest.MonkeyPatch, tmp_
     with pytest.raises(FeatureRunError, match="needs `perl` and `prove`") as exc:
         await run_feature("file://./spec.md", language="perl")
     assert exc.value.code == 2
+
+
+# ---- what a test can exercise (CB-686 / CB-760: the scaffold files failed every greenfield run) --
+
+
+def test_scaffold_and_config_files_are_never_probed(tmp_path: Path) -> None:
+    from orchestrator.sdlc.feature_runner import _testable_production
+
+    (tmp_path / "src" / "cb_686").mkdir(parents=True)
+    (tmp_path / "tests").mkdir()
+    (tmp_path / ".gitignore").write_text(".venv\n", encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
+    (tmp_path / "src" / "cb_686" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "src" / "cb_686" / "account.py").write_text(
+        "def delete(reason: str) -> str:\n    return reason\n", encoding="utf-8"
+    )
+    (tmp_path / "tests" / "test_account.py").write_text(
+        "def test_it() -> None:\n    pass\n", encoding="utf-8"
+    )
+    files = [
+        ".gitignore",
+        "pyproject.toml",
+        "src/cb_686/__init__.py",
+        "src/cb_686/account.py",
+        "tests/test_account.py",
+    ]
+
+    probe, excluded = _testable_production(tmp_path, files)
+
+    assert probe == ["src/cb_686/account.py"]
+    assert excluded == [".gitignore (not source)", "pyproject.toml (not source)", "__init__.py (empty)"]
+
+
+def test_a_non_empty_init_is_still_probed(tmp_path: Path) -> None:
+    from orchestrator.sdlc.feature_runner import _testable_production
+
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "__init__.py").write_text("from .core import run\n", encoding="utf-8")
+    probe, excluded = _testable_production(tmp_path, ["pkg/__init__.py", "tests/test_core.py"])
+    assert probe == ["pkg/__init__.py"] and excluded == []
+
+
+# ---- CB-760: the cover stage wrote a test no production edit could satisfy -------------------
+
+
+class _CoverCodegen(_StubCodegen):
+    """`author_tests` for a coverage gap writes CB-760's `test_main_stdout` — a test asserting
+    `__main__`-guarded output under a monkeypatch — and `refine` only ever edits the module."""
+
+    async def implement(self, **kwargs: Any) -> CodeChange:
+        root = Path(kwargs["path"])
+        (root / "src").mkdir(exist_ok=True)
+        (root / "src" / "x.py").write_text("def main() -> None:\n    print('ok')\n", encoding="utf-8")
+        return CodeChange(files=["src/x.py"], summary="impl")
+
+    async def author_tests(self, **kwargs: Any) -> CodeChange:
+        root = Path(kwargs["path"])
+        (root / "tests").mkdir(exist_ok=True)
+        if kwargs.get("gaps"):
+            self.gaps_seen.append(list(kwargs["gaps"]))
+            (root / "tests" / "test_main_stdout.py").write_text(
+                "import runpy\n\n\ndef test_main_stdout(monkeypatch, capsys):\n"
+                "    runpy.run_module('src.x', run_name='__main__')\n"
+                "    assert capsys.readouterr().out == 'ok'\n",
+                encoding="utf-8",
+            )
+            return CodeChange(files=["tests/test_main_stdout.py"], summary="cover main()")
+        (root / "tests" / "test_x.py").write_text("def test_x() -> None:\n    pass\n", encoding="utf-8")
+        return CodeChange(files=["tests/test_x.py"], summary="tests")
+
+    async def refine(self, **kwargs: Any) -> CodeChange:
+        self.refine_calls += 1
+        return CodeChange(files=["src/x.py"], summary="fix main() entrypoint logic")
+
+
+class _CoverAwareRunner:
+    """Red exactly while the cover-authored test exists; green otherwise."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        if (Path(path) / "tests" / "test_main_stdout.py").exists():
+            return SimpleNamespace(
+                passed=False, returncode=1, output="FAILED tests/test_main_stdout.py::test_main_stdout"
+            )
+        return SimpleNamespace(passed=True, returncode=0, output="1 passed")
+
+
+def _one_gap_then_clean() -> Any:
+    probes: list[int] = []
+
+    async def _probe(path: Path, files: list[str], runner: Any, emit: Any) -> list[str]:
+        probes.append(1)
+        return ["src/x.py"] if len(probes) == 1 else []
+
+    return _probe
+
+
+async def test_a_cover_authored_test_no_refine_can_satisfy_is_withdrawn_not_chased(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """CB-760 ended FAILED after nine test runs, five of them refines editing the module to
+    satisfy a test the run itself had written. The run's own guess at coverage is not the
+    ticket's contract: once the budget is spent on it, the test is withdrawn and said so."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_CoverAwareRunner, codegen=_CoverCodegen)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _one_gap_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+    log: list[str] = []
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3, log=log.append)
+
+    assert result.passed
+    assert result.coverage_withdrawn == ["tests/test_main_stdout.py"]
+    assert not (tmp_path / "tests" / "test_main_stdout.py").exists()
+    assert (tmp_path / "tests" / "test_x.py").exists()  # the run's own author_tests test stands
+    assert created[0].refine_calls == 3  # the budget was spent before anything was withdrawn
+    assert any(
+        "[cover] withdrawn: test_main_stdout.py" in line and "coverage not proven" in line for line in log
+    ), log
+
+
+async def test_a_red_test_the_cover_stage_did_not_write_is_still_fatal(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Withdrawal is narrow: a failure the output does not attribute to a cover-authored file
+    ends the run as it always did, and nothing is removed."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    class _RedElsewhere(_CoverAwareRunner):
+        async def run(self, *, path: str) -> SimpleNamespace:
+            if (Path(path) / "tests" / "test_main_stdout.py").exists():
+                return SimpleNamespace(passed=False, returncode=1, output="FAILED tests/test_x.py::test_x")
+            return SimpleNamespace(passed=True, returncode=0, output="1 passed")
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_RedElsewhere, codegen=_CoverCodegen)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _one_gap_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3)
+    assert (tmp_path / "tests" / "test_main_stdout.py").exists()  # nothing was withdrawn
+
+
+class _CoverIntoAuthoredFile(_CoverCodegen):
+    """The cover stage answers the gap by appending to the file `author_tests` already wrote —
+    the natural place for "a test that reaches src/x.py" to land."""
+
+    async def author_tests(self, **kwargs: Any) -> CodeChange:
+        root = Path(kwargs["path"])
+        (root / "tests").mkdir(exist_ok=True)
+        target = root / "tests" / "test_x.py"
+        if kwargs.get("gaps"):
+            self.gaps_seen.append(list(kwargs["gaps"]))
+            target.write_text(
+                target.read_text(encoding="utf-8") + "\n\ndef test_main_stdout() -> None:\n"
+                "    import runpy\n    runpy.run_module('src.x', run_name='__main__')\n",
+                encoding="utf-8",
+            )
+            return CodeChange(files=["tests/test_x.py"], summary="cover main()")
+        target.write_text("def test_x() -> None:\n    pass\n", encoding="utf-8")
+        return CodeChange(files=["tests/test_x.py"], summary="tests")
+
+
+class _RedWhileCoverMarkerPresent(_CoverAwareRunner):
+    async def run(self, *, path: str) -> SimpleNamespace:
+        target = Path(path) / "tests" / "test_x.py"
+        if target.exists() and "runpy" in target.read_text(encoding="utf-8"):
+            return SimpleNamespace(
+                passed=False, returncode=1, output="FAILED tests/test_x.py::test_main_stdout"
+            )
+        return SimpleNamespace(passed=True, returncode=0, output="1 passed")
+
+
+async def test_withdrawal_never_deletes_a_test_an_earlier_stage_wrote(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Nothing is committed until the run ends, so a generated test is untracked and cannot be
+    restored. Withdrawing the file `author_tests` created would delete the ticket's own tests
+    and open a PR with none of them — so only a file the cover stage *created* may be withdrawn."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    _install_pipeline(
+        monkeypatch, tmp_path, runner=_RedWhileCoverMarkerPresent, codegen=_CoverIntoAuthoredFile
+    )
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _one_gap_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3)
+
+    body = (tmp_path / "tests" / "test_x.py").read_text(encoding="utf-8")
+    assert "def test_x()" in body  # the run's own test survived
+    assert "runpy" in body  # and nothing was silently rewritten
+
+
+async def test_a_failure_in_another_file_of_the_same_name_withdraws_nothing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`FAILED tests/integration/test_models.py::…` contains the basename of a cover-written
+    `tests/unit/test_models.py`. Matching the name alone withdrew a test that was green and
+    claimed, in the log, that its coverage had failed."""
+    from orchestrator.sdlc import feature_runner as fr
+
+    class _CoverElsewhere(_CoverCodegen):
+        async def author_tests(self, **kwargs: Any) -> CodeChange:
+            root = Path(kwargs["path"])
+            if kwargs.get("gaps"):
+                (root / "tests" / "unit").mkdir(parents=True, exist_ok=True)
+                (root / "tests" / "unit" / "test_models.py").write_text(
+                    "def test_models() -> None:\n    pass\n", encoding="utf-8"
+                )
+                return CodeChange(files=["tests/unit/test_models.py"], summary="cover models")
+            (root / "tests" / "integration").mkdir(parents=True, exist_ok=True)
+            (root / "tests" / "integration" / "test_models.py").write_text(
+                "def test_models() -> None:\n    pass\n", encoding="utf-8"
+            )
+            return CodeChange(files=["tests/integration/test_models.py"], summary="tests")
+
+    class _RedInIntegration(_CoverAwareRunner):
+        async def run(self, *, path: str) -> SimpleNamespace:
+            if (Path(path) / "tests" / "unit" / "test_models.py").exists():
+                return SimpleNamespace(
+                    passed=False,
+                    returncode=1,
+                    output="FAILED tests/integration/test_models.py::test_models",
+                )
+            return SimpleNamespace(passed=True, returncode=0, output="1 passed")
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_RedInIntegration, codegen=_CoverElsewhere)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", _one_gap_then_clean())
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    log: list[str] = []
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=3, log=log.append)
+
+    assert (tmp_path / "tests" / "unit" / "test_models.py").exists()
+    assert not any("withdrawn" in line for line in log)
+
+
+def test_a_kotlin_source_file_is_probed_not_dismissed_as_unsourceable(tmp_path: Path) -> None:
+    """Kotlin is a full codegen toolchain. Missing from the testable set, every probe answered
+    "a test could not reach this" for a whole Kotlin run — and said `(not source)`, which is false."""
+    from orchestrator.sdlc.feature_runner import _testable_production
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "Account.kt").write_text("class Account { fun id() = 1 }\n", encoding="utf-8")
+    (tmp_path / "build.gradle.kts").write_text('plugins { kotlin("jvm") }\n', encoding="utf-8")
+
+    probe, excluded = _testable_production(tmp_path, ["src/Account.kt", "build.gradle.kts"])
+
+    assert probe == ["src/Account.kt"]
+    # The build script is not source a test can exercise: stashing it stops Gradle resolving,
+    # and the red suite that follows would be recorded as proof that a test reaches it.
+    assert excluded == ["build.gradle.kts (not source)"]
+
+
+def test_the_pr_body_says_when_the_run_withdrew_its_own_coverage_test() -> None:
+    """The log and the journey both record a withdrawal; the reviewer reads neither. A green
+    PR whose coverage was withdrawn has to say so where the review happens."""
+    from orchestrator.sdlc.feature_runner import _pr_body
+
+    spec = {"summary": "Add a thing.", "acceptance_criteria": ["It works."], "intent_id": "CB-760"}
+    assert "Coverage withdrawn" not in _pr_body(spec, [])
+    body = _pr_body(spec, ["tests/test_main_stdout.py"])
+    assert "**Coverage withdrawn:** `tests/test_main_stdout.py`" in body
+    assert "That coverage is not proven." in body
+
+
+def test_a_windows_runner_path_is_attributed_to_the_file_that_failed() -> None:
+    """pytest on Windows prints `FAILED tests\\unit\\test_models.py`. Matching only the posix
+    spelling meant D3 never fired there — the run reported FAILED instead of withdrawing."""
+    from orchestrator.sdlc.feature_runner import _named_in_failures
+
+    assert _named_in_failures("tests/unit/test_models.py", r"FAILED tests\unit\test_models.py::test_a")
+    assert _named_in_failures("tests/unit/test_models.py", "FAILED tests/unit/test_models.py::test_a")
+    assert not _named_in_failures(
+        "tests/unit/test_models.py", "FAILED tests/integration/test_models.py::test_a"
+    )
+    # A passing file named in a warnings summary is not a failure.
+    assert not _named_in_failures("tests/unit/test_models.py", "warnings summary: tests/unit/test_models.py")

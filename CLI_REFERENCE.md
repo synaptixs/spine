@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.37.0  (synaptixs-spine)
+Spine 3.38.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -937,7 +937,7 @@ What each section is made of:
 | 4 | PKG | `FactStore`, ending with a verdict on whether the investigation brief is trustworthy for this ticket |
 | 5 | Blast radius | `sdlc/impact.py` — a diagram, then *Reading it* / *Containment* / *Caveat* / *Evidence* (coverage today, endpoints crossed, regression surface, recent history, docs affected) |
 | 6–7 | Design, Files | `sdlc/design.py` and the paths the spec states |
-| 8 | Acceptance criteria | the spec, in three states — see below |
+| 8 | Acceptance criteria | the spec, in four states — see below |
 | 9 | Facts the generator needs | not established; no phase owns it yet |
 | 10 | Codegen prompt | the system prompt, the payload manifest, and the context budget in bytes and percent |
 | 11 | Token usage & cost | measured from this ticket's own runs where there are any, estimated from the installed catalog where there are not |

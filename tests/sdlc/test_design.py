@@ -248,6 +248,7 @@ async def test_heuristic_files_come_from_where_the_ticket_lands() -> None:
 
     assert design["files_to_touch"] == ["src/exporter.py"]
     assert design["grounded"] is True
+    assert design["files_origin"] == "landing"  # the brief's own reading — §12 will not score agreement
 
 
 async def test_a_design_that_cannot_tell_says_so_and_proposes_nothing() -> None:
@@ -364,6 +365,7 @@ def test_the_risks_say_which_reading_produced_the_files(tmp_path: Path) -> None:
 
     assert any("names" in r for r in design["risks"])
     assert not any("confirm the affected files" in r for r in design["risks"])
+    assert design["files_origin"] == "stated"  # independent of the brief — §12 may score agreement
 
 
 def test_a_spec_naming_nothing_still_falls_back_to_the_overview() -> None:
@@ -493,3 +495,27 @@ def test_an_ambiguous_bare_name_is_not_guessed(tmp_path: Path) -> None:
         (tmp_path / d).mkdir()
         (tmp_path / d / "Product.cs").write_text("//\n", encoding="utf-8")
     assert _stated_paths({"summary": "edit Product.cs", "acceptance_criteria": []}, tmp_path) == []
+
+
+def test_several_bare_names_in_a_ticket_cost_one_walk(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import os
+
+    from orchestrator.sdlc.design import _stated_paths
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "Real.cs").write_text("//\n", encoding="utf-8")
+    walks: list[int] = []
+    real_walk = os.walk
+
+    def _counted(*a: Any, **k: Any) -> Any:
+        walks.append(1)
+        return real_walk(*a, **k)
+
+    monkeypatch.setattr(os, "walk", _counted)
+
+    paths = _stated_paths({"description": "Touch Real.cs, Renamed.cs and Gone.cs."}, tmp_path)
+
+    assert paths == ["src/Real.cs"]
+    assert len(walks) == 1

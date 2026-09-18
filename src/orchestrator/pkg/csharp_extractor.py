@@ -253,7 +253,11 @@ class CSharpExtractor:
         batch.add_node(
             Node(type_id, NodeKind.TYPE, name, "csharp", Provenance(rel, line, node.end_point[0] + 1))
         )
-        batch.add_edge(Edge(contains_parent, type_id, EdgeKind.CONTAINS, Provenance(rel, line)))
+        # One CONTAINS per parent/child per file. `Edge.key()` carries provenance, so a partial
+        # class declared twice in one file — every Razor component, whose `@inject` and `@code`
+        # blocks each open one — emitted the same containment twice, at two lines.
+        if not any(t.type_id == type_id for t in types):
+            batch.add_edge(Edge(contains_parent, type_id, EdgeKind.CONTAINS, Provenance(rel, line)))
         rec = _TypeRec(type_id=type_id, name=name, namespace=namespace, node=node)
         types.append(rec)
 

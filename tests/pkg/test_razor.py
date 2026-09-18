@@ -126,10 +126,13 @@ def test_a_component_s_usings_are_imports_and_its_module_is_its_path(tmp_path: P
         "csharp:Commercial.Secondary.Sales.Shared.Enums",
         "csharp:Commercial.Secondary.Sales.Features.Common.Products.Model",
     }
-    assert any(
-        e.src == module_id and e.dst == "csharp:AuctionProductsGrid" and e.kind is EdgeKind.CONTAINS
+    # `@inject` and `@code` each open a partial declaration of the component: one containment.
+    contains = [
+        e
         for e in batch.edges
-    )
+        if e.src == module_id and e.dst == "csharp:AuctionProductsGrid" and e.kind is EdgeKind.CONTAINS
+    ]
+    assert len(contains) == 1
 
 
 def test_a_declared_namespace_qualifies_the_component(tmp_path: Path) -> None:

@@ -39,6 +39,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from orchestrator.pkg.extractor import repo_relative
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 
 if TYPE_CHECKING:
@@ -114,7 +115,7 @@ class GoExtractor:
         # Go's compilation unit is the PACKAGE, which is the directory (all files in a dir
         # declare the same package). Return the repo-relative directory so every .go file
         # in it merges into one Module node — unlike every other front-end (one per file).
-        rel = path.resolve().relative_to(root.resolve())
+        rel = repo_relative(path, root)
         parent = rel.parent.as_posix()
         return "" if parent == "." else parent
 

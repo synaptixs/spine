@@ -82,7 +82,7 @@ _12 of the symbols other code depends on here have no test path the graph can se
 [`scripts/codegen_benchmark.py:1615`](../../scripts/codegen_benchmark.py#L1615)
 
 - **Called by** (1): [`run_ticket`](../../scripts/codegen_benchmark.py#L1681)
-- **Calls** (7): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L184), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), `orchestrator.pkg.FactStore`, `orchestrator.pkg.load_or_extract`, [`produce_design`](../../src/orchestrator/sdlc/design.py#L331), [`render_design_md`](../../src/orchestrator/sdlc/design.py#L303), [`validate_design`](../../src/orchestrator/sdlc/design_validator.py#L179)
+- **Calls** (7): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L184), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), `orchestrator.pkg.FactStore`, `orchestrator.pkg.load_or_extract`, [`produce_design`](../../src/orchestrator/sdlc/design.py#L342), [`render_design_md`](../../src/orchestrator/sdlc/design.py#L314), [`validate_design`](../../src/orchestrator/sdlc/design_validator.py#L179)
 - **Documented in**: `docs/specs/design-promotion-ab-results.md#three-defects-the-pre-flight-found-for-about-250`
 
 ### `drop_worktree`

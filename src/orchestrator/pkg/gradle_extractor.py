@@ -43,6 +43,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from orchestrator.pkg.extractor import repo_relative
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 from orchestrator.pkg.kotlin_names import string_value, text
 
@@ -97,7 +98,7 @@ class GradleExtractor:
 
     def module_name(self, path: Path, root: Path) -> str:
         """A build script names the module it configures — its **directory**."""
-        rel = path.resolve().relative_to(root.resolve())
+        rel = repo_relative(path, root)
         parent = rel.parent.as_posix()
         return "" if parent == "." else parent
 

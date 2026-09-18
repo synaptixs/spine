@@ -115,6 +115,7 @@ def _install(
             # with the same tools that built it. None here: these tests stub the loop out.
             codegen=None,
             tests=None,
+            coverage_withdrawn=list(seen.get("coverage_withdrawn") or []),
         )
 
     monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _feature)
@@ -829,6 +830,23 @@ def test_every_stage_appends_to_the_ticket_journey(monkeypatch: pytest.MonkeyPat
     stages = [e.stage for e in entries]
     assert "investigate" in stages and "design" in stages
     assert all(e.at and e.run_id for e in entries)
+
+
+def test_a_withdrawn_cover_test_is_on_the_journey_outcome_line(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """D3 of the build-loop track: a run that withdrew its own cover test is green and less
+    proven than green implies. The journey says so where the outcome is read, not in a log."""
+    from orchestrator.sdlc.builddoc import load_journey
+
+    seen = _install(monkeypatch, tmp_path)
+    seen["coverage_withdrawn"] = ["tests/test_main_stdout.py"]
+    _run(tmp_path, spec=dict(_INJECTED))
+
+    implement = [
+        e for e in load_journey(str(_INJECTED["intent_id"]), root=tmp_path / "repo") if e.stage == "implement"
+    ]
+    assert any("coverage withdrawn: test_main_stdout.py" in e.detail for e in implement), implement
 
 
 def test_a_second_run_appends_rather_than_replacing_the_first(

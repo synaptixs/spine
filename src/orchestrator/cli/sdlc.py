@@ -700,9 +700,16 @@ def sdlc_plan(
     """
     import asyncio
 
-    from orchestrator.sdlc.builddoc import build_plan, load_approval, load_journey, persist
-    from orchestrator.sdlc.feature_runner import _resolve_language, unsupported_language_error
+    from orchestrator.sdlc.builddoc import (
+        build_plan,
+        load_approval,
+        load_journey,
+        persist,
+        save_source_text,
+    )
+    from orchestrator.sdlc.feature_runner import unsupported_language_error
     from orchestrator.sdlc.spec_file import SpecFileError, load_spec_file
+    from orchestrator.sdlc.toolchains import resolve_language
 
     # `sdlc feature` has validated this since it gained the flag; `plan` never did, so a typo
     # fell through every dispatch chain to the Python branch and scaffolded the wrong project
@@ -764,14 +771,20 @@ def sdlc_plan(
                 resolved_type = resolve_ticket_meta(plan_result, chosen).issue_type
 
         intent_key = str(resolved.get("intent_id") or "spec")
+        # The ticket as intake read it — description, comments, attachments — is what row 08
+        # checks each filed criterion against. A hand-written `--spec` has none.
+        source_text = (
+            "\n\n".join(d.body for d in getattr(plan_result, "documents", []) or []) if source else ""
+        )
         # Resolved against the repo being planned, not left as the literal "auto" — the
         # codegen prompt, the layout and the test environment all read this, and the old
         # `python` default handed a C# repository Python scaffolding without saying so.
         document = await build_plan(
             resolved,
             root=path,
-            language=_resolve_language(Path(path), language),
+            language=resolve_language(Path(path), language),
             issue_type=resolved_type,
+            source_text=source_text,
             # Rendered, never stored in the document: a plan that changed since it was
             # approved shows as stale rather than carrying an approval it outgrew.
             approval=load_approval(intent_key, root=path, out=out),
@@ -779,6 +792,8 @@ def sdlc_plan(
             # is what refreshes the view; the entries themselves are never rewritten.
             journey=load_journey(intent_key, root=path, out=out),
         )
+        # Beside the plan, so the approval gate's re-derivation sees the same section 8.
+        save_source_text(intent_key, source_text, root=path, out=out)
         written, superseded = persist(document, intent_id=intent_key, root=path, out=out)
         if not quiet:
             typer.echo(document)

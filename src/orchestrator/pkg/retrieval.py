@@ -76,20 +76,46 @@ _STOPWORDS = frozenset(
 )
 
 
-def _tokens(text: str) -> set[str]:
-    """Lowercase word tokens, splitting snake_case and camelCase.
+#: The inflections a ticket's prose puts on a word the code names bare, stripped in this order,
+#: one of them at most, then a trailing ``e`` — so ``deletion``/``deleted``/``deleting``/``delete``
+#: all read ``delet``. Never below :data:`_MIN_STEM` characters: ``string`` keeps its ``ing`` and
+#: ``type`` its ``e``, and ``Reader`` stays apart from ``read``. A Porter stemmer would merge
+#: those, over-stems identifiers generally, and is a dependency; this is six lines, applied to
+#: both the query and the names, and the NSS-1231 and CB-686 fixtures are its gate.
+_STRIPPED = ("ion", "ing", "ed")
+_MIN_STEM = 4
 
-    Each token is also added in naive singular form ("edges" → "edge") so a
-    spec's prose plurals match the singular class names code actually uses.
+
+def _stem(token: str) -> str:
+    """``deletion`` → ``delet``, ``licences`` → ``licenc``, ``policies`` → ``policy``, ``caching`` → ``cach``.
+
+    CB-686 asked for "account deletion"; the screen is ``DeleteAccountScreen``. Only a trailing
+    ``s`` was stripped, so ``deletion`` matched nothing and the design ranked the ``reason``
+    fields of an unrelated type above the screen the ticket was about.
+    """
+    if len(token) > 3 and token.endswith("ies"):
+        token = token[:-3] + "y"
+    elif len(token) > 3 and token.endswith("s") and not token.endswith("ss"):
+        token = token[:-1]
+    for suffix in _STRIPPED:
+        if token.endswith(suffix) and len(token) - len(suffix) >= _MIN_STEM:
+            token = token[: -len(suffix)]
+            break
+    if token.endswith("e") and len(token) - 1 >= _MIN_STEM:
+        token = token[:-1]
+    return token
+
+
+def _tokens(text: str) -> set[str]:
+    """Lowercase word tokens, splitting snake_case and camelCase, each reduced by :func:`_stem`
+    so a spec's prose inflections ("edges", "deletion") match the bare names code uses.
     """
     spaced = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", text).replace("_", " ").lower()
     out: set[str] = set()
     for t in _TOKEN_RE.findall(spaced):
         if t in _STOPWORDS or len(t) <= 2:
             continue
-        if len(t) > 3 and t.endswith("s") and not t.endswith("ss"):
-            t = t[:-1]
-        out.add(t)
+        out.add(_stem(t))
     return out
 
 

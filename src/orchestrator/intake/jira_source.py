@@ -77,6 +77,11 @@ _MAX_ATTACHMENT_BYTES = 1_000_000  # `doc_source._MAX_DOC_BYTES` for text reader
 #: Per-attachment characters. A 40-page PDF spec is one attachment and would otherwise be
 #: the whole document; the cut is stated inline, as a comment's is.
 _MAX_ATTACHMENT_CHARS = 8_000
+#: All attachments together. Five at the per-file cut are 40,000 characters, which with ten
+#: comments and a description passed ``intents._MAX_PROMPT_CHARS`` and cut the *tail* of the
+#: document — the criteria, silently. This bound cuts the attachments instead, says so on the
+#: attachment, and leaves the ticket's own words whole.
+_MAX_ATTACHMENTS_TOTAL_CHARS = 20_000
 
 _MULTI_BLANK_RE = re.compile(r"\n{3,}")
 
@@ -277,7 +282,8 @@ def _attachments_read_text(texts: dict[str, tuple[str, str]]) -> str:
     """The attachments whose text was extracted, each under its own filename."""
     if not texts:
         return ""
-    lines = [f"Attachments read ({len(texts)}):"]
+    used = sum(len(text) for _, text in texts.values())
+    lines = [f"Attachments read ({len(texts)}, {used:,} of {_MAX_ATTACHMENTS_TOTAL_CHARS:,} chars):"]
     for name, text in texts.values():
         lines.append(f"--- {name} ---\n{text}")
     return "\n".join(lines)
@@ -350,10 +356,12 @@ class JiraSourceAdapter:
         """``key → (filename, text)`` for the attachments that could be read, and ``key → reason``
         for every one that was not.
 
-        Bounded three ways, each reason stated — at most ``_MAX_ATTACHMENTS``, none over
+        Bounded four ways, each reason stated — at most ``_MAX_ATTACHMENTS``, none over
         ``_MAX_ATTACHMENT_BYTES`` (checked against Jira's ``size`` before any request and against
         the bytes as they stream in), each text cut at ``_MAX_ATTACHMENT_CHARS`` with the cut
-        marked. Any failure — HTTP, a reader that yields nothing, an unreadable file, a record
+        marked, and all of them together under ``_MAX_ATTACHMENTS_TOTAL_CHARS``, the one that
+        crosses it cut to what is left and the rest named with why. Any failure — HTTP, a
+        reader that yields nothing, an unreadable file, a record
         with a malformed ``size`` — leaves that attachment named with why. Never raises.
 
         The readers are ``pkg.doc_source``'s, run over a temporary directory: the same PDF,
@@ -364,6 +372,7 @@ class JiraSourceAdapter:
 
         read: dict[str, tuple[str, str]] = {}
         unread: dict[str, str] = {}
+        used = 0
         for a in fields.get("attachment") or []:
             if not isinstance(a, dict):
                 continue
@@ -383,6 +392,9 @@ class JiraSourceAdapter:
                 continue
             if len(read) >= _MAX_ATTACHMENTS:
                 unread[key] = f"bound of {_MAX_ATTACHMENTS} reached"
+                continue
+            if used >= _MAX_ATTACHMENTS_TOTAL_CHARS:
+                unread[key] = f"attachment budget of {_MAX_ATTACHMENTS_TOTAL_CHARS:,} chars reached"
                 continue
             try:
                 if int(a.get("size") or 0) > _MAX_ATTACHMENT_BYTES:
@@ -405,8 +417,24 @@ class JiraSourceAdapter:
             if not text:
                 unread[key] = "no text could be read"
                 continue
-            if len(text) > _MAX_ATTACHMENT_CHARS:
-                text = text[:_MAX_ATTACHMENT_CHARS].rstrip() + f" …[truncated, {len(text)} chars]"
+            remaining = _MAX_ATTACHMENTS_TOTAL_CHARS - used
+            if len(text) > min(_MAX_ATTACHMENT_CHARS, remaining):
+                why = (
+                    f" — attachment budget of {_MAX_ATTACHMENTS_TOTAL_CHARS:,} chars reached"
+                    if remaining < min(len(text), _MAX_ATTACHMENT_CHARS)
+                    else ""
+                )
+                marker = f" …[truncated, {len(text)} chars{why}]"
+                # The marker is part of what is carried, so it comes out of the same budget:
+                # counting only the content let the header print more chars than it allows.
+                keep = min(_MAX_ATTACHMENT_CHARS, remaining) - len(marker)
+                if keep <= 0:
+                    # Not even room for the sentence saying it was cut. Naming it costs
+                    # nothing and keeps the header's arithmetic true.
+                    unread[key] = f"attachment budget of {_MAX_ATTACHMENTS_TOTAL_CHARS:,} chars reached"
+                    continue
+                text = text[:keep].rstrip() + marker
+            used += len(text)
             read[key] = (name, text)
         return read, unread
 

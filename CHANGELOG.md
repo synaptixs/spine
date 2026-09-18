@@ -4,6 +4,83 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.38.0 — 2026-09-18
+
+Two field reports from a React Native engagement (CB-686, CB-760), plus what the NSS-1231 build
+document had scored itself, all diagnosed to defects and each reproduced as a fixture. **CB-686:**
+`sdlc feature --language auto` scaffolded a *Python* package into a React Native app, because
+one build script under `ios/Pods` was the only `.py` the walk reached — and the walk reached
+`ios/Pods` at all, so boost, glog and every React header were the repository's own symbols, with
+`node_modules/` coming back in one header at a time through the symlinks CocoaPods leaves under
+`Pods/Headers/Public`. **CB-760:** the run ended `VERDICT: FAILED` after nine test runs, five of
+them refines editing the module to satisfy a test the run's own cover stage had written, and the
+coverage probe had reverted `.gitignore` and `pyproject.toml` to ask whether the suite noticed.
+
+### Fixed
+
+- **Vendored trees stay out of the graph.** `Pods` joins `DEFAULT_IGNORE_DIRS` (the CocoaPods
+  checkout, like `node_modules` and `vendor`). A symlinked file keeps its own path — provenance
+  and module name alike — and is admitted only when its target stays inside the root and outside
+  an ignored, dot or nested-checkout directory; before, `resolve()` followed the link and relabelled
+  an ignored tree's header as a first-party file. CB-686's checkout: 0 nodes under `ios/Pods/` or
+  `node_modules/`, the in-tree symlink still present. Blazor is detected as its own framework.
+
+- **`--language auto` is what most of the source is.** One `toolchains.resolve_language(root,
+  requested, store=None)` for the CLI, autorun and the runner: graph node counts per language when
+  a store is in hand, else `profile.language_file_counts`; the language with the most source among
+  those a toolchain exists for wins, ties keeping the old order. One stray `.py` is not a vote.
+  CB-686's shape: `auto → typescript`. An empty repository still gets Python (`sdlc_shapes.py`).
+
+- **The coverage probe asks only what a test could answer.** Both the whole-change proof and the
+  per-file probe run over files with a testable suffix and a body (`.kt` and `.cshtml` join that
+  set — Kotlin is a full codegen toolchain whose files the probe had been calling "not source",
+  switching the coverage gate off for the whole run; `.kts` stays out with `pyproject.toml` and
+  `.csproj`, because in a Kotlin repository it is `build.gradle.kts`, and probing a build script
+  means stashing it and recording the build's collapse as proof that a test reaches it), and say
+  what they excluded:
+  `[coverage] excluded (not testable): .gitignore (not source), pyproject.toml (not source),
+  __init__.py (empty)`. A scaffold file is never reported as "not exercised".
+
+- **A cover-authored test the refine budget cannot satisfy is withdrawn, not chased.** When the
+  tests budget dies on a failure the output attributes to a test the run's own cover stage wrote,
+  that test is withdrawn (checked out from HEAD, or removed when new), the suite runs once more,
+  and a green, type-clean result passes with `FeatureRunResult.coverage_withdrawn` naming it. The
+  log says `[cover] withdrawn: … coverage not proven`, the ticket's journey carries `coverage
+  withdrawn: …` on the outcome line, and the PR body says which test and why — so the run reads
+  exactly as proven as it is. Only a file the cover stage itself *created* can be withdrawn, and
+  only when a failing line names its full path: the spec's tests and the run's `author_tests`
+  tests are never touched, and a red test elsewhere is still fatal.
+
+- **The build document stops grading its own homework.** §12 scored "the brief agrees with the
+  design" on NSS-1231 — "4 of 4" — while a heuristic design had taken its files *from* the brief's
+  retrieval. The design now records `files_origin`; when it is `landing`, §4 says the files are the
+  brief's own reading and §12 scores the row n/a, out of the denominator. Row 08's `stated` is
+  earned, not trusted: a filed criterion is `stated` only when it matches a **whole line** of
+  the ticket's text as intake read it — description, comments, attachments — bullet stripped,
+  whitespace- and case-insensitively; otherwise `derived · model`, and the block counts how
+  many. Containment would certify a narrowed rewrite ("deletion is cancellable" against a
+  ticket saying "only for admins"), which is the failure the check exists to catch. The
+  ticket text is persisted beside the plan, because the approval gate proves an approval by
+  re-deriving the document and must see the same input. A hand-written `--spec` file has no
+  ticket text: the block says so.
+
+- **Retrieval reads a ticket's inflections.** CB-686 asked for "account deletion"; the screen is
+  `DeleteAccountScreen`, and `deletion` matched nothing. `_tokens` now strips `-ies`→`-y`, plural
+  `s`, one of `-ion`/`-ing`/`-ed`, then a trailing `e` — never below four characters — on the
+  query and the names alike, so `deletion`/`deleted`/`delete` all read `delet` while `string`,
+  `type` and `Reader`/`read` stay as they are. The NSS-1231 fixture ranks exactly as before.
+
+- **Attachments are bounded together, and the body says so.** Five attachments at the per-file
+  cut were 40,000 characters, which with ten comments passed the prompt cut and trimmed the
+  *criteria* off the tail. All attachments together stay under 20,000; the one that crosses the
+  line is cut with the reason, the rest are named and cost no request, and the `Attachments read`
+  header states the budget used.
+
+- Smaller: a bare filename a ticket names is resolved from one basename index per call rather
+  than one tree walk per name; the test-example search reads any front-end suffix, not only
+  `src/*.py`; a partial class declared twice in one file — every Razor component — emits one
+  `CONTAINS`, not two; `test_builddoc` asserts the measured C# recall rather than a pinned `0.80`.
+
 ## 3.37.0 — 2026-09-17
 
 Two field reports from a C#/.NET engagement, both diagnosed to defects rather than misuse and

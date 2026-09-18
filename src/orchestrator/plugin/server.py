@@ -822,7 +822,13 @@ async def sdlc_plan(repo_path: str, spec: dict[str, Any], persist_plan: bool = T
         # spec, which a stack trace on the host's side does not let it do.
         return {"error": str(exc), "valid_fields": sorted(FeatureSpec.model_fields)}
 
-    from orchestrator.sdlc.builddoc import build_plan, load_approval, load_journey, persist
+    from orchestrator.sdlc.builddoc import (
+        build_plan,
+        load_approval,
+        load_journey,
+        load_source_text,
+        persist,
+    )
 
     intent = str(resolved.get("intent_id") or "spec")
 
@@ -832,6 +838,13 @@ async def sdlc_plan(repo_path: str, spec: dict[str, Any], persist_plan: bool = T
             root=repo,
             approval=load_approval(intent, root=repo),
             journey=load_journey(intent, root=repo),
+            # Whatever ticket this intent was planned from, if anything. Section 8 checks each
+            # filed criterion against it, and the approval gate re-derives the document with the
+            # same file — so reading it is what keeps this tool's document and the gate in
+            # agreement. Clearing it instead would agree just as well and cost a ticket nobody
+            # here can fetch again: this tool is annotated non-destructive, and a host that
+            # trusts that annotation would delete it without asking.
+            source_text=load_source_text(intent, root=repo),
         )
         out: dict[str, Any] = {"intent_id": intent, "document": document}
         if persist_plan:

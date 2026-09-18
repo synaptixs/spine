@@ -186,3 +186,18 @@ def test_cpp_header_routing_stops_at_nested_checkout(tmp_path: Path) -> None:
         assert ProjectProfile.from_repo(root).languages == frozenset({"c"})
         batch = RepoCodeExtractor().extract(root)
         assert not any(n.language == "cpp" for n in batch.nodes)
+
+
+def test_a_blazor_project_is_named_blazor_not_aspnet(tmp_path: Path) -> None:
+    """Every Blazor project also references Microsoft.AspNetCore; the Components package or the
+    WebAssembly SDK is the tell, and it must be checked first."""
+    _write(tmp_path, "src/Web/App.razor", "<h1>Hi</h1>\n")
+    _write(
+        tmp_path,
+        "src/Web/Web.csproj",
+        '<Project Sdk="Microsoft.NET.Sdk.Web"><ItemGroup>'
+        '<PackageReference Include="Microsoft.AspNetCore.Components.Web"/></ItemGroup></Project>',
+    )
+    prof = ProjectProfile.from_repo(tmp_path)
+    assert "csharp" in prof.languages
+    assert prof.framework == "blazor"

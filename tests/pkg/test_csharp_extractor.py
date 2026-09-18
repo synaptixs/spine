@@ -423,3 +423,29 @@ def test_a_local_shadows_a_sibling_method(tmp_path: Path) -> None:
         "    }\n}\n"
     )
     assert ("csharp:App.Dispatch.Run", "csharp:App.Dispatch.Handle") not in _cs_calls(tmp_path, src)
+
+
+def test_a_partial_class_declared_twice_in_one_file_is_contained_once(tmp_path: Path) -> None:
+    """`Edge.key()` carries provenance, so two declarations at two lines were two CONTAINS edges
+    for one containment — pre-existing for `.cs`, and every Razor component once `@inject` and
+    `@code` each opened a partial declaration."""
+    src = (
+        "namespace Billing.Core;\n"
+        "public partial class Ledger { public int A() { return 1; } }\n"
+        "public partial class Ledger { public int B() { return 2; } }\n"
+    )
+    batch, module = _facts(tmp_path, src, "Ledger.cs")
+    contains = [
+        e
+        for e in batch.edges
+        if e.src == f"csharp:{module}"
+        and e.dst == "csharp:Billing.Core.Ledger"
+        and e.kind is EdgeKind.CONTAINS
+    ]
+    assert len(contains) == 1
+    assert {
+        e.dst for e in batch.edges if e.src == "csharp:Billing.Core.Ledger" and e.kind is EdgeKind.CONTAINS
+    } == {
+        "csharp:Billing.Core.Ledger.A",
+        "csharp:Billing.Core.Ledger.B",
+    }

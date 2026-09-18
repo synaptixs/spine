@@ -460,7 +460,7 @@ Twelve sections, always the same, in the same order. What they are for:
 | **4** | what the graph knows, ending with a verdict on whether the investigation brief can be trusted for *this* ticket |
 | **5** | blast radius — a diagram, then what imports it, what it is contained by, what the counts do not know, and the evidence: coverage today, endpoints crossed, the tests to run, recent history, docs affected |
 | **6–7** | the design, and the files it names with their sizes |
-| **8** | acceptance criteria in **three states**: stated, *stated but already met by code that exists*, and proposed |
+| **8** | acceptance criteria in **four states**: stated (matching a whole line of the ticket's text), *stated but already met by code that exists*, derived (filed by the spec writer but matching no line of the ticket's text), and proposed |
 | **9–10** | what the generator needs, and exactly what the codegen prompt will carry — in bytes and percent of the window |
 | **11–12** | what it costs, and two confidence numbers that are never conflated |
 

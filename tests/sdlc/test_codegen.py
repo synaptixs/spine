@@ -1427,6 +1427,20 @@ async def test_a_file_that_only_mentions_the_module_does_not_count(tmp_path: Pat
     assert _exercises_module('doc = "orchestrator.cli.md"\n' * 6, "orchestrator.cli") == 0
 
 
+def test_module_path_of_reads_any_front_end_suffix() -> None:
+    """Was `src/`+`.py` only, so on every other language the search had nothing to look for."""
+    from orchestrator.sdlc.codegen import _module_path_of
+
+    assert _module_path_of("src/orchestrator/cli.py") == "orchestrator.cli"
+    assert _module_path_of("src/pkg/__init__.py") == "pkg"
+    assert _module_path_of("lib/Shop/Cart.pm") == "Shop.Cart"
+    assert (
+        _module_path_of("FunctionsApp/Shared/EBSOrderApiClient.cs") == "FunctionsApp.Shared.EBSOrderApiClient"
+    )
+    assert _module_path_of("README.md") == ""
+    assert _module_path_of("pyproject.toml") == ""
+
+
 async def test_no_existing_tests_is_not_an_error(tmp_path: Path) -> None:
     from orchestrator.sdlc.codegen import _existing_test_examples
 

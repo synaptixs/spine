@@ -1774,6 +1774,15 @@ _TESTABLE_SUFFIXES = frozenset(
         ".hpp",
         ".cs",
         ".razor",
+        ".cshtml",
+        # Kotlin is a full codegen toolchain with its own layout, runner and prompts. Absent
+        # here, every probe that asks "could a test exercise this?" answered no for a Kotlin
+        # repository — switching the coverage gate off for the whole run while reporting the
+        # file as "not source", which is false. `.kts` stays out with `pyproject.toml` and
+        # `.csproj`: in a Kotlin repository it is `build.gradle.kts`, and probing a build
+        # script means stashing it, watching the build stop resolving, and recording the
+        # red suite as proof that a test exercises it.
+        ".kt",
         ".ts",
         ".tsx",
         ".js",
@@ -2292,7 +2301,7 @@ def _paths_from(spec: dict[str, Any], design: str, root: Path | None = None) -> 
     basename is resolved to its one location and anything that does not exist is dropped —
     the same rule ``design._stated_paths`` applies, from the same module.
     """
-    from orchestrator.sdlc.source_paths import named_paths, resolve
+    from orchestrator.sdlc.source_paths import basename_index, named_paths, resolve
 
     blob = " ".join(
         [
@@ -2304,8 +2313,11 @@ def _paths_from(spec: dict[str, Any], design: str, root: Path | None = None) -> 
         ]
     )
     seen: list[str] = []
+    index: dict[str, list[str]] | None = None
     for rel in named_paths(blob) + named_paths(design):
-        resolved = resolve(rel, root) if root is not None else rel
+        if root is not None and "/" not in rel and index is None:
+            index = basename_index(root)  # one walk for every bare name, not one each
+        resolved = resolve(rel, root, index=index) if root is not None else rel
         if resolved and resolved not in seen:
             seen.append(resolved)
     return seen
@@ -2324,12 +2336,24 @@ def _exercises_module(body: str, module: str) -> int:
     return len(imports) * 3 + len(patches)
 
 
+#: Source roots a module path does not include: ``src/app/cli.py`` is ``app.cli``, ``lib/Shop/Cart.pm``
+#: is ``Shop.Cart``.
+_SOURCE_ROOTS = frozenset({"src", "lib", "tests"})
+
+
 def _module_path_of(rel: str) -> str:
-    """``src/orchestrator/cli.py`` → ``orchestrator.cli``; '' when it isn't a source path."""
-    parts = Path(rel).with_suffix("").parts
-    if not parts or parts[0] not in {"src", "tests"}:
+    """``src/orchestrator/cli.py`` → ``orchestrator.cli``, ``lib/Shop/Cart.pm`` → ``Shop.Cart``; '' when
+    ``rel`` has no front-end suffix. Was ``src/``+``.py`` only, so on every other language the
+    test-example search had nothing to look for."""
+    from orchestrator.sdlc.source_paths import SOURCE_SUFFIXES
+
+    path = Path(rel)
+    if path.suffix.lstrip(".") not in SOURCE_SUFFIXES:
         return ""
-    trimmed = [p for p in parts[1:] if p != "__init__"]
+    parts = path.with_suffix("").parts
+    if parts and parts[0] in _SOURCE_ROOTS:
+        parts = parts[1:]
+    trimmed = [p for p in parts if p != "__init__"]
     return ".".join(trimmed)
 
 

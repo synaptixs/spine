@@ -105,11 +105,35 @@ def find_by_basename(root: Path, name: str, *, limit: int = 2) -> list[str]:
     return hits
 
 
-def resolve(rel: str, root: Path) -> str | None:
+def basename_index(root: Path, *, limit: int = 2) -> dict[str, list[str]]:
+    """Every basename under ``root`` → its repo-relative paths, at most ``limit`` each, from one walk.
+
+    :func:`find_by_basename` stops at two hits, which bounds an *ambiguous* name — but a name
+    that does not exist walks the whole tree, and a ticket naming three files that were
+    renamed walked it three times. A caller resolving several names builds this once and
+    hands it to :func:`resolve`. Same walk, same order, same skips as the single lookup.
+    """
+    index: dict[str, list[str]] = {}
+    for dirpath, dirnames, filenames in os.walk(root):
+        here = Path(dirpath)
+        dirnames[:] = sorted(
+            d
+            for d in dirnames
+            if d not in DEFAULT_IGNORE_DIRS and not d.startswith(".") and not is_nested_repo(here, d)
+        )
+        for name in sorted(filenames):
+            hits = index.setdefault(name, [])
+            if len(hits) < limit:
+                hits.append((here / name).relative_to(root).as_posix())
+    return index
+
+
+def resolve(rel: str, root: Path, *, index: dict[str, list[str]] | None = None) -> str | None:
     """``rel`` as a repo-relative path that exists under ``root``, or ``None``.
 
     A path is taken as written when it exists. A bare basename is resolved to its one
     location; two locations is a guess, and a guessed target is worse than a missing one.
+    With an ``index`` from :func:`basename_index` the bare-name lookup costs no walk.
     """
     rel = normalise(rel)
     if not rel or ".." in rel.split("/"):
@@ -123,8 +147,16 @@ def resolve(rel: str, root: Path) -> str | None:
         return rel
     if "/" in rel:
         return None
-    hits = find_by_basename(root, rel)
+    hits = index.get(rel, []) if index is not None else find_by_basename(root, rel)
     return hits[0] if len(hits) == 1 else None
 
 
-__all__ = ["PATH_RE", "SOURCE_SUFFIXES", "find_by_basename", "named_paths", "normalise", "resolve"]
+__all__ = [
+    "PATH_RE",
+    "SOURCE_SUFFIXES",
+    "basename_index",
+    "find_by_basename",
+    "named_paths",
+    "normalise",
+    "resolve",
+]

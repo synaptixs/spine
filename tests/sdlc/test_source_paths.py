@@ -5,8 +5,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
-from orchestrator.sdlc.source_paths import PATH_RE, find_by_basename, named_paths, resolve
+from orchestrator.sdlc.source_paths import PATH_RE, basename_index, find_by_basename, named_paths, resolve
 
 
 def test_every_front_end_suffix_is_a_path_and_prose_is_not() -> None:
@@ -85,3 +86,28 @@ def test_a_path_that_leaves_the_root_is_not_a_path_under_it(tmp_path: Path) -> N
 def test_prose_shaped_tokens_are_not_paths() -> None:
     assert named_paths("see section 3.c, Fig. 2.c, pip install a.b.c and v1.2.pl") == []
     assert named_paths("the code-behind App.razor.cs and Program.cs") == ["App.razor.cs", "Program.cs"]
+
+
+def test_the_index_answers_every_bare_name_from_one_walk(tmp_path: Path, monkeypatch: Any) -> None:
+    """`find_by_basename` stops at two hits, which bounds an ambiguous name — but a name that
+    does not exist walked the whole tree, once per name. Several names now cost one walk."""
+    import os
+
+    _tree(tmp_path, "FunctionsApp/Utils/EBSOrderApiClient.cs", "a/Product.cs", "b/Product.cs")
+    walks: list[int] = []
+    real_walk = os.walk
+
+    def _counted(*a: Any, **k: Any) -> Any:
+        walks.append(1)
+        return real_walk(*a, **k)
+
+    monkeypatch.setattr(os, "walk", _counted)
+
+    index = basename_index(tmp_path)
+    assert index["EBSOrderApiClient.cs"] == ["FunctionsApp/Utils/EBSOrderApiClient.cs"]
+    assert index["Product.cs"] == ["a/Product.cs", "b/Product.cs"]  # bounded at two, as the lookup is
+    assert resolve("EBSOrderApiClient.cs", tmp_path, index=index) == "FunctionsApp/Utils/EBSOrderApiClient.cs"
+    assert resolve("Product.cs", tmp_path, index=index) is None
+    assert resolve("Ghost.cs", tmp_path, index=index) is None
+    assert resolve("Phantom.cs", tmp_path, index=index) is None
+    assert len(walks) == 1

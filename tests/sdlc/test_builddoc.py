@@ -144,13 +144,49 @@ def test_verdict_renders_its_value_not_its_repr(tmp_path: Path) -> None:
 
 
 def test_already_met_criterion_keeps_its_place_and_its_evidence() -> None:
-    spec = _spec(met_criteria={"It says why.": "a.py:10 already prints it"})
+    spec = _spec(
+        description="- It stops crashing.\n- It says why.",
+        met_criteria={"It says why.": "a.py:10 already prints it"},
+    )
     block = _criteria_block(spec)
     assert "**stated · already met**" in block
     assert "a.py:10 already prints it" in block
     # It is not deleted: a narrowed list is how six criteria became four unnoticed.
     assert "It says why." in block
-    assert "1 of 2 stated criteria already satisfied" in block
+    assert "1 of 2 filed criteria already satisfied" in block
+
+
+def test_stated_is_earned_by_a_verbatim_match_against_the_ticket_text() -> None:
+    """The spec writer is told to copy filed criteria verbatim; NSS-1231 is the measured case
+    of a model not doing it. `stated` is checked against the intent's own text, not trusted:
+    a re-spaced, re-cased copy is still stated; a paraphrase is the model's and says so."""
+    spec = _spec(
+        description="Acceptance:\n- it STOPS   crashing.\n- the error is logged with its cause.",
+        acceptance_criteria=["It stops crashing.", "It says why."],
+    )
+    block = _criteria_block(spec)
+    assert "| 1 | It stops crashing. | stated | — |" in block
+    assert "| 2 | It says why. | derived · model | — |" in block
+    assert "**1 of 2 filed criteria match no line of the ticket's text**" in block
+
+
+def test_the_source_document_is_what_stated_is_checked_against() -> None:
+    """`sdlc plan --source` has the ticket as intake read it — description, comments,
+    attachments. A criterion copied from the ticket's own criteria block is stated even when
+    the intent's description does not repeat it (the CB-686 reproduction rendered all three
+    filed criteria `derived · model` before this)."""
+    ticket = "# CB-686\n\nAs a user I want a reason.\n\n## Acceptance criteria\n- It stops crashing.\n"
+    block = _criteria_block(_spec(description="As a user I want a reason."), source_text=ticket)
+    assert "| 1 | It stops crashing. | stated | — |" in block
+    assert "| 2 | It says why. | derived · model | — |" in block
+
+
+def test_with_no_ticket_text_nothing_is_labelled_stated_and_the_block_says_why() -> None:
+    """A hand-written `--spec` file carries no ticket text, so no criterion can be checked."""
+    block = _criteria_block(_spec())
+    assert "**Source not available.**" in block
+    assert "| stated |" not in block
+    assert block.count("| derived · model |") == 2
 
 
 def test_proposed_criteria_are_labelled_model() -> None:
@@ -182,6 +218,25 @@ def test_brief_that_agrees_with_the_design_says_so(tmp_path: Path) -> None:
     inv = _Investigation([_Landing("helper", "src/a.py:10")])
     md = _render(tmp_path, investigation=inv)
     assert "agrees with the design" in md
+
+
+def test_a_design_that_took_its_files_from_the_brief_cannot_agree_with_it(tmp_path: Path) -> None:
+    """NSS-1231 scored "4 of 4" on the brief agreeing with a design whose files *were* the
+    brief's retrieval — the same reading twice, naming four unrelated files. Agreement is
+    evidence only between independent readings; otherwise §4 says so and §12 does not count it."""
+    inv = _Investigation([_Landing("helper", "src/a.py:10")])
+    md = _render(tmp_path, investigation=inv, design=_design(files_origin="landing"))
+    assert "**The design's files are this brief's own reading.**" in md
+    assert "agrees with the design" not in md
+    assert "the same reading twice is not agreement | n/a |" in md
+    assert "of 3 applicable checks" in md  # root cause is n/a in this fixture too
+
+
+def test_a_stated_path_still_earns_the_agreement(tmp_path: Path) -> None:
+    inv = _Investigation([_Landing("helper", "src/a.py:10")])
+    md = _render(tmp_path, investigation=inv, design=_design(files_origin="stated"))
+    assert "agrees with the design" in md
+    assert "of 4 applicable checks" in md
 
 
 # ---- section 5: the diagram -----------------------------------------------
@@ -798,7 +853,12 @@ def test_the_caveat_names_the_language_that_built_the_graph() -> None:
     from orchestrator.sdlc.builddoc import _blast_prose
 
     prose = _blast_prose({"call_graph_available": True, "modules": [], "languages": ["csharp"]}, "python")
-    assert "recall for csharp is **0.80**" in prose
+    from orchestrator.pkg.accuracy import measured_recall
+
+    # The corpus number, not a literal: every C# case that adds a CALLS edge moved this test.
+    csharp = measured_recall("csharp")
+    assert csharp is not None
+    assert f"recall for csharp is **{csharp:.2f}**" in prose
     assert "python" not in prose
 
 
@@ -809,7 +869,11 @@ def test_a_polyglot_blast_radius_scores_each_language() -> None:
     prose = _blast_prose(
         {"call_graph_available": True, "modules": [], "languages": ["csharp", "typescript"]}, "python"
     )
-    assert "recall: csharp **0.80**, typescript **0.86**" in prose
+    from orchestrator.pkg.accuracy import measured_recall
+
+    csharp, ts = measured_recall("csharp"), measured_recall("typescript")
+    assert csharp is not None and ts is not None
+    assert f"recall: csharp **{csharp:.2f}**, typescript **{ts:.2f}**" in prose
 
 
 def test_an_unmeasured_language_is_named_rather_than_dropped() -> None:
@@ -981,3 +1045,50 @@ async def test_approval_revalidation_includes_measured_run_history(tmp_path: Pat
     )
     save_approval(_approval(digest=plan_digest(document)), root=tmp_path)
     assert (await require_approved_plan(_spec(), root=tmp_path, language="php")).decided_by == "falcon"
+
+
+@pytest.mark.asyncio
+async def test_the_gate_passes_for_a_plan_built_from_a_ticket(tmp_path: Path) -> None:
+    """Section 8 reads the ticket text, and the gate proves an approval by re-deriving the
+    document — so the text has to survive the process that wrote it. When it did not, every
+    plan built from `--source` rendered `stated` at plan time and `derived · model` at gate
+    time, and no re-approval could converge: the gate refused every source-derived ticket."""
+    from orchestrator.sdlc.builddoc import (
+        build_plan,
+        plan_digest,
+        require_approved_plan,
+        save_approval,
+        save_source_text,
+    )
+
+    (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    ticket = "# TCK-1\n\n## Acceptance criteria\n- It stops crashing.\n- It says why.\n"
+    document = await build_plan(_spec(), root=tmp_path, source_text=ticket)
+    assert "| 1 | It stops crashing. | stated | — |" in document  # the label under test
+    save_source_text("TCK-1", ticket, root=tmp_path)
+    save_approval(_approval(plan_digest(document)), root=tmp_path)
+
+    assert (await require_approved_plan(_spec(), root=tmp_path)).decided_by == "falcon"
+
+
+@pytest.mark.asyncio
+async def test_a_spec_only_plan_clears_the_ticket_text_it_replaces(tmp_path: Path) -> None:
+    """A later `--spec` plan for the same intent must not be checked against a ticket that is
+    no longer in play — the stale text would label criteria nobody filed."""
+    from orchestrator.sdlc.builddoc import load_source_text, save_source_text
+
+    save_source_text("TCK-1", "- It stops crashing.\n", root=tmp_path)
+    assert load_source_text("TCK-1", root=tmp_path)
+    save_source_text("TCK-1", "", root=tmp_path)
+    assert load_source_text("TCK-1", root=tmp_path) == ""
+
+
+def test_a_narrowed_criterion_is_not_stated_just_because_the_ticket_contains_it() -> None:
+    """Containment certifies the rewrite that drops the qualifier — exactly what the check
+    exists to catch. `stated` is a whole line of the ticket, bullet stripped."""
+    ticket = "## Acceptance criteria\n- Deletion is cancellable only for admins.\n- It says why.\n"
+    block = _criteria_block(
+        _spec(acceptance_criteria=["Deletion is cancellable", "It says why."]), source_text=ticket
+    )
+    assert "| 1 | Deletion is cancellable | derived · model | — |" in block
+    assert "| 2 | It says why. | stated | — |" in block

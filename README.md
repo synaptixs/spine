@@ -78,7 +78,18 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.37.0 (current)** — two field reports from a C#/.NET engagement, both diagnosed to defects
+**3.38.0 (current)** — two field reports from a React Native engagement, and the build document
+stops flattering itself. A vendored `ios/Pods` is no longer walked, and a symlinked file keeps its
+own path — so `node_modules` cannot return one header at a time through CocoaPods' public headers.
+`--language auto` weighs what most of the source **is** rather than what merely exists, so one build
+script no longer scaffolds a Python package into a React Native app. The coverage probe asks only
+what a test could answer and names what it excluded; a test the run itself wrote to cover a gap is
+**withdrawn and said so** rather than chased until the budget dies. Section 12 no longer scores the
+brief agreeing with a design taken *from* that brief, and section 8's `stated` is earned by matching
+a whole line of the ticket. Retrieval reads a ticket's inflections, so "account deletion" reaches
+`DeleteAccountScreen`.
+
+**3.37.0** — two field reports from a C#/.NET engagement, both diagnosed to defects
 and both now fixtures. **Blazor components** enter the graph: `.razor` is read as line-aligned C#
 through the C# front-end (no new grammar or extra), every symbol on its true line, with
 `corpus/csharp/razor` at precision 1.00 / recall 1.00. A file in a shared namespace is no longer

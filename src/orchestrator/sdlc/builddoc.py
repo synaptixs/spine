@@ -151,6 +151,41 @@ def approval_path(intent_id: str, *, root: Path | str = ".", out: Path | str | N
     return (Path(out) if out else plan_dir(root)) / f"{intent_id}-approval.json"
 
 
+def source_text_path(intent_id: str, *, root: Path | str = ".", out: Path | str | None = None) -> Path:
+    return (Path(out) if out else plan_dir(root)) / f"{intent_id}-source.txt"
+
+
+def save_source_text(
+    intent_id: str, text: str, *, root: Path | str = ".", out: Path | str | None = None
+) -> None:
+    """Keep the ticket text the plan was rendered from, beside the plan.
+
+    Section 8 labels a criterion `stated` only when the ticket says it verbatim, so the
+    ticket text is an *input* to the document — and :func:`require_approved_plan` proves an
+    approval by re-deriving the document and comparing digests. A re-derivation that cannot
+    see this input renders a different section 8 and refuses every plan built from a source,
+    with no re-approval that converges. The journey is persisted and re-read for exactly the
+    same reason; this is the second input that has to survive the process that made it.
+
+    A plan with no ticket behind it (`--spec`) removes the file rather than leaving a stale
+    one, so the next re-derivation cannot be checked against a ticket that is no longer in play.
+    """
+    path = source_text_path(intent_id, root=root, out=out)
+    if not text.strip():
+        path.unlink(missing_ok=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def load_source_text(intent_id: str, *, root: Path | str = ".", out: Path | str | None = None) -> str:
+    """The ticket text :func:`save_source_text` kept, or "" — never fatal."""
+    try:
+        return source_text_path(intent_id, root=root, out=out).read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
 def load_approval(
     intent_id: str, *, root: Path | str = ".", out: Path | str | None = None
 ) -> PlanApproval | None:
@@ -446,11 +481,11 @@ def _confidence_block(
         ),
         (
             brief.LANDS.title,
-            True,
+            not signals.get("same_reading"),
             bool(signals.get("brief_agrees")),
             "the brief and the design name the same files",
             "the brief names none of the files being changed",
-            "",
+            "the design's files are this brief's own retrieval — the same reading twice is not agreement",
         ),
         (
             "Root cause",
@@ -961,36 +996,92 @@ def _evidence_block(ev: dict[str, Any]) -> str:
 # ---- section 8: criteria, in three states ----------------------------------
 
 
-def _criteria_block(spec: dict[str, Any]) -> str:
-    """Stated, stated-but-already-met, and proposed — never silently narrowed.
+def _fold(text: str) -> str:
+    """Whitespace-collapsed, case-folded: the comparison a verbatim copy survives and a
+    paraphrase does not."""
+    return " ".join(str(text).split()).casefold()
+
+
+_BULLET_RE = re.compile(r"^\s*(?:[-*+•]|\(?\d+[.)])\s*")
+
+
+def _source_criteria_lines(text: str) -> set[str]:
+    """Each line of the ticket, bullet or numbering stripped, folded — the unit a criterion
+    is quoted as.
+
+    Whole lines, not containment. A criterion is `stated` because the ticket says *that*, and
+    a substring test calls a narrowed rewrite quoted: a ticket saying "deletion is cancellable
+    only for admins" would certify "deletion is cancellable" — the model dropping the
+    qualifier that mattered, wearing the ticket's label. Short criteria ("add a test") match
+    almost any prose under containment. A criterion the ticket wrapped over two lines now
+    reads `derived · model`, which is the safe direction: unproven, not falsely quoted.
+    """
+    out: set[str] = set()
+    for raw in str(text).splitlines():
+        folded = _fold(_BULLET_RE.sub("", raw))
+        if folded:
+            out.add(folded)
+    return out
+
+
+def _criteria_block(spec: dict[str, Any], source_text: str = "") -> str:
+    """Stated, stated-but-already-met, derived, and proposed — never silently narrowed.
 
     An already-met criterion stays on the page with the evidence that satisfies it.
     Deleting it is how six criteria became four with no reader able to tell: a run
     would report it met having changed nothing, which is the failure this document
     exists to catch.
+
+    `stated` is checked, not trusted. The spec writer is told to copy filed criteria
+    verbatim, and NSS-1231 is the measured case of a model not doing it; a criterion the
+    model rewrote is its inference wearing the ticket's label. So a filed criterion is
+    `stated` only when it matches **a whole line** of the ticket's own text — ``source_text``,
+    the source document as intake read it (description, comments, attachments), or without
+    one the intent's description and scope, carried unchanged. See :func:`_source_criteria_lines`
+    for why a line and not a substring, and for what that costs. Anything else is
+    `derived · model`. With no text at all — a hand-written `--spec` file has none — nothing
+    can be checked, the block says so, and every criterion is labelled derived.
     """
     stated = [str(c) for c in (spec.get("acceptance_criteria") or [])]
     proposed = [str(c) for c in (spec.get("proposed_criteria") or [])]
     met = {str(k): str(v) for k, v in (spec.get("met_criteria") or {}).items()}
+    ticket = source_text or f"{spec.get('description') or ''}\n{spec.get('scope') or ''}"
+    source = _source_criteria_lines(ticket)
 
     rows: list[str] = ["| # | Criterion | State | Satisfied by |", "|---|---|---|---|"]
     n = 0
+    derived = 0
     for text in stated:
         n += 1
+        verbatim = _fold(text) in source
+        derived += 0 if verbatim else 1
+        state = "stated" if verbatim else MODEL
         if text in met:
-            rows.append(f"| {n} | {text} | **stated · already met** | {met[text]} |")
+            rows.append(f"| {n} | {text} | **{state} · already met** | {met[text]} |")
         else:
-            rows.append(f"| {n} | {text} | stated | — |")
+            rows.append(f"| {n} | {text} | {state} | — |")
     for text in proposed:
         n += 1
         rows.append(f"| {n} | {text} | proposed *(model)* | — |")
 
     out = "\n".join(rows) + "\n"
 
+    if stated and not source:
+        out += (
+            "\n**Source not available.** The spec carries no ticket text to check the criteria "
+            f"against, so none can be labelled `stated`; all {len(stated)} are `{MODEL}`.\n"
+        )
+    elif derived:
+        out += (
+            f"\n**{derived} of {len(stated)} filed criteria match no line of the ticket's text** "
+            "— the spec writer rewrote or inferred them (or the ticket wrapped one across lines), "
+            "so they are labelled derived, not stated.\n"
+        )
+
     already = sum(1 for t in stated if t in met)
     if already:
         out += (
-            f"\n**{already} of {len(stated)} stated criteria already satisfied by code that "
+            f"\n**{already} of {len(stated)} filed criteria already satisfied by code that "
             "exists.** A run would report them met having changed nothing. The delivery is the "
             f"remaining {len(stated) - already}.\n"
         )
@@ -1050,6 +1141,7 @@ def render_build_md(
     rca: Any = None,
     approval: PlanApproval | None = None,
     journey: list[JourneyEntry] | None = None,
+    source_text: str = "",
 ) -> str:
     """Assemble the twelve sections.
 
@@ -1067,6 +1159,11 @@ def render_build_md(
     ]
     landing_files = {str(getattr(land, "where", "")).split(":", 1)[0] for land in landing}
     agreed = sorted(landing_files & set(files))
+    # Agreement is evidence only when the two readings are independent. A heuristic design
+    # takes its files from the same retrieval the brief is rendered from, so the two agree by
+    # construction; NSS-1231 scored "4 of 4" on exactly that while naming four unrelated
+    # files. Such a design's agreement is scored n/a and said so, in §4 and in §12.
+    same_reading = str(design.get("files_origin") or "") == "landing"
 
     out: list[str] = []
     add = out.append
@@ -1149,6 +1246,12 @@ def render_build_md(
     # so here costs nothing while carrying it silently costs a run.
     if not landing:
         add("**The brief is empty.** Locate the change by hand before building.\n")
+    elif same_reading:
+        add(
+            "**The design's files are this brief's own reading.** No path was stated and no model "
+            "designed, so the files above were taken from this retrieval — their agreement with it "
+            "is not evidence, and §12 does not count it.\n"
+        )
     elif agreed:
         add(
             f"**The brief agrees with the design** on {len(agreed)} file(s): "
@@ -1200,7 +1303,7 @@ def render_build_md(
 
     add("## 8. Acceptance criteria")
     add(_label(f"{STATED} + {MODEL}", "the spec, reconciled against the code"))
-    add(_criteria_block(spec))
+    add(_criteria_block(spec, source_text))
 
     add("## 9. Facts the generator needs")
     add(_pending("reading the named source for what must not be duplicated — no phase owns this yet"))
@@ -1239,6 +1342,7 @@ def render_build_md(
             signals={
                 "verdict": getattr(raw_verdict, "value", raw_verdict),
                 "brief_agrees": bool(agreed),
+                "same_reading": same_reading,
                 # Whether section 3 rendered at all — not whether it localized well.
                 "root_cause": bool(root_cause),
                 "fault_site": bool(getattr(rca, "fault_site", "")),
@@ -1269,6 +1373,7 @@ async def build_plan(
     issue_type: str = "",
     approval: PlanApproval | None = None,
     journey: list[JourneyEntry] | None = None,
+    source_text: str = "",
 ) -> str:
     """Run the four cheap stages and render the document. No worktree, no codegen.
 
@@ -1347,6 +1452,7 @@ async def build_plan(
         rca=report,
         approval=approval,
         journey=journey,
+        source_text=source_text,
     )
 
 
@@ -1384,7 +1490,15 @@ async def require_approved_plan(
     # The CLI includes prior runs in its cost/confidence sections. Re-derive with
     # the same history, otherwise any ticket that has run once is permanently stale.
     current = plan_digest(
-        await build_plan(spec, root=root, language=language, journey=load_journey(intent, root=root))
+        await build_plan(
+            spec,
+            root=root,
+            language=language,
+            journey=load_journey(intent, root=root),
+            # The ticket text is an input to section 8, so it has to be re-read here or the
+            # re-derivation is of a different document than the one a human approved.
+            source_text=load_source_text(intent, root=root),
+        )
     )
     if current != approval.digest:
         raise PlanNotApprovedError(

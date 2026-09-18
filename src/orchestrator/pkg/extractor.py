@@ -105,6 +105,12 @@ DEFAULT_IGNORE_DIRS = frozenset(
         # of the repo. Checked against the five pinned comprehension repos before
         # adding — none has a `vendor/` tree, so this costs no anchored facts there.
         "vendor",
+        # CocoaPods' checkout (`ios/Pods`): a React Native app carries boost, glog, hermes and
+        # every React header under it — on CB-686 the design proposed `FBReactNativeSpec.h` and
+        # `glog/logging.cc`, "125 untested symbols" were all boost templates, and a stray `.py`
+        # under it made `--language auto` scaffold Python into a TypeScript app. Checked against
+        # the five pinned comprehension repos before adding, as `vendor` was: none has a `Pods/`.
+        "Pods",
         # Spine's OWN generated knowledge base (``knowledge/understand.py``'s
         # BANK_DIRNAME and its legacy name). It is output, not source: ingesting it
         # would count our own prose as the repo's documentation, inflate every graph
@@ -135,9 +141,23 @@ class LanguageExtractor(Protocol):
     def extract(self, *, path: Path, module: str, rel: str) -> FactBatch: ...
 
 
+def repo_relative(path: Path, root: Path) -> Path:
+    """``path`` relative to ``root`` **as walked** — a symlink keeps its own name.
+
+    Resolving first is right only when the two were spelled differently (one relative, one
+    absolute); as the default it followed every symlink, so a file linked from an ignored
+    directory took its target's module id and the real file's nodes were dropped as
+    duplicates (D5 of the build-loop track). Resolve only when the plain form fails.
+    """
+    try:
+        return path.relative_to(root)
+    except ValueError:
+        return path.resolve().relative_to(root.resolve())
+
+
 def module_qualname(path: Path, root: Path) -> str:
     """Dotted module path relative to ``root`` (``src/`` stripped, ``__init__`` collapsed)."""
-    parts = list(path.resolve().relative_to(root.resolve()).parts)
+    parts = list(repo_relative(path, root).parts)
     if parts and parts[0] == "src":
         parts = parts[1:]
     if not parts:
@@ -151,7 +171,7 @@ def module_qualname(path: Path, root: Path) -> str:
 
 def rel_module_name(path: Path, root: Path) -> str:
     """Repo-relative POSIX path — the language-agnostic default module name."""
-    return path.resolve().relative_to(root.resolve()).as_posix()
+    return repo_relative(path, root).as_posix()
 
 
 class PythonExtractor:
@@ -686,13 +706,17 @@ class RepoCodeExtractor:
 
             cpp_headers = cpp_header_paths(root_path, paths)
         for path in paths:
-            rel = path.resolve().relative_to(root_path.resolve()).as_posix()
+            # The path as walked, never `resolve()`d: a symlinked file keeps its own name. CocoaPods
+            # links `Pods/Headers/Public/*` into `node_modules/react-native/…`, and resolving the
+            # link relabelled the header as `node_modules/…` — an ignored directory back in the graph
+            # under another name (CB-686). `_iter_files` already refuses a link whose target leaves
+            # the root or lands in an ignored directory.
+            rel = path.relative_to(root_path).as_posix()
             extractor = cpp if rel in cpp_headers else self._by_suffix.get(path.suffix)
             if extractor is None:
                 continue
             if extractor not in used:
                 used.append(extractor)
-            rel = path.resolve().relative_to(root_path.resolve()).as_posix()
             try:
                 module = extractor.module_name(path, root_path)
                 batch.merge(extractor.extract(path=path, module=module, rel=rel))
@@ -750,6 +774,7 @@ class RepoCodeExtractor:
         The walk also stops at any nested git checkout (:func:`is_nested_repo`): a submodule
         is another repository, not a subdirectory of this one.
         """
+        root_real = Path(root).resolve()
         for dirpath, dirnames, filenames in os.walk(root):
             here = Path(dirpath)
             dirnames[:] = sorted(
@@ -758,7 +783,31 @@ class RepoCodeExtractor:
                 if d not in self._ignore_dirs and not d.startswith(".") and not is_nested_repo(here, d)
             )
             for name in sorted(filenames):
-                yield Path(dirpath) / name
+                path = here / name
+                if path.is_symlink() and not self._symlink_admitted(path, root_real):
+                    continue
+                yield path
+
+    def _symlink_admitted(self, path: Path, root_real: Path) -> bool:
+        """A symlinked file is admitted under its own name, unless its target is somewhere the walk
+        would never go: outside the root, or inside an ignored, dot-prefixed or nested-checkout
+        directory. Otherwise `ios/Pods/Headers/Public/X.h` → `node_modules/react-native/X.h` puts
+        an ignored tree back into the graph one file at a time.
+        """
+        try:
+            target = path.resolve(strict=True)
+            rel = target.relative_to(root_real)
+        except (OSError, ValueError):
+            return False
+        parts = rel.parts[:-1]
+        if any(p in self._ignore_dirs or p.startswith(".") for p in parts):
+            return False
+        cursor = root_real
+        for p in parts:
+            if is_nested_repo(cursor, p):
+                return False
+            cursor = cursor / p
+        return True
 
 
 __all__ = [

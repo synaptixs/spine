@@ -106,7 +106,18 @@ class ProjectProfile:
 
 
 def _detect_languages(root: Path) -> frozenset[str]:
-    found: set[str] = set()
+    return frozenset(language_file_counts(root))
+
+
+def language_file_counts(root: Path) -> dict[str, int]:
+    """Source files per language under ``root``, walked the way the extractor walks.
+
+    The *counts*, not only the set: `--language auto` used to scaffold Python whenever a single
+    `.py` existed anywhere the walk reached — a build script under `ios/Pods` turned a React
+    Native app into a Python package (CB-686). What a repository *is* is what most of its
+    source is; one stray file is not a vote.
+    """
+    found: dict[str, int] = {}
     paths: list[Path] = []
     for dirpath, dirnames, filenames in os.walk(root):
         here = Path(dirpath)
@@ -125,8 +136,8 @@ def _detect_languages(root: Path) -> frozenset[str]:
         rel = path.relative_to(root).as_posix()
         lang = "cpp" if rel in cpp_headers else _LANG_BY_SUFFIX.get(path.suffix)
         if lang:
-            found.add(lang)
-    return frozenset(found)
+            found[lang] = found.get(lang, 0) + 1
+    return found
 
 
 def _read_markers(root: Path) -> str:
@@ -188,6 +199,10 @@ def _detect_framework(markers: str, languages: frozenset[str]) -> str | None:
         ("flask", "flask"),
         ("springframework", "spring"),
         ('"react"', "react"),
+        # Blazor before ASP.NET: every Blazor project also references Microsoft.AspNetCore, and
+        # the first needle wins. The Components package or the WebAssembly SDK is the tell.
+        ("microsoft.aspnetcore.components", "blazor"),
+        ("microsoft.net.sdk.blazorwebassembly", "blazor"),
         ("microsoft.aspnetcore", "aspnet"),
         ("microsoft.net.sdk.web", "aspnet"),
         ("io.ktor", "ktor"),

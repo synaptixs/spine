@@ -17,6 +17,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
+    from orchestrator.pkg import FactStore
     from orchestrator.sdlc.contracts import PreflightRunner, TestEnvironment, TestRunner
     from orchestrator.sdlc.contracts import ToolchainLayout as TargetLayout
     from orchestrator.sdlc.process import ExecCapture
@@ -431,12 +432,53 @@ def get_toolchain(language: str) -> Toolchain:
     return TOOLCHAINS.get(language, TOOLCHAINS["python"])
 
 
-def detect_language(languages: set[str] | frozenset[str]) -> str:
-    if "python" in languages:
-        return "python"
+def detect_language(languages: Mapping[str, int] | set[str] | frozenset[str]) -> str:
+    """The codegen language a repository *is*: the one with the most source, not the first seen.
+
+    Given counts, the language with the most files wins among those a toolchain exists for;
+    Python is a candidate like any other, so a TypeScript app with a build script under it stays
+    TypeScript (CB-686 scaffolded `src/cb_686/account.py` into a React Native app under the old
+    "Python if present" rule). A bare set is read as one file each, which keeps the earlier tie
+    rules: Python first, then the toolchain's `auto_priority`. Nothing supported → Python, so an
+    empty repository still gets the default scaffold.
+    """
+    counts = dict(languages) if isinstance(languages, Mapping) else dict.fromkeys(languages, 1)
     candidates = [
-        (row.auto_priority, name)
-        for name, row in TOOLCHAINS.items()
-        if name in languages and row.auto_priority is not None
+        name
+        for name in counts
+        if name == "python" or (name in TOOLCHAINS and TOOLCHAINS[name].auto_priority is not None)
     ]
-    return min(candidates)[1] if candidates else "python"
+    if not candidates:
+        return "python"
+
+    def rank(name: str) -> tuple[int, int, int, str]:
+        row = TOOLCHAINS.get(name)
+        priority = row.auto_priority if row is not None and row.auto_priority is not None else -1
+        # `name` last so two toolchains of equal count and equal priority — cpp and kotlin
+        # both sit at 5 — cannot be separated by the order the walk happened to fill the
+        # counts dict, which would flip on adding one file.
+        return (-counts[name], 0 if name == "python" else 1, priority, name)
+
+    return sorted(candidates, key=rank)[0]
+
+
+def resolve_language(root: Path, requested: str, *, store: FactStore | None = None) -> str:
+    """Resolve ``--language`` — ``auto`` from the graph when one is in hand, else from the tree.
+
+    One function for the plan, autorun and the feature runner, so the document a reviewer
+    approved and the scaffold the run produces cannot name different languages. With a
+    ``store``, the count is grounded nodes per language — what the graph says the repository
+    is; without one, source files per language from the same walk the extractor uses.
+    """
+    if requested != "auto":
+        return requested
+    if store is not None:
+        counts: dict[str, int] = {}
+        for node in store.nodes:
+            if node.grounded and node.language:
+                counts[node.language] = counts.get(node.language, 0) + 1
+        if counts:
+            return detect_language(counts)
+    from orchestrator.catalog.profile import language_file_counts
+
+    return detect_language(language_file_counts(root))

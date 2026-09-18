@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_adf_to_text`](../../src/orchestrator/intake/jira_source.py#L92) — reaches **10** symbols
-- [`_description_text`](../../src/orchestrator/intake/jira_source.py#L116) — reaches **9** symbols
-- [`issue_type_of`](../../src/orchestrator/intake/jira_source.py#L125) — reaches **9** symbols
-- [`issue_meta_header`](../../src/orchestrator/intake/jira_source.py#L143) — reaches **8** symbols
-- [`project_key_of`](../../src/orchestrator/intake/jira_source.py#L162) — reaches **8** symbols
-- [`_attachment_key`](../../src/orchestrator/intake/jira_source.py#L239) — reaches **7** symbols
-- [`_attachment_names`](../../src/orchestrator/intake/jira_source.py#L249) — reaches **5** symbols
-- [`_attachments_read_text`](../../src/orchestrator/intake/jira_source.py#L276) — reaches **5** symbols · **no test path visible**
+- [`_adf_to_text`](../../src/orchestrator/intake/jira_source.py#L97) — reaches **10** symbols
+- [`_description_text`](../../src/orchestrator/intake/jira_source.py#L121) — reaches **9** symbols
+- [`issue_type_of`](../../src/orchestrator/intake/jira_source.py#L130) — reaches **9** symbols
+- [`issue_meta_header`](../../src/orchestrator/intake/jira_source.py#L148) — reaches **8** symbols
+- [`project_key_of`](../../src/orchestrator/intake/jira_source.py#L167) — reaches **8** symbols
+- [`_attachment_key`](../../src/orchestrator/intake/jira_source.py#L244) — reaches **7** symbols
+- [`_attachment_names`](../../src/orchestrator/intake/jira_source.py#L254) — reaches **5** symbols
+- [`_attachments_read_text`](../../src/orchestrator/intake/jira_source.py#L281) — reaches **5** symbols · **no test path visible**
 
 _4 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -28,99 +28,99 @@ _4 of the symbols other code depends on here have no test path the graph can see
 
 ### `JiraSourceAdapter`
 
-[`src/orchestrator/intake/jira_source.py:286`](../../src/orchestrator/intake/jira_source.py#L286)
+[`src/orchestrator/intake/jira_source.py:292`](../../src/orchestrator/intake/jira_source.py#L292)
 
-- **Called by** (1 production · 3 test): [`build_jira_service`](../../src/orchestrator/intake/factory.py#L134), [`_adapter`](../../tests/intake/test_jira_source.py#L115), [`test_mcp_jira_matches_the_rest_adapter_byte_for_byte`](../../tests/intake/test_mcp_source.py#L216), [`test_unconfigured_adapter_raises`](../../tests/intake/test_jira_source.py#L319)
+- **Called by** (1 production · 3 test): [`build_jira_service`](../../src/orchestrator/intake/factory.py#L134), [`_adapter`](../../tests/intake/test_jira_source.py#L116), [`test_mcp_jira_matches_the_rest_adapter_byte_for_byte`](../../tests/intake/test_mcp_source.py#L216), [`test_unconfigured_adapter_raises`](../../tests/intake/test_jira_source.py#L320)
 - **Fields**: `_client`, `_config`, `_owns_client`, `source_kind`
 - **Documented in**: `docs/specs/capability-recommendations-kg-grounded.md#c10-generalized-mcp-backed-sources-confluence-jira-any-source-effort-m-enhancement`
 
 ### `_AttachmentTooLargeError`
 
-[`src/orchestrator/intake/jira_source.py:84`](../../src/orchestrator/intake/jira_source.py#L84)
+[`src/orchestrator/intake/jira_source.py:89`](../../src/orchestrator/intake/jira_source.py#L89)
 
 - **Extends** (1): `Exception`
-- **Called by** (1): [`_get_bytes`](../../src/orchestrator/intake/jira_source.py#L413)
+- **Called by** (1): [`_get_bytes`](../../src/orchestrator/intake/jira_source.py#L441)
 
 ### `_OffHostError`
 
-[`src/orchestrator/intake/jira_source.py:88`](../../src/orchestrator/intake/jira_source.py#L88)
+[`src/orchestrator/intake/jira_source.py:93`](../../src/orchestrator/intake/jira_source.py#L93)
 
 - **Extends** (1): `Exception`
-- **Called by** (1): [`_get_bytes`](../../src/orchestrator/intake/jira_source.py#L413)
+- **Called by** (1): [`_get_bytes`](../../src/orchestrator/intake/jira_source.py#L441)
 
 ## Functions
 
 ### `_adf_to_text`
 
-[`src/orchestrator/intake/jira_source.py:92`](../../src/orchestrator/intake/jira_source.py#L92)
+[`src/orchestrator/intake/jira_source.py:97`](../../src/orchestrator/intake/jira_source.py#L97)
 
-- **Called by** (2 production · 1 test): [`_adf_to_text`](../../src/orchestrator/intake/jira_source.py#L92), [`_description_text`](../../src/orchestrator/intake/jira_source.py#L116), [`test_adf_to_text_flattens_paragraphs_and_lists`](../../tests/intake/test_jira_source.py#L123)
-- **Calls** (1): [`_adf_to_text`](../../src/orchestrator/intake/jira_source.py#L92)
+- **Called by** (2 production · 1 test): [`_adf_to_text`](../../src/orchestrator/intake/jira_source.py#L97), [`_description_text`](../../src/orchestrator/intake/jira_source.py#L121), [`test_adf_to_text_flattens_paragraphs_and_lists`](../../tests/intake/test_jira_source.py#L124)
+- **Calls** (1): [`_adf_to_text`](../../src/orchestrator/intake/jira_source.py#L97)
 
 ### `_attachment_key`
 
-[`src/orchestrator/intake/jira_source.py:239`](../../src/orchestrator/intake/jira_source.py#L239)
+[`src/orchestrator/intake/jira_source.py:244`](../../src/orchestrator/intake/jira_source.py#L244)
 
-- **Called by** (2): [`_attachment_names`](../../src/orchestrator/intake/jira_source.py#L249), [`_attachment_texts`](../../src/orchestrator/intake/jira_source.py#L347)
+- **Called by** (2): [`_attachment_names`](../../src/orchestrator/intake/jira_source.py#L254), [`_attachment_texts`](../../src/orchestrator/intake/jira_source.py#L353)
 - **Calls** (1): `pathlib.Path`
 
 ### `_attachment_names`
 
-[`src/orchestrator/intake/jira_source.py:249`](../../src/orchestrator/intake/jira_source.py#L249)
+[`src/orchestrator/intake/jira_source.py:254`](../../src/orchestrator/intake/jira_source.py#L254)
 
-- **Called by** (1 production · 2 test): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L296), [`test_a_bare_ticket_gains_no_empty_sections`](../../tests/intake/test_jira_source.py#L194), [`test_attachments_are_named_but_never_claimed_to_be_read`](../../tests/intake/test_jira_source.py#L185)
-- **Calls** (2): [`_attachment_key`](../../src/orchestrator/intake/jira_source.py#L239), `pathlib.Path`
+- **Called by** (1 production · 2 test): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L302), [`test_a_bare_ticket_gains_no_empty_sections`](../../tests/intake/test_jira_source.py#L195), [`test_attachments_are_named_but_never_claimed_to_be_read`](../../tests/intake/test_jira_source.py#L186)
+- **Calls** (2): [`_attachment_key`](../../src/orchestrator/intake/jira_source.py#L244), `pathlib.Path`
 
 ### `_attachments_read_text`
 
-[`src/orchestrator/intake/jira_source.py:276`](../../src/orchestrator/intake/jira_source.py#L276)
+[`src/orchestrator/intake/jira_source.py:281`](../../src/orchestrator/intake/jira_source.py#L281)
 
-- **Called by** (1): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L296)
+- **Called by** (1): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L302)
 
 ### `_collapse`
 
-[`src/orchestrator/intake/jira_source.py:167`](../../src/orchestrator/intake/jira_source.py#L167)
+[`src/orchestrator/intake/jira_source.py:172`](../../src/orchestrator/intake/jira_source.py#L172)
 
-- **Called by** (1): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L296)
+- **Called by** (1): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L302)
 
 ### `_comments_text`
 
-[`src/orchestrator/intake/jira_source.py:171`](../../src/orchestrator/intake/jira_source.py#L171)
+[`src/orchestrator/intake/jira_source.py:176`](../../src/orchestrator/intake/jira_source.py#L176)
 
-- **Called by** (1 production · 3 test): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L296), [`test_a_bare_ticket_gains_no_empty_sections`](../../tests/intake/test_jira_source.py#L194), [`test_a_long_comment_is_marked_where_it_was_cut`](../../tests/intake/test_jira_source.py#L157), [`test_comments_are_newest_first_and_say_what_was_left_out`](../../tests/intake/test_jira_source.py#L138)
-- **Calls** (1): [`_description_text`](../../src/orchestrator/intake/jira_source.py#L116)
+- **Called by** (1 production · 3 test): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L302), [`test_a_bare_ticket_gains_no_empty_sections`](../../tests/intake/test_jira_source.py#L195), [`test_a_long_comment_is_marked_where_it_was_cut`](../../tests/intake/test_jira_source.py#L158), [`test_comments_are_newest_first_and_say_what_was_left_out`](../../tests/intake/test_jira_source.py#L139)
+- **Calls** (1): [`_description_text`](../../src/orchestrator/intake/jira_source.py#L121)
 
 ### `_description_text`
 
-[`src/orchestrator/intake/jira_source.py:116`](../../src/orchestrator/intake/jira_source.py#L116)
+[`src/orchestrator/intake/jira_source.py:121`](../../src/orchestrator/intake/jira_source.py#L121)
 
-- **Called by** (3 production · 1 test): [`_comments_text`](../../src/orchestrator/intake/jira_source.py#L171), [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L296), [`_parse_document`](../../src/orchestrator/intake/mcp_source.py#L112), [`test_description_text_handles_plain_and_none`](../../tests/intake/test_jira_source.py#L129)
-- **Calls** (1): [`_adf_to_text`](../../src/orchestrator/intake/jira_source.py#L92)
+- **Called by** (3 production · 1 test): [`_comments_text`](../../src/orchestrator/intake/jira_source.py#L176), [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L302), [`_parse_document`](../../src/orchestrator/intake/mcp_source.py#L112), [`test_description_text_handles_plain_and_none`](../../tests/intake/test_jira_source.py#L130)
+- **Calls** (1): [`_adf_to_text`](../../src/orchestrator/intake/jira_source.py#L97)
 
 ### `_links_text`
 
-[`src/orchestrator/intake/jira_source.py:211`](../../src/orchestrator/intake/jira_source.py#L211)
+[`src/orchestrator/intake/jira_source.py:216`](../../src/orchestrator/intake/jira_source.py#L216)
 
-- **Called by** (1 production · 2 test): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L296), [`test_a_bare_ticket_gains_no_empty_sections`](../../tests/intake/test_jira_source.py#L194), [`test_links_carry_the_sideways_relations_the_child_walk_never_reaches`](../../tests/intake/test_jira_source.py#L166)
+- **Called by** (1 production · 2 test): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L302), [`test_a_bare_ticket_gains_no_empty_sections`](../../tests/intake/test_jira_source.py#L195), [`test_links_carry_the_sideways_relations_the_child_walk_never_reaches`](../../tests/intake/test_jira_source.py#L167)
 
 ### `issue_meta_header`
 
-[`src/orchestrator/intake/jira_source.py:143`](../../src/orchestrator/intake/jira_source.py#L143)
+[`src/orchestrator/intake/jira_source.py:148`](../../src/orchestrator/intake/jira_source.py#L148)
 
-- **Called by** (2): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L296), [`_parse_document`](../../src/orchestrator/intake/mcp_source.py#L112)
-- **Calls** (1): [`issue_type_of`](../../src/orchestrator/intake/jira_source.py#L125)
+- **Called by** (2): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L302), [`_parse_document`](../../src/orchestrator/intake/mcp_source.py#L112)
+- **Calls** (1): [`issue_type_of`](../../src/orchestrator/intake/jira_source.py#L130)
 
 ### `issue_type_of`
 
-[`src/orchestrator/intake/jira_source.py:125`](../../src/orchestrator/intake/jira_source.py#L125)
+[`src/orchestrator/intake/jira_source.py:130`](../../src/orchestrator/intake/jira_source.py#L130)
 
-- **Called by** (3): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L296), [`_parse_document`](../../src/orchestrator/intake/mcp_source.py#L112), [`issue_meta_header`](../../src/orchestrator/intake/jira_source.py#L143)
+- **Called by** (3): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L302), [`_parse_document`](../../src/orchestrator/intake/mcp_source.py#L112), [`issue_meta_header`](../../src/orchestrator/intake/jira_source.py#L148)
 
 ### `project_key_of`
 
-[`src/orchestrator/intake/jira_source.py:162`](../../src/orchestrator/intake/jira_source.py#L162)
+[`src/orchestrator/intake/jira_source.py:167`](../../src/orchestrator/intake/jira_source.py#L167)
 
-- **Called by** (2): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L296), [`_parse_document`](../../src/orchestrator/intake/mcp_source.py#L112)
+- **Called by** (2): [`_issue_to_document`](../../src/orchestrator/intake/jira_source.py#L302), [`_parse_document`](../../src/orchestrator/intake/mcp_source.py#L112)
 
 ## Imports
 

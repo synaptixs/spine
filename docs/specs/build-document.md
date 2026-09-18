@@ -130,7 +130,7 @@ italic form: `*(model)*` after the claim, not in a footnote.
 
 ---
 
-## 4. Acceptance criteria have three states, not one
+## 4. Acceptance criteria have four states, not one
 
 Section 8 cannot be labelled `stated` and left there. SSPN-49 proves why: the
 spec filed six criteria, the built document carries four, and the two that
@@ -138,13 +138,34 @@ vanished did so because `_check()` already satisfied them. That deletion is the
 single most valuable finding on the page, and it survived only in a side
 document.
 
-Every criterion carries one of three states:
+Every criterion carries one of four states:
 
 | state | means | provenance |
 |---|---|---|
-| **stated** | Filed on the ticket, not yet met by the code. | stated |
+| **stated** | Filed on the ticket — matching a whole line of its text — and not yet met by the code. | stated |
 | **stated · already met** | Filed on the ticket, and the code already does it. Names the function and line that satisfies it. | stated claim, **model** judgement |
+| **derived · model** | Filed as stated by the spec writer, but matching no line of the ticket's text: the model rewrote or inferred it, or the ticket wrapped it across lines. | derived · model |
 | **proposed** | Nobody filed it; the spec writer inferred it. | derived · model |
+
+**`stated` is checked, not trusted.** The spec writer is told to copy filed criteria
+verbatim; NSS-1231 is the measured case of a model not doing it. So the label is earned by
+matching **a whole line** of the ticket's text as intake read it — description, comments and
+attachments, which `sdlc plan --source` has in hand — or, without one, the intent's own
+description and scope, which intake carries unchanged. Lines are compared with their bullet
+or numbering stripped, whitespace collapsed and case folded.
+
+Whole lines, not containment: a ticket saying *"deletion is cancellable only for admins"*
+would otherwise certify the filed criterion *"deletion is cancellable"* as quoted — the
+model dropping the qualifier that mattered, wearing the ticket's label — and a short
+criterion ("add a test") would match almost any prose. The cost is that a criterion the
+ticket wrapped across two lines reads `derived · model` although it is quoted; that is the
+safe direction — unproven rather than falsely certified — and the reason is recorded here
+because the label, not the text, is what a reader trusts.
+
+A spec with no ticket text at all (a hand-written `--spec` file) cannot be checked: the
+section says so and labels every filed criterion `derived · model`. The ticket text is kept
+beside the plan, because the approval gate proves an approval by re-deriving the document
+and has to see the same input.
 
 **Nothing is deleted.** An already-met criterion stays on the page with its
 evidence, because a run that reports it met having changed nothing is exactly the

@@ -519,10 +519,10 @@ async def _require_plan(
         emit("[plan] gate skipped (--no-plan-gate) — nothing was reviewed before this run")
         return
     try:
-        from orchestrator.sdlc.feature_runner import _resolve_language
+        from orchestrator.sdlc.toolchains import resolve_language
 
         approval = await require_approved_plan(
-            ctx.spec or {}, root=ctx.root, language=_resolve_language(ctx.root, language)
+            ctx.spec or {}, root=ctx.root, language=resolve_language(ctx.root, language)
         )
     except PlanNotApprovedError as exc:
         ctx.record_stage("plan", "failed", str(exc))
@@ -1093,10 +1093,14 @@ async def _stage_implement(
     ctx.worktree = result.worktree
     ctx.pr_url = result.pr_url
     ctx.fixer, ctx.tests = result.codegen, result.tests
+    # A withdrawn cover test rides on the outcome line: the run is green, and less proven than
+    # green implies. Anyone reading the journey later must see that in the same place.
+    withdrawn = ", ".join(Path(f).name for f in getattr(result, "coverage_withdrawn", ()))
     ctx.record_stage(
         "implement",
         "ok",
-        f"{len(result.files)} file(s) changed on {result.branch} after {result.iterations} test run(s)",
+        f"{len(result.files)} file(s) changed on {result.branch} after {result.iterations} test run(s)"
+        + (f"; coverage withdrawn: {withdrawn}" if withdrawn else ""),
     )
     # The disagreement, if there is one, is the most valuable line in the journey: a run
     # that quietly edited three files nobody planned is visible today only by reading the

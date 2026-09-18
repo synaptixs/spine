@@ -78,3 +78,90 @@ def test_render_empty_when_no_downstream() -> None:
     batch.add_node(Node("py:m.lonely", NodeKind.FUNCTION, "lonely", "python", Provenance("m.py", 1, 2)))
     r = GroundedRetriever(FactStore(batch))
     assert r.render(r.diff_impact({"m.py": {1}})) == ""
+
+
+# ---- D7: the suffix stripper (CB-686) ------------------------------------------------------------
+
+
+def test_prose_inflections_reduce_to_the_bare_name_and_short_words_are_left_alone() -> None:
+    from orchestrator.pkg.retrieval import _tokens
+
+    assert _tokens("deletion deleted deleting delete") == {"delet"}
+    assert _tokens("licences Licence policies policy caching cache created creation") == {
+        "licenc",
+        "policy",
+        "cach",
+        "creat",
+    }
+    # Never below four characters, and `Reader` stays apart from `read`.
+    assert _tokens("string type name Reader read") == {"string", "type", "name", "reader", "read"}
+    # The NSS-1231 words are unchanged.
+    assert _tokens("EBSOrderApiClient client credentials") == {"ebsorder", "api", "client", "credential"}
+
+
+def _cb_686_store() -> FactStore:
+    """The CB-686 shape after the vendored trees are gone: the screen the ticket is about, and
+    an unrelated chat type whose two fields happen to be called `reason`."""
+    b = FactBatch()
+    screen = "src/screens/deleteAccount/index.tsx"
+    chat = "src/types/chat.ts"
+    b.add_node(
+        Node(
+            "ts:src/screens/deleteAccount",
+            NodeKind.MODULE,
+            "src/screens/deleteAccount",
+            "typescript",
+            Provenance(screen, 1),
+        )
+    )
+    b.add_node(
+        Node(
+            "ts:src/screens/deleteAccount.DeleteAccountScreen",
+            NodeKind.FUNCTION,
+            "DeleteAccountScreen",
+            "typescript",
+            Provenance(screen, 3),
+        )
+    )
+    b.add_node(
+        Node(
+            "ts:src/screens/deleteAccount.onDeleteAccount",
+            NodeKind.FUNCTION,
+            "onDeleteAccount",
+            "typescript",
+            Provenance(screen, 9),
+        )
+    )
+    b.add_node(
+        Node("ts:src/types/chat", NodeKind.MODULE, "src/types/chat", "typescript", Provenance(chat, 1))
+    )
+    b.add_node(
+        Node("ts:src/types/chat.BaseMessage", NodeKind.TYPE, "BaseMessage", "typescript", Provenance(chat, 2))
+    )
+    b.add_node(
+        Node(
+            "ts:src/types/chat.BaseMessage.reason",
+            NodeKind.FIELD,
+            "reason",
+            "typescript",
+            Provenance(chat, 4),
+        )
+    )
+    b.add_node(Node("ts:src/types/chat.Product", NodeKind.TYPE, "Product", "typescript", Provenance(chat, 8)))
+    b.add_node(
+        Node("ts:src/types/chat.Product.reason", NodeKind.FIELD, "reason", "typescript", Provenance(chat, 10))
+    )
+    return FactStore(b)
+
+
+def test_cb_686_account_deletion_lands_on_the_delete_account_screen() -> None:
+    """Before the stripper `deletion` matched nothing, so two `reason` fields of an unrelated
+    type outranked the screen. Now the screen's file leads, the screen itself is a strong hit
+    above every `reason`, and the handler in the same file is the whole-name match on top."""
+    hits = GroundedRetriever(_cb_686_store()).scored_symbols("Add reason for account deletion")
+    names = [h.node.name for h in hits]
+    assert hits[0].node.provenance is not None
+    assert hits[0].node.provenance.file == "src/screens/deleteAccount/index.tsx"
+    screen = next(h for h in hits if h.node.name == "DeleteAccountScreen")
+    assert screen.matched == ("account", "delet") and not screen.weak
+    assert names.index("DeleteAccountScreen") < names.index("reason")
