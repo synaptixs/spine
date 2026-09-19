@@ -77,7 +77,7 @@
 [`src/orchestrator/sdlc/evidence.py:345`](../../src/orchestrator/sdlc/evidence.py#L345)
 
 - **Called by** (1 production · 1 test): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L184), [`test_the_autorun_landing_rows_carry_weak_and_are_filtered`](../../tests/sdlc/test_honest_uncertainty.py#L238)
-- **Calls** (1): [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L127)
+- **Calls** (1): [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L182)
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#half-one-parallel-fan-out-measured-30ms-available-declined`
 
 ### `_tool_rca`
@@ -85,7 +85,7 @@
 [`src/orchestrator/sdlc/evidence.py:370`](../../src/orchestrator/sdlc/evidence.py#L370)
 
 - **Called by** (1): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L184)
-- **Calls** (2): [`_rca_to_dict`](../../src/orchestrator/sdlc/evidence.py#L214), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L215)
+- **Calls** (2): [`_rca_to_dict`](../../src/orchestrator/sdlc/evidence.py#L214), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L219)
 
 ### `_tool_validity`
 

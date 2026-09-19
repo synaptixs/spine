@@ -188,15 +188,24 @@ def investigate(
                 "has uncommitted work or is not a git repo.",
                 err=True,
             )
-        # `root=None`: `episteme/` belongs to one repository, and a merged brief has no single
-        # owner for it. The section is omitted rather than filled from an arbitrary repo — the
-        # brief is written to be honest when a section has nothing grounded.
+        # `episteme/` belongs to one repository, so a merged brief cannot take the section from
+        # an arbitrary one — it used to omit it entirely, which made the multi-repo mode (the
+        # one a cross-cutting ticket needs) the only mode with no project knowledge at all.
+        # Instead: every declared root, from which the brief reads only the repositories its
+        # landing sites are actually in, each labelled by key (D8).
         if intents:
             # Single-repo only: blame is per checkout, and a merged graph has several. Said
             # rather than ignored — a flag that silently does nothing is worse than one that
             # is refused.
             typer.echo("investigate: --intents does not apply with --repos (blame is per repo)", err=True)
-        inv = build_investigation(ticket_title, problem, store=FactStore(merged.batch), root=None)
+        inv = build_investigation(
+            ticket_title,
+            problem,
+            store=FactStore(merged.batch),
+            # `.roots`, not the RepoSet itself: `keys` is a property, so `dict()` takes the
+            # mapping path, calls it, and dies on a tuple.
+            repo_roots=dict(repo_set.roots),
+        )
     else:
         with _repo_arg(path) as (repo, _):
             extractor = RepoCodeExtractor(sql_dialect=dialect)

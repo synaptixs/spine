@@ -20,6 +20,7 @@ design (C1): research first, then design with the findings in hand.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -38,6 +39,15 @@ class Landing:
     kind: str  # Function | Type | Module | …
     callers: int
     module: str  # owning module (touch-risk context)
+    #: Does any test transitively reach this symbol? **`None` means "cannot tell"** — the
+    #: language has no call graph — and is rendered as silence, never as "untested". A front
+    #: end that emits no `CALLS` edges has not proven an absence of tests.
+    covered: bool | None = None
+    #: The graph node this landing *is*. Kept because the brief has it in hand while building
+    #: the row and used to throw it away — and re-deriving it later from ``name`` can return a
+    #: different node, so the excerpt and the coverage line would describe a symbol the reader
+    #: is not looking at. Empty only for a `Landing` constructed outside the retriever.
+    node_id: str = ""
     #: Dependents in **other** repositories — what breaks elsewhere if this changes.
     #:
     #: `callers` counts inbound ``CALLS`` and nothing else, which is right for a function and
@@ -87,6 +97,9 @@ class Investigation:
     areas: list[str] = field(default_factory=list)  # distinct owning modules
     #: Repositories the landing sites fall in, when the graph is merged. Empty single-repo.
     repos: list[str] = field(default_factory=list)
+    #: Repo key → checkout root, for reading the files the landings point at. Empty key is
+    #: the single-repo case. Render-time only; never part of what the brief asserts.
+    roots: dict[str, Path] = field(default_factory=dict)
     #: Symbols that matched but were cut by ``max_symbols``. Bounded honestly: a truncated
     #: list must read as "top N of M", never as the complete answer (`CLAUDE.md` invariant 7).
     elided: int = 0
@@ -124,16 +137,64 @@ def _cross_repo_dependents(store: FactStore, node_id: str, repo: str) -> int:
     return sum(1 for node, _ in store.impact_of(node_id) if unscope_id(node.id)[0] not in ("", repo))
 
 
+#: The single-repo grounding budget, split across the repositories a merged brief reads —
+#: never multiplied by them. A section that grows with the repository count crowds out the
+#: landing sites, which are the thing the reader came for.
+_MERGED_KNOWLEDGE_BUDGET = 2500
+
+
+def _merged_knowledge(repo_roots: Mapping[str, Path], repos: list[str]) -> str:
+    """Each landed-in repository's own ``episteme/``, headed by its key (D8).
+
+    **Only the repositories this ticket lands in.** A merged graph may declare four
+    repositories; a brief that landed in one should not carry another service's domain model,
+    and the brief already knows which repos its landing sites are in.
+
+    **A declared repository whose bank is missing is named, not skipped.** Silence would read
+    as "that repository has nothing to say", when what it means is "nobody ran `understand`
+    there" — the same distinction the brief keeps everywhere else.
+    """
+    from orchestrator.knowledge.access import memory_bank_grounding
+
+    landed = [key for key in repos if key in repo_roots]
+    if not landed:
+        return ""
+
+    per_repo = max(_MERGED_KNOWLEDGE_BUDGET // len(landed), 400)
+    blocks: list[str] = []
+    absent: list[str] = []
+    for key in landed:
+        body = memory_bank_grounding(repo_roots[key], budget=per_repo)
+        if body:
+            blocks.append(f"### `{key}`\n\n{body}")
+        else:
+            absent.append(key)
+
+    if absent:
+        names = ", ".join(f"`{k}`" for k in absent)
+        blocks.append(
+            f"_No committed `episteme/` in {names} — run `orchestrator understand .` there. "
+            "Absent, not empty._"
+        )
+    return "\n\n".join(blocks)
+
+
 def build_investigation(
     title: str,
     problem: str,
     *,
     store: FactStore,
     root: Path | str | None = None,
+    repo_roots: Mapping[str, Path] | None = None,
     prior_notes: list[str] | None = None,
     max_symbols: int = 10,
 ) -> Investigation:
-    """Research ``title``/``problem`` against the PKG + episteme. Deterministic."""
+    """Research ``title``/``problem`` against the PKG + episteme. Deterministic.
+
+    ``root`` is the single repository whose ``episteme/`` to read. ``repo_roots`` is the
+    multi-repo form — every declared repository by key — from which only the repos this
+    ticket actually lands in are read (D8). Pass one or the other, not both.
+    """
     from orchestrator.pkg.retrieval import GroundedRetriever
     from orchestrator.pkg.scoping import unscope_id
 
@@ -143,6 +204,13 @@ def build_investigation(
     elided = max(0, len(hits) - max_symbols)
     hits = hits[:max_symbols]
     parents = store.parents_index()
+
+    # Built once for the whole brief, not per landing: `build_regression_plan` rebuilds a
+    # predecessor index over every edge each time it is called, which its own docstring calls
+    # "far too slow" for exactly this — one lookup per landing site.
+    from orchestrator.sdlc.coverage import CoverageIndex
+
+    coverage = CoverageIndex(store)
 
     landing: list[Landing] = []
     areas: list[str] = []
@@ -154,6 +222,8 @@ def build_investigation(
         landing.append(
             Landing(
                 name=n.name,
+                node_id=n.id,
+                covered=coverage.is_covered(n.id) if coverage.call_graph_available else None,
                 where=str(n.provenance) if n.provenance else "",
                 kind=n.kind.value,
                 callers=len(store.callers_of(n.id)),
@@ -177,11 +247,22 @@ def build_investigation(
         if repo and repo not in repos:
             repos.append(repo)
 
+    # Kept so the renderer can read the files these landings point at. Not a `Path` on the
+    # Landing itself: a landing is a fact about the graph, and where that repository sits on
+    # this machine is not.
+    roots: dict[str, Path] = {}
+    if repo_roots:
+        roots = {k: Path(v) for k, v in repo_roots.items()}
+    elif root is not None:
+        roots = {"": Path(root)}
+
     knowledge = ""
     if root is not None:
         from orchestrator.knowledge.access import memory_bank_grounding
 
         knowledge = memory_bank_grounding(root)
+    elif repo_roots:
+        knowledge = _merged_knowledge(repo_roots, repos)
 
     return Investigation(
         title=title,
@@ -193,6 +274,7 @@ def build_investigation(
         grounded=store.summary().get("grounded_nodes", 0) > 0,
         repos=repos,
         elided=elided,
+        roots=roots,
     )
 
 
@@ -239,6 +321,37 @@ def _not_verified(inv: Investigation) -> str:
     return "\n".join(notes)
 
 
+#: Landing sites whose source is quoted. Three, not all of them: a brief is read at a gate,
+#: and evidence that runs past the reader's attention has failed differently, not less. The
+#: rest keep their bullet, and the count of what was not quoted is stated (invariant 7).
+_MAX_EXCERPTS = 3
+
+
+def _excerpts_for(inv: Investigation) -> dict[int, str]:
+    """Fenced source for the first few landings, by index. Silently skips what it cannot read.
+
+    The brief already computed the exact `file:line` for every row and then declined to open
+    it — which is the whole defect this closes: a document *about* code, containing none.
+    """
+    from orchestrator.sdlc.excerpt import source_at
+
+    out: dict[int, str] = {}
+    for i, hit in enumerate(inv.landing):
+        if len(out) >= _MAX_EXCERPTS:
+            break
+        # Never spend the budget on a row the brief itself doubts. A weak landing matched on
+        # a fragment other files share — quoting twelve lines of it costs the reader exactly
+        # the attention that should have gone to a strong one. When *every* landing is weak
+        # the brief already says so in words, and no excerpt is the honest answer.
+        if hit.weak:
+            continue
+        root = inv.roots.get(hit.repo) or inv.roots.get("")
+        excerpt = source_at(root, hit.where)
+        if excerpt is not None:
+            out[i] = excerpt.fenced()
+    return out
+
+
 def render_investigation_md(inv: Investigation) -> str:
     """Render the brief as markdown. Honest when a section has nothing grounded.
 
@@ -253,9 +366,10 @@ def render_investigation_md(inv: Investigation) -> str:
         doc.add(brief.PROBLEM, inv.problem)
 
     out: list[str] = []
+    excerpts = _excerpts_for(inv)
     if inv.landing:
         out.append("_Lexically-retrieved from the knowledge graph — start here, confirm before trusting._\n")
-        for hit in inv.landing:
+        for i, hit in enumerate(inv.landing):
             loc = f" — {hit.location}" if hit.where else ""
             in_mod = f" _(in {hit.module})_" if hit.module and hit.module != hit.name else ""
             # The repo goes first, before the symbol: in a merged graph it is the field that
@@ -278,8 +392,21 @@ def render_investigation_md(inv: Investigation) -> str:
             # rather than promoting them to files to touch.
             shared = ", ".join(f"`{t}`" for t in hit.matched)
             basis = f" — weak: only {shared}, which other files use too" if hit.weak and hit.matched else ""
-            head = f"- {prefix}`{hit.name}` ({hit.kind}, {hit.callers} caller(s){reach})"
+            # Stated only when the graph can answer it *and* the row is worth the reader's
+            # attention. "No test reaches this" is a finding on a strong landing and noise on
+            # a weak one — on a real ticket it fired in bold on all ten rows, including DTO
+            # fields nobody would test, which is a signal that has stopped being one.
+            tested = ""
+            if not hit.weak:
+                if hit.covered is True:
+                    tested = " · reached by tests"
+                elif hit.covered is False:
+                    tested = " · **no test reaches this**"
+            head = f"- {prefix}`{hit.name}` ({hit.kind}, {hit.callers} caller(s){reach}{tested})"
             out.append(f"{head}{in_mod}{loc}{served}{basis}")
+            if (excerpt := excerpts.get(i)) is not None:
+                # Indented so it reads as part of the bullet, not as a sibling of it.
+                out.append("\n" + "\n".join("  " + ln for ln in excerpt.splitlines()) + "\n")
         if inv.landing and all(hit.weak for hit in inv.landing):
             out.append(
                 "\n_Every match rests only on words other files use too. That is not a landing site — this "
@@ -302,6 +429,11 @@ def render_investigation_md(inv: Investigation) -> str:
         if inv.elided:
             # "Top N of M", never a clipped list implying completeness.
             out.append(f"\n_Showing the top {len(inv.landing)}; {inv.elided} further match(es) not listed._")
+        if excerpts and len(inv.landing) > len(excerpts):
+            out.append(
+                f"\n_Source shown for {len(excerpts)} of {len(inv.landing)} landing(s) — "
+                "the rest carry their location only._"
+            )
         if inv.areas:
             out.append(f"\n_Likely areas: {', '.join(inv.areas)}_")
     elif not inv.grounded:

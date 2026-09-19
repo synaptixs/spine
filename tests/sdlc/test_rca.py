@@ -122,3 +122,26 @@ async def test_render_has_sections_and_stops_at_analysis() -> None:
     ):
         assert section in md
     assert "no code is changed" in md.lower()
+
+
+def test_the_fault_site_carries_the_source_at_its_line() -> None:
+    """An RCA whose hypotheses are templates over code nobody quoted asks the reader to take
+    the ranking on faith. Ranking *by evidence* means the evidence is on the page."""
+    from orchestrator.sdlc.rca import RCAReport, render_rca_md
+
+    md = render_rca_md(
+        RCAReport(
+            fault_site="f at a.py:1",
+            fault_module="a",
+            fault_source="```python\ndef f():\n    return d[k]\n```",
+        )
+    )
+    assert "## Fault site" in md and "return d[k]" in md
+
+
+def test_an_unlocalized_rca_has_no_excerpt_and_says_why() -> None:
+    from orchestrator.sdlc.rca import RCAReport, render_rca_md
+
+    md = render_rca_md(RCAReport())
+    assert "```" not in md.split("## Root-cause")[0]
+    assert "Not localized to a repo symbol" in md

@@ -152,7 +152,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/autorun.py:844`](../../src/orchestrator/sdlc/autorun.py#L844)
 
 - **Called by** (2 production · 5 test): [`_run`](../../scripts/phase2a_parity_gate.py#L88), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237), [`test_a_design_naming_invented_code_parks_the_run`](../../tests/sdlc/test_research_pass.py#L173), [`test_design_is_handed_the_evidence_blast_radius`](../../tests/sdlc/test_research_pass.py#L135), [`test_investigate_reads_the_evidence_instead_of_deriving_it_again`](../../tests/sdlc/test_research_pass.py#L64), [`test_the_imperative_path_still_derives_its_own_view`](../../tests/sdlc/test_research_pass.py#L113), [`test_the_landing_facts_survive_the_stage_boundary`](../../tests/sdlc/test_research_pass.py#L76)
-- **Calls** (5): [`_adopt_evidence`](../../src/orchestrator/sdlc/autorun.py#L878), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L641), [`_query_text`](../../src/orchestrator/sdlc/design.py#L104), [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L127), [`render_investigation_md`](../../src/orchestrator/sdlc/investigate.py#L242)
+- **Calls** (5): [`_adopt_evidence`](../../src/orchestrator/sdlc/autorun.py#L878), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L641), [`_query_text`](../../src/orchestrator/sdlc/design.py#L104), [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L182), [`render_investigation_md`](../../src/orchestrator/sdlc/investigate.py#L355)
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#phase-1-the-tool-node-type-the-evidence-artifact-and-the-sdlc-ir-in-shadow`
 
 ### `_stage_review`

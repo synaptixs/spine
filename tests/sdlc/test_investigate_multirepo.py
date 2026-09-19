@@ -128,3 +128,85 @@ def test_a_complete_list_does_not_claim_to_be_truncated(tmp_path: Path) -> None:
     )
     assert inv.elided == 0
     assert "not listed" not in render_investigation_md(inv)
+
+
+# ---- D8: a merged brief reads each landed-in repo's own episteme ------------
+
+
+def _with_bank(root: Path, name: str, body: str) -> None:
+    """Write a minimal committed knowledge base for one repo."""
+    bank = root / name / "episteme"
+    bank.mkdir(parents=True, exist_ok=True)
+    (bank / "domain-model.md").write_text(body, encoding="utf-8")
+
+
+def test_a_merged_brief_carries_each_landed_in_repo_under_its_key(tmp_path: Path) -> None:
+    """The mode a cross-cutting ticket needs used to be the only mode with no knowledge.
+
+    `episteme/` belongs to one repository, so a merged brief cannot take the section from an
+    arbitrary one — it omitted the section entirely instead, which is honest and useless.
+    """
+    store = _merged(tmp_path)
+    _with_bank(tmp_path, "web", "# Domain model\n\nCart is the web model.\n")
+    _with_bank(tmp_path, "billing", "# Domain model\n\nInvoice is the billing model.\n")
+
+    inv = build_investigation(
+        "orders failing",
+        "create_order is returning errors",
+        store=store,
+        repo_roots={"web": tmp_path / "web", "billing": tmp_path / "billing"},
+    )
+    md = render_investigation_md(inv)
+    assert "### `web`" in md and "Cart is the web model." in md
+    assert "### `billing`" in md and "Invoice is the billing model." in md
+
+
+def test_a_repo_the_ticket_never_lands_in_is_not_read(tmp_path: Path) -> None:
+    """A four-repo declaration must not put a second service's domain model in front of a
+    reader whose ticket never touches it. The brief already knows where it landed."""
+    store = _merged(tmp_path)
+    _with_bank(tmp_path, "web", "# Domain model\n\nCart is the web model.\n")
+    (tmp_path / "unrelated" / "episteme").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "unrelated" / "episteme" / "domain-model.md").write_text(
+        "# Domain model\n\nShipping is unrelated.\n", encoding="utf-8"
+    )
+
+    inv = build_investigation(
+        "orders failing",
+        "create_order is returning errors",
+        store=store,
+        repo_roots={
+            "web": tmp_path / "web",
+            "billing": tmp_path / "billing",
+            "unrelated": tmp_path / "unrelated",
+        },
+    )
+    assert "Shipping is unrelated." not in render_investigation_md(inv)
+
+
+def test_a_declared_repo_with_no_bank_is_named_not_skipped(tmp_path: Path) -> None:
+    """Silence reads as "that repository has nothing to say". It means nobody ran
+    `understand` there, which is a different statement and the reader's to act on."""
+    store = _merged(tmp_path)
+    _with_bank(tmp_path, "web", "# Domain model\n\nCart is the web model.\n")
+
+    inv = build_investigation(
+        "orders failing",
+        "create_order is returning errors",
+        store=store,
+        repo_roots={"web": tmp_path / "web", "billing": tmp_path / "billing"},
+    )
+    md = render_investigation_md(inv)
+    assert "`billing`" in md and "Absent, not empty." in md
+
+
+def test_the_knowledge_budget_is_split_across_repos_not_multiplied(tmp_path: Path) -> None:
+    """A section that grows with the repository count crowds out the landing sites, which are
+    what the reader came for."""
+    from orchestrator.sdlc.investigate import _MERGED_KNOWLEDGE_BUDGET, _merged_knowledge
+
+    for name in ("web", "billing"):
+        _with_bank(tmp_path, name, "# Domain model\n\n" + ("x" * 4000))
+    block = _merged_knowledge({"web": tmp_path / "web", "billing": tmp_path / "billing"}, ["web", "billing"])
+    # Two repos, one budget — plus the two per-repo headings and section framing.
+    assert len(block) < _MERGED_KNOWLEDGE_BUDGET * 1.5

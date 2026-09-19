@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import difflib
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -192,3 +193,103 @@ def _spec_anchors(blob: str) -> list[str]:
     # symbol, where a bare word may just be prose.
     found.sort(key=lambda t: 0 if f"`{t}`" in blob else 1)
     return found[:12]
+
+
+# ---- the public entry point: source at a location the graph already found -----
+
+#: Lines of context around a landing site. Twelve is a compromise argued in the plan: a
+#: C# property declaration and its attributes fit, a whole method usually does not, and a
+#: brief carrying three of these stays readable at a review gate.
+DEFAULT_CONTEXT_LINES = 12
+
+#: Fence hints by suffix. Only for syntax highlighting — a miss costs nothing, so the map is
+#: short on purpose rather than exhaustive and wrong.
+_FENCE = {
+    ".py": "python",
+    ".cs": "csharp",
+    ".razor": "razor",
+    ".ts": "typescript",
+    ".tsx": "tsx",
+    ".js": "javascript",
+    ".java": "java",
+    ".kt": "kotlin",
+    ".go": "go",
+    ".php": "php",
+    ".pl": "perl",
+    ".pm": "perl",
+    ".sql": "sql",
+    ".c": "c",
+    ".h": "c",
+    ".cpp": "cpp",
+    ".hpp": "cpp",
+    ".rb": "ruby",
+    ".yml": "yaml",
+    ".yaml": "yaml",
+    ".json": "json",
+    ".md": "markdown",
+}
+
+
+@dataclass(frozen=True)
+class Excerpt:
+    """Real source text at a real location, or nothing at all.
+
+    Returned rather than rendered so `investigate` and `rca` can place it differently while
+    reading the file the same way.
+    """
+
+    text: str
+    start_line: int  # 1-based, of `text`'s first line
+    language: str  # fence hint, "" when unknown
+
+    def fenced(self) -> str:
+        return f"```{self.language}\n{self.text}\n```"
+
+
+def source_at(
+    root: Path | str | None,
+    where: str,
+    *,
+    context: int = DEFAULT_CONTEXT_LINES,
+) -> Excerpt | None:
+    """``context`` lines centred on ``where`` (a ``file:line`` provenance), or ``None``.
+
+    **Every failure returns ``None``, never raises.** A brief exists to be read at a gate, and
+    a document that dies because a file moved since the graph was built is worse than one that
+    omits an excerpt and keeps the bullet. The cases are all real: a deleted path, a line
+    number past the end of a file that shrank, a binary blob whose suffix looked like source,
+    and a permission error on someone else's checkout.
+
+    Deterministic **given a commit** — it is a file read, so the same tree yields the same
+    text. On a dirty tree it reports what is on disk, which is what every other part of the
+    brief does, and which the brief already marks as not reproducible.
+    """
+    if root is None or not where:
+        return None
+    rel, _, line_s = where.rpartition(":")
+    if not rel or not line_s.isdigit():
+        return None
+    try:
+        path = Path(root) / rel
+        body = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError, ValueError):
+        return None
+
+    lines = body.splitlines()
+    if not lines:
+        return None
+    # A line past the end means the file changed since extraction. Clamping would quote the
+    # wrong code confidently; refusing says nothing, which is the honest answer.
+    center = int(line_s) - 1
+    if center < 0 or center >= len(lines):
+        return None
+
+    half = max(context // 2, 1)
+    low = max(center - half, 0)
+    high = min(low + context, len(lines))
+    low = max(high - context, 0)  # re-centre when the window hit the end
+    return Excerpt(
+        text="\n".join(lines[low:high]).rstrip(),
+        start_line=low + 1,
+        language=_FENCE.get(path.suffix.lower(), ""),
+    )

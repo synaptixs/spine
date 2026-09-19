@@ -78,7 +78,20 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.39.0 (current)** — a run now builds in the project the ticket is about. In a solution with
+**3.40.0 (current)** — the briefs stop pointing at code and start showing it. `investigate` and
+`root-cause` rendered the graph's index — symbol names, `file:line`, caller counts — and
+contained **zero lines of source**, so a reader opened the files the brief had already located.
+Each landing site now carries the code at its line and says whether a test reaches it; a
+root-cause report quotes its fault site, so "ranked by evidence, not asserted" means the
+evidence is on the page. A landing the brief itself calls **weak** gets neither — on a real
+ticket the first attempt spent two excerpts on DTOs matched on a three-letter fragment and
+printed "no test reaches this" in bold on all ten rows, which is a signal that has stopped being
+one. Where the graph cannot answer, the brief says nothing rather than accusing: a front-end
+that emits no call edges has not proven an absence of tests. And a merged multi-repo brief reads
+each repository's own `episteme/` under its key, so the mode a cross-cutting ticket needs is no
+longer the only one with no project knowledge.
+
+**3.39.0** — a run now builds in the project the ticket is about. In a solution with
 several projects the target used to be whichever one sorted first, so a WebApp ticket scaffolded
 into an API client and failed six test runs against a type that project cannot even see. Spine
 picks the project holding the files the plan names, else the one with the most source in that

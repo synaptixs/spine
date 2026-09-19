@@ -64,6 +64,10 @@ class RCAReport:
     exception: str = ""
     fault_site: str = ""  # "func at file:line"
     fault_module: str = ""
+    #: The source at the fault line, fenced, or "". An RCA whose hypotheses are templates over
+    #: code nobody quoted asks the reader to take the ranking on faith; the point of ranking
+    #: by evidence is that the evidence is on the page.
+    fault_source: str = ""
     callers: list[str] = field(default_factory=list)
     hypotheses: list[Hypothesis] = field(default_factory=list)
     regression_surface: list[str] = field(default_factory=list)
@@ -157,7 +161,7 @@ def _deterministic_fix_approach(loc: Localization) -> str:
     return (
         f"Add a regression test that reproduces{exc} at `{loc.fault.func}` ({loc.fault.where}) first "
         "(red → green), then guard/handle the offending input at the fault site. Re-run the tests "
-        "over the regression surface below before merging."
+        "over the regression surface above before merging."
     )
 
 
@@ -233,10 +237,15 @@ async def build_rca(
     # regression signal rather than a note about a busy area.
     recently_changed = bool(changed_recently([fault_file], root)) if fault_file else False
 
+    from orchestrator.sdlc.excerpt import source_at
+
+    excerpt = source_at(root, fault.where) if fault else None
+
     report = RCAReport(
         problem=problem.strip(),
         exception=loc.exception,
         fault_site=f"{fault.func} at {fault.where}" if fault else "",
+        fault_source=excerpt.fenced() if excerpt is not None else "",
         fault_module=fault.module if fault else fault_file,
         callers=loc.callers,
         hypotheses=_deterministic_hypotheses(
@@ -317,6 +326,8 @@ def render_rca_md(report: RCAReport) -> str:
         site = [report.fault_site + (f" (in {report.fault_module})" if report.fault_module else "")]
         if report.recently_changed:
             site.append("\n⚠ This module changed recently — treat a regression as the leading hypothesis.")
+        if report.fault_source:
+            site.append("\n" + report.fault_source)
         if report.callers:
             site.append("\n_Called by (potential trigger paths):_")
             site.extend(f"- {c}" for c in report.callers[:_MAX_CALLERS])

@@ -4,6 +4,52 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.40.0 — 2026-09-18
+
+### Added
+
+- **Briefs quote the code they located.** `investigate` and `root-cause` rendered the graph's
+  *index* — symbol names, `file:line`, caller counts — and stopped, so a reader opened the
+  files the brief had already found. Measured before this change: **zero** code blocks in
+  either. `investigate` now renders the source under the landing bullet it belongs to, for the
+  strongest few, saying how many it did not quote; `rca` quotes its fault site, so "ranked by
+  evidence, not asserted" means the evidence is on the page.
+
+  **Weak landings are never quoted, and never carry a coverage note.** On a real ticket the
+  first implementation spent two of three excerpts on DTOs the brief itself labelled *"weak:
+  only `auct`, which other files use too"*, and printed "no test reaches this" in bold on all
+  ten rows, including model fields nobody would test. A signal that fires on every row has
+  stopped being one; both now appear only where the retriever is confident.
+
+- **Each landing says whether a test reaches it.** *"no test reaches this"* is the line a
+  reviewer acts on. `covered` is three-valued: a language with no call graph renders **nothing**
+  rather than an accusation, because a front-end that emits no `CALLS` edges has not proven an
+  absence of tests.
+
+- `excerpt.source_at(root, "file:line")` — the module's first public entry point. Returns
+  `None` for every failure and raises for none: a deleted path, a line past the end of a file
+  that shrank, a binary blob, a permission error. A line past the end is **refused, not
+  clamped** — clamping quotes the wrong code confidently.
+
+### Fixed
+
+- A root-cause report told the reader to re-run tests "over the regression surface **below**"
+  when the shared section vocabulary puts it above. A document that points the wrong way.
+
+
+- **A merged multi-repo brief carries project knowledge again.** `investigate --repos` passed
+  `root=None` and omitted "Relevant project knowledge" entirely — `episteme/` belongs to one
+  repository and a merged brief has no single owner for it, so rather than fill the section
+  from an arbitrary repo it said nothing. Correct in isolation, and the consequence was that
+  the mode a cross-cutting ticket needs was the only mode with no project knowledge at all:
+  on a real two-repo pair with both knowledge bases committed, the brief still reported the
+  section absent. It now reads **each repository the ticket actually lands in**, headed by its
+  repo key — a fact the brief already had, so a four-repo declaration does not put a second
+  service's domain model in front of a reader whose ticket never touches it. The single-repo
+  budget is **split across those repos, never multiplied**, and a declared repository whose
+  bank is missing is **named rather than skipped**, because silence there reads as "that
+  repository has nothing to say" when it means nobody ran `understand` there.
+
 ## 3.39.0 — 2026-09-19
 
 A field report from the Nucor engagement (NSS-1239) and the follow-ups a maintainer review

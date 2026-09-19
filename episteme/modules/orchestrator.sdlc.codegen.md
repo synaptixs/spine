@@ -125,7 +125,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/codegen.py:2239`](../../src/orchestrator/sdlc/codegen.py#L2239)
 
 - **Called by** (1 production · 2 test): [`author_tests`](../../src/orchestrator/sdlc/codegen.py#L1388), [`test_author_tests_is_shown_how_this_repo_tests_the_module`](../../tests/sdlc/test_codegen.py#L1401), [`test_no_existing_tests_is_not_an_error`](../../tests/sdlc/test_codegen.py#L1444)
-- **Calls** (4): [`_excerpt_files`](../../src/orchestrator/sdlc/excerpt.py#L138), [`_exercises_module`](../../src/orchestrator/sdlc/codegen.py#L2326), [`_module_path_of`](../../src/orchestrator/sdlc/codegen.py#L2344), [`_paths_from`](../../src/orchestrator/sdlc/codegen.py#L2296)
+- **Calls** (4): [`_excerpt_files`](../../src/orchestrator/sdlc/excerpt.py#L139), [`_exercises_module`](../../src/orchestrator/sdlc/codegen.py#L2326), [`_module_path_of`](../../src/orchestrator/sdlc/codegen.py#L2344), [`_paths_from`](../../src/orchestrator/sdlc/codegen.py#L2296)
 
 ### `_failure_kind`
 
@@ -193,7 +193,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/codegen.py:2428`](../../src/orchestrator/sdlc/codegen.py#L2428)
 
 - **Called by** (4 production · 5 test): [`implement`](../../src/orchestrator/sdlc/codegen.py#L1147), [`implement_governed`](../../src/orchestrator/sdlc/codegen.py#L1262), [`refine`](../../src/orchestrator/sdlc/codegen.py#L1409), [`revise`](../../src/orchestrator/sdlc/codegen.py#L1478), [`test_a_spec_that_names_its_files_still_wins`](../../tests/sdlc/test_codegen.py#L1355), [`test_codegen_is_shown_the_files_the_design_names`](../../tests/sdlc/test_codegen.py#L1338), [`test_named_existing_files_empty_when_none_named`](../../tests/sdlc/test_codegen.py#L991), [`test_named_existing_files_ignores_nonexistent_and_escapes`](../../tests/sdlc/test_codegen.py#L997), [`test_named_existing_files_included_for_edit`](../../tests/sdlc/test_codegen.py#L971)
-- **Calls** (4): [`_excerpt_files`](../../src/orchestrator/sdlc/excerpt.py#L138), [`_paths_from`](../../src/orchestrator/sdlc/codegen.py#L2296), [`_spec_anchors`](../../src/orchestrator/sdlc/excerpt.py#L184), [`_str_list`](../../src/orchestrator/sdlc/codegen.py#L2534)
+- **Calls** (4): [`_excerpt_files`](../../src/orchestrator/sdlc/excerpt.py#L139), [`_paths_from`](../../src/orchestrator/sdlc/codegen.py#L2296), [`_spec_anchors`](../../src/orchestrator/sdlc/excerpt.py#L185), [`_str_list`](../../src/orchestrator/sdlc/codegen.py#L2534)
 
 ### `_parse_detail`
 
@@ -295,7 +295,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/codegen.py:45`](../../src/orchestrator/sdlc/codegen.py#L45)
 
-- **Called by** (12 production · 4 test): [`_build_codegen`](../../src/orchestrator/sdlc/worker.py#L87), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L266), [`_llm_enrich`](../../src/orchestrator/sdlc/rca.py#L164), [`audit`](../../src/orchestrator/cli/understand.py#L17), [`audit_repo`](../../src/orchestrator/plugin/server.py#L1465), [`consolidate_memory`](../../src/orchestrator/sdlc/activities.py#L368), [`design`](../../src/orchestrator/cli/change.py#L16), [`design_change`](../../src/orchestrator/plugin/server.py#L1206), [`main`](../../scripts/audit_eval.py#L54), [`rca`](../../src/orchestrator/cli/change.py#L307), [`root_cause`](../../src/orchestrator/plugin/server.py#L765), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L735), [`test_codegen_env_beats_intake_env`](../../tests/sdlc/test_codegen.py#L90), [`test_explicit_override_wins`](../../tests/sdlc/test_codegen.py#L85), [`test_falls_back_to_intake_model`](../../tests/sdlc/test_codegen.py#L95), [`test_falls_back_to_the_catalog_default`](../../tests/sdlc/test_codegen.py#L102)
+- **Called by** (12 production · 4 test): [`_build_codegen`](../../src/orchestrator/sdlc/worker.py#L87), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L266), [`_llm_enrich`](../../src/orchestrator/sdlc/rca.py#L168), [`audit`](../../src/orchestrator/cli/understand.py#L17), [`audit_repo`](../../src/orchestrator/plugin/server.py#L1465), [`consolidate_memory`](../../src/orchestrator/sdlc/activities.py#L368), [`design`](../../src/orchestrator/cli/change.py#L16), [`design_change`](../../src/orchestrator/plugin/server.py#L1206), [`main`](../../scripts/audit_eval.py#L54), [`rca`](../../src/orchestrator/cli/change.py#L316), [`root_cause`](../../src/orchestrator/plugin/server.py#L765), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L735), [`test_codegen_env_beats_intake_env`](../../tests/sdlc/test_codegen.py#L90), [`test_explicit_override_wins`](../../tests/sdlc/test_codegen.py#L85), [`test_falls_back_to_intake_model`](../../tests/sdlc/test_codegen.py#L95), [`test_falls_back_to_the_catalog_default`](../../tests/sdlc/test_codegen.py#L102)
 - **Calls** (1): [`resolve`](../../src/orchestrator/core/llm/catalog.py#L41)
 - **Documented in**: `CLI_REFERENCE.md`
 
