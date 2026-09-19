@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.38.0  (synaptixs-spine)
+Spine 3.39.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -533,7 +533,7 @@ orchestrator pkg accuracy [PATH] [OPTIONS]
 | `--tests` | Test target(s) for `--oracle runtime`; defaults to the repo's own. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
 
-**Current corpus results** (64 fixture cases — 58 single-language, 6 multi-repo — across
+**Current corpus results** (68 fixture cases — 62 single-language, 6 multi-repo — across
 all 12 front-ends, Perl's own corpus grown across P2–P5 of its track: 9 cases). Precision is
 **1.00 on every node kind and every edge kind in every language**; recall is 1.00 on every
 kind except `CALLS`:
@@ -1128,7 +1128,7 @@ orchestrator sdlc feature [OPTIONS]
 | `--issue` | Adopt an existing tracker issue (e.g. SSPN-9) instead of creating one — the branch, PR, comment and transition all land on it. |
 | `--base` | Branch to build on **and** open the PR into (default `$SDLC_PR_BASE`, else the repo's default branch). The worktree is cut from this — see `sdlc autorun` above. |
 | `--layout` | Target structure: auto (scaffold only empty repos), new (always scaffold a src/<pkg>/ skeleton), or existing (follow the repo's layout). (default: `auto`) |
-| `--package-name` | Override the scaffold package name (default: derived from repo). In a multi-module Gradle/Android repo this also selects the module the change belongs to. |
+| `--package-name` | Target project/package — naming a .NET project selects it; otherwise overrides the scaffold package name (default: derived from repo). In a multi-module Gradle/Android repo this also selects the module the change belongs to. |
 | `--spec` | Implement a hand-written spec (JSON) instead of deriving one from the source — see `sdlc autorun` above for the format. |
 | `--refresh` | Re-extract intents from the source (default: reuse the cached, deterministic backlog). |
 | `--language` | Target language: auto (detect), python, java, kotlin, typescript, csharp, c, cpp, go, php, perl, or sql. (default: `auto`) |

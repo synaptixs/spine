@@ -872,9 +872,10 @@ def sdlc_feature(
         typer.Option(
             "--package-name",
             help=(
-                "Override the scaffold package name (default: derived from repo). In a "
-                "multi-module Gradle/Android repo this also selects the module the change "
-                "belongs to."
+                "Target project/package. A .NET project name selects which project the "
+                "change is built in; otherwise it overrides the scaffold package name "
+                "(default: derived from repo). In a multi-module Gradle/Android repo this "
+                "also selects the module the change belongs to."
             ),
         ),
     ] = None,

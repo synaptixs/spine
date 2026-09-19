@@ -169,7 +169,8 @@ async def sdlc_feature(
       ``existing`` (follow the repo's own structure — **brownfield**).
     - ``language`` — ``auto`` (detect from the repo) or an explicit
       ``python|java|typescript|csharp|c|cpp``.
-    - ``package_name`` — override the scaffold package name (greenfield).
+    - ``package_name`` — the target project/package. A .NET project name selects which project
+      the change is built in; otherwise it overrides the scaffold package name (greenfield).
 
     Safe by default (``live=False``): a local branch + diff, dry-run Jira, NO
     external writes. ``live=True`` creates a real Jira issue, pushes a branch,

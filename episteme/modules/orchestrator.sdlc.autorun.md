@@ -107,7 +107,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/autorun.py:503`](../../src/orchestrator/sdlc/autorun.py#L503)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237)
-- **Calls** (3): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L46), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1466), [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L465)
+- **Calls** (3): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L46), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1466), [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L478)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#8-blast-radius-measured-from-the-pkg-per-registration-site`, `docs/specs/perl-support-roadmap.md#7-blast-radius-measured-from-the-pkg-per-registration-site`
 
 ### `_research_pass`

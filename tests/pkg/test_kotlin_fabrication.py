@@ -20,6 +20,7 @@ import pytest
 
 from orchestrator.pkg.extractor import RepoCodeExtractor
 from orchestrator.pkg.facts import EdgeKind, FactBatch
+from orchestrator.pkg.kotlin_extractor import _SCOPE_FUNCTIONS
 
 pytest.importorskip("tree_sitter_kotlin", reason="install the 'kotlin' extra")
 
@@ -263,3 +264,142 @@ def test_a_same_package_call_nothing_declares_is_still_refused(tmp_path: Path) -
     """The backstop *checks*; it does not licence a guess."""
     batch = _facts(tmp_path, {"App.kt": "package svc\n\nfun module() {\n    orders()\n}\n"})
     assert "java:svc.orders" not in _ids(batch)
+
+
+# ---- #389: the same fabrication one level out — an *imported* receiver ---------
+
+
+@pytest.mark.parametrize("scope_fn", sorted(_SCOPE_FUNCTIONS))
+def test_a_scope_function_on_an_imported_receiver_is_not_a_member(tmp_path: Path, scope_fn: str) -> None:
+    """The half `declared_ids` structurally cannot answer.
+
+    A repo-declared receiver has a known member list, so `finalize` refuses a call to a
+    member it does not declare. An **imported** receiver has none — `Modifier` is
+    third-party and this tree knows nothing about it — so `modifier.let { }` minted
+    `java:androidx.compose.ui.Modifier.let`, a member `Modifier` does not declare.
+
+    Parametrized over `_SCOPE_FUNCTIONS` itself, not a copy: a name added to the set
+    without a thought about this test is exactly the drift worth failing on.
+    """
+    batch = _facts(
+        tmp_path,
+        {
+            "Screen.kt": f"""\
+package app.ui
+
+import androidx.compose.ui.Modifier
+
+class Screen {{
+    fun draw(m: Modifier) {{
+        m.{scope_fn} {{ }}
+    }}
+}}
+""",
+        },
+    )
+    assert f"java:androidx.compose.ui.Modifier.{scope_fn}" not in _ids(batch)
+
+
+def test_a_real_member_on_an_imported_receiver_still_lands(tmp_path: Path) -> None:
+    """The line the #389 fix must not cross, and the first attempt did.
+
+    Refusing on the member *name* alone drops `Runnable.run()` and `LocalDate.with(…)`,
+    which are genuine JVM members that merely share a scope function's name — measured,
+    a three-call probe fell from three `CALLS` to one. What separates them is not the
+    name but the shape: a scope function is handed a function, these are not.
+    """
+    batch = _facts(
+        tmp_path,
+        {
+            "Cycle.kt": """\
+package app.billing
+
+import java.lang.Runnable
+import java.time.LocalDate
+
+class Cycle(private val r: Runnable) {
+    fun endOfMonth(d: LocalDate): LocalDate = d.with(null)
+    fun go() {
+        r.run()
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.billing.Cycle.endOfMonth", "java:java.time.LocalDate.with") in _calls(batch)
+    assert ("java:app.billing.Cycle.go", "java:java.lang.Runnable.run") in _calls(batch)
+
+
+def test_a_scope_function_passed_a_callable_reference_is_still_refused(tmp_path: Path) -> None:
+    """`x.let(::f)` is the parenthesised form of the same thing, and still not a member."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Screen.kt": """\
+package app.ui
+
+import androidx.compose.ui.Modifier
+
+class Screen {
+    fun draw(m: Modifier) {
+        m.let(::helper)
+    }
+
+    fun helper(x: Modifier) {}
+}
+""",
+        },
+    )
+    assert "java:androidx.compose.ui.Modifier.let" not in _ids(batch)
+
+
+def test_a_declared_type_that_really_declares_run_still_resolves(tmp_path: Path) -> None:
+    """The denylist must never outrank a grounded declaration.
+
+    `resolve_or_drop` runs first, so a repository that genuinely declares `run` wins
+    however the call is written — including with a trailing lambda, the shape the
+    refusal keys on.
+    """
+    batch = _facts(
+        tmp_path,
+        {
+            "Task.kt": "package app.job\n\nclass Task {\n    fun run(block: () -> Unit) {}\n}\n",
+            "Use.kt": """\
+package app.job
+
+class Use {
+    fun go(t: Task) {
+        t.run { }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.job.Use.go", "java:app.job.Task.run") in _calls(batch)
+
+
+def test_an_imported_extension_outranks_the_receiver_member_guess(tmp_path: Path) -> None:
+    """`Modifier.padding` is a fabrication too — `padding` is an extension.
+
+    Kotlin requires a file to import an extension in order to call it, so when the
+    import is there it is a fully-qualified name the source *wrote*, where the
+    receiver-member reading is a guess about a type nothing here can introspect. The
+    edge is kept either way; only its target changes.
+    """
+    batch = _facts(
+        tmp_path,
+        {
+            "Screen.kt": """\
+package app.ui
+
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
+
+class Screen {
+    fun pad(m: Modifier) = m.padding(8)
+}
+""",
+        },
+    )
+    assert ("java:app.ui.Screen.pad", "java:androidx.compose.foundation.layout.padding") in _calls(batch)
+    assert "java:androidx.compose.ui.Modifier.padding" not in _ids(batch)

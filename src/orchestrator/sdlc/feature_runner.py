@@ -967,7 +967,22 @@ async def run_feature(
     #     repos (auto/new) so generated files land coherently. Brownfield
     #     (existing package) is detected and reused — never scaffolded.
     lang = _resolve_language(path, language)
-    layout = resolve_layout(path, mode=layout_mode, package_name=package_name, repo=repo_url, language=lang)
+    # The files the ticket and its approved design name, resolved against this worktree. A
+    # repository with more than one project of the same language used to take whichever sorted
+    # first, so NSS-1239 — whose design named five files under `WebApp/` — built into
+    # `ApiClient` and could not compile. `design` is read alongside the spec because that file
+    # list lived in the build document, not in the ticket's own prose.
+    from orchestrator.sdlc.codegen import _paths_from
+
+    design_paths = _paths_from(spec, design, path)
+    layout = resolve_layout(
+        path,
+        mode=layout_mode,
+        package_name=package_name,
+        repo=repo_url,
+        language=lang,
+        prefer_paths=design_paths,
+    )
     from orchestrator.sdlc.toolchains import get_toolchain
 
     toolchain = get_toolchain(lang)
@@ -984,7 +999,8 @@ async def run_feature(
                 f"[scaffold] note: added a new '{layout.source_dir}/' structure into a non-empty "
                 "repo; existing files were left untouched"
             )
-    emit(f"[layout] mode={layout.mode} package={layout.package_name} src={layout.source_dir}")
+    chosen = f" (project chosen: {layout.chosen_reason})" if layout.chosen_reason else ""
+    emit(f"[layout] mode={layout.mode} package={layout.package_name} src={layout.source_dir}{chosen}")
 
     # Build an isolated test environment for the worktree — a per-project venv
     # with the project's own deps — so generated tests don't depend on (or run

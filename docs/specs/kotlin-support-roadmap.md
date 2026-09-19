@@ -141,8 +141,9 @@ declared property/parameter type per scope), then each `call_expression`.
 | `Type.foo()` (capitalised receiver) | object / companion / enum member via the Java rule | `CALLS` → `java:pkg.Type.foo`, external placeholder if third-party — the Java rule, unchanged |
 | `Type(args)` (constructor) | the `Type` node | `CALLS` → the `Type` (corpus rule: instantiation is a call to the type) |
 | `x.ext()` where `ext` is a same-file or imported **extension function** | by name — an extension name is unique in scope | `CALLS` → `java:pkg.ext` |
-| `prop.foo()` / `param.foo()` where the receiver has a **declared type** in scope | receiver type through the import map / same package | `CALLS` → `java:pkg.RecvType.foo` — placeholder if third-party. **The main event** (D8): `private val dao: TopicDao` + `dao.getTopics()` is the dominant shape in the validation repo. `?.` safe calls resolve the same way |
-| `foo?.let { }`, `apply { }`, `run { }`, `it.x()`, `map { … }` on an inferred receiver, callable references `::foo`, `invoke` on a lambda, calls on an unannotated `val x = something()` | — | never — inference or fabrication |
+| `prop.foo()` / `param.foo()` where the receiver has a **declared type** in scope | receiver type through the import map / same package | `CALLS` → `java:pkg.RecvType.foo` — placeholder if third-party. **The main event** (D8): `private val dao: TopicDao` + `dao.getTopics()` is the dominant shape in the validation repo. `?.` safe calls resolve the same way. **Two exceptions when the receiver is third-party** (#389): a scope function by name *and* shape is refused (row below), and when the file imports an extension under the called name, the placeholder is that import rather than `RecvType.foo` — `m.padding(8)` with `import androidx.compose.foundation.layout.padding` lands on the extension, because `Modifier` does not declare `padding` |
+| **Scope functions given a function** — `let`, `run`, `also`, `apply`, `takeIf`, `takeUnless`, `use`, `runCatching` (`_SCOPE_FUNCTIONS`), written `x.let { }`, `x.let({ … })` or `x.let(::f)` | — | never — a `kotlin.*` extension is not a member of its receiver. **Name and shape both**, since `run`/`apply`/`use` are also genuine members: `r.run()` on a `Runnable` and `d.with(adj)` on a `LocalDate` must still land (#389). Kotlin's own `with(x) { }` is a top-level function and never reaches this row |
+| `it.x()`, `map { … }` on an inferred receiver, callable references `::foo`, `invoke` on a lambda, calls on an unannotated `val x = something()` | — | never — inference or fabrication |
 
 Precision guard specific to Kotlin: the **shadowing** case (D9) is emitted by none of the rows
 above only because the resolver checks local bindings first; the `_Kotlin` walker in `scope.py`
@@ -254,6 +255,7 @@ Per `corpus/README.md`: `.repo/` fixture, `expected.json` from the source before
 | `hilt_bindings` (P4) | `@Binds`, `@Provides`, two providers with qualifiers, an `@Inject constructor` site | `PROVIDES` edges; both qualified providers kept; `blast_radius` reaches the injection site |
 | `gradle_modules` (P5) | three modules, `implementation(project(":a"))`, `api(project(":b"))`, a `libs.x` coordinate, a `project(variable)` | two `IMPORTS`; nothing from the coordinate or the variable |
 | `ktor_routes`, `spring_routes` (P6) | Ktor group + closure + function reference; Spring class prefix + verb-less mapping (Kotlin **and** Java fixtures) | `Endpoint`s with the composed prefix; closure without `EXPOSES`; verb-less → nothing |
+| `scope_functions` (#389) | `m.let { }` / `.run` / `.takeIf` / `.also` on an imported `Modifier` and `r.use { }` on a `BufferedReader`, plus `task.run()` on a `Runnable` as the control | the four scope functions are refused on an imported receiver, where no declared-member list exists to refuse them; the control proves the refusal keys on the call's *shape*, not just the member name |
 | `kmp_expect_actual` (P7) | `commonMain` `expect`, `androidMain` + `jvmMain` `actual`s, one `actual` without an `expect` | two `IMPLEMENTS`; the orphan `actual` has an external `expect` placeholder |
 
 Codegen phases (P8, P9) are proven the Go way — a real toolchain, green **and** red — in
@@ -754,8 +756,33 @@ numbers below as "these eleven paths, measured" — not as "the front-end cannot
 - **The scope functions §3.2 lists under "never" were emitted.** *(Found 2026-09-17, review.)*
   `topic.let { }`, `.apply`, `.run`, `.also` all resolved onto the receiver type, so
   `blast_radius` on any type named every file that had ever written `x.let { }`. No blocklist was
-  needed in the end: a type the repository *declares* has known members, so a call naming a
-  member it does not declare is refused by the same `finalize` check.
+  needed for a repo-declared receiver: a type the repository *declares* has known members, so a
+  call naming a member it does not declare is refused by the same `finalize` check. That leaves an
+  **imported** receiver, which has no declared-member list to refuse against — `modifier.let { }`
+  on an imported `Modifier` still minted a placeholder (#389, found 2026-09-17 in maintainer review
+  of #380). Fixed with `_SCOPE_FUNCTIONS` in `_settle_calls`, applied only to the
+  certain-but-undeclared-receiver case.
+- **A name-only denylist for those scope functions cost true edges.** *(Found 2026-09-18, review of
+  the #389 fix.)* `run`, `apply` and `use` are also genuine members of real library types, so
+  refusing on the member name alone dropped `java.lang.Runnable.run`, `java.util.TimerTask.run`,
+  `org.gradle.api.Project.apply` and every `java.time` `with` — measured, a three-call probe fell
+  from three `CALLS` to one. The refusal now needs the name **and** the shape: a scope function is
+  handed a function (`_passes_function` — a trailing lambda, or a lone lambda/callable-reference
+  argument) and `r.run()` is not. `with` left the set entirely; Kotlin's `with(x) { }` is top-level,
+  so it is dropped a line earlier as `certain=False` and listing it could only ever match a real
+  member. Residue, stated rather than closed: `x.also(fn)` where `fn` is a variable reads exactly
+  like a one-argument member call, and syntax cannot separate them.
+- **The same fabrication survived one level further out, on the receiver-member fallback.**
+  *(Found 2026-09-18, same review.)* `m.padding(8)` minted `java:androidx.compose.ui.Modifier.padding`,
+  and `padding` is `androidx.compose.foundation.layout.padding` — an extension, which `Modifier` does
+  not declare. Kotlin requires a file to *import* an extension to call it, so the true target was
+  already in the graph, minted from the import and then discarded in favour of the invented id.
+  `_settle_calls` now prefers that import (`imported_extension`) as the external placeholder. This
+  reverses `_deferred_call`'s old rule that an `also` candidate is "never used as the
+  external-placeholder fallback", and only for the external-receiver case: when the repository
+  cannot introspect the receiver, the member reading is a guess while the import is written in the
+  file. A **wildcard**-imported extension binds no simple name, so that case still lands on the
+  receiver-member id — narrowed, not closed.
 - **`string_value` dropped interpolation, so computed paths were emitted as literals.**
   *(Found 2026-09-17, review.)* One helper, five readers. `route("/api/${cfg.version}")` became
   the path `/api/`; `"/users/${user.id}/detail"` became `/users//detail`, an endpoint that exists

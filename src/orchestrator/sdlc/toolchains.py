@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import importlib
 import os
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from types import MappingProxyType
@@ -30,9 +30,22 @@ def _load(module: str, name: str) -> Any:
 
 def _layout(name: str, *, python: bool = False) -> Callable[..., TargetLayout]:
     def resolve(
-        root: Path, *, mode: str, package_name: str | None, repo: str | None, src_layout: bool = True
+        root: Path,
+        *,
+        mode: str,
+        package_name: str | None,
+        repo: str | None,
+        src_layout: bool = True,
+        prefer_paths: Sequence[str] = (),
     ) -> TargetLayout:
-        kwargs: dict[str, Any] = {"mode": mode, "package_name": package_name, "repo": repo}
+        kwargs: dict[str, Any] = {
+            "mode": mode,
+            "package_name": package_name,
+            "repo": repo,
+            # The files the ticket's design names. Every `_resolve_*_layout` accepts it; the
+            # multi-project ones (C#, Kotlin, Java) use it to pick which project is the target.
+            "prefer_paths": prefer_paths,
+        }
         if python:
             kwargs["src_layout"] = src_layout
         return cast("TargetLayout", _load("layout", name)(root, **kwargs))

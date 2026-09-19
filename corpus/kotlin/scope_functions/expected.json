@@ -1,0 +1,55 @@
+{
+  "language": "kotlin",
+  "case": "scope_functions",
+  "why": "#389. `m.let { }`, `.run`, `.takeIf`, `.also` and `r.use { }` are syntactically member calls on `m: Modifier` and `r: BufferedReader`, both imported (third-party) types. `_settle_calls`'s declared/guessed drop rule (kotlin-support-roadmap.md §11) only refuses a call whose receiver type the repository itself declares, so an imported receiver had nothing to check against and the scope function was minted as a fabricated member of it — `java:androidx.compose.ui.Modifier.let`, a member `Modifier` does not declare. These are `kotlin.*` extensions (`let`/`run`/`also`/`apply`/`takeIf`/`takeUnless`/`runCatching` on `T`; `use` on `Closeable?`), never members of the receiver they are called through. `task.run()` is the control in the same body: `run` is a genuine member of `java.lang.Runnable`, so refusing on the member *name* alone would drop a true edge — it must still resolve.",
+  "root": ".repo",
+  "nodes": [
+    { "id": "java:app.ui", "kind": "Module" },
+    { "id": "java:app.ui.Screen", "kind": "Type" },
+    { "id": "java:app.ui.Screen.m", "kind": "Field" },
+    { "id": "java:app.ui.Screen.r", "kind": "Field" },
+    { "id": "java:app.ui.Screen.task", "kind": "Field" },
+    { "id": "java:app.ui.Screen.draw", "kind": "Function" }
+  ],
+  "edges": [
+    { "src": "java:app.ui", "dst": "java:app.ui.Screen", "kind": "CONTAINS" },
+    { "src": "java:app.ui.Screen", "dst": "java:app.ui.Screen.m", "kind": "CONTAINS" },
+    { "src": "java:app.ui.Screen", "dst": "java:app.ui.Screen.r", "kind": "CONTAINS" },
+    { "src": "java:app.ui.Screen", "dst": "java:app.ui.Screen.task", "kind": "CONTAINS" },
+    { "src": "java:app.ui.Screen", "dst": "java:app.ui.Screen.draw", "kind": "CONTAINS" },
+    { "src": "java:app.ui", "dst": "java:androidx.compose.ui.Modifier", "kind": "IMPORTS" },
+    { "src": "java:app.ui", "dst": "java:java.io.BufferedReader", "kind": "IMPORTS" },
+    { "src": "java:app.ui", "dst": "java:java.lang.Runnable", "kind": "IMPORTS" },
+    { "src": "java:app.ui.Screen.draw", "dst": "java:java.lang.Runnable.run", "kind": "CALLS" }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": { "src": "java:app.ui.Screen.draw", "dst": "java:androidx.compose.ui.Modifier.let", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING. `m.let { }` is syntactically a member call on `m: Modifier`; `Modifier` is imported, third-party, and does not declare `let` — `let` is a `kotlin.*` extension on `T` (#389)."
+    },
+    {
+      "edge": { "src": "java:app.ui.Screen.draw", "dst": "java:androidx.compose.ui.Modifier.run", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING. Same fabrication, `m.run { }` on the imported `Modifier`. Pairs with the `task.run()` edge above, which is the *same member name* on a type that really declares it: the two together are why the refusal keys on the call's shape and not only its name (#389)."
+    },
+    {
+      "edge": { "src": "java:app.ui.Screen.draw", "dst": "java:androidx.compose.ui.Modifier.takeIf", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING. Same fabrication, `m.takeIf { true }` on the imported `Modifier` (#389)."
+    },
+    {
+      "edge": { "src": "java:app.ui.Screen.draw", "dst": "java:androidx.compose.ui.Modifier.also", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING. Same fabrication, `m.also { }` on the imported `Modifier` (#389)."
+    },
+    {
+      "edge": { "src": "java:app.ui.Screen.draw", "dst": "java:java.io.BufferedReader.use", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING. `r.use { }` on the imported `java.io.BufferedReader`; the shape reproduces with a JDK type rather than an AndroidX one, so the fix must not be Compose-specific. `BufferedReader` is used rather than `File` because `kotlin.io.use` is declared on `Closeable?` and `java.io.File` is not `Closeable` — `f.use { }` would not compile, and a fixture that cannot compile is not ground truth (#389)."
+    }
+  ],
+  "excluded": [
+    "java:androidx.compose.ui.Modifier, java:java.io.BufferedReader and java:java.lang.Runnable are external — imported, never declared here — so they stay out of the node ratio per corpus/README.md's rule; the IMPORTS edges to them still count. java:java.lang.Runnable.run is external for the same reason and is likewise not a labelled node, but the CALLS edge to it is labelled, which is how corpus/kotlin/typed_receivers labels the identical shape.",
+    "The *true* target of each refused call — `kotlin.let`, `kotlin.run`, `kotlin.takeIf`, `kotlin.also`, `kotlin.io.use` — is deliberately not labelled. The front-end has no model of the Kotlin standard library and no id vocabulary for a stdlib symbol, so these calls resolve to nothing at all rather than to the extension they really name. That is a decision, not an unnoticed gap: refusing the fabricated member id is the whole point of #389, and emitting a `kotlin.*` id instead would need a stdlib index this repository does not have. It is recorded here so the omission is not mistaken for completeness.",
+    "`m.also(fn)` where `fn` is a variable holding a lambda is NOT in this fixture, and would not be refused if it were. The refusal keys on the call's syntax — a trailing lambda, or a lone lambda/callable-reference argument — and a variable reads exactly like any other one-argument member call. Separating them needs type inference the front-end does not do, so that residue stands; `corpus/kotlin/scope_functions` measures the shapes syntax can settle, not the ones it cannot."
+  ],
+  "open_questions": []
+}

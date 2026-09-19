@@ -78,7 +78,17 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.38.0 (current)** — two field reports from a React Native engagement, and the build document
+**3.39.0 (current)** — a run now builds in the project the ticket is about. In a solution with
+several projects the target used to be whichever one sorted first, so a WebApp ticket scaffolded
+into an API client and failed six test runs against a type that project cannot even see. Spine
+picks the project holding the files the plan names, else the one with the most source in that
+language, and says which rule it used; `--package-name` now **retargets** rather than merely
+renaming, so a human can overrule it. Java multi-module builds resolve at all — at any depth —
+and Kotlin scope functions are refused by name *and* shape, so `r.run()` keeps its edge while
+`m.let { }` stops inventing one. Two CI guards that could be skipped rather than passed are
+closed.
+
+**3.38.0** — two field reports from a React Native engagement, and the build document
 stops flattering itself. A vendored `ios/Pods` is no longer walked, and a symlinked file keeps its
 own path — so `node_modules` cannot return one header at a time through CocoaPods' public headers.
 `--language auto` weighs what most of the source **is** rather than what merely exists, so one build

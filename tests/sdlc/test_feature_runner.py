@@ -1714,3 +1714,41 @@ def test_a_windows_runner_path_is_attributed_to_the_file_that_failed() -> None:
     )
     # A passing file named in a warnings summary is not a failure.
     assert not _named_in_failures("tests/unit/test_models.py", "warnings summary: tests/unit/test_models.py")
+
+
+async def test_the_runner_tells_the_layout_which_files_the_ticket_names(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The plan named five files under `WebApp/`; the layout picked `ApiClient` because it sorts
+    first, and codegen could not compile against a project that holds none of the ticket's types.
+    The runner now hands the design's files to the resolver that has to choose."""
+    import orchestrator.sdlc.layout as layout_mod
+    from orchestrator.sdlc import feature_runner as fr
+
+    seen: dict[str, Any] = {}
+    real = layout_mod.resolve_layout
+
+    def _capture(root: Any, **kwargs: Any) -> Any:
+        seen.update(kwargs)
+        return real(root, **kwargs)
+
+    monkeypatch.setattr(layout_mod, "resolve_layout", _capture)
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+
+    class _NamesAFile(_Spec):
+        def model_dump(self) -> dict[str, Any]:
+            spec = super().model_dump()
+            spec["description"] = "Hide lost coils — see WebApp/AuctionCoilsUi.razor."
+            return spec
+
+    _patch_service(monkeypatch, [_NamesAFile("intent-a")])
+    monkeypatch.setattr(fr, "_files_no_test_exercises", lambda *a, **k: _aresult([]))
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+    (tmp_path / "WebApp").mkdir()
+    (tmp_path / "WebApp" / "AuctionCoilsUi.razor").write_text("<div/>\n", encoding="utf-8")
+
+    await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1)
+
+    # The ticket names `AuctionCoilsUi.razor`; the resolver is told, not left to sort names.
+    assert seen.get("prefer_paths") == ["WebApp/AuctionCoilsUi.razor"]

@@ -5,24 +5,24 @@
 
 **Source:** [`src/orchestrator/pkg/kotlin_extractor.py`](../../src/orchestrator/pkg/kotlin_extractor.py)
 
-6 types · 16 functions · python
+6 types · 17 functions · python
 
 ## Changing this safely
 
-**Tested by** (4): `tests.pkg.test_kotlin_extractor`, `tests.pkg.test_kotlin_http`, `tests.pkg.test_kotlin_literals`, `tests.pkg.test_kotlin_room`
+**Tested by** (5): `tests.pkg.test_kotlin_extractor`, `tests.pkg.test_kotlin_fabrication`, `tests.pkg.test_kotlin_http`, `tests.pkg.test_kotlin_literals`, `tests.pkg.test_kotlin_room`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1172) — reaches **18** symbols · **no test path visible**
-- [`_bare_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L1073) — reaches **12** symbols · **no test path visible**
-- [`KotlinExtractor`](../../src/orchestrator/pkg/kotlin_extractor.py#L206) — reaches **8** symbols
-- [`_DeferredCall`](../../src/orchestrator/pkg/kotlin_extractor.py#L121) — reaches **6** symbols · **no test path visible**
-- [`_declared_name`](../../src/orchestrator/pkg/kotlin_extractor.py#L1130) — reaches **6** symbols · **no test path visible**
-- [`_add_member`](../../src/orchestrator/pkg/kotlin_extractor.py#L1081) — reaches **5** symbols · **no test path visible**
-- [`_declared_property_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L1061) — reaches **5** symbols · **no test path visible**
-- [`_kotlin_parser`](../../src/orchestrator/pkg/kotlin_extractor.py#L1178) — reaches **5** symbols
+- [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1319) — reaches **18** symbols · **no test path visible**
+- [`_bare_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L1220) — reaches **12** symbols · **no test path visible**
+- [`KotlinExtractor`](../../src/orchestrator/pkg/kotlin_extractor.py#L253) — reaches **8** symbols
+- [`_DeferredCall`](../../src/orchestrator/pkg/kotlin_extractor.py#L149) — reaches **6** symbols · **no test path visible**
+- [`_declared_name`](../../src/orchestrator/pkg/kotlin_extractor.py#L1277) — reaches **6** symbols · **no test path visible**
+- [`_add_member`](../../src/orchestrator/pkg/kotlin_extractor.py#L1228) — reaches **5** symbols · **no test path visible**
+- [`_declared_property_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L1208) — reaches **5** symbols · **no test path visible**
+- [`_kotlin_parser`](../../src/orchestrator/pkg/kotlin_extractor.py#L1325) — reaches **5** symbols
 
-_20 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_21 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Documented in
 
@@ -32,156 +32,163 @@ _20 of the symbols other code depends on here have no test path the graph can se
 
 ### `KotlinExtractor`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:206`](../../src/orchestrator/pkg/kotlin_extractor.py#L206)
+[`src/orchestrator/pkg/kotlin_extractor.py:253`](../../src/orchestrator/pkg/kotlin_extractor.py#L253)
 
 - **Called by** (1 production · 7 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L567), [`_facts`](../../tests/pkg/test_kotlin_extractor.py#L94), [`_facts`](../../tests/pkg/test_kotlin_room.py#L79), [`_repo_facts`](../../tests/pkg/test_kotlin_extractor.py#L103), [`_run`](../../tests/pkg/test_kotlin_http.py#L44), [`test_a_get_annotation_from_another_library_is_not_a_retrofit_call`](../../tests/pkg/test_kotlin_http.py#L205), [`test_a_retrofit_wildcard_import_is_enough`](../../tests/pkg/test_kotlin_http.py#L233), [`test_kts_build_scripts_are_not_kotlin_source`](../../tests/pkg/test_kotlin_extractor.py#L287)
 - **Fields**: `_client`, `_deferred`, `_ktor`, `_nav`, `language`, `suffixes`, `unresolved_calls`
 
 ### `_DeferredCall`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:121`](../../src/orchestrator/pkg/kotlin_extractor.py#L121)
+[`src/orchestrator/pkg/kotlin_extractor.py:149`](../../src/orchestrator/pkg/kotlin_extractor.py#L149)
 
-- **Called by** (2): [`_deferred_call`](../../src/orchestrator/pkg/kotlin_extractor.py#L751), [`_resolve_bare`](../../src/orchestrator/pkg/kotlin_extractor.py#L625)
-- **Fields**: `candidates`, `certain`, `owners`, `provenance`, `src`
+- **Called by** (2): [`_deferred_call`](../../src/orchestrator/pkg/kotlin_extractor.py#L825), [`_resolve_bare`](../../src/orchestrator/pkg/kotlin_extractor.py#L685)
+- **Fields**: `candidates`, `certain`, `imported_extension`, `owners`, `provenance`, `src`, `takes_function_argument`
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 
 ### `_FileContext`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:172`](../../src/orchestrator/pkg/kotlin_extractor.py#L172)
+[`src/orchestrator/pkg/kotlin_extractor.py:219`](../../src/orchestrator/pkg/kotlin_extractor.py#L219)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L240)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L287)
 - **Fields**: `base_path`, `constants`, `extensions`, `field_types`, `imports`, `local_types`, `package`, `pending`, `source_set`, `top_level_funcs`, `type_members`
 
 ### `_ImportContext`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:107`](../../src/orchestrator/pkg/kotlin_extractor.py#L107)
+[`src/orchestrator/pkg/kotlin_extractor.py:135`](../../src/orchestrator/pkg/kotlin_extractor.py#L135)
 
-- **Called by** (1): [`_imports`](../../src/orchestrator/pkg/kotlin_extractor.py#L297)
+- **Called by** (1): [`_imports`](../../src/orchestrator/pkg/kotlin_extractor.py#L344)
 - **Fields**: `by_simple`, `wildcard_prefixes`
 
 ### `_Pending`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:156`](../../src/orchestrator/pkg/kotlin_extractor.py#L156)
+[`src/orchestrator/pkg/kotlin_extractor.py:203`](../../src/orchestrator/pkg/kotlin_extractor.py#L203)
 
-- **Called by** (1): [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L480)
+- **Called by** (1): [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L527)
 - **Fields**: `body`, `func_id`, `owner`, `params`, `receiver`, `route_module`
 
 ### `_Scope`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:924`](../../src/orchestrator/pkg/kotlin_extractor.py#L924)
+[`src/orchestrator/pkg/kotlin_extractor.py:1039`](../../src/orchestrator/pkg/kotlin_extractor.py#L1039)
 
-- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/kotlin_extractor.py#L551)
+- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/kotlin_extractor.py#L598)
 - **Fields**: `bound`, `types`
 
 ## Functions
 
 ### `_add_member`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:1081`](../../src/orchestrator/pkg/kotlin_extractor.py#L1081)
+[`src/orchestrator/pkg/kotlin_extractor.py:1228`](../../src/orchestrator/pkg/kotlin_extractor.py#L1228)
 
-- **Called by** (3): [`_emit_constructor_properties`](../../src/orchestrator/pkg/kotlin_extractor.py#L408), [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L480), [`_emit_members`](../../src/orchestrator/pkg/kotlin_extractor.py#L441)
+- **Called by** (3): [`_emit_constructor_properties`](../../src/orchestrator/pkg/kotlin_extractor.py#L455), [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L527), [`_emit_members`](../../src/orchestrator/pkg/kotlin_extractor.py#L488)
 - **Calls** (3): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88)
 
 ### `_bare_type`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:1073`](../../src/orchestrator/pkg/kotlin_extractor.py#L1073)
+[`src/orchestrator/pkg/kotlin_extractor.py:1220`](../../src/orchestrator/pkg/kotlin_extractor.py#L1220)
 
-- **Called by** (4): [`_extension_receiver`](../../src/orchestrator/pkg/kotlin_extractor.py#L1046), [`_resolve_navigated`](../../src/orchestrator/pkg/kotlin_extractor.py#L676), [`_resolve_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L802), [`_type_candidates`](../../src/orchestrator/pkg/kotlin_extractor.py#L779)
+- **Called by** (4): [`_extension_receiver`](../../src/orchestrator/pkg/kotlin_extractor.py#L1193), [`_resolve_navigated`](../../src/orchestrator/pkg/kotlin_extractor.py#L744), [`_resolve_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L886), [`_type_candidates`](../../src/orchestrator/pkg/kotlin_extractor.py#L863)
 
 ### `_binds_property`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:1102`](../../src/orchestrator/pkg/kotlin_extractor.py#L1102)
+[`src/orchestrator/pkg/kotlin_extractor.py:1249`](../../src/orchestrator/pkg/kotlin_extractor.py#L1249)
 
-- **Called by** (1): [`_emit_constructor_properties`](../../src/orchestrator/pkg/kotlin_extractor.py#L408)
+- **Called by** (1): [`_emit_constructor_properties`](../../src/orchestrator/pkg/kotlin_extractor.py#L455)
 
 ### `_call_sites`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:990`](../../src/orchestrator/pkg/kotlin_extractor.py#L990)
+[`src/orchestrator/pkg/kotlin_extractor.py:1137`](../../src/orchestrator/pkg/kotlin_extractor.py#L1137)
 
-- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/kotlin_extractor.py#L551)
+- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/kotlin_extractor.py#L598)
 
 ### `_collect_bindings`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:961`](../../src/orchestrator/pkg/kotlin_extractor.py#L961)
+[`src/orchestrator/pkg/kotlin_extractor.py:1076`](../../src/orchestrator/pkg/kotlin_extractor.py#L1076)
 
-- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/kotlin_extractor.py#L551)
-- **Calls** (5): [`_declared_name_or_first`](../../src/orchestrator/pkg/kotlin_extractor.py#L1069), [`_declared_property_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L1061), [`_property_names`](../../src/orchestrator/pkg/kotlin_extractor.py#L1111), [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1172), [`_walk`](../../src/orchestrator/pkg/kotlin_extractor.py#L1008)
+- **Called by** (1): [`_calls`](../../src/orchestrator/pkg/kotlin_extractor.py#L598)
+- **Calls** (5): [`_declared_name_or_first`](../../src/orchestrator/pkg/kotlin_extractor.py#L1216), [`_declared_property_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L1208), [`_property_names`](../../src/orchestrator/pkg/kotlin_extractor.py#L1258), [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1319), [`_walk`](../../src/orchestrator/pkg/kotlin_extractor.py#L1155)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 
 ### `_declared_name`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:1130`](../../src/orchestrator/pkg/kotlin_extractor.py#L1130)
+[`src/orchestrator/pkg/kotlin_extractor.py:1277`](../../src/orchestrator/pkg/kotlin_extractor.py#L1277)
 
-- **Called by** (1): [`_property_names`](../../src/orchestrator/pkg/kotlin_extractor.py#L1111)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1172)
+- **Called by** (1): [`_property_names`](../../src/orchestrator/pkg/kotlin_extractor.py#L1258)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1319)
 
 ### `_declared_name_or_first`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:1069`](../../src/orchestrator/pkg/kotlin_extractor.py#L1069)
+[`src/orchestrator/pkg/kotlin_extractor.py:1216`](../../src/orchestrator/pkg/kotlin_extractor.py#L1216)
 
-- **Called by** (1): [`_collect_bindings`](../../src/orchestrator/pkg/kotlin_extractor.py#L961)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1172)
+- **Called by** (1): [`_collect_bindings`](../../src/orchestrator/pkg/kotlin_extractor.py#L1076)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1319)
 
 ### `_declared_property_type`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:1061`](../../src/orchestrator/pkg/kotlin_extractor.py#L1061)
+[`src/orchestrator/pkg/kotlin_extractor.py:1208`](../../src/orchestrator/pkg/kotlin_extractor.py#L1208)
 
-- **Called by** (2): [`_collect_bindings`](../../src/orchestrator/pkg/kotlin_extractor.py#L961), [`_emit_members`](../../src/orchestrator/pkg/kotlin_extractor.py#L441)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1172)
+- **Called by** (2): [`_collect_bindings`](../../src/orchestrator/pkg/kotlin_extractor.py#L1076), [`_emit_members`](../../src/orchestrator/pkg/kotlin_extractor.py#L488)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1319)
 
 ### `_extension_receiver`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:1046`](../../src/orchestrator/pkg/kotlin_extractor.py#L1046)
+[`src/orchestrator/pkg/kotlin_extractor.py:1193`](../../src/orchestrator/pkg/kotlin_extractor.py#L1193)
 
-- **Called by** (1): [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L480)
-- **Calls** (2): [`_bare_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L1073), [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1172)
+- **Called by** (1): [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L527)
+- **Calls** (2): [`_bare_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L1220), [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1319)
 
 ### `_field_text`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:1167`](../../src/orchestrator/pkg/kotlin_extractor.py#L1167)
+[`src/orchestrator/pkg/kotlin_extractor.py:1314`](../../src/orchestrator/pkg/kotlin_extractor.py#L1314)
 
-- **Called by** (4): [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L480), [`_emit_members`](../../src/orchestrator/pkg/kotlin_extractor.py#L441), [`_emit_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L326), [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L240)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1172)
+- **Called by** (4): [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L527), [`_emit_members`](../../src/orchestrator/pkg/kotlin_extractor.py#L488), [`_emit_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L373), [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L287)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1319)
 
 ### `_kotlin_parser`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:1178`](../../src/orchestrator/pkg/kotlin_extractor.py#L1178)
+[`src/orchestrator/pkg/kotlin_extractor.py:1325`](../../src/orchestrator/pkg/kotlin_extractor.py#L1325)
 
-- **Called by** (3 production · 1 test): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L577), [`extract`](../../src/orchestrator/pkg/gradle_extractor.py#L105), [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L240), [`_literal`](../../tests/pkg/test_kotlin_literals.py#L24)
+- **Called by** (3 production · 1 test): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L577), [`extract`](../../src/orchestrator/pkg/gradle_extractor.py#L105), [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L287), [`_literal`](../../tests/pkg/test_kotlin_literals.py#L24)
 - **Calls** (3): `language`, `tree_sitter.Language`, `tree_sitter.Parser`
 
 ### `_parameter_types`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:1018`](../../src/orchestrator/pkg/kotlin_extractor.py#L1018)
+[`src/orchestrator/pkg/kotlin_extractor.py:1165`](../../src/orchestrator/pkg/kotlin_extractor.py#L1165)
 
-- **Called by** (1): [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L480)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1172)
+- **Called by** (1): [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L527)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1319)
+
+### `_passes_function`
+
+[`src/orchestrator/pkg/kotlin_extractor.py:1109`](../../src/orchestrator/pkg/kotlin_extractor.py#L1109)
+
+- **Called by** (1): [`_resolve_call`](../../src/orchestrator/pkg/kotlin_extractor.py#L649)
+- **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 
 ### `_property_names`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:1111`](../../src/orchestrator/pkg/kotlin_extractor.py#L1111)
+[`src/orchestrator/pkg/kotlin_extractor.py:1258`](../../src/orchestrator/pkg/kotlin_extractor.py#L1258)
 
-- **Called by** (2): [`_collect_bindings`](../../src/orchestrator/pkg/kotlin_extractor.py#L961), [`_emit_members`](../../src/orchestrator/pkg/kotlin_extractor.py#L441)
-- **Calls** (1): [`_declared_name`](../../src/orchestrator/pkg/kotlin_extractor.py#L1130)
+- **Called by** (2): [`_collect_bindings`](../../src/orchestrator/pkg/kotlin_extractor.py#L1076), [`_emit_members`](../../src/orchestrator/pkg/kotlin_extractor.py#L488)
+- **Calls** (1): [`_declared_name`](../../src/orchestrator/pkg/kotlin_extractor.py#L1277)
 
 ### `_supertypes`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:1135`](../../src/orchestrator/pkg/kotlin_extractor.py#L1135)
+[`src/orchestrator/pkg/kotlin_extractor.py:1282`](../../src/orchestrator/pkg/kotlin_extractor.py#L1282)
 
-- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L326)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1172)
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L373)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1319)
 
 ### `_text`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:1172`](../../src/orchestrator/pkg/kotlin_extractor.py#L1172)
+[`src/orchestrator/pkg/kotlin_extractor.py:1319`](../../src/orchestrator/pkg/kotlin_extractor.py#L1319)
 
-- **Called by** (13): [`_collect_bindings`](../../src/orchestrator/pkg/kotlin_extractor.py#L961), [`_declared_name`](../../src/orchestrator/pkg/kotlin_extractor.py#L1130), [`_declared_name_or_first`](../../src/orchestrator/pkg/kotlin_extractor.py#L1069), [`_declared_property_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L1061), [`_emit_constructor_properties`](../../src/orchestrator/pkg/kotlin_extractor.py#L408), [`_emit_members`](../../src/orchestrator/pkg/kotlin_extractor.py#L441), [`_extension_receiver`](../../src/orchestrator/pkg/kotlin_extractor.py#L1046), [`_field_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1167), [`_imports`](../../src/orchestrator/pkg/kotlin_extractor.py#L297), [`_parameter_types`](../../src/orchestrator/pkg/kotlin_extractor.py#L1018), [`_resolve_call`](../../src/orchestrator/pkg/kotlin_extractor.py#L602), [`_resolve_navigated`](../../src/orchestrator/pkg/kotlin_extractor.py#L676), [`_supertypes`](../../src/orchestrator/pkg/kotlin_extractor.py#L1135)
+- **Called by** (13): [`_collect_bindings`](../../src/orchestrator/pkg/kotlin_extractor.py#L1076), [`_declared_name`](../../src/orchestrator/pkg/kotlin_extractor.py#L1277), [`_declared_name_or_first`](../../src/orchestrator/pkg/kotlin_extractor.py#L1216), [`_declared_property_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L1208), [`_emit_constructor_properties`](../../src/orchestrator/pkg/kotlin_extractor.py#L455), [`_emit_members`](../../src/orchestrator/pkg/kotlin_extractor.py#L488), [`_extension_receiver`](../../src/orchestrator/pkg/kotlin_extractor.py#L1193), [`_field_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1314), [`_imports`](../../src/orchestrator/pkg/kotlin_extractor.py#L344), [`_parameter_types`](../../src/orchestrator/pkg/kotlin_extractor.py#L1165), [`_resolve_call`](../../src/orchestrator/pkg/kotlin_extractor.py#L649), [`_resolve_navigated`](../../src/orchestrator/pkg/kotlin_extractor.py#L744), [`_supertypes`](../../src/orchestrator/pkg/kotlin_extractor.py#L1282)
 
 ### `_walk`
 
-[`src/orchestrator/pkg/kotlin_extractor.py:1008`](../../src/orchestrator/pkg/kotlin_extractor.py#L1008)
+[`src/orchestrator/pkg/kotlin_extractor.py:1155`](../../src/orchestrator/pkg/kotlin_extractor.py#L1155)
 
-- **Called by** (1): [`_collect_bindings`](../../src/orchestrator/pkg/kotlin_extractor.py#L961)
+- **Called by** (1): [`_collect_bindings`](../../src/orchestrator/pkg/kotlin_extractor.py#L1076)
 
 ## Imports
 
@@ -189,4 +196,4 @@ _20 of the symbols other code depends on here have no test path the graph can se
 
 ## Imported by
 
-[`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`orchestrator.pkg.gradle_extractor`](../../src/orchestrator/pkg/gradle_extractor.py#L1), [`orchestrator.pkg.scope`](orchestrator.pkg.scope.md), [`tests.pkg.test_kotlin_extractor`](../../tests/pkg/test_kotlin_extractor.py#L1), [`tests.pkg.test_kotlin_http`](../../tests/pkg/test_kotlin_http.py#L1), [`tests.pkg.test_kotlin_literals`](../../tests/pkg/test_kotlin_literals.py#L1), [`tests.pkg.test_kotlin_room`](../../tests/pkg/test_kotlin_room.py#L1)
+[`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`orchestrator.pkg.gradle_extractor`](../../src/orchestrator/pkg/gradle_extractor.py#L1), [`orchestrator.pkg.scope`](orchestrator.pkg.scope.md), [`tests.pkg.test_kotlin_extractor`](../../tests/pkg/test_kotlin_extractor.py#L1), [`tests.pkg.test_kotlin_fabrication`](../../tests/pkg/test_kotlin_fabrication.py#L1), [`tests.pkg.test_kotlin_http`](../../tests/pkg/test_kotlin_http.py#L1), [`tests.pkg.test_kotlin_literals`](../../tests/pkg/test_kotlin_literals.py#L1), [`tests.pkg.test_kotlin_room`](../../tests/pkg/test_kotlin_room.py#L1)

@@ -102,6 +102,34 @@ _TYPE_BODIES = frozenset({"class_body", "enum_class_body"})
 
 _LANG = "kotlin"
 
+#: ``kotlin.*`` scope functions — extensions on their receiver, never a member of it.
+#: A *certain* (imported) receiver type has no repo-declared member list to refuse
+#: these against, so ``_settle_calls`` checks the member name against this set before
+#: minting an external placeholder (#389; declared receivers are already covered by the
+#: ``resolve_or_drop``/``declared_ids`` check above it).
+#:
+#: **The name alone is not enough**, and that was the first fix's defect: ``run``,
+#: ``apply`` and ``use`` are also genuine members of real library types, so refusing on
+#: the name cost ``java.lang.Runnable.run``, ``java.util.TimerTask.run``,
+#: ``org.gradle.api.Project.apply`` and every ``java.time`` ``with`` — measured at two
+#: dropped edges on a three-call probe. The set is therefore paired with
+#: ``_passes_function``: a scope function is *given* a function, a same-named member is
+#: not. Kotlin's own ``with(x) { }`` is absent deliberately — it is a top-level
+#: function, so it reaches ``_settle_calls`` as a bare callee with ``certain=False`` and
+#: is dropped a line earlier; listing it could only ever match a real member.
+_SCOPE_FUNCTIONS = frozenset(
+    {
+        "let",
+        "run",
+        "also",
+        "apply",
+        "takeIf",
+        "takeUnless",
+        "use",
+        "runCatching",
+    }
+)
+
 
 @dataclass
 class _ImportContext:
@@ -132,11 +160,22 @@ class _DeferredCall:
       a class that does not exist in any package.
     * **Whether the named member exists at all.** ``topic.let { }`` resolved onto
       ``java:app.data.Topic.let``, and ``let`` is not a member of ``Topic`` — it is one of
-      the four scope functions §3.2 lists under "never".
+      the scope functions §3.2 lists under "never".
 
     Both used to reach the graph as an ``external`` placeholder node plus an edge, so
     ``pkg verify`` saw nothing dangling and reported clean. Deferring instead lets
-    ``finalize`` ask the only question that settles it: does the repository declare this?
+    ``finalize`` ask the question that settles most of it: does the repository declare
+    this? That question has no answer when the receiver's type is **imported rather
+    than repo-declared** — ``modifier.let { }`` on an imported ``Modifier`` has nothing
+    to check "does the repo declare this" against, so ``_settle_calls`` pairs the member
+    name (``_SCOPE_FUNCTIONS``) with the call's *shape* (``takes_function_argument``)
+    before minting a placeholder (#389).
+
+    What this still cannot settle is named honestly rather than claimed closed: an
+    imported receiver's real members are unknowable, so ``m.padding(8)`` is only known
+    *not* to be ``Modifier.padding`` when the file imports the extension by that name
+    (``imported_extension``). Where it does not — a wildcard import, or a genuine
+    member — the receiver-member reading stands, and it may be a fabrication.
     """
 
     src: str
@@ -149,6 +188,14 @@ class _DeferredCall:
     #: placeholder: its fully-qualified name is what the file actually says, so a call
     #: into a library lands rather than dangling. A guess has no such backstop.
     certain: bool
+    #: Whether the call site hands the callee a function — a trailing lambda, or a lone
+    #: lambda/callable-reference argument. A scope function always does; a same-named
+    #: member such as ``Runnable.run()`` does not. See ``_passes_function``.
+    takes_function_argument: bool
+    #: The fully-qualified id of an extension this file imports under the called name,
+    #: or ``""``. Written in the source, so it outranks the receiver-member guess as the
+    #: external placeholder (see ``_settle_calls``).
+    imported_extension: str
     provenance: Provenance
 
 
@@ -614,16 +661,35 @@ class KotlinExtractor:
         callee = next(iter(call.named_children), None)
         if callee is None:
             return None
+        # Read off the *call*, not the callee: the arguments are siblings of the
+        # navigation expression, so this is the last point where both are in hand.
+        passes_function = _passes_function(call)
         if callee.type == "identifier":
-            return self._resolve_bare(_text(callee, source), owner, ctx, scope)
+            return self._resolve_bare(
+                _text(callee, source), owner, ctx, scope, passes_function=passes_function
+            )
         if callee.type == "navigation_expression":
             return self._resolve_navigated(
-                callee, owner, ctx, scope, source, line=line, rel=rel, this_type=this_type
+                callee,
+                owner,
+                ctx,
+                scope,
+                source,
+                line=line,
+                rel=rel,
+                this_type=this_type,
+                passes_function=passes_function,
             )
         return None  # a chained or computed callee — inference, so never
 
     def _resolve_bare(
-        self, name: str, owner: str | None, ctx: _FileContext, scope: _Scope
+        self,
+        name: str,
+        owner: str | None,
+        ctx: _FileContext,
+        scope: _Scope,
+        *,
+        passes_function: bool,
     ) -> str | _DeferredCall | None:
         """``foo()`` with no receiver."""
         if not name or name in scope.bound:
@@ -669,6 +735,8 @@ class KotlinExtractor:
                 candidates=candidates,
                 owners=candidates,
                 certain=False,
+                takes_function_argument=passes_function,
+                imported_extension="",
                 provenance=Provenance("", 0),
             )
         return None
@@ -684,6 +752,7 @@ class KotlinExtractor:
         line: int,
         rel: str,
         this_type: str = "",
+        passes_function: bool,
     ) -> str | _DeferredCall | None:
         """``recv.foo()`` — the typed-receiver case, and the static/companion one."""
         parts = [c for c in nav.named_children]
@@ -704,7 +773,9 @@ class KotlinExtractor:
             # this.navigate(…) }` resolved to nothing at all, because only a member
             # function was considered to have a `this` worth resolving.
             return (
-                self._deferred_call(this_type, name, ctx, owner=None, line=line, rel=rel)
+                self._deferred_call(
+                    this_type, name, ctx, owner=None, line=line, rel=rel, passes_function=passes_function
+                )
                 if this_type
                 else None
             )
@@ -741,11 +812,14 @@ class KotlinExtractor:
                 line=line,
                 rel=rel,
                 also=(f"java:{imported}",) if imported else (),
+                passes_function=passes_function,
             )
         if recv[:1].isupper():
             # `Type.foo()` — an object, a companion member folded onto the class
             # (D5), or an enum member. The Java rule, unchanged.
-            return self._deferred_call(recv, name, ctx, owner=None, line=line, rel=rel)
+            return self._deferred_call(
+                recv, name, ctx, owner=None, line=line, rel=rel, passes_function=passes_function
+            )
         return None
 
     def _deferred_call(
@@ -758,12 +832,20 @@ class KotlinExtractor:
         line: int,
         rel: str,
         also: tuple[str, ...] = (),
+        passes_function: bool,
     ) -> _DeferredCall | None:
         """Hold back ``<type_name>.<member>()`` for the whole-repository check.
 
         ``also`` are extra ids the call could name, tried *after* the receiver's own
-        members and never used as the external-placeholder fallback — they are alternative
-        readings of the same call site, not the reading the source states.
+        members — they are alternative readings of the same call site.
+
+        They used to be barred from the external-placeholder fallback too, on the
+        grounds that they are "not the reading the source states". That is right while
+        the receiver is one the repository declares, and backwards once it is not: an
+        imported receiver's members are **unknowable**, so ``Modifier.padding`` is a
+        guess, while ``import androidx.compose.foundation.layout.padding`` is a
+        fully-qualified name the file itself wrote. ``_settle_calls`` therefore prefers
+        an ``also`` id for that one case, and ``imported_extension`` carries it.
         """
         owners, certain = self._type_candidates(type_name, ctx)
         if not owners and not also:
@@ -773,6 +855,8 @@ class KotlinExtractor:
             candidates=tuple(f"{t}.{member}" for t in owners) + also,
             owners=owners or also,
             certain=certain and bool(owners),
+            takes_function_argument=passes_function,
+            imported_extension=also[0] if also else "",
             provenance=Provenance(rel, line),
         )
 
@@ -880,7 +964,7 @@ class KotlinExtractor:
     def _settle_calls(self, batch: FactBatch) -> None:
         """Decide every held-back typed-receiver call against the finished repository.
 
-        Three outcomes, and the middle one is the whole point:
+        Four outcomes, and the middle two are the whole point:
 
         * A candidate the repository **declares** wins, first one in priority order.
           A wildcard-imported sibling lands here — ``import app.data.*`` then
@@ -890,13 +974,40 @@ class KotlinExtractor:
         * Nothing grounded, and the receiver's type was **guessed** or is a type this
           repository declares: **drop**. A guessed id has no backstop, and a declared
           type that has no such member means the call is not to that type at all —
-          ``topic.let { }`` being the common shape. This is the case that used to mint a
-          placeholder and so hide itself from ``pkg verify``.
+          ``topic.let { }`` on a repo-declared ``Topic`` being the common shape. This is
+          the case that used to mint a placeholder and so hide itself from ``pkg verify``.
+        * Nothing grounded, the type was read from an import, the repository does not
+          declare it, and the call is a **scope function by name and by shape**: **drop**.
+          An imported type has no declared-member list to refuse against, so
+          ``modifier.let { }`` on an imported ``Modifier`` would otherwise mint a
+          placeholder — the receiver's own fabrication, one level further out than the
+          declared-type case above (#389).
+
+          Both halves are load-bearing. Refusing on the name alone — the first fix for
+          #389 — dropped ``r.run()`` on a ``Runnable`` and ``d.with(adjuster)`` on a
+          ``LocalDate``, genuine members that merely share a scope function's name;
+          measured, a three-call probe went from three ``CALLS`` to one. So the call
+          must also *pass a function*, which is what a scope function is for and what
+          ``Runnable.run()`` does not do.
         * Nothing grounded, the type was read from the source, and the repository does
-          not declare it: a genuine call into a library. It keeps the external
-          placeholder, because the id is the fully-qualified name the file itself wrote
-          (measured: 387 such edges across 161 AndroidX/kotlinx symbols on the
-          validation app, and losing them would be a real recall regression).
+          not declare it: a genuine call into a library, which keeps an external
+          placeholder rather than dangling (measured: 387 such edges across 161
+          AndroidX/kotlinx symbols on the validation app, and losing them would be a real
+          recall regression).
+
+          **Which id that placeholder gets is not obvious**, and the receiver-member
+          form is usually wrong. ``m.padding(8)`` reads as a member of ``Modifier``, but
+          ``padding`` is ``androidx.compose.foundation.layout.padding``, an extension —
+          ``Modifier`` does not declare it, and Kotlin requires the file to import an
+          extension in order to call it. So when this file imports something under the
+          called name, that import is the better-evidenced target: it is a
+          fully-qualified name the source actually wrote, where the member reading is a
+          guess about a type nothing here can introspect.
+
+        What survives all four is stated rather than hidden: a wildcard-imported
+        extension binds no simple name, so ``m.padding(8)`` under ``import
+        androidx.compose.foundation.layout.*`` still lands on the receiver-member id and
+        may still be a fabrication. Narrowed, not closed.
         """
         declared = declared_ids(batch)
         for call in self._deferred:
@@ -911,7 +1022,11 @@ class KotlinExtractor:
                 continue
             if not call.certain or call.owners[0] in declared:
                 continue
-            target = call.candidates[0]
+            member = call.candidates[0].rsplit(".", 1)[-1]
+            if member in _SCOPE_FUNCTIONS and call.takes_function_argument:
+                continue
+            # The import outranks the receiver-member guess — see the docstring.
+            target = call.imported_extension or call.candidates[0]
             batch.add_node(Node(target, NodeKind.FUNCTION, target.rsplit(".", 1)[-1], _LANG, external=True))
             batch.add_edge(Edge(call.src, target, EdgeKind.CALLS, call.provenance))
         self._deferred.clear()
@@ -985,6 +1100,38 @@ def _collect_bindings(body: TSNode, source: bytes, scope: _Scope) -> None:
             caught = next((c for c in node.named_children if c.type == "identifier"), None)
             if caught is not None:
                 scope.bind(_text(caught, source))
+
+
+#: Argument nodes that are *syntactically* a function, whatever their type.
+_FUNCTION_ARGUMENTS = frozenset({"lambda_literal", "callable_reference"})
+
+
+def _passes_function(call: TSNode) -> bool:
+    """Whether this call site hands the callee a function.
+
+    The discriminator between a scope function and a library member that happens to
+    share its name. ``m.let { }`` passes one and ``r.run()`` does not, which is the only
+    difference available to a front-end that cannot introspect ``Runnable``.
+
+    Three shapes count, all read straight off the grammar: a trailing lambda is an
+    ``annotated_lambda`` child of the ``call_expression``; the parenthesised forms
+    ``x.let({ … })`` and ``x.let(::f)`` put a ``lambda_literal`` or
+    ``callable_reference`` inside a lone ``value_argument``. Everything else — no
+    arguments, a value, or more than one argument — is not the scope-function shape.
+
+    Deliberately syntactic, and deliberately incomplete: ``x.also(fn)`` where ``fn`` is
+    a variable holding a lambda reads exactly like a one-argument member call, and no
+    amount of parsing separates them. That residue is recorded in
+    ``corpus/kotlin/scope_functions/expected.json`` rather than hidden.
+    """
+    for child in call.named_children:
+        if child.type == "annotated_lambda":
+            return True
+        if child.type == "value_arguments":
+            args = [a for a in child.named_children if a.type == "value_argument"]
+            if len(args) == 1 and any(g.type in _FUNCTION_ARGUMENTS for g in args[0].named_children):
+                return True
+    return False
 
 
 def _call_sites(body: TSNode) -> list[TSNode]:

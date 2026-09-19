@@ -4,6 +4,66 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.39.0 — 2026-09-19
+
+A field report from the Nucor engagement (NSS-1239) and the follow-ups a maintainer review
+found around it. **NSS-1239:** `sdlc feature` scaffolded a WebApp ticket into `ApiClient` and
+failed after six test runs — the target project was whichever `.csproj` sorted first, and the
+domain type it needed is unreachable from there by construction. Two CI guards that were
+skipped rather than passed are closed in the same release.
+
+### Fixed
+
+
+- **`sdlc feature` builds in the project the ticket names.** In a repository holding several
+  projects of the same language the target was whichever one sorted first, so NSS-1239 — whose
+  plan named five files under `WebApp/` — scaffolded into `ApiClient`, could not resolve
+  `Product`, spent every refine on `using` directives and ended `FAILED after 6 test run(s)`. The
+  project is now chosen in three steps: the one holding the files the design names (the deepest
+  project owns its own files, since nested projects are the normal .NET shape), else the one with
+  the most source **in the language being resolved**, counted the way the extractor walks — a
+  generated `obj/` tree and a vendored `wwwroot/lib/` of jQuery cannot vote — else the name,
+  which now only breaks a tie the first two could not. The `[layout]` line says
+  which rule fired: `src=WebApp (project chosen: holds 5 of 5 file(s) the design names)`.
+  **`--package-name` now retargets, not just renames:** naming a project settles the choice
+  outright, which is the lever a `sdlc feature` run had no way to offer when the inference was
+  wrong, and the test project it pairs with is that project's own rather than the first suite
+  in the repository. Vendored and sample trees (`third_party/`, `samples/`, …) are never
+  candidates in any language — unless the ticket names a file inside one, since an SDK repo's
+  own `examples/` module is first-party to whoever filed the ticket about it. Greenfield
+  scaffolding is unchanged.
+
+- **Java multi-module repositories resolve at all.** `root/src/main/java` is the single-module
+  shape; a Maven or Gradle build keeps each module's tree under `<module>/src/main/java` at
+  any depth, so `include(":services:worker")` counts. The lookup previously matched nothing
+  and the layout fell through to a package name absent from the repository; the module, and
+  the package inside it, now follow the ticket's files. Kotlin was already module-aware but chose by package name and stopped at "name a module"
+  when several qualified; the ticket's files settle it, and that honest refusal remains when they
+  say nothing.
+
+
+- **The `episteme/` guard cannot be skipped by aiming at `main`.** CI exempts the
+  `develop → main` promotion PR, whose `episteme/` diff is the regeneration bot's own work —
+  but the exemption keyed on the *base* alone, so any PR into `main` from any branch got a
+  free pass. A contributor's feature branch targeting `main` carried `episteme/README.md`
+  through with every check green, because the guard was skipped rather than passed. It now
+  keys on both refs: only `develop → main` is a promotion, and only a promotion is exempt.
+
+- **Kotlin scope functions are refused by name *and* shape, and an imported extension outranks a
+  receiver-member guess.** `m.let { }` on an imported `Modifier` minted
+  `java:androidx.compose.ui.Modifier.let`, a member `Modifier` does not declare, because
+  `finalize`'s "does the repository declare this?" check has no answer for a third-party receiver
+  (#389). Refusing on the member name alone then cost true edges — `run`, `apply` and `use` are
+  genuine members of `Runnable`, Gradle's `Project` and others, and a three-call probe fell from
+  three `CALLS` to one — so the refusal now also requires the call to *pass a function*, which a
+  scope function does and `r.run()` does not. `with` left the set: Kotlin's `with(x) { }` is
+  top-level and never reached the check, so listing it could only ever drop a real member such as
+  `java.time.LocalDate.with`. Separately, `m.padding(8)` now lands on
+  `androidx.compose.foundation.layout.padding` — the extension the file imports, which is a name
+  the source wrote — instead of the invented `Modifier.padding`. Kotlin corpus precision stays
+  1.00 on every kind with `CALLS` recall 0.94, invention 0; new `scope_functions` corpus case and
+  five tests in `tests/pkg/test_kotlin_fabrication.py`.
+
 ## 3.38.0 — 2026-09-18
 
 Two field reports from a React Native engagement (CB-686, CB-760), plus what the NSS-1231 build

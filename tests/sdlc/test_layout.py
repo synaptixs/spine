@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from orchestrator.sdlc.layout import (
     derive_package_name,
     detect_existing_package,
@@ -348,3 +350,422 @@ def test_auto_detects_existing_migrations_dir(tmp_path: Path) -> None:
     (tmp_path / "migrations" / "001_init.sql").write_text("CREATE TABLE t (id INT);\n")
     layout = resolve_layout(tmp_path, mode="auto", language="sql")
     assert layout.language == "sql" and layout.mode == "existing"
+
+
+# ---- B10: which project, when a repository holds several -------------------------------------
+
+
+def _nss_1239(root: Path) -> None:
+    """The NSS-1239 shape: three projects, the work in the one that sorts last, and a generated
+    `obj/` tree that must not vote."""
+    for proj, files in (
+        ("ApiClient", ["Auction.cs"]),
+        ("WebApp", ["C1.cs", "C2.cs", "C3.cs", "C4.cs", "C5.cs"]),
+        ("UnitTests", ["AuctionTests.cs"]),
+    ):
+        (root / proj).mkdir(parents=True, exist_ok=True)
+        for f in files:
+            (root / proj / f).write_text("class X {}\n", encoding="utf-8")
+    (root / "ApiClient" / "ApiClient.csproj").write_text("<Project/>\n", encoding="utf-8")
+    (root / "UnitTests" / "UnitTests.csproj").write_text("<Project/>\n", encoding="utf-8")
+    (root / "WebApp" / "commercial-secondary-sales.csproj").write_text("<Project/>\n", encoding="utf-8")
+    ui = root / "WebApp" / "Features" / "Common" / "Auctions" / "Ui"
+    ui.mkdir(parents=True)
+    (ui / "AuctionCoilsUi.razor").write_text("<div/>\n", encoding="utf-8")
+    obj = root / "ApiClient" / "obj" / "Generated"
+    obj.mkdir(parents=True)
+    for i in range(50):
+        (obj / f"G{i}.cs").write_text("class G {}\n", encoding="utf-8")
+
+
+def test_nss_1239_the_project_holding_the_design_s_files_is_the_target(tmp_path: Path) -> None:
+    """NSS-1239 scaffolded into `ApiClient` — first in sorted order — while its own plan named
+    five files under `WebApp/`. Codegen could not resolve `Product`, spent every refine on
+    `using` directives, and ended FAILED after six test runs."""
+    from orchestrator.sdlc.layout import detect_csharp_layout
+
+    _nss_1239(tmp_path)
+    design = [
+        "WebApp/Features/Common/Auctions/Ui/AuctionCoilsUi.razor",
+        "WebApp/C1.cs",
+    ]
+    assert detect_csharp_layout(tmp_path, prefer_paths=design) == (
+        "commercial-secondary-sales",
+        "WebApp",
+        "UnitTests",
+    )
+
+
+def test_without_a_design_the_project_with_the_most_source_wins(tmp_path: Path) -> None:
+    """`sdlc feature` can run with no plan behind it. Alphabetical is not an answer; how much
+    source a project holds is at least evidence — and a generated `obj/` tree does not vote."""
+    from orchestrator.sdlc.layout import detect_csharp_layout
+
+    _nss_1239(tmp_path)
+    detected = detect_csharp_layout(tmp_path)
+    assert detected is not None and detected[1] == "WebApp"
+
+
+def test_the_layout_says_which_rule_chose_the_project(tmp_path: Path) -> None:
+    """A run that built in the wrong place should not make the reader guess whether the project
+    was derived from the ticket or defaulted."""
+    from orchestrator.sdlc.layout import resolve_layout
+
+    _nss_1239(tmp_path)
+    named = resolve_layout(tmp_path, mode="existing", language="csharp", prefer_paths=["WebApp/C1.cs"])
+    assert named.chosen_reason == "holds 1 of 1 file(s) the design names"
+    assert resolve_layout(tmp_path, mode="existing", language="csharp").chosen_reason.startswith(
+        "most source"
+    )
+
+
+def test_a_single_project_repo_is_unchanged_and_says_so(tmp_path: Path) -> None:
+    from orchestrator.sdlc.layout import resolve_layout
+
+    (tmp_path / "Shop").mkdir()
+    (tmp_path / "Shop" / "Shop.csproj").write_text("<Project/>\n", encoding="utf-8")
+    (tmp_path / "Shop" / "Cart.cs").write_text("class Cart {}\n", encoding="utf-8")
+    layout = resolve_layout(tmp_path, mode="existing", language="csharp")
+    assert (layout.package_name, layout.source_dir) == ("Shop", "Shop")
+    assert layout.chosen_reason == "only candidate"
+
+
+def test_the_deepest_project_owns_its_own_files(tmp_path: Path) -> None:
+    """Nested projects are the normal .NET shape. `WebApp/Tests/` owns what is under it, not
+    `WebApp/`, or every nested file would vote for its parent."""
+    from orchestrator.sdlc.layout import choose_project
+
+    outer = tmp_path / "WebApp" / "WebApp.csproj"
+    inner = tmp_path / "WebApp" / "Integration" / "Integration.csproj"
+    inner.parent.mkdir(parents=True)
+    outer.write_text("<Project/>\n", encoding="utf-8")
+    inner.write_text("<Project/>\n", encoding="utf-8")
+
+    chosen = choose_project([outer, inner], prefer_paths=["WebApp/Integration/Thing.cs"], root=tmp_path)
+    assert chosen == inner
+
+
+def test_the_explicit_package_name_still_outranks_the_chooser(tmp_path: Path) -> None:
+    """A flag is a human's instruction; the chooser is an inference."""
+    from orchestrator.sdlc.layout import resolve_layout
+
+    _nss_1239(tmp_path)
+    layout = resolve_layout(
+        tmp_path, mode="existing", language="csharp", package_name="Chosen", prefer_paths=["WebApp/C1.cs"]
+    )
+    assert layout.package_name == "Chosen"
+
+
+@pytest.mark.parametrize(
+    "language",
+    ["python", "java", "kotlin", "typescript", "csharp", "go", "php", "perl", "c", "cpp", "sql"],
+)
+def test_every_language_accepts_the_preference(tmp_path: Path, language: str) -> None:
+    """`Toolchain.layout` is `Callable[..., TargetLayout]`, so a resolver that did not accept the
+    new keyword would raise TypeError at run time and no type checker would have said so."""
+    from orchestrator.sdlc.layout import resolve_layout
+
+    assert resolve_layout(tmp_path, mode="auto", language=language, prefer_paths=["src/a.py"])
+
+
+def test_a_multi_module_java_build_resolves_the_module_the_design_names(tmp_path: Path) -> None:
+    """`root/src/main/java` is the single-module shape. A Maven or Gradle monorepo keeps each
+    module's tree under `<module>/src/main/java`, where the old lookup saw nothing at all and the
+    layout fell through to a package name that does not exist in the repo."""
+    from orchestrator.sdlc.layout import detect_java_layout
+
+    for module, pkg in (("api", "com/acme/api"), ("worker", "com/acme/worker")):
+        d = tmp_path / module / "src" / "main" / "java" / pkg
+        d.mkdir(parents=True)
+        (d / "Main.java").write_text("class Main {}\n", encoding="utf-8")
+
+    assert detect_java_layout(tmp_path, prefer_paths=["worker/src/main/java/com/acme/worker/Main.java"]) == (
+        "com.acme.worker",
+        "worker/src/main/java/com/acme/worker",
+        "worker/src/test/java/com/acme/worker",
+    )
+
+
+def test_a_single_module_java_build_is_unchanged(tmp_path: Path) -> None:
+    from orchestrator.sdlc.layout import detect_java_layout
+
+    d = tmp_path / "src" / "main" / "java" / "com" / "acme"
+    d.mkdir(parents=True)
+    (d / "Main.java").write_text("class Main {}\n", encoding="utf-8")
+    assert detect_java_layout(tmp_path) == (
+        "com.acme",
+        "src/main/java/com/acme",
+        "src/test/java/com/acme",
+    )
+
+
+def _two_kotlin_modules(root: Path) -> None:
+    for module, pkg in (("api", "com/acme/api"), ("worker", "com/acme/worker")):
+        d = root / module / "src" / "main" / "kotlin" / pkg
+        d.mkdir(parents=True)
+        (d / "Main.kt").write_text("class Main\n", encoding="utf-8")
+        (root / module / "build.gradle.kts").write_text('plugins { kotlin("jvm") }\n', encoding="utf-8")
+    (root / "settings.gradle.kts").write_text('include(":api", ":worker")\n', encoding="utf-8")
+
+
+def test_an_explicit_package_name_outranks_the_files_a_ticket_mentions(tmp_path: Path) -> None:
+    """A ticket may *mention* a file it only reads. An operator naming the package is giving an
+    instruction, and an inference must not overrule it (D7)."""
+    from orchestrator.sdlc.layout import resolve_layout
+
+    _two_kotlin_modules(tmp_path)
+    layout = resolve_layout(
+        tmp_path,
+        mode="existing",
+        language="kotlin",
+        package_name="com.acme.api",
+        prefer_paths=["worker/src/main/kotlin/com/acme/worker/Main.kt"],
+    )
+    assert layout.module == "api"
+    assert layout.source_dir == "api/src/main/kotlin/com/acme/api"
+
+
+def test_choosing_a_module_from_the_ticket_takes_that_module_s_own_package(tmp_path: Path) -> None:
+    """Keeping the repo-derived name while switching module is how a package nobody declared gets
+    written into a brownfield module — the failure `_module_layout` already records once."""
+    from orchestrator.sdlc.layout import resolve_layout
+
+    _two_kotlin_modules(tmp_path)
+    layout = resolve_layout(
+        tmp_path,
+        mode="existing",
+        language="kotlin",
+        prefer_paths=["worker/src/main/kotlin/com/acme/worker/Main.kt"],
+    )
+    assert layout.module == "worker"
+    assert layout.package_name == "com.acme.worker"  # the module's own, never `org.example.<repo>`
+    assert layout.source_dir == "worker/src/main/kotlin/com/acme/worker"
+    assert layout.chosen_reason == "holds 1 of 1 file(s) the design names"
+
+
+def test_a_ticket_that_names_nothing_still_refuses_to_guess_a_module(tmp_path: Path) -> None:
+    """Two modules and no evidence is the case `kotlin_project_error` exists to report. A guess
+    dressed as a choice is worse than the refusal."""
+    from orchestrator.sdlc.layout import resolve_layout
+
+    _two_kotlin_modules(tmp_path)
+    layout = resolve_layout(tmp_path, mode="existing", language="kotlin")
+    assert layout.module == "" and layout.source_dir == ""
+
+
+def test_a_module_directory_with_a_dot_in_its_name_owns_only_its_own_files(tmp_path: Path) -> None:
+    """`acme.worker/` has a suffix by `Path`'s reckoning, so a name-based test made it the
+    repository root — and every file in the repo, including a top-level README, counted for it."""
+    from orchestrator.sdlc.layout import detect_java_layout, project_holding
+
+    for module in ("acme.worker", "web"):
+        d = tmp_path / module / "src" / "main" / "java" / "com" / "acme"
+        d.mkdir(parents=True)
+        (d / "Main.java").write_text("class Main {}\n", encoding="utf-8")
+    (tmp_path / "README.md").write_text("# readme\n", encoding="utf-8")
+
+    assert (
+        project_holding(
+            [tmp_path / "acme.worker", tmp_path / "web"], prefer_paths=["README.md"], root=tmp_path
+        )
+        is None
+    )
+    detected = detect_java_layout(tmp_path, prefer_paths=["web/src/main/java/com/acme/Main.java"])
+    assert detected is not None and detected[1] == "web/src/main/java/com/acme"
+
+
+def test_a_vendored_asset_tree_cannot_outvote_a_real_project(tmp_path: Path) -> None:
+    """`wwwroot/lib/` is where an ASP.NET app keeps vendored jQuery and Bootstrap. Counting every
+    front-end suffix let ten C# files plus 1,200 vendored `.js` beat an eighty-file API client."""
+    from orchestrator.sdlc.layout import detect_csharp_layout
+
+    (tmp_path / "ApiClient").mkdir()
+    (tmp_path / "ApiClient" / "ApiClient.csproj").write_text("<Project/>\n", encoding="utf-8")
+    for i in range(80):
+        (tmp_path / "ApiClient" / f"C{i}.cs").write_text("class C {}\n", encoding="utf-8")
+    vendor = tmp_path / "WebApp" / "wwwroot" / "lib" / "jquery"
+    vendor.mkdir(parents=True)
+    (tmp_path / "WebApp" / "WebApp.csproj").write_text("<Project/>\n", encoding="utf-8")
+    for i in range(10):
+        (tmp_path / "WebApp" / f"W{i}.cs").write_text("class W {}\n", encoding="utf-8")
+    for i in range(1200):
+        (vendor / f"v{i}.js").write_text("//\n", encoding="utf-8")
+
+    detected = detect_csharp_layout(tmp_path)
+    assert detected is not None and detected[1] == "ApiClient"
+
+
+def test_a_nested_maven_module_is_found(tmp_path: Path) -> None:
+    """`include(":services:worker")` and Maven aggregators nest. One level of globbing found
+    nothing at all and the layout fell through to a package absent from the repository."""
+    from orchestrator.sdlc.layout import detect_java_layout
+
+    for module in ("api", "worker"):
+        d = tmp_path / "services" / module / "src" / "main" / "java" / "com" / "acme" / module
+        d.mkdir(parents=True)
+        (d / "Main.java").write_text("class Main {}\n", encoding="utf-8")
+
+    detected = detect_java_layout(
+        tmp_path, prefer_paths=["services/worker/src/main/java/com/acme/worker/Main.java"]
+    )
+    assert detected == (
+        "com.acme.worker",
+        "services/worker/src/main/java/com/acme/worker",
+        "services/worker/src/test/java/com/acme/worker",
+    )
+
+
+def test_the_java_layout_says_which_rule_chose_the_module(tmp_path: Path) -> None:
+    from orchestrator.sdlc.layout import resolve_layout
+
+    for module in ("api", "worker"):
+        d = tmp_path / module / "src" / "main" / "java" / "com" / "acme" / module
+        d.mkdir(parents=True)
+        (d / "Main.java").write_text("class Main {}\n", encoding="utf-8")
+
+    layout = resolve_layout(
+        tmp_path,
+        mode="existing",
+        language="java",
+        prefer_paths=["worker/src/main/java/com/acme/worker/Main.java"],
+    )
+    assert layout.chosen_reason == "holds 1 of 1 file(s) the design names"
+
+
+def test_naming_the_project_settles_it_outright(tmp_path: Path) -> None:
+    """The lever a human needs when the inference is wrong. Before this, `--package-name`
+    renamed the layout without retargeting it, so an operator who *knew* the run was aimed at
+    the wrong project had no way to say so — reported from the field on NSS-1239."""
+    from orchestrator.sdlc.layout import resolve_layout
+
+    _nss_1239(tmp_path)
+    layout = resolve_layout(
+        tmp_path,
+        mode="existing",
+        language="csharp",
+        package_name="ApiClient",
+        prefer_paths=["WebApp/C1.cs"],  # the inference would say WebApp; the operator says otherwise
+    )
+    assert (layout.package_name, layout.source_dir) == ("ApiClient", "ApiClient")
+    assert layout.chosen_reason == "named explicitly"
+
+
+def test_a_vendored_java_tree_is_never_a_placement_candidate(tmp_path: Path) -> None:
+    """`third_party/` is source-shaped, so the per-language filter cannot help: a 50-file
+    vendored Guava beat the repository's own one-file service on "most source", and a ticket
+    naming no path would have opened a PR editing somebody else's code."""
+    from orchestrator.sdlc.layout import detect_java_layout
+
+    own = tmp_path / "services" / "api" / "src" / "main" / "java" / "com" / "acme"
+    own.mkdir(parents=True)
+    (own / "Main.java").write_text("class Main {}\n", encoding="utf-8")
+    vendored = tmp_path / "third_party" / "guavaish" / "src" / "main" / "java" / "com" / "google"
+    vendored.mkdir(parents=True)
+    for i in range(50):
+        (vendored / f"G{i}.java").write_text("class G {}\n", encoding="utf-8")
+
+    detected = detect_java_layout(tmp_path)
+    assert detected is not None and detected[1] == "services/api/src/main/java/com/acme"
+
+
+def test_the_kotlin_layout_says_why_it_rewrote_the_package(tmp_path: Path) -> None:
+    """Both remaining Kotlin branches replace the operator's derived package with the module's
+    own — which is right, and is exactly the surprise the `[layout]` line exists to explain."""
+    from orchestrator.sdlc.layout import resolve_layout
+
+    d = tmp_path / "app" / "src" / "main" / "kotlin" / "com" / "acme" / "app"
+    d.mkdir(parents=True)
+    (d / "Main.kt").write_text("class Main\n", encoding="utf-8")
+    (tmp_path / "app" / "build.gradle.kts").write_text('plugins { kotlin("jvm") }\n', encoding="utf-8")
+    (tmp_path / "settings.gradle.kts").write_text('include(":app")\n', encoding="utf-8")
+
+    layout = resolve_layout(tmp_path, mode="existing", language="kotlin")
+    assert layout.module == "app"
+    assert layout.chosen_reason == "only Kotlin module in the build"
+
+
+def test_a_vendored_dotnet_project_is_not_a_candidate_either(tmp_path: Path) -> None:
+    """The exclusion has to reach the language the track exists for: a 99-file
+    `third_party/Vendor.Lib` beat the repository's own five-file project on "most source"."""
+    from orchestrator.sdlc.layout import detect_csharp_layout
+
+    (tmp_path / "src" / "Acme.Worker").mkdir(parents=True)
+    (tmp_path / "src" / "Acme.Worker" / "Acme.Worker.csproj").write_text("<Project/>\n", encoding="utf-8")
+    for i in range(5):
+        (tmp_path / "src" / "Acme.Worker" / f"W{i}.cs").write_text("class W {}\n", encoding="utf-8")
+    vendored = tmp_path / "third_party" / "Vendor.Lib"
+    vendored.mkdir(parents=True)
+    (vendored / "Vendor.Lib.csproj").write_text("<Project/>\n", encoding="utf-8")
+    for i in range(99):
+        (vendored / f"V{i}.cs").write_text("class V {}\n", encoding="utf-8")
+
+    detected = detect_csharp_layout(tmp_path)
+    assert detected is not None and detected[1] == "src/Acme.Worker"
+    # …but a ticket that names a file inside one is still obeyed.
+    named = detect_csharp_layout(tmp_path, prefer_paths=["third_party/Vendor.Lib/V1.cs"])
+    assert named is not None and named[1] == "third_party/Vendor.Lib"
+
+
+def test_a_module_the_ticket_names_survives_the_vendored_prune(tmp_path: Path) -> None:
+    """An SDK repository's own `examples/demo` is first-party to whoever filed the ticket about
+    it. Pruning it sent the run into a module nobody named, while the `[layout]` line claimed
+    there had been only one candidate."""
+    from orchestrator.sdlc.layout import detect_java_layout
+
+    for module, pkg in (("services/api", "com/acme"), ("examples/demo", "com/acme/demo")):
+        d = tmp_path / module / "src" / "main" / "java" / pkg
+        d.mkdir(parents=True)
+        (d / "Main.java").write_text("class Main {}\n", encoding="utf-8")
+
+    named = detect_java_layout(tmp_path, prefer_paths=["examples/demo/src/main/java/com/acme/demo/Main.java"])
+    assert named is not None and named[1] == "examples/demo/src/main/java/com/acme/demo"
+    unnamed = detect_java_layout(tmp_path)
+    assert unnamed is not None and unnamed[1] == "services/api/src/main/java/com/acme"
+
+
+def test_the_test_project_belongs_to_the_project_being_built(tmp_path: Path) -> None:
+    """`WebApp.Tests` is not `ApiClient`'s suite. Taking the repository's first `*Tests.csproj`
+    was harmless while both followed one inference, and became a mismatch the moment a project
+    could be named — the codegen prompt would have told the model to write into another project's
+    tests."""
+    from orchestrator.sdlc.layout import detect_csharp_layout
+
+    for proj in ("ApiClient", "WebApp", "WebApp.Tests"):
+        (tmp_path / proj).mkdir()
+        (tmp_path / proj / f"{proj}.csproj").write_text("<Project/>\n", encoding="utf-8")
+        (tmp_path / proj / "A.cs").write_text("class A {}\n", encoding="utf-8")
+
+    assert detect_csharp_layout(tmp_path, project="WebApp") == ("WebApp", "WebApp", "WebApp.Tests")
+    assert detect_csharp_layout(tmp_path, project="ApiClient") == (
+        "ApiClient",
+        "ApiClient",
+        "tests/ApiClient.Tests",
+    )
+
+
+def test_a_solution_with_one_shared_suite_still_uses_it(tmp_path: Path) -> None:
+    """NSS-1239's real shape: `UnitTests` is named after no project, so it is the repository's
+    one suite and every project's tests belong in it."""
+    from orchestrator.sdlc.layout import detect_csharp_layout
+
+    for proj in ("ApiClient", "WebApp", "UnitTests"):
+        (tmp_path / proj).mkdir()
+        (tmp_path / proj / f"{proj}.csproj").write_text("<Project/>\n", encoding="utf-8")
+        (tmp_path / proj / "A.cs").write_text("class A {}\n", encoding="utf-8")
+
+    assert detect_csharp_layout(tmp_path, project="WebApp") == ("WebApp", "WebApp", "UnitTests")
+
+
+def test_the_kotlin_layout_names_the_package_match_too(tmp_path: Path) -> None:
+    """The second of the two branches that rewrite the package — asserted so the string cannot be
+    dropped without a failure."""
+    from orchestrator.sdlc.layout import resolve_layout
+
+    d = tmp_path / "app" / "src" / "main" / "kotlin" / "com" / "acme" / "app"
+    d.mkdir(parents=True)
+    (d / "Main.kt").write_text("class Main\n", encoding="utf-8")
+    (tmp_path / "app" / "build.gradle.kts").write_text('plugins { kotlin("jvm") }\n', encoding="utf-8")
+    (tmp_path / "settings.gradle.kts").write_text('include(":app")\n', encoding="utf-8")
+
+    layout = resolve_layout(tmp_path, mode="existing", language="kotlin", package_name="com.acme.app")
+    assert layout.chosen_reason == "module already holds this package"

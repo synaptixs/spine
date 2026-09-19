@@ -19,7 +19,7 @@ from __future__ import annotations
 import keyword
 import os
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -86,6 +86,10 @@ class TargetLayout:
     # scaffold's default; the runner sets it from the installed SDK so the generated
     # project both builds AND runs (a TFM with no matching runtime fails at test host).
     target_framework: str = ""
+    # Why this project was chosen, when the repository held more than one of the same
+    # language — carried on the result rather than through an out-parameter, so the reason
+    # travels with the decision and no resolver needs a second keyword it does not use.
+    chosen_reason: str = ""
     test_suffix: str = "Test.php"
     test_bootstrap: str = ""
     # Which assertion library the repo's tests already use ("kotlin.test", "junit5", …).
@@ -184,26 +188,132 @@ def _detect_build_tool(root: Path) -> str:
     return ""
 
 
-def detect_java_layout(root: Path) -> tuple[str, str, str] | None:
-    """If ``src/main/java`` holds a package, return ``(package, source_dir, tests_dir)``.
+#: Directories whose contents are somebody else's code, by convention. `DEFAULT_IGNORE_DIRS`
+#: covers build output and `vendor`; these are the source-shaped ones a placement must never
+#: choose. Measured: a 50-file `third_party/guavaish/src/main/java` beat the repository's own
+#: one-file `services/api` on "most source", so a ticket naming no path would have opened a
+#: PR editing vendored Guava.
+_NOT_OURS = frozenset(
+    {
+        "third_party",
+        "third-party",
+        "thirdparty",
+        "external",
+        "externals",
+        "samples",
+        "sample",
+        "examples",
+        "example",
+        "benchmarks",
+        "fixtures",
+        "testdata",
+    }
+)
 
-    The package is the first dir under ``src/main/java`` that directly contains
-    ``.java`` files (path → dotted)."""
-    main = root / "src" / "main" / "java"
-    if not main.is_dir():
+
+def _claimed(path: Path, root: Path, prefer_paths: Sequence[str]) -> bool:
+    """Whether ``path`` is on the way to a file the ticket names.
+
+    The vendored-directory prune must never outrank the ticket: an SDK repository's own
+    `examples/demo` module is first-party to the person who filed the ticket about it, and
+    pruning it sent the run into a module nobody named while the `[layout]` line claimed there
+    had been only one candidate.
+    """
+    for rel in prefer_paths:
+        target = root / rel
+        if target == path or path in target.parents:
+            return True
+    return False
+
+
+def _module_roots(root: Path, source_root: str, prefer_paths: Sequence[str] = ()) -> list[Path]:
+    """Directories holding a ``src/main/<source_root>`` tree — the repository's modules.
+
+    A single-module repo answers ``[root]``. A Gradle or Maven multi-module one answers a module
+    per subproject, which is what `root/src/main/java` alone could never see: on such a repo the
+    old lookup found no source tree at all and fell through to a derived layout, naming a package
+    that does not exist.
+    """
+    from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo
+
+    found: list[Path] = []
+    for dirpath, dirnames, _files in os.walk(root):
+        here = Path(dirpath)
+        dirnames[:] = sorted(
+            d
+            for d in dirnames
+            if d not in DEFAULT_IGNORE_DIRS
+            and (d.lower() not in _NOT_OURS or _claimed(here / d, root, prefer_paths))
+            and not d.startswith(".")
+            and not is_nested_repo(here, d)
+        )
+        if (here / "src" / "main" / source_root).is_dir():
+            found.append(here)
+            # A module's own `src/` never holds a nested module; stop descending it.
+            dirnames[:] = [d for d in dirnames if d != "src"]
+    return found
+
+
+def _package_in(main: Path, root: Path, prefer_paths: Sequence[str], suffix: str) -> tuple[str, str] | None:
+    """``(dotted package, path under ``main``)`` for the package the work is in.
+
+    The package holding the files the design names, else the first that directly holds source —
+    the long-standing behaviour, which is correct whenever a module has one package and arbitrary
+    when it has several.
+    """
+    wanted = {(root / rel).resolve() for rel in prefer_paths}
+    fallback: Path | None = None
+    for dirpath, dirs, files in os.walk(main):
+        here = Path(dirpath)
+        dirs[:] = sorted(dirs)  # `os.walk` order is arbitrary; a fallback must not be
+        if not any(f.endswith(suffix) for f in files):
+            continue
+        # Only stat when there is something to match: this walk used to resolve every file in
+        # the module even for an empty preference, where the old code returned at the first
+        # directory that held source.
+        if wanted and any((here / f).resolve() in wanted for f in files):
+            rel = here.relative_to(main)
+            return str(rel).replace(os.sep, "."), rel.as_posix()
+        if fallback is None:
+            fallback = here
+    if fallback is None:
         return None
-    for dirpath, _dirs, files in os.walk(main):
-        if any(f.endswith(".java") for f in files):
-            rel = Path(dirpath).relative_to(main)
-            package = str(rel).replace(os.sep, ".")
-            return package, f"src/main/java/{rel.as_posix()}", f"src/test/java/{rel.as_posix()}"
-    return None
+    rel = fallback.relative_to(main)
+    return str(rel).replace(os.sep, "."), rel.as_posix()
+
+
+def detect_java_layout(
+    root: Path, *, prefer_paths: Sequence[str] = (), reason: list[str] | None = None
+) -> tuple[str, str, str] | None:
+    """If a Java source tree holds a package, return ``(package, source_dir, tests_dir)``.
+
+    Multi-module aware. ``root/src/main/java`` alone is the single-module shape; a Gradle or
+    Maven monorepo keeps each module's tree at ``<module>/src/main/java``, where the old lookup
+    saw nothing and the layout fell through to a derived package name. The module is
+    :func:`choose_project`'s answer over the modules found, and within it the package is the one
+    holding the files ``prefer_paths`` names — else, as before, the first that holds source.
+    """
+    modules = _module_roots(root, "java", prefer_paths)
+    why: list[str] = []
+    module = choose_project(modules, prefer_paths=prefer_paths, root=root, why=why, language="java")
+    if module is None:
+        return None
+    main = module / "src" / "main" / "java"
+    found = _package_in(main, root, prefer_paths, ".java")
+    if found is None:
+        return None
+    package, rel = found
+    prefix = "" if module == root else f"{module.relative_to(root).as_posix()}/"
+    if reason is not None and why:
+        reason.append(why[0])
+    return package, f"{prefix}src/main/java/{rel}", f"{prefix}src/test/java/{rel}"
 
 
 def _resolve_java_layout(
-    root: Path, *, mode: str, package_name: str | None, repo: str | None
+    root: Path, *, mode: str, package_name: str | None, repo: str | None, prefer_paths: Sequence[str] = ()
 ) -> TargetLayout:
-    existing = detect_java_layout(root)
+    reason: list[str] = []
+    existing = detect_java_layout(root, prefer_paths=prefer_paths, reason=reason)
     derived = package_name or derive_java_package(repo or str(root))
     build_tool = _detect_build_tool(root) or "maven"
     if mode == "existing" or (mode == "auto" and existing is not None):
@@ -217,6 +327,7 @@ def _resolve_java_layout(
                 mode="existing",
                 language="java",
                 build_tool=build_tool,
+                chosen_reason=reason[0] if reason else "",
             )
         src, tst = _java_dirs(derived)
         return TargetLayout(derived, src, tst, True, "existing", language="java", build_tool=build_tool)
@@ -291,7 +402,13 @@ def detect_jvm_test_library(root: Path) -> str:
 
 
 def _module_layout(
-    root: Path, *, package_name: str | None, derived: str, build_tool: str, test_library: str
+    root: Path,
+    *,
+    package_name: str | None,
+    derived: str,
+    build_tool: str,
+    test_library: str,
+    prefer_paths: Sequence[str] = (),
 ) -> TargetLayout | None:
     """Placement inside a multi-module Gradle build (P9, D13), or ``None`` if not one.
 
@@ -307,12 +424,30 @@ def _module_layout(
     if not modules:
         return None
     target = package_name or derived
+    chose = ""
     module = android.module_for_package(root, target)
+    if module is not None:
+        chose = "module already holds this package"
+    if module is None and package_name is None:
+        # The ticket's own files, but only when nobody asked for a package: a build with
+        # several Kotlin modules otherwise stops at "name a module", which is honest and
+        # unnecessary when the design already named files inside one of them. Never over an
+        # explicit `--package-name` — a flag is an instruction, this is an inference — and
+        # never without taking the package from the module itself, because keeping the
+        # repo-derived name is how a package nobody declared gets written into a brownfield
+        # module (the failure the block below records).
+        held = project_holding(modules, prefer_paths=prefer_paths, root=root)
+        if held is not None and android.base_package(held[0]):
+            module = held[0]
+            target = android.base_package(module)
+            chose = f"holds {held[1]} of {len(prefer_paths)} file(s) the design names"
     if module is None and package_name is None:
         # No package was asked for and the repo-derived one matches nothing. A build with a
         # single Kotlin module still has exactly one honest answer; more than one does not.
         with_kotlin = [m for m in modules if android.base_package(m)]
         module = with_kotlin[0] if len(with_kotlin) == 1 else None
+        if module is not None:
+            chose = "only Kotlin module in the build"
         if module is not None:
             # …and the package is that module's, not the repo-derived one. Found in
             # review: falling back to the single Kotlin module while keeping the
@@ -363,11 +498,12 @@ def _module_layout(
         test_library=android.module_test_library(root, module),
         module=rel,
         android=android.is_android_module(module),
+        chosen_reason=chose,
     )
 
 
 def _resolve_kotlin_layout(
-    root: Path, *, mode: str, package_name: str | None, repo: str | None
+    root: Path, *, mode: str, package_name: str | None, repo: str | None, prefer_paths: Sequence[str] = ()
 ) -> TargetLayout:
     """Where Kotlin code goes (P8, D13; multi-module placement P9). Gradle always — Kotlin has
     no Maven era."""
@@ -399,6 +535,7 @@ def _resolve_kotlin_layout(
             derived=derived,
             build_tool=build_tool,
             test_library=test_library,
+            prefer_paths=prefer_paths,
         )
         if placed is not None:
             return placed
@@ -473,7 +610,7 @@ def detect_typescript_layout(root: Path) -> tuple[str, str, str] | None:
 
 
 def _resolve_typescript_layout(
-    root: Path, *, mode: str, package_name: str | None, repo: str | None
+    root: Path, *, mode: str, package_name: str | None, repo: str | None, prefer_paths: Sequence[str] = ()
 ) -> TargetLayout:
     existing = detect_typescript_layout(root)
     pm = _detect_node_pm(root)
@@ -517,24 +654,233 @@ def _csharp_dirs(project: str) -> tuple[str, str]:
     return f"src/{project}", f"tests/{project}.Tests"
 
 
-def detect_csharp_layout(root: Path) -> tuple[str, str, str] | None:
+def choose_project(
+    candidates: Sequence[Path],
+    *,
+    prefer_paths: Sequence[str] = (),
+    root: Path | None = None,
+    why: list[str] | None = None,
+    language: str = "",
+) -> Path | None:
+    """Which of several same-language projects the work belongs to.
+
+    A repository with more than one project used to resolve to whichever sorted first. On
+    Nucor's `commercial-secondary-sales` that is `ApiClient`, so NSS-1239 scaffolded into the API
+    client while its own plan named five files under `WebApp/` — codegen could not resolve
+    `Product`, spent every refine on `using` directives, and ended FAILED after six test runs.
+    The design already knew where the work was; nothing passed it on.
+
+    Three rules, in order, so the answer is derived from the ticket when the ticket says and
+    measured when it does not:
+
+    1. **The project holding the files the design names.** Each path is attributed to the
+       *deepest* project directory that contains it — nested projects are the normal .NET shape,
+       and the deepest one is what actually compiles the file — and the project holding the most
+       of them wins.
+    2. **The project with the most source files**, counted the way the extractor walks, so a
+       vendored or generated tree cannot vote.
+    3. **The name**, which only ever breaks a tie the first two could not — never the reason on
+       its own, which is what the old behaviour amounted to.
+
+    Returns ``None`` for no candidates. Deterministic: same tree and same paths in, same project
+    out.
+    """
+
+    def note(reason: str) -> None:
+        if why is not None:
+            why.append(reason)
+
+    if not candidates:
+        return None
+    ordered = sorted(candidates)
+    if len(ordered) == 1:
+        note("only candidate")
+        return ordered[0]
+
+    held = project_holding(ordered, prefer_paths=prefer_paths, root=root)
+    if held is not None:
+        winner, n = held
+        note(f"holds {n} of {len(prefer_paths)} file(s) the design names")
+        return winner
+
+    suffixes = SOURCE_SUFFIXES_BY_LANGUAGE.get(language, frozenset())
+    counts = {cand: _source_file_count(_project_dir(cand), suffixes) for cand in ordered}
+    if any(counts.values()):
+        winner = min(ordered, key=lambda c: (-counts[c], c.as_posix()))
+        note(f"most source ({counts[winner]} file(s)) — the design named none of these projects")
+        return winner
+    note("first by name — nothing else to go on")
+    return ordered[0]
+
+
+def project_holding(
+    candidates: Sequence[Path], *, prefer_paths: Sequence[str], root: Path | None = None
+) -> tuple[Path, int] | None:
+    """The candidate holding the most of ``prefer_paths``, and how many — or ``None``.
+
+    Separate from :func:`choose_project` because one caller wants *only* this rule: a Gradle
+    build with several Kotlin modules and no package to go on stops today with an actionable
+    "name a module" error, and replacing that with a most-source guess would trade an honest
+    refusal for a plausible wrong answer. Knowing which module holds the ticket's files is the
+    one thing that legitimately settles it.
+    """
+    ordered = sorted(candidates)
+    holding: dict[Path, int] = {}
+    for rel in prefer_paths:
+        target = (root / rel) if root is not None else Path(rel)
+        owner: Path | None = None
+        for cand in ordered:
+            base = _project_dir(cand)
+            try:
+                target.relative_to(base)
+            except ValueError:
+                continue
+            # Deepest wins: `WebApp/Tests/` owns its own files, not `WebApp/`.
+            if owner is None or len(base.parts) > len(_project_dir(owner).parts):
+                owner = cand
+        if owner is not None:
+            holding[owner] = holding.get(owner, 0) + 1
+    if not holding:
+        return None
+    winner = min(ordered, key=lambda c: (-holding.get(c, 0), c.as_posix()))
+    return winner, holding[winner]
+
+
+def _project_dir(candidate: Path) -> Path:
+    """A project file's directory, or the directory itself when the candidate *is* one.
+
+    Asked of the filesystem, not of the name: a Java or Gradle module is a *directory*, and
+    `acme.worker/` has a suffix by `Path`'s reckoning — so a name-based test handed back the
+    repository root and let that module claim every file in the repo.
+    """
+    return candidate.parent if candidate.is_file() else candidate
+
+
+def _source_file_count(directory: Path, suffixes: frozenset[str] = frozenset()) -> int:
+    """Source files under ``directory``, skipping what the extractor skips.
+
+    Counted rather than guessed, and with the same ignore rules, so a generated `obj/` tree or a
+    vendored dependency cannot outvote the project a human would name.
+    """
+    from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo
+
+    total = 0
+    for dirpath, dirnames, filenames in os.walk(directory):
+        here = Path(dirpath)
+        dirnames[:] = sorted(
+            d
+            for d in dirnames
+            if d not in DEFAULT_IGNORE_DIRS
+            and d.lower() not in _NOT_OURS
+            and not d.startswith(".")
+            and not is_nested_repo(here, d)
+        )
+        total += sum(1 for f in filenames if Path(f).suffix.lower() in (suffixes or _SOURCE_SUFFIXES))
+    return total
+
+
+#: What counts as source when weighing one project against another, **per language**. Counting
+#: the union was wrong in the direction that matters: an ASP.NET app's `wwwroot/lib/` holds
+#: vendored jQuery and Bootstrap, so a ten-file web project with 1,200 vendored `.js` beat an
+#: eighty-file API client on "most source". A project is weighed by the language being resolved.
+SOURCE_SUFFIXES_BY_LANGUAGE: dict[str, frozenset[str]] = {
+    "csharp": frozenset({".cs", ".razor", ".cshtml"}),
+    "java": frozenset({".java"}),
+    "kotlin": frozenset({".kt", ".kts"}),
+}
+#: The fallback when no language is named — only a direct `choose_project` call reaches it.
+_SOURCE_SUFFIXES = frozenset(
+    {".cs", ".razor", ".cshtml", ".java", ".kt", ".kts", ".ts", ".tsx", ".js", ".jsx", ".py", ".go"}
+)
+
+
+def _csproj_candidates(root: Path, prefer_paths: Sequence[str] = ()) -> list[Path]:
+    """Every `.csproj` that could be this repository's own, in sorted order.
+
+    `rglob` alone offered a vendored `third_party/Vendor.Lib` with 99 files against the
+    repository's own five, and "most source" duly chose it — a run that would have opened a
+    PR editing somebody else's .NET code. A project the ticket names is kept whatever
+    directory it sits in.
+    """
+    from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo
+
+    found: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        here = Path(dirpath)
+        dirnames[:] = sorted(
+            d
+            for d in dirnames
+            if d not in DEFAULT_IGNORE_DIRS
+            and (d.lower() not in _NOT_OURS or _claimed(here / d, root, prefer_paths))
+            and not d.startswith(".")
+            and not is_nested_repo(here, d)
+        )
+        found.extend(here / f for f in sorted(filenames) if f.endswith(".csproj"))
+    return sorted(found)
+
+
+def detect_csharp_layout(
+    root: Path,
+    *,
+    prefer_paths: Sequence[str] = (),
+    why: list[str] | None = None,
+    project: str = "",
+) -> tuple[str, str, str] | None:
     """If the repo is a recognizable .NET project, return ``(project, source_dir,
-    tests_dir)``. The project is the first ``*.csproj`` whose name doesn't look
-    like a test project; ``source_dir`` is that project's directory. Tests go to a
-    sibling ``<Project>.Tests`` project when one exists, else a derived one."""
-    csprojs = sorted(root.rglob("*.csproj"))
+    tests_dir)``. ``source_dir`` is the chosen project's directory. Tests go to a
+    sibling ``<Project>.Tests`` project when one exists, else a derived one.
+
+    Which project, when there are several, is :func:`choose_project`'s answer — the one holding
+    the files ``prefer_paths`` names, else the one with the most source. It used to be whichever
+    sorted first, which is how NSS-1239 built into `ApiClient` against a plan naming only
+    `WebApp/` files.
+    """
+    csprojs = _csproj_candidates(root, prefer_paths)
     if not csprojs:
         return None
-    # Prefer the first non-test project as the source project.
-    src_proj = next(
-        (p for p in csprojs if not p.stem.lower().endswith(("test", "tests"))),
-        csprojs[0],
+    # An explicit project name settles it outright. Until this existed there was no lever at
+    # all: `--package-name` renamed the layout without retargeting it, so an operator who knew
+    # the inference was wrong had no way to say so.
+    if project:
+        named = next((p for p in csprojs if p.stem.lower() == project.lower()), None)
+        if named is not None:
+            if why is not None:
+                why.append("named explicitly")
+            return _csharp_from(named, csprojs, root)
+    production = [p for p in csprojs if not p.stem.lower().endswith(("test", "tests"))]
+    src_proj = (
+        choose_project(
+            production or csprojs[:1], prefer_paths=prefer_paths, root=root, why=why, language="csharp"
+        )
+        or csprojs[0]
     )
+    return _csharp_from(src_proj, csprojs, root)
+
+
+def _csharp_from(src_proj: Path, csprojs: Sequence[Path], root: Path) -> tuple[str, str, str]:
+    """``(project, source_dir, tests_dir)`` once the source project is settled.
+
+    The test project has to belong to *this* source project. Taking the first `*Tests.csproj`
+    in the repository was harmless while both followed the same inference, and became a real
+    mismatch once a project could be named explicitly: retargeting the source silently kept
+    another project's suite, and the codegen prompt then told the model to write tests into it.
+    """
     project = src_proj.stem
     source_dir = src_proj.parent.relative_to(root).as_posix()
+    tests = [p for p in csprojs if p.stem.lower().endswith(("test", "tests"))]
+    production = {p.stem.lower() for p in csprojs if p not in tests}
+    # `<Project>.Tests` is this project's suite. Otherwise a suite named after *another*
+    # project belongs to that one — `WebApp.Tests` is not `ApiClient`'s — and what remains is
+    # the repository's own single suite, which is how a solution with one `UnitTests` project
+    # is meant to work. Anything more ambiguous derives a name rather than borrowing a suite.
+    unclaimed = [
+        p
+        for p in tests
+        if not any(p.stem.lower().startswith(other) for other in production if other != project.lower())
+    ]
     test_proj = next(
-        (p for p in csprojs if p.stem.lower().endswith(("test", "tests"))),
-        None,
+        (p for p in tests if p.stem.lower().startswith(project.lower())),
+        unclaimed[0] if len(unclaimed) == 1 else None,
     )
     tests_dir = (
         test_proj.parent.relative_to(root).as_posix() if test_proj is not None else _csharp_dirs(project)[1]
@@ -543,9 +889,10 @@ def detect_csharp_layout(root: Path) -> tuple[str, str, str] | None:
 
 
 def _resolve_csharp_layout(
-    root: Path, *, mode: str, package_name: str | None, repo: str | None
+    root: Path, *, mode: str, package_name: str | None, repo: str | None, prefer_paths: Sequence[str] = ()
 ) -> TargetLayout:
-    existing = detect_csharp_layout(root)
+    why: list[str] = []
+    existing = detect_csharp_layout(root, prefer_paths=prefer_paths, why=why, project=package_name or "")
     derived = package_name or derive_csharp_namespace(repo or str(root))
     if mode == "existing" or (mode == "auto" and existing is not None):
         if existing is not None:
@@ -558,6 +905,7 @@ def _resolve_csharp_layout(
                 mode="existing",
                 language="csharp",
                 build_tool="dotnet",
+                chosen_reason=why[0] if why else "",
             )
         src, tst = _csharp_dirs(derived)
         return TargetLayout(derived, src, tst, True, "existing", language="csharp", build_tool="dotnet")
@@ -641,7 +989,9 @@ def _resolve_native_layout(
     return TargetLayout(derived, "src", "tests", True, "new", language=language, build_tool="cmake")
 
 
-def _resolve_c_layout(root: Path, *, mode: str, package_name: str | None, repo: str | None) -> TargetLayout:
+def _resolve_c_layout(
+    root: Path, *, mode: str, package_name: str | None, repo: str | None, prefer_paths: Sequence[str] = ()
+) -> TargetLayout:
     return _resolve_native_layout(
         root, mode=mode, package_name=package_name, repo=repo, language="c", detect=detect_c_layout
     )
@@ -656,7 +1006,9 @@ def detect_sql_layout(root: Path) -> bool:
     return False
 
 
-def _resolve_sql_layout(root: Path, *, mode: str, package_name: str | None, repo: str | None) -> TargetLayout:
+def _resolve_sql_layout(
+    root: Path, *, mode: str, package_name: str | None, repo: str | None, prefer_paths: Sequence[str] = ()
+) -> TargetLayout:
     """SQL greenfield/brownfield layout: ordered DDL under ``migrations/``.
 
     There is no source/test split — generated migrations *are* the artifact, and
@@ -678,7 +1030,9 @@ def _resolve_sql_layout(root: Path, *, mode: str, package_name: str | None, repo
     )
 
 
-def _resolve_cpp_layout(root: Path, *, mode: str, package_name: str | None, repo: str | None) -> TargetLayout:
+def _resolve_cpp_layout(
+    root: Path, *, mode: str, package_name: str | None, repo: str | None, prefer_paths: Sequence[str] = ()
+) -> TargetLayout:
     return _resolve_native_layout(
         root, mode=mode, package_name=package_name, repo=repo, language="cpp", detect=detect_cpp_layout
     )
@@ -786,7 +1140,9 @@ def detect_go_layout(root: Path) -> tuple[str, str, str] | None:
     return root_pkg, ".", "."
 
 
-def _resolve_go_layout(root: Path, *, mode: str, package_name: str | None, repo: str | None) -> TargetLayout:
+def _resolve_go_layout(
+    root: Path, *, mode: str, package_name: str | None, repo: str | None, prefer_paths: Sequence[str] = ()
+) -> TargetLayout:
     """Go layout. Greenfield = a single package at the module root (``go.mod`` + `.go`
     files beside it), the simplest module ``go build ./...`` / ``go test ./...`` accept.
     Brownfield = a library package in the root module, using that dir's existing ``package``
@@ -831,7 +1187,9 @@ def detect_php_layout(root: Path) -> tuple[str, str, str] | None:
     return package, source, config.tests_dir
 
 
-def _resolve_php_layout(root: Path, *, mode: str, package_name: str | None, repo: str | None) -> TargetLayout:
+def _resolve_php_layout(
+    root: Path, *, mode: str, package_name: str | None, repo: str | None, prefer_paths: Sequence[str] = ()
+) -> TargetLayout:
     from orchestrator.sdlc.php import read_phpunit_config
 
     existing = detect_php_layout(root)
@@ -882,6 +1240,7 @@ def resolve_layout(
     repo: str | None = None,
     src_layout: bool = True,
     language: str = "python",
+    prefer_paths: Sequence[str] = (),
 ) -> TargetLayout:
     """Resolve the target layout for a worktree.
 
@@ -891,7 +1250,9 @@ def resolve_layout(
     ``src/`` with co-located ``*.test.ts`` + npm/yarn/pnpm; C# ``src/<Project>`` +
     ``tests/<Project>.Tests`` xUnit project, built with ``dotnet``).
     ``package_name`` overrides the
-    derived name; ``repo`` (clone URL) seeds derivation. Deterministic; the caller
+    derived name; ``repo`` (clone URL) seeds derivation. ``prefer_paths`` are the files the
+    ticket's design names, repo-relative: where a repository holds several projects of the same
+    language, the one containing them is the target (see :func:`choose_project`). Deterministic; the caller
     scaffolds when ``mode == "new"``.
     """
     from orchestrator.sdlc.toolchains import get_toolchain
@@ -899,13 +1260,28 @@ def resolve_layout(
     return cast(
         TargetLayout,
         get_toolchain(language).layout(
-            Path(root), mode=mode, package_name=package_name, repo=repo, src_layout=src_layout
+            Path(root),
+            mode=mode,
+            package_name=package_name,
+            repo=repo,
+            src_layout=src_layout,
+            # Every resolver accepts this; three use it. `Toolchain.layout` is
+            # `Callable[..., TargetLayout]`, so a resolver that did not accept it would raise
+            # TypeError at run time and no type checker would have said so — which is why §6.1
+            # of the track plan lists all eleven.
+            prefer_paths=prefer_paths,
         ),
     )
 
 
 def _resolve_python_layout(
-    root_path: Path, *, mode: str, package_name: str | None, repo: str | None, src_layout: bool = True
+    root_path: Path,
+    *,
+    mode: str,
+    package_name: str | None,
+    repo: str | None,
+    src_layout: bool = True,
+    prefer_paths: Sequence[str] = (),
 ) -> TargetLayout:
     existing = detect_existing_package(root_path)
     derived = package_name or derive_package_name(repo or str(root_path))
@@ -976,7 +1352,7 @@ def detect_perl_layout(root: Path, package_name: str | None = None) -> tuple[str
 
 
 def _resolve_perl_layout(
-    root: Path, *, mode: str, package_name: str | None, repo: str | None
+    root: Path, *, mode: str, package_name: str | None, repo: str | None, prefer_paths: Sequence[str] = ()
 ) -> TargetLayout:
     from orchestrator.sdlc.perl import package_name as validate_name
 
