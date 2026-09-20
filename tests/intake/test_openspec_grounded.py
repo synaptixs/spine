@@ -215,11 +215,30 @@ def test_a_single_repo_block_carries_no_repository_heading() -> None:
     assert "####" not in pkg_evidence.fact_section(g)
 
 
-def test_a_clipped_landing_list_says_how_much_it_clipped() -> None:
+def test_a_clipped_landing_list_says_it_clipped_without_inventing_a_count() -> None:
+    """`elided` saturates at 1 — printing it as a number understates by any margin.
+
+    `build_investigation` retrieves `max_symbols + 1` so the field can distinguish "these are
+    all of them" from "this is the top N". Rendered as a count, a ticket matching three
+    hundred symbols reads "1 further match", which in a committed file says the list is
+    essentially complete.
+    """
     g = pkg_evidence.with_facts(
-        GROUNDED, landings=(pkg_evidence.LandingGroup(repo="", bullets=("- a", "- b")),), elided=7
+        GROUNDED, landings=(pkg_evidence.LandingGroup(repo="", bullets=("- a", "- b")),), elided=1
     )
-    assert "_Showing the top 2; 7 further match(es) not listed._" in pkg_evidence.fact_section(g)
+    body = pkg_evidence.fact_section(g)
+    assert "_Showing the top 2 — **further matches were cut** and are not listed._" in body
+    assert "further match(es)" not in body
+
+
+def test_the_shown_figure_counts_bullets_not_rendered_lines() -> None:
+    """`render_landings` appends an excerpt as its own entry; `len(bullets)` would inflate."""
+    g = pkg_evidence.with_facts(
+        GROUNDED,
+        landings=(pkg_evidence.LandingGroup(repo="", bullets=("- a", "\n  ```py\n  x\n  ```\n", "- b")),),
+        elided=1,
+    )
+    assert "_Showing the top 2 —" in pkg_evidence.fact_section(g)
 
 
 def test_no_landing_is_reported_as_lexical_retrieval_not_as_absence_of_work() -> None:
@@ -490,3 +509,55 @@ def test_the_tree_notice_stays_off_when_nothing_failed_to_bind() -> None:
         tree_checked=False,
     )
     assert "no single working tree" not in pkg_evidence.fact_section(g)
+
+
+def test_the_landing_badge_is_withheld_when_a_merged_graph_cannot_place_it() -> None:
+    """`in_evidence` compares repo-stripped paths on both sides.
+
+    Two services that both have `app/models.py` is the normal case, so in a merged graph the
+    strongest badge in the section — "this binds where the ticket actually is" — can land on
+    the wrong checkout. Withheld rather than guessed.
+    """
+    from pathlib import Path
+
+    from orchestrator.cli.build import _facts_for_spec
+    from orchestrator.pkg.scoping import scope_id
+
+    batch = FactBatch()
+    for repo in ("web", "billing"):
+        batch.add_node(
+            Node(
+                id=scope_id("py:app.models.Cart", repo),
+                kind=NodeKind.TYPE,
+                name="Cart",
+                language="python",
+                provenance=Provenance(file="app/models.py", line=14),
+            )
+        )
+    store = FactStore(batch)
+    spec = FeatureSpec(
+        intent_id="i",
+        title="Cart",
+        summary="The `Cart` is recalculated.",
+        acceptance_criteria=["`Cart` is recalculated on discount."],
+    )
+    base = pkg_evidence.from_store(store, where="repos.yaml")
+    merged = _facts_for_spec(base, store, None, {"web": Path("."), "billing": Path(".")}, spec)
+    assert "in the landing files" not in pkg_evidence.fact_section(merged)
+
+
+def test_the_cli_module_imports_no_orchestrator_package_at_import_time() -> None:
+    """CLI startup is paid by every `orchestrator --help`, not just by `openspec draft`.
+
+    `cli/__init__` imports `build` eagerly to register commands, so a module-level
+    `orchestrator.pkg` import here loads the extractor for anyone running any command. Every
+    other CLI module defers; this one did not, and it measured ~58% of startup.
+    """
+    import ast
+    import pathlib
+
+    source = pathlib.Path("src/orchestrator/cli/build.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    top_level = [n for n in tree.body if isinstance(n, ast.ImportFrom) and n.module]
+    offenders = [n.module for n in top_level if n.module and n.module.startswith("orchestrator.")]
+    assert offenders == [], f"module-level orchestrator imports in cli/build.py: {offenders}"

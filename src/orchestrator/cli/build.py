@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 
-from orchestrator.pkg import RepoCodeExtractor
-
 from ._app import PANEL_BUILD, app
 from ._common import _merged_store, _print, _repo_arg
+
+if TYPE_CHECKING:  # pragma: no cover - typing only; nothing here is imported at runtime
+    from pathlib import Path
+
+    from orchestrator.intake.pkg_evidence import Grounding
+    from orchestrator.intake.specs import FeatureSpec
+    from orchestrator.pkg import FactStore
+    from orchestrator.sdlc.landings import Landing
 
 openspec_app = typer.Typer(help="Spec-driven development with OpenSpec (openspec.dev).", no_args_is_help=True)
 
@@ -171,7 +177,9 @@ def openspec_draft(
     )
 
 
-def _grounding_for(path: str | None, repos: str | None, dialect: str | None) -> tuple[Any, Any, Any, Any]:
+def _grounding_for(
+    path: str | None, repos: str | None, dialect: str | None
+) -> tuple[Grounding, FactStore | None, Path | None, dict[str, Path] | None]:
     """Read the repository once, and classify what came back.
 
     Returns ``(grounding, store, root, repo_roots)`` — the store and roots are what the
@@ -185,6 +193,7 @@ def _grounding_for(path: str | None, repos: str | None, dialect: str | None) -> 
     which is also why `render_change` takes grounding as an argument rather than fetching it.
     """
     from orchestrator.intake import pkg_evidence
+    from orchestrator.pkg import RepoCodeExtractor
 
     if not path and not repos:
         return pkg_evidence.ungrounded(), None, None, None
@@ -216,7 +225,13 @@ def _grounding_for(path: str | None, repos: str | None, dialect: str | None) -> 
         return base, store, (None if is_remote else repo), None
 
 
-def _facts_for_spec(base: Any, store: Any, root: Any, repo_roots: Any, spec: Any) -> Any:
+def _facts_for_spec(
+    base: Grounding,
+    store: FactStore,
+    root: Path | None,
+    repo_roots: dict[str, Path] | None,
+    spec: FeatureSpec,
+) -> Grounding:
     """Retrieval and binding for **one** change (D21).
 
     Per spec, not per source: a shared block would cite identical sites in every change dir,
@@ -230,7 +245,7 @@ def _facts_for_spec(base: Any, store: Any, root: Any, repo_roots: Any, spec: Any
 
     problem = (spec.description or spec.summary or "").strip()
     inv = build_investigation(spec.title, problem, store=store, root=root, repo_roots=repo_roots)
-    groups: list[Any] = []
+    groups: list[pkg_evidence.LandingGroup] = []
     if repo_roots:
         # Grouped by repository key, following the shape `investigate` settled on for a merged
         # brief: a **declared** repository with nothing to show is named, never silently
@@ -239,7 +254,7 @@ def _facts_for_spec(base: Any, store: Any, root: Any, repo_roots: Any, spec: Any
         # repos that did land. Seeding from that made `absent` unreachable: every key already
         # had a hit, so the honesty branch this comment describes was dead code, and a repo the
         # change does not touch simply vanished from the page.
-        by_repo: dict[str, list[Any]] = {key: [] for key in repo_roots}
+        by_repo: dict[str, list[Landing]] = {key: [] for key in repo_roots}
         for hit in inv.landing:
             by_repo.setdefault(hit.repo, []).append(hit)
         for key in sorted(by_repo):
@@ -258,14 +273,23 @@ def _facts_for_spec(base: Any, store: Any, root: Any, repo_roots: Any, spec: Any
     # unfindable when nothing looked for it on disk.
     bind_root = root
     tree_checked = True
+    # `in_evidence` is the strongest badge in the criteria section — "this criterion binds
+    # *where the ticket actually is*". It is a plain string test over repo-stripped paths on
+    # both sides: the landing loses its repo in `where.split(":")[0]`, and the anchor's own
+    # `where` is node provenance, which was never scoped. Two services that both have
+    # `app/models.py` is the normal case, so in a merged graph the badge can land on the wrong
+    # checkout. Withheld rather than guessed — a wrong strongest-signal is worse than none.
+    landed = tuple(sorted({hit.where.split(":", 1)[0] for hit in inv.landing if hit.where}))
     if repo_roots:
         roots = list(repo_roots.values())
         bind_root = roots[0] if len(roots) == 1 else None
         tree_checked = bind_root is not None
+        if len(roots) > 1:
+            landed = ()
     binding = bind_criteria(
         spec.model_dump(),
         store=store,
-        evidence_files=tuple(sorted({hit.where.split(":", 1)[0] for hit in inv.landing if hit.where})),
+        evidence_files=landed,
         root=bind_root,
     )
     return pkg_evidence.with_facts(
@@ -306,15 +330,19 @@ async def _run_openspec_draft(
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=2) from exc
 
+    # Read the repository **before** the intake, not after. `analyze_cached` is a paid model
+    # run on a cache miss, and the grounding arguments are the ones a user most easily
+    # mistypes — a wrong path or a malformed repos.yaml used to fail only once the spend had
+    # already happened. Extraction is cached and commit-keyed, so doing it first costs nothing
+    # on the path where both succeed.
+    base_grounding, store, repo_root, repo_roots = _grounding_for(path, repos, dialect)
+
     try:
         plan = await analyze_cached(service, source, refresh=refresh, log=lambda m: typer.echo(m, err=True))
     except LLMError as exc:
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=2) from exc
     root = Path(out)
-    # Once, before the loop. One source drafts N changes, and extraction is the expensive half
-    # — per-spec it would be paid N times for an answer that cannot differ (D9).
-    base_grounding, store, repo_root, repo_roots = _grounding_for(path, repos, dialect)
     intents_by_id = {i.id: i for i in plan.intents}
     drafted: list[dict[str, object]] = []
     for spec in plan.specs:

@@ -245,8 +245,19 @@ def _landings_md(g: Grounding) -> list[str]:
             out.extend(group.bullets)
         out.append("")
     if g.elided:
-        shown = sum(len(x.bullets) for x in g.landings)
-        out.append(f"_Showing the top {shown}; {g.elided} further match(es) not listed._")
+        # **Not a count.** `build_investigation` retrieves `max_symbols + 1` precisely so
+        # `elided` can distinguish "these are all of them" from "this is the top N" — so it
+        # saturates at 1, and printing it as a number tells a reader that exactly one match
+        # was cut when it may have been three hundred. In a brief that scrolls past, the
+        # overstatement is cheap; in a committed change file someone reads next quarter, it
+        # reads as "the list is essentially complete". `investigate` still words this as a
+        # count — inherited, and its own to fix, since changing it moves bytes a test pins.
+        # Bullets, not entries. `render_landings` appends an excerpt as its **own** list
+        # entry, so `len(bullets)` counts rendered lines and would inflate the figure the
+        # moment a caller asks for source. No caller does yet — which is exactly when this is
+        # cheap to get right.
+        shown = sum(1 for x in g.landings if not x.absent for b in x.bullets if b.startswith("- "))
+        out.append(f"_Showing the top {shown} — **further matches were cut** and are not listed._")
     if g.areas:
         out.append(f"_Likely areas: {', '.join(g.areas)}_")
     return out
