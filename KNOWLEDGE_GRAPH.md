@@ -102,6 +102,18 @@ in-repo (e.g. a third-party class) are marked `external`.
 | `MENTIONS` | doc → the code symbol/module it describes (bound, `file:line`-grounded) |
 | `SERVES` | symbol → the intent it was last changed for (from git blame + the commit's issue key) |
 
+### Evidence paths
+
+Use `orchestrator pkg path SOURCE TARGET` to ask for one bounded, shortest chain over extracted facts. The default query follows semantic code, API, data, and type-hierarchy relations: `CALLS`, `EXPOSES`, `CONSUMES`, `READS`, `WRITES`, `REFERENCES`, and `IMPLEMENTS`. `MENTIONS` is available with `--kind mentions` but is not a default relation because one document section can mention unrelated symbols and become a misleading hub in a bidirectional search. `CONTAINS` and `IMPORTS` are structural and require `--include-structural` unless selected explicitly with `--kind`.
+
+`SERVES` is deliberately excluded in v1 because Intent nodes do not carry source-file provenance. Reverse queries preserve the extracted edge arrow and add a traversal note; they must not render the opposite direction as if the extractor had emitted that fact. The command uses the commit-keyed PKG cache by default, supports `--refresh`, and reports a missing static path without claiming that no runtime relationship exists.
+
+```bash
+orchestrator pkg path caller helper --path .
+orchestrator pkg path helper caller --path . --direction reverse
+orchestrator pkg path README.md#guide helper --path . --kind mentions --json
+```
+
 ### Front-end capability matrix
 
 Nine of the ten edge kinds are **mechanical** — they say what calls what, what contains what.
