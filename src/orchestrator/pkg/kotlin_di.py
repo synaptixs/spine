@@ -42,6 +42,7 @@ from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Provenance
 from orchestrator.pkg.kotlin_names import (
     Annotation,
     annotations_of,
+    bare_type,
     element_type,
     field_text,
     text,
@@ -58,6 +59,20 @@ _PROVIDES = "Provides"
 #: Annotations Dagger treats as qualifiers. Recorded on provenance only (D15) —
 #: two providers for one type behind different qualifiers both keep their edge.
 _QUALIFIERS = frozenset({"Named", "Qualifier"})
+
+#: Generic wrappers a `PROVIDES` target may be peeled through, **by resolved id**.
+#: `Lazy<T>`/`Provider<T>` are indirection Dagger unwraps for you — a provider of
+#: `Lazy<Repo>` makes `Repo` available, same as a plain `Repo` return. Everything
+#: else generic — `Set<T>`, `List<T>`, `Flow<T>`, `Optional<T>` — is either a
+#: distinct Dagger multibinding key or not a Dagger unwrap at all, so peeling to
+#: the element would assert a binding key that does not exist (#393).
+#:
+#: Ids rather than simple names, because the name alone cannot tell three different
+#: types apart: `kotlin.Lazy` needs **no import line at all** (it is a Kotlin default
+#: import, the `by lazy` delegate) and is not a Dagger unwrap; a repository is free to
+#: declare its own `class Provider<T>`; and a fully-qualified `dagger.Lazy<T>` used to
+#: fail the check for the opposite reason, since its written name is not the bare one.
+_UNWRAPPED = frozenset({"java:dagger.Lazy", "java:javax.inject.Provider", "java:jakarta.inject.Provider"})
 
 
 def read_module(
@@ -144,14 +159,38 @@ def _returned_type(method: TSNode, resolve: Any, source: bytes) -> str:
         return ""
     for child in method.named_children:
         if child.type == "user_type" and child.start_byte > params.end_byte:
-            # `element_type`, not `bare_type` — the same peel `_first_parameter_type`
-            # fifteen lines below has always done. Found in review: `@Provides fun
-            # provideClients(): Set<OkHttpClient>` read its return type as `Set` and
-            # minted a `Set` class in the module's own package as the PROVIDES target,
-            # which `FactStore.injection_reach_of` then walked in `blast_radius`.
-            resolved = resolve(element_type(text(child, source)).rsplit(".", 1)[-1])
-            return resolved or ""
+            return _binding_key(text(child, source), resolve)
     return ""
+
+
+def _binding_key(declared: str, resolve: Any) -> str:
+    """The id a return type binds, or ``""`` when it binds nothing this can name.
+
+    Unwraps **one level at a time**, re-asking the question at each one. The first
+    version tested the allowlist on the outermost name and then called `element_type`,
+    which peels every level in a loop — so an allowlisted outer wrapper opened the door
+    to whatever was inside it, and `Provider<Set<Clock>>` reduced to `Clock`. That is an
+    ordinary, correct Dagger shape whose key is `Set<Clock>`, and nothing injecting a
+    plain `Clock` is satisfied by it (#393).
+
+    Each layer is resolved before it is judged, so a wrapper is recognised by what it
+    *is* rather than what it is called. `bare_type` keeps a written qualification, and
+    the resolver passes a dotted name straight through, so `dagger.Lazy<T>` resolves as
+    itself while a bare `Lazy` goes through this file's imports — which is what separates
+    Dagger's from `kotlin.Lazy`, a default import that needs no import line.
+    """
+    current = declared
+    while "<" in current:
+        if (resolve(bare_type(current)) or "") not in _UNWRAPPED:
+            # A distinct binding key: a multibinding (`Set<T>`, `List<T>`), a stream
+            # (`Flow<T>`), or a type this repository declares itself. Assert nothing
+            # rather than the wrong thing.
+            return ""
+        inner = current[current.index("<") + 1 : current.rindex(">")].strip()
+        if not inner:
+            return ""
+        current = inner
+    return resolve(bare_type(current)) or ""
 
 
 def _first_parameter_type(method: TSNode, resolve: Any, source: bytes) -> str:

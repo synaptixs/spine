@@ -4,6 +4,117 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.42.0 — 2026-09-21
+
+### Fixed
+
+- **Three Kotlin defects that the previous round fixed only half of.** Each was reported
+  against a shape that now works and left a second shape that did not, so the issues stayed
+  open with a passing test beside them.
+
+  **An inherited member overridden in between was refused as ambiguous** (#391). `Impl : Mid :
+  Base` declares `ping` twice on the way up, and the walk collected hits across the whole
+  hierarchy into one set — so "exactly one match" refused the commonest inheritance shape in
+  the language. An override always sits strictly nearer than the thing it overrides, which is
+  what Kotlin resolves to. The walk now goes level by level and the first level with a single
+  answer wins; two declarations at the *same* distance are still a real ambiguity and are
+  still refused.
+
+  **A destructured lambda parameter did not shadow a sibling member** (#392). `m.forEach {
+  (name, key) -> key() }` hangs a `multi_variable_declaration` off the lambda's parameter list
+  rather than off a `for_statement`, so `key` was never bound and `key()` resolved to a member
+  the lambda never calls. Fixed in the extractor *and* in the D9 invention oracle, which
+  shared the blind spot and was reporting the fabrication clean.
+
+  **A nested generic wrapper opened the door to its element** (#393). The unwrap allowlist was
+  tested on the outermost name and the peel that followed ran to the bottom, so
+  `Provider<Set<OkHttpClient>>` reduced to `OkHttpClient` — an ordinary Dagger shape whose key
+  is `Set<OkHttpClient>`, and nothing injecting a plain client is satisfied by it. Unwrapping
+  now happens one level at a time, re-asking the question at each.
+
+  Wrappers are also recognised by **resolved id** rather than by name, which the bare name
+  could never do: `kotlin.Lazy` needs no import line at all — it is a Kotlin default import,
+  the `by lazy` delegate — and a repository is free to declare its own `class Provider<T>`.
+  Both were being read as Dagger's. The same change recovers a binding that was being
+  dropped: a fully-qualified `dagger.Lazy<T>` failed the old name check for the opposite
+  reason, since its written name is not the bare one.
+
+- **The accuracy gate failed a build for writing down a known limitation.** `expected` counts
+  every labelled edge, and a `known_gaps` entry still counts as a miss — deliberately, so a low
+  number stays honest. But the gate compared the recall *ratio*, so labelling a gap lowered it
+  and reported a regression with nothing about the extractor having moved. The only remedy was
+  regenerating the committed baseline, which accepts **everything** that moved rather than the
+  one thing intended. The cheapest way to keep CI green was to not label your gaps, which is
+  the opposite of what the corpus is for.
+
+  Corpus recall is now gated on *unexplained* misses — `expected - matched - known_gaps` — and
+  on `matched` never falling. Two conditions, because either alone has a hole: the first catches
+  a new miss nobody accounted for, including the case a ratio cannot see at all (8/10 and 12/15
+  are both 0.80 while the misses go from two to three); the second catches an edge that stopped
+  resolving even when a gap labelled in the same commit would otherwise pay for it. **The
+  published score is unchanged** — precision and recall are still `matched/emitted` and
+  `matched/expected`, and a known gap still counts as a miss. A drop where every new miss is
+  explained is now reported on the trend channel rather than failing, because the number did
+  move and a reader comparing releases deserves the reason.
+
+  Precision stays a plain ratio: no annotation makes a fabrication acceptable, so there is
+  nothing to net off.
+
+- **Four `known_gaps` entries asserted limitations that no longer existed.** Validation asked
+  only whether a gap named an edge in `edges`, which a *closed* gap still satisfies. Three in
+  `typescript/instance_calls` and one in `cpp/instance_calls` named edges the front-ends emit
+  today. Because the gate subtracts gaps per language and per kind rather than per case, the
+  three dead TypeScript entries were paying for two genuine unexplained misses in
+  `receiver_shapes` — credit the gate had not earned, hiding real misses. A gap naming an edge
+  the extractor emits now fails the case to load, the same way a broken `refusal` does.
+  Removing them moved no score: those edges are labelled *and* matched.
+
+- **A Kotlin extension call resolved onto an id nothing declares.** The check that was added
+  to stop a fabrication became one. It asked whether an extension's declared receiver *name*
+  equalled the call site's and treated "no" as grounds to refuse — but Kotlin's rule is a
+  subtype-compatible receiver, so `fun NavController.navigateToSearch()` called on a
+  `NavHostController`, which is the standard Compose navigation pattern, answered "no". The
+  refusal did not drop the edge; it discarded the `import` the file had actually written and
+  minted `androidx.navigation.NavHostController.navigateToSearch` in its place. Four such
+  edges on the Android validation app and three on KaMPKit, all with no provenance, and
+  `pkg verify` called both graphs clean because a placeholder never dangles. The `CALLS`
+  count did not move either, because the edges were redirected rather than lost.
+
+  The question is now three-valued: compatible when the receiver ids intersect, when the
+  extension takes a type parameter, or when `IMPLEMENTS` runs from the receiver up to a
+  declared receiver; incompatible only when the repository declares *both* types and no such
+  path exists; unknown otherwise — and unknown accepts, because an external receiver has no
+  supertype list to walk and a name mismatch against it proves nothing. Comparing resolved
+  ids rather than bare names also stops `app.data.Topic` and `app.legacy.Topic` being read as
+  one receiver, which closes [#390](https://github.com/synaptixs/spine/issues/390).
+
+  The same comparison had refused two other ordinary shapes: `fun Int.toDp()` and
+  `fun Float.toDp()` share one id, and a single-receiver slot kept whichever file was parsed
+  last — so which call resolved depended on filesystem order — while `fun <T> T.x()` stored
+  the literal `T`, which equals no real receiver.
+
+- **A warm cache and a cold cache disagreed about the same commit.** The repository-wide
+  Kotlin extension table was never cleared, though the four other accumulators on the same
+  class are all cleared in `finalize`. `pkg extract --repos` and `investigate --repos` reuse
+  one extractor across every declared repository, so the first repository's extensions
+  verified the second's imports; and because a cache hit returns before `finalize` runs,
+  whether a repository happened to be cached changed what the *next* one emitted.
+
+- **A Ktor mount and a Compose route constant stopped resolving in the default package.**
+  "Same package" was compared as a string, and a file that declares no `package` has none —
+  its module falls back to the repo-relative path, so two such files read as two different
+  packages. Kotlin resolves these with no import at all and both sources compile, so this was
+  a real edge lost. The declared package is now read from the parse tree.
+
+### Changed
+
+- **`scoreboard.json` is version 2** and every corpus edge entry carries `known_gaps` alongside
+  `expected`/`emitted`/`matched`. The version field is now *read* — it was written, exported and
+  checked nowhere — because an older baseline silently lacking the key would quietly stop gating
+  every kind it touched. Regenerate with `orchestrator pkg accuracy --scoreboard`; the check
+  refuses an older baseline rather than guessing, and only for boards that carry a corpus
+  section, so the evals' comprehension-only boards are unaffected.
+
 ## 3.41.1 — 2026-09-21
 
 ### Fixed

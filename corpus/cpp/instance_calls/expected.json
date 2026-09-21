@@ -2,7 +2,7 @@
   "language": "cpp",
   "case": "instance_calls",
   "root": ".repo",
-  "why": "The documented skip in C++: a call to a sibling method resolves, a call through a reference parameter does not. C++ skips it silently where C invents a target for the equivalent shape \u2014 two front-ends, same question, opposite failure modes.",
+  "why": "The documented skip in C++: a call to a sibling method resolves, a call through a reference parameter does not. C++ skips it silently where C invents a target for the equivalent shape — two front-ends, same question, opposite failure modes.",
   "nodes": [
     {
       "id": "cpp:src/dispatch.cpp",
@@ -57,17 +57,10 @@
       "kind": "CALLS"
     }
   ],
-  "known_gaps": [
-    {
-      "edge": {
-        "src": "cpp:viaParameter",
-        "dst": "cpp:Handler::run",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. `h.run()` where `h` is a `Handler&` parameter. Counted as a recall miss, not exempted."
-    }
-  ],
+  "known_gaps": [],
   "false_positives": [],
-  "excluded": [],
+  "excluded": [
+    "The `known_gaps` entry this case carried is gone, and the reason is narrower than 'the gap closed'. With the optional `clang` extra a semantic post-pass resolves the reference-parameter call, so the edge is emitted and the entry asserted a limitation that did not exist; without the extra the CST-only path still cannot do it. The scoreboard — and CI, which syncs `--extra clang` — measures the configuration where the edge resolves, so that is the configuration the labels describe. The CST-only limitation is real and is documented in corpus/README.md rather than as a gap that is false wherever the baseline is built."
+  ],
   "open_questions": []
 }

@@ -337,3 +337,64 @@ interface Writer {
     )
     assert not [n for n in batch.nodes if n.kind is NodeKind.ENTITY]
     assert not [e for e in batch.edges if e.kind is EdgeKind.WRITES]
+
+
+def test_a_write_parameter_declared_nowhere_still_mints_nothing(tmp_path: Path) -> None:
+    """#394. `@Insert fun insert(dto: MysteryThing)` where `MysteryThing` is declared
+
+    *nowhere* in the scanned tree — not even as a plain class. The previous guard
+    only refused when the parameter type happened to be declared somewhere in the
+    tree (the `SomeDto` case above); an undeclared type fell through to the
+    unknown-*table* placeholder path and minted `Entity java:entity:app.data.MysteryThing`,
+    a node named with a dotted class FQN rather than a table name. Provenance — this
+    id came from a parameter type, not a `@Query` — settles it regardless of whether
+    the class is declared anywhere at all.
+    """
+    batch = _repo(
+        tmp_path,
+        {
+            "D.kt": """\
+package app.data
+
+import androidx.room.Dao
+import androidx.room.Insert
+
+@Dao
+interface Writer {
+    @Insert
+    fun insert(dto: MysteryThing)
+}
+"""
+        },
+    )
+    assert not [n for n in batch.nodes if n.kind is NodeKind.ENTITY]
+    assert not [e for e in batch.edges if e.kind is EdgeKind.WRITES]
+
+
+def test_a_write_parameter_that_is_a_genuine_entity_still_resolves(tmp_path: Path) -> None:
+    """The provenance check must not cost the ordinary case: a real `@Entity` parameter
+    still grounds its `WRITES` edge exactly as before."""
+    batch = _repo(
+        tmp_path,
+        {
+            "E.kt": """\
+package app.data
+
+import androidx.room.Dao
+import androidx.room.Entity
+import androidx.room.Insert
+
+@Entity
+class TopicEntity(val id: String)
+
+@Dao
+interface Writer {
+    @Insert
+    fun insert(topic: TopicEntity)
+}
+"""
+        },
+    )
+    assert ("java:app.data.Writer.insert", "java:entity:app.data.TopicEntity") in {
+        (e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.WRITES
+    }

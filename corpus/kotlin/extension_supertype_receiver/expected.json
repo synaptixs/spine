@@ -1,0 +1,62 @@
+{
+  "language": "kotlin",
+  "case": "extension_supertype_receiver",
+  "why": "#390's check, from both sides of what it can and cannot know. Kotlin's rule for an extension is a **subtype-compatible** receiver, not an equal one, and comparing the two receiver *names* for equality answers \"different\" for the commonest shape there is.\n\n**The half the repository can settle.** `fun Transacter.commit()` is declared in `shop.tx` and called on a `Ledger`, which `shop.db` declares as `Ledger : Transacter`. The `IMPLEMENTS` edge is right there in the graph, so a reader that walks it resolves the call and one that compares names drops it — silently, because the receiver's own type *is* declared and has no such member, which is the branch that refuses rather than the one that guesses.\n\n**The half it cannot.** `Remote` holds a `vendor.RemoteLedger`, a type nothing here declares. A name mismatch against `Transacter` proves nothing at all — an external type may implement anything — and this is where refusing did not merely drop the edge but *replaced* it: measured on the validation app, `fun NavController.navigateToSearch()` called on a `NavHostController` lost its grounded target and gained an invented `androidx.navigation.NavHostController.navigateToSearch`, four times over; on touchlab/KaMPKit the same shape replaced three edges to a real imported in-repo extension with a member of a SQLDelight-generated type. Both graphs passed `pkg verify`. Unknown must accept.",
+  "root": ".repo",
+  "nodes": [
+    { "id": "java:shop.db", "kind": "Module" },
+    { "id": "java:shop.db.Transacter", "kind": "Type" },
+    { "id": "java:shop.db.Ledger", "kind": "Type" },
+    { "id": "java:shop.tx", "kind": "Module" },
+    { "id": "java:shop.tx.commit", "kind": "Function" },
+    { "id": "java:shop.app", "kind": "Module" },
+    { "id": "java:shop.app.Service", "kind": "Type" },
+    { "id": "java:shop.app.Service.save", "kind": "Function" },
+    { "id": "java:shop.app.Service.ledger", "kind": "Field" },
+    { "id": "java:shop.app.Remote", "kind": "Type" },
+    { "id": "java:shop.app.Remote.save", "kind": "Function" },
+    { "id": "java:shop.app.Remote.ledger", "kind": "Field" }
+  ],
+  "edges": [
+    { "src": "java:shop.db", "dst": "java:shop.db.Transacter", "kind": "CONTAINS" },
+    { "src": "java:shop.db", "dst": "java:shop.db.Ledger", "kind": "CONTAINS" },
+    { "src": "java:shop.db.Ledger", "dst": "java:shop.db.Transacter", "kind": "IMPLEMENTS" },
+    { "src": "java:shop.tx", "dst": "java:shop.tx.commit", "kind": "CONTAINS" },
+    { "src": "java:shop.tx", "dst": "java:shop.db.Transacter", "kind": "IMPORTS" },
+    { "src": "java:shop.app", "dst": "java:shop.app.Service", "kind": "CONTAINS" },
+    { "src": "java:shop.app", "dst": "java:shop.app.Remote", "kind": "CONTAINS" },
+    { "src": "java:shop.app.Service", "dst": "java:shop.app.Service.save", "kind": "CONTAINS" },
+    { "src": "java:shop.app.Service", "dst": "java:shop.app.Service.ledger", "kind": "CONTAINS" },
+    { "src": "java:shop.app.Remote", "dst": "java:shop.app.Remote.save", "kind": "CONTAINS" },
+    { "src": "java:shop.app.Remote", "dst": "java:shop.app.Remote.ledger", "kind": "CONTAINS" },
+    { "src": "java:shop.app", "dst": "java:shop.db.Ledger", "kind": "IMPORTS" },
+    { "src": "java:shop.app", "dst": "java:shop.tx.commit", "kind": "IMPORTS" },
+    { "src": "java:shop.app", "dst": "java:vendor.RemoteLedger", "kind": "IMPORTS" },
+    { "src": "java:shop.app.Service.save", "dst": "java:shop.tx.commit", "kind": "CALLS" },
+    { "src": "java:shop.app.Remote.save", "dst": "java:shop.tx.commit", "kind": "CALLS" }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "java:shop.app.Service.save",
+        "dst": "java:shop.db.Ledger.commit",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (#390). `ledger.commit()` is syntactically a member call, and `Ledger` is declared right here — so attaching the extension to the receiver type is the tempting reading (D4). `Ledger` declares no `commit`; `shop.tx` does, and `Ledger` reaches it through `IMPLEMENTS`."
+    },
+    {
+      "edge": {
+        "src": "java:shop.app.Remote.save",
+        "dst": "java:vendor.RemoteLedger.commit",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (#390), and this is the one that was *happening*. When the receiver is external the member reading cannot be checked against anything, so a receiver check that refuses on a name mismatch does not fall silent — it mints this id and emits it as a grounded-looking placeholder. The file wrote `import shop.tx.commit`; that is a fully-qualified name, and it outranks a guess about a type nothing here can introspect."
+    }
+  ],
+  "excluded": [
+    "`java:vendor.RemoteLedger` is external — imported, never declared here — so it stays out of the node ratio per corpus/README.md's rule, while the `IMPORTS` edge to it still counts. `corpus/kotlin/scope_functions` labels `androidx.compose.ui.Modifier` the same way.",
+    "The two `commit()` call sites resolve to the *same* id, `java:shop.tx.commit`, because an extension is a free function under its package module and not a member of the receiver (D4). That is the point of the case, not an accident of deduplication."
+  ],
+  "open_questions": []
+}

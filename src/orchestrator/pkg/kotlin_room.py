@@ -72,6 +72,19 @@ def table_entity_id(table: str) -> str:
     return f"java:entity:{table.lower()}"
 
 
+def parameter_entity_id(type_id: str) -> str:
+    """The provisional id for a write method's parameter type, not yet checked.
+
+    Marked distinctly from ``entity_id``/``table_entity_id`` (#394): a write
+    parameter is a *class*, never a table name, so its provisional edge must be
+    dropped outright when nothing grounds it — declared elsewhere in the tree or
+    not. Sharing a provisional id shape with a genuine unknown-table guess (from
+    ``@Query``) is what let it fall through to that guess's external-placeholder
+    fallback instead.
+    """
+    return f"java:entity:param:{type_id[len('java:') :]}"
+
+
 def read_entity(
     node: TSNode,
     type_id: str,
@@ -365,7 +378,7 @@ def _parameter_entity(method: TSNode, resolve: Any, source: bytes) -> str:
             continue
         resolved = resolve(name.rsplit(".", 1)[-1])
         if resolved:
-            return entity_id(resolved)
+            return parameter_entity_id(resolved)
     return ""
 
 
@@ -440,14 +453,11 @@ def repoint_table_edges(batch: FactBatch) -> FactBatch:
     """
     by_table: dict[str, str] = {}
     entities = set()
-    types = set()
     for node in batch.nodes:
         if node.kind is NodeKind.ENTITY and node.id.startswith("java:entity:"):
             entities.add(node.id)
             if node.grounded:
                 by_table.setdefault(node.name.lower(), node.id)
-        elif node.kind is NodeKind.TYPE:
-            types.add(node.id)
 
     out = FactBatch()
     for node in batch.nodes:
@@ -456,6 +466,17 @@ def repoint_table_edges(batch: FactBatch) -> FactBatch:
         if edge.kind not in (EdgeKind.READS, EdgeKind.WRITES) or not edge.dst.startswith("java:entity:"):
             out.add_edge(edge)
             continue
+        if edge.dst.startswith("java:entity:param:"):
+            # #394: a write method's *parameter* type, never a table name — provenance
+            # settles it outright rather than asking whether the repo happens to declare
+            # the class. Only a genuine `@Entity` grounds it; declared-elsewhere-as-a-
+            # plain-class and not-declared-anywhere alike drop, because neither is a
+            # table this tree could honestly stand behind with an external placeholder.
+            type_id = f"java:{edge.dst[len('java:entity:param:') :]}"
+            grounded = entity_id(type_id)
+            if grounded in entities:
+                out.add_edge(Edge(edge.src, grounded, edge.kind, edge.provenance))
+            continue
         table = edge.dst[len("java:entity:") :]
         target = by_table.get(table.lower())
         if target is not None:
@@ -463,15 +484,6 @@ def repoint_table_edges(batch: FactBatch) -> FactBatch:
             continue
         if edge.dst in entities:
             out.add_edge(edge)
-            continue
-        if f"java:{table}" in types:
-            # The id was built from a *class* the write method takes as a parameter,
-            # not from a table name a `@Query` wrote. Found in review: `@Insert fun
-            # insert(dto: SomeDto)` on a plain data class minted the entity
-            # `java:entity:app.data.SomeDto` — an Entity whose name is a dotted FQN,
-            # for a class carrying no `@Entity` at all. A class that is not an entity
-            # cannot be backed by an external placeholder the way an unknown *table*
-            # can: there is no table here to stand for.
             continue
         # A table this tree has no class for. The honest record — the DAO really does
         # read it — and `data_layer_link` can still pair it with a real `.sql` schema.

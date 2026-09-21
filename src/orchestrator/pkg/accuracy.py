@@ -37,6 +37,7 @@ abstract:
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
@@ -90,6 +91,12 @@ class CaseReport:
     missing: tuple[str, ...]
     unlabelled: tuple[str, ...]
     known_gaps: int
+    #: The same gaps, broken down by the edge kind each one names. The scalar above is what
+    #: the human report prints; this is what the *gate* needs, because a miss is only
+    #: explained for the kind it belongs to — a labelled `CALLS` gap says nothing about
+    #: `IMPORTS` recall. `known_gaps` names edges only, and load-time validation already
+    #: refuses an entry that is not in `edges`, so the group is always "edges".
+    known_gaps_by_kind: Mapping[str, int]
     declared_false_positives: int
     provenance_checked: int
     provenance_drift: tuple[str, ...]
@@ -121,6 +128,30 @@ class AccuracyReport:
                 "edges": _sum_scores([s for c in cases for s in c.edges]),
             }
         return out
+
+    def known_gaps_totals(self) -> dict[str, dict[str, int]]:
+        """``{language: {edge_kind: gaps}}`` — summed across cases, same shape as `totals`."""
+        out: dict[str, dict[str, int]] = {}
+        for case in self.cases:
+            lang = out.setdefault(case.language, {})
+            for kind, n in case.known_gaps_by_kind.items():
+                lang[kind] = lang.get(kind, 0) + n
+        return out
+
+
+def _gaps_by_kind(spec: dict[str, Any]) -> Mapping[str, int]:
+    """``known_gaps`` counted per edge kind, for the gate.
+
+    A gap explains a miss *of its own kind*: a labelled `CALLS` gap is not a reason for an
+    `IMPORTS` edge to be missing, and folding them into one number would let one kind's
+    annotation pay for another kind's loss.
+    """
+    counts: dict[str, int] = {}
+    for gap in spec.get("known_gaps", []):
+        kind = str(gap.get("edge", {}).get("kind", ""))
+        if kind:
+            counts[kind] = counts.get(kind, 0) + 1
+    return counts
 
 
 def _sum_scores(scores: list[KindScore]) -> tuple[KindScore, ...]:
@@ -294,6 +325,29 @@ def score_case(case_dir: Path, *, sql_dialect: str | None = None) -> CaseReport:
     if broken:
         raise CorpusError(f"{path}: refusals names edge(s) the extractor does emit: {broken}")
 
+    # A `known_gaps` entry is the same kind of claim, pointing the other way: *this* edge is
+    # true and we do not emit it. Load-time validation checks it names an edge in `edges`,
+    # which is not enough — a gap whose edge the extractor has since learned to emit stays
+    # valid by that rule and goes on asserting a limitation that no longer exists.
+    #
+    # That is not only stale prose. `compare_scoreboard` subtracts these from the miss count
+    # to tell an explained miss from an unexplained one, so a gap paying for nothing is
+    # credit the gate has not earned — and because the subtraction is per language and kind
+    # rather than per case, that credit silently absorbs a *real* new miss somewhere else in
+    # the same language. Four such entries were found the day this check was written, three
+    # in `typescript/instance_calls` and one in `cpp/instance_calls`, every one of them an
+    # edge the front-end had learned to emit.
+    closed = sorted(
+        _edge_key(entry.get("edge", {}), path)
+        for entry in spec.get("known_gaps", [])
+        if _edge_key(entry.get("edge", {}), path) in emitted_edges
+    )
+    if closed:
+        raise CorpusError(
+            f"{path}: known_gaps names edge(s) the extractor now emits — the gap closed, "
+            f"delete the entry: {closed}"
+        )
+
     # Provenance is compared only where a label opted in with an "at". No expected fact
     # carries one today, so this reports 0 checked rather than a silent 1.0.
     by_id = {n.id: n for n in batch.nodes}
@@ -317,6 +371,7 @@ def score_case(case_dir: Path, *, sql_dialect: str | None = None) -> CaseReport:
         missing=_describe(missing)[:_MAX_EXAMPLES],
         unlabelled=_describe(unlabelled)[:_MAX_EXAMPLES],
         known_gaps=len(spec.get("known_gaps", [])),
+        known_gaps_by_kind=_gaps_by_kind(spec),
         declared_false_positives=len(spec.get("false_positives", [])),
         provenance_checked=checked,
         provenance_drift=tuple(drift),
@@ -495,7 +550,12 @@ def score_comprehension(repo: Path | str, *, sql_dialect: str | None = None) -> 
 
 # ---- the scoreboard --------------------------------------------------------
 
-SCOREBOARD_VERSION = 1
+SCOREBOARD_VERSION = 2
+
+#: The version at which every corpus edge entry gained `known_gaps`. Below this a baseline
+#: cannot be compared against a current run, because a missing annotation is indistinguishable
+#: from no annotation. Named rather than inlined so the reason travels with the number.
+_KNOWN_GAPS_VERSION = 2
 
 # The baseline lives *inside the package* so it ships in the wheel. `pyproject.toml` builds
 # `src/orchestrator` only, so a copy at the repo root would be invisible to a pip-installed
@@ -597,8 +657,26 @@ def _ratio(matched: int, total: int) -> Fraction | None:
     return Fraction(matched, total) if total else None
 
 
-def _score_entry(s: KindScore) -> dict[str, int]:
-    return {"expected": s.expected, "emitted": s.emitted, "matched": s.matched}
+def _unexplained(entry: dict[str, int]) -> int:
+    """Labelled edges this run missed **without** a `known_gaps` entry saying why.
+
+    The number the corpus gate is actually about. A miss with a stated reason is a decision;
+    a miss without one is either a regression or something nobody has looked at, and those
+    are the two the gate exists to separate. Never negative: scoring refuses a `known_gaps`
+    entry naming an edge the extractor emits, so a gap cannot outnumber the misses it explains.
+    """
+    return entry["expected"] - entry["matched"] - entry.get("known_gaps", 0)
+
+
+def _score_entry(s: KindScore, known_gaps: int = 0) -> dict[str, int]:
+    """The counts, plus how many of the misses carry a stated reason.
+
+    ``known_gaps`` does **not** change `expected`, `matched` or any published ratio — the
+    module docstring's rule that an annotation never moves a score still holds exactly. It
+    rides alongside so `compare_scoreboard` can tell a newly *explained* miss from a newly
+    *unexplained* one, which the ratio alone cannot.
+    """
+    return {"expected": s.expected, "emitted": s.emitted, "matched": s.matched, "known_gaps": known_gaps}
 
 
 def localization_entry(report: Any = None) -> dict[str, Any]:
@@ -682,9 +760,14 @@ def build_scoreboard(
     except CorpusError:
         corpus = None
     if corpus is not None:
+        gaps = corpus.known_gaps_totals()
         for lang, groups in corpus.totals().items():
             languages[lang] = {
-                group: {s.kind: _score_entry(s) for s in scores} for group, scores in groups.items()
+                group: {
+                    s.kind: _score_entry(s, gaps.get(lang, {}).get(s.kind, 0) if group == "edges" else 0)
+                    for s in scores
+                }
+                for group, scores in groups.items()
             }
 
     parity = score_parity(repo)
@@ -815,6 +898,25 @@ def compare_scoreboard(baseline: dict[str, Any], current: dict[str, Any]) -> lis
     cur_corpus = current.get("metrics", {}).get("corpus", {})
     cur_langs = cur_corpus.get("languages", {})
     unmeasured = set(cur_corpus.get("skipped_languages", []))
+
+    # The corpus gate reads `known_gaps` off every edge entry (v2). A baseline written before
+    # that carries the counts and not the annotation, and "absent" would then read as "no gap
+    # was ever labelled" — which is the same zero-means-unexamined mistake the invention gate
+    # is careful to avoid, and it would silently un-gate every kind it touched.
+    #
+    # Scoped to corpus on purpose: `tests/evals/test_labels_and_localization` compares boards
+    # carrying only a `comprehension` metric, with no version and no corpus block at all, and
+    # a blanket version check would refuse those for no reason.
+    if cur_langs and base_langs and int(baseline.get("version", 1)) < _KNOWN_GAPS_VERSION:
+        return [
+            Regression(
+                "corpus",
+                f"baseline predates scoreboard v{_KNOWN_GAPS_VERSION} and carries no `known_gaps`; "
+                "regenerate it with `orchestrator pkg accuracy --scoreboard`",
+                f"v{int(baseline.get('version', 1))}",
+                f"v{SCOREBOARD_VERSION}",
+            )
+        ]
     for lang, groups in base_langs.items():
         if lang in unmeasured:
             continue  # not measured here, so nothing to compare — see build_scoreboard
@@ -828,20 +930,62 @@ def compare_scoreboard(baseline: dict[str, Any], current: dict[str, Any]) -> lis
                         Regression("corpus", f"{lang}/{group}/{kind} disappeared", "present", "absent")
                     )
                     continue
-                for label, total_key in (("precision", "emitted"), ("recall", "expected")):
-                    before = _ratio(was["matched"], was[total_key])
-                    after = _ratio(now["matched"], now[total_key])
-                    if before is None or after is None:
-                        continue  # undefined is not a drop from undefined
-                    if after < before:
-                        out.append(
-                            Regression(
-                                "corpus",
-                                f"{lang}/{group}/{kind} {label}",
-                                f"{float(before):.4f}",
-                                f"{float(after):.4f}",
-                            )
+                # Precision stays a ratio: every emitted edge is a claim, and a claim that is
+                # wrong is wrong whether or not anyone wrote a note about it. There is no
+                # annotation that makes a fabrication acceptable, so there is nothing to net
+                # off — `false_positives` records invention, it does not excuse it.
+                before = _ratio(was["matched"], was["emitted"])
+                after = _ratio(now["matched"], now["emitted"])
+                if before is not None and after is not None and after < before:
+                    out.append(
+                        Regression(
+                            "corpus",
+                            f"{lang}/{group}/{kind} precision",
+                            f"{float(before):.4f}",
+                            f"{float(after):.4f}",
                         )
+                    )
+
+                # Recall does not, and this is the whole point of the change. `expected`
+                # counts every labelled edge, and `corpus/README.md` is explicit that a
+                # `known_gaps` entry still counts as a miss — so labelling one lowers the
+                # ratio with nothing about the extractor having moved. Gating the ratio
+                # therefore failed a build for *measuring* a loss, and the only remedy was
+                # regenerating the baseline, which accepts everything that moved rather than
+                # the one thing intended.
+                #
+                # Two conditions, because either alone has a hole. Unexplained misses catch a
+                # new miss nobody accounted for — including the case the ratio is blind to,
+                # where 8/10 and 12/15 are both 0.80 while the misses go two to three. And
+                # `matched` falling catches an edge that stopped resolving even when a gap
+                # labelled in the same commit would otherwise pay for it.
+                #
+                # What this deliberately does not catch: a newly labelled edge that never
+                # resolved, offset by explaining an older miss. Unexplained misses are flat
+                # and `matched` never moves, so both conditions pass. By the metric's own
+                # definition that is a wash — one explained, one introduced — and separating
+                # them needs per-edge identity in a file five gated readers already depend on.
+                if now["matched"] < was["matched"]:
+                    out.append(
+                        Regression(
+                            "corpus",
+                            f"{lang}/{group}/{kind} matched edges",
+                            str(was["matched"]),
+                            str(now["matched"]),
+                        )
+                    )
+                was_open = _unexplained(was)
+                now_open = _unexplained(now)
+                if now_open > was_open:
+                    out.append(
+                        Regression(
+                            "corpus",
+                            f"{lang}/{group}/{kind} unexplained misses "
+                            "(a miss with no `known_gaps` entry stating why)",
+                            str(was_open),
+                            str(now_open),
+                        )
+                    )
 
     # Invention: zero per language, measured against nothing. `baseline` is unused on purpose
     # — see GATES. A language whose status is not `measured` is skipped, because its 0 means
@@ -900,12 +1044,61 @@ def compare_scoreboard(baseline: dict[str, Any], current: dict[str, Any]) -> lis
                 )
             )
 
+    # Audited 2026-09-21 against the defect fixed for corpus recall above, and it does not
+    # share it. That defect was a *correct, deliberate* action — labelling a gap — moving the
+    # gated number while the underlying reality was byte-identical, because the number was a
+    # ratio over a population the annotation grew. `shortfall` is an absolute count of
+    # constructs the source declares and the graph does not hold, and there is no annotation
+    # anywhere in its path: it moves only when that reality moves. Adding source we cannot yet
+    # extract does raise it, but that is not a false alarm — the graph really did fall further
+    # behind the source, which is the one question this oracle exists to ask.
+    #
+    # Worth watching rather than fixing: parity has no way to say "this shortfall is known and
+    # accepted". It sits at 0 today, so the question has never arisen; if it ever does, the
+    # only moves are fix it or ratchet the baseline up, and ratcheting a baseline to absorb one
+    # accepted case also absorbs every unnoticed one — which is exactly the all-or-nothing
+    # escape hatch that made the corpus gate worth changing.
     was_short = baseline.get("metrics", {}).get("parity", {}).get("shortfall")
     now_short = current.get("metrics", {}).get("parity", {}).get("shortfall")
     if was_short is not None and now_short is not None and now_short > was_short:
         out.append(Regression("parity", "shortfall increased", str(was_short), str(now_short)))
 
     return out
+
+
+def scoreboard_explained_drops(baseline: dict[str, Any], current: dict[str, Any]) -> list[str]:
+    """Recall ratios that fell with every new miss explained — real movement, not a failure.
+
+    The gate stops firing on these, and silence would be its own defect: the published number
+    did move, a reader comparing two releases will see it, and "0.94 became 0.93" deserves an
+    answer better than nothing. Reported on the trend channel with the reason attached.
+    """
+    out: list[str] = []
+    base_langs = baseline.get("metrics", {}).get("corpus", {}).get("languages", {})
+    cur_corpus = current.get("metrics", {}).get("corpus", {})
+    cur_langs = cur_corpus.get("languages", {})
+    unmeasured = set(cur_corpus.get("skipped_languages", []))
+    for lang, groups in base_langs.items():
+        if lang in unmeasured:
+            continue
+        for group, kinds in groups.items():
+            for kind, was in kinds.items():
+                now = cur_langs.get(lang, {}).get(group, {}).get(kind)
+                if now is None:
+                    continue
+                before = _ratio(was["matched"], was["expected"])
+                after = _ratio(now["matched"], now["expected"])
+                if before is None or after is None or after >= before:
+                    continue
+                gained = now.get("known_gaps", 0) - was.get("known_gaps", 0)
+                if now["matched"] < was["matched"] or _unexplained(now) > _unexplained(was):
+                    continue  # a real regression; `compare_scoreboard` has already failed it
+                out.append(
+                    f"{lang}/{group}/{kind} recall: {float(before):.4f} -> {float(after):.4f} "
+                    f"(ungated — {gained} newly labelled known_gap(s), "
+                    f"{_unexplained(now)} unexplained)"
+                )
+    return sorted(out)
 
 
 def scoreboard_improvements(baseline: dict[str, Any], current: dict[str, Any]) -> list[str]:
@@ -949,6 +1142,7 @@ __all__ = [
     "BASELINE",
     "GATES",
     "SCOREBOARD_VERSION",
+    "scoreboard_explained_drops",
     "Regression",
     "build_scoreboard",
     "compare_scoreboard",

@@ -52,7 +52,7 @@ _13 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/c_extractor.py:512`](../../src/orchestrator/pkg/c_extractor.py#L512)
 
-- **Called by** (3): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L577), [`extract`](../../src/orchestrator/pkg/c_extractor.py#L77), [`infer_include_roots`](../../src/orchestrator/pkg/clang_includes.py#L14)
+- **Called by** (3): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L592), [`extract`](../../src/orchestrator/pkg/c_extractor.py#L77), [`infer_include_roots`](../../src/orchestrator/pkg/clang_includes.py#L14)
 - **Calls** (3): `language`, `tree_sitter.Language`, `tree_sitter.Parser`
 
 ### `_calls_in`

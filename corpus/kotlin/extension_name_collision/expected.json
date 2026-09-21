@@ -1,0 +1,57 @@
+{
+  "language": "kotlin",
+  "case": "extension_name_collision",
+  "why": "#390. `t.format()` and `t.render()` on a `Topic` that declares neither, where an import happens to share each called member's simple name — `format` an ordinary top-level function, `render` a class, and neither an extension of `Topic`. `_resolve_navigated` used to offer any import whose simple name matched the member as a candidate with no check that it was even a function, let alone an extension of the receiver, so both resolved as grounded, first-party `CALLS` edges onto the wrong kind of node entirely. A repo-wide extension table (receiver type -> extension id) built in pass 1 is what `_settle_calls` now checks the import against, instead of matching on name alone.",
+  "root": ".repo",
+  "nodes": [
+    { "id": "java:app.data", "kind": "Module" },
+    { "id": "java:app.data.Topic", "kind": "Type" },
+    { "id": "java:app.data.Topic.format", "kind": "Function" },
+    { "id": "java:app.data.Topic.render", "kind": "Function" },
+    { "id": "java:app.ui", "kind": "Module" },
+    { "id": "java:app.ui.Screen", "kind": "Type" },
+    { "id": "java:app.ui.Screen.show", "kind": "Function" },
+    { "id": "java:app.ui.Screen.t", "kind": "Field" },
+    { "id": "java:app.util", "kind": "Module" },
+    { "id": "java:app.util.format", "kind": "Function" },
+    { "id": "java:app.util.render", "kind": "Type" }
+  ],
+  "edges": [
+    { "src": "java:app.data", "dst": "java:app.data.Topic", "kind": "CONTAINS" },
+    { "src": "java:app.data.Topic", "dst": "java:app.data.Topic.format", "kind": "CONTAINS" },
+    { "src": "java:app.data.Topic", "dst": "java:app.data.Topic.render", "kind": "CONTAINS" },
+    { "src": "java:app.ui.Screen.show", "dst": "java:app.data.Topic.format", "kind": "CALLS" },
+    { "src": "java:app.ui.Screen.show", "dst": "java:app.data.Topic.render", "kind": "CALLS" },
+    { "src": "java:app.ui", "dst": "java:app.ui.Screen", "kind": "CONTAINS" },
+    { "src": "java:app.ui.Screen", "dst": "java:app.ui.Screen.show", "kind": "CONTAINS" },
+    { "src": "java:app.ui.Screen", "dst": "java:app.ui.Screen.t", "kind": "CONTAINS" },
+    { "src": "java:app.util", "dst": "java:app.util.format", "kind": "CONTAINS" },
+    { "src": "java:app.util", "dst": "java:app.util.render", "kind": "CONTAINS" },
+    { "src": "java:app.ui", "dst": "java:app.data.Topic", "kind": "IMPORTS" },
+    { "src": "java:app.ui", "dst": "java:app.util.format", "kind": "IMPORTS" },
+    { "src": "java:app.ui", "dst": "java:app.util.render", "kind": "IMPORTS" }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "java:app.ui.Screen.show",
+        "dst": "java:app.util.format",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (#390). `t.format()` on a `Topic` with no `format` member; `app.util.format` is imported under that name, but it is an ordinary top-level function, not an extension of `Topic`. Resolving onto it would be a name-only match with no evidence the import applies to this receiver."
+    },
+    {
+      "edge": {
+        "src": "java:app.ui.Screen.show",
+        "dst": "java:app.util.render",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (#390). Same shape as `format` above, but the imported `render` is a class, not a function at all — a class is never a call target, and a receiver call must never resolve onto a `Type` node."
+    }
+  ],
+  "excluded": [
+    "A member outranks an extension in Kotlin, so `t.format()` and `t.render()` resolve to `Topic`'s own declarations and the two same-named imports are not candidates at all. That is what makes the refusals below falsifiable rather than vacuous: there is a correct answer here, and it is not the import."
+  ],
+  "open_questions": []
+}

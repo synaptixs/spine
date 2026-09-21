@@ -13,7 +13,11 @@
     { "id": "java:shop.text.Slug.raw", "kind": "Field" },
     { "id": "java:shop.remote", "kind": "Module" },
     { "id": "java:shop.remote.trim", "kind": "Function" },
-    { "id": "java:shop.remote.tidy", "kind": "Function" }
+    { "id": "java:shop.remote.tidy", "kind": "Function" },
+    { "id": "java:shop.remote.scaled", "kind": "Function" },
+    { "id": "java:shop.remote.tapped", "kind": "Function" },
+    { "id": "java:shop.text.Formatter.sizes", "kind": "Function" },
+    { "id": "java:shop.text.Formatter.tap", "kind": "Function" }
   ],
   "edges": [
     { "src": "java:shop.text", "dst": "java:shop.text.Slug", "kind": "CONTAINS" },
@@ -28,7 +32,15 @@
     { "src": "java:shop.remote", "dst": "java:shop.remote.trim", "kind": "CONTAINS" },
     { "src": "java:shop.remote", "dst": "java:shop.remote.tidy", "kind": "CONTAINS" },
     { "src": "java:shop.text", "dst": "java:shop.remote.trim", "kind": "IMPORTS" },
-    { "src": "java:shop.remote", "dst": "java:shop.text.Slug", "kind": "IMPORTS" }
+    { "src": "java:shop.remote", "dst": "java:shop.text.Slug", "kind": "IMPORTS" },
+    { "src": "java:shop.remote", "dst": "java:shop.remote.scaled", "kind": "CONTAINS" },
+    { "src": "java:shop.remote", "dst": "java:shop.remote.tapped", "kind": "CONTAINS" },
+    { "src": "java:shop.text", "dst": "java:shop.remote.scaled", "kind": "IMPORTS" },
+    { "src": "java:shop.text", "dst": "java:shop.remote.tapped", "kind": "IMPORTS" },
+    { "src": "java:shop.text.Formatter", "dst": "java:shop.text.Formatter.sizes", "kind": "CONTAINS" },
+    { "src": "java:shop.text.Formatter", "dst": "java:shop.text.Formatter.tap", "kind": "CONTAINS" },
+    { "src": "java:shop.text.Formatter.sizes", "dst": "java:shop.remote.scaled", "kind": "CALLS" },
+    { "src": "java:shop.text.Formatter.tap", "dst": "java:shop.remote.tapped", "kind": "CALLS" }
   ],
   "known_gaps": [],
   "refusals": [
@@ -49,6 +61,9 @@
       "why": "PREDICTED BEFORE SCORING, and it was happening. The same fabrication one file further out: an extension imported from another package is written exactly like a member call, and the per-file extension table only ever held *this* file\u2019s, so the call fell through to the receiver type and produced `Slug.trim` \u2014 losing a grounded target for an invented one. The existing D4 test covered only the same-file half."
     }
   ],
-  "excluded": [],
+  "excluded": [
+    "`Int` and `Long` are Kotlin builtins, not declarations of this repository, so neither gets a node and neither receiver can be checked against anything — the calls resolve because nothing contradicts them, which is the whole of the rule.",
+    "`n.scaled()` and `big.scaled()` are two call sites and one labelled edge: they name the same id, and the graph holds facts rather than occurrences."
+  ],
   "open_questions": []
 }

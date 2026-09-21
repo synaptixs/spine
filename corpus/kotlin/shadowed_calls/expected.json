@@ -9,7 +9,12 @@
     { "id": "java:shop.scope.Runner.go", "kind": "Function" },
     { "id": "java:shop.scope.Runner.helper", "kind": "Function" },
     { "id": "java:shop.scope.Runner.audit", "kind": "Function" },
-    { "id": "java:shop.scope.Runner.other", "kind": "Function" }
+    { "id": "java:shop.scope.Runner.other", "kind": "Function" },
+    { "id": "java:shop.scope.Screen", "kind": "Type" },
+    { "id": "java:shop.scope.Screen.show", "kind": "Function" },
+    { "id": "java:shop.scope.Screen.key", "kind": "Function" },
+    { "id": "java:shop.scope.Screen.render", "kind": "Function" },
+    { "id": "java:shop.scope.Screen.tag", "kind": "Function" }
   ],
   "edges": [
     { "src": "java:shop.scope", "dst": "java:shop.scope.Runner", "kind": "CONTAINS" },
@@ -17,9 +22,24 @@
     { "src": "java:shop.scope.Runner", "dst": "java:shop.scope.Runner.helper", "kind": "CONTAINS" },
     { "src": "java:shop.scope.Runner", "dst": "java:shop.scope.Runner.audit", "kind": "CONTAINS" },
     { "src": "java:shop.scope.Runner", "dst": "java:shop.scope.Runner.other", "kind": "CONTAINS" },
-    { "src": "java:shop.scope.Runner.go", "dst": "java:shop.scope.Runner.audit", "kind": "CALLS" }
+    { "src": "java:shop.scope.Runner.go", "dst": "java:shop.scope.Runner.audit", "kind": "CALLS" },
+    { "src": "java:shop.scope", "dst": "java:shop.scope.Screen", "kind": "CONTAINS" },
+    { "src": "java:shop.scope.Screen", "dst": "java:shop.scope.Screen.show", "kind": "CONTAINS" },
+    { "src": "java:shop.scope.Screen", "dst": "java:shop.scope.Screen.key", "kind": "CONTAINS" },
+    { "src": "java:shop.scope.Screen", "dst": "java:shop.scope.Screen.render", "kind": "CONTAINS" },
+    { "src": "java:shop.scope.Screen", "dst": "java:shop.scope.Screen.tag", "kind": "CONTAINS" },
+    { "src": "java:shop.scope.Screen.render", "dst": "java:shop.scope.Screen.tag", "kind": "CALLS" }
   ],
-  "known_gaps": [],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "java:shop.scope.Screen.render",
+        "dst": "java:shop.scope.Screen.tag",
+        "kind": "CALLS"
+      },
+      "why": "The cost of the destructuring fix, stated rather than discovered. `tag` is bound by `for ((tag, path) in items)` as a `String`, and a `String` has no `invoke`, so Kotlin resolves `tag(path)` to the member function `tag` — a real call this front-end now suppresses, because the shadowing rule keys on the *name* being bound and cannot ask whether the bound type is invocable. Measured on ktorio/ktor-samples, where `method(method)` inside `for ((method, path) in ...)` is the same shape: one true `CALLS` edge lost, 1454 to 1453. Separating them needs type inference this front-end deliberately does not do, the same residue `corpus/kotlin/scope_functions` records for `x.also(fn)`."
+    }
+  ],
   "refusals": [
     {
       "edge": {
@@ -28,10 +48,19 @@
         "kind": "CALLS"
       },
       "why": "PREDICTED BEFORE SCORING. `val helper = ::other` binds a local for the rest of `go`'s body, so `helper()` invokes the local through Kotlin's `invoke` convention — not the sibling method of the same name. Resolving it to `Runner.helper` is the exact fabrication D9 exists to catch, and it is the plausible-looking one a Java-trained reader would accept."
+    },
+    {
+      "edge": {
+        "src": "java:shop.scope.Screen.show",
+        "dst": "java:shop.scope.Screen.key",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (#392). `for ((key, value) in m)` destructures the loop variable via a `multi_variable_declaration` rather than a plain `variable_declaration`, and binds `key` for the rest of the loop body. `key()` therefore invokes the destructured local, not the sibling method `Screen.key` — resolving it to the member is the same D9 fabrication as the plain `for (helper in fns)` case above, just through the grammar's destructuring shape."
     }
   ],
   "excluded": [
-    "`helper()` is labelled as reaching nothing at all. It does not reach `Runner.helper` (shadowed by the local, see false_positives) and it does not reach `Runner.other` either — that would mean resolving the `::other` reference stored in the local, which is inference. Both omissions are the decision, so neither is labelled as an edge to miss."
+    "`helper()` is labelled as reaching nothing at all. It does not reach `Runner.helper` (shadowed by the local, see false_positives) and it does not reach `Runner.other` either — that would mean resolving the `::other` reference stored in the local, which is inference. Both omissions are the decision, so neither is labelled as an edge to miss.",
+    "`key()` in `Screen.show` is likewise labelled as reaching nothing: the destructured local shadows the call, and resolving what `value` binds to would be inference, not extraction."
   ],
   "open_questions": []
 }

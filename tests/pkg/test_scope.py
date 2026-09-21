@@ -250,6 +250,21 @@ def test_kotlin_for_loop_variable_shadows_a_bare_call() -> None:
     assert "helper" in _shadowed("kotlin", src, 4)
 
 
+def test_kotlin_destructuring_for_loop_binds_both_names() -> None:
+    """#392. `for ((key, value) in m) { key() }` binds `key` and `value`.
+
+    A destructuring `for` hangs a `multi_variable_declaration` off the `for_statement`
+    rather than a plain `variable_declaration`, and this walker previously only handled
+    the latter — the identical gap the extractor had, so the oracle certified the
+    extractor's fabrication as clean instead of catching it.
+    """
+    src = (
+        "package p\n\nfun show(m: Map<String, String>) {\n"
+        '    for ((key, value) in m) { key() }\n}\nfun key(): String = "k"\n'
+    )
+    assert {"key", "value"} <= _shadowed("kotlin", src, 4)
+
+
 def test_kotlin_catch_parameter_shadows_a_bare_call() -> None:
     """The same rule for `catch (report: Throwable) { report() }`."""
     src = (

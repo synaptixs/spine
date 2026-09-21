@@ -935,6 +935,78 @@ numbers below as "these eleven paths, measured" — not as "the front-end cannot
   project's shape. Nothing to implement; the row is noted here so the next reader does not go
   looking for the seam.
 
+### Maintainer review, 2026-09-21 — the fix for the fabrication class fabricated
+
+The round above closed eleven paths and left eight issues open under
+[#397](https://github.com/synaptixs/spine/issues/397). The fix for six of them
+([#429](https://github.com/synaptixs/spine/pull/429)) introduced four new defects, and the
+shape is worth more than any one of them: **a precision check that is two-valued in a
+three-valued world does not merely refuse too much — it refuses the best-evidenced reading
+and then mints a worse one.** Every gate stayed green throughout.
+
+- **The receiver check compared bare names, and a subtype receiver is the normal case.**
+  *(Found 2026-09-21, maintainer review of #429.)* `_settle_calls` asked whether the
+  extension's declared receiver name equalled the call site's, and read "no" as "refuse".
+  Kotlin's rule is a *subtype-compatible* receiver. Measured on the validation app:
+  `fun NavController.navigateToSearch()`, declared in-repo and explicitly imported, called on
+  a `NavHostController` — the standard Compose navigation pattern — lost its grounded edge and
+  gained an invented `androidx.navigation.NavHostController.navigateToSearch`. **Four edges,
+  four ids nothing declares**, and `CALLS` stayed flat at **2,218** because the edges were
+  *redirected* rather than dropped, so a count-based check saw nothing. On touchlab/KaMPKit
+  the same shape replaced **three** edges to a real imported in-repo extension with a member
+  of a SQLDelight-generated type. `pkg verify` reported both graphs clean, 0 errors.
+  Fixed by making the question three-valued: compatible when the receiver ids intersect, when
+  the extension takes a type parameter, or when `IMPLEMENTS` runs from the receiver up to a
+  declared receiver; **incompatible only when both types are ones this repository declares and
+  no such path exists**; unknown otherwise, and unknown accepts — an external receiver has no
+  supertype list to walk, so a mismatch there proves nothing. Receivers are compared as
+  resolved ids, which is what makes the walk possible and also closes the residue the previous
+  round left open: `app.data.Topic` and `app.legacy.Topic` are no longer one receiver.
+- **Two more shapes the same comparison refused, both idiomatic.** *(Found 2026-09-21,
+  maintainer review of #429.)* `fun Int.toDp()` and `fun Float.toDp()` in one package are
+  **one id**, so a table with a single receiver slot kept whichever file was parsed last and
+  refused the other — and *which* one survived depended on filesystem order. `fun <T> T.x()`
+  stored the literal `"T"`, which equals no real receiver; resolving it would have minted
+  `java:<package>.T`, an id nothing declares. Both resolve on `develop` and both were dropped.
+  Receivers now accumulate per id, and a type-parameter receiver is read from the
+  declaration's own `type_parameters` rather than inferred from the name's shape.
+- **The repo-wide extension table was never cleared, so a warm cache changed the graph.**
+  *(Found 2026-09-21, maintainer review of #429.)* `self._extensions` was built per file and
+  cleared nowhere, while its four siblings on the same class — `_nav`, `_ktor`, `_deferred`,
+  `_client` — are all cleared in `finalize`. `load_or_extract_repos` hands **one**
+  `RepoCodeExtractor` to every declared repository, so repo A's extensions verified repo B's
+  imports and reinstated the very defect the table existed to fix. Worse, `load_or_extract`
+  returns early on a cache hit and never runs `finalize`, so **whether repo A happened to be
+  cached changed repo B's emitted graph for the same commit** — invariant 8 and the
+  no-LLM-no-randomness guarantee both broken by an accumulator. This is the same leak
+  `kotlin_http` fixed for `_client`, one attribute over, and its comment had already rejected
+  `reset_unresolved` as the place to fix it.
+- **"Same package" was a string comparison, and a file with no package has none.**
+  *(Found 2026-09-21, maintainer review of #429.)* #395 restricted both route resolvers to
+  what the calling file can see, keyed on `module` — which `module_name` falls back to the
+  repo-relative path for a file declaring no `package`, **14 of 263 in the validation app**.
+  Two default-package files therefore compared as two different packages, and a Ktor mount
+  and a Compose route constant that Kotlin resolves with no import at all both went to
+  nothing. The declared package is now read from the parse tree, not from `module` and not by
+  regex; both resolvers keep "exactly one, or unresolved".
+- **Three corpus fixtures could not compile, and one of them was scoring its own extractor.**
+  *(Found 2026-09-21, maintainer review of #429.)* `extension_name_collision` called two
+  members its receiver did not declare — an unresolved reference in any compiler — so it
+  labelled **no `CALLS` at all** and its whole content was two refusals, while its twin
+  `extension_name_collision_external` labelled the *byte-identical* call sites as real edges.
+  The pair differed only by which branch of `_settle_calls` ran: a label with no source to be
+  derived from, which is exactly what §6's rule forbids and the second time this track has hit
+  it (#389). All three repaired to compile; the collision case now declares the members it
+  calls, so a member outranks the extension, and it scores positives as well as refusals.
+- **A recall ratio is the wrong thing to gate on, and this round proved it.**
+  *(Found 2026-09-21, maintainer review of #429.)* Labelling the destructuring rule's cost as
+  a `known_gap` — `tag(path)` where `tag` is a destructured `String` resolves to the member
+  function in Kotlin, measured on ktor-samples as `method(method)`, **1,454 → 1,453** — moved
+  Kotlin `CALLS` recall **0.94 → 0.93** while precision held at **1.00** and behaviour did not
+  change at all. `corpus/README.md` says a `known_gap` still counts as a miss, so measuring a
+  loss lowers the ratio. The durable criterion is precision at 1.00 plus no *unexplained*
+  miss; a bare ratio penalises honesty about a gap and rewards leaving it unlabelled.
+
 ## 12. Sequence
 
 ```

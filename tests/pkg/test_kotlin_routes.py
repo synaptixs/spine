@@ -391,6 +391,83 @@ def test_a_mount_resolves_in_its_own_package_not_across_services(tmp_path: Path)
     assert endpoints == {"GET /a/health", "GET /b/health"}
 
 
+def test_a_mount_with_one_declaration_still_does_not_cross_services(tmp_path: Path) -> None:
+    """#395. The one-declaration variant of the test above.
+
+    Two candidates never reached the repo-wide fallback tier at all — this pins the
+    tier itself. `svc.a` mounts `health()` with no import of `svc.b`, where the only
+    `fun Route.health()` in the whole tree is declared. Before #395's fix, "exactly
+    one declaration in the repository" resolved this regardless of package or
+    import, mounting `svc.b`'s route under `svc.a`'s prefix — a route `svc.a` does
+    not serve and Kotlin itself could not have compiled the call against.
+    """
+    batch = _multi(
+        tmp_path,
+        {
+            "a/App.kt": """\
+package svc.a
+
+import io.ktor.server.application.*
+import io.ktor.server.routing.*
+
+fun Application.module() {
+    routing {
+        route("/a") { health() }
+    }
+}
+""",
+            "b/Health.kt": """\
+package svc.b
+
+import io.ktor.server.routing.*
+
+fun Route.health() {
+    get("/health") { }
+}
+""",
+        },
+    )
+    assert not [n for n in batch.nodes if n.kind is NodeKind.ENDPOINT]
+
+
+def test_a_mount_resolves_through_a_wildcard_import(tmp_path: Path) -> None:
+    """The genuine case the repo-wide fallback tier exists for: `svc.a` wildcard-
+
+    imports `svc.b`, so `health()` is reachable from `svc.a` even with no explicit
+    `import svc.b.health` line — #395's fix restricts the fallback to exactly this,
+    rather than removing it.
+    """
+    batch = _multi(
+        tmp_path,
+        {
+            "a/App.kt": """\
+package svc.a
+
+import io.ktor.server.application.*
+import io.ktor.server.routing.*
+import svc.b.*
+
+fun Application.module() {
+    routing {
+        route("/a") { health() }
+    }
+}
+""",
+            "b/Health.kt": """\
+package svc.b
+
+import io.ktor.server.routing.*
+
+fun Route.health() {
+    get("/health") { }
+}
+""",
+        },
+    )
+    endpoints = {n.name for n in batch.nodes if n.kind is NodeKind.ENDPOINT}
+    assert endpoints == {"GET /a/health"}
+
+
 def test_a_spring_property_placeholder_is_not_a_path(tmp_path: Path) -> None:
     """Kotlin refuses an interpolated path at the grammar, but `"\\${api.base}/x"` is an
     *escaped* dollar and decodes to the same Spring placeholder — a path resolved from
@@ -410,6 +487,98 @@ class C {
     fun list() {}
 }
 """
+        },
+    )
+    assert not [n for n in batch.nodes if n.kind is NodeKind.ENDPOINT]
+
+
+def test_a_mount_resolves_inside_the_default_package(tmp_path: Path) -> None:
+    """#395's fix compared packages, and a file that declares none has no package.
+
+    `module_name` falls back to the repo-relative path there — 14 of 263 files in the
+    validation app — so two default-package files read as two different packages and the
+    own-package tier could never match them. Kotlin needs no import to resolve this, and
+    the source compiles, so the mount was a real edge lost rather than a guess refused.
+    """
+    batch = _multi(
+        tmp_path,
+        {
+            "App.kt": """\
+import io.ktor.server.application.*
+import io.ktor.server.routing.*
+
+fun Application.module() {
+    routing {
+        route("/a") { health() }
+    }
+}
+""",
+            "Health.kt": """\
+import io.ktor.server.routing.*
+
+fun Route.health() {
+    get("/health") { }
+}
+""",
+        },
+    )
+    assert {n.name for n in batch.nodes if n.kind is NodeKind.ENDPOINT} == {"GET /a/health"}
+
+
+def test_two_default_package_route_modules_of_one_name_stay_unresolved(tmp_path: Path) -> None:
+    """The default package is one package, so two `health()` in it are ambiguous.
+
+    Same "exactly one, or unresolved" rule every other tier uses — the fix widens what
+    counts as the same package, it does not weaken what counts as a unique answer.
+    """
+    batch = _multi(
+        tmp_path,
+        {
+            "App.kt": """\
+import io.ktor.server.application.*
+import io.ktor.server.routing.*
+
+fun Application.module() {
+    routing {
+        route("/a") { health() }
+    }
+}
+""",
+            "One.kt": 'import io.ktor.server.routing.*\n\nfun Route.health() {\n    get("/one") { }\n}\n',
+            "Two.kt": 'import io.ktor.server.routing.*\n\nfun Route.health() {\n    get("/two") { }\n}\n',
+        },
+    )
+    assert not [n for n in batch.nodes if n.kind is NodeKind.ENDPOINT and n.name.startswith("GET /a")]
+
+
+def test_a_default_package_mount_does_not_capture_a_packaged_module(tmp_path: Path) -> None:
+    """A file with no package cannot see `svc.b`, and must not mount its route.
+
+    The widened tier keys on "declares no package" on *both* ends, so it cannot reach a
+    declaration that sits in a real package — which is what #395 closed in the first place.
+    """
+    batch = _multi(
+        tmp_path,
+        {
+            "App.kt": """\
+import io.ktor.server.application.*
+import io.ktor.server.routing.*
+
+fun Application.module() {
+    routing {
+        route("/a") { health() }
+    }
+}
+""",
+            "b/Health.kt": """\
+package svc.b
+
+import io.ktor.server.routing.*
+
+fun Route.health() {
+    get("/health") { }
+}
+""",
         },
     )
     assert not [n for n in batch.nodes if n.kind is NodeKind.ENDPOINT]

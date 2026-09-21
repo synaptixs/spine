@@ -1,6 +1,7 @@
 package shop.di
 
 import dagger.Binds
+import dagger.Lazy
 import dagger.Module
 import dagger.Provides
 import javax.inject.Named
@@ -29,6 +30,12 @@ interface DataModule {
 object ClockModule {
     @Provides
     fun providesClock(): Clock = Clock()
+
+    @Provides
+    fun providesLazyClock(): Lazy<Clock> = TODO()
+
+    @Provides
+    fun providesClockSet(): Set<Clock> = emptySet()
 }
 
 class StrayBinding {

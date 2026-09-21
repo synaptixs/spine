@@ -8,9 +8,9 @@
       },
       "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
       "provenance": {
-        "anchored": 13513,
-        "excluded": 876,
-        "resolved": 13513,
+        "anchored": 13724,
+        "excluded": 882,
+        "resolved": 13724,
         "unreadable": 0
       }
     },
@@ -22,16 +22,19 @@
             "CALLS": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             },
             "CONTAINS": {
               "emitted": 12,
               "expected": 12,
+              "known_gaps": 0,
               "matched": 12
             },
             "IMPORTS": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             }
           },
@@ -39,21 +42,25 @@
             "Field": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             },
             "Function": {
               "emitted": 7,
               "expected": 7,
+              "known_gaps": 0,
               "matched": 7
             },
             "Module": {
               "emitted": 5,
               "expected": 5,
+              "known_gaps": 0,
               "matched": 5
             },
             "Type": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             }
           }
@@ -63,16 +70,19 @@
             "CALLS": {
               "emitted": 5,
               "expected": 5,
+              "known_gaps": 0,
               "matched": 5
             },
             "CONTAINS": {
               "emitted": 14,
               "expected": 14,
+              "known_gaps": 0,
               "matched": 14
             },
             "IMPORTS": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             }
           },
@@ -80,21 +90,25 @@
             "Field": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             },
             "Function": {
               "emitted": 10,
               "expected": 10,
+              "known_gaps": 0,
               "matched": 10
             },
             "Module": {
               "emitted": 5,
               "expected": 5,
+              "known_gaps": 0,
               "matched": 5
             },
             "Type": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             }
           }
@@ -104,21 +118,25 @@
             "CALLS": {
               "emitted": 4,
               "expected": 5,
+              "known_gaps": 1,
               "matched": 4
             },
             "CONTAINS": {
               "emitted": 22,
               "expected": 22,
+              "known_gaps": 0,
               "matched": 22
             },
             "IMPLEMENTS": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             },
             "IMPORTS": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             }
           },
@@ -126,21 +144,25 @@
             "Field": {
               "emitted": 4,
               "expected": 4,
+              "known_gaps": 0,
               "matched": 4
             },
             "Function": {
               "emitted": 11,
               "expected": 11,
+              "known_gaps": 0,
               "matched": 11
             },
             "Module": {
               "emitted": 5,
               "expected": 5,
+              "known_gaps": 0,
               "matched": 5
             },
             "Type": {
               "emitted": 7,
               "expected": 7,
+              "known_gaps": 0,
               "matched": 7
             }
           }
@@ -150,26 +172,31 @@
             "CALLS": {
               "emitted": 3,
               "expected": 4,
+              "known_gaps": 1,
               "matched": 3
             },
             "CONTAINS": {
               "emitted": 17,
               "expected": 17,
+              "known_gaps": 0,
               "matched": 17
             },
             "EXPOSES": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             },
             "IMPLEMENTS": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             },
             "IMPORTS": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             }
           },
@@ -177,26 +204,31 @@
             "Endpoint": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             },
             "Field": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             },
             "Function": {
               "emitted": 12,
               "expected": 12,
+              "known_gaps": 0,
               "matched": 12
             },
             "Module": {
               "emitted": 4,
               "expected": 4,
+              "known_gaps": 0,
               "matched": 4
             },
             "Type": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             }
           }
@@ -206,26 +238,31 @@
             "CALLS": {
               "emitted": 2,
               "expected": 3,
+              "known_gaps": 1,
               "matched": 2
             },
             "CONTAINS": {
               "emitted": 24,
               "expected": 24,
+              "known_gaps": 0,
               "matched": 24
             },
             "EXPOSES": {
               "emitted": 8,
               "expected": 8,
+              "known_gaps": 0,
               "matched": 8
             },
             "IMPLEMENTS": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             },
             "IMPORTS": {
               "emitted": 6,
               "expected": 6,
+              "known_gaps": 0,
               "matched": 6
             }
           },
@@ -233,26 +270,31 @@
             "Endpoint": {
               "emitted": 8,
               "expected": 8,
+              "known_gaps": 0,
               "matched": 8
             },
             "Field": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             },
             "Function": {
               "emitted": 16,
               "expected": 16,
+              "known_gaps": 0,
               "matched": 16
             },
             "Module": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             },
             "Type": {
               "emitted": 7,
               "expected": 7,
+              "known_gaps": 0,
               "matched": 7
             }
           }
@@ -260,53 +302,63 @@
         "kotlin": {
           "edges": {
             "CALLS": {
-              "emitted": 30,
-              "expected": 32,
-              "matched": 30
+              "emitted": 40,
+              "expected": 43,
+              "known_gaps": 3,
+              "matched": 40
             },
             "CONSUMES": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             },
             "CONTAINS": {
-              "emitted": 131,
-              "expected": 131,
-              "matched": 131
+              "emitted": 177,
+              "expected": 177,
+              "known_gaps": 0,
+              "matched": 177
             },
             "EXPOSES": {
               "emitted": 9,
               "expected": 9,
+              "known_gaps": 0,
               "matched": 9
             },
             "IMPLEMENTS": {
-              "emitted": 8,
-              "expected": 8,
-              "matched": 8
+              "emitted": 10,
+              "expected": 10,
+              "known_gaps": 0,
+              "matched": 10
             },
             "IMPORTS": {
-              "emitted": 26,
-              "expected": 26,
-              "matched": 26
+              "emitted": 44,
+              "expected": 44,
+              "known_gaps": 0,
+              "matched": 44
             },
             "PROVIDES": {
-              "emitted": 3,
-              "expected": 3,
-              "matched": 3
+              "emitted": 4,
+              "expected": 4,
+              "known_gaps": 0,
+              "matched": 4
             },
             "READS": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             },
             "REFERENCES": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             },
             "WRITES": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             }
           },
@@ -314,32 +366,38 @@
             "Endpoint": {
               "emitted": 17,
               "expected": 17,
+              "known_gaps": 0,
               "matched": 17
             },
             "Entity": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             },
             "Field": {
-              "emitted": 23,
-              "expected": 23,
-              "matched": 23
+              "emitted": 28,
+              "expected": 28,
+              "known_gaps": 0,
+              "matched": 28
             },
             "Function": {
-              "emitted": 72,
-              "expected": 72,
-              "matched": 72
+              "emitted": 97,
+              "expected": 97,
+              "known_gaps": 0,
+              "matched": 97
             },
             "Module": {
-              "emitted": 18,
-              "expected": 18,
-              "matched": 18
+              "emitted": 31,
+              "expected": 31,
+              "known_gaps": 0,
+              "matched": 31
             },
             "Type": {
-              "emitted": 36,
-              "expected": 36,
-              "matched": 36
+              "emitted": 52,
+              "expected": 52,
+              "known_gaps": 0,
+              "matched": 52
             }
           }
         },
@@ -348,41 +406,49 @@
             "CALLS": {
               "emitted": 12,
               "expected": 12,
+              "known_gaps": 0,
               "matched": 12
             },
             "CONSUMES": {
               "emitted": 5,
               "expected": 6,
+              "known_gaps": 1,
               "matched": 5
             },
             "CONTAINS": {
               "emitted": 35,
               "expected": 35,
+              "known_gaps": 0,
               "matched": 35
             },
             "EXPOSES": {
               "emitted": 5,
               "expected": 5,
+              "known_gaps": 0,
               "matched": 5
             },
             "IMPLEMENTS": {
               "emitted": 5,
               "expected": 5,
+              "known_gaps": 0,
               "matched": 5
             },
             "IMPORTS": {
               "emitted": 15,
               "expected": 15,
+              "known_gaps": 0,
               "matched": 15
             },
             "READS": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             },
             "WRITES": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             }
           },
@@ -390,31 +456,37 @@
             "Endpoint": {
               "emitted": 5,
               "expected": 5,
+              "known_gaps": 0,
               "matched": 5
             },
             "Entity": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             },
             "Field": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             },
             "Function": {
               "emitted": 22,
               "expected": 22,
+              "known_gaps": 0,
               "matched": 22
             },
             "Module": {
               "emitted": 12,
               "expected": 12,
+              "known_gaps": 0,
               "matched": 12
             },
             "Type": {
               "emitted": 8,
               "expected": 8,
+              "known_gaps": 0,
               "matched": 8
             }
           }
@@ -424,31 +496,37 @@
             "CALLS": {
               "emitted": 8,
               "expected": 9,
+              "known_gaps": 1,
               "matched": 8
             },
             "CONTAINS": {
               "emitted": 42,
               "expected": 42,
+              "known_gaps": 0,
               "matched": 42
             },
             "EXPOSES": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             },
             "IMPLEMENTS": {
               "emitted": 12,
               "expected": 12,
+              "known_gaps": 0,
               "matched": 12
             },
             "IMPORTS": {
               "emitted": 9,
               "expected": 9,
+              "known_gaps": 0,
               "matched": 9
             },
             "REFERENCES": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             }
           },
@@ -456,31 +534,37 @@
             "Endpoint": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             },
             "Entity": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             },
             "Field": {
               "emitted": 4,
               "expected": 4,
+              "known_gaps": 0,
               "matched": 4
             },
             "Function": {
               "emitted": 19,
               "expected": 19,
+              "known_gaps": 0,
               "matched": 19
             },
             "Module": {
               "emitted": 15,
               "expected": 15,
+              "known_gaps": 0,
               "matched": 15
             },
             "Type": {
               "emitted": 19,
               "expected": 19,
+              "known_gaps": 0,
               "matched": 19
             }
           }
@@ -490,31 +574,37 @@
             "CALLS": {
               "emitted": 6,
               "expected": 8,
+              "known_gaps": 2,
               "matched": 6
             },
             "CONTAINS": {
               "emitted": 38,
               "expected": 38,
+              "known_gaps": 0,
               "matched": 38
             },
             "EXPOSES": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             },
             "IMPLEMENTS": {
               "emitted": 7,
               "expected": 7,
+              "known_gaps": 0,
               "matched": 7
             },
             "IMPORTS": {
               "emitted": 4,
               "expected": 4,
+              "known_gaps": 0,
               "matched": 4
             },
             "REFERENCES": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             }
           },
@@ -522,31 +612,37 @@
             "Endpoint": {
               "emitted": 4,
               "expected": 4,
+              "known_gaps": 0,
               "matched": 4
             },
             "Entity": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             },
             "Field": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             },
             "Function": {
               "emitted": 20,
               "expected": 20,
+              "known_gaps": 0,
               "matched": 20
             },
             "Module": {
               "emitted": 10,
               "expected": 10,
+              "known_gaps": 0,
               "matched": 10
             },
             "Type": {
               "emitted": 15,
               "expected": 15,
+              "known_gaps": 0,
               "matched": 15
             }
           }
@@ -556,21 +652,25 @@
             "CALLS": {
               "emitted": 8,
               "expected": 11,
+              "known_gaps": 3,
               "matched": 8
             },
             "CONTAINS": {
               "emitted": 24,
               "expected": 24,
+              "known_gaps": 0,
               "matched": 24
             },
             "EXPOSES": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             },
             "IMPORTS": {
               "emitted": 10,
               "expected": 10,
+              "known_gaps": 0,
               "matched": 10
             }
           },
@@ -578,26 +678,31 @@
             "Endpoint": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             },
             "Field": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             },
             "Function": {
               "emitted": 18,
               "expected": 18,
+              "known_gaps": 0,
               "matched": 18
             },
             "Module": {
               "emitted": 13,
               "expected": 13,
+              "known_gaps": 0,
               "matched": 13
             },
             "Type": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             }
           }
@@ -607,26 +712,31 @@
             "CALLS": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             },
             "CONTAINS": {
               "emitted": 13,
               "expected": 13,
+              "known_gaps": 0,
               "matched": 13
             },
             "READS": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             },
             "REFERENCES": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             },
             "WRITES": {
               "emitted": 1,
               "expected": 1,
+              "known_gaps": 0,
               "matched": 1
             }
           },
@@ -634,21 +744,25 @@
             "Entity": {
               "emitted": 4,
               "expected": 4,
+              "known_gaps": 0,
               "matched": 4
             },
             "Field": {
               "emitted": 7,
               "expected": 7,
+              "known_gaps": 0,
               "matched": 7
             },
             "Function": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             },
             "Module": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             }
           }
@@ -658,26 +772,31 @@
             "CALLS": {
               "emitted": 12,
               "expected": 14,
+              "known_gaps": 0,
               "matched": 12
             },
             "CONTAINS": {
               "emitted": 34,
               "expected": 34,
+              "known_gaps": 0,
               "matched": 34
             },
             "EXPOSES": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             },
             "IMPLEMENTS": {
               "emitted": 2,
               "expected": 2,
+              "known_gaps": 0,
               "matched": 2
             },
             "IMPORTS": {
               "emitted": 4,
               "expected": 4,
+              "known_gaps": 0,
               "matched": 4
             }
           },
@@ -685,26 +804,31 @@
             "Endpoint": {
               "emitted": 3,
               "expected": 3,
+              "known_gaps": 0,
               "matched": 3
             },
             "Field": {
               "emitted": 4,
               "expected": 4,
+              "known_gaps": 0,
               "matched": 4
             },
             "Function": {
               "emitted": 22,
               "expected": 22,
+              "known_gaps": 0,
               "matched": 22
             },
             "Module": {
               "emitted": 10,
               "expected": 10,
+              "known_gaps": 0,
               "matched": 10
             },
             "Type": {
               "emitted": 8,
               "expected": 8,
+              "known_gaps": 0,
               "matched": 8
             }
           }
@@ -713,10 +837,10 @@
       "skipped_languages": []
     },
     "drift": {
-      "count": 1908,
-      "docs": 1936,
+      "count": 1933,
+      "docs": 1937,
       "gated": false,
-      "mentions": 13740,
+      "mentions": 13837,
       "note": "recorded, never gated \u2014 an upper bound: a tenth of the population cannot bind by construction. See GATES"
     },
     "invention": {
@@ -764,11 +888,11 @@
           "unexamined": 0
         },
         "kotlin": {
-          "examined": 31,
+          "examined": 42,
           "invented": 0,
           "shadowable": 21,
           "status": "measured",
-          "total_calls": 31,
+          "total_calls": 42,
           "unexamined": 0
         },
         "perl": {
@@ -792,7 +916,7 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 21268,
+          "total_calls": 21686,
           "unexamined": 0
         },
         "sql": {
@@ -813,7 +937,7 @@
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 21344
+      "total_calls": 21773
     },
     "parity": {
       "declared": 75,
@@ -823,5 +947,5 @@
       "surplus": 9
     }
   },
-  "version": 1
+  "version": 2
 }

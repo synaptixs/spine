@@ -118,8 +118,36 @@ def test_navigating_to_an_undeclared_route_consumes_nothing(tmp_path: Path) -> N
     assert _endpoints(batch) == set()
 
 
-def test_a_route_constant_declared_in_another_file_still_resolves(tmp_path: Path) -> None:
-    """The case that forces a whole-repo pass: the constant is never local."""
+def test_a_route_constant_declared_in_another_file_resolves_through_a_wildcard_import(
+    tmp_path: Path,
+) -> None:
+    """The case that forces a whole-repo pass: the constant is never local.
+
+    #395: this used to resolve with *no* import at all, purely because exactly one
+    package in the whole repository declared `searchRoute` — a repo-wide address
+    Kotlin itself could not have compiled the reference against. It resolves now
+    only because `shop.ui` wildcard-imports `shop.nav`, which is what makes the
+    name reachable from this file in the first place.
+    """
+    (tmp_path / "Routes.kt").write_text(
+        'package shop.nav\n\nconst val searchRoute = "search_route"\n', encoding="utf-8"
+    )
+    (tmp_path / "Screen.kt").write_text(
+        "package shop.ui\n\nimport androidx.navigation.compose.composable\nimport shop.nav.*\n\n"
+        "fun searchScreen() {\n    composable(route = searchRoute) { SearchRoute() }\n}\n\n"
+        "fun SearchRoute() {}\n",
+        encoding="utf-8",
+    )
+    batch = RepoCodeExtractor().extract(tmp_path)
+    assert "NAV search_route" in _endpoints(batch)
+
+
+def test_a_route_constant_with_no_import_at_all_does_not_cross_packages(tmp_path: Path) -> None:
+    """#395. Same shape as above, minus the wildcard import — must resolve nothing.
+
+    A repo-wide address is not the same as a name Kotlin could actually compile the
+    reference against, even when the name happens to be unique across the tree.
+    """
     (tmp_path / "Routes.kt").write_text(
         'package shop.nav\n\nconst val searchRoute = "search_route"\n', encoding="utf-8"
     )
@@ -130,7 +158,7 @@ def test_a_route_constant_declared_in_another_file_still_resolves(tmp_path: Path
         encoding="utf-8",
     )
     batch = RepoCodeExtractor().extract(tmp_path)
-    assert "NAV search_route" in _endpoints(batch)
+    assert _endpoints(batch) == set()
 
 
 def test_nav_endpoints_cannot_collide_with_an_http_verb(tmp_path: Path) -> None:
@@ -210,3 +238,36 @@ fun TopicRoute() {}
         },
     )
     assert not [n for n in batch.nodes if n.kind is NodeKind.ENDPOINT]
+
+
+def test_a_route_constant_resolves_inside_the_default_package(tmp_path: Path) -> None:
+    """#395's fix keyed on the package, and a file declaring none has no package.
+
+    `module_name` falls back to the repo-relative path, so `Routes.kt` and `Screen.kt`
+    keyed on two different strings and the constant was never found — though Kotlin
+    resolves it with no import at all and the source compiles.
+    """
+    (tmp_path / "Routes.kt").write_text('const val searchRoute = "search_route"\n', encoding="utf-8")
+    (tmp_path / "Screen.kt").write_text(
+        "import androidx.navigation.compose.composable\n\n"
+        "fun searchScreen() {\n    composable(route = searchRoute) { SearchRoute() }\n}\n\n"
+        "fun SearchRoute() {}\n",
+        encoding="utf-8",
+    )
+    batch = RepoCodeExtractor().extract(tmp_path)
+    assert "NAV search_route" in _endpoints(batch)
+
+
+def test_a_default_package_screen_does_not_reach_a_packaged_constant(tmp_path: Path) -> None:
+    """A file with no package cannot see `shop.nav`, with or without the widened tier."""
+    (tmp_path / "Routes.kt").write_text(
+        'package shop.nav\n\nconst val searchRoute = "search_route"\n', encoding="utf-8"
+    )
+    (tmp_path / "Screen.kt").write_text(
+        "import androidx.navigation.compose.composable\n\n"
+        "fun searchScreen() {\n    composable(route = searchRoute) { SearchRoute() }\n}\n\n"
+        "fun SearchRoute() {}\n",
+        encoding="utf-8",
+    )
+    batch = RepoCodeExtractor().extract(tmp_path)
+    assert _endpoints(batch) == set()

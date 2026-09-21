@@ -16,11 +16,11 @@
 - [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26) — reaches **57** symbols
 - [`decoded_escape`](../../src/orchestrator/pkg/kotlin_names.py#L234) — reaches **28** symbols
 - [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245) — reaches **26** symbols
+- [`bare_type`](../../src/orchestrator/pkg/kotlin_names.py#L38) — reaches **23** symbols · **no test path visible**
 - [`_child_of`](../../src/orchestrator/pkg/kotlin_names.py#L194) — reaches **21** symbols · **no test path visible**
 - [`_read_annotation`](../../src/orchestrator/pkg/kotlin_names.py#L177) — reaches **21** symbols · **no test path visible**
 - [`Annotation`](../../src/orchestrator/pkg/kotlin_names.py#L76) — reaches **20** symbols · **no test path visible**
 - [`_simple_name`](../../src/orchestrator/pkg/kotlin_names.py#L223) — reaches **20** symbols · **no test path visible**
-- [`_value_arguments`](../../src/orchestrator/pkg/kotlin_names.py#L198) — reaches **20** symbols · **no test path visible**
 
 _16 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -93,7 +93,7 @@ _16 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/kotlin_names.py:105`](../../src/orchestrator/pkg/kotlin_names.py#L105)
 
-- **Called by** (11): [`_column_name`](../../src/orchestrator/pkg/kotlin_room.py#L210), [`_emit_relations`](../../src/orchestrator/pkg/kotlin_room.py#L232), [`_read_binding`](../../src/orchestrator/pkg/kotlin_di.py#L102), [`_read_dao_method`](../../src/orchestrator/pkg/kotlin_room.py#L330), [`_scan_method`](../../src/orchestrator/pkg/kotlin_http.py#L96), [`_spring_annotations`](../../src/orchestrator/pkg/kotlin_routes.py#L407), [`qualifiers_of`](../../src/orchestrator/pkg/kotlin_di.py#L173), [`read_dao`](../../src/orchestrator/pkg/kotlin_room.py#L308), [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L75), [`read_module`](../../src/orchestrator/pkg/kotlin_di.py#L63), [`read_relation_view`](../../src/orchestrator/pkg/kotlin_room.py#L124)
+- **Called by** (11): [`_column_name`](../../src/orchestrator/pkg/kotlin_room.py#L223), [`_emit_relations`](../../src/orchestrator/pkg/kotlin_room.py#L245), [`_read_binding`](../../src/orchestrator/pkg/kotlin_di.py#L117), [`_read_dao_method`](../../src/orchestrator/pkg/kotlin_room.py#L343), [`_scan_method`](../../src/orchestrator/pkg/kotlin_http.py#L96), [`_spring_annotations`](../../src/orchestrator/pkg/kotlin_routes.py#L446), [`qualifiers_of`](../../src/orchestrator/pkg/kotlin_di.py#L212), [`read_dao`](../../src/orchestrator/pkg/kotlin_room.py#L321), [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L88), [`read_module`](../../src/orchestrator/pkg/kotlin_di.py#L78), [`read_relation_view`](../../src/orchestrator/pkg/kotlin_room.py#L137)
 - **Calls** (2): [`_read_annotation`](../../src/orchestrator/pkg/kotlin_names.py#L177), [`_stranded_annotations`](../../src/orchestrator/pkg/kotlin_names.py#L122)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/kotlin-support-roadmap.md#11-risks-and-gotchas`
 
@@ -101,33 +101,33 @@ _16 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/kotlin_names.py:38`](../../src/orchestrator/pkg/kotlin_names.py#L38)
 
-- **Called by** (2): [`_simple_name`](../../src/orchestrator/pkg/kotlin_names.py#L223), [`class_reference`](../../src/orchestrator/pkg/kotlin_names.py#L338)
+- **Called by** (3): [`_binding_key`](../../src/orchestrator/pkg/kotlin_di.py#L166), [`_simple_name`](../../src/orchestrator/pkg/kotlin_names.py#L223), [`class_reference`](../../src/orchestrator/pkg/kotlin_names.py#L338)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 
 ### `class_reference`
 
 [`src/orchestrator/pkg/kotlin_names.py:338`](../../src/orchestrator/pkg/kotlin_names.py#L338)
 
-- **Called by** (1): [`_referenced_entity`](../../src/orchestrator/pkg/kotlin_room.py#L273)
+- **Called by** (1): [`_referenced_entity`](../../src/orchestrator/pkg/kotlin_room.py#L286)
 - **Calls** (2): [`bare_type`](../../src/orchestrator/pkg/kotlin_names.py#L38), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `collection_items`
 
 [`src/orchestrator/pkg/kotlin_names.py:331`](../../src/orchestrator/pkg/kotlin_names.py#L331)
 
-- **Called by** (3): [`_emit_foreign_keys`](../../src/orchestrator/pkg/kotlin_room.py#L217), [`_mapping_methods`](../../src/orchestrator/pkg/kotlin_routes.py#L445), [`_mapping_path`](../../src/orchestrator/pkg/kotlin_routes.py#L427)
+- **Called by** (3): [`_emit_foreign_keys`](../../src/orchestrator/pkg/kotlin_room.py#L230), [`_mapping_methods`](../../src/orchestrator/pkg/kotlin_routes.py#L484), [`_mapping_path`](../../src/orchestrator/pkg/kotlin_routes.py#L466)
 
 ### `decoded_escape`
 
 [`src/orchestrator/pkg/kotlin_names.py:234`](../../src/orchestrator/pkg/kotlin_names.py#L234)
 
-- **Called by** (2): [`_template`](../../src/orchestrator/pkg/kotlin_nav.py#L234), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245)
+- **Called by** (2): [`_template`](../../src/orchestrator/pkg/kotlin_nav.py#L252), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245)
 
 ### `element_type`
 
 [`src/orchestrator/pkg/kotlin_names.py:43`](../../src/orchestrator/pkg/kotlin_names.py#L43)
 
-- **Called by** (5): [`_first_parameter_type`](../../src/orchestrator/pkg/kotlin_di.py#L157), [`_parameter_entity`](../../src/orchestrator/pkg/kotlin_room.py#L349), [`_relation_targets`](../../src/orchestrator/pkg/kotlin_room.py#L249), [`_returned_type`](../../src/orchestrator/pkg/kotlin_di.py#L136), [`read_relation_view`](../../src/orchestrator/pkg/kotlin_room.py#L124)
+- **Called by** (4): [`_first_parameter_type`](../../src/orchestrator/pkg/kotlin_di.py#L196), [`_parameter_entity`](../../src/orchestrator/pkg/kotlin_room.py#L362), [`_relation_targets`](../../src/orchestrator/pkg/kotlin_room.py#L262), [`read_relation_view`](../../src/orchestrator/pkg/kotlin_room.py#L137)
 - **Calls** (1): [`_top_level_split`](../../src/orchestrator/pkg/kotlin_names.py#L61)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 
@@ -135,14 +135,14 @@ _16 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/kotlin_names.py:33`](../../src/orchestrator/pkg/kotlin_names.py#L33)
 
-- **Called by** (5): [`_read_binding`](../../src/orchestrator/pkg/kotlin_di.py#L102), [`read_controller`](../../src/orchestrator/pkg/kotlin_routes.py#L361), [`read_dao`](../../src/orchestrator/pkg/kotlin_room.py#L308), [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L75), [`scan_type`](../../src/orchestrator/pkg/kotlin_http.py#L60)
+- **Called by** (5): [`_read_binding`](../../src/orchestrator/pkg/kotlin_di.py#L117), [`read_controller`](../../src/orchestrator/pkg/kotlin_routes.py#L400), [`read_dao`](../../src/orchestrator/pkg/kotlin_room.py#L321), [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L88), [`scan_type`](../../src/orchestrator/pkg/kotlin_http.py#L60)
 - **Calls** (1): [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `string_constants`
 
 [`src/orchestrator/pkg/kotlin_names.py:298`](../../src/orchestrator/pkg/kotlin_names.py#L298)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L287)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L334)
 - **Calls** (2): [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 
@@ -150,7 +150,7 @@ _16 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/kotlin_names.py:245`](../../src/orchestrator/pkg/kotlin_names.py#L245)
 
-- **Called by** (11 production · 1 test): [`_column_name`](../../src/orchestrator/pkg/kotlin_room.py#L210), [`_declare`](../../src/orchestrator/pkg/kotlin_routes.py#L262), [`_literal_argument`](../../src/orchestrator/pkg/kotlin_routes.py#L508), [`_mapping_path`](../../src/orchestrator/pkg/kotlin_routes.py#L427), [`_read_dao_method`](../../src/orchestrator/pkg/kotlin_room.py#L330), [`_scan_method`](../../src/orchestrator/pkg/kotlin_http.py#L96), [`_string_arguments`](../../src/orchestrator/pkg/gradle_extractor.py#L246), [`base_url_path`](../../src/orchestrator/pkg/kotlin_http.py#L192), [`collect_consts`](../../src/orchestrator/pkg/kotlin_nav.py#L133), [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L75), [`string_constants`](../../src/orchestrator/pkg/kotlin_names.py#L298), [`_literal`](../../tests/pkg/test_kotlin_literals.py#L24)
+- **Called by** (11 production · 1 test): [`_column_name`](../../src/orchestrator/pkg/kotlin_room.py#L223), [`_declare`](../../src/orchestrator/pkg/kotlin_routes.py#L287), [`_literal_argument`](../../src/orchestrator/pkg/kotlin_routes.py#L547), [`_mapping_path`](../../src/orchestrator/pkg/kotlin_routes.py#L466), [`_read_dao_method`](../../src/orchestrator/pkg/kotlin_room.py#L343), [`_scan_method`](../../src/orchestrator/pkg/kotlin_http.py#L96), [`_string_arguments`](../../src/orchestrator/pkg/gradle_extractor.py#L246), [`base_url_path`](../../src/orchestrator/pkg/kotlin_http.py#L192), [`collect_consts`](../../src/orchestrator/pkg/kotlin_nav.py#L150), [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L88), [`string_constants`](../../src/orchestrator/pkg/kotlin_names.py#L298), [`_literal`](../../tests/pkg/test_kotlin_literals.py#L24)
 - **Calls** (2): [`decoded_escape`](../../src/orchestrator/pkg/kotlin_names.py#L234), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 
@@ -158,7 +158,7 @@ _16 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/kotlin_names.py:26`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
-- **Called by** (21): [`_argument_node`](../../src/orchestrator/pkg/kotlin_nav.py#L215), [`_argument_text`](../../src/orchestrator/pkg/kotlin_nav.py#L362), [`_callable_reference`](../../src/orchestrator/pkg/kotlin_routes.py#L514), [`_callee`](../../src/orchestrator/pkg/gradle_extractor.py#L218), [`_callee_name`](../../src/orchestrator/pkg/kotlin_nav.py#L349), [`_declared_type`](../../src/orchestrator/pkg/kotlin_room.py#L168), [`_emit_entity_fields`](../../src/orchestrator/pkg/kotlin_room.py#L178), [`_first_parameter_type`](../../src/orchestrator/pkg/kotlin_di.py#L157), [`_mapping_methods`](../../src/orchestrator/pkg/kotlin_routes.py#L445), [`_parameter_entity`](../../src/orchestrator/pkg/kotlin_room.py#L349), [`_plain_callee`](../../src/orchestrator/pkg/kotlin_routes.py#L480), [`_read_annotation`](../../src/orchestrator/pkg/kotlin_names.py#L177), [`_returned_type`](../../src/orchestrator/pkg/kotlin_di.py#L136), [`_template`](../../src/orchestrator/pkg/kotlin_nav.py#L234), [`_value_arguments`](../../src/orchestrator/pkg/kotlin_names.py#L198), [`class_reference`](../../src/orchestrator/pkg/kotlin_names.py#L338), [`collect_consts`](../../src/orchestrator/pkg/kotlin_nav.py#L133), [`field_text`](../../src/orchestrator/pkg/kotlin_names.py#L33), [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L75), [`string_constants`](../../src/orchestrator/pkg/kotlin_names.py#L298), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245)
+- **Called by** (21): [`_argument_node`](../../src/orchestrator/pkg/kotlin_nav.py#L233), [`_argument_text`](../../src/orchestrator/pkg/kotlin_nav.py#L380), [`_callable_reference`](../../src/orchestrator/pkg/kotlin_routes.py#L553), [`_callee`](../../src/orchestrator/pkg/gradle_extractor.py#L218), [`_callee_name`](../../src/orchestrator/pkg/kotlin_nav.py#L367), [`_declared_type`](../../src/orchestrator/pkg/kotlin_room.py#L181), [`_emit_entity_fields`](../../src/orchestrator/pkg/kotlin_room.py#L191), [`_first_parameter_type`](../../src/orchestrator/pkg/kotlin_di.py#L196), [`_mapping_methods`](../../src/orchestrator/pkg/kotlin_routes.py#L484), [`_parameter_entity`](../../src/orchestrator/pkg/kotlin_room.py#L362), [`_plain_callee`](../../src/orchestrator/pkg/kotlin_routes.py#L519), [`_read_annotation`](../../src/orchestrator/pkg/kotlin_names.py#L177), [`_returned_type`](../../src/orchestrator/pkg/kotlin_di.py#L151), [`_template`](../../src/orchestrator/pkg/kotlin_nav.py#L252), [`_value_arguments`](../../src/orchestrator/pkg/kotlin_names.py#L198), [`class_reference`](../../src/orchestrator/pkg/kotlin_names.py#L338), [`collect_consts`](../../src/orchestrator/pkg/kotlin_nav.py#L150), [`field_text`](../../src/orchestrator/pkg/kotlin_names.py#L33), [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L88), [`string_constants`](../../src/orchestrator/pkg/kotlin_names.py#L298), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245)
 
 ## Imports
 

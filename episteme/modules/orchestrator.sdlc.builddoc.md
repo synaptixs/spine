@@ -162,7 +162,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/builddoc.py:763`](../../src/orchestrator/sdlc/builddoc.py#L763)
 
 - **Called by** (1): [`_blast_prose`](../../src/orchestrator/sdlc/builddoc.py#L788)
-- **Calls** (1): [`measured_recall`](../../src/orchestrator/pkg/accuracy.py#L782)
+- **Calls** (1): [`measured_recall`](../../src/orchestrator/pkg/accuracy.py#L865)
 
 ### `_recent_history`
 

@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_mapping_methods`](../../src/orchestrator/pkg/kotlin_routes.py#L445) — reaches **5** symbols · **no test path visible**
-- [`_mapping_path`](../../src/orchestrator/pkg/kotlin_routes.py#L427) — reaches **5** symbols · **no test path visible**
-- [`_positional_arguments`](../../src/orchestrator/pkg/kotlin_routes.py#L492) — reaches **5** symbols · **no test path visible**
+- [`_mapping_methods`](../../src/orchestrator/pkg/kotlin_routes.py#L484) — reaches **5** symbols · **no test path visible**
+- [`_mapping_path`](../../src/orchestrator/pkg/kotlin_routes.py#L466) — reaches **5** symbols · **no test path visible**
+- [`_positional_arguments`](../../src/orchestrator/pkg/kotlin_routes.py#L531) — reaches **5** symbols · **no test path visible**
 - [`_Mount`](../../src/orchestrator/pkg/kotlin_routes.py#L116) — reaches **4** symbols · **no test path visible**
 - [`_Route`](../../src/orchestrator/pkg/kotlin_routes.py#L104) — reaches **4** symbols · **no test path visible**
-- [`_arguments_holder`](../../src/orchestrator/pkg/kotlin_routes.py#L470) — reaches **4** symbols · **no test path visible**
-- [`_callable_reference`](../../src/orchestrator/pkg/kotlin_routes.py#L514) — reaches **4** symbols · **no test path visible**
-- [`_declare`](../../src/orchestrator/pkg/kotlin_routes.py#L262) — reaches **4** symbols · **no test path visible**
+- [`_arguments_holder`](../../src/orchestrator/pkg/kotlin_routes.py#L509) — reaches **4** symbols · **no test path visible**
+- [`_callable_reference`](../../src/orchestrator/pkg/kotlin_routes.py#L553) — reaches **4** symbols · **no test path visible**
+- [`_declare`](../../src/orchestrator/pkg/kotlin_routes.py#L287) — reaches **4** symbols · **no test path visible**
 
 _24 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -28,166 +28,166 @@ _24 of the symbols other code depends on here have no test path the graph can se
 
 ### `KtorState`
 
-[`src/orchestrator/pkg/kotlin_routes.py:136`](../../src/orchestrator/pkg/kotlin_routes.py#L136)
+[`src/orchestrator/pkg/kotlin_routes.py:143`](../../src/orchestrator/pkg/kotlin_routes.py#L143)
 
-- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/kotlin_extractor.py#L259)
-- **Fields**: `modules_by_name`, `mounts`, `routes`
+- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/kotlin_extractor.py#L296)
+- **Fields**: `default_package_modules`, `modules_by_name`, `mounts`, `routes`
 
 ### `_Mount`
 
 [`src/orchestrator/pkg/kotlin_routes.py:116`](../../src/orchestrator/pkg/kotlin_routes.py#L116)
 
-- **Called by** (1): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L225)
-- **Fields**: `host`, `imports`, `name`, `package`, `prefix`
+- **Called by** (1): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L246)
+- **Fields**: `default_package`, `host`, `imports`, `name`, `package`, `prefix`, `wildcard_prefixes`
 
 ### `_Route`
 
 [`src/orchestrator/pkg/kotlin_routes.py:104`](../../src/orchestrator/pkg/kotlin_routes.py#L104)
 
-- **Called by** (1): [`_declare`](../../src/orchestrator/pkg/kotlin_routes.py#L262)
+- **Called by** (1): [`_declare`](../../src/orchestrator/pkg/kotlin_routes.py#L287)
 - **Fields**: `handler`, `line`, `owner`, `path`, `rel`, `verb`
 
 ### `_Site`
 
-[`src/orchestrator/pkg/kotlin_routes.py:208`](../../src/orchestrator/pkg/kotlin_routes.py#L208)
+[`src/orchestrator/pkg/kotlin_routes.py:227`](../../src/orchestrator/pkg/kotlin_routes.py#L227)
 
-- **Called by** (1): [`scan_calls`](../../src/orchestrator/pkg/kotlin_routes.py#L164)
-- **Fields**: `imports`, `package`
+- **Called by** (1): [`scan_calls`](../../src/orchestrator/pkg/kotlin_routes.py#L179)
+- **Fields**: `default_package`, `imports`, `package`, `wildcard_prefixes`
 
 ## Functions
 
 ### `_arguments_holder`
 
-[`src/orchestrator/pkg/kotlin_routes.py:470`](../../src/orchestrator/pkg/kotlin_routes.py#L470)
+[`src/orchestrator/pkg/kotlin_routes.py:509`](../../src/orchestrator/pkg/kotlin_routes.py#L509)
 
-- **Called by** (1): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L225)
+- **Called by** (1): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L246)
 
 ### `_call`
 
-[`src/orchestrator/pkg/kotlin_routes.py:225`](../../src/orchestrator/pkg/kotlin_routes.py#L225)
+[`src/orchestrator/pkg/kotlin_routes.py:246`](../../src/orchestrator/pkg/kotlin_routes.py#L246)
 
-- **Called by** (1): [`_scan`](../../src/orchestrator/pkg/kotlin_routes.py#L215)
-- **Calls** (8): [`_Mount`](../../src/orchestrator/pkg/kotlin_routes.py#L116), [`_arguments_holder`](../../src/orchestrator/pkg/kotlin_routes.py#L470), [`_declare`](../../src/orchestrator/pkg/kotlin_routes.py#L262), [`_lambda_of`](../../src/orchestrator/pkg/kotlin_routes.py#L476), [`_literal_argument`](../../src/orchestrator/pkg/kotlin_routes.py#L508), [`_plain_callee`](../../src/orchestrator/pkg/kotlin_routes.py#L480), [`_scan`](../../src/orchestrator/pkg/kotlin_routes.py#L215), [`join_path`](../../src/orchestrator/pkg/jvm_routes.py#L178)
+- **Called by** (1): [`_scan`](../../src/orchestrator/pkg/kotlin_routes.py#L236)
+- **Calls** (8): [`_Mount`](../../src/orchestrator/pkg/kotlin_routes.py#L116), [`_arguments_holder`](../../src/orchestrator/pkg/kotlin_routes.py#L509), [`_declare`](../../src/orchestrator/pkg/kotlin_routes.py#L287), [`_lambda_of`](../../src/orchestrator/pkg/kotlin_routes.py#L515), [`_literal_argument`](../../src/orchestrator/pkg/kotlin_routes.py#L547), [`_plain_callee`](../../src/orchestrator/pkg/kotlin_routes.py#L519), [`_scan`](../../src/orchestrator/pkg/kotlin_routes.py#L236), [`join_path`](../../src/orchestrator/pkg/jvm_routes.py#L178)
 
 ### `_callable_reference`
 
-[`src/orchestrator/pkg/kotlin_routes.py:514`](../../src/orchestrator/pkg/kotlin_routes.py#L514)
+[`src/orchestrator/pkg/kotlin_routes.py:553`](../../src/orchestrator/pkg/kotlin_routes.py#L553)
 
-- **Called by** (1): [`_declare`](../../src/orchestrator/pkg/kotlin_routes.py#L262)
+- **Called by** (1): [`_declare`](../../src/orchestrator/pkg/kotlin_routes.py#L287)
 - **Calls** (1): [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `_declare`
 
-[`src/orchestrator/pkg/kotlin_routes.py:262`](../../src/orchestrator/pkg/kotlin_routes.py#L262)
+[`src/orchestrator/pkg/kotlin_routes.py:287`](../../src/orchestrator/pkg/kotlin_routes.py#L287)
 
-- **Called by** (1): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L225)
-- **Calls** (5): [`_Route`](../../src/orchestrator/pkg/kotlin_routes.py#L104), [`_callable_reference`](../../src/orchestrator/pkg/kotlin_routes.py#L514), [`_positional_arguments`](../../src/orchestrator/pkg/kotlin_routes.py#L492), [`join_path`](../../src/orchestrator/pkg/jvm_routes.py#L178), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245)
+- **Called by** (1): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L246)
+- **Calls** (5): [`_Route`](../../src/orchestrator/pkg/kotlin_routes.py#L104), [`_callable_reference`](../../src/orchestrator/pkg/kotlin_routes.py#L553), [`_positional_arguments`](../../src/orchestrator/pkg/kotlin_routes.py#L531), [`join_path`](../../src/orchestrator/pkg/jvm_routes.py#L178), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245)
 
 ### `_is_inner_callee`
 
-[`src/orchestrator/pkg/kotlin_routes.py:460`](../../src/orchestrator/pkg/kotlin_routes.py#L460)
+[`src/orchestrator/pkg/kotlin_routes.py:499`](../../src/orchestrator/pkg/kotlin_routes.py#L499)
 
-- **Called by** (1): [`_scan`](../../src/orchestrator/pkg/kotlin_routes.py#L215)
+- **Called by** (1): [`_scan`](../../src/orchestrator/pkg/kotlin_routes.py#L236)
 
 ### `_lambda_of`
 
-[`src/orchestrator/pkg/kotlin_routes.py:476`](../../src/orchestrator/pkg/kotlin_routes.py#L476)
+[`src/orchestrator/pkg/kotlin_routes.py:515`](../../src/orchestrator/pkg/kotlin_routes.py#L515)
 
-- **Called by** (1): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L225)
+- **Called by** (1): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L246)
 
 ### `_literal_argument`
 
-[`src/orchestrator/pkg/kotlin_routes.py:508`](../../src/orchestrator/pkg/kotlin_routes.py#L508)
+[`src/orchestrator/pkg/kotlin_routes.py:547`](../../src/orchestrator/pkg/kotlin_routes.py#L547)
 
-- **Called by** (1): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L225)
-- **Calls** (2): [`_positional_arguments`](../../src/orchestrator/pkg/kotlin_routes.py#L492), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245)
+- **Called by** (1): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L246)
+- **Calls** (2): [`_positional_arguments`](../../src/orchestrator/pkg/kotlin_routes.py#L531), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245)
 
 ### `_mapping_methods`
 
-[`src/orchestrator/pkg/kotlin_routes.py:445`](../../src/orchestrator/pkg/kotlin_routes.py#L445)
+[`src/orchestrator/pkg/kotlin_routes.py:484`](../../src/orchestrator/pkg/kotlin_routes.py#L484)
 
-- **Called by** (1): [`_spring_annotations`](../../src/orchestrator/pkg/kotlin_routes.py#L407)
+- **Called by** (1): [`_spring_annotations`](../../src/orchestrator/pkg/kotlin_routes.py#L446)
 - **Calls** (2): [`collection_items`](../../src/orchestrator/pkg/kotlin_names.py#L331), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `_mapping_path`
 
-[`src/orchestrator/pkg/kotlin_routes.py:427`](../../src/orchestrator/pkg/kotlin_routes.py#L427)
+[`src/orchestrator/pkg/kotlin_routes.py:466`](../../src/orchestrator/pkg/kotlin_routes.py#L466)
 
-- **Called by** (1): [`_spring_annotations`](../../src/orchestrator/pkg/kotlin_routes.py#L407)
+- **Called by** (1): [`_spring_annotations`](../../src/orchestrator/pkg/kotlin_routes.py#L446)
 - **Calls** (3): [`collection_items`](../../src/orchestrator/pkg/kotlin_names.py#L331), [`literal_path`](../../src/orchestrator/pkg/jvm_routes.py#L63), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245)
 
 ### `_mount_points`
 
-[`src/orchestrator/pkg/kotlin_routes.py:304`](../../src/orchestrator/pkg/kotlin_routes.py#L304)
+[`src/orchestrator/pkg/kotlin_routes.py:329`](../../src/orchestrator/pkg/kotlin_routes.py#L329)
 
-- **Called by** (1): [`emit`](../../src/orchestrator/pkg/kotlin_routes.py#L184)
-- **Calls** (2): [`_mounted_module`](../../src/orchestrator/pkg/kotlin_routes.py#L331), [`join_path`](../../src/orchestrator/pkg/jvm_routes.py#L178)
+- **Called by** (1): [`emit`](../../src/orchestrator/pkg/kotlin_routes.py#L203)
+- **Calls** (2): [`_mounted_module`](../../src/orchestrator/pkg/kotlin_routes.py#L356), [`join_path`](../../src/orchestrator/pkg/jvm_routes.py#L178)
 
 ### `_mounted_module`
 
-[`src/orchestrator/pkg/kotlin_routes.py:331`](../../src/orchestrator/pkg/kotlin_routes.py#L331)
+[`src/orchestrator/pkg/kotlin_routes.py:356`](../../src/orchestrator/pkg/kotlin_routes.py#L356)
 
-- **Called by** (1): [`_mount_points`](../../src/orchestrator/pkg/kotlin_routes.py#L304)
+- **Called by** (1): [`_mount_points`](../../src/orchestrator/pkg/kotlin_routes.py#L329)
 
 ### `_plain_callee`
 
-[`src/orchestrator/pkg/kotlin_routes.py:480`](../../src/orchestrator/pkg/kotlin_routes.py#L480)
+[`src/orchestrator/pkg/kotlin_routes.py:519`](../../src/orchestrator/pkg/kotlin_routes.py#L519)
 
-- **Called by** (1): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L225)
+- **Called by** (1): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L246)
 - **Calls** (1): [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `_positional_arguments`
 
-[`src/orchestrator/pkg/kotlin_routes.py:492`](../../src/orchestrator/pkg/kotlin_routes.py#L492)
+[`src/orchestrator/pkg/kotlin_routes.py:531`](../../src/orchestrator/pkg/kotlin_routes.py#L531)
 
-- **Called by** (2): [`_declare`](../../src/orchestrator/pkg/kotlin_routes.py#L262), [`_literal_argument`](../../src/orchestrator/pkg/kotlin_routes.py#L508)
+- **Called by** (2): [`_declare`](../../src/orchestrator/pkg/kotlin_routes.py#L287), [`_literal_argument`](../../src/orchestrator/pkg/kotlin_routes.py#L547)
 
 ### `_scan`
 
-[`src/orchestrator/pkg/kotlin_routes.py:215`](../../src/orchestrator/pkg/kotlin_routes.py#L215)
+[`src/orchestrator/pkg/kotlin_routes.py:236`](../../src/orchestrator/pkg/kotlin_routes.py#L236)
 
-- **Called by** (3): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L225), [`_scan`](../../src/orchestrator/pkg/kotlin_routes.py#L215), [`scan_calls`](../../src/orchestrator/pkg/kotlin_routes.py#L164)
-- **Calls** (3): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L225), [`_is_inner_callee`](../../src/orchestrator/pkg/kotlin_routes.py#L460), [`_scan`](../../src/orchestrator/pkg/kotlin_routes.py#L215)
+- **Called by** (3): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L246), [`_scan`](../../src/orchestrator/pkg/kotlin_routes.py#L236), [`scan_calls`](../../src/orchestrator/pkg/kotlin_routes.py#L179)
+- **Calls** (3): [`_call`](../../src/orchestrator/pkg/kotlin_routes.py#L246), [`_is_inner_callee`](../../src/orchestrator/pkg/kotlin_routes.py#L499), [`_scan`](../../src/orchestrator/pkg/kotlin_routes.py#L236)
 
 ### `_spring_annotations`
 
-[`src/orchestrator/pkg/kotlin_routes.py:407`](../../src/orchestrator/pkg/kotlin_routes.py#L407)
+[`src/orchestrator/pkg/kotlin_routes.py:446`](../../src/orchestrator/pkg/kotlin_routes.py#L446)
 
-- **Called by** (1): [`read_controller`](../../src/orchestrator/pkg/kotlin_routes.py#L361)
-- **Calls** (4): [`RouteAnnotation`](../../src/orchestrator/pkg/jvm_routes.py#L106), [`_mapping_methods`](../../src/orchestrator/pkg/kotlin_routes.py#L445), [`_mapping_path`](../../src/orchestrator/pkg/kotlin_routes.py#L427), [`annotations_of`](../../src/orchestrator/pkg/kotlin_names.py#L105)
+- **Called by** (1): [`read_controller`](../../src/orchestrator/pkg/kotlin_routes.py#L400)
+- **Calls** (4): [`RouteAnnotation`](../../src/orchestrator/pkg/jvm_routes.py#L106), [`_mapping_methods`](../../src/orchestrator/pkg/kotlin_routes.py#L484), [`_mapping_path`](../../src/orchestrator/pkg/kotlin_routes.py#L466), [`annotations_of`](../../src/orchestrator/pkg/kotlin_names.py#L105)
 
 ### `emit`
 
-[`src/orchestrator/pkg/kotlin_routes.py:184`](../../src/orchestrator/pkg/kotlin_routes.py#L184)
+[`src/orchestrator/pkg/kotlin_routes.py:203`](../../src/orchestrator/pkg/kotlin_routes.py#L203)
 
-- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L900)
-- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_mount_points`](../../src/orchestrator/pkg/kotlin_routes.py#L304), [`join_path`](../../src/orchestrator/pkg/jvm_routes.py#L178)
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L981)
+- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_mount_points`](../../src/orchestrator/pkg/kotlin_routes.py#L329), [`join_path`](../../src/orchestrator/pkg/jvm_routes.py#L178)
 
 ### `read_controller`
 
-[`src/orchestrator/pkg/kotlin_routes.py:361`](../../src/orchestrator/pkg/kotlin_routes.py#L361)
+[`src/orchestrator/pkg/kotlin_routes.py:400`](../../src/orchestrator/pkg/kotlin_routes.py#L400)
 
-- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L373)
-- **Calls** (5): [`_spring_annotations`](../../src/orchestrator/pkg/kotlin_routes.py#L407), [`class_prefix`](../../src/orchestrator/pkg/jvm_routes.py#L151), [`emit_endpoints`](../../src/orchestrator/pkg/jvm_routes.py#L189), [`field_text`](../../src/orchestrator/pkg/kotlin_names.py#L33), [`is_controller`](../../src/orchestrator/pkg/jvm_routes.py#L146)
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L435)
+- **Calls** (5): [`_spring_annotations`](../../src/orchestrator/pkg/kotlin_routes.py#L446), [`class_prefix`](../../src/orchestrator/pkg/jvm_routes.py#L151), [`emit_endpoints`](../../src/orchestrator/pkg/jvm_routes.py#L189), [`field_text`](../../src/orchestrator/pkg/kotlin_names.py#L33), [`is_controller`](../../src/orchestrator/pkg/jvm_routes.py#L146)
 
 ### `register_module`
 
-[`src/orchestrator/pkg/kotlin_routes.py:154`](../../src/orchestrator/pkg/kotlin_routes.py#L154)
+[`src/orchestrator/pkg/kotlin_routes.py:165`](../../src/orchestrator/pkg/kotlin_routes.py#L165)
 
-- **Called by** (1): [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L527)
+- **Called by** (1): [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L589)
 
 ### `scan_calls`
 
-[`src/orchestrator/pkg/kotlin_routes.py:164`](../../src/orchestrator/pkg/kotlin_routes.py#L164)
+[`src/orchestrator/pkg/kotlin_routes.py:179`](../../src/orchestrator/pkg/kotlin_routes.py#L179)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L287)
-- **Calls** (2): [`_Site`](../../src/orchestrator/pkg/kotlin_routes.py#L208), [`_scan`](../../src/orchestrator/pkg/kotlin_routes.py#L215)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L334)
+- **Calls** (2): [`_Site`](../../src/orchestrator/pkg/kotlin_routes.py#L227), [`_scan`](../../src/orchestrator/pkg/kotlin_routes.py#L236)
 
 ### `spring_resolver`
 
-[`src/orchestrator/pkg/kotlin_routes.py:398`](../../src/orchestrator/pkg/kotlin_routes.py#L398)
+[`src/orchestrator/pkg/kotlin_routes.py:437`](../../src/orchestrator/pkg/kotlin_routes.py#L437)
 
-- **Called by** (1): [`_spring_resolver`](../../src/orchestrator/pkg/kotlin_extractor.py#L447)
+- **Called by** (1): [`_spring_resolver`](../../src/orchestrator/pkg/kotlin_extractor.py#L509)
 
 ## Imports
 

@@ -718,7 +718,12 @@ def _scoreboard(repo: str, write: bool, as_json: bool, pinned_corpus: bool = Fal
     """
     import json as _json
 
-    from orchestrator.pkg.accuracy import build_scoreboard, compare_scoreboard, scoreboard_improvements
+    from orchestrator.pkg.accuracy import (
+        build_scoreboard,
+        compare_scoreboard,
+        scoreboard_explained_drops,
+        scoreboard_improvements,
+    )
 
     root = Path(repo)
     path = root / SCOREBOARD_FILE
@@ -747,6 +752,8 @@ def _scoreboard(repo: str, write: bool, as_json: bool, pinned_corpus: bool = Fal
 
     regressions = compare_scoreboard(baseline, current)
     improvements = scoreboard_improvements(baseline, current)
+    # Recall fell, and every new miss carries a reason. Not a failure, not silence.
+    explained = scoreboard_explained_drops(baseline, current)
 
     if as_json:
         _print(
@@ -756,6 +763,7 @@ def _scoreboard(repo: str, write: bool, as_json: bool, pinned_corpus: bool = Fal
                     {"metric": r.metric, "detail": r.detail, "was": r.was, "now": r.now} for r in regressions
                 ],
                 "improvements": improvements,
+                "explained_drops": explained,
             }
         )
     else:
@@ -763,6 +771,8 @@ def _scoreboard(repo: str, write: bool, as_json: bool, pinned_corpus: bool = Fal
             typer.echo(f"[REGRESSION] {r}")
         for i in improvements:
             typer.echo(f"[improved]   {i}")
+        for d in explained:
+            typer.echo(f"[trend]      corpus {d}")
 
         # Ungated metrics move on ordinary commits, so they are reported and never fail.
         was_inv = baseline.get("metrics", {}).get("invention", {}).get("count")

@@ -1,0 +1,51 @@
+{
+  "language": "kotlin",
+  "case": "extension_name_collision_external",
+  "why": "#390, the shape the original report was actually filed against: the receiver's own type (`Topic`) is not declared anywhere in this repo — the dominant real-world case (`androidx.*`, `java.io.*`, third-party types generally), not the sibling-`extension_name_collision` case where `Topic` happens to be declared locally. A first fix filtered the `resolve_or_drop` candidate list but left a second branch — the external-placeholder fallback reached exactly when the receiver's own type is undeclared — re-reading the raw, unverified `imported_extension` field independently. That branch still landed on `java:app.util.format`/`java:app.util.render`, the real, unrelated declarations, through `FactBatch.add_node`'s dedup rule that a later `external=True` node never displaces an already-grounded one. The honest answer here is an external placeholder scoped to the *receiver*, `java:app.data.Topic.format`/`.render` — the same 'receiver-member guess, may still be wrong, narrowed not closed' residual this front-end already accepts elsewhere (`Modifier.padding` when nothing imports the true extension) — never a grounded edge onto `app.util`'s real declarations.",
+  "root": ".repo",
+  "nodes": [
+    { "id": "java:app.ui", "kind": "Module" },
+    { "id": "java:app.ui.Screen", "kind": "Type" },
+    { "id": "java:app.ui.Screen.show", "kind": "Function" },
+    { "id": "java:app.ui.Screen.t", "kind": "Field" },
+    { "id": "java:app.util", "kind": "Module" },
+    { "id": "java:app.util.format", "kind": "Function" },
+    { "id": "java:app.util.render", "kind": "Type" }
+  ],
+  "edges": [
+    { "src": "java:app.ui", "dst": "java:app.ui.Screen", "kind": "CONTAINS" },
+    { "src": "java:app.ui.Screen", "dst": "java:app.ui.Screen.show", "kind": "CONTAINS" },
+    { "src": "java:app.ui.Screen", "dst": "java:app.ui.Screen.t", "kind": "CONTAINS" },
+    { "src": "java:app.util", "dst": "java:app.util.format", "kind": "CONTAINS" },
+    { "src": "java:app.util", "dst": "java:app.util.render", "kind": "CONTAINS" },
+    { "src": "java:app.ui", "dst": "java:app.data.Topic", "kind": "IMPORTS" },
+    { "src": "java:app.ui", "dst": "java:app.util.format", "kind": "IMPORTS" },
+    { "src": "java:app.ui", "dst": "java:app.util.render", "kind": "IMPORTS" },
+    { "src": "java:app.ui.Screen.show", "dst": "java:app.data.Topic.format", "kind": "CALLS" },
+    { "src": "java:app.ui.Screen.show", "dst": "java:app.data.Topic.render", "kind": "CALLS" }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "java:app.ui.Screen.show",
+        "dst": "java:app.util.format",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (#390). `t.format()` on an undeclared `Topic`; `app.util.format` is imported under that name but is an ordinary top-level function, not an extension of `Topic`, and `Topic` itself is not declared here to check the guess against. Grounding onto the real `app.util.format` declaration — rather than an external placeholder scoped to `Topic` — is exactly the fabrication #390 describes, reached here through the receiver-undeclared fallback rather than the receiver-declared candidate check."
+    },
+    {
+      "edge": {
+        "src": "java:app.ui.Screen.show",
+        "dst": "java:app.util.render",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (#390). Same shape as `format` above; `app.util.render` is a class, not a function, and never a call target."
+    }
+  ],
+  "excluded": [
+    "`t.format()` and `t.render()` resolve to `java:app.data.Topic.format`/`.render` — external placeholders scoped to the undeclared receiver, not to `app.util`'s real declarations. This is the accepted 'receiver-member guess, may still be wrong' residual this front-end already carries for an undeclared receiver (the same shape as `Modifier.padding` when nothing imports the true extension), not a new fabrication: nothing else in this tree could claim that exact id by coincidence.",
+    "`java:app.data.Topic` and its two external placeholder members are external and stay out of the node ratio per the rule in corpus/README.md; the IMPORTS/CALLS edges to them still count."
+  ],
+  "open_questions": []
+}

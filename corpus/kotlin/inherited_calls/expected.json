@@ -1,0 +1,27 @@
+{
+  "language": "kotlin",
+  "case": "inherited_calls",
+  "why": "#391. `i.ping()` on an `Impl` whose `ping` is declared on its supertype `Base`, not on `Impl` itself. `_settle_calls` used to drop this outright: the receiver's own type is declared, but does not declare the member, and the `IMPLEMENTS` edge already recorded for the same batch was never consulted. Inheritance plus an instance call is the most ordinary shape in the language, so the drop was a real recall loss on every real graph, not a rare corpus corner — and no prior corpus case exercised inheritance together with an instance call at all.",
+  "root": ".repo",
+  "nodes": [
+    { "id": "java:app.job", "kind": "Module" },
+    { "id": "java:app.job.Base", "kind": "Type" },
+    { "id": "java:app.job.Base.ping", "kind": "Function" },
+    { "id": "java:app.job.Impl", "kind": "Type" },
+    { "id": "java:app.job.User", "kind": "Type" },
+    { "id": "java:app.job.User.go", "kind": "Function" }
+  ],
+  "edges": [
+    { "src": "java:app.job", "dst": "java:app.job.Base", "kind": "CONTAINS" },
+    { "src": "java:app.job", "dst": "java:app.job.Impl", "kind": "CONTAINS" },
+    { "src": "java:app.job", "dst": "java:app.job.User", "kind": "CONTAINS" },
+    { "src": "java:app.job.Base", "dst": "java:app.job.Base.ping", "kind": "CONTAINS" },
+    { "src": "java:app.job.User", "dst": "java:app.job.User.go", "kind": "CONTAINS" },
+    { "src": "java:app.job.Impl", "dst": "java:app.job.Base", "kind": "IMPLEMENTS" },
+    { "src": "java:app.job.User.go", "dst": "java:app.job.Base.ping", "kind": "CALLS" }
+  ],
+  "known_gaps": [],
+  "refusals": [],
+  "excluded": [],
+  "open_questions": []
+}

@@ -374,9 +374,15 @@ class _Kotlin:
 
     def params(self, node: TSNode, src: bytes) -> Iterable[str]:
         if node.type == "for_statement":
-            return [
-                n for c in node.named_children if c.type == "variable_declaration" for n in _own_name(c, src)
-            ]
+            names: list[str] = []
+            for c in node.named_children:
+                if c.type == "variable_declaration":
+                    names.extend(_own_name(c, src))
+                elif c.type == "multi_variable_declaration":  # `for ((key, value) in m)`
+                    for inner in c.named_children:
+                        if inner.type == "variable_declaration":
+                            names.extend(_own_name(inner, src))
+            return names
         if node.type == "catch_block":
             name = next((c for c in node.named_children if c.type == "identifier"), None)
             return [_text(name, src)] if name is not None else []
@@ -387,6 +393,15 @@ class _Kotlin:
             for decl in holder.named_children:
                 if decl.type in ("parameter", "variable_declaration"):
                     out.extend(_own_name(decl, src))
+                elif decl.type == "multi_variable_declaration":
+                    # A destructured lambda parameter, `{ (key, value) -> … }`. The oracle
+                    # has to see every name the extractor sees or it certifies the
+                    # extractor's own blind spot as clean — which is exactly what happened
+                    # for the `for` form (#392) and, until this line, for the lambda form
+                    # too: `score_invention` reported `invented: []` over a fabricated edge.
+                    for inner in decl.named_children:
+                        if inner.type == "variable_declaration":
+                            out.extend(_own_name(inner, src))
         if node.type == "lambda_literal":
             # The implicit receiver of a lambda with no declared parameters. It is
             # bound even though nothing writes it down, so a call to `it()` is not

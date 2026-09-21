@@ -78,11 +78,23 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.41.1 (current)** — fixes only. A type rename that ends a collision (`Grounding` existed
-twice, in code review and in drafting), and three integration tests that had been failing
-unseen behind a database dependency — a stale assertion about `/console`, which has required a
-session since June, and Alembic quietly disabling every logger in the test session. One of the
-three needed no fix: it was waiting on an object store nobody had started.
+**3.42.0 (current)** — a round of Kotlin precision work, and a gate that was punishing
+honesty. Six reported Kotlin defects are closed, including an extension call that resolved onto
+an id nothing declares: comparing receiver *names* refused every subtype receiver, so
+`fun NavController.navigateToSearch()` called on a `NavHostController` — the standard Compose
+pattern — lost its real edge and gained an invented one. Four of those on the Android
+validation app, with every gate green, because the fabricated edges *replaced* true ones rather
+than adding to the count.
+
+Alongside them, the accuracy gate no longer fails a build for **writing down a known
+limitation**. Labelling a `known_gaps` entry lowered the recall ratio with nothing about the
+extractor having changed, and the only remedy was regenerating the baseline — which accepts
+everything that moved. Corpus recall is now gated on *unexplained* misses instead, the published
+score is untouched, and enforcing that a gap must name an edge actually missed turned up four
+dead entries, three of which were quietly paying for two real misses nobody could see.
+
+`scoreboard.json` is version 2 as a result: run `orchestrator pkg accuracy --scoreboard` once
+after upgrading.
 
 **3.41.0** — a drafted spec now ships with the code's facts. `openspec draft` could
 not see a repository: its whole signature was `--source/--out/--refresh/--overwrite`, so a draft

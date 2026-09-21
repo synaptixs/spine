@@ -14,13 +14,13 @@
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`_Part`](../../src/orchestrator/pkg/kotlin_nav.py#L59) — reaches **4** symbols · **no test path visible**
-- [`_callee_name`](../../src/orchestrator/pkg/kotlin_nav.py#L349) — reaches **3** symbols · **no test path visible**
-- [`_split_bare_interpolation`](../../src/orchestrator/pkg/kotlin_nav.py#L287) — reaches **3** symbols · **no test path visible**
-- [`_walk`](../../src/orchestrator/pkg/kotlin_nav.py#L402) — reaches **3** symbols · **no test path visible**
+- [`_callee_name`](../../src/orchestrator/pkg/kotlin_nav.py#L367) — reaches **3** symbols · **no test path visible**
+- [`_split_bare_interpolation`](../../src/orchestrator/pkg/kotlin_nav.py#L305) — reaches **3** symbols · **no test path visible**
+- [`_walk`](../../src/orchestrator/pkg/kotlin_nav.py#L420) — reaches **3** symbols · **no test path visible**
 - [`_Site`](../../src/orchestrator/pkg/kotlin_nav.py#L71) — reaches **2** symbols · **no test path visible**
-- [`_argument_node`](../../src/orchestrator/pkg/kotlin_nav.py#L215) — reaches **2** symbols · **no test path visible**
-- [`_arguments_holder`](../../src/orchestrator/pkg/kotlin_nav.py#L343) — reaches **2** symbols · **no test path visible**
-- [`_is_inner_callee`](../../src/orchestrator/pkg/kotlin_nav.py#L333) — reaches **2** symbols · **no test path visible**
+- [`_argument_node`](../../src/orchestrator/pkg/kotlin_nav.py#L233) — reaches **2** symbols · **no test path visible**
+- [`_arguments_holder`](../../src/orchestrator/pkg/kotlin_nav.py#L361) — reaches **2** symbols · **no test path visible**
+- [`_is_inner_callee`](../../src/orchestrator/pkg/kotlin_nav.py#L351) — reaches **2** symbols · **no test path visible**
 
 _16 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -28,118 +28,118 @@ _16 of the symbols other code depends on here have no test path the graph can se
 
 ### `NavState`
 
-[`src/orchestrator/pkg/kotlin_nav.py:87`](../../src/orchestrator/pkg/kotlin_nav.py#L87)
+[`src/orchestrator/pkg/kotlin_nav.py:91`](../../src/orchestrator/pkg/kotlin_nav.py#L91)
 
-- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/kotlin_extractor.py#L259)
+- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/kotlin_extractor.py#L296)
 - **Fields**: `consts`, `declarations`, `navigations`
 
 ### `_Part`
 
 [`src/orchestrator/pkg/kotlin_nav.py:59`](../../src/orchestrator/pkg/kotlin_nav.py#L59)
 
-- **Called by** (2): [`_split_bare_interpolation`](../../src/orchestrator/pkg/kotlin_nav.py#L287), [`_template`](../../src/orchestrator/pkg/kotlin_nav.py#L234)
+- **Called by** (2): [`_split_bare_interpolation`](../../src/orchestrator/pkg/kotlin_nav.py#L305), [`_template`](../../src/orchestrator/pkg/kotlin_nav.py#L252)
 - **Fields**: `kind`, `value`
 
 ### `_Site`
 
 [`src/orchestrator/pkg/kotlin_nav.py:71`](../../src/orchestrator/pkg/kotlin_nav.py#L71)
 
-- **Called by** (1): [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L150)
-- **Fields**: `imports`, `line`, `package`, `rel`
+- **Called by** (1): [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L167)
+- **Fields**: `imports`, `line`, `package`, `rel`, `wildcard_prefixes`
 
 ## Functions
 
 ### `_argument_node`
 
-[`src/orchestrator/pkg/kotlin_nav.py:215`](../../src/orchestrator/pkg/kotlin_nav.py#L215)
+[`src/orchestrator/pkg/kotlin_nav.py:233`](../../src/orchestrator/pkg/kotlin_nav.py#L233)
 
-- **Called by** (1): [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L150)
+- **Called by** (1): [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L167)
 - **Calls** (1): [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `_argument_text`
 
-[`src/orchestrator/pkg/kotlin_nav.py:362`](../../src/orchestrator/pkg/kotlin_nav.py#L362)
+[`src/orchestrator/pkg/kotlin_nav.py:380`](../../src/orchestrator/pkg/kotlin_nav.py#L380)
 
 - **Calls** (1): [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `_arguments_holder`
 
-[`src/orchestrator/pkg/kotlin_nav.py:343`](../../src/orchestrator/pkg/kotlin_nav.py#L343)
+[`src/orchestrator/pkg/kotlin_nav.py:361`](../../src/orchestrator/pkg/kotlin_nav.py#L361)
 
-- **Called by** (1): [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L150)
+- **Called by** (1): [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L167)
 
 ### `_callee_name`
 
-[`src/orchestrator/pkg/kotlin_nav.py:349`](../../src/orchestrator/pkg/kotlin_nav.py#L349)
+[`src/orchestrator/pkg/kotlin_nav.py:367`](../../src/orchestrator/pkg/kotlin_nav.py#L367)
 
-- **Called by** (2): [`_single_screen`](../../src/orchestrator/pkg/kotlin_nav.py#L381), [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L150)
+- **Called by** (2): [`_single_screen`](../../src/orchestrator/pkg/kotlin_nav.py#L399), [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L167)
 - **Calls** (1): [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `_is_inner_callee`
 
-[`src/orchestrator/pkg/kotlin_nav.py:333`](../../src/orchestrator/pkg/kotlin_nav.py#L333)
+[`src/orchestrator/pkg/kotlin_nav.py:351`](../../src/orchestrator/pkg/kotlin_nav.py#L351)
 
-- **Called by** (1): [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L150)
+- **Called by** (1): [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L167)
 
 ### `_key`
 
-[`src/orchestrator/pkg/kotlin_nav.py:324`](../../src/orchestrator/pkg/kotlin_nav.py#L324)
+[`src/orchestrator/pkg/kotlin_nav.py:342`](../../src/orchestrator/pkg/kotlin_nav.py#L342)
 
-- **Called by** (1): [`emit`](../../src/orchestrator/pkg/kotlin_nav.py#L184)
+- **Called by** (1): [`emit`](../../src/orchestrator/pkg/kotlin_nav.py#L202)
 
 ### `_resolve`
 
-[`src/orchestrator/pkg/kotlin_nav.py:301`](../../src/orchestrator/pkg/kotlin_nav.py#L301)
+[`src/orchestrator/pkg/kotlin_nav.py:319`](../../src/orchestrator/pkg/kotlin_nav.py#L319)
 
-- **Called by** (1): [`emit`](../../src/orchestrator/pkg/kotlin_nav.py#L184)
+- **Called by** (1): [`emit`](../../src/orchestrator/pkg/kotlin_nav.py#L202)
 
 ### `_single_screen`
 
-[`src/orchestrator/pkg/kotlin_nav.py:381`](../../src/orchestrator/pkg/kotlin_nav.py#L381)
+[`src/orchestrator/pkg/kotlin_nav.py:399`](../../src/orchestrator/pkg/kotlin_nav.py#L399)
 
-- **Called by** (1): [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L150)
-- **Calls** (2): [`_callee_name`](../../src/orchestrator/pkg/kotlin_nav.py#L349), [`_walk`](../../src/orchestrator/pkg/kotlin_nav.py#L402)
+- **Called by** (1): [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L167)
+- **Calls** (2): [`_callee_name`](../../src/orchestrator/pkg/kotlin_nav.py#L367), [`_walk`](../../src/orchestrator/pkg/kotlin_nav.py#L420)
 
 ### `_split_bare_interpolation`
 
-[`src/orchestrator/pkg/kotlin_nav.py:287`](../../src/orchestrator/pkg/kotlin_nav.py#L287)
+[`src/orchestrator/pkg/kotlin_nav.py:305`](../../src/orchestrator/pkg/kotlin_nav.py#L305)
 
-- **Called by** (1): [`_template`](../../src/orchestrator/pkg/kotlin_nav.py#L234)
+- **Called by** (1): [`_template`](../../src/orchestrator/pkg/kotlin_nav.py#L252)
 - **Calls** (1): [`_Part`](../../src/orchestrator/pkg/kotlin_nav.py#L59)
 
 ### `_template`
 
-[`src/orchestrator/pkg/kotlin_nav.py:234`](../../src/orchestrator/pkg/kotlin_nav.py#L234)
+[`src/orchestrator/pkg/kotlin_nav.py:252`](../../src/orchestrator/pkg/kotlin_nav.py#L252)
 
-- **Called by** (1): [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L150)
-- **Calls** (4): [`_Part`](../../src/orchestrator/pkg/kotlin_nav.py#L59), [`_split_bare_interpolation`](../../src/orchestrator/pkg/kotlin_nav.py#L287), [`decoded_escape`](../../src/orchestrator/pkg/kotlin_names.py#L234), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
+- **Called by** (1): [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L167)
+- **Calls** (4): [`_Part`](../../src/orchestrator/pkg/kotlin_nav.py#L59), [`_split_bare_interpolation`](../../src/orchestrator/pkg/kotlin_nav.py#L305), [`decoded_escape`](../../src/orchestrator/pkg/kotlin_names.py#L234), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `_walk`
 
-[`src/orchestrator/pkg/kotlin_nav.py:402`](../../src/orchestrator/pkg/kotlin_nav.py#L402)
+[`src/orchestrator/pkg/kotlin_nav.py:420`](../../src/orchestrator/pkg/kotlin_nav.py#L420)
 
-- **Called by** (2): [`_single_screen`](../../src/orchestrator/pkg/kotlin_nav.py#L381), [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L150)
+- **Called by** (2): [`_single_screen`](../../src/orchestrator/pkg/kotlin_nav.py#L399), [`scan_calls`](../../src/orchestrator/pkg/kotlin_nav.py#L167)
 
 ### `collect_consts`
 
-[`src/orchestrator/pkg/kotlin_nav.py:133`](../../src/orchestrator/pkg/kotlin_nav.py#L133)
+[`src/orchestrator/pkg/kotlin_nav.py:150`](../../src/orchestrator/pkg/kotlin_nav.py#L150)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L287)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L334)
 - **Calls** (2): [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `emit`
 
-[`src/orchestrator/pkg/kotlin_nav.py:184`](../../src/orchestrator/pkg/kotlin_nav.py#L184)
+[`src/orchestrator/pkg/kotlin_nav.py:202`](../../src/orchestrator/pkg/kotlin_nav.py#L202)
 
-- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L900)
-- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_key`](../../src/orchestrator/pkg/kotlin_nav.py#L324), [`_resolve`](../../src/orchestrator/pkg/kotlin_nav.py#L301)
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L981)
+- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_key`](../../src/orchestrator/pkg/kotlin_nav.py#L342), [`_resolve`](../../src/orchestrator/pkg/kotlin_nav.py#L319)
 
 ### `scan_calls`
 
-[`src/orchestrator/pkg/kotlin_nav.py:150`](../../src/orchestrator/pkg/kotlin_nav.py#L150)
+[`src/orchestrator/pkg/kotlin_nav.py:167`](../../src/orchestrator/pkg/kotlin_nav.py#L167)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L287)
-- **Calls** (8): [`_Site`](../../src/orchestrator/pkg/kotlin_nav.py#L71), [`_argument_node`](../../src/orchestrator/pkg/kotlin_nav.py#L215), [`_arguments_holder`](../../src/orchestrator/pkg/kotlin_nav.py#L343), [`_callee_name`](../../src/orchestrator/pkg/kotlin_nav.py#L349), [`_is_inner_callee`](../../src/orchestrator/pkg/kotlin_nav.py#L333), [`_single_screen`](../../src/orchestrator/pkg/kotlin_nav.py#L381), [`_template`](../../src/orchestrator/pkg/kotlin_nav.py#L234), [`_walk`](../../src/orchestrator/pkg/kotlin_nav.py#L402)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L334)
+- **Calls** (8): [`_Site`](../../src/orchestrator/pkg/kotlin_nav.py#L71), [`_argument_node`](../../src/orchestrator/pkg/kotlin_nav.py#L233), [`_arguments_holder`](../../src/orchestrator/pkg/kotlin_nav.py#L361), [`_callee_name`](../../src/orchestrator/pkg/kotlin_nav.py#L367), [`_is_inner_callee`](../../src/orchestrator/pkg/kotlin_nav.py#L351), [`_single_screen`](../../src/orchestrator/pkg/kotlin_nav.py#L399), [`_template`](../../src/orchestrator/pkg/kotlin_nav.py#L252), [`_walk`](../../src/orchestrator/pkg/kotlin_nav.py#L420)
 
 ## Imports
 

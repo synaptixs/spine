@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.41.1  (synaptixs-spine)
+Spine 3.42.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 

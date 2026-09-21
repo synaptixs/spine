@@ -82,7 +82,10 @@ Labelling a Kotlin case in `kt:` scores 0.00. See D2 in
 With the optional `clang` extra, the C++ `instance_calls` reference-parameter call
 is resolved by a semantic post-pass. At the P3 checkpoint, aggregate C++ CALLS was 4 expected / 4 emitted /
 4 matched (3 emitted / 3 matched without the extra). Ground truth and node ids are
-unchanged; the historical `known_gaps` entry records the CST-only limitation.
+unchanged. The CST-only limitation used to be recorded as a `known_gaps` entry, which was
+removed on 2026-09-21: the scoreboard is built with the extra installed, so there the edge
+*is* emitted and the entry asserted a limitation that did not exist. A gap must name an edge
+the run actually misses (see below), and the limitation is documented here instead.
 
 PHP's module id is namespace-keyed like C#/Java **only when the file has one**. A file with no
 `namespace` (WordPress-style, legacy code) keys on its repo-relative path instead —
@@ -124,7 +127,7 @@ same syntax and different edges.
 | `root` | extraction root, relative to the case dir — always `repo` |
 | `nodes` | `{id, kind}` — every node true of the fixture |
 | `edges` | `{src, dst, kind}` — every edge true of the fixture |
-| `known_gaps` | edges from `edges` the front-end is *known* to skip, each with a `why` |
+| `known_gaps` | edges from `edges` the front-end is *known* to skip, each with a `why` — and **does** skip: an entry naming an edge the extractor emits fails the case to load |
 | `false_positives` | edges the front-end **emits that are not true** — invention, held visible |
 | `refusals` | edges a plausible reader **would** emit and this one must not — predicted before scoring, and **enforced**: if the extractor emits one, the case fails to load |
 | `excluded` | what is deliberately not labelled, and on what grounds |
@@ -132,9 +135,29 @@ same syntax and different edges.
 
 **`known_gaps` is not an exemption.** A fact listed there still counts as a recall miss. It
 records that the miss is understood rather than unnoticed, so the report can separate known
-loss from new loss — and new loss is the signal a regression gate would eventually watch.
-Moving a fact into `known_gaps` must never change the score; if it does, the implementation
-is wrong.
+loss from new loss. Moving a fact into `known_gaps` must never change the score; if it does,
+the implementation is wrong.
+
+**That gate now exists, and it reads this field.** `compare_scoreboard` gates corpus recall on
+*unexplained* misses — `expected - matched - known_gaps` — and on `matched` never falling,
+rather than on the recall ratio. The published ratio is untouched and still counts a known gap
+as a miss, exactly as the paragraph above says; what changed is that labelling one no longer
+*fails a build*, because a ratio that falls when you write down a loss you already had punishes
+measuring it. The two conditions are not one: unexplained misses catch a new miss nobody
+accounted for, including the case a ratio is blind to (8/10 and 12/15 are both 0.80 while the
+misses go two to three), and `matched` falling catches an edge that stopped resolving even when
+a gap labelled in the same commit would otherwise pay for it.
+
+**A gap must name an edge the run actually misses, and this is enforced.** Load-time validation
+already refused an entry absent from `edges`; a *closed* gap still satisfied that, so an entry
+whose edge the front-end had since learned to emit stayed valid and went on asserting a
+limitation that no longer existed. Four such entries were found the day the gate changed. That
+is not only stale prose: the gate subtracts gaps per language and per kind, so credit paying for
+nothing silently absorbs a real new miss in another case of the same language — which is what
+three dead TypeScript entries were doing for two genuine misses in `receiver_shapes`. A gap
+naming an edge the extractor emits now fails the case to load, the same way a broken `refusal`
+does. **Delete the entry when the gap closes**; if the answer depends on an optional extra, say
+so in `excluded` and describe the configuration the scoreboard is built in.
 
 **`open_questions` is not a parking lot.** An entry there means the expected set is
 provisionally incomplete in a way that affects every case sharing the shape, so the number is

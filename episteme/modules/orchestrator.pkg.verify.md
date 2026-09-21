@@ -137,7 +137,7 @@
 
 [`src/orchestrator/pkg/verify.py:355`](../../src/orchestrator/pkg/verify.py#L355)
 
-- **Called by** (2): [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L462), [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L401)
+- **Called by** (2): [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L462), [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L456)
 - **Calls** (2): [`ParityCount`](../../src/orchestrator/pkg/verify.py#L276), [`_count_python_constructs`](../../src/orchestrator/pkg/verify.py#L317)
 
 ### `verify_batch`

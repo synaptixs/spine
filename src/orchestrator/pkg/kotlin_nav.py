@@ -81,6 +81,10 @@ class _Site:
     imports: Mapping[str, str]
     rel: str
     line: int
+    #: this file's ``import a.b.*`` prefixes — #395: the repo-wide unique-name
+    #: fallback in ``NavState.lookup`` is restricted to names reachable through one
+    #: of these, the same rule ``_type_candidates`` already applies in the extractor.
+    wildcard_prefixes: frozenset[str] = frozenset()
 
 
 @dataclass
@@ -113,9 +117,18 @@ class NavState:
     def lookup(self, name: str, site: _Site) -> str | None:
         """The value of constant ``name`` as ``site`` sees it, or ``None``.
 
-        Own package first, then an explicit import, then a repo-wide fallback that
-        only fires when exactly one package declares the name — the same
+        Own package first, then an explicit import, then a fallback restricted to a
+        package reachable through one of this file's ``import a.b.*`` prefixes —
+        firing only when exactly one such package declares the name, the same
         "ambiguous means unresolved" rule ``kotlin_routes`` applies to mount names.
+
+        #395: the fallback used to consider a package declaring the name *anywhere
+        in the repository*, with no restriction to what this file could actually
+        see — a route or a local variable of the same name could then be captured by
+        an unrelated module's constant across package and service boundaries, with
+        no import at all. Restricting it to a recorded wildcard prefix, the same
+        rule ``_type_candidates`` applies in the extractor, closes that while
+        keeping the genuine wildcard-import case working.
         """
         own = self.consts.get((site.package, name))
         if own is not None:
@@ -126,7 +139,11 @@ class NavState:
             found = self.consts.get((package, simple))
             if found is not None:
                 return found
-        matches = {value for (_pkg, simple), value in self.consts.items() if simple == name}
+        matches = {
+            value
+            for (pkg, simple), value in self.consts.items()
+            if simple == name and pkg in site.wildcard_prefixes
+        }
         return matches.pop() if len(matches) == 1 else None
 
 
@@ -156,6 +173,7 @@ def scan_calls(
     *,
     package: str,
     imports: Mapping[str, str],
+    wildcard_prefixes: frozenset[str] = frozenset(),
 ) -> None:
     """Collect ``composable(...)`` declarations and ``navigate(...)`` calls in a body."""
     for call in _walk(body):
@@ -174,7 +192,7 @@ def scan_calls(
         template = _template(argument, source)
         if template is None:
             continue
-        site = _Site(package, imports, rel, call.start_point[0] + 1)
+        site = _Site(package, imports, rel, call.start_point[0] + 1, wildcard_prefixes)
         if name == "composable":
             state.declarations.append((template, _single_screen(call, source), site))
         else:

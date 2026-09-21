@@ -1,7 +1,7 @@
 {
   "language": "kotlin",
   "case": "hilt_bindings",
-  "why": "D15, and the argument for a new edge kind rather than reusing an old one. `CartRepository` has two implementations, so `IMPLEMENTS` is true of both and answers 'what breaks if I change OfflineCartRepository' with every candidate. `PROVIDES` says which one a module actually wires. The source of a `@Binds` edge is the **implementation**, because that is the thing a reader changes; a `@Provides` has no implementation type at all, only a factory, so its source is the function — which is also why `IMPLEMENTS` could not express it even in principle.\n\nThree precision rules are pinned here. A qualified binding (`@Named(\"fake\")`) keeps its edge rather than being resolved away, so two providers for one type both appear and `blast_radius` reports both instead of guessing which component wins. A class **without** `@Module` is not scanned even when its method carries a real `@Binds` — `StrayBinding` is annotated exactly like a binding and is still ignored, because wiring is declared by the module, not inferred from a method. And `CartViewModel` is an injection site that needs no edge of its own: the constructor property is already a `Field` (D6) and `repository.toString()` already resolves onto the interface by P2's typed-receiver rule, so the consumers are in the graph as `CALLS` and only the implementation-to-interface hop was missing.",
+  "why": "D15, and the argument for a new edge kind rather than reusing an old one. `CartRepository` has two implementations, so `IMPLEMENTS` is true of both and answers 'what breaks if I change OfflineCartRepository' with every candidate. `PROVIDES` says which one a module actually wires. The source of a `@Binds` edge is the **implementation**, because that is the thing a reader changes; a `@Provides` has no implementation type at all, only a factory, so its source is the function — which is also why `IMPLEMENTS` could not express it even in principle.\n\nThree precision rules are pinned here. A qualified binding (`@Named(\"fake\")`) keeps its edge rather than being resolved away, so two providers for one type both appear and `blast_radius` reports both instead of guessing which component wins. A class **without** `@Module` is not scanned even when its method carries a real `@Binds` — `StrayBinding` is annotated exactly like a binding and is still ignored, because wiring is declared by the module, not inferred from a method. And `CartViewModel` is an injection site that needs no edge of its own: the constructor property is already a `Field` (D6) and `repository.toString()` already resolves onto the interface by P2's typed-receiver rule, so the consumers are in the graph as `CALLS` and only the implementation-to-interface hop was missing.\n\n#393 adds the fourth: a generic return type is not always the same key as its element. `providesLazyClock(): Lazy<Clock>` peels to `Clock` — `Lazy<T>`/`Provider<T>` are indirection Dagger unwraps for you. `providesClockSet(): Set<Clock>` must NOT peel to `Clock` — a `Set<T>` binding is a distinct Dagger multibinding key, so a provider of it does not satisfy an injection of a plain `Clock`, and the fix that stopped minting a `Set` class for the bare return type had gone one step further than that and started asserting the wrong binding key instead of the right refusal.",
   "root": ".repo",
   "nodes": [
     { "id": "java:shop.di", "kind": "Module" },
@@ -16,6 +16,8 @@
     { "id": "java:shop.di.DataModule.bindsCartRepository", "kind": "Function" },
     { "id": "java:shop.di.DataModule.bindsFakeCartRepository", "kind": "Function" },
     { "id": "java:shop.di.ClockModule.providesClock", "kind": "Function" },
+    { "id": "java:shop.di.ClockModule.providesLazyClock", "kind": "Function" },
+    { "id": "java:shop.di.ClockModule.providesClockSet", "kind": "Function" },
     { "id": "java:shop.di.StrayBinding.bindsClock", "kind": "Function" },
     { "id": "java:shop.di.CartViewModel.load", "kind": "Function" },
     { "id": "java:shop.di.CartViewModel.repository", "kind": "Field" },
@@ -33,6 +35,8 @@
     { "src": "java:shop.di.DataModule", "dst": "java:shop.di.DataModule.bindsCartRepository", "kind": "CONTAINS" },
     { "src": "java:shop.di.DataModule", "dst": "java:shop.di.DataModule.bindsFakeCartRepository", "kind": "CONTAINS" },
     { "src": "java:shop.di.ClockModule", "dst": "java:shop.di.ClockModule.providesClock", "kind": "CONTAINS" },
+    { "src": "java:shop.di.ClockModule", "dst": "java:shop.di.ClockModule.providesLazyClock", "kind": "CONTAINS" },
+    { "src": "java:shop.di.ClockModule", "dst": "java:shop.di.ClockModule.providesClockSet", "kind": "CONTAINS" },
     { "src": "java:shop.di.StrayBinding", "dst": "java:shop.di.StrayBinding.bindsClock", "kind": "CONTAINS" },
     { "src": "java:shop.di.CartViewModel", "dst": "java:shop.di.CartViewModel.load", "kind": "CONTAINS" },
     { "src": "java:shop.di.CartViewModel", "dst": "java:shop.di.CartViewModel.repository", "kind": "CONTAINS" },
@@ -41,7 +45,9 @@
     { "src": "java:shop.di.OfflineCartRepository", "dst": "java:shop.di.CartRepository", "kind": "PROVIDES" },
     { "src": "java:shop.di.FakeCartRepository", "dst": "java:shop.di.CartRepository", "kind": "PROVIDES" },
     { "src": "java:shop.di.ClockModule.providesClock", "dst": "java:shop.di.Clock", "kind": "PROVIDES" },
+    { "src": "java:shop.di.ClockModule.providesLazyClock", "dst": "java:shop.di.Clock", "kind": "PROVIDES" },
     { "src": "java:shop.di", "dst": "java:dagger.Binds", "kind": "IMPORTS" },
+    { "src": "java:shop.di", "dst": "java:dagger.Lazy", "kind": "IMPORTS" },
     { "src": "java:shop.di", "dst": "java:dagger.Module", "kind": "IMPORTS" },
     { "src": "java:shop.di", "dst": "java:dagger.Provides", "kind": "IMPORTS" },
     { "src": "java:shop.di", "dst": "java:javax.inject.Named", "kind": "IMPORTS" },
@@ -54,10 +60,15 @@
     {
       "edge": { "src": "java:shop.di.Clock", "dst": "java:shop.di.Clock", "kind": "PROVIDES" },
       "why": "PREDICTED BEFORE SCORING. `StrayBinding.bindsClock` carries a genuine `@Binds` and would bind `Clock` to itself — but its class has no `@Module`, so it declares no wiring and must produce nothing. Reading `@Binds` wherever it appears would invent a component out of an annotation, and a self-binding is the clearest form of the resulting nonsense."
+    },
+    {
+      "edge": { "src": "java:shop.di.ClockModule.providesClockSet", "dst": "java:shop.di.Clock", "kind": "PROVIDES" },
+      "why": "PREDICTED BEFORE SCORING (#393). `Set<Clock>` is a distinct Dagger multibinding key, not the same binding as a plain `Clock` provider — nothing injecting `Clock` is satisfied by a `Set<Clock>` provider. Peeling the generic return type to its element here would assert a binding key that does not exist, the same fabrication class as `providesClients(): Set<OkHttpClient>` before it, just recovered through the opposite mistake (over-peeling instead of under-peeling)."
     }
   ],
   "excluded": [
-    "The four `java:dagger.*` / `java:javax.inject.*` import targets are external and stay out of the node ratio; the IMPORTS edges to them still count.",
+    "`providesClockSet` is labelled as providing nothing at all: it has no genuine unwrap (`Lazy<T>`/`Provider<T>`) and no distinct-key modelling exists for a Dagger multibinding, so silence is the honest answer rather than a guessed key.",
+    "The five `java:dagger.*` / `java:javax.inject.*` import targets are external and stay out of the node ratio; the IMPORTS edges to them still count.",
     "`@Named(\"fake\")` is recorded as a qualifier but never resolved (D15). Both bindings for CartRepository keep their PROVIDES edge — choosing between them would mean modelling Dagger's component graph, and choosing wrong is worse than reporting two."
   ],
   "open_questions": []

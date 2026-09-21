@@ -1,7 +1,7 @@
 {
   "language": "kotlin",
   "case": "room",
-  "why": "P3's data layer. A Room entity is a class and a table at once, and the graph has to hold both without confusing them: the id follows the declaration (`java:entity:shop.db.TopicEntity`) so it is unique and stable, while the **name** is the table (`topics`) so `data_layer_link` can reconcile it against a real `.sql` schema, which pairs entities by name. Every class here is therefore also a `Type` with its own `Field`s — the entity is a parallel view of the same declaration, the C#/PHP precedent, not a replacement for it. The case also pins the three edge sources that look alike and are not: a `ForeignKey(entity = X::class)` inside `@Entity` (REFERENCES), an `@Upsert` resolved through its *parameter type* (WRITES), and a `@Query` resolved by actually parsing the SQL — including a `DELETE` written as a raw string, which is a WRITES and not a READS.",
+  "why": "P3's data layer. A Room entity is a class and a table at once, and the graph has to hold both without confusing them: the id follows the declaration (`java:entity:shop.db.TopicEntity`) so it is unique and stable, while the **name** is the table (`topics`) so `data_layer_link` can reconcile it against a real `.sql` schema, which pairs entities by name. Every class here is therefore also a `Type` with its own `Field`s — the entity is a parallel view of the same declaration, the C#/PHP precedent, not a replacement for it. The case also pins the three edge sources that look alike and are not: a `ForeignKey(entity = X::class)` inside `@Entity` (REFERENCES), an `@Upsert` resolved through its *parameter type* (WRITES), and a `@Query` resolved by actually parsing the SQL — including a `DELETE` written as a raw string, which is a WRITES and not a READS.\n\n#394 adds a fourth: `insertMystery`'s parameter type, `MysteryThing`, is declared *nowhere* in this tree — not even as a plain class. A write parameter is a class, never a table name, and provenance settles that regardless of whether the class happens to be declared somewhere: no `Entity` node, no `WRITES` edge, silence rather than a node named with a dotted class FQN.",
   "root": ".repo",
   "nodes": [
     { "id": "java:shop.db", "kind": "Module" },
@@ -11,6 +11,7 @@
     { "id": "java:shop.db.TopicDao.all", "kind": "Function" },
     { "id": "java:shop.db.TopicDao.remove", "kind": "Function" },
     { "id": "java:shop.db.TopicDao.upsert", "kind": "Function" },
+    { "id": "java:shop.db.TopicDao.insertMystery", "kind": "Function" },
     { "id": "java:shop.db.TopicEntity.id", "kind": "Field" },
     { "id": "java:shop.db.TopicEntity.name", "kind": "Field" },
     { "id": "java:shop.db.NewsTopicCrossRef.topic_id", "kind": "Field" },
@@ -30,6 +31,7 @@
     { "src": "java:shop.db.TopicDao", "dst": "java:shop.db.TopicDao.all", "kind": "CONTAINS" },
     { "src": "java:shop.db.TopicDao", "dst": "java:shop.db.TopicDao.remove", "kind": "CONTAINS" },
     { "src": "java:shop.db.TopicDao", "dst": "java:shop.db.TopicDao.upsert", "kind": "CONTAINS" },
+    { "src": "java:shop.db.TopicDao", "dst": "java:shop.db.TopicDao.insertMystery", "kind": "CONTAINS" },
     { "src": "java:entity:shop.db.TopicEntity", "dst": "java:entity:shop.db.TopicEntity.id", "kind": "CONTAINS" },
     { "src": "java:entity:shop.db.TopicEntity", "dst": "java:entity:shop.db.TopicEntity.name", "kind": "CONTAINS" },
     { "src": "java:entity:shop.db.NewsTopicCrossRef", "dst": "java:entity:shop.db.NewsTopicCrossRef.topic_id", "kind": "CONTAINS" },
@@ -40,19 +42,30 @@
     { "src": "java:shop.db", "dst": "java:androidx.room.Dao", "kind": "IMPORTS" },
     { "src": "java:shop.db", "dst": "java:androidx.room.Entity", "kind": "IMPORTS" },
     { "src": "java:shop.db", "dst": "java:androidx.room.ForeignKey", "kind": "IMPORTS" },
+    { "src": "java:shop.db", "dst": "java:androidx.room.Insert", "kind": "IMPORTS" },
     { "src": "java:shop.db", "dst": "java:androidx.room.PrimaryKey", "kind": "IMPORTS" },
     { "src": "java:shop.db", "dst": "java:androidx.room.Query", "kind": "IMPORTS" },
-    { "src": "java:shop.db", "dst": "java:androidx.room.Upsert", "kind": "IMPORTS" }
+    { "src": "java:shop.db", "dst": "java:androidx.room.Upsert", "kind": "IMPORTS" },
+    { "src": "java:shop.db", "dst": "java:com.vendor.MysteryThing", "kind": "IMPORTS" }
   ],
   "known_gaps": [],
   "refusals": [
     {
       "edge": { "src": "java:shop.db.TopicDao.remove", "dst": "java:entity:shop.db.TopicEntity", "kind": "READS" },
       "why": "PREDICTED BEFORE SCORING. `remove` is a `@Query` whose body is `DELETE FROM topics WHERE id = :id`. A reader that pattern-matched a table name out of the annotation — or that treated every `@Query` as a read because the word is 'query' — would call this a READS. It is a WRITES, and only parsing the statement tells you so. The same raw-string `\"\"\"` spelling is what 8 of the 18 @Query bodies in the validation app use."
+    },
+    {
+      "edge": {
+        "src": "java:shop.db.TopicDao.insertMystery",
+        "dst": "java:entity:shop.db.MysteryThing",
+        "kind": "WRITES"
+      },
+      "why": "PREDICTED BEFORE SCORING (#394). `insertMystery`'s parameter type, `MysteryThing`, is declared nowhere in this tree. A write parameter is a class, never a table name — the id built from it must never reach the unknown-table external-placeholder path, whether or not the class is declared somewhere else. Silence is the honest answer; an `Entity` named with a dotted class FQN is not a table name at anything."
     }
   ],
   "excluded": [
-    "The six `java:androidx.room.*` import targets are external, so they stay out of the node ratio per the rule in corpus/README.md; the IMPORTS edges to them still count.",
+    "`insertMystery`'s parameter type resolves to nothing: no `Entity` node and no `WRITES` edge for it, by the refusal above. `MysteryThing` is now *imported* from `com.vendor` rather than named bare, which is what makes the fixture compile (#389) and also the realistic shape — a DAO taking a DTO from a dependency, rather than a typo. It stays external either way: the point is that nothing in this repository declares it, not how the name was written.",
+    "The seven `java:androidx.room.*` import targets are external, so they stay out of the node ratio per the rule in corpus/README.md; the IMPORTS edges to them still count.",
     "READS/WRITES require the `sql` extra — `@Query` bodies are parsed with sqlglot, never regexed. Without the extra those three edges are absent by design and the case scores lower rather than the extractor guessing."
   ],
   "open_questions": []

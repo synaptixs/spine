@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/pkg/kotlin_room.py`](../../src/orchestrator/pkg/kotlin_room.py)
 
-0 types · 21 functions · python
+0 types · 22 functions · python
 
 ## Changing this safely
 
@@ -13,159 +13,165 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L65) — reaches **12** symbols · **no test path visible**
-- [`_find`](../../src/orchestrator/pkg/kotlin_room.py#L483) — reaches **8** symbols · **no test path visible**
-- [`_referenced_entity`](../../src/orchestrator/pkg/kotlin_room.py#L273) — reaches **8** symbols · **no test path visible**
-- [`_declared_type`](../../src/orchestrator/pkg/kotlin_room.py#L168) — reaches **7** symbols · **no test path visible**
-- [`_read_invocation_args`](../../src/orchestrator/pkg/kotlin_room.py#L297) — reaches **7** symbols · **no test path visible**
-- [`_relation_targets`](../../src/orchestrator/pkg/kotlin_room.py#L249) — reaches **6** symbols · **no test path visible**
-- [`_walk`](../../src/orchestrator/pkg/kotlin_room.py#L487) — reaches **6** symbols · **no test path visible**
-- [`_column_name`](../../src/orchestrator/pkg/kotlin_room.py#L210) — reaches **5** symbols · **no test path visible**
+- [`entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L65) — reaches **11** symbols · **no test path visible**
+- [`_find`](../../src/orchestrator/pkg/kotlin_room.py#L495) — reaches **8** symbols · **no test path visible**
+- [`_referenced_entity`](../../src/orchestrator/pkg/kotlin_room.py#L286) — reaches **8** symbols · **no test path visible**
+- [`_declared_type`](../../src/orchestrator/pkg/kotlin_room.py#L181) — reaches **7** symbols · **no test path visible**
+- [`_read_invocation_args`](../../src/orchestrator/pkg/kotlin_room.py#L310) — reaches **7** symbols · **no test path visible**
+- [`_relation_targets`](../../src/orchestrator/pkg/kotlin_room.py#L262) — reaches **6** symbols · **no test path visible**
+- [`_walk`](../../src/orchestrator/pkg/kotlin_room.py#L499) — reaches **6** symbols · **no test path visible**
+- [`_column_name`](../../src/orchestrator/pkg/kotlin_room.py#L223) — reaches **5** symbols · **no test path visible**
 
-_21 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_22 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Functions
 
 ### `_column_name`
 
-[`src/orchestrator/pkg/kotlin_room.py:210`](../../src/orchestrator/pkg/kotlin_room.py#L210)
+[`src/orchestrator/pkg/kotlin_room.py:223`](../../src/orchestrator/pkg/kotlin_room.py#L223)
 
-- **Called by** (1): [`_emit_entity_fields`](../../src/orchestrator/pkg/kotlin_room.py#L178)
-- **Calls** (3): [`_find`](../../src/orchestrator/pkg/kotlin_room.py#L483), [`annotations_of`](../../src/orchestrator/pkg/kotlin_names.py#L105), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245)
+- **Called by** (1): [`_emit_entity_fields`](../../src/orchestrator/pkg/kotlin_room.py#L191)
+- **Calls** (3): [`_find`](../../src/orchestrator/pkg/kotlin_room.py#L495), [`annotations_of`](../../src/orchestrator/pkg/kotlin_names.py#L105), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245)
 
 ### `_declared_type`
 
-[`src/orchestrator/pkg/kotlin_room.py:168`](../../src/orchestrator/pkg/kotlin_room.py#L168)
+[`src/orchestrator/pkg/kotlin_room.py:181`](../../src/orchestrator/pkg/kotlin_room.py#L181)
 
-- **Called by** (2): [`_relation_targets`](../../src/orchestrator/pkg/kotlin_room.py#L249), [`read_relation_view`](../../src/orchestrator/pkg/kotlin_room.py#L124)
+- **Called by** (2): [`_relation_targets`](../../src/orchestrator/pkg/kotlin_room.py#L262), [`read_relation_view`](../../src/orchestrator/pkg/kotlin_room.py#L137)
 - **Calls** (1): [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `_emit_entity_fields`
 
-[`src/orchestrator/pkg/kotlin_room.py:178`](../../src/orchestrator/pkg/kotlin_room.py#L178)
+[`src/orchestrator/pkg/kotlin_room.py:191`](../../src/orchestrator/pkg/kotlin_room.py#L191)
 
-- **Called by** (1): [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L75)
-- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_column_name`](../../src/orchestrator/pkg/kotlin_room.py#L210), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
+- **Called by** (1): [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L88)
+- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_column_name`](../../src/orchestrator/pkg/kotlin_room.py#L223), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `_emit_foreign_keys`
 
-[`src/orchestrator/pkg/kotlin_room.py:217`](../../src/orchestrator/pkg/kotlin_room.py#L217)
+[`src/orchestrator/pkg/kotlin_room.py:230`](../../src/orchestrator/pkg/kotlin_room.py#L230)
 
-- **Called by** (1): [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L75)
-- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_referenced_entity`](../../src/orchestrator/pkg/kotlin_room.py#L273), [`collection_items`](../../src/orchestrator/pkg/kotlin_names.py#L331)
+- **Called by** (1): [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L88)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_referenced_entity`](../../src/orchestrator/pkg/kotlin_room.py#L286), [`collection_items`](../../src/orchestrator/pkg/kotlin_names.py#L331)
 
 ### `_emit_relations`
 
-[`src/orchestrator/pkg/kotlin_room.py:232`](../../src/orchestrator/pkg/kotlin_room.py#L232)
+[`src/orchestrator/pkg/kotlin_room.py:245`](../../src/orchestrator/pkg/kotlin_room.py#L245)
 
-- **Called by** (2): [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L75), [`read_relation_view`](../../src/orchestrator/pkg/kotlin_room.py#L124)
-- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_relation_targets`](../../src/orchestrator/pkg/kotlin_room.py#L249), [`_walk`](../../src/orchestrator/pkg/kotlin_room.py#L487), [`annotations_of`](../../src/orchestrator/pkg/kotlin_names.py#L105)
+- **Called by** (2): [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L88), [`read_relation_view`](../../src/orchestrator/pkg/kotlin_room.py#L137)
+- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_relation_targets`](../../src/orchestrator/pkg/kotlin_room.py#L262), [`_walk`](../../src/orchestrator/pkg/kotlin_room.py#L499), [`annotations_of`](../../src/orchestrator/pkg/kotlin_names.py#L105)
 
 ### `_emit_sql_edges`
 
-[`src/orchestrator/pkg/kotlin_room.py:372`](../../src/orchestrator/pkg/kotlin_room.py#L372)
+[`src/orchestrator/pkg/kotlin_room.py:385`](../../src/orchestrator/pkg/kotlin_room.py#L385)
 
-- **Called by** (1): [`_read_dao_method`](../../src/orchestrator/pkg/kotlin_room.py#L330)
-- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_parse_sql`](../../src/orchestrator/pkg/kotlin_room.py#L390), [`table_entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L70)
+- **Called by** (1): [`_read_dao_method`](../../src/orchestrator/pkg/kotlin_room.py#L343)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_parse_sql`](../../src/orchestrator/pkg/kotlin_room.py#L403), [`table_entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L70)
 
 ### `_find`
 
-[`src/orchestrator/pkg/kotlin_room.py:483`](../../src/orchestrator/pkg/kotlin_room.py#L483)
+[`src/orchestrator/pkg/kotlin_room.py:495`](../../src/orchestrator/pkg/kotlin_room.py#L495)
 
-- **Called by** (4): [`_column_name`](../../src/orchestrator/pkg/kotlin_room.py#L210), [`read_dao`](../../src/orchestrator/pkg/kotlin_room.py#L308), [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L75), [`read_relation_view`](../../src/orchestrator/pkg/kotlin_room.py#L124)
+- **Called by** (4): [`_column_name`](../../src/orchestrator/pkg/kotlin_room.py#L223), [`read_dao`](../../src/orchestrator/pkg/kotlin_room.py#L321), [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L88), [`read_relation_view`](../../src/orchestrator/pkg/kotlin_room.py#L137)
 
 ### `_parameter_entity`
 
-[`src/orchestrator/pkg/kotlin_room.py:349`](../../src/orchestrator/pkg/kotlin_room.py#L349)
+[`src/orchestrator/pkg/kotlin_room.py:362`](../../src/orchestrator/pkg/kotlin_room.py#L362)
 
-- **Called by** (1): [`_read_dao_method`](../../src/orchestrator/pkg/kotlin_room.py#L330)
-- **Calls** (3): [`element_type`](../../src/orchestrator/pkg/kotlin_names.py#L43), [`entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L65), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
+- **Called by** (1): [`_read_dao_method`](../../src/orchestrator/pkg/kotlin_room.py#L343)
+- **Calls** (3): [`element_type`](../../src/orchestrator/pkg/kotlin_names.py#L43), [`parameter_entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L75), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `_parse_sql`
 
-[`src/orchestrator/pkg/kotlin_room.py:390`](../../src/orchestrator/pkg/kotlin_room.py#L390)
+[`src/orchestrator/pkg/kotlin_room.py:403`](../../src/orchestrator/pkg/kotlin_room.py#L403)
 
-- **Called by** (1): [`_emit_sql_edges`](../../src/orchestrator/pkg/kotlin_room.py#L372)
-- **Calls** (2): [`_write_target`](../../src/orchestrator/pkg/kotlin_room.py#L419), `parse`
+- **Called by** (1): [`_emit_sql_edges`](../../src/orchestrator/pkg/kotlin_room.py#L385)
+- **Calls** (2): [`_write_target`](../../src/orchestrator/pkg/kotlin_room.py#L432), `parse`
 
 ### `_read_dao_method`
 
-[`src/orchestrator/pkg/kotlin_room.py:330`](../../src/orchestrator/pkg/kotlin_room.py#L330)
+[`src/orchestrator/pkg/kotlin_room.py:343`](../../src/orchestrator/pkg/kotlin_room.py#L343)
 
-- **Called by** (1): [`read_dao`](../../src/orchestrator/pkg/kotlin_room.py#L308)
-- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_emit_sql_edges`](../../src/orchestrator/pkg/kotlin_room.py#L372), [`_parameter_entity`](../../src/orchestrator/pkg/kotlin_room.py#L349), [`annotations_of`](../../src/orchestrator/pkg/kotlin_names.py#L105), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245)
+- **Called by** (1): [`read_dao`](../../src/orchestrator/pkg/kotlin_room.py#L321)
+- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_emit_sql_edges`](../../src/orchestrator/pkg/kotlin_room.py#L385), [`_parameter_entity`](../../src/orchestrator/pkg/kotlin_room.py#L362), [`annotations_of`](../../src/orchestrator/pkg/kotlin_names.py#L105), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245)
 
 ### `_read_invocation_args`
 
-[`src/orchestrator/pkg/kotlin_room.py:297`](../../src/orchestrator/pkg/kotlin_room.py#L297)
+[`src/orchestrator/pkg/kotlin_room.py:310`](../../src/orchestrator/pkg/kotlin_room.py#L310)
 
-- **Called by** (1): [`_referenced_entity`](../../src/orchestrator/pkg/kotlin_room.py#L273)
+- **Called by** (1): [`_referenced_entity`](../../src/orchestrator/pkg/kotlin_room.py#L286)
 
 ### `_referenced_entity`
 
-[`src/orchestrator/pkg/kotlin_room.py:273`](../../src/orchestrator/pkg/kotlin_room.py#L273)
+[`src/orchestrator/pkg/kotlin_room.py:286`](../../src/orchestrator/pkg/kotlin_room.py#L286)
 
-- **Called by** (2): [`_emit_foreign_keys`](../../src/orchestrator/pkg/kotlin_room.py#L217), [`_relation_targets`](../../src/orchestrator/pkg/kotlin_room.py#L249)
-- **Calls** (3): [`_read_invocation_args`](../../src/orchestrator/pkg/kotlin_room.py#L297), [`class_reference`](../../src/orchestrator/pkg/kotlin_names.py#L338), [`entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L65)
+- **Called by** (2): [`_emit_foreign_keys`](../../src/orchestrator/pkg/kotlin_room.py#L230), [`_relation_targets`](../../src/orchestrator/pkg/kotlin_room.py#L262)
+- **Calls** (3): [`_read_invocation_args`](../../src/orchestrator/pkg/kotlin_room.py#L310), [`class_reference`](../../src/orchestrator/pkg/kotlin_names.py#L338), [`entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L65)
 
 ### `_relation_targets`
 
-[`src/orchestrator/pkg/kotlin_room.py:249`](../../src/orchestrator/pkg/kotlin_room.py#L249)
+[`src/orchestrator/pkg/kotlin_room.py:262`](../../src/orchestrator/pkg/kotlin_room.py#L262)
 
-- **Called by** (1): [`_emit_relations`](../../src/orchestrator/pkg/kotlin_room.py#L232)
-- **Calls** (4): [`_declared_type`](../../src/orchestrator/pkg/kotlin_room.py#L168), [`_referenced_entity`](../../src/orchestrator/pkg/kotlin_room.py#L273), [`element_type`](../../src/orchestrator/pkg/kotlin_names.py#L43), [`entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L65)
+- **Called by** (1): [`_emit_relations`](../../src/orchestrator/pkg/kotlin_room.py#L245)
+- **Calls** (4): [`_declared_type`](../../src/orchestrator/pkg/kotlin_room.py#L181), [`_referenced_entity`](../../src/orchestrator/pkg/kotlin_room.py#L286), [`element_type`](../../src/orchestrator/pkg/kotlin_names.py#L43), [`entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L65)
 
 ### `_walk`
 
-[`src/orchestrator/pkg/kotlin_room.py:487`](../../src/orchestrator/pkg/kotlin_room.py#L487)
+[`src/orchestrator/pkg/kotlin_room.py:499`](../../src/orchestrator/pkg/kotlin_room.py#L499)
 
-- **Called by** (2): [`_emit_relations`](../../src/orchestrator/pkg/kotlin_room.py#L232), [`read_relation_view`](../../src/orchestrator/pkg/kotlin_room.py#L124)
+- **Called by** (2): [`_emit_relations`](../../src/orchestrator/pkg/kotlin_room.py#L245), [`read_relation_view`](../../src/orchestrator/pkg/kotlin_room.py#L137)
 
 ### `_write_target`
 
-[`src/orchestrator/pkg/kotlin_room.py:419`](../../src/orchestrator/pkg/kotlin_room.py#L419)
+[`src/orchestrator/pkg/kotlin_room.py:432`](../../src/orchestrator/pkg/kotlin_room.py#L432)
 
-- **Called by** (1): [`_parse_sql`](../../src/orchestrator/pkg/kotlin_room.py#L390)
+- **Called by** (1): [`_parse_sql`](../../src/orchestrator/pkg/kotlin_room.py#L403)
 
 ### `entity_id`
 
 [`src/orchestrator/pkg/kotlin_room.py:65`](../../src/orchestrator/pkg/kotlin_room.py#L65)
 
-- **Called by** (5): [`_parameter_entity`](../../src/orchestrator/pkg/kotlin_room.py#L349), [`_referenced_entity`](../../src/orchestrator/pkg/kotlin_room.py#L273), [`_relation_targets`](../../src/orchestrator/pkg/kotlin_room.py#L249), [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L75), [`read_relation_view`](../../src/orchestrator/pkg/kotlin_room.py#L124)
+- **Called by** (5): [`_referenced_entity`](../../src/orchestrator/pkg/kotlin_room.py#L286), [`_relation_targets`](../../src/orchestrator/pkg/kotlin_room.py#L262), [`read_entity`](../../src/orchestrator/pkg/kotlin_room.py#L88), [`read_relation_view`](../../src/orchestrator/pkg/kotlin_room.py#L137), [`repoint_table_edges`](../../src/orchestrator/pkg/kotlin_room.py#L441)
 
-### `read_dao`
-
-[`src/orchestrator/pkg/kotlin_room.py:308`](../../src/orchestrator/pkg/kotlin_room.py#L308)
-
-- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L373)
-- **Calls** (4): [`_find`](../../src/orchestrator/pkg/kotlin_room.py#L483), [`_read_dao_method`](../../src/orchestrator/pkg/kotlin_room.py#L330), [`annotations_of`](../../src/orchestrator/pkg/kotlin_names.py#L105), [`field_text`](../../src/orchestrator/pkg/kotlin_names.py#L33)
-
-### `read_entity`
+### `parameter_entity_id`
 
 [`src/orchestrator/pkg/kotlin_room.py:75`](../../src/orchestrator/pkg/kotlin_room.py#L75)
 
-- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L373)
-- **Calls** (11): [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_emit_entity_fields`](../../src/orchestrator/pkg/kotlin_room.py#L178), [`_emit_foreign_keys`](../../src/orchestrator/pkg/kotlin_room.py#L217), [`_emit_relations`](../../src/orchestrator/pkg/kotlin_room.py#L232), [`_find`](../../src/orchestrator/pkg/kotlin_room.py#L483), [`annotations_of`](../../src/orchestrator/pkg/kotlin_names.py#L105), [`entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L65), [`field_text`](../../src/orchestrator/pkg/kotlin_names.py#L33), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
+- **Called by** (1): [`_parameter_entity`](../../src/orchestrator/pkg/kotlin_room.py#L362)
+
+### `read_dao`
+
+[`src/orchestrator/pkg/kotlin_room.py:321`](../../src/orchestrator/pkg/kotlin_room.py#L321)
+
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L435)
+- **Calls** (4): [`_find`](../../src/orchestrator/pkg/kotlin_room.py#L495), [`_read_dao_method`](../../src/orchestrator/pkg/kotlin_room.py#L343), [`annotations_of`](../../src/orchestrator/pkg/kotlin_names.py#L105), [`field_text`](../../src/orchestrator/pkg/kotlin_names.py#L33)
+
+### `read_entity`
+
+[`src/orchestrator/pkg/kotlin_room.py:88`](../../src/orchestrator/pkg/kotlin_room.py#L88)
+
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L435)
+- **Calls** (11): [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_emit_entity_fields`](../../src/orchestrator/pkg/kotlin_room.py#L191), [`_emit_foreign_keys`](../../src/orchestrator/pkg/kotlin_room.py#L230), [`_emit_relations`](../../src/orchestrator/pkg/kotlin_room.py#L245), [`_find`](../../src/orchestrator/pkg/kotlin_room.py#L495), [`annotations_of`](../../src/orchestrator/pkg/kotlin_names.py#L105), [`entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L65), [`field_text`](../../src/orchestrator/pkg/kotlin_names.py#L33), [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `read_relation_view`
 
-[`src/orchestrator/pkg/kotlin_room.py:124`](../../src/orchestrator/pkg/kotlin_room.py#L124)
+[`src/orchestrator/pkg/kotlin_room.py:137`](../../src/orchestrator/pkg/kotlin_room.py#L137)
 
-- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L373)
-- **Calls** (7): [`_declared_type`](../../src/orchestrator/pkg/kotlin_room.py#L168), [`_emit_relations`](../../src/orchestrator/pkg/kotlin_room.py#L232), [`_find`](../../src/orchestrator/pkg/kotlin_room.py#L483), [`_walk`](../../src/orchestrator/pkg/kotlin_room.py#L487), [`annotations_of`](../../src/orchestrator/pkg/kotlin_names.py#L105), [`element_type`](../../src/orchestrator/pkg/kotlin_names.py#L43), [`entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L65)
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L435)
+- **Calls** (7): [`_declared_type`](../../src/orchestrator/pkg/kotlin_room.py#L181), [`_emit_relations`](../../src/orchestrator/pkg/kotlin_room.py#L245), [`_find`](../../src/orchestrator/pkg/kotlin_room.py#L495), [`_walk`](../../src/orchestrator/pkg/kotlin_room.py#L499), [`annotations_of`](../../src/orchestrator/pkg/kotlin_names.py#L105), [`element_type`](../../src/orchestrator/pkg/kotlin_names.py#L43), [`entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L65)
 
 ### `repoint_table_edges`
 
-[`src/orchestrator/pkg/kotlin_room.py:428`](../../src/orchestrator/pkg/kotlin_room.py#L428)
+[`src/orchestrator/pkg/kotlin_room.py:441`](../../src/orchestrator/pkg/kotlin_room.py#L441)
 
-- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L900)
-- **Calls** (3): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L157), [`Node`](../../src/orchestrator/pkg/facts.py#L128)
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L981)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L157), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L65)
 
 ### `table_entity_id`
 
 [`src/orchestrator/pkg/kotlin_room.py:70`](../../src/orchestrator/pkg/kotlin_room.py#L70)
 
-- **Called by** (1): [`_emit_sql_edges`](../../src/orchestrator/pkg/kotlin_room.py#L372)
+- **Called by** (1): [`_emit_sql_edges`](../../src/orchestrator/pkg/kotlin_room.py#L385)
 
 ## Imports
 

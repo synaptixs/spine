@@ -1,0 +1,48 @@
+{
+  "language": "kotlin",
+  "case": "extension_receiver_package_collision",
+  "why": "#390's residue, and the reason the receiver check compares **ids** rather than bare names. Two packages declare a `Topic`; `shop.util` declares `fun Topic.slugify()` against the *legacy* one, and `shop.ui` calls `slugify()` on the *data* one. Read as bare names both receivers are `Topic`, the import verifies, and the call resolves onto an extension that cannot apply to it — a name-only match, which is #390's own definition of the defect. Read as ids they are `java:shop.legacy.Topic` and `java:shop.data.Topic`, no `IMPLEMENTS` path joins them, and both are types this repository declares — the one case the repository can genuinely disprove rather than merely fail to confirm.\n\n**The fixture compiles, which is what makes the label ground truth** (#389, and `corpus/kotlin/scope_functions` states the rule). A call on a `shop.data.Topic` that resolved to nothing would be an unresolved reference and no Kotlin compiler would accept it, so `shop.data.Topic` declares a real `slugify` member — a member outranks an extension, so the *true* edge is the member call, and the extension next to it is the fabrication to refuse. The case therefore scores a positive `CALLS` as well as enforcing the refusal, rather than only asserting an absence.",
+  "root": ".repo",
+  "nodes": [
+    { "id": "java:shop.data", "kind": "Module" },
+    { "id": "java:shop.data.Topic", "kind": "Type" },
+    { "id": "java:shop.data.Topic.slugify", "kind": "Function" },
+    { "id": "java:shop.legacy", "kind": "Module" },
+    { "id": "java:shop.legacy.Topic", "kind": "Type" },
+    { "id": "java:shop.util", "kind": "Module" },
+    { "id": "java:shop.util.slugify", "kind": "Function" },
+    { "id": "java:shop.ui", "kind": "Module" },
+    { "id": "java:shop.ui.Screen", "kind": "Type" },
+    { "id": "java:shop.ui.Screen.show", "kind": "Function" },
+    { "id": "java:shop.ui.Screen.t", "kind": "Field" }
+  ],
+  "edges": [
+    { "src": "java:shop.data", "dst": "java:shop.data.Topic", "kind": "CONTAINS" },
+    { "src": "java:shop.data.Topic", "dst": "java:shop.data.Topic.slugify", "kind": "CONTAINS" },
+    { "src": "java:shop.legacy", "dst": "java:shop.legacy.Topic", "kind": "CONTAINS" },
+    { "src": "java:shop.util", "dst": "java:shop.util.slugify", "kind": "CONTAINS" },
+    { "src": "java:shop.util", "dst": "java:shop.legacy.Topic", "kind": "IMPORTS" },
+    { "src": "java:shop.ui", "dst": "java:shop.ui.Screen", "kind": "CONTAINS" },
+    { "src": "java:shop.ui.Screen", "dst": "java:shop.ui.Screen.show", "kind": "CONTAINS" },
+    { "src": "java:shop.ui.Screen", "dst": "java:shop.ui.Screen.t", "kind": "CONTAINS" },
+    { "src": "java:shop.ui", "dst": "java:shop.data.Topic", "kind": "IMPORTS" },
+    { "src": "java:shop.ui", "dst": "java:shop.util.slugify", "kind": "IMPORTS" },
+    { "src": "java:shop.ui.Screen.show", "dst": "java:shop.data.Topic.slugify", "kind": "CALLS" }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "java:shop.ui.Screen.show",
+        "dst": "java:shop.util.slugify",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (#390). `shop.util.slugify` is a genuine extension function, imported here under exactly the called name — everything a name-based check looks at agrees. It extends `shop.legacy.Topic`, and `t` is a `shop.data.Topic`; Kotlin resolves this call to the member, and the extension is not a candidate at all."
+    }
+  ],
+  "excluded": [
+    "`shop.legacy.Topic` declares no members and is never called — it exists to make the collision real, and its `CONTAINS` edge is the only fact it contributes.",
+    "The unused `import shop.util.slugify` in `Screen.kt` is deliberate and legal Kotlin: without it the collision is not reachable from this file at all, and the import is exactly the evidence a name-based check was trusting."
+  ],
+  "open_questions": []
+}
