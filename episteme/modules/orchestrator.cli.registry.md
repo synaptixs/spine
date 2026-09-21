@@ -31,7 +31,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/registry.py:70`](../../src/orchestrator/cli/registry.py#L70)
 
 - **Called by** (2): [`contract_deprecate`](../../src/orchestrator/cli/registry.py#L136), [`template_deprecate`](../../src/orchestrator/cli/registry.py#L103)
-- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L68), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
+- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L113), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
 - **Documented in**: `docs/specs/build-documents/SSPN-49-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/SSPN-49-build.md#8-acceptance-criteria`, `docs/specs/build-documents/SSPN-49-plan.md#5-blast-radius-from-the-graph`
 
 ### `_list`
@@ -39,7 +39,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/registry.py:49`](../../src/orchestrator/cli/registry.py#L49)
 
 - **Called by** (2): [`contract_list`](../../src/orchestrator/cli/registry.py#L115), [`template_list`](../../src/orchestrator/cli/registry.py#L82)
-- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L68), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
+- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L113), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
 
 ### `_mcp_build_registry`
 
@@ -67,14 +67,14 @@ _8 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/registry.py:65`](../../src/orchestrator/cli/registry.py#L65)
 
 - **Called by** (2): [`contract_publish`](../../src/orchestrator/cli/registry.py#L130), [`template_publish`](../../src/orchestrator/cli/registry.py#L97)
-- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L68), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
+- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L113), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
 
 ### `_register`
 
 [`src/orchestrator/cli/registry.py:43`](../../src/orchestrator/cli/registry.py#L43)
 
 - **Called by** (2): [`contract_register`](../../src/orchestrator/cli/registry.py#L109), [`template_register`](../../src/orchestrator/cli/registry.py#L76)
-- **Calls** (4): [`_check`](../../src/orchestrator/cli/_common.py#L68), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_load_payload`](../../src/orchestrator/cli/_common.py#L23), [`_print`](../../src/orchestrator/cli/_common.py#L34)
+- **Calls** (4): [`_check`](../../src/orchestrator/cli/_common.py#L113), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_load_payload`](../../src/orchestrator/cli/_common.py#L23), [`_print`](../../src/orchestrator/cli/_common.py#L34)
 - **Documented in**: `docs/specs/build-documents/SSPN-49-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/SSPN-49-build.md#8-acceptance-criteria`, `docs/specs/build-documents/SSPN-49-plan.md#5-blast-radius-from-the-graph`
 
 ### `_show`
@@ -82,7 +82,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/registry.py:59`](../../src/orchestrator/cli/registry.py#L59)
 
 - **Called by** (2): [`contract_show`](../../src/orchestrator/cli/registry.py#L124), [`template_show`](../../src/orchestrator/cli/registry.py#L91)
-- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L68), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
+- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L113), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
 - **Documented in**: `docs/specs/build-documents/SSPN-49-build.md#4-pkg-what-the-graph-knows`, `docs/specs/build-documents/SSPN-49-build.md#8-acceptance-criteria`, `docs/specs/build-documents/SSPN-49-plan.md#5-blast-radius-from-the-graph`
 
 ### `catalog_list`
@@ -155,7 +155,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/registry.py:142`](../../src/orchestrator/cli/registry.py#L142)
 
-- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L68), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
+- **Calls** (3): [`_check`](../../src/orchestrator/cli/_common.py#L113), [`_client`](../../src/orchestrator/cli/_common.py#L16), [`_print`](../../src/orchestrator/cli/_common.py#L34)
 - **Documented in**: `docs/specs/build-documents/SSPN-49-build.md#8-acceptance-criteria`, `docs/specs/build-documents/SSPN-49-plan.md#5-blast-radius-from-the-graph`
 
 ### `template_deprecate`

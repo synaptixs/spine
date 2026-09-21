@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`resolve_repo_source`](../../src/orchestrator/registry/api/workspace.py#L166) — reaches **43** symbols
-- [`RepoSourceError`](../../src/orchestrator/registry/api/workspace.py#L42) — reaches **40** symbols
-- [`materialize_repo_source`](../../src/orchestrator/registry/api/workspace.py#L216) — reaches **40** symbols
-- [`_is_git_url`](../../src/orchestrator/registry/api/workspace.py#L93) — reaches **39** symbols
-- [`_resolve_local`](../../src/orchestrator/registry/api/workspace.py#L155) — reaches **39** symbols
-- [`_validate_git_url`](../../src/orchestrator/registry/api/workspace.py#L132) — reaches **39** symbols
-- [`_git_clone`](../../src/orchestrator/registry/api/workspace.py#L188) — reaches **36** symbols
-- [`RepoPathError`](../../src/orchestrator/registry/api/workspace.py#L38) — reaches **34** symbols
+- [`resolve_repo_source`](../../src/orchestrator/registry/api/workspace.py#L166) — reaches **46** symbols
+- [`materialize_repo_source`](../../src/orchestrator/registry/api/workspace.py#L216) — reaches **43** symbols
+- [`RepoSourceError`](../../src/orchestrator/registry/api/workspace.py#L42) — reaches **41** symbols
+- [`_is_git_url`](../../src/orchestrator/registry/api/workspace.py#L93) — reaches **41** symbols
+- [`_resolve_local`](../../src/orchestrator/registry/api/workspace.py#L155) — reaches **41** symbols
+- [`_validate_git_url`](../../src/orchestrator/registry/api/workspace.py#L132) — reaches **41** symbols
+- [`_git_clone`](../../src/orchestrator/registry/api/workspace.py#L188) — reaches **38** symbols
+- [`RepoPathError`](../../src/orchestrator/registry/api/workspace.py#L38) — reaches **35** symbols
 
 ## Types
 

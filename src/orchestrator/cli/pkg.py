@@ -7,7 +7,7 @@ from typing import Annotated, Any
 
 import typer
 
-from ._common import _print, _repo_arg
+from ._common import _merged_store, _print, _repo_arg
 
 # ---------------------------------------------------------------------------
 # pkg — Product Knowledge Graph (Layer 1: grounded code extraction)
@@ -113,17 +113,12 @@ def pkg_extract(
 
 def _extract_repos(config: str, dialect: str | None) -> tuple[Any, Any]:
     """`--repos`: every declared repository, merged into one scoped graph."""
-    from orchestrator.pkg import FactStore, RepoCodeExtractor
-    from orchestrator.pkg.persistence import load_or_extract_repos
-    from orchestrator.pkg.repos import RepoConfigError, load_repo_config
+    from orchestrator.pkg import RepoCodeExtractor
 
-    try:
-        repo_set = load_repo_config(config)
-    except RepoConfigError as exc:
-        typer.echo(f"pkg extract: {exc}")
-        raise typer.Exit(code=1) from exc
-    merged = load_or_extract_repos(repo_set, extractor=RepoCodeExtractor(sql_dialect=dialect))
-    return FactStore(merged.batch), merged
+    store, merged, _repo_set = _merged_store(
+        config, command="pkg extract", extractor=RepoCodeExtractor(sql_dialect=dialect)
+    )
+    return store, merged
 
 
 @pkg_app.command("joins")
@@ -150,19 +145,12 @@ def pkg_joins(
     edges look exactly like two services that are not coupled, which reads as health. So the
     calls nothing placed are reported as a number rather than an absence.
     """
-    from orchestrator.pkg.persistence import load_or_extract_repos
-    from orchestrator.pkg.repos import RepoConfigError, load_repo_config
-
     if propose == check:
         typer.echo("pkg joins: choose exactly one of --propose or --check")
         raise typer.Exit(code=2)
-    try:
-        repo_set = load_repo_config(config)
-    except RepoConfigError as exc:
-        typer.echo(f"pkg joins: {exc}")
-        raise typer.Exit(code=1) from exc
-
-    merged = load_or_extract_repos(repo_set)
+    # No extractor, deliberately: this command reads joins rather than dialect-sensitive SQL,
+    # and `_merged_store` forwards `None` through rather than substituting a default.
+    _store, merged, repo_set = _merged_store(config, command="pkg joins")
     if propose:
         _joins_propose(repo_set, merged, as_json)
     else:

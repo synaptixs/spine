@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 
 from ._app import PANEL_BUILD, app
-from ._common import _print
+from ._common import _merged_store, _print, _repo_arg
+
+if TYPE_CHECKING:  # pragma: no cover - typing only; nothing here is imported at runtime
+    from pathlib import Path
+
+    from orchestrator.intake.pkg_evidence import Grounding
+    from orchestrator.intake.specs import FeatureSpec
+    from orchestrator.pkg import FactStore
+    from orchestrator.sdlc.landings import Landing
 
 openspec_app = typer.Typer(help="Spec-driven development with OpenSpec (openspec.dev).", no_args_is_help=True)
 
@@ -132,6 +140,17 @@ def openspec_draft(
         bool,
         typer.Option("--overwrite", help="Overwrite existing change files (default: never clobber)."),
     ] = False,
+    path: Annotated[
+        str | None,
+        typer.Argument(help="Repo path to ground the draft against (default: ungrounded)."),
+    ] = None,
+    repos: Annotated[
+        str | None,
+        typer.Option("--repos", help="A `.spine/repos.yaml` — ground against every declared repo."),
+    ] = None,
+    dialect: Annotated[
+        str | None, typer.Option("--dialect", help="SQL dialect; default: auto-detect.")
+    ] = None,
 ) -> None:
     """Bootstrap OpenSpec change proposals FROM an unstructured source (the write-back).
 
@@ -142,13 +161,157 @@ def openspec_draft(
         orchestrator openspec draft --source confluence://<id> --out ./openspec
         # …review/edit openspec/changes/<id>/…
         orchestrator sdlc feature --source openspec://<id> --safe
+
+    Pass a repo path (or `--repos`) to ground the draft against the code — the proposal then
+    carries what the graph says, fenced off from the model's prose and labelled. Without one
+    the draft is **ungrounded, and says so on its own face** rather than leaving a reader to
+    wonder which mode produced it: the requirements and scenarios are unchanged, and the page
+    states that nothing checked them.
     """
     import asyncio
 
-    asyncio.run(_run_openspec_draft(source, out=out, refresh=refresh, overwrite=overwrite))
+    asyncio.run(
+        _run_openspec_draft(
+            source, out=out, refresh=refresh, overwrite=overwrite, path=path, repos=repos, dialect=dialect
+        )
+    )
 
 
-async def _run_openspec_draft(source: str, *, out: str, refresh: bool, overwrite: bool) -> None:
+def _grounding_for(
+    path: str | None, repos: str | None, dialect: str | None
+) -> tuple[Grounding, FactStore | None, Path | None, dict[str, Path] | None]:
+    """Read the repository once, and classify what came back.
+
+    Returns ``(grounding, store, root, repo_roots)`` — the store and roots are what the
+    per-spec pass needs, and reading them once is the whole point: extraction is the expensive
+    half and cannot differ between the N changes one source drafts (D9).
+
+    **This is the composition root, on purpose.** The evidence needs landing sites, which are
+    computed in `sdlc`; `intake` may not import `sdlc` at module level, and moving the landing
+    machinery down into `pkg` would drag `CoverageIndex`, `excerpt` and `brief` with it. The
+    CLI is the one layer allowed to read both, so it reads both and hands the result down —
+    which is also why `render_change` takes grounding as an argument rather than fetching it.
+    """
+    from orchestrator.intake import pkg_evidence
+    from orchestrator.pkg import RepoCodeExtractor
+
+    if not path and not repos:
+        return pkg_evidence.ungrounded(), None, None, None
+    if repos:
+        store, merged, repo_set = _merged_store(
+            repos, command="openspec draft", extractor=RepoCodeExtractor(sql_dialect=dialect)
+        )
+        untrusted = tuple(merged.untrusted_keys) if not merged.trusted else ()
+        base = pkg_evidence.from_store(store, where=repos, untrusted=untrusted)
+        return base, store, None, dict(repo_set.roots)
+    from orchestrator.pkg import FactStore, load_or_extract
+    from orchestrator.pkg.persistence import repo_state
+
+    with _repo_arg(str(path)) as (repo, is_remote):
+        batch = load_or_extract(repo, extractor=RepoCodeExtractor(sql_dialect=dialect))
+        # The single-repo path gets no standing for free the way a merged graph does, so ask
+        # for it. Without this, D18's warning would fire only under `--repos` — and a dirty
+        # single checkout is the far commoner way to draft against unreproducible evidence.
+        _sha, dirty = repo_state(repo)
+        store = FactStore(batch)
+        base = pkg_evidence.from_store(store, where=str(path), untrusted=(str(path),) if dirty else ())
+        # `repo` is context-managed: a git URL is cloned here and **removed when this block
+        # exits**, so returning it would hand the per-spec pass a path that no longer exists.
+        # Nothing raises when that happens — `rglob` on a missing directory yields nothing and
+        # `is_file()` is False — so a criterion naming a real file would be reported as one the
+        # graph cannot find. A false statement of absence inside the fact block is the exact
+        # failure this track exists to prevent, so the degradation is **chosen and narrowed**:
+        # a remote draft binds against the graph only, never the tree.
+        return base, store, (None if is_remote else repo), None
+
+
+def _facts_for_spec(
+    base: Grounding,
+    store: FactStore,
+    root: Path | None,
+    repo_roots: dict[str, Path] | None,
+    spec: FeatureSpec,
+) -> Grounding:
+    """Retrieval and binding for **one** change (D21).
+
+    Per spec, not per source: a shared block would cite identical sites in every change dir,
+    which is actively misleading the moment the specs diverge — the "looks verified" failure
+    one level out from the one this whole track is about.
+    """
+    from orchestrator.intake import pkg_evidence
+    from orchestrator.pkg.criteria_binding import bind_criteria
+    from orchestrator.sdlc.investigate import build_investigation
+    from orchestrator.sdlc.landings import render_landings
+
+    problem = (spec.description or spec.summary or "").strip()
+    inv = build_investigation(spec.title, problem, store=store, root=root, repo_roots=repo_roots)
+    groups: list[pkg_evidence.LandingGroup] = []
+    if repo_roots:
+        # Grouped by repository key, following the shape `investigate` settled on for a merged
+        # brief: a **declared** repository with nothing to show is named, never silently
+        # dropped. Seeded from `repo_roots` — the declared set — and not from `inv.repos`,
+        # which `investigate` builds *inside* its hit loop and is therefore exactly the set of
+        # repos that did land. Seeding from that made `absent` unreachable: every key already
+        # had a hit, so the honesty branch this comment describes was dead code, and a repo the
+        # change does not touch simply vanished from the page.
+        by_repo: dict[str, list[Landing]] = {key: [] for key in repo_roots}
+        for hit in inv.landing:
+            by_repo.setdefault(hit.repo, []).append(hit)
+        for key in sorted(by_repo):
+            hits = by_repo[key]
+            groups.append(
+                pkg_evidence.LandingGroup(repo=key, bullets=tuple(render_landings(hits)), absent=not hits)
+            )
+    elif inv.landing:
+        groups.append(pkg_evidence.LandingGroup(repo="", bullets=tuple(render_landings(inv.landing))))
+    # `bind_criteria` takes **one** root, and a merged graph has several. Symbol anchors and
+    # file anchors drawn from node provenance need no root at all, so most binding is
+    # unaffected — but two last-resort paths do read the tree: the existence check for a file
+    # the extractor never parsed (a config, a markdown page), and snake-token stem resolution.
+    # With exactly one declared repository there is no ambiguity, so pass it. With several,
+    # binding stays graph-only and the page **says so** rather than reporting a criterion as
+    # unfindable when nothing looked for it on disk.
+    bind_root = root
+    tree_checked = True
+    # `in_evidence` is the strongest badge in the criteria section — "this criterion binds
+    # *where the ticket actually is*". It is a plain string test over repo-stripped paths on
+    # both sides: the landing loses its repo in `where.split(":")[0]`, and the anchor's own
+    # `where` is node provenance, which was never scoped. Two services that both have
+    # `app/models.py` is the normal case, so in a merged graph the badge can land on the wrong
+    # checkout. Withheld rather than guessed — a wrong strongest-signal is worse than none.
+    landed = tuple(sorted({hit.where.split(":", 1)[0] for hit in inv.landing if hit.where}))
+    if repo_roots:
+        roots = list(repo_roots.values())
+        bind_root = roots[0] if len(roots) == 1 else None
+        tree_checked = bind_root is not None
+        if len(roots) > 1:
+            landed = ()
+    binding = bind_criteria(
+        spec.model_dump(),
+        store=store,
+        evidence_files=landed,
+        root=bind_root,
+    )
+    return pkg_evidence.with_facts(
+        base,
+        landings=tuple(groups),
+        elided=inv.elided,
+        areas=tuple(inv.areas),
+        binding=binding,
+        tree_checked=tree_checked,
+    )
+
+
+async def _run_openspec_draft(
+    source: str,
+    *,
+    out: str,
+    refresh: bool,
+    overwrite: bool,
+    path: str | None = None,
+    repos: str | None = None,
+    dialect: str | None = None,
+) -> None:
     from pathlib import Path
 
     from orchestrator.core.env import load_local_env
@@ -167,6 +330,13 @@ async def _run_openspec_draft(source: str, *, out: str, refresh: bool, overwrite
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=2) from exc
 
+    # Read the repository **before** the intake, not after. `analyze_cached` is a paid model
+    # run on a cache miss, and the grounding arguments are the ones a user most easily
+    # mistypes — a wrong path or a malformed repos.yaml used to fail only once the spend had
+    # already happened. Extraction is cached and commit-keyed, so doing it first costs nothing
+    # on the path where both succeed.
+    base_grounding, store, repo_root, repo_roots = _grounding_for(path, repos, dialect)
+
     try:
         plan = await analyze_cached(service, source, refresh=refresh, log=lambda m: typer.echo(m, err=True))
     except LLMError as exc:
@@ -179,7 +349,12 @@ async def _run_openspec_draft(source: str, *, out: str, refresh: bool, overwrite
         intent = intents_by_id.get(spec.intent_id)
         if intent is None:
             continue
-        written = write_change(root, intent, render_change(spec, intent), overwrite=overwrite)
+        grounding = (
+            _facts_for_spec(base_grounding, store, repo_root, repo_roots, spec)
+            if store is not None
+            else base_grounding
+        )
+        written = write_change(root, intent, render_change(spec, intent, grounding), overwrite=overwrite)
         drafted.append(
             {
                 "change_id": change_id_for(intent),

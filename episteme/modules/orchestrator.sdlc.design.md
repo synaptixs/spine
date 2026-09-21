@@ -55,7 +55,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/design.py:129`](../../src/orchestrator/sdlc/design.py#L129)
 
 - **Called by** (2): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L195), [`_landing_files`](../../src/orchestrator/sdlc/design.py#L124)
-- **Calls** (2): [`_query_text`](../../src/orchestrator/sdlc/design.py#L104), [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L182)
+- **Calls** (2): [`_query_text`](../../src/orchestrator/sdlc/design.py#L104), [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L124)
 
 ### `_llm_design`
 

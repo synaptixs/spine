@@ -78,7 +78,23 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.40.0 (current)** — the briefs stop pointing at code and start showing it. `investigate` and
+**3.41.0 (current)** — a drafted spec now ships with the code's facts. `openspec draft` could
+not see a repository: its whole signature was `--source/--out/--refresh/--overwrite`, so a draft
+could only restate the ticket more formally, and its task list was the same two checkboxes for
+every change ever drafted. Pass a repo path (or `--repos`) and the proposal carries where the
+change lands with `file:line`, each stated criterion bound against the graph, and the criteria
+that name code which **already exists** — evidence for a human, never a verdict, because a run
+reporting a criterion met having changed nothing is the failure this is built to catch. The task
+list becomes one checkbox per criterion, with the model's own suggestions kept in their own
+labelled group. **It does not improve the prose:** the requirements are still written from the
+source document alone, and the point is that you can now tell which half is which — a line with
+no `file:line` has been checked by nothing. Absence is stated in four distinguishable ways,
+because a reader who cannot tell *"we looked and found nothing"* from *"we never looked"* will
+assume the flattering one: a language Spine has no front-end for yields zero nodes and looks
+exactly like a repository with nothing to find, and a draft taken from an uncommitted tree says
+so **in the file**, where a stderr warning would have scrolled away.
+
+**3.40.0** — the briefs stop pointing at code and start showing it. `investigate` and
 `root-cause` rendered the graph's index — symbol names, `file:line`, caller counts — and
 contained **zero lines of source**, so a reader opened the files the brief had already located.
 Each landing site now carries the code at its line and says whether a test reaches it; a

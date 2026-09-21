@@ -475,9 +475,19 @@ orchestrator ingest --source file://./spec.md --dry-run
 ### `orchestrator openspec draft`
 ```bash
 orchestrator openspec draft --source confluence://<id>
+orchestrator openspec draft ./my-service --source confluence://<id>   # grounded
 ```
-**Prereq:** A source to draft from, and a writable `openspec/` directory.
+**Prereq:** A source to draft from, and a writable `openspec/` directory. The grounded form
+also needs a repository Spine can extract.
 - Writes change proposals under `openspec/changes/`, reviewable before use.
+- Without a repo the draft is ungrounded **and says so** — the check is that the page names
+  its own mode, not that it has a section.
+- With one, `proposal.md` carries `## Grounding`. Worth exercising all four states, because
+  three of them are kinds of silence and a reader must tell them apart: a normal repo; one in
+  a language with no front-end (zero nodes — must read "we looked and found nothing", never
+  "nothing to change"); a dirty tree (must say NOT REPRODUCIBLE **in the file**, not only on
+  stderr); and no repo at all.
+- `tasks.md` should be one checkbox per criterion, and should name no file at all.
 
 ### `orchestrator media extract`
 ```bash

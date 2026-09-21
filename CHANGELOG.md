@@ -4,6 +4,49 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.41.0 — 2026-09-20
+
+### Added
+
+- **`openspec draft` can read the repository.** Its whole signature was
+  `--source/--out/--refresh/--overwrite`, so a drafted change could only restate the ticket
+  more formally — and `tasks.md` took the spec and read nothing from it, emitting the same two
+  checkboxes for every change ever drafted. It now takes a repo path (or `--repos` for
+  several, grouped by repository key), and the proposal carries a `## Grounding` section:
+  where the change lands with `file:line`, and each stated criterion bound against the graph.
+  `tasks.md` becomes one checkbox per criterion, with `proposed_criteria` in their own
+  labelled group and a bound criterion flagged **verify first** — never *done*, because the
+  binder found code the criterion *names*, which is evidence and not a verdict.
+
+  **What it does not change: the prose.** The requirements and scenarios are still written
+  from the source document alone. Grounding puts the code's facts *beside* them, fenced off
+  and cited, so a reader can tell the two apart — a line with no `file:line` has been checked
+  by nothing. Evidence reaching the model is a separate question, deliberately not answered
+  here.
+
+  **Absence is stated, in four distinguishable ways.** Grounded; grounded but the graph came
+  back **empty** (a language with no front-end yields zero nodes and looks exactly like a
+  repository with nothing to find — read as *"we looked and found nothing"*, never *"this
+  ticket touches nothing"*); grounded against an **uncommitted** tree, recorded in the file
+  rather than on stderr, because a drafted change is committed and read months later while a
+  warning scrolls away; and **ungrounded**, which says so on its own face. No task ever cites
+  a file: an instruction is derived, and a citation on one would lend it authority it has not
+  earned.
+
+  **Two of these changes land with or without a repository**, and the distinction is worth
+  stating because an earlier draft of this entry got it wrong: `proposal.md` always gains the
+  banner line and the `## Grounding` section naming its mode, and `tasks.md` is always one
+  checkbox per criterion. A repository adds the *facts*; it is not what turns the task list
+  on. `specs/<cap>/spec.md` — the contract codegen hits — is unchanged in every mode.
+
+### Changed
+
+- **One renderer for the landing block, one loader for a merged graph.** The landing bullet
+  had drifted into two spellings — `investigate`'s brief and `evidence`'s tool output, which
+  the codegen agent reads — and `--repos` into four, differing in error prefix, return shape
+  and whether they warned about an uncommitted tree. Both are now single implementations, with
+  the real differences as parameters. Neither surface's bytes changed, and tests pin them.
+
 ## 3.40.0 — 2026-09-18
 
 ### Added

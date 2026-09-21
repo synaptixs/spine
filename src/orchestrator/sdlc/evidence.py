@@ -40,6 +40,7 @@ from orchestrator.pkg import FactStore
 from orchestrator.sdlc import brief
 from orchestrator.sdlc.churn import DEFAULT_COMMITS as _CHURN_COMMITS
 from orchestrator.sdlc.churn import changed_recently
+from orchestrator.sdlc.landings import Landing, render_landings
 
 __all__ = [
     "Evidence",
@@ -276,10 +277,20 @@ def render_evidence_md(ev: Evidence) -> str:
 
     out.append(brief.LANDS.heading)
     if ev.landing:
-        for hit in ev.landing:
-            loc = f" — `{hit.where}`" if hit.where else ""
-            in_mod = f" _(in {hit.module})_" if hit.module and hit.module != hit.name else ""
-            out.append(f"- `{hit.name}` ({hit.kind}, {hit.callers} caller(s)){in_mod}{loc}")
+        # The same renderer the brief uses. This row is narrower, but that is absence of data,
+        # not a second spelling: `LandingFact` carries no repo, coverage, reach or intents, so
+        # those clauses render empty by construction. `location_in_code` is the one real
+        # difference — this output is read by the codegen agent, and changing its bytes is a
+        # separate change with its own evaluation.
+        out.extend(
+            render_landings(
+                [
+                    Landing(name=h.name, where=h.where, kind=h.kind, callers=h.callers, module=h.module)
+                    for h in ev.landing
+                ],
+                location_in_code=True,
+            )
+        )
         if ev.areas:
             out.append(f"\n_Areas: {', '.join(ev.areas)}_")
         if ev.recently_changed:

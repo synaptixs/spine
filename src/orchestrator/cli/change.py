@@ -9,7 +9,7 @@ from typing import Annotated, Any
 import typer
 
 from ._app import PANEL_CHANGE, app
-from ._common import _repo_arg
+from ._common import _merged_store, _repo_arg
 
 
 @app.command("design", rich_help_panel=PANEL_CHANGE)
@@ -171,23 +171,12 @@ def investigate(
     if repos:
         # A merged graph with its joins applied: landing sites then carry their repository,
         # blast radius crosses a boundary, and a ticket landing in two services says so.
-        from orchestrator.pkg.persistence import load_or_extract_repos
-        from orchestrator.pkg.repos import RepoConfigError, load_repo_config
-
-        try:
-            repo_set = load_repo_config(repos)
-        except RepoConfigError as exc:
-            typer.echo(f"investigate: {exc}")
-            raise typer.Exit(code=1) from exc
-        merged = load_or_extract_repos(repo_set, extractor=RepoCodeExtractor(sql_dialect=dialect))
-        if not merged.trusted:
-            # The brief is still useful, but it cannot be reproduced at a commit — and nothing
-            # in the markdown would tell a reader that later.
-            typer.echo(
-                f"investigate: NOT REPRODUCIBLE — {', '.join(merged.untrusted_keys)} "
-                "has uncommitted work or is not a git repo.",
-                err=True,
-            )
+        store, _merged, repo_set = _merged_store(
+            repos,
+            command="investigate",
+            extractor=RepoCodeExtractor(sql_dialect=dialect),
+            warn_untrusted=True,
+        )
         # `episteme/` belongs to one repository, so a merged brief cannot take the section from
         # an arbitrary one — it used to omit it entirely, which made the multi-repo mode (the
         # one a cross-cutting ticket needs) the only mode with no project knowledge at all.
@@ -201,7 +190,7 @@ def investigate(
         inv = build_investigation(
             ticket_title,
             problem,
-            store=FactStore(merged.batch),
+            store=store,
             # `.roots`, not the RepoSet itself: `keys` is a property, so `dict()` takes the
             # mapping path, calls it, and dies on a tuple.
             repo_roots=dict(repo_set.roots),

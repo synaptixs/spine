@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.40.0  (synaptixs-spine)
+Spine 3.41.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -899,16 +899,49 @@ A human polishes the draft, then implements deterministically:
     # …review/edit openspec/changes/<id>/…
     orchestrator sdlc feature --source openspec://<id> --safe
 
+Pass a repository to **ground** the draft against the code. The proposal then carries a
+`## Grounding` section — where the change lands, with `file:line`, and each stated criterion
+bound against the graph — and `tasks.md` becomes one checkbox per criterion instead of two
+fixed lines:
+
+    orchestrator openspec draft ./my-service --source jira://PROJ-123
+    orchestrator openspec draft --repos .spine/repos.yaml --source jira://PROJ-123
+
+**What grounding does and does not change.** The requirements and scenarios are still the
+model's prose, written from the source document alone — this does not make them better. What
+it adds is the code's facts *beside* them, fenced off and cited, so a reader can tell which
+half is which. A line with no `file:line` has not been checked by anything.
+
+**Four states, and the page always says which.** Grounded; **grounded but the graph was
+empty** (a language Spine has no front-end for yields zero nodes and looks exactly like a
+repository with nothing to find); **grounded against an uncommitted tree**, whose citations
+cannot be re-derived at a commit; and **ungrounded**, which is what you get with no
+repository. No task ever cites a file — an instruction is derived, and a citation on one
+would lend it authority it has not earned.
+
+**What changes even without a repository.** The requirements and scenarios are untouched, and
+`specs/<cap>/spec.md` — the contract codegen hits — is byte-for-byte what it always was. Two
+things do change in every mode: `proposal.md` gains the banner line and a `## Grounding`
+section naming which mode produced it, and `tasks.md` is now one checkbox per criterion
+rather than the two fixed lines it emitted for every change ever drafted. A repository adds
+the facts; it is not what turns the task list on.
+
 ```
-orchestrator openspec draft [OPTIONS]
+orchestrator openspec draft [OPTIONS] [PATH]
 ```
+
+| Argument | Description |
+|---|---|
+| `PATH` | Repo path to ground the draft against (default: ungrounded). |
 
 | Option | Description |
 |---|---|
 | `--source` | Unstructured source to bootstrap FROM, e.g. confluence://<id>. |
 | `--out` | OpenSpec root to write into (changes/<id>/ is created under it). (default: `openspec`) |
-| `--refresh` | Re-extract from the source (default: reuse the cached backlog). |
+| `--refresh` | Re-extract from the source (default: reuse the cached backlog). **Not the PKG** — that cache is commit-keyed and invalidates itself. |
 | `--overwrite` | Overwrite existing change files (default: never clobber). |
+| `--repos` | A `.spine/repos.yaml` — ground against every declared repo. Landing sites are then grouped by repository key. |
+| `--dialect` | SQL dialect; default: auto-detect. |
 
 ---
 

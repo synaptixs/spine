@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`LandingFact`](../../src/orchestrator/sdlc/evidence.py#L63) — reaches **10** symbols
-- [`_landing_files`](../../src/orchestrator/sdlc/evidence.py#L104) — reaches **10** symbols
-- [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L121) — reaches **10** symbols
-- [`Evidence`](../../src/orchestrator/sdlc/evidence.py#L83) — reaches **9** symbols
-- [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L140) — reaches **9** symbols
-- [`rca_problem`](../../src/orchestrator/sdlc/evidence.py#L116) — reaches **9** symbols
-- [`register_sdlc_tools`](../../src/orchestrator/sdlc/evidence.py#L424) — reaches **8** symbols
-- [`to_dict`](../../src/orchestrator/sdlc/evidence.py#L234) — reaches **6** symbols
+- [`LandingFact`](../../src/orchestrator/sdlc/evidence.py#L64) — reaches **10** symbols
+- [`_landing_files`](../../src/orchestrator/sdlc/evidence.py#L105) — reaches **10** symbols
+- [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L122) — reaches **10** symbols
+- [`Evidence`](../../src/orchestrator/sdlc/evidence.py#L84) — reaches **9** symbols
+- [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L141) — reaches **9** symbols
+- [`rca_problem`](../../src/orchestrator/sdlc/evidence.py#L117) — reaches **9** symbols
+- [`register_sdlc_tools`](../../src/orchestrator/sdlc/evidence.py#L435) — reaches **8** symbols
+- [`to_dict`](../../src/orchestrator/sdlc/evidence.py#L235) — reaches **6** symbols
 
 ## Documented in
 
@@ -30,16 +30,16 @@
 
 ### `Evidence`
 
-[`src/orchestrator/sdlc/evidence.py:83`](../../src/orchestrator/sdlc/evidence.py#L83)
+[`src/orchestrator/sdlc/evidence.py:84`](../../src/orchestrator/sdlc/evidence.py#L84)
 
-- **Called by** (1): [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L140)
+- **Called by** (1): [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L141)
 - **Fields**: `areas`, `blast_radius`, `files`, `grounded`, `issue_type`, `landing`, `problem`, `rca`, `recently_changed`, `title`
 
 ### `LandingFact`
 
-[`src/orchestrator/sdlc/evidence.py:63`](../../src/orchestrator/sdlc/evidence.py#L63)
+[`src/orchestrator/sdlc/evidence.py:64`](../../src/orchestrator/sdlc/evidence.py#L64)
 
-- **Called by** (2): [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L140), [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L121)
+- **Called by** (2): [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L141), [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L122)
 - **Fields**: `callers`, `kind`, `module`, `name`, `where`
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#phase-2a-evidence-consumed-criteria-bound`, `docs/specs/graphir-sdlc-workflow.md#research-is-not-wired-as-research-four-defects`
 
@@ -47,109 +47,109 @@
 
 ### `_landing_files`
 
-[`src/orchestrator/sdlc/evidence.py:104`](../../src/orchestrator/sdlc/evidence.py#L104)
+[`src/orchestrator/sdlc/evidence.py:105`](../../src/orchestrator/sdlc/evidence.py#L105)
 
-- **Called by** (1): [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L121)
+- **Called by** (1): [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L122)
 
 ### `_rca_to_dict`
 
-[`src/orchestrator/sdlc/evidence.py:214`](../../src/orchestrator/sdlc/evidence.py#L214)
+[`src/orchestrator/sdlc/evidence.py:215`](../../src/orchestrator/sdlc/evidence.py#L215)
 
-- **Called by** (1): [`_tool_rca`](../../src/orchestrator/sdlc/evidence.py#L370)
+- **Called by** (1): [`_tool_rca`](../../src/orchestrator/sdlc/evidence.py#L381)
 
 ### `_tool_blast_radius`
 
-[`src/orchestrator/sdlc/evidence.py:376`](../../src/orchestrator/sdlc/evidence.py#L376)
+[`src/orchestrator/sdlc/evidence.py:387`](../../src/orchestrator/sdlc/evidence.py#L387)
 
-- **Called by** (1): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L184)
+- **Called by** (1): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L185)
 - **Calls** (2): [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L219), [`to_dict`](../../src/orchestrator/sdlc/impact.py#L269)
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#half-one-parallel-fan-out-measured-30ms-available-declined`
 
 ### `_tool_churn`
 
-[`src/orchestrator/sdlc/evidence.py:414`](../../src/orchestrator/sdlc/evidence.py#L414)
+[`src/orchestrator/sdlc/evidence.py:425`](../../src/orchestrator/sdlc/evidence.py#L425)
 
-- **Called by** (1): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L184)
+- **Called by** (1): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L185)
 - **Calls** (1): [`changed_recently`](../../src/orchestrator/sdlc/churn.py#L54)
 
 ### `_tool_investigate`
 
-[`src/orchestrator/sdlc/evidence.py:345`](../../src/orchestrator/sdlc/evidence.py#L345)
+[`src/orchestrator/sdlc/evidence.py:356`](../../src/orchestrator/sdlc/evidence.py#L356)
 
-- **Called by** (1 production · 1 test): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L184), [`test_the_autorun_landing_rows_carry_weak_and_are_filtered`](../../tests/sdlc/test_honest_uncertainty.py#L238)
-- **Calls** (1): [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L182)
+- **Called by** (1 production · 1 test): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L185), [`test_the_autorun_landing_rows_carry_weak_and_are_filtered`](../../tests/sdlc/test_honest_uncertainty.py#L238)
+- **Calls** (1): [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L124)
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#half-one-parallel-fan-out-measured-30ms-available-declined`
 
 ### `_tool_rca`
 
-[`src/orchestrator/sdlc/evidence.py:370`](../../src/orchestrator/sdlc/evidence.py#L370)
+[`src/orchestrator/sdlc/evidence.py:381`](../../src/orchestrator/sdlc/evidence.py#L381)
 
-- **Called by** (1): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L184)
-- **Calls** (2): [`_rca_to_dict`](../../src/orchestrator/sdlc/evidence.py#L214), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L219)
+- **Called by** (1): [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L185)
+- **Calls** (2): [`_rca_to_dict`](../../src/orchestrator/sdlc/evidence.py#L215), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L219)
 
 ### `_tool_validity`
 
-[`src/orchestrator/sdlc/evidence.py:383`](../../src/orchestrator/sdlc/evidence.py#L383)
+[`src/orchestrator/sdlc/evidence.py:394`](../../src/orchestrator/sdlc/evidence.py#L394)
 
 - **Calls** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L483)
 
 ### `build_evidence`
 
-[`src/orchestrator/sdlc/evidence.py:184`](../../src/orchestrator/sdlc/evidence.py#L184)
+[`src/orchestrator/sdlc/evidence.py:185`](../../src/orchestrator/sdlc/evidence.py#L185)
 
 - **Called by** (1 production · 5 test): [`build_design`](../../scripts/codegen_benchmark.py#L1615), [`test_an_ungrounded_graph_says_so_rather_than_looking_clean`](../../tests/sdlc/test_evidence.py#L91), [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100), [`test_landing_keeps_the_whole_fact_not_the_filename`](../../tests/sdlc/test_evidence.py#L61), [`test_rca_runs_and_is_recorded_without_a_model`](../../tests/sdlc/test_evidence.py#L83), [`test_the_blast_radius_is_keyed_off_landing_not_off_a_proposal`](../../tests/sdlc/test_evidence.py#L72)
-- **Calls** (7): [`_tool_blast_radius`](../../src/orchestrator/sdlc/evidence.py#L376), [`_tool_churn`](../../src/orchestrator/sdlc/evidence.py#L414), [`_tool_investigate`](../../src/orchestrator/sdlc/evidence.py#L345), [`_tool_rca`](../../src/orchestrator/sdlc/evidence.py#L370), [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L140), [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L121), [`rca_problem`](../../src/orchestrator/sdlc/evidence.py#L116)
+- **Calls** (7): [`_tool_blast_radius`](../../src/orchestrator/sdlc/evidence.py#L387), [`_tool_churn`](../../src/orchestrator/sdlc/evidence.py#L425), [`_tool_investigate`](../../src/orchestrator/sdlc/evidence.py#L356), [`_tool_rca`](../../src/orchestrator/sdlc/evidence.py#L381), [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L141), [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L122), [`rca_problem`](../../src/orchestrator/sdlc/evidence.py#L117)
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#phase-1-the-tool-node-type-the-evidence-artifact-and-the-sdlc-ir-in-shadow`
 
 ### `evidence_digest`
 
-[`src/orchestrator/sdlc/evidence.py:259`](../../src/orchestrator/sdlc/evidence.py#L259)
+[`src/orchestrator/sdlc/evidence.py:260`](../../src/orchestrator/sdlc/evidence.py#L260)
 
 - **Called by** (0 production · 1 test): [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100)
-- **Calls** (2): [`digest_of`](../../src/orchestrator/core/digest.py#L46), [`to_dict`](../../src/orchestrator/sdlc/evidence.py#L234)
+- **Calls** (2): [`digest_of`](../../src/orchestrator/core/digest.py#L46), [`to_dict`](../../src/orchestrator/sdlc/evidence.py#L235)
 
 ### `evidence_from_parts`
 
-[`src/orchestrator/sdlc/evidence.py:140`](../../src/orchestrator/sdlc/evidence.py#L140)
+[`src/orchestrator/sdlc/evidence.py:141`](../../src/orchestrator/sdlc/evidence.py#L141)
 
-- **Called by** (2 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L646), [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L184), [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100)
-- **Calls** (3): [`Evidence`](../../src/orchestrator/sdlc/evidence.py#L83), [`LandingFact`](../../src/orchestrator/sdlc/evidence.py#L63), [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L121)
+- **Called by** (2 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L646), [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L185), [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100)
+- **Calls** (3): [`Evidence`](../../src/orchestrator/sdlc/evidence.py#L84), [`LandingFact`](../../src/orchestrator/sdlc/evidence.py#L64), [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L122)
 
 ### `landing_files`
 
-[`src/orchestrator/sdlc/evidence.py:121`](../../src/orchestrator/sdlc/evidence.py#L121)
+[`src/orchestrator/sdlc/evidence.py:122`](../../src/orchestrator/sdlc/evidence.py#L122)
 
-- **Called by** (3 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L646), [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L184), [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L140), [`test_the_autorun_landing_rows_carry_weak_and_are_filtered`](../../tests/sdlc/test_honest_uncertainty.py#L238)
-- **Calls** (2): [`LandingFact`](../../src/orchestrator/sdlc/evidence.py#L63), [`_landing_files`](../../src/orchestrator/sdlc/evidence.py#L104)
+- **Called by** (3 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L646), [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L185), [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L141), [`test_the_autorun_landing_rows_carry_weak_and_are_filtered`](../../tests/sdlc/test_honest_uncertainty.py#L238)
+- **Calls** (2): [`LandingFact`](../../src/orchestrator/sdlc/evidence.py#L64), [`_landing_files`](../../src/orchestrator/sdlc/evidence.py#L105)
 
 ### `rca_problem`
 
-[`src/orchestrator/sdlc/evidence.py:116`](../../src/orchestrator/sdlc/evidence.py#L116)
+[`src/orchestrator/sdlc/evidence.py:117`](../../src/orchestrator/sdlc/evidence.py#L117)
 
-- **Called by** (2): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L646), [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L184)
+- **Called by** (2): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L646), [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L185)
 
 ### `register_sdlc_tools`
 
-[`src/orchestrator/sdlc/evidence.py:424`](../../src/orchestrator/sdlc/evidence.py#L424)
+[`src/orchestrator/sdlc/evidence.py:435`](../../src/orchestrator/sdlc/evidence.py#L435)
 
 - **Called by** (1): [`default_registry`](../../src/orchestrator/runtime/tool_registry.py#L106)
 
 ### `render_evidence_md`
 
-[`src/orchestrator/sdlc/evidence.py:263`](../../src/orchestrator/sdlc/evidence.py#L263)
+[`src/orchestrator/sdlc/evidence.py:264`](../../src/orchestrator/sdlc/evidence.py#L264)
 
 - **Called by** (1 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L646), [`test_an_ungrounded_graph_says_so_rather_than_looking_clean`](../../tests/sdlc/test_evidence.py#L91)
-- **Calls** (1): [`render_md`](../../src/orchestrator/sdlc/impact.py#L300)
+- **Calls** (3): [`Landing`](../../src/orchestrator/sdlc/landings.py#L42), [`render_landings`](../../src/orchestrator/sdlc/landings.py#L140), [`render_md`](../../src/orchestrator/sdlc/impact.py#L300)
 
 ### `to_dict`
 
-[`src/orchestrator/sdlc/evidence.py:234`](../../src/orchestrator/sdlc/evidence.py#L234)
+[`src/orchestrator/sdlc/evidence.py:235`](../../src/orchestrator/sdlc/evidence.py#L235)
 
-- **Called by** (2 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L646), [`evidence_digest`](../../src/orchestrator/sdlc/evidence.py#L259), [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100)
+- **Called by** (2 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L646), [`evidence_digest`](../../src/orchestrator/sdlc/evidence.py#L260), [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100)
 
 ## Imports
 
-`__future__.annotations`, `dataclasses.dataclass`, `dataclasses.field`, [`orchestrator.core.digest`](../../src/orchestrator/core/digest.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.sdlc.brief`](../../src/orchestrator/sdlc/brief.py#L1), [`orchestrator.sdlc.churn`](../../src/orchestrator/sdlc/churn.py#L1), [`orchestrator.sdlc.impact`](../../src/orchestrator/sdlc/impact.py#L1), [`orchestrator.sdlc.investigate`](../../src/orchestrator/sdlc/investigate.py#L1), [`orchestrator.sdlc.rca`](../../src/orchestrator/sdlc/rca.py#L1), [`orchestrator.sdlc.validity`](orchestrator.sdlc.validity.md), `pathlib.Path`, `typing.Any`
+`__future__.annotations`, `dataclasses.dataclass`, `dataclasses.field`, [`orchestrator.core.digest`](../../src/orchestrator/core/digest.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.sdlc.brief`](../../src/orchestrator/sdlc/brief.py#L1), [`orchestrator.sdlc.churn`](../../src/orchestrator/sdlc/churn.py#L1), [`orchestrator.sdlc.impact`](../../src/orchestrator/sdlc/impact.py#L1), [`orchestrator.sdlc.investigate`](../../src/orchestrator/sdlc/investigate.py#L1), [`orchestrator.sdlc.landings`](../../src/orchestrator/sdlc/landings.py#L1), [`orchestrator.sdlc.rca`](../../src/orchestrator/sdlc/rca.py#L1), [`orchestrator.sdlc.validity`](orchestrator.sdlc.validity.md), `pathlib.Path`, `typing.Any`
 
 ## Imported by
 
