@@ -13,6 +13,11 @@ pytestmark = pytest.mark.integration
 
 def _cfg() -> Config:
     cfg = Config("alembic.ini")
+    # Same reason as `conftest._migrated_database`: `env.py` would otherwise run
+    # `fileConfig(...)` and disable every logger created before it, for the rest of the
+    # session. Two call sites build a `Config` in this suite, and fixing only one left
+    # `tests/plugin/test_audit.py` still failing — from the other.
+    cfg.attributes["configure_logger"] = False
     url = os.getenv(
         "ORCHESTRATOR_TEST_DATABASE_URL",
         "postgresql+psycopg://orchestrator:orchestrator@localhost:5433/orchestrator",

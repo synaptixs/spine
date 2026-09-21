@@ -31,6 +31,13 @@ def _database_url() -> str:
 def _migrated_database() -> Iterator[str]:
     url = _database_url()
     cfg = Config("alembic.ini")
+    # Do not let the migration reconfigure logging. `alembic.ini` has a `[loggers]` section, so
+    # `env.py` would call `fileConfig(...)`, whose `disable_existing_loggers=True` default
+    # disables every logger already created — for the rest of the session, since this fixture is
+    # session-scoped. `tests/plugin/test_audit.py` then found no records in `caplog` and failed
+    # only when run after this directory, which is the kind of failure that gets blamed on the
+    # test that reports it.
+    cfg.attributes["configure_logger"] = False
     cfg.set_main_option("sqlalchemy.url", url.replace("+psycopg", "+psycopg", 1))
     command.upgrade(cfg, "head")
     yield url

@@ -16,7 +16,12 @@ from orchestrator.registry.db.models import Base
 
 config = context.config
 
-if config.config_file_name is not None:
+# `fileConfig` defaults to `disable_existing_loggers=True`, so configuring Alembic's logging
+# silently sets `disabled=True` on every logger created before this line. Harmless for the CLI,
+# where the migration is the whole process — and not harmless for a test session, where the
+# migration runs once in a fixture and every later test finds its own loggers dead. Guarded the
+# way Alembic's own template does; the default is `True`, so `alembic upgrade` is unchanged.
+if config.config_file_name is not None and config.attributes.get("configure_logger", True):
     fileConfig(config.config_file_name)
 
 if (url := os.getenv("DATABASE_URL")) is not None:

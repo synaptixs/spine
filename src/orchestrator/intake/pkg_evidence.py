@@ -38,7 +38,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from orchestrator.pkg.criteria_binding import CriteriaBinding
 
 __all__ = [
-    "Grounding",
+    "DraftGrounding",
     "GroundingState",
     "LandingGroup",
     "absence_section",
@@ -71,7 +71,7 @@ GroundingState = Literal["ungrounded", "empty", "untrusted", "grounded"]
 
 
 @dataclass(frozen=True)
-class Grounding:
+class DraftGrounding:
     """The standing of the code evidence behind one drafted change."""
 
     state: GroundingState
@@ -109,12 +109,12 @@ class Grounding:
         return self.state in ("grounded", "untrusted")
 
 
-def ungrounded() -> Grounding:
+def ungrounded() -> DraftGrounding:
     """No repository was given — the blind draft, said out loud."""
-    return Grounding(state="ungrounded")
+    return DraftGrounding(state="ungrounded")
 
 
-def from_store(store: FactStore, *, where: str, untrusted: tuple[str, ...] = ()) -> Grounding:
+def from_store(store: FactStore, *, where: str, untrusted: tuple[str, ...] = ()) -> DraftGrounding:
     """Classify what a store came back with. The only place a state is decided."""
     summary = store.summary()
     grounded_nodes = int(summary.get("grounded_nodes", 0))
@@ -122,14 +122,14 @@ def from_store(store: FactStore, *, where: str, untrusted: tuple[str, ...] = ())
     if grounded_nodes == 0:
         # Checked before trust: a graph with nothing in it has nothing to be untrusted about,
         # and reporting "uncommitted work" over "we read nothing" buries the actionable half.
-        return Grounding(
+        return DraftGrounding(
             state="empty",
             where=where,
             nodes=int(summary.get("nodes", 0)),
             grounded_nodes=0,
             untrusted=untrusted,
         )
-    return Grounding(
+    return DraftGrounding(
         state="untrusted" if untrusted else "grounded",
         where=where,
         nodes=int(summary.get("nodes", 0)),
@@ -140,14 +140,14 @@ def from_store(store: FactStore, *, where: str, untrusted: tuple[str, ...] = ())
 
 
 def with_facts(
-    base: Grounding,
+    base: DraftGrounding,
     *,
     landings: tuple[LandingGroup, ...] = (),
     elided: int = 0,
     areas: tuple[str, ...] = (),
     binding: CriteriaBinding | None = None,
     tree_checked: bool = True,
-) -> Grounding:
+) -> DraftGrounding:
     """Attach one change's facts to the repository-level grounding.
 
     Two steps because they have different scopes: the repository is read once (extraction is
@@ -165,7 +165,7 @@ def with_facts(
     )
 
 
-def banner_sentence(g: Grounding) -> str:
+def banner_sentence(g: DraftGrounding) -> str:
     """One line for the draft banner — what a reader who skims `proposal.md` must still see."""
     if g.state == "ungrounded":
         return "**Not grounded:** no repository was read, so nothing here is checked against code."
@@ -176,7 +176,7 @@ def banner_sentence(g: Grounding) -> str:
     return f"**Grounded against `{g.where}`** — cited lines are facts from the graph; the prose above is not."
 
 
-def absence_section(g: Grounding) -> str:
+def absence_section(g: DraftGrounding) -> str:
     """The *Grounding* section body: what was read, and what that does and does not prove."""
     if g.state == "ungrounded":
         return (
@@ -217,7 +217,7 @@ def absence_section(g: Grounding) -> str:
     )
 
 
-def _landings_md(g: Grounding) -> list[str]:
+def _landings_md(g: DraftGrounding) -> list[str]:
     """Where this change lands, grouped by repository (D14)."""
     if not g.landings:
         return [
@@ -263,7 +263,7 @@ def _landings_md(g: Grounding) -> list[str]:
     return out
 
 
-def _criteria_md(g: Grounding) -> list[str]:
+def _criteria_md(g: DraftGrounding) -> list[str]:
     """Each stated criterion against the graph — and what that does *not* establish.
 
     Only ``acceptance_criteria`` reach the binder (`criteria_binding._criteria_text`), so a
@@ -325,7 +325,7 @@ def _criteria_md(g: Grounding) -> list[str]:
     return out
 
 
-def fact_section(g: Grounding) -> str:
+def fact_section(g: DraftGrounding) -> str:
     """The fenced fact region: everything here is re-derivable from the graph.
 
     Returns ``""`` for a state that may not cite, which is what keeps the rule mechanical —

@@ -12,7 +12,7 @@ from ._common import _merged_store, _print, _repo_arg
 if TYPE_CHECKING:  # pragma: no cover - typing only; nothing here is imported at runtime
     from pathlib import Path
 
-    from orchestrator.intake.pkg_evidence import Grounding
+    from orchestrator.intake.pkg_evidence import DraftGrounding
     from orchestrator.intake.specs import FeatureSpec
     from orchestrator.pkg import FactStore
     from orchestrator.sdlc.landings import Landing
@@ -179,7 +179,7 @@ def openspec_draft(
 
 def _grounding_for(
     path: str | None, repos: str | None, dialect: str | None
-) -> tuple[Grounding, FactStore | None, Path | None, dict[str, Path] | None]:
+) -> tuple[DraftGrounding, FactStore | None, Path | None, dict[str, Path] | None]:
     """Read the repository once, and classify what came back.
 
     Returns ``(grounding, store, root, repo_roots)`` — the store and roots are what the
@@ -226,12 +226,12 @@ def _grounding_for(
 
 
 def _facts_for_spec(
-    base: Grounding,
+    base: DraftGrounding,
     store: FactStore,
     root: Path | None,
     repo_roots: dict[str, Path] | None,
     spec: FeatureSpec,
-) -> Grounding:
+) -> DraftGrounding:
     """Retrieval and binding for **one** change (D21).
 
     Per spec, not per source: a shared block would cite identical sites in every change dir,

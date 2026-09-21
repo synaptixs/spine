@@ -148,7 +148,7 @@ def test_the_delta_spec_is_the_one_file_no_mode_changes() -> None:
 
 @pytest.mark.parametrize("grounding", STATES)
 def test_a_grounded_render_always_carries_both_the_banner_line_and_the_section(
-    grounding: pkg_evidence.Grounding,
+    grounding: pkg_evidence.DraftGrounding,
 ) -> None:
     proposal = render_change(SPEC, INTENT, grounding)["proposal.md"]
     assert pkg_evidence.banner_sentence(grounding) in proposal
@@ -157,7 +157,7 @@ def test_a_grounded_render_always_carries_both_the_banner_line_and_the_section(
 
 @pytest.mark.parametrize("grounding", STATES)
 def test_the_fact_region_is_fenced_below_the_prose_never_interleaved(
-    grounding: pkg_evidence.Grounding,
+    grounding: pkg_evidence.DraftGrounding,
 ) -> None:
     """A citation beside a model's sentence lends it authority it has not earned."""
     proposal = render_change(SPEC, INTENT, grounding)["proposal.md"]
@@ -166,7 +166,7 @@ def test_the_fact_region_is_fenced_below_the_prose_never_interleaved(
 
 
 @pytest.mark.parametrize("grounding", STATES)
-def test_grounding_never_reaches_the_delta_spec(grounding: pkg_evidence.Grounding) -> None:
+def test_grounding_never_reaches_the_delta_spec(grounding: pkg_evidence.DraftGrounding) -> None:
     """The delta spec is the contract codegen hits; grounding is commentary on it."""
     files = render_change(SPEC, INTENT, grounding)
     spec_key = next(k for k in files if k.endswith("spec.md"))
@@ -395,7 +395,7 @@ def test_a_bound_criterion_says_verify_never_done() -> None:
 
 
 @pytest.mark.parametrize("grounding", [None, *STATES])
-def test_no_task_ever_cites_a_file(grounding: pkg_evidence.Grounding | None) -> None:
+def test_no_task_ever_cites_a_file(grounding: pkg_evidence.DraftGrounding | None) -> None:
     """D20(c) refused, and enforced rather than remembered.
 
     A task is an instruction, and "change `foo.py:41`" is a derived claim wearing a citation.

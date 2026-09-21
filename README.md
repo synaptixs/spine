@@ -78,7 +78,13 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.41.0 (current)** — a drafted spec now ships with the code's facts. `openspec draft` could
+**3.41.1 (current)** — fixes only. A type rename that ends a collision (`Grounding` existed
+twice, in code review and in drafting), and three integration tests that had been failing
+unseen behind a database dependency — a stale assertion about `/console`, which has required a
+session since June, and Alembic quietly disabling every logger in the test session. One of the
+three needed no fix: it was waiting on an object store nobody had started.
+
+**3.41.0** — a drafted spec now ships with the code's facts. `openspec draft` could
 not see a repository: its whole signature was `--source/--out/--refresh/--overwrite`, so a draft
 could only restate the ticket more formally, and its task list was the same two checkboxes for
 every change ever drafted. Pass a repo path (or `--repos`) and the proposal carries where the

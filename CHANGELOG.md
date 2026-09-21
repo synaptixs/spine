@@ -4,6 +4,29 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.41.1 — 2026-09-21
+
+### Fixed
+
+- **A drafted change's `Grounding` type collided with the code-review one.** Two types were
+  named `Grounding`; `intake.pkg_evidence`'s is now `DraftGrounding`. Internal only — the
+  rendered `## Grounding` section, `ungrounded()` and every other name are unchanged. Found by
+  running `blast_radius`, which returned two matches where every `grep` returned one
+  undifferentiated pile.
+
+- **Three integration tests that no one could see failing.** Without Postgres the whole
+  directory errors out on the connection, so these sat red behind it. `/console` has required a
+  web session since 2026-06-26 and redirects to `/login` with 303; the test still asserted 200
+  with a comment saying no auth was needed. And Alembic's `fileConfig(...)` — whose
+  `disable_existing_loggers=True` default is the trap — was disabling every logger created
+  before it, from a **session-scoped** fixture, so `tests/plugin/test_audit.py` found an empty
+  `caplog` and failed only when run after that directory. `migrations/env.py` now carries
+  Alembic's own `configure_logger` guard, defaulting to `True`, so `alembic upgrade` is
+  unchanged for operators.
+
+  A third failure needed no fix: it mocks its LLM and was failing on the object store, which
+  `docker-compose.dev.yml` provides and which simply was not running.
+
 ## 3.41.0 — 2026-09-20
 
 ### Added

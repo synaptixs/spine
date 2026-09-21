@@ -61,10 +61,14 @@ async def test_runs_endpoint_lists_and_derives_state(session: AsyncSession) -> N
         assert by_id["run-merged-01"]["events"] == 2
         assert by_id["run-running-02"]["state"] == "running"
 
-        # console shell is reachable and data-free (no auth needed)
-        page = await client.get("/console")
-        assert page.status_code == 200
-        assert "Orchestrator Console" in page.text
+        # The console shell requires a web session: `/console` depends on `WebPrincipalDep`,
+        # and an unauthenticated navigation is redirected to `/login` rather than served.
+        # This asserted 200 and "no auth needed" — true when written, false since the route
+        # gained the dependency, and never caught because this directory needs Postgres to run
+        # at all. The redirect is the security-relevant behaviour, so it is what gets pinned.
+        page = await client.get("/console", follow_redirects=False)
+        assert page.status_code == 303, page.text
+        assert page.headers["location"] == "/login"
 
 
 async def test_runs_endpoint_requires_api_key(session: AsyncSession) -> None:

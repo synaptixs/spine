@@ -18,7 +18,7 @@ import re
 from pathlib import Path
 
 from orchestrator.intake.intents import Intent, _slug
-from orchestrator.intake.pkg_evidence import Grounding, absence_section, banner_sentence, fact_section
+from orchestrator.intake.pkg_evidence import DraftGrounding, absence_section, banner_sentence, fact_section
 from orchestrator.intake.specs import FeatureSpec
 
 _DRAFT_NOTE = (
@@ -81,7 +81,7 @@ def _short_label(criterion: str) -> str:
 
 
 def _proposal_md(
-    spec: FeatureSpec, intent: Intent, change_id: str, grounding: Grounding | None = None
+    spec: FeatureSpec, intent: Intent, change_id: str, grounding: DraftGrounding | None = None
 ) -> str:
     why = (intent.description or spec.summary or "").strip()
     what = (intent.scope or spec.user_story or "").strip()
@@ -109,7 +109,7 @@ def _proposal_md(
     return "\n".join(parts).rstrip() + "\n"
 
 
-def _tasks_md(spec: FeatureSpec, grounding: Grounding | None = None) -> str:
+def _tasks_md(spec: FeatureSpec, grounding: DraftGrounding | None = None) -> str:
     """One checkbox per criterion — not two constants for every change in the world.
 
     This function took ``spec`` and read nothing from it, emitting *"Implement the
@@ -174,7 +174,9 @@ def _one_line(text: str) -> str:
     return " ".join(text.split())
 
 
-def render_change(spec: FeatureSpec, intent: Intent, grounding: Grounding | None = None) -> dict[str, str]:
+def render_change(
+    spec: FeatureSpec, intent: Intent, grounding: DraftGrounding | None = None
+) -> dict[str, str]:
     """Render one derived spec into OpenSpec change files: ``{relpath: content}``.
 
     Keys are paths **relative to the change dir** (``proposal.md``, ``tasks.md``,
