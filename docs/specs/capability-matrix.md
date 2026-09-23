@@ -26,7 +26,7 @@ docs · **n/a** out of category
 
 ---
 
-| Capability | **Spine 3.42.0** | CodeGraph | Graphify | GitNexus | Serena | Joern | Sourcegraph | OpenHands | Devin |
+| Capability | **Spine 3.43.0** | CodeGraph | Graphify | GitNexus | Serena | Joern | Sourcegraph | OpenHands | Devin |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | **LAYER A — CODE INTELLIGENCE** |
 | Deterministic, no-LLM extraction | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ |
@@ -160,7 +160,7 @@ No competitor in this category was found publishing a measurement that declined 
 capability. It is a claim about method rather than function, which is why it sits last.
 
 **¹⁰ "Never regex" is three cases too strong, and they are named rather than defended.** All
-eight front-ends parse with a real parser and read structure off the tree. Three narrow regex
+thirteen front-ends parse with a real parser and read structure off the tree. Three narrow regex
 fallbacks exist: `java`/`csharp` recover the one-line `package`/`namespace` declaration to *name*
 a module the parser already found, and `sql` recovers `CALL`/`PERFORM proc()` — which sqlglot
 collapses into opaque `Command` nodes — as **real `CALLS` edges**. Only the third emits facts,

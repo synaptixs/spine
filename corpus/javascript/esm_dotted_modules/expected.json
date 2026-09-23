@@ -1,0 +1,109 @@
+{
+  "language": "javascript",
+  "case": "esm_dotted_modules",
+  "requires": [
+    "javascript",
+    "typescript"
+  ],
+  "why": "`db.config()` through an ESM `import * as db` of `lib/db.js`, beside a sibling module `lib/db.config.ts`. No CommonJS module exists here, so no export map is consulted at all: the call target is the module id `ts:lib/db.config`, and only the backstop in the existence check keeps it off a module node. `c2.ts` makes the same call from TypeScript: the backstop covers both languages, and runs in whichever finalizer is last so it never pre-empts the JavaScript router's retry.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:lib/db",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:lib/db.config",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:c",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:lib/db.x",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/db.config.port",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:c.go",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:c2",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:c2.run",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:lib/db",
+      "dst": "ts:lib/db.x",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/db.config",
+      "dst": "ts:lib/db.config.port",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:c",
+      "dst": "ts:c.go",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:c",
+      "dst": "ts:lib/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:c.go",
+      "dst": "ts:lib/db.x",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:c2",
+      "dst": "ts:c2.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:c2",
+      "dst": "ts:lib/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:c2.run",
+      "dst": "ts:lib/db.x",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:c.go",
+        "dst": "ts:lib/db.config",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `lib/db.js` exports no `config`; the id is the sibling *module*, and a call never lands on a module."
+    },
+    {
+      "edge": {
+        "src": "ts:c2.run",
+        "dst": "ts:lib/db.config",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The same call from a TypeScript file. With no export map anywhere, only the last finalizer's backstop keeps it off the module."
+    }
+  ],
+  "excluded": [],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

@@ -28,7 +28,7 @@ _IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
 _DRIFT_EXT = frozenset({
     "html", "md", "markdown", "rst", "txt", "json", "yaml", "yml", "toml", "ini", "cfg",
     "lock", "xml", "csv", "tsv", "png", "svg", "jpg", "jpeg", "gif", "pdf",
-    "go", "py", "ts", "tsx", "js", "jsx", "css", "scss", "sh", "bat", "php", "pl", "pm",
+    "go", "py", "ts", "tsx", "js", "jsx", "mjs", "cjs", "css", "scss", "sh", "bat", "php", "pl", "pm",
     "kt", "kts",
     # `razor` joins here with the front-end that emits it; `cs` and `java` stay absent on
     # purpose — see `docs._FILE_SUFFIXES` for the recorded reason.

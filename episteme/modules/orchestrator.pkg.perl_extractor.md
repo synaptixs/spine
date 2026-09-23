@@ -34,7 +34,7 @@ _19 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/perl_extractor.py:360`](../../src/orchestrator/pkg/perl_extractor.py#L360)
 
-- **Called by** (1 production · 4 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L567), [`_facts`](../../tests/pkg/test_perl_extractor.py#L51), [`_repo_facts`](../../tests/pkg/test_perl_extractor.py#L318), [`test_end_to_end_via_repo_extractor_resolves_require_by_path_suffix`](../../tests/pkg/test_perl_extractor.py#L293), [`test_types_and_subs_do_not_leak_across_repos_sharing_one_extractor`](../../tests/pkg/test_perl_extractor.py#L872)
+- **Called by** (1 production · 4 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L568), [`_facts`](../../tests/pkg/test_perl_extractor.py#L51), [`_repo_facts`](../../tests/pkg/test_perl_extractor.py#L318), [`test_end_to_end_via_repo_extractor_resolves_require_by_path_suffix`](../../tests/pkg/test_perl_extractor.py#L293), [`test_types_and_subs_do_not_leak_across_repos_sharing_one_extractor`](../../tests/pkg/test_perl_extractor.py#L872)
 - **Fields**: `_subs`, `_types`, `language`, `suffixes`
 - **Documented in**: `CHANGELOG.md`, `docs/specs/perl-support-roadmap.md#4-phases-the-living-table`
 

@@ -1,0 +1,109 @@
+{
+  "language": "javascript",
+  "case": "plain",
+  "why": "The JavaScript control: plain ESM, the declaration subset shared with TypeScript. Class with a field and two methods, an exported function, an exported arrow const, and the three CALLS shapes that resolve without CommonJS \u2014 `this.method()`, a named import, and a bare call to a module-level binding.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:app/models",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:app/cart",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:app/models.Item",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:app/models.Item.price",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:app/models.Item.describe",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/models.Item.label",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/models.rate",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/cart.total",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/cart.discount",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:app/cart",
+      "dst": "ts:app/models",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:app/models",
+      "dst": "ts:app/models.Item",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/models.Item",
+      "dst": "ts:app/models.Item.price",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/models.Item",
+      "dst": "ts:app/models.Item.describe",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/models.Item",
+      "dst": "ts:app/models.Item.label",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/models",
+      "dst": "ts:app/models.rate",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/cart",
+      "dst": "ts:app/cart.total",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/cart",
+      "dst": "ts:app/cart.discount",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/models.Item.describe",
+      "dst": "ts:app/models.Item.label",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:app/cart.total",
+      "dst": "ts:app/models.rate",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:app/cart.discount",
+      "dst": "ts:app/cart.total",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [],
+  "excluded": [
+    "`count` arithmetic \u2014 values, not calls."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

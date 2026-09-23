@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 67 modules — 139 types and 621 functions. It sits in the middle of the graph: 1 area below it, 19 above. Changes here can reach both ways.
+**`orchestrator.pkg`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 69 modules — 146 types and 687 functions. It sits in the middle of the graph: 1 area below it, 19 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -60,6 +60,8 @@ _Showing 9 of 20 neighbouring areas._
 - [`orchestrator.pkg.java_extractor`](../modules/orchestrator.pkg.java_extractor.md)
 - [`orchestrator.pkg.join_link`](../../src/orchestrator/pkg/join_link.py#L1)
 - [`orchestrator.pkg.joins_propose`](../../src/orchestrator/pkg/joins_propose.py#L1)
+- [`orchestrator.pkg.js_extractor`](../modules/orchestrator.pkg.js_extractor.md)
+- [`orchestrator.pkg.js_orm`](../modules/orchestrator.pkg.js_orm.md)
 - [`orchestrator.pkg.jvm_routes`](../../src/orchestrator/pkg/jvm_routes.py#L1)
 - [`orchestrator.pkg.kotlin_di`](../../src/orchestrator/pkg/kotlin_di.py#L1)
 - [`orchestrator.pkg.kotlin_extractor`](../modules/orchestrator.pkg.kotlin_extractor.md)

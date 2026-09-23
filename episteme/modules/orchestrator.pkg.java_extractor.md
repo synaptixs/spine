@@ -34,7 +34,7 @@ _19 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/java_extractor.py:67`](../../src/orchestrator/pkg/java_extractor.py#L67)
 
-- **Called by** (1 production · 3 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L567), [`_facts`](../../tests/pkg/test_java_extractor.py#L40), [`_java_facts`](../../tests/pkg/test_java_extractor.py#L348), [`test_repo_extractor_dispatches_java_by_suffix`](../../tests/pkg/test_java_extractor.py#L90)
+- **Called by** (1 production · 3 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L568), [`_facts`](../../tests/pkg/test_java_extractor.py#L40), [`_java_facts`](../../tests/pkg/test_java_extractor.py#L348), [`test_repo_extractor_dispatches_java_by_suffix`](../../tests/pkg/test_java_extractor.py#L90)
 - **Fields**: `language`, `suffixes`
 - **Documented in**: `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/kotlin-support-roadmap.md#8-blast-radius-measured-from-the-pkg-per-registration-site`, `docs/specs/multi-language-java.md#slice-1-java-comprehension-this-build`, `docs/specs/multi-language-java.md#where-java-stands-today`, `docs/specs/typescript-codegen.md#slice-1-typescript-comprehension-ships-first-cheap`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 

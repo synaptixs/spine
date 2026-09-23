@@ -1,0 +1,150 @@
+{
+  "language": "javascript",
+  "case": "export_surfaces",
+  "why": "The three export shapes the second review pass broke, each a true edge it dropped: an alias naming a declared object literal (`const api = {find, create}; module.exports = api`), a declared class that is `module.exports` (`module.exports = Base`, then `extends Base` \u2014 the canonical CommonJS inheritance shape), and an `Object.assign` export this pass cannot read and so must not enforce. Plus a callback parameter `svc` shadowing the module binding over the callback only: inside, `svc.save()` names whatever was handed in; after it, `svc.find()` is the module's again. `save` is really exported, so only the scope rule \u2014 not the export map, not the existence check \u2014 can refuse the shadowed call.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:svc",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:base",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:merged",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:client",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:svc.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:svc.create",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:svc.save",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:base.Base",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:base.Base.hello",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:merged.merge",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:client.Impl",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:client.go",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:client",
+      "dst": "ts:svc",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:base",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:merged",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:svc",
+      "dst": "ts:svc.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:svc",
+      "dst": "ts:svc.create",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:svc",
+      "dst": "ts:svc.save",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:base",
+      "dst": "ts:base.Base",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:base.Base",
+      "dst": "ts:base.Base.hello",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:merged",
+      "dst": "ts:merged.merge",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:client.Impl",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:client.go",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client.Impl",
+      "dst": "ts:base.Base",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:svc.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:svc.create",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:merged.merge",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:client.go",
+        "dst": "ts:svc.save",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `svc` inside the callback is the callback's parameter. A binding scoped from its start to the end of the enclosing function \u2014 pass 2's rule \u2014 also swallowed the true `svc.find()` after it; one scoped to the callback refuses only this."
+    }
+  ],
+  "excluded": [
+    "`merged` is built by `Object.assign`, whose members this pass does not read, so its export map is not enforced: `merged.merge()` is resolved by name and kept because `ts:merged.merge` exists. The call is true \u2014 `merge` is on the assigned object."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

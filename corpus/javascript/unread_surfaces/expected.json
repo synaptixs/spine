@@ -1,0 +1,653 @@
+{
+  "language": "javascript",
+  "case": "unread_surfaces",
+  "why": "The fourth review pass. Five export surfaces this pass does not read in full \u2014 `Object.freeze({\u2026})`, `module.exports = make()`, an alias assigned after its declaration, a subscript `exports['find']`, and `Object.assign` onto an alias \u2014 each of which the third pass still treated as readable and so enforced, dropping a true call. \"Readable\" is an allowlist now, and every one of these calls is resolved by name and kept because its target exists. Plus a renamed export, `{ Handler: Impl }`, with no class called `Handler` anywhere to hide behind, so the method call must be routed through the export map before the existence check rather than after it. Plus two bindings that shadow the module's `store` over their own scope only: a `var` inside a callback (hoisted to the callback, not to `go`) and a `catch (store)` clause. A scope that runs past either loses the true `store.find()` on the last line. The fifth review pass adds five more. Two write the exports object through a channel pass 4 did not recognise, and so lost a true call: a brace-less `if (c) exports.find = find` and `Reflect.defineProperty(exports, 'find', \u2026)`. Two hand the exports object to something the reader cannot follow, an alias `const api = exports` and an argument `mixin(exports, \u2026)`, so their calls go by name. And two refusals: `frozen.secret()` and `shadow.secret()` name functions their module declares but never exports, which a name lookup would reach. The fifth review pass (N5): the `{ Handler: Impl }` refusal could not fire \u2014 its target names no node \u2014 so `decoyed.js` repeats the shape with a decoy `class Handler`, called from JavaScript, where a reader that ignores the rename lands on the decoy. A file that declares its own `var module` exports nothing through it. A `let module` inside a top-level block binds the block, not the file; an own-module file's `module.exports.X` is a local's too.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:frozen",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:made",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:later",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:keyed",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:grown",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:renamed",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:store",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:client",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:frozen.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:frozen.create",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:made.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:made.make",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:later.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:keyed.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:keyed.create",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:grown.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:grown.create",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:store.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:store.save",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:client.go",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:renamed.Impl",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:renamed.Impl.run",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:branchy",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:aliased",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:mixed",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:reflected",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:shadow",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:frozen.secret",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:branchy.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:branchy.create",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:aliased.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:aliased.create",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:mixed.mixin",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:mixed.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:mixed.create",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:reflected.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:reflected.create",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:shadow.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:shadow.secret",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:shadow.tag",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:decoyed",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:decoy_client",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:decoyed.Handler",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:decoyed.Impl",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:decoyed.Handler.run",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:decoyed.Impl.run",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:decoy_client.start",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:boxed",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:boxed.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:boxed.list",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:blockmod",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:blockmod.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:blockmod.list",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:frozen",
+      "dst": "ts:frozen.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:frozen",
+      "dst": "ts:frozen.create",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:made",
+      "dst": "ts:made.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:made",
+      "dst": "ts:made.make",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:later",
+      "dst": "ts:later.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:keyed",
+      "dst": "ts:keyed.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:keyed",
+      "dst": "ts:keyed.create",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:grown",
+      "dst": "ts:grown.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:grown",
+      "dst": "ts:grown.create",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:store",
+      "dst": "ts:store.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:store",
+      "dst": "ts:store.save",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:client.go",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:renamed",
+      "dst": "ts:renamed.Impl",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:renamed.Impl",
+      "dst": "ts:renamed.Impl.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:frozen",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:made",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:later",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:keyed",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:grown",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:renamed",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:store",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:frozen.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:frozen.create",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:made.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:keyed.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:keyed.create",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:grown.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:grown.create",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:renamed.Impl",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:renamed.Impl.run",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:later.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:store.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:frozen",
+      "dst": "ts:frozen.secret",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:branchy",
+      "dst": "ts:branchy.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:branchy",
+      "dst": "ts:branchy.create",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:aliased",
+      "dst": "ts:aliased.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:aliased",
+      "dst": "ts:aliased.create",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:mixed",
+      "dst": "ts:mixed.mixin",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:mixed",
+      "dst": "ts:mixed.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:mixed",
+      "dst": "ts:mixed.create",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:reflected",
+      "dst": "ts:reflected.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:reflected",
+      "dst": "ts:reflected.create",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:shadow",
+      "dst": "ts:shadow.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:shadow",
+      "dst": "ts:shadow.secret",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:shadow",
+      "dst": "ts:shadow.tag",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:branchy",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:aliased",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:mixed",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:reflected",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:shadow",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:branchy.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:branchy.create",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:aliased.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:mixed.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:reflected.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:shadow.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:decoyed",
+      "dst": "ts:decoyed.Handler",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:decoyed",
+      "dst": "ts:decoyed.Impl",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:decoyed.Handler",
+      "dst": "ts:decoyed.Handler.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:decoyed.Impl",
+      "dst": "ts:decoyed.Impl.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:decoy_client",
+      "dst": "ts:decoy_client.start",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:decoy_client",
+      "dst": "ts:decoyed",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:decoy_client.start",
+      "dst": "ts:decoyed.Impl",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:decoy_client.start",
+      "dst": "ts:decoyed.Impl.run",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:boxed",
+      "dst": "ts:boxed.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:boxed",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:boxed",
+      "dst": "ts:boxed.list",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:blockmod",
+      "dst": "ts:blockmod.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:blockmod",
+      "dst": "ts:blockmod.list",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:blockmod",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:blockmod.list",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:client.go",
+        "dst": "ts:store.save",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Both `store.save()` calls are on a local: the callback's own `var store` and the `catch (store)` parameter. `save` is really exported, so only the scope rule refuses this edge \u2014 not the export map, not the existence check."
+    },
+    {
+      "edge": {
+        "src": "ts:client.go",
+        "dst": "ts:frozen.secret",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `secret` is declared in `frozen.js` but never written to its exports: the frozen literal names `find` and `create` only. A name lookup that finds the function by name alone emits this."
+    },
+    {
+      "edge": {
+        "src": "ts:client.go",
+        "dst": "ts:shadow.secret",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `secret` is never exported. `tag(api)` takes a *parameter* named like the exports alias; it is a different binding, so it must not make the surface unreadable and hand `secret` to a name lookup."
+    },
+    {
+      "edge": {
+        "src": "ts:decoy_client.start",
+        "dst": "ts:decoyed.Handler.run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `Handler` is the exported name; it is bound to `Impl`, and the file's own `class Handler` is a decoy nothing exports. A reader that keeps the imported name instead of routing it through the export map lands on the decoy's method."
+    },
+    {
+      "edge": {
+        "src": "ts:decoy_client.start",
+        "dst": "ts:decoyed.Handler",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The same misreading, on the constructor."
+    },
+    {
+      "edge": {
+        "src": "ts:client.go",
+        "dst": "ts:boxed.find",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `boxed.js` declares its own `var module`, so `module.exports = { find }` (bare, and in `var api = \u2026`) writes onto a local and the real module exports `{}`: `boxed.find` is `undefined`."
+    },
+    {
+      "edge": {
+        "src": "ts:client.go",
+        "dst": "ts:boxed.list",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `module.exports.list = list` in `boxed.js` writes onto its own `var module`'s object, not the real exports."
+    },
+    {
+      "edge": {
+        "src": "ts:client.go",
+        "dst": "ts:blockmod.find",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The `let module` in `blockmod.js` is the block's own; the real `module.exports = { list }` replaces the object `exports.find` was written onto."
+    }
+  ],
+  "excluded": [
+    "`Object.freeze`, `Object.assign` and `ids.forEach` are calls on builtins or an untyped receiver, not first-party functions.",
+    "`module.exports = make()` calls `make` at module level, where there is no caller to hang a CALLS edge on.",
+    "`mixin(exports, \u2026)` and `Reflect.defineProperty(exports, \u2026)` are top-level calls with no caller to hang a CALLS edge on; `Reflect.defineProperty` is a builtin.",
+    "`renamed.js` has no refusal of its own. The wrong edge there, `client.go \u2192 ts:renamed.Handler.run`, names a node no file declares, so the existence check refuses it alone and no rule of the export map is tested by it (the fifth review's N5). `decoyed.js` is the same shape with a decoy `class Handler`, where ignoring the rename does emit an edge."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

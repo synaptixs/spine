@@ -214,7 +214,7 @@ orchestrator regression . --trace crash.log          # or use the fault site fro
 ```
 
 > **Call graphs.** `localize`, `rca`, and `regression` (and the design **Blast radius**) trace
-> caller/callee edges — now extracted for **Python, C, C++, C#, Java, TypeScript, Go, PHP, Perl, and Kotlin** (Java/TS
+> caller/callee edges — now extracted for **Python, C, C++, C#, Java, TypeScript, JavaScript, Go, PHP, Perl, and Kotlin** (Java/TS
 > call graphs were added alongside these commands). On a language without one, the reports say
 > so and fall back to module-level impact rather than implying zero.
 
@@ -238,8 +238,8 @@ is: `orchestrator understand .` → commit `episteme/`, then re-run whenever the
 > artifact is persisted**, how grounding uses it, and how it works for brownfield and
 > greenfield projects.
 
-> **Multi-language.** Comprehension covers Python, Java, TypeScript, C#, C, C++, Go,
-> PHP, Perl, Kotlin and SQL. Install the matching [SETUP extras](SETUP.md#optional-extras).
+> **Multi-language.** Comprehension covers Python, Java, TypeScript, JavaScript, C#, C, C++,
+> Go, PHP, Perl, Kotlin and SQL. Install the matching [SETUP extras](SETUP.md#optional-extras).
 > Kotlin reads `.kt` only — a `.kts` Gradle script is a build DSL, not source, so it gets a
 > separate reader that turns `include(":core:data")` and `project(":core:model")` into a
 > module dependency graph instead of parsing it as code. It also reads the Android data

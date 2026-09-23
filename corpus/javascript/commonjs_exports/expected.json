@@ -1,0 +1,191 @@
+{
+  "language": "javascript",
+  "case": "commonjs_exports",
+  "why": "The CommonJS export forms: `exports.f =`, `module.exports.f =`, a `module.exports = {\u2026}` object with a method, a function and an arrow, and the aliased object express spells 43 of its 49 exports with (`var app = exports = module.exports = {}`). Plus two calls a naive reader would resolve and this one must not. And the renamed export: `module.exports = { run: helper }` beside a private `function run`, where a caller's `aliasing.run()` must reach `helper`.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:src/math",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:src/shapes",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:src/app",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:src/math.square",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/math.cube",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/math.half",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/shapes.area",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/shapes.perimeter",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/shapes.diagonal",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/app.run",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/app.whole",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/aliasing",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:src/aliasing.run",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/aliasing.helper",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/app.go",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:src/app",
+      "dst": "ts:src/math",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:src/app",
+      "dst": "ts:src/shapes",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:src/math",
+      "dst": "ts:src/math.square",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/math",
+      "dst": "ts:src/math.cube",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/math",
+      "dst": "ts:src/math.half",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/shapes",
+      "dst": "ts:src/shapes.area",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/shapes",
+      "dst": "ts:src/shapes.perimeter",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/shapes",
+      "dst": "ts:src/shapes.diagonal",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/app",
+      "dst": "ts:src/app.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/app",
+      "dst": "ts:src/app.whole",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/math.cube",
+      "dst": "ts:src/math.square",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:src/app.run",
+      "dst": "ts:src/math.cube",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:src/app.run",
+      "dst": "ts:src/shapes.area",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:src/app",
+      "dst": "ts:src/aliasing",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:src/aliasing",
+      "dst": "ts:src/aliasing.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/aliasing",
+      "dst": "ts:src/aliasing.helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/app",
+      "dst": "ts:src/app.go",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/app.go",
+      "dst": "ts:src/aliasing.helper",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:src/app.run",
+        "dst": "ts:src/math.missing",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `math.missing()` names an export `math.js` does not have. The export map drops it \u2014 `missing` is not a name `math.js` exports \u2014 and the existence check backs that up, since no node carries the id either."
+    },
+    {
+      "edge": {
+        "src": "ts:src/app.whole",
+        "dst": "ts:src/shapes.shapes",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `shapes()` calls the whole module \u2014 whatever `shapes.js` assigned to `module.exports`, here an object. Naming the target by the local would mint `ts:src/shapes.shapes`."
+    },
+    {
+      "edge": {
+        "src": "ts:src/app.go",
+        "dst": "ts:src/aliasing.run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `aliasing.run()` calls what `aliasing.js` exports as `run`, which is `helper`. Resolving by id alone landed it on the module's private `function run`, which exists but is not exported \u2014 `finalize`'s existence check cannot catch that, only the export map can."
+    }
+  ],
+  "excluded": [],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

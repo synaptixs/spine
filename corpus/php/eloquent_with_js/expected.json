@@ -1,0 +1,138 @@
+{
+  "language": "php",
+  "case": "eloquent_with_js",
+  "why": "The `eloquent` case again, with the one JavaScript file every Laravel application ships (`resources/js/app.js`). The JavaScript front-end's backstop \u2014 no call, route or `extends` lands on a module node \u2014 once ran over the whole merged graph, so adding this file dropped the three true `IMPLEMENTS \u2026 \u2192 Illuminate\u2026Model` edges, whose base class the PHP front-end keeps as an external module. Every PHP label is `eloquent`'s, unchanged; a rule of one namespace must not reach another's edges.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "php:App.Models",
+      "kind": "Module"
+    },
+    {
+      "id": "php:App.Models.Customer",
+      "kind": "Type"
+    },
+    {
+      "id": "php:App.Models.OrderItem",
+      "kind": "Type"
+    },
+    {
+      "id": "php:App.Models.Order",
+      "kind": "Type"
+    },
+    {
+      "id": "php:App.Models.Order.customer",
+      "kind": "Function"
+    },
+    {
+      "id": "php:App.Models.Order.items",
+      "kind": "Function"
+    },
+    {
+      "id": "php:App.Models.Order.notification",
+      "kind": "Function"
+    },
+    {
+      "id": "php:entity:App.Models.Customer",
+      "kind": "Entity"
+    },
+    {
+      "id": "php:entity:App.Models.OrderItem",
+      "kind": "Entity"
+    },
+    {
+      "id": "php:entity:App.Models.Order",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:resources/js/app",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:resources/js/app.boot",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "php:App.Models",
+      "dst": "php:App.Models.Customer",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "php:App.Models",
+      "dst": "php:App.Models.OrderItem",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "php:App.Models",
+      "dst": "php:App.Models.Order",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "php:App.Models.Order",
+      "dst": "php:App.Models.Order.customer",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "php:App.Models.Order",
+      "dst": "php:App.Models.Order.items",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "php:App.Models.Order",
+      "dst": "php:App.Models.Order.notification",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "php:App.Models.Customer",
+      "dst": "php:Illuminate.Database.Eloquent.Model",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "php:App.Models.OrderItem",
+      "dst": "php:Illuminate.Database.Eloquent.Model",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "php:App.Models.Order",
+      "dst": "php:Illuminate.Database.Eloquent.Model",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "php:App.Models",
+      "dst": "php:Illuminate.Database.Eloquent.Model",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "php:entity:App.Models.Order",
+      "dst": "php:entity:App.Models.Customer",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "php:entity:App.Models.Order",
+      "dst": "php:entity:App.Models.OrderItem",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "php:entity:App.Models.Order",
+      "dst": "php:entity:Vendor.Notifications.DatabaseNotification",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:resources/js/app",
+      "dst": "ts:resources/js/app.boot",
+      "kind": "CONTAINS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "php:entity:Vendor.Notifications.DatabaseNotification is not listed as a node \u2014 it's external, and external nodes don't count (corpus/README.md's decided rule); the REFERENCES edge to it above still does."
+  ],
+  "open_questions": [],
+  "requires": [
+    "php",
+    "javascript"
+  ]
+}

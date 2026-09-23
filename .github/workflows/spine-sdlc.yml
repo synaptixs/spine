@@ -4,7 +4,7 @@
 #
 #     jobs:
 #       spine:
-#         uses: synaptixs/spine/.github/workflows/spine-sdlc.yml@v3.42.0
+#         uses: synaptixs/spine/.github/workflows/spine-sdlc.yml@v3.43.0
 #         with:
 #           spec: .spine/specs/TICKET-1.json
 #         secrets:

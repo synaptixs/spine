@@ -569,6 +569,9 @@ _CPP = _CFamily(scope_nodes=frozenset({"function_definition", "lambda_expression
 #: must say so rather than report zero — see `invention.LanguageInvention.status`.
 WALKERS: dict[str, _Lang] = {
     "typescript": _TypeScript(),
+    # The same walker, not a second one: TypeScript's scoping *is* JavaScript's, and the
+    # JavaScript front-end parses with the same grammar (javascript-support-roadmap D1).
+    "javascript": _TypeScript(),
     "go": _Go(),
     "csharp": _CSharp(),
     "c": _C,
@@ -591,7 +594,7 @@ NOT_APPLICABLE: dict[str, str] = {
 
 def _parser_for(language: str, suffix: str) -> Any:
     """The front-end's own parser factory — never a second grammar (see the module docstring)."""
-    if language == "typescript":
+    if language in ("typescript", "javascript"):
         from orchestrator.pkg.typescript_extractor import _ts_parser
 
         return _ts_parser(suffix)

@@ -1,0 +1,169 @@
+{
+  "language": "javascript",
+  "case": "express_routes",
+  "why": "Express the CommonJS way. Every handler shape: a bare local function, `exports.version` in the same module, `users.list` through a `require` namespace (the route-separation idiom), an inline arrow, a router mounted with `app.use`. Two router bindings: the direct `const app = express()` and the chained `var app = module.exports = express()` that 18 of express's 28 example apps use. Plus a computed path, and a renamed export \u2014 `exports.destroy = helper` beside a private `function destroy` \u2014 whose route must bind to `helper`. (An earlier version routed to `users.missing`, an export that does not exist; Express throws on an undefined handler at start-up, so that Endpoint could never have existed, and the fixture was stating something false. The dropped-EXPOSES rule is pinned by a unit test instead.)",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:server",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:users",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:admin",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:server.health",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:server.version",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:users.list",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:admin.dashboard",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:endpoint:GET /health",
+      "kind": "Endpoint"
+    },
+    {
+      "id": "ts:endpoint:GET /version",
+      "kind": "Endpoint"
+    },
+    {
+      "id": "ts:endpoint:GET /users",
+      "kind": "Endpoint"
+    },
+    {
+      "id": "ts:endpoint:GET /inline",
+      "kind": "Endpoint"
+    },
+    {
+      "id": "ts:endpoint:GET /api/items",
+      "kind": "Endpoint"
+    },
+    {
+      "id": "ts:endpoint:GET /admin",
+      "kind": "Endpoint"
+    },
+    {
+      "id": "ts:endpoint:DELETE /users",
+      "kind": "Endpoint"
+    },
+    {
+      "id": "ts:users.destroy",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:users.helper",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:server",
+      "dst": "ts:express",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:server",
+      "dst": "ts:users",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:admin",
+      "dst": "ts:express",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:server",
+      "dst": "ts:server.health",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:server",
+      "dst": "ts:server.version",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:users",
+      "dst": "ts:users.list",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:admin",
+      "dst": "ts:admin.dashboard",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:endpoint:GET /health",
+      "dst": "ts:server.health",
+      "kind": "EXPOSES"
+    },
+    {
+      "src": "ts:endpoint:GET /version",
+      "dst": "ts:server.version",
+      "kind": "EXPOSES"
+    },
+    {
+      "src": "ts:endpoint:GET /users",
+      "dst": "ts:users.list",
+      "kind": "EXPOSES"
+    },
+    {
+      "src": "ts:endpoint:GET /api/items",
+      "dst": "ts:users.list",
+      "kind": "EXPOSES"
+    },
+    {
+      "src": "ts:endpoint:GET /admin",
+      "dst": "ts:admin.dashboard",
+      "kind": "EXPOSES"
+    },
+    {
+      "src": "ts:users",
+      "dst": "ts:users.destroy",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:users",
+      "dst": "ts:users.helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:endpoint:DELETE /users",
+      "dst": "ts:users.helper",
+      "kind": "EXPOSES"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:endpoint:DELETE /users",
+        "dst": "ts:users.destroy",
+        "kind": "EXPOSES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `users.destroy` is what `users.js` exports as `destroy`, which is `helper`. A private `function destroy` exists beside it; resolving the handler by id alone bound the route to it. The export map routes it to `helper`."
+    }
+  ],
+  "excluded": [
+    "`GET /inline` has an Endpoint and no EXPOSES by design: an inline arrow is no named symbol, and inventing a handler id would be the fabrication the route reader refuses.",
+    "`/computed/${1}` yields no Endpoint: a template literal is refused even with a constant substitution, because a wrong path would be presented as grounded.",
+    "`res.send(...)` \u2014 member calls on an untyped parameter.",
+    "`express()` / `express.Router()` are top-level calls, outside any function body, so no caller exists to hang a CALLS edge on."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

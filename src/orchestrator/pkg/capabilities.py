@@ -45,6 +45,7 @@ FRONT_ENDS: tuple[FrontEnd, ...] = (
     FrontEnd("python", "extractor.py", "PythonExtractor"),
     FrontEnd("java", "java_extractor.py", "JavaExtractor"),
     FrontEnd("typescript", "typescript_extractor.py", "TypeScriptExtractor"),
+    FrontEnd("javascript", "js_extractor.py", "JavaScriptExtractor"),
     FrontEnd("csharp", "csharp_extractor.py", "CSharpExtractor"),
     FrontEnd("c", "c_extractor.py", "CExtractor"),
     FrontEnd("cpp", "cpp_extractor.py", "CppExtractor"),
@@ -132,6 +133,30 @@ def _delegate_modules(source: str) -> list[str]:
     return out
 
 
+def _front_end_bases(source: str, cls: str) -> list[str]:
+    """The classes ``cls`` directly subclasses, by name.
+
+    Subclassing is not borrowing, which is why this is separate from `_delegate_modules`. A
+    front-end that imports another's *helpers* — C++ from C — does not emit that front-end's
+    facts, and crediting it with them would be the fabrication `_delegate_modules` refuses. A
+    front-end that *subclasses* another and calls ``super().extract()`` emits every fact the
+    parent does, by construction: `JavaScriptExtractor` names only the kinds its CommonJS
+    reading adds, and gets `Type`, `Field`, `Endpoint` and `EXPOSES` from `TypeScriptExtractor`.
+    Read module-locally it would be under-reported, and the runtime superset check in
+    `tests/pkg/test_capabilities.py` would fail on the first class it saw.
+    """
+    for stmt in ast.walk(ast.parse(source)):
+        if isinstance(stmt, ast.ClassDef) and stmt.name == cls:
+            # `class X(Base)` and `class X(mod.Base)` alike: dropping the attribute form silently
+            # took the parent's column away from a subclass spelled through its module.
+            return [
+                b.id if isinstance(b, ast.Name) else b.attr
+                for b in stmt.bases
+                if isinstance(b, ast.Name | ast.Attribute)
+            ]
+    return []
+
+
 def _value_of(enum: type[NodeKind] | type[EdgeKind], member: str) -> str | None:
     """``"ENDPOINT"`` → ``"Endpoint"``; ``None`` for a member that no longer exists."""
     try:
@@ -146,12 +171,14 @@ def front_end_capabilities(*, package_dir: Path | None = None) -> tuple[Capabili
     ``package_dir`` overrides where the front-ends are read from (tests only).
     """
     root = package_dir or Path(__file__).resolve().parent
-    out: list[Capability] = []
+    raw: dict[str, tuple[set[str], set[str]]] = {}
+    sources: dict[str, str] = {}
     for fe in FRONT_ENDS:
         path = root / fe.module
         if not path.is_file():  # source-stripped install — say nothing rather than guess
             raise FileNotFoundError(f"cannot read front-end source: {path}")
         source = path.read_text(encoding="utf-8")
+        sources[fe.cls] = source
         raw_nodes, raw_edges = _kinds_in(source, keep_class=fe.cls)
         for delegate in _delegate_modules(source):
             delegate_path = root / f"{delegate}.py"
@@ -160,6 +187,16 @@ def front_end_capabilities(*, package_dir: Path | None = None) -> tuple[Capabili
             more_nodes, more_edges = _kinds_in(delegate_path.read_text(encoding="utf-8"), keep_class=None)
             raw_nodes |= more_nodes
             raw_edges |= more_edges
+        raw[fe.cls] = (raw_nodes, raw_edges)
+    out: list[Capability] = []
+    for fe in FRONT_ENDS:
+        raw_nodes, raw_edges = set(raw[fe.cls][0]), set(raw[fe.cls][1])
+        # One level, like `_delegate_modules`: the parent's own reading already carries its
+        # delegates, so a direct base is the whole of what `super().extract()` can emit.
+        for base in _front_end_bases(sources[fe.cls], fe.cls):
+            if base in raw:
+                raw_nodes |= raw[base][0]
+                raw_edges |= raw[base][1]
         nodes = sorted(v for m in raw_nodes if (v := _value_of(NodeKind, m)))
         edges = sorted(v for m in raw_edges if (v := _value_of(EdgeKind, m)))
         out.append(Capability(language=fe.language, node_kinds=tuple(nodes), edge_kinds=tuple(edges)))

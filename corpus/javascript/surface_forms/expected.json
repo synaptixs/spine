@@ -1,0 +1,1285 @@
+{
+  "language": "javascript",
+  "case": "surface_forms",
+  "why": "One shape per rule of the CommonJS export tiers (js-review-followup D5: every rule moves a gated corpus metric, not only a unit test). A `Reflect.defineProperty` write and a write inside a declaration (`var all = exports.list = list`) are exports; top-level `this.find =` writes `exports`; `__proto__` in the exported literal and `Object.create` of a local prototype make members callable that the file never writes, so those modules are resolved by name; a getter is an export whose value this pass cannot name, resolved by name; `exports.stale` after `module.exports = make()` is written onto an object nobody exports. `util.util()` through `const util = require('./util')` is the member `util`, not the whole module. And a `var` in a class expression's `static {}` block is the block's own. Each `secret` is declared and never exported. The second review round added: a write under a top-level branch *before* `module.exports` is replaced, and one inside a function, which runs later and is live; a top-level block's own `const api`; four spellings the reference finder once missed \u2014 `{ exports }`, `const mod = module`, `module['exports']`, `exports.__proto__ =` \u2014 each of which must make the surface opaque rather than read a map that lacks `g`; `var exports = {}`, a rebinding; a write after `Object.freeze`; a `catch` parameter spelled like the alias; and `this` inside a top-level arrow, which is still `exports`. The third review round added: a `for` header's own binding and a named function expression's own name, both spelled like the exported alias; `module` handed to a logger, which is a use; a `var exports` inside a top-level block, and a bare `exports = {}`, each of which kills only the writes *after* it; `{ ...exports }`, a read; `module || {}`, which yields the module itself; `module.exports = exports`, which replaces nothing; and a parameter named `module` whose `exports` the module-level walk must not count.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:rflx",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:declared",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:thisy",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:proto",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:created",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:getter",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:dead",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:util",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:client",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:rflx.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:rflx.secret",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:declared.list",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:declared.secret",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:thisy.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:thisy.secret",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:proto.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:proto.other",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:created.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:getter.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:getter.secret",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:dead.stale",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:util.util",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:client.go",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:client.later",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:dead.make",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:before",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:deferred",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:boxed",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:modref",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:bracket",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:protod",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:varexp",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:sealed",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:arrowthis",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:blocky",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:caught",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:before.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:before.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:deferred.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:deferred.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:deferred.init",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:boxed.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:boxed.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:modref.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:modref.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:bracket.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:bracket.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:protod.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:protod.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:varexp.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:varexp.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:sealed.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:sealed.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:arrowthis.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:arrowthis.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:arrowthis.init",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:blocky.real",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:blocky.helper",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:caught.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:caught.secret",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:caught.report",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:client.more",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:selfref",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:selfref.Tool",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:selfref.secret",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:varonly",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:varonly.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:forshadow",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:namedfn",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:logged",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:blockvar",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:spread",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:orfallback",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:itself",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:rebound",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:paramod",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:logger",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:forshadow.real",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:forshadow.helper",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:namedfn.real",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:namedfn.helper",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:namedfn.tag",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:logged.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:logged.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:logged.secret",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:blockvar.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:blockvar.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:spread.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:spread.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:spread.secret",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:orfallback.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:orfallback.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:itself.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:itself.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:rebound.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:rebound.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:paramod.f",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:paramod.g",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:paramod.install",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:client.third",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:forshadow.secret",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:namedfn.secret",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:blocky.secret",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:rflx",
+      "dst": "ts:rflx.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:rflx",
+      "dst": "ts:rflx.secret",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:declared",
+      "dst": "ts:declared.list",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:declared",
+      "dst": "ts:declared.secret",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:thisy",
+      "dst": "ts:thisy.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:thisy",
+      "dst": "ts:thisy.secret",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:proto",
+      "dst": "ts:proto.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:proto",
+      "dst": "ts:proto.other",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:created",
+      "dst": "ts:created.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:getter",
+      "dst": "ts:getter.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:getter",
+      "dst": "ts:getter.secret",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:dead",
+      "dst": "ts:dead.stale",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:util",
+      "dst": "ts:util.util",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:client.go",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:client.later",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:rflx",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:declared",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:thisy",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:proto",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:created",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:getter",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:dead",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:util",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:rflx.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:declared.list",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:thisy.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:proto.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:proto.other",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:created.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:getter.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:util.util",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.later",
+      "dst": "ts:rflx.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:dead",
+      "dst": "ts:dead.make",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:before",
+      "dst": "ts:before.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:before",
+      "dst": "ts:before.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:deferred",
+      "dst": "ts:deferred.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:deferred",
+      "dst": "ts:deferred.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:deferred",
+      "dst": "ts:deferred.init",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:boxed",
+      "dst": "ts:boxed.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:boxed",
+      "dst": "ts:boxed.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:modref",
+      "dst": "ts:modref.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:modref",
+      "dst": "ts:modref.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:bracket",
+      "dst": "ts:bracket.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:bracket",
+      "dst": "ts:bracket.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:protod",
+      "dst": "ts:protod.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:protod",
+      "dst": "ts:protod.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:varexp",
+      "dst": "ts:varexp.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:varexp",
+      "dst": "ts:varexp.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:sealed",
+      "dst": "ts:sealed.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:sealed",
+      "dst": "ts:sealed.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:arrowthis",
+      "dst": "ts:arrowthis.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:arrowthis",
+      "dst": "ts:arrowthis.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:arrowthis",
+      "dst": "ts:arrowthis.init",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:blocky",
+      "dst": "ts:blocky.real",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:blocky",
+      "dst": "ts:blocky.helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:caught",
+      "dst": "ts:caught.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:caught",
+      "dst": "ts:caught.secret",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:caught",
+      "dst": "ts:caught.report",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:client.more",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:before",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:deferred",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:boxed",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:modref",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:bracket",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:protod",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:varexp",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:sealed",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:arrowthis",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:blocky",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:caught",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client.more",
+      "dst": "ts:before.f",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.more",
+      "dst": "ts:deferred.g",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.more",
+      "dst": "ts:blocky.real",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.more",
+      "dst": "ts:boxed.g",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.more",
+      "dst": "ts:modref.g",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.more",
+      "dst": "ts:bracket.g",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.more",
+      "dst": "ts:protod.g",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.more",
+      "dst": "ts:varexp.f",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.more",
+      "dst": "ts:sealed.f",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.more",
+      "dst": "ts:caught.f",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.more",
+      "dst": "ts:arrowthis.g",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:selfref",
+      "dst": "ts:selfref.Tool",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:selfref",
+      "dst": "ts:selfref.secret",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:selfref",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client.more",
+      "dst": "ts:selfref.Tool",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:varonly",
+      "dst": "ts:varonly.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:varonly",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:forshadow",
+      "dst": "ts:forshadow.real",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:forshadow",
+      "dst": "ts:forshadow.helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:namedfn",
+      "dst": "ts:namedfn.real",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:namedfn",
+      "dst": "ts:namedfn.helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:namedfn",
+      "dst": "ts:namedfn.tag",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:logged",
+      "dst": "ts:logged.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:logged",
+      "dst": "ts:logged.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:logged",
+      "dst": "ts:logged.secret",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:blockvar",
+      "dst": "ts:blockvar.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:blockvar",
+      "dst": "ts:blockvar.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:spread",
+      "dst": "ts:spread.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:spread",
+      "dst": "ts:spread.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:spread",
+      "dst": "ts:spread.secret",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:orfallback",
+      "dst": "ts:orfallback.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:orfallback",
+      "dst": "ts:orfallback.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:itself",
+      "dst": "ts:itself.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:itself",
+      "dst": "ts:itself.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:rebound",
+      "dst": "ts:rebound.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:rebound",
+      "dst": "ts:rebound.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:paramod",
+      "dst": "ts:paramod.f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:paramod",
+      "dst": "ts:paramod.g",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:paramod",
+      "dst": "ts:paramod.install",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:client.third",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:forshadow",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:namedfn",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:logged",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:blockvar",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:spread",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:orfallback",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:itself",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:rebound",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:paramod",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:logged",
+      "dst": "ts:logger",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client.third",
+      "dst": "ts:forshadow.real",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.third",
+      "dst": "ts:namedfn.real",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.third",
+      "dst": "ts:logged.f",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.third",
+      "dst": "ts:blockvar.f",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.third",
+      "dst": "ts:spread.f",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.third",
+      "dst": "ts:orfallback.g",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.third",
+      "dst": "ts:itself.g",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.third",
+      "dst": "ts:rebound.f",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.third",
+      "dst": "ts:paramod.f",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:forshadow",
+      "dst": "ts:forshadow.secret",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:namedfn",
+      "dst": "ts:namedfn.secret",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client.third",
+      "dst": "ts:orfallback.f",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:blocky",
+      "dst": "ts:blocky.secret",
+      "kind": "CONTAINS"
+    }
+  ],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "ts:logged",
+        "dst": "ts:logger",
+        "kind": "IMPORTS"
+      },
+      "why": "`require('./logger')(module)` calls the `require` result at once. The front-end reads a `require` only as the whole value of a declaration (`_require_binding`), so an immediately-called one records no import. Found labelling this case; pre-existing, and left as a measured gap rather than a fixture shaped around it."
+    }
+  ],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:client.go",
+        "dst": "ts:rflx.secret",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `secret` is declared in `rflx.js` and never written to its exports."
+    },
+    {
+      "edge": {
+        "src": "ts:client.go",
+        "dst": "ts:declared.secret",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `secret` is declared in `declared.js` and never written to its exports."
+    },
+    {
+      "edge": {
+        "src": "ts:client.go",
+        "dst": "ts:thisy.secret",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `secret` is declared in `thisy.js` and never written to its exports."
+    },
+    {
+      "edge": {
+        "src": "ts:client.go",
+        "dst": "ts:getter.secret",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `secret` is declared in `getter.js` and never written to its exports."
+    },
+    {
+      "edge": {
+        "src": "ts:client.go",
+        "dst": "ts:dead.stale",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `exports.stale` is written after `module.exports = make()` replaced the object `exports` names, so `stale` is on an object nobody exports."
+    },
+    {
+      "edge": {
+        "src": "ts:client.more",
+        "dst": "ts:before.g",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `module.exports.g = g` runs under a top-level branch *before* `module.exports = { f }` replaces the object it wrote onto."
+    },
+    {
+      "edge": {
+        "src": "ts:client.more",
+        "dst": "ts:blocky.helper",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `api.run = helper` writes onto the block's own `const api`, not the exported one; the module exports no `run`."
+    },
+    {
+      "edge": {
+        "src": "ts:client.more",
+        "dst": "ts:varexp.g",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `var exports = {}` rebinds the module's `exports`, so `exports.g` writes onto an object nobody exports."
+    },
+    {
+      "edge": {
+        "src": "ts:client.more",
+        "dst": "ts:sealed.g",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `module.exports.g = g` after `Object.freeze` is silently dropped: the frozen object has no `g`."
+    },
+    {
+      "edge": {
+        "src": "ts:client.more",
+        "dst": "ts:caught.secret",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `secret` is never exported; the `catch (api)` parameter is its own binding, so handing it to `report` says nothing about the exported `api`."
+    },
+    {
+      "edge": {
+        "src": "ts:client.more",
+        "dst": "ts:selfref.secret",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `secret` is never exported. `module.exports.Tool = Tool` stores the default on itself \u2014 a value, not an unrecognised reference \u2014 so the surface stays readable and `secret` is not handed to a name lookup."
+    },
+    {
+      "edge": {
+        "src": "ts:client.more",
+        "dst": "ts:varonly.g",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `var exports = {}` redeclares the wrapper's own `exports` and rebinds it, with no `module.exports` assignment to replace anything: `exports.g` writes onto an object `require` never returns."
+    },
+    {
+      "edge": {
+        "src": "ts:client.third",
+        "dst": "ts:forshadow.helper",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `api` in the `for (const api of \u2026)` header is the loop's own binding; `api.run = helper` writes onto it, and the module exports no `run`."
+    },
+    {
+      "edge": {
+        "src": "ts:client.third",
+        "dst": "ts:namedfn.helper",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. A named function expression binds its own name inside itself: `api` in `function api() {\u2026}` is the function, not the exported object."
+    },
+    {
+      "edge": {
+        "src": "ts:client.third",
+        "dst": "ts:logged.secret",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `secret` is never exported. Handing `module` to a logger is a use, not a write, so the surface stays readable and `secret` is not looked up by name."
+    },
+    {
+      "edge": {
+        "src": "ts:client.third",
+        "dst": "ts:blockvar.g",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `var exports = {}` in the block rebinds the module's `exports` (a `var` is the module's, wherever it is written); `exports.g` after it writes onto the new object. `exports.f`, before it, is exported."
+    },
+    {
+      "edge": {
+        "src": "ts:client.third",
+        "dst": "ts:spread.secret",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `{ ...exports }` copies the exports out \u2014 a read \u2014 so the surface stays readable and `secret` is not looked up by name."
+    },
+    {
+      "edge": {
+        "src": "ts:client.third",
+        "dst": "ts:rebound.g",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `exports = {}` rebinds `exports`; only writes before it reach the exported object."
+    },
+    {
+      "edge": {
+        "src": "ts:client.third",
+        "dst": "ts:paramod.g",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `module.exports = { g }` inside `install(module)` assigns the parameter's member; the module exports only `f`."
+    },
+    {
+      "edge": {
+        "src": "ts:client.third",
+        "dst": "ts:forshadow.secret",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `secret` is never exported. The shadowing binding in `forshadow.js` is recognised as the loop's or the function's own, so the surface stays readable and `secret` is not handed to a name lookup."
+    },
+    {
+      "edge": {
+        "src": "ts:client.third",
+        "dst": "ts:namedfn.secret",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `secret` is never exported. The shadowing binding in `namedfn.js` is recognised as the loop's or the function's own, so the surface stays readable and `secret` is not handed to a name lookup."
+    },
+    {
+      "edge": {
+        "src": "ts:client.more",
+        "dst": "ts:blocky.secret",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `secret` is never exported. The block's `const api` is its own, so the module's `api` is declared once and the surface stays readable; read as a second declaration of the alias, it would go opaque and hand `secret` to a name lookup."
+    }
+  ],
+  "excluded": [
+    "`Reflect.defineProperty`, `Object.defineProperty`, `Object.create` and `make()` are top-level calls with no caller to hang a CALLS edge on; `make` is declared, so the fixture loads.",
+    "The getter's anonymous function, the class expression `Holder`, and the locals `base`, `proto` and `all` add no node: an anonymous function and a class expression are not emitted, and a module-level constant is not a `Field`.",
+    "`proto.find()` and `created.find()` are true at run time \u2014 `find` is on the prototype \u2014 and are kept by name, which is what an opaque surface does.",
+    "`f()` and `report(api)` in `caught.js`, and `init()` in `arrowthis.js`, are top-level calls with no caller; `boxed`, `modref`, `bracket` and `protod` are opaque, so a call to one of their other functions would be resolved by name \u2014 `client.more` calls only the `g` each exports.",
+    "`logger.js` exports an anonymous function, which adds no node; `require('./logger')(module)` is a top-level call with no caller."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

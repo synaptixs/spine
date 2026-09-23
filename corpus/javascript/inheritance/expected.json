@@ -1,0 +1,163 @@
+{
+  "language": "javascript",
+  "case": "inheritance",
+  "why": "IMPLEMENTS, which the capability matrix claims for JavaScript and no other case scores: a class extending a base bound by `require` in another file, one extending an ESM import, one extending a sibling in the same file \u2014 and one extending a name `require` binds but the module never declares.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:base",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:shape",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:impl",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:square",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:base.Base",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:shape.Shape",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:impl.Impl",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:impl.Local",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:impl.Haunted",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:square.Square",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:base.Base.hello",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:impl.Impl.run",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:base.makeGhost",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:impl",
+      "dst": "ts:base",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:square",
+      "dst": "ts:shape",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:base",
+      "dst": "ts:base.Base",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:shape",
+      "dst": "ts:shape.Shape",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:impl",
+      "dst": "ts:impl.Impl",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:impl",
+      "dst": "ts:impl.Local",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:impl",
+      "dst": "ts:impl.Haunted",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:square",
+      "dst": "ts:square.Square",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:impl.Impl",
+      "dst": "ts:base.Base",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "ts:impl.Local",
+      "dst": "ts:impl.Impl",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "ts:square.Square",
+      "dst": "ts:shape.Shape",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "ts:base.Base",
+      "dst": "ts:base.Base.hello",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:impl.Impl",
+      "dst": "ts:impl.Impl.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:impl.Impl.run",
+      "dst": "ts:base.Base.hello",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:base",
+      "dst": "ts:base.makeGhost",
+      "kind": "CONTAINS"
+    }
+  ],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "ts:impl.Impl.run",
+        "dst": "ts:base.Base.hello",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `this.hello()` where `hello` is inherited from `Base`. The `this` rule inherited from TypeScript resolves a sibling method of the *same* class only. A true edge, counted as a recall miss."
+    }
+  ],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:impl.Haunted",
+        "dst": "ts:base.Ghost",
+        "kind": "IMPLEMENTS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `Ghost` is exported as a value computed at run time (`makeGhost()`), not a declared class, so there is no node for `extends Ghost` to reach. Resolution mints `ts:base.Ghost` by name; the export map, which knows `Ghost` is exported only as that computed value, drops it \u2014 and the existence check would, failing that. (An earlier version destructured a `Ghost` the module never exported, which throws at load; the static facts held, but a fixture should be code that could run.)"
+    }
+  ],
+  "excluded": [
+    "`module.exports = { Base }` adds no node: a shorthand member names the class already declared."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

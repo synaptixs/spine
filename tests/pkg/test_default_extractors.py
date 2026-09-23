@@ -28,6 +28,26 @@ def test_default_includes_typescript_when_available() -> None:
     assert ("typescript" in langs) == have_ts
 
 
+def test_default_includes_javascript_when_typescript_is_available() -> None:
+    """JavaScript rides the TypeScript grammar, so it registers with it (javascript D5)."""
+    have_ts = importlib.util.find_spec("tree_sitter_typescript") is not None
+    langs = {e.language for e in default_extractors()}
+    assert ("javascript" in langs) == have_ts
+
+
+def test_typescript_and_javascript_split_the_suffixes_between_them() -> None:
+    pytest.importorskip("tree_sitter_typescript", reason="install the 'typescript' extra")
+    by_language = {e.language: e.suffixes for e in default_extractors()}
+    assert by_language["typescript"] == (".ts", ".tsx")
+    assert by_language["javascript"] == (".js", ".jsx", ".mjs", ".cjs")
+
+
+def test_no_suffix_is_claimed_by_two_front_ends() -> None:
+    """The walker keeps one front-end per suffix and the last registered wins, silently."""
+    claimed = [s for e in default_extractors() for s in e.suffixes]
+    assert len(claimed) == len(set(claimed)), sorted(s for s in set(claimed) if claimed.count(s) > 1)
+
+
 def test_default_includes_csharp_when_available() -> None:
     have_csharp = importlib.util.find_spec("tree_sitter_c_sharp") is not None
     langs = {e.language for e in default_extractors()}

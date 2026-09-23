@@ -50,7 +50,7 @@ _Showing 16 of 31 neighbouring areas._
 - [`orchestrator.registry.api`](../../src/orchestrator/registry/api/__init__.py#L1)
 - [`orchestrator.registry.api.app`](../../src/orchestrator/registry/api/app.py#L1)
 - [`orchestrator.registry.api.approvals`](../../src/orchestrator/registry/api/approvals.py#L1)
-- [`orchestrator.registry.api.audit`](../modules/orchestrator.registry.api.audit.md)
+- [`orchestrator.registry.api.audit`](../../src/orchestrator/registry/api/audit.py#L1)
 - [`orchestrator.registry.api.backlog`](../../src/orchestrator/registry/api/backlog.py#L1)
 - [`orchestrator.registry.api.capabilities`](../modules/orchestrator.registry.api.capabilities.md)
 - [`orchestrator.registry.api.config`](../../src/orchestrator/registry/api/config.py#L1)

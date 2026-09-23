@@ -11,6 +11,17 @@ already depends on, so the ids, context windows, prices and — the one that mat
 here — tool-calling support are facts about the installed version rather than a list
 that silently rots. Upgrading `litellm` brings new models with no edit here.
 
+**Installed means installed.** Left to its default, LiteLLM does not read the price map
+it ships: every import fetches the current one from GitHub and falls back to the bundled
+copy only if that fails. So the build document's cost table depended on the network — the
+same commit planned twice in CI, one fetch succeeded and one did not, and `sdlc_shapes.py`
+caught two documents that differed only in §11 (4,175 models fetched, 2,982 bundled).
+`sdlc plan` is trusted because the same commit gives the same document; a price list that
+moves with the network breaks that, and costs an offline machine a timeout on every
+import. So this module, which ``orchestrator.core.llm`` imports before anything else,
+pins LiteLLM to its bundled map — with ``setdefault``, so an operator who wants today's
+prices can still set ``LITELLM_LOCAL_MODEL_COST_MAP=False``.
+
 **Tool calling is not optional any more.** Codegen forces a ``submit_files`` call and
 the judge forces ``submit_verdict``; on a model without function calling both fall
 back to parsing prose, which is the failure this pipeline spent a whole cycle
@@ -22,6 +33,9 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+
+# Before any `import litellm`, which reads it at import time. See "Installed means installed".
+os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
 
 # The stage defaults. Anthropic ids are exact strings with no date suffix — appending
 # one 404s. Opus 5 is the default for every stage because model choice is the

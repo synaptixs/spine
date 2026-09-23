@@ -48,13 +48,14 @@ this rule exists to prevent.
 Labels must use the exact ids the graph emits, or precision and recall both collapse for
 reasons that have nothing to do with accuracy.
 
-**Every front-end has its own id scheme, and two of them are not what you would guess.**
+**Every front-end has its own id scheme, and three of them are not what you would guess.**
 Labelling in the wrong vocabulary scores 0.00 and reads as a catastrophic front-end failure.
 
 | front-end | module id | type id | method separator |
 |---|---|---|---|
 | `python` | `py:dotted.path` | `py:mod.Cls` | `.` |
 | `typescript` | `ts:path/to/file` | `ts:path/f.Cls` | `.` |
+| **`javascript`** | **`ts:path/to/file`** *(TypeScript's prefix, not `js:`; suffix stripped)* | **`ts:path/f.Cls`** | `.` |
 | `java` | `java:package` | `java:app.Cart` | `.` |
 | `csharp` | `csharp:Namespace` | `csharp:App.Cart` | `.` |
 | `go` | `go:package` | `go:cart.Cart` | `.` |
@@ -69,7 +70,7 @@ C and C++ ids are **bare symbols, not module-qualified** — a symbol, not a loc
 scheme applied to either scores zero.
 
 **Kotlin labels in `java:`, not `kt:`** — the third exception this table has to explain, and the
-only case of a namespace deliberately shared between front-ends. Kotlin and Java share one JVM
+first case of a namespace deliberately shared between front-ends. Kotlin and Java share one JVM
 package namespace: `import com.x.Y` names the same class whether `Y` is a `.kt` or a `.java`
 file, and it cannot be both. So the Kotlin front-end mints `java:` ids and distinguishes itself
 with `language: kotlin` on the node, which is what `pkg accuracy` and the capability matrix key
@@ -78,6 +79,17 @@ Android layout — produces **one** graph, with `IMPLEMENTS` and `CALLS` crossin
 boundary onto real nodes. Under a separate prefix every one of those edges would dangle.
 Labelling a Kotlin case in `kt:` scores 0.00. See D2 in
 [kotlin-support-roadmap.md](../docs/specs/kotlin-support-roadmap.md).
+
+**JavaScript labels in `ts:`, not `js:`** — the second shared namespace, for the same reason and
+a tighter one. TypeScript compiles to JavaScript and the two share one module resolution: a `.ts`
+file importing `./util` reaches `util.js`, and the reverse, so a module id is a path with the
+suffix stripped whichever language wrote it. The front-end tags its nodes `language: javascript`,
+which is what `pkg accuracy` and the capability matrix count by. The payoff is `mixed_ts_js`: a
+gradual migration is **one** graph. Two consequences worth labelling against: every suffix is
+stripped, so `import './mod.js'` names `ts:mod` (the `esm_explicit_extension` case refuses the
+phantom `ts:mod.js`); and a mixed case needs `"requires": ["javascript", "typescript"]`, since
+the TypeScript half is scored by the other front-end. Labelling a JavaScript case in `js:` scores
+0.00. The reasoning lives in the docstring of `src/orchestrator/pkg/js_extractor.py`.
 
 With the optional `clang` extra, the C++ `instance_calls` reference-parameter call
 is resolved by a semantic post-pass. At the P3 checkpoint, aggregate C++ CALLS was 4 expected / 4 emitted /

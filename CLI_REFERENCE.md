@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.42.0  (synaptixs-spine)
+Spine 3.43.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -79,7 +79,10 @@ What you can point the pipeline at, and what each stage is using now.
 
 Read from the installed LiteLLM's own catalog rather than a list maintained in this
 repo, so it reflects the client actually making the calls — upgrading `litellm`
-brings new models with no change here.
+brings new models with no change here. Prices are the ones that `litellm` release
+ships, not a live fetch, so a build document's cost table is the same for the same
+commit online or off; set `LITELLM_LOCAL_MODEL_COST_MAP=False` to price against
+today's upstream map instead.
 
 ```
 orchestrator models [OPTIONS]
@@ -533,22 +536,22 @@ orchestrator pkg accuracy [PATH] [OPTIONS]
 | `--tests` | Test target(s) for `--oracle runtime`; defaults to the repo's own. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
 
-**Current corpus results** (68 fixture cases — 62 single-language, 6 multi-repo — across
-all 12 front-ends, Perl's own corpus grown across P2–P5 of its track: 9 cases). Precision is
+**Current corpus results** (94 fixture cases — 88 single-language, 6 multi-repo — across
+all 13 front-ends, Perl's own corpus grown across P2–P5 of its track: 9 cases). Precision is
 **1.00 on every node kind and every edge kind in every language**; recall is 1.00 on every
-kind except `CALLS`:
+kind except `CALLS`, JavaScript `IMPORTS` (189 of 190: an immediately-called `require`) and
+multi-repo `CONSUMES` (5 of 6) — each a declared known gap:
 
 | language | `CALLS` recall |
 |---|---|
 | `kotlin` | 0.92 |
 | `c` `cpp` (with `clang`) `sql` | 1.00 |
+| `javascript` | 0.97 |
 | `perl` | 0.89 |
 | `typescript` | 0.86 |
 | `cpp` `csharp` `go` `php` | 0.75 |
 | `python` | 0.73 |
-| `csharp` `go` `php` | 0.75 |
 | `java` | 0.67 |
-| `typescript` | 0.86 |
 
 Perl's 0.89 is 8 of 9 labelled `CALLS` edges in its own corpus — the one miss is a
 permanent, documented one (`instance_calls`, an untyped parameter with no declared type to
@@ -579,7 +582,7 @@ is not computable from a trace, and the report says so on every run.
 **Two coverage limits worth knowing before you quote a number:**
 
 - **`--oracle runtime` is Python-only.** It uses `sys.monitoring` (PEP 669), which has no
-  equivalent in the other eleven front-ends. "Runtime-verified" means "runtime-verified for
+  equivalent in the other twelve front-ends. "Runtime-verified" means "runtime-verified for
   Python".
 - **`--oracle invention` only examines Python.** It resolves caller-scope bindings with
   Python's `ast`, so calls in other languages are counted as *unexaminable* rather than
@@ -797,7 +800,7 @@ Regression coverage: what a change should re-test, from the call graph.
 For a symbol you're about to change (`--symbol`) or a fault site (`--trace`),
 computes the blast radius and splits it into tests that already exercise it
 and production code in the radius with no covering test — the regression
-gaps. Deterministic, no LLM. Needs a call graph (Python/C/C++/C#/Java/TS/Go/PHP/Perl/Kotlin).
+gaps. Deterministic, no LLM. Needs a call graph (Python/C/C++/C#/Java/TS/JS/Go/PHP/Perl/Kotlin).
 
 ```
 orchestrator regression [PATH] [OPTIONS]

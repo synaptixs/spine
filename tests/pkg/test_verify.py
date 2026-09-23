@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from orchestrator.pkg import EdgeKind, FactBatch, NodeKind, RepoCodeExtractor
 from orchestrator.pkg.facts import Edge, Node, Provenance
 from orchestrator.pkg.verify import MIN_MODULES, verify_batch
@@ -333,3 +335,100 @@ def test_an_endpoint_declared_in_two_files_is_credited_to_both(tmp_path: Path) -
     assert _parity(verify_batch(batch, tmp_path)) == [], (
         "both files declare the route and both expose a handler; neither is short"
     )
+
+
+@pytest.mark.parametrize(
+    ("source", "counted"),
+    [
+        pytest.param("app.get('/a', site.index);", 1, id="named"),
+        pytest.param("app.get('/b', auth, site.index,);", 1, id="trailing-comma"),
+        pytest.param("app.get('/c', limit(), site.index);", 1, id="middleware-call"),
+        pytest.param("app.get(\n  '/m',\n  auth,\n  site.index\n);", 1, id="multi-line"),
+        pytest.param("app.route('/d').get(h);", 1, id="route-chain"),
+        pytest.param("app.get('/i', function (req, res) {});", 0, id="inline-function"),
+        pytest.param("app.get('/k', (req, res) => res.send(1));", 0, id="inline-arrow"),
+        pytest.param("cache.get(key);", 0, id="not-a-route"),
+    ],
+)
+def test_javascript_route_parity_counts_what_the_graph_can_hold(source: str, counted: int) -> None:
+    """Only a named handler can produce the EXPOSES parity checks; an inline one never can, so
+    counting it raised 107 warnings on express and none was a real miss."""
+    from orchestrator.pkg.verify import _ROUTE_SYNTAX
+
+    assert len(_ROUTE_SYNTAX["javascript"].findall(source)) == counted
+
+
+def test_javascript_entity_parity_ignores_other_init_calls() -> None:
+    from orchestrator.pkg.verify import _ENTITY_SYNTAX
+
+    assert not _ENTITY_SYNTAX["javascript"].findall("Sentry.init({ dsn: 1 });")
+    assert _ENTITY_SYNTAX["javascript"].findall("sequelize.define('user', {")
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        pytest.param("User.init({ name: DataTypes.STRING }, { sequelize });", id="plain"),
+        pytest.param(
+            "User.init({\n  id: { type: DataTypes.INTEGER.UNSIGNED },\n}, { sequelize });", id="options"
+        ),
+        pytest.param("Post.init({ body: Sequelize.TEXT }, { sequelize });", id="sequelize-namespace"),
+    ],
+)
+def test_javascript_entity_parity_counts_a_class_style_model(source: str) -> None:
+    """Pass 3 stopped counting `Model.init` to avoid `Sentry.init`, and a missed class-style model
+    went silent. A Sequelize type in the attribute map tells the two apart."""
+    from orchestrator.pkg.verify import _ENTITY_SYNTAX
+
+    assert len(_ENTITY_SYNTAX["javascript"].findall(source)) == 1
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "Sentry.init({ dsn: 1 });",
+        "Chart.init({ el: '#c' });",
+        "app.init({ DataTypes: 1 });",
+        "Sentry.init({ dsn: 1 });\nconst column = DataTypes.STRING;",
+    ],
+)
+def test_javascript_entity_parity_ignores_an_init_without_a_type(source: str) -> None:
+    from orchestrator.pkg.verify import _ENTITY_SYNTAX
+
+    assert not _ENTITY_SYNTAX["javascript"].findall(source)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        pytest.param(
+            "User.init({ meta: { a: 1 }, name: DataTypes.STRING }, { sequelize });", id="nested-object-first"
+        ),
+        pytest.param(
+            "User.init({ id: { validate: { min: 1 }, type: DataTypes.INTEGER } });", id="validate-before-type"
+        ),
+        pytest.param(
+            "class User extends Model {\n  static init(s) {\n"
+            "    return super.init({ name: DataTypes.STRING }, { sequelize: s });\n  }\n}",
+            id="v5-super-init",
+        ),
+    ],
+)
+def test_javascript_entity_parity_reads_the_whole_attribute_object(source: str) -> None:
+    """ORM N3: the type may follow a nested object; a v5 model calls `super.init`."""
+    from orchestrator.pkg.verify import _ENTITY_SYNTAX
+
+    assert len(_ENTITY_SYNTAX["javascript"].findall(source)) == 1
+
+
+def test_javascript_entity_parity_is_linear_on_adversarial_input() -> None:
+    """ORM N3: the regex it replaced took 68 s on the first 400 KB input (5 s at 100 KB); an
+    identifier prefix that restarted after every `$` took 122 s on the second at 200 KB."""
+    import time
+
+    from orchestrator.pkg.verify import _ENTITY_SYNTAX
+
+    for source in (("A.init({ " * 45_000)[:400_000], "A$" * 100_000):
+        started = time.perf_counter()
+        assert not _ENTITY_SYNTAX["javascript"].findall(source)
+        assert time.perf_counter() - started < 2.0

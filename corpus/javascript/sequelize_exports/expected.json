@@ -1,0 +1,1887 @@
+{
+  "language": "javascript",
+  "case": "sequelize_exports",
+  "why": "One shape per rule `settle` reads an imported model by (js-review-followup D5, D8), each model named differently from the binding that exports it, so no rule can hide behind a match on the model's name. A class exported under another name (`{ Performer: Soloist }`); every link of `exports.Stanza = exports.Couplet = define(\u2026)`; an ESM `export const` and `export { Noel as Carol }`; a whole-module import of a module whose default is one of its two models; a names-known map whose value this pass cannot name (`Object.assign(module.exports, { Rondo: m.rondo })`), which falls back to the model's name. Refused: a member of a member (`exports.api.Lyric`), a destructured `{ Aria }` of a module whose default *is* the model, a define written after `module.exports` was replaced, a top-level binding a hidden surface does not export, a case-aside match with two candidates, and a self-association only resolution reveals. `seed.js` holds a `define` whose `{ type: 'string' }` is an option, not a Sequelize type. The second review round added a shape per fix, each able to fail: a define written onto a *function's* `db` that shadows the exported one; members written onto an object `module.exports` later replaced, by `module.exports.X` and by an earlier literal; a model default that is also written as a member of itself (`module.exports.Opera = Opera`); a class model declared inside a function; a literal at the end of a *declared* chain; a frozen literal and a top-level `this.X`; an import naming no export of a readable module whose unexported model shares its name; a whole-module import of a module with two models and no default; and, in the importing file, a function-local define spelled like an import. The third round's shapes: a literal assigned onto a *parameter* named `module` or `exports`; `var` declared twice, where the later declaration wins; a `var` inside a top-level `if` and a top-level `try`, which belongs to the module, not the block; an ESM `export class` model; a names-known name with no nameable value beside a model default; and an ES module's top-level `this`. Two more, from the third: a function written *between* two `var` declarations, whose body reads the last one; a file that declares its own `var module`; a function invoked on the spot and a `static {}` block, each between two `var` declarations, which read the earlier one; and a class model default beside a names-known name with no nameable value.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:models/db",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/orchestra",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/player",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/chain",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/nested",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/solo",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/duet",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/mixed",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/stale",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/pair",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/esm",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:seed",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:setup",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:tunes",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/player.Soloist",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:setup.wire",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:tunes.tune",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:entity:orchestra",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:soloist",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:stanza",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:verse",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:aria",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:harmony",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:melody",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:rondo",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:concerto",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:etude",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:tune",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:Tune",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:anthem",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:noel",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:orchestra.name",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:soloist.name",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:stanza.lines",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:verse.text",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:aria.key",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:harmony.voice",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:melody.voice",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:rondo.tempo",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:concerto.movements",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:etude.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:tune.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:Tune.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:anthem.verses",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:noel.verses",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:models/ballad",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/frozen",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/listed",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/opera",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/quartet",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/shadow",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/studio",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/suite",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/swap",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/shadow.build",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:models/swap.make",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:models/studio.build",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:models/stale.make",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:models/nested.mixin",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:models/pair.mixin",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:setup.draft",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:entity:refrain",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:catch",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:canon",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:libretto",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:take",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:overture",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:finale",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:night",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:song",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:scherzo",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:minuet",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:viola",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:cello",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:sketch",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:refrain.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:catch.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:canon.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:libretto.acts",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:take.length",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:overture.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:finale.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:night.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:song.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:scherzo.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:minuet.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:viola.strings",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:cello.strings",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:sketch.lines",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:models/shade",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/shade.mixin",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:models/shade.build",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:entity:psalm",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:psalm.verses",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:models/param",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/wrapped",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/twice",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/courtly",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/esmthis",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/esm.Chant",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:models/param.install",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:models/twice.wire",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:models/courtly.makeOther",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:entity:jig",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:tango",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:mazurka",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:polka",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:reel",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:hornpipe",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:sarabande",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:plainsong",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:volta",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:jig.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:tango.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:mazurka.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:polka.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:reel.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:hornpipe.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:sarabande.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:plainsong.verses",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:volta.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:models/local",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/twice.early",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:entity:galop",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:quadrille",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:shimmy",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:galop.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:quadrille.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:shimmy.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:models/stately",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/stately.makeOther",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:models/stately.Pavane",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:entity:pavane",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:pavane.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:polonaise",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:polonaise.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:bourree",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:bourree.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:allemande",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:allemande.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:courante",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:courante.bars",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:models/twice.Wiring",
+      "kind": "Type"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:models/db",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/orchestra",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/player",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/chain",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/nested",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/solo",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/duet",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/mixed",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/stale",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/pair",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/esm",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/orchestra",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/player",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/chain",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/nested",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/solo",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/duet",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/mixed",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/stale",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/pair",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/esm",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:seed",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/player",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/chain",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/nested",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/solo",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/duet",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/mixed",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/stale",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/pair",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:tunes",
+      "dst": "ts:models/esm",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/orchestra",
+      "dst": "ts:entity:orchestra",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/player",
+      "dst": "ts:entity:soloist",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/chain",
+      "dst": "ts:entity:stanza",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/nested",
+      "dst": "ts:entity:verse",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/solo",
+      "dst": "ts:entity:aria",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/duet",
+      "dst": "ts:entity:harmony",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/duet",
+      "dst": "ts:entity:melody",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/mixed",
+      "dst": "ts:entity:rondo",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/stale",
+      "dst": "ts:entity:concerto",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/stale",
+      "dst": "ts:entity:etude",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/pair",
+      "dst": "ts:entity:tune",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/pair",
+      "dst": "ts:entity:Tune",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/esm",
+      "dst": "ts:entity:anthem",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/esm",
+      "dst": "ts:entity:noel",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:orchestra",
+      "dst": "ts:entity:orchestra.name",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:soloist",
+      "dst": "ts:entity:soloist.name",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:stanza",
+      "dst": "ts:entity:stanza.lines",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:verse",
+      "dst": "ts:entity:verse.text",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:aria",
+      "dst": "ts:entity:aria.key",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:harmony",
+      "dst": "ts:entity:harmony.voice",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:melody",
+      "dst": "ts:entity:melody.voice",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:rondo",
+      "dst": "ts:entity:rondo.tempo",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:concerto",
+      "dst": "ts:entity:concerto.movements",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:etude",
+      "dst": "ts:entity:etude.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:tune",
+      "dst": "ts:entity:tune.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:Tune",
+      "dst": "ts:entity:Tune.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:anthem",
+      "dst": "ts:entity:anthem.verses",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:noel",
+      "dst": "ts:entity:noel.verses",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/player",
+      "dst": "ts:models/player.Soloist",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:setup.wire",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:tunes",
+      "dst": "ts:tunes.tune",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/player.Soloist",
+      "dst": "ts:sequelize:Model",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "ts:entity:soloist",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:stanza",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:melody",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:rondo",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:anthem",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:noel",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:models/ballad",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/frozen",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/listed",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/opera",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/quartet",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/shadow",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/studio",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/suite",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/swap",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/ballad",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/frozen",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/listed",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/opera",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/quartet",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/shadow",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/studio",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/suite",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/swap",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/ballad",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/frozen",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/listed",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/opera",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/quartet",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/shadow",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/studio",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/suite",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/swap",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/shadow",
+      "dst": "ts:entity:refrain",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/swap",
+      "dst": "ts:entity:catch",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/swap",
+      "dst": "ts:entity:canon",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/opera",
+      "dst": "ts:entity:libretto",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/studio",
+      "dst": "ts:entity:take",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/suite",
+      "dst": "ts:entity:overture",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/suite",
+      "dst": "ts:entity:finale",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/frozen",
+      "dst": "ts:entity:night",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/ballad",
+      "dst": "ts:entity:song",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/listed",
+      "dst": "ts:entity:scherzo",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/listed",
+      "dst": "ts:entity:minuet",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/quartet",
+      "dst": "ts:entity:viola",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/quartet",
+      "dst": "ts:entity:cello",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:refrain",
+      "dst": "ts:entity:refrain.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:catch",
+      "dst": "ts:entity:catch.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:canon",
+      "dst": "ts:entity:canon.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:libretto",
+      "dst": "ts:entity:libretto.acts",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:take",
+      "dst": "ts:entity:take.length",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:overture",
+      "dst": "ts:entity:overture.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:finale",
+      "dst": "ts:entity:finale.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:night",
+      "dst": "ts:entity:night.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:song",
+      "dst": "ts:entity:song.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:scherzo",
+      "dst": "ts:entity:scherzo.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:minuet",
+      "dst": "ts:entity:minuet.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:viola",
+      "dst": "ts:entity:viola.strings",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:cello",
+      "dst": "ts:entity:cello.strings",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:entity:sketch",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:sketch",
+      "dst": "ts:entity:sketch.lines",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/shadow",
+      "dst": "ts:models/shadow.build",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/swap",
+      "dst": "ts:models/swap.make",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/studio",
+      "dst": "ts:models/studio.build",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/stale",
+      "dst": "ts:models/stale.make",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/nested",
+      "dst": "ts:models/nested.mixin",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/pair",
+      "dst": "ts:models/pair.mixin",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:setup.draft",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:libretto",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:overture",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:finale",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:night",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:song",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:minuet",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:models/shade",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/shade",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/shade",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/shade",
+      "dst": "ts:models/shade.mixin",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/shade",
+      "dst": "ts:models/shade.build",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/shade",
+      "dst": "ts:entity:psalm",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:psalm",
+      "dst": "ts:entity:psalm.verses",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/param",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/wrapped",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/courtly",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/esmthis",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/param",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/wrapped",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/courtly",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/esmthis",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/param",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/wrapped",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/twice",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/courtly",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:tunes",
+      "dst": "ts:models/esmthis",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/param",
+      "dst": "ts:entity:jig",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/wrapped",
+      "dst": "ts:entity:tango",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:entity:mazurka",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:entity:polka",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:entity:reel",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:entity:hornpipe",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/courtly",
+      "dst": "ts:entity:sarabande",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/esm",
+      "dst": "ts:entity:plainsong",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/esmthis",
+      "dst": "ts:entity:volta",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:jig",
+      "dst": "ts:entity:jig.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:tango",
+      "dst": "ts:entity:tango.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:mazurka",
+      "dst": "ts:entity:mazurka.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:polka",
+      "dst": "ts:entity:polka.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:reel",
+      "dst": "ts:entity:reel.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:hornpipe",
+      "dst": "ts:entity:hornpipe.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:sarabande",
+      "dst": "ts:entity:sarabande.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:plainsong",
+      "dst": "ts:entity:plainsong.verses",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:volta",
+      "dst": "ts:entity:volta.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/esm",
+      "dst": "ts:models/esm.Chant",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/param",
+      "dst": "ts:models/param.install",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:models/twice.wire",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/courtly",
+      "dst": "ts:models/courtly.makeOther",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/esm.Chant",
+      "dst": "ts:sequelize:Model",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "ts:entity:polka",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:reel",
+      "dst": "ts:entity:polka",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:hornpipe",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:plainsong",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:models/local",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/local",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/local",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/local",
+      "dst": "ts:entity:shimmy",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:shimmy",
+      "dst": "ts:entity:shimmy.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:entity:galop",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:entity:quadrille",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:galop",
+      "dst": "ts:entity:galop.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:quadrille",
+      "dst": "ts:entity:quadrille.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:models/twice.early",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:quadrille",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:models/stately",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/stately",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/stately",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/stately",
+      "dst": "ts:models/stately.makeOther",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/stately",
+      "dst": "ts:models/stately.Pavane",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/stately",
+      "dst": "ts:entity:pavane",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:pavane",
+      "dst": "ts:entity:pavane.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/stately.Pavane",
+      "dst": "ts:sequelize:Model",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:entity:polonaise",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:polonaise",
+      "dst": "ts:entity:polonaise.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:entity:bourree",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:bourree",
+      "dst": "ts:entity:bourree.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:entity:allemande",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:allemande",
+      "dst": "ts:entity:allemande.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:entity:courante",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:courante",
+      "dst": "ts:entity:courante.bars",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/twice",
+      "dst": "ts:models/twice.Wiring",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:polonaise",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:allemande",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:entity:verse",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `exports.api.Lyric` is a member of the member `api`; `{ Lyric }` of the module is `undefined`."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:aria",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `module.exports = Aria`: `require` returns the model, and `{ Aria }` reads a property of it."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:etude",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `exports.Etude` is written after `module.exports = make()` replaced the object `exports` names."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:concerto",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `const Sonata` is a top-level binding, but nothing exports it: the surface is hidden by `make()`, and a binding is not an export."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:tune",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `{ TUNE }` matches both `tune` and `Tune` case aside: ambiguous, so neither."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:Tune",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. The other half of the same ambiguity."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:stanza",
+        "dst": "ts:entity:stanza",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `Couplet` and `Stanza` are two exports of one model, `stanza` \u2014 a table keyed to itself, which only resolution reveals. (Two whole-module imports of one file would not test this: their placeholders are the same string, dropped before resolution.)"
+    },
+    {
+      "edge": {
+        "src": "ts:entity:refrain",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `db.Chorus = define('refrain')` writes onto `build()`'s own `const db`, which shadows the module's; the exported `db.Chorus` is `null`."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:catch",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `module.exports.Round` is written onto the object a later `module.exports = \u2026` replaced."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:canon",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `{ Fugue: define('canon') }` is the literal a later `module.exports = make()` replaced."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:take",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. The class model `Session` is declared inside `build()`; the exported `Session` is the top-level `null`."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:scherzo",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `listed.js` exports `{ Minuet }` only; its model `scherzo` is bound to `Hidden`, and no export is called `Scherzo`."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:viola",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `quartet.js` defines two models and exports neither as its default: a whole-module import names neither."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:cello",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. The other half of the same ambiguity."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:sketch",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `draft()`'s own `const Performer = define('sketch')` is that function's; `Performer` in `wire()` is the import, the `soloist` model."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:psalm",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `{ Hymnal: define('psalm') }` is the literal of `build()`'s own `const db`, not the exported one; the module is opaque (`mixin(db)`), so nothing but a recorded export key could resolve `{ Hymnal }`."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:jig",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `module` in `install(module)` is a parameter: `module.exports = { Gavotte: \u2026 }` assigns the parameter's member, not the module's."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:tango",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `exports` inside the IIFE is its parameter, and assigning it rebinds the parameter; `{ Bolero }` is never exported."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:mazurka",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `var Polka` is declared twice; the second declaration, `polka`, is the binding `wire()` reads."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:sarabande",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `require` returns the model `Sarabande`, and its property `Sarabande` is `makeOther()` \u2014 not a model, though the name matches one."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:volta",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. An ES module's top-level `this` is `undefined`: `this.Galliard = \u2026` throws, and exports nothing."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:galop",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `early()` is written between the two `var Galop` declarations, but its body runs when it is called, after the module has loaded: `Galop` is `quadrille` by then."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:shimmy",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `local.js` declares its own `var module`, so `module.exports = { Jive: \u2026 }` writes onto a local; the real module exports `{}`, and `{ Jive }` is `undefined`."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:pavane",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `require` returns the class model `Pavane`, and its property `Pavane` is `makeOther()`. Unlike `courtly.js`, the class default keeps the map names-known, so the name is in it with no nameable value: only the model-default rule refuses the fallback by name."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:bourree",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. The function is invoked where it is written, between the two `var Polonaise`: it runs while `Polonaise` is still `polonaise`."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:courante",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. A `static {}` block runs when the class is defined, between the two `var Allemande`: `Allemande` is still `allemande`."
+    }
+  ],
+  "excluded": [
+    "`seed.js` defines no model: `{ kind: { type: 'string' } }` has a `type` key whose value is no Sequelize type, and `registry` is not a connection.",
+    "`new Sequelize(\u2026)`, `make()` and `mixin(\u2026)` are top-level calls with no caller to hang a CALLS edge on; `make` and `mixin` are declared, so each fixture loads.",
+    "The class `Session` inside `studio.js`'s `build()` is not a top-level type, so it has no `Type` node here; its model `take` is labelled.",
+    "The IIFE in `wrapped.js` and `catch (error) {}` in `twice.js` add no node; `makeOther()` inside `Object.assign` is a top-level call with no caller."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

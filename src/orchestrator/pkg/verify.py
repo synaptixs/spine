@@ -259,11 +259,104 @@ _ROUTE_SYNTAX = {
         r"@(?:Get|Post|Put|Patch|Delete|Head|Options|All)\s*\("
         r"|\.\s*(?:get|post|put|patch|delete|all|head|options)\s*\(\s*[\"'`]/"
     ),
+    # Express router calls, keyed separately because the JavaScript front-end tags its modules
+    # `javascript` (javascript-support-roadmap D4) — without a key, parity skipped every `.js`
+    # file and reported "0 declared, 0 in graph" on a repository full of routes.
+    #
+    # Narrower than the TypeScript pattern on purpose: only a registration whose handler is a
+    # *name* — `app.get('/', site.index)`, `app.post('/x', auth, save)` — can produce the EXPOSES
+    # edge parity counts as present, so only those are counted as declared. The broad pattern
+    # counted every inline `function (req, res) {…}` too, and raised 107 warnings on express, 81
+    # of them in its tests, none of them a route the graph had missed. `all` is left out because
+    # the route reader deliberately emits no endpoint for it.
+    "javascript": re.compile(
+        # `app.get('/x', [middleware, …] handler[,])` — middleware may be names or calls
+        # (`limit()`), a trailing comma is legal, and the arguments may span lines.
+        r"\.\s*(?:get|post|put|patch|delete|head|options)\s*\(\s*[\"'`]/[^\"'`]*[\"'`]"
+        r"(?:\s*,\s*[A-Za-z_$][\w$.]*(?:\([^()]*\))?)*"
+        r"\s*,\s*[A-Za-z_$][\w$.]*\s*,?\s*\)"
+        # `app.route('/x').get(h)` — counted so that parity reports it: the route reader does not
+        # read this chain, and an uncounted gap is the silence this check exists to break.
+        r"|\.\s*route\s*\(\s*[\"'`]/[^\"'`]*[\"'`]\s*\)\s*\.\s*(?:get|post|put|patch|delete|head|options)"
+        r"\s*\(\s*[A-Za-z_$]"
+    ),
 }
-_ENTITY_SYNTAX = {
+
+
+class _ModelInits:
+    """Sequelize's `sequelize.define('user', …)`, and a model class's `User.init({ … }, …)`.
+
+    A regex-shaped object — `finditer`, `search`, `findall` — because the parity check treats
+    every language's entity syntax alike. `init` counts only with a Sequelize type somewhere in
+    its attribute object, because `Sentry.init({ dsn })` has the same shape otherwise; dropping
+    `init` altogether (pass 3) made a missed class-style model silent, which this check exists
+    to prevent. The v5 idiom `static init(s) { return super.init({ … }) }` counts too, so the
+    model the reader does not follow into a `super` call is at least counted, not silent.
+
+    **Linear, not a regex.** The pattern it replaces searched forward from every `X.init({` for a
+    type before the next `}`: on `"A.init({ "` repeated to 400 KB that took 68 s, in a check
+    `pkg verify` runs on every file. Here each brace is matched once with a stack, each type
+    token is found once, and an `init` asks with a bisect whether its object holds one — so an
+    object nested before the type (`{ meta: {…}, name: DataTypes.STRING }`) counts as well.
+    It reads text, not code: a brace or a `DataTypes.` inside a string still counts, and
+    `Chart.init({ type: Sequelize.x })` is a false positive — approximate, and labelled so.
+    """
+
+    _DEFINE = re.compile(r"\b(?:sequelize|db)\s*\.\s*define\s*\(\s*[\"']")
+    #: The lookbehind anchors an identifier at its start. `\b` also matches after a `$` — not a
+    #: word character — so on `A$A$A$…` every `A` began a new attempt that scanned the rest of the
+    #: identifier: 122 s at 200 KB, with no `init` anywhere.
+    _INIT = re.compile(r"(?:(?<![\w$])[A-Z][\w$]*|(?<![\w$])super)\s*\.\s*init\s*\(\s*\{")
+    _TYPE = re.compile(r"\b(?:DataTypes|Sequelize)\s*\.")
+
+    def _starts(self, source: str) -> list[int]:
+        import bisect
+
+        inits = list(self._INIT.finditer(source))
+        found = [m.start() for m in self._DEFINE.finditer(source)]
+        if inits:
+            closes: dict[int, int] = {}
+            stack: list[int] = []
+            for i, ch in enumerate(source):
+                if ch == "{":
+                    stack.append(i)
+                elif ch == "}" and stack:
+                    closes[stack.pop()] = i
+            types = [m.start() for m in self._TYPE.finditer(source)]
+            for m in inits:
+                opened = m.end() - 1
+                close = closes.get(opened, len(source))
+                at = bisect.bisect_left(types, opened)
+                if at < len(types) and types[at] < close:
+                    found.append(m.start())
+        return sorted(found)
+
+    def finditer(self, source: str) -> list[_Hit]:
+        return [_Hit(i) for i in self._starts(source)]
+
+    def findall(self, source: str) -> list[int]:
+        return self._starts(source)
+
+    def search(self, source: str) -> _Hit | None:
+        starts = self._starts(source)
+        return _Hit(starts[0]) if starts else None
+
+
+@dataclass(frozen=True)
+class _Hit:
+    """The one part of a regex match the parity check reads."""
+
+    at: int
+
+    def start(self) -> int:
+        return self.at
+
+
+_ENTITY_SYNTAX: dict[str, re.Pattern[str] | _ModelInits] = {
     "python": re.compile(r"^\s*__tablename__\s*=\s*[\"']", re.MULTILINE),
     # TypeORM's @Entity / Sequelize's @Table — the class-level marker, not a column.
     "typescript": re.compile(r"@(?:Entity|Table)\s*\("),
+    "javascript": _ModelInits(),
 }
 
 
@@ -466,7 +559,9 @@ def _check_source_parity(batch: FactBatch, root: Path) -> list[VerifyIssue]:
     not learned yet, and failing a build for that turns the check into something
     people switch off. Silence is the failure mode this exists to prevent, not noise.
     """
-    what = {NodeKind.ENDPOINT: "route declaration", NodeKind.ENTITY: "__tablename__ declaration"}
+    # "table", not `__tablename__`: the entity patterns are per language, and the message named
+    # Python's construct for a JavaScript or TypeScript file.
+    what = {NodeKind.ENDPOINT: "route declaration", NodeKind.ENTITY: "table declaration"}
     issues: list[VerifyIssue] = []
     for count in source_parity_counts(batch, root):
         # Only under-extraction warns. `in_graph > declared` is legitimate and common: a

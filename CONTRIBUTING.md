@@ -196,13 +196,18 @@ then the **same extras CI syncs** — a bare `uv sync` is not enough to reproduc
 
 ```bash
 uv sync --frozen --extra dev --extra mcp --extra typescript --extra java --extra csharp \
-  --extra c --extra cpp --extra go --extra php --extra perl --extra kotlin
+  --extra c --extra cpp --extra go --extra php --extra perl --extra kotlin --extra clang
 ```
 
 Without `mcp` every MCP test skips *and* `mypy src tests` reports three phantom
 `unused-ignore` errors, because the `type: ignore`s guarding its optional imports have
 nothing to ignore. Without the language extras only the `python` and `sql` front-ends
 register, so most language tests skip and `pkg accuracy` cannot score their corpus cases.
+Without `clang` the C/C++ semantic post-pass is absent, and `pkg accuracy --check` fails
+with what reads like a real regression — `cpp/edges/CALLS matched edges — was 5, now 3`,
+plus two unexplained misses. Nothing in the code changed; the pass that resolves those
+edges just is not installed. `uv sync` **replaces** the environment, so a narrower sync
+silently uninstalls `libclang` rather than leaving it in place.
 
 For a semantic-parser diagnostic census, run `uv run --with libclang==18.1.1 python
 scripts/parse-census.py clang /path/to/repo --suffix .c .cpp .cc .cxx --json`.

@@ -1,0 +1,244 @@
+{
+  "language": "javascript",
+  "case": "ts_into_cjs",
+  "requires": [
+    "javascript",
+    "typescript"
+  ],
+  "why": "TypeScript callers into CommonJS modules that export a renamed class, `{ Handler: Impl }`. The TypeScript front-end defers these calls to its own `finalize`, which never routed them through the JavaScript export map, and which finalizer ran first depended on the first file walked. `decoy.js` also declares a `class Handler` nothing exports; `plain.js` does not. The two modules sit at the root and the callers under `app/`, so a JavaScript file is walked first. Pass 4 lost every call into `plain` (no `Handler` node to land on), and sent both callers of `decoy` to the decoy. `app/k.ts` default-imports `base.js`, whose `module.exports = Base` is a default slot and not a member: TypeScript resolves the import under the local name, and the default is matched by that name.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:decoy",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:plain",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:app/a",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:app/z",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:app/p",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:decoy.Handler",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:decoy.Impl",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:plain.Impl",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:decoy.Handler.run",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:decoy.Impl.run",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:plain.Impl.run",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/a.first",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/z.last",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:app/p.other",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:base",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:app/k",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:base.Base",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:app/k.K",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:base.Base.hello",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:decoy",
+      "dst": "ts:decoy.Handler",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:decoy",
+      "dst": "ts:decoy.Impl",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:plain",
+      "dst": "ts:plain.Impl",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:decoy.Handler",
+      "dst": "ts:decoy.Handler.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:decoy.Impl",
+      "dst": "ts:decoy.Impl.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:plain.Impl",
+      "dst": "ts:plain.Impl.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/a",
+      "dst": "ts:app/a.first",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/z",
+      "dst": "ts:app/z.last",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/p",
+      "dst": "ts:app/p.other",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/a",
+      "dst": "ts:decoy",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:app/z",
+      "dst": "ts:decoy",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:app/p",
+      "dst": "ts:plain",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:app/a.first",
+      "dst": "ts:decoy.Impl",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:app/a.first",
+      "dst": "ts:decoy.Impl.run",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:app/z.last",
+      "dst": "ts:decoy.Impl",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:app/z.last",
+      "dst": "ts:decoy.Impl.run",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:app/p.other",
+      "dst": "ts:plain.Impl",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:app/p.other",
+      "dst": "ts:plain.Impl.run",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:base",
+      "dst": "ts:base.Base",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:base.Base",
+      "dst": "ts:base.Base.hello",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/k",
+      "dst": "ts:app/k.K",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:app/k",
+      "dst": "ts:base",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:app/k.K",
+      "dst": "ts:base.Base",
+      "kind": "IMPLEMENTS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:app/a.first",
+        "dst": "ts:decoy.Handler",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The exported name `Handler` is bound to `Impl`; the file's own `class Handler` is a decoy nothing exports."
+    },
+    {
+      "edge": {
+        "src": "ts:app/a.first",
+        "dst": "ts:decoy.Handler.run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The decoy's method. A caller that keeps the imported name instead of routing it through the export map lands here."
+    },
+    {
+      "edge": {
+        "src": "ts:app/z.last",
+        "dst": "ts:decoy.Handler",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The exported name `Handler` is bound to `Impl`; the file's own `class Handler` is a decoy nothing exports."
+    },
+    {
+      "edge": {
+        "src": "ts:app/z.last",
+        "dst": "ts:decoy.Handler.run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The decoy's method. A caller that keeps the imported name instead of routing it through the export map lands here."
+    }
+  ],
+  "excluded": [],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

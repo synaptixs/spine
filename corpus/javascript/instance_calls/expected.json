@@ -1,0 +1,134 @@
+{
+  "language": "javascript",
+  "case": "instance_calls",
+  "why": "The member-call rule on JavaScript. With no type annotations, the only receiver whose type the front-end knows is one built with `new` in the same body \u2014 so `h.run()` after `const h = new Handler()` resolves. A bare `new Handler()` with no member call is a real miss, declared.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:svc/handler",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:svc/dispatch",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:svc/handler.Handler",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:svc/handler.Handler.run",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:svc/handler.Handler.log",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:svc/dispatch.viaLocal",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:svc/dispatch.viaInline",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:svc/dispatch.viaParameter",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:svc/dispatch.viaReturn",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:svc/dispatch",
+      "dst": "ts:svc/handler",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:svc/handler",
+      "dst": "ts:svc/handler.Handler",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:svc/handler.Handler",
+      "dst": "ts:svc/handler.Handler.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:svc/handler.Handler",
+      "dst": "ts:svc/handler.Handler.log",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:svc/dispatch",
+      "dst": "ts:svc/dispatch.viaLocal",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:svc/dispatch",
+      "dst": "ts:svc/dispatch.viaInline",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:svc/dispatch",
+      "dst": "ts:svc/dispatch.viaParameter",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:svc/handler.Handler.run",
+      "dst": "ts:svc/handler.Handler.log",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:svc/dispatch.viaLocal",
+      "dst": "ts:svc/handler.Handler.run",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:svc/dispatch.viaLocal",
+      "dst": "ts:svc/handler.Handler",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:svc/dispatch.viaInline",
+      "dst": "ts:svc/handler.Handler.run",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:svc/dispatch.viaInline",
+      "dst": "ts:svc/handler.Handler",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:svc/dispatch",
+      "dst": "ts:svc/dispatch.viaReturn",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:svc/dispatch.viaReturn",
+      "dst": "ts:svc/handler.Handler",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "ts:svc/dispatch.viaReturn",
+        "dst": "ts:svc/handler.Handler",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `new Handler()` with no member call on it. corpus/README's decided rule makes instantiation a CALLS edge to the Type, and the member-call rule inherited from TypeScript only emits that edge alongside a method call on the new instance (`new Handler().run()`). TypeScript has the same gap. A true edge, counted as a recall miss."
+    }
+  ],
+  "false_positives": [],
+  "refusals": [],
+  "excluded": [
+    "`viaParameter(handler)` \u2192 `Handler.run` is not labelled. The parameter has no type and the function no caller in this fixture, so the source does not prove what `handler` is \u2014 labelling it would reward whichever future heuristic guessed \"the only class with a `run`\" as a recall gain. The cost this represents is D8's: JavaScript states no types for the typed-receiver rule to read, where TypeScript's twin of this case resolves the same call through `handler: Handler`.",
+    "`module.exports = { Handler }` adds no node: a shorthand member names the class already declared under that id."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

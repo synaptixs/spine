@@ -43,7 +43,7 @@ flowchart LR
 - [`orchestrator.intake.gaps`](../../src/orchestrator/intake/gaps.py#L1)
 - [`orchestrator.intake.intents`](../../src/orchestrator/intake/intents.py#L1)
 - [`orchestrator.intake.jira`](../../src/orchestrator/intake/jira.py#L1)
-- [`orchestrator.intake.jira_source`](../modules/orchestrator.intake.jira_source.md)
+- [`orchestrator.intake.jira_source`](../../src/orchestrator/intake/jira_source.py#L1)
 - [`orchestrator.intake.mcp_source`](../../src/orchestrator/intake/mcp_source.py#L1)
 - [`orchestrator.intake.notion`](../../src/orchestrator/intake/notion.py#L1)
 - [`orchestrator.intake.openspec_source`](../../src/orchestrator/intake/openspec_source.py#L1)

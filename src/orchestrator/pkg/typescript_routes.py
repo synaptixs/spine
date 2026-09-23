@@ -35,7 +35,7 @@ named function this module declares.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -95,10 +95,26 @@ def _join(*parts: str) -> str:
     return "/" + joined if joined else "/"
 
 
+#: Resolves a ``ns.handler`` argument to a node id, or ``None``. Supplied only by a front-end that
+#: checks what it resolved against the whole graph — see ``scan_module``.
+MemberHandler = Callable[["TSNode"], "str | None"]
+
+
 def scan_module(
-    decls: Iterable[TSNode | None], source: bytes, rel: str, local_funcs: dict[str, str]
+    decls: Iterable[TSNode | None],
+    source: bytes,
+    rel: str,
+    local_funcs: dict[str, str],
+    *,
+    resolve_member: MemberHandler | None = None,
 ) -> RouteState:
-    """Collect routers, routes and mounts from one module's top-level declarations."""
+    """Collect routers, routes and mounts from one module's top-level declarations.
+
+    ``resolve_member`` binds a handler written as a member — `site.index`, the CommonJS way to
+    name a function another file exports. Resolving it means naming a target *by name*, which
+    is only safe where something later checks the target exists; without a resolver, a member
+    handler yields an endpoint and no ``EXPOSES``, exactly as an inline one does.
+    """
     state = RouteState()
     for node in decls:
         if node is None:
@@ -107,8 +123,24 @@ def scan_module(
     for node in decls:
         if node is None:
             continue
-        _scan_registrations(node, source, rel, local_funcs, state)
+        _scan_registrations(node, source, rel, local_funcs, state, resolve_member)
     return state
+
+
+def _router_call(value: TSNode | None, source: bytes) -> bool:
+    """Whether a declarator's value makes a router — through an assignment chain if need be.
+
+    `var app = module.exports = express()` is how 18 of express's 28 example applications bind
+    their router: the value is an *assignment*, and its right-hand side is the call. Reading only
+    a direct call left all 18 with no endpoints at all.
+    """
+    node = value
+    while node is not None and node.type == "assignment_expression":
+        node = node.child_by_field_name("right")
+    if node is None or node.type != "call_expression":
+        return False
+    fn = node.child_by_field_name("function")
+    return fn is not None and _text(fn, source) in _ROUTER_FACTORIES
 
 
 def _scan_router_bindings(node: TSNode, source: bytes, state: RouteState) -> None:
@@ -119,16 +151,17 @@ def _scan_router_bindings(node: TSNode, source: bytes, state: RouteState) -> Non
         if child.type != "variable_declarator":
             continue
         name = child.child_by_field_name("name")
-        value = child.child_by_field_name("value")
-        if name is None or value is None or value.type != "call_expression":
-            continue
-        fn = value.child_by_field_name("function")
-        if fn is not None and _text(fn, source) in _ROUTER_FACTORIES:
+        if name is not None and _router_call(child.child_by_field_name("value"), source):
             state.routers.add(_text(name, source))
 
 
 def _scan_registrations(
-    node: TSNode, source: bytes, rel: str, local_funcs: dict[str, str], state: RouteState
+    node: TSNode,
+    source: bytes,
+    rel: str,
+    local_funcs: dict[str, str],
+    state: RouteState,
+    resolve_member: MemberHandler | None = None,
 ) -> None:
     """``app.get("/x", h)`` → a route; ``app.use("/v1", r)`` → a mount."""
     if node.type != "expression_statement":
@@ -164,6 +197,8 @@ def _scan_registrations(
     handler_id = None
     if len(parts) > 1 and parts[-1].type == "identifier":
         handler_id = local_funcs.get(_text(parts[-1], source))
+    elif len(parts) > 1 and parts[-1].type == "member_expression" and resolve_member is not None:
+        handler_id = resolve_member(parts[-1])
     state.routes.append(PendingRoute(receiver, method.upper(), path, handler_id, Provenance(rel, line)))
 
 

@@ -177,7 +177,10 @@ class DocDriftFinding:
 #: them moves the measured drift numbers of three other language tracks at once.
 #: `.razor` is here from the day the front-end emitted it, so it never joins that backlog: no
 #: doc in this repository mentioned one before, so its measured drift numbers do not move.
-_FILE_SUFFIXES = (".py", ".md", ".ttl", ".json", ".yaml", ".toml", ".kt", ".kts", ".razor")
+#: `.mjs`/`.cjs` join on the same terms (0 backticked mentions, 2026-09-22). `.js`/`.jsx` do
+#: **not**: 23 backticked mentions already exist — `md.js`, `check-mermaid.js` — so they join
+#: `.ts` in the recorded backlog rather than moving everyone's drift numbers here.
+_FILE_SUFFIXES = (".py", ".md", ".ttl", ".json", ".yaml", ".toml", ".kt", ".kts", ".razor", ".mjs", ".cjs")
 
 
 def extract_mentions(page: DocPage) -> list[DocMention]:

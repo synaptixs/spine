@@ -171,7 +171,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/registry/api/capabilities.py:86`](../../src/orchestrator/registry/api/capabilities.py#L86)
 
-- **Calls** (4): [`ProfileResponse`](../../src/orchestrator/registry/api/capabilities.py#L79), [`_in_repo`](../../src/orchestrator/registry/api/capabilities.py#L55), [`_source`](../../src/orchestrator/registry/api/capabilities.py#L46), [`from_repo`](../../src/orchestrator/catalog/profile.py#L74)
+- **Calls** (4): [`ProfileResponse`](../../src/orchestrator/registry/api/capabilities.py#L79), [`_in_repo`](../../src/orchestrator/registry/api/capabilities.py#L55), [`_source`](../../src/orchestrator/registry/api/capabilities.py#L46), [`from_repo`](../../src/orchestrator/catalog/profile.py#L76)
 
 ### `state`
 

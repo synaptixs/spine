@@ -1,0 +1,124 @@
+{
+  "language": "javascript",
+  "case": "ambiguous_exports",
+  "why": "Two surfaces where the reader cannot say which object is exported: `module.exports` assigned inside a branch (the UMD guard), and assigned twice. Pass 4 answered \"nothing is exported\" and enforced an empty map, dropping true calls. Every name any assignment writes is a name the module may export, so calls to those names are kept and calls to a name no assignment writes are refused.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:umd",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:twice",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:client",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:umd.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:umd.save",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:umd.hidden",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:twice.find",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:twice.helper",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:client.go",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:umd",
+      "dst": "ts:umd.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:umd",
+      "dst": "ts:umd.save",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:umd",
+      "dst": "ts:umd.hidden",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:twice",
+      "dst": "ts:twice.find",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:twice",
+      "dst": "ts:twice.helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:client.go",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:umd",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client",
+      "dst": "ts:twice",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:umd.find",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:umd.save",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:client.go",
+      "dst": "ts:twice.find",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:client.go",
+        "dst": "ts:umd.hidden",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. No branch writes `hidden` to the exports."
+    },
+    {
+      "edge": {
+        "src": "ts:client.go",
+        "dst": "ts:twice.helper",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Neither assignment writes `helper`."
+    }
+  ],
+  "excluded": [],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

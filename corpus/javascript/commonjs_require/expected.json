@@ -1,0 +1,156 @@
+{
+  "language": "javascript",
+  "case": "commonjs_require",
+  "why": "The four `require` shapes the front-end reads \u2014 whole module (a namespace), destructured, `.member`, and a package \u2014 each through its own callee, so a break in any one cannot hide behind another. Plus the one it deliberately does not bind: a renamed destructuring, where resolution would name the target by the local. `format.js` exports a real `cash` as a decoy, so a binding by the local name would land on a real node and trip the refusal \u2014 without the decoy, `finalize` dropped the wrong edge anyway and the refusal could never fire.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:lib/format",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:lib/report",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:lib/format.pad",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/format.money",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/format.cash",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/format.tax",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/report.line",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/report.levy",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/report.alias",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/report.save",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:lib/report",
+      "dst": "ts:lib/format",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:lib/report",
+      "dst": "ts:fs",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:lib/format",
+      "dst": "ts:lib/format.pad",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/format",
+      "dst": "ts:lib/format.money",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/format",
+      "dst": "ts:lib/format.cash",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/format",
+      "dst": "ts:lib/format.tax",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/report",
+      "dst": "ts:lib/report.line",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/report",
+      "dst": "ts:lib/report.levy",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/report",
+      "dst": "ts:lib/report.alias",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/report",
+      "dst": "ts:lib/report.save",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/format.money",
+      "dst": "ts:lib/format.pad",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:lib/report.line",
+      "dst": "ts:lib/format.pad",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:lib/report.line",
+      "dst": "ts:lib/format.money",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:lib/report.levy",
+      "dst": "ts:lib/format.tax",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:lib/report.alias",
+      "dst": "ts:lib/format.money",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:lib/report.save",
+      "dst": "ts:fs:writeFileSync",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "ts:lib/report.alias",
+        "dst": "ts:lib/format.money",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `const { money: cash } = require('./format')` binds `cash` to the export `money`, but resolution names an imported callee by its *local* name, so binding it would send `cash()` to `ts:lib/format.cash`. The front-end records the import and binds nothing. A true edge, counted as a recall miss."
+    }
+  ],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:lib/report.alias",
+        "dst": "ts:lib/format.cash",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. What a reader that binds renamed destructurings by the local name would emit. `format.js` really exports a `cash` \u2014 the decoy \u2014 so the wrong edge would land on a real node and neither the export map nor the existence check could stop it: only the binding rule does."
+    }
+  ],
+  "excluded": [
+    "`exports.pad = pad` adds no node: the value is an identifier, and `pad` is already declared under the id a caller's `format.pad()` resolves to."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

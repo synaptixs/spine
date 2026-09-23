@@ -1,0 +1,83 @@
+{
+  "language": "javascript",
+  "case": "jsx_in_js",
+  "why": "JSX inside `.js` and `.jsx`, which D2 exists for. Under `language_typescript()` the `return (<div>\u2026)` in App.js mis-parses into a `type_assertion` and the walk emits facts from the broken tree; under `language_tsx()` it parses. A call made inside a JSX expression must still resolve.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:src/App",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:src/Title",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:src/App.greet",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/App.App",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/Title.Title",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:src/Title.format",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:src/App",
+      "dst": "ts:react",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:src/App",
+      "dst": "ts:src/Title",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:src/App",
+      "dst": "ts:src/App.greet",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/App",
+      "dst": "ts:src/App.App",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/Title",
+      "dst": "ts:src/Title.Title",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/Title",
+      "dst": "ts:src/Title.format",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:src/App.App",
+      "dst": "ts:src/App.greet",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:src/Title.Title",
+      "dst": "ts:src/Title.format",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [],
+  "excluded": [
+    "`<Title \u2026 />` is a JSX element, not a call expression: React invokes the component, `App` does not. The vocabulary has no render edge, and labelling it CALLS would state a call the source does not make.",
+    "`value.trim()` \u2014 a String method on a parameter."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

@@ -61,7 +61,7 @@ from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind
 
 _DOTTED_PREFIXES = frozenset({"py", "java", "csharp"})
 _C_PREFIXES = ("c", "cpp")
-_TS_SUFFIXES = (".ts", ".tsx", ".js", ".jsx")
+_TS_SUFFIXES = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs")
 
 
 class _Index:

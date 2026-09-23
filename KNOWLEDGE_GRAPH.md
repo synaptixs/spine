@@ -128,6 +128,7 @@ a variable yields no edge, because a wrong edge is worse than an absent one.
 | `python` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · |
 | `java` | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · |
 | `typescript` | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · |
+| `javascript` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · |
 | `csharp` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · |
 | `c` | ✓ | ✓ | ✓ | ✓ | · | · | · | · |
 | `cpp` | ✓ | ✓ | ✓ | ✓ | · | · | · | · |
@@ -145,6 +146,7 @@ a variable yields no edge, because a wrong edge is worse than an absent one.
 | `python` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · |
 | `java` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | · | · | · | · |
 | `typescript` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | · | · | · | · |
+| `javascript` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · | · |
 | `csharp` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · | · |
 | `c` | ✓ | ✓ | ✓ | · | · | · | · | · | ✓ | · | · | · |
 | `cpp` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | ✓ | · | · | · |
@@ -247,6 +249,7 @@ flowchart LR
   | Python | ✅ built-in | (default) |
   | Java | ✅ + JAX-RS **and Spring MVC** endpoints | `pip install 'synaptixs-spine[java]'` |
   | TypeScript / TSX | ✅ | `pip install 'synaptixs-spine[typescript]'` |
+  | JavaScript / JSX | ✅ + CommonJS (`require`, `module.exports`, aliased exports objects) + Express routes incl. member handlers + Sequelize entities | `pip install 'synaptixs-spine[typescript]'` — rides the same grammar |
   | C# | ✅ + framework edges | `pip install 'synaptixs-spine[csharp]'` |
   | C | ✅ + `#include` graph | `pip install 'synaptixs-spine[c]'` |
   | C++ | ✅ classes/namespaces/inheritance | `pip install 'synaptixs-spine[cpp]'` |
@@ -595,10 +598,12 @@ reviews honest.
 
 - **Static, not runtime.** The PKG is built from source structure; it doesn't capture
   runtime behavior, dynamic dispatch it can't see, or values only known at execution.
-- **Parser coverage.** Python/Java/TypeScript/C#/C/C++/**Go**/**PHP**/**Perl**/**Kotlin** and
-  **SQL** today, plus a **Gradle** reader for `.kts` build scripts — twelve front-ends, of
-  which eleven are languages. Kotlin reads `.kt` only and mints ids in **Java's**
-  `java:` namespace, so a mixed Kotlin/Java module is one graph rather than two (D2); a `.kts`
+- **Parser coverage.** Python/Java/TypeScript/**JavaScript**/C#/C/C++/**Go**/**PHP**/**Perl**/**Kotlin**
+  and **SQL** today, plus a **Gradle** reader for `.kts` build scripts — thirteen front-ends,
+  of which twelve are languages. Kotlin reads `.kt` only and mints ids in **Java's**
+  `java:` namespace, so a mixed Kotlin/Java module is one graph rather than two (D2); JavaScript
+  does the same with TypeScript's `ts:` namespace, so a `.ts` file importing a `.js` one resolves
+  across the pair, and it reads CommonJS (`require`, `module.exports`) as well as ESM; a `.kts`
   Gradle script is a build DSL and is read as a marker, not parsed into modules.
   Kotlin's framework readings are **inverted relative to every other front-end**: Room
   `@Entity` classes become `Entity` nodes *named by their table* (so `data_layer_link`
@@ -661,15 +666,17 @@ reviews honest.
 ## 10. How right is it? — measured, not asserted
 
 "Grounded" is an adjective; this is a number. `orchestrator pkg accuracy` scores the graph
-against a committed corpus of **68 hand-labelled fixture cases across all 12
+against a committed corpus of **94 hand-labelled fixture cases across all 13
 front-ends**, and the baseline lives in `src/orchestrator/pkg/scoreboard.json`.
 
-**Precision is 1.00 on every node kind and every edge kind, in all 11 languages.** Recall is
-1.00 on every kind except `CALLS`:
+**Precision is 1.00 on every node kind and every edge kind, in all 12 languages.** Recall is
+1.00 on every kind except `CALLS`, JavaScript `IMPORTS` (189 of 190: an immediately-called
+`require`) and multi-repo `CONSUMES` (5 of 6) — each a declared known gap:
 
 | language | `CALLS` recall |
 |---|---|
 | `c` `sql` | 1.00 |
+| `javascript` | 0.97 |
 | `kotlin` | 0.92 |
 | `perl` | 0.89 |
 | `typescript` | 0.86 |

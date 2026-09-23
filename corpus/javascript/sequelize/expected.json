@@ -1,0 +1,620 @@
+{
+  "language": "javascript",
+  "case": "sequelize",
+  "why": "Sequelize as its own example app writes it: `sequelize.define` inside a function the connection is handed to, a class extending Sequelize's `Model` with columns from `init`, and associations in a separate file on locals destructured from the models registry \u2014 a file that never imports `sequelize` itself. REFERENCES follows the foreign key, and each association kind has an edge of its own. The model reached through an import has a *different name at every level* \u2014 the class `Musician`, the model `musician` (from `modelName`), and the local `Player` \u2014 so reading any of the three as the model's name fails the case. `seed.js` holds three `define` calls in a file that imports `sequelize` and none is a model: an untyped map, and two values rooted at Sequelize (`Op.is`, `Sequelize.NOW`) that are not column types. Columns use the parameterized `STRING(80)` form too. `booking.js` holds `gig`, a MySQL-style model keyed by two foreign keys whose every column is a chained modifier (`INTEGER.UNSIGNED`, `BIGINT.UNSIGNED.ZEROFILL`) \u2014 a type is anywhere in the chain, not only at its end \u2014 and it is imported by the name of the *variable* that holds it (`{ Booking }`), which is neither the model name (`gig`) nor any case of it. The fifth review pass. `booking.js` now holds a second model, `tour`, declared *first*, so a rule that takes a module's only or first model instead of the imported binding fails. `models/index.js` is the hand-written `db` index, a define written onto a local object that becomes the exports (`db.Post = define(\u2026)`); `tag.js` writes onto an express-style alias (`var api = exports = module.exports = {}`), and `comment.js` defines inside the exported literal. Each is a true association lost when only `exports.X` writes were recorded. Three refusals pin the fallbacks: an `exports.Story` write that a later `module.exports` replaces, a `Draft` defined inside a function and shadowed at the top level by the one actually exported, and a destructured `{ Musician }` of a module whose class is its default.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:models/orchestra",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/instrument",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/musician",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:setup",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/musician.Musician",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:setup.applyExtraSetup",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:entity:orchestra",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:instrument",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:musician",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:orchestra.id",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:orchestra.name",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:instrument.id",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:instrument.type",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:musician.name",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:musician.age",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:models/venue",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:entity:venue",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:venue.id",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:venue.city",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:models/db",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:seed",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/booking",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:entity:gig",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:gig.musicianId",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:gig.venueId",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:models",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/tag",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/comment",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/article",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/draft",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:roster",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:models/draft.build",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:roster.wire",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:entity:tour",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:post",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:author",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:tag",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:comment",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:article",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:draft",
+      "kind": "Entity"
+    },
+    {
+      "id": "ts:entity:tour.name",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:post.title",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:author.name",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:tag.label",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:comment.body",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:article.heading",
+      "kind": "Field"
+    },
+    {
+      "id": "ts:entity:draft.body",
+      "kind": "Field"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:models/orchestra",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/instrument",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/musician",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/musician",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/musician",
+      "dst": "ts:models/musician.Musician",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:setup.applyExtraSetup",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/orchestra",
+      "dst": "ts:entity:orchestra",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/instrument",
+      "dst": "ts:entity:instrument",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/musician",
+      "dst": "ts:entity:musician",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:orchestra",
+      "dst": "ts:entity:orchestra.id",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:orchestra",
+      "dst": "ts:entity:orchestra.name",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:instrument",
+      "dst": "ts:entity:instrument.id",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:instrument",
+      "dst": "ts:entity:instrument.type",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:musician",
+      "dst": "ts:entity:musician.name",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:musician",
+      "dst": "ts:entity:musician.age",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/musician.Musician",
+      "dst": "ts:sequelize:Model",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "ts:entity:instrument",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:musician",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:models/venue",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/venue",
+      "dst": "ts:entity:venue",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:venue",
+      "dst": "ts:entity:venue.id",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:venue",
+      "dst": "ts:entity:venue.city",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:venue",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:models/db",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/musician",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:seed",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/booking",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/booking",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/booking",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/booking",
+      "dst": "ts:entity:gig",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:gig",
+      "dst": "ts:entity:gig.musicianId",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:gig",
+      "dst": "ts:entity:gig.venueId",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:gig",
+      "dst": "ts:entity:orchestra",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:models",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/tag",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/comment",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/article",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/draft",
+      "dst": "ts:sequelize",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/tag",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/comment",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/article",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/draft",
+      "dst": "ts:models/db",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/tag",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/comment",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/article",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:setup",
+      "dst": "ts:models/draft",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:roster",
+      "dst": "ts:models/musician",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:models/booking",
+      "dst": "ts:entity:tour",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:tour",
+      "dst": "ts:entity:tour.name",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/draft",
+      "dst": "ts:models/draft.build",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:roster",
+      "dst": "ts:roster.wire",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models",
+      "dst": "ts:entity:post",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models",
+      "dst": "ts:entity:author",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/tag",
+      "dst": "ts:entity:tag",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/comment",
+      "dst": "ts:entity:comment",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/article",
+      "dst": "ts:entity:article",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:models/draft",
+      "dst": "ts:entity:draft",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:post",
+      "dst": "ts:entity:post.title",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:author",
+      "dst": "ts:entity:author.name",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:tag",
+      "dst": "ts:entity:tag.label",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:comment",
+      "dst": "ts:entity:comment.body",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:article",
+      "dst": "ts:entity:article.heading",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:draft",
+      "dst": "ts:entity:draft.body",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:entity:tour",
+      "dst": "ts:entity:venue",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:post",
+      "dst": "ts:entity:author",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:tag",
+      "dst": "ts:entity:post",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "ts:entity:comment",
+      "dst": "ts:entity:post",
+      "kind": "REFERENCES"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:entity:orchestra",
+        "dst": "ts:entity:instrument",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. The wrong direction. `orchestra.hasMany(instrument)` puts the key on `instrument`; a reader drawing receiver\u2192argument emits this."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:orchestra",
+        "dst": "ts:entity:venue",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. The wrong direction again, on `orchestra.hasMany(venue)` \u2014 the only statement of that relation, so a direction bug cannot hide behind a redundant `belongsTo`."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:musician",
+        "dst": "ts:entity:venue",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `belongsToMany` read as `belongsTo`. Its keys live on the `booking` join table, not on either model."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:venue",
+        "dst": "ts:entity:musician",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `belongsToMany` read as `hasMany` \u2014 the other plausible misreading, distinct from every true edge here."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:ghost",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `ghost` is destructured from the models registry but nothing defines it. Resolved by name, then dropped by `finalize`: the source end must be an entity too."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:article",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `exports.Story` is written onto the original exports object, which `module.exports = Object.freeze({ version: 1 })` then replaces; `{ Story }` is `undefined` at run time. A reader that takes the `exports.` write at face value emits this."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:draft",
+        "dst": "ts:entity:orchestra",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. The exported `Draft` is the top-level `const Draft = null`. The model is bound to a *different* `Draft`, local to `build()`; a binding lookup that ignores scope emits this."
+    },
+    {
+      "edge": {
+        "src": "ts:entity:musician",
+        "dst": "ts:entity:instrument",
+        "kind": "REFERENCES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `musician.js` exports the class as its default (`module.exports = Musician`), so `const { Musician } = require(\u2026)` is `undefined`: the default is not a member called `Musician`."
+    }
+  ],
+  "excluded": [
+    "`type` and `validate` inside an attribute definition are options *of* a column, not columns.",
+    "The anonymous `module.exports = (sequelize) => {\u2026}` adds no Function: an anonymous default export has no name a call site uses.",
+    "`Player.belongsTo(...)`, `orchestra.hasMany(...)` \u2014 member calls on untyped receivers; they are associations, read as REFERENCES, not CALLS.",
+    "`new Sequelize(...)` in `db.js` is a top-level call with no caller to hang a CALLS edge on.",
+    "`belongsToMany(venue, { through: 'booking' })` joins through a model named by a *string*, which Sequelize generates at run time: no file declares it, so neither it nor its two keys are labelled, and nothing here is its join model. `booking.js` defines `gig`, an unrelated model the fourth review's text wrongly called the join table (the fifth review's ORM N7)."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

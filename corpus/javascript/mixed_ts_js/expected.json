@@ -1,0 +1,79 @@
+{
+  "language": "javascript",
+  "case": "mixed_ts_js",
+  "why": "A gradual migration: a TypeScript module importing a JavaScript one and a JavaScript module importing it back, with no extensions on either specifier. The payoff for sharing the `ts:` namespace (D4) \u2014 one graph rather than two.",
+  "root": ".repo",
+  "requires": [
+    "javascript",
+    "typescript"
+  ],
+  "nodes": [
+    {
+      "id": "ts:legacy/util",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:modern/service",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:legacy/bridge",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:legacy/util.old",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:modern/service.run",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:legacy/bridge.call",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:modern/service",
+      "dst": "ts:legacy/util",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:legacy/bridge",
+      "dst": "ts:modern/service",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:legacy/util",
+      "dst": "ts:legacy/util.old",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:modern/service",
+      "dst": "ts:modern/service.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:legacy/bridge",
+      "dst": "ts:legacy/bridge.call",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:modern/service.run",
+      "dst": "ts:legacy/util.old",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:legacy/bridge.call",
+      "dst": "ts:modern/service.run",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [],
+  "excluded": [],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

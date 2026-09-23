@@ -73,7 +73,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/builddoc.py:360`](../../src/orchestrator/sdlc/builddoc.py#L360)
 
 - **Called by** (1): [`render_build_md`](../../src/orchestrator/sdlc/builddoc.py#L1130)
-- **Calls** (4): [`_measured_runs`](../../src/orchestrator/sdlc/builddoc.py#L356), [`catalog`](../../src/orchestrator/core/llm/catalog.py#L84), [`describe`](../../src/orchestrator/core/llm/catalog.py#L74), [`resolve`](../../src/orchestrator/core/llm/catalog.py#L41)
+- **Calls** (4): [`_measured_runs`](../../src/orchestrator/sdlc/builddoc.py#L356), [`catalog`](../../src/orchestrator/core/llm/catalog.py#L98), [`describe`](../../src/orchestrator/core/llm/catalog.py#L88), [`resolve`](../../src/orchestrator/core/llm/catalog.py#L55)
 
 ### `_criteria_block`
 

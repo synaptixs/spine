@@ -66,6 +66,7 @@ large majority, without over-investing:
 | **Go** | systems/services | ~1 wk (spec'd) | ✅ ~1 wk (`go build`/`go test`) | interface satisfaction by method-set matching; package = directory |
 | **Rust** | systems / AI-adjacent | ~1 wk | ✅ ~1 wk (`cargo build`/`cargo test`) | traits → `IMPLEMENTS` (`impl Trait for Type`); `::` path resolution |
 | **Kotlin** | JVM / Android | ~1 wk *(estimate; P0–P9 took 6 days of track time, codegen included)* | 🟡 *half true — the graph reuses Java's id namespace, but the JVM test runner was Maven-only, so P8 built a Gradle runner and P9 made it variant-aware for Android* | JVM; Java interop; coroutines/null-safety don't change the graph |
+| **JavaScript** | web / Node (Express, Sequelize) | **DONE** — outside the original four; comprehension, `CALLS`, CommonJS, Express routes and a Sequelize data layer, riding the `typescript` extra | out of scope by decision — its own roadmap | CommonJS (`require`/`module.exports`, aliased exports objects); JSX in `.js` (TSX grammar); ids shared with TypeScript's `ts:` namespace |
 | **PHP** | dynamic / web (Laravel, WordPress) | **DONE** (P1+P2 — comprehension and `CALLS` both ship) | defer (D6 — comprehension-first discipline, despite a clean toolchain) | traits → `IMPLEMENTS` (no vocabulary precedent); class-name resolution is *static* per file (PHP RFC), unlike Ruby's |
 
 Ruby (dynamic / web, Rails) stays queued behind these four — comprehension + CALLS-partial is

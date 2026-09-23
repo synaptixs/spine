@@ -44,7 +44,7 @@ Five repositories, one per language front-end, each pinned to an exact commit.
 tree Spine searches is the **pre-fix** state. We are asking it to find where a fix will go, not
 to notice one that has already happened.
 
-**C# has no slot.** Five repositories, six front-ends at 3.29.0 (there are twelve now) — one
+**C# has no slot.** Five repositories, six front-ends at 3.29.0 (there are thirteen now) — one
 language measured then is unrepresented, and nothing here says anything about it.
 
 ---
@@ -141,7 +141,7 @@ cannot quietly become a measurement of one project.
 predicted blast radius contain what a PR actually touched), fault-site top-1 on real tracebacks,
 `regression_gaps` precision, and anything about C#. Two of Spine's four accuracy oracles
 (`runtime`, and parts of `invention`) are Python-only, so their clean results say nothing about
-the other front-ends — seven at 3.29.0, eleven now.
+the other front-ends — seven at 3.29.0, twelve now.
 
 **6 · It measures retrieval, not repair.** Nothing here says the code Spine writes is correct.
 That is a different programme, deliberately separate, with no number yet.

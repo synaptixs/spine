@@ -76,7 +76,10 @@ Optional extras, added when you need them:
   is not proof that every newer release behaves identically. See the
   [support and platform matrix](docs/evals/clang-semantic-release-readiness.md#support-contract).
 - `[java]`, `[typescript]`, `[csharp]`, `[c]`, `[cpp]`, `[go]`, `[php]`, `[perl]`, `[kotlin]`, `[sql]` — language
-  parsers for comprehension + grounding (Python needs no extra). C# codegen also needs the **.NET
+  parsers for comprehension + grounding (Python needs no extra). `[typescript]` also reads
+  **JavaScript** (`.js`/`.jsx`/`.mjs`/`.cjs`) — the same grammar, so there is no separate extra, as
+  `[kotlin]` also gives the Gradle `.kts` reader. JavaScript is comprehension-only: there is no
+  JavaScript codegen toolchain. C# codegen also needs the **.NET
   SDK** (`dotnet`) on PATH; C / C++ codegen needs a C / C++ compiler plus **CMake** (greenfield) or
   **Meson + Ninja** (matching the target repo's build system); **Go** codegen needs the **`go`
   toolchain** on PATH (`go build`/`go test`). `[sql]` adds `.sql`
@@ -145,13 +148,15 @@ the interpreter answering. Host plugin update/removal commands stay in
 git clone https://github.com/synaptixs/spine
 cd spine
 uv sync --frozen --extra dev --extra mcp --extra typescript --extra java --extra csharp \
-  --extra c --extra cpp --extra go --extra php --extra perl --extra kotlin
+  --extra c --extra cpp --extra go --extra php --extra perl --extra kotlin --extra clang
 uv run orchestrator --help
 ```
 
 This is the extras set CI syncs. `[dev]` supplies testing/type tools plus SQL and
 document parsers; the explicit language extras and `[mcp]` exercise the remaining
-front-ends and plugin. Fewer extras mean fewer languages, not zero findings.
+front-ends and plugin, and `[clang]` adds the C/C++ semantic post-pass that
+`pkg accuracy --check` scores the `cpp` corpus against. Fewer extras mean fewer
+languages, not zero findings.
 On a checkout, prefix commands in other guides with `uv run --frozen`.
 
 ---

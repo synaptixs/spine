@@ -13,8 +13,8 @@ inspect the graph and a build plan before spending model tokens, build locally,
 then choose when to push a pull request for human review.
 
 The product is **Spine**, its package is **`synaptixs-spine`**, and its command is
-**`orchestrator`**. Comprehension supports twelve front-ends: Python, Java, TypeScript,
-C#, C, C++, Go, PHP, Perl, Kotlin and SQL — plus a Gradle reader that turns `.kts`
+**`orchestrator`**. Comprehension supports thirteen front-ends: Python, Java, TypeScript,
+JavaScript, C#, C, C++, Go, PHP, Perl, Kotlin and SQL — plus a Gradle reader that turns `.kts`
 build scripts into the module graph an Android app is assembled from — with the
 matching parser extras installed.
 
@@ -78,7 +78,24 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.42.0 (current)** — a round of Kotlin precision work, and a gate that was punishing
+**3.43.0 (current)** — JavaScript, the 13th front-end. `.js`, `.jsx`, `.mjs` and `.cjs` used to
+reach the walker with no front-end and produce nothing: `express` and `react-boilerplate`
+extracted to zero nodes. They now extract CommonJS `require` and exports, JSX, Express routes
+and a Sequelize data layer, on the existing `typescript` extra — no new install. A `.ts` file
+importing a `.js` one resolves across the pair.
+
+The hard part is CommonJS: a module's exports are whatever its code assigns, so each module is
+read into one of three tiers — **readable**, **names-known** or **opaque** — and a call into it
+is trusted only as far as its own file says. Twenty hand-labelled corpus cases: precision **1.00**
+on every node and edge kind, `CALLS` recall 0.97, and zero dangling edges on four real
+repositories. Codegen for JavaScript is not part of this.
+
+Also fixed, in TypeScript as well: `import './mod.js'` and `from '..'` no longer mint modules no
+file declares, and a member call on a rebound name no longer resolves through the file's
+namespace. `sdlc plan` now prices from the LiteLLM map that ships, so the same commit always
+writes the same build document.
+
+**3.42.0** — a round of Kotlin precision work, and a gate that was punishing
 honesty. Six reported Kotlin defects are closed, including an extension call that resolved onto
 an id nothing declares: comparing receiver *names* refused every subtype receiver, so
 `fun NavController.navigateToSearch()` called on a `NavHostController` — the standard Compose
@@ -269,7 +286,7 @@ see the [Setup guide](https://github.com/synaptixs/spine/blob/main/SETUP.md).
 
 **Which languages and models?**
 Comprehension and codegen cover **Python, Java, TypeScript, C#, C, C++, Go, PHP, Perl and
-Kotlin** — each
+Kotlin**, and comprehension alone covers **JavaScript** — each
 front-end going beyond structure into what that stack actually does (Java and C# REST
 endpoints, EF Core entities, C's `#include` graph, C++ templates and namespaces, Go
 interface satisfaction by method-set matching). **PHP** adds a call graph too (namespaces,

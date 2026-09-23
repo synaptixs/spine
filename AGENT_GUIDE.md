@@ -312,7 +312,8 @@ joins:
 
 **An Android app can be the consumer.** Retrofit interfaces are read as HTTP *calls*, not
 routes — an app serves nothing, it calls something — so a Kotlin mobile repo joins to a
-Java, Go, PHP or Python provider by verb and path like any other consumer. That makes
+provider in any front-end that emits endpoints — Java, Kotlin, C#, Go, PHP, Perl, Python,
+TypeScript or JavaScript (Express) — by verb and path like any other consumer. That makes
 "which screens break if this service drops `GET /topics`" answerable, which no front-end
 could do before. The path comes from the annotation; a `baseUrl(...)` that is not a string
 literal (the usual case, since it comes from build config) leaves the call path-only.
@@ -758,7 +759,7 @@ approval — Spine refuses a live write without it. `live=true` needs a reachabl
 
 ## 10. Language support & toolchains
 
-Comprehension covers **twelve front-ends** — eleven languages, plus a Gradle reader
+Comprehension covers **thirteen front-ends** — twelve languages, plus a Gradle reader
 that turns `.kts` build scripts into a module dependency graph (it is not a language
 and has no toolchain row). Kotlin reads structure, calls, Room entities, Retrofit
 calls, Compose routes and Hilt wiring, and is a **codegen target** for both plain

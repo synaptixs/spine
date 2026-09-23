@@ -1,0 +1,149 @@
+{
+  "language": "javascript",
+  "case": "default_exports",
+  "why": "`module.exports = Base` exports a class as the module's *default*, not as a member called `Base`. A whole-module binding reaches it under any local name (`const B = require('./base'); class Child extends B`), which the reader lost unless the local happened to be spelled `Base`. A destructured `{ Base }` of the same module is `undefined` at run time, and was resolved as though `Base` were a named export.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:base",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:direct",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:renamed",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:wrong",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:base.Base",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:direct.Kid",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:renamed.Child",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:wrong.Wrong",
+      "kind": "Type"
+    },
+    {
+      "id": "ts:base.Base.hello",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:renamed.make",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:wrong.bad",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:base",
+      "dst": "ts:base.Base",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:base.Base",
+      "dst": "ts:base.Base.hello",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:direct",
+      "dst": "ts:direct.Kid",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:renamed",
+      "dst": "ts:renamed.Child",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:renamed",
+      "dst": "ts:renamed.make",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:wrong",
+      "dst": "ts:wrong.Wrong",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:wrong",
+      "dst": "ts:wrong.bad",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:direct",
+      "dst": "ts:base",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:renamed",
+      "dst": "ts:base",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:wrong",
+      "dst": "ts:base",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:direct.Kid",
+      "dst": "ts:base.Base",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "ts:renamed.Child",
+      "dst": "ts:base.Base",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "ts:renamed.make",
+      "dst": "ts:base.Base",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:renamed.make",
+      "dst": "ts:base.Base.hello",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:wrong.Wrong",
+        "dst": "ts:base.Base",
+        "kind": "IMPLEMENTS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `const { Base } = require('./base')` reads a property `Base` off the class itself, which is `undefined`: the default export is not a member of itself."
+    },
+    {
+      "edge": {
+        "src": "ts:wrong.bad",
+        "dst": "ts:base.Base",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The same `undefined` binding, constructed."
+    }
+  ],
+  "excluded": [
+    "`const shared = new Base()` in `base.js` is a top-level call with no caller. It is there because constructing the default is a *use* of the exports object, not a write: read as an unrecognised reference, it made the surface opaque and handed `{ Base }` to a name lookup."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

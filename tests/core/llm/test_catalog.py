@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+
 import pytest
 
 from orchestrator.core.llm import catalog
@@ -104,3 +108,44 @@ class TestTheScaffoldMentionsThem:
         from orchestrator.init_scaffold import render_env_template
 
         assert catalog.DEFAULT_MODEL in render_env_template({})
+
+
+class TestThePriceMapIsTheInstalledOne:
+    """Same commit, same build document — whether or not the network is up.
+
+    LiteLLM fetches its price map from GitHub on import unless told not to, so the §11 cost
+    table of a build document moved with the network: CI planned one commit twice, one fetch
+    failed over to the bundled map, and the two documents differed. Each check runs in a
+    fresh interpreter, because this process may have imported LiteLLM already.
+    """
+
+    @staticmethod
+    def _run(code: str, **env: str) -> str:
+        base = {k: v for k, v in os.environ.items() if k != "LITELLM_LOCAL_MODEL_COST_MAP"}
+        proc = subprocess.run(
+            [sys.executable, "-c", code], env={**base, **env}, capture_output=True, text=True, check=True
+        )
+        return proc.stdout.strip()
+
+    @pytest.mark.parametrize(
+        "module", ["orchestrator.core.llm.catalog", "orchestrator.core.llm.litellm_client"]
+    )
+    def test_litellm_reads_the_map_it_ships(self, module: str) -> None:
+        """Either way into the package pins it — the client module is imported directly too."""
+        out = self._run(
+            f"import {module}, json, os, litellm\n"
+            "bundled = os.path.join(os.path.dirname(litellm.__file__),"
+            " 'model_prices_and_context_window_backup.json')\n"
+            "with open(bundled, encoding='utf-8') as f:\n"
+            # A subset, not equality: LiteLLM pops one metadata key when it loads the file. The
+            # live map is no subset — it carries ~1,200 models the bundled one does not.
+            "    print(set(litellm.model_cost) <= set(json.load(f)))\n"
+        )
+        assert out == "True"
+
+    def test_an_operator_can_still_ask_for_the_live_map(self) -> None:
+        out = self._run(
+            "import os, orchestrator.core.llm.catalog\nprint(os.environ['LITELLM_LOCAL_MODEL_COST_MAP'])",
+            LITELLM_LOCAL_MODEL_COST_MAP="False",
+        )
+        assert out == "False"

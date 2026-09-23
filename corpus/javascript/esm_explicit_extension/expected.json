@@ -1,0 +1,100 @@
+{
+  "language": "javascript",
+  "case": "esm_explicit_extension",
+  "why": "ESM requires the extension, so `import \u2026 from './mod.js'` is idiomatic. Stripping only `.ts`/`.tsx` minted `ts:lib/mod.js` with `external=False` \u2014 a first-party-looking module no file declares \u2014 and a CALLS target `ts:lib/mod.js.go`. The named import and the namespace import each reach a *different* export here, so a break in either shows on its own edge. The importer is `.mjs` on purpose.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:lib/mod",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:lib/main",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:lib/mod.go",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/mod.stop",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/main.run",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:lib/main.halt",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:lib/main",
+      "dst": "ts:lib/mod",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "ts:lib/mod",
+      "dst": "ts:lib/mod.go",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/mod",
+      "dst": "ts:lib/mod.stop",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/main",
+      "dst": "ts:lib/main.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/main",
+      "dst": "ts:lib/main.halt",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:lib/main.run",
+      "dst": "ts:lib/mod.go",
+      "kind": "CALLS"
+    },
+    {
+      "src": "ts:lib/main.halt",
+      "dst": "ts:lib/mod.stop",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:lib/main",
+        "dst": "ts:lib/mod.js",
+        "kind": "IMPORTS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The phantom: what the resolver emitted before its suffix table covered `.js`."
+    },
+    {
+      "edge": {
+        "src": "ts:lib/main.run",
+        "dst": "ts:lib/mod.js.go",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The phantom's CALLS target, which `_ensure_external` could not rescue \u2014 it has one colon, so it reads as repo-local."
+    },
+    {
+      "edge": {
+        "src": "ts:lib/main.halt",
+        "dst": "ts:lib/mod.js.stop",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The same phantom, through the namespace import."
+    }
+  ],
+  "excluded": [],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}

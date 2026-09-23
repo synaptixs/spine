@@ -1,0 +1,97 @@
+{
+  "language": "javascript",
+  "case": "shadowed_calls",
+  "why": "The zero-invention trap every front-end carries: a module-level `helper` shadowed by a parameter, a local and a callback argument. Only the unshadowed call reaches the module function.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "ts:shadow",
+      "kind": "Module"
+    },
+    {
+      "id": "ts:shadow.helper",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:shadow.direct",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:shadow.viaParam",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:shadow.viaLocal",
+      "kind": "Function"
+    },
+    {
+      "id": "ts:shadow.viaCallback",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "ts:shadow",
+      "dst": "ts:shadow.helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:shadow",
+      "dst": "ts:shadow.direct",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:shadow",
+      "dst": "ts:shadow.viaParam",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:shadow",
+      "dst": "ts:shadow.viaLocal",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:shadow",
+      "dst": "ts:shadow.viaCallback",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "ts:shadow.direct",
+      "dst": "ts:shadow.helper",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "ts:shadow.viaParam",
+        "dst": "ts:shadow.helper",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The parameter `helper` shadows the module function; the callee is whatever the caller passed."
+    },
+    {
+      "edge": {
+        "src": "ts:shadow.viaLocal",
+        "dst": "ts:shadow.helper",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The local arrow `helper` shadows the module function."
+    },
+    {
+      "edge": {
+        "src": "ts:shadow.viaCallback",
+        "dst": "ts:shadow.helper",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The callback's own parameter `helper` shadows it \u2014 the vue/core shape."
+    }
+  ],
+  "excluded": [
+    "`items.map(...)` \u2014 a member call on an untyped parameter, an Array method."
+  ],
+  "open_questions": [],
+  "resolved_by_measurement": []
+}
