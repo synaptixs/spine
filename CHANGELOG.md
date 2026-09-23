@@ -4,6 +4,20 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.43.1 — 2026-09-23
+
+### Fixed
+
+- **Python: a `src/` that is a package no longer breaks every import.** The src-layout rule
+  stripped a leading `src.` from every module id, even when `src/` held an `__init__.py` and the
+  code imported through it (`from src.services.x import …`). Ids and imports then named the same
+  modules two ways and nothing joined: a field report on 3.42.0 had `pkg verify` fail with 33 of
+  34 modules imported by nothing, 99% of import edges external, and `src/__init__.py` named
+  `py:<root>`. `src/` is now stripped only when it is a sys.path root (no `__init__.py`); a
+  package `src/` keeps its name, which is the one Python resolves. Graphs of repos with a
+  package `src/` change ids from `py:X` to `py:src.X`; the standard src layout is untouched. New
+  corpus case `python/src_package`.
+
 ## 3.43.0 — 2026-09-23
 
 ### Added

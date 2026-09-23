@@ -8,9 +8,9 @@
       },
       "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
       "provenance": {
-        "anchored": 14175,
+        "anchored": 14177,
         "excluded": 910,
-        "resolved": 14175,
+        "resolved": 14177,
         "unreadable": 0
       }
     },
@@ -728,16 +728,16 @@
         "python": {
           "edges": {
             "CALLS": {
-              "emitted": 8,
-              "expected": 11,
+              "emitted": 10,
+              "expected": 13,
               "known_gaps": 3,
-              "matched": 8
+              "matched": 10
             },
             "CONTAINS": {
-              "emitted": 24,
-              "expected": 24,
+              "emitted": 27,
+              "expected": 27,
               "known_gaps": 0,
-              "matched": 24
+              "matched": 27
             },
             "EXPOSES": {
               "emitted": 2,
@@ -746,10 +746,10 @@
               "matched": 2
             },
             "IMPORTS": {
-              "emitted": 10,
-              "expected": 10,
+              "emitted": 12,
+              "expected": 12,
               "known_gaps": 0,
-              "matched": 10
+              "matched": 12
             }
           },
           "nodes": {
@@ -766,16 +766,16 @@
               "matched": 3
             },
             "Function": {
-              "emitted": 18,
-              "expected": 18,
+              "emitted": 21,
+              "expected": 21,
               "known_gaps": 0,
-              "matched": 18
+              "matched": 21
             },
             "Module": {
-              "emitted": 13,
-              "expected": 13,
+              "emitted": 19,
+              "expected": 19,
               "known_gaps": 0,
-              "matched": 13
+              "matched": 19
             },
             "Type": {
               "emitted": 3,
@@ -918,7 +918,7 @@
       "count": 1947,
       "docs": 1938,
       "gated": false,
-      "mentions": 13957,
+      "mentions": 13970,
       "note": "recorded, never gated \u2014 an upper bound: a tenth of the population cannot bind by construction. See GATES"
     },
     "invention": {
@@ -1002,7 +1002,7 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 22319,
+          "total_calls": 22334,
           "unexamined": 0
         },
         "sql": {
@@ -1023,7 +1023,7 @@
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 22848
+      "total_calls": 22863
     },
     "parity": {
       "declared": 75,

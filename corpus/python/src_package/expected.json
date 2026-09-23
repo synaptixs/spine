@@ -1,0 +1,35 @@
+{
+  "language": "python",
+  "case": "src_package",
+  "why": "`src/` with an `__init__.py` is a package, imported from the repository root as `from src.services.x import …`. The src-layout rule used to strip `src.` from every module id regardless, so the ids and the imports named the same modules differently and nothing joined: a field report (3.42.0) had 33 of 34 modules imported by nothing and `src/__init__.py` named `py:<root>`. The ids here keep `src.`, because that is the name Python resolves.",
+  "root": ".repo",
+  "nodes": [
+    {"id": "py:src", "kind": "Module"},
+    {"id": "py:src.main", "kind": "Module"},
+    {"id": "py:src.services", "kind": "Module"},
+    {"id": "py:src.services.limiter", "kind": "Module"},
+    {"id": "py:src.agents", "kind": "Module"},
+    {"id": "py:src.agents.agent", "kind": "Module"},
+
+    {"id": "py:src.main.run", "kind": "Function"},
+    {"id": "py:src.services.limiter.limit", "kind": "Function"},
+    {"id": "py:src.agents.agent.act", "kind": "Function"}
+  ],
+  "edges": [
+    {"src": "py:src.main", "dst": "py:src.services.limiter.limit", "kind": "IMPORTS"},
+    {"src": "py:src.main", "dst": "py:src.agents.agent", "kind": "IMPORTS"},
+
+    {"src": "py:src.main", "dst": "py:src.main.run", "kind": "CONTAINS"},
+    {"src": "py:src.services.limiter", "dst": "py:src.services.limiter.limit", "kind": "CONTAINS"},
+    {"src": "py:src.agents.agent", "dst": "py:src.agents.agent.act", "kind": "CONTAINS"},
+
+    {"src": "py:src.main.run", "dst": "py:src.services.limiter.limit", "kind": "CALLS"},
+    {"src": "py:src.main.run", "dst": "py:src.agents.agent.act", "kind": "CALLS"}
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "The package `__init__` modules import nothing, so they carry no IMPORTS edges; they are labelled only as Module nodes."
+  ],
+  "open_questions": []
+}

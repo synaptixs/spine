@@ -272,9 +272,9 @@ _Every first-party symbol, A–Z, and the page that describes it. 4421 symbols; 
 | `_collect` | `orchestrator.sdlc.preflight` | [`_collect`](../src/orchestrator/sdlc/preflight.py#L348) |
 | `_collect_accesses` | [`orchestrator.pkg.python_orm`](modules/orchestrator.pkg.python_orm.md#_collect_accesses) | [`_collect_accesses`](../src/orchestrator/pkg/python_orm.py#L234) |
 | `_collect_bindings` | [`orchestrator.pkg.kotlin_extractor`](modules/orchestrator.pkg.kotlin_extractor.md#_collect_bindings) | [`_collect_bindings`](../src/orchestrator/pkg/kotlin_extractor.py#L1318) |
-| `_collect_defs` | `orchestrator.pkg.extractor` | [`_collect_defs`](../src/orchestrator/pkg/extractor.py#L292) |
+| `_collect_defs` | `orchestrator.pkg.extractor` | [`_collect_defs`](../src/orchestrator/pkg/extractor.py#L299) |
 | `_collect_django` | `orchestrator.pkg.python_routes` | [`_collect_django`](../src/orchestrator/pkg/python_routes.py#L248) |
-| `_collect_imports` | `orchestrator.pkg.extractor` | [`_collect_imports`](../src/orchestrator/pkg/extractor.py#L279) |
+| `_collect_imports` | `orchestrator.pkg.extractor` | [`_collect_imports`](../src/orchestrator/pkg/extractor.py#L286) |
 | `_collect_list_items` | `orchestrator.intake.adf` | [`_collect_list_items`](../src/orchestrator/intake/adf.py#L163) |
 | `_collect_local_constructor_types` | [`orchestrator.pkg.perl_extractor`](modules/orchestrator.pkg.perl_extractor.md#_collect_local_constructor_types) | [`_collect_local_constructor_types`](../src/orchestrator/pkg/perl_extractor.py#L1065) |
 | `_collect_routers` | `orchestrator.pkg.python_routes` | [`_collect_routers`](../src/orchestrator/pkg/python_routes.py#L175) |
@@ -439,8 +439,8 @@ _Every first-party symbol, A–Z, and the page that describes it. 4421 symbols; 
 | `_effective_methods` | [`orchestrator.pkg.php_extractor`](modules/orchestrator.pkg.php_extractor.md#_effective_methods) | [`_effective_methods`](../src/orchestrator/pkg/php_extractor.py#L551) |
 | `_eloquent_relation_targets` | `orchestrator.pkg.php_orm` | [`_eloquent_relation_targets`](../src/orchestrator/pkg/php_orm.py#L109) |
 | `_emit` | `orchestrator.knowledge.consolidate` | [`_emit`](../src/orchestrator/knowledge/consolidate.py#L65) |
-| `_emit_bases` | `orchestrator.pkg.extractor` | [`_emit_bases`](../src/orchestrator/pkg/extractor.py#L452) |
-| `_emit_body` | `orchestrator.pkg.extractor` | [`_emit_body`](../src/orchestrator/pkg/extractor.py#L301) |
+| `_emit_bases` | `orchestrator.pkg.extractor` | [`_emit_bases`](../src/orchestrator/pkg/extractor.py#L459) |
+| `_emit_body` | `orchestrator.pkg.extractor` | [`_emit_body`](../src/orchestrator/pkg/extractor.py#L308) |
 | `_emit_calls` | [`orchestrator.pkg.php_extractor`](modules/orchestrator.pkg.php_extractor.md#_emit_calls) | [`_emit_calls`](../src/orchestrator/pkg/php_extractor.py#L488) |
 | `_emit_const_functions` | [`orchestrator.pkg.js_extractor`](modules/orchestrator.pkg.js_extractor.md#_emit_const_functions) | [`_emit_const_functions`](../src/orchestrator/pkg/js_extractor.py#L309) |
 | `_emit_const_functions` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_emit_const_functions) | [`_emit_const_functions`](../src/orchestrator/pkg/typescript_extractor.py#L354) |
@@ -451,13 +451,13 @@ _Every first-party symbol, A–Z, and the page that describes it. 4421 symbols; 
 | `_emit_export` | [`orchestrator.pkg.js_extractor`](modules/orchestrator.pkg.js_extractor.md#_emit_export) | [`_emit_export`](../src/orchestrator/pkg/js_extractor.py#L1474) |
 | `_emit_exposes` | `orchestrator.pkg.perl_routes` | [`_emit_exposes`](../src/orchestrator/pkg/perl_routes.py#L107) |
 | `_emit_field` | [`orchestrator.pkg.perl_extractor`](modules/orchestrator.pkg.perl_extractor.md#_emit_field) | [`_emit_field`](../src/orchestrator/pkg/perl_extractor.py#L1044) |
-| `_emit_fields` | `orchestrator.pkg.extractor` | [`_emit_fields`](../src/orchestrator/pkg/extractor.py#L380) |
+| `_emit_fields` | `orchestrator.pkg.extractor` | [`_emit_fields`](../src/orchestrator/pkg/extractor.py#L387) |
 | `_emit_foreign_keys` | [`orchestrator.pkg.kotlin_room`](modules/orchestrator.pkg.kotlin_room.md#_emit_foreign_keys) | [`_emit_foreign_keys`](../src/orchestrator/pkg/kotlin_room.py#L230) |
 | `_emit_function` | [`orchestrator.pkg.kotlin_extractor`](modules/orchestrator.pkg.kotlin_extractor.md#_emit_function) | [`_emit_function`](../src/orchestrator/pkg/kotlin_extractor.py#L589) |
 | `_emit_function` | [`orchestrator.pkg.php_extractor`](modules/orchestrator.pkg.php_extractor.md#_emit_function) | [`_emit_function`](../src/orchestrator/pkg/php_extractor.py#L396) |
 | `_emit_function` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_emit_function) | [`_emit_function`](../src/orchestrator/pkg/typescript_extractor.py#L384) |
 | `_emit_implements` | [`orchestrator.pkg.perl_extractor`](modules/orchestrator.pkg.perl_extractor.md#_emit_implements) | [`_emit_implements`](../src/orchestrator/pkg/perl_extractor.py#L1018) |
-| `_emit_import` | `orchestrator.pkg.extractor` | [`_emit_import`](../src/orchestrator/pkg/extractor.py#L366) |
+| `_emit_import` | `orchestrator.pkg.extractor` | [`_emit_import`](../src/orchestrator/pkg/extractor.py#L373) |
 | `_emit_members` | [`orchestrator.pkg.kotlin_extractor`](modules/orchestrator.pkg.kotlin_extractor.md#_emit_members) | [`_emit_members`](../src/orchestrator/pkg/kotlin_extractor.py#L550) |
 | `_emit_members` | [`orchestrator.pkg.php_extractor`](modules/orchestrator.pkg.php_extractor.md#_emit_members) | [`_emit_members`](../src/orchestrator/pkg/php_extractor.py#L349) |
 | `_emit_module` | [`orchestrator.pkg.js_extractor`](modules/orchestrator.pkg.js_extractor.md#_emit_module) | [`_emit_module`](../src/orchestrator/pkg/js_extractor.py#L250) |
@@ -469,7 +469,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4421 symbols; 
 | `_emit_sql_edges` | [`orchestrator.pkg.kotlin_room`](modules/orchestrator.pkg.kotlin_room.md#_emit_sql_edges) | [`_emit_sql_edges`](../src/orchestrator/pkg/kotlin_room.py#L385) |
 | `_emit_statement` | [`orchestrator.pkg.js_extractor`](modules/orchestrator.pkg.js_extractor.md#_emit_statement) | [`_emit_statement`](../src/orchestrator/pkg/js_extractor.py#L335) |
 | `_emit_statement` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_emit_statement) | [`_emit_statement`](../src/orchestrator/pkg/typescript_extractor.py#L336) |
-| `_emit_stmt` | `orchestrator.pkg.extractor` | [`_emit_stmt`](../src/orchestrator/pkg/extractor.py#L315) |
+| `_emit_stmt` | `orchestrator.pkg.extractor` | [`_emit_stmt`](../src/orchestrator/pkg/extractor.py#L322) |
 | `_emit_type` | [`orchestrator.pkg.c_extractor`](modules/orchestrator.pkg.c_extractor.md#_emit_type) | [`_emit_type`](../src/orchestrator/pkg/c_extractor.py#L160) |
 | `_emit_type` | [`orchestrator.pkg.csharp_extractor`](modules/orchestrator.pkg.csharp_extractor.md#_emit_type) | [`_emit_type`](../src/orchestrator/pkg/csharp_extractor.py#L230) |
 | `_emit_type` | [`orchestrator.pkg.java_extractor`](modules/orchestrator.pkg.java_extractor.md#_emit_type) | [`_emit_type`](../src/orchestrator/pkg/java_extractor.py#L125) |
@@ -662,7 +662,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4421 symbols; 
 | `_has_storage` | [`orchestrator.pkg.c_extractor`](modules/orchestrator.pkg.c_extractor.md#_has_storage) | [`_has_storage`](../src/orchestrator/pkg/c_extractor.py#L488) |
 | `_has_testable_source` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_has_testable_source) | [`_has_testable_source`](../src/orchestrator/sdlc/codegen.py#L1796) |
 | `_header` | [`orchestrator.knowledge.report_html`](modules/orchestrator.knowledge.report_html.md#_header) | [`_header`](../src/orchestrator/knowledge/report_html.py#L62) |
-| `_header_exprs` | `orchestrator.pkg.extractor` | [`_header_exprs`](../src/orchestrator/pkg/extractor.py#L532) |
+| `_header_exprs` | `orchestrator.pkg.extractor` | [`_header_exprs`](../src/orchestrator/pkg/extractor.py#L539) |
 | `_header_index` | [`orchestrator.pkg.c_extractor`](modules/orchestrator.pkg.c_extractor.md#_header_index) | [`_header_index`](../src/orchestrator/pkg/c_extractor.py#L340) |
 | `_headers` | `orchestrator.core.tool_client` | [`_headers`](../src/orchestrator/core/tool_client.py#L68) |
 | `_Hit` | [`orchestrator.pkg.verify`](modules/orchestrator.pkg.verify.md#_hit) | [`_Hit`](../src/orchestrator/pkg/verify.py#L346) |
@@ -685,7 +685,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4421 symbols; 
 | `_impl_system` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_impl_system) | [`_impl_system`](../src/orchestrator/sdlc/codegen.py#L1071) |
 | `_implement` | `orchestrator.sdlc.workflows` | [`_implement`](../src/orchestrator/sdlc/workflows.py#L301) |
 | `_implement_result` | `orchestrator.sdlc.activities` | [`_implement_result`](../src/orchestrator/sdlc/activities.py#L581) |
-| `_import_base` | `orchestrator.pkg.extractor` | [`_import_base`](../src/orchestrator/pkg/extractor.py#L256) |
+| `_import_base` | `orchestrator.pkg.extractor` | [`_import_base`](../src/orchestrator/pkg/extractor.py#L263) |
 | `_import_edge` | [`orchestrator.pkg.js_extractor`](modules/orchestrator.pkg.js_extractor.md#_import_edge) | [`_import_edge`](../src/orchestrator/pkg/js_extractor.py#L1429) |
 | `_import_server_class` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_import_server_class) | [`_import_server_class`](../src/orchestrator/plugin/server.py#L1882) |
 | `_import_target` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_import_target) | [`_import_target`](../src/orchestrator/pkg/typescript_extractor.py#L462) |
@@ -773,10 +773,10 @@ _Every first-party symbol, A–Z, and the page that describes it. 4421 symbols; 
 | `_issue_type_field` | `orchestrator.intake.jira` | [`_issue_type_field`](../src/orchestrator/intake/jira.py#L154) |
 | `_issue_type_ids` | `orchestrator.intake.jira` | [`_issue_type_ids`](../src/orchestrator/intake/jira.py#L130) |
 | `_items` | `orchestrator.plugin.registry_client` | [`_items`](../src/orchestrator/plugin/registry_client.py#L101) |
-| `_iter_files` | `orchestrator.pkg.extractor` | [`_iter_files`](../src/orchestrator/pkg/extractor.py#L834) |
+| `_iter_files` | `orchestrator.pkg.extractor` | [`_iter_files`](../src/orchestrator/pkg/extractor.py#L841) |
 | `_iter_files` | `orchestrator.pkg.media_extract` | [`_iter_files`](../src/orchestrator/pkg/media_extract.py#L219) |
 | `_iter_files` | `scripts.parse-census` | [`_iter_files`](../scripts/parse-census.py#L87) |
-| `_iter_self_assign_nodes` | `orchestrator.pkg.extractor` | [`_iter_self_assign_nodes`](../src/orchestrator/pkg/extractor.py#L433) |
+| `_iter_self_assign_nodes` | `orchestrator.pkg.extractor` | [`_iter_self_assign_nodes`](../src/orchestrator/pkg/extractor.py#L440) |
 | `_iter_text_fields` | `orchestrator.runtime.verifiers.policy` | [`_iter_text_fields`](../src/orchestrator/runtime/verifiers/policy.py#L58) |
 | `_iter_top_level` | [`orchestrator.pkg.c_extractor`](modules/orchestrator.pkg.c_extractor.md#_iter_top_level) | [`_iter_top_level`](../src/orchestrator/pkg/c_extractor.py#L301) |
 | `_itself` | [`orchestrator.pkg.js_extractor`](modules/orchestrator.pkg.js_extractor.md#_itself) | [`_itself`](../src/orchestrator/pkg/js_extractor.py#L792) |
@@ -1283,7 +1283,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4421 symbols; 
 | `_resolve_c_layout` | [`orchestrator.sdlc.layout`](modules/orchestrator.sdlc.layout.md#_resolve_c_layout) | [`_resolve_c_layout`](../src/orchestrator/sdlc/layout.py#L992) |
 | `_resolve_call` | [`orchestrator.pkg.java_extractor`](modules/orchestrator.pkg.java_extractor.md#_resolve_call) | [`_resolve_call`](../src/orchestrator/pkg/java_extractor.py#L220) |
 | `_resolve_call` | [`orchestrator.pkg.kotlin_extractor`](modules/orchestrator.pkg.kotlin_extractor.md#_resolve_call) | [`_resolve_call`](../src/orchestrator/pkg/kotlin_extractor.py#L728) |
-| `_resolve_call` | `orchestrator.pkg.extractor` | [`_resolve_call`](../src/orchestrator/pkg/extractor.py#L543) |
+| `_resolve_call` | `orchestrator.pkg.extractor` | [`_resolve_call`](../src/orchestrator/pkg/extractor.py#L550) |
 | `_resolve_callee` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_resolve_callee) | [`_resolve_callee`](../src/orchestrator/pkg/typescript_extractor.py#L922) |
 | `_resolve_callee` | `orchestrator.pkg.cpp_extractor` | [`_resolve_callee`](../src/orchestrator/pkg/cpp_extractor.py#L457) |
 | `_resolve_calls` | `orchestrator.pkg.go_extractor` | [`_resolve_calls`](../src/orchestrator/pkg/go_extractor.py#L289) |
@@ -1389,7 +1389,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4421 symbols; 
 | `_scan` | [`orchestrator.pkg.kotlin_routes`](modules/orchestrator.pkg.kotlin_routes.md#_scan) | [`_scan`](../src/orchestrator/pkg/kotlin_routes.py#L236) |
 | `_scan` | `orchestrator.sdlc.android` | [`_scan`](../src/orchestrator/sdlc/android.py#L232) |
 | `_scan_binding` | `orchestrator.pkg.go_routes` | [`_scan_binding`](../src/orchestrator/pkg/go_routes.py#L100) |
-| `_scan_calls` | `orchestrator.pkg.extractor` | [`_scan_calls`](../src/orchestrator/pkg/extractor.py#L495) |
+| `_scan_calls` | `orchestrator.pkg.extractor` | [`_scan_calls`](../src/orchestrator/pkg/extractor.py#L502) |
 | `_scan_calls_in` | [`orchestrator.pkg.perl_extractor`](modules/orchestrator.pkg.perl_extractor.md#_scan_calls_in) | [`_scan_calls_in`](../src/orchestrator/pkg/perl_extractor.py#L816) |
 | `_scan_calls_in` | [`orchestrator.pkg.php_extractor`](modules/orchestrator.pkg.php_extractor.md#_scan_calls_in) | [`_scan_calls_in`](../src/orchestrator/pkg/php_extractor.py#L571) |
 | `_scan_method` | `orchestrator.pkg.kotlin_http` | [`_scan_method`](../src/orchestrator/pkg/kotlin_http.py#L96) |

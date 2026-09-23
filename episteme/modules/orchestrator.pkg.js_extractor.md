@@ -35,7 +35,7 @@ _36 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_extractor.py:131`](../../src/orchestrator/pkg/js_extractor.py#L131)
 
 - **Extends** (1): [`TypeScriptExtractor`](../../src/orchestrator/pkg/typescript_extractor.py#L71)
-- **Called by** (1 production · 6 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L568), [`_repo`](../../tests/pkg/test_js_extractor.py#L17), [`_repo`](../../tests/pkg/test_js_orm.py#L17), [`test_a_typescript_caller_reaches_a_renamed_commonjs_export_in_any_order`](../../tests/pkg/test_js_extractor.py#L924), [`test_each_surface_is_read_into_the_tier_its_forms_allow`](../../tests/pkg/test_js_extractor.py#L1194), [`test_the_reference_scan_is_not_quadratic_in_references_per_function`](../../tests/pkg/test_js_extractor.py#L1218), [`test_typescript_and_javascript_let_go_of_the_run_when_they_finalize`](../../tests/pkg/test_js_extractor.py#L948)
+- **Called by** (1 production · 6 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L575), [`_repo`](../../tests/pkg/test_js_extractor.py#L17), [`_repo`](../../tests/pkg/test_js_orm.py#L17), [`test_a_typescript_caller_reaches_a_renamed_commonjs_export_in_any_order`](../../tests/pkg/test_js_extractor.py#L924), [`test_each_surface_is_read_into_the_tier_its_forms_allow`](../../tests/pkg/test_js_extractor.py#L1194), [`test_the_reference_scan_is_not_quadratic_in_references_per_function`](../../tests/pkg/test_js_extractor.py#L1218), [`test_typescript_and_javascript_let_go_of_the_run_when_they_finalize`](../../tests/pkg/test_js_extractor.py#L948)
 - **Fields**: `_file_exports`, `_file_members`, `_import_names`, `_models`, `_surface`, `_uncallable`, `language`, `suffixes`
 - **Documented in**: `CHANGELOG.md`
 

@@ -157,9 +157,16 @@ def repo_relative(path: Path, root: Path) -> Path:
 
 
 def module_qualname(path: Path, root: Path) -> str:
-    """Dotted module path relative to ``root`` (``src/`` stripped, ``__init__`` collapsed)."""
+    """Dotted module path relative to ``root`` (``src/`` stripped, ``__init__`` collapsed).
+
+    ``src/`` is stripped only when it is a src-layout *root* — a directory on ``sys.path``,
+    imported as ``shop.cart``. A ``src/`` holding an ``__init__.py`` is a *package*, imported
+    as ``src.shop.cart``; stripping it there named every module differently from its imports,
+    so none of them joined (a field report on 3.42.0: 33 of 34 modules imported by nothing,
+    and ``src/__init__.py`` itself became ``py:<root>``).
+    """
     parts = list(repo_relative(path, root).parts)
-    if parts and parts[0] == "src":
+    if parts and parts[0] == "src" and not (root / "src" / "__init__.py").is_file():
         parts = parts[1:]
     if not parts:
         return ""

@@ -78,7 +78,14 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.43.0 (current)** — JavaScript, the 13th front-end. `.js`, `.jsx`, `.mjs` and `.cjs` used to
+**3.43.1 (current)** — a Python fix. A repository whose `src/` is a package — it has an
+`__init__.py`, and the code imports `from src.services.x import …` — got a graph with no
+in-repo imports: module ids dropped `src.`, the imports kept it, and nothing joined, so
+`pkg verify` reported nearly every module as imported by nothing. `src/` is now stripped only
+when it is a plain source root; a package `src/` keeps its name. The standard src layout is
+unchanged.
+
+**3.43.0** — JavaScript, the 13th front-end. `.js`, `.jsx`, `.mjs` and `.cjs` used to
 reach the walker with no front-end and produce nothing: `express` and `react-boilerplate`
 extracted to zero nodes. They now extract CommonJS `require` and exports, JSX, Express routes
 and a Sequelize data layer, on the existing `typescript` extra — no new install. A `.ts` file

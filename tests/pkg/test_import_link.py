@@ -45,6 +45,44 @@ def test_python_relative_imports_join(tmp_path: Path) -> None:
     assert convert is not None and convert.grounded
 
 
+def test_python_src_layout_strips_src(tmp_path: Path) -> None:
+    # The standard src layout: `src/` is a sys.path root, not a package, so the code
+    # imports `shop.cart` and the module ids must drop `src.` to match.
+    _write(tmp_path, "src/shop/__init__.py", "")
+    _write(tmp_path, "src/shop/cart.py", "from shop.util import helper\n")
+    _write(tmp_path, "src/shop/util.py", "def helper():\n    pass\n")
+
+    batch = RepoCodeExtractor().extract(tmp_path)
+    assert ("py:shop.cart", "py:shop.util.helper") in _import_pairs(batch)
+    assert {n.id for n in batch.nodes if n.grounded and n.kind is NodeKind.MODULE} == {
+        "py:shop",
+        "py:shop.cart",
+        "py:shop.util",
+    }
+
+
+def test_python_src_package_imports_join(tmp_path: Path) -> None:
+    # A field report (3.42.0): `src/` with an `__init__.py` is a *package*, imported as
+    # `from src.services.x import …`. Stripping `src.` from the module ids left every such
+    # import on an external `py:src.…` placeholder — 33 of 34 modules looked unimported.
+    _write(tmp_path, "src/__init__.py", "")
+    _write(tmp_path, "src/main.py", "from src.services.limiter import limit\nfrom src.agents import agent\n")
+    _write(tmp_path, "src/services/__init__.py", "")
+    _write(tmp_path, "src/services/limiter.py", "def limit():\n    pass\n")
+    _write(tmp_path, "src/agents/__init__.py", "")
+    _write(tmp_path, "src/agents/agent.py", "x = 1\n")
+
+    batch = RepoCodeExtractor().extract(tmp_path)
+    by_id = {n.id: n for n in batch.nodes}
+    assert "py:<root>" not in by_id  # `src/__init__.py` is the `src` package, not the root
+    assert by_id["py:src"].grounded
+    assert by_id["py:src.services.limiter.limit"].grounded
+    pairs = _import_pairs(batch)
+    assert ("py:src.main", "py:src.services.limiter.limit") in pairs
+    assert ("py:src.main", "py:src.agents.agent") in pairs
+    assert not [n.id for n in batch.nodes if n.external and n.id.startswith("py:src")]
+
+
 def test_python_stdlib_shadow_stays_external(tmp_path: Path) -> None:
     # `import types` (stdlib) must NOT be conflated with the package's types.py
     _write(tmp_path, "click/__init__.py", "")
