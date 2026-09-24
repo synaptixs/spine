@@ -1586,3 +1586,31 @@ def test_an_unreadable_repo_reports_the_error_and_nothing_else(tmp_path: Path) -
 
     assert "error" in out
     assert "multi_repo_available" not in out
+
+
+def test_a_constructor_reports_who_creates_its_type(tmp_path: Path) -> None:
+    pytest.importorskip("tree_sitter_java", reason="install the 'java' extra")
+    (tmp_path / "Job.java").write_text(
+        "package a;\npublic class Job { public Job() { } public Job(int n) { } }\n", encoding="utf-8"
+    )
+    (tmp_path / "Use.java").write_text(
+        "package a;\npublic class Use { void go() { new Job(); new Job(2); } void run() { go(); } }\n",
+        encoding="utf-8",
+    )
+    out = blast_radius(repo_path=str(tmp_path), symbol="Job")
+    by_id = {m["id"]: m for m in out["matches"]}
+    # B22 (D1): a creation lands on the Type, so its callers are its creators …
+    assert [c["id"] for c in by_id["java:a.Job"]["callers"]] == ["java:a.Use.go"]
+    assert "instantiated_via_type_count" not in by_id["java:a.Job"]
+    # … and the constructor node, which no edge targets, reports them apart instead of "0 callers" (D8)
+    ctor = by_id["java:a.Job.Job"]
+    assert ctor["caller_count"] == 0 and ctor["instantiated_via_type_count"] == 1
+    assert ctor["instantiated_via_type"][0]["id"] == "java:a.Use.go"
+    assert "Instantiated through its type (1)" in out["markdown"]
+    explained = {m["id"]: m for m in explain_symbol(repo_path=str(tmp_path), symbol="Job")["matches"]}
+    assert explained["java:a.Job.Job"]["instantiated_via_type"] == ["java:a.Use.go"]
+    assert "instantiated_via_type" not in explained["java:a.Job"]
+    # a method is not a constructor, whatever it is called
+    assert (
+        "instantiated_via_type_count" not in blast_radius(repo_path=str(tmp_path), symbol="go")["matches"][0]
+    )

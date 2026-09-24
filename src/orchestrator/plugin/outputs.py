@@ -227,6 +227,8 @@ class BlastMatch(TypedDict, total=False):
     callers: list[CallSite]
     interface_caller_count: int
     interface_callers: list[InterfaceCallSite]
+    instantiated_via_type_count: int
+    instantiated_via_type: list[CallSite]
     touch_count: int
     touches: list[Touched]
     cross_repo_count: int
@@ -252,6 +254,7 @@ class SymbolMatch(TypedDict, total=False):
     where: str | None
     called_by: list[str]
     called_through_interface: list[InterfaceCaller]
+    instantiated_via_type: list[str]
     calls: list[str]
     contains: list[str]
     repo: str
