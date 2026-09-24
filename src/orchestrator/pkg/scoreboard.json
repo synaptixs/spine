@@ -8,9 +8,9 @@
       },
       "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
       "provenance": {
-        "anchored": 14541,
+        "anchored": 14500,
         "excluded": 918,
-        "resolved": 14541,
+        "resolved": 14500,
         "unreadable": 0
       }
     },
@@ -380,10 +380,10 @@
         "kotlin": {
           "edges": {
             "CALLS": {
-              "emitted": 47,
+              "emitted": 45,
               "expected": 53,
-              "known_gaps": 6,
-              "matched": 47
+              "known_gaps": 8,
+              "matched": 45
             },
             "CONSUMES": {
               "emitted": 2,
@@ -921,10 +921,10 @@
       "skipped_languages": []
     },
     "drift": {
-      "count": 1958,
+      "count": 1957,
       "docs": 1937,
       "gated": false,
-      "mentions": 14026,
+      "mentions": 14024,
       "note": "recorded, never gated \u2014 an upper bound: a tenth of the population cannot bind by construction. See GATES"
     },
     "invention": {
@@ -980,11 +980,11 @@
           "unexamined": 0
         },
         "kotlin": {
-          "examined": 49,
+          "examined": 47,
           "invented": 0,
-          "shadowable": 27,
+          "shadowable": 25,
           "status": "measured",
-          "total_calls": 49,
+          "total_calls": 47,
           "unexamined": 0
         },
         "perl": {
@@ -1008,7 +1008,7 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 23013,
+          "total_calls": 22951,
           "unexamined": 0
         },
         "sql": {
@@ -1029,7 +1029,7 @@
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 23549
+      "total_calls": 23485
     },
     "parity": {
       "declared": 75,
