@@ -1,0 +1,375 @@
+{
+  "language": "csharp",
+  "case": "typed_receivers",
+  "root": ".repo",
+  "why": "B21. Every call goes through a receiver whose type is written down: an interface-typed field (lands on the interface member, D2), a property, a parameter, a typed local, `var v = new Store()`, a field inherited from the base class, `this._store2`, a static call on an in-repo type (D5), and a member the receiver's type inherits (found on the nearest declaring type, D4). The interface lives in a sibling namespace reached by `using`, so `Store : IStore` is itself a case: the per-file pass placed the base in `App.Data` and the fallback made it an external `csharp:IStore`.",
+  "nodes": [
+    {
+      "id": "csharp:App.Contracts",
+      "kind": "Module"
+    },
+    {
+      "id": "csharp:App.Data",
+      "kind": "Module"
+    },
+    {
+      "id": "csharp:App.Util",
+      "kind": "Module"
+    },
+    {
+      "id": "csharp:App.Services",
+      "kind": "Module"
+    },
+    {
+      "id": "csharp:App.Contracts.IStore",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Data.Store",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Data.SpecialStore",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Data.BaseRepo",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Data.Cache",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Util.Fmt",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Services.Orders",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Contracts.IStore.Load",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Data.Store.Load",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Data.Store.Count",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Data.Cache.Clear",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Util.Fmt.Money",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Services.Orders.Orders",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Services.Orders.ViaField",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Services.Orders.ViaProperty",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Services.Orders.ViaParameter",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Services.Orders.ViaLocal",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Services.Orders.ViaVarNew",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Services.Orders.ViaInheritedField",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Services.Orders.ViaThis",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Services.Orders.ViaStatic",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Services.Orders.ViaInheritedMember",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Data.BaseRepo._store",
+      "kind": "Field"
+    },
+    {
+      "id": "csharp:App.Services.Orders._store2",
+      "kind": "Field"
+    },
+    {
+      "id": "csharp:App.Services.Orders.Cache",
+      "kind": "Field"
+    }
+  ],
+  "edges": [
+    {
+      "src": "csharp:App.Contracts",
+      "dst": "csharp:App.Contracts.IStore",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Data",
+      "dst": "csharp:App.Data.Store",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Data",
+      "dst": "csharp:App.Data.SpecialStore",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Data",
+      "dst": "csharp:App.Data.BaseRepo",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Data",
+      "dst": "csharp:App.Data.Cache",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Util",
+      "dst": "csharp:App.Util.Fmt",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Services",
+      "dst": "csharp:App.Services.Orders",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Contracts.IStore",
+      "dst": "csharp:App.Contracts.IStore.Load",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Data.Store",
+      "dst": "csharp:App.Data.Store.Load",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Data.Store",
+      "dst": "csharp:App.Data.Store.Count",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Data.Cache",
+      "dst": "csharp:App.Data.Cache.Clear",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Util.Fmt",
+      "dst": "csharp:App.Util.Fmt.Money",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Data.BaseRepo",
+      "dst": "csharp:App.Data.BaseRepo._store",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Services.Orders",
+      "dst": "csharp:App.Services.Orders._store2",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Services.Orders",
+      "dst": "csharp:App.Services.Orders.Cache",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Services.Orders",
+      "dst": "csharp:App.Services.Orders.Orders",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Services.Orders",
+      "dst": "csharp:App.Services.Orders.ViaField",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Services.Orders",
+      "dst": "csharp:App.Services.Orders.ViaProperty",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Services.Orders",
+      "dst": "csharp:App.Services.Orders.ViaParameter",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Services.Orders",
+      "dst": "csharp:App.Services.Orders.ViaLocal",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Services.Orders",
+      "dst": "csharp:App.Services.Orders.ViaVarNew",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Services.Orders",
+      "dst": "csharp:App.Services.Orders.ViaInheritedField",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Services.Orders",
+      "dst": "csharp:App.Services.Orders.ViaThis",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Services.Orders",
+      "dst": "csharp:App.Services.Orders.ViaStatic",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Services.Orders",
+      "dst": "csharp:App.Services.Orders.ViaInheritedMember",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Data",
+      "dst": "csharp:App.Contracts",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "csharp:App.Services",
+      "dst": "csharp:App.Contracts",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "csharp:App.Services",
+      "dst": "csharp:App.Data",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "csharp:App.Services",
+      "dst": "csharp:App.Util",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "csharp:App.Data.Store",
+      "dst": "csharp:App.Contracts.IStore",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "csharp:App.Data.SpecialStore",
+      "dst": "csharp:App.Data.Store",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "csharp:App.Services.Orders",
+      "dst": "csharp:App.Data.BaseRepo",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "csharp:App.Services.Orders.ViaField",
+      "dst": "csharp:App.Contracts.IStore.Load",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Services.Orders.ViaProperty",
+      "dst": "csharp:App.Data.Cache.Clear",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Services.Orders.ViaParameter",
+      "dst": "csharp:App.Data.Store.Load",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Services.Orders.ViaLocal",
+      "dst": "csharp:App.Data.Store.Count",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Services.Orders.ViaVarNew",
+      "dst": "csharp:App.Data.Store.Count",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Services.Orders.ViaInheritedField",
+      "dst": "csharp:App.Data.Store.Count",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Services.Orders.ViaThis",
+      "dst": "csharp:App.Contracts.IStore.Load",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Services.Orders.ViaStatic",
+      "dst": "csharp:App.Util.Fmt.Money",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Services.Orders.ViaInheritedMember",
+      "dst": "csharp:App.Data.Store.Count",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Services.Orders.ViaLocal",
+      "dst": "csharp:App.Data.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Services.Orders.ViaVarNew",
+      "dst": "csharp:App.Data.Store",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "csharp:App.Services.Orders.ViaLocal",
+        "dst": "csharp:App.Data.Store",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
+    },
+    {
+      "edge": {
+        "src": "csharp:App.Services.Orders.ViaVarNew",
+        "dst": "csharp:App.Data.Store",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
+    }
+  ],
+  "refusals": [
+    {
+      "edge": {
+        "src": "csharp:App.Services.Orders.ViaInheritedMember",
+        "dst": "csharp:App.Data.SpecialStore.Count",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `SpecialStore` declares no `Count`; the call lands on the nearest type that does (D4), never on a member invented on the receiver's own type."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [
+    "`x.ToString()` in `Fmt.Money` is a call on `int` — a type this repository does not declare, so no edge (D11)."
+  ],
+  "open_questions": [],
+  "note": "Labelled from the source before scoring against the unfixed front-end."
+}

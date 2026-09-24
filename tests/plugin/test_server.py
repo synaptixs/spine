@@ -105,7 +105,9 @@ def test_blast_radius_reports_callers_and_touches(tmp_path: Path) -> None:
     # `handler` calls `validate`, so it's a caller and in the blast radius.
     assert m["caller_count"] >= 1
     assert any("handler" in c["id"] for c in m["callers"])
-    assert "markdown" in out
+    # a symbol no interface declares: direct callers as before, and no reach through one (B21)
+    assert m["interface_caller_count"] == 0 and m["interface_callers"] == []
+    assert "Called through an interface" not in out["markdown"]
 
 
 def test_blast_radius_not_found(tmp_path: Path) -> None:
@@ -117,6 +119,7 @@ def test_explain_symbol_lists_callers(tmp_path: Path) -> None:
     out = explain_symbol(_comprehension_repo(tmp_path), "validate")
     assert out["found"]
     assert any("handler" in c for c in out["matches"][0]["called_by"])
+    assert out["matches"][0]["called_through_interface"] == []
 
 
 def test_docs_for_summary_and_symbol(tmp_path: Path) -> None:

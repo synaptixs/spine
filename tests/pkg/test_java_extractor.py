@@ -124,8 +124,9 @@ def test_emits_calls_for_sibling_and_static(tmp_path: Path) -> None:
     calls = {(e.src, e.dst) for e in batch.edges if e.kind is EdgeKind.CALLS}
     # bare b() and this.b() both resolve to the sibling (deduped)
     assert ("java:com.ex.Foo.a", "java:com.ex.Foo.b") in calls
-    # Helper.help() resolves via the import
-    assert ("java:com.ex.Foo.a", "java:com.other.Helper.help") in calls
+    # Helper.help() waits for finalize, which emits it only if the repo declares Helper.help (B21):
+    # on its own this file declares neither, so no edge to a member nobody saw
+    assert ("java:com.ex.Foo.a", "java:com.other.Helper.help") not in calls
     # obj.ignored() (instance call on a variable) is skipped — no type inference
     assert not any(dst.endswith(".ignored") for _, dst in calls)
 
@@ -412,3 +413,14 @@ public class C {
 """
     batch = _java_facts(tmp_path, src, "C.java")
     assert not _endpoints(batch)
+
+
+def test_a_static_call_lands_once_the_repo_declares_the_member(tmp_path: Path) -> None:
+    from orchestrator.pkg.extractor import RepoCodeExtractor
+
+    (tmp_path / "Foo.java").write_text(_CALLS_SRC, encoding="utf-8")
+    (tmp_path / "Helper.java").write_text(
+        "package com.other;\npublic class Helper { public static void help() {} }\n", encoding="utf-8"
+    )
+    calls = {(e.src, e.dst) for e in RepoCodeExtractor().extract(tmp_path).edges if e.kind is EdgeKind.CALLS}
+    assert ("java:com.ex.Foo.a", "java:com.other.Helper.help") in calls

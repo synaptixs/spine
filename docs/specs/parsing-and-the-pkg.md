@@ -505,7 +505,7 @@ The parser choice is not an aesthetic preference. It is what makes the accuracy 
 |---|---|
 | Precision | **1.00** on every node kind and every edge kind, all 12 languages — on the corpus, which now includes the shadowed-callee shape (§3) |
 | Recall | 1.00 on every kind except `CALLS` |
-| `CALLS` recall | 1.00 (c, sql) · 0.89 (perl) · 0.86 (typescript) · 1.00 (cpp with clang) · 0.75 (csharp, go, php) · 0.73 (python) · 0.67 (java) |
+| `CALLS` recall | 1.00 (c, sql, cpp with clang) · 0.97 (javascript) · 0.89 (perl, python) · 0.87 (kotlin) · 0.86 (typescript) · 0.75 (go, php) · 0.70 (java) · 0.68 (csharp) |
 | Invention | **0** on this repo, and **0** across 11 pinned public repos in 6 front-ends (2026-08-24). Java and SQL are recorded *not-applicable* with reasons rather than scored 0 |
 | Invention gate | **`strict`, zero per language** — the one metric gated on an absolute value rather than against the baseline, because it is the one with a correct value |
 

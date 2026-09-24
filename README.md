@@ -261,6 +261,7 @@ in [CLI_REFERENCE.md](https://github.com/synaptixs/spine/blob/main/CLI_REFERENCE
 | SQL schema/query/procedure comprehension, migration folding, UTF-16 and SQL Server `GO` batches | ✅ | `[sql]`; `pkg extract`, `understand` |
 | SQL migration codegen validated in SQLite or opt-in Docker Postgres | ✅ | `sdlc feature --language sql`; `[sql-postgres]` |
 | Framework endpoints and data-layer edges, including JAX-RS, Spring MVC, Ktor, ASP.NET Core and EF Core | ✅ | [Knowledge Graph](https://github.com/synaptixs/spine/blob/main/KNOWLEDGE_GRAPH.md) |
+| Java and C# typed-receiver call graphs (fields, parameters, typed locals, `var x = new T()`), C# static calls and ASP.NET Core DI bindings; `blast_radius` through interfaces | ✅ | `pkg extract`, `blast_radius`; [Knowledge Graph](https://github.com/synaptixs/spine/blob/main/KNOWLEDGE_GRAPH.md) |
 | C/C++ include graphs, C++ routing for included `.h` files and header/source merging; CMake or brownfield Meson builds | ✅ | `sdlc feature --language c` / `cpp` |
 | Go packages, calls and interface satisfaction; multi-module build/test selection | ✅ | `sdlc feature --language go` |
 | PHP namespaces/traits/calls, Laravel/Slim/Symfony routes, Eloquent/Doctrine entities; Composer/PHAR PHPUnit | ✅ | [PHP workflow](https://github.com/synaptixs/spine/blob/main/USER_GUIDE.md#php-code-generation) |

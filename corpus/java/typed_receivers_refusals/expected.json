@@ -1,0 +1,428 @@
+{
+  "language": "java",
+  "case": "typed_receivers_refusals",
+  "root": ".repo",
+  "why": "B21's other half, Java: every shape where a typed-receiver pass could guess — a decoy class, `var r = make()`, lambda parameters typed and untyped, a union catch, two unrelated interfaces at one level, a local shadowing a field, and a field/method sharing one id — labelled as edges it must not emit — true calls it leaves unresolved (a return type, a lambda, a field/method collision, a constructor) are known gaps, not refusals; plus one that must resolve although two supertypes declare the member, because one overrides the other.",
+  "nodes": [
+    {
+      "id": "java:svc",
+      "kind": "Module"
+    },
+    {
+      "id": "java:svc.Handler",
+      "kind": "Type"
+    },
+    {
+      "id": "java:svc.Rocket",
+      "kind": "Type"
+    },
+    {
+      "id": "java:svc.A",
+      "kind": "Type"
+    },
+    {
+      "id": "java:svc.B",
+      "kind": "Type"
+    },
+    {
+      "id": "java:svc.Both",
+      "kind": "Type"
+    },
+    {
+      "id": "java:svc.Proto",
+      "kind": "Type"
+    },
+    {
+      "id": "java:svc.AbstractProto",
+      "kind": "Type"
+    },
+    {
+      "id": "java:svc.XProto",
+      "kind": "Type"
+    },
+    {
+      "id": "java:svc.Lazy",
+      "kind": "Type"
+    },
+    {
+      "id": "java:svc.Dispatch",
+      "kind": "Type"
+    },
+    {
+      "id": "java:svc.Handler.run",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.Rocket.run",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.A.ping",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.B.ping",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.Proto.settings",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.AbstractProto.settings",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.Dispatch.viaField",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.Dispatch.viaUnknownVar",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.Dispatch.viaLambdas",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.Dispatch.viaUnionCatch",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.Dispatch.viaTie",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.Dispatch.viaOverride",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.Dispatch.viaShadow",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.Dispatch.viaCollision",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.Dispatch.make",
+      "kind": "Function"
+    },
+    {
+      "id": "java:svc.Lazy.length",
+      "kind": "Field"
+    },
+    {
+      "id": "java:svc.Dispatch.handler",
+      "kind": "Field"
+    }
+  ],
+  "edges": [
+    {
+      "src": "java:svc",
+      "dst": "java:svc.Handler",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc",
+      "dst": "java:svc.Rocket",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc",
+      "dst": "java:svc.A",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc",
+      "dst": "java:svc.B",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc",
+      "dst": "java:svc.Both",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc",
+      "dst": "java:svc.Proto",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc",
+      "dst": "java:svc.AbstractProto",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc",
+      "dst": "java:svc.XProto",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc",
+      "dst": "java:svc.Lazy",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc",
+      "dst": "java:svc.Dispatch",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.Handler",
+      "dst": "java:svc.Handler.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.Rocket",
+      "dst": "java:svc.Rocket.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.A",
+      "dst": "java:svc.A.ping",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.B",
+      "dst": "java:svc.B.ping",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.Proto",
+      "dst": "java:svc.Proto.settings",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.AbstractProto",
+      "dst": "java:svc.AbstractProto.settings",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.Dispatch",
+      "dst": "java:svc.Dispatch.viaField",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.Dispatch",
+      "dst": "java:svc.Dispatch.viaUnknownVar",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.Dispatch",
+      "dst": "java:svc.Dispatch.viaLambdas",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.Dispatch",
+      "dst": "java:svc.Dispatch.viaUnionCatch",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.Dispatch",
+      "dst": "java:svc.Dispatch.viaTie",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.Dispatch",
+      "dst": "java:svc.Dispatch.viaOverride",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.Dispatch",
+      "dst": "java:svc.Dispatch.viaShadow",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.Dispatch",
+      "dst": "java:svc.Dispatch.viaCollision",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.Dispatch",
+      "dst": "java:svc.Dispatch.make",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.Lazy",
+      "dst": "java:svc.Lazy.length",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc.Dispatch",
+      "dst": "java:svc.Dispatch.handler",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:svc",
+      "dst": "java:java.util.List",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "java:svc.Both",
+      "dst": "java:svc.A",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "java:svc.Both",
+      "dst": "java:svc.B",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "java:svc.AbstractProto",
+      "dst": "java:svc.Proto",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "java:svc.XProto",
+      "dst": "java:svc.AbstractProto",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "java:svc.XProto",
+      "dst": "java:svc.Proto",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "java:svc.Dispatch.viaField",
+      "dst": "java:svc.Handler.run",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:svc.Dispatch.viaUnknownVar",
+      "dst": "java:svc.Dispatch.make",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:svc.Dispatch.viaUnionCatch",
+      "dst": "java:svc.Dispatch.make",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:svc.Dispatch.viaOverride",
+      "dst": "java:svc.AbstractProto.settings",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:svc.Dispatch.viaShadow",
+      "dst": "java:svc.Rocket.run",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:svc.Dispatch.viaUnknownVar",
+      "dst": "java:svc.Handler.run",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:svc.Dispatch.viaLambdas",
+      "dst": "java:svc.Handler.run",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:svc.Dispatch.viaCollision",
+      "dst": "java:svc.Lazy.length",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:svc.Dispatch.make",
+      "dst": "java:svc.Handler",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:svc.Dispatch.viaShadow",
+      "dst": "java:svc.Rocket",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "java:svc.Dispatch.viaUnknownVar",
+        "dst": "java:svc.Handler.run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `var r = make()` — `make` returns `Handler`, so the call is true; a return type is not inferred (D3)."
+    },
+    {
+      "edge": {
+        "src": "java:svc.Dispatch.viaLambdas",
+        "dst": "java:svc.Handler.run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Both lambdas call `Handler.run` — true, but lambda parameters are out of scope, typed or not (D13)."
+    },
+    {
+      "edge": {
+        "src": "java:svc.Dispatch.viaCollision",
+        "dst": "java:svc.Lazy.length",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The call is to `Lazy.length()`, whose id this vocabulary shares with the field `length` (the node is the Field) — a true edge the pass declines to aim at a field (ledger: field/method id collision)."
+    },
+    {
+      "edge": {
+        "src": "java:svc.Dispatch.make",
+        "dst": "java:svc.Handler",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
+    },
+    {
+      "edge": {
+        "src": "java:svc.Dispatch.viaShadow",
+        "dst": "java:svc.Rocket",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
+    }
+  ],
+  "refusals": [
+    {
+      "edge": {
+        "src": "java:svc.Dispatch.viaField",
+        "dst": "java:svc.Rocket.run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The decoy: `handler` is a `Handler` — type, not name, decides."
+    },
+    {
+      "edge": {
+        "src": "java:svc.Dispatch.viaTie",
+        "dst": "java:svc.A.ping",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `Both` inherits `ping` from `A` and `B`, unrelated, at one level — ambiguous (D4)."
+    },
+    {
+      "edge": {
+        "src": "java:svc.Dispatch.viaTie",
+        "dst": "java:svc.B.ping",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The other half of the tie."
+    },
+    {
+      "edge": {
+        "src": "java:svc.Dispatch.viaOverride",
+        "dst": "java:svc.Proto.settings",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `AbstractProto` implements `Proto` and overrides `settings`: the more specific declaration wins, it is not a tie."
+    },
+    {
+      "edge": {
+        "src": "java:svc.Dispatch.viaShadow",
+        "dst": "java:svc.Handler.run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The local `Rocket handler` shadows the field `Handler handler`."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [
+    "`hs.forEach(...)` and `e.getMessage()` are calls on JDK types — no in-repo target (D11).",
+    "`private final Handler handler = new Handler();` instantiates in a field initializer — there is no calling function to label."
+  ],
+  "open_questions": [],
+  "note": "A guard: it must hold before and after the change."
+}

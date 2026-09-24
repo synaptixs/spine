@@ -1,7 +1,7 @@
 {
   "language": "java",
   "case": "instance_calls",
-  "why": "The documented skip, in this language's spelling. A call to a sibling through implicit `this` resolves; the same call through a parameter of that type does not, because the parameter's type is not carried to the call site. The identical shape exists in the python, typescript and go cases, which is what makes the per-language CALLS figures comparable rather than incidental.",
+  "why": "The documented skip, in this language's spelling. A call to a sibling through implicit `this` resolves; the same call through a parameter of that type does not, because the parameter's type is not carried to the call site. The identical shape exists in the python, typescript and go cases, which is what makes the per-language CALLS figures comparable rather than incidental. CLOSED by B21: the parameter's declared type is carried to the call site.",
   "root": ".repo",
   "nodes": [
     {
@@ -66,16 +66,7 @@
       "kind": "CALLS"
     }
   ],
-  "known_gaps": [
-    {
-      "edge": {
-        "src": "java:svc.Dispatch.viaParameter",
-        "dst": "java:svc.Handler.run",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. A call through a parameter needs that parameter's declared type resolved at the call site. Counted as a recall miss, not exempted."
-    }
-  ],
+  "known_gaps": [],
   "false_positives": [],
   "excluded": [],
   "open_questions": []

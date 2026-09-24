@@ -437,8 +437,10 @@ def map_repo(repo_path: str, lens: str = "developer") -> dict[str, Any]:
 
 
 def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
-    """ "What breaks if I change X" — a symbol's direct callers plus the cross-layer set a
-    change ripples into (CALLS + IMPORTS + REFERENCES), each with ``file:line``. Deterministic.
+    """ "What breaks if I change X" — a symbol's direct callers, the callers that reach it
+    through an interface member it implements (``interface_callers``, each with its ``via``
+    member — they may reach it, not must), plus the cross-layer set a change ripples into
+    (CALLS + IMPORTS + REFERENCES), each with ``file:line``. Deterministic.
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to answer across every
     declared repository: each match then also reports the dependents a change reaches **in
@@ -456,6 +458,7 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
         out: list[dict[str, Any]] = []
         for node in matches[:5]:
             callers = store.callers_of(node.id)
+            through = store.interface_callers_of(node.id)
             touched = store.touches(node.id)
             entry: dict[str, Any] = {
                 "id": node.id,
@@ -463,6 +466,10 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
                 "where": str(node.provenance) if node.provenance else None,
                 "caller_count": len(callers),
                 "callers": [{"id": cs.caller.id, "at": cs.at} for cs in callers[:25]],
+                # Callers of a member this one implements (D14): they *may* reach it, so they
+                # are counted apart from direct callers, each with the member they went through.
+                "interface_caller_count": len(through),
+                "interface_callers": [{"id": c.caller.id, "at": c.at, "via": c.via} for c in through[:25]],
                 "touch_count": len(touched),
                 "touches": [
                     {"id": t.id, "where": str(t.provenance) if t.provenance else None} for t in touched[:25]
@@ -481,7 +488,8 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
 
 
 def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
-    """What a symbol is and how it connects: kind, location, who calls it, what it calls, and
+    """What a symbol is and how it connects: kind, location, who calls it (and who calls it
+    through an interface member it implements, with the ``via`` member), what it calls, and
     what it contains. Deterministic (no LLM).
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to explain it across every
@@ -506,6 +514,9 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
                 "language": node.language,
                 "where": str(node.provenance) if node.provenance else None,
                 "called_by": [cs.caller.id for cs in store.callers_of(node.id)[:15]],
+                "called_through_interface": [
+                    {"id": c.caller.id, "via": c.via} for c in store.interface_callers_of(node.id)[:15]
+                ],
                 "calls": [n.id for n in store.callees_of(node.id)[:15]],
                 "contains": [n.id for n in store.children_of(node.id)[:25]],
             }
@@ -1029,6 +1040,10 @@ def _blast_markdown(matches: list[dict[str, Any]]) -> str:
         lines.append(
             f"- **Called by ({m['caller_count']}):** " + ", ".join(c["id"] for c in m["callers"][:10])
         )
+        if m.get("interface_caller_count"):
+            reached = ", ".join(f"{c['id']} (via `{c['via']}`)" for c in m["interface_callers"][:10])
+            count = m["interface_caller_count"]
+            lines.append(f"- **Called through an interface ({count}) — may reach this:** {reached}")
         lines.append(f"- **Touches ({m['touch_count']}):** " + ", ".join(t["id"] for t in m["touches"][:10]))
         # Only on a merged graph. Rendered even at zero: "no dependents in other repos" is an
         # answer, and its absence would read the same as never having looked.
