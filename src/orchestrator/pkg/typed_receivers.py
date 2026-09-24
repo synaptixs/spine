@@ -205,6 +205,8 @@ class ReceiverState:
     global_prefixes: dict[str, set[str]] = field(default_factory=dict)  # project -> C# `global using`s
     # (type id, provisional base id) -> how the base name was written, for `resolve_bases`
     base_refs: dict[tuple[str, str], TypeRef | None] = field(default_factory=dict)
+    # Java member types declared `private`: not inherited, yet they hide a deeper namesake (JLS 8.5)
+    private_types: set[str] = field(default_factory=set)
     # type id -> the base written where a *class* can stand (Java `extends`, a C# class's first
     # base); None when partial declarations disagree. A base in any other position is an interface.
     class_base: dict[str, TypeRef | None] = field(default_factory=dict)
@@ -232,6 +234,7 @@ class ReceiverState:
         self.type_params.clear()
         self.global_prefixes.clear()
         self.base_refs.clear()
+        self.private_types.clear()
         self.class_base.clear()
 
 
@@ -366,6 +369,12 @@ class TypeIndex:
             if depth and self.state.language == "csharp":
                 level = [t for t in level if t not in self.state.interfaces]
             hits = sorted({f"{t}.{name}" for t in level} & self.declared)
+            if depth and hits and all(h in self.state.private_types for h in hits):
+                # A private member type is not inherited (JLS 8.5), but it hides every deeper
+                # declaration of the name: the type has no such member, and the outer lookup —
+                # an import, the package — decides (review 1, B2).
+                return _ABSENT, None
+            hits = [h for h in hits if not depth or h not in self.state.private_types]
             if len(hits) == 1:
                 return _FOUND, hits[0]
             if hits:

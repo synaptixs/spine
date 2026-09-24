@@ -202,3 +202,25 @@ def test_csharp_an_alias_to_a_namespace_heads_a_qualified_name(tmp_path: Path) -
     }
     assert _edges(tmp_path, {}, EdgeKind.PROVIDES) == {("csharp:App.Model.Repo", "csharp:App.Model.IRepo")}
     assert ("csharp:App.Ui.F", "csharp:App.Model.Base") in _edges(tmp_path, {}, EdgeKind.IMPLEMENTS)
+
+
+def test_java_a_private_member_type_is_not_inherited_but_hides_a_deeper_one(tmp_path: Path) -> None:
+    files = {
+        "app/model/Node.java": "package app.model;\npublic class Node { public void visit() {} }\n",
+        "app/svc/Root.java": "package app.svc;\n"
+        "public class Root { public static class Node { public void visit() {} } }\n",
+        "app/svc/Mid.java": (
+            "package app.svc;\npublic class Mid extends Root {\n"
+            "  private static class Node { void visit() {} }\n  void own(Node n) { n.visit(); }\n}\n"
+        ),
+        "app/svc/Leaf.java": (
+            "package app.svc;\nimport app.model.Node;\n"
+            "public class Leaf extends Mid { void f(Node n) { n.visit(); } }\n"
+        ),
+    }
+    calls = _java(tmp_path, files)
+    # javac: Mid's private Node is not inherited, and it hides Root.Node — so the import decides
+    assert ("java:app.svc.Leaf.f", "java:app.model.Node.visit") in calls
+    assert not {c for c in calls if c[0] == "java:app.svc.Leaf.f" and "svc" in c[1]}
+    # inside Mid itself, its own private Node is the one in scope
+    assert ("java:app.svc.Mid.own", "java:app.svc.Mid.Node.visit") in calls

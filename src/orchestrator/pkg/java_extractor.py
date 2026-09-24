@@ -175,6 +175,9 @@ class JavaExtractor:
         if node.type in ("interface_declaration", "annotation_type_declaration"):
             self._receivers.interfaces.add(type_id)
         self._receivers.type_params[type_id] = _java_type_params(node, source)
+        modifiers = next((c for c in node.named_children if c.type == "modifiers"), None)
+        if modifiers is not None and "private" in _text(modifiers, source).split():
+            self._receivers.private_types.add(type_id)
 
         enclosing = parent_id if parent_id in type_methods else None
         superclass = node.child_by_field_name("superclass")
