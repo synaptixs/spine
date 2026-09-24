@@ -41,6 +41,10 @@ class FactStore:
         self._edges: list[Edge] = batch.edges
         self._parent_index: dict[str, str] | None = None
         self._super_index: dict[str, set[str]] | None = None
+        # Built on first use: `impact_of` asks `callers_of` once per node it reaches, and each
+        # used to rescan every edge.
+        self._calls_to: dict[str, list[Edge]] | None = None
+        self._children: dict[str, list[str]] | None = None
 
     @property
     def nodes(self) -> list[Node]:
@@ -56,12 +60,17 @@ class FactStore:
 
     def callers_of(self, node_id: str) -> list[CallSite]:
         """Who calls this node — with the call-site line."""
+        if self._calls_to is None:
+            index: dict[str, list[Edge]] = {}
+            for e in self._edges:
+                if e.kind is EdgeKind.CALLS:
+                    index.setdefault(e.dst, []).append(e)
+            self._calls_to = index
         out: list[CallSite] = []
-        for e in self._edges:
-            if e.kind is EdgeKind.CALLS and e.dst == node_id:
-                caller = self._nodes.get(e.src)
-                if caller is not None:
-                    out.append(CallSite(caller, str(e.provenance)))
+        for e in self._calls_to.get(node_id, ()):
+            caller = self._nodes.get(e.src)
+            if caller is not None:
+                out.append(CallSite(caller, str(e.provenance)))
         return out
 
     def interface_callers_of(self, node_id: str) -> list[InterfaceCallSite]:
@@ -82,7 +91,8 @@ class FactStore:
         if node is None or node.kind is not NodeKind.FUNCTION:
             return []
         owner = self._parents().get(node_id)
-        if owner is None:
+        owner_node = self._nodes.get(owner) if owner is not None else None
+        if owner is None or owner_node is None or owner_node.kind is not NodeKind.TYPE:
             return []
         out: list[InterfaceCallSite] = []
         seen, frontier = {owner}, [owner]
@@ -105,6 +115,8 @@ class FactStore:
                         out.extend(
                             InterfaceCallSite(cs.caller, cs.at, member_id)
                             for cs in self.callers_of(member_id)
+                            if cs.caller.id
+                            != node_id  # an override calling `Base::save()` is not its own caller
                         )
             frontier = nxt
         return sorted(set(out), key=lambda c: (c.via, c.caller.id, c.at))
@@ -130,8 +142,13 @@ class FactStore:
 
     def children_of(self, node_id: str) -> list[Node]:
         """Direct CONTAINS children (module→types/functions, type→methods)."""
-        ids = [e.dst for e in self._edges if e.kind is EdgeKind.CONTAINS and e.src == node_id]
-        return [self._nodes[i] for i in ids if i in self._nodes]
+        if self._children is None:
+            index: dict[str, list[str]] = {}
+            for e in self._edges:
+                if e.kind is EdgeKind.CONTAINS:
+                    index.setdefault(e.src, []).append(e.dst)
+            self._children = index
+        return [self._nodes[i] for i in self._children.get(node_id, ()) if i in self._nodes]
 
     def edges_of_kind(self, kind: EdgeKind) -> list[Edge]:
         """Every edge of one kind, for callers that aggregate the whole graph.
