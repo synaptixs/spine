@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 
-from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node
+from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind
 
 
 @dataclass(frozen=True)
@@ -22,12 +22,25 @@ class CallSite:
     at: str  # "file:line"
 
 
+@dataclass(frozen=True)
+class InterfaceCallSite:
+    """A caller reached through an interface: it calls ``via`` — the member this one
+    implements or overrides — and so *may* reach this implementation. Never certain: another
+    implementation could be the one behind the interface at run time."""
+
+    caller: Node
+    at: str  # "file:line"
+    via: str  # the supertype member the call lands on
+
+
 class FactStore:
     """Indexed, read-only view over extracted facts."""
 
     def __init__(self, batch: FactBatch) -> None:
         self._nodes: dict[str, Node] = {n.id: n for n in batch.nodes}
         self._edges: list[Edge] = batch.edges
+        self._parent_index: dict[str, str] | None = None
+        self._super_index: dict[str, set[str]] | None = None
 
     @property
     def nodes(self) -> list[Node]:
@@ -50,6 +63,59 @@ class FactStore:
                 if caller is not None:
                     out.append(CallSite(caller, str(e.provenance)))
         return out
+
+    def interface_callers_of(self, node_id: str) -> list[InterfaceCallSite]:
+        """Callers of the members this method implements or overrides (B21, D9/D15).
+
+        A call through an interface lands on the interface's member — ``_service.DoThing()``
+        on ``IService.DoThing`` — so nothing calls ``Service.DoThing`` by name and
+        ``callers_of`` on it is empty: in a DI-heavy .NET service, the blast radius of almost
+        every implementation. This walks up from the method's own type through ``IMPLEMENTS``
+        and ``PROVIDES``, every in-repo level, cycle-safe, and returns the callers of each
+        same-named member found there, each tagged with the member it went through.
+
+        In the *impact* direction this is safe to over-report: any caller holding an
+        ``IService`` may reach ``Service``. It is never folded into ``callers_of`` — a caller
+        that *might* break must not read as one that *will*.
+        """
+        node = self._nodes.get(node_id)
+        if node is None or node.kind is not NodeKind.FUNCTION:
+            return []
+        owner = self._parents().get(node_id)
+        if owner is None:
+            return []
+        out: list[InterfaceCallSite] = []
+        seen, frontier = {owner}, [owner]
+        while frontier:
+            nxt: list[str] = []
+            for type_id in frontier:
+                for s in sorted(self._supertypes().get(type_id, ())):
+                    if s in seen or s not in self._nodes or not self._nodes[s].grounded:
+                        continue
+                    seen.add(s)
+                    nxt.append(s)
+                    for member in self.children_of(s):
+                        if member.kind is NodeKind.FUNCTION and member.name == node.name:
+                            out.extend(
+                                InterfaceCallSite(cs.caller, cs.at, member.id)
+                                for cs in self.callers_of(member.id)
+                            )
+            frontier = nxt
+        return sorted(out, key=lambda c: (c.via, c.caller.id, c.at))
+
+    def _parents(self) -> dict[str, str]:
+        if self._parent_index is None:
+            self._parent_index = self.parents_index()
+        return self._parent_index
+
+    def _supertypes(self) -> dict[str, set[str]]:
+        if self._super_index is None:
+            index: dict[str, set[str]] = {}
+            for e in self._edges:
+                if e.kind in (EdgeKind.IMPLEMENTS, EdgeKind.PROVIDES):
+                    index.setdefault(e.src, set()).add(e.dst)
+            self._super_index = index
+        return self._super_index
 
     def callees_of(self, node_id: str) -> list[Node]:
         """What this node calls."""
@@ -190,6 +256,7 @@ class FactStore:
                 continue
             inbound = (
                 [site.caller for site in self.callers_of(nid)]
+                + [site.caller for site in self.interface_callers_of(nid)]
                 + self.exposers_of(nid)
                 + self.consumers_of(nid)
                 + self.injection_reach_of(nid)

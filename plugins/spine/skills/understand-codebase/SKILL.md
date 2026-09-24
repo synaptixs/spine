@@ -29,7 +29,7 @@ and they cite their sources.
 | You want to… | Call |
 |---|---|
 | get oriented in a repo you don't know | **`map_repo`** — languages, components, call-hotspots, test-coverage gaps, prioritized recommendations |
-| know what changing a symbol will affect | **`blast_radius(symbol=…)`** — direct callers + the cross-layer set a change ripples into, each `file:line` |
+| know what changing a symbol will affect | **`blast_radius(symbol=…)`** — direct callers, callers *through an interface* the symbol implements (`interface_callers`, each with the `via` member — they may reach it, not must) + the cross-layer set a change ripples into, each `file:line` |
 | understand one symbol | **`explain_symbol(symbol=…)`** — kind, location, who calls it, what it calls, what it contains |
 | find where a feature/ticket lands | **`investigate(title=…, problem=…)`** — the real symbols to start from |
 | pin a bug from a stack trace | **`localize(trace=…)`** — resolve each frame to the repo symbol; the likely fault site |
