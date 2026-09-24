@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/pkg/verify.py`](../../src/orchestrator/pkg/verify.py)
 
-5 types · 14 functions · python
+5 types · 15 functions · python
 
 ## Changing this safely
 
@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`ParityCount`](../../src/orchestrator/pkg/verify.py#L369) — reaches **10** symbols
-- [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L62) — reaches **10** symbols
-- [`_count_python_constructs`](../../src/orchestrator/pkg/verify.py#L410) — reaches **10** symbols
-- [`source_parity_counts`](../../src/orchestrator/pkg/verify.py#L448) — reaches **10** symbols
-- [`_examples`](../../src/orchestrator/pkg/verify.py#L87) — reaches **9** symbols
-- [`_path_shaped`](../../src/orchestrator/pkg/verify.py#L390) — reaches **7** symbols
-- [`_basename`](../../src/orchestrator/pkg/verify.py#L142) — reaches **5** symbols
-- [`_module_of`](../../src/orchestrator/pkg/verify.py#L172) — reaches **5** symbols
+- [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L74) — reaches **11** symbols
+- [`ParityCount`](../../src/orchestrator/pkg/verify.py#L434) — reaches **10** symbols
+- [`_count_python_constructs`](../../src/orchestrator/pkg/verify.py#L475) — reaches **10** symbols
+- [`_examples`](../../src/orchestrator/pkg/verify.py#L99) — reaches **10** symbols
+- [`source_parity_counts`](../../src/orchestrator/pkg/verify.py#L513) — reaches **10** symbols
+- [`_path_shaped`](../../src/orchestrator/pkg/verify.py#L455) — reaches **7** symbols
+- [`_basename`](../../src/orchestrator/pkg/verify.py#L154) — reaches **5** symbols
+- [`_module_of`](../../src/orchestrator/pkg/verify.py#L237) — reaches **5** symbols
 
 _1 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -32,36 +32,36 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ### `ParityCount`
 
-[`src/orchestrator/pkg/verify.py:369`](../../src/orchestrator/pkg/verify.py#L369)
+[`src/orchestrator/pkg/verify.py:434`](../../src/orchestrator/pkg/verify.py#L434)
 
-- **Called by** (1): [`source_parity_counts`](../../src/orchestrator/pkg/verify.py#L448)
+- **Called by** (1): [`source_parity_counts`](../../src/orchestrator/pkg/verify.py#L513)
 - **Fields**: `approximate`, `declared`, `file`, `first_line`, `in_graph`, `kind`, `language`
 
 ### `VerifyIssue`
 
-[`src/orchestrator/pkg/verify.py:62`](../../src/orchestrator/pkg/verify.py#L62)
+[`src/orchestrator/pkg/verify.py:74`](../../src/orchestrator/pkg/verify.py#L74)
 
-- **Called by** (6): [`_check_dangling_edges`](../../src/orchestrator/pkg/verify.py#L93), [`_check_invention`](../../src/orchestrator/pkg/verify.py#L587), [`_check_phantoms`](../../src/orchestrator/pkg/verify.py#L148), [`_check_provenance`](../../src/orchestrator/pkg/verify.py#L108), [`_check_rates`](../../src/orchestrator/pkg/verify.py#L185), [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L555)
+- **Called by** (7): [`_check_dangling_edges`](../../src/orchestrator/pkg/verify.py#L105), [`_check_invention`](../../src/orchestrator/pkg/verify.py#L652), [`_check_phantom_symbols`](../../src/orchestrator/pkg/verify.py#L187), [`_check_phantoms`](../../src/orchestrator/pkg/verify.py#L160), [`_check_provenance`](../../src/orchestrator/pkg/verify.py#L120), [`_check_rates`](../../src/orchestrator/pkg/verify.py#L250), [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L620)
 - **Fields**: `check`, `message`, `severity`
 - **Documented in**: `docs/evals/clang-semantic-p5-revision-output.txt`
 
 ### `VerifyReport`
 
-[`src/orchestrator/pkg/verify.py:71`](../../src/orchestrator/pkg/verify.py#L71)
+[`src/orchestrator/pkg/verify.py:83`](../../src/orchestrator/pkg/verify.py#L83)
 
-- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L611)
+- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L676)
 - **Fields**: `issues`
 
 ### `_Hit`
 
-[`src/orchestrator/pkg/verify.py:346`](../../src/orchestrator/pkg/verify.py#L346)
+[`src/orchestrator/pkg/verify.py:411`](../../src/orchestrator/pkg/verify.py#L411)
 
-- **Called by** (2): [`finditer`](../../src/orchestrator/pkg/verify.py#L334), [`search`](../../src/orchestrator/pkg/verify.py#L340)
+- **Called by** (2): [`finditer`](../../src/orchestrator/pkg/verify.py#L399), [`search`](../../src/orchestrator/pkg/verify.py#L405)
 - **Fields**: `at`
 
 ### `_ModelInits`
 
-[`src/orchestrator/pkg/verify.py:286`](../../src/orchestrator/pkg/verify.py#L286)
+[`src/orchestrator/pkg/verify.py:351`](../../src/orchestrator/pkg/verify.py#L351)
 
 - **Fields**: `_DEFINE`, `_INIT`, `_TYPE`
 
@@ -69,98 +69,105 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ### `_basename`
 
-[`src/orchestrator/pkg/verify.py:142`](../../src/orchestrator/pkg/verify.py#L142)
+[`src/orchestrator/pkg/verify.py:154`](../../src/orchestrator/pkg/verify.py#L154)
 
-- **Called by** (1): [`_check_phantoms`](../../src/orchestrator/pkg/verify.py#L148)
+- **Called by** (1): [`_check_phantoms`](../../src/orchestrator/pkg/verify.py#L160)
 
 ### `_check_dangling_edges`
 
-[`src/orchestrator/pkg/verify.py:93`](../../src/orchestrator/pkg/verify.py#L93)
+[`src/orchestrator/pkg/verify.py:105`](../../src/orchestrator/pkg/verify.py#L105)
 
-- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L611)
-- **Calls** (2): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L62), [`_examples`](../../src/orchestrator/pkg/verify.py#L87)
+- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L676)
+- **Calls** (2): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L74), [`_examples`](../../src/orchestrator/pkg/verify.py#L99)
 
 ### `_check_invention`
 
-[`src/orchestrator/pkg/verify.py:587`](../../src/orchestrator/pkg/verify.py#L587)
+[`src/orchestrator/pkg/verify.py:652`](../../src/orchestrator/pkg/verify.py#L652)
 
-- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L611)
-- **Calls** (3): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L62), [`_examples`](../../src/orchestrator/pkg/verify.py#L87), [`find_invented_calls`](../../src/orchestrator/pkg/invention.py#L338)
+- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L676)
+- **Calls** (3): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L74), [`_examples`](../../src/orchestrator/pkg/verify.py#L99), [`find_invented_calls`](../../src/orchestrator/pkg/invention.py#L338)
+
+### `_check_phantom_symbols`
+
+[`src/orchestrator/pkg/verify.py:187`](../../src/orchestrator/pkg/verify.py#L187)
+
+- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L676)
+- **Calls** (2): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L74), [`_examples`](../../src/orchestrator/pkg/verify.py#L99)
 
 ### `_check_phantoms`
 
-[`src/orchestrator/pkg/verify.py:148`](../../src/orchestrator/pkg/verify.py#L148)
+[`src/orchestrator/pkg/verify.py:160`](../../src/orchestrator/pkg/verify.py#L160)
 
-- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L611)
-- **Calls** (3): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L62), [`_basename`](../../src/orchestrator/pkg/verify.py#L142), [`_examples`](../../src/orchestrator/pkg/verify.py#L87)
+- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L676)
+- **Calls** (3): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L74), [`_basename`](../../src/orchestrator/pkg/verify.py#L154), [`_examples`](../../src/orchestrator/pkg/verify.py#L99)
 
 ### `_check_provenance`
 
-[`src/orchestrator/pkg/verify.py:108`](../../src/orchestrator/pkg/verify.py#L108)
+[`src/orchestrator/pkg/verify.py:120`](../../src/orchestrator/pkg/verify.py#L120)
 
-- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L611)
-- **Calls** (2): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L62), [`_examples`](../../src/orchestrator/pkg/verify.py#L87)
+- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L676)
+- **Calls** (2): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L74), [`_examples`](../../src/orchestrator/pkg/verify.py#L99)
 - **Documented in**: `docs/specs/python-frontend-parity.md#63-a-source-vs-graph-parity-check-in-verifypy`
 
 ### `_check_rates`
 
-[`src/orchestrator/pkg/verify.py:185`](../../src/orchestrator/pkg/verify.py#L185)
+[`src/orchestrator/pkg/verify.py:250`](../../src/orchestrator/pkg/verify.py#L250)
 
-- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L611)
-- **Calls** (3): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L62), [`_examples`](../../src/orchestrator/pkg/verify.py#L87), [`_module_of`](../../src/orchestrator/pkg/verify.py#L172)
+- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L676)
+- **Calls** (3): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L74), [`_examples`](../../src/orchestrator/pkg/verify.py#L99), [`_module_of`](../../src/orchestrator/pkg/verify.py#L237)
 
 ### `_check_source_parity`
 
-[`src/orchestrator/pkg/verify.py:555`](../../src/orchestrator/pkg/verify.py#L555)
+[`src/orchestrator/pkg/verify.py:620`](../../src/orchestrator/pkg/verify.py#L620)
 
-- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L611)
-- **Calls** (2): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L62), [`source_parity_counts`](../../src/orchestrator/pkg/verify.py#L448)
+- **Called by** (1): [`verify_batch`](../../src/orchestrator/pkg/verify.py#L676)
+- **Calls** (2): [`VerifyIssue`](../../src/orchestrator/pkg/verify.py#L74), [`source_parity_counts`](../../src/orchestrator/pkg/verify.py#L513)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-3-build.md#7-files`
 
 ### `_count_python_constructs`
 
-[`src/orchestrator/pkg/verify.py:410`](../../src/orchestrator/pkg/verify.py#L410)
+[`src/orchestrator/pkg/verify.py:475`](../../src/orchestrator/pkg/verify.py#L475)
 
-- **Called by** (1): [`source_parity_counts`](../../src/orchestrator/pkg/verify.py#L448)
-- **Calls** (3): [`_path_shaped`](../../src/orchestrator/pkg/verify.py#L390), `parse`, `walk`
+- **Called by** (1): [`source_parity_counts`](../../src/orchestrator/pkg/verify.py#L513)
+- **Calls** (3): [`_path_shaped`](../../src/orchestrator/pkg/verify.py#L455), `parse`, `walk`
 
 ### `_examples`
 
-[`src/orchestrator/pkg/verify.py:87`](../../src/orchestrator/pkg/verify.py#L87)
+[`src/orchestrator/pkg/verify.py:99`](../../src/orchestrator/pkg/verify.py#L99)
 
-- **Called by** (5): [`_check_dangling_edges`](../../src/orchestrator/pkg/verify.py#L93), [`_check_invention`](../../src/orchestrator/pkg/verify.py#L587), [`_check_phantoms`](../../src/orchestrator/pkg/verify.py#L148), [`_check_provenance`](../../src/orchestrator/pkg/verify.py#L108), [`_check_rates`](../../src/orchestrator/pkg/verify.py#L185)
+- **Called by** (6): [`_check_dangling_edges`](../../src/orchestrator/pkg/verify.py#L105), [`_check_invention`](../../src/orchestrator/pkg/verify.py#L652), [`_check_phantom_symbols`](../../src/orchestrator/pkg/verify.py#L187), [`_check_phantoms`](../../src/orchestrator/pkg/verify.py#L160), [`_check_provenance`](../../src/orchestrator/pkg/verify.py#L120), [`_check_rates`](../../src/orchestrator/pkg/verify.py#L250)
 
 ### `_module_of`
 
-[`src/orchestrator/pkg/verify.py:172`](../../src/orchestrator/pkg/verify.py#L172)
+[`src/orchestrator/pkg/verify.py:237`](../../src/orchestrator/pkg/verify.py#L237)
 
-- **Called by** (1): [`_check_rates`](../../src/orchestrator/pkg/verify.py#L185)
+- **Called by** (1): [`_check_rates`](../../src/orchestrator/pkg/verify.py#L250)
 
 ### `_path_shaped`
 
-[`src/orchestrator/pkg/verify.py:390`](../../src/orchestrator/pkg/verify.py#L390)
+[`src/orchestrator/pkg/verify.py:455`](../../src/orchestrator/pkg/verify.py#L455)
 
-- **Called by** (1): [`_count_python_constructs`](../../src/orchestrator/pkg/verify.py#L410)
+- **Called by** (1): [`_count_python_constructs`](../../src/orchestrator/pkg/verify.py#L475)
 
 ### `_source_signals`
 
-[`src/orchestrator/pkg/verify.py:522`](../../src/orchestrator/pkg/verify.py#L522)
+[`src/orchestrator/pkg/verify.py:587`](../../src/orchestrator/pkg/verify.py#L587)
 
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-3-build.md#3-root-cause-and-why-this-phase-is-not-what-the-roadmap-thought`, `docs/specs/build-documents/PKG-ACC-3-build.md#7-files`, `docs/specs/build-documents/PKG-ACC-3-build.md#9-facts-the-generator-needs`, `docs/specs/pkg-accuracy-roadmap.md#phase-3-parity-per-construct-not-per-language-shipped-2026-08-13`
 
 ### `source_parity_counts`
 
-[`src/orchestrator/pkg/verify.py:448`](../../src/orchestrator/pkg/verify.py#L448)
+[`src/orchestrator/pkg/verify.py:513`](../../src/orchestrator/pkg/verify.py#L513)
 
-- **Called by** (2): [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L555), [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L456)
-- **Calls** (2): [`ParityCount`](../../src/orchestrator/pkg/verify.py#L369), [`_count_python_constructs`](../../src/orchestrator/pkg/verify.py#L410)
+- **Called by** (2): [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L620), [`score_parity`](../../src/orchestrator/pkg/accuracy.py#L456)
+- **Calls** (2): [`ParityCount`](../../src/orchestrator/pkg/verify.py#L434), [`_count_python_constructs`](../../src/orchestrator/pkg/verify.py#L475)
 
 ### `verify_batch`
 
-[`src/orchestrator/pkg/verify.py:611`](../../src/orchestrator/pkg/verify.py#L611)
+[`src/orchestrator/pkg/verify.py:676`](../../src/orchestrator/pkg/verify.py#L676)
 
-- **Called by** (2 production · 26 test): [`pkg_verify`](../../src/orchestrator/cli/pkg.py#L285), [`validate_one`](../../scripts/validate-frontend.py#L51), [`test_a_computed_path_is_counted_as_declared`](../../tests/pkg/test_verify.py#L254), [`test_a_language_with_no_patterns_is_never_flagged`](../../tests/pkg/test_verify.py#L204), [`test_a_route_decorator_inside_a_string_is_not_counted`](../../tests/pkg/test_verify.py#L241), [`test_an_endpoint_declared_in_two_files_is_credited_to_both`](../../tests/pkg/test_verify.py#L313), [`test_computed_tablename_is_not_a_declaration`](../../tests/pkg/test_verify.py#L199), [`test_counts_are_per_file_not_per_language`](../../tests/pkg/test_verify.py#L298), [`test_dangling_edge_is_an_error`](../../tests/pkg/test_verify.py#L37), [`test_healthy_extracted_repo_passes`](../../tests/pkg/test_verify.py#L26), [`test_joined_import_graph_passes_the_rates`](../../tests/pkg/test_verify.py#L83), [`test_more_nodes_than_declarations_never_warns`](../../tests/pkg/test_verify.py#L273), [`test_no_false_positive_on_a_plain_library`](../../tests/pkg/test_verify.py#L187), [`test_non_route_attribute_calls_are_not_routes`](../../tests/pkg/test_verify.py#L192), [`test_parity_is_a_warning_never_an_error`](../../tests/pkg/test_verify.py#L165), [`test_python_route_decorators_no_longer_trip_the_check`](../../tests/pkg/test_verify.py#L143), [`test_python_tablenames_no_longer_trip_the_check`](../../tests/pkg/test_verify.py#L154), [`test_regex_counted_languages_are_labelled_approximate`](../../tests/pkg/test_verify.py#L291), [`test_silent_when_the_graph_already_has_the_kind`](../../tests/pkg/test_verify.py#L178), [`test_small_fixtures_are_exempt_from_rates`](../../tests/pkg/test_verify.py#L103), [`test_stale_provenance_is_an_error`](../../tests/pkg/test_verify.py#L47), [`test_the_warning_names_the_file_and_line`](../../tests/pkg/test_verify.py#L267), [`test_typeorm_entity_decorator_warns`](../../tests/pkg/test_verify.py#L231), [`test_typescript_express_routes_warn`](../../tests/pkg/test_verify.py#L219), [`test_typescript_map_get_is_not_a_route`](../../tests/pkg/test_verify.py#L224), +3 more
-- **Calls** (8): [`VerifyReport`](../../src/orchestrator/pkg/verify.py#L71), [`_check_dangling_edges`](../../src/orchestrator/pkg/verify.py#L93), [`_check_invention`](../../src/orchestrator/pkg/verify.py#L587), [`_check_phantoms`](../../src/orchestrator/pkg/verify.py#L148), [`_check_provenance`](../../src/orchestrator/pkg/verify.py#L108), [`_check_rates`](../../src/orchestrator/pkg/verify.py#L185), [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L555), `pathlib.Path`
+- **Called by** (2 production · 28 test): [`pkg_verify`](../../src/orchestrator/cli/pkg.py#L285), [`validate_one`](../../scripts/validate-frontend.py#L51), [`_phantom_symbol`](../../tests/pkg/test_verify.py#L455), [`test_a_call_stranded_on_a_reexport_placeholder_warns`](../../tests/pkg/test_verify.py#L459), [`test_a_computed_path_is_counted_as_declared`](../../tests/pkg/test_verify.py#L254), [`test_a_language_with_no_patterns_is_never_flagged`](../../tests/pkg/test_verify.py#L204), [`test_a_route_decorator_inside_a_string_is_not_counted`](../../tests/pkg/test_verify.py#L241), [`test_an_endpoint_declared_in_two_files_is_credited_to_both`](../../tests/pkg/test_verify.py#L313), [`test_computed_tablename_is_not_a_declaration`](../../tests/pkg/test_verify.py#L199), [`test_counts_are_per_file_not_per_language`](../../tests/pkg/test_verify.py#L298), [`test_dangling_edge_is_an_error`](../../tests/pkg/test_verify.py#L37), [`test_healthy_extracted_repo_passes`](../../tests/pkg/test_verify.py#L26), [`test_joined_import_graph_passes_the_rates`](../../tests/pkg/test_verify.py#L83), [`test_more_nodes_than_declarations_never_warns`](../../tests/pkg/test_verify.py#L273), [`test_no_false_positive_on_a_plain_library`](../../tests/pkg/test_verify.py#L187), [`test_non_route_attribute_calls_are_not_routes`](../../tests/pkg/test_verify.py#L192), [`test_parity_is_a_warning_never_an_error`](../../tests/pkg/test_verify.py#L165), [`test_python_route_decorators_no_longer_trip_the_check`](../../tests/pkg/test_verify.py#L143), [`test_python_tablenames_no_longer_trip_the_check`](../../tests/pkg/test_verify.py#L154), [`test_regex_counted_languages_are_labelled_approximate`](../../tests/pkg/test_verify.py#L291), [`test_silent_when_the_graph_already_has_the_kind`](../../tests/pkg/test_verify.py#L178), [`test_small_fixtures_are_exempt_from_rates`](../../tests/pkg/test_verify.py#L103), [`test_stale_provenance_is_an_error`](../../tests/pkg/test_verify.py#L47), [`test_the_warning_names_the_file_and_line`](../../tests/pkg/test_verify.py#L267), [`test_typeorm_entity_decorator_warns`](../../tests/pkg/test_verify.py#L231), +5 more
+- **Calls** (9): [`VerifyReport`](../../src/orchestrator/pkg/verify.py#L83), [`_check_dangling_edges`](../../src/orchestrator/pkg/verify.py#L105), [`_check_invention`](../../src/orchestrator/pkg/verify.py#L652), [`_check_phantom_symbols`](../../src/orchestrator/pkg/verify.py#L187), [`_check_phantoms`](../../src/orchestrator/pkg/verify.py#L160), [`_check_provenance`](../../src/orchestrator/pkg/verify.py#L120), [`_check_rates`](../../src/orchestrator/pkg/verify.py#L250), [`_check_source_parity`](../../src/orchestrator/pkg/verify.py#L620), `pathlib.Path`
 - **Documented in**: `docs/evals/clang-semantic-ab-harness.txt`, `docs/evals/clang-semantic-p5-harness.txt`, `docs/evals/clang-semantic-step3b-harness.txt`, `docs/evals/clang-semantic-validation.md#final-re-measurement-and-shipping-recommendation`, `docs/evals/clang-semantic-validation.md#repeated-extraction-timing`, `docs/specs/build-documents/PKG-ACC-1-build.md#4-pkg-what-the-graph-knows`
 
 ## Imports

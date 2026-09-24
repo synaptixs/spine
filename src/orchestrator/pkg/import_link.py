@@ -18,8 +18,12 @@ Only the matching rule is per-language:
   the longest dotted prefix that is
   a first-party module wins. Exact ids already join via the ``FactBatch``
   dedup (a grounded node upgrades the placeholder); the prefix walk covers the
-  rest — re-exports (``from click import echo`` where ``echo`` lives in
-  ``click.utils``), nested classes, static imports.
+  rest — nested classes, static imports. A Python re-export (``from click import
+  echo`` where ``echo`` lives in ``click.utils``) mostly never reaches this join:
+  ``PythonExtractor.finalize`` lands it on the defining symbol first
+  (``python_reexport``). The walk sees only the ones that front-end could not
+  decide — a binding that differs by environment, a PEP 562 ``__getattr__`` —
+  and joins those at *module* level, the package, never to a guessed symbol.
 - **typescript** — ``./`` / ``../`` specifiers resolved against the importing
   file's directory, with the extension stripped and ``index`` collapsed (the
   same normalisation as the front-end's ``module_name``). Bare specifiers are

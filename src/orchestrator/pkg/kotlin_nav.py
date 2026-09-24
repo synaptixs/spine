@@ -84,7 +84,7 @@ class _Site:
     #: this file's ``import a.b.*`` prefixes — #395: the repo-wide unique-name
     #: fallback in ``NavState.lookup`` is restricted to names reachable through one
     #: of these, the same rule ``_type_candidates`` already applies in the extractor.
-    wildcard_prefixes: frozenset[str] = frozenset()
+    wildcard_prefixes: frozenset[str]
 
 
 @dataclass
@@ -173,7 +173,7 @@ def scan_calls(
     *,
     package: str,
     imports: Mapping[str, str],
-    wildcard_prefixes: frozenset[str] = frozenset(),
+    wildcard_prefixes: frozenset[str],
 ) -> None:
     """Collect ``composable(...)`` declarations and ``navigate(...)`` calls in a body."""
     for call in _walk(body):

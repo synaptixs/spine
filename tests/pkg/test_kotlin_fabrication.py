@@ -930,3 +930,355 @@ class L {
         },
     )
     assert ("java:app.L.go", "java:app.L.key") not in _calls(batch)
+
+
+# ---- #397: a same-package extension needs no import at all, but never resolved ---
+
+
+def test_a_same_package_extension_with_no_import_resolves(tmp_path: Path) -> None:
+    """A cross-file, same-package extension has never resolved on any branch — only
+
+    the same-file half of D4 was ever checked. Kotlin needs no import for a
+    same-package symbol, so `imported_extension` (which only fires on an explicit
+    import) never had a candidate to offer the repo-wide extension table, and the
+    call fell through to the inherited-member walk (also a miss) and was dropped.
+    """
+    batch = _facts(
+        tmp_path,
+        {
+            "Topic.kt": "package app.data\n\nclass Topic\n",
+            "Slug.kt": 'package app.data\n\nfun Topic.slug(): String = ""\n',
+            "Use.kt": "package app.data\n\nclass Use {\n    fun go(t: Topic) = t.slug()\n}\n",
+        },
+    )
+    assert ("java:app.data.Use.go", "java:app.data.slug") in _calls(batch)
+
+
+def test_a_same_package_id_that_is_not_an_extension_is_not_offered(tmp_path: Path) -> None:
+    """The same-package candidate must still be receiver-compatible — a plain
+
+    top-level function sharing the called name is not an extension of anything,
+    and must not resolve just because it shares an id with what the call could
+    have named.
+    """
+    batch = _facts(
+        tmp_path,
+        {
+            "Topic.kt": "package app.data\n\nclass Topic\n",
+            "Slug.kt": 'package app.data\n\nfun slug(): String = ""\n',
+            "Use.kt": "package app.data\n\nclass Use {\n    fun go(t: Topic) = t.slug()\n}\n",
+        },
+    )
+    assert not _calls(batch)
+
+
+def test_a_same_package_extension_of_an_incompatible_receiver_is_not_offered(tmp_path: Path) -> None:
+    """A same-package extension of a *different*, unrelated declared type must not
+
+    satisfy a call on this receiver — receiver compatibility applies here exactly
+    as it does for an imported candidate (#390).
+    """
+    batch = _facts(
+        tmp_path,
+        {
+            "Types.kt": "package app.data\n\nclass Topic\nclass Other\n",
+            "Slug.kt": 'package app.data\n\nfun Other.slug(): String = ""\n',
+            "Use.kt": "package app.data\n\nclass Use {\n    fun go(t: Topic) = t.slug()\n}\n",
+        },
+    )
+    assert not _calls(batch)
+
+
+def test_a_same_package_extension_never_crosses_a_package_boundary(tmp_path: Path) -> None:
+    """Guard against reopening #395: the same-name candidate declared in a
+
+    *different* package, with no import, must not resolve. The candidate id is
+    built from the calling file's own package, never the receiver's, so this
+    should hold structurally — pinned explicitly rather than assumed.
+
+    `b/Slug.kt` imports `app.a.Topic`, so the extension's receiver *is* the caller's
+    type: only the package rule stands between this call and `app.b.slug`. Without
+    the import the receiver check alone refused it, and the test proved nothing.
+    """
+    batch = _facts(
+        tmp_path,
+        {
+            "a/Topic.kt": "package app.a\n\nclass Topic\n",
+            "b/Slug.kt": 'package app.b\n\nimport app.a.Topic\n\nfun Topic.slug(): String = ""\n',
+            "a/Use.kt": "package app.a\n\nclass Use {\n    fun go(t: Topic) = t.slug()\n}\n",
+        },
+    )
+    assert not _calls(batch)
+
+
+def test_a_member_of_an_external_supertype_beats_a_same_package_extension(tmp_path: Path) -> None:
+    """A member always wins over an extension. `Topic` inherits `isEmpty` from
+    `ArrayList`, which this repository cannot see, so a same-package
+    `fun Topic.isEmpty()` must not claim `t.isEmpty()`."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Topic.kt": "package app\n\nclass Topic : java.util.ArrayList<String>()\n",
+            "Ext.kt": "package app\n\nfun Topic.isEmpty(): Boolean = true\n",
+            "Use.kt": "package app\n\nfun use(t: Topic) = t.isEmpty()\n",
+        },
+    )
+    assert ("java:app.use", "java:app.isEmpty") not in _calls(batch)
+
+
+def test_an_any_member_beats_a_same_package_extension(tmp_path: Path) -> None:
+    batch = _facts(
+        tmp_path,
+        {
+            "Topic.kt": "package app\n\nclass Topic\n",
+            "Ext.kt": 'package app\n\nfun Topic.toString(): String = ""\n',
+            "Use.kt": "package app\n\nfun use(t: Topic) = t.toString()\n",
+        },
+    )
+    assert ("java:app.use", "java:app.toString") not in _calls(batch)
+
+
+def test_a_same_package_extension_is_checked_against_the_type_in_scope(tmp_path: Path) -> None:
+    """`i: Item` is the same-package `app.data.Item` — same package beats a star
+    import — so an extension of the star-imported `app.x.Item` does not apply, even
+    though `app.x.Item` is one of the name's candidate readings."""
+    batch = _facts(
+        tmp_path,
+        {
+            "data/Item.kt": "package app.data\n\nclass Item\n",
+            "x/Item.kt": "package app.x\n\nclass Item\n",
+            "data/Slug.kt": 'package app.data\n\nfun app.x.Item.slug(): String = ""\n',
+            "data/Use.kt": "package app.data\n\nimport app.x.*\n\nfun use(i: Item) = i.slug()\n",
+        },
+    )
+    assert ("java:app.data.use", "java:app.data.slug") not in _calls(batch)
+
+
+# ---- #453: a bare call inside a receiver lambda is refused, never redirected ------
+#
+# Kotlin searches a receiver lambda's receiver before the enclosing class, and this front-end
+# cannot show what a receiver declares, so an enclosing-member reading there is refused. It is
+# never resolved to the receiver's member instead: that needs Kotlin's resolution without type
+# information, and two review passes of a redirecting version each found invented edges. The
+# rule therefore only ever removes an edge — these tests pin both halves of that.
+
+
+def _calls_from(batch: FactBatch, src: str) -> set[str]:
+    return {dst for s, dst in _calls(batch) if s == src}
+
+
+_PLUGIN = """\
+package app.build
+
+import org.gradle.api.Project
+import org.gradle.api.plugins.PluginManager
+
+class ConventionPlugin(private val pluginManager: PluginManager) {
+    fun apply(target: Project) {
+        with(pluginManager) {
+            apply("com.android.application")
+        }
+    }
+
+    fun applyKotlin() {
+        pluginManager.apply {
+            apply("org.jetbrains.kotlin.android")
+        }
+    }
+}
+"""
+
+
+def test_a_call_inside_with_a_library_receiver_is_not_the_enclosing_member(tmp_path: Path) -> None:
+    """`apply("x")` inside `with(pluginManager) { }` is `PluginManager.apply` — never the
+    plugin's own `apply(target: Project)` calling itself, which the Android validation app
+    carried 15 times."""
+    batch = _facts(tmp_path, {"Plugin.kt": _PLUGIN})
+    plugin = "java:app.build.ConventionPlugin"
+    assert f"{plugin}.apply" not in _calls_from(batch, f"{plugin}.apply")
+
+
+def test_the_apply_block_form_is_refused_the_same_way(tmp_path: Path) -> None:
+    batch = _facts(tmp_path, {"Plugin.kt": _PLUGIN})
+    plugin = "java:app.build.ConventionPlugin"
+    assert f"{plugin}.apply" not in _calls_from(batch, f"{plugin}.applyKotlin")
+
+
+_SYNC = """\
+package app
+
+class TopicRepository {
+    fun refresh() {}
+}
+
+class Sync(private val repo: TopicRepository) {
+    fun refresh() {}
+
+    fun make(): TopicRepository = repo
+
+%s
+}
+"""
+
+
+def test_the_run_block_form_is_refused_and_never_redirected(tmp_path: Path) -> None:
+    """Even a receiver the repository declares — `TopicRepository.refresh` exists — is not
+    where the call is sent: the enclosing reading is refused and nothing replaces it."""
+    batch = _facts(tmp_path, {"Sync.kt": _SYNC % "    fun go() {\n        repo.run { refresh() }\n    }"})
+    assert _calls_from(batch, "java:app.Sync.go") == set()
+
+
+def test_with_a_declared_receiver_is_refused_and_never_redirected(tmp_path: Path) -> None:
+    batch = _facts(tmp_path, {"Sync.kt": _SYNC % "    fun go() {\n        with(repo) { refresh() }\n    }"})
+    assert _calls_from(batch, "java:app.Sync.go") == set()
+
+
+def test_a_builder_receiver_hides_the_enclosing_member(tmp_path: Path) -> None:
+    """`buildString { append(…) }` appends to the builder's `StringBuilder`."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Report.kt": """\
+package app
+
+class Report {
+    fun append(line: String) {}
+
+    fun render(): String = buildString {
+        append("header")
+    }
+}
+""",
+        },
+    )
+    assert "java:app.Report.append" not in _calls_from(batch, "java:app.Report.render")
+
+
+def test_a_nested_lambda_inside_a_receiver_lambda_is_still_refused(tmp_path: Path) -> None:
+    batch = _facts(
+        tmp_path,
+        {"Sync.kt": _SYNC % "    fun go() {\n        with(repo) { listOf(1).forEach { refresh() } }\n    }"},
+    )
+    assert "java:app.Sync.refresh" not in _calls_from(batch, "java:app.Sync.go")
+
+
+def test_an_object_literal_inside_a_receiver_lambda_is_still_refused(tmp_path: Path) -> None:
+    body = """\
+    fun go() {
+        with(repo) {
+            val cb = object : Runnable {
+                override fun run() {
+                    refresh()
+                }
+            }
+        }
+    }"""
+    batch = _facts(tmp_path, {"Sync.kt": _SYNC % body})
+    assert "java:app.Sync.refresh" not in _calls_from(batch, "java:app.Sync.go")
+
+
+def test_a_user_declared_run_is_refused_not_redirected(tmp_path: Path) -> None:
+    """`Worker` declares its own `run(block: () -> Unit)`, whose lambda has no receiver, so
+    `Sync.refresh` is really the target. Recognition is by name, so the call is refused —
+    recall lost, and never the invented `Worker.refresh` a redirect produced (#453 review)."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Sync.kt": """\
+package app
+
+class Worker {
+    fun run(block: () -> Unit) {}
+
+    fun refresh() {}
+}
+
+class Sync(private val w: Worker) {
+    fun refresh() {}
+
+    fun go() {
+        w.run { refresh() }
+    }
+}
+""",
+        },
+    )
+    assert (
+        _calls_from(batch, "java:app.Sync.go") & {"java:app.Worker.refresh", "java:app.Sync.refresh"} == set()
+    )
+
+
+def test_lambdas_that_keep_the_receiver_still_resolve_to_the_enclosing_class(tmp_path: Path) -> None:
+    """`let`/`also` pass `it`; bare `run { }`, `with(this)` and `this.apply { }` keep `this`."""
+    body = """\
+    fun viaRun() {
+        run { refresh() }
+    }
+
+    fun viaLet() {
+        repo.let { refresh() }
+    }
+
+    fun viaAlso() {
+        repo.also { refresh() }
+    }
+
+    fun viaWithThis() {
+        with(this) { refresh() }
+    }
+
+    fun viaThisApply() {
+        this.apply { refresh() }
+    }"""
+    batch = _facts(tmp_path, {"Sync.kt": _SYNC % body})
+    for fn in ("viaRun", "viaLet", "viaAlso", "viaWithThis", "viaThisApply"):
+        assert "java:app.Sync.refresh" in _calls_from(batch, f"java:app.Sync.{fn}"), fn
+
+
+def test_the_with_argument_is_outside_the_receiver_lambda(tmp_path: Path) -> None:
+    """`with(make())` — the argument is evaluated before the receiver changes."""
+    batch = _facts(tmp_path, {"Sync.kt": _SYNC % "    fun go() {\n        with(make()) { }\n    }"})
+    assert "java:app.Sync.make" in _calls_from(batch, "java:app.Sync.go")
+
+
+def test_an_imported_function_inside_a_receiver_lambda_still_resolves(tmp_path: Path) -> None:
+    """Only the enclosing-member reading is refused; a top-level or imported one is kept."""
+    batch = _facts(
+        tmp_path,
+        {
+            "util/Log.kt": "package app.util\n\nfun log(message: String) {}\n",
+            "Sync.kt": """\
+package app
+
+import app.util.log
+import org.gradle.api.plugins.PluginManager
+
+class Sync(private val pluginManager: PluginManager) {
+    fun go() {
+        with(pluginManager) { log("applied") }
+    }
+}
+""",
+        },
+    )
+    assert "java:app.util.log" in _calls_from(batch, "java:app.Sync.go")
+
+
+def test_a_same_package_function_in_another_file_still_resolves_inside_a_receiver_lambda(
+    tmp_path: Path,
+) -> None:
+    batch = _facts(
+        tmp_path,
+        {
+            "Top.kt": "package app\n\nfun topLevel() {}\n",
+            "Sync.kt": _SYNC % "    fun go() {\n        with(repo) { topLevel() }\n    }",
+        },
+    )
+    assert "java:app.topLevel" in _calls_from(batch, "java:app.Sync.go")
+
+
+def test_the_parenthesised_lambda_form_keeps_todays_reading(tmp_path: Path) -> None:
+    """The stated limit: `with(repo, { … })` passes the lambda as an argument and is not
+    recognised, so it resolves exactly as it did before #453."""
+    batch = _facts(tmp_path, {"Sync.kt": _SYNC % "    fun go() {\n        with(repo, { refresh() })\n    }"})
+    assert "java:app.Sync.refresh" in _calls_from(batch, "java:app.Sync.go")

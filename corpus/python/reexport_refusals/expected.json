@@ -1,0 +1,315 @@
+{
+  "language": "python",
+  "case": "reexport_refusals",
+  "root": ".repo",
+  "why": "B20's other half: two re-exports a static reader must NOT resolve. `compute` is bound by `try: from .fast import compute / except ImportError: from .slow import compute` — which one exists at run time depends on the environment, so the two bindings disagree and guessing either is wrong half the time. `Lazy` is produced by a module-level `__getattr__` (PEP 562) — an import inside a function binds only inside that function, so the package has no module-level binding for it. Both calls stay on the name the source wrote, and `pkg verify` counts them as phantom-symbol warnings instead. Review pass 1 added `mix`: a re-export a later star from outside the tree may replace (`from numpy import *`), a re-export rebound by assignment (`rate = _tuned(rate)`), and `import mix.store; mix.start()`, whose target is the package's own `start`, not the submodule's re-export.",
+  "nodes": [
+    {
+      "id": "py:lib",
+      "kind": "Module"
+    },
+    {
+      "id": "py:lib.fast",
+      "kind": "Module"
+    },
+    {
+      "id": "py:lib.slow",
+      "kind": "Module"
+    },
+    {
+      "id": "py:lib.lazy",
+      "kind": "Module"
+    },
+    {
+      "id": "py:main",
+      "kind": "Module"
+    },
+    {
+      "id": "py:lib.fast.compute",
+      "kind": "Function"
+    },
+    {
+      "id": "py:lib.slow.compute",
+      "kind": "Function"
+    },
+    {
+      "id": "py:lib.__getattr__",
+      "kind": "Function"
+    },
+    {
+      "id": "py:lib.lazy.Lazy",
+      "kind": "Type"
+    },
+    {
+      "id": "py:main.run_compute",
+      "kind": "Function"
+    },
+    {
+      "id": "py:main.run_lazy",
+      "kind": "Function"
+    },
+    {
+      "id": "py:mix",
+      "kind": "Module"
+    },
+    {
+      "id": "py:mix.fast",
+      "kind": "Module"
+    },
+    {
+      "id": "py:mix.engine",
+      "kind": "Module"
+    },
+    {
+      "id": "py:mix.store",
+      "kind": "Module"
+    },
+    {
+      "id": "py:mix._tuned",
+      "kind": "Function"
+    },
+    {
+      "id": "py:mix.start",
+      "kind": "Function"
+    },
+    {
+      "id": "py:mix.fast.rate",
+      "kind": "Function"
+    },
+    {
+      "id": "py:mix.fast.speed",
+      "kind": "Function"
+    },
+    {
+      "id": "py:mix.engine.start",
+      "kind": "Function"
+    },
+    {
+      "id": "py:main.run_speed",
+      "kind": "Function"
+    },
+    {
+      "id": "py:main.run_rate",
+      "kind": "Function"
+    },
+    {
+      "id": "py:main.run_start",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "py:lib",
+      "dst": "py:lib.fast.compute",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:lib",
+      "dst": "py:lib.slow.compute",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:lib",
+      "dst": "py:lib.lazy.Lazy",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:main",
+      "dst": "py:lib",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:lib",
+      "dst": "py:lib.__getattr__",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:lib.fast",
+      "dst": "py:lib.fast.compute",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:lib.slow",
+      "dst": "py:lib.slow.compute",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:lib.lazy",
+      "dst": "py:lib.lazy.Lazy",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:main",
+      "dst": "py:main.run_compute",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:main",
+      "dst": "py:main.run_lazy",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:main.run_compute",
+      "dst": "py:lib.compute",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:main.run_lazy",
+      "dst": "py:lib.Lazy",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:mix",
+      "dst": "py:mix.fast.rate",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:mix",
+      "dst": "py:mix.fast.speed",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:mix",
+      "dst": "py:numpy.*",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:mix.store",
+      "dst": "py:mix.engine.start",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:main",
+      "dst": "py:mix.store",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:main",
+      "dst": "py:mix",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:mix",
+      "dst": "py:mix._tuned",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:mix",
+      "dst": "py:mix.start",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:mix.fast",
+      "dst": "py:mix.fast.rate",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:mix.fast",
+      "dst": "py:mix.fast.speed",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:mix.engine",
+      "dst": "py:mix.engine.start",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:main",
+      "dst": "py:main.run_speed",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:main",
+      "dst": "py:main.run_rate",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:main",
+      "dst": "py:main.run_start",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:main.run_speed",
+      "dst": "py:mix.speed",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:main.run_rate",
+      "dst": "py:mix.rate",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:main.run_start",
+      "dst": "py:mix.start",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "py:main.run_compute",
+        "dst": "py:lib.fast.compute",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The two bindings of `compute` disagree (fast vs slow); which one runs depends on the environment. Resolve only when every binding agrees (D5)."
+    },
+    {
+      "edge": {
+        "src": "py:main.run_compute",
+        "dst": "py:lib.slow.compute",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Same disagreement, the other branch — picking the last binding in source order would land here, and would be a guess."
+    },
+    {
+      "edge": {
+        "src": "py:main.run_lazy",
+        "dst": "py:lib.lazy.Lazy",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `Lazy` is bound only inside `__getattr__`; a function-local import does not bind a module attribute, so the package has no static binding to follow."
+    },
+    {
+      "edge": {
+        "src": "py:main.run_speed",
+        "dst": "py:mix.fast.speed",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (review pass 1, finding 1). `from .fast import speed` is followed by `from numpy import *`: at run time numpy's `speed`, if it has one, replaces the explicit binding, and what numpy's star binds cannot be read from this tree. An unknowable star after a binding blocks it."
+    },
+    {
+      "edge": {
+        "src": "py:main.run_rate",
+        "dst": "py:mix.fast.rate",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (review pass 1, finding 2). `rate = _tuned(rate)` rebinds the name by assignment after the import; the value is whatever `_tuned` returns, so the re-export is not followed."
+    },
+    {
+      "edge": {
+        "src": "py:main.run_start",
+        "dst": "py:mix.engine.start",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (review pass 1, finding 3). `import mix.store` binds `mix`, the package, so `mix.start()` is the package's own `start` (labelled above). Binding `mix` to `mix.store` made the id `py:mix.store.start`, which the resolver then followed through `mix/store.py`'s re-export to this wrong symbol."
+    },
+    {
+      "edge": {
+        "src": "py:main.run_start",
+        "dst": "py:mix.store.start",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (review pass 1, finding 3). The misbinding itself: `import mix.store` does not bind `mix` to `mix.store`."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [
+    "The two CALLS edges to `py:lib.compute` and `py:lib.Lazy` are labelled against the name the source wrote: the call is real, its target is undecidable from source, so it stays on the external placeholder (compare the IMPORTS to `py:fastapi.APIRouter` in python/decorated).",
+    "`py:main -> py:lib` is where an unresolved `from lib import …` lands: the import join repoints a name it cannot resolve to the longest first-party module prefix.",
+    "`AttributeError(name)` is a builtin call and produces no edge (see python/plain).",
+    "`from numpy import *` is labelled as the IMPORTS edge the source wrote, `py:numpy.*` — third-party, never joined. `rate = _tuned(rate)` is a module-level call and, like every module-level call, produces no CALLS edge (see python/plain)."
+  ],
+  "open_questions": [],
+  "note": "A guard, not a failing-first case: it passes before and after the fix. Its job is to fail if resolution ever starts guessing."
+}

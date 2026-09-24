@@ -9,18 +9,18 @@
 
 ## Changing this safely
 
-**Tested by** (6): `tests.pkg.test_join_link`, `tests.pkg.test_multi_repo_load`, `tests.pkg.test_nested_repos`, `tests.pkg.test_persistence`, `tests.pkg.test_razor`, `tests.sdlc.test_plan_gate_cli`
+**Tested by** (7): `tests.evals.test_agent_corpus`, `tests.pkg.test_join_link`, `tests.pkg.test_multi_repo_load`, `tests.pkg.test_nested_repos`, `tests.pkg.test_persistence`, `tests.pkg.test_razor`, `tests.sdlc.test_plan_gate_cli`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260) — reaches **43** symbols
-- [`repo_state`](../../src/orchestrator/pkg/persistence.py#L169) — reaches **43** symbols
-- [`_git`](../../src/orchestrator/pkg/persistence.py#L138) — reaches **39** symbols
-- [`worktree_dirty`](../../src/orchestrator/pkg/persistence.py#L156) — reaches **39** symbols
-- [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L253) — reaches **37** symbols
-- [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L178) — reaches **37** symbols
-- [`load_facts`](../../src/orchestrator/pkg/persistence.py#L124) — reaches **29** symbols
-- [`save_facts`](../../src/orchestrator/pkg/persistence.py#L117) — reaches **29** symbols
+- [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260) — reaches **86** symbols
+- [`repo_state`](../../src/orchestrator/pkg/persistence.py#L169) — reaches **85** symbols
+- [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L253) — reaches **77** symbols
+- [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L178) — reaches **77** symbols
+- [`load_facts`](../../src/orchestrator/pkg/persistence.py#L124) — reaches **75** symbols
+- [`save_facts`](../../src/orchestrator/pkg/persistence.py#L117) — reaches **75** symbols
+- [`_git`](../../src/orchestrator/pkg/persistence.py#L138) — reaches **70** symbols
+- [`worktree_dirty`](../../src/orchestrator/pkg/persistence.py#L156) — reaches **70** symbols
 
 ## Documented in
 
@@ -134,15 +134,15 @@
 
 [`src/orchestrator/pkg/persistence.py:124`](../../src/orchestrator/pkg/persistence.py#L124)
 
-- **Called by** (1): [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260)
+- **Called by** (1 production · 2 test): [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260), [`test_load_rejects_corrupt_and_wrong_version`](../../tests/pkg/test_persistence.py#L68), [`test_round_trip_preserves_nodes_edges_provenance`](../../tests/pkg/test_persistence.py#L54)
 - **Calls** (4): [`FactCacheError`](../../src/orchestrator/pkg/persistence.py#L45), [`facts_from_dict`](../../src/orchestrator/pkg/persistence.py#L90), `loads`, `pathlib.Path`
 
 ### `load_or_extract`
 
 [`src/orchestrator/pkg/persistence.py:260`](../../src/orchestrator/pkg/persistence.py#L260)
 
-- **Called by** (4): [`_baseline_drift`](../../src/orchestrator/codereview/checkout.py#L134), [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L401), [`score_label`](../../src/orchestrator/evals/localization.py#L73)
-- **Calls** (7): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L718), [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L253), [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L178), [`load_facts`](../../src/orchestrator/pkg/persistence.py#L124), `pathlib.Path`, [`repo_state`](../../src/orchestrator/pkg/persistence.py#L169), [`save_facts`](../../src/orchestrator/pkg/persistence.py#L117)
+- **Called by** (23 production · 8 test): [`_baseline_drift`](../../src/orchestrator/codereview/checkout.py#L134), [`_build`](../../src/orchestrator/sdlc/activities.py#L315), [`_grounding_for`](../../src/orchestrator/cli/build.py#L180), [`_load_graph`](../../src/orchestrator/sdlc/autorun.py#L869), [`_repo_store`](../../src/orchestrator/plugin/server.py#L261), [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50), [`build_design`](../../scripts/codegen_benchmark.py#L1615), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1398), [`design`](../../src/orchestrator/cli/change.py#L16), [`from_repo`](../../src/orchestrator/codereview/grounding.py#L164), [`from_repo`](../../src/orchestrator/codereview/grounding.py#L38), [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L48), [`investigate`](../../src/orchestrator/cli/change.py#L118), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L401), [`localize`](../../src/orchestrator/cli/change.py#L275), [`main`](../../scripts/phase2a_parity_gate.py#L133), [`pkg_docs`](../../src/orchestrator/cli/pkg.py#L1286), [`rca`](../../src/orchestrator/cli/change.py#L327), [`regression`](../../src/orchestrator/cli/change.py#L415), [`run`](../../src/orchestrator/plugin/server.py#L1242), [`run`](../../src/orchestrator/plugin/server.py#L1281), [`score_label`](../../src/orchestrator/evals/localization.py#L73), [`sdlc_baseline`](../../src/orchestrator/cli/sdlc.py#L216), [`repo_store`](../../tests/evals/test_agent_corpus.py#L36), [`test_a_cache_from_a_different_extractor_is_not_read`](../../tests/pkg/test_persistence.py#L253), +6 more
+- **Calls** (7): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L730), [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L253), [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L178), [`load_facts`](../../src/orchestrator/pkg/persistence.py#L124), `pathlib.Path`, [`repo_state`](../../src/orchestrator/pkg/persistence.py#L169), [`save_facts`](../../src/orchestrator/pkg/persistence.py#L117)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#phases`, `docs/specs/design-and-comprehension-milestones.md#what-it-does-all-existing-deterministic-no-llm`, `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-21-the-fix-for-the-fabrication-class-fabricated`, `docs/specs/multi-language-java.md#slice-1-java-comprehension-this-build`, `docs/specs/multi-repo-roadmap.md#exit-3a-met-3bs-own-results-are-in-the-section-below`, `docs/specs/project-comprehension-memory-bank.md#two-branches-same-output-shape`
 
 ### `load_or_extract_repos`
@@ -150,14 +150,14 @@
 [`src/orchestrator/pkg/persistence.py:401`](../../src/orchestrator/pkg/persistence.py#L401)
 
 - **Called by** (3 production · 12 test): [`_merged_store`](../../src/orchestrator/cli/_common.py#L68), [`_merged_store`](../../src/orchestrator/plugin/server.py#L341), [`check_merged_graph`](../../scripts/sdlc_shapes.py#L281), [`test_a_non_git_directory_is_untrusted_not_merely_uncached`](../../tests/pkg/test_multi_repo_load.py#L136), [`test_a_repo_that_did_not_change_is_served_from_cache`](../../tests/pkg/test_multi_repo_load.py#L75), [`test_a_shared_extractor_does_not_carry_one_repos_calls_into_another`](../../tests/pkg/test_join_link.py#L353), [`test_a_superproject_and_its_submodule_merge_without_a_double_count`](../../tests/pkg/test_nested_repos.py#L93), [`test_an_intra_repo_call_stays_inside_its_own_repo`](../../tests/pkg/test_multi_repo_load.py#L64), [`test_no_joins_declared_means_no_report_not_a_clean_one`](../../tests/pkg/test_join_link.py#L206), [`test_one_dirty_repo_makes_the_whole_merged_graph_untrusted`](../../tests/pkg/test_multi_repo_load.py#L119), [`test_the_join_survives_a_warm_cache`](../../tests/pkg/test_join_link.py#L179), [`test_the_merged_graph_does_not_depend_on_declaration_order`](../../tests/pkg/test_multi_repo_load.py#L101), [`test_the_merged_graph_gains_a_cross_repo_edge`](../../tests/pkg/test_join_link.py#L194), [`test_the_merged_graph_has_no_dangling_edges`](../../tests/pkg/test_multi_repo_load.py#L57), [`test_two_repos_defining_the_same_symbols_stay_two_nodes`](../../tests/pkg/test_multi_repo_load.py#L44)
-- **Calls** (12): [`MergedFacts`](../../src/orchestrator/pkg/persistence.py#L309), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L718), [`RepoState`](../../src/orchestrator/pkg/persistence.py#L293), [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L253), [`_calls_sidecar`](../../src/orchestrator/pkg/persistence.py#L351), [`_load_calls`](../../src/orchestrator/pkg/persistence.py#L380), [`_save_calls`](../../src/orchestrator/pkg/persistence.py#L362), [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L178), [`link_joins`](../../src/orchestrator/pkg/join_link.py#L150), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260), [`merge_repos`](../../src/orchestrator/pkg/scoping.py#L150), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L169)
+- **Calls** (12): [`MergedFacts`](../../src/orchestrator/pkg/persistence.py#L309), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L730), [`RepoState`](../../src/orchestrator/pkg/persistence.py#L293), [`_cache_path`](../../src/orchestrator/pkg/persistence.py#L253), [`_calls_sidecar`](../../src/orchestrator/pkg/persistence.py#L351), [`_load_calls`](../../src/orchestrator/pkg/persistence.py#L380), [`_save_calls`](../../src/orchestrator/pkg/persistence.py#L362), [`default_cache_dir`](../../src/orchestrator/pkg/persistence.py#L178), [`link_joins`](../../src/orchestrator/pkg/join_link.py#L150), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260), [`merge_repos`](../../src/orchestrator/pkg/scoping.py#L150), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L169)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-21-the-fix-for-the-fabrication-class-fabricated`, `docs/specs/multi-repo-roadmap.md#invariants`, `docs/specs/multi-repo-roadmap.md#where-it-was-blocked-and-what-still-is`, `docs/specs/perl-support-roadmap.md#4-phases-the-living-table`
 
 ### `repo_state`
 
 [`src/orchestrator/pkg/persistence.py:169`](../../src/orchestrator/pkg/persistence.py#L169)
 
-- **Called by** (8 production · 1 test): [`_grounding_for`](../../src/orchestrator/cli/build.py#L180), [`_per_repo`](../../src/orchestrator/plugin/server.py#L995), [`_render_state_html`](../../src/orchestrator/cli/understand.py#L275), [`check_declared_repos`](../../scripts/sdlc_shapes.py#L267), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L314), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L401), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_writing_a_plan_leaves_the_tree_trusted`](../../tests/sdlc/test_plan_gate_cli.py#L98)
+- **Called by** (8 production · 5 test): [`_grounding_for`](../../src/orchestrator/cli/build.py#L180), [`_per_repo`](../../src/orchestrator/plugin/server.py#L995), [`_render_state_html`](../../src/orchestrator/cli/understand.py#L275), [`check_declared_repos`](../../scripts/sdlc_shapes.py#L267), [`check_memory_bank`](../../src/orchestrator/knowledge/understand.py#L314), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L401), [`render_memory_bank`](../../src/orchestrator/knowledge/understand.py#L122), [`test_a_build_document_is_not_dirt`](../../tests/pkg/test_persistence.py#L92), [`test_repo_state_clean_dirty_and_non_git`](../../tests/pkg/test_persistence.py#L82), [`test_spine_config_beside_the_plans_is_still_dirt`](../../tests/pkg/test_persistence.py#L107), [`test_the_exemption_holds_from_a_subdirectory_and_nothing_else_is_exempt`](../../tests/pkg/test_persistence.py#L117), [`test_writing_a_plan_leaves_the_tree_trusted`](../../tests/sdlc/test_plan_gate_cli.py#L98)
 - **Calls** (3): [`_git`](../../src/orchestrator/pkg/persistence.py#L138), `pathlib.Path`, [`worktree_dirty`](../../src/orchestrator/pkg/persistence.py#L156)
 - **Documented in**: `docs/specs/multi-repo-roadmap.md#submodules-a-multi-repo-laid-out-inside-one-checkout-2026-09-09`, `docs/specs/pkg-accuracy-gaps.md#6-operational-open-right-now`
 
@@ -165,7 +165,7 @@
 
 [`src/orchestrator/pkg/persistence.py:117`](../../src/orchestrator/pkg/persistence.py#L117)
 
-- **Called by** (1): [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260)
+- **Called by** (1 production · 1 test): [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260), [`test_round_trip_preserves_nodes_edges_provenance`](../../tests/pkg/test_persistence.py#L54)
 - **Calls** (3): `dumps`, [`facts_to_dict`](../../src/orchestrator/pkg/persistence.py#L64), `pathlib.Path`
 
 ### `worktree_dirty`
@@ -181,4 +181,4 @@
 
 ## Imported by
 
-[`orchestrator.cli._common`](../../src/orchestrator/cli/_common.py#L1), [`orchestrator.cli.build`](../../src/orchestrator/cli/build.py#L1), [`orchestrator.cli.understand`](../../src/orchestrator/cli/understand.py#L1), [`orchestrator.codereview.checkout`](../../src/orchestrator/codereview/checkout.py#L1), [`orchestrator.evals.localization`](../../src/orchestrator/evals/localization.py#L1), [`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.understand`](../../src/orchestrator/knowledge/understand.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`scripts.sdlc_shapes`](scripts.sdlc_shapes.md), [`tests.pkg.test_join_link`](../../tests/pkg/test_join_link.py#L1), [`tests.pkg.test_multi_repo_load`](../../tests/pkg/test_multi_repo_load.py#L1), [`tests.pkg.test_nested_repos`](../../tests/pkg/test_nested_repos.py#L1), [`tests.pkg.test_persistence`](../../tests/pkg/test_persistence.py#L1), [`tests.pkg.test_razor`](../../tests/pkg/test_razor.py#L1), [`tests.sdlc.test_plan_gate_cli`](../../tests/sdlc/test_plan_gate_cli.py#L1)
+[`orchestrator.cli._common`](../../src/orchestrator/cli/_common.py#L1), [`orchestrator.cli.build`](../../src/orchestrator/cli/build.py#L1), [`orchestrator.cli.change`](../../src/orchestrator/cli/change.py#L1), [`orchestrator.cli.pkg`](orchestrator.cli.pkg.md), [`orchestrator.cli.sdlc`](orchestrator.cli.sdlc.md), [`orchestrator.cli.understand`](../../src/orchestrator/cli/understand.py#L1), [`orchestrator.codereview.checkout`](../../src/orchestrator/codereview/checkout.py#L1), [`orchestrator.codereview.grounding`](../../src/orchestrator/codereview/grounding.py#L1), [`orchestrator.evals.localization`](../../src/orchestrator/evals/localization.py#L1), [`orchestrator.knowledge.analysis`](../../src/orchestrator/knowledge/analysis.py#L1), [`orchestrator.knowledge.understand`](../../src/orchestrator/knowledge/understand.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.sdlc.activities`](../../src/orchestrator/sdlc/activities.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`orchestrator.sdlc.grounding`](../../src/orchestrator/sdlc/grounding.py#L1), [`scripts.codegen_benchmark`](../../scripts/codegen_benchmark.py#L1), [`scripts.phase2a_parity_gate`](../../scripts/phase2a_parity_gate.py#L1), [`scripts.sdlc_shapes`](scripts.sdlc_shapes.md), [`tests.evals.test_agent_corpus`](../../tests/evals/test_agent_corpus.py#L1), [`tests.pkg.test_join_link`](../../tests/pkg/test_join_link.py#L1), [`tests.pkg.test_multi_repo_load`](../../tests/pkg/test_multi_repo_load.py#L1), [`tests.pkg.test_nested_repos`](../../tests/pkg/test_nested_repos.py#L1), [`tests.pkg.test_persistence`](../../tests/pkg/test_persistence.py#L1), [`tests.pkg.test_razor`](../../tests/pkg/test_razor.py#L1), [`tests.sdlc.test_plan_gate_cli`](../../tests/sdlc/test_plan_gate_cli.py#L1)

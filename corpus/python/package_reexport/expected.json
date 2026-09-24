@@ -1,0 +1,356 @@
+{
+  "language": "python",
+  "case": "package_reexport",
+  "root": ".repo",
+  "why": "B20. Every caller reaches its target through a re-export and never through the defining module: the package `__init__` (`from .store import Store`), a rename (`helper as assist`), a two-link chain (`app` -> `app.sub` -> `app.sub.deep`), a star import with a literal `__all__` and one without, an ordinary module re-exporting what it imported (`app.relay`), the attribute form (`import app; app.Store()`), a member of a re-exported class (`Engine.start(...)`), and a base class inherited through the package. Python binds every imported name in the importing module, so each of these reaches the defining symbol at run time. Before the fix every one of these CALLS/IMPLEMENTS edges landed on an external placeholder named for the import text (`py:app.Store`), and IMPORTS stopped at the package.",
+  "nodes": [
+    {
+      "id": "py:app",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.base",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.models",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.shapes",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.store",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.sub",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.sub.deep",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.util",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.relay",
+      "kind": "Module"
+    },
+    {
+      "id": "py:client",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.base.Base",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.models.Order",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.models.Draft",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.store.Store",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.sub.deep.Engine",
+      "kind": "Type"
+    },
+    {
+      "id": "py:client.Special",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.store.Store.get",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.util.helper",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.shapes.area",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.shapes._private",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.sub.deep.Engine.start",
+      "kind": "Function"
+    },
+    {
+      "id": "py:client.via_package",
+      "kind": "Function"
+    },
+    {
+      "id": "py:client.via_rename",
+      "kind": "Function"
+    },
+    {
+      "id": "py:client.via_chain",
+      "kind": "Function"
+    },
+    {
+      "id": "py:client.via_star_all",
+      "kind": "Function"
+    },
+    {
+      "id": "py:client.via_star_public",
+      "kind": "Function"
+    },
+    {
+      "id": "py:client.via_module",
+      "kind": "Function"
+    },
+    {
+      "id": "py:client.via_attribute",
+      "kind": "Function"
+    },
+    {
+      "id": "py:client.via_member",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "py:app",
+      "dst": "py:app.base.Base",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app",
+      "dst": "py:app.models",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app",
+      "dst": "py:app.shapes",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app",
+      "dst": "py:app.store.Store",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app",
+      "dst": "py:app.sub.deep.Engine",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app",
+      "dst": "py:app.util.helper",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.sub",
+      "dst": "py:app.sub.deep.Engine",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.relay",
+      "dst": "py:app.util.helper",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:app",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:app.base.Base",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:app.sub.deep.Engine",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:app.models.Order",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:app.store.Store",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:app.shapes.area",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:app.util.helper",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.base",
+      "dst": "py:app.base.Base",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.models",
+      "dst": "py:app.models.Order",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.models",
+      "dst": "py:app.models.Draft",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.store",
+      "dst": "py:app.store.Store",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.store.Store",
+      "dst": "py:app.store.Store.get",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.util",
+      "dst": "py:app.util.helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.shapes",
+      "dst": "py:app.shapes.area",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.shapes",
+      "dst": "py:app.shapes._private",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.sub.deep",
+      "dst": "py:app.sub.deep.Engine",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.sub.deep.Engine",
+      "dst": "py:app.sub.deep.Engine.start",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:client.Special",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:client.via_package",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:client.via_rename",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:client.via_chain",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:client.via_star_all",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:client.via_star_public",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:client.via_module",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:client.via_attribute",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:client.Special",
+      "dst": "py:app.base.Base",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:client.via_package",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:client.via_rename",
+      "dst": "py:app.util.helper",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:client.via_chain",
+      "dst": "py:app.sub.deep.Engine",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:client.via_star_all",
+      "dst": "py:app.models.Order",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:client.via_star_public",
+      "dst": "py:app.shapes.area",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:client.via_module",
+      "dst": "py:app.util.helper",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:client.via_attribute",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:client",
+      "dst": "py:client.via_member",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:client.via_member",
+      "dst": "py:app.sub.deep.Engine.start",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:client.via_member",
+      "dst": "py:app.sub.deep.Engine",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "false_positives": [],
+  "excluded": [
+    "`from .models import *` and `from .shapes import *` import no single name, so their IMPORTS edge lands on the module itself (`py:app.models`, `py:app.shapes`) — the star binds names for callers, which is what the CALLS edges measure.",
+    "`__all__ = [\"Order\"]` is a module-level constant — not modelled (see python/plain). It is read, not labelled: it is why `Draft` is not bound by the star import and why no edge reaches `Draft`.",
+    "`app._private` is not bound by `from .shapes import *` (no `__all__`, leading underscore) and nothing calls it; it is labelled only as a node.",
+    "No package->submodule CONTAINS: the graph does not model package nesting (see python/relative_imports)."
+  ],
+  "open_questions": [],
+  "note": "Labelled from the source before the fix ran. On the base commit 17 of its 44 labelled edges failed: all 9 CALLS, the IMPLEMENTS, and the 7 IMPORTS that name a re-exported symbol."
+}

@@ -4,6 +4,72 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.46.0 — 2026-09-24
+
+### Fixed
+
+- **A one-line Kotlin body lost every declaration after it (#396).** `interface Iface { fun
+  f() }` and `class B { fun f() {} }` are a `tree-sitter-kotlin` 1.1.0 parse ambiguity, and the
+  `ERROR` it produced dropped the rest of the file. Reported as a missing same-file
+  `IMPLEMENTS`, which it caused, but it lost every node and edge after the body. The Kotlin
+  front-end now moves such a body's closing brace onto its own line and re-parses. A split is
+  kept only when the parser reads that byte as a brace and the `ERROR` shrinks, only brace
+  pairs overlapping an `ERROR` are tried, one file spends at most 64 re-parses, and the result
+  is used only when it parses cleanly. Every line number, including those of facts emitted in
+  `finalize` (Compose routes, Ktor routes, Retrofit calls), points at the file on disk. A file
+  that parses cleanly takes no part of this path. See
+  [kotlin-support-roadmap.md](docs/specs/kotlin-support-roadmap.md).
+- **Two Kotlin recall gaps from #397.** A Room `@Insert`/`@Upsert`/`@Delete` whose parameter
+  type is reachable only through `import app.data.*` now gets its `WRITES` edge. The lookup
+  follows Kotlin's order: an explicit import, then the same package (which hides a star import
+  even when it declares a plain class), then star imports, where two candidates are an
+  ambiguity and emit nothing. Overloaded write methods are settled one method at a time, and a
+  qualified parameter type resolves as written. An extension declared in another file of the
+  caller's own package now resolves with no import, as Kotlin does. It resolves only when the
+  receiver in scope is compatible and no supertype the repository cannot see (or `Any`) could
+  declare a member of that name, because a member beats an extension.
+- **Kotlin: a bare call inside `with(x) { }` no longer lands on the enclosing class (#453).**
+  `with(x) { f() }`, `x.apply { }`, `x.run { }` and `buildString`/`buildList`/`buildSet`/`buildMap`
+  put the receiver's members ahead of the enclosing class's, and the front-end ignored that:
+  `apply("com.android.application")` inside `with(pluginManager) { }` was recorded as a Gradle
+  convention plugin's own `apply(target: Project)` calling itself — 17 invented self-loops on
+  the Android validation app. Inside those blocks an enclosing-class member reading is now
+  **refused**, and never redirected to the receiver, so the change can only remove an edge:
+  measured on seven Kotlin code bases, every edge it emits was emitted before, and every edge it
+  removes is a bare call inside such a block. Top-level and imported calls are unchanged.
+  **What it costs:** a *true* call to the enclosing class from inside one of these blocks is
+  dropped too — React Native's `ReactAndroid` loses 20, detox 4, `@react-native/gradle-plugin` 5;
+  ktor-samples, KaMPKit and spring-petclinic-kotlin are unchanged. Kotlin `CALLS` recall reads
+  0.93 → 0.85: the new corpus case labels the true targets the rule gives up as known gaps.
+  Resolving such a call *to* the receiver's member is the follow-up in #459.
+  See [kotlin-support-roadmap.md](docs/specs/kotlin-support-roadmap.md) §3.2.
+- **A call through a Python re-export lands on the symbol that defines it.** `from app import
+  Store; Store()` put the edge on an external placeholder, `py:app.Store`, instead of
+  `py:app.store.Store` — so `blast_radius`, `explain_symbol`, `investigate` and grounding
+  under-counted the callers of every re-exported symbol and called it third-party. On Spine's own
+  graph that was 1,271 `CALLS` (5.5%) on 141 phantom twins: `FactStore` showed 57 call sites of
+  167. Resolution follows Python's binding rules — a package `__init__` or any module, renames
+  (`as`), chains through sub-packages, `import *` (a literal `__all__`, else public names),
+  `if TYPE_CHECKING:`, and members of a re-exported class. An import through a re-export now
+  names the defining symbol too, as a direct import always did. A binding that differs by
+  environment (`try`/`except ImportError`) or comes from a module `__getattr__` is never guessed.
+  **Upgrade note:** Python graphs change wherever a repository re-exports — more callers, and
+  `IMPORTS` that name a symbol instead of its package. Two consumers of the import graph move
+  with it: `pkg export`'s SQLite `imports` table (module → module only) loses the rows that now
+  name a symbol (110 on Spine's own graph), and the dependency lists on `understand`'s module
+  pages shift from the package to the defining module (104 pairs out, 162 in on Spine; import
+  cycles unchanged). An `understand --check` in CI therefore diffs once — regenerate `episteme/`
+  with `orchestrator understand .`. `import a.b` now binds `a` (the package) for call
+  resolution, as Python does; it used to bind `a.b`.
+
+### Added
+
+- **`pkg verify` warns on a `phantom-symbol`**: an external node that carries calls while a
+  first-party symbol of the same name lives under the same path — an unresolved re-export or
+  alias, whose callers are missing from the real symbol. It is the check that would have caught
+  the fix above (141 on the pre-fix graph, with `pkg verify` otherwise OK). A warning, never an
+  error; what it still finds is a binding no front-end can decide.
+
 ## 3.45.0 — 2026-09-24
 
 ### Added

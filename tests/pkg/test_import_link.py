@@ -96,15 +96,18 @@ def test_python_stdlib_shadow_stays_external(tmp_path: Path) -> None:
     assert by_id["py:click.types.convert"].grounded
 
 
-def test_python_reexport_joins_to_the_package_module(tmp_path: Path) -> None:
-    # `from click import echo` where echo really lives in click.utils: the id
-    # py:click.echo matches no node, but its dotted prefix py:click does.
+def test_python_reexport_joins_to_the_defining_symbol(tmp_path: Path) -> None:
+    # `from click import echo` where echo really lives in click.utils: the id py:click.echo
+    # matches no node. The package's own `from .utils import echo` says where it lives, so the
+    # import names py:click.utils.echo — what a direct `from click.utils import echo` gives.
+    # (Before B20 it stopped at the package prefix, py:click; an undecidable re-export still
+    # does — see corpus/python/reexport_refusals.)
     _write(tmp_path, "click/__init__.py", "from .utils import echo\n")
     _write(tmp_path, "click/utils.py", "def echo():\n    pass\n")
     _write(tmp_path, "app.py", "from click import echo\n")
 
     batch = RepoCodeExtractor().extract(tmp_path)
-    assert ("py:app", "py:click") in _import_pairs(batch)
+    assert ("py:app", "py:click.utils.echo") in _import_pairs(batch)
     assert "py:click.echo" not in {n.id for n in batch.nodes}  # phantom dropped
 
 

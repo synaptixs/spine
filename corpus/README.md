@@ -118,12 +118,17 @@ in PHP either, since a `Type` id is dotted and a `Module` id ends in `.pl`/`.pm`
 | symbol | `{parent_id}.{name}` | `py:shop.cart.Cart.total` |
 | import target — symbol exists | **the symbol** | `from shop.tax import rate` → `py:shop.tax.rate` |
 | import target — symbol has no node | **the module it lives in** | `from api.routes import router` → `py:api.routes` |
+| import target — a re-export the front-end resolves | **the defining symbol** | `from app import Store` (app re-exports `.store.Store`) → `py:app.store.Store` |
 
 That last pair is the trap, and it has two halves. `from X import Y` binds to `py:X.Y`, so a
 label naming the *module* scores `IMPORTS` recall at zero when `Y` is a function or class —
 it looks like an extractor regression and is not. But when `Y` has no node of its own — a
-module-level variable, a re-export, an alias — the import join rewrites the edge to the
-nearest first-party module, and a label naming the *symbol* misses for the opposite reason.
+module-level variable, an alias, a re-export the front-end cannot decide — the import join
+rewrites the edge to the nearest first-party module, and a label naming the *symbol* misses
+for the opposite reason. A Python re-export the front-end *can* decide (`from app import Store`
+where `app/__init__.py` does `from .store import Store`) is not that case: it lands on the
+defining symbol, `py:app.store.Store`, before the join runs — see `python/package_reexport`,
+and `python/reexport_refusals` for the ones it must not decide.
 
 The rule is one line of `import_link.py`: the rewrite fires **only when the target is an
 external placeholder**. A real node is left alone. So ask whether `Y` is itself declared, not

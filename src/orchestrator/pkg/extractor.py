@@ -30,6 +30,7 @@ from orchestrator.pkg.python_client import scan_module as scan_calls
 from orchestrator.pkg.python_orm import OrmState
 from orchestrator.pkg.python_orm import emit as emit_orm
 from orchestrator.pkg.python_orm import scan_module as scan_orm
+from orchestrator.pkg.python_reexport import ModuleExports, collect_exports, resolve_reexports
 from orchestrator.pkg.python_routes import RouteState, scan_module
 from orchestrator.pkg.python_routes import emit as emit_routes
 
@@ -202,6 +203,9 @@ class PythonExtractor:
         # HTTP calls join to endpoints that may not exist until every file is walked, so
         # they wait for ``finalize`` as well — and are emitted *after* routes.
         self._calls = ClientState()
+        # What each module binds at module level, so a call made through a re-export can be
+        # landed on the defining symbol once every module is known (`python_reexport`).
+        self._exports: dict[str, ModuleExports] = {}
 
     def module_name(self, path: Path, root: Path) -> str:
         return module_qualname(path, root)
@@ -228,6 +232,7 @@ class PythonExtractor:
         self._module = module
         self._is_pkg = rel.endswith("__init__.py")
         imports = self._collect_imports(tree)
+        self._exports[module_id] = collect_exports(tree, self._import_base)
         module_names = self._collect_defs(tree.body, module_id)
         self._emit_body(tree.body, module_id, module_id, imports, module_names, {}, rel, batch)
         scan_module(tree, module_id=module_id, rel=rel, imports=imports, state=self._routes)
@@ -240,8 +245,9 @@ class PythonExtractor:
 
         Nothing in Python calls an HTTP handler, so without this a route handler has no
         inbound edge at all and ``impact_of`` reports a public endpoint as safe to change.
-        Contract (shared with the Go front-end): mutate ``batch`` in place; the return value
-        is ignored. State is cleared so a second walk on the same instance starts empty.
+        Routes, entities and client calls are added to ``batch`` in place; re-export resolution
+        runs last and returns a *new* batch (it replaces edges), which the caller honours. State
+        is cleared so a second walk on the same instance starts empty.
         """
         emit_routes(self._routes, batch)
         self._routes.clear()
@@ -251,6 +257,9 @@ class PythonExtractor:
         # endpoints have to be in the batch already or every call would be dropped.
         emit_calls(self._calls, batch)
         self._calls.clear()
+        # Last, so an edge any pass above added is repointed too.
+        batch = resolve_reexports(batch, self._exports)
+        self._exports.clear()
         return batch
 
     @property
@@ -288,7 +297,10 @@ class PythonExtractor:
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for a in node.names:
-                    binds[a.asname or a.name.split(".")[0]] = f"py:{a.name}"
+                    # `import a.b` binds `a` — the package — not `a.b`: `a.run()` is `a`'s `run`.
+                    # `import a.b as c` binds `c` to `a.b`.
+                    top = a.name.split(".")[0]
+                    binds[a.asname or top] = f"py:{a.name if a.asname else top}"
             elif isinstance(node, ast.ImportFrom):
                 base = self._import_base(node)
                 for a in node.names:

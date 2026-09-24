@@ -1,7 +1,7 @@
 {
   "language": "kotlin",
   "case": "extensions",
-  "why": "D4, from both sides. An extension `fun Slug.tidy()` is a **free function under the package module** — `java:shop.text.tidy`, never `java:shop.text.Slug.tidy` — because the receiver type does not own it; attaching it would hang a CONTAINS edge off a type that in real code usually lives in another module or in the SDK. The call side has to agree: `slug.tidy()` looks exactly like a member call and must still resolve to the free function. The plain top-level `shorten(slug)` is here as the contrast — same module-level id, no receiver.\n\n**The imported half.** §6 assigns this case \"an extension with the same name imported from elsewhere; the imported one is a hit only when its import is explicit\", and the fixture had no import at all — so the half of the rule that actually breaks was never exercised. `shop.remote` now declares two extensions on the same receiver: `trim`, which `Ext.kt` imports explicitly, and `tidy`, which it does not. `slug.trim()` must therefore resolve to `java:shop.remote.trim` — a free function in *another* package, reached only because the import names it — while `slug.tidy()` keeps resolving to the same-file one, because a file's own declaration wins over a namesake it never imported.",
+  "why": "D4, from both sides. An extension `fun Slug.tidy()` is a **free function under the package module** — `java:shop.text.tidy`, never `java:shop.text.Slug.tidy` — because the receiver type does not own it; attaching it would hang a CONTAINS edge off a type that in real code usually lives in another module or in the SDK. The call side has to agree: `slug.tidy()` looks exactly like a member call and must still resolve to the free function. The plain top-level `shorten(slug)` is here as the contrast — same module-level id, no receiver.\n\n**The imported half.** §6 assigns this case \"an extension with the same name imported from elsewhere; the imported one is a hit only when its import is explicit\", and the fixture had no import at all — so the half of the rule that actually breaks was never exercised. `shop.remote` now declares two extensions on the same receiver: `trim`, which `Ext.kt` imports explicitly, and `tidy`, which it does not. `slug.trim()` must therefore resolve to `java:shop.remote.trim` — a free function in *another* package, reached only because the import names it — while `slug.tidy()` keeps resolving to the same-file one, because a file's own declaration wins over a namesake it never imported.\n\n**The same-package half (#397).** `Local.kt` declares `fun Slug.condense()` in the *same* package as `Ext.kt` but a different file, with no import — Kotlin needs none for a same-package symbol. This is a third shape §6 never separated from the imported one: an extension the repo-wide table has to offer *without* an explicit-import candidate to hang the lookup off, verified receiver-compatible against `Slug` the same way an imported candidate already is. `Local.kt` also declares `fun Slug.toString()`, the tier's negative: `slug.toString()` is `Any.toString`, because a member always beats an extension, and every class has `Any`'s members.",
   "root": ".repo",
   "nodes": [
     { "id": "java:shop.text", "kind": "Module" },
@@ -9,6 +9,8 @@
     { "id": "java:shop.text.Formatter", "kind": "Type" },
     { "id": "java:shop.text.Formatter.run", "kind": "Function" },
     { "id": "java:shop.text.tidy", "kind": "Function" },
+    { "id": "java:shop.text.condense", "kind": "Function" },
+    { "id": "java:shop.text.toString", "kind": "Function" },
     { "id": "java:shop.text.shorten", "kind": "Function" },
     { "id": "java:shop.text.Slug.raw", "kind": "Field" },
     { "id": "java:shop.remote", "kind": "Module" },
@@ -23,10 +25,13 @@
     { "src": "java:shop.text", "dst": "java:shop.text.Slug", "kind": "CONTAINS" },
     { "src": "java:shop.text", "dst": "java:shop.text.Formatter", "kind": "CONTAINS" },
     { "src": "java:shop.text", "dst": "java:shop.text.tidy", "kind": "CONTAINS" },
+    { "src": "java:shop.text", "dst": "java:shop.text.condense", "kind": "CONTAINS" },
+    { "src": "java:shop.text", "dst": "java:shop.text.toString", "kind": "CONTAINS" },
     { "src": "java:shop.text", "dst": "java:shop.text.shorten", "kind": "CONTAINS" },
     { "src": "java:shop.text.Slug", "dst": "java:shop.text.Slug.raw", "kind": "CONTAINS" },
     { "src": "java:shop.text.Formatter", "dst": "java:shop.text.Formatter.run", "kind": "CONTAINS" },
     { "src": "java:shop.text.Formatter.run", "dst": "java:shop.text.tidy", "kind": "CALLS" },
+    { "src": "java:shop.text.Formatter.run", "dst": "java:shop.text.condense", "kind": "CALLS" },
     { "src": "java:shop.text.Formatter.run", "dst": "java:shop.text.shorten", "kind": "CALLS" },
     { "src": "java:shop.text.Formatter.run", "dst": "java:shop.remote.trim", "kind": "CALLS" },
     { "src": "java:shop.remote", "dst": "java:shop.remote.trim", "kind": "CONTAINS" },
@@ -59,11 +64,20 @@
         "kind": "CALLS"
       },
       "why": "PREDICTED BEFORE SCORING, and it was happening. The same fabrication one file further out: an extension imported from another package is written exactly like a member call, and the per-file extension table only ever held *this* file\u2019s, so the call fell through to the receiver type and produced `Slug.trim` \u2014 losing a grounded target for an invented one. The existing D4 test covered only the same-file half."
+    },
+    {
+      "edge": {
+        "src": "java:shop.text.Formatter.run",
+        "dst": "java:shop.text.toString",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (#397). The same-package tier found `fun Slug.toString()` in `Local.kt`, receiver-compatible and needing no import. But `Slug` inherits `toString` from `Any`, and Kotlin binds the member, with the extension reported as shadowed."
     }
   ],
   "excluded": [
     "`Int` and `Long` are Kotlin builtins, not declarations of this repository, so neither gets a node and neither receiver can be checked against anything — the calls resolve because nothing contradicts them, which is the whole of the rule.",
-    "`n.scaled()` and `big.scaled()` are two call sites and one labelled edge: they name the same id, and the graph holds facts rather than occurrences."
+    "`n.scaled()` and `big.scaled()` are two call sites and one labelled edge: they name the same id, and the graph holds facts rather than occurrences.",
+    "`slug.toString()` calls `Any.toString`, a builtin, so it gets no label, for the same reason `Int` and `Long` get no node."
   ],
   "open_questions": []
 }

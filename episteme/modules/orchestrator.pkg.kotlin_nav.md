@@ -30,7 +30,7 @@ _16 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/kotlin_nav.py:91`](../../src/orchestrator/pkg/kotlin_nav.py#L91)
 
-- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/kotlin_extractor.py#L296)
+- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/kotlin_extractor.py#L307)
 - **Fields**: `consts`, `declarations`, `navigations`
 
 ### `_Part`
@@ -124,21 +124,21 @@ _16 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/kotlin_nav.py:150`](../../src/orchestrator/pkg/kotlin_nav.py#L150)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L334)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L354)
 - **Calls** (2): [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245), [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26)
 
 ### `emit`
 
 [`src/orchestrator/pkg/kotlin_nav.py:202`](../../src/orchestrator/pkg/kotlin_nav.py#L202)
 
-- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L981)
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L1112)
 - **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_key`](../../src/orchestrator/pkg/kotlin_nav.py#L342), [`_resolve`](../../src/orchestrator/pkg/kotlin_nav.py#L319)
 
 ### `scan_calls`
 
 [`src/orchestrator/pkg/kotlin_nav.py:167`](../../src/orchestrator/pkg/kotlin_nav.py#L167)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L334)
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L354)
 - **Calls** (8): [`_Site`](../../src/orchestrator/pkg/kotlin_nav.py#L71), [`_argument_node`](../../src/orchestrator/pkg/kotlin_nav.py#L233), [`_arguments_holder`](../../src/orchestrator/pkg/kotlin_nav.py#L361), [`_callee_name`](../../src/orchestrator/pkg/kotlin_nav.py#L367), [`_is_inner_callee`](../../src/orchestrator/pkg/kotlin_nav.py#L351), [`_single_screen`](../../src/orchestrator/pkg/kotlin_nav.py#L399), [`_template`](../../src/orchestrator/pkg/kotlin_nav.py#L252), [`_walk`](../../src/orchestrator/pkg/kotlin_nav.py#L420)
 
 ## Imports

@@ -34,7 +34,7 @@ _22 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/php_extractor.py:105`](../../src/orchestrator/pkg/php_extractor.py#L105)
 
-- **Called by** (1 production · 6 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L575), [`_calls_facts`](../../tests/pkg/test_php_extractor.py#L221), [`_facts`](../../tests/pkg/test_php_extractor.py#L67), [`_facts`](../../tests/pkg/test_php_orm.py#L46), [`_graph`](../../tests/pkg/test_php_routes.py#L19), [`test_end_to_end_via_repo_extractor_resolves_require_by_path_suffix`](../../tests/pkg/test_php_extractor.py#L161), [`test_legacy_require_literal_and_computed`](../../tests/pkg/test_php_extractor.py#L139)
+- **Called by** (1 production · 6 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L587), [`_calls_facts`](../../tests/pkg/test_php_extractor.py#L221), [`_facts`](../../tests/pkg/test_php_extractor.py#L67), [`_facts`](../../tests/pkg/test_php_orm.py#L46), [`_graph`](../../tests/pkg/test_php_routes.py#L19), [`test_end_to_end_via_repo_extractor_resolves_require_by_path_suffix`](../../tests/pkg/test_php_extractor.py#L161), [`test_legacy_require_literal_and_computed`](../../tests/pkg/test_php_extractor.py#L139)
 - **Fields**: `language`, `suffixes`
 - **Documented in**: `CHANGELOG.md`, `docs/specs/language-expansion-roadmap.md#where-we-are-today`, `docs/specs/php-support-roadmap.md#4-phases`
 

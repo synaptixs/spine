@@ -13,9 +13,9 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L153) — reaches **44** symbols
-- [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L97) — reaches **33** symbols
-- [`_slug`](../../src/orchestrator/pkg/doc_source.py#L91) — reaches **23** symbols
+- [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L153) — reaches **45** symbols
+- [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L97) — reaches **34** symbols
+- [`_slug`](../../src/orchestrator/pkg/doc_source.py#L91) — reaches **24** symbols
 - [`is_doc_file`](../../src/orchestrator/pkg/doc_source.py#L82) — reaches **9** symbols
 - [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L190) — reaches **2** symbols · **no test path visible**
 - [`_HtmlToText`](../../src/orchestrator/pkg/doc_source.py#L228) — reaches **1** symbol · **no test path visible**
@@ -135,7 +135,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/doc_source.py:153`](../../src/orchestrator/pkg/doc_source.py#L153)
 
 - **Called by** (6 production · 25 test): [`_binding`](../../scripts/state-numbers.py#L83), [`doc_drift`](../../src/orchestrator/pkg/doc_link.py#L73), [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L48), [`link_docs`](../../src/orchestrator/pkg/doc_link.py#L51), [`read_attachments_in_full`](../../src/orchestrator/intake/jira_source.py#L445), [`score_drift`](../../src/orchestrator/pkg/accuracy.py#L500), [`test_corrupt_office_file_is_skipped_not_fatal`](../../tests/pkg/test_doc_source.py#L227), [`test_doc_ingestion_stops_at_a_nested_checkout`](../../tests/pkg/test_nested_repos.py#L72), [`test_docx_heading_styles_become_sections`](../../tests/pkg/test_doc_source.py#L181), [`test_docx_monospace_run_becomes_backticks`](../../tests/pkg/test_doc_source.py#L188), [`test_docx_table_text_is_kept`](../../tests/pkg/test_doc_source.py#L197), [`test_front_matter_keeps_values_drops_keys`](../../tests/pkg/test_doc_source.py#L134), [`test_html_drops_script_and_style`](../../tests/pkg/test_doc_source.py#L105), [`test_html_headings_become_sections`](../../tests/pkg/test_doc_source.py#L89), [`test_html_inline_code_becomes_backticks`](../../tests/pkg/test_doc_source.py#L97), [`test_html_pre_block_is_not_backticked`](../../tests/pkg/test_doc_source.py#L112), [`test_html_without_headings_stays_whole`](../../tests/pkg/test_doc_source.py#L120), [`test_malformed_artifact_is_not_fatal`](../../tests/pkg/test_media.py#L148), [`test_malformed_html_is_skipped_not_fatal`](../../tests/pkg/test_doc_source.py#L125), [`test_markdown_without_front_matter_is_untouched`](../../tests/pkg/test_doc_source.py#L146), [`test_media_file_without_artifact_is_skipped`](../../tests/pkg/test_media.py#L116), [`test_persist_is_hidden_from_doc_ingestion`](../../tests/sdlc/test_builddoc.py#L459), [`test_read_doc_pages_extracts_pdf_text`](../../tests/pkg/test_doc_link.py#L105), [`test_read_doc_pages_skips_unparseable_pdf`](../../tests/pkg/test_doc_link.py#L113), [`test_read_doc_pages_walks_repo_and_skips_hidden`](../../tests/pkg/test_doc_link.py#L97), +6 more
-- **Calls** (5): [`DocPage`](../../src/orchestrator/pkg/docs.py#L115), [`is_nested_repo`](../../src/orchestrator/pkg/extractor.py#L643), `pathlib.Path`, [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L97), `walk`
+- **Calls** (5): [`DocPage`](../../src/orchestrator/pkg/docs.py#L115), [`is_nested_repo`](../../src/orchestrator/pkg/extractor.py#L655), `pathlib.Path`, [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L97), `walk`
 - **Documented in**: `docs/specs/doc-binding-walkthrough.md#step-1-walk-in-detail`, `docs/specs/document-ingestion-reference.md#1-walk`, `docs/specs/gap2-document-modality-roadmap.md#design-decisions`, `docs/specs/gap3-media-ingestion-roadmap.md#the-determinism-problem-read-this-first`
 
 ### `register_reader`

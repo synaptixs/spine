@@ -92,7 +92,7 @@ in-repo (e.g. a third-party class) are marked `external`.
 | Edge | Meaning |
 |---|---|
 | `CONTAINS` | module → type, type → method |
-| `IMPORTS` | module → module |
+| `IMPORTS` | module → module, or module → symbol for `from x import y` (a re-export resolves to the defining symbol) |
 | `CALLS` | function → function |
 | `IMPLEMENTS` | subclass / interface implementation |
 | `READS` / `WRITES` | function → field/column |

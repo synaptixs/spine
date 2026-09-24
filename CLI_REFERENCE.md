@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.45.0  (synaptixs-spine)
+Spine 3.46.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -506,6 +506,7 @@ orchestrator pkg verify [PATH] [OPTIONS]
 | `orphan-rate` | error | are first-party modules implausibly unimported? |
 | `external-ratio` | error | are `IMPORTS` implausibly all-external? |
 | `phantom-module` | warning | does an `external` module shadow a first-party one? |
+| `phantom-symbol` | warning | does an `external` node carry calls while a first-party symbol of the same name lives under the same path (an unresolved re-export)? |
 | `source-parity` | warning | does a file declare more routes/tables than the graph holds? |
 | `invented-call` | warning | does a `CALLS` edge target a name bound in the caller's own scope? |
 

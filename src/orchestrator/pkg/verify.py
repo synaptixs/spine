@@ -23,6 +23,18 @@ Checks, cheapest first:
   ``py:click.types``). After the import join this is usually stdlib shadowing
   — worth a human's glance, not a CI failure; the rate checks above are the
   tripwires when it's systematic.
+- **phantom-symbol** (warning) — an ``external`` node that carries a call (or any
+  non-import edge) while a *grounded* symbol with the same name lives under the same
+  path: ``py:app.Store`` beside a real ``py:app.store.Store``. That is an unresolved
+  re-export or alias, and every edge on it is missing from the real symbol's callers —
+  1,271 ``CALLS`` on this repository before Python re-exports were resolved (B20), with
+  this check reporting OK. It is written against no language, but it can only fire where
+  ids nest a symbol under its module path (Python, the JVM languages, PHP, C++); TS/JS,
+  Go, C and C# ids do not nest that way. The twin must be *module-level* and the edge
+  must not be ``CONTAINS`` — that keeps a same-named method, and a deliberately
+  external call (a Kotlin extension colliding with an unrelated first-party function),
+  out of it. What remains is a binding a front-end could not decide: Python's
+  ``try``/``except ImportError`` pair, a PEP 562 ``__getattr__``.
 - **source-parity** (warning) — the source plainly declares something the graph
   holds no node of. Every other check asks whether the graph is self-consistent;
   this is the only one that asks whether it is *complete with respect to the
@@ -165,6 +177,59 @@ def _check_phantoms(batch: FactBatch) -> list[VerifyIssue]:
             "warning",
             f"{len(phantoms)} external module(s) share a first-party module's basename "
             f"(stdlib shadowing, or an unjoined import): {_examples(phantoms)}",
+        )
+    ]
+
+
+_LEAF = re.compile(r"(::|\.)([^.:/]+)$")
+
+
+def _check_phantom_symbols(batch: FactBatch) -> list[VerifyIssue]:
+    nodes = {n.id: n for n in batch.nodes}
+    # A re-export can only bind what a module binds, so a twin must be module-level: a method
+    # or nested member of the same name (`py:app.worker.Worker.run` beside `py:app.run`) is not
+    # what the external node was meant to be.
+    module_level = {
+        e.dst
+        for e in batch.edges
+        if e.kind is EdgeKind.CONTAINS
+        and nodes.get(e.src) is not None
+        and nodes[e.src].kind is NodeKind.MODULE
+    }
+    by_leaf: dict[str, list[str]] = {}
+    for node in batch.nodes:
+        if node.grounded and node.kind in (NodeKind.TYPE, NodeKind.FUNCTION) and node.id in module_level:
+            match = _LEAF.search(node.id)
+            if match:
+                by_leaf.setdefault(match.group(2), []).append(node.id)
+    carried: dict[str, int] = {}
+    for edge in batch.edges:
+        if edge.kind not in (EdgeKind.IMPORTS, EdgeKind.CONTAINS):
+            carried[edge.dst] = carried.get(edge.dst, 0) + 1
+    phantoms: list[tuple[int, str, str]] = []
+    for node in batch.nodes:
+        if not node.external or node.id not in carried:
+            continue
+        match = _LEAF.search(node.id)
+        if match is None:
+            continue  # a bare symbol (`c:helper`) has no path to share
+        parent = node.id[: match.start()]
+        twins = sorted(
+            real for real in by_leaf.get(match.group(2), ()) if real.startswith((f"{parent}.", f"{parent}::"))
+        )
+        if twins:
+            phantoms.append((-carried[node.id], node.id, twins[0]))
+    if not phantoms:
+        return []
+    phantoms.sort()
+    return [
+        VerifyIssue(
+            "phantom-symbol",
+            "warning",
+            f"{len(phantoms)} external node(s) carry edges while a first-party symbol of the same "
+            f"name lives under the same path (an unresolved re-export or alias — those callers are "
+            f"missing from the real symbol): "
+            + _examples([f"{pid} (vs {real}, {-count} edge(s))" for count, pid, real in phantoms]),
         )
     ]
 
@@ -616,6 +681,7 @@ def verify_batch(batch: FactBatch, root: Path | str) -> VerifyReport:
         *_check_provenance(batch, Path(root)),
         *_check_rates(batch, nodes),
         *_check_phantoms(batch),
+        *_check_phantom_symbols(batch),
         *_check_source_parity(batch, Path(root)),
         *_check_invention(batch, Path(root)),
     ]

@@ -46,14 +46,14 @@ _8 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/registry.py:29`](../../src/orchestrator/cli/registry.py#L29)
 
 - **Called by** (1): [`mcp_contracts`](../../src/orchestrator/cli/registry.py#L259)
-- **Calls** (1): `orchestrator.mcp.MCPRegistry`
+- **Calls** (1): [`MCPRegistry`](../../src/orchestrator/mcp/registry.py#L56)
 
 ### `_mcp_build_tools`
 
 [`src/orchestrator/cli/registry.py:36`](../../src/orchestrator/cli/registry.py#L36)
 
 - **Called by** (1): [`mcp_contracts`](../../src/orchestrator/cli/registry.py#L259)
-- **Calls** (1): `orchestrator.mcp.build_mcp_tools`
+- **Calls** (1): [`build_mcp_tools`](../../src/orchestrator/mcp/handler.py#L85)
 
 ### `_mcp_load_configs`
 
@@ -89,13 +89,13 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/registry.py:332`](../../src/orchestrator/cli/registry.py#L332)
 
-- **Calls** (3): [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, `orchestrator.catalog.default_catalog`
+- **Calls** (3): [`_print`](../../src/orchestrator/cli/_common.py#L34), [`default_catalog`](../../src/orchestrator/catalog/catalog.py#L147), `echo`
 
 ### `catalog_plan`
 
 [`src/orchestrator/cli/registry.py:361`](../../src/orchestrator/cli/registry.py#L361)
 
-- **Calls** (5): [`_print`](../../src/orchestrator/cli/_common.py#L34), [`_repo_arg`](../../src/orchestrator/cli/_common.py#L39), `echo`, `from_repo`, `orchestrator.catalog.plan_capabilities`
+- **Calls** (5): [`_print`](../../src/orchestrator/cli/_common.py#L34), [`_repo_arg`](../../src/orchestrator/cli/_common.py#L39), `echo`, [`from_repo`](../../src/orchestrator/catalog/profile.py#L76), [`plan_capabilities`](../../src/orchestrator/catalog/planner.py#L16)
 
 ### `contract_deprecate`
 
@@ -131,7 +131,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/registry.py:301`](../../src/orchestrator/cli/registry.py#L301)
 
-- **Calls** (7): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, `from_config`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), `loads`, `run`
+- **Calls** (7): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, [`from_config`](../../src/orchestrator/mcp/registry.py#L75), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `loads`, `run`
 
 ### `mcp_contracts`
 
@@ -143,13 +143,13 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/registry.py:226`](../../src/orchestrator/cli/registry.py#L226)
 
-- **Calls** (6): [`_print`](../../src/orchestrator/cli/_common.py#L34), `from_config`, [`introspect_via_mcp`](../../src/orchestrator/mcp/db.py#L84), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`, [`schema_to_facts`](../../src/orchestrator/pkg/schema.py#L61)
+- **Calls** (6): [`_print`](../../src/orchestrator/cli/_common.py#L34), [`from_config`](../../src/orchestrator/mcp/registry.py#L75), [`introspect_via_mcp`](../../src/orchestrator/mcp/db.py#L84), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`, [`schema_to_facts`](../../src/orchestrator/pkg/schema.py#L61)
 
 ### `mcp_list`
 
 [`src/orchestrator/cli/registry.py:170`](../../src/orchestrator/cli/registry.py#L170)
 
-- **Calls** (6): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, `from_config`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`
+- **Calls** (6): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, [`from_config`](../../src/orchestrator/mcp/registry.py#L75), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`
 
 ### `task_submit`
 
@@ -190,7 +190,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 ## Imports
 
-`__future__.annotations`, `asyncio`, `json`, [`orchestrator.catalog`](../../src/orchestrator/catalog/__init__.py#L1), [`orchestrator.cli._common`](../../src/orchestrator/cli/_common.py#L1), [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1), [`orchestrator.mcp`](../../src/orchestrator/mcp/__init__.py#L1), [`orchestrator.mcp.config`](../../src/orchestrator/mcp/config.py#L1), [`orchestrator.mcp.db`](../../src/orchestrator/mcp/db.py#L1), [`orchestrator.mcp.schema_types`](../../src/orchestrator/mcp/schema_types.py#L1), [`orchestrator.pkg.schema`](../../src/orchestrator/pkg/schema.py#L1), `pathlib.Path`, `typer`, `typing.Annotated`, `typing.Any`
+`__future__.annotations`, `asyncio`, `json`, [`orchestrator.catalog.catalog`](../../src/orchestrator/catalog/catalog.py#L1), [`orchestrator.catalog.planner`](../../src/orchestrator/catalog/planner.py#L1), [`orchestrator.catalog.profile`](../../src/orchestrator/catalog/profile.py#L1), [`orchestrator.cli._common`](../../src/orchestrator/cli/_common.py#L1), [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1), [`orchestrator.mcp.config`](../../src/orchestrator/mcp/config.py#L1), [`orchestrator.mcp.db`](../../src/orchestrator/mcp/db.py#L1), [`orchestrator.mcp.handler`](../../src/orchestrator/mcp/handler.py#L1), [`orchestrator.mcp.registry`](../../src/orchestrator/mcp/registry.py#L1), [`orchestrator.mcp.schema_types`](../../src/orchestrator/mcp/schema_types.py#L1), [`orchestrator.pkg.schema`](../../src/orchestrator/pkg/schema.py#L1), `pathlib.Path`, `typer`, `typing.Annotated`, `typing.Any`
 
 ## Imported by
 

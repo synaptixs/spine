@@ -432,3 +432,79 @@ def test_javascript_entity_parity_is_linear_on_adversarial_input() -> None:
         started = time.perf_counter()
         assert not _ENTITY_SYNTAX["javascript"].findall(source)
         assert time.perf_counter() - started < 2.0
+
+
+# ---- phantom-symbol ------------------------------------------------------------------------
+
+
+def _phantom_batch(external_id: str, real_id: str, kind: EdgeKind = EdgeKind.CALLS) -> FactBatch:
+    batch = FactBatch()
+    batch.add_node(Node("py:client", NodeKind.MODULE, "client", "python", Provenance("client.py", 1)))
+    batch.add_node(Node("py:client.go", NodeKind.FUNCTION, "go", "python", Provenance("client.py", 2)))
+    batch.add_node(Node(real_id, NodeKind.TYPE, real_id.rsplit(".", 1)[-1], "python", Provenance("x.py", 1)))
+    owner = real_id.rsplit(".", 1)[0]  # the real symbol is module-level: its module contains it
+    batch.add_node(Node(owner, NodeKind.MODULE, owner, "python", Provenance("x.py", 1)))
+    batch.add_edge(Edge(owner, real_id, EdgeKind.CONTAINS))
+    batch.add_node(
+        Node(external_id, NodeKind.FUNCTION, external_id.rsplit(".", 1)[-1], "python", external=True)
+    )
+    batch.add_edge(Edge("py:client.go", external_id, kind))
+    return batch
+
+
+def _phantom_symbol(batch: FactBatch, root: Path) -> list[str]:
+    return [i.message for i in verify_batch(batch, root).issues if i.check == "phantom-symbol"]
+
+
+def test_a_call_stranded_on_a_reexport_placeholder_warns(tmp_path: Path) -> None:
+    (tmp_path / "client.py").write_text("x = 1\ny = 2\n", encoding="utf-8")
+    (tmp_path / "x.py").write_text("x = 1\n", encoding="utf-8")
+    report = verify_batch(_phantom_batch("py:app.Store", "py:app.store.Store"), tmp_path)
+    (issue,) = [i for i in report.issues if i.check == "phantom-symbol"]
+    assert issue.severity == "warning" and report.ok
+    assert "py:app.Store (vs py:app.store.Store, 1 edge(s))" in issue.message
+
+
+def test_an_external_twin_under_another_path_is_not_a_phantom(tmp_path: Path) -> None:
+    # The Kotlin shape: a deliberately external extension call that merely shares a name
+    # with an unrelated first-party function elsewhere.
+    batch = _phantom_batch("java:app.data.Topic.render", "java:app.util.render")
+    assert _phantom_symbol(batch, tmp_path) == []
+
+
+def test_an_import_alone_is_not_a_phantom(tmp_path: Path) -> None:
+    batch = _phantom_batch("py:app.Store", "py:app.store.Store", kind=EdgeKind.IMPORTS)
+    assert _phantom_symbol(batch, tmp_path) == []
+
+
+def test_an_undecidable_reexport_is_counted_end_to_end(tmp_path: Path) -> None:
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    (lib / "__init__.py").write_text(
+        "try:\n    from .fast import compute\nexcept ImportError:\n    from .slow import compute\n",
+        encoding="utf-8",
+    )
+    (lib / "fast.py").write_text("def compute():\n    return 1\n", encoding="utf-8")
+    (lib / "slow.py").write_text("def compute():\n    return 1\n", encoding="utf-8")
+    (tmp_path / "main.py").write_text(
+        "from lib import compute\ndef go():\n    return compute()\n", encoding="utf-8"
+    )
+    (message,) = _phantom_symbol(RepoCodeExtractor().extract(tmp_path), tmp_path)
+    assert message.startswith("1 external node(s)") and "py:lib.compute (vs py:lib.fast.compute" in message
+
+
+def test_a_same_named_method_is_not_a_twin(tmp_path: Path) -> None:
+    # `py:app.run` (an assigned name the resolver refused) beside a method `Worker.run`: a
+    # re-export binds a module-level name, so a member is never the symbol it was meant to be.
+    batch = FactBatch()
+    batch.add_node(Node("py:client.go", NodeKind.FUNCTION, "go", "python", Provenance("client.py", 1)))
+    batch.add_node(Node("py:app.worker", NodeKind.MODULE, "app.worker", "python", Provenance("w.py", 1)))
+    batch.add_node(Node("py:app.worker.Worker", NodeKind.TYPE, "Worker", "python", Provenance("w.py", 1)))
+    batch.add_node(
+        Node("py:app.worker.Worker.run", NodeKind.FUNCTION, "run", "python", Provenance("w.py", 2))
+    )
+    batch.add_edge(Edge("py:app.worker", "py:app.worker.Worker", EdgeKind.CONTAINS))
+    batch.add_edge(Edge("py:app.worker.Worker", "py:app.worker.Worker.run", EdgeKind.CONTAINS))
+    batch.add_node(Node("py:app.run", NodeKind.FUNCTION, "run", "python", external=True))
+    batch.add_edge(Edge("py:client.go", "py:app.run", EdgeKind.CALLS))
+    assert _phantom_symbol(batch, tmp_path) == []
