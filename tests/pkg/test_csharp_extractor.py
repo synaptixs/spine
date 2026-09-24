@@ -89,7 +89,8 @@ def test_implements_resolves_same_namespace(tmp_path: Path) -> None:
 
 
 def test_does_not_emit_calls(tmp_path: Path) -> None:
-    # Precision-first: C# call resolution needs overload/type inference, so no CALLS yet.
+    # One file on its own emits no receiver CALLS: whether `inv`'s type is declared in the repo,
+    # and what it declares, are settled in `finalize` once every file is known (typed_receivers).
     batch, _ = _facts(tmp_path)
     assert not [e for e in batch.edges if e.kind is EdgeKind.CALLS]
 

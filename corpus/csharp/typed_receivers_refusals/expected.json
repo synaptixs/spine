@@ -1,0 +1,306 @@
+{
+  "language": "csharp",
+  "case": "typed_receivers_refusals",
+  "root": ".repo",
+  "why": "B21's other half: every shape where a typed-receiver pass could guess, labelled as edges it must not emit \u2014 a decoy class with the same member name, `var x = Call()`, a lambda parameter, an extension method, two interfaces at one level declaring the member, and a local that shadows a field of another type. Three true edges are labelled beside them: the field call, the sibling call to `Make`, and the shadowing local's own call.",
+  "nodes": [
+    {
+      "id": "csharp:Svc",
+      "kind": "Module"
+    },
+    {
+      "id": "csharp:Svc.Handler",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:Svc.Rocket",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:Svc.Ext",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:Svc.IA",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:Svc.IB",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:Svc.IBoth",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:Svc.Dispatch",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:Svc.Handler.Run",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:Svc.Rocket.Run",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:Svc.Ext.Shout",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:Svc.IA.Ping",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:Svc.IB.Ping",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:Svc.Dispatch.ViaField",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:Svc.Dispatch.ViaUnknownVar",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:Svc.Dispatch.ViaLambda",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:Svc.Dispatch.ViaExtension",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:Svc.Dispatch.ViaTie",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:Svc.Dispatch.ViaShadow",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:Svc.Dispatch.Make",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:Svc.Dispatch._handler",
+      "kind": "Field"
+    }
+  ],
+  "edges": [
+    {
+      "src": "csharp:Svc",
+      "dst": "csharp:Svc.Handler",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc",
+      "dst": "csharp:Svc.Rocket",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc",
+      "dst": "csharp:Svc.Ext",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc",
+      "dst": "csharp:Svc.IA",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc",
+      "dst": "csharp:Svc.IB",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc",
+      "dst": "csharp:Svc.IBoth",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc",
+      "dst": "csharp:Svc.Dispatch",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Handler",
+      "dst": "csharp:Svc.Handler.Run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Rocket",
+      "dst": "csharp:Svc.Rocket.Run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Ext",
+      "dst": "csharp:Svc.Ext.Shout",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.IA",
+      "dst": "csharp:Svc.IA.Ping",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.IB",
+      "dst": "csharp:Svc.IB.Ping",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Dispatch",
+      "dst": "csharp:Svc.Dispatch.ViaField",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Dispatch",
+      "dst": "csharp:Svc.Dispatch.ViaUnknownVar",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Dispatch",
+      "dst": "csharp:Svc.Dispatch.ViaLambda",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Dispatch",
+      "dst": "csharp:Svc.Dispatch.ViaExtension",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Dispatch",
+      "dst": "csharp:Svc.Dispatch.ViaTie",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Dispatch",
+      "dst": "csharp:Svc.Dispatch.ViaShadow",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Dispatch",
+      "dst": "csharp:Svc.Dispatch.Make",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc.Dispatch",
+      "dst": "csharp:Svc.Dispatch._handler",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:Svc",
+      "dst": "csharp:System.Collections.Generic",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "csharp:Svc.IBoth",
+      "dst": "csharp:Svc.IA",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "csharp:Svc.IBoth",
+      "dst": "csharp:Svc.IB",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "csharp:Svc.Dispatch.ViaField",
+      "dst": "csharp:Svc.Handler.Run",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:Svc.Dispatch.ViaUnknownVar",
+      "dst": "csharp:Svc.Dispatch.Make",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:Svc.Dispatch.ViaShadow",
+      "dst": "csharp:Svc.Rocket.Run",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "csharp:Svc.Dispatch.ViaField",
+        "dst": "csharp:Svc.Rocket.Run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The decoy: `_handler` is a `Handler`. Resolution follows the declared type, never the member name."
+    },
+    {
+      "edge": {
+        "src": "csharp:Svc.Dispatch.ViaUnknownVar",
+        "dst": "csharp:Svc.Handler.Run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `var h = Make()` \u2014 the type is a return type, which this pass does not infer (D3)."
+    },
+    {
+      "edge": {
+        "src": "csharp:Svc.Dispatch.ViaUnknownVar",
+        "dst": "csharp:Svc.Rocket.Run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Same site; a name match would be a guess between two."
+    },
+    {
+      "edge": {
+        "src": "csharp:Svc.Dispatch.ViaLambda",
+        "dst": "csharp:Svc.Handler.Run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `h` is a lambda parameter \u2014 its type is inferred (D13), and `hs` is a `List<Handler>`, a type this repository does not declare (D11)."
+    },
+    {
+      "edge": {
+        "src": "csharp:Svc.Dispatch.ViaExtension",
+        "dst": "csharp:Svc.Ext.Shout",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. An extension method: `Handler` declares no `Shout` (D10)."
+    },
+    {
+      "edge": {
+        "src": "csharp:Svc.Dispatch.ViaExtension",
+        "dst": "csharp:Svc.Handler.Shout",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Never a member invented on the receiver's type."
+    },
+    {
+      "edge": {
+        "src": "csharp:Svc.Dispatch.ViaTie",
+        "dst": "csharp:Svc.IA.Ping",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `IBoth` inherits `Ping` from `IA` and `IB` at the same level \u2014 ambiguous, so it refuses (D4)."
+    },
+    {
+      "edge": {
+        "src": "csharp:Svc.Dispatch.ViaTie",
+        "dst": "csharp:Svc.IB.Ping",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The other half of the tie."
+    },
+    {
+      "edge": {
+        "src": "csharp:Svc.Dispatch.ViaShadow",
+        "dst": "csharp:Svc.Handler.Run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The local `Rocket _handler` shadows the field `Handler _handler`; the innermost declaration wins."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [
+    "`using System.Collections.Generic;` is labelled as the IMPORTS edge the source wrote; `List<Handler>` is not an in-repo type, so `hs.ForEach(...)` has no edge.",
+    "`new Handler()` / `new Rocket()` are object creation, not call edges in this vocabulary."
+  ],
+  "open_questions": [],
+  "note": "A guard: it must hold before and after the change. The decoy is the check that resolution is by type, not by name."
+}
