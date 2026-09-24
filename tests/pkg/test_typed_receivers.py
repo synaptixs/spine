@@ -120,11 +120,12 @@ def test_what_is_out_of_scope_gets_no_edge(tmp_path: Path) -> None:
             "  public void B() => _h?.Run();\n"  # conditional access — out of scope
             "  public void C(System.Collections.Generic.List<Handler> hs) => hs.ForEach(x => x.Run());\n"
             "  public void D() { var (a, b) = (new Handler(), 1); a.Run(); }\n"  # deconstruction
+            "  public void E() => _h.Run();\n"  # the control: the same member does resolve
             "}\n"
         ),
     }
     calls = {c for c in _edges(tmp_path, files) if c[1] == "csharp:Lib.Handler.Run"}
-    assert calls == set()
+    assert calls == {("csharp:App.Use.E", "csharp:Lib.Handler.Run")}
 
 
 def test_a_query_range_variable_shadows_a_field(tmp_path: Path) -> None:
@@ -133,10 +134,14 @@ def test_a_query_range_variable_shadows_a_field(tmp_path: Path) -> None:
         "App/Use.cs": (
             "using Lib;\nusing System.Linq;\nnamespace App;\npublic class Use {\n"
             "  private Handler h;\n"
-            "  public void Go(int[] xs) { var q = from h in xs select h.ToString(); }\n}\n"
+            "  public void Go(Handler[] xs) { var q = from h in xs select h.Run(); }\n"
+            "  public void Field() => h.Run();\n}\n"
         ),
     }
-    assert ("csharp:App.Use.Go", "csharp:Lib.Handler.ToString") not in _edges(tmp_path, files)
+    calls = _edges(tmp_path, files)
+    # `h` in the query is the range variable — it resolves nowhere, not through the field
+    assert ("csharp:App.Use.Go", "csharp:Lib.Handler.Run") not in calls
+    assert ("csharp:App.Use.Field", "csharp:Lib.Handler.Run") in calls  # the field itself does
 
 
 # ---- Java -----------------------------------------------------------------------------------
@@ -195,3 +200,33 @@ def test_java_a_method_sharing_a_fields_id_refuses(tmp_path: Path) -> None:
         "a/Use.java": "package a;\nclass Use { int go(Lazy z) { return z.length(); } }\n",
     }
     assert ("java:a.Use.go", "java:a.Lazy.length") not in _java(tmp_path, files)
+
+
+def test_java_a_union_catch_parameter_refuses(tmp_path: Path) -> None:
+    files = {
+        "a/Rocket.java": "package a;\npublic class Rocket extends Error { public void run() {} }\n",
+        "a/Car.java": "package a;\npublic class Car extends Error { public void run() {} }\n",
+        "a/Use.java": (
+            "package a;\nclass Use { Rocket e;\n"
+            "  void go() { try { } catch (Car | IllegalStateException e) { e.run(); } }\n"
+            "  void one() { try { } catch (Car e) { e.run(); } } }\n"
+        ),
+    }
+    calls = _java(tmp_path, files)
+    # a union's type is their least upper bound — never the field's type, never the first alternative
+    assert not {c for c in calls if c[0] == "java:a.Use.go"}
+    assert ("java:a.Use.one", "java:a.Car.run") in calls
+
+
+def test_java_no_outer_field_past_a_base_this_front_end_did_not_walk(tmp_path: Path) -> None:
+    pytest.importorskip("tree_sitter_kotlin", reason="install the 'kotlin' extra")
+    files = {
+        "app/KBase.kt": "package app\nopen class KBase { val x: Car = Car() }\n",
+        "app/Car.java": "package app;\npublic class Car { public void run() {} }\n",
+        "app/Rocket.java": "package app;\npublic class Rocket { public void run() {} }\n",
+        "app/O.java": (
+            "package app;\npublic class O { Rocket x;\n  class In extends KBase { void f() { x.run(); } } }\n"
+        ),
+    }
+    # the Kotlin base declares `x`, which shadows the outer field — but its fields are not recorded here
+    assert ("java:app.O.In.f", "java:app.Rocket.run") not in _java(tmp_path, files)

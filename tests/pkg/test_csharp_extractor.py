@@ -88,11 +88,21 @@ def test_implements_resolves_same_namespace(tmp_path: Path) -> None:
     assert ("csharp:Billing.Core.InvoiceService", "csharp:Billing.Core.BaseService") in impls
 
 
-def test_does_not_emit_calls(tmp_path: Path) -> None:
+def test_a_receiver_call_waits_for_finalize(tmp_path: Path) -> None:
     # One file on its own emits no receiver CALLS: whether `inv`'s type is declared in the repo,
     # and what it declares, are settled in `finalize` once every file is known (typed_receivers).
-    batch, _ = _facts(tmp_path)
+    src = INVOICE.replace("return inv.Amount;", "inv.Settle(); return inv.Amount;").replace(
+        "public record Money",
+        "public class Invoice { public decimal Amount; public void Settle() { } }\n    public record Money",
+    )
+    f = tmp_path / "Invoice.cs"
+    f.write_text(src, encoding="utf-8")
+    ex = CSharpExtractor()
+    batch = ex.extract(path=f, module=ex.module_name(f, tmp_path), rel="Invoice.cs")
     assert not [e for e in batch.edges if e.kind is EdgeKind.CALLS]
+    done = ex.finalize(batch)
+    calls = {(e.src, e.dst) for e in done.edges if e.kind is EdgeKind.CALLS}
+    assert calls == {("csharp:Billing.Core.InvoiceService.Total", "csharp:Billing.Core.Invoice.Settle")}
 
 
 def test_repo_extractor_dispatches_csharp_by_suffix(tmp_path: Path) -> None:

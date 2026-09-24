@@ -96,3 +96,23 @@ def test_an_overloaded_interface_member_counts_each_call_once() -> None:
     for line in (3, 4, 5):
         b.add_edge(Edge("x:IService", "x:IService.Do", EdgeKind.CONTAINS, Provenance("a.x", line)))
     assert len(FactStore(b).interface_callers_of("x:Service.Do")) == 1
+
+
+def test_an_override_calling_its_own_interface_member_is_not_its_own_caller() -> None:
+    b = _batch()
+    b.add_edge(Edge("x:Service.Do", "x:IService.Do", EdgeKind.CALLS, Provenance("a.x", 3)))
+    callers = [c.caller.id for c in FactStore(b).interface_callers_of("x:Service.Do")]
+    assert callers == ["x:Client.Use"]
+
+
+def test_only_a_type_owner_has_interface_members() -> None:
+    b = FactBatch()
+    for nid, kind in (("x:mod", NodeKind.MODULE), ("x:Iface", NodeKind.TYPE)):
+        b.add_node(Node(nid, kind, nid, "x", Provenance("a.x", 1)))
+    for mid in ("x:mod.Do", "x:Iface.Do", "x:Client"):
+        b.add_node(Node(mid, NodeKind.FUNCTION, mid, "x", Provenance("a.x", 2)))
+    b.add_edge(Edge("x:mod", "x:mod.Do", EdgeKind.CONTAINS))
+    b.add_edge(Edge("x:Iface", "x:Iface.Do", EdgeKind.CONTAINS))
+    b.add_edge(Edge("x:mod", "x:Iface", EdgeKind.IMPLEMENTS))  # malformed, but must not reach
+    b.add_edge(Edge("x:Client", "x:Iface.Do", EdgeKind.CALLS, Provenance("c.x", 1)))
+    assert FactStore(b).interface_callers_of("x:mod.Do") == []
