@@ -537,28 +537,26 @@ orchestrator pkg accuracy [PATH] [OPTIONS]
 | `--tests` | Test target(s) for `--oracle runtime`; defaults to the repo's own. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
 
-**Current corpus results** (104 fixture cases — 98 single-language, 6 multi-repo — across
+**Current corpus results** (106 fixture cases — 100 single-language, 6 multi-repo — across
 all 13 front-ends, Perl's own corpus grown across P2–P5 of its track: 9 cases). Precision is
 **1.00 on every node kind and every edge kind in every language**; recall is 1.00 on every
 kind except `CALLS`, JavaScript `IMPORTS` (189 of 190: an immediately-called `require`) and
-multi-repo `CONSUMES` (5 of 6) and C# `PROVIDES` (2 of 3: a factory registration) — each a
-declared known gap:
+multi-repo `CONSUMES` (5 of 6) — each a declared known gap:
 
 | language | `CALLS` recall |
 |---|---|
 | `c` `cpp` (with `clang`) `sql` | 1.00 |
 | `javascript` | 0.97 |
+| `java` `csharp` | 0.91 |
 | `perl` `python` | 0.89 |
 | `kotlin` | 0.87 |
 | `typescript` | 0.86 |
 | `cpp` `go` `php` | 0.75 |
-| `java` | 0.70 |
-| `csharp` | 0.68 |
 
-C# and Java fell from 0.80/0.67 when their typed-receiver cases landed (B21): those cases
-label every true call in their source — including the constructor calls neither front-end
-emits yet, and receivers whose type needs inference — as known gaps rather than leaving
-them out, so the denominator is honest (C# 17 of 25, Java 16 of 23).
+C# and Java carry typed-receiver cases (B21) that label every true call in their source,
+and constructor-call cases (B22) now that `new Foo()` is a `CALLS` edge to `Foo`: C# 32 of 35,
+Java 29 of 32. Each remaining miss is a receiver whose type needs inference (a return value, a
+lambda parameter, an extension method), a labelled known gap.
 
 Perl's 0.89 is 8 of 9 labelled `CALLS` edges in its own corpus — the one miss is a
 permanent, documented one (`instance_calls`, an untyped parameter with no declared type to
@@ -567,7 +565,7 @@ resolve a method call through); the other predicted P2/P3-boundary miss was reso
 resolved.
 
 Every remaining loss is a declared known gap — nearly all a call whose receiver's type is not
-written down, the rest Java/C# constructor calls. Invention stands at **0 invented targets across 15,212 call
+written down. Invention stands at **0 invented targets across 15,212 call
 edges**; parity shortfall is **0**.
 
 **What is gated, and what is only recorded.** Not everything can be gated on equality, and the
