@@ -241,6 +241,47 @@ class _DeferredCall:
     provenance: Provenance
 
 
+@dataclass(frozen=True)
+class _ReceiverCall:
+    """A bare ``f()`` inside a lambda that changed the implicit receiver (#453).
+
+    ``with(x) { f() }``, ``x.apply { f() }``, ``x.run { f() }`` and the ``buildX { }``
+    builders put the receiver's members **ahead of** the enclosing class's, innermost
+    receiver first — so ``apply("com.android.application")`` inside
+    ``with(pluginManager) { }`` is ``PluginManager.apply``, not the Gradle plugin's own
+    ``apply(target: Project)`` override it sits in. Resolving it as a plain bare call
+    minted that override calling itself, 17 times on the Android validation app.
+
+    Whether a receiver declares ``f`` is a whole-repository question — its type may be
+    declared in another file — so the call waits for ``finalize``, like ``_DeferredCall``.
+    There, innermost first: a receiver the repository declares (or inherits) ``f`` on
+    takes the call; one that provably lacks it passes the call outward; one whose members
+    cannot be read — a library type, an untyped expression, a builder — **blocks** every
+    member reading beyond it, the enclosing class's included.
+
+    What this cannot settle, and does not claim to: a blocked call still keeps a
+    top-level or imported reading (``fallback_is_member`` false). A library receiver
+    that declared a member of that name would hide the import too, but its members are
+    unknowable here, and refusing every import inside ``with(libraryThing) { }`` would
+    drop far more true edges (about 130 measured across four repositories) than the
+    zero this has been seen to get wrong. For a receiver the repository declares, the
+    question does not arise: its members are checked first.
+    """
+
+    src: str
+    name: str
+    #: Each enclosing receiver lambda's type candidates, innermost first — the ids
+    #: ``_type_candidates`` offers for its declared type. Empty when the receiver's type
+    #: cannot be read at all.
+    receivers: tuple[tuple[str, ...], ...]
+    #: What the call resolves to when no receiver claims it: the plain bare-call answer.
+    fallback: str | _DeferredCall | None
+    #: Whether ``fallback`` is a member of an enclosing class — the reading an unreadable
+    #: receiver blocks — rather than a top-level or imported function.
+    fallback_is_member: bool
+    provenance: Provenance
+
+
 @dataclass
 class _Pending:
     """A function body held back until every declaration in the file is known."""
@@ -321,6 +362,8 @@ class KotlinExtractor:
         self._ktor = KtorState()
         # Calls through a typed receiver, judged in `finalize` — see `_DeferredCall`.
         self._deferred: list[_DeferredCall] = []
+        # Bare calls inside a receiver lambda, judged in `finalize` — see `_ReceiverCall`.
+        self._receiver_calls: list[_ReceiverCall] = []
         #: Every extension function declared *anywhere* in the repository, id -> the
         #: receivers it applies to. #390: `ctx.imports.by_simple` maps a name to *any*
         #: import regardless of whether it is a function, let alone an extension of the
@@ -363,6 +406,7 @@ class KotlinExtractor:
         # source; remembered here so only this file's additions are remapped below.
         held_before = (
             len(self._deferred),
+            len(self._receiver_calls),
             len(self._nav.declarations),
             len(self._nav.navigations),
             len(self._ktor.routes),
@@ -440,16 +484,16 @@ class KotlinExtractor:
         return batch
 
     def _remap_held_lines(
-        self, held_before: tuple[int, int, int, int, int], rel: str, line_remap: list[int]
+        self, held_before: tuple[int, int, int, int, int, int], rel: str, line_remap: list[int]
     ) -> None:
         """Remap the lines of this file's facts that wait for ``finalize``.
 
-        ``_remap_batch_lines`` only reaches the batch. Typed-receiver calls, Compose
-        routes and navigations, Ktor routes and Retrofit calls are held on ``self`` and
-        emitted later, and missing them put every such fact one line late below a
-        recovered body.
+        ``_remap_batch_lines`` only reaches the batch. Typed-receiver calls, bare calls
+        inside receiver lambdas, Compose routes and navigations, Ktor routes and Retrofit
+        calls are held on ``self`` and emitted later, and missing them put every such fact
+        one line late below a recovered body.
         """
-        deferred, declarations, navigations, routes, calls = held_before
+        deferred, receiver_calls, declarations, navigations, routes, calls = held_before
 
         def line(n: int) -> int:
             return line_remap[n - 1]
@@ -463,6 +507,14 @@ class KotlinExtractor:
         for i in range(deferred, len(self._deferred)):
             call = self._deferred[i]
             self._deferred[i] = replace(call, provenance=prov(call.provenance))
+        for i in range(receiver_calls, len(self._receiver_calls)):
+            held_call = self._receiver_calls[i]
+            fallback = held_call.fallback
+            if isinstance(fallback, _DeferredCall):
+                fallback = replace(fallback, provenance=prov(fallback.provenance))
+            self._receiver_calls[i] = replace(
+                held_call, provenance=prov(held_call.provenance), fallback=fallback
+            )
         for held, start in ((self._nav.declarations, declarations), (self._nav.navigations, navigations)):
             for i in range(start, len(held)):
                 template, target, site = held[i]
@@ -781,35 +833,38 @@ class KotlinExtractor:
         scope.merge_fields(ctx.field_types.get(pend.owner or "", {}))
         _collect_bindings(pend.body, source, scope)
 
-        for call in _call_sites(pend.body):
+        for call, receivers in _call_sites(pend.body, source):
             line = call.start_point[0] + 1
             target = self._resolve_call(
-                call, pend.owner, ctx, scope, source, line=line, rel=rel, this_type=pend.receiver
+                call,
+                pend.owner,
+                ctx,
+                scope,
+                source,
+                line=line,
+                rel=rel,
+                this_type=pend.receiver,
+                receivers=receivers,
             )
             if target is None:
                 continue
+            here = Provenance(rel, line)
             if isinstance(target, _DeferredCall):
                 # A typed receiver: whether this call is real is a whole-repository
                 # question, so it is answered in `finalize` (see `_DeferredCall`).
-                self._deferred.append(replace(target, src=pend.func_id, provenance=Provenance(rel, line)))
+                self._deferred.append(replace(target, src=pend.func_id, provenance=here))
                 continue
-            # A resolved third-party callee — `Modifier.padding`, `Json.decodeFromString` —
-            # is a real call to a real symbol this tree does not declare, so it gets an
-            # **external placeholder**. Without one the edge dangles and `pkg verify`
-            # reports an error for what is simply a call into a library (measured: 387
-            # such edges across 161 distinct AndroidX/kotlinx symbols on the validation
-            # app). `FactBatch` dedup upgrades the placeholder the moment a grounded
-            # declaration for the same id shows up — from this front-end or from Java's,
-            # which is the other half of what D2's shared namespace buys.
-            batch.add_node(Node(target, NodeKind.FUNCTION, target.rsplit(".", 1)[-1], _LANG, external=True))
-            batch.add_edge(
-                Edge(
-                    pend.func_id,
-                    target,
-                    EdgeKind.CALLS,
-                    Provenance(rel, call.start_point[0] + 1),
+            if isinstance(target, _ReceiverCall):
+                # Inside a receiver lambda: which receiver owns the call is a
+                # whole-repository question too (see `_ReceiverCall`).
+                fallback = target.fallback
+                if isinstance(fallback, _DeferredCall):
+                    fallback = replace(fallback, src=pend.func_id, provenance=here)
+                self._receiver_calls.append(
+                    replace(target, src=pend.func_id, fallback=fallback, provenance=here)
                 )
-            )
+                continue
+            _add_call(batch, pend.func_id, target, here)
 
     def _resolve_call(
         self,
@@ -822,7 +877,8 @@ class KotlinExtractor:
         line: int,
         rel: str,
         this_type: str = "",
-    ) -> str | _DeferredCall | None:
+        receivers: tuple[TSNode | None, ...] = (),
+    ) -> str | _DeferredCall | _ReceiverCall | None:
         callee = next(iter(call.named_children), None)
         if callee is None:
             return None
@@ -831,7 +887,13 @@ class KotlinExtractor:
         passes_function = _passes_function(call)
         if callee.type == "identifier":
             return self._resolve_bare(
-                _text(callee, source), owner, ctx, scope, passes_function=passes_function
+                _text(callee, source),
+                owner,
+                ctx,
+                scope,
+                source,
+                passes_function=passes_function,
+                receivers=receivers,
             )
         if callee.type == "navigation_expression":
             return self._resolve_navigated(
@@ -853,34 +915,83 @@ class KotlinExtractor:
         owner: str | None,
         ctx: _FileContext,
         scope: _Scope,
+        source: bytes,
         *,
         passes_function: bool,
-    ) -> str | _DeferredCall | None:
-        """``foo()`` with no receiver."""
+        receivers: tuple[TSNode | None, ...] = (),
+    ) -> str | _DeferredCall | _ReceiverCall | None:
+        """``foo()`` with no receiver.
+
+        ``receivers`` are the receiver lambdas the call sits inside, innermost first
+        (``_call_sites``). With none, this is the plain bare-call rule. With any, the call
+        is held for ``finalize`` as a ``_ReceiverCall``: the plain answer becomes the
+        fallback, taken only if no receiver claims the name (#453).
+        """
         if not name or name in scope.bound:
             # D9: a Kotlin local *can* shadow a call — `val helper = ::other`
             # then `helper()` invokes the local through `invoke`, not the member.
             # Unlike Java, where variables and methods are separate namespaces,
             # this is a real ambiguity, so the call is not claimed for either.
             return None
+        target, is_member = self._plain_bare(name, owner, ctx, passes_function=passes_function)
+        if not receivers:
+            return target
+        return _ReceiverCall(
+            src="",
+            name=name,
+            receivers=tuple(self._receiver_type(r, ctx, scope, source) for r in receivers),
+            fallback=target,
+            fallback_is_member=is_member,
+            provenance=Provenance("", 0),
+        )
+
+    def _receiver_type(
+        self, receiver: TSNode | None, ctx: _FileContext, scope: _Scope, source: bytes
+    ) -> tuple[str, ...]:
+        """The type ids a receiver lambda's receiver could have — empty when unreadable.
+
+        Only a name with a declared type is read: a parameter, a property, a typed local.
+        A builder's receiver (``None``), a call, a chain or an untyped name is a receiver
+        whose members nothing here can list, and ``finalize`` treats it as blocking.
+        """
+        if receiver is None or receiver.type != "identifier":
+            return ()
+        declared = scope.type_of(_text(receiver, source))
+        if not declared:
+            return ()
+        return self._type_candidates(declared, ctx)[0]
+
+    def _plain_bare(
+        self,
+        name: str,
+        owner: str | None,
+        ctx: _FileContext,
+        *,
+        passes_function: bool,
+    ) -> tuple[str | _DeferredCall | None, bool]:
+        """The bare-call answer ignoring receiver lambdas, and whether it is a member.
+
+        The flag says the answer is a member of an enclosing class — the one reading a
+        receiver whose members cannot be read must block (``_ReceiverCall``).
+        """
         # A member of the enclosing type, or of any type enclosing that one — a
         # nested class can call its outer's members without qualifying them.
         holder: str | None = owner
         while holder:
             if name in ctx.members_of(holder):
-                return f"{holder}.{name}"
+                return f"{holder}.{name}", True
             holder = holder.rsplit(".", 1)[0] if holder.count(".") > 1 else None
         if name in ctx.top_level_funcs or name in ctx.extensions:
-            return f"java:{ctx.package}.{name}" if ctx.package else None
+            return (f"java:{ctx.package}.{name}" if ctx.package else None), False
         if name in ctx.local_types:
             # A constructor call. The corpus rule is that instantiation is a call
             # to the type, so the target is the Type node, not an invented `.ctor`.
-            return f"java:{ctx.package}.{name}" if ctx.package else None
+            return (f"java:{ctx.package}.{name}" if ctx.package else None), False
         if name in ctx.imports.by_simple:
             # Imported — and the id is the import target whether the name is a
             # type or a function, which is exactly what D2's shared namespace
             # buys: the id unifies with the declaration in the other file.
-            return f"java:{ctx.imports.by_simple[name]}"
+            return f"java:{ctx.imports.by_simple[name]}", False
         if ctx.package:
             # A bare name this file does not declare and does not import: in Kotlin
             # that is a same-package declaration in **another file**, which is how a
@@ -905,8 +1016,8 @@ class KotlinExtractor:
                 extension_receivers=(),
                 same_package_extension="",
                 provenance=Provenance("", 0),
-            )
-        return None
+            ), False
+        return None, False
 
     def _resolve_navigated(
         self,
@@ -1132,11 +1243,69 @@ class KotlinExtractor:
         emit_ktor_routes(self._ktor, out, resolve_function)
         self._ktor.clear()
         link_actuals(out)
+        # Before `_settle_calls`: a receiver-lambda call that no receiver claims may fall
+        # back to a `_DeferredCall`, which has to join that queue.
+        self._settle_receiver_calls(out)
         self._settle_calls(out)
         # [0] is the unmatched calls; the join *count* is the other half of the return and
         # is what `test_kotlin_http` asserts, but nothing here needs it.
         self.unresolved_calls = join_to_endpoints(self._client, out)[0]
         return out
+
+    def _settle_receiver_calls(self, batch: FactBatch) -> None:
+        """Give each bare call inside a receiver lambda to the receiver that owns it (#453).
+
+        Kotlin's order, innermost receiver first, then the enclosing class:
+
+        * a receiver the repository declares, which declares or inherits the name, takes
+          the call — ``with(repo) { refresh() }`` is ``TopicRepository.refresh``;
+        * one that provably lacks it — every supertype declared here, and the name not a
+          member of ``Any`` — passes the call outward;
+        * one whose members cannot be listed **blocks**: a library type such as Gradle's
+          ``PluginManager``, a receiver whose type was never read, a builder's
+          ``StringBuilder``, or a declared type with a supertype outside the repository.
+          Behind it, no member reading is provable, so an enclosing-class member is
+          refused rather than claimed — that was the ``apply`` calling itself.
+
+        A call no receiver claims takes its plain bare-call answer, except that a blocked
+        one drops it when that answer is an enclosing-class member. Top-level and imported
+        answers stand either way; ``_ReceiverCall`` says why that is a stated limit.
+        """
+        declared = declared_ids(batch)
+        supertypes = _supertype_map(batch)
+        for call in self._receiver_calls:
+            target: str | None = None
+            blocked = False
+            for owners in call.receivers:
+                receiver = next((o for o in owners if o in declared), None)
+                if receiver is None:
+                    blocked = True
+                    break
+                direct = f"{receiver}.{call.name}"
+                target = direct if direct in declared else None
+                target = target or _resolve_inherited_member(receiver, call.name, declared, supertypes)
+                if target is not None:
+                    break
+                # No unique owner, yet somewhere up the hierarchy declares it: an
+                # ambiguity `_resolve_inherited_member` refused. The member exists, so the
+                # call is the receiver's — never passed outward to be claimed by a class
+                # it is not in.
+                declares = any(f"{t}.{call.name}" in declared for t in _lineage(receiver, supertypes))
+                if declares or _member_may_be_inherited(
+                    receiver, call.name, declared, supertypes, self._opaque_supertypes
+                ):
+                    blocked = True
+                    break
+            if target is not None:
+                batch.add_edge(Edge(call.src, target, EdgeKind.CALLS, call.provenance))
+                continue
+            if call.fallback is None or (blocked and call.fallback_is_member):
+                continue
+            if isinstance(call.fallback, _DeferredCall):
+                self._deferred.append(call.fallback)
+            else:
+                _add_call(batch, call.src, call.fallback, call.provenance)
+        self._receiver_calls.clear()
 
     def _settle_calls(self, batch: FactBatch) -> None:
         """Decide every held-back typed-receiver call against the finished repository.
@@ -1206,10 +1375,7 @@ class KotlinExtractor:
         may still be a fabrication. Narrowed, not closed.
         """
         declared = declared_ids(batch)
-        supertypes: dict[str, list[str]] = {}
-        for edge in batch.edges:
-            if edge.kind is EdgeKind.IMPLEMENTS:
-                supertypes.setdefault(edge.src, []).append(edge.dst)
+        supertypes = _supertype_map(batch)
         for call in self._deferred:
             # #390: an import matching the called name is not evidence it is a genuine
             # extension of *this* receiver — checked once, here, and reused by both
@@ -1410,6 +1576,27 @@ def _extension_refused(
     return not any(_reaches(r, ext.receivers, supertypes) for r in receivers)
 
 
+def _supertype_map(batch: FactBatch) -> dict[str, list[str]]:
+    """Each type's recorded supertypes, from the ``IMPLEMENTS`` edges."""
+    supertypes: dict[str, list[str]] = {}
+    for edge in batch.edges:
+        if edge.kind is EdgeKind.IMPLEMENTS:
+            supertypes.setdefault(edge.src, []).append(edge.dst)
+    return supertypes
+
+
+def _lineage(start: str, supertypes: dict[str, list[str]]) -> set[str]:
+    """``start`` and every supertype ``IMPLEMENTS`` reaches from it, cycle-safe."""
+    seen = {start}
+    queue = [start]
+    while queue:
+        for parent in supertypes.get(queue.pop(), ()):
+            if parent not in seen:
+                seen.add(parent)
+                queue.append(parent)
+    return seen
+
+
 def _reaches(start: str, targets: frozenset[str], supertypes: dict[str, list[str]]) -> bool:
     """Whether ``start`` reaches any of ``targets`` through ``IMPLEMENTS``.
 
@@ -1582,21 +1769,92 @@ def _passes_function(call: TSNode) -> bool:
     return False
 
 
-def _call_sites(body: TSNode) -> list[TSNode]:
-    """Every ``call_expression`` in a body, excluding nested type declarations.
+def _add_call(batch: FactBatch, src: str, target: str, provenance: Provenance) -> None:
+    """Emit ``src -CALLS-> target``, with an external placeholder for the target.
+
+    A resolved third-party callee — ``Modifier.padding``, ``Json.decodeFromString`` — is
+    a real call to a real symbol this tree does not declare, so it gets an **external
+    placeholder**. Without one the edge dangles and ``pkg verify`` reports an error for
+    what is simply a call into a library (measured: 387 such edges across 161 distinct
+    AndroidX/kotlinx symbols on the validation app). ``FactBatch`` dedup upgrades the
+    placeholder the moment a grounded declaration for the same id shows up — from this
+    front-end or from Java's, which is the other half of what D2's shared namespace buys.
+    """
+    batch.add_node(Node(target, NodeKind.FUNCTION, target.rsplit(".", 1)[-1], _LANG, external=True))
+    batch.add_edge(Edge(src, target, EdgeKind.CALLS, provenance))
+
+
+#: Standard-library builders whose lambda runs with a library receiver
+#: (``StringBuilder``, ``MutableList``, …) — members nothing here can list (#453).
+_BUILDERS = frozenset({"buildString", "buildList", "buildSet", "buildMap"})
+
+
+def _lambda_receiver(call: TSNode, source: bytes) -> tuple[bool, TSNode | None]:
+    """Whether ``call``'s trailing lambda changes the implicit receiver, and to what.
+
+    Only the standard library's own forms are recognised, because only there is the
+    receiver visible in the source: ``with(x) { }``, ``x.apply { }``, ``x.run { }``, and
+    the ``buildX { }`` builders (receiver ``None``: a library type). An arbitrary DSL
+    lambda — ``dependencies { }``, ``testApplication { }`` — may or may not carry a
+    receiver, and treating every lambda as one would refuse the calls to the enclosing
+    class those bodies are mostly made of. ``let``/``also`` pass ``it``, not a receiver;
+    bare ``run { }`` and ``with(this)`` keep ``this``; none of them changes anything.
+    """
+    head = next(iter(call.named_children), None)
+    if head is None:
+        return False, None
+    receiver: TSNode | None
+    if head.type == "call_expression":
+        # `with(x) { … }` parses as the lambda trailing the call `with(x)`.
+        callee = next(iter(head.named_children), None)
+        if callee is None or callee.type != "identifier" or _text(callee, source) != "with":
+            return False, None
+        args = next((c for c in head.named_children if c.type == "value_arguments"), None)
+        values = [c for c in args.named_children if c.type == "value_argument"] if args else []
+        if len(values) != 1:
+            return False, None
+        receiver = next(iter(values[0].named_children), None)
+    elif head.type == "navigation_expression":
+        parts = head.named_children
+        if len(parts) < 2 or parts[-1].type != "identifier":
+            return False, None
+        if _text(parts[-1], source) not in ("apply", "run"):
+            return False, None
+        receiver = parts[0]
+    elif head.type == "identifier" and _text(head, source) in _BUILDERS:
+        return True, None
+    else:
+        return False, None
+    if receiver is None or receiver.type == "this_expression":
+        return False, None
+    return True, receiver
+
+
+def _call_sites(body: TSNode, source: bytes) -> list[tuple[TSNode, tuple[TSNode | None, ...]]]:
+    """Every ``call_expression`` in a body, with the receiver lambdas it sits inside.
 
     A nested class or object is its own scope with its own members; its calls are
     emitted against *its* functions, not the enclosing one.
+
+    Each call carries the receivers of the lambdas enclosing it (``_lambda_receiver``),
+    innermost first — ``with(a) { with(b) { f() } }`` gives ``f`` the pair ``(b, a)`` —
+    because Kotlin searches those before the enclosing class (#453). Only the trailing
+    lambda is inside the receiver's scope; the ``with(x)`` argument itself is not.
+    Iterative, like every walker here: a deep expression must not recurse.
     """
-    out: list[TSNode] = []
-    stack = list(body.named_children)
+    out: list[tuple[TSNode, tuple[TSNode | None, ...]]] = []
+    stack: list[tuple[TSNode, tuple[TSNode | None, ...]]] = [(c, ()) for c in body.named_children]
     while stack:
-        node = stack.pop()
+        node, receivers = stack.pop()
         if node.type in _TYPE_DECLS:
             continue
+        inner = receivers
         if node.type == "call_expression":
-            out.append(node)
-        stack.extend(node.named_children)
+            out.append((node, receivers))
+            is_receiver_lambda, receiver = _lambda_receiver(node, source)
+            if is_receiver_lambda:
+                inner = (receiver, *receivers)
+        stack.extend((c, inner if c.type == "annotated_lambda" else receivers) for c in node.named_children)
     return out
 
 

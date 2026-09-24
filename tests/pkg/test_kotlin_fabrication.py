@@ -1052,3 +1052,338 @@ def test_a_same_package_extension_is_checked_against_the_type_in_scope(tmp_path:
         },
     )
     assert ("java:app.data.use", "java:app.data.slug") not in _calls(batch)
+
+
+# ---- #453: a receiver lambda puts its receiver's members first ------------------
+
+_PLUGIN = """\
+package app.build
+
+import org.gradle.api.Project
+import org.gradle.api.plugins.PluginManager
+
+class ConventionPlugin(private val pluginManager: PluginManager) {
+    fun apply(target: Project) {
+        with(pluginManager) {
+            apply("com.android.application")
+        }
+    }
+
+    fun applyKotlin() {
+        pluginManager.apply {
+            apply("org.jetbrains.kotlin.android")
+        }
+    }
+}
+"""
+
+
+def test_a_call_inside_with_a_library_receiver_is_not_the_enclosing_member(tmp_path: Path) -> None:
+    """`apply("x")` inside `with(pluginManager) { }` is `PluginManager.apply`, which this
+    repository cannot see — never the plugin's own `apply(target: Project)` calling itself,
+    the self-loop the Android validation app carried 15 times."""
+    batch = _facts(tmp_path, {"Plugin.kt": _PLUGIN})
+    plugin = "java:app.build.ConventionPlugin"
+    assert (f"{plugin}.apply", f"{plugin}.apply") not in _calls(batch)
+
+
+def test_the_apply_block_form_is_refused_the_same_way(tmp_path: Path) -> None:
+    batch = _facts(tmp_path, {"Plugin.kt": _PLUGIN})
+    plugin = "java:app.build.ConventionPlugin"
+    assert (f"{plugin}.applyKotlin", f"{plugin}.apply") not in _calls(batch)
+
+
+def test_a_repo_declared_receiver_in_another_file_takes_the_call(tmp_path: Path) -> None:
+    """The receiver's type is declared in a different file, so only `finalize` can know it
+    declares `refresh` — and when it does, it hides the enclosing class's `refresh`."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Repo.kt": "package app\n\nclass TopicRepository {\n    fun refresh() {}\n}\n",
+            "Sync.kt": """\
+package app
+
+class Sync(private val repo: TopicRepository) {
+    fun refresh() {}
+
+    fun go() {
+        with(repo) { refresh() }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Sync.go", "java:app.TopicRepository.refresh") in _calls(batch)
+    assert ("java:app.Sync.go", "java:app.Sync.refresh") not in _calls(batch)
+
+
+def test_a_receiver_that_lacks_the_member_falls_back_to_the_enclosing_class(tmp_path: Path) -> None:
+    batch = _facts(
+        tmp_path,
+        {
+            "Repo.kt": "package app\n\nclass TopicRepository\n",
+            "Sync.kt": """\
+package app
+
+class Sync(private val repo: TopicRepository) {
+    fun helper() {}
+
+    fun go() {
+        repo.run { helper() }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Sync.go", "java:app.Sync.helper") in _calls(batch)
+
+
+def test_a_builder_receiver_hides_the_enclosing_member(tmp_path: Path) -> None:
+    """`buildString { append(…) }` appends to the builder's `StringBuilder`."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Report.kt": """\
+package app
+
+class Report {
+    fun append(line: String) {}
+
+    fun render(): String = buildString {
+        append("header")
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Report.render", "java:app.Report.append") not in _calls(batch)
+
+
+def test_an_unreadable_inner_receiver_blocks_every_member_beyond_it(tmp_path: Path) -> None:
+    """Innermost first: the library `PluginManager` cannot be shown to lack `apply`, so
+    neither the outer receiver's `apply` nor the enclosing class's may claim the call."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Sync.kt": """\
+package app
+
+import org.gradle.api.plugins.PluginManager
+
+class TopicRepository {
+    fun apply(id: String) {}
+}
+
+class Sync(private val repo: TopicRepository, private val pluginManager: PluginManager) {
+    fun apply(id: String) {}
+
+    fun go() {
+        with(repo) {
+            with(pluginManager) { apply("x") }
+        }
+    }
+}
+""",
+        },
+    )
+    calls = _calls(batch)
+    assert ("java:app.Sync.go", "java:app.Sync.apply") not in calls
+    assert ("java:app.Sync.go", "java:app.TopicRepository.apply") not in calls
+
+
+def test_an_untyped_receiver_blocks_the_enclosing_member(tmp_path: Path) -> None:
+    """`with(make())` — the receiver is a call, whose type is never read."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Sync.kt": """\
+package app
+
+class Sync {
+    fun refresh() {}
+
+    fun go() {
+        with(make()) { refresh() }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Sync.go", "java:app.Sync.refresh") not in _calls(batch)
+
+
+def test_a_member_inherited_by_the_receiver_takes_the_call(tmp_path: Path) -> None:
+    batch = _facts(
+        tmp_path,
+        {
+            "Repo.kt": """\
+package app
+
+open class Base {
+    fun refresh() {}
+}
+
+class TopicRepository : Base()
+""",
+            "Sync.kt": """\
+package app
+
+class Sync(private val repo: TopicRepository) {
+    fun refresh() {}
+
+    fun go() {
+        with(repo) { refresh() }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Sync.go", "java:app.Base.refresh") in _calls(batch)
+    assert ("java:app.Sync.go", "java:app.Sync.refresh") not in _calls(batch)
+
+
+def test_a_receiver_with_a_library_supertype_blocks_the_enclosing_member(tmp_path: Path) -> None:
+    """`TopicRepository` inherits from `ArrayList`, which may declare the name — so the
+    receiver cannot be shown to lack it, and the enclosing member is not provable."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Repo.kt": "package app\n\nclass TopicRepository : java.util.ArrayList<String>()\n",
+            "Sync.kt": """\
+package app
+
+class Sync(private val repo: TopicRepository) {
+    fun clear() {}
+
+    fun go() {
+        with(repo) { clear() }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Sync.go", "java:app.Sync.clear") not in _calls(batch)
+
+
+def test_an_ambiguous_inherited_member_is_never_passed_outward(tmp_path: Path) -> None:
+    """Two supertypes declare `refresh` at the same distance: the receiver has it, so the
+    call is the receiver's — refused as ambiguous, and never handed to the enclosing class."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Repo.kt": """\
+package app
+
+interface A {
+    fun refresh() {}
+}
+
+interface B {
+    fun refresh() {}
+}
+
+class TopicRepository : A, B
+""",
+            "Sync.kt": """\
+package app
+
+class Sync(private val repo: TopicRepository) {
+    fun refresh() {}
+
+    fun go() {
+        with(repo) { refresh() }
+    }
+}
+""",
+        },
+    )
+    assert not {dst for src, dst in _calls(batch) if src == "java:app.Sync.go"} & {
+        "java:app.Sync.refresh",
+        "java:app.A.refresh",
+        "java:app.B.refresh",
+    }
+
+
+def test_lambdas_that_keep_the_receiver_still_resolve_to_the_enclosing_class(tmp_path: Path) -> None:
+    """`let`/`also` pass `it` and bare `run { }` keeps `this`: none changes the receiver."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Sync.kt": """\
+package app
+
+import org.gradle.api.plugins.PluginManager
+
+class Sync(private val pluginManager: PluginManager) {
+    fun helper() {}
+
+    fun viaRun() {
+        run { helper() }
+    }
+
+    fun viaLet() {
+        pluginManager.let { helper() }
+    }
+
+    fun viaAlso() {
+        pluginManager.also { helper() }
+    }
+}
+""",
+        },
+    )
+    calls = _calls(batch)
+    for fn in ("viaRun", "viaLet", "viaAlso"):
+        assert (f"java:app.Sync.{fn}", "java:app.Sync.helper") in calls
+
+
+def test_an_imported_function_inside_a_library_receiver_still_resolves(tmp_path: Path) -> None:
+    """The stated limit: a top-level or imported reading is kept behind a library
+    receiver, because the library's members cannot be read (`_ReceiverCall`)."""
+    batch = _facts(
+        tmp_path,
+        {
+            "util/Log.kt": "package app.util\n\nfun log(message: String) {}\n",
+            "Sync.kt": """\
+package app
+
+import app.util.log
+import org.gradle.api.plugins.PluginManager
+
+class Sync(private val pluginManager: PluginManager) {
+    fun go() {
+        with(pluginManager) { log("applied") }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Sync.go", "java:app.util.log") in _calls(batch)
+
+
+def test_a_receiver_lambda_call_below_a_recovered_parse_keeps_its_line(tmp_path: Path) -> None:
+    """Held for `finalize`, so the #396 line remap must reach it too: the one-line
+    `interface Iface { fun f() }` forces a re-parse with an inserted line above the call."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Sync.kt": """\
+package app
+
+interface Iface { fun f() }
+
+class TopicRepository {
+    fun refresh() {}
+}
+
+class Sync(private val repo: TopicRepository) {
+    fun go() {
+        with(repo) { refresh() }
+    }
+}
+""",
+        },
+    )
+    wanted = ("java:app.Sync.go", "java:app.TopicRepository.refresh")
+    [edge] = [e for e in batch.edges if e.kind is EdgeKind.CALLS and (e.src, e.dst) == wanted]
+    assert edge.provenance is not None and edge.provenance.line == 11
