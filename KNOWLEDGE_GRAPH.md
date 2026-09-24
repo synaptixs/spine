@@ -147,7 +147,7 @@ a variable yields no edge, because a wrong edge is worse than an absent one.
 | `java` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | · | · | · | · |
 | `typescript` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | · | · | · | · |
 | `javascript` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · | · |
-| `csharp` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · | · |
+| `csharp` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · | ✓ |
 | `c` | ✓ | ✓ | ✓ | · | · | · | · | · | ✓ | · | · | · |
 | `cpp` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | ✓ | · | · | · |
 | `go` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · | · |
@@ -643,7 +643,10 @@ reviews honest.
   a fact `IMPLEMENTS` cannot carry, because it is already true of every implementation
   including the test fakes. It is also the only edge `blast_radius` follows **outbound**:
   dependency injection means nothing calls an implementation by name, so its dependents are
-  reachable only through the interface it provides. Other languages aren't extracted yet (their files are simply not
+  reachable only through the interface it provides. C# emits it too: ASP.NET Core's
+  `services.AddScoped<IMailer, SmtpMailer>()` (and the `Transient`/`Singleton`/`TryAdd*`
+  forms) is the same binding written as code, so `SmtpMailer PROVIDES IMailer` — a factory
+  registration is not read (it returns whatever its lambda builds). Other languages aren't extracted yet (their files are simply not
   represented). For C, parsing is
   pre-preprocessor — heavy macro use yields partial facts (we never run `cpp`). For SQL, the
   dialect is auto-detected (override with `--dialect`); UTF-16 and `GO`-separated SQL Server

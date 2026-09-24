@@ -45,6 +45,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from orchestrator.pkg.csharp_di import REGISTRATIONS, Binding, emit_provides, type_arguments
 from orchestrator.pkg.extractor import rel_module_name
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 from orchestrator.pkg.razor import (
@@ -124,6 +125,8 @@ class CSharpExtractor:
         # `recv.m()` calls wait for `finalize`: whether `recv`'s type is declared here, which
         # type it is and whether it has `m` are whole-repository questions (`typed_receivers`).
         self._receivers = ReceiverState("csharp")
+        # `services.AddScoped<IFoo, Foo>()` — resolved against every declaration in `finalize`.
+        self._bindings: list[Binding] = []
 
     def module_name(self, path: Path, root: Path) -> str:
         # C#'s closest thing to a package is the (first) namespace, which lives in
@@ -177,6 +180,8 @@ class CSharpExtractor:
             target = f"csharp:{bare}"
             repointed.add_node(Node(target, NodeKind.TYPE, bare, "csharp", external=True))
             repointed.add_edge(Edge(edge.src, target, EdgeKind.IMPLEMENTS, edge.provenance))
+        # Before `resolve_calls`, which clears the shared state (`global using`s included).
+        emit_provides(repointed, self._bindings, self._receivers)
         resolve_calls(repointed, self._receivers)
         return repointed
 
@@ -204,8 +209,16 @@ class CSharpExtractor:
         self._walk(tree.root_node.named_children, module_id, "", source, rel, batch, types)
         # Phase 1.3 — framework + call edges, computed once the full type set is known.
         _framework_edges(types, module_id, tree.root_node, source, rel, batch)
-        _record_receiver_calls(
-            types, _using_scope(tree.root_node, source, self._receivers), source, rel, self._receivers
+        # B21: calls through typed receivers, and DI bindings — both settled in `finalize`.
+        usings = _using_scope(tree.root_node, source, self._receivers)
+        _record_receiver_calls(types, usings, source, rel, self._receivers)
+        _record_bindings(
+            tree.root_node,
+            types,
+            usings,
+            source,
+            rel,
+            self._bindings,
         )
         return batch
 
@@ -588,6 +601,10 @@ def _using_scope(root: TSNode, source: bytes, state: ReceiverState) -> _Usings:
 
 
 def _type_ref(text: str, rec: _TypeRec, usings: _Usings) -> TypeRef | None:
+    return _type_ref_in(text, rec.namespace, rec, usings)
+
+
+def _type_ref_in(text: str, namespace: str, rec: _TypeRec | None, usings: _Usings) -> TypeRef | None:
     """The candidate ids a written C# type name can denote, in the compiler's lookup order:
     types nested in the enclosing types, then each enclosing namespace from the innermost out,
     then the global namespace, then ``using`` directives (file and ``global``) as one level."""
@@ -597,7 +614,7 @@ def _type_ref(text: str, rec: _TypeRec, usings: _Usings) -> TypeRef | None:
     if not name or any(ch in name for ch in "[]*(),") or not (name[0].isalpha() or name[0] == "_"):
         return None
     name = re.sub(r"<.*>", "", name).strip()
-    parts = rec.namespace.split(".") if rec.namespace else []
+    parts = namespace.split(".") if namespace else []
     namespaces = tuple((f"csharp:{'.'.join(parts[:i])}.{name}",) for i in range(len(parts), 0, -1))
     if "." in name:
         head, _, rest = name.partition(".")
@@ -733,6 +750,49 @@ def _record_fields(rec: _TypeRec, usings: _Usings, source: bytes, state: Receive
                 for d in decl.named_children:
                     if d.type == "variable_declarator":
                         state.add_field(rec.type_id, _field_text(d, "name", source), ref)
+
+
+def _record_bindings(
+    root: TSNode, types: list[_TypeRec], usings: _Usings, source: bytes, rel: str, out: list[Binding]
+) -> None:
+    """Every two-type DI registration in the file (`csharp_di`), with the context to resolve it:
+    the enclosing type if there is one, else the file's namespace (top-level `Program.cs`)."""
+    file_ns = next(
+        (
+            _field_text(c, "name", source)
+            for c in root.named_children
+            if c.type == "file_scoped_namespace_declaration"
+        ),
+        "",
+    )
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        stack.extend(node.named_children)
+        if node.type != "invocation_expression":
+            continue
+        found = type_arguments(node)
+        if found is None or found[0] not in REGISTRATIONS or len(found[1]) != 2:
+            continue
+        enclosing = max(
+            (t for t in types if t.node.start_byte <= node.start_byte and node.end_byte <= t.node.end_byte),
+            key=lambda t: t.node.start_byte,
+            default=None,
+        )
+        namespace = enclosing.namespace if enclosing is not None else _namespace_of(node, source) or file_ns
+        iface, impl = (_type_ref_in(_text(a, source), namespace, enclosing, usings) for a in found[1])
+        if iface is not None and impl is not None:
+            out.append(Binding(impl, iface, rel, node.start_point[0] + 1))
+
+
+def _namespace_of(node: TSNode, source: bytes) -> str:
+    parts: list[str] = []
+    cur = node.parent
+    while cur is not None:
+        if cur.type == "namespace_declaration":
+            parts.insert(0, _field_text(cur, "name", source))
+        cur = cur.parent
+    return ".".join(p for p in parts if p)
 
 
 def _qualified_name(node: TSNode, source: bytes) -> str | None:

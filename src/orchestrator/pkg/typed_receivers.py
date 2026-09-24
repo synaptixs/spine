@@ -106,7 +106,11 @@ class ReceiverState:
         self.base_refs.clear()
 
 
-class _Index:
+class TypeIndex:
+    """Declared types, their members and in-repo supertypes — the whole-repository facts every
+    question above needs. Public so a front-end's other whole-repo passes (C# DI) resolve a
+    written type exactly as a receiver's is resolved."""
+
     def __init__(self, batch: FactBatch, state: ReceiverState) -> None:
         self.state = state
         nodes = {n.id: n for n in batch.nodes}
@@ -184,7 +188,7 @@ def resolve_bases(batch: FactBatch, state: ReceiverState) -> FactBatch:
     """
     if not state.base_refs:
         return batch
-    index = _Index(batch, state)
+    index = TypeIndex(batch, state)
     changed = False
     result = FactBatch()
     for node in batch.nodes:
@@ -205,7 +209,7 @@ def resolve_calls(batch: FactBatch, state: ReceiverState) -> None:
     if not state.calls:
         state.clear()
         return
-    index = _Index(batch, state)
+    index = TypeIndex(batch, state)
     for call in state.calls:
         receiver_type: str | None
         if call.field_of is not None:
@@ -224,4 +228,4 @@ def resolve_calls(batch: FactBatch, state: ReceiverState) -> None:
     state.clear()
 
 
-__all__ = ["DeferredCall", "ReceiverState", "TypeRef", "resolve_bases", "resolve_calls"]
+__all__ = ["DeferredCall", "ReceiverState", "TypeIndex", "TypeRef", "resolve_bases", "resolve_calls"]
