@@ -17,7 +17,8 @@ concrete type as itself, so there is nothing to connect. A factory ``AddScoped<I
 DbAudit())`` returns whatever the lambda builds; reading ``new DbAudit`` out of it would be the
 first guess in the chain, so it is a known gap (corpus ``csharp/di_bindings``). Both type
 arguments are resolved the way any written type is (``using``, namespace chain) and must name
-types this repository declares — a registration of a framework type is not a first-party binding.
+types this repository declares — a registration of a framework type is not a first-party binding
+— and the implementation must reach the interface through ``IMPLEMENTS``.
 """
 
 from __future__ import annotations
@@ -69,7 +70,9 @@ def emit_provides(batch: FactBatch, bindings: list[Binding], state: ReceiverStat
     index = TypeIndex(batch, state)
     for b in bindings:
         impl, iface = index.type_of(b.implementation), index.type_of(b.interface)
-        if impl is not None and iface is not None and impl != iface:
+        # The implementation must actually be one: `AddScoped<AImpl, IA>()` with the arguments
+        # swapped, or a type written ambiguously, would otherwise bind the wrong way round.
+        if impl is not None and iface is not None and impl != iface and index.is_subtype(impl, iface):
             batch.add_edge(Edge(impl, iface, EdgeKind.PROVIDES, Provenance(b.rel, b.line)))
     bindings.clear()
 
