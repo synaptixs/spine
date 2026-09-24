@@ -2,7 +2,7 @@
   "language": "csharp",
   "case": "di_bindings",
   "root": ".repo",
-  "why": "B21 / D6. ASP.NET Core wires an implementation behind an interface with `services.AddScoped<IMailer, SmtpMailer>()`; every consumer is handed `IMailer`, so without an edge from `SmtpMailer` to `IMailer` a change to the implementation reaches none of its callers. `PROVIDES` (the edge Kotlin's Hilt bindings introduced) says exactly that: this declaration makes this type available for injection. `TryAdd*` registers the same way. A single-type `AddTransient<Worker>()` binds nothing behind an interface, so it has no edge.",
+  "why": "B21 / D6. ASP.NET Core wires an implementation behind an interface with `services.AddScoped<IMailer, SmtpMailer>()`; every consumer is handed `IMailer`, so without an edge from `SmtpMailer` to `IMailer` a change to the implementation reaches none of its callers. `PROVIDES` (the edge Kotlin's Hilt bindings introduced) says exactly that: this declaration makes this type available for injection. `TryAdd*` registers the same way. A single-type `AddTransient<Worker>()` binds nothing behind an interface, so it has no edge. A factory whose lambda body is exactly one `new DbAudit()` builds `DbAudit`, so it is read (B22, D9).",
   "nodes": [
     {
       "id": "csharp:App",
@@ -191,24 +191,7 @@
       "kind": "CALLS"
     }
   ],
-  "known_gaps": [
-    {
-      "edge": {
-        "src": "csharp:App.DbAudit",
-        "dst": "csharp:App.IAudit",
-        "kind": "PROVIDES"
-      },
-      "why": "PREDICTED BEFORE SCORING (D12). A factory registration `AddScoped<IAudit>(sp => new DbAudit())` returns whatever the lambda builds; reading `new DbAudit` out of it would be the first guess in the chain, so only the two-type generic form produces PROVIDES."
-    },
-    {
-      "edge": {
-        "src": "csharp:App.Startup.Register",
-        "dst": "csharp:App.DbAudit",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
-    }
-  ],
+  "known_gaps": [],
   "refusals": [
     {
       "edge": {

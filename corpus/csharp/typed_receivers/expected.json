@@ -338,24 +338,7 @@
       "kind": "CALLS"
     }
   ],
-  "known_gaps": [
-    {
-      "edge": {
-        "src": "csharp:App.Services.Orders.ViaLocal",
-        "dst": "csharp:App.Data.Store",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
-    },
-    {
-      "edge": {
-        "src": "csharp:App.Services.Orders.ViaVarNew",
-        "dst": "csharp:App.Data.Store",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
-    }
-  ],
+  "known_gaps": [],
   "refusals": [
     {
       "edge": {

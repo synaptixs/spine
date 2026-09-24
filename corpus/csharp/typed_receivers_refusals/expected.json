@@ -307,22 +307,6 @@
         "kind": "CALLS"
       },
       "why": "PREDICTED BEFORE SCORING. An extension method call is a call to `Ext.Shout` — true, but extension methods are out of scope (D10)."
-    },
-    {
-      "edge": {
-        "src": "csharp:Svc.Dispatch.Make",
-        "dst": "csharp:Svc.Handler",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
-    },
-    {
-      "edge": {
-        "src": "csharp:Svc.Dispatch.ViaShadow",
-        "dst": "csharp:Svc.Rocket",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
     }
   ],
   "refusals": [

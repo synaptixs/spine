@@ -1,0 +1,404 @@
+{
+  "language": "csharp",
+  "case": "constructor_calls",
+  "root": ".repo",
+  "why": "B22, C#. Instantiation is `CALLS` to the created Type (corpus/README.md). Edges: plain, with arguments, fully qualified, a nested type, a generic, an object initializer with no argument list, target-typed `new()` whose type is written on the same declaration (D3), a struct, a positional record, and an expression-bodied return. Refusals: target-typed `new()` in a return, an array, an external generic with an in-repo type argument, a method type parameter shadowing an in-repo type, an alias to an external type shadowing an imported in-repo namesake, and constructor chaining.",
+  "nodes": [
+    {
+      "id": "csharp:App.Model",
+      "kind": "Module"
+    },
+    {
+      "id": "csharp:App.Util",
+      "kind": "Module"
+    },
+    {
+      "id": "csharp:App.Svc",
+      "kind": "Module"
+    },
+    {
+      "id": "csharp:App.Model.Order",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Model.Order.Line",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Model.Box",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Model.Point",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Model.Money",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Model.Special",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Util.Timer",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Svc.Maker",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Model.Order.Order",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Model.Point.Point",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Model.Special.Special",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.Plain",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.WithArgs",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.Qualified",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.Nested",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.Generic",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.Initializer",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.TargetTyped",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.Struct",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.Record",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.Returned",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.TargetTypedReturn",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.Array",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.ExternalGeneric",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.Shadow",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Maker.Aliased",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Model.Order.Id",
+      "kind": "Field"
+    },
+    {
+      "id": "csharp:App.Model.Money.Amount",
+      "kind": "Field"
+    }
+  ],
+  "edges": [
+    {
+      "src": "csharp:App.Model",
+      "dst": "csharp:App.Model.Order",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model.Order",
+      "dst": "csharp:App.Model.Order.Line",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model",
+      "dst": "csharp:App.Model.Box",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model",
+      "dst": "csharp:App.Model.Point",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model",
+      "dst": "csharp:App.Model.Money",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model",
+      "dst": "csharp:App.Model.Special",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Util",
+      "dst": "csharp:App.Util.Timer",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc",
+      "dst": "csharp:App.Svc.Maker",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model.Order",
+      "dst": "csharp:App.Model.Order.Order",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model.Point",
+      "dst": "csharp:App.Model.Point.Point",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model.Special",
+      "dst": "csharp:App.Model.Special.Special",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.Plain",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.WithArgs",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.Qualified",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.Nested",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.Generic",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.Initializer",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.TargetTyped",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.Struct",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.Record",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.Returned",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.TargetTypedReturn",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.Array",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.ExternalGeneric",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.Shadow",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker",
+      "dst": "csharp:App.Svc.Maker.Aliased",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model.Order",
+      "dst": "csharp:App.Model.Order.Id",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model.Money",
+      "dst": "csharp:App.Model.Money.Amount",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model.Special",
+      "dst": "csharp:App.Model.Order",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "csharp:App.Svc",
+      "dst": "csharp:App.Model",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "csharp:App.Svc",
+      "dst": "csharp:App.Util",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "csharp:App.Svc",
+      "dst": "csharp:System.Collections.Generic",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker.Plain",
+      "dst": "csharp:App.Model.Order",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker.WithArgs",
+      "dst": "csharp:App.Model.Order",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker.Qualified",
+      "dst": "csharp:App.Model.Order",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker.Nested",
+      "dst": "csharp:App.Model.Order.Line",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker.Generic",
+      "dst": "csharp:App.Model.Box",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker.Initializer",
+      "dst": "csharp:App.Model.Order",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker.TargetTyped",
+      "dst": "csharp:App.Model.Order",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker.Struct",
+      "dst": "csharp:App.Model.Point",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker.Record",
+      "dst": "csharp:App.Model.Money",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker.Returned",
+      "dst": "csharp:App.Model.Order",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Svc",
+      "dst": "csharp:System.Threading.Timer",
+      "kind": "IMPORTS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "csharp:App.Svc.Maker.TargetTypedReturn",
+        "dst": "csharp:App.Model.Order",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `return new();` takes its type from the method's return type \u2014 target typing beyond a declaration is inference, refused (D3)."
+    },
+    {
+      "edge": {
+        "src": "csharp:App.Svc.Maker.Array",
+        "dst": "csharp:App.Model.Order",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `new Order[3]` creates an array; no `Order` constructor runs (D2)."
+    },
+    {
+      "edge": {
+        "src": "csharp:App.Svc.Maker.ExternalGeneric",
+        "dst": "csharp:App.Model.Order",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `new List<Order>()` creates a `List`, which this repository does not declare; `Order` is only a type argument (D11)."
+    },
+    {
+      "edge": {
+        "src": "csharp:App.Svc.Maker.Shadow",
+        "dst": "csharp:App.Model.Order",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `Order` here is the method's type parameter (`where Order : new()`), which hides the in-repo type (Track G B3)."
+    },
+    {
+      "edge": {
+        "src": "csharp:App.Svc.Maker.Aliased",
+        "dst": "csharp:App.Util.Timer",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `using Timer = System.Threading.Timer;` binds `Timer` explicitly; a using alias beats a type brought in by `using App.Util;`, and it names an external type (D5, Track G B1/B4)."
+    },
+    {
+      "edge": {
+        "src": "csharp:App.Model.Special.Special",
+        "dst": "csharp:App.Model.Order",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `: base(1)` chains to the base constructor; `Special IMPLEMENTS Order` already carries the dependency (D4)."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [],
+  "open_questions": [],
+  "note": "Labelled from the source before scoring against the unfixed front-end. One label omission found on first scoring and added: the alias `using Timer = System.Threading.Timer;` is an IMPORTS edge to the aliased type."
+}

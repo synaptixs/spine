@@ -45,7 +45,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from orchestrator.pkg.csharp_di import REGISTRATIONS, Binding, emit_provides, type_arguments
+from orchestrator.pkg.csharp_di import REGISTRATIONS, Binding, emit_provides, factory_creation, type_arguments
 from orchestrator.pkg.extractor import rel_module_name
 from orchestrator.pkg.facts import Edge, EdgeKind, FactBatch, Node, NodeKind, Provenance
 from orchestrator.pkg.razor import (
@@ -921,8 +921,14 @@ def _record_bindings(
         if node.type != "invocation_expression":
             continue
         found = type_arguments(node)
-        if found is None or found[0] not in REGISTRATIONS or len(found[1]) != 2:
+        if found is None or found[0] not in REGISTRATIONS or len(found[1]) not in (1, 2):
             continue
+        written = [_text(a, source) for a in found[1]]
+        if len(written) == 1:
+            built = factory_creation(node)  # `AddScoped<IAudit>(sp => new DbAudit())` (B22, D9)
+            if built is None:
+                continue
+            written.append(_text(built, source))
         enclosing = max(
             (t for t in types if t.node.start_byte <= node.start_byte and node.end_byte <= t.node.end_byte),
             key=lambda t: t.node.start_byte,
@@ -936,7 +942,7 @@ def _record_bindings(
                 key=lambda sd: sd[0],
                 default=(0, None),
             )[1]
-        iface, impl = (_type_ref_in(_text(a, source), enclosing, decl, unit) for a in found[1])
+        iface, impl = (_type_ref_in(w, enclosing, decl, unit) for w in written)
         if iface is not None and impl is not None:
             out.append(Binding(impl, iface, rel, node.start_point[0] + 1))
 
@@ -954,10 +960,32 @@ def _qualified_name(node: TSNode, source: bytes) -> str | None:
     return None
 
 
+def _creation(
+    node: TSNode, rec: _TypeRec, unit: _Unit, source: bytes, method_params: frozenset[str]
+) -> TypeRef | None:
+    """The type a creation instantiates (B22): ``new T(…)`` and ``new T { … }`` name it; a
+    target-typed ``new(…)`` only when its declaration writes the type on the same line —
+    ``Foo x = new();`` (D3). Anywhere else (``return new();``, an argument, an assignment) the
+    type comes from inference, and is refused. ``new T[n]`` is an ``array_creation_expression``
+    and never read: it runs no constructor of ``T``."""
+    if node.type == "object_creation_expression":
+        return _type_node_ref(node.child_by_field_name("type"), rec, unit, source, method_params)
+    parent = node.parent
+    if parent is not None and parent.type == "equals_value_clause":
+        parent = parent.parent
+    if parent is None or parent.type != "variable_declarator" or parent.parent is None:
+        return None
+    declaration = parent.parent
+    if declaration.type != "variable_declaration":
+        return None
+    return _type_node_ref(declaration.child_by_field_name("type"), rec, unit, source, method_params)
+
+
 def _record_receiver_calls(
     types: list[_TypeRec], unit: _Unit, source: bytes, rel: str, state: ReceiverState
 ) -> None:
-    """Defer every ``recv.m()`` / ``Type.m()`` call in this file to ``finalize`` (B21)."""
+    """Defer every ``recv.m()`` / ``Type.m()`` call — and every ``new T(…)`` (B22) — in this file
+    to ``finalize`` (B21)."""
     for rec in types:
         _record_fields(rec, unit, source, state)
         for i, (written, provisional) in enumerate(rec.bases):
@@ -973,6 +1001,13 @@ def _record_receiver_calls(
             while stack:
                 n = stack.pop()
                 stack.extend(n.named_children)
+                if n.type in ("object_creation_expression", "implicit_object_creation_expression"):
+                    created = _creation(n, rec, unit, source, method_params)
+                    if created is not None:
+                        state.calls.append(
+                            DeferredCall(mid, "", rel, n.start_point[0] + 1, receiver=created, creates=True)
+                        )
+                    continue
                 if n.type != "invocation_expression":
                     continue
                 fn = n.child_by_field_name("function")
