@@ -665,6 +665,25 @@ def _unit_scope(root: TSNode, source: bytes, project: str, state: ReceiverState)
     return _Unit(tuple(sorted(set(usings))), tuple(sorted(aliases)), project)
 
 
+_GENERIC_CALLABLES = frozenset({"method_declaration", "local_function_statement", "constructor_declaration"})
+
+
+def _params_at(node: TSNode, source: bytes, stop: TSNode | None = None) -> frozenset[str]:
+    """Every type parameter in force at ``node``: its enclosing method's and every local
+    function's between them (B30, D5) — ``TItem Make<TItem>() => new TItem()`` inside a method
+    means the local function's ``TItem``, never an in-repo class of that name. Walks up to ``stop``
+    (the method) when given, else to the enclosing type."""
+    names: set[str] = set()
+    cur: TSNode | None = node
+    while cur is not None:
+        if cur.type in _GENERIC_CALLABLES:
+            names |= _type_params(cur, source)
+        if cur == stop or cur.type in _TYPE_DECLS:
+            break
+        cur = cur.parent
+    return frozenset(names)
+
+
 def _type_params(node: TSNode, source: bytes) -> frozenset[str]:
     """``<T, U>`` of a type or method declaration."""
     names: set[str] = set()
@@ -739,6 +758,18 @@ def _type_ref_in(
     alias = dict(unit.aliases).get(head)
     if alias is not None:
         groups.append((f"csharp:{alias}{suffix}", STOP))
+    if rest:
+        # `Outer.Inner`: the head the full way, then `Inner` among its member types (B30, D4); the
+        # groups above are the namespace-qualified reading, for when the head is no type
+        head_ref = _type_ref_in(head, rec, decl, unit, extra_params)
+        return TypeRef(
+            tuple(groups),
+            simple=f"{head}{suffix}",
+            using_prefixes=unit.usings,
+            project=unit.project,
+            head=head_ref,
+            rest=tuple(rest.split(".")),
+        )
     chain: list[str] = []
     cur_rec = rec
     while cur_rec is not None:
@@ -802,10 +833,10 @@ def _method_scope(mnode: TSNode, rec: _TypeRec, unit: _Unit, source: bytes) -> S
     Every binding form is collected, typed or not: a name missed here would fall through to a
     field of the same name and resolve to *its* type — the one way this pass could invent."""
     scope = Scope(before_decl_refuses=True)  # C#: a local is in scope for its whole block
-    method_params = _type_params(mnode, source)
 
     def typed(node: TSNode | None) -> object:
-        ref = _type_node_ref(node, rec, unit, source, method_params)
+        params = _params_at(node, source, mnode) if node is not None else frozenset()
+        ref = _type_node_ref(node, rec, unit, source, params)
         return ref if ref is not None else UNREADABLE
 
     def bind(name_node: TSNode | None, ref: object, where: TSNode, decl: TSNode) -> None:
@@ -946,7 +977,9 @@ def _record_bindings(
                 key=lambda sd: sd[0],
                 default=(0, None),
             )[1]
-        iface, impl = (_type_ref_in(w, enclosing, decl, unit) for w in written)
+        # a generic method's own `<TImpl>` is never the in-repo class of that name (B30, D5)
+        params = _params_at(node, source)
+        iface, impl = (_type_ref_in(w, enclosing, decl, unit, params) for w in written)
         if iface is not None and impl is not None:
             out.append(Binding(impl, iface, rel, node.start_point[0] + 1))
 
@@ -1003,11 +1036,11 @@ def _record_receiver_calls(
                 state.add_class_base(rec.type_id, ref)
         for _name, mid, mnode in rec.methods:
             scope = _method_scope(mnode, rec, unit, source)
-            method_params = _type_params(mnode, source)
             stack = [c for c in mnode.named_children if c.type != "parameter_list"]
             while stack:
                 n = stack.pop()
                 stack.extend(n.named_children)
+                method_params = _params_at(n, source, mnode)
                 if n.type in ("object_creation_expression", "implicit_object_creation_expression"):
                     created = _creation(n, rec, unit, source, method_params)
                     if created is not None:

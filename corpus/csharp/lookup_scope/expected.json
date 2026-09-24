@@ -1,0 +1,217 @@
+{
+  "language": "csharp",
+  "case": "lookup_scope",
+  "root": ".repo",
+  "why": "B30, C#. Closer bindings a flat lookup misses: a local function's own type parameter, a generic method's type parameter in a DI registration, and a nested type inherited from an external base class that the committed member-type list knows (`System.Windows.Forms.Control.ControlCollection`). Controls: `Plain` creates the real `TItem`, and `Bag : Collection<int>` \u2014 an external base that declares no `ControlCollection` \u2014 still resolves `new ControlCollection(this)` to the in-repo type.",
+  "nodes": [
+    {
+      "id": "csharp:App.Model",
+      "kind": "Module"
+    },
+    {
+      "id": "csharp:App.Svc",
+      "kind": "Module"
+    },
+    {
+      "id": "csharp:App.Model.IAudit",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Model.DbAudit",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Model.TItem",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Model.ControlCollection",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Svc.Services",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Svc.Use",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Svc.Panel",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Svc.Bag",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Model.ControlCollection.ControlCollection",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Use.LocalFunction",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Use.Register",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Use.Plain",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Panel.Make",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Svc.Bag.Make",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "csharp:App.Model",
+      "dst": "csharp:App.Model.IAudit",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model",
+      "dst": "csharp:App.Model.DbAudit",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model",
+      "dst": "csharp:App.Model.TItem",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model",
+      "dst": "csharp:App.Model.ControlCollection",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc",
+      "dst": "csharp:App.Svc.Services",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc",
+      "dst": "csharp:App.Svc.Use",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc",
+      "dst": "csharp:App.Svc.Panel",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc",
+      "dst": "csharp:App.Svc.Bag",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model.ControlCollection",
+      "dst": "csharp:App.Model.ControlCollection.ControlCollection",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Use",
+      "dst": "csharp:App.Svc.Use.LocalFunction",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Use",
+      "dst": "csharp:App.Svc.Use.Register",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Use",
+      "dst": "csharp:App.Svc.Use.Plain",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Panel",
+      "dst": "csharp:App.Svc.Panel.Make",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Svc.Bag",
+      "dst": "csharp:App.Svc.Bag.Make",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Model.DbAudit",
+      "dst": "csharp:App.Model.IAudit",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "csharp:App.Svc.Panel",
+      "dst": "csharp:Control",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "csharp:App.Svc.Bag",
+      "dst": "csharp:Collection",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "csharp:App.Svc",
+      "dst": "csharp:System.Collections.ObjectModel",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "csharp:App.Svc",
+      "dst": "csharp:System.Windows.Forms",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "csharp:App.Svc",
+      "dst": "csharp:App.Model",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "csharp:App.Svc.Use.Plain",
+      "dst": "csharp:App.Model.TItem",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Svc.Bag.Make",
+      "dst": "csharp:App.Model.ControlCollection",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "csharp:App.Svc.Use.LocalFunction",
+        "dst": "csharp:App.Model.TItem",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `TItem` is the local function `Make<TItem>`'s own type parameter, which hides the in-repo `App.Model.TItem` (D5)."
+    },
+    {
+      "edge": {
+        "src": "csharp:App.Model.DbAudit",
+        "dst": "csharp:App.Model.IAudit",
+        "kind": "PROVIDES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `DbAudit` in `AddScoped<IAudit, DbAudit>()` is `Register<DbAudit>`'s type parameter, not the in-repo class \u2014 whatever the caller passes is bound, so no binding is known (D5)."
+    },
+    {
+      "edge": {
+        "src": "csharp:App.Svc.Panel.Make",
+        "dst": "csharp:App.Model.ControlCollection",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `Panel : Control` (System.Windows.Forms) inherits the nested type `Control.ControlCollection`, which C# finds before the `using App.Model;` type \u2014 an external base declares it, so the true reading has no edge (D3)."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [
+    "`Control` and `Collection<int>` are external bases; `Make<TItem>` is a local function, which has no node \u2014 its creation is attributed to `LocalFunction`, as its calls are."
+  ],
+  "open_questions": [],
+  "note": "Labelled from the source before scoring against the unfixed front-end."
+}
