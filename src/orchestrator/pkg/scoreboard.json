@@ -8,9 +8,9 @@
       },
       "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
       "provenance": {
-        "anchored": 14683,
+        "anchored": 14691,
         "excluded": 925,
-        "resolved": 14683,
+        "resolved": 14691,
         "unreadable": 0
       }
     },
@@ -117,8 +117,8 @@
           "edges": {
             "CALLS": {
               "emitted": 32,
-              "expected": 35,
-              "known_gaps": 3,
+              "expected": 36,
+              "known_gaps": 4,
               "matched": 32
             },
             "CONTAINS": {
@@ -242,10 +242,10 @@
         "java": {
           "edges": {
             "CALLS": {
-              "emitted": 29,
-              "expected": 32,
+              "emitted": 30,
+              "expected": 33,
               "known_gaps": 3,
-              "matched": 29
+              "matched": 30
             },
             "CONTAINS": {
               "emitted": 102,
@@ -927,10 +927,10 @@
       "skipped_languages": []
     },
     "drift": {
-      "count": 1962,
+      "count": 1965,
       "docs": 1938,
       "gated": false,
-      "mentions": 14049,
+      "mentions": 14054,
       "note": "recorded, never gated \u2014 an upper bound: a tenth of the population cannot bind by construction. See GATES"
     },
     "invention": {
@@ -974,7 +974,7 @@
           "invented": 0,
           "shadowable": 0,
           "status": "not-applicable",
-          "total_calls": 30,
+          "total_calls": 31,
           "unexamined": 0
         },
         "javascript": {
@@ -1014,7 +1014,7 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 23185,
+          "total_calls": 23200,
           "unexamined": 0
         },
         "sql": {
@@ -1035,7 +1035,7 @@
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 23775
+      "total_calls": 23791
     },
     "parity": {
       "declared": 75,

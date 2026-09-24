@@ -680,16 +680,17 @@ front-ends**, and the baseline lives in `src/orchestrator/pkg/scoreboard.json`.
 |---|---|
 | `c` `sql` | 1.00 |
 | `javascript` | 0.97 |
-| `java` `csharp` | 0.91 |
-| `perl` `python` | 0.89 |
+| `java` | 0.91 |
+| `csharp` `perl` `python` | 0.89 |
 | `kotlin` | 0.87 |
 | `typescript` | 0.86 |
 | `cpp` `go` `php` | 0.75 |
 
 C# and Java carry typed-receiver cases (B21) that label every true call in their source,
-and constructor-call cases (B22) now that `new Foo()` is a `CALLS` edge to `Foo`: C# 32 of 35,
-Java 29 of 32. Each remaining miss is a receiver whose type needs inference (a return value, a
-lambda parameter, an extension method), a labelled known gap.
+and constructor-call cases (B22) now that `new Foo()` is a `CALLS` edge to `Foo`: C# 32 of 36,
+Java 30 of 33. Each remaining miss is a type the source does not write at the site — a receiver's (a
+return value, a lambda parameter, an extension method) or a `return new()`'s — a labelled
+known gap.
 
 Read the precision row carefully, because it is the load-bearing claim: **nothing in the graph
 is invented.** Every edge Spine emits is one that exists in the source. The entire remaining

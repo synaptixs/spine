@@ -2,7 +2,7 @@
   "language": "java",
   "case": "constructor_calls",
   "root": ".repo",
-  "why": "B22, Java. Instantiation is `CALLS` to the created Type (corpus/README.md). Every shape that runs a constructor of an in-repo type is an edge: plain, with arguments, fully qualified, a nested type, an explicit generic, a diamond, an anonymous class of an interface and of an abstract class (the edge goes to the type instantiated), and a returned creation. The refusals are the shapes that look like one and are not: an array creation, a constructor reference, an external generic whose type argument is in-repo, a creation inside a local class's method, constructor chaining, and a same-named type shadowed by an explicit external import.",
+  "why": "B22, Java. Instantiation is `CALLS` to the created Type (corpus/README.md). Every shape that runs a constructor of an in-repo type is an edge: plain, with arguments, fully qualified, a nested type, an explicit generic, a diamond, an anonymous class of an interface and of an abstract class (the edge goes to the type instantiated), and a returned creation. The refusals are the shapes that look like one and are not: an array creation, a constructor reference, an external generic whose type argument is in-repo, a creation inside a local class's method, constructor chaining, and a same-named type shadowed by an explicit external import. A creation inside an anonymous class body (`fired` in `anonymousInterface`) belongs to the enclosing method: the anonymous class has no name and no node, and B21 attributes receiver calls there the same way.",
   "nodes": [
     {
       "id": "java:app.model",
@@ -331,6 +331,11 @@
       "src": "java:app.svc.Maker.returned",
       "dst": "java:app.model.Order",
       "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Maker.anonymousInterface",
+      "dst": "java:app.model.Order",
+      "kind": "CALLS"
     }
   ],
   "known_gaps": [],
@@ -341,7 +346,7 @@
         "dst": "java:app.model.Order",
         "kind": "CALLS"
       },
-      "why": "PREDICTED BEFORE SCORING. `new Order[3]` creates an array, not an `Order` \u2014 no constructor runs (D2)."
+      "why": "PREDICTED BEFORE SCORING. `new Order[3]` creates an array, not an `Order` — no constructor runs (D2)."
     },
     {
       "edge": {
@@ -365,7 +370,7 @@
         "dst": "java:app.model.Order",
         "kind": "CALLS"
       },
-      "why": "PREDICTED BEFORE SCORING. The creation is inside the local class `Tmp`'s method `go`, not `localClass`'s body \u2014 attributing it to the enclosing method would invent a call."
+      "why": "PREDICTED BEFORE SCORING. The creation is inside the method `go` of the named local class `Tmp`: a named local class is its own scope (as for receiver calls), and it has no node of its own, so attributing its creation to `localClass` would invent a call."
     },
     {
       "edge": {
@@ -381,13 +386,14 @@
         "dst": "java:app.svc.Timer",
         "kind": "CALLS"
       },
-      "why": "PREDICTED BEFORE SCORING. `import java.util.Timer;` names the JDK type, which beats the same-package `app.svc.Timer` \u2014 an explicit single-type import ends the lookup even for an external type (D5, Track G B1)."
+      "why": "PREDICTED BEFORE SCORING. `import java.util.Timer;` names the JDK type, which beats the same-package `app.svc.Timer` — an explicit single-type import ends the lookup even for an external type (D5, Track G B1)."
     }
   ],
   "false_positives": [],
   "excluded": [
     "The local class `Tmp` and its method `go` are not labelled as nodes: a local class is not a member of the type graph the front-end builds (it scopes method bodies, D13 of Track G).",
-    "The anonymous classes' `fired` and `run` bodies have no name to be a node."
+    "The anonymous classes' `fired` and `run` bodies have no name to be a node.",
+    "`new Timer()` in `Clock.start` (the imported `java.util.Timer`) and `new java.util.ArrayList<Order>()` in `externalGeneric` create types this repository does not declare — no edge by D11; their tempting in-repo readings are the refusals."
   ],
   "open_questions": [],
   "note": "Labelled from the source before scoring against the unfixed front-end."

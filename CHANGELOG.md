@@ -34,8 +34,9 @@ All notable changes to this project are documented here. Format loosely follows
   inferred (`return new();`) are not read. So a class's `blast_radius` lists who creates it: on
   mysql-connector-j `com.mysql.cj.result.Field` went from 0 callers to 264, on a .NET service a
   view model from 0 to 279. A constructor node, which no edge targets, reports those creators as
-  `instantiated_via_type` rather than "0 callers". C# and Java `CALLS` recall: 0.91 each on the
-  corpus (C# 32 of 35, Java 29 of 32), every remaining miss a receiver whose type needs inference.
+  `instantiated_via_type` rather than "0 callers". `CALLS` recall on the corpus: Java 0.91 (30 of
+  33), C# 0.89 (32 of 36); every remaining miss is a type the source does not write at the site —
+  an inferred receiver, or `return new();`.
 - **ASP.NET Core DI registrations become `PROVIDES`.** `services.AddScoped<IMailer, SmtpMailer>()`
   (and `Transient`/`Singleton`/`TryAdd*`) records `SmtpMailer PROVIDES IMailer`, the edge Kotlin's
   Hilt bindings introduced — only when `SmtpMailer` really implements `IMailer`. A factory

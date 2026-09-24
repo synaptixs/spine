@@ -547,16 +547,17 @@ multi-repo `CONSUMES` (5 of 6) — each a declared known gap:
 |---|---|
 | `c` `cpp` (with `clang`) `sql` | 1.00 |
 | `javascript` | 0.97 |
-| `java` `csharp` | 0.91 |
-| `perl` `python` | 0.89 |
+| `java` | 0.91 |
+| `csharp` `perl` `python` | 0.89 |
 | `kotlin` | 0.87 |
 | `typescript` | 0.86 |
 | `cpp` `go` `php` | 0.75 |
 
 C# and Java carry typed-receiver cases (B21) that label every true call in their source,
-and constructor-call cases (B22) now that `new Foo()` is a `CALLS` edge to `Foo`: C# 32 of 35,
-Java 29 of 32. Each remaining miss is a receiver whose type needs inference (a return value, a
-lambda parameter, an extension method), a labelled known gap.
+and constructor-call cases (B22) now that `new Foo()` is a `CALLS` edge to `Foo`: C# 32 of 36,
+Java 30 of 33. Each remaining miss is a type the source does not write at the site — a receiver's (a
+return value, a lambda parameter, an extension method) or a `return new()`'s — a labelled
+known gap.
 
 Perl's 0.89 is 8 of 9 labelled `CALLS` edges in its own corpus — the one miss is a
 permanent, documented one (`instance_calls`, an untyped parameter with no declared type to

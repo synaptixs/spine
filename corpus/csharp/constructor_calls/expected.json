@@ -2,7 +2,7 @@
   "language": "csharp",
   "case": "constructor_calls",
   "root": ".repo",
-  "why": "B22, C#. Instantiation is `CALLS` to the created Type (corpus/README.md). Edges: plain, with arguments, fully qualified, a nested type, a generic, an object initializer with no argument list, target-typed `new()` whose type is written on the same declaration (D3), a struct, a positional record, and an expression-bodied return. Refusals: target-typed `new()` in a return, an array, an external generic with an in-repo type argument, a method type parameter shadowing an in-repo type, an alias to an external type shadowing an imported in-repo namesake, and constructor chaining.",
+  "why": "B22, C#. Instantiation is `CALLS` to the created Type (corpus/README.md). Edges: plain, with arguments, fully qualified, a nested type, a generic, an object initializer with no argument list, target-typed `new()` whose type is written on the same declaration (D3), a struct, a positional record, and an expression-bodied return. Known gap: target-typed `new()` in a return (true, but its type is inferred — D3). Refusals: an array, an external generic with an in-repo type argument, a method type parameter shadowing an in-repo type, an alias to an external type shadowing an imported in-repo namesake, and constructor chaining.",
   "nodes": [
     {
       "id": "csharp:App.Model",
@@ -344,18 +344,24 @@
       "src": "csharp:App.Svc",
       "dst": "csharp:System.Threading.Timer",
       "kind": "IMPORTS"
+    },
+    {
+      "src": "csharp:App.Svc.Maker.TargetTypedReturn",
+      "dst": "csharp:App.Model.Order",
+      "kind": "CALLS"
     }
   ],
-  "known_gaps": [],
-  "refusals": [
+  "known_gaps": [
     {
       "edge": {
         "src": "csharp:App.Svc.Maker.TargetTypedReturn",
         "dst": "csharp:App.Model.Order",
         "kind": "CALLS"
       },
-      "why": "PREDICTED BEFORE SCORING. `return new();` takes its type from the method's return type \u2014 target typing beyond a declaration is inference, refused (D3)."
-    },
+      "why": "PREDICTED BEFORE SCORING. `return new();` does create an `Order` — a true edge. Its type comes from the method's return type, and D3 reads a target-typed `new()` only where its own declaration writes the type, so this is a deliberate gap, not a refusal (review pass 1, B1)."
+    }
+  ],
+  "refusals": [
     {
       "edge": {
         "src": "csharp:App.Svc.Maker.Array",
@@ -398,7 +404,9 @@
     }
   ],
   "false_positives": [],
-  "excluded": [],
+  "excluded": [
+    "`new List<Order>()` in `ExternalGeneric` and `new Timer(null)` in `Aliased` create types this repository does not declare (`System.Collections.Generic.List`, `System.Threading.Timer`) — no edge by D11; their tempting in-repo readings are the refusals."
+  ],
   "open_questions": [],
   "note": "Labelled from the source before scoring against the unfixed front-end. One label omission found on first scoring and added: the alias `using Timer = System.Threading.Timer;` is an IMPORTS edge to the aliased type."
 }

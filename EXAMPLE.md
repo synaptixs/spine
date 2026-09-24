@@ -192,8 +192,8 @@ so nothing you saw in steps 3–6 was invented. Recall is 1.00 on nearly everyth
 |---|---|
 | `c` `sql` | 1.00 |
 | `javascript` | 0.97 |
-| `java` `csharp` | 0.91 |
-| `perl` `python` | 0.89 |
+| `java` | 0.91 |
+| `csharp` `perl` `python` | 0.89 |
 | `kotlin` | 0.87 |
 | `typescript` | 0.86 |
 | `cpp` `go` `php` | 0.75 |

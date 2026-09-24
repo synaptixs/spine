@@ -33,6 +33,7 @@ public class Maker {
     public void anonymousInterface() {
         Listener l = new Listener() {
             public void fired() {
+                new Order();
             }
         };
     }
