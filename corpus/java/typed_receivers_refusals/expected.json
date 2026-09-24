@@ -358,22 +358,6 @@
         "kind": "CALLS"
       },
       "why": "PREDICTED BEFORE SCORING. The call is to `Lazy.length()`, whose id this vocabulary shares with the field `length` (the node is the Field) — a true edge the pass declines to aim at a field (ledger: field/method id collision)."
-    },
-    {
-      "edge": {
-        "src": "java:svc.Dispatch.make",
-        "dst": "java:svc.Handler",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
-    },
-    {
-      "edge": {
-        "src": "java:svc.Dispatch.viaShadow",
-        "dst": "java:svc.Rocket",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
     }
   ],
   "refusals": [

@@ -1,0 +1,394 @@
+{
+  "language": "java",
+  "case": "constructor_calls",
+  "root": ".repo",
+  "why": "B22, Java. Instantiation is `CALLS` to the created Type (corpus/README.md). Every shape that runs a constructor of an in-repo type is an edge: plain, with arguments, fully qualified, a nested type, an explicit generic, a diamond, an anonymous class of an interface and of an abstract class (the edge goes to the type instantiated), and a returned creation. The refusals are the shapes that look like one and are not: an array creation, a constructor reference, an external generic whose type argument is in-repo, a creation inside a local class's method, constructor chaining, and a same-named type shadowed by an explicit external import.",
+  "nodes": [
+    {
+      "id": "java:app.model",
+      "kind": "Module"
+    },
+    {
+      "id": "java:app.svc",
+      "kind": "Module"
+    },
+    {
+      "id": "java:app.model.Order",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.Order.Line",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.Box",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.Listener",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.Base",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.Special",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.svc.Timer",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.svc.Maker",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.svc.Clock",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.Order.Order",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.model.Listener.fired",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.model.Base.run",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.model.Special.Special",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Maker.plain",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Maker.withArgs",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Maker.qualified",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Maker.nested",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Maker.generic",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Maker.diamond",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Maker.anonymousInterface",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Maker.anonymousClass",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Maker.returned",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Maker.array",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Maker.methodReference",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Maker.externalGeneric",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Maker.localClass",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Clock.start",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "java:app.model",
+      "dst": "java:app.model.Order",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model",
+      "dst": "java:app.model.Box",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model",
+      "dst": "java:app.model.Listener",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model",
+      "dst": "java:app.model.Base",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model",
+      "dst": "java:app.model.Special",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc",
+      "dst": "java:app.svc.Timer",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc",
+      "dst": "java:app.svc.Maker",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc",
+      "dst": "java:app.svc.Clock",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model.Order",
+      "dst": "java:app.model.Order.Line",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model.Order",
+      "dst": "java:app.model.Order.Order",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model.Listener",
+      "dst": "java:app.model.Listener.fired",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model.Base",
+      "dst": "java:app.model.Base.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model.Special",
+      "dst": "java:app.model.Special.Special",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Maker",
+      "dst": "java:app.svc.Maker.plain",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Maker",
+      "dst": "java:app.svc.Maker.withArgs",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Maker",
+      "dst": "java:app.svc.Maker.qualified",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Maker",
+      "dst": "java:app.svc.Maker.nested",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Maker",
+      "dst": "java:app.svc.Maker.generic",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Maker",
+      "dst": "java:app.svc.Maker.diamond",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Maker",
+      "dst": "java:app.svc.Maker.anonymousInterface",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Maker",
+      "dst": "java:app.svc.Maker.anonymousClass",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Maker",
+      "dst": "java:app.svc.Maker.returned",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Maker",
+      "dst": "java:app.svc.Maker.array",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Maker",
+      "dst": "java:app.svc.Maker.methodReference",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Maker",
+      "dst": "java:app.svc.Maker.externalGeneric",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Maker",
+      "dst": "java:app.svc.Maker.localClass",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Clock",
+      "dst": "java:app.svc.Clock.start",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model.Special",
+      "dst": "java:app.model.Order",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "java:app.svc",
+      "dst": "java:app.model.Base",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "java:app.svc",
+      "dst": "java:app.model.Box",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "java:app.svc",
+      "dst": "java:app.model.Listener",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "java:app.svc",
+      "dst": "java:app.model.Order",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "java:app.svc",
+      "dst": "java:java.util.Timer",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "java:app.svc.Maker.plain",
+      "dst": "java:app.model.Order",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Maker.withArgs",
+      "dst": "java:app.model.Order",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Maker.qualified",
+      "dst": "java:app.model.Order",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Maker.nested",
+      "dst": "java:app.model.Order.Line",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Maker.generic",
+      "dst": "java:app.model.Box",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Maker.diamond",
+      "dst": "java:app.model.Box",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Maker.anonymousInterface",
+      "dst": "java:app.model.Listener",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Maker.anonymousClass",
+      "dst": "java:app.model.Base",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Maker.returned",
+      "dst": "java:app.model.Order",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "java:app.svc.Maker.array",
+        "dst": "java:app.model.Order",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `new Order[3]` creates an array, not an `Order` \u2014 no constructor runs (D2)."
+    },
+    {
+      "edge": {
+        "src": "java:app.svc.Maker.methodReference",
+        "dst": "java:app.model.Order",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `Order::new` is a reference to a constructor, not a call at this line (D2)."
+    },
+    {
+      "edge": {
+        "src": "java:app.svc.Maker.externalGeneric",
+        "dst": "java:app.model.Order",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `new java.util.ArrayList<Order>()` creates an `ArrayList`; `Order` is only its type argument, and `ArrayList` is not in this repository (D11)."
+    },
+    {
+      "edge": {
+        "src": "java:app.svc.Maker.localClass",
+        "dst": "java:app.model.Order",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The creation is inside the local class `Tmp`'s method `go`, not `localClass`'s body \u2014 attributing it to the enclosing method would invent a call."
+    },
+    {
+      "edge": {
+        "src": "java:app.model.Special.Special",
+        "dst": "java:app.model.Order",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `super(1)` chains to the base constructor; `Special IMPLEMENTS Order` already carries the dependency (D4)."
+    },
+    {
+      "edge": {
+        "src": "java:app.svc.Clock.start",
+        "dst": "java:app.svc.Timer",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `import java.util.Timer;` names the JDK type, which beats the same-package `app.svc.Timer` \u2014 an explicit single-type import ends the lookup even for an external type (D5, Track G B1)."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [
+    "The local class `Tmp` and its method `go` are not labelled as nodes: a local class is not a member of the type graph the front-end builds (it scopes method bodies, D13 of Track G).",
+    "The anonymous classes' `fired` and `run` bodies have no name to be a node."
+  ],
+  "open_questions": [],
+  "note": "Labelled from the source before scoring against the unfixed front-end."
+}

@@ -96,7 +96,9 @@ class DeferredCall:
     chain this pass does not follow, so only the static reading can produce an edge. With
     ``declared_fields``, only a field the repository declares blocks the static reading — Java's
     capitalized receiver (``DEFAULT_INSTANCE.toBuilder()`` vs ``Helper.help()``), where fields are
-    lowerCamel or UPPER_CASE by convention, unlike C#'s type-named properties.
+    lowerCamel or UPPER_CASE by convention, unlike C#'s type-named properties. With ``creates``,
+    the call *is* an instantiation of ``receiver`` (``new Foo()``, B22): it lands on the Type node
+    itself — the corpus rule for instantiation — and ``member`` is unused.
     """
 
     caller: str
@@ -109,6 +111,7 @@ class DeferredCall:
     static: TypeRef | None = None
     chain_head: bool = False
     declared_fields: bool = False
+    creates: bool = False
 
 
 class Scope:
@@ -372,6 +375,11 @@ def resolve_calls(batch: FactBatch, state: ReceiverState) -> None:
     index = TypeIndex(batch, state)
     for call in state.calls:
         receiver_type: str | None
+        if call.creates:
+            created = index.type_of(call.receiver)
+            if created is not None:
+                batch.add_edge(Edge(call.caller, created, EdgeKind.CALLS, Provenance(call.rel, call.line)))
+            continue
         if call.field_of is not None:
             found, receiver_type = index.field_type(call.field_of, call.field_name, call.declared_fields)
             if found and call.chain_head:
