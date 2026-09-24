@@ -28,6 +28,18 @@ All notable changes to this project are documented here. Format loosely follows
   caller's own package now resolves with no import, as Kotlin does. It resolves only when the
   receiver in scope is compatible and no supertype the repository cannot see (or `Any`) could
   declare a member of that name, because a member beats an extension.
+- **Kotlin: a bare call inside `with(x) { }` no longer lands on the enclosing class (#453).**
+  `with(x) { f() }`, `x.apply { }`, `x.run { }` and `buildString`/`buildList`/`buildSet`/`buildMap`
+  put the receiver's members ahead of the enclosing class's, and the front-end ignored that:
+  `apply("com.android.application")` inside `with(pluginManager) { }` was recorded as a Gradle
+  convention plugin's own `apply(target: Project)` calling itself — 17 invented self-loops on
+  the Android validation app. Resolution now follows Kotlin's order, innermost receiver first.
+  A receiver declared in the repository takes the call when it declares or inherits the name;
+  one whose members cannot be listed (a library type, an untyped receiver, a builder) blocks
+  the enclosing-class reading instead of guessing. Top-level and imported calls are unchanged.
+  On the Android app exactly those 17 edges go; three other Kotlin repositories are unchanged.
+  Kotlin `CALLS` recall reads lower (0.93 → 0.89) because the new corpus case labels the true
+  `PluginManager.apply` targets the front-end cannot prove as known gaps.
 - **A call through a Python re-export lands on the symbol that defines it.** `from app import
   Store; Store()` put the edge on an external placeholder, `py:app.Store`, instead of
   `py:app.store.Store` — so `blast_radius`, `explain_symbol`, `investigate` and grounding
