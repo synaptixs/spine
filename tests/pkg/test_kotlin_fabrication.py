@@ -1202,6 +1202,8 @@ package app
 class Sync {
     fun refresh() {}
 
+    fun make(): Any = Any()
+
     fun go() {
         with(make()) { refresh() }
     }
@@ -1275,14 +1277,14 @@ def test_an_ambiguous_inherited_member_is_never_passed_outward(tmp_path: Path) -
 package app
 
 interface A {
-    fun refresh() {}
+    fun refresh()
 }
 
 interface B {
-    fun refresh() {}
+    fun refresh()
 }
 
-class TopicRepository : A, B
+abstract class TopicRepository : A, B
 """,
             "Sync.kt": """\
 package app
@@ -1387,3 +1389,365 @@ class Sync(private val repo: TopicRepository) {
     wanted = ("java:app.Sync.go", "java:app.TopicRepository.refresh")
     [edge] = [e for e in batch.edges if e.kind is EdgeKind.CALLS and (e.src, e.dst) == wanted]
     assert edge.provenance is not None and edge.provenance.line == 11
+
+
+# ---- #453 review: shapes the first fix trusted too far -------------------------
+
+
+def test_a_user_declared_run_is_not_a_receiver_lambda(tmp_path: Path) -> None:
+    """`Worker` declares its own `run(block: () -> Unit)`: a member beats the library
+    `run`, and its lambda has no receiver, so `Worker.refresh` is not the target."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Worker.kt": """\
+package app
+
+class Worker {
+    fun run(block: () -> Unit) {}
+
+    fun refresh() {}
+}
+""",
+            "Sync.kt": """\
+package app
+
+class Sync(private val w: Worker) {
+    fun refresh() {}
+
+    fun go() {
+        w.run { refresh() }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Sync.go", "java:app.Worker.refresh") not in _calls(batch)
+
+
+def test_a_same_package_user_with_is_not_the_standard_library_with(tmp_path: Path) -> None:
+    batch = _facts(
+        tmp_path,
+        {
+            "With.kt": "package app\n\nfun with(x: Any, block: () -> Unit) {}\n",
+            "Repo.kt": "package app\n\nclass TopicRepository {\n    fun refresh() {}\n}\n",
+            "Sync.kt": """\
+package app
+
+class Sync(private val repo: TopicRepository) {
+    fun refresh() {}
+
+    fun go() {
+        with(repo) { refresh() }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Sync.go", "java:app.TopicRepository.refresh") not in _calls(batch)
+
+
+def test_a_companion_member_is_not_reached_through_the_receiver(tmp_path: Path) -> None:
+    """A companion's `create` is folded onto the class id (D5), but an instance does not
+    reach it — the call passes outward to the enclosing class, which declares one."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Repo.kt": """\
+package app
+
+class TopicRepository {
+    companion object {
+        fun create(): TopicRepository = TopicRepository()
+    }
+}
+""",
+            "Sync.kt": """\
+package app
+
+class Sync(private val repo: TopicRepository) {
+    fun create() {}
+
+    fun go() {
+        with(repo) { create() }
+    }
+}
+""",
+        },
+    )
+    calls = _calls(batch)
+    assert ("java:app.Sync.go", "java:app.Sync.create") in calls
+    assert ("java:app.Sync.go", "java:app.TopicRepository.create") not in calls
+
+
+def test_a_nested_type_is_not_reached_through_the_receiver(tmp_path: Path) -> None:
+    batch = _facts(
+        tmp_path,
+        {
+            "Repo.kt": "package app\n\nclass TopicRepository {\n    class Item\n}\n",
+            "Sync.kt": """\
+package app
+
+class Sync(private val repo: TopicRepository) {
+    fun go() {
+        with(repo) { Item() }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Sync.go", "java:app.TopicRepository.Item") not in _calls(batch)
+
+
+def test_a_local_function_outranks_the_receiver(tmp_path: Path) -> None:
+    batch = _facts(
+        tmp_path,
+        {
+            "Repo.kt": "package app\n\nclass TopicRepository {\n    fun load() {}\n}\n",
+            "Sync.kt": """\
+package app
+
+class Sync(private val repo: TopicRepository) {
+    fun go() {
+        fun load() {}
+        with(repo) { load() }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Sync.go", "java:app.TopicRepository.load") not in _calls(batch)
+
+
+def test_a_named_with_argument_is_read_by_its_value(tmp_path: Path) -> None:
+    """`with(receiver = repo)` — `receiver` is `with`'s parameter name, not a variable; a
+    field that happens to be called `receiver` must not be taken for the argument."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Repo.kt": """\
+package app
+
+class TopicRepository {
+    fun refresh() {}
+}
+
+class Other {
+    fun refresh() {}
+}
+""",
+            "Sync.kt": """\
+package app
+
+class Sync(private val repo: TopicRepository, private val receiver: Other) {
+    fun refresh() {}
+
+    fun go() {
+        with(receiver = repo) { refresh() }
+    }
+}
+""",
+        },
+    )
+    calls = _calls(batch)
+    assert ("java:app.Sync.go", "java:app.TopicRepository.refresh") in calls
+    assert ("java:app.Sync.go", "java:app.Other.refresh") not in calls
+    assert ("java:app.Sync.go", "java:app.Sync.refresh") not in calls
+
+
+def test_an_object_literal_inside_a_receiver_lambda_is_a_boundary(tmp_path: Path) -> None:
+    """Inside `object : Cb { … }`, `Cb`'s members come before the receiver's, and `Cb`
+    is a library type here — so neither the receiver nor the enclosing class is provable."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Repo.kt": "package app\n\nclass TopicRepository {\n    fun refresh() {}\n}\n",
+            "Sync.kt": """\
+package app
+
+import lib.Cb
+
+class Sync(private val repo: TopicRepository) {
+    fun refresh() {}
+
+    fun go() {
+        with(repo) {
+            val cb = object : Cb {
+                override fun on() {
+                    refresh()
+                }
+            }
+        }
+    }
+}
+""",
+        },
+    )
+    calls = _calls(batch)
+    assert ("java:app.Sync.go", "java:app.TopicRepository.refresh") not in calls
+    assert ("java:app.Sync.go", "java:app.Sync.refresh") not in calls
+
+
+def test_a_repository_extension_on_the_receiver_blocks_the_enclosing_member(tmp_path: Path) -> None:
+    """`TopicRepository` declares no `refresh`, but `fun TopicRepository.refresh()` does
+    apply to it — Kotlin would pick the extension, never the enclosing `Sync.refresh`."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Repo.kt": "package app\n\nclass TopicRepository\n\nfun TopicRepository.refresh() {}\n",
+            "Sync.kt": """\
+package app
+
+class Sync(private val repo: TopicRepository) {
+    fun refresh() {}
+
+    fun go() {
+        with(repo) { refresh() }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Sync.go", "java:app.Sync.refresh") not in _calls(batch)
+
+
+def test_a_data_class_receiver_may_declare_copy(tmp_path: Path) -> None:
+    batch = _facts(
+        tmp_path,
+        {
+            "Topic.kt": "package app\n\ndata class Topic(val id: String)\n",
+            "Sync.kt": """\
+package app
+
+class Sync(private val topic: Topic) {
+    fun copy() {}
+
+    fun go() {
+        with(topic) { copy() }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Sync.go", "java:app.Sync.copy") not in _calls(batch)
+
+
+def test_the_run_block_form_is_a_receiver_lambda(tmp_path: Path) -> None:
+    """`repo.run { refresh() }` is recognised, not only `with`: `TopicRepository.refresh`."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Repo.kt": "package app\n\nclass TopicRepository {\n    fun refresh() {}\n}\n",
+            "Sync.kt": """\
+package app
+
+class Sync(private val repo: TopicRepository) {
+    fun refresh() {}
+
+    fun go() {
+        repo.run { refresh() }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Sync.go", "java:app.TopicRepository.refresh") in _calls(batch)
+
+
+def test_a_same_package_function_in_another_file_still_resolves_inside_a_receiver_lambda(
+    tmp_path: Path,
+) -> None:
+    """The deferred same-package reading is the fallback here, and must survive the hold."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Top.kt": "package app\n\nfun topLevel() {}\n",
+            "Repo.kt": "package app\n\nclass TopicRepository\n",
+            "Sync.kt": """\
+package app
+
+class Sync(private val repo: TopicRepository) {
+    fun go() {
+        with(repo) { topLevel() }
+    }
+}
+""",
+        },
+    )
+    assert ("java:app.Sync.go", "java:app.topLevel") in _calls(batch)
+
+
+def test_a_deferred_fallback_below_a_recovered_parse_keeps_its_line(tmp_path: Path) -> None:
+    batch = _facts(
+        tmp_path,
+        {
+            "Top.kt": "package app\n\nfun topLevel() {}\n",
+            "Sync.kt": """\
+package app
+
+interface Iface { fun f() }
+
+class TopicRepository
+
+class Sync(private val repo: TopicRepository) {
+    fun go() {
+        with(repo) { topLevel() }
+    }
+}
+""",
+        },
+    )
+    wanted = ("java:app.Sync.go", "java:app.topLevel")
+    [edge] = [e for e in batch.edges if e.kind is EdgeKind.CALLS and (e.src, e.dst) == wanted]
+    assert edge.provenance is not None and edge.provenance.line == 9
+
+
+def test_a_receiver_that_lacks_the_member_passes_it_to_the_next_receiver_out(tmp_path: Path) -> None:
+    batch = _facts(
+        tmp_path,
+        {
+            "Types.kt": "package app\n\nclass Outer {\n    fun f() {}\n}\n\nclass Inner\n",
+            "Sync.kt": """\
+package app
+
+class Sync(private val a: Outer, private val b: Inner) {
+    fun f() {}
+
+    fun go() {
+        with(a) {
+            with(b) { f() }
+        }
+    }
+}
+""",
+        },
+    )
+    calls = _calls(batch)
+    assert ("java:app.Sync.go", "java:app.Outer.f") in calls
+    assert ("java:app.Sync.go", "java:app.Sync.f") not in calls
+
+
+def test_with_this_keeps_the_enclosing_class(tmp_path: Path) -> None:
+    batch = _facts(
+        tmp_path,
+        {
+            "Sync.kt": """\
+package app
+
+class Sync {
+    fun helper() {}
+
+    fun viaWith() {
+        with(this) { helper() }
+    }
+
+    fun viaApply() {
+        this.apply { helper() }
+    }
+}
+""",
+        },
+    )
+    calls = _calls(batch)
+    assert ("java:app.Sync.viaWith", "java:app.Sync.helper") in calls
+    assert ("java:app.Sync.viaApply", "java:app.Sync.helper") in calls

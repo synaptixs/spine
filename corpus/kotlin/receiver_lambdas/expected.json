@@ -75,7 +75,7 @@
   "known_gaps": [
     {
       "edge": { "src": "java:app.build.ConventionPlugin.apply", "dst": "java:org.gradle.api.plugins.PluginManager.apply", "kind": "CALLS" },
-      "why": "PREDICTED BEFORE SCORING. The true target of `apply(\"com.android.application\")` inside `with(pluginManager) { }`: Kotlin resolves a bare call against the lambda's receiver first, and Gradle's `PluginManager` declares `apply(String)`. The front-end cannot see a library type's members, so it cannot prove `PluginManager` declares `apply` and emits nothing rather than a member it has not read (#453, plan D2). Labelled because the call is real and `org.gradle.api.plugins.PluginManager` has an id in this vocabulary, as `java.lang.Runnable.run` does in `typed_receivers`; leaving it out would make this case agree with the extractor by construction."
+      "why": "PREDICTED BEFORE SCORING. The true target of `apply(\"com.android.application\")` inside `with(pluginManager) { }`: Kotlin resolves a bare call against the lambda's receiver first, and Gradle's `PluginManager` declares `apply(String)`. The front-end cannot see a library type's members, so it cannot prove `PluginManager` declares `apply` and emits nothing rather than a member it has not read (#453). Labelled because the call is real and `org.gradle.api.plugins.PluginManager` has an id in this vocabulary, as `java.lang.Runnable.run` does in `typed_receivers`; leaving it out would make this case agree with the extractor by construction."
     },
     {
       "edge": { "src": "java:app.build.ConventionPlugin.applyKotlin", "dst": "java:org.gradle.api.plugins.PluginManager.apply", "kind": "CALLS" },
@@ -90,7 +90,7 @@
   "refusals": [
     {
       "edge": { "src": "java:app.build.ConventionPlugin.apply", "dst": "java:app.build.ConventionPlugin.apply", "kind": "CALLS" },
-      "why": "PREDICTED BEFORE SCORING. The #453 fabrication: the enclosing class's own `apply(target: Project)` override claimed for a call its implicit receiver `PluginManager` answers. A self-loop on the Android validation app 15 times over."
+      "why": "PREDICTED BEFORE SCORING. The #453 fabrication: the enclosing class's own `apply(target: Project)` claimed for a call its implicit receiver `PluginManager` answers. A self-loop on the Android validation app 15 times over."
     },
     {
       "edge": { "src": "java:app.build.ConventionPlugin.applyKotlin", "dst": "java:app.build.ConventionPlugin.apply", "kind": "CALLS" },
@@ -115,8 +115,8 @@
   ],
   "excluded": [
     "java:org.gradle.api.Project and java:org.gradle.api.plugins.PluginManager are external, imported and never declared here, so they stay out of the node ratio per corpus/README.md; the IMPORTS edges to them count, and so do the CALLS edges to `PluginManager.apply` (as `known_gaps`).",
-    "Calls into the Kotlin standard library are not labelled: `with`, `run`, `let`, `also`, `buildString`, and `render`'s `append(\"header\")`, whose true target is `StringBuilder.append` on the builder's receiver. The front-end has no id vocabulary for a stdlib symbol, which is the decision `scope_functions` records for `let`/`run`/`use`. Refusing the fabricated `Report.append` is what this case measures.",
-    "What this case cannot settle, and does not pretend to: inside `with(pluginManager) { log(\"applied\") }` the call is labelled `java:app.util.log` because Gradle's `PluginManager` declares no `log`. That is knowledge of Gradle, not of this tree. A library receiver that *did* declare a same-named member would hide an imported or top-level function the same way, and the front-end keeps the top-level reading there because it cannot read the library (#453, plan D4/D9). For a repo-declared receiver the case does not arise: its members are checked first (`viaReceiver`)."
+    "Calls into the Kotlin standard library are not labelled: `with`, `run`, `let`, `also`, `buildString`, and `render`'s `append(\"header\")`, whose true target is `append` on the builder's `kotlin.text.StringBuilder`. Unlike Gradle's `PluginManager` above — an ordinary imported class with one id, labelled as a known gap — that receiver is a Kotlin typealias whose id (`kotlin.text.StringBuilder` or the JVM's `java.lang.StringBuilder`) this vocabulary has never decided, and the front-end has no model of the standard library; that is the decision `scope_functions` records for `let`/`run`/`use`. Refusing the fabricated `Report.append` is what this case measures.",
+    "What this case cannot settle, and does not pretend to: inside `with(pluginManager) { log(\"applied\") }` the call is labelled `java:app.util.log` because Gradle's `PluginManager` declares no `log`. That is knowledge of Gradle, not of this tree. A library receiver that *did* declare a same-named member would hide an imported or top-level function the same way, and the front-end keeps the top-level reading there because it cannot read the library (#453; `_ReceiverCall` in `kotlin_extractor.py` states the limit). For a repo-declared receiver the case does not arise: its members are checked first (`viaReceiver`)."
   ],
   "open_questions": []
 }

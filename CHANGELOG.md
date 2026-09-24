@@ -37,9 +37,17 @@ All notable changes to this project are documented here. Format loosely follows
   A receiver declared in the repository takes the call when it declares or inherits the name;
   one whose members cannot be listed (a library type, an untyped receiver, a builder) blocks
   the enclosing-class reading instead of guessing. Top-level and imported calls are unchanged.
-  On the Android app exactly those 17 edges go; three other Kotlin repositories are unchanged.
-  Kotlin `CALLS` recall reads lower (0.93 → 0.89) because the new corpus case labels the true
-  `PluginManager.apply` targets the front-end cannot prove as known gaps.
+  A user's own `run`/`apply`/`with`, companion members, nested types, local functions, an
+  anonymous `object` and a fitting repository extension are all respected rather than guessed
+  past; a local `fun` also stops a same-named extension elsewhere in the file claiming its calls
+  (two such invented edges in ktor-samples' httpbin). **What it costs:** a call to the enclosing
+  class from inside a block whose receiver is a library type or an unreadable expression is now
+  refused rather than assumed — measured on third-party Kotlin, React Native's `ReactAndroid`
+  loses 20 such edges and `@react-native/gradle-plugin` 5, while detox gains 22 receiver-member
+  calls and loses 3. On the Android validation app exactly the 17 invented edges go; KaMPKit and
+  spring-petclinic-kotlin are unchanged. Kotlin `CALLS` recall reads lower (0.93 → 0.89) because
+  the new corpus case labels the true `PluginManager.apply` targets the front-end cannot prove as
+  known gaps. See [kotlin-support-roadmap.md](docs/specs/kotlin-support-roadmap.md) §3.2.
 - **A call through a Python re-export lands on the symbol that defines it.** `from app import
   Store; Store()` put the edge on an external placeholder, `py:app.Store`, instead of
   `py:app.store.Store` — so `blast_radius`, `explain_symbol`, `investigate` and grounding
