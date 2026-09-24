@@ -11,6 +11,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L284) | `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this` |
 | **CorpusError** | [`CorpusError`](../src/orchestrator/pkg/accuracy.py#L57) | — |
 | **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L125) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
+| **DeferredCall** | [`DeferredCall`](../src/orchestrator/pkg/typed_receivers.py#L88) | — |
 | **DocReconciler** | [`DocReconciler`](../src/orchestrator/pkg/docs.py#L218) | `docs/specs/doc-binding-walkthrough.md#step-3-the-claims-in-detail`, `docs/specs/doc-binding-walkthrough.md#step-4-the-lookup-in-detail` |
 | **Edge** | [`Edge`](../src/orchestrator/pkg/facts.py#L144) | — |
 | **EdgeKind** | [`EdgeKind`](../src/orchestrator/pkg/facts.py#L55) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-ab-harness.txt` |
@@ -43,7 +44,6 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **TargetLayout** | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L69) | `docs/evidence/perl-codegen-c0-php-conventions.txt`, `docs/specs/java-codegen.md#feature-runner` |
 | **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/contracts.py#L25) | `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/java-codegen.md#test-runner-env` |
 | **VerifierFailure** | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | — |
-| **VersionedRepo** | [`VersionedRepo`](../src/orchestrator/registry/repositories.py#L45) | — |
 | **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#6-how-spine-is-adopted-without-entering-anyones-build-image` |
 
 _Top 40 of 770 types by graph centrality._
