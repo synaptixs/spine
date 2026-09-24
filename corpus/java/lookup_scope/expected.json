@@ -2,7 +2,7 @@
   "language": "java",
   "case": "lookup_scope",
   "root": ".repo",
-  "why": "B30, Java. Every shape where a closer binding than the one a flat lookup finds decides a type name: a local class (from its declaration on \u2014 `beforeLocal` creates the imported `Order`), an anonymous class body where the base's member type is in scope, a qualified name whose head is a nested type that inherits the member, and a member type inherited from an external base (`AbstractMap.SimpleEntry`). Each wrong reading is a refusal; each right reading that names an in-repo type is an edge. `plain` and `order` are the controls: the same names outside those scopes resolve normally.",
+  "why": "B30, Java. Every shape where a closer binding than the one a flat lookup finds decides a type name: a local class (from its declaration on — `beforeLocal` creates the imported `Order`), an anonymous class body where the base's member type is in scope, a qualified name whose head is a nested type that inherits the member, and a member type inherited from an external base (`AbstractMap.SimpleEntry`). Each wrong reading is a refusal; each right reading that names an in-repo type is an edge. `plain` and `order` are the controls: the same names outside those scopes resolve normally.",
   "nodes": [
     {
       "id": "java:app.model",
@@ -273,7 +273,7 @@
         "dst": "java:app.model.Response.Status",
         "kind": "CALLS"
       },
-      "why": "PREDICTED BEFORE SCORING. `Response` is the nested `Use.Response`, whose supertype `BaseResponse` declares `Status`: the head resolves first, the rest through its hierarchy (D4) \u2014 not the import-on-demand `app.model.Response`."
+      "why": "PREDICTED BEFORE SCORING. `Response` is the nested `Use.Response`, whose supertype `BaseResponse` declares `Status`: the head resolves first, the rest through its hierarchy (D4) — not the import-on-demand `app.model.Response`."
     },
     {
       "edge": {
@@ -286,7 +286,8 @@
   ],
   "false_positives": [],
   "excluded": [
-    "The local class `Order` in `localClass`/`beforeLocal` and the anonymous `Base` subclass have no nodes (Track I D1); `AbstractMap.SimpleEntry` is external."
+    "The local class `Order` in `localClass`/`beforeLocal` and the anonymous `Base` subclass have no nodes (Track I D1); `AbstractMap.SimpleEntry` is external.",
+    "`import app.model.*;` is an on-demand import, which emits no IMPORTS edge (as in the sibling Java cases)."
   ],
   "open_questions": [],
   "note": "Labelled from the source before scoring against the unfixed front-end."

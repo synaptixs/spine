@@ -1,11 +1,10 @@
 using System.Collections.ObjectModel;
+using Microsoft.Extensions.DependencyInjection;
 using System.Windows.Forms;
 using App.Model;
 
 namespace App.Svc
 {
-    public class Services { }
-
     public class Use
     {
         public void LocalFunction()
@@ -13,7 +12,7 @@ namespace App.Svc
             TItem Make<TItem>() where TItem : new() => new TItem();
         }
 
-        public void Register<DbAudit>(Services services) where DbAudit : class, IAudit
+        public void Register<DbAudit>(IServiceCollection services) where DbAudit : class, IAudit
         {
             services.AddScoped<IAudit, DbAudit>();
         }

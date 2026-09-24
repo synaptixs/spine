@@ -25,9 +25,13 @@ All notable changes to this project are documented here. Format loosely follows
   - C# type parameters of a local function, or of the generic method a DI registration sits in, hide
     an in-repo class of that name.
 
-  On four real repositories (one Java, three .NET) the change moves **no** edge: 0 removed, 0 added.
-  It closes a precision hole that had not been observed there. Java `CALLS` recall on the corpus is
-  0.92 and C# 0.89; the two new cases add their right readings as edges.
+  On four field repositories (one Java, three .NET), and on commons-collections, gson, ShareX and
+  Newtonsoft.Json, it moves no edge. On guava it moves 16, and all 16 are now right: members that a
+  nearer class hides (`ForwardingSortedMap.StandardKeySet` over `ForwardingMap`'s), and member types
+  inside nested anonymous classes. Extraction speed is unchanged. Java `CALLS` recall on the corpus
+  is 0.92 and C# 0.89; the two new cases add their right readings as edges.
+  - A Java `private` member type is not inherited, but it still hides a deeper one. `java.lang.*` is
+    imported implicitly. A C# alias to a namespace (`using M = App.Model;`) heads `M.Order`.
 
 ## 3.47.0 — 2026-09-24
 

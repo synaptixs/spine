@@ -8,9 +8,9 @@
       },
       "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
       "provenance": {
-        "anchored": 14720,
+        "anchored": 14735,
         "excluded": 926,
-        "resolved": 14720,
+        "resolved": 14735,
         "unreadable": 0
       }
     },
@@ -122,10 +122,10 @@
               "matched": 34
             },
             "CONTAINS": {
-              "emitted": 127,
-              "expected": 127,
+              "emitted": 126,
+              "expected": 126,
               "known_gaps": 0,
-              "matched": 127
+              "matched": 126
             },
             "IMPLEMENTS": {
               "emitted": 14,
@@ -134,10 +134,10 @@
               "matched": 14
             },
             "IMPORTS": {
-              "emitted": 16,
-              "expected": 16,
+              "emitted": 17,
+              "expected": 17,
               "known_gaps": 0,
-              "matched": 16
+              "matched": 17
             },
             "PROVIDES": {
               "emitted": 3,
@@ -166,10 +166,10 @@
               "matched": 16
             },
             "Type": {
-              "emitted": 47,
-              "expected": 47,
+              "emitted": 46,
+              "expected": 46,
               "known_gaps": 0,
-              "matched": 47
+              "matched": 46
             }
           }
         },
@@ -927,10 +927,10 @@
       "skipped_languages": []
     },
     "drift": {
-      "count": 1968,
+      "count": 1974,
       "docs": 1938,
       "gated": false,
-      "mentions": 14062,
+      "mentions": 14076,
       "note": "recorded, never gated \u2014 an upper bound: a tenth of the population cannot bind by construction. See GATES"
     },
     "invention": {
@@ -1014,7 +1014,7 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 23235,
+          "total_calls": 23247,
           "unexamined": 0
         },
         "sql": {
@@ -1035,7 +1035,7 @@
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 23834
+      "total_calls": 23846
     },
     "parity": {
       "declared": 75,

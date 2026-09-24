@@ -136,15 +136,16 @@ def test_csharp_a_dotted_head_through_an_alias_and_inheritance(tmp_path: Path) -
 def test_csharp_type_parameters_of_local_functions_and_generic_methods(tmp_path: Path) -> None:
     files = {
         "T.cs": (
+            "using Microsoft.Extensions.DependencyInjection;\n"
             "namespace D {\n  public interface IA { }\n  public class TImpl : IA { }\n"
             "  public class TItem { public void Go() { } }\n"
-            "  public class Services { }\n  public class Use {\n"
+            "  public class Use {\n"
             "    void Local() { void Inner<TItem>(TItem item) where "
             "TItem : new() { var x = new TItem(); } }\n"
             "    void Real() { var x = new TItem(); x.Go(); }\n"
-            "    void Reg<TImpl>(Services services) where TImpl : class, "
+            "    void Reg<TImpl>(IServiceCollection services) where TImpl : class, "
             "IA { services.AddScoped<IA, TImpl>(); }\n"
-            "    void RegReal(Services services) { services.AddScoped<IA, TImpl>(); } } }\n"
+            "    void RegReal(IServiceCollection services) { services.AddScoped<IA, TImpl>(); } } }\n"
         ),
     }
     calls = _csharp(tmp_path, files)
@@ -159,7 +160,8 @@ def test_csharp_type_parameters_of_local_functions_and_generic_methods(tmp_path:
         e.provenance.line for e in batch.edges if e.kind is EdgeKind.PROVIDES and e.provenance is not None
     ]
     text = files["T.cs"].splitlines()
-    assert [text[n - 1].strip()[:12] for n in lines] == ["void RegReal"]
+    registered_in = [text[n - 1].split("(")[0].split()[-1] for n in lines]
+    assert registered_in == ["RegReal"]
 
 
 def test_csharp_a_head_that_is_a_nearer_namespace_is_read_as_the_namespace(tmp_path: Path) -> None:

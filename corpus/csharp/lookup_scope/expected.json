@@ -2,7 +2,7 @@
   "language": "csharp",
   "case": "lookup_scope",
   "root": ".repo",
-  "why": "B30, C#. Closer bindings a flat lookup misses: a local function's own type parameter, a generic method's type parameter in a DI registration, and a nested type inherited from an external base class that the committed member-type list knows (`System.Windows.Forms.Control.ControlCollection`). Controls: `Plain` creates the real `TItem`, and `Bag : Collection<int>` \u2014 an external base that declares no `ControlCollection` \u2014 still resolves `new ControlCollection(this)` to the in-repo type.",
+  "why": "B30, C#. Closer bindings a flat lookup misses: a local function's own type parameter, a generic method's type parameter in a DI registration, and a nested type inherited from an external base class that the committed member-type list knows (`System.Windows.Forms.Control.ControlCollection`). Controls: `Plain` creates the real `TItem`, and `Bag : Collection<int>` — an external base that declares no `ControlCollection` — still resolves `new ControlCollection(this)` to the in-repo type.",
   "nodes": [
     {
       "id": "csharp:App.Model",
@@ -26,10 +26,6 @@
     },
     {
       "id": "csharp:App.Model.ControlCollection",
-      "kind": "Type"
-    },
-    {
-      "id": "csharp:App.Svc.Services",
       "kind": "Type"
     },
     {
@@ -88,11 +84,6 @@
     {
       "src": "csharp:App.Model",
       "dst": "csharp:App.Model.ControlCollection",
-      "kind": "CONTAINS"
-    },
-    {
-      "src": "csharp:App.Svc",
-      "dst": "csharp:App.Svc.Services",
       "kind": "CONTAINS"
     },
     {
@@ -179,6 +170,11 @@
       "src": "csharp:App.Svc.Bag.Make",
       "dst": "csharp:App.Model.ControlCollection",
       "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Svc",
+      "dst": "csharp:Microsoft.Extensions.DependencyInjection",
+      "kind": "IMPORTS"
     }
   ],
   "known_gaps": [],
@@ -197,7 +193,7 @@
         "dst": "csharp:App.Model.IAudit",
         "kind": "PROVIDES"
       },
-      "why": "PREDICTED BEFORE SCORING. `DbAudit` in `AddScoped<IAudit, DbAudit>()` is `Register<DbAudit>`'s type parameter, not the in-repo class \u2014 whatever the caller passes is bound, so no binding is known (D5)."
+      "why": "PREDICTED BEFORE SCORING. `DbAudit` in `AddScoped<IAudit, DbAudit>()` is `Register<DbAudit>`'s type parameter, not the in-repo class — whatever the caller passes is bound, so no binding is known (D5)."
     },
     {
       "edge": {
@@ -205,12 +201,12 @@
         "dst": "csharp:App.Model.ControlCollection",
         "kind": "CALLS"
       },
-      "why": "PREDICTED BEFORE SCORING. `Panel : Control` (System.Windows.Forms) inherits the nested type `Control.ControlCollection`, which C# finds before the `using App.Model;` type \u2014 an external base declares it, so the true reading has no edge (D3)."
+      "why": "PREDICTED BEFORE SCORING. `Panel : Control` (System.Windows.Forms) inherits the nested type `Control.ControlCollection`, which C# finds before the `using App.Model;` type — an external base declares it, so the true reading has no edge (D3)."
     }
   ],
   "false_positives": [],
   "excluded": [
-    "`Control` and `Collection<int>` are external bases; `Make<TItem>` is a local function, which has no node \u2014 its creation is attributed to `LocalFunction`, as its calls are."
+    "`Control` and `Collection<int>` are external bases; `Make<TItem>` is a local function, which has no node — its creation is attributed to `LocalFunction`, as its calls are."
   ],
   "open_questions": [],
   "note": "Labelled from the source before scoring against the unfixed front-end."
