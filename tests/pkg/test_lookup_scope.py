@@ -160,3 +160,20 @@ def test_csharp_type_parameters_of_local_functions_and_generic_methods(tmp_path:
     ]
     text = files["T.cs"].splitlines()
     assert [text[n - 1].strip()[:12] for n in lines] == ["void RegReal"]
+
+
+def test_csharp_a_head_that_is_a_nearer_namespace_is_read_as_the_namespace(tmp_path: Path) -> None:
+    files = {
+        "R.cs": "namespace Biz.Rules { public class Rules { public static int Apply() => 1; } }\n",
+        "C.cs": (
+            "using Biz.Rules;\nnamespace Biz.Cart {\n"
+            "  public class Cart {\n    int Total() => Rules.Rules.Apply();\n"
+            "    object Make() => new Rules.Rules(); } }\n"
+        ),
+    }
+    # `Rules` in `Biz.Cart` is the namespace `Biz.Rules` (found at the `Biz` level before any using),
+    # so `Rules.Rules` is the class — not a member type `Rules` of the class the using brings in
+    assert _csharp(tmp_path, files) == {
+        ("csharp:Biz.Cart.Cart.Total", "csharp:Biz.Rules.Rules.Apply"),
+        ("csharp:Biz.Cart.Cart.Make", "csharp:Biz.Rules.Rules"),
+    }

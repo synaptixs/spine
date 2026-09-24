@@ -90,7 +90,7 @@ EXTERNAL_MEMBER_TYPES: dict[str, frozenset[str]] = {
     "csharp:System.Windows.Forms.UserControl": frozenset({"ControlCollection"}),
 }
 
-_FOUND, _REFUSED, _ABSENT = "found", "refused", "absent"
+_FOUND, _REFUSED, _ABSENT, _NAMESPACE = "found", "refused", "absent", "namespace"
 
 
 @dataclass(frozen=True)
@@ -264,6 +264,7 @@ class TypeIndex:
         self._type_memo: dict[TypeRef, str | None] = {}
         self._open_class: set[str] | None = None
         self._external_member_memo: dict[str, frozenset[str]] = {}
+        self._namespaces: frozenset[str] | None = None
         self._base_refs_of: dict[str, list[TypeRef | None]] = {}
         for (src, _provisional), base_ref in state.base_refs.items():
             self._base_refs_of.setdefault(src, []).append(base_ref)
@@ -291,18 +292,23 @@ class TypeIndex:
 
     def _type_of(self, ref: TypeRef) -> str | None:
         if ref.head is not None:
-            status, found = self._lookup(ref.head)
+            status, found = self._lookup(ref.head, head=True)
             if status == _FOUND and found is not None:
                 return self._member_path(found, ref.rest)
             if status == _REFUSED:
                 return None
-            # The head names no type: the whole name is package- or namespace-qualified.
+            # The head names no type — or, in C#, a namespace at a nearer level than any type of
+            # that name (`Rules.Rules.Apply()` inside `Biz.Cart`, where
+            # `Biz.Rules` is a namespace): the whole name is package- or namespace-qualified.
         status, found = self._lookup(ref)
         return found if status == _FOUND else None
 
-    def _lookup(self, ref: TypeRef) -> tuple[str, str | None]:
+    def _lookup(self, ref: TypeRef, head: bool = False) -> tuple[str, str | None]:
         """``(found, id)``, ``(refused, None)`` — ambiguous, explicitly external, or hidden by an
-        external member type — or ``(absent, None)``: nothing here by that name."""
+        external member type — or ``(absent, None)``: nothing here by that name. For the ``head``
+        of a qualified C# name, a group whose candidate is a namespace this repository declares
+        types in answers ``(namespace, None)``: C# finds a namespace member — namespace or type —
+        at each level before that level's usings."""
         if ref.nested:
             for anon in ref.anonymous:  # an anonymous class body sees its base's member types first
                 base = self.type_of(anon)
@@ -322,13 +328,30 @@ class TypeIndex:
         if ref.simple:
             prefixes = sorted({*ref.using_prefixes, *self.state.global_prefixes.get(ref.project, ())})
             groups.append(tuple(f"{self.state.language}:{p}.{ref.simple}" for p in prefixes))
+        namespaces = self.namespaces if head and self.state.language == "csharp" else frozenset()
         for group in groups:
             hits = {c for c in group if c in self.declared}
             if len(hits) == 1:
                 return _FOUND, hits.pop()
             if hits or STOP in group:
                 return _REFUSED, None  # ambiguous at the compiler's level, or explicitly an external type
+            if any(c in namespaces for c in group):
+                return _NAMESPACE, None
         return _ABSENT, None
+
+    @property
+    def namespaces(self) -> frozenset[str]:
+        """Namespaces this repository declares types in: every proper prefix of a declared type
+        id that is not itself a type."""
+        if self._namespaces is None:
+            found: set[str] = set()
+            for t in self.declared:
+                lang, _, dotted = t.partition(":")
+                parts = dotted.split(".")
+                for i in range(1, len(parts)):
+                    found.add(f"{lang}:{'.'.join(parts[:i])}")
+            self._namespaces = frozenset(found - self.declared)
+        return self._namespaces
 
     def _member(self, type_id: str, name: str) -> tuple[str, str | None]:
         """The member type ``name`` of ``type_id`` — its own, else the nearest supertype's. C#
