@@ -190,6 +190,21 @@ class CallSite(TypedDict, total=False):
 
 
 @with_config(_OPEN)
+class InterfaceCallSite(TypedDict, total=False):
+    """A caller of a member this symbol implements — it *may* reach this implementation."""
+
+    id: str
+    at: str
+    via: str
+
+
+@with_config(_OPEN)
+class InterfaceCaller(TypedDict, total=False):
+    id: str
+    via: str
+
+
+@with_config(_OPEN)
 class Touched(TypedDict, total=False):
     id: str
     where: str | None
@@ -210,6 +225,10 @@ class BlastMatch(TypedDict, total=False):
     where: str | None
     caller_count: int
     callers: list[CallSite]
+    interface_caller_count: int
+    interface_callers: list[InterfaceCallSite]
+    instantiated_via_type_count: int
+    instantiated_via_type: list[CallSite]
     touch_count: int
     touches: list[Touched]
     cross_repo_count: int
@@ -234,6 +253,8 @@ class SymbolMatch(TypedDict, total=False):
     language: str
     where: str | None
     called_by: list[str]
+    called_through_interface: list[InterfaceCaller]
+    instantiated_via_type: list[str]
     calls: list[str]
     contains: list[str]
     repo: str

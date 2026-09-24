@@ -1,0 +1,331 @@
+{
+  "language": "java",
+  "case": "typed_receivers",
+  "root": ".repo",
+  "why": "B21, Java. Every call goes through a receiver whose type is written: an interface-typed field (lands on the interface member, D2), `this.backing` whose `name()` is inherited from the interface's own super-interface (found on the nearest declaring type, D4 — which needs `interface Store extends Named` as an IMPLEMENTS edge, missing before), a parameter, a typed local, `var v = new DbStore()`, a field inherited from the superclass, a parameter typed with a member type inherited from an implemented interface (`Listener`, declared inside `Store`), and an inner class calling through its enclosing class's field (D13). `Store` is reached through a wildcard import, so `Orders implements Store` is itself a case.",
+  "nodes": [
+    {
+      "id": "java:app.api",
+      "kind": "Module"
+    },
+    {
+      "id": "java:app.data",
+      "kind": "Module"
+    },
+    {
+      "id": "java:app.svc",
+      "kind": "Module"
+    },
+    {
+      "id": "java:app.api.Store",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.api.Store.Listener",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.api.Named",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.data.DbStore",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.data.BaseRepo",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.svc.Orders",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.svc.Orders.Inner",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.api.Store.load",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.api.Store.Listener.changed",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.api.Named.name",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.data.DbStore.load",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.data.DbStore.name",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.data.DbStore.count",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Orders.Orders",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Orders.load",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Orders.name",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Orders.viaParameter",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Orders.viaLocal",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Orders.viaVarNew",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Orders.viaInheritedField",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Orders.viaInheritedMemberType",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Orders.Inner.viaEnclosingField",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.data.BaseRepo.store",
+      "kind": "Field"
+    },
+    {
+      "id": "java:app.svc.Orders.backing",
+      "kind": "Field"
+    }
+  ],
+  "edges": [
+    {
+      "src": "java:app.api",
+      "dst": "java:app.api.Store",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.api.Store",
+      "dst": "java:app.api.Store.Listener",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.api",
+      "dst": "java:app.api.Named",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.data",
+      "dst": "java:app.data.DbStore",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.data",
+      "dst": "java:app.data.BaseRepo",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc",
+      "dst": "java:app.svc.Orders",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Orders",
+      "dst": "java:app.svc.Orders.Inner",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.api.Store",
+      "dst": "java:app.api.Store.load",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.api.Store.Listener",
+      "dst": "java:app.api.Store.Listener.changed",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.api.Named",
+      "dst": "java:app.api.Named.name",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.data.DbStore",
+      "dst": "java:app.data.DbStore.load",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.data.DbStore",
+      "dst": "java:app.data.DbStore.name",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.data.DbStore",
+      "dst": "java:app.data.DbStore.count",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Orders",
+      "dst": "java:app.svc.Orders.Orders",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Orders",
+      "dst": "java:app.svc.Orders.load",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Orders",
+      "dst": "java:app.svc.Orders.name",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Orders",
+      "dst": "java:app.svc.Orders.viaParameter",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Orders",
+      "dst": "java:app.svc.Orders.viaLocal",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Orders",
+      "dst": "java:app.svc.Orders.viaVarNew",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Orders",
+      "dst": "java:app.svc.Orders.viaInheritedField",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Orders",
+      "dst": "java:app.svc.Orders.viaInheritedMemberType",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Orders.Inner",
+      "dst": "java:app.svc.Orders.Inner.viaEnclosingField",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.data.BaseRepo",
+      "dst": "java:app.data.BaseRepo.store",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Orders",
+      "dst": "java:app.svc.Orders.backing",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.data",
+      "dst": "java:app.api.Store",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "java:app.svc",
+      "dst": "java:app.data.BaseRepo",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "java:app.svc",
+      "dst": "java:app.data.DbStore",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "java:app.api.Store",
+      "dst": "java:app.api.Named",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "java:app.data.DbStore",
+      "dst": "java:app.api.Store",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "java:app.svc.Orders",
+      "dst": "java:app.data.BaseRepo",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "java:app.svc.Orders",
+      "dst": "java:app.api.Store",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "java:app.svc.Orders.load",
+      "dst": "java:app.api.Store.load",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Orders.name",
+      "dst": "java:app.api.Named.name",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Orders.viaParameter",
+      "dst": "java:app.data.DbStore.count",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Orders.viaLocal",
+      "dst": "java:app.data.DbStore.count",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Orders.viaVarNew",
+      "dst": "java:app.data.DbStore.count",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Orders.viaInheritedField",
+      "dst": "java:app.data.DbStore.count",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Orders.viaInheritedMemberType",
+      "dst": "java:app.api.Store.Listener.changed",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Orders.Inner.viaEnclosingField",
+      "dst": "java:app.api.Store.load",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Orders.viaLocal",
+      "dst": "java:app.data.DbStore",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Orders.viaVarNew",
+      "dst": "java:app.data.DbStore",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [],
+  "false_positives": [],
+  "excluded": [
+    "`import app.api.*;` produces no IMPORTS edge in this front-end (a wildcard names no single target); the single-type imports do."
+  ],
+  "open_questions": [],
+  "note": "Labelled from the source before scoring against the unfixed front-end."
+}

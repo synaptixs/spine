@@ -1,0 +1,211 @@
+{
+  "language": "csharp",
+  "case": "di_bindings",
+  "root": ".repo",
+  "why": "B21 / D6. ASP.NET Core wires an implementation behind an interface with `services.AddScoped<IMailer, SmtpMailer>()`; every consumer is handed `IMailer`, so without an edge from `SmtpMailer` to `IMailer` a change to the implementation reaches none of its callers. `PROVIDES` (the edge Kotlin's Hilt bindings introduced) says exactly that: this declaration makes this type available for injection. `TryAdd*` registers the same way. A single-type `AddTransient<Worker>()` binds nothing behind an interface, so it has no edge. A factory whose lambda body is exactly one `new DbAudit()` builds `DbAudit`, so it is read (B22, D9).",
+  "nodes": [
+    {
+      "id": "csharp:App",
+      "kind": "Module"
+    },
+    {
+      "id": "csharp:App.IMailer",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.SmtpMailer",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.IClock",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.SystemClock",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.IAudit",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.DbAudit",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Worker",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.Startup",
+      "kind": "Type"
+    },
+    {
+      "id": "csharp:App.IMailer.Send",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.SmtpMailer.Send",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.IClock.Now",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.SystemClock.Now",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.IAudit.Write",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.DbAudit.Write",
+      "kind": "Function"
+    },
+    {
+      "id": "csharp:App.Startup.Register",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "csharp:App",
+      "dst": "csharp:App.IMailer",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App",
+      "dst": "csharp:App.SmtpMailer",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App",
+      "dst": "csharp:App.IClock",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App",
+      "dst": "csharp:App.SystemClock",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App",
+      "dst": "csharp:App.IAudit",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App",
+      "dst": "csharp:App.DbAudit",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App",
+      "dst": "csharp:App.Worker",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App",
+      "dst": "csharp:App.Startup",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.IMailer",
+      "dst": "csharp:App.IMailer.Send",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.SmtpMailer",
+      "dst": "csharp:App.SmtpMailer.Send",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.IClock",
+      "dst": "csharp:App.IClock.Now",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.SystemClock",
+      "dst": "csharp:App.SystemClock.Now",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.IAudit",
+      "dst": "csharp:App.IAudit.Write",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.DbAudit",
+      "dst": "csharp:App.DbAudit.Write",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App.Startup",
+      "dst": "csharp:App.Startup.Register",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "csharp:App",
+      "dst": "csharp:Microsoft.Extensions.DependencyInjection",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "csharp:App",
+      "dst": "csharp:Microsoft.Extensions.DependencyInjection.Extensions",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "csharp:App.SmtpMailer",
+      "dst": "csharp:App.IMailer",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "csharp:App.SystemClock",
+      "dst": "csharp:App.IClock",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "csharp:App.DbAudit",
+      "dst": "csharp:App.IAudit",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "csharp:App.SmtpMailer",
+      "dst": "csharp:App.IMailer",
+      "kind": "PROVIDES"
+    },
+    {
+      "src": "csharp:App.SystemClock",
+      "dst": "csharp:App.IClock",
+      "kind": "PROVIDES"
+    },
+    {
+      "src": "csharp:App.DbAudit",
+      "dst": "csharp:App.IAudit",
+      "kind": "PROVIDES"
+    },
+    {
+      "src": "csharp:App.Startup.Register",
+      "dst": "csharp:App.DbAudit",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "csharp:App.Worker",
+        "dst": "csharp:App.Worker",
+        "kind": "PROVIDES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `AddTransient<Worker>()` registers a concrete type as itself — nothing is bound behind an interface."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [
+    "`services.AddScoped<...>()` etc. are calls on `IServiceCollection`, a type this repository does not declare — no CALLS edge (D11)."
+  ],
+  "open_questions": [],
+  "note": "Labelled from the source before scoring."
+}

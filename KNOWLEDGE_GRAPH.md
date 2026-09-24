@@ -147,7 +147,7 @@ a variable yields no edge, because a wrong edge is worse than an absent one.
 | `java` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | · | · | · | · |
 | `typescript` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | · | · | · | · |
 | `javascript` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · | · |
-| `csharp` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · | · |
+| `csharp` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · | ✓ |
 | `c` | ✓ | ✓ | ✓ | · | · | · | · | · | ✓ | · | · | · |
 | `cpp` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | ✓ | · | · | · |
 | `go` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · | · |
@@ -247,10 +247,10 @@ flowchart LR
   | Language | Status | Enable with |
   |---|---|---|
   | Python | ✅ built-in | (default) |
-  | Java | ✅ + JAX-RS **and Spring MVC** endpoints | `pip install 'synaptixs-spine[java]'` |
+  | Java | ✅ + JAX-RS **and Spring MVC** endpoints + typed-receiver call graph (parameters, fields incl. inherited/enclosing, typed locals, `var x = new T()`) + constructor calls | `pip install 'synaptixs-spine[java]'` |
   | TypeScript / TSX | ✅ | `pip install 'synaptixs-spine[typescript]'` |
   | JavaScript / JSX | ✅ + CommonJS (`require`, `module.exports`, aliased exports objects) + Express routes incl. member handlers + Sequelize entities | `pip install 'synaptixs-spine[typescript]'` — rides the same grammar |
-  | C# | ✅ + framework edges | `pip install 'synaptixs-spine[csharp]'` |
+  | C# | ✅ + framework edges + typed-receiver, static and constructor call graph + ASP.NET Core DI bindings (`PROVIDES`) | `pip install 'synaptixs-spine[csharp]'` |
   | C | ✅ + `#include` graph | `pip install 'synaptixs-spine[c]'` |
   | C++ | ✅ classes/namespaces/inheritance | `pip install 'synaptixs-spine[cpp]'` |
   | Go | ✅ + interface satisfaction (`IMPLEMENTS`) | `pip install 'synaptixs-spine[go]'` |
@@ -643,7 +643,10 @@ reviews honest.
   a fact `IMPLEMENTS` cannot carry, because it is already true of every implementation
   including the test fakes. It is also the only edge `blast_radius` follows **outbound**:
   dependency injection means nothing calls an implementation by name, so its dependents are
-  reachable only through the interface it provides. Other languages aren't extracted yet (their files are simply not
+  reachable only through the interface it provides. C# emits it too: ASP.NET Core's
+  `services.AddScoped<IMailer, SmtpMailer>()` (and the `Transient`/`Singleton`/`TryAdd*`
+  forms) is the same binding written as code, so `SmtpMailer PROVIDES IMailer` — a factory
+  registration is not read (it returns whatever its lambda builds). Other languages aren't extracted yet (their files are simply not
   represented). For C, parsing is
   pre-preprocessor — heavy macro use yields partial facts (we never run `cpp`). For SQL, the
   dialect is auto-detected (override with `--dialect`); UTF-16 and `GO`-separated SQL Server
@@ -666,7 +669,7 @@ reviews honest.
 ## 10. How right is it? — measured, not asserted
 
 "Grounded" is an adjective; this is a number. `orchestrator pkg accuracy` scores the graph
-against a committed corpus of **94 hand-labelled fixture cases across all 13
+against a committed corpus of **106 hand-labelled fixture cases across all 13
 front-ends**, and the baseline lives in `src/orchestrator/pkg/scoreboard.json`.
 
 **Precision is 1.00 on every node kind and every edge kind, in all 12 languages.** Recall is
@@ -677,17 +680,23 @@ front-ends**, and the baseline lives in `src/orchestrator/pkg/scoreboard.json`.
 |---|---|
 | `c` `sql` | 1.00 |
 | `javascript` | 0.97 |
-| `kotlin` | 0.92 |
-| `perl` | 0.89 |
+| `java` | 0.91 |
+| `csharp` `perl` `python` | 0.89 |
+| `kotlin` | 0.87 |
 | `typescript` | 0.86 |
-| `cpp` `csharp` `go` `php` | 0.75 |
-| `python` | 0.73 |
-| `java` | 0.67 |
+| `cpp` `go` `php` | 0.75 |
+
+C# and Java carry typed-receiver cases (B21) that label every true call in their source,
+and constructor-call cases (B22) now that `new Foo()` is a `CALLS` edge to `Foo`: C# 32 of 36,
+Java 30 of 33. Each remaining miss is a type the source does not write at the site — a receiver's (a
+return value, a lambda parameter, an extension method) or a `return new()`'s — a labelled
+known gap.
 
 Read the precision row carefully, because it is the load-bearing claim: **nothing in the graph
 is invented.** Every edge Spine emits is one that exists in the source. The entire remaining
-gap is *silence* — calls that exist and are not emitted — and all of it is one shape, a call
-whose receiver is a variable rather than a name (`h.run()` where `h` is a parameter or local).
+gap is *silence* — calls that exist and are not emitted — and nearly all of it is one shape, a
+call whose receiver's type is not written down (`h.run()` where `h` comes from a return value, a
+lambda or an untyped parameter).
 For an agent reasoning over the graph, a missing edge and a fabricated edge are not equally
 bad, and the PKG has only the survivable one. Invention currently stands at **0 invented
 targets across 15,212 call edges**; parity shortfall is **0**.

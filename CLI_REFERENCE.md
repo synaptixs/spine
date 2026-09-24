@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.46.0  (synaptixs-spine)
+Spine 3.47.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -537,7 +537,7 @@ orchestrator pkg accuracy [PATH] [OPTIONS]
 | `--tests` | Test target(s) for `--oracle runtime`; defaults to the repo's own. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
 
-**Current corpus results** (94 fixture cases — 88 single-language, 6 multi-repo — across
+**Current corpus results** (106 fixture cases — 100 single-language, 6 multi-repo — across
 all 13 front-ends, Perl's own corpus grown across P2–P5 of its track: 9 cases). Precision is
 **1.00 on every node kind and every edge kind in every language**; recall is 1.00 on every
 kind except `CALLS`, JavaScript `IMPORTS` (189 of 190: an immediately-called `require`) and
@@ -545,14 +545,19 @@ multi-repo `CONSUMES` (5 of 6) — each a declared known gap:
 
 | language | `CALLS` recall |
 |---|---|
-| `kotlin` | 0.92 |
 | `c` `cpp` (with `clang`) `sql` | 1.00 |
 | `javascript` | 0.97 |
-| `perl` | 0.89 |
+| `java` | 0.91 |
+| `csharp` `perl` `python` | 0.89 |
+| `kotlin` | 0.87 |
 | `typescript` | 0.86 |
-| `cpp` `csharp` `go` `php` | 0.75 |
-| `python` | 0.73 |
-| `java` | 0.67 |
+| `cpp` `go` `php` | 0.75 |
+
+C# and Java carry typed-receiver cases (B21) that label every true call in their source,
+and constructor-call cases (B22) now that `new Foo()` is a `CALLS` edge to `Foo`: C# 32 of 36,
+Java 30 of 33. Each remaining miss is a type the source does not write at the site — a receiver's (a
+return value, a lambda parameter, an extension method) or a `return new()`'s — a labelled
+known gap.
 
 Perl's 0.89 is 8 of 9 labelled `CALLS` edges in its own corpus — the one miss is a
 permanent, documented one (`instance_calls`, an untyped parameter with no declared type to
@@ -560,8 +565,8 @@ resolve a method call through); the other predicted P2/P3-boundary miss was reso
 (a literal same-sub constructor now resolves), and `super_calls` (P5) added 3 more, all
 resolved.
 
-Every remaining loss is the documented instance-dispatch skip — a call whose receiver is a
-variable rather than a name. Invention stands at **0 invented targets across 15,212 call
+Every remaining loss is a declared known gap — nearly all a call whose receiver's type is not
+written down. Invention stands at **0 invented targets across 15,212 call
 edges**; parity shortfall is **0**.
 
 **What is gated, and what is only recorded.** Not everything can be gated on equality, and the

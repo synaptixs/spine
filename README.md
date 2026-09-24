@@ -78,7 +78,15 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.46.0 (current)** — graphs that say who really calls what. A Python call through a re-export
+**3.47.0 (current)** — Java and C# graphs that say who calls what. A call through a typed
+receiver — `_service.Do()` through a field, `repo.Load(id)` through a parameter, a typed local — now
+lands on the member the declared type means (on a .NET service, 2,427 of 2,427 resolvable calls,
+from 0), and `new Foo()` is a call to `Foo`, so a class's `blast_radius` lists who creates it.
+ASP.NET Core DI registrations become `PROVIDES`, and `blast_radius` reaches an implementation's
+callers through the interface it implements — reported apart, since they *may* reach it. Anything
+the compiler would find ambiguous, or whose type is not written, is refused rather than guessed.
+
+**3.46.0** — graphs that say who really calls what. A Python call through a re-export
 (`from app import Store`) now lands on the symbol that defines it instead of a phantom
 third-party twin — on Spine's own graph that moved 1,271 calls to their real targets — and
 `pkg verify` warns on any `phantom-symbol` left. Kotlin: a file whose one-line body tripped the
@@ -261,6 +269,7 @@ in [CLI_REFERENCE.md](https://github.com/synaptixs/spine/blob/main/CLI_REFERENCE
 | SQL schema/query/procedure comprehension, migration folding, UTF-16 and SQL Server `GO` batches | ✅ | `[sql]`; `pkg extract`, `understand` |
 | SQL migration codegen validated in SQLite or opt-in Docker Postgres | ✅ | `sdlc feature --language sql`; `[sql-postgres]` |
 | Framework endpoints and data-layer edges, including JAX-RS, Spring MVC, Ktor, ASP.NET Core and EF Core | ✅ | [Knowledge Graph](https://github.com/synaptixs/spine/blob/main/KNOWLEDGE_GRAPH.md) |
+| Java and C# typed-receiver call graphs (fields, parameters, typed locals, `var x = new T()`), constructor calls, C# static calls and ASP.NET Core DI bindings; `blast_radius` through interfaces | ✅ | `pkg extract`, `blast_radius`; [Knowledge Graph](https://github.com/synaptixs/spine/blob/main/KNOWLEDGE_GRAPH.md) |
 | C/C++ include graphs, C++ routing for included `.h` files and header/source merging; CMake or brownfield Meson builds | ✅ | `sdlc feature --language c` / `cpp` |
 | Go packages, calls and interface satisfaction; multi-module build/test selection | ✅ | `sdlc feature --language go` |
 | PHP namespaces/traits/calls, Laravel/Slim/Symfony routes, Eloquent/Doctrine entities; Composer/PHAR PHPUnit | ✅ | [PHP workflow](https://github.com/synaptixs/spine/blob/main/USER_GUIDE.md#php-code-generation) |

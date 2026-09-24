@@ -116,6 +116,7 @@ in PHP either, since a `Type` id is dotted and a `Module` id ends in `.pl`/`.pm`
 |---|---|---|
 | module | `py:{dotted.path}` — `src/` stripped, `__init__` collapsed to its package | `py:shop.cart` |
 | symbol | `{parent_id}.{name}` | `py:shop.cart.Cart.total` |
+| constructor (Java, C#) | `{type_id}.{TypeName}` — one node for every overload; an instantiation's `CALLS` edge targets the **Type**, not this node (rule below) | `java:shop.Cart.Cart` |
 | import target — symbol exists | **the symbol** | `from shop.tax import rate` → `py:shop.tax.rate` |
 | import target — symbol has no node | **the module it lives in** | `from api.routes import router` → `py:api.routes` |
 | import target — a re-export the front-end resolves | **the defining symbol** | `from app import Store` (app re-exports `.store.Store`) → `py:app.store.Store` |

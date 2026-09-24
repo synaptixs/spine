@@ -1,36 +1,94 @@
 {
   "language": "kotlin",
   "case": "mixed_java",
-  "requires": ["java", "kotlin"],
-  "why": "D2's whole justification, made checkable. Kotlin and Java share one JVM package namespace, so this front-end mints `java:` ids and marks nodes `language: kotlin`. The payoff is that a mixed module — `.kt` beside `.java` under `src/main/java/**`, which is the normal Android layout and is 193 of the 263 files in the validation app — produces **one** graph: the Kotlin `Cart` implements the Java `Priced` and the Java `Checkout` calls the Kotlin `Cart.price`, with both edges landing on real nodes. Under a separate `kt:` prefix every one of those edges would dangle, and no test anywhere else would notice. One module node holds declarations from both files, which is the second half of the same claim.",
+  "requires": [
+    "java",
+    "kotlin"
+  ],
+  "why": "D2's whole justification, made checkable. Kotlin and Java share one JVM package namespace, so this front-end mints `java:` ids and marks nodes `language: kotlin`. The payoff is that a mixed module — `.kt` beside `.java` under `src/main/java/**`, which is the normal Android layout and is 193 of the 263 files in the validation app — produces **one** graph: the Kotlin `Cart` implements the Java `Priced` and the Java `Checkout` calls the Kotlin `Cart.price`, with both edges landing on real nodes. Under a separate `kt:` prefix every one of those edges would dangle, and no test anywhere else would notice. One module node holds declarations from both files, which is the second half of the same claim. B21 closed one gap here: the Java side now resolves a call through a typed receiver onto the Kotlin class (one JVM namespace, `java:`).",
   "root": ".repo",
   "nodes": [
-    { "id": "java:shop.model", "kind": "Module" },
-    { "id": "java:shop.model.Priced", "kind": "Type" },
-    { "id": "java:shop.model.Cart", "kind": "Type" },
-    { "id": "java:shop.model.Checkout", "kind": "Type" },
-    { "id": "java:shop.model.Priced.price", "kind": "Function" },
-    { "id": "java:shop.model.Cart.price", "kind": "Function" },
-    { "id": "java:shop.model.Checkout.total", "kind": "Function" },
-    { "id": "java:shop.model.discount", "kind": "Function" }
-  ],
-  "edges": [
-    { "src": "java:shop.model", "dst": "java:shop.model.Priced", "kind": "CONTAINS" },
-    { "src": "java:shop.model", "dst": "java:shop.model.Cart", "kind": "CONTAINS" },
-    { "src": "java:shop.model", "dst": "java:shop.model.Checkout", "kind": "CONTAINS" },
-    { "src": "java:shop.model", "dst": "java:shop.model.discount", "kind": "CONTAINS" },
-    { "src": "java:shop.model.Priced", "dst": "java:shop.model.Priced.price", "kind": "CONTAINS" },
-    { "src": "java:shop.model.Cart", "dst": "java:shop.model.Cart.price", "kind": "CONTAINS" },
-    { "src": "java:shop.model.Checkout", "dst": "java:shop.model.Checkout.total", "kind": "CONTAINS" },
-    { "src": "java:shop.model.Cart", "dst": "java:shop.model.Priced", "kind": "IMPLEMENTS" },
-    { "src": "java:shop.model.Checkout.total", "dst": "java:shop.model.Cart.price", "kind": "CALLS" }
-  ],
-  "known_gaps": [
     {
-      "edge": { "src": "java:shop.model.Checkout.total", "dst": "java:shop.model.Cart.price", "kind": "CALLS" },
-      "why": "PREDICTED BEFORE SCORING. `cart.price()` is an instance call on a typed parameter inside the **Java** file, and the Java front-end skips those by design — it has no typed-receiver rule, so resolving it would need inference it does not do. This is a Java gap surfacing in a Kotlin case, not a Kotlin one: the Kotlin front-end resolves exactly this shape (see the typed_receivers case). The cross-language edge D2 exists to make possible is the IMPLEMENTS one above, which does land. Closing this would mean giving Java the typed-receiver rule, which is out of this track's scope and is recorded here rather than silently."
+      "id": "java:shop.model",
+      "kind": "Module"
+    },
+    {
+      "id": "java:shop.model.Priced",
+      "kind": "Type"
+    },
+    {
+      "id": "java:shop.model.Cart",
+      "kind": "Type"
+    },
+    {
+      "id": "java:shop.model.Checkout",
+      "kind": "Type"
+    },
+    {
+      "id": "java:shop.model.Priced.price",
+      "kind": "Function"
+    },
+    {
+      "id": "java:shop.model.Cart.price",
+      "kind": "Function"
+    },
+    {
+      "id": "java:shop.model.Checkout.total",
+      "kind": "Function"
+    },
+    {
+      "id": "java:shop.model.discount",
+      "kind": "Function"
     }
   ],
+  "edges": [
+    {
+      "src": "java:shop.model",
+      "dst": "java:shop.model.Priced",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.model",
+      "dst": "java:shop.model.Cart",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.model",
+      "dst": "java:shop.model.Checkout",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.model",
+      "dst": "java:shop.model.discount",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.model.Priced",
+      "dst": "java:shop.model.Priced.price",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.model.Cart",
+      "dst": "java:shop.model.Cart.price",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.model.Checkout",
+      "dst": "java:shop.model.Checkout.total",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:shop.model.Cart",
+      "dst": "java:shop.model.Priced",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "java:shop.model.Checkout.total",
+      "dst": "java:shop.model.Cart.price",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
   "false_positives": [],
   "excluded": [
     "**Decided (was an open question).** A shared `java:` module node records ONE language — whichever front-end declared it first in the sorted walk (`Cart.kt` before `Checkout.java`, so `kotlin`). Nothing reads a module's language, and the id is what D2's shared namespace is for; a multi-language field would be a vocabulary change serving no reader. The expected set is complete either way, which is what makes this a decision rather than a provisional label."

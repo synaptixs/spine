@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/pkg/csharp_extractor.py`](../../src/orchestrator/pkg/csharp_extractor.py)
 
-2 types · 27 functions · python
+4 types · 42 functions · python
 
 ## Changing this safely
 
@@ -13,16 +13,16 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L758) — reaches **24** symbols · **no test path visible**
-- [`_join_ns`](../../src/orchestrator/pkg/csharp_extractor.py#L528) — reaches **10** symbols · **no test path visible**
-- [`_field_text`](../../src/orchestrator/pkg/csharp_extractor.py#L753) — reaches **9** symbols · **no test path visible**
-- [`CSharpExtractor`](../../src/orchestrator/pkg/csharp_extractor.py#L105) — reaches **8** symbols
-- [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L565) — reaches **8** symbols · **no test path visible**
-- [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L540) — reaches **8** symbols · **no test path visible**
-- [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L589) — reaches **6** symbols · **no test path visible**
-- [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L611) — reaches **6** symbols · **no test path visible**
+- [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314) — reaches **37** symbols · **no test path visible**
+- [`_field_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1309) — reaches **11** symbols · **no test path visible**
+- [`_join_ns`](../../src/orchestrator/pkg/csharp_extractor.py#L1084) — reaches **10** symbols · **no test path visible**
+- [`_strip_type`](../../src/orchestrator/pkg/csharp_extractor.py#L682) — reaches **10** symbols · **no test path visible**
+- [`_type_ref_in`](../../src/orchestrator/pkg/csharp_extractor.py#L696) — reaches **9** symbols · **no test path visible**
+- [`CSharpExtractor`](../../src/orchestrator/pkg/csharp_extractor.py#L120) — reaches **8** symbols
+- [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L1121) — reaches **8** symbols · **no test path visible**
+- [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L1096) — reaches **8** symbols · **no test path visible**
 
-_27 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_44 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Documented in
 
@@ -32,208 +32,326 @@ _27 of the symbols other code depends on here have no test path the graph can se
 
 ### `CSharpExtractor`
 
-[`src/orchestrator/pkg/csharp_extractor.py:105`](../../src/orchestrator/pkg/csharp_extractor.py#L105)
+[`src/orchestrator/pkg/csharp_extractor.py:120`](../../src/orchestrator/pkg/csharp_extractor.py#L120)
 
-- **Called by** (1 production · 4 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L587), [`_facts`](../../tests/pkg/test_csharp_extractor.py#L41), [`test_first_party_base_type_keeps_its_namespace`](../../tests/pkg/test_csharp_extractor.py#L363), [`test_framework_base_type_is_not_placed_in_the_local_namespace`](../../tests/pkg/test_csharp_extractor.py#L339), [`test_repo_extractor_dispatches_csharp_by_suffix`](../../tests/pkg/test_csharp_extractor.py#L97)
-- **Fields**: `language`, `suffixes`
+- **Called by** (1 production · 5 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L587), [`_facts`](../../tests/pkg/test_csharp_extractor.py#L41), [`test_a_receiver_call_waits_for_finalize`](../../tests/pkg/test_csharp_extractor.py#L91), [`test_first_party_base_type_keeps_its_namespace`](../../tests/pkg/test_csharp_extractor.py#L374), [`test_framework_base_type_is_not_placed_in_the_local_namespace`](../../tests/pkg/test_csharp_extractor.py#L350), [`test_repo_extractor_dispatches_csharp_by_suffix`](../../tests/pkg/test_csharp_extractor.py#L108)
+- **Fields**: `_bindings`, `_projects`, `_receivers`, `language`, `suffixes`
 - **Documented in**: `docs/specs/language-support-roadmap.md#track-1-c-cs-do-first-lowest-risk`
+
+### `_NsDecl`
+
+[`src/orchestrator/pkg/csharp_extractor.py:601`](../../src/orchestrator/pkg/csharp_extractor.py#L601)
+
+- **Called by** (1): [`_ns_decl`](../../src/orchestrator/pkg/csharp_extractor.py#L635)
+- **Fields**: `aliases`, `full`, `outer`, `parent`, `usings`
 
 ### `_TypeRec`
 
-[`src/orchestrator/pkg/csharp_extractor.py:95`](../../src/orchestrator/pkg/csharp_extractor.py#L95)
+[`src/orchestrator/pkg/csharp_extractor.py:106`](../../src/orchestrator/pkg/csharp_extractor.py#L106)
 
-- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L230)
-- **Fields**: `methods`, `name`, `namespace`, `node`, `type_id`
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L294)
+- **Fields**: `bases`, `decl`, `methods`, `name`, `namespace`, `node`, `parent`, `type_id`, `type_params`
+
+### `_Unit`
+
+[`src/orchestrator/pkg/csharp_extractor.py:614`](../../src/orchestrator/pkg/csharp_extractor.py#L614)
+
+- **Called by** (1): [`_unit_scope`](../../src/orchestrator/pkg/csharp_extractor.py#L648)
+- **Fields**: `aliases`, `project`, `usings`
 
 ## Functions
 
 ### `_attr_string_arg`
 
-[`src/orchestrator/pkg/csharp_extractor.py:603`](../../src/orchestrator/pkg/csharp_extractor.py#L603)
+[`src/orchestrator/pkg/csharp_extractor.py:1159`](../../src/orchestrator/pkg/csharp_extractor.py#L1159)
 
-- **Called by** (1): [`_endpoint_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L368)
-- **Calls** (1): [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L611)
+- **Called by** (1): [`_endpoint_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L444)
+- **Calls** (1): [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L1167)
 
 ### `_attributes`
 
-[`src/orchestrator/pkg/csharp_extractor.py:589`](../../src/orchestrator/pkg/csharp_extractor.py#L589)
+[`src/orchestrator/pkg/csharp_extractor.py:1145`](../../src/orchestrator/pkg/csharp_extractor.py#L1145)
 
-- **Called by** (3): [`_endpoint_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L368), [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L441), [`_is_controller`](../../src/orchestrator/pkg/csharp_extractor.py#L403)
-- **Calls** (2): [`_field_text`](../../src/orchestrator/pkg/csharp_extractor.py#L753), [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L540)
+- **Called by** (3): [`_endpoint_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L444), [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L517), [`_is_controller`](../../src/orchestrator/pkg/csharp_extractor.py#L479)
+- **Calls** (2): [`_field_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1309), [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L1096)
 
 ### `_base_types`
 
-[`src/orchestrator/pkg/csharp_extractor.py:565`](../../src/orchestrator/pkg/csharp_extractor.py#L565)
+[`src/orchestrator/pkg/csharp_extractor.py:1121`](../../src/orchestrator/pkg/csharp_extractor.py#L1121)
 
-- **Called by** (3): [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L230), [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L441), [`_is_controller`](../../src/orchestrator/pkg/csharp_extractor.py#L403)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L758)
+- **Called by** (3): [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L294), [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L517), [`_is_controller`](../../src/orchestrator/pkg/csharp_extractor.py#L479)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314)
+
+### `_block_of`
+
+[`src/orchestrator/pkg/csharp_extractor.py:792`](../../src/orchestrator/pkg/csharp_extractor.py#L792)
+
+- **Called by** (1): [`_method_scope`](../../src/orchestrator/pkg/csharp_extractor.py#L799)
 
 ### `_bound_names`
 
-[`src/orchestrator/pkg/csharp_extractor.py:658`](../../src/orchestrator/pkg/csharp_extractor.py#L658)
+[`src/orchestrator/pkg/csharp_extractor.py:1214`](../../src/orchestrator/pkg/csharp_extractor.py#L1214)
 
-- **Called by** (1): [`_call_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L502)
+- **Called by** (1): [`_call_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L578)
 
 ### `_call_edges`
 
-[`src/orchestrator/pkg/csharp_extractor.py:502`](../../src/orchestrator/pkg/csharp_extractor.py#L502)
+[`src/orchestrator/pkg/csharp_extractor.py:578`](../../src/orchestrator/pkg/csharp_extractor.py#L578)
 
-- **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L333)
-- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_bound_names`](../../src/orchestrator/pkg/csharp_extractor.py#L658), [`_calls_in`](../../src/orchestrator/pkg/csharp_extractor.py#L639)
+- **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L409)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_bound_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1214), [`_calls_in`](../../src/orchestrator/pkg/csharp_extractor.py#L1195)
 
 ### `_calls_in`
 
-[`src/orchestrator/pkg/csharp_extractor.py:639`](../../src/orchestrator/pkg/csharp_extractor.py#L639)
+[`src/orchestrator/pkg/csharp_extractor.py:1195`](../../src/orchestrator/pkg/csharp_extractor.py#L1195)
 
-- **Called by** (1): [`_call_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L502)
-- **Calls** (1): [`_unqualified_call_name`](../../src/orchestrator/pkg/csharp_extractor.py#L706)
+- **Called by** (1): [`_call_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L578)
+- **Calls** (1): [`_unqualified_call_name`](../../src/orchestrator/pkg/csharp_extractor.py#L1262)
+
+### `_creation`
+
+[`src/orchestrator/pkg/csharp_extractor.py:967`](../../src/orchestrator/pkg/csharp_extractor.py#L967)
+
+- **Called by** (1): [`_record_receiver_calls`](../../src/orchestrator/pkg/csharp_extractor.py#L991)
+- **Calls** (1): [`_type_node_ref`](../../src/orchestrator/pkg/csharp_extractor.py#L763)
 
 ### `_csharp_parser`
 
-[`src/orchestrator/pkg/csharp_extractor.py:764`](../../src/orchestrator/pkg/csharp_extractor.py#L764)
+[`src/orchestrator/pkg/csharp_extractor.py:1320`](../../src/orchestrator/pkg/csharp_extractor.py#L1320)
 
-- **Called by** (2): [`_extract_source`](../../src/orchestrator/pkg/csharp_extractor.py#L177), [`_parser_for`](../../src/orchestrator/pkg/scope.py#L595)
+- **Called by** (2): [`_extract_source`](../../src/orchestrator/pkg/csharp_extractor.py#L220), [`_parser_for`](../../src/orchestrator/pkg/scope.py#L595)
 - **Calls** (3): `language`, `tree_sitter.Language`, `tree_sitter.Parser`
 
 ### `_endpoint_edges`
 
-[`src/orchestrator/pkg/csharp_extractor.py:368`](../../src/orchestrator/pkg/csharp_extractor.py#L368)
+[`src/orchestrator/pkg/csharp_extractor.py:444`](../../src/orchestrator/pkg/csharp_extractor.py#L444)
 
-- **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L333)
-- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_attr_string_arg`](../../src/orchestrator/pkg/csharp_extractor.py#L603), [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L589), [`_is_controller`](../../src/orchestrator/pkg/csharp_extractor.py#L403), [`_join_route`](../../src/orchestrator/pkg/csharp_extractor.py#L534)
+- **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L409)
+- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_attr_string_arg`](../../src/orchestrator/pkg/csharp_extractor.py#L1159), [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L1145), [`_is_controller`](../../src/orchestrator/pkg/csharp_extractor.py#L479), [`_join_route`](../../src/orchestrator/pkg/csharp_extractor.py#L1090)
 
 ### `_entity_edges`
 
-[`src/orchestrator/pkg/csharp_extractor.py:441`](../../src/orchestrator/pkg/csharp_extractor.py#L441)
+[`src/orchestrator/pkg/csharp_extractor.py:517`](../../src/orchestrator/pkg/csharp_extractor.py#L517)
 
-- **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L333)
-- **Calls** (10): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L589), [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L565), [`_entity_id`](../../src/orchestrator/pkg/csharp_extractor.py#L524), [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L720), [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L540), [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L737), [`_type_arg_names`](../../src/orchestrator/pkg/csharp_extractor.py#L728)
+- **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L409)
+- **Calls** (10): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L1145), [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L1121), [`_entity_id`](../../src/orchestrator/pkg/csharp_extractor.py#L1080), [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L1276), [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L1096), [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1293), [`_type_arg_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1284)
 
 ### `_entity_id`
 
-[`src/orchestrator/pkg/csharp_extractor.py:524`](../../src/orchestrator/pkg/csharp_extractor.py#L524)
+[`src/orchestrator/pkg/csharp_extractor.py:1080`](../../src/orchestrator/pkg/csharp_extractor.py#L1080)
 
-- **Called by** (1): [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L441)
-- **Calls** (1): [`_join_ns`](../../src/orchestrator/pkg/csharp_extractor.py#L528)
+- **Called by** (1): [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L517)
+- **Calls** (1): [`_join_ns`](../../src/orchestrator/pkg/csharp_extractor.py#L1084)
 
 ### `_field_names`
 
-[`src/orchestrator/pkg/csharp_extractor.py:577`](../../src/orchestrator/pkg/csharp_extractor.py#L577)
+[`src/orchestrator/pkg/csharp_extractor.py:1133`](../../src/orchestrator/pkg/csharp_extractor.py#L1133)
 
-- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L230)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L758)
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L294)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314)
 
 ### `_field_text`
 
-[`src/orchestrator/pkg/csharp_extractor.py:753`](../../src/orchestrator/pkg/csharp_extractor.py#L753)
+[`src/orchestrator/pkg/csharp_extractor.py:1309`](../../src/orchestrator/pkg/csharp_extractor.py#L1309)
 
-- **Called by** (3): [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L589), [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L230), [`_walk`](../../src/orchestrator/pkg/csharp_extractor.py#L203)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L758)
+- **Called by** (5): [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L1145), [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L294), [`_record_fields`](../../src/orchestrator/pkg/csharp_extractor.py#L886), [`_record_receiver_calls`](../../src/orchestrator/pkg/csharp_extractor.py#L991), [`_walk`](../../src/orchestrator/pkg/csharp_extractor.py#L257)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314)
 
 ### `_find_string`
 
-[`src/orchestrator/pkg/csharp_extractor.py:611`](../../src/orchestrator/pkg/csharp_extractor.py#L611)
+[`src/orchestrator/pkg/csharp_extractor.py:1167`](../../src/orchestrator/pkg/csharp_extractor.py#L1167)
 
-- **Called by** (3): [`_attr_string_arg`](../../src/orchestrator/pkg/csharp_extractor.py#L603), [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L611), [`_minimal_api_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L417)
-- **Calls** (2): [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L611), [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L758)
+- **Called by** (3): [`_attr_string_arg`](../../src/orchestrator/pkg/csharp_extractor.py#L1159), [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L1167), [`_minimal_api_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L493)
+- **Calls** (2): [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L1167), [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314)
 
 ### `_framework_edges`
 
-[`src/orchestrator/pkg/csharp_extractor.py:333`](../../src/orchestrator/pkg/csharp_extractor.py#L333)
+[`src/orchestrator/pkg/csharp_extractor.py:409`](../../src/orchestrator/pkg/csharp_extractor.py#L409)
 
-- **Called by** (1): [`_extract_source`](../../src/orchestrator/pkg/csharp_extractor.py#L177)
-- **Calls** (5): [`_call_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L502), [`_endpoint_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L368), [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L441), [`_join_ns`](../../src/orchestrator/pkg/csharp_extractor.py#L528), [`_minimal_api_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L417)
+- **Called by** (1): [`_extract_source`](../../src/orchestrator/pkg/csharp_extractor.py#L220)
+- **Calls** (5): [`_call_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L578), [`_endpoint_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L444), [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L517), [`_join_ns`](../../src/orchestrator/pkg/csharp_extractor.py#L1084), [`_minimal_api_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L493)
 
 ### `_generic_head`
 
-[`src/orchestrator/pkg/csharp_extractor.py:720`](../../src/orchestrator/pkg/csharp_extractor.py#L720)
+[`src/orchestrator/pkg/csharp_extractor.py:1276`](../../src/orchestrator/pkg/csharp_extractor.py#L1276)
 
-- **Called by** (2): [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L441), [`_member_name`](../../src/orchestrator/pkg/csharp_extractor.py#L625)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L758)
+- **Called by** (3): [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L517), [`_member_name`](../../src/orchestrator/pkg/csharp_extractor.py#L1181), [`_record_receiver_calls`](../../src/orchestrator/pkg/csharp_extractor.py#L991)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314)
 
 ### `_is_controller`
 
-[`src/orchestrator/pkg/csharp_extractor.py:403`](../../src/orchestrator/pkg/csharp_extractor.py#L403)
+[`src/orchestrator/pkg/csharp_extractor.py:479`](../../src/orchestrator/pkg/csharp_extractor.py#L479)
 
-- **Called by** (1): [`_endpoint_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L368)
-- **Calls** (3): [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L589), [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L565), [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L540)
+- **Called by** (1): [`_endpoint_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L444)
+- **Calls** (3): [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L1145), [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L1121), [`_last_segment`](../../src/orchestrator/pkg/csharp_extractor.py#L1096)
 
 ### `_join_ns`
 
-[`src/orchestrator/pkg/csharp_extractor.py:528`](../../src/orchestrator/pkg/csharp_extractor.py#L528)
+[`src/orchestrator/pkg/csharp_extractor.py:1084`](../../src/orchestrator/pkg/csharp_extractor.py#L1084)
 
-- **Called by** (7): [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L230), [`_entity_id`](../../src/orchestrator/pkg/csharp_extractor.py#L524), [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L333), [`_resolve_type`](../../src/orchestrator/pkg/csharp_extractor.py#L545), [`_span_component`](../../src/orchestrator/pkg/csharp_extractor.py#L782), [`_walk`](../../src/orchestrator/pkg/csharp_extractor.py#L203), [`resolve`](../../src/orchestrator/pkg/csharp_extractor.py#L351)
+- **Called by** (7): [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L294), [`_entity_id`](../../src/orchestrator/pkg/csharp_extractor.py#L1080), [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L409), [`_resolve_type`](../../src/orchestrator/pkg/csharp_extractor.py#L1101), [`_span_component`](../../src/orchestrator/pkg/csharp_extractor.py#L1338), [`_walk`](../../src/orchestrator/pkg/csharp_extractor.py#L257), [`resolve`](../../src/orchestrator/pkg/csharp_extractor.py#L427)
 
 ### `_join_route`
 
-[`src/orchestrator/pkg/csharp_extractor.py:534`](../../src/orchestrator/pkg/csharp_extractor.py#L534)
+[`src/orchestrator/pkg/csharp_extractor.py:1090`](../../src/orchestrator/pkg/csharp_extractor.py#L1090)
 
-- **Called by** (1): [`_endpoint_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L368)
+- **Called by** (1): [`_endpoint_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L444)
 
 ### `_last_segment`
 
-[`src/orchestrator/pkg/csharp_extractor.py:540`](../../src/orchestrator/pkg/csharp_extractor.py#L540)
+[`src/orchestrator/pkg/csharp_extractor.py:1096`](../../src/orchestrator/pkg/csharp_extractor.py#L1096)
 
-- **Called by** (4): [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L589), [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L441), [`_is_controller`](../../src/orchestrator/pkg/csharp_extractor.py#L403), [`resolve`](../../src/orchestrator/pkg/csharp_extractor.py#L351)
+- **Called by** (4): [`_attributes`](../../src/orchestrator/pkg/csharp_extractor.py#L1145), [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L517), [`_is_controller`](../../src/orchestrator/pkg/csharp_extractor.py#L479), [`resolve`](../../src/orchestrator/pkg/csharp_extractor.py#L427)
 
 ### `_member_name`
 
-[`src/orchestrator/pkg/csharp_extractor.py:625`](../../src/orchestrator/pkg/csharp_extractor.py#L625)
+[`src/orchestrator/pkg/csharp_extractor.py:1181`](../../src/orchestrator/pkg/csharp_extractor.py#L1181)
 
-- **Called by** (1): [`_minimal_api_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L417)
-- **Calls** (2): [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L720), [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L758)
+- **Called by** (1): [`_minimal_api_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L493)
+- **Calls** (2): [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L1276), [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314)
+
+### `_method_scope`
+
+[`src/orchestrator/pkg/csharp_extractor.py:799`](../../src/orchestrator/pkg/csharp_extractor.py#L799)
+
+- **Called by** (1): [`_record_receiver_calls`](../../src/orchestrator/pkg/csharp_extractor.py#L991)
+- **Calls** (3): [`Scope`](../../src/orchestrator/pkg/typed_receivers.py#L117), [`_block_of`](../../src/orchestrator/pkg/csharp_extractor.py#L792), [`_type_params`](../../src/orchestrator/pkg/csharp_extractor.py#L668)
 
 ### `_minimal_api_edges`
 
-[`src/orchestrator/pkg/csharp_extractor.py:417`](../../src/orchestrator/pkg/csharp_extractor.py#L417)
+[`src/orchestrator/pkg/csharp_extractor.py:493`](../../src/orchestrator/pkg/csharp_extractor.py#L493)
 
-- **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L333)
-- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L611), [`_member_name`](../../src/orchestrator/pkg/csharp_extractor.py#L625)
+- **Called by** (1): [`_framework_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L409)
+- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L1167), [`_member_name`](../../src/orchestrator/pkg/csharp_extractor.py#L1181)
+
+### `_ns_decl`
+
+[`src/orchestrator/pkg/csharp_extractor.py:635`](../../src/orchestrator/pkg/csharp_extractor.py#L635)
+
+- **Called by** (1): [`_walk`](../../src/orchestrator/pkg/csharp_extractor.py#L257)
+- **Calls** (2): [`_NsDecl`](../../src/orchestrator/pkg/csharp_extractor.py#L601), [`_parse_using`](../../src/orchestrator/pkg/csharp_extractor.py#L623)
+
+### `_parse_using`
+
+[`src/orchestrator/pkg/csharp_extractor.py:623`](../../src/orchestrator/pkg/csharp_extractor.py#L623)
+
+- **Called by** (2): [`_ns_decl`](../../src/orchestrator/pkg/csharp_extractor.py#L635), [`_unit_scope`](../../src/orchestrator/pkg/csharp_extractor.py#L648)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314)
+
+### `_qualified_name`
+
+[`src/orchestrator/pkg/csharp_extractor.py:954`](../../src/orchestrator/pkg/csharp_extractor.py#L954)
+
+- **Called by** (2): [`_qualified_name`](../../src/orchestrator/pkg/csharp_extractor.py#L954), [`_record_receiver_calls`](../../src/orchestrator/pkg/csharp_extractor.py#L991)
+- **Calls** (2): [`_qualified_name`](../../src/orchestrator/pkg/csharp_extractor.py#L954), [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314)
+
+### `_record_bindings`
+
+[`src/orchestrator/pkg/csharp_extractor.py:910`](../../src/orchestrator/pkg/csharp_extractor.py#L910)
+
+- **Called by** (1): [`_extract_source`](../../src/orchestrator/pkg/csharp_extractor.py#L220)
+- **Calls** (5): [`Binding`](../../src/orchestrator/pkg/csharp_di.py#L44), [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314), [`_type_ref_in`](../../src/orchestrator/pkg/csharp_extractor.py#L696), [`factory_creation`](../../src/orchestrator/pkg/csharp_di.py#L68), [`type_arguments`](../../src/orchestrator/pkg/csharp_di.py#L53)
+
+### `_record_fields`
+
+[`src/orchestrator/pkg/csharp_extractor.py:886`](../../src/orchestrator/pkg/csharp_extractor.py#L886)
+
+- **Called by** (1): [`_record_receiver_calls`](../../src/orchestrator/pkg/csharp_extractor.py#L991)
+- **Calls** (2): [`_field_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1309), [`_type_node_ref`](../../src/orchestrator/pkg/csharp_extractor.py#L763)
+
+### `_record_receiver_calls`
+
+[`src/orchestrator/pkg/csharp_extractor.py:991`](../../src/orchestrator/pkg/csharp_extractor.py#L991)
+
+- **Called by** (1): [`_extract_source`](../../src/orchestrator/pkg/csharp_extractor.py#L220)
+- **Calls** (11): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L88), [`_creation`](../../src/orchestrator/pkg/csharp_extractor.py#L967), [`_field_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1309), [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L1276), [`_method_scope`](../../src/orchestrator/pkg/csharp_extractor.py#L799), [`_qualified_name`](../../src/orchestrator/pkg/csharp_extractor.py#L954), [`_record_fields`](../../src/orchestrator/pkg/csharp_extractor.py#L886), [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314), [`_type_params`](../../src/orchestrator/pkg/csharp_extractor.py#L668), [`_type_ref`](../../src/orchestrator/pkg/csharp_extractor.py#L757), [`_type_ref_in`](../../src/orchestrator/pkg/csharp_extractor.py#L696)
 
 ### `_ref_type_names`
 
-[`src/orchestrator/pkg/csharp_extractor.py:737`](../../src/orchestrator/pkg/csharp_extractor.py#L737)
+[`src/orchestrator/pkg/csharp_extractor.py:1293`](../../src/orchestrator/pkg/csharp_extractor.py#L1293)
 
-- **Called by** (2): [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L441), [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L737)
-- **Calls** (3): [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L737), [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L758), [`_type_arg_names`](../../src/orchestrator/pkg/csharp_extractor.py#L728)
+- **Called by** (2): [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L517), [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1293)
+- **Calls** (3): [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1293), [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314), [`_type_arg_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1284)
 
 ### `_resolve_type`
 
-[`src/orchestrator/pkg/csharp_extractor.py:545`](../../src/orchestrator/pkg/csharp_extractor.py#L545)
+[`src/orchestrator/pkg/csharp_extractor.py:1101`](../../src/orchestrator/pkg/csharp_extractor.py#L1101)
 
-- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L230)
-- **Calls** (1): [`_join_ns`](../../src/orchestrator/pkg/csharp_extractor.py#L528)
+- **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L294)
+- **Calls** (1): [`_join_ns`](../../src/orchestrator/pkg/csharp_extractor.py#L1084)
 
 ### `_span_component`
 
-[`src/orchestrator/pkg/csharp_extractor.py:782`](../../src/orchestrator/pkg/csharp_extractor.py#L782)
+[`src/orchestrator/pkg/csharp_extractor.py:1338`](../../src/orchestrator/pkg/csharp_extractor.py#L1338)
 
-- **Called by** (1): [`extract`](../../src/orchestrator/pkg/csharp_extractor.py#L165)
-- **Calls** (6): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L157), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_join_ns`](../../src/orchestrator/pkg/csharp_extractor.py#L528), [`_lines`](../../src/orchestrator/pkg/razor.py#L45), [`component_class_name`](../../src/orchestrator/pkg/razor.py#L114), `replace`
+- **Called by** (1): [`extract`](../../src/orchestrator/pkg/csharp_extractor.py#L194)
+- **Calls** (6): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L157), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_join_ns`](../../src/orchestrator/pkg/csharp_extractor.py#L1084), [`_lines`](../../src/orchestrator/pkg/razor.py#L45), [`component_class_name`](../../src/orchestrator/pkg/razor.py#L114), `replace`
+
+### `_strip_type`
+
+[`src/orchestrator/pkg/csharp_extractor.py:682`](../../src/orchestrator/pkg/csharp_extractor.py#L682)
+
+- **Called by** (1): [`_type_ref_in`](../../src/orchestrator/pkg/csharp_extractor.py#L696)
+- **Calls** (1): `sub`
 
 ### `_text`
 
-[`src/orchestrator/pkg/csharp_extractor.py:758`](../../src/orchestrator/pkg/csharp_extractor.py#L758)
+[`src/orchestrator/pkg/csharp_extractor.py:1314`](../../src/orchestrator/pkg/csharp_extractor.py#L1314)
 
-- **Called by** (12): [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L565), [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L230), [`_field_names`](../../src/orchestrator/pkg/csharp_extractor.py#L577), [`_field_text`](../../src/orchestrator/pkg/csharp_extractor.py#L753), [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L611), [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L720), [`_member_name`](../../src/orchestrator/pkg/csharp_extractor.py#L625), [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L737), [`_type_arg_names`](../../src/orchestrator/pkg/csharp_extractor.py#L728), [`_unqualified_call_name`](../../src/orchestrator/pkg/csharp_extractor.py#L706), [`_usings`](../../src/orchestrator/pkg/csharp_extractor.py#L191), [`bind`](../../src/orchestrator/pkg/csharp_extractor.py#L670)
+- **Called by** (19): [`_base_types`](../../src/orchestrator/pkg/csharp_extractor.py#L1121), [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L294), [`_field_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1133), [`_field_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1309), [`_find_string`](../../src/orchestrator/pkg/csharp_extractor.py#L1167), [`_generic_head`](../../src/orchestrator/pkg/csharp_extractor.py#L1276), [`_member_name`](../../src/orchestrator/pkg/csharp_extractor.py#L1181), [`_parse_using`](../../src/orchestrator/pkg/csharp_extractor.py#L623), [`_qualified_name`](../../src/orchestrator/pkg/csharp_extractor.py#L954), [`_record_bindings`](../../src/orchestrator/pkg/csharp_extractor.py#L910), [`_record_receiver_calls`](../../src/orchestrator/pkg/csharp_extractor.py#L991), [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1293), [`_type_arg_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1284), [`_type_node_ref`](../../src/orchestrator/pkg/csharp_extractor.py#L763), [`_type_params`](../../src/orchestrator/pkg/csharp_extractor.py#L668), [`_unqualified_call_name`](../../src/orchestrator/pkg/csharp_extractor.py#L1262), [`_usings`](../../src/orchestrator/pkg/csharp_extractor.py#L245), [`bind`](../../src/orchestrator/pkg/csharp_extractor.py#L1226), [`bind`](../../src/orchestrator/pkg/csharp_extractor.py#L811)
 
 ### `_type_arg_names`
 
-[`src/orchestrator/pkg/csharp_extractor.py:728`](../../src/orchestrator/pkg/csharp_extractor.py#L728)
+[`src/orchestrator/pkg/csharp_extractor.py:1284`](../../src/orchestrator/pkg/csharp_extractor.py#L1284)
 
-- **Called by** (2): [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L441), [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L737)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L758)
+- **Called by** (2): [`_entity_edges`](../../src/orchestrator/pkg/csharp_extractor.py#L517), [`_ref_type_names`](../../src/orchestrator/pkg/csharp_extractor.py#L1293)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314)
+
+### `_type_node_ref`
+
+[`src/orchestrator/pkg/csharp_extractor.py:763`](../../src/orchestrator/pkg/csharp_extractor.py#L763)
+
+- **Called by** (3): [`_creation`](../../src/orchestrator/pkg/csharp_extractor.py#L967), [`_record_fields`](../../src/orchestrator/pkg/csharp_extractor.py#L886), [`typed`](../../src/orchestrator/pkg/csharp_extractor.py#L807)
+- **Calls** (2): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314), [`_type_ref`](../../src/orchestrator/pkg/csharp_extractor.py#L757)
+
+### `_type_params`
+
+[`src/orchestrator/pkg/csharp_extractor.py:668`](../../src/orchestrator/pkg/csharp_extractor.py#L668)
+
+- **Called by** (3): [`_emit_type`](../../src/orchestrator/pkg/csharp_extractor.py#L294), [`_method_scope`](../../src/orchestrator/pkg/csharp_extractor.py#L799), [`_record_receiver_calls`](../../src/orchestrator/pkg/csharp_extractor.py#L991)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314)
+
+### `_type_ref`
+
+[`src/orchestrator/pkg/csharp_extractor.py:757`](../../src/orchestrator/pkg/csharp_extractor.py#L757)
+
+- **Called by** (2): [`_record_receiver_calls`](../../src/orchestrator/pkg/csharp_extractor.py#L991), [`_type_node_ref`](../../src/orchestrator/pkg/csharp_extractor.py#L763)
+- **Calls** (1): [`_type_ref_in`](../../src/orchestrator/pkg/csharp_extractor.py#L696)
+
+### `_type_ref_in`
+
+[`src/orchestrator/pkg/csharp_extractor.py:696`](../../src/orchestrator/pkg/csharp_extractor.py#L696)
+
+- **Called by** (3): [`_record_bindings`](../../src/orchestrator/pkg/csharp_extractor.py#L910), [`_record_receiver_calls`](../../src/orchestrator/pkg/csharp_extractor.py#L991), [`_type_ref`](../../src/orchestrator/pkg/csharp_extractor.py#L757)
+- **Calls** (2): [`TypeRef`](../../src/orchestrator/pkg/typed_receivers.py#L70), [`_strip_type`](../../src/orchestrator/pkg/csharp_extractor.py#L682)
+
+### `_unit_scope`
+
+[`src/orchestrator/pkg/csharp_extractor.py:648`](../../src/orchestrator/pkg/csharp_extractor.py#L648)
+
+- **Called by** (1): [`_extract_source`](../../src/orchestrator/pkg/csharp_extractor.py#L220)
+- **Calls** (2): [`_Unit`](../../src/orchestrator/pkg/csharp_extractor.py#L614), [`_parse_using`](../../src/orchestrator/pkg/csharp_extractor.py#L623)
 
 ### `_unqualified_call_name`
 
-[`src/orchestrator/pkg/csharp_extractor.py:706`](../../src/orchestrator/pkg/csharp_extractor.py#L706)
+[`src/orchestrator/pkg/csharp_extractor.py:1262`](../../src/orchestrator/pkg/csharp_extractor.py#L1262)
 
-- **Called by** (1): [`_calls_in`](../../src/orchestrator/pkg/csharp_extractor.py#L639)
-- **Calls** (1): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L758)
+- **Called by** (1): [`_calls_in`](../../src/orchestrator/pkg/csharp_extractor.py#L1195)
+- **Calls** (1): [`_text`](../../src/orchestrator/pkg/csharp_extractor.py#L1314)
 
 ## Imports
 
-`__future__.annotations`, `dataclasses.dataclass`, `dataclasses.field`, [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.razor`](../../src/orchestrator/pkg/razor.py#L1), `pathlib.Path`, `re`, `tree_sitter.Language`, `tree_sitter.Node`, `tree_sitter.Parser`, `tree_sitter_c_sharp`, `typing.Any`, `typing.TYPE_CHECKING`
+`__future__.annotations`, `dataclasses.dataclass`, `dataclasses.field`, [`orchestrator.pkg.csharp_di`](../../src/orchestrator/pkg/csharp_di.py#L1), [`orchestrator.pkg.extractor`](../../src/orchestrator/pkg/extractor.py#L1), [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.razor`](../../src/orchestrator/pkg/razor.py#L1), [`orchestrator.pkg.typed_receivers`](../../src/orchestrator/pkg/typed_receivers.py#L1), `pathlib.Path`, `re`, `tree_sitter.Language`, `tree_sitter.Node`, `tree_sitter.Parser`, `tree_sitter_c_sharp`, `typing.Any`, `typing.TYPE_CHECKING`
 
 ## Imported by
 

@@ -86,7 +86,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/autorun.py:869`](../../src/orchestrator/sdlc/autorun.py#L869)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245)
-- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L25), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260)
+- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260)
 
 ### `_log_run_cost`
 

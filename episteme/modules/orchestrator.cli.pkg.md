@@ -134,7 +134,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/cli/pkg.py:20`](../../src/orchestrator/cli/pkg.py#L20)
 
-- **Calls** (6): [`FactStore`](../../src/orchestrator/pkg/store.py#L25), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L730), [`_extract_repos`](../../src/orchestrator/cli/pkg.py#L114), [`_print`](../../src/orchestrator/cli/_common.py#L34), [`_repo_arg`](../../src/orchestrator/cli/_common.py#L39), `echo`
+- **Calls** (6): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L730), [`_extract_repos`](../../src/orchestrator/cli/pkg.py#L114), [`_print`](../../src/orchestrator/cli/_common.py#L34), [`_repo_arg`](../../src/orchestrator/cli/_common.py#L39), `echo`
 
 ### `pkg_fix_sites`
 
