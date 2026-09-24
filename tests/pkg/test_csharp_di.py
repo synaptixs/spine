@@ -53,7 +53,8 @@ def test_single_type_factory_and_framework_registrations_bind_nothing(tmp_path: 
         "using App.Services;\nnamespace App;\npublic static class Startup {\n"
         "  public static void Register(IServiceCollection services) {\n"
         "    services.AddTransient<Worker>();\n"
-        "    services.AddScoped<IAudit>(sp => new DbAudit());\n"
+        # a factory that computes its result (B22's D9 reads only a body that is one `new T()`)
+        "    services.AddScoped<IAudit>(sp => sp.GetRequiredService<DbAudit>());\n"
         "    services.AddSingleton<IHttpClientFactory, DefaultHttpClientFactory>();\n"
         "  }\n}\n",
     )
