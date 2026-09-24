@@ -1,0 +1,122 @@
+{
+  "language": "kotlin",
+  "case": "receiver_lambdas",
+  "why": "#453. A lambda with a receiver — `with(x) { }`, `x.apply { }`, `x.run { }`, `buildString { }` — puts that receiver's members ahead of the enclosing class's, and a bare call inside one was being resolved to a same-named member of the enclosing class. On the Android validation app that minted 17 self-loops, a Gradle convention plugin's `apply(target: Project)` calling itself for every `apply(\"plugin-id\")` written inside `with(pluginManager) { }`. Kotlin's rule: innermost receiver first, then outward, then the enclosing class. A repo-declared receiver can be checked; a library receiver cannot, so the enclosing-member reading is refused behind it. `fallsBack` and the four `control*` functions pin what must not change: a receiver without the member falls through to the enclosing class, `run`/`let`/`also` do not change the receiver, and a top-level import keeps resolving.",
+  "root": ".repo",
+  "nodes": [
+    { "id": "java:app.build", "kind": "Module" },
+    { "id": "java:app.data", "kind": "Module" },
+    { "id": "java:app.text", "kind": "Module" },
+    { "id": "java:app.util", "kind": "Module" },
+    { "id": "java:app.build.ConventionPlugin", "kind": "Type" },
+    { "id": "java:app.data.TopicRepository", "kind": "Type" },
+    { "id": "java:app.data.Sync", "kind": "Type" },
+    { "id": "java:app.text.Report", "kind": "Type" },
+    { "id": "java:app.build.ConventionPlugin.pluginManager", "kind": "Field" },
+    { "id": "java:app.data.Sync.repo", "kind": "Field" },
+    { "id": "java:app.data.Sync.pluginManager", "kind": "Field" },
+    { "id": "java:app.build.ConventionPlugin.apply", "kind": "Function" },
+    { "id": "java:app.build.ConventionPlugin.applyKotlin", "kind": "Function" },
+    { "id": "java:app.data.TopicRepository.refresh", "kind": "Function" },
+    { "id": "java:app.data.TopicRepository.apply", "kind": "Function" },
+    { "id": "java:app.data.Sync.refresh", "kind": "Function" },
+    { "id": "java:app.data.Sync.helper", "kind": "Function" },
+    { "id": "java:app.data.Sync.apply", "kind": "Function" },
+    { "id": "java:app.data.Sync.viaReceiver", "kind": "Function" },
+    { "id": "java:app.data.Sync.fallsBack", "kind": "Function" },
+    { "id": "java:app.data.Sync.innermostWins", "kind": "Function" },
+    { "id": "java:app.data.Sync.controlRun", "kind": "Function" },
+    { "id": "java:app.data.Sync.controlLet", "kind": "Function" },
+    { "id": "java:app.data.Sync.controlAlso", "kind": "Function" },
+    { "id": "java:app.data.Sync.controlImported", "kind": "Function" },
+    { "id": "java:app.text.Report.append", "kind": "Function" },
+    { "id": "java:app.text.Report.render", "kind": "Function" },
+    { "id": "java:app.util.log", "kind": "Function" }
+  ],
+  "edges": [
+    { "src": "java:app.build", "dst": "java:app.build.ConventionPlugin", "kind": "CONTAINS" },
+    { "src": "java:app.data", "dst": "java:app.data.TopicRepository", "kind": "CONTAINS" },
+    { "src": "java:app.data", "dst": "java:app.data.Sync", "kind": "CONTAINS" },
+    { "src": "java:app.text", "dst": "java:app.text.Report", "kind": "CONTAINS" },
+    { "src": "java:app.util", "dst": "java:app.util.log", "kind": "CONTAINS" },
+    { "src": "java:app.build.ConventionPlugin", "dst": "java:app.build.ConventionPlugin.pluginManager", "kind": "CONTAINS" },
+    { "src": "java:app.data.Sync", "dst": "java:app.data.Sync.repo", "kind": "CONTAINS" },
+    { "src": "java:app.data.Sync", "dst": "java:app.data.Sync.pluginManager", "kind": "CONTAINS" },
+    { "src": "java:app.build.ConventionPlugin", "dst": "java:app.build.ConventionPlugin.apply", "kind": "CONTAINS" },
+    { "src": "java:app.build.ConventionPlugin", "dst": "java:app.build.ConventionPlugin.applyKotlin", "kind": "CONTAINS" },
+    { "src": "java:app.data.TopicRepository", "dst": "java:app.data.TopicRepository.refresh", "kind": "CONTAINS" },
+    { "src": "java:app.data.TopicRepository", "dst": "java:app.data.TopicRepository.apply", "kind": "CONTAINS" },
+    { "src": "java:app.data.Sync", "dst": "java:app.data.Sync.refresh", "kind": "CONTAINS" },
+    { "src": "java:app.data.Sync", "dst": "java:app.data.Sync.helper", "kind": "CONTAINS" },
+    { "src": "java:app.data.Sync", "dst": "java:app.data.Sync.apply", "kind": "CONTAINS" },
+    { "src": "java:app.data.Sync", "dst": "java:app.data.Sync.viaReceiver", "kind": "CONTAINS" },
+    { "src": "java:app.data.Sync", "dst": "java:app.data.Sync.fallsBack", "kind": "CONTAINS" },
+    { "src": "java:app.data.Sync", "dst": "java:app.data.Sync.innermostWins", "kind": "CONTAINS" },
+    { "src": "java:app.data.Sync", "dst": "java:app.data.Sync.controlRun", "kind": "CONTAINS" },
+    { "src": "java:app.data.Sync", "dst": "java:app.data.Sync.controlLet", "kind": "CONTAINS" },
+    { "src": "java:app.data.Sync", "dst": "java:app.data.Sync.controlAlso", "kind": "CONTAINS" },
+    { "src": "java:app.data.Sync", "dst": "java:app.data.Sync.controlImported", "kind": "CONTAINS" },
+    { "src": "java:app.text.Report", "dst": "java:app.text.Report.append", "kind": "CONTAINS" },
+    { "src": "java:app.text.Report", "dst": "java:app.text.Report.render", "kind": "CONTAINS" },
+    { "src": "java:app.build", "dst": "java:org.gradle.api.Project", "kind": "IMPORTS" },
+    { "src": "java:app.build", "dst": "java:org.gradle.api.plugins.PluginManager", "kind": "IMPORTS" },
+    { "src": "java:app.data", "dst": "java:app.util.log", "kind": "IMPORTS" },
+    { "src": "java:app.data", "dst": "java:org.gradle.api.plugins.PluginManager", "kind": "IMPORTS" },
+    { "src": "java:app.build.ConventionPlugin.apply", "dst": "java:org.gradle.api.plugins.PluginManager.apply", "kind": "CALLS" },
+    { "src": "java:app.build.ConventionPlugin.applyKotlin", "dst": "java:org.gradle.api.plugins.PluginManager.apply", "kind": "CALLS" },
+    { "src": "java:app.data.Sync.viaReceiver", "dst": "java:app.data.TopicRepository.refresh", "kind": "CALLS" },
+    { "src": "java:app.data.Sync.fallsBack", "dst": "java:app.data.Sync.helper", "kind": "CALLS" },
+    { "src": "java:app.data.Sync.innermostWins", "dst": "java:org.gradle.api.plugins.PluginManager.apply", "kind": "CALLS" },
+    { "src": "java:app.data.Sync.controlRun", "dst": "java:app.data.Sync.helper", "kind": "CALLS" },
+    { "src": "java:app.data.Sync.controlLet", "dst": "java:app.data.Sync.helper", "kind": "CALLS" },
+    { "src": "java:app.data.Sync.controlAlso", "dst": "java:app.data.Sync.helper", "kind": "CALLS" },
+    { "src": "java:app.data.Sync.controlImported", "dst": "java:app.util.log", "kind": "CALLS" }
+  ],
+  "known_gaps": [
+    {
+      "edge": { "src": "java:app.build.ConventionPlugin.apply", "dst": "java:org.gradle.api.plugins.PluginManager.apply", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING. The true target of `apply(\"com.android.application\")` inside `with(pluginManager) { }`: Kotlin resolves a bare call against the lambda's receiver first, and Gradle's `PluginManager` declares `apply(String)`. The front-end cannot see a library type's members, so it cannot prove `PluginManager` declares `apply` and emits nothing rather than a member it has not read (#453, plan D2). Labelled because the call is real and `org.gradle.api.plugins.PluginManager` has an id in this vocabulary, as `java.lang.Runnable.run` does in `typed_receivers`; leaving it out would make this case agree with the extractor by construction."
+    },
+    {
+      "edge": { "src": "java:app.build.ConventionPlugin.applyKotlin", "dst": "java:org.gradle.api.plugins.PluginManager.apply", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING. Same as above, in the `pluginManager.apply { apply(…) }` form. The id coincides with the scope-function fabrication #389 refuses for the *outer* `pluginManager.apply { }` call; if that refusal ever regressed, this gap would close by accident and the case would fail to load, which is loud rather than silent."
+    },
+    {
+      "edge": { "src": "java:app.data.Sync.innermostWins", "dst": "java:org.gradle.api.plugins.PluginManager.apply", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING. `with(repo) { with(pluginManager) { apply(\"x\") } }`: the innermost receiver is the library `PluginManager`, which declares `apply(String)`, so that is the target — not the outer receiver's `TopicRepository.apply` and not the enclosing `Sync.apply`. Unprovable for the same reason as the first entry, so skipped (#453)."
+    }
+  ],
+  "false_positives": [],
+  "refusals": [
+    {
+      "edge": { "src": "java:app.build.ConventionPlugin.apply", "dst": "java:app.build.ConventionPlugin.apply", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING. The #453 fabrication: the enclosing class's own `apply(target: Project)` override claimed for a call its implicit receiver `PluginManager` answers. A self-loop on the Android validation app 15 times over."
+    },
+    {
+      "edge": { "src": "java:app.build.ConventionPlugin.applyKotlin", "dst": "java:app.build.ConventionPlugin.apply", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING. The same fabrication in the `pluginManager.apply { }` form (2 of the 17 measured)."
+    },
+    {
+      "edge": { "src": "java:app.data.Sync.viaReceiver", "dst": "java:app.data.Sync.refresh", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING. `with(repo) { refresh() }`: `TopicRepository` is repo-declared and declares `refresh`, so the receiver's member hides the enclosing `Sync.refresh`, which is Kotlin's own order."
+    },
+    {
+      "edge": { "src": "java:app.data.Sync.innermostWins", "dst": "java:app.data.Sync.apply", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING. The enclosing class's `apply`, two receivers out: never the target while any receiver lambda sits between the call and the class."
+    },
+    {
+      "edge": { "src": "java:app.data.Sync.innermostWins", "dst": "java:app.data.TopicRepository.apply", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING. The *outer* receiver's member. `TopicRepository` does declare `apply`, but the inner `PluginManager` receiver is searched first and cannot be shown not to declare it. A resolver that skipped an unreadable receiver and kept walking outward would emit this."
+    },
+    {
+      "edge": { "src": "java:app.text.Report.render", "dst": "java:app.text.Report.append", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING. `buildString { append(\"header\") }`: the builder's receiver is a `StringBuilder`, whose `append` hides the enclosing `Report.append`."
+    }
+  ],
+  "excluded": [
+    "java:org.gradle.api.Project and java:org.gradle.api.plugins.PluginManager are external, imported and never declared here, so they stay out of the node ratio per corpus/README.md; the IMPORTS edges to them count, and so do the CALLS edges to `PluginManager.apply` (as `known_gaps`).",
+    "Calls into the Kotlin standard library are not labelled: `with`, `run`, `let`, `also`, `buildString`, and `render`'s `append(\"header\")`, whose true target is `StringBuilder.append` on the builder's receiver. The front-end has no id vocabulary for a stdlib symbol, which is the decision `scope_functions` records for `let`/`run`/`use`. Refusing the fabricated `Report.append` is what this case measures.",
+    "What this case cannot settle, and does not pretend to: inside `with(pluginManager) { log(\"applied\") }` the call is labelled `java:app.util.log` because Gradle's `PluginManager` declares no `log`. That is knowledge of Gradle, not of this tree. A library receiver that *did* declare a same-named member would hide an imported or top-level function the same way, and the front-end keeps the top-level reading there because it cannot read the library (#453, plan D4/D9). For a repo-declared receiver the case does not arise: its members are checked first (`viaReceiver`)."
+  ],
+  "open_questions": []
+}
