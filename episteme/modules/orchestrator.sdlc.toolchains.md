@@ -207,7 +207,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/sdlc/toolchains.py:478`](../../src/orchestrator/sdlc/toolchains.py#L478)
 
-- **Called by** (3 production · 2 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L780), [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L511), [`_resolve_language`](../../src/orchestrator/sdlc/feature_runner.py#L725), [`test_resolve_language_prefers_the_graph_when_one_is_in_hand`](../../tests/sdlc/test_toolchains.py#L107), [`test_the_react_native_shape_resolves_to_typescript_from_the_tree`](../../tests/sdlc/test_toolchains.py#L124)
+- **Called by** (3 production · 2 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L800), [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L519), [`_resolve_language`](../../src/orchestrator/sdlc/feature_runner.py#L725), [`test_resolve_language_prefers_the_graph_when_one_is_in_hand`](../../tests/sdlc/test_toolchains.py#L107), [`test_the_react_native_shape_resolves_to_typescript_from_the_tree`](../../tests/sdlc/test_toolchains.py#L124)
 - **Calls** (2): [`detect_language`](../../src/orchestrator/sdlc/toolchains.py#L448), [`language_file_counts`](../../src/orchestrator/catalog/profile.py#L114)
 - **Documented in**: `CHANGELOG.md`
 

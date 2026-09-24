@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.44.0  (synaptixs-spine)
+Spine 3.45.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -725,6 +725,7 @@ orchestrator investigate [PATH] [OPTIONS]
 | Option | Description |
 |---|---|
 | `--source` | Fetch the ticket from a source, e.g. jira://PROJ-123, confluence://<id>, file://./bug.md. |
+| `--follow-links` | With `--source`: also read the **Confluence pages the ticket links to** — remote links first, then page URLs in the description and comments (page-id URLs and `/x/` tiny links; a `/display/…` title URL is named, not read). Direct links only, at most 5, the rest named with why. Needs Confluence access (an MCP server exposing `confluence_get_page`, or `CONFLUENCE_*` credentials) — without it the command **refuses** (exit 2) rather than quietly reading less. Off by default: whatever is read becomes text a plan is checked against. |
 | `--title`, `-t` | Inline ticket title (instead of --source). |
 | `--repos` | A `.spine/repos.yaml` — research across **every declared repo**. |
 | `--text` | Inline ticket body (with --title). |
@@ -992,13 +993,13 @@ orchestrator sdlc plan --spec ./SSPN-49.json --path .
 | Option | Description |
 |---|---|
 | `--spec` | A hand-written spec (JSON). Skips intake entirely, and makes the run LLM-free. |
-| `--source` | Derive the spec from a ticket, e.g. `jira://<issue-key>`. Given **with** `--spec`, the spec stays the requirements and the ticket is only read — no model call — for §8 to check the hand-written criteria against; a spec file and a ticket key that differ are warned about. One of `--spec`/`--source` is required. |
+| `--source` | Derive the spec from a ticket, e.g. `jira://<issue-key>`. Given **with** `--spec`, the spec stays the requirements and the ticket is only read — no model call — for §8 to check the hand-written criteria against; a spec file and a ticket key that differ are warned about. Either way the ticket text §8 checks against is **read fresh** at every plan — every attachment uncut (up to 20 files), even when the spec comes from the intake cache — and a source that cannot be read is an error (exit 2), one that returns nothing a warning. One of `--spec`/`--source` is required. |
 | `--intent` | Intent id to plan (default: the first). |
 | `--path` | Repo to reason about — the graph the plan is grounded in. (default: `.`) |
-| `--out` | **Deprecated — removed in 3.45.** Where the document goes (default: `<repo>/.spine/plans`). A plan written anywhere else cannot be built: `sdlc autorun` reads approvals only from `<repo>/.spine/plans`, so this now warns. |
 | `--language` | Target language named in the codegen-prompt section — it also selects the layout and test environment, so it is not cosmetic. `auto` detects it from `--path`. An unsupported value is refused, never silently treated as Python. (default: `auto`) |
 | `--issue-type` | Override the ticket's issue type (`Bug`, `Story`, …) — it decides whether the validity section requires the ticket to localize. Default: read it from the ticket; with `--spec` — even beside `--source` — it is only this flag, because `autorun --spec` and the plan gate read no ticket for a type either. The document's header says `untyped` when none is given. |
 | `--quiet` | Write the document without printing it. |
+| `--follow-links` | Also read the **Confluence pages the ticket links to** — remote links first, then page URLs in the description and comments (page-id URLs and `/x/` tiny links; a `/display/…` title URL is named, not read). Direct links only, at most 5, the rest named with why. The linked text reaches both §8's criteria check and the spec derived from the ticket, whose intake-cache entry is kept apart from the flag-off one; the header says what was read (`**Linked pages:**`). Needs Confluence access (an MCP server exposing `confluence_get_page`, or `CONFLUENCE_*` credentials) — without it the command **refuses** (exit 2) rather than quietly reading less. Off by default: whatever is read becomes text a plan is checked against. |
 
 **Section 8 takes one extra spec field.** `met_criteria` maps a stated criterion's exact
 text to the evidence that it is *already* satisfied
@@ -1027,7 +1028,6 @@ orchestrator sdlc approve SSPN-49 --note "criteria reconciliation checked"
 | `--by` | Who is deciding. (default: `git config user.name`) |
 | `--note` | Why — recorded with the decision. |
 | `--reject` | Record a rejection instead of an approval. |
-| `--out` | **Deprecated — removed in 3.45.** Where the plan lives. (default: `<repo>/.spine/plans`) An approval written anywhere else is one `sdlc autorun` never reads, so this now warns. |
 
 The decision is bound to a **digest of the document body**, so a plan that changes
 afterwards reads as *stale* rather than silently still approved. `sdlc autorun`
@@ -1079,6 +1079,7 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --saf
 | `--max-cost` | Cap LLM spend (USD) for this run; exhausting it parks the run. |
 | `--spec` | Implement a hand-written spec (JSON) instead of deriving one from the source. Intake is skipped entirely and recorded as `skipped`. |
 | `--plan-gate` / `--no-plan-gate` | Refuse to build unless a human approved this ticket's build document (see `sdlc approve`). The plan is re-derived and re-digested, so an approval that no longer matches the code refuses too. (default: `--plan-gate`) |
+| `--follow-links` | With `--source` and no `--spec`: derive the spec from the ticket **and** the Confluence pages it links to — the same reading as `sdlc plan --follow-links`, from its own intake-cache entry. Refuses (exit 2) without Confluence access. Has no effect with `--spec`: plan with it instead. |
 
 **Implementing a spec you wrote (`--spec`).** Normally intake derives the spec from
 the source document. Pass `--spec path.json` to supply it directly — the pipeline

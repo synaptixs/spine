@@ -205,13 +205,30 @@ class BacklogService:
         self._labels = issue_labels
         self._epic_issue_type = epic_issue_type
 
-    async def fetch_source_documents(self, root_id: str) -> FetchTreeResult:
+    async def fetch_source_documents(self, root_id: str, *, follow_links: bool = False) -> FetchTreeResult:
         """Just the source fetch — no LLM, no tracker. For read-only consumers
-        (e.g. the investigation brief) that want the raw documents, not a backlog."""
-        return await self._source.fetch_tree(root_id)
+        (e.g. the investigation brief) that want the raw documents, not a backlog.
 
-    async def analyze(self, root_id: str) -> BacklogPlan:
+        ``follow_links`` also reads the Confluence pages the root ticket links to
+        (:mod:`orchestrator.intake.follow_links`), appended after the ticket's own documents.
+        """
+        return await self._fetch(root_id, follow_links=follow_links)
+
+    async def _fetch(self, root_id: str, *, follow_links: bool) -> FetchTreeResult:
         tree = await self._source.fetch_tree(root_id)
+        if not follow_links:
+            return tree
+        from orchestrator.intake.follow_links import follow_confluence_links
+
+        report = await follow_confluence_links(self._source, root_id)
+        return FetchTreeResult(
+            documents=[*tree.documents, *report.documents],
+            truncated=tree.truncated,
+            linked_pages=report.summary(),
+        )
+
+    async def analyze(self, root_id: str, *, follow_links: bool = False) -> BacklogPlan:
+        tree = await self._fetch(root_id, follow_links=follow_links)
         # A structured source (e.g. OpenSpec) is already intent-shaped — parse it
         # deterministically and skip the LLM extractor (cheaper + lossless on the
         # stated acceptance criteria). Unstructured sources take the LLM path.

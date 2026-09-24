@@ -268,7 +268,7 @@ safe to commit or share:
       "command": "docker",
       "args": ["run", "-i", "--rm", "--env-file", "/abs/path/to/.env",
                "ghcr.io/sooperset/mcp-atlassian:latest"],
-      "allow": ["jira_get_issue", "jira_search",
+      "allow": ["jira_get_issue", "jira_search", "jira_download_attachments",
                 "confluence_get_page", "confluence_get_page_children"]
     }
   }
@@ -294,7 +294,7 @@ directory you do not control. And note Docker's `--env-file` does **not** strip 
       "command": "uvx",
       "args": ["mcp-atlassian"],
       "env": { "JIRA_URL": "https://your-org.atlassian.net", "JIRA_USERNAME": "you@org.com" },
-      "allow": ["jira_get_issue", "jira_search", "confluence_get_page"]
+      "allow": ["jira_get_issue", "jira_search", "jira_download_attachments", "confluence_get_page"]
     }
   }
 }
@@ -312,7 +312,7 @@ still list their tools:
       "command": "docker",
       "args": ["run", "-i", "--rm", "--env-file", "/abs/path/to/.env",
                "ghcr.io/sooperset/mcp-atlassian:latest"],
-      "allow": ["jira_get_issue", "jira_search", "confluence_get_page"]
+      "allow": ["jira_get_issue", "jira_search", "jira_download_attachments", "confluence_get_page"]
     },
     "postgres": {
       "command": "docker",
@@ -359,6 +359,13 @@ server, use the generic `mcp://<root>` and name its tools via `MCP_SOURCE_SERVER
 `MCP_SOURCE_DOC_TOOL` / `MCP_SOURCE_CHILDREN_TOOL` (results are parsed leniently, falling back
 to raw text). This routes source access through a governed MCP server instead of spreading
 `CONFLUENCE_*` / `JIRA_*` tokens into the env.
+
+A Jira issue read over `mcp-jira` reads **the same as over REST**: comments, issue links and
+attachment text, rendered by the same code. Attachment bytes come from mcp-atlassian's
+`jira_download_attachments` (override the name with `MCP_JIRA_ATTACHMENTS_TOOL`); leave it off
+the `allow` list and each attachment is named with why instead of read. A server that rejects
+the request for those fields is read with its defaults, and the ticket says so — the description
+only. With `--follow-links`, the pages it links to are read through `confluence_get_page`.
 In the pipeline (Step 7), configured MCP tools are auto-onboarded at startup with
 the same rate-limit + audit + approval path.
 

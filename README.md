@@ -78,7 +78,16 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.44.0 (current)** — an approved plan is the plan that builds. `sdlc plan` → `sdlc approve`
+**3.45.0 (current)** — a plan's criteria are checked against the whole ticket. `sdlc plan
+--source` now reads the ticket fresh at every plan with **every attachment in full** (up to 20),
+while the AI that writes the spec still reads the same bounded summary — so nothing already
+approved moves. `--follow-links` also reads the **Confluence pages a ticket links to** (at most
+5, refusing without Confluence access rather than reading less than you asked for). A Jira ticket
+read through an MCP server now carries its comments, links and attachments like one read over
+REST. An unreadable ticket is a clean error, not a traceback. **Removed:** `sdlc plan --out` and
+`sdlc approve --out`, as 3.44.0 announced.
+
+**3.44.0** — an approved plan is the plan that builds. `sdlc plan` → `sdlc approve`
 → `sdlc autorun` could refuse a plan nobody had changed. Writing the plan into `.spine/plans/`
 made the repo look modified, so the gate refused the approval it had just been given — the
 exact sequence the `spine-sdlc.yml` build job runs. A Bug that matched no code lost its

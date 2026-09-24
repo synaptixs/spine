@@ -53,10 +53,19 @@ def cache_path(source_uri: str, cache_dir: Path | None = None) -> Path:
     return root / f"{key}.json"
 
 
+def _cached_document(doc: SourceDocument) -> dict[str, Any]:
+    fields = dataclasses.asdict(doc)
+    fields.pop("full_body", None)
+    return fields
+
+
 def _plan_to_dict(plan: BacklogPlan) -> dict[str, Any]:
     return {
         "version": _CACHE_VERSION,
-        "documents": [dataclasses.asdict(d) for d in plan.documents],
+        # `full_body` is left out: `sdlc plan` fetches the ticket fresh for §8, so caching every
+        # attachment in full would only grow each entry — and leaving it out keeps the format, and
+        # `_CACHE_VERSION`, exactly as they were (Track E, D4).
+        "documents": [_cached_document(d) for d in plan.documents],
         "intents": [i.model_dump() for i in plan.intents],
         "gaps": [
             {
@@ -104,6 +113,20 @@ def _read_raw(path: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
+#: A plan analysed with an option that changes what the extractor read — today only
+#: `--follow-links` — is its own entry, kept under ``variants`` in the *same* file. One ticket,
+#: one file: progress (which lives here, keyed by the URI alone) is shared, the flag-off entry at
+#: the top level is exactly what it always was, and turning the flag on for one plan can never
+#: change the spec another plan reads. Older readers ignore the key (Track E, D6).
+_VARIANTS = "variants"
+FOLLOW_LINKS = "follow-links"
+
+
+def _variants_of(raw: dict[str, Any]) -> dict[str, Any]:
+    found = raw.get(_VARIANTS)
+    return dict(found) if isinstance(found, dict) else {}
+
+
 def load_progress(source_uri: str, cache_dir: Path | None = None) -> dict[str, dict[str, Any]]:
     """Per-intent progress map (``{intent_id: {status, issue_key, pr_url}}``) from the cache."""
     return _read_raw(cache_path(source_uri, cache_dir)).get("progress") or {}
@@ -118,7 +141,10 @@ def set_progress(
     pr_url: str | None = None,
     cache_dir: Path | None = None,
 ) -> None:
-    """Update one intent's progress in the cache file. No-op if no cache exists yet."""
+    """Update one intent's progress in the cache file. No-op if no cache exists yet.
+
+    Keyed by the URI alone, whichever entry — top-level or a variant — the run was planned from.
+    """
     path = cache_path(source_uri, cache_dir)
     raw = _read_raw(path)
     if not raw:
@@ -154,16 +180,26 @@ def complete_by_pr(pr_url: str, cache_dir: Path | None = None) -> tuple[str, Bac
                 raw["progress"] = progress
                 file.write_text(json.dumps(raw, indent=2), encoding="utf-8")
                 source = str(raw.get("source") or "")
-                return source, _plan_from_dict(raw)
+                # A ticket only ever analysed with `--follow-links` has no top-level plan; its
+                # variant is the backlog to re-render.
+                variants = _variants_of(raw)
+                plan_data = (
+                    raw if raw.get("version") == _CACHE_VERSION else next(iter(variants.values()), raw)
+                )
+                return source, _plan_from_dict(plan_data)
     return None
 
 
-def load_cached_plan(source_uri: str, cache_dir: Path | None = None) -> BacklogPlan | None:
+def load_cached_plan(
+    source_uri: str, cache_dir: Path | None = None, *, variant: str = ""
+) -> BacklogPlan | None:
     path = cache_path(source_uri, cache_dir)
     if not path.is_file():
         return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
+        if variant:
+            data = (data.get(_VARIANTS) or {}).get(variant) or {}
         if data.get("version") != _CACHE_VERSION:
             return None
         return _plan_from_dict(data)
@@ -172,16 +208,38 @@ def load_cached_plan(source_uri: str, cache_dir: Path | None = None) -> BacklogP
         return None
 
 
-def save_plan(source_uri: str, plan: BacklogPlan, cache_dir: Path | None = None) -> Path:
+def save_plan(
+    source_uri: str, plan: BacklogPlan, cache_dir: Path | None = None, *, variant: str = ""
+) -> Path:
     path = cache_path(source_uri, cache_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
+    if variant:
+        # Beside the top-level plan and its progress, never over them.
+        raw = _read_raw(path)
+        raw["source"] = source_uri
+        raw.setdefault("progress", {})
+        variants = _variants_of(raw)
+        variants[variant] = _plan_to_dict(plan)
+        raw[_VARIANTS] = variants
+        path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
+        return path
     payload = _plan_to_dict(plan)
     payload["source"] = source_uri
     # Carry progress forward across a --refresh re-extract: keep entries for
     # intents that still exist (deterministic ids map cleanly), drop the rest.
-    old_progress = _read_raw(path).get("progress") or {}
+    old = _read_raw(path)
+    old_progress = old.get("progress") or {}
+    variants = _variants_of(old)
+    # Progress is one record per ticket, shared by every entry in this file. An intent a variant
+    # still holds is live even when this extraction named it differently — ids come from the
+    # LLM's titles, and a run planned `--follow-links` must not lose its PR to a later flag-off
+    # plan of the same ticket.
     live_ids = {i.id for i in plan.intents}
+    for entry in variants.values():
+        live_ids |= {str(i.get("id")) for i in (entry.get("intents") or []) if isinstance(i, dict)}
     payload["progress"] = {k: v for k, v in old_progress.items() if k in live_ids}
+    if variants:
+        payload[_VARIANTS] = variants
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return path
 
@@ -193,25 +251,30 @@ async def analyze_cached(
     cache_dir: Path | None = None,
     refresh: bool = False,
     log: Callable[[str], None] | None = None,
+    follow_links: bool = False,
 ) -> BacklogPlan:
     """``service.analyze`` with a persistent cache keyed by ``source_uri``.
 
     On a cache hit (and not ``refresh``) returns the stored plan without touching
     the source or the LLM — so the intent set is identical run to run. On a miss
     or ``refresh`` it extracts, persists, and returns the fresh plan.
+
+    ``follow_links`` analyses the ticket *with* its linked Confluence pages, which is a different
+    extraction, so it is its own entry (:data:`FOLLOW_LINKS`) — never the flag-off one.
     """
     emit = log or (lambda _m: None)
     _, root_id = parse_source_uri(source_uri)
+    variant = FOLLOW_LINKS if follow_links else ""
     if not refresh:
-        cached = load_cached_plan(source_uri, cache_dir)
+        cached = load_cached_plan(source_uri, cache_dir, variant=variant)
         if cached is not None:
             emit(
                 f"[intake] reusing cached backlog: {len(cached.intents)} intents for {source_uri} "
                 f"(--refresh to re-extract) — {cache_path(source_uri, cache_dir)}"
             )
             return cached
-    plan = await service.analyze(root_id)
-    path = save_plan(source_uri, plan, cache_dir)
+    plan = await (service.analyze(root_id, follow_links=True) if follow_links else service.analyze(root_id))
+    path = save_plan(source_uri, plan, cache_dir, variant=variant)
     emit(f"[intake] extracted + cached {len(plan.intents)} intents for {source_uri} — {path}")
     return plan
 

@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.intake`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 23 modules — 47 types and 118 functions. It sits in the middle of the graph: 4 areas below it, 6 above. Changes here can reach both ways.
+**`orchestrator.intake`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 25 modules — 53 types and 140 functions. It sits in the middle of the graph: 4 areas below it, 6 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -38,12 +38,14 @@ flowchart LR
 - [`orchestrator.intake.backlog_doc`](../../src/orchestrator/intake/backlog_doc.py#L1)
 - [`orchestrator.intake.cache`](../../src/orchestrator/intake/cache.py#L1)
 - [`orchestrator.intake.confluence`](../../src/orchestrator/intake/confluence.py#L1)
+- [`orchestrator.intake.confluence_links`](../../src/orchestrator/intake/confluence_links.py#L1)
 - [`orchestrator.intake.factory`](../modules/orchestrator.intake.factory.md)
 - [`orchestrator.intake.file_source`](../../src/orchestrator/intake/file_source.py#L1)
+- [`orchestrator.intake.follow_links`](../../src/orchestrator/intake/follow_links.py#L1)
 - [`orchestrator.intake.gaps`](../../src/orchestrator/intake/gaps.py#L1)
 - [`orchestrator.intake.intents`](../../src/orchestrator/intake/intents.py#L1)
 - [`orchestrator.intake.jira`](../../src/orchestrator/intake/jira.py#L1)
-- [`orchestrator.intake.jira_source`](../../src/orchestrator/intake/jira_source.py#L1)
+- [`orchestrator.intake.jira_source`](../modules/orchestrator.intake.jira_source.md)
 - [`orchestrator.intake.mcp_source`](../../src/orchestrator/intake/mcp_source.py#L1)
 - [`orchestrator.intake.notion`](../../src/orchestrator/intake/notion.py#L1)
 - [`orchestrator.intake.openspec_source`](../../src/orchestrator/intake/openspec_source.py#L1)

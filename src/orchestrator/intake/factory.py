@@ -18,7 +18,7 @@ import os
 from typing import TYPE_CHECKING, Any
 
 from orchestrator.core.llm import LiteLLMClient
-from orchestrator.intake.confluence import ConfluenceAdapter, ConfluenceConfig
+from orchestrator.intake.confluence import ConfluenceAdapter, ConfluenceConfig, ConfluenceError
 from orchestrator.intake.file_source import FileSourceAdapter, FileSourceConfig
 from orchestrator.intake.gaps import GapAnalyzer, load_gap_rules
 from orchestrator.intake.intents import IntentExtractor
@@ -104,22 +104,45 @@ def _with_server(config: Any, server: str) -> Any:
     return replace(config, server=server)
 
 
-def build_confluence_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
-    """Wire a Confluence-backed ``BacklogService`` from environment config.
+def source_read_errors() -> tuple[type[BaseException], ...]:
+    """What a source raises when it cannot *read* a ticket — missing file, HTTP error, a tracker
+    or MCP server that refused — as opposed to a bug in Spine's own code.
 
-    ``dry_run`` controls the Jira tracker only; the web preview never writes,
-    so it passes ``dry_run=True`` and simply never calls ``create_issues``.
-    Raises ``IntakeNotConfiguredError`` if Confluence credentials are absent.
+    Named, not ``RuntimeError``/``ValueError``: a CLI that turns these into ``ERROR:`` and exit 2
+    must not also turn a programming error into "could not read" and hide its traceback.
+    """
+    import httpx
+
+    from orchestrator.intake.file_source import FileSourceError
+    from orchestrator.intake.jira import IssueTrackerError
+    from orchestrator.intake.notion import NotionError
+    from orchestrator.mcp.client import MCPError
+
+    return (
+        FileSourceError,
+        ConfluenceError,
+        NotionError,
+        IssueTrackerError,
+        MCPError,
+        OSError,
+        httpx.HTTPError,
+        httpx.InvalidURL,
+    )
+
+
+def build_confluence_source() -> SourceAdapter:
+    """The Confluence page reader — an onboarded MCP server if one serves pages, else REST.
+
+    The same preference as every other source (:func:`mcp_server_for`). Used on its own by
+    `--follow-links`, which reads pages a ticket links to and needs no backlog service around
+    them. Raises ``IntakeNotConfiguredError`` when neither is available.
     """
     server = mcp_server_for("confluence_get_page", "MCP_CONFLUENCE_SERVER")
     if server:
         from orchestrator.intake.mcp_source import MCPSourceConfig
 
-        return _build_mcp_service(
-            _with_server(MCPSourceConfig.for_confluence(), server),
-            label="MCP Confluence source",
-            dry_run=dry_run,
-            rules_path=rules_path,
+        return _mcp_source_adapter(
+            _with_server(MCPSourceConfig.for_confluence(), server), label="MCP Confluence source"
         )
 
     conf = ConfluenceConfig()
@@ -128,7 +151,17 @@ def build_confluence_service(*, dry_run: bool, rules_path: str | None = None) ->
             "Confluence not configured: onboard an MCP server exposing `confluence_get_page` "
             "(see mcp.json), or set CONFLUENCE_BASE_URL / CONFLUENCE_EMAIL / CONFLUENCE_API_TOKEN."
         )
-    return _build_service(ConfluenceAdapter(conf), dry_run=dry_run, rules_path=rules_path)
+    return ConfluenceAdapter(conf)
+
+
+def build_confluence_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
+    """Wire a Confluence-backed ``BacklogService`` from environment config.
+
+    ``dry_run`` controls the Jira tracker only; the web preview never writes,
+    so it passes ``dry_run=True`` and simply never calls ``create_issues``.
+    Raises ``IntakeNotConfiguredError`` if Confluence credentials are absent.
+    """
+    return _build_service(build_confluence_source(), dry_run=dry_run, rules_path=rules_path)
 
 
 def build_jira_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:
@@ -202,6 +235,10 @@ def _build_mcp_service(
     ``IntakeNotConfiguredError`` when the named server isn't in the mcpServers
     config. Lazy-imports the ``mcp`` extra.
     """
+    return _build_service(_mcp_source_adapter(config, label=label), dry_run=dry_run, rules_path=rules_path)
+
+
+def _mcp_source_adapter(config: MCPSourceConfig, *, label: str) -> SourceAdapter:
     from orchestrator.intake.mcp_source import MCPSourceAdapter
     from orchestrator.mcp.registry import MCPRegistry
 
@@ -216,7 +253,7 @@ def _build_mcp_service(
             f"{label} needs an onboarded MCP server named {config.server!r} "
             "(add it to your mcpServers config, or set the matching *_SERVER env)."
         )
-    return _build_service(MCPSourceAdapter(registry, config), dry_run=dry_run, rules_path=rules_path)
+    return MCPSourceAdapter(registry, config)
 
 
 def build_mcp_confluence_service(*, dry_run: bool, rules_path: str | None = None) -> BacklogService:

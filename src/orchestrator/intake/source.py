@@ -56,10 +56,22 @@ class SourceDocument:
     #: this field is for the deterministic pipeline, and only the second can select a profile
     #: or decide whether a ticket must localize. Empty for sources that have no such notion.
     issue_type: str = ""
+    #: The document with nothing cut — every attachment read in full — for consumers that check
+    #: the ticket's own words rather than summarise them (the build document's §8). ``body`` is
+    #: the bounded view the intent extractor reads, and stays byte-identical to what it was, so
+    #: a cached spec never has a reason to be re-extracted differently. Empty when nothing was
+    #: cut, i.e. when it would equal ``body``. Never persisted by the intake cache: whoever needs
+    #: it fetches fresh. Read it through :func:`document_text`.
+    full_body: str = ""
 
     @property
     def is_empty(self) -> bool:
         return not self.body.strip()
+
+
+def document_text(doc: SourceDocument) -> str:
+    """The whole document: ``full_body`` when a source cut something from ``body``, else ``body``."""
+    return doc.full_body or doc.body
 
 
 @dataclass
@@ -68,6 +80,9 @@ class FetchTreeResult:
 
     documents: list[SourceDocument] = field(default_factory=list)
     truncated: bool = False  # True when max_depth / max_docs cut the walk short
+    #: What `--follow-links` read and could not, as the build document's header states it; empty
+    #: when links were not followed.
+    linked_pages: str = ""
 
 
 class SourceAdapter(Protocol):

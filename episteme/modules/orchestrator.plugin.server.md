@@ -294,7 +294,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/plugin/server.py:127`](../../src/orchestrator/plugin/server.py#L127)
 
 - **Called by** (0 production · 1 test): [`test_ingest_preview_summarizes_a_dry_run`](../../tests/plugin/test_server.py#L231)
-- **Calls** (2): [`build_service_for`](../../src/orchestrator/intake/factory.py#L272), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40)
+- **Calls** (2): [`build_service_for`](../../src/orchestrator/intake/factory.py#L309), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#ingest-preview`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/codex-plugin-keyless-roadmap.md#phases`, `docs/specs/codex-plugin-keyless-roadmap.md#tools-that-genuinely-need-a-model-2`
 
 ### `investigate`

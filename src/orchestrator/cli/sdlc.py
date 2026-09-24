@@ -476,19 +476,40 @@ def _terminal_gate() -> Any:
     return gate
 
 
-def _warn_out_deprecated() -> None:
-    """`plan`/`approve --out` wrote where the plan gate never reads (ledger B17).
+async def _fetch_ticket_documents(source: str, *, follow_links: bool = False) -> tuple[list[Any], str]:
+    """The ticket's documents, fetched fresh and never analysed — what `source.txt` is built from.
 
-    `require_approved_plan` looks only in `<repo>/.spine/plans`, so an approval written anywhere
-    else is refused as missing at build time, silently until then. Warned for one release rather
-    than removed, so a script using it gets notice; removal is ledger row N11. `autorun --out` is a
-    different option (the run's artifacts) and is not affected.
+    A source that cannot be read is an `ERROR` and exit 2, whatever failed underneath: a missing
+    file, an HTTP error, an MCP server that refused. It used to escape as a Python traceback
+    (ledger N12). A source that answers with *nothing* is said out loud rather than planned as if
+    the ticket were empty (N13): §8 then has only the spec to check the criteria against.
     """
-    typer.echo(
-        "WARNING: --out is deprecated and will be removed in 3.45: a plan outside "
-        "<repo>/.spine/plans cannot be built — `sdlc autorun` only reads approvals there.",
-        err=True,
-    )
+    from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for, source_read_errors
+    from orchestrator.intake.service import SourceUriError, parse_source_uri
+    from orchestrator.intake.source import document_text
+
+    try:
+        service = build_service_for(source, dry_run=True)
+        root_id = parse_source_uri(source)[1]
+        fetched = await (
+            service.fetch_source_documents(root_id, follow_links=True)
+            if follow_links
+            else service.fetch_source_documents(root_id)
+        )
+    except (SourceUriError, IntakeNotConfiguredError) as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except source_read_errors() as exc:
+        typer.echo(f"ERROR: could not read {source} — {type(exc).__name__}: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    documents = list(fetched.documents)
+    if not any(document_text(d).strip() for d in documents):
+        # No documents, or documents with nothing in them — a blank page reads the same to §8.
+        typer.echo(
+            f"WARNING: {source} returned no text — the criteria are checked against the spec alone.",
+            err=True,
+        )
+    return documents, fetched.linked_pages
 
 
 @sdlc_app.command("approve")
@@ -502,14 +523,6 @@ def sdlc_approve(
     reject: Annotated[
         bool, typer.Option("--reject", help="Record a rejection instead of an approval.")
     ] = False,
-    out: Annotated[
-        Path | None,
-        typer.Option(
-            "--out",
-            help="Deprecated, removed in 3.45: an approval outside <repo>/.spine/plans is one "
-            "`sdlc autorun` never reads.",
-        ),
-    ] = None,
 ) -> None:
     """Record that a human read this build document and decided.
 
@@ -529,9 +542,9 @@ def sdlc_approve(
         save_approval,
     )
 
-    if out is not None:
-        _warn_out_deprecated()
-    plan_file = (Path(out) if out else plan_dir(path)) / f"{intent}-build.md"
+    # Always beside the code: `require_approved_plan` reads approvals only from here, so a plan
+    # anywhere else could never be built (ledger B17; `--out` went in 3.45, ledger N11).
+    plan_file = plan_dir(path) / f"{intent}-build.md"
     if not plan_file.is_file():
         typer.echo(
             f"No plan at {plan_file}. Produce one first: orchestrator sdlc plan --spec <file>",
@@ -557,7 +570,7 @@ def sdlc_approve(
         note=note,
         issue_type=planned_issue_type(document),
     )
-    written = save_approval(approval, root=path, out=out)
+    written = save_approval(approval, root=path)
     typer.echo(f"[plan] {approval.decision.lower()} by {who} — {written}")
     typer.echo("[plan] re-run `orchestrator sdlc plan` to see the status on the document itself.")
 
@@ -632,6 +645,14 @@ def sdlc_autorun(
             help="Refuse to build unless a human approved this ticket's build document.",
         ),
     ] = True,
+    follow_links: Annotated[
+        bool,
+        typer.Option(
+            "--follow-links",
+            help="Also read the Confluence pages the ticket links to (at most 5; needs Confluence "
+            "access — an MCP server or CONFLUENCE_* credentials — or the run refuses).",
+        ),
+    ] = False,
 ) -> None:
     """Drive ONE ticket through the whole path: research → design → code → tests → review.
 
@@ -689,6 +710,7 @@ def sdlc_autorun(
                 spec=injected,
                 plan_gate=plan_gate,
                 log=typer.echo,
+                follow_links=follow_links,
             )
         except AutorunError as exc:
             typer.echo(str(exc), err=True)
@@ -716,14 +738,6 @@ def sdlc_plan(
         str | None, typer.Option("--intent", help="Intent id to plan (default: the first).")
     ] = None,
     path: Annotated[str, typer.Option("--path", help="Repo to reason about (the graph).")] = ".",
-    out: Annotated[
-        Path | None,
-        typer.Option(
-            "--out",
-            help="Deprecated, removed in 3.45: a plan outside <repo>/.spine/plans cannot be built — "
-            "`sdlc autorun` reads approvals only there.",
-        ),
-    ] = None,
     language: Annotated[
         str, typer.Option("--language", help="Target language for the prompt (auto detects).")
     ] = "auto",
@@ -735,6 +749,14 @@ def sdlc_plan(
         ),
     ] = "",
     quiet: Annotated[bool, typer.Option("--quiet", help="Write the document without printing it.")] = False,
+    follow_links: Annotated[
+        bool,
+        typer.Option(
+            "--follow-links",
+            help="Also read the Confluence pages the ticket links to (at most 5; needs Confluence "
+            "access — an MCP server or CONFLUENCE_* credentials — or the run refuses).",
+        ),
+    ] = False,
 ) -> None:
     """Produce the build document for ONE ticket and stop. No worktree, no code, no spend.
 
@@ -765,8 +787,6 @@ def sdlc_plan(
         typer.echo(f"ERROR: {lang_error}", err=True)
         raise typer.Exit(code=2)
 
-    if out is not None:
-        _warn_out_deprecated()
     if not spec and not source:
         typer.echo("Give --spec <file.json> or --source <uri>.", err=True)
         raise typer.Exit(code=2)
@@ -787,31 +807,29 @@ def sdlc_plan(
         # The ticket as intake read it — description, comments, attachments — is what row 08
         # checks each filed criterion against. A hand-written `--spec` alone has none.
         documents: list[Any] = []
+        # What the header says about linked Confluence pages: only meaningful with a ticket.
+        linked = ""
         if resolved is not None and source:
             # `--spec` is the requirements; `--source` supplies only the ticket's own words, for
             # §8 to check the hand-written criteria against. So fetch, never analyse: the spec
             # already says what to build, and the path stays free of any model call.
             from orchestrator.core.env import load_local_env
-            from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
-            from orchestrator.intake.service import SourceUriError, parse_source_uri
             from orchestrator.sdlc.spec_file import spec_source_mismatch
 
             load_local_env()
             mismatch = spec_source_mismatch(resolved, source)
             if mismatch:
                 typer.echo(f"WARNING: {mismatch}", err=True)
-            try:
-                service = build_service_for(str(source), dry_run=True)
-                fetched = await service.fetch_source_documents(parse_source_uri(str(source))[1])
-            except (SourceUriError, IntakeNotConfiguredError) as exc:
-                typer.echo(f"ERROR: {exc}", err=True)
-                raise typer.Exit(code=2) from exc
-            documents = list(fetched.documents)
+            documents, linked = await _fetch_ticket_documents(str(source), follow_links=follow_links)
         if resolved is None:
             from orchestrator.core.env import load_local_env
             from orchestrator.core.llm.client import LLMError
             from orchestrator.intake.cache import analyze_cached
-            from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
+            from orchestrator.intake.factory import (
+                IntakeNotConfiguredError,
+                build_service_for,
+                source_read_errors,
+            )
             from orchestrator.intake.service import SourceUriError
 
             load_local_env()
@@ -821,7 +839,16 @@ def sdlc_plan(
                 typer.echo(f"ERROR: {exc}", err=True)
                 raise typer.Exit(code=2) from exc
             try:
-                plan_result = await analyze_cached(service, str(source), refresh=False, log=lambda _m: None)
+                plan_result = await analyze_cached(
+                    service, str(source), refresh=False, log=lambda _m: None, follow_links=follow_links
+                )
+            except IntakeNotConfiguredError as exc:
+                typer.echo(f"ERROR: {exc}", err=True)
+                raise typer.Exit(code=2) from exc
+            except source_read_errors() as exc:
+                # A cold cache reads the source here, before `_fetch_ticket_documents` runs.
+                typer.echo(f"ERROR: could not read {source} — {type(exc).__name__}: {exc}", err=True)
+                raise typer.Exit(code=2) from exc
             except LLMError as exc:
                 typer.echo(f"ERROR: {exc}", err=True)
                 raise typer.Exit(code=2) from exc
@@ -838,14 +865,22 @@ def sdlc_plan(
                 typer.echo(f"Intent {intent!r} not found. Available: {ids}", err=True)
                 raise typer.Exit(code=3)
             resolved = chosen.model_dump()
-            documents = list(getattr(plan_result, "documents", []) or [])
+            # The spec comes from the cache — re-extracting it could move an approved plan — but
+            # the ticket text §8 checks against is read fresh, with no model call: what the ticket
+            # says *now*, attachments uncut, which a cache entry written before either could not
+            # hold (Track E, D3).
+            documents, linked = await _fetch_ticket_documents(str(source), follow_links=follow_links)
             if not resolved_type:
                 from orchestrator.intake.ticket_meta import resolve_ticket_meta
 
                 resolved_type = resolve_ticket_meta(plan_result, chosen).issue_type
 
         intent_key = str(resolved.get("intent_id") or "spec")
-        source_text = "\n\n".join(d.body for d in documents)
+        # The whole ticket — every attachment uncut — because §8 checks criteria against its own
+        # words; the extractor already had its bounded view (`SourceDocument.full_body`).
+        from orchestrator.intake.source import document_text
+
+        source_text = "\n\n".join(document_text(d) for d in documents)
         # Resolved against the repo being planned, not left as the literal "auto" — the
         # codegen prompt, the layout and the test environment all read this, and the old
         # `python` default handed a C# repository Python scaffolding without saying so.
@@ -855,16 +890,17 @@ def sdlc_plan(
             language=resolve_language(Path(path), language),
             issue_type=resolved_type,
             source_text=source_text,
+            linked_pages=linked or ("not followed — `--follow-links` reads them" if source else ""),
             # Rendered, never stored in the document: a plan that changed since it was
             # approved shows as stale rather than carrying an approval it outgrew.
-            approval=load_approval(intent_key, root=path, out=out),
+            approval=load_approval(intent_key, root=path),
             # What every run of this ticket did, appended beneath the plan. Regenerating
             # is what refreshes the view; the entries themselves are never rewritten.
-            journey=load_journey(intent_key, root=path, out=out),
+            journey=load_journey(intent_key, root=path),
         )
         # Beside the plan, so the approval gate's re-derivation sees the same section 8.
-        save_source_text(intent_key, source_text, root=path, out=out)
-        written, superseded = persist(document, intent_id=intent_key, root=path, out=out)
+        save_source_text(intent_key, source_text, root=path)
+        written, superseded = persist(document, intent_id=intent_key, root=path)
         if not quiet:
             typer.echo(document)
         typer.echo(f"[plan] {written}", err=True)

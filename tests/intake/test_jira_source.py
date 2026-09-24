@@ -430,7 +430,10 @@ async def test_at_most_five_attachments_are_read() -> None:
         "names only — contents not read): f5.txt (bound of 5 reached), f6.txt (bound of 5 reached)"
         in doc.body
     )
-    assert mock.downloaded == [str(i) for i in range(_MAX_ATTACHMENTS)]
+    # The bound is on what the extractor reads. The full view reads all seven — each once —
+    # for §8 (Track E, D1), so the two past the bound still cost a request, and are not lost.
+    assert mock.downloaded == [str(i) for i in range(n)]
+    assert "Attachments read in full (7):" in doc.full_body and "text 6" in doc.full_body
 
 
 async def test_all_attachments_together_stay_under_a_stated_budget() -> None:
@@ -458,8 +461,11 @@ async def test_all_attachments_together_stay_under_a_stated_budget() -> None:
         doc.body.count(f"attachment budget of {_MAX_ATTACHMENTS_TOTAL_CHARS:,} chars reached")
         == _MAX_ATTACHMENTS - whole
     )
-    assert mock.downloaded == [str(i) for i in range(whole + 1)]  # the rest cost no request
     assert len(doc.body) < _MAX_PROMPT_CHARS
+    # The extractor's budget no longer decides what is downloaded: the full view reads all five,
+    # uncut, once each, for §8 (Track E, D1).
+    assert mock.downloaded == [str(i) for i in range(_MAX_ATTACHMENTS)]
+    assert all((f"{i}" * _MAX_ATTACHMENT_CHARS) in doc.full_body for i in range(_MAX_ATTACHMENTS))
 
 
 async def test_a_jql_scan_never_fetches_attachments() -> None:
@@ -555,3 +561,57 @@ async def test_an_attachment_with_no_room_left_for_its_own_cut_marker_is_named_n
     used = int(header.split(", ", 1)[1].split(" of ", 1)[0].replace(",", ""))
     assert used <= _MAX_ATTACHMENTS_TOTAL_CHARS, header
     assert f"f3.txt (attachment budget of {_MAX_ATTACHMENTS_TOTAL_CHARS:,} chars reached)" in doc.body
+
+
+# ---- the full view (Track E, E1) ---------------------------------------------
+
+
+async def test_the_full_view_keeps_every_attachment_the_bounded_view_cuts() -> None:
+    """§8 checks criteria against the ticket's own words: a cut there is a criterion that reads
+    as unstated. The extractor's view stays exactly as bounded as it was."""
+    from orchestrator.intake.source import document_text
+
+    fields = _fields("T")
+    fields["attachment"] = [_attachment(f"spec{i}.md", str(i), size=40_000) for i in range(8)]
+    blobs = {str(i): (f"line {i}\n" * 4_000).encode() for i in range(8)}
+    mock = _JiraMock({"K-1": fields}, attachments=blobs)
+    adapter, http = _adapter(mock)
+    async with http:
+        doc = await adapter.fetch_document("K-1")
+
+    assert f"of {_MAX_ATTACHMENTS_TOTAL_CHARS:,} chars):" in doc.body  # the bounded view, as before
+    assert "Attachments read in full (8):" in doc.full_body
+    for i in range(8):
+        assert (f"line {i}\n" * 4_000).strip() in doc.full_body
+    assert "Attachments (names only" not in doc.full_body
+    assert document_text(doc) == doc.full_body
+    assert mock.downloaded == [str(i) for i in range(8)]  # each file once, for both views
+
+
+async def test_the_full_view_is_bounded_too_and_names_what_it_left() -> None:
+    from orchestrator.intake.jira_source import _MAX_ATTACHMENTS_READ_IN_FULL
+
+    n = _MAX_ATTACHMENTS_READ_IN_FULL + 2
+    fields = _fields("T")
+    fields["attachment"] = [_attachment(f"f{i}.txt", str(i)) for i in range(n)]
+    mock = _JiraMock({"K-1": fields}, attachments={str(i): f"text {i}".encode() for i in range(n)})
+    adapter, http = _adapter(mock)
+    async with http:
+        doc = await adapter.fetch_document("K-1")
+
+    assert f"Attachments read in full ({_MAX_ATTACHMENTS_READ_IN_FULL}):" in doc.full_body
+    bound = f"bound of {_MAX_ATTACHMENTS_READ_IN_FULL} reached"
+    assert f"f{n - 2}.txt ({bound}), f{n - 1}.txt ({bound})" in doc.full_body
+    assert len(mock.downloaded) == _MAX_ATTACHMENTS_READ_IN_FULL
+
+
+async def test_nothing_cut_means_no_second_copy() -> None:
+    from orchestrator.intake.source import document_text
+
+    fields = _fields("T")
+    fields["attachment"] = [_attachment("notes.md", "1")]
+    adapter, http = _adapter(_JiraMock({"K-1": fields}, attachments={"1": b"# Notes\n\nshort"}))
+    async with http:
+        doc = await adapter.fetch_document("K-1")
+
+    assert doc.full_body == "" and document_text(doc) == doc.body

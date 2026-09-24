@@ -1164,6 +1164,7 @@ def render_build_md(
     journey: list[JourneyEntry] | None = None,
     source_text: str = "",
     issue_type: str = "",
+    linked_pages: str = "",
 ) -> str:
     """Assemble the twelve sections.
 
@@ -1195,6 +1196,10 @@ def render_build_md(
     # In the header, outside the digest: it is an *input* the gate must reproduce, not content a
     # reviewer approves — `approve` reads it back from here (:func:`planned_issue_type`).
     add(_issue_type_line(issue_type))
+    if linked_pages:
+        # Header, not body: what `--follow-links` read is reported, and what it read is already in
+        # `source.txt`, which the gate re-reads — this line is for the reviewer, not the digest.
+        add(f"**Linked pages:** {linked_pages}\n")
     # .value first: str-Enum stringifies as "Verdict.PROCEED", which is a Python repr
     # leaking onto a page a human is meant to read.
     raw_verdict = getattr(validity, "verdict", "")
@@ -1399,6 +1404,7 @@ async def build_plan(
     approval: PlanApproval | None = None,
     journey: list[JourneyEntry] | None = None,
     source_text: str = "",
+    linked_pages: str = "",
 ) -> str:
     """Run the four cheap stages and render the document. No worktree, no codegen.
 
@@ -1479,6 +1485,7 @@ async def build_plan(
         journey=journey,
         source_text=source_text,
         issue_type=issue_type,
+        linked_pages=linked_pages,
     )
 
 

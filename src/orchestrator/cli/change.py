@@ -149,6 +149,14 @@ def investigate(
             "`git blame` pass; single-repo only.",
         ),
     ] = False,
+    follow_links: Annotated[
+        bool,
+        typer.Option(
+            "--follow-links",
+            help="With --source: also read the Confluence pages the ticket links to (at most 5; "
+            "needs Confluence access, or the command refuses).",
+        ),
+    ] = False,
 ) -> None:
     """Investigation brief: a ticket × the codebase, before you design.
 
@@ -163,7 +171,7 @@ def investigate(
     from orchestrator.pkg import FactStore, RepoCodeExtractor, load_or_extract
     from orchestrator.sdlc.investigate import build_investigation, render_investigation_md
 
-    ticket_title, problem = _load_ticket(source, title, text)
+    ticket_title, problem = _load_ticket(source, title, text, follow_links=follow_links)
     if not ticket_title and not problem:
         typer.echo("ERROR: provide --source or --title (the ticket to investigate).", err=True)
         raise typer.Exit(code=2)
@@ -224,20 +232,34 @@ def investigate(
         typer.echo(md)
 
 
-def _load_ticket(source: str | None, title: str, text: str) -> tuple[str, str]:
-    """Resolve the ticket to investigate: a source URI's documents, or inline flags."""
+def _load_ticket(source: str | None, title: str, text: str, *, follow_links: bool = False) -> tuple[str, str]:
+    """Resolve the ticket to investigate: a source URI's documents, or inline flags.
+
+    ``follow_links`` appends the Confluence pages the ticket links to, after its own documents.
+    """
     if source:
         import asyncio
 
-        from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
+        from orchestrator.intake.factory import (
+            IntakeNotConfiguredError,
+            build_service_for,
+            source_read_errors,
+        )
         from orchestrator.intake.service import SourceUriError, parse_source_uri
 
         try:
             _, root_id = parse_source_uri(source)
             service = build_service_for(source, dry_run=True)
-            tree = asyncio.run(service.fetch_source_documents(root_id))
+            tree = asyncio.run(
+                service.fetch_source_documents(root_id, follow_links=True)
+                if follow_links
+                else service.fetch_source_documents(root_id)
+            )
         except (SourceUriError, IntakeNotConfiguredError) as exc:
             typer.echo(f"ERROR: {exc}", err=True)
+            raise typer.Exit(code=2) from exc
+        except source_read_errors() as exc:
+            typer.echo(f"ERROR: could not read {source} — {type(exc).__name__}: {exc}", err=True)
             raise typer.Exit(code=2) from exc
         docs = tree.documents
         if not docs:

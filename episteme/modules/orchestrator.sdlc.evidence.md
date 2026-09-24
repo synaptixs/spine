@@ -112,21 +112,21 @@
 
 [`src/orchestrator/sdlc/evidence.py:141`](../../src/orchestrator/sdlc/evidence.py#L141)
 
-- **Called by** (2 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L661), [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L185), [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100)
+- **Called by** (2 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L685), [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L185), [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100)
 - **Calls** (3): [`Evidence`](../../src/orchestrator/sdlc/evidence.py#L84), [`LandingFact`](../../src/orchestrator/sdlc/evidence.py#L64), [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L122)
 
 ### `landing_files`
 
 [`src/orchestrator/sdlc/evidence.py:122`](../../src/orchestrator/sdlc/evidence.py#L122)
 
-- **Called by** (3 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L661), [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L185), [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L141), [`test_the_autorun_landing_rows_carry_weak_and_are_filtered`](../../tests/sdlc/test_honest_uncertainty.py#L238)
+- **Called by** (3 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L685), [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L185), [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L141), [`test_the_autorun_landing_rows_carry_weak_and_are_filtered`](../../tests/sdlc/test_honest_uncertainty.py#L238)
 - **Calls** (2): [`LandingFact`](../../src/orchestrator/sdlc/evidence.py#L64), [`_landing_files`](../../src/orchestrator/sdlc/evidence.py#L105)
 
 ### `rca_problem`
 
 [`src/orchestrator/sdlc/evidence.py:117`](../../src/orchestrator/sdlc/evidence.py#L117)
 
-- **Called by** (2): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L661), [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L185)
+- **Called by** (2): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L685), [`build_evidence`](../../src/orchestrator/sdlc/evidence.py#L185)
 
 ### `register_sdlc_tools`
 
@@ -138,14 +138,14 @@
 
 [`src/orchestrator/sdlc/evidence.py:264`](../../src/orchestrator/sdlc/evidence.py#L264)
 
-- **Called by** (1 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L661), [`test_an_ungrounded_graph_says_so_rather_than_looking_clean`](../../tests/sdlc/test_evidence.py#L91)
+- **Called by** (1 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L685), [`test_an_ungrounded_graph_says_so_rather_than_looking_clean`](../../tests/sdlc/test_evidence.py#L91)
 - **Calls** (3): [`Landing`](../../src/orchestrator/sdlc/landings.py#L42), [`render_landings`](../../src/orchestrator/sdlc/landings.py#L140), [`render_md`](../../src/orchestrator/sdlc/impact.py#L300)
 
 ### `to_dict`
 
 [`src/orchestrator/sdlc/evidence.py:235`](../../src/orchestrator/sdlc/evidence.py#L235)
 
-- **Called by** (2 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L661), [`evidence_digest`](../../src/orchestrator/sdlc/evidence.py#L260), [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100)
+- **Called by** (2 production · 1 test): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L685), [`evidence_digest`](../../src/orchestrator/sdlc/evidence.py#L260), [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100)
 
 ## Imports
 
@@ -153,4 +153,4 @@
 
 ## Imported by
 
-[`orchestrator.runtime.tool_registry`](../../src/orchestrator/runtime/tool_registry.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`scripts.codegen_benchmark`](scripts.codegen_benchmark.md), [`tests.sdlc.test_evidence`](../../tests/sdlc/test_evidence.py#L1), [`tests.sdlc.test_honest_uncertainty`](../../tests/sdlc/test_honest_uncertainty.py#L1)
+[`orchestrator.runtime.tool_registry`](../../src/orchestrator/runtime/tool_registry.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`scripts.codegen_benchmark`](../../scripts/codegen_benchmark.py#L1), [`tests.sdlc.test_evidence`](../../tests/sdlc/test_evidence.py#L1), [`tests.sdlc.test_honest_uncertainty`](../../tests/sdlc/test_honest_uncertainty.py#L1)

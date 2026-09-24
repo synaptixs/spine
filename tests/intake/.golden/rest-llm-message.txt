@@ -1,0 +1,818 @@
+Requirements documents:
+
+# Orders export drops the currency column (id=FIN-42)
+Bug · status: To Do · priority: High
+
+The CSV export loses the currency column since 4.2.
+Mapping rules are in the export spec.
+
+Linked issues:
+- parent FIN-1 — Finance exports
+- blocks FIN-9 — Quarter close
+
+Comments (3 of 3, most recent first):
+- Ana (2026-09-03): Must keep ISO 4217 codes.
+- Raj (2026-09-02): xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx …[truncated, 1500 chars]
+- Ana (2026-09-01): Seen on EUR and GBP.
+
+Attachments read (3, 16,046 of 20,000 chars):
+--- mapping.md ---
+# Mapping
+
+- currency: ISO 4217 code, column 7
+--- export-log.txt ---
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export row ok
+export r …[truncated, 12599 chars]
+--- rules.md ---
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts keep their currency
+- rule: amounts ke …[truncated, 30599 chars]
+
+Attachments (names only — contents not read): screen.png (image, not read), dump.bin (no reader for this type), huge.txt (over the 1 MB cap), gone.txt (download failed)
