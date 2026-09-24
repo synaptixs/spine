@@ -313,7 +313,14 @@ class TypeIndex:
         types in answers ``(namespace, None)``: C# finds a namespace member — namespace or type —
         at each level before that level's usings."""
         if ref.nested:
-            for anon in ref.anonymous:  # an anonymous class body sees its base's member types first
+            # An anonymous class body sees its base's member types first — innermost body first,
+            # then outward: each base's own `anonymous` is the body its `new` was written in.
+            chain: list[TypeRef] = []
+            link = ref.anonymous[0] if ref.anonymous else None
+            while link is not None:
+                chain.append(link)
+                link = link.anonymous[0] if link.anonymous else None
+            for anon in chain:
                 base = self.type_of(anon)
                 if base is not None:
                     status, hit = self._member(base, ref.nested)

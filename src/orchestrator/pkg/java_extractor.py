@@ -296,14 +296,14 @@ class JavaExtractor:
                     batch.add_edge(Edge(caller, target, EdgeKind.CALLS, Provenance(rel, line)))
                 else:
                     deferred = _deferred_call(
-                        n, caller, type_id, scope, rel, line, source, _in_anonymous(n, body)
+                        n, caller, type_id, scope, rel, line, source, sites.in_anonymous(n)
                     )
                     if deferred is None and obj is not None and obj.type == "identifier" and not shadowed:
                         recv = _text(obj, source)
                         if recv[:1].isupper():  # `Type.method()` or `CONSTANT.method()`
                             ref = sites.text_ref(recv, obj)
                             member = _field_text(n, "name", source)
-                            if member and _in_anonymous(n, body):
+                            if member and sites.in_anonymous(n):
                                 if ref is not None:
                                     deferred = DeferredCall(caller, member, rel, line, receiver=ref)
                             elif member:
@@ -474,20 +474,6 @@ def _statement_of(node: TSNode) -> TSNode:
     return cur if cur is not None else node
 
 
-def _in_anonymous(node: TSNode, body: TSNode) -> bool:
-    """Is ``node`` inside an anonymous class body declared within this method ``body``?"""
-    cur = node.parent
-    while cur is not None and cur != body:
-        if (
-            cur.type == "class_body"
-            and cur.parent is not None
-            and cur.parent.type == "object_creation_expression"
-        ):
-            return True
-        cur = cur.parent
-    return False
-
-
 class _Sites:
     """Where a type name written in one method body resolves (B30): the method's type parameters,
     the local classes in force at the site (D1 — a local ``class Order`` hides ``app.model.Order``
@@ -509,34 +495,57 @@ class _Sites:
         self.state, self.source = state, source
         self.method_params = _java_type_params(method, source)
         self.locals = Scope(before_decl_refuses=False)
-        stack = list(body.named_children)
+        # One walk collects both (review 1, S1/S6), carrying each node's parent — tree-sitter
+        # resolves `.parent` from the root, so asking for it per node is quadratic in depth.
+        creations: list[tuple[TSNode, TSNode]] = []  # (anonymous class body, its `new`)
+        stack: list[tuple[TSNode, TSNode]] = [(c, body) for c in body.named_children]
         while stack:
-            n = stack.pop()
-            stack.extend(n.named_children)
-            if n.type in _TYPE_DECLS and n.parent is not None and n.parent.type != "class_body":
+            n, parent = stack.pop()
+            stack.extend((c, n) for c in n.named_children)
+            if n.type in _TYPE_DECLS and parent.type != "class_body":
                 name = n.child_by_field_name("name")
                 if name is not None:
-                    parent = n.parent
                     self.locals.bind(
                         _text(name, source), UNREADABLE, parent.start_byte, parent.end_byte, n.start_byte
                     )
+            elif n.type == "class_body" and parent.type == "object_creation_expression":
+                creations.append((n, parent))
+        # Each anonymous body's span and base, resolved once in document order so the bases around
+        # it are known (S6: resolving them per site recursed through every enclosing anonymous
+        # class, exponentially in its depth). A base is a chain: it carries the one around it.
+        self._anonymous: list[tuple[int, int, TypeRef]] = []
+        self._anonymous_bodies = sorted((b.start_byte, b.end_byte) for b, _ in creations)
+        for anon_body, creation in sorted(creations, key=lambda bc: bc[0].start_byte):
+            pos = creation.start_byte
+            outer = next((ref for start, end, ref in self._anonymous if start <= pos < end), None)
+            written = creation.child_by_field_name("type")
+            base = (
+                _java_type_node_ref(
+                    written,
+                    type_id,
+                    package,
+                    imports,
+                    state,
+                    source,
+                    self.method_params | self.locals.visible(pos),
+                    (outer,) if outer is not None else (),
+                )
+                if written is not None
+                else None
+            )
+            if base is not None:
+                self._anonymous.insert(0, (anon_body.start_byte, anon_body.end_byte, base))  # innermost first
+
+    def in_anonymous(self, at: TSNode) -> bool:
+        """Is ``at`` inside an anonymous class body declared in this method?"""
+        pos = at.start_byte
+        return any(start <= pos < end for start, end in self._anonymous_bodies)
 
     def _context(self, at: TSNode) -> tuple[frozenset[str], tuple[TypeRef, ...]]:
-        hidden = self.method_params | self.locals.visible(at.start_byte)
-        anonymous: list[TypeRef] = []
-        cur = at.parent
-        while cur is not None and cur != self.body:
-            creation = cur.parent
-            if (
-                cur.type == "class_body"
-                and creation is not None
-                and creation.type == "object_creation_expression"
-            ):
-                base = self.node_ref(creation.child_by_field_name("type"))
-                if base is not None:
-                    anonymous.append(base)
-            cur = cur.parent
-        return hidden, tuple(anonymous)
+        pos = at.start_byte
+        hidden = self.method_params | self.locals.visible(pos)
+        innermost = next((ref for start, end, ref in self._anonymous if start <= pos < end), None)
+        return hidden, (innermost,) if innermost is not None else ()
 
     def text_ref(self, text: str, at: TSNode) -> TypeRef | None:
         hidden, anonymous = self._context(at)
