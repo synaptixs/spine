@@ -9,7 +9,7 @@
 
 ## Changing this safely
 
-**Tested by** (8): `tests.plugin.conftest`, `tests.plugin.test_audit`, `tests.plugin.test_manifests`, `tests.plugin.test_outputs`, `tests.plugin.test_progress`, `tests.plugin.test_prompts`, `tests.plugin.test_resources`, `tests.plugin.test_server`
+**Tested by** (9): `tests.pkg.test_interface_reach`, `tests.plugin.conftest`, `tests.plugin.test_audit`, `tests.plugin.test_manifests`, `tests.plugin.test_outputs`, `tests.plugin.test_progress`, `tests.plugin.test_prompts`, `tests.plugin.test_resources`, +1 more
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
@@ -32,15 +32,15 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 ### `HttpServer`
 
-[`src/orchestrator/plugin/server.py:1956`](../../src/orchestrator/plugin/server.py#L1956)
+[`src/orchestrator/plugin/server.py:1971`](../../src/orchestrator/plugin/server.py#L1971)
 
-- **Called by** (1): [`build_http_server`](../../src/orchestrator/plugin/server.py#L1971)
+- **Called by** (1): [`build_http_server`](../../src/orchestrator/plugin/server.py#L1986)
 - **Fields**: `server`, `transport`
 - **Documented in**: `CHANGELOG.md`
 
 ### `Tier`
 
-[`src/orchestrator/plugin/server.py:1709`](../../src/orchestrator/plugin/server.py#L1709)
+[`src/orchestrator/plugin/server.py:1724`](../../src/orchestrator/plugin/server.py#L1724)
 
 - **Fields**: `destructive`, `idempotent`, `name`, `open_world`, `read_only`, `scope`
 
@@ -48,138 +48,138 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 ### `_approvals_markdown`
 
-[`src/orchestrator/plugin/server.py:1637`](../../src/orchestrator/plugin/server.py#L1637)
+[`src/orchestrator/plugin/server.py:1652`](../../src/orchestrator/plugin/server.py#L1652)
 
-- **Called by** (1): [`go`](../../src/orchestrator/plugin/server.py#L1556)
+- **Called by** (1): [`go`](../../src/orchestrator/plugin/server.py#L1571)
 
 ### `_blast_markdown`
 
-[`src/orchestrator/plugin/server.py:1025`](../../src/orchestrator/plugin/server.py#L1025)
+[`src/orchestrator/plugin/server.py:1036`](../../src/orchestrator/plugin/server.py#L1036)
 
-- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L452)
+- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L454)
 
 ### `_cross_repo_reach`
 
 [`src/orchestrator/plugin/server.py:381`](../../src/orchestrator/plugin/server.py#L381)
 
-- **Called by** (2): [`run`](../../src/orchestrator/plugin/server.py#L452), [`run`](../../src/orchestrator/plugin/server.py#L496)
+- **Called by** (2): [`run`](../../src/orchestrator/plugin/server.py#L454), [`run`](../../src/orchestrator/plugin/server.py#L504)
 - **Calls** (1): [`unscope_id`](../../src/orchestrator/pkg/scoping.py#L97)
 
 ### `_finding_dict`
 
-[`src/orchestrator/plugin/server.py:1464`](../../src/orchestrator/plugin/server.py#L1464)
+[`src/orchestrator/plugin/server.py:1479`](../../src/orchestrator/plugin/server.py#L1479)
 
-- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L1490)
+- **Called by** (1): [`run`](../../src/orchestrator/plugin/server.py#L1505)
 
 ### `_import_server_class`
 
-[`src/orchestrator/plugin/server.py:1885`](../../src/orchestrator/plugin/server.py#L1885)
+[`src/orchestrator/plugin/server.py:1900`](../../src/orchestrator/plugin/server.py#L1900)
 
-- **Called by** (2): [`build_http_server`](../../src/orchestrator/plugin/server.py#L1971), [`build_server`](../../src/orchestrator/plugin/server.py#L1945)
+- **Called by** (2): [`build_http_server`](../../src/orchestrator/plugin/server.py#L1986), [`build_server`](../../src/orchestrator/plugin/server.py#L1960)
 
 ### `_in_repo`
 
 [`src/orchestrator/plugin/server.py:317`](../../src/orchestrator/plugin/server.py#L317)
 
-- **Called by** (6): [`docs_for`](../../src/orchestrator/plugin/server.py#L926), [`map_repo`](../../src/orchestrator/plugin/server.py#L408), [`profile_repo`](../../src/orchestrator/plugin/server.py#L1185), [`sdlc_approve`](../../src/orchestrator/plugin/server.py#L867), [`sdlc_baseline`](../../src/orchestrator/plugin/server.py#L1274), [`understand_repo`](../../src/orchestrator/plugin/server.py#L1119)
+- **Called by** (6): [`docs_for`](../../src/orchestrator/plugin/server.py#L937), [`map_repo`](../../src/orchestrator/plugin/server.py#L408), [`profile_repo`](../../src/orchestrator/plugin/server.py#L1200), [`sdlc_approve`](../../src/orchestrator/plugin/server.py#L878), [`sdlc_baseline`](../../src/orchestrator/plugin/server.py#L1289), [`understand_repo`](../../src/orchestrator/plugin/server.py#L1134)
 - **Calls** (2): [`_open_repo`](../../src/orchestrator/plugin/server.py#L249), [`_with_repos_note`](../../src/orchestrator/plugin/server.py#L307)
 
 ### `_in_repo_store`
 
 [`src/orchestrator/plugin/server.py:328`](../../src/orchestrator/plugin/server.py#L328)
 
-- **Called by** (5): [`blast_radius`](../../src/orchestrator/plugin/server.py#L439), [`explain_symbol`](../../src/orchestrator/plugin/server.py#L483), [`investigate`](../../src/orchestrator/plugin/server.py#L532), [`localize`](../../src/orchestrator/plugin/server.py#L648), [`regression_gaps`](../../src/orchestrator/plugin/server.py#L704)
+- **Called by** (5): [`blast_radius`](../../src/orchestrator/plugin/server.py#L439), [`explain_symbol`](../../src/orchestrator/plugin/server.py#L490), [`investigate`](../../src/orchestrator/plugin/server.py#L543), [`localize`](../../src/orchestrator/plugin/server.py#L659), [`regression_gaps`](../../src/orchestrator/plugin/server.py#L715)
 - **Calls** (2): [`_repo_store`](../../src/orchestrator/plugin/server.py#L261), [`_with_repos_note`](../../src/orchestrator/plugin/server.py#L307)
 
 ### `_in_repos_store`
 
 [`src/orchestrator/plugin/server.py:367`](../../src/orchestrator/plugin/server.py#L367)
 
-- **Called by** (5): [`blast_radius`](../../src/orchestrator/plugin/server.py#L439), [`explain_symbol`](../../src/orchestrator/plugin/server.py#L483), [`investigate`](../../src/orchestrator/plugin/server.py#L532), [`localize`](../../src/orchestrator/plugin/server.py#L648), [`regression_gaps`](../../src/orchestrator/plugin/server.py#L704)
+- **Called by** (5): [`blast_radius`](../../src/orchestrator/plugin/server.py#L439), [`explain_symbol`](../../src/orchestrator/plugin/server.py#L490), [`investigate`](../../src/orchestrator/plugin/server.py#L543), [`localize`](../../src/orchestrator/plugin/server.py#L659), [`regression_gaps`](../../src/orchestrator/plugin/server.py#L715)
 - **Calls** (2): [`_merged_store`](../../src/orchestrator/plugin/server.py#L341), [`_standing`](../../src/orchestrator/plugin/server.py#L353)
 
 ### `_joins_proposal`
 
-[`src/orchestrator/plugin/server.py:605`](../../src/orchestrator/plugin/server.py#L605)
+[`src/orchestrator/plugin/server.py:616`](../../src/orchestrator/plugin/server.py#L616)
 
-- **Called by** (1): [`pkg_joins`](../../src/orchestrator/plugin/server.py#L579)
+- **Called by** (1): [`pkg_joins`](../../src/orchestrator/plugin/server.py#L590)
 - **Calls** (2): [`propose`](../../src/orchestrator/pkg/joins_propose.py#L73), [`unresolved_by_repo`](../../src/orchestrator/pkg/joins_propose.py#L237)
 
 ### `_joins_report`
 
-[`src/orchestrator/plugin/server.py:626`](../../src/orchestrator/plugin/server.py#L626)
+[`src/orchestrator/plugin/server.py:637`](../../src/orchestrator/plugin/server.py#L637)
 
-- **Called by** (1): [`pkg_joins`](../../src/orchestrator/plugin/server.py#L579)
+- **Called by** (1): [`pkg_joins`](../../src/orchestrator/plugin/server.py#L590)
 
 ### `_merged_store`
 
 [`src/orchestrator/plugin/server.py:341`](../../src/orchestrator/plugin/server.py#L341)
 
-- **Called by** (2): [`_in_repos_store`](../../src/orchestrator/plugin/server.py#L367), [`pkg_joins`](../../src/orchestrator/plugin/server.py#L579)
-- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L25), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L401), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L207)
+- **Called by** (2): [`_in_repos_store`](../../src/orchestrator/plugin/server.py#L367), [`pkg_joins`](../../src/orchestrator/plugin/server.py#L590)
+- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L401), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L207)
 
 ### `_open_repo`
 
 [`src/orchestrator/plugin/server.py:249`](../../src/orchestrator/plugin/server.py#L249)
 
-- **Called by** (5): [`_in_repo`](../../src/orchestrator/plugin/server.py#L317), [`_repo_store`](../../src/orchestrator/plugin/server.py#L261), [`audit_repo`](../../src/orchestrator/plugin/server.py#L1468), [`design_change`](../../src/orchestrator/plugin/server.py#L1209), [`sdlc_plan`](../../src/orchestrator/plugin/server.py#L804)
+- **Called by** (5): [`_in_repo`](../../src/orchestrator/plugin/server.py#L317), [`_repo_store`](../../src/orchestrator/plugin/server.py#L261), [`audit_repo`](../../src/orchestrator/plugin/server.py#L1483), [`design_change`](../../src/orchestrator/plugin/server.py#L1224), [`sdlc_plan`](../../src/orchestrator/plugin/server.py#L815)
 - **Calls** (3): [`Settings`](../../src/orchestrator/registry/api/config.py#L44), [`materialize_repo_source`](../../src/orchestrator/registry/api/workspace.py#L216), [`resolve_repo_source`](../../src/orchestrator/registry/api/workspace.py#L166)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#phases`
 
 ### `_per_repo`
 
-[`src/orchestrator/plugin/server.py:995`](../../src/orchestrator/plugin/server.py#L995)
+[`src/orchestrator/plugin/server.py:1006`](../../src/orchestrator/plugin/server.py#L1006)
 
-- **Called by** (1): [`docs_for`](../../src/orchestrator/plugin/server.py#L926)
+- **Called by** (1): [`docs_for`](../../src/orchestrator/plugin/server.py#L937)
 - **Calls** (2): [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L207), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L169)
 
 ### `_register_all`
 
-[`src/orchestrator/plugin/server.py:1941`](../../src/orchestrator/plugin/server.py#L1941)
+[`src/orchestrator/plugin/server.py:1956`](../../src/orchestrator/plugin/server.py#L1956)
 
-- **Called by** (2): [`build_http_server`](../../src/orchestrator/plugin/server.py#L1971), [`build_server`](../../src/orchestrator/plugin/server.py#L1945)
-- **Calls** (3): [`_register_prompts`](../../src/orchestrator/plugin/server.py#L1919), [`_register_resources`](../../src/orchestrator/plugin/server.py#L1929), [`_register_tools`](../../src/orchestrator/plugin/server.py#L1900)
+- **Called by** (2): [`build_http_server`](../../src/orchestrator/plugin/server.py#L1986), [`build_server`](../../src/orchestrator/plugin/server.py#L1960)
+- **Calls** (3): [`_register_prompts`](../../src/orchestrator/plugin/server.py#L1934), [`_register_resources`](../../src/orchestrator/plugin/server.py#L1944), [`_register_tools`](../../src/orchestrator/plugin/server.py#L1915)
 
 ### `_register_prompts`
 
-[`src/orchestrator/plugin/server.py:1919`](../../src/orchestrator/plugin/server.py#L1919)
+[`src/orchestrator/plugin/server.py:1934`](../../src/orchestrator/plugin/server.py#L1934)
 
-- **Called by** (1): [`_register_all`](../../src/orchestrator/plugin/server.py#L1941)
+- **Called by** (1): [`_register_all`](../../src/orchestrator/plugin/server.py#L1956)
 
 ### `_register_resources`
 
-[`src/orchestrator/plugin/server.py:1929`](../../src/orchestrator/plugin/server.py#L1929)
+[`src/orchestrator/plugin/server.py:1944`](../../src/orchestrator/plugin/server.py#L1944)
 
-- **Called by** (1): [`_register_all`](../../src/orchestrator/plugin/server.py#L1941)
+- **Called by** (1): [`_register_all`](../../src/orchestrator/plugin/server.py#L1956)
 
 ### `_register_tools`
 
-[`src/orchestrator/plugin/server.py:1900`](../../src/orchestrator/plugin/server.py#L1900)
+[`src/orchestrator/plugin/server.py:1915`](../../src/orchestrator/plugin/server.py#L1915)
 
-- **Called by** (1): [`_register_all`](../../src/orchestrator/plugin/server.py#L1941)
-- **Calls** (4): [`_scoped`](../../src/orchestrator/plugin/server.py#L1836), `mcp.types.ToolAnnotations`, [`tool_annotations`](../../src/orchestrator/plugin/server.py#L1787), [`tool_scope`](../../src/orchestrator/plugin/server.py#L1803)
+- **Called by** (1): [`_register_all`](../../src/orchestrator/plugin/server.py#L1956)
+- **Calls** (4): [`_scoped`](../../src/orchestrator/plugin/server.py#L1851), `mcp.types.ToolAnnotations`, [`tool_annotations`](../../src/orchestrator/plugin/server.py#L1802), [`tool_scope`](../../src/orchestrator/plugin/server.py#L1818)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/mcp-plugin-surface.md#invariants`, `docs/specs/mcp-plugin-surface.md#the-tiers-as-annotations-phase-1`
 
 ### `_registry`
 
-[`src/orchestrator/plugin/server.py:1523`](../../src/orchestrator/plugin/server.py#L1523)
+[`src/orchestrator/plugin/server.py:1538`](../../src/orchestrator/plugin/server.py#L1538)
 
-- **Called by** (4): [`registry_approvals`](../../src/orchestrator/plugin/server.py#L1551), [`registry_decide`](../../src/orchestrator/plugin/server.py#L1563), [`registry_runs`](../../src/orchestrator/plugin/server.py#L1538), [`registry_trace`](../../src/orchestrator/plugin/server.py#L1591)
+- **Called by** (4): [`registry_approvals`](../../src/orchestrator/plugin/server.py#L1566), [`registry_decide`](../../src/orchestrator/plugin/server.py#L1578), [`registry_runs`](../../src/orchestrator/plugin/server.py#L1553), [`registry_trace`](../../src/orchestrator/plugin/server.py#L1606)
 - **Calls** (1): [`registry_client`](../../src/orchestrator/plugin/registry_client.py#L133)
 
 ### `_repo_of_node`
 
-[`src/orchestrator/plugin/server.py:525`](../../src/orchestrator/plugin/server.py#L525)
+[`src/orchestrator/plugin/server.py:536`](../../src/orchestrator/plugin/server.py#L536)
 
-- **Called by** (2): [`run`](../../src/orchestrator/plugin/server.py#L496), [`run`](../../src/orchestrator/plugin/server.py#L718)
+- **Called by** (2): [`run`](../../src/orchestrator/plugin/server.py#L504), [`run`](../../src/orchestrator/plugin/server.py#L729)
 - **Calls** (1): [`unscope_id`](../../src/orchestrator/pkg/scoping.py#L97)
 
 ### `_repo_store`
 
 [`src/orchestrator/plugin/server.py:261`](../../src/orchestrator/plugin/server.py#L261)
 
-- **Called by** (2): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L328), [`root_cause`](../../src/orchestrator/plugin/server.py#L765)
-- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L25), [`_open_repo`](../../src/orchestrator/plugin/server.py#L249), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260)
+- **Called by** (2): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L328), [`root_cause`](../../src/orchestrator/plugin/server.py#L776)
+- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`_open_repo`](../../src/orchestrator/plugin/server.py#L249), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#phases`
 
 ### `_repos_note`
@@ -191,28 +191,28 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 ### `_runs_markdown`
 
-[`src/orchestrator/plugin/server.py:1625`](../../src/orchestrator/plugin/server.py#L1625)
+[`src/orchestrator/plugin/server.py:1640`](../../src/orchestrator/plugin/server.py#L1640)
 
-- **Called by** (1): [`go`](../../src/orchestrator/plugin/server.py#L1544)
+- **Called by** (1): [`go`](../../src/orchestrator/plugin/server.py#L1559)
 
 ### `_scoped`
 
-[`src/orchestrator/plugin/server.py:1836`](../../src/orchestrator/plugin/server.py#L1836)
+[`src/orchestrator/plugin/server.py:1851`](../../src/orchestrator/plugin/server.py#L1851)
 
-- **Called by** (1 production · 3 test): [`_register_tools`](../../src/orchestrator/plugin/server.py#L1900), [`test_a_guarded_sync_tool_still_runs_when_allowed`](../../tests/plugin/test_server.py#L1040), [`test_a_guarded_tool_returns_the_denial_instead_of_running`](../../tests/plugin/test_server.py#L1022), [`test_the_guard_records_a_run_call_and_a_denial_but_not_a_read_call`](../../tests/plugin/test_audit.py#L146)
+- **Called by** (1 production · 3 test): [`_register_tools`](../../src/orchestrator/plugin/server.py#L1915), [`test_a_guarded_sync_tool_still_runs_when_allowed`](../../tests/plugin/test_server.py#L1043), [`test_a_guarded_tool_returns_the_denial_instead_of_running`](../../tests/plugin/test_server.py#L1025), [`test_the_guard_records_a_run_call_and_a_denial_but_not_a_read_call`](../../tests/plugin/test_audit.py#L146)
 - **Calls** (1): `signature`
 
 ### `_standing`
 
 [`src/orchestrator/plugin/server.py:353`](../../src/orchestrator/plugin/server.py#L353)
 
-- **Called by** (2): [`_in_repos_store`](../../src/orchestrator/plugin/server.py#L367), [`pkg_joins`](../../src/orchestrator/plugin/server.py#L579)
+- **Called by** (2): [`_in_repos_store`](../../src/orchestrator/plugin/server.py#L367), [`pkg_joins`](../../src/orchestrator/plugin/server.py#L590)
 
 ### `_trace_markdown`
 
-[`src/orchestrator/plugin/server.py:1649`](../../src/orchestrator/plugin/server.py#L1649)
+[`src/orchestrator/plugin/server.py:1664`](../../src/orchestrator/plugin/server.py#L1664)
 
-- **Called by** (1): [`go`](../../src/orchestrator/plugin/server.py#L1597)
+- **Called by** (1): [`go`](../../src/orchestrator/plugin/server.py#L1612)
 
 ### `_with_repos_note`
 
@@ -223,9 +223,9 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 ### `audit_repo`
 
-[`src/orchestrator/plugin/server.py:1468`](../../src/orchestrator/plugin/server.py#L1468)
+[`src/orchestrator/plugin/server.py:1483`](../../src/orchestrator/plugin/server.py#L1483)
 
-- **Called by** (0 production · 1 test): [`test_audit_repo_needs_a_model_and_then_reports_findings`](../../tests/plugin/test_server.py#L683)
+- **Called by** (0 production · 1 test): [`test_audit_repo_needs_a_model_and_then_reports_findings`](../../tests/plugin/test_server.py#L686)
 - **Calls** (3): [`_open_repo`](../../src/orchestrator/plugin/server.py#L249), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L45)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#progress-from-the-long-tools`, `AGENT_GUIDE.md#who-did-what-over-http`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`
 
@@ -233,46 +233,46 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/plugin/server.py:439`](../../src/orchestrator/plugin/server.py#L439)
 
-- **Called by** (0 production · 11 test): [`test_a_config_too_broken_to_read_still_speaks_up`](../../tests/plugin/test_server.py#L1548), [`test_a_project_with_one_repo_hears_nothing`](../../tests/plugin/test_server.py#L1540), [`test_a_single_repo_answer_says_the_project_declares_more`](../../tests/plugin/test_server.py#L1516), [`test_a_tool_takes_one_repo_or_many_but_never_both`](../../tests/plugin/test_server.py#L1449), [`test_an_unreadable_repo_reports_the_error_and_nothing_else`](../../tests/plugin/test_server.py#L1581), [`test_bad_repo_path_returns_error_not_exception`](../../tests/plugin/test_server.py#L204), [`test_blast_radius_not_found`](../../tests/plugin/test_server.py#L111), [`test_blast_radius_reports_callers_and_touches`](../../tests/plugin/test_server.py#L101), [`test_blast_radius_reports_dependents_in_another_repo`](../../tests/plugin/test_server.py#L1322), [`test_multi_repo_answers_carry_their_standing`](../../tests/plugin/test_server.py#L1423), [`test_the_merged_answer_does_not_nudge_toward_itself`](../../tests/plugin/test_server.py#L1559)
+- **Called by** (0 production · 12 test): [`test_a_config_too_broken_to_read_still_speaks_up`](../../tests/plugin/test_server.py#L1551), [`test_a_project_with_one_repo_hears_nothing`](../../tests/plugin/test_server.py#L1543), [`test_a_single_repo_answer_says_the_project_declares_more`](../../tests/plugin/test_server.py#L1519), [`test_a_tool_takes_one_repo_or_many_but_never_both`](../../tests/plugin/test_server.py#L1452), [`test_an_unreadable_repo_reports_the_error_and_nothing_else`](../../tests/plugin/test_server.py#L1584), [`test_bad_repo_path_returns_error_not_exception`](../../tests/plugin/test_server.py#L207), [`test_blast_radius_not_found`](../../tests/plugin/test_server.py#L113), [`test_blast_radius_reports_callers_and_touches`](../../tests/plugin/test_server.py#L101), [`test_blast_radius_reports_dependents_in_another_repo`](../../tests/plugin/test_server.py#L1325), [`test_blast_radius_reports_it_apart_from_direct_callers`](../../tests/pkg/test_interface_reach.py#L69), [`test_multi_repo_answers_carry_their_standing`](../../tests/plugin/test_server.py#L1426), [`test_the_merged_answer_does_not_nudge_toward_itself`](../../tests/plugin/test_server.py#L1562)
 - **Calls** (2): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L328), [`_in_repos_store`](../../src/orchestrator/plugin/server.py#L367)
 
 ### `build_http_server`
 
-[`src/orchestrator/plugin/server.py:1971`](../../src/orchestrator/plugin/server.py#L1971)
+[`src/orchestrator/plugin/server.py:1986`](../../src/orchestrator/plugin/server.py#L1986)
 
-- **Called by** (1 production · 3 test): [`main`](../../src/orchestrator/plugin/__main__.py#L52), [`test_http_server_loopback_unauthenticated_is_allowed`](../../tests/plugin/test_server.py#L398), [`test_http_server_refuses_public_bind_without_auth`](../../tests/plugin/test_server.py#L388), [`test_http_server_wires_static_auth`](../../tests/plugin/test_server.py#L408)
-- **Calls** (4): [`HttpServer`](../../src/orchestrator/plugin/server.py#L1956), [`_import_server_class`](../../src/orchestrator/plugin/server.py#L1885), [`_register_all`](../../src/orchestrator/plugin/server.py#L1941), [`build_auth_from_env`](../../src/orchestrator/plugin/auth.py#L142)
+- **Called by** (1 production · 3 test): [`main`](../../src/orchestrator/plugin/__main__.py#L52), [`test_http_server_loopback_unauthenticated_is_allowed`](../../tests/plugin/test_server.py#L401), [`test_http_server_refuses_public_bind_without_auth`](../../tests/plugin/test_server.py#L391), [`test_http_server_wires_static_auth`](../../tests/plugin/test_server.py#L411)
+- **Calls** (4): [`HttpServer`](../../src/orchestrator/plugin/server.py#L1971), [`_import_server_class`](../../src/orchestrator/plugin/server.py#L1900), [`_register_all`](../../src/orchestrator/plugin/server.py#L1956), [`build_auth_from_env`](../../src/orchestrator/plugin/auth.py#L142)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`
 
 ### `build_server`
 
-[`src/orchestrator/plugin/server.py:1945`](../../src/orchestrator/plugin/server.py#L1945)
+[`src/orchestrator/plugin/server.py:1960`](../../src/orchestrator/plugin/server.py#L1960)
 
-- **Called by** (1 production · 10 test): [`main`](../../src/orchestrator/plugin/__main__.py#L52), [`test_a_host_receives_the_runners_phases_in_order`](../../tests/plugin/test_progress.py#L110), [`test_a_result_reaches_the_host_structured_with_every_key_kept`](../../tests/plugin/test_outputs.py#L64), [`test_an_untyped_tool_is_refused_at_registration`](../../tests/plugin/test_outputs.py#L37), [`test_annotations_reach_the_host`](../../tests/plugin/test_server.py#L927), [`test_every_tool_advertises_its_output_schema_to_the_host`](../../tests/plugin/test_outputs.py#L51), [`test_prompts_reach_the_host_with_their_arguments`](../../tests/plugin/test_prompts.py#L71), [`test_registration_refuses_a_tool_without_a_tier`](../../tests/plugin/test_server.py#L941), [`test_resources_reach_the_host_and_read_back`](../../tests/plugin/test_resources.py#L117), [`test_the_guard_does_not_change_what_a_host_sees`](../../tests/plugin/test_server.py#L1050), [`test_the_progress_tools_advertise_the_same_schema_and_hints_as_before`](../../tests/plugin/test_progress.py#L179)
-- **Calls** (2): [`_import_server_class`](../../src/orchestrator/plugin/server.py#L1885), [`_register_all`](../../src/orchestrator/plugin/server.py#L1941)
+- **Called by** (1 production · 10 test): [`main`](../../src/orchestrator/plugin/__main__.py#L52), [`test_a_host_receives_the_runners_phases_in_order`](../../tests/plugin/test_progress.py#L110), [`test_a_result_reaches_the_host_structured_with_every_key_kept`](../../tests/plugin/test_outputs.py#L64), [`test_an_untyped_tool_is_refused_at_registration`](../../tests/plugin/test_outputs.py#L37), [`test_annotations_reach_the_host`](../../tests/plugin/test_server.py#L930), [`test_every_tool_advertises_its_output_schema_to_the_host`](../../tests/plugin/test_outputs.py#L51), [`test_prompts_reach_the_host_with_their_arguments`](../../tests/plugin/test_prompts.py#L71), [`test_registration_refuses_a_tool_without_a_tier`](../../tests/plugin/test_server.py#L944), [`test_resources_reach_the_host_and_read_back`](../../tests/plugin/test_resources.py#L117), [`test_the_guard_does_not_change_what_a_host_sees`](../../tests/plugin/test_server.py#L1053), [`test_the_progress_tools_advertise_the_same_schema_and_hints_as_before`](../../tests/plugin/test_progress.py#L179)
+- **Calls** (2): [`_import_server_class`](../../src/orchestrator/plugin/server.py#L1900), [`_register_all`](../../src/orchestrator/plugin/server.py#L1956)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#design-decisions`, `docs/specs/comprehension-skill-spec.md#the-agent-skill-skillmd`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/mcp-plugin-surface.md#1-what-is-true-at-3300`, `docs/specs/mcp-plugin-surface.md#invariants`
 
 ### `current_token`
 
-[`src/orchestrator/plugin/server.py:1809`](../../src/orchestrator/plugin/server.py#L1809)
+[`src/orchestrator/plugin/server.py:1824`](../../src/orchestrator/plugin/server.py#L1824)
 
-- **Called by** (2): [`guarded`](../../src/orchestrator/plugin/server.py#L1844), [`scope_denial`](../../src/orchestrator/plugin/server.py#L1819)
+- **Called by** (2): [`guarded`](../../src/orchestrator/plugin/server.py#L1859), [`scope_denial`](../../src/orchestrator/plugin/server.py#L1834)
 - **Calls** (1): `mcp.server.auth.middleware.auth_context.get_access_token`
 
 ### `design_change`
 
-[`src/orchestrator/plugin/server.py:1209`](../../src/orchestrator/plugin/server.py#L1209)
+[`src/orchestrator/plugin/server.py:1224`](../../src/orchestrator/plugin/server.py#L1224)
 
-- **Called by** (0 production · 3 test): [`test_design_change_is_grounded_and_never_writes`](../../tests/plugin/test_server.py#L491), [`test_design_change_refuses_a_bad_spec_naming_the_valid_fields`](../../tests/plugin/test_server.py#L512), [`test_design_change_with_llm_needs_a_model`](../../tests/plugin/test_server.py#L520)
+- **Called by** (0 production · 3 test): [`test_design_change_is_grounded_and_never_writes`](../../tests/plugin/test_server.py#L494), [`test_design_change_refuses_a_bad_spec_naming_the_valid_fields`](../../tests/plugin/test_server.py#L515), [`test_design_change_with_llm_needs_a_model`](../../tests/plugin/test_server.py#L523)
 - **Calls** (5): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L75), [`_open_repo`](../../src/orchestrator/plugin/server.py#L249), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L45), [`validate_spec`](../../src/orchestrator/sdlc/spec_file.py#L61)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/kotlin-support-roadmap.md#baseline-after-each-phase-a-git-less-copy-so-no-commit-keyed-cache-is-trusted`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`
 
 ### `docs_for`
 
-[`src/orchestrator/plugin/server.py:926`](../../src/orchestrator/plugin/server.py#L926)
+[`src/orchestrator/plugin/server.py:937`](../../src/orchestrator/plugin/server.py#L937)
 
-- **Called by** (0 production · 4 test): [`test_docs_for_across_repos_answers_each_repo_on_its_own`](../../tests/plugin/test_server.py#L1394), [`test_docs_for_no_docs_reports_zero`](../../tests/plugin/test_server.py#L135), [`test_docs_for_summary_and_symbol`](../../tests/plugin/test_server.py#L122), [`test_every_multi_repo_tool_refuses_both_or_neither_of_repo_path_and_repos`](../../tests/plugin/test_server.py#L1411)
-- **Calls** (2): [`_in_repo`](../../src/orchestrator/plugin/server.py#L317), [`_per_repo`](../../src/orchestrator/plugin/server.py#L995)
+- **Called by** (0 production · 4 test): [`test_docs_for_across_repos_answers_each_repo_on_its_own`](../../tests/plugin/test_server.py#L1397), [`test_docs_for_no_docs_reports_zero`](../../tests/plugin/test_server.py#L138), [`test_docs_for_summary_and_symbol`](../../tests/plugin/test_server.py#L125), [`test_every_multi_repo_tool_refuses_both_or_neither_of_repo_path_and_repos`](../../tests/plugin/test_server.py#L1414)
+- **Calls** (2): [`_in_repo`](../../src/orchestrator/plugin/server.py#L317), [`_per_repo`](../../src/orchestrator/plugin/server.py#L1006)
 
 ### `doctor`
 
@@ -283,9 +283,9 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 ### `explain_symbol`
 
-[`src/orchestrator/plugin/server.py:483`](../../src/orchestrator/plugin/server.py#L483)
+[`src/orchestrator/plugin/server.py:490`](../../src/orchestrator/plugin/server.py#L490)
 
-- **Called by** (0 production · 4 test): [`test_every_multi_repo_tool_refuses_both_or_neither_of_repo_path_and_repos`](../../tests/plugin/test_server.py#L1411), [`test_explain_symbol_across_repos_names_the_repo_and_the_reach`](../../tests/plugin/test_server.py#L1334), [`test_explain_symbol_lists_callers`](../../tests/plugin/test_server.py#L116), [`test_the_nudge_reaches_every_comprehension_tool_that_takes_one_repo`](../../tests/plugin/test_server.py#L1531)
+- **Called by** (0 production · 4 test): [`test_every_multi_repo_tool_refuses_both_or_neither_of_repo_path_and_repos`](../../tests/plugin/test_server.py#L1414), [`test_explain_symbol_across_repos_names_the_repo_and_the_reach`](../../tests/plugin/test_server.py#L1337), [`test_explain_symbol_lists_callers`](../../tests/plugin/test_server.py#L118), [`test_the_nudge_reaches_every_comprehension_tool_that_takes_one_repo`](../../tests/plugin/test_server.py#L1534)
 - **Calls** (2): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L328), [`_in_repos_store`](../../src/orchestrator/plugin/server.py#L367)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#asking-across-several-repositories`, `AGENT_GUIDE.md#sdlc-plan`, `CHANGELOG.md`, `codex-marketplace/README.md#what-it-exposes`, `docs/specs/codex-plugin-keyless-roadmap.md#tools-needing-no-credentials-at-all-17-of-19`
 
@@ -293,29 +293,29 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/plugin/server.py:127`](../../src/orchestrator/plugin/server.py#L127)
 
-- **Called by** (0 production · 1 test): [`test_ingest_preview_summarizes_a_dry_run`](../../tests/plugin/test_server.py#L231)
+- **Called by** (0 production · 1 test): [`test_ingest_preview_summarizes_a_dry_run`](../../tests/plugin/test_server.py#L234)
 - **Calls** (2): [`build_service_for`](../../src/orchestrator/intake/factory.py#L309), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#ingest-preview`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/codex-plugin-keyless-roadmap.md#phases`, `docs/specs/codex-plugin-keyless-roadmap.md#tools-that-genuinely-need-a-model-2`
 
 ### `investigate`
 
-[`src/orchestrator/plugin/server.py:532`](../../src/orchestrator/plugin/server.py#L532)
+[`src/orchestrator/plugin/server.py:543`](../../src/orchestrator/plugin/server.py#L543)
 
-- **Called by** (0 production · 5 test): [`test_a_tool_takes_one_repo_or_many_but_never_both`](../../tests/plugin/test_server.py#L1449), [`test_investigate_across_repos_reports_cross_repo_landing`](../../tests/plugin/test_server.py#L1439), [`test_investigate_lands_on_real_symbols`](../../tests/plugin/test_server.py#L139), [`test_investigate_requires_a_ticket`](../../tests/plugin/test_server.py#L146), [`test_the_nudge_reaches_every_comprehension_tool_that_takes_one_repo`](../../tests/plugin/test_server.py#L1531)
+- **Called by** (0 production · 5 test): [`test_a_tool_takes_one_repo_or_many_but_never_both`](../../tests/plugin/test_server.py#L1452), [`test_investigate_across_repos_reports_cross_repo_landing`](../../tests/plugin/test_server.py#L1442), [`test_investigate_lands_on_real_symbols`](../../tests/plugin/test_server.py#L142), [`test_investigate_requires_a_ticket`](../../tests/plugin/test_server.py#L149), [`test_the_nudge_reaches_every_comprehension_tool_that_takes_one_repo`](../../tests/plugin/test_server.py#L1534)
 - **Calls** (2): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L328), [`_in_repos_store`](../../src/orchestrator/plugin/server.py#L367)
 
 ### `localize`
 
-[`src/orchestrator/plugin/server.py:648`](../../src/orchestrator/plugin/server.py#L648)
+[`src/orchestrator/plugin/server.py:659`](../../src/orchestrator/plugin/server.py#L659)
 
-- **Called by** (0 production · 5 test): [`test_every_multi_repo_tool_refuses_both_or_neither_of_repo_path_and_repos`](../../tests/plugin/test_server.py#L1411), [`test_localize_across_repos_reports_a_frame_two_services_could_own`](../../tests/plugin/test_server.py#L1377), [`test_localize_across_repos_says_which_repo_a_frame_landed_in`](../../tests/plugin/test_server.py#L1367), [`test_localize_requires_a_trace`](../../tests/plugin/test_server.py#L164), [`test_localize_resolves_the_fault_frame`](../../tests/plugin/test_server.py#L150)
+- **Called by** (0 production · 5 test): [`test_every_multi_repo_tool_refuses_both_or_neither_of_repo_path_and_repos`](../../tests/plugin/test_server.py#L1414), [`test_localize_across_repos_reports_a_frame_two_services_could_own`](../../tests/plugin/test_server.py#L1380), [`test_localize_across_repos_says_which_repo_a_frame_landed_in`](../../tests/plugin/test_server.py#L1370), [`test_localize_requires_a_trace`](../../tests/plugin/test_server.py#L167), [`test_localize_resolves_the_fault_frame`](../../tests/plugin/test_server.py#L153)
 - **Calls** (2): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L328), [`_in_repos_store`](../../src/orchestrator/plugin/server.py#L367)
 
 ### `map_repo`
 
 [`src/orchestrator/plugin/server.py:408`](../../src/orchestrator/plugin/server.py#L408)
 
-- **Called by** (0 production · 6 test): [`test_a_project_with_one_repo_hears_nothing`](../../tests/plugin/test_server.py#L1540), [`test_bad_repo_path_returns_error_not_exception`](../../tests/plugin/test_server.py#L204), [`test_disallowed_git_url_is_rejected`](../../tests/plugin/test_server.py#L210), [`test_map_repo_rejects_unknown_lens`](../../tests/plugin/test_server.py#L97), [`test_map_repo_structured_and_markdown`](../../tests/plugin/test_server.py#L89), [`test_the_nudge_reaches_every_comprehension_tool_that_takes_one_repo`](../../tests/plugin/test_server.py#L1531)
+- **Called by** (0 production · 6 test): [`test_a_project_with_one_repo_hears_nothing`](../../tests/plugin/test_server.py#L1543), [`test_bad_repo_path_returns_error_not_exception`](../../tests/plugin/test_server.py#L207), [`test_disallowed_git_url_is_rejected`](../../tests/plugin/test_server.py#L213), [`test_map_repo_rejects_unknown_lens`](../../tests/plugin/test_server.py#L97), [`test_map_repo_structured_and_markdown`](../../tests/plugin/test_server.py#L89), [`test_the_nudge_reaches_every_comprehension_tool_that_takes_one_repo`](../../tests/plugin/test_server.py#L1534)
 - **Calls** (1): [`_in_repo`](../../src/orchestrator/plugin/server.py#L317)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#9-safe-vs-live-the-write-gate`, `AGENT_GUIDE.md#asking-across-several-repositories`, `AGENT_GUIDE.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol`, `AGENT_GUIDE.md#who-did-what-over-http`, `CHANGELOG.md`
 
@@ -329,16 +329,16 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 ### `pkg_joins`
 
-[`src/orchestrator/plugin/server.py:579`](../../src/orchestrator/plugin/server.py#L579)
+[`src/orchestrator/plugin/server.py:590`](../../src/orchestrator/plugin/server.py#L590)
 
-- **Called by** (0 production · 4 test): [`test_pkg_joins_check_reports_what_the_declared_joins_placed`](../../tests/plugin/test_server.py#L1456), [`test_pkg_joins_check_says_nothing_is_declared_rather_than_zero_unplaced`](../../tests/plugin/test_server.py#L1467), [`test_pkg_joins_propose_derives_the_topology_from_evidence`](../../tests/plugin/test_server.py#L1477), [`test_pkg_joins_rejects_an_unknown_mode_and_a_missing_config`](../../tests/plugin/test_server.py#L1489)
-- **Calls** (4): [`_joins_proposal`](../../src/orchestrator/plugin/server.py#L605), [`_joins_report`](../../src/orchestrator/plugin/server.py#L626), [`_merged_store`](../../src/orchestrator/plugin/server.py#L341), [`_standing`](../../src/orchestrator/plugin/server.py#L353)
+- **Called by** (0 production · 4 test): [`test_pkg_joins_check_reports_what_the_declared_joins_placed`](../../tests/plugin/test_server.py#L1459), [`test_pkg_joins_check_says_nothing_is_declared_rather_than_zero_unplaced`](../../tests/plugin/test_server.py#L1470), [`test_pkg_joins_propose_derives_the_topology_from_evidence`](../../tests/plugin/test_server.py#L1480), [`test_pkg_joins_rejects_an_unknown_mode_and_a_missing_config`](../../tests/plugin/test_server.py#L1492)
+- **Calls** (4): [`_joins_proposal`](../../src/orchestrator/plugin/server.py#L616), [`_joins_report`](../../src/orchestrator/plugin/server.py#L637), [`_merged_store`](../../src/orchestrator/plugin/server.py#L341), [`_standing`](../../src/orchestrator/plugin/server.py#L353)
 
 ### `profile_repo`
 
-[`src/orchestrator/plugin/server.py:1185`](../../src/orchestrator/plugin/server.py#L1185)
+[`src/orchestrator/plugin/server.py:1200`](../../src/orchestrator/plugin/server.py#L1200)
 
-- **Called by** (0 production · 1 test): [`test_profile_repo_reads_the_project`](../../tests/plugin/test_server.py#L483)
+- **Called by** (0 production · 1 test): [`test_profile_repo_reads_the_project`](../../tests/plugin/test_server.py#L486)
 - **Calls** (1): [`_in_repo`](../../src/orchestrator/plugin/server.py#L317)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/kotlin-support-roadmap.md#0-decisions-surfaced-up-front`, `docs/specs/kotlin-support-roadmap.md#1-baseline-what-spine-sees-today-2026-09-10-measured`
 
@@ -346,97 +346,97 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/plugin/server.py:227`](../../src/orchestrator/plugin/server.py#L227)
 
-- **Called by** (0 production · 1 test): [`test_understand_repo_builds_the_bank_and_names_where_to_start`](../../tests/plugin/test_server.py#L433)
+- **Called by** (0 production · 1 test): [`test_understand_repo_builds_the_bank_and_names_where_to_start`](../../tests/plugin/test_server.py#L436)
 - **Calls** (1): [`read_memory_bank`](../../src/orchestrator/knowledge/access.py#L43)
 
 ### `registry_approvals`
 
-[`src/orchestrator/plugin/server.py:1551`](../../src/orchestrator/plugin/server.py#L1551)
+[`src/orchestrator/plugin/server.py:1566`](../../src/orchestrator/plugin/server.py#L1566)
 
-- **Called by** (0 production · 1 test): [`test_registry_approvals_lists_what_waits`](../../tests/plugin/test_server.py#L750)
-- **Calls** (1): [`_registry`](../../src/orchestrator/plugin/server.py#L1523)
+- **Called by** (0 production · 1 test): [`test_registry_approvals_lists_what_waits`](../../tests/plugin/test_server.py#L753)
+- **Calls** (1): [`_registry`](../../src/orchestrator/plugin/server.py#L1538)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#operating-runs-registry-runs-friends`, `AGENT_GUIDE.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`
 
 ### `registry_decide`
 
-[`src/orchestrator/plugin/server.py:1563`](../../src/orchestrator/plugin/server.py#L1563)
+[`src/orchestrator/plugin/server.py:1578`](../../src/orchestrator/plugin/server.py#L1578)
 
-- **Called by** (0 production · 2 test): [`test_registry_decide_posts_the_action`](../../tests/plugin/test_server.py#L776), [`test_registry_decide_refuses_a_bad_action_before_any_call`](../../tests/plugin/test_server.py#L795)
-- **Calls** (1): [`_registry`](../../src/orchestrator/plugin/server.py#L1523)
+- **Called by** (0 production · 2 test): [`test_registry_decide_posts_the_action`](../../tests/plugin/test_server.py#L779), [`test_registry_decide_refuses_a_bad_action_before_any_call`](../../tests/plugin/test_server.py#L798)
+- **Calls** (1): [`_registry`](../../src/orchestrator/plugin/server.py#L1538)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#operating-runs-registry-runs-friends`, `AGENT_GUIDE.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol`, `AGENT_GUIDE.md#who-did-what-over-http`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`
 
 ### `registry_runs`
 
-[`src/orchestrator/plugin/server.py:1538`](../../src/orchestrator/plugin/server.py#L1538)
+[`src/orchestrator/plugin/server.py:1553`](../../src/orchestrator/plugin/server.py#L1553)
 
-- **Called by** (0 production · 1 test): [`test_registry_runs_lists_with_a_table`](../../tests/plugin/test_server.py#L728)
-- **Calls** (1): [`_registry`](../../src/orchestrator/plugin/server.py#L1523)
+- **Called by** (0 production · 1 test): [`test_registry_runs_lists_with_a_table`](../../tests/plugin/test_server.py#L731)
+- **Calls** (1): [`_registry`](../../src/orchestrator/plugin/server.py#L1538)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#operating-runs-registry-runs-friends`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`
 
 ### `registry_trace`
 
-[`src/orchestrator/plugin/server.py:1591`](../../src/orchestrator/plugin/server.py#L1591)
+[`src/orchestrator/plugin/server.py:1606`](../../src/orchestrator/plugin/server.py#L1606)
 
-- **Called by** (0 production · 1 test): [`test_registry_trace_is_bounded_and_says_so`](../../tests/plugin/test_server.py#L806)
-- **Calls** (1): [`_registry`](../../src/orchestrator/plugin/server.py#L1523)
+- **Called by** (0 production · 1 test): [`test_registry_trace_is_bounded_and_says_so`](../../tests/plugin/test_server.py#L809)
+- **Calls** (1): [`_registry`](../../src/orchestrator/plugin/server.py#L1538)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#operating-runs-registry-runs-friends`, `AGENT_GUIDE.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol`, `AGENT_GUIDE.md#who-did-what-over-http`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`
 
 ### `regression_gaps`
 
-[`src/orchestrator/plugin/server.py:704`](../../src/orchestrator/plugin/server.py#L704)
+[`src/orchestrator/plugin/server.py:715`](../../src/orchestrator/plugin/server.py#L715)
 
-- **Called by** (0 production · 5 test): [`test_every_multi_repo_tool_refuses_both_or_neither_of_repo_path_and_repos`](../../tests/plugin/test_server.py#L1411), [`test_regression_gaps_across_repos_flags_the_uncovered_symbol_in_the_other_service`](../../tests/plugin/test_server.py#L1346), [`test_regression_gaps_flags_untested_caller`](../../tests/plugin/test_server.py#L168), [`test_regression_gaps_needs_symbol_or_trace`](../../tests/plugin/test_server.py#L175), [`test_the_nudge_reaches_every_comprehension_tool_that_takes_one_repo`](../../tests/plugin/test_server.py#L1531)
+- **Called by** (0 production · 5 test): [`test_every_multi_repo_tool_refuses_both_or_neither_of_repo_path_and_repos`](../../tests/plugin/test_server.py#L1414), [`test_regression_gaps_across_repos_flags_the_uncovered_symbol_in_the_other_service`](../../tests/plugin/test_server.py#L1349), [`test_regression_gaps_flags_untested_caller`](../../tests/plugin/test_server.py#L171), [`test_regression_gaps_needs_symbol_or_trace`](../../tests/plugin/test_server.py#L178), [`test_the_nudge_reaches_every_comprehension_tool_that_takes_one_repo`](../../tests/plugin/test_server.py#L1534)
 - **Calls** (2): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L328), [`_in_repos_store`](../../src/orchestrator/plugin/server.py#L367)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#asking-across-several-repositories`, `AGENT_GUIDE.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol`, `BENCHMARK.md#what-these-numbers-do-not-show`, `CHANGELOG.md`, `codex-marketplace/README.md#what-it-exposes`
 
 ### `root_cause`
 
-[`src/orchestrator/plugin/server.py:765`](../../src/orchestrator/plugin/server.py#L765)
+[`src/orchestrator/plugin/server.py:776`](../../src/orchestrator/plugin/server.py#L776)
 
-- **Called by** (0 production · 3 test): [`test_root_cause_deterministic_by_default`](../../tests/plugin/test_server.py#L179), [`test_root_cause_llm_without_model_errors`](../../tests/plugin/test_server.py#L197), [`test_root_cause_requires_a_bug`](../../tests/plugin/test_server.py#L193)
+- **Called by** (0 production · 3 test): [`test_root_cause_deterministic_by_default`](../../tests/plugin/test_server.py#L182), [`test_root_cause_llm_without_model_errors`](../../tests/plugin/test_server.py#L200), [`test_root_cause_requires_a_bug`](../../tests/plugin/test_server.py#L196)
 - **Calls** (6): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L75), [`_repo_store`](../../src/orchestrator/plugin/server.py#L261), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L219), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L306), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L45)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#9-safe-vs-live-the-write-gate`, `AGENT_GUIDE.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol`, `CHANGELOG.md`, `codex-marketplace/README.md#what-it-exposes`, `docs/specs/codex-plugin-keyless-roadmap.md#invariants`
 
 ### `scope_denial`
 
-[`src/orchestrator/plugin/server.py:1819`](../../src/orchestrator/plugin/server.py#L1819)
+[`src/orchestrator/plugin/server.py:1834`](../../src/orchestrator/plugin/server.py#L1834)
 
-- **Called by** (1 production · 2 test): [`guarded`](../../src/orchestrator/plugin/server.py#L1844), [`test_the_guard_passes_a_token_with_the_scope_and_no_token_at_all`](../../tests/plugin/test_server.py#L1012), [`test_the_guard_refuses_a_token_without_the_tools_scope`](../../tests/plugin/test_server.py#L1001)
-- **Calls** (1): [`current_token`](../../src/orchestrator/plugin/server.py#L1809)
+- **Called by** (1 production · 2 test): [`guarded`](../../src/orchestrator/plugin/server.py#L1859), [`test_the_guard_passes_a_token_with_the_scope_and_no_token_at_all`](../../tests/plugin/test_server.py#L1015), [`test_the_guard_refuses_a_token_without_the_tools_scope`](../../tests/plugin/test_server.py#L1004)
+- **Calls** (1): [`current_token`](../../src/orchestrator/plugin/server.py#L1824)
 
 ### `sdlc_address_review`
 
-[`src/orchestrator/plugin/server.py:1305`](../../src/orchestrator/plugin/server.py#L1305)
+[`src/orchestrator/plugin/server.py:1320`](../../src/orchestrator/plugin/server.py#L1320)
 
-- **Called by** (0 production · 3 test): [`test_sdlc_address_review_checks_out_then_responds`](../../tests/plugin/test_server.py#L570), [`test_sdlc_address_review_reports_a_failed_checkout_step`](../../tests/plugin/test_server.py#L601), [`test_the_gated_tools_refuse_without_confirm_before_touching_anything`](../../tests/plugin/test_server.py#L550)
+- **Called by** (0 production · 3 test): [`test_sdlc_address_review_checks_out_then_responds`](../../tests/plugin/test_server.py#L573), [`test_sdlc_address_review_reports_a_failed_checkout_step`](../../tests/plugin/test_server.py#L604), [`test_the_gated_tools_refuse_without_confirm_before_touching_anything`](../../tests/plugin/test_server.py#L553)
 - **Calls** (6): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L183), [`checkout_pr_worktree`](../../src/orchestrator/sdlc/review_response.py#L51), `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`respond_to_pr_feedback`](../../src/orchestrator/sdlc/review_response.py#L83)
 
 ### `sdlc_approve`
 
-[`src/orchestrator/plugin/server.py:867`](../../src/orchestrator/plugin/server.py#L867)
+[`src/orchestrator/plugin/server.py:878`](../../src/orchestrator/plugin/server.py#L878)
 
-- **Called by** (0 production · 6 test): [`test_a_rejection_says_who_and_why`](../../tests/plugin/test_server.py#L1235), [`test_an_approval_is_about_one_repo_and_is_not_nudged`](../../tests/plugin/test_server.py#L1569), [`test_an_approval_nobody_is_named_for_is_refused`](../../tests/plugin/test_server.py#L1255), [`test_approving_a_plan_that_does_not_exist_is_refused`](../../tests/plugin/test_server.py#L1247), [`test_approving_binds_the_decision_to_the_document`](../../tests/plugin/test_server.py#L1199), [`test_approving_records_the_issue_type_the_document_was_derived_with`](../../tests/plugin/test_server.py#L1212)
+- **Called by** (0 production · 6 test): [`test_a_rejection_says_who_and_why`](../../tests/plugin/test_server.py#L1238), [`test_an_approval_is_about_one_repo_and_is_not_nudged`](../../tests/plugin/test_server.py#L1572), [`test_an_approval_nobody_is_named_for_is_refused`](../../tests/plugin/test_server.py#L1258), [`test_approving_a_plan_that_does_not_exist_is_refused`](../../tests/plugin/test_server.py#L1250), [`test_approving_binds_the_decision_to_the_document`](../../tests/plugin/test_server.py#L1202), [`test_approving_records_the_issue_type_the_document_was_derived_with`](../../tests/plugin/test_server.py#L1215)
 - **Calls** (1): [`_in_repo`](../../src/orchestrator/plugin/server.py#L317)
 
 ### `sdlc_baseline`
 
-[`src/orchestrator/plugin/server.py:1274`](../../src/orchestrator/plugin/server.py#L1274)
+[`src/orchestrator/plugin/server.py:1289`](../../src/orchestrator/plugin/server.py#L1289)
 
-- **Called by** (0 production · 1 test): [`test_sdlc_baseline_scores_the_gate_over_this_repos_graph`](../../tests/plugin/test_server.py#L534)
+- **Called by** (0 production · 1 test): [`test_sdlc_baseline_scores_the_gate_over_this_repos_graph`](../../tests/plugin/test_server.py#L537)
 - **Calls** (1): [`_in_repo`](../../src/orchestrator/plugin/server.py#L317)
 
 ### `sdlc_complete`
 
-[`src/orchestrator/plugin/server.py:1358`](../../src/orchestrator/plugin/server.py#L1358)
+[`src/orchestrator/plugin/server.py:1373`](../../src/orchestrator/plugin/server.py#L1373)
 
-- **Called by** (0 production · 2 test): [`test_sdlc_complete_returns_the_completion_or_the_coded_error`](../../tests/plugin/test_server.py#L613), [`test_the_gated_tools_refuse_without_confirm_before_touching_anything`](../../tests/plugin/test_server.py#L550)
+- **Called by** (0 production · 2 test): [`test_sdlc_complete_returns_the_completion_or_the_coded_error`](../../tests/plugin/test_server.py#L616), [`test_the_gated_tools_refuse_without_confirm_before_touching_anything`](../../tests/plugin/test_server.py#L553)
 - **Calls** (2): [`complete_issue_for_pr`](../../src/orchestrator/sdlc/complete.py#L66), [`load_local_env`](../../src/orchestrator/core/env.py#L20)
 
 ### `sdlc_decide_gate`
 
-[`src/orchestrator/plugin/server.py:1083`](../../src/orchestrator/plugin/server.py#L1083)
+[`src/orchestrator/plugin/server.py:1098`](../../src/orchestrator/plugin/server.py#L1098)
 
-- **Called by** (0 production · 1 test): [`test_sdlc_decide_gate_delegates`](../../tests/plugin/test_server.py#L356)
+- **Called by** (0 production · 1 test): [`test_sdlc_decide_gate_delegates`](../../tests/plugin/test_server.py#L359)
 - **Calls** (1): [`decide_gate`](../../src/orchestrator/sdlc/run_control.py#L130)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#operating-runs-registry-runs-friends`, `AGENT_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `AGENT_GUIDE.md#who-did-what-over-http`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`
 
@@ -444,64 +444,64 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/plugin/server.py:148`](../../src/orchestrator/plugin/server.py#L148)
 
-- **Called by** (0 production · 4 test): [`test_sdlc_feature_live_requires_confirm`](../../tests/plugin/test_server.py#L256), [`test_sdlc_feature_maps_run_error`](../../tests/plugin/test_server.py#L321), [`test_sdlc_feature_passes_greenfield_brownfield_params`](../../tests/plugin/test_server.py#L285), [`test_sdlc_feature_safe_maps_result`](../../tests/plugin/test_server.py#L262)
+- **Called by** (0 production · 4 test): [`test_sdlc_feature_live_requires_confirm`](../../tests/plugin/test_server.py#L259), [`test_sdlc_feature_maps_run_error`](../../tests/plugin/test_server.py#L324), [`test_sdlc_feature_passes_greenfield_brownfield_params`](../../tests/plugin/test_server.py#L288), [`test_sdlc_feature_safe_maps_result`](../../tests/plugin/test_server.py#L265)
 - **Calls** (2): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L735)
 
 ### `sdlc_plan`
 
-[`src/orchestrator/plugin/server.py:804`](../../src/orchestrator/plugin/server.py#L804)
+[`src/orchestrator/plugin/server.py:815`](../../src/orchestrator/plugin/server.py#L815)
 
-- **Called by** (0 production · 13 test): [`test_a_bad_repo_path_is_reported_not_raised`](../../tests/plugin/test_server.py#L1169), [`test_a_rejection_says_who_and_why`](../../tests/plugin/test_server.py#L1235), [`test_a_spec_with_nothing_to_satisfy_is_refused`](../../tests/plugin/test_server.py#L1150), [`test_an_approval_nobody_is_named_for_is_refused`](../../tests/plugin/test_server.py#L1255), [`test_an_invented_field_is_refused_with_the_valid_ones`](../../tests/plugin/test_server.py#L1139), [`test_approving_binds_the_decision_to_the_document`](../../tests/plugin/test_server.py#L1199), [`test_approving_records_the_issue_type_the_document_was_derived_with`](../../tests/plugin/test_server.py#L1212), [`test_persist_can_be_turned_off`](../../tests/plugin/test_server.py#L1158), [`test_sdlc_plan_needs_no_model_and_no_credentials`](../../tests/plugin/test_server.py#L1125), [`test_sdlc_plan_returns_the_document_and_where_it_was_written`](../../tests/plugin/test_server.py#L1115), [`test_the_mcp_plan_tool_reads_the_ticket_text_the_gate_will_and_destroys_nothing`](../../tests/plugin/test_resources.py#L135), [`test_the_mcp_plan_tool_without_a_stored_ticket_labels_nothing_stated`](../../tests/plugin/test_resources.py#L163), [`test_the_plugin_and_the_cli_render_the_same_document`](../../tests/plugin/test_server.py#L1177)
+- **Called by** (0 production · 13 test): [`test_a_bad_repo_path_is_reported_not_raised`](../../tests/plugin/test_server.py#L1172), [`test_a_rejection_says_who_and_why`](../../tests/plugin/test_server.py#L1238), [`test_a_spec_with_nothing_to_satisfy_is_refused`](../../tests/plugin/test_server.py#L1153), [`test_an_approval_nobody_is_named_for_is_refused`](../../tests/plugin/test_server.py#L1258), [`test_an_invented_field_is_refused_with_the_valid_ones`](../../tests/plugin/test_server.py#L1142), [`test_approving_binds_the_decision_to_the_document`](../../tests/plugin/test_server.py#L1202), [`test_approving_records_the_issue_type_the_document_was_derived_with`](../../tests/plugin/test_server.py#L1215), [`test_persist_can_be_turned_off`](../../tests/plugin/test_server.py#L1161), [`test_sdlc_plan_needs_no_model_and_no_credentials`](../../tests/plugin/test_server.py#L1128), [`test_sdlc_plan_returns_the_document_and_where_it_was_written`](../../tests/plugin/test_server.py#L1118), [`test_the_mcp_plan_tool_reads_the_ticket_text_the_gate_will_and_destroys_nothing`](../../tests/plugin/test_resources.py#L135), [`test_the_mcp_plan_tool_without_a_stored_ticket_labels_nothing_stated`](../../tests/plugin/test_resources.py#L163), [`test_the_plugin_and_the_cli_render_the_same_document`](../../tests/plugin/test_server.py#L1180)
 - **Calls** (2): [`_open_repo`](../../src/orchestrator/plugin/server.py#L249), [`validate_spec`](../../src/orchestrator/sdlc/spec_file.py#L61)
 
 ### `sdlc_remediate`
 
-[`src/orchestrator/plugin/server.py:1384`](../../src/orchestrator/plugin/server.py#L1384)
+[`src/orchestrator/plugin/server.py:1399`](../../src/orchestrator/plugin/server.py#L1399)
 
-- **Called by** (0 production · 3 test): [`test_sdlc_remediate_needs_readable_inputs_and_a_known_severity`](../../tests/plugin/test_server.py#L634), [`test_sdlc_remediate_runs_each_material_finding_in_safe_mode`](../../tests/plugin/test_server.py#L642), [`test_the_gated_tools_refuse_without_confirm_before_touching_anything`](../../tests/plugin/test_server.py#L550)
+- **Called by** (0 production · 3 test): [`test_sdlc_remediate_needs_readable_inputs_and_a_known_severity`](../../tests/plugin/test_server.py#L637), [`test_sdlc_remediate_runs_each_material_finding_in_safe_mode`](../../tests/plugin/test_server.py#L645), [`test_the_gated_tools_refuse_without_confirm_before_touching_anything`](../../tests/plugin/test_server.py#L553)
 - **Calls** (7): [`MappingStore`](../../src/orchestrator/spine/store.py#L56), [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`execute_remediations`](../../src/orchestrator/spine/execute.py#L55), [`from_infodrift`](../../src/orchestrator/spine/drift.py#L84), [`infer_entity_iris`](../../src/orchestrator/spine/execute.py#L39), `loads`, `pathlib.Path`
 
 ### `sdlc_run_result`
 
-[`src/orchestrator/plugin/server.py:1100`](../../src/orchestrator/plugin/server.py#L1100)
+[`src/orchestrator/plugin/server.py:1115`](../../src/orchestrator/plugin/server.py#L1115)
 
-- **Called by** (0 production · 1 test): [`test_sdlc_run_status_and_result_delegate`](../../tests/plugin/test_server.py#L369)
+- **Called by** (0 production · 1 test): [`test_sdlc_run_status_and_result_delegate`](../../tests/plugin/test_server.py#L372)
 - **Calls** (1): [`run_result`](../../src/orchestrator/sdlc/run_control.py#L181)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/codex-plugin-keyless-roadmap.md#tools-needing-no-credentials-at-all-17-of-19`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`
 
 ### `sdlc_run_status`
 
-[`src/orchestrator/plugin/server.py:1076`](../../src/orchestrator/plugin/server.py#L1076)
+[`src/orchestrator/plugin/server.py:1091`](../../src/orchestrator/plugin/server.py#L1091)
 
-- **Called by** (0 production · 1 test): [`test_sdlc_run_status_and_result_delegate`](../../tests/plugin/test_server.py#L369)
+- **Called by** (0 production · 1 test): [`test_sdlc_run_status_and_result_delegate`](../../tests/plugin/test_server.py#L372)
 - **Calls** (1): [`run_status`](../../src/orchestrator/sdlc/run_control.py#L102)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/codex-plugin-keyless-roadmap.md#tools-needing-no-credentials-at-all-17-of-19`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`
 
 ### `sdlc_start_run`
 
-[`src/orchestrator/plugin/server.py:1050`](../../src/orchestrator/plugin/server.py#L1050)
+[`src/orchestrator/plugin/server.py:1065`](../../src/orchestrator/plugin/server.py#L1065)
 
-- **Called by** (0 production · 2 test): [`test_sdlc_start_run_create_jira_requires_confirm`](../../tests/plugin/test_server.py#L335), [`test_sdlc_start_run_delegates_to_run_control`](../../tests/plugin/test_server.py#L342)
+- **Called by** (0 production · 2 test): [`test_sdlc_start_run_create_jira_requires_confirm`](../../tests/plugin/test_server.py#L338), [`test_sdlc_start_run_delegates_to_run_control`](../../tests/plugin/test_server.py#L345)
 - **Calls** (1): [`start_run`](../../src/orchestrator/sdlc/run_control.py#L49)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#9-safe-vs-live-the-write-gate`, `AGENT_GUIDE.md#the-autonomous-run-sdlc-start-run-friends`, `AGENT_GUIDE.md#who-did-what-over-http`, `CHANGELOG.md`, `codex-marketplace/README.md#what-it-exposes`
 
 ### `tool_annotations`
 
-[`src/orchestrator/plugin/server.py:1787`](../../src/orchestrator/plugin/server.py#L1787)
+[`src/orchestrator/plugin/server.py:1802`](../../src/orchestrator/plugin/server.py#L1802)
 
-- **Called by** (1 production · 6 test): [`_register_tools`](../../src/orchestrator/plugin/server.py#L1900), [`test_an_untiered_tool_is_refused_at_registration`](../../tests/plugin/test_server.py#L910), [`test_annotations_reach_the_host`](../../tests/plugin/test_server.py#L927), [`test_every_tier_names_a_scope_and_it_follows_the_hints`](../../tests/plugin/test_server.py#L955), [`test_the_guard_does_not_change_what_a_host_sees`](../../tests/plugin/test_server.py#L1050), [`test_the_progress_tools_advertise_the_same_schema_and_hints_as_before`](../../tests/plugin/test_progress.py#L179), [`test_tiers_say_what_a_tool_can_cost`](../../tests/plugin/test_server.py#L868)
+- **Called by** (1 production · 6 test): [`_register_tools`](../../src/orchestrator/plugin/server.py#L1915), [`test_an_untiered_tool_is_refused_at_registration`](../../tests/plugin/test_server.py#L913), [`test_annotations_reach_the_host`](../../tests/plugin/test_server.py#L930), [`test_every_tier_names_a_scope_and_it_follows_the_hints`](../../tests/plugin/test_server.py#L958), [`test_the_guard_does_not_change_what_a_host_sees`](../../tests/plugin/test_server.py#L1053), [`test_the_progress_tools_advertise_the_same_schema_and_hints_as_before`](../../tests/plugin/test_progress.py#L179), [`test_tiers_say_what_a_tool_can_cost`](../../tests/plugin/test_server.py#L871)
 
 ### `tool_scope`
 
-[`src/orchestrator/plugin/server.py:1803`](../../src/orchestrator/plugin/server.py#L1803)
+[`src/orchestrator/plugin/server.py:1818`](../../src/orchestrator/plugin/server.py#L1818)
 
-- **Called by** (1 production · 2 test): [`_register_tools`](../../src/orchestrator/plugin/server.py#L1900), [`test_an_untiered_tool_has_no_scope_either`](../../tests/plugin/test_server.py#L973), [`test_every_tier_names_a_scope_and_it_follows_the_hints`](../../tests/plugin/test_server.py#L955)
+- **Called by** (1 production · 2 test): [`_register_tools`](../../src/orchestrator/plugin/server.py#L1915), [`test_an_untiered_tool_has_no_scope_either`](../../tests/plugin/test_server.py#L976), [`test_every_tier_names_a_scope_and_it_follows_the_hints`](../../tests/plugin/test_server.py#L958)
 
 ### `understand_repo`
 
-[`src/orchestrator/plugin/server.py:1119`](../../src/orchestrator/plugin/server.py#L1119)
+[`src/orchestrator/plugin/server.py:1134`](../../src/orchestrator/plugin/server.py#L1134)
 
-- **Called by** (0 production · 7 test): [`test_a_built_bank_is_readable_by_index_and_by_section`](../../tests/plugin/test_resources.py#L53), [`test_a_section_cannot_escape_the_bank`](../../tests/plugin/test_resources.py#L64), [`test_resources_reach_the_host_and_read_back`](../../tests/plugin/test_resources.py#L117), [`test_understand_repo_builds_the_bank_and_names_where_to_start`](../../tests/plugin/test_server.py#L433), [`test_understand_repo_check_is_current_then_stale`](../../tests/plugin/test_server.py#L449), [`test_understand_repo_refuses_to_build_into_a_clone_that_vanishes`](../../tests/plugin/test_server.py#L464), [`test_understand_repo_writes_where_out_says`](../../tests/plugin/test_server.py#L473)
+- **Called by** (0 production · 7 test): [`test_a_built_bank_is_readable_by_index_and_by_section`](../../tests/plugin/test_resources.py#L53), [`test_a_section_cannot_escape_the_bank`](../../tests/plugin/test_resources.py#L64), [`test_resources_reach_the_host_and_read_back`](../../tests/plugin/test_resources.py#L117), [`test_understand_repo_builds_the_bank_and_names_where_to_start`](../../tests/plugin/test_server.py#L436), [`test_understand_repo_check_is_current_then_stale`](../../tests/plugin/test_server.py#L452), [`test_understand_repo_refuses_to_build_into_a_clone_that_vanishes`](../../tests/plugin/test_server.py#L467), [`test_understand_repo_writes_where_out_says`](../../tests/plugin/test_server.py#L476)
 - **Calls** (5): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`Settings`](../../src/orchestrator/registry/api/config.py#L44), [`_in_repo`](../../src/orchestrator/plugin/server.py#L317), `pathlib.Path`, [`resolve_repo_source`](../../src/orchestrator/registry/api/workspace.py#L166)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#progress-from-the-long-tools`, `AGENT_GUIDE.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`
 
@@ -511,4 +511,4 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.plugin`](../../src/orchestrator/plugin/__init__.py#L1), [`orchestrator.plugin.__main__`](../../src/orchestrator/plugin/__main__.py#L1), [`tests.plugin.conftest`](../../tests/plugin/conftest.py#L1), [`tests.plugin.test_audit`](../../tests/plugin/test_audit.py#L1), [`tests.plugin.test_manifests`](../../tests/plugin/test_manifests.py#L1), [`tests.plugin.test_outputs`](../../tests/plugin/test_outputs.py#L1), [`tests.plugin.test_progress`](../../tests/plugin/test_progress.py#L1), [`tests.plugin.test_prompts`](../../tests/plugin/test_prompts.py#L1), [`tests.plugin.test_resources`](../../tests/plugin/test_resources.py#L1), [`tests.plugin.test_server`](../../tests/plugin/test_server.py#L1)
+[`orchestrator.plugin`](../../src/orchestrator/plugin/__init__.py#L1), [`orchestrator.plugin.__main__`](../../src/orchestrator/plugin/__main__.py#L1), [`tests.pkg.test_interface_reach`](../../tests/pkg/test_interface_reach.py#L1), [`tests.plugin.conftest`](../../tests/plugin/conftest.py#L1), [`tests.plugin.test_audit`](../../tests/plugin/test_audit.py#L1), [`tests.plugin.test_manifests`](../../tests/plugin/test_manifests.py#L1), [`tests.plugin.test_outputs`](../../tests/plugin/test_outputs.py#L1), [`tests.plugin.test_progress`](../../tests/plugin/test_progress.py#L1), [`tests.plugin.test_prompts`](../../tests/plugin/test_prompts.py#L1), [`tests.plugin.test_resources`](../../tests/plugin/test_resources.py#L1), [`tests.plugin.test_server`](../../tests/plugin/test_server.py#L1)
