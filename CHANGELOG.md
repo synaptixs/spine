@@ -4,6 +4,46 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## Unreleased
+
+### Added
+
+- **Java and C# calls through a typed receiver.** `_service.Do()` through a field, `repo.Load(id)`
+  through a parameter, `local.Count()` on a typed local or `var x = new T()` — and, in C#, static
+  calls on an in-repo type (`Helper.Format(x)`) — now land on the member the declared type means.
+  Both front-ends used to drop them: on a .NET service 2,427 such calls were resolvable from the
+  source and 0 were emitted (775 CALLS in the whole graph, now 5,547); on mysql-connector-j 334 of
+  14,984 (CALLS 20,235 → 35,646). Resolution follows the compiler's lookup order (enclosing and
+  inherited member types, the namespace/package, `using`/imports) and the nearest in-repo type
+  that declares the member; an interface-typed receiver lands on the interface's member. A
+  receiver whose type is not written — a lambda parameter, `var x = Call()`, a query variable —
+  or a lookup the compiler would find ambiguous is refused, never guessed; a decoy class with the
+  same member name cannot fool it (corpus `*/typed_receivers_refusals`).
+- **ASP.NET Core DI registrations become `PROVIDES`.** `services.AddScoped<IMailer, SmtpMailer>()`
+  (and `Transient`/`Singleton`/`TryAdd*`) records `SmtpMailer PROVIDES IMailer`, the edge Kotlin's
+  Hilt bindings introduced. A factory registration is not read.
+- **`blast_radius` reaches an implementation's callers through its interface.** Every consumer of
+  a DI-bound service is handed the interface, so nothing calls the implementation by name — its
+  blast radius was empty. `blast_radius` now also reports `interface_callers` (and
+  `explain_symbol` `called_through_interface`): the callers of each member this one implements, at
+  every level up through `IMPLEMENTS` and `PROVIDES`, each with the `via` member. They are counted
+  apart from direct callers, because they *may* reach this implementation, not must. On the .NET
+  service: a logging implementation's method went from 0 callers to 0 direct + 304 through
+  its interface's member.
+
+### Fixed
+
+- **C# base types reached through `using`.** `class Store : IStore` with `IStore` in a sibling
+  namespace was placed in the class's own namespace and then made external — 46 of 77 "external"
+  bases on the .NET service were in-repo interfaces. They now resolve through the same lookup.
+- **Java `interface X extends Y` had no `IMPLEMENTS` edge** (an interface's `extends` list was not
+  read): +126 on mysql-connector-j, which is also what lets a member an interface inherits be found.
+
+  **Upgrade note:** Java and C# graphs gain many `CALLS`, `IMPLEMENTS` and (C#) `PROVIDES` edges,
+  so an `understand --check` in CI diffs once — regenerate `episteme/` with
+  `orchestrator understand .`. The new `blast_radius` / `explain_symbol` fields are additive; a
+  symbol with no interface member reports exactly what it did before.
+
 ## 3.46.0 — 2026-09-24
 
 ### Fixed

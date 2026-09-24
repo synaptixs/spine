@@ -247,10 +247,10 @@ flowchart LR
   | Language | Status | Enable with |
   |---|---|---|
   | Python | ✅ built-in | (default) |
-  | Java | ✅ + JAX-RS **and Spring MVC** endpoints | `pip install 'synaptixs-spine[java]'` |
+  | Java | ✅ + JAX-RS **and Spring MVC** endpoints + typed-receiver call graph (parameters, fields incl. inherited/enclosing, typed locals, `var x = new T()`) | `pip install 'synaptixs-spine[java]'` |
   | TypeScript / TSX | ✅ | `pip install 'synaptixs-spine[typescript]'` |
   | JavaScript / JSX | ✅ + CommonJS (`require`, `module.exports`, aliased exports objects) + Express routes incl. member handlers + Sequelize entities | `pip install 'synaptixs-spine[typescript]'` — rides the same grammar |
-  | C# | ✅ + framework edges | `pip install 'synaptixs-spine[csharp]'` |
+  | C# | ✅ + framework edges + typed-receiver and static call graph + ASP.NET Core DI bindings (`PROVIDES`) | `pip install 'synaptixs-spine[csharp]'` |
   | C | ✅ + `#include` graph | `pip install 'synaptixs-spine[c]'` |
   | C++ | ✅ classes/namespaces/inheritance | `pip install 'synaptixs-spine[cpp]'` |
   | Go | ✅ + interface satisfaction (`IMPLEMENTS`) | `pip install 'synaptixs-spine[go]'` |
