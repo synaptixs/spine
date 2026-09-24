@@ -136,7 +136,7 @@ declared property/parameter type per scope), then each `call_expression`.
 
 | Call shape | Resolution | Emit |
 |---|---|---|
-| `foo()` bare inside a class | member or companion member of the enclosing type; else a same-file top-level function; else an imported function (`import com.x.foo`); else a same-package top-level function **declared in this file**. *As built (#453):* inside a receiver lambda — `with(x) { }`, `x.apply { }`, `x.run { }`, `buildX { }` — the receivers' members come first, innermost first; a receiver whose members cannot be listed blocks the enclosing-member reading | `CALLS` → the exact id; otherwise **skip** (a same-package function in another file is a guess with no `finalize` backstop for a function id) |
+| `foo()` bare inside a class | member or companion member of the enclosing type; else a same-file top-level function; else an imported function (`import com.x.foo`); else a same-package top-level function **declared in this file**. *As built (#453):* inside a receiver lambda — `with(x) { }`, `x.apply { }`, `x.run { }`, `buildX { }` — the receiver's members come first in Kotlin, so the enclosing-member reading is **refused** (never redirected to the receiver); top-level and imported readings stand | `CALLS` → the exact id; otherwise **skip** (a same-package function in another file is a guess with no `finalize` backstop for a function id) |
 | `this.foo()` | member | same |
 | `Type.foo()` (capitalised receiver) | object / companion / enum member via the Java rule | `CALLS` → `java:pkg.Type.foo`, external placeholder if third-party — the Java rule, unchanged |
 | `Type(args)` (constructor) | the `Type` node | `CALLS` → the `Type` (corpus rule: instantiation is a call to the type) |

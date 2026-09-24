@@ -33,21 +33,16 @@ All notable changes to this project are documented here. Format loosely follows
   put the receiver's members ahead of the enclosing class's, and the front-end ignored that:
   `apply("com.android.application")` inside `with(pluginManager) { }` was recorded as a Gradle
   convention plugin's own `apply(target: Project)` calling itself — 17 invented self-loops on
-  the Android validation app. Resolution now follows Kotlin's order, innermost receiver first.
-  A receiver declared in the repository takes the call when it declares or inherits the name;
-  one whose members cannot be listed (a library type, an untyped receiver, a builder) blocks
-  the enclosing-class reading instead of guessing. Top-level and imported calls are unchanged.
-  A user's own `run`/`apply`/`with`, companion members, nested types, local functions, an
-  anonymous `object` and a fitting repository extension are all respected rather than guessed
-  past; a local `fun` also stops a same-named extension elsewhere in the file claiming its calls
-  (two such invented edges in ktor-samples' httpbin). **What it costs:** a call to the enclosing
-  class from inside a block whose receiver is a library type or an unreadable expression is now
-  refused rather than assumed — measured on third-party Kotlin, React Native's `ReactAndroid`
-  loses 20 such edges and `@react-native/gradle-plugin` 5, while detox gains 22 receiver-member
-  calls and loses 3. On the Android validation app exactly the 17 invented edges go; KaMPKit and
-  spring-petclinic-kotlin are unchanged. Kotlin `CALLS` recall reads lower (0.93 → 0.89) because
-  the new corpus case labels the true `PluginManager.apply` targets the front-end cannot prove as
-  known gaps. See [kotlin-support-roadmap.md](docs/specs/kotlin-support-roadmap.md) §3.2.
+  the Android validation app. Inside those blocks an enclosing-class member reading is now
+  **refused**, and never redirected to the receiver, so the change can only remove an edge:
+  measured on seven Kotlin code bases, every edge it emits was emitted before, and every edge it
+  removes is a bare call inside such a block. Top-level and imported calls are unchanged.
+  **What it costs:** a *true* call to the enclosing class from inside one of these blocks is
+  dropped too — React Native's `ReactAndroid` loses 20, detox 4, `@react-native/gradle-plugin` 5;
+  ktor-samples, KaMPKit and spring-petclinic-kotlin are unchanged. Kotlin `CALLS` recall reads
+  0.93 → 0.85: the new corpus case labels the true targets the rule gives up as known gaps.
+  Resolving such a call *to* the receiver's member is the follow-up in #459.
+  See [kotlin-support-roadmap.md](docs/specs/kotlin-support-roadmap.md) §3.2.
 - **A call through a Python re-export lands on the symbol that defines it.** `from app import
   Store; Store()` put the edge on an external placeholder, `py:app.Store`, instead of
   `py:app.store.Store` — so `blast_radius`, `explain_symbol`, `investigate` and grounding

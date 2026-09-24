@@ -1,7 +1,7 @@
 {
   "language": "kotlin",
   "case": "receiver_lambdas",
-  "why": "#453. A lambda with a receiver — `with(x) { }`, `x.apply { }`, `x.run { }`, `buildString { }` — puts that receiver's members ahead of the enclosing class's, and a bare call inside one was being resolved to a same-named member of the enclosing class. On the Android validation app that minted 17 self-loops, a Gradle convention plugin's `apply(target: Project)` calling itself for every `apply(\"plugin-id\")` written inside `with(pluginManager) { }`. Kotlin's rule: innermost receiver first, then outward, then the enclosing class. A repo-declared receiver can be checked; a library receiver cannot, so the enclosing-member reading is refused behind it. `fallsBack` and the four `control*` functions pin what must not change: a receiver without the member falls through to the enclosing class, `run`/`let`/`also` do not change the receiver, and a top-level import keeps resolving.",
+  "why": "#453. A lambda with a receiver — `with(x) { }`, `x.apply { }`, `x.run { }`, `buildString { }` — puts that receiver's members ahead of the enclosing class's, and a bare call inside one was being resolved to a same-named member of the enclosing class. On the Android validation app that minted 17 self-loops, a Gradle convention plugin's `apply(target: Project)` calling itself for every `apply(\\\"plugin-id\\\")` written inside `with(pluginManager) { }`. Kotlin's rule is innermost receiver first, then outward, then the enclosing class; this front-end cannot show what a receiver declares, so inside a recognised receiver lambda it **refuses** the enclosing-member reading and never redirects the call to a receiver — the rule can only remove an edge. The labels are Kotlin's true answers regardless: where the refusal gives one up (`viaReceiver`, `fallsBack`) it is a known gap, not an omission. The four `control*` functions pin what must not change: `run`/`let`/`also` do not change the receiver, and a top-level import keeps resolving.",
   "root": ".repo",
   "nodes": [
     { "id": "java:app.build", "kind": "Module" },
@@ -84,6 +84,15 @@
     {
       "edge": { "src": "java:app.data.Sync.innermostWins", "dst": "java:org.gradle.api.plugins.PluginManager.apply", "kind": "CALLS" },
       "why": "PREDICTED BEFORE SCORING. `with(repo) { with(pluginManager) { apply(\"x\") } }`: the innermost receiver is the library `PluginManager`, which declares `apply(String)`, so that is the target — not the outer receiver's `TopicRepository.apply` and not the enclosing `Sync.apply`. Unprovable for the same reason as the first entry, so skipped (#453)."
+    }
+,
+    {
+      "edge": { "src": "java:app.data.Sync.viaReceiver", "dst": "java:app.data.TopicRepository.refresh", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING (refuse-only, #453). `with(repo) { refresh() }`: `TopicRepository` declares `refresh`, so it is the target. The front-end refuses the enclosing `Sync.refresh` here and deliberately does not redirect to the receiver's member — doing that safely needs Kotlin's name resolution (companions, local and member extensions, a user's own `run`/`with`) without type information, and a redirecting version invented edges in review. A true call given up by design."
+    },
+    {
+      "edge": { "src": "java:app.data.Sync.fallsBack", "dst": "java:app.data.Sync.helper", "kind": "CALLS" },
+      "why": "PREDICTED BEFORE SCORING (refuse-only, #453). `with(repo) { helper() }`: `TopicRepository` has no `helper`, so Kotlin falls back to the enclosing `Sync.helper` — true. The front-end refuses every enclosing-member reading inside a receiver lambda rather than prove the receiver lacks the name, so this true edge is the rule's recall cost, recorded rather than hidden."
     }
   ],
   "false_positives": [],
