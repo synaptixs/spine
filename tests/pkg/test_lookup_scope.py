@@ -241,3 +241,84 @@ def test_java_lang_is_imported_implicitly(tmp_path: Path) -> None:
     # `Thread` is java.lang.Thread without an import, so `State` in its subclass is Thread.State
     assert ("java:app.Worker.f", "java:app.State.valueOf") not in calls
     assert ("java:app.Plain.f", "java:app.State.valueOf") in calls
+
+
+BASE = (
+    "package a;\npublic abstract class Base {\n"
+    "  public static class Helper { public void go() {} public static void s() {} }\n"
+    "  public abstract void run();\n}\n"
+)
+HELPER = "package a;\npublic class Helper { public void go() {} public static void s() {} }\n"
+
+
+def test_java_a_refused_head_refuses_the_whole_name(tmp_path: Path) -> None:
+    files = {
+        "a/Order.java": "package a;\npublic class Order { public static class Line { } }\n",
+        "a/SimpleEntry.java": "package a;\npublic class SimpleEntry { public static class Pair { } }\n",
+        "a/Use.java": (
+            "package a;\npublic class Use {\n  void local() { class Order { } new Order.Line(); }\n}\n"
+        ),
+        "a/MyMap.java": (
+            "package a;\nimport java.util.AbstractMap;\n"
+            "public abstract class MyMap<K, V> extends AbstractMap<K, V> { "
+            "Object f() { return new SimpleEntry.Pair(); } }\n"
+        ),
+    }
+    # a local class head, or a head an external base declares, is not the in-repo type of that name
+    assert _java(tmp_path, files) == set()
+
+
+def test_java_receivers_and_statics_inside_an_anonymous_body(tmp_path: Path) -> None:
+    files = {
+        "a/Base.java": BASE,
+        "a/Helper.java": HELPER,
+        "a/Use.java": (
+            "package a;\npublic class Use {\n  void f() {\n"
+            "    Base b = new Base() { public void run() { Helper h = null; h.go(); Helper.s(); } };\n"
+            "    Helper outside = null; outside.go();\n  }\n}\n"
+        ),
+    }
+    calls = _java(tmp_path, files)
+    assert {("java:a.Use.f", "java:a.Base.Helper.go"), ("java:a.Use.f", "java:a.Base.Helper.s")} <= calls
+    assert ("java:a.Use.f", "java:a.Helper.go") in calls  # the one declared outside the anonymous body
+    assert ("java:a.Use.f", "java:a.Helper.s") not in calls
+
+
+def test_java_an_anonymous_class_with_an_external_base(tmp_path: Path) -> None:
+    files = {
+        "a/Helper.java": HELPER,
+        "a/SimpleEntry.java": "package a;\npublic class SimpleEntry { }\n",
+        "a/Use.java": (
+            "package a;\nimport java.util.AbstractMap;\npublic class Use {\n"
+            "  void listed() { Object m = new AbstractMap<String, String>() {\n"
+            "    public java.util.Set entrySet() { new SimpleEntry(); return null; } }; }\n"
+            "  void unlisted() { Runnable r = new Runnable() { public void run() { new Helper(); } }; }\n}\n"
+        ),
+    }
+    calls = _java(tmp_path, files)
+    # AbstractMap declares SimpleEntry, so it hides the repo's; Runnable declares no Helper
+    assert ("java:a.Use.listed", "java:a.SimpleEntry") not in calls
+    assert ("java:a.Use.unlisted", "java:a.Helper") in calls
+
+
+def test_java_a_local_class_hides_to_the_end_of_its_block_and_into_a_lambda(tmp_path: Path) -> None:
+    files = {
+        "a/Order.java": "package a;\npublic class Order { }\n",
+        "a/Use.java": (
+            "package a;\npublic class Use {\n"
+            "  void block(boolean b) { if (b) { class Order { } } new Order(); }\n"
+            "  void lambda() { class Order { } Runnable r = () -> new Order(); }\n}\n"
+        ),
+    }
+    assert _java(tmp_path, files) == {("java:a.Use.block", "java:a.Order")}
+
+
+def test_csharp_a_receiver_typed_by_a_local_functions_type_parameter(tmp_path: Path) -> None:
+    files = {
+        "T.cs": (
+            "namespace D {\n  public class TItem { public void Go() { } }\n  public class Use {\n"
+            "    void M() { void Inner<TItem>(TItem item) { item.Go(); } }\n"
+            "    void Real(TItem item) { item.Go(); } } }\n"
+        ),
+    }
+    assert _csharp(tmp_path, files) == {("csharp:D.Use.Real", "csharp:D.TItem.Go")}
