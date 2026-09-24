@@ -437,8 +437,10 @@ def map_repo(repo_path: str, lens: str = "developer") -> dict[str, Any]:
 
 
 def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
-    """ "What breaks if I change X" — a symbol's direct callers plus the cross-layer set a
-    change ripples into (CALLS + IMPORTS + REFERENCES), each with ``file:line``. Deterministic.
+    """ "What breaks if I change X" — a symbol's direct callers, the callers that reach it
+    through an interface member it implements (``interface_callers``, each with its ``via``
+    member — they may reach it, not must), plus the cross-layer set a change ripples into
+    (CALLS + IMPORTS + REFERENCES), each with ``file:line``. Deterministic.
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to answer across every
     declared repository: each match then also reports the dependents a change reaches **in
@@ -486,7 +488,8 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
 
 
 def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
-    """What a symbol is and how it connects: kind, location, who calls it, what it calls, and
+    """What a symbol is and how it connects: kind, location, who calls it (and who calls it
+    through an interface member it implements, with the ``via`` member), what it calls, and
     what it contains. Deterministic (no LLM).
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to explain it across every
