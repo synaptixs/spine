@@ -137,3 +137,61 @@ def test_a_query_range_variable_shadows_a_field(tmp_path: Path) -> None:
         ),
     }
     assert ("csharp:App.Use.Go", "csharp:Lib.Handler.ToString") not in _edges(tmp_path, files)
+
+
+# ---- Java -----------------------------------------------------------------------------------
+
+
+def _java(tmp_path: Path, files: dict[str, str], kind: EdgeKind = EdgeKind.CALLS) -> set[tuple[str, str]]:
+    pytest.importorskip("tree_sitter_java", reason="install the 'java' extra")
+    return _edges(tmp_path, files, kind)
+
+
+def test_java_interface_extends_is_an_implements_edge(tmp_path: Path) -> None:
+    files = {
+        "a/Named.java": "package a;\npublic interface Named { String name(); }\n",
+        "a/Store.java": "package a;\npublic interface Store extends Named { int load(); }\n",
+    }
+    assert ("java:a.Store", "java:a.Named") in _java(tmp_path, files, EdgeKind.IMPLEMENTS)
+
+
+def test_java_an_override_is_not_a_tie(tmp_path: Path) -> None:
+    files = {
+        "a/P.java": (
+            "package a;\ninterface Proto { int settings(); }\n"
+            "abstract class Base implements Proto { public int settings() { return 1; } }\n"
+            "class X extends Base implements Proto { }\n"
+            "class Use { int go(X x) { return x.settings(); } }\n"
+        ),
+    }
+    calls = _java(tmp_path, files)
+    assert ("java:a.Use.go", "java:a.Base.settings") in calls
+    assert ("java:a.Use.go", "java:a.Proto.settings") not in calls
+
+
+def test_java_an_inherited_member_type_and_an_enclosing_field(tmp_path: Path) -> None:
+    files = {
+        "a/Session.java": "package a;\npublic interface Session { interface Listener { void closed(); } }\n",
+        "b/Impl.java": (
+            "package b;\nimport a.Session;\n"
+            "public class Impl implements Session {\n"
+            "  private Listener main;\n"
+            "  void fire(Listener l) { l.closed(); }\n"
+            "  class Inner { void go() { main.closed(); } }\n}\n"
+        ),
+    }
+    calls = _java(tmp_path, files)
+    assert {
+        ("java:b.Impl.fire", "java:a.Session.Listener.closed"),
+        ("java:b.Impl.Inner.go", "java:a.Session.Listener.closed"),
+    } <= calls
+
+
+def test_java_a_method_sharing_a_fields_id_refuses(tmp_path: Path) -> None:
+    files = {
+        "a/Lazy.java": (
+            "package a;\npublic class Lazy {\n  private int length;\n  public int length() { return 0; }\n}\n"
+        ),
+        "a/Use.java": "package a;\nclass Use { int go(Lazy z) { return z.length(); } }\n",
+    }
+    assert ("java:a.Use.go", "java:a.Lazy.length") not in _java(tmp_path, files)

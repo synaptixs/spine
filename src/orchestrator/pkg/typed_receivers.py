@@ -58,6 +58,11 @@ class TypeRef:
     groups: tuple[tuple[str, ...], ...]
     simple: str = ""
     using_prefixes: tuple[str, ...] = ()
+    # Tried before ``groups``: ``nested`` as a member type of each enclosing type, innermost
+    # first — its own, then one its supertypes declare (Java and C# both put an inherited
+    # member type in scope: `SessionEventListener` inside a class implementing `Session`).
+    enclosing: tuple[str, ...] = ()
+    nested: str = ""
 
 
 @dataclass(frozen=True)
@@ -130,7 +135,11 @@ class TypeIndex:
     def type_of(self, ref: TypeRef | None) -> str | None:
         if ref is None:
             return None
-        groups = list(ref.groups)
+        groups: list[tuple[str, ...]] = []
+        for outer in ref.enclosing if ref.nested else ():
+            groups.append((f"{outer}.{ref.nested}",))
+            groups.append(tuple(f"{a}.{ref.nested}" for a in sorted(self._ancestors(outer))))
+        groups.extend(ref.groups)
         if ref.simple:
             prefixes = sorted({*ref.using_prefixes, *self.state.global_prefixes})
             groups.append(tuple(f"{self.state.language}:{p}.{ref.simple}" for p in prefixes))
@@ -156,11 +165,18 @@ class TypeIndex:
         """The nearest in-repo type, ``type_id`` or a supertype, that declares ``member``."""
         for level in self._levels(type_id):
             owners = [t for t in level if member in self.members.get(t, ())]
+            # An owner that is itself a supertype of another owner is overridden by it:
+            # `class X extends AbstractProtocol implements Protocol`, where AbstractProtocol
+            # implements Protocol too, calls AbstractProtocol's — no ambiguity.
+            owners = [o for o in owners if not any(o != p and o in self._ancestors(p) for p in owners)]
             if len(owners) == 1:
                 return owners[0]
             if owners:
-                return None  # two supertypes at one level both declare it
+                return None  # two unrelated supertypes at one level both declare it
         return None
+
+    def _ancestors(self, type_id: str) -> set[str]:
+        return {t for level in self._levels(type_id)[1:] for t in level}
 
     def field_type(self, type_id: str, name: str) -> tuple[bool, str | None]:
         """``(found, type)`` for a field: the type and its supertypes nearest first, then the

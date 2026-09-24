@@ -623,13 +623,17 @@ def _type_ref_in(text: str, namespace: str, rec: _TypeRec | None, usings: _Using
         return TypeRef((*namespaces, (f"csharp:{name}",)))
     if name in usings.aliases:
         return TypeRef(((f"csharp:{usings.aliases[name]}",),))
-    enclosing: list[tuple[str, ...]] = []
+    chain: list[str] = []
     cur: _TypeRec | None = rec
     while cur is not None:
-        enclosing.append((f"{cur.type_id}.{name}",))
+        chain.append(cur.type_id)
         cur = cur.parent
     return TypeRef(
-        (*enclosing, *namespaces, (f"csharp:{name}",)), simple=name, using_prefixes=usings.prefixes
+        (*namespaces, (f"csharp:{name}",)),
+        simple=name,
+        using_prefixes=usings.prefixes,
+        enclosing=tuple(chain),
+        nested=name,
     )
 
 
