@@ -11,11 +11,13 @@ it outbound to the interface's callers.
 Measured before this existed: 66 two-type registrations in one .NET service, 18 in another, and
 not one ``PROVIDES`` edge.
 
-**Only the two-type generic form** — ``Add{Scoped,Transient,Singleton}<I, T>()`` and its
+**The two-type generic form** — ``Add{Scoped,Transient,Singleton}<I, T>()`` and its
 ``TryAdd*`` twins — produces an edge (D12). A single-type ``AddTransient<Worker>()`` binds a
 concrete type as itself, so there is nothing to connect. A factory ``AddScoped<IAudit>(sp => new
-DbAudit())`` returns whatever the lambda builds; reading ``new DbAudit`` out of it would be the
-first guess in the chain, so it is a known gap (corpus ``csharp/di_bindings``). Both type
+DbAudit())`` binds whatever its lambda builds, so it is read only when the lambda's body is
+**exactly one** ``new T(…)`` (B22, D9): then ``T`` is what is built, and nothing is inferred. A
+block body, a method call, a conditional — any factory that *computes* its result — stays unread
+(corpus ``csharp/di_bindings``). Both type
 arguments are resolved the way any written type is (``using``, namespace chain) and must name
 types this repository declares — a registration of a framework type is not a first-party binding
 — and the implementation must reach the interface through ``IMPLEMENTS``.
@@ -63,6 +65,22 @@ def type_arguments(invocation: TSNode) -> tuple[str, list[TSNode]] | None:
     return head.text.decode("utf-8", "replace") if head.text else "", list(args.named_children)
 
 
+def factory_creation(invocation: TSNode) -> TSNode | None:
+    """The written type in ``x.AddScoped<I>(sp => new T(…))`` — the one argument a lambda whose
+    expression body is exactly one creation — else None (B22, D9)."""
+    args = invocation.child_by_field_name("arguments")
+    arguments = [a for a in args.named_children if a.type == "argument"] if args is not None else []
+    if len(arguments) != 1:
+        return None
+    lam = arguments[0].named_children[-1] if arguments[0].named_children else None
+    if lam is None or lam.type != "lambda_expression":
+        return None
+    body = lam.child_by_field_name("body")
+    if body is None or body.type != "object_creation_expression":
+        return None
+    return body.child_by_field_name("type")
+
+
 def emit_provides(batch: FactBatch, bindings: list[Binding], state: ReceiverState) -> None:
     """Add ``implementation PROVIDES interface`` for every binding whose two types are declared."""
     if not bindings:
@@ -77,4 +95,4 @@ def emit_provides(batch: FactBatch, bindings: list[Binding], state: ReceiverStat
     bindings.clear()
 
 
-__all__ = ["REGISTRATIONS", "Binding", "emit_provides", "type_arguments"]
+__all__ = ["REGISTRATIONS", "Binding", "emit_provides", "factory_creation", "type_arguments"]

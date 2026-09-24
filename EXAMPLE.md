@@ -184,7 +184,7 @@ Every step above trusted the graph. That trust should be earned with a number, n
 orchestrator pkg accuracy
 ```
 
-It scores the extractor against a committed corpus of 104 hand-labelled cases covering
+It scores the extractor against a committed corpus of 106 hand-labelled cases covering
 all 13 of Spine's front-ends. **Precision is 1.00 on every node kind and every edge kind, in every language** —
 so nothing you saw in steps 3–6 was invented. Recall is 1.00 on nearly everything except `CALLS`:
 
@@ -192,12 +192,11 @@ so nothing you saw in steps 3–6 was invented. Recall is 1.00 on nearly everyth
 |---|---|
 | `c` `sql` | 1.00 |
 | `javascript` | 0.97 |
-| `perl` `python` | 0.89 |
+| `java` | 0.91 |
+| `csharp` `perl` `python` | 0.89 |
 | `kotlin` | 0.87 |
 | `typescript` | 0.86 |
 | `cpp` `go` `php` | 0.75 |
-| `java` | 0.70 |
-| `csharp` | 0.68 |
 
 That asymmetry is the point. The blast radius in step 4 may be **incomplete**, but it is not
 **wrong** — every caller it named is a real caller. A missing edge makes you look further; a

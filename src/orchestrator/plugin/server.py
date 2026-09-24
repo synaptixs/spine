@@ -440,7 +440,9 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
     """ "What breaks if I change X" — a symbol's direct callers, the callers that reach it
     through an interface member it implements (``interface_callers``, each with its ``via``
     member — they may reach it, not must), plus the cross-layer set a change ripples into
-    (CALLS + IMPORTS + REFERENCES), each with ``file:line``. Deterministic.
+    (CALLS + IMPORTS + REFERENCES), each with ``file:line``. A type's callers are the code that
+    creates it; a Java/C# constructor reports those creators as ``instantiated_via_type``.
+    Deterministic.
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to answer across every
     declared repository: each match then also reports the dependents a change reaches **in
@@ -475,8 +477,16 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
                     {"id": t.id, "where": str(t.provenance) if t.provenance else None} for t in touched[:25]
                 ],
             }
+            owner = _constructed_type(store, node)
+            if owner is not None:
+                # A Java/C# `new Foo(…)` lands on the Type (B22, D1), so its constructor node has no
+                # callers of its own; every creation runs one of the overloads this node stands for.
+                made = store.callers_of(owner)
+                entry["instantiated_via_type_count"] = len(made)
+                entry["instantiated_via_type"] = [{"id": cs.caller.id, "at": cs.at} for cs in made[:25]]
             if repos:
-                reach = _cross_repo_reach(store, node.id)
+                # a constructor's reach is its type's: no edge targets the constructor itself (B22)
+                reach = _cross_repo_reach(store, owner or node.id)
                 entry["cross_repo_count"] = len(reach)
                 entry["cross_repo"] = reach[:25]
             out.append(entry)
@@ -489,8 +499,9 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
 
 def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
     """What a symbol is and how it connects: kind, location, who calls it (and who calls it
-    through an interface member it implements, with the ``via`` member), what it calls, and
-    what it contains. Deterministic (no LLM).
+    through an interface member it implements, with the ``via`` member; for a Java/C#
+    constructor, who creates its type), what it calls, and what it contains. Deterministic (no
+    LLM).
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to explain it across every
     declared repository: each match then says which repository it lives in and lists the
@@ -520,9 +531,13 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
                 "calls": [n.id for n in store.callees_of(node.id)[:15]],
                 "contains": [n.id for n in store.children_of(node.id)[:25]],
             }
+            owner = _constructed_type(store, node)
+            if owner is not None:  # a constructor: who creates its type (B22, D8)
+                entry["instantiated_via_type"] = [cs.caller.id for cs in store.callers_of(owner)[:15]]
             if repos:
                 entry["repo"] = _repo_of_node(node)
-                reach = _cross_repo_reach(store, node.id)
+                # a constructor's reach is its type's: no edge targets the constructor itself (B22)
+                reach = _cross_repo_reach(store, owner or node.id)
                 entry["cross_repo_count"] = len(reach)
                 entry["cross_repo"] = reach[:25]
             out.append(entry)
@@ -1033,6 +1048,22 @@ def _per_repo(repos: str, fn: Callable[[Any], dict[str, Any]]) -> dict[str, Any]
     }
 
 
+def _constructed_type(store: Any, node: Any) -> str | None:
+    """The Type a Java/C# constructor node constructs, else None. A constructor is a Function its
+    Type contains under the Type's own name (``Foo.Foo``) — one node for every overload. A Java
+    method spelled like its class, or a C# static constructor, mints the same id (member ids carry
+    no kind or signature — ledger B25), so the node stands for them too; its creators are still
+    the type's."""
+    from orchestrator.pkg.facts import NodeKind
+
+    if node.kind is not NodeKind.FUNCTION or node.language not in ("java", "csharp") or "." not in node.id:
+        return None
+    owner = store.node(node.id.rsplit(".", 1)[0])
+    if owner is None or owner.kind is not NodeKind.TYPE or owner.name != node.name:
+        return None
+    return str(owner.id) if any(c.id == node.id for c in store.children_of(owner.id)) else None
+
+
 def _blast_markdown(matches: list[dict[str, Any]]) -> str:
     lines: list[str] = []
     for m in matches:
@@ -1044,6 +1075,12 @@ def _blast_markdown(matches: list[dict[str, Any]]) -> str:
             reached = ", ".join(f"{c['id']} (via `{c['via']}`)" for c in m["interface_callers"][:10])
             count = m["interface_caller_count"]
             lines.append(f"- **Called through an interface ({count}) — may reach this:** {reached}")
+        if "instantiated_via_type_count" in m:
+            made = ", ".join(c["id"] for c in m["instantiated_via_type"][:10]) or "none"
+            count = m["instantiated_via_type_count"]
+            lines.append(
+                f"- **Instantiated through its type ({count}) — each runs one of these overloads:** {made}"
+            )
         lines.append(f"- **Touches ({m['touch_count']}):** " + ", ".join(t["id"] for t in m["touches"][:10]))
         # Only on a merged graph. Rendered even at zero: "no dependents in other repos" is an
         # answer, and its absence would read the same as never having looked.

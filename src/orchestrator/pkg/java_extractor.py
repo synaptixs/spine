@@ -272,7 +272,13 @@ class JavaExtractor:
             n = stack.pop()
             if n.type in _TYPE_DECLS:
                 continue  # nested/local class — a separate scope, not this method's calls
-            if n.type == "method_invocation":
+            if n.type == "object_creation_expression":
+                created = _creation(
+                    n, caller, type_id, package, imports, self._receivers, source, method_params, rel
+                )
+                if created is not None:
+                    self._receivers.calls.append(created)
+            elif n.type == "method_invocation":
                 line = n.start_point[0] + 1
                 obj = n.child_by_field_name("object")
                 # A local or parameter named like a type (`void f(Car Rocket) { Rocket.run(); }`) is
@@ -575,6 +581,32 @@ def _method_scope(
                 if c.type == "identifier":
                     bind(c, UNREADABLE, _block_of(n), c)
     return scope
+
+
+def _creation(
+    node: TSNode,
+    caller: str,
+    type_id: str,
+    package: str,
+    imports: _ImportContext,
+    state: ReceiverState,
+    source: bytes,
+    method_params: frozenset[str],
+    rel: str,
+) -> DeferredCall | None:
+    """``new Foo(…)`` — and ``new Base() { … }``, which runs ``Base``'s constructor — as an
+    instantiation of the written type, settled in ``finalize`` (B22). Instantiation is ``CALLS`` to
+    the Type node (``corpus/README.md``). ``outer.new Inner()`` is refused: its type is relative
+    to an expression. Arrays are ``array_creation_expression`` and ``Foo::new`` a
+    ``method_reference``; neither is read, because neither runs a constructor at this line."""
+    if not node.children or node.children[0].type != "new":
+        return None  # `outer.new Inner()` / `this.new Inner()`
+    ref = _java_type_node_ref(
+        node.child_by_field_name("type"), type_id, package, imports, state, source, method_params
+    )
+    if ref is None:
+        return None
+    return DeferredCall(caller, "", rel, node.start_point[0] + 1, receiver=ref, creates=True)
 
 
 def _deferred_call(

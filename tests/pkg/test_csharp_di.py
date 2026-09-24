@@ -2,7 +2,8 @@
 
 Every consumer of a DI-bound service is handed the interface, so nothing calls the
 implementation by name and `blast_radius` on it found nothing. The two-type registration is the
-fact that connects them — and the only form read: a factory returns whatever its lambda builds.
+fact that connects them. A factory is read only when its lambda builds exactly one type,
+`sp => new T()` (B22, D9, `test_constructor_calls.py`); any factory that computes its result is not.
 """
 
 from __future__ import annotations
@@ -53,7 +54,8 @@ def test_single_type_factory_and_framework_registrations_bind_nothing(tmp_path: 
         "using App.Services;\nnamespace App;\npublic static class Startup {\n"
         "  public static void Register(IServiceCollection services) {\n"
         "    services.AddTransient<Worker>();\n"
-        "    services.AddScoped<IAudit>(sp => new DbAudit());\n"
+        # a factory that computes its result (B22's D9 reads only a body that is one `new T()`)
+        "    services.AddScoped<IAudit>(sp => sp.GetRequiredService<DbAudit>());\n"
         "    services.AddSingleton<IHttpClientFactory, DefaultHttpClientFactory>();\n"
         "  }\n}\n",
     )
