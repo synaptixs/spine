@@ -1,6 +1,6 @@
-# State of Spine — 3.46.0
+# State of Spine — 3.47.0
 
-**The one document to read.** Verified against source on **2026-09-24**, at the 3.46.0 release
+**The one document to read.** Verified against source on **2026-09-24**, at the 3.47.0 release
 cut. Every gated number below was re-measured that day (`scripts/state-numbers.py --check`).
 
 > **Why this exists.** `docs/specs/` holds **91** markdown files — **87 specs** plus this
@@ -24,7 +24,7 @@ gates (before building, before merging). The product is **Spine**; it ships as
 
 | | Value | How it is known |
 |---|---|---|
-| Version | **3.46.0** | cutting now; 3.45.0 is the last on PyPI. **Minor** — graphs that say who really calls what: a Python call through a re-export lands on the symbol that defines it (1,271 `CALLS` moved off phantom twins on Spine's own graph), with a new `pkg verify` `phantom-symbol` warning for what is left; Kotlin recovers files a one-line body used to collapse (#396), resolves wildcard-imported Room entities and cross-file same-package extensions (#397), and refuses the 17 invented self-calls a `with(x) { }` block produced on the Android validation app (#453) |
+| Version | **3.47.0** | cutting now; 3.46.0 is the last on PyPI. **Minor** — Java and C# graphs that say who calls what: a call through a typed receiver (a field, a parameter, a typed local) lands on the member the declared type means (a .NET service: 0 → 2,427 of 2,427 resolvable calls; mysql-connector-j: 334 → 12,962 of 14,984), `new Foo()` is a `CALLS` edge to `Foo` (mysql-connector-j `result.Field` 0 → 264 callers), ASP.NET Core DI registrations become `PROVIDES`, and `blast_radius` reaches an implementation's callers through the interface member it implements (`interface_callers`, `via`), in every language with `IMPLEMENTS` |
 | Languages extracted | **12** languages (**13** front-ends) | Python, Java, TypeScript, JavaScript, C#, C, C++, Go, PHP, Perl, Kotlin, SQL, plus a **Gradle** reader that turns `.kts` build scripts into a module dependency graph rather than parsing them as source (D11) — Perl has comprehension + `CALLS` + routes + data layer (all six phases of [perl-support-roadmap.md](perl-support-roadmap.md)); Kotlin is at P0–P11 (all phases) of [kotlin-support-roadmap.md](kotlin-support-roadmap.md) (comprehension, `CALLS`, Room entities + DAO data edges, Retrofit calls as cross-repo `CONSUMES` candidates, Compose navigation as `NAV` endpoints, Hilt/Dagger wiring through the new `PROVIDES` edge, a Gradle `.kts` module graph that gives `state` real components instead of package-name prefixes, and Ktor + Spring MVC server routes that make a Kotlin service a **provider** — the Spring half is shared with the Java front-end, which had read JAX-RS only, Multiplatform source sets with `expect`/`actual` ids joined by `IMPLEMENTS`, and **Kotlin/JVM codegen** on Gradle — whose runner also gives *Java* codegen its first Gradle support) |
 | Perl codegen progress | **C-0 through C-5 DONE** | [Roadmap](perl-codegen-roadmap.md): dispatch mutation detection **4/8 → 8/8**, 0 skipped mutations; `--language perl` enabled with real green/red runner proof; greenfield live proof passes 81 assertions from a clean checkout; brownfield clean-checkout proof passes 4,192 tests, with 116 regression gaps unchanged |
 | PHP delivery | Composer or pinned PHPUnit PHAR | Configured test layout, changed-file lint, modern PHPUnit; [validation roadmap](php-codegen-roadmap.md) |
