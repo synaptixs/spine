@@ -184,6 +184,11 @@
       "src": "csharp:App.DbAudit",
       "dst": "csharp:App.IAudit",
       "kind": "PROVIDES"
+    },
+    {
+      "src": "csharp:App.Startup.Register",
+      "dst": "csharp:App.DbAudit",
+      "kind": "CALLS"
     }
   ],
   "known_gaps": [
@@ -194,6 +199,14 @@
         "kind": "PROVIDES"
       },
       "why": "PREDICTED BEFORE SCORING (D12). A factory registration `AddScoped<IAudit>(sp => new DbAudit())` returns whatever the lambda builds; reading `new DbAudit` out of it would be the first guess in the chain, so only the two-type generic form produces PROVIDES."
+    },
+    {
+      "edge": {
+        "src": "csharp:App.Startup.Register",
+        "dst": "csharp:App.DbAudit",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
     }
   ],
   "refusals": [
@@ -203,12 +216,12 @@
         "dst": "csharp:App.Worker",
         "kind": "PROVIDES"
       },
-      "why": "PREDICTED BEFORE SCORING. `AddTransient<Worker>()` registers a concrete type as itself \u2014 nothing is bound behind an interface."
+      "why": "PREDICTED BEFORE SCORING. `AddTransient<Worker>()` registers a concrete type as itself — nothing is bound behind an interface."
     }
   ],
   "false_positives": [],
   "excluded": [
-    "`services.AddScoped<...>()` etc. are calls on `IServiceCollection`, a type this repository does not declare \u2014 no CALLS edge (D11)."
+    "`services.AddScoped<...>()` etc. are calls on `IServiceCollection`, a type this repository does not declare — no CALLS edge (D11)."
   ],
   "open_questions": [],
   "note": "Labelled from the source before scoring."

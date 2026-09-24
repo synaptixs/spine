@@ -18,8 +18,6 @@ public class Dispatch
 
     public void ViaExtension(Handler h) => h.Shout();
 
-    public void ViaTie(IBoth b) => b.Ping();
-
     public void ViaShadow()
     {
         Rocket _handler = new Rocket();

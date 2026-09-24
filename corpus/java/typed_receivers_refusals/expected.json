@@ -2,7 +2,7 @@
   "language": "java",
   "case": "typed_receivers_refusals",
   "root": ".repo",
-  "why": "B21's other half, Java: every shape where a typed-receiver pass could guess \u2014 a decoy class, `var r = make()`, lambda parameters typed and untyped, a union catch, two unrelated interfaces at one level, a local shadowing a field, and a field/method sharing one id \u2014 labelled as edges it must not emit; plus one that must resolve although two supertypes declare the member, because one overrides the other.",
+  "why": "B21's other half, Java: every shape where a typed-receiver pass could guess — a decoy class, `var r = make()`, lambda parameters typed and untyped, a union catch, two unrelated interfaces at one level, a local shadowing a field, and a field/method sharing one id — labelled as edges it must not emit — true calls it leaves unresolved (a return type, a lambda, a field/method collision, a constructor) are known gaps, not refusals; plus one that must resolve although two supertypes declare the member, because one overrides the other.",
   "nodes": [
     {
       "id": "java:svc",
@@ -307,25 +307,41 @@
       "src": "java:svc.Dispatch.viaShadow",
       "dst": "java:svc.Rocket.run",
       "kind": "CALLS"
+    },
+    {
+      "src": "java:svc.Dispatch.viaUnknownVar",
+      "dst": "java:svc.Handler.run",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:svc.Dispatch.viaLambdas",
+      "dst": "java:svc.Handler.run",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:svc.Dispatch.viaCollision",
+      "dst": "java:svc.Lazy.length",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:svc.Dispatch.make",
+      "dst": "java:svc.Handler",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:svc.Dispatch.viaShadow",
+      "dst": "java:svc.Rocket",
+      "kind": "CALLS"
     }
   ],
-  "known_gaps": [],
-  "refusals": [
-    {
-      "edge": {
-        "src": "java:svc.Dispatch.viaField",
-        "dst": "java:svc.Rocket.run",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. The decoy: `handler` is a `Handler` \u2014 type, not name, decides."
-    },
+  "known_gaps": [
     {
       "edge": {
         "src": "java:svc.Dispatch.viaUnknownVar",
         "dst": "java:svc.Handler.run",
         "kind": "CALLS"
       },
-      "why": "PREDICTED BEFORE SCORING. `var r = make()` \u2014 a return type, not inferred (D3)."
+      "why": "PREDICTED BEFORE SCORING. `var r = make()` — `make` returns `Handler`, so the call is true; a return type is not inferred (D3)."
     },
     {
       "edge": {
@@ -333,7 +349,41 @@
         "dst": "java:svc.Handler.run",
         "kind": "CALLS"
       },
-      "why": "PREDICTED BEFORE SCORING. `h` and `(Handler g)` are lambda parameters (D13) \u2014 refused typed or not."
+      "why": "PREDICTED BEFORE SCORING. Both lambdas call `Handler.run` — true, but lambda parameters are out of scope, typed or not (D13)."
+    },
+    {
+      "edge": {
+        "src": "java:svc.Dispatch.viaCollision",
+        "dst": "java:svc.Lazy.length",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The call is to `Lazy.length()`, whose id this vocabulary shares with the field `length` (the node is the Field) — a true edge the pass declines to aim at a field (ledger: field/method id collision)."
+    },
+    {
+      "edge": {
+        "src": "java:svc.Dispatch.make",
+        "dst": "java:svc.Handler",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
+    },
+    {
+      "edge": {
+        "src": "java:svc.Dispatch.viaShadow",
+        "dst": "java:svc.Rocket",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
+    }
+  ],
+  "refusals": [
+    {
+      "edge": {
+        "src": "java:svc.Dispatch.viaField",
+        "dst": "java:svc.Rocket.run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The decoy: `handler` is a `Handler` — type, not name, decides."
     },
     {
       "edge": {
@@ -341,7 +391,7 @@
         "dst": "java:svc.A.ping",
         "kind": "CALLS"
       },
-      "why": "PREDICTED BEFORE SCORING. `Both` inherits `ping` from `A` and `B`, unrelated, at one level \u2014 ambiguous (D4)."
+      "why": "PREDICTED BEFORE SCORING. `Both` inherits `ping` from `A` and `B`, unrelated, at one level — ambiguous (D4)."
     },
     {
       "edge": {
@@ -366,20 +416,12 @@
         "kind": "CALLS"
       },
       "why": "PREDICTED BEFORE SCORING. The local `Rocket handler` shadows the field `Handler handler`."
-    },
-    {
-      "edge": {
-        "src": "java:svc.Dispatch.viaCollision",
-        "dst": "java:svc.Lazy.length",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. `Lazy.length` is one id for a field and a method; the node is the Field, and a CALLS edge to a field would be wrong \u2014 so it refuses (ledger: field/method id collision)."
     }
   ],
   "false_positives": [],
   "excluded": [
-    "`hs.forEach(...)` and `e.getMessage()` are calls on JDK types \u2014 no in-repo target (D11).",
-    "`new Handler()` / `new Rocket()` are object creation, not call edges in this vocabulary."
+    "`hs.forEach(...)` and `e.getMessage()` are calls on JDK types — no in-repo target (D11).",
+    "`private final Handler handler = new Handler();` instantiates in a field initializer — there is no calling function to label."
   ],
   "open_questions": [],
   "note": "A guard: it must hold before and after the change."

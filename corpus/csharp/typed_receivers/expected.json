@@ -326,9 +326,36 @@
       "src": "csharp:App.Services.Orders.ViaInheritedMember",
       "dst": "csharp:App.Data.Store.Count",
       "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Services.Orders.ViaLocal",
+      "dst": "csharp:App.Data.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "csharp:App.Services.Orders.ViaVarNew",
+      "dst": "csharp:App.Data.Store",
+      "kind": "CALLS"
     }
   ],
-  "known_gaps": [],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "csharp:App.Services.Orders.ViaLocal",
+        "dst": "csharp:App.Data.Store",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
+    },
+    {
+      "edge": {
+        "src": "csharp:App.Services.Orders.ViaVarNew",
+        "dst": "csharp:App.Data.Store",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
+    }
+  ],
   "refusals": [
     {
       "edge": {
@@ -341,8 +368,7 @@
   ],
   "false_positives": [],
   "excluded": [
-    "`x.ToString()` in `Fmt.Money` is a call on `int` \u2014 a type this repository does not declare, so no edge (D11).",
-    "`new Store()` is object creation, not a call edge in this front-end's vocabulary; constructors are not labelled as call targets."
+    "`x.ToString()` in `Fmt.Money` is a call on `int` — a type this repository does not declare, so no edge (D11)."
   ],
   "open_questions": [],
   "note": "Labelled from the source before scoring against the unfixed front-end."

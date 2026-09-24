@@ -2,7 +2,7 @@
   "language": "java",
   "case": "typed_receivers",
   "root": ".repo",
-  "why": "B21, Java. Every call goes through a receiver whose type is written: an interface-typed field (lands on the interface member, D2), `this.backing` whose `name()` is inherited from the interface's own super-interface (found on the nearest declaring type, D4 \u2014 which needs `interface Store extends Named` as an IMPLEMENTS edge, missing before), a parameter, a typed local, `var v = new DbStore()`, a field inherited from the superclass, a parameter typed with a member type inherited from an implemented interface (`Listener`, declared inside `Store`), and an inner class calling through its enclosing class's field (D13). `Store` is reached through a wildcard import, so `Orders implements Store` is itself a case.",
+  "why": "B21, Java. Every call goes through a receiver whose type is written: an interface-typed field (lands on the interface member, D2), `this.backing` whose `name()` is inherited from the interface's own super-interface (found on the nearest declaring type, D4 — which needs `interface Store extends Named` as an IMPLEMENTS edge, missing before), a parameter, a typed local, `var v = new DbStore()`, a field inherited from the superclass, a parameter typed with a member type inherited from an implemented interface (`Listener`, declared inside `Store`), and an inner class calling through its enclosing class's field (D13). `Store` is reached through a wildcard import, so `Orders implements Store` is itself a case.",
   "nodes": [
     {
       "id": "java:app.api",
@@ -308,14 +308,40 @@
       "src": "java:app.svc.Orders.Inner.viaEnclosingField",
       "dst": "java:app.api.Store.load",
       "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Orders.viaLocal",
+      "dst": "java:app.data.DbStore",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Orders.viaVarNew",
+      "dst": "java:app.data.DbStore",
+      "kind": "CALLS"
     }
   ],
-  "known_gaps": [],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "java:app.svc.Orders.viaLocal",
+        "dst": "java:app.data.DbStore",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
+    },
+    {
+      "edge": {
+        "src": "java:app.svc.Orders.viaVarNew",
+        "dst": "java:app.data.DbStore",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Instantiation is a CALLS edge to the Type (corpus/README.md); the Java and C# front-ends emit no constructor calls (ledger row) — a true edge, a known gap."
+    }
+  ],
   "refusals": [],
   "false_positives": [],
   "excluded": [
-    "`import app.api.*;` produces no IMPORTS edge in this front-end (a wildcard names no single target); the single-type imports do.",
-    "`new DbStore()` is object creation, not a call edge in this vocabulary."
+    "`import app.api.*;` produces no IMPORTS edge in this front-end (a wildcard names no single target); the single-type imports do."
   ],
   "open_questions": [],
   "note": "Labelled from the source before scoring against the unfixed front-end."
