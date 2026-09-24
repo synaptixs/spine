@@ -94,14 +94,20 @@ class FactStore:
                         continue
                     seen.add(s)
                     nxt.append(s)
-                    for member in self.children_of(s):
-                        if member.kind is NodeKind.FUNCTION and member.name == node.name:
-                            out.extend(
-                                InterfaceCallSite(cs.caller, cs.at, member.id)
-                                for cs in self.callers_of(member.id)
-                            )
+                    # Overloads share one id, so one member can be CONTAINS-linked once per
+                    # overload; each is visited once, or its callers would be counted per overload.
+                    members = {
+                        m.id
+                        for m in self.children_of(s)
+                        if m.kind is NodeKind.FUNCTION and m.name == node.name
+                    }
+                    for member_id in sorted(members):
+                        out.extend(
+                            InterfaceCallSite(cs.caller, cs.at, member_id)
+                            for cs in self.callers_of(member_id)
+                        )
             frontier = nxt
-        return sorted(out, key=lambda c: (c.via, c.caller.id, c.at))
+        return sorted(set(out), key=lambda c: (c.via, c.caller.id, c.at))
 
     def _parents(self) -> dict[str, str]:
         if self._parent_index is None:

@@ -88,3 +88,11 @@ def test_blast_radius_reports_it_apart_from_direct_callers(tmp_path: Path) -> No
         "via": "csharp:App.IMailer.Send",
     }
     assert "Called through an interface (1)" in out["markdown"]
+
+
+def test_an_overloaded_interface_member_counts_each_call_once() -> None:
+    b = _batch()
+    # three overloads of IService.Do: one node id, three CONTAINS edges (one per declaration line)
+    for line in (3, 4, 5):
+        b.add_edge(Edge("x:IService", "x:IService.Do", EdgeKind.CONTAINS, Provenance("a.x", line)))
+    assert len(FactStore(b).interface_callers_of("x:Service.Do")) == 1
