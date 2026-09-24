@@ -669,7 +669,7 @@ reviews honest.
 ## 10. How right is it? — measured, not asserted
 
 "Grounded" is an adjective; this is a number. `orchestrator pkg accuracy` scores the graph
-against a committed corpus of **106 hand-labelled fixture cases across all 13
+against a committed corpus of **108 hand-labelled fixture cases across all 13
 front-ends**, and the baseline lives in `src/orchestrator/pkg/scoreboard.json`.
 
 **Precision is 1.00 on every node kind and every edge kind, in all 12 languages.** Recall is
@@ -680,15 +680,15 @@ front-ends**, and the baseline lives in `src/orchestrator/pkg/scoreboard.json`.
 |---|---|
 | `c` `sql` | 1.00 |
 | `javascript` | 0.97 |
-| `java` | 0.91 |
+| `java` | 0.92 |
 | `csharp` `perl` `python` | 0.89 |
 | `kotlin` | 0.87 |
 | `typescript` | 0.86 |
 | `cpp` `go` `php` | 0.75 |
 
 C# and Java carry typed-receiver cases (B21) that label every true call in their source,
-and constructor-call cases (B22) now that `new Foo()` is a `CALLS` edge to `Foo`: C# 32 of 36,
-Java 30 of 33. Each remaining miss is a type the source does not write at the site — a receiver's (a
+constructor-call cases (B22) now that `new Foo()` is a `CALLS` edge to `Foo`, and lookup-scope
+cases (B30): C# 34 of 38, Java 36 of 39. Each remaining miss is a type the source does not write at the site — a receiver's (a
 return value, a lambda parameter, an extension method) or a `return new()`'s — a labelled
 known gap.
 
