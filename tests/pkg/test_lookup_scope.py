@@ -177,3 +177,28 @@ def test_csharp_a_head_that_is_a_nearer_namespace_is_read_as_the_namespace(tmp_p
         ("csharp:Biz.Cart.Cart.Total", "csharp:Biz.Rules.Rules.Apply"),
         ("csharp:Biz.Cart.Cart.Make", "csharp:Biz.Rules.Rules"),
     }
+
+
+def test_csharp_an_alias_to_a_namespace_heads_a_qualified_name(tmp_path: Path) -> None:
+    files = {
+        "M.cs": (
+            "namespace App.Model {\n  public class Base { }\n  public interface IRepo { }\n"
+            "  public class Repo : IRepo { }\n"
+            "  public class Order { public void Run() { } public static void Make() { } } }\n"
+        ),
+        "F.cs": (
+            "using Microsoft.Extensions.DependencyInjection;\nusing M = App.Model;\nnamespace App.Ui {\n"
+            "  public class F : M.Base {\n"
+            "    void Go(IServiceCollection services) { var o = new M.Order(); o.Run(); M.Order.Make();\n"
+            "      services.AddScoped<M.IRepo, M.Repo>(); } } }\n"
+        ),
+    }
+    # `M` is an alias for a namespace, so `M.Order` is `App.Model.Order` — every path through the
+    # lookup, not an external type named `M` (review 1, B1: all of these were lost or misplaced)
+    assert _csharp(tmp_path, files) == {
+        ("csharp:App.Ui.F.Go", "csharp:App.Model.Order"),
+        ("csharp:App.Ui.F.Go", "csharp:App.Model.Order.Run"),
+        ("csharp:App.Ui.F.Go", "csharp:App.Model.Order.Make"),
+    }
+    assert _edges(tmp_path, {}, EdgeKind.PROVIDES) == {("csharp:App.Model.Repo", "csharp:App.Model.IRepo")}
+    assert ("csharp:App.Ui.F", "csharp:App.Model.Base") in _edges(tmp_path, {}, EdgeKind.IMPLEMENTS)

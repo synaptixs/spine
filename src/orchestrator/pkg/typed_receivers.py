@@ -333,10 +333,14 @@ class TypeIndex:
             hits = {c for c in group if c in self.declared}
             if len(hits) == 1:
                 return _FOUND, hits.pop()
-            if hits or STOP in group:
-                return _REFUSED, None  # ambiguous at the compiler's level, or explicitly an external type
+            if hits:
+                return _REFUSED, None  # ambiguous at the compiler's level
+            # Before STOP: `using M = App.Model;` binds `M` explicitly — to a namespace, so `M.Order`
+            # is namespace-qualified, not a member of an external type named `M` (review 1, B1).
             if any(c in namespaces for c in group):
                 return _NAMESPACE, None
+            if STOP in group:
+                return _REFUSED, None  # explicitly an external type
         return _ABSENT, None
 
     @property
