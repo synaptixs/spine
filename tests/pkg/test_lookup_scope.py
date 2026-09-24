@@ -224,3 +224,20 @@ def test_java_a_private_member_type_is_not_inherited_but_hides_a_deeper_one(tmp_
     assert not {c for c in calls if c[0] == "java:app.svc.Leaf.f" and "svc" in c[1]}
     # inside Mid itself, its own private Node is the one in scope
     assert ("java:app.svc.Mid.own", "java:app.svc.Mid.Node.visit") in calls
+
+
+def test_java_lang_is_imported_implicitly(tmp_path: Path) -> None:
+    files = {
+        "app/State.java": "package app;\n"
+        "public class State { public static State valueOf(String s) { return null; } }\n",
+        "app/Worker.java": (
+            "package app;\n"
+            'public class Worker extends Thread { Object f() { return State.valueOf("NEW"); } }\n'
+        ),
+        "app/Plain.java": "package app;\n"
+        'public class Plain { Object f() { return State.valueOf("NEW"); } }\n',
+    }
+    calls = _java(tmp_path, files)
+    # `Thread` is java.lang.Thread without an import, so `State` in its subclass is Thread.State
+    assert ("java:app.Worker.f", "java:app.State.valueOf") not in calls
+    assert ("java:app.Plain.f", "java:app.State.valueOf") in calls

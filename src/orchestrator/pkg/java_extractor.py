@@ -429,7 +429,10 @@ def _java_type_ref(
         groups.append((f"java:{imports.by_simple[head]}{suffix}", STOP))
     if package:
         groups.append((f"java:{package}.{head}{suffix}",))
-    groups.append(tuple(f"java:{w}.{head}{suffix}" for w in sorted(imports.wildcard_prefixes)))
+    # `java.lang.*` is an implicit on-demand import (JLS 7.3), at the same level as the explicit
+    # ones: `class W extends Thread` means `java.lang.Thread`, whose member types W inherits.
+    on_demand = sorted({*imports.wildcard_prefixes, "java.lang"})
+    groups.append(tuple(f"java:{w}.{head}{suffix}" for w in on_demand))
     if rest:
         groups.append((f"java:{name}",))  # already fully qualified
         head_ref = _java_type_ref(head, enclosing, package, imports, state, extra_params, anonymous)
