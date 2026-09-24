@@ -1,0 +1,24 @@
+{
+  "language": "kotlin",
+  "case": "same_file_supertype",
+  "why": "#396. Filed as a same-file `IMPLEMENTS` resolution defect (\"a supertype declared in the same file as its subtype produces no edge\") — but `_resolve_type`'s same-package guess makes no distinction between same-file and same-package-different-file, and there was never a code path matching that description. What actually reproduces the filed repro is a `tree-sitter-kotlin` 1.1.0 scanner ambiguity: a body that opens and closes on one line — `interface Iface { fun f() }` here, and `class B { fun f() {} }` or `interface I { fun f(): Unit }` just as well — produces an `ERROR` that loses every declaration after it, not just the `IMPLEMENTS` edge. Every prior Kotlin corpus case put the supertype in a separate file or used multi-line bodies, so nothing exercised this shape, and it looked like a resolution-logic gap rather than a parser one. `_recover_collapsed_parse` detects the collapse (only when the initial parse already contains an `ERROR` — a cleanly-parsing file takes none of this path) and moves the body's closing brace onto its own line before re-parsing. It tries only brace pairs that overlap an `ERROR`, keeps a split only when it strictly shrinks the total `ERROR` span, and uses the result only when it parses cleanly. A line-remap table then reports the original file's line numbers, not the modified buffer's.",
+  "root": ".repo",
+  "nodes": [
+    { "id": "java:shop.job", "kind": "Module" },
+    { "id": "java:shop.job.Iface", "kind": "Type" },
+    { "id": "java:shop.job.Iface.f", "kind": "Function" },
+    { "id": "java:shop.job.C", "kind": "Type" },
+    { "id": "java:shop.job.C.f", "kind": "Function" }
+  ],
+  "edges": [
+    { "src": "java:shop.job", "dst": "java:shop.job.Iface", "kind": "CONTAINS" },
+    { "src": "java:shop.job", "dst": "java:shop.job.C", "kind": "CONTAINS" },
+    { "src": "java:shop.job.Iface", "dst": "java:shop.job.Iface.f", "kind": "CONTAINS" },
+    { "src": "java:shop.job.C", "dst": "java:shop.job.C.f", "kind": "CONTAINS" },
+    { "src": "java:shop.job.C", "dst": "java:shop.job.Iface", "kind": "IMPLEMENTS" }
+  ],
+  "known_gaps": [],
+  "refusals": [],
+  "excluded": [],
+  "open_questions": []
+}

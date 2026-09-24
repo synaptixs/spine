@@ -8,9 +8,9 @@
       },
       "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
       "provenance": {
-        "anchored": 14440,
+        "anchored": 14485,
         "excluded": 918,
-        "resolved": 14440,
+        "resolved": 14485,
         "unreadable": 0
       }
     },
@@ -380,10 +380,10 @@
         "kotlin": {
           "edges": {
             "CALLS": {
-              "emitted": 40,
-              "expected": 43,
+              "emitted": 41,
+              "expected": 44,
               "known_gaps": 3,
-              "matched": 40
+              "matched": 41
             },
             "CONSUMES": {
               "emitted": 2,
@@ -392,10 +392,10 @@
               "matched": 2
             },
             "CONTAINS": {
-              "emitted": 177,
-              "expected": 177,
+              "emitted": 196,
+              "expected": 196,
               "known_gaps": 0,
-              "matched": 177
+              "matched": 196
             },
             "EXPOSES": {
               "emitted": 9,
@@ -404,16 +404,16 @@
               "matched": 9
             },
             "IMPLEMENTS": {
-              "emitted": 10,
-              "expected": 10,
+              "emitted": 11,
+              "expected": 11,
               "known_gaps": 0,
-              "matched": 10
+              "matched": 11
             },
             "IMPORTS": {
-              "emitted": 44,
-              "expected": 44,
+              "emitted": 45,
+              "expected": 45,
               "known_gaps": 0,
-              "matched": 44
+              "matched": 45
             },
             "PROVIDES": {
               "emitted": 4,
@@ -434,10 +434,10 @@
               "matched": 1
             },
             "WRITES": {
-              "emitted": 2,
-              "expected": 2,
+              "emitted": 3,
+              "expected": 3,
               "known_gaps": 0,
-              "matched": 2
+              "matched": 3
             }
           },
           "nodes": {
@@ -448,34 +448,34 @@
               "matched": 17
             },
             "Entity": {
-              "emitted": 2,
-              "expected": 2,
+              "emitted": 5,
+              "expected": 5,
               "known_gaps": 0,
-              "matched": 2
+              "matched": 5
             },
             "Field": {
-              "emitted": 28,
-              "expected": 28,
+              "emitted": 35,
+              "expected": 35,
               "known_gaps": 0,
-              "matched": 28
+              "matched": 35
             },
             "Function": {
-              "emitted": 97,
-              "expected": 97,
+              "emitted": 103,
+              "expected": 103,
               "known_gaps": 0,
-              "matched": 97
+              "matched": 103
             },
             "Module": {
-              "emitted": 31,
-              "expected": 31,
+              "emitted": 33,
+              "expected": 33,
               "known_gaps": 0,
-              "matched": 31
+              "matched": 33
             },
             "Type": {
-              "emitted": 52,
-              "expected": 52,
+              "emitted": 58,
+              "expected": 58,
               "known_gaps": 0,
-              "matched": 52
+              "matched": 58
             }
           }
         },
@@ -921,10 +921,10 @@
       "skipped_languages": []
     },
     "drift": {
-      "count": 1950,
-      "docs": 1938,
+      "count": 1952,
+      "docs": 1937,
       "gated": false,
-      "mentions": 14016,
+      "mentions": 14018,
       "note": "recorded, never gated \u2014 an upper bound: a tenth of the population cannot bind by construction. See GATES"
     },
     "invention": {
@@ -980,11 +980,11 @@
           "unexamined": 0
         },
         "kotlin": {
-          "examined": 42,
+          "examined": 43,
           "invented": 0,
           "shadowable": 21,
           "status": "measured",
-          "total_calls": 42,
+          "total_calls": 43,
           "unexamined": 0
         },
         "perl": {
@@ -1008,7 +1008,7 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 22853,
+          "total_calls": 22920,
           "unexamined": 0
         },
         "sql": {
@@ -1029,7 +1029,7 @@
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 23382
+      "total_calls": 23450
     },
     "parity": {
       "declared": 75,

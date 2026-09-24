@@ -72,7 +72,14 @@ def table_entity_id(table: str) -> str:
     return f"java:entity:{table.lower()}"
 
 
-def parameter_entity_id(type_id: str) -> str:
+#: Kotlin's order for a simple type name, highest first: an explicit import (or a
+#: qualified name, read as written), then a type declared in the same package, then a
+#: star import. Carried in the provisional id so ``repoint_table_edges`` can apply it.
+_PARAM_TIERS = ("import", "package", "wildcard")
+_PARAM_PREFIX = "java:entity:param:"
+
+
+def parameter_entity_id(type_id: str, tier: str = "import") -> str:
     """The provisional id for a write method's parameter type, not yet checked.
 
     Marked distinctly from ``entity_id``/``table_entity_id`` (#394): a write
@@ -80,9 +87,10 @@ def parameter_entity_id(type_id: str) -> str:
     dropped outright when nothing grounds it — declared elsewhere in the tree or
     not. Sharing a provisional id shape with a genuine unknown-table guess (from
     ``@Query``) is what let it fall through to that guess's external-placeholder
-    fallback instead.
+    fallback instead. ``tier`` is one of ``_PARAM_TIERS``: which rung of Kotlin's
+    name resolution offered this reading.
     """
-    return f"java:entity:param:{type_id[len('java:') :]}"
+    return f"{_PARAM_PREFIX}{tier}:{type_id[len('java:') :]}"
 
 
 def read_entity(
@@ -325,6 +333,9 @@ def read_dao(
     source: bytes,
     rel: str,
     batch: FactBatch,
+    *,
+    wildcard_prefixes: frozenset[str],
+    by_simple: Mapping[str, str],
 ) -> bool:
     """Emit ``READS``/``WRITES`` for a ``@Dao`` interface's methods."""
     if _find(annotations_of(node, source), "Dao") is None:
@@ -336,7 +347,9 @@ def read_dao(
             name = field_text(member, "name", source)
             if not name:
                 continue
-            _read_dao_method(member, f"{type_id}.{name}", resolve, source, rel, batch)
+            _read_dao_method(
+                member, f"{type_id}.{name}", resolve, source, rel, batch, wildcard_prefixes, by_simple
+            )
     return True
 
 
@@ -347,11 +360,12 @@ def _read_dao_method(
     source: bytes,
     rel: str,
     batch: FactBatch,
+    wildcard_prefixes: frozenset[str],
+    by_simple: Mapping[str, str],
 ) -> None:
     for annotation in annotations_of(method, source):
         if annotation.name in _WRITE_ANNOTATIONS:
-            target = _parameter_entity(method, resolve, source)
-            if target:
+            for target in _parameter_entity(method, resolve, source, wildcard_prefixes, by_simple):
                 batch.add_edge(Edge(func_id, target, EdgeKind.WRITES, Provenance(rel, annotation.line)))
         elif annotation.name == "Query":
             sql = string_value(annotation.arg("value"), source)
@@ -359,16 +373,39 @@ def _read_dao_method(
                 _emit_sql_edges(sql, func_id, rel, annotation.line, batch)
 
 
-def _parameter_entity(method: TSNode, resolve: Any, source: bytes) -> str:
-    """The entity a write method writes, taken from its first typed parameter.
+def _parameter_entity(
+    method: TSNode,
+    resolve: Any,
+    source: bytes,
+    wildcard_prefixes: frozenset[str],
+    by_simple: Mapping[str, str],
+) -> list[str]:
+    """Every entity the write method's first typed parameter could resolve to.
 
     ``suspend fun upsertTopics(entities: List<TopicEntity>)`` → ``TopicEntity``.
     The declared type is peeled to its innermost argument, so the collection and
     coroutine wrappers Room methods are written against do not hide the entity.
+
+    ``resolve`` only ever tries a precise import or a same-package guess, never a
+    wildcard prefix (#397) — a genuine ``@Entity`` reachable *only* through
+    ``import app.data.*`` would otherwise be guessed into the caller's own package
+    instead and silently refused there. Every wildcard-prefix reading is offered
+    here as an additional candidate; ``repoint_table_edges`` is what turns "a
+    candidate" into "the entity", once the whole repository is known, the same
+    two-step deferral this front-end already uses for typed-receiver calls.
+
+    **Each candidate carries its tier, and the tiers are not peers.** Kotlin resolves
+    a simple name through an explicit import first, then the same package, then a star
+    import — so a same-package ``Topic`` hides a wildcard-imported ``@Entity Topic``
+    even when it is a plain class, and an explicit import hides both. Treating any two
+    tiers as equals produced both an invented ``WRITES`` and a lost one in review.
+    ``by_simple`` is what tells an explicit import from a same-package guess, the same
+    map ``_resolve_type`` keys its own certain/guess split on. A qualified parameter
+    type is resolved as written, never through its simple name.
     """
     params = next((c for c in method.named_children if c.type == "function_value_parameters"), None)
     if params is None:
-        return ""
+        return []
     for param in params.named_children:
         if param.type != "parameter":
             continue
@@ -376,10 +413,17 @@ def _parameter_entity(method: TSNode, resolve: Any, source: bytes) -> str:
         name = element_type(declared)
         if not name:
             continue
-        resolved = resolve(name.rsplit(".", 1)[-1])
-        if resolved:
-            return parameter_entity_id(resolved)
-    return ""
+        resolved = resolve(name)
+        if "." in name:
+            return [parameter_entity_id(resolved)] if resolved else []
+        if resolved and name in by_simple:
+            return [parameter_entity_id(resolved)]
+        candidates = [parameter_entity_id(resolved, "package")] if resolved else []
+        candidates.extend(
+            parameter_entity_id(f"java:{prefix}.{name}", "wildcard") for prefix in sorted(wildcard_prefixes)
+        )
+        return candidates
+    return []
 
 
 def _emit_sql_edges(sql: str, func_id: str, rel: str, line: int, batch: FactBatch) -> None:
@@ -453,29 +497,37 @@ def repoint_table_edges(batch: FactBatch) -> FactBatch:
     """
     by_table: dict[str, str] = {}
     entities = set()
+    grounded_entities: set[str] = set()
+    declared_types: set[str] = set()
     for node in batch.nodes:
+        if node.kind is NodeKind.TYPE and node.grounded:
+            declared_types.add(node.id)
         if node.kind is NodeKind.ENTITY and node.id.startswith("java:entity:"):
             entities.add(node.id)
             if node.grounded:
+                grounded_entities.add(node.id)
                 by_table.setdefault(node.name.lower(), node.id)
 
     out = FactBatch()
     for node in batch.nodes:
         out.add_node(node)
+    param_edges: dict[tuple[str, EdgeKind, str, int], list[Edge]] = {}
     for edge in batch.edges:
         if edge.kind not in (EdgeKind.READS, EdgeKind.WRITES) or not edge.dst.startswith("java:entity:"):
             out.add_edge(edge)
             continue
-        if edge.dst.startswith("java:entity:param:"):
-            # #394: a write method's *parameter* type, never a table name — provenance
-            # settles it outright rather than asking whether the repo happens to declare
-            # the class. Only a genuine `@Entity` grounds it; declared-elsewhere-as-a-
-            # plain-class and not-declared-anywhere alike drop, because neither is a
-            # table this tree could honestly stand behind with an external placeholder.
-            type_id = f"java:{edge.dst[len('java:entity:param:') :]}"
-            grounded = entity_id(type_id)
-            if grounded in entities:
-                out.add_edge(Edge(edge.src, grounded, edge.kind, edge.provenance))
+        if edge.dst.startswith(_PARAM_PREFIX):
+            # #394/#397: a write method's *parameter* type, never a table name —
+            # provenance settles it outright rather than asking whether the repo
+            # happens to declare the class. Grouped per annotated method below,
+            # because a wildcard-imported parameter type (#397) offers one candidate
+            # per wildcard prefix alongside `resolve`'s own guess. The annotation's
+            # line is in the key: overloads share one function id, and grouping on
+            # `(src, kind)` alone merged `insert(TopicEntity)` with `insert(NewsEntity)`
+            # into a false ambiguity that dropped both.
+            prov = edge.provenance
+            key = (edge.src, edge.kind, prov.file if prov else "", prov.line if prov else 0)
+            param_edges.setdefault(key, []).append(edge)
             continue
         table = edge.dst[len("java:entity:") :]
         target = by_table.get(table.lower())
@@ -489,7 +541,36 @@ def repoint_table_edges(batch: FactBatch) -> FactBatch:
         # read it — and `data_layer_link` can still pair it with a real `.sql` schema.
         out.add_node(Node(edge.dst, NodeKind.ENTITY, table, _LANG, external=True))
         out.add_edge(edge)
+    for (src, kind, _file, _line), edges in param_edges.items():
+        target = _settle_parameter_type(edges, declared_types)
+        # Only a genuine `@Entity` grounds the chosen type; a plain class and a type
+        # declared nowhere both drop, because neither is a table this tree could
+        # honestly stand behind with an external placeholder.
+        if target is not None and entity_id(target) in grounded_entities:
+            out.add_edge(Edge(src, entity_id(target), kind, edges[0].provenance))
     return out
+
+
+def _settle_parameter_type(edges: list[Edge], declared_types: set[str]) -> str | None:
+    """The type id Kotlin binds a write parameter's name to, or ``None``.
+
+    Tier by tier, as ``_parameter_entity`` describes: an explicit import answers
+    outright; a same-package reading answers whenever the package declares *any* type
+    of that name, entity or not, because it hides every star import; only then do the
+    wildcard readings count, and more than one of them naming a declared type is an
+    ambiguity Kotlin itself rejects — refused, not guessed.
+    """
+    by_tier: dict[str, list[str]] = {tier: [] for tier in _PARAM_TIERS}
+    for edge in edges:
+        tier, _, fqn = edge.dst[len(_PARAM_PREFIX) :].partition(":")
+        by_tier.setdefault(tier, []).append(f"java:{fqn}")
+    if by_tier["import"]:
+        return by_tier["import"][0]
+    same_package = [t for t in by_tier["package"] if t in declared_types]
+    if same_package:
+        return same_package[0]
+    wildcard = sorted({t for t in by_tier["wildcard"] if t in declared_types})
+    return wildcard[0] if len(wildcard) == 1 else None
 
 
 def _find(annotations: list[Annotation], name: str) -> Annotation | None:
@@ -508,6 +589,7 @@ def _walk(node: TSNode) -> list[TSNode]:
 
 __all__ = [
     "entity_id",
+    "parameter_entity_id",
     "read_dao",
     "read_entity",
     "read_relation_view",

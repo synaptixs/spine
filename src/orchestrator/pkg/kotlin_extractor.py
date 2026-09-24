@@ -230,6 +230,14 @@ class _DeferredCall:
     #: genuinely an extension of *this* type — a name match alone is not evidence of
     #: that. Ids rather than the bare name, because the check walks ``IMPLEMENTS``.
     extension_receivers: tuple[str, ...]
+    #: The id a same-package extension of this name would have, or ``""``. #397: an
+    #: extension declared in a different file of the *same* package needs no import at
+    #: all (Kotlin's own rule), so ``imported_extension`` — which only fires on an
+    #: explicit import — never had anything to offer the repo-wide extension table for
+    #: this shape, and the call was silently dropped instead. Built from *this* call
+    #: site's own package, never the receiver's, so it can only ever name a candidate
+    #: this file could actually compile against — never a cross-package one (#395).
+    same_package_extension: str
     provenance: Provenance
 
 
@@ -262,6 +270,9 @@ class _FileContext:
 
     package: str
     imports: _ImportContext
+    #: ``imports.wildcard_prefixes`` frozen once per file, for the readers that take a
+    #: frozenset — built per type declaration and per call before, all identical.
+    wildcards: frozenset[str] = frozenset()
     #: whether this file declares no `package` at all — #395: `package` is then the
     #: repo-relative path, which is not a package and matches no other file's.
     default_package: bool = False
@@ -320,11 +331,20 @@ class KotlinExtractor:
         #: verifying repo B's import is #390 all over again — the same leak
         #: `kotlin_http` fixed for `_client`.
         self._extensions: dict[str, _Extension] = {}
+        #: Declared types with a supertype written in the source that resolved to no id,
+        #: so no ``IMPLEMENTS`` records it. A member of that supertype is invisible here,
+        #: and the same-package extension tier must not assume the receiver lacks one.
+        #: Repo-wide and cleared beside ``_extensions``, for the same reason.
+        self._opaque_supertypes: set[str] = set()
 
     def module_name(self, path: Path, root: Path) -> str:
         # Kotlin's module is the package declaration, which lives in the file and
         # is free of the directory layout Java enforces; fall back to the
         # repo-relative path when there is none (14 of 263 in the validation app).
+        # The `.kt` stays: stripping it was tried and reverted in review, because it
+        # merged a root `App.kt` with `App.java` and a root `Foo.kt` with `package Foo`
+        # — two classes named `Bar` in them became one node — and renamed every
+        # default-package id already published.
         try:
             m = _PACKAGE_RE.search(path.read_text(encoding="utf-8"))
         except OSError:
@@ -335,6 +355,19 @@ class KotlinExtractor:
         parser = _kotlin_parser()
         source = path.read_bytes()
         tree = parser.parse(source)
+        line_remap: list[int] | None = None
+        recovered = _recover_collapsed_parse(source, tree, parser)
+        if recovered is not None:
+            source, line_remap, tree = recovered
+        # Facts `finalize` emits later are held in these, with lines from the parsed
+        # source; remembered here so only this file's additions are remapped below.
+        held_before = (
+            len(self._deferred),
+            len(self._nav.declarations),
+            len(self._nav.navigations),
+            len(self._ktor.routes),
+            len(self._client.calls),
+        )
         batch = FactBatch()
         module_id = f"java:{module}" if module else "java:<root>"
         batch.add_node(Node(module_id, NodeKind.MODULE, module or rel, _LANG, Provenance(rel, 1)))
@@ -352,6 +385,7 @@ class KotlinExtractor:
             imports=imports,
             source_set=source_set_of(rel),
             default_package=not declared_package,
+            wildcards=frozenset(imports.wildcard_prefixes),
         )
         # Retrofit puts the host in the builder, not the annotations, so the base
         # path (when it is a literal at all) has to be read before the interfaces.
@@ -376,6 +410,7 @@ class KotlinExtractor:
             # Field belongs to a Type (D6).
 
         # Pass 2 — calls, once every id in the file is known (D8, §3.2).
+        wildcard_prefixes = ctx.wildcards
         for pend in ctx.pending:
             self._calls(pend, ctx, source, rel, batch)
             scan_nav_calls(
@@ -386,7 +421,7 @@ class KotlinExtractor:
                 self._nav,
                 package=declared_package,
                 imports=ctx.imports.by_simple,
-                wildcard_prefixes=frozenset(ctx.imports.wildcard_prefixes),
+                wildcard_prefixes=wildcard_prefixes,
             )
             scan_ktor_calls(
                 pend.body,
@@ -397,9 +432,49 @@ class KotlinExtractor:
                 package=module,
                 default_package=ctx.default_package,
                 imports=ctx.imports.by_simple,
-                wildcard_prefixes=frozenset(ctx.imports.wildcard_prefixes),
+                wildcard_prefixes=wildcard_prefixes,
             )
+        if line_remap is not None:
+            batch = _remap_batch_lines(batch, rel, line_remap)
+            self._remap_held_lines(held_before, rel, line_remap)
         return batch
+
+    def _remap_held_lines(
+        self, held_before: tuple[int, int, int, int, int], rel: str, line_remap: list[int]
+    ) -> None:
+        """Remap the lines of this file's facts that wait for ``finalize``.
+
+        ``_remap_batch_lines`` only reaches the batch. Typed-receiver calls, Compose
+        routes and navigations, Ktor routes and Retrofit calls are held on ``self`` and
+        emitted later, and missing them put every such fact one line late below a
+        recovered body.
+        """
+        deferred, declarations, navigations, routes, calls = held_before
+
+        def line(n: int) -> int:
+            return line_remap[n - 1]
+
+        def prov(p: Provenance) -> Provenance:
+            if p.file != rel:
+                return p
+            end = line(p.end_line) if p.end_line is not None else None
+            return replace(p, line=line(p.line), end_line=end)
+
+        for i in range(deferred, len(self._deferred)):
+            call = self._deferred[i]
+            self._deferred[i] = replace(call, provenance=prov(call.provenance))
+        for held, start in ((self._nav.declarations, declarations), (self._nav.navigations, navigations)):
+            for i in range(start, len(held)):
+                template, target, site = held[i]
+                if site.rel == rel:
+                    held[i] = (template, target, replace(site, line=line(site.line)))
+        for i in range(routes, len(self._ktor.routes)):
+            route = self._ktor.routes[i]
+            if route.rel == rel:
+                self._ktor.routes[i] = replace(route, line=line(route.line))
+        for i in range(calls, len(self._client.calls)):
+            pending = self._client.calls[i]
+            self._client.calls[i] = replace(pending, provenance=prov(pending.provenance))
 
     # ---- declarations -------------------------------------------------------
 
@@ -467,6 +542,8 @@ class KotlinExtractor:
             target = self._resolve_type(base, ctx)
             if target is not None:
                 batch.add_edge(Edge(type_id, target, EdgeKind.IMPLEMENTS, Provenance(rel, line)))
+            else:
+                self._opaque_supertypes.add(type_id)
 
         self._emit_constructor_properties(node, type_id, ctx, source, rel, batch)
         for body in (c for c in node.named_children if c.type in _TYPE_BODIES):
@@ -480,7 +557,16 @@ class KotlinExtractor:
             # Only a class that is not itself an entity can be a Room *view* — a
             # query result shape holding `@Embedded` + `@Relation`.
             read_relation_view(node, resolve, source, rel, batch)
-        read_dao(node, type_id, resolve, source, rel, batch)
+        read_dao(
+            node,
+            type_id,
+            resolve,
+            source,
+            rel,
+            batch,
+            wildcard_prefixes=ctx.wildcards,
+            by_simple=ctx.imports.by_simple,
+        )
         read_module(node, type_id, resolve, source, rel, batch)
         scan_type(
             node,
@@ -817,6 +903,7 @@ class KotlinExtractor:
                 takes_function_argument=passes_function,
                 imported_extension="",
                 extension_receivers=(),
+                same_package_extension="",
                 provenance=Provenance("", 0),
             )
         return None
@@ -884,6 +971,12 @@ class KotlinExtractor:
             # only the same-file half of D4. Member first, extension second, which is
             # Kotlin's own resolution order: a member always wins over an extension.
             imported = ctx.imports.by_simple.get(name)
+            # #397: a same-package extension needs no import at all — Kotlin's own
+            # rule — so `imported` above is `None` for exactly this shape, and the
+            # repo-wide extension table never got a candidate to check. This one is
+            # built from *this file's own* package, never the receiver's, so it can
+            # only ever name something this file could actually compile against.
+            same_pkg_candidate = f"java:{ctx.package}.{name}" if ctx.package else ""
             return self._deferred_call(
                 recv_type,
                 name,
@@ -892,6 +985,7 @@ class KotlinExtractor:
                 line=line,
                 rel=rel,
                 also=(f"java:{imported}",) if imported else (),
+                same_package_member=same_pkg_candidate,
                 passes_function=passes_function,
             )
         if recv[:1].isupper():
@@ -912,6 +1006,7 @@ class KotlinExtractor:
         line: int,
         rel: str,
         also: tuple[str, ...] = (),
+        same_package_member: str = "",
         passes_function: bool,
     ) -> _DeferredCall | None:
         """Hold back ``<type_name>.<member>()`` for the whole-repository check.
@@ -937,7 +1032,8 @@ class KotlinExtractor:
             certain=certain and bool(owners),
             takes_function_argument=passes_function,
             imported_extension=also[0] if also else "",
-            extension_receivers=owners if also else (),
+            extension_receivers=owners,
+            same_package_extension=same_package_member,
             provenance=Provenance(rel, line),
         )
 
@@ -1045,18 +1141,37 @@ class KotlinExtractor:
     def _settle_calls(self, batch: FactBatch) -> None:
         """Decide every held-back typed-receiver call against the finished repository.
 
-        Four outcomes, and the middle two are the whole point:
+        Six outcomes now, not the four this docstring once described — #397 found the
+        count itself had drifted, both by omission (the inherited-member walk, #391,
+        was never distinguished from a plain drop) and by addition (the same-package
+        extension tier, #397). In the order they are tried:
 
         * A candidate the repository **declares** wins, first one in priority order.
           A wildcard-imported sibling lands here — ``import app.data.*`` then
           ``dao.getTopics()`` resolves to ``java:app.data.TopicDao.getTopics``, the real
           declaration, which the per-file guess used to replace with one under the
           *caller's* package.
-        * Nothing grounded, and the receiver's type was **guessed** or is a type this
-          repository declares: **drop**. A guessed id has no backstop, and a declared
-          type that has no such member means the call is not to that type at all —
-          ``topic.let { }`` on a repo-declared ``Topic`` being the common shape. This is
-          the case that used to mint a placeholder and so hide itself from ``pkg verify``.
+        * Nothing grounded, the receiver's own type is declared, and the member is not
+          one of its own — but it **is** declared on a supertype reachable through
+          ``IMPLEMENTS``: resolves there (#391). ``Impl`` declaring no ``ping``, ``Base``
+          declaring it, is exactly this shape, and inheritance plus an instance call is
+          the most ordinary shape in the language.
+        * Nothing grounded, no inherited member either, but the repository **does**
+          declare a receiver-compatible extension of this exact name in the *calling
+          file's own package* (#397): resolves there. Kotlin needs no import for a
+          same-package symbol, so this tier exists for exactly the calls the two above
+          it could never see — never minted as an external placeholder, because an
+          unqualified same-package name resolving to nothing declared is not a legal
+          Kotlin call at all. Refused when the receiver's type in scope (``owners[0]``)
+          is not compatible, and whenever a supertype this repository cannot see (or
+          ``Any``) might declare the member, since a member beats an extension.
+        * Nothing grounded, no inherited member, no same-package extension either, and
+          the receiver's type was **guessed** or is a type this repository declares:
+          **drop**. A guessed id has no backstop, and a declared type that has no such
+          member (own, inherited, or same-package-extension) means the call is not to
+          that type at all — ``topic.let { }`` on a repo-declared ``Topic`` being the
+          common shape. This is the case that used to mint a placeholder and so hide
+          itself from ``pkg verify``.
         * Nothing grounded, the type was read from an import, the repository does not
           declare it, and the call is a **scope function by name and by shape**: **drop**.
           An imported type has no declared-member list to refuse against, so
@@ -1085,7 +1200,7 @@ class KotlinExtractor:
           fully-qualified name the source actually wrote, where the member reading is a
           guess about a type nothing here can introspect.
 
-        What survives all four is stated rather than hidden: a wildcard-imported
+        What survives all six is stated rather than hidden: a wildcard-imported
         extension binds no simple name, so ``m.padding(8)`` under ``import
         androidx.compose.foundation.layout.*`` still lands on the receiver-member id and
         may still be a fabrication. Narrowed, not closed.
@@ -1160,6 +1275,42 @@ class KotlinExtractor:
                 target = _resolve_inherited_member(call.owners[0], member, declared, supertypes)
                 if target is not None:
                     batch.add_edge(Edge(call.src, target, EdgeKind.CALLS, call.provenance))
+                    continue
+                # #397: a same-package extension needs no import at all (Kotlin's own
+                # rule), so `imported_extension` — which only fires on an explicit
+                # import — never had a candidate to offer the repo-wide extension
+                # table for this shape, and the call was silently dropped instead.
+                # Resolved only when the repo genuinely declares an extension under
+                # this exact id *and* it is receiver-compatible; declared-but-
+                # incompatible or not-declared-at-all falls through to the same drop
+                # as before. Never an external placeholder here: an unqualified
+                # same-package name resolving to nothing declared is not a legal
+                # Kotlin call, the same posture the bare-call same-package tier
+                # already takes.
+                #
+                # Two more conditions, both found in review as invented edges:
+                # * **A member always wins over an extension.** Reaching here proves only
+                #   that no *declared* type on the way up declares it. A supertype outside
+                #   the repository (`class Topic : ArrayList<String>()`), one that resolved
+                #   to nothing, or `Any` itself may still declare it, and then Kotlin
+                #   binds that member — `t.isEmpty()` is `ArrayList.isEmpty`, not a
+                #   same-package `fun Topic.isEmpty()`.
+                # * **The receiver is the type in scope, `owners[0]`**, not every reading
+                #   of the name. `extension_receivers` also holds the wildcard guesses, and
+                #   matching one of those bound `i.slug()` to an extension of `app.x.Item`
+                #   when `i` is the same-package `app.data.Item`.
+                same_pkg = call.same_package_extension
+                if same_pkg and not _member_may_be_inherited(
+                    call.owners[0], member, declared, supertypes, self._opaque_supertypes
+                ):
+                    ext = self._extensions.get(same_pkg)
+                    receiver = call.owners[0]
+                    if ext is not None and (
+                        ext.any_receiver
+                        or receiver in ext.receivers
+                        or _reaches(receiver, ext.receivers, supertypes)
+                    ):
+                        batch.add_edge(Edge(call.src, same_pkg, EdgeKind.CALLS, call.provenance))
                 continue
             if not call.certain:
                 continue
@@ -1180,6 +1331,43 @@ class KotlinExtractor:
         # commit — population and this clear are in one call frame precisely so they
         # cannot come apart.
         self._extensions.clear()
+        self._opaque_supertypes.clear()
+
+
+#: Members every Kotlin class inherits from `Any`, so an extension of the same name on
+#: any receiver is always shadowed.
+_ANY_MEMBERS = frozenset({"equals", "hashCode", "toString"})
+
+
+def _member_may_be_inherited(
+    owner: str,
+    member: str,
+    declared: frozenset[str],
+    supertypes: dict[str, list[str]],
+    opaque: set[str],
+) -> bool:
+    """Whether ``owner.member`` could be a member this repository cannot see.
+
+    ``_resolve_inherited_member`` already answered for every *declared* supertype, so
+    what is left is a supertype that is not declared here (a library class), a type
+    whose supertype resolved to no id at all, and ``Any``. Any of those may declare
+    ``member``, and a member beats an extension, so "may" is enough to refuse.
+    """
+    if member in _ANY_MEMBERS:
+        return True
+    seen = {owner}
+    queue = [owner]
+    while queue:
+        current = queue.pop()
+        if current in opaque:
+            return True
+        for parent in supertypes.get(current, ()):
+            if parent not in declared:
+                return True
+            if parent not in seen:
+                seen.add(parent)
+                queue.append(parent)
+    return False
 
 
 def _extension_refused(
@@ -1612,6 +1800,212 @@ def _text(node: TSNode | None, source: bytes) -> str:
     if node is None:
         return ""
     return source[node.start_byte : node.end_byte].decode("utf-8", "replace").strip()
+
+
+def _remap_batch_lines(batch: FactBatch, rel: str, line_remap: list[int]) -> FactBatch:
+    """Rewrite every fact's line number from ``_recover_collapsed_parse``'s modified
+
+    source back to the original file's — the source on disk, not the one actually
+    parsed, is what a reader opens at that line.
+    """
+
+    def remap(p: Provenance | None) -> Provenance | None:
+        if p is None or p.file != rel:
+            return p
+        return replace(
+            p,
+            line=line_remap[p.line - 1],
+            end_line=line_remap[p.end_line - 1] if p.end_line is not None else None,
+        )
+
+    out = FactBatch()
+    for node in batch.nodes:
+        out.add_node(replace(node, provenance=remap(node.provenance)))
+    for edge in batch.edges:
+        out.add_edge(replace(edge, provenance=remap(edge.provenance)))
+    return out
+
+
+def _error_ranges(node: TSNode) -> list[tuple[int, int]]:
+    """``(start_byte, end_byte)`` of every outermost ``ERROR`` node under ``node``.
+
+    Iterative, like ``_walk``: this runs on every Kotlin file, and a recursive walk
+    raised ``RecursionError`` on one long ``"a" + "a" + …`` expression — which
+    ``RepoCodeExtractor`` does not catch, so a single generated file aborted the whole
+    repository's extraction. An ``ERROR``'s own subtree is not entered: its span
+    already covers everything under it.
+    """
+    if not node.has_error:
+        # tree-sitter's own flag, set on any ancestor of an ERROR or MISSING node —
+        # a clean file, the overwhelmingly common case, costs no walk at all.
+        return []
+    out: list[tuple[int, int]] = []
+    stack = [node]
+    while stack:
+        current = stack.pop()
+        if current.type == "ERROR":
+            out.append((current.start_byte, current.end_byte))
+        elif current.has_error:
+            stack.extend(current.children)
+    return out
+
+
+def _has_error(node: TSNode) -> bool:
+    """Whether ``node`` or any descendant is a parse ``ERROR``."""
+    return bool(_error_ranges(node))
+
+
+def _error_span(node: TSNode) -> int:
+    """Total bytes covered by every outermost ``ERROR`` node under ``node`` — the
+    size recovery compares against its own previous value to ask "did that edit help".
+    """
+    return sum(end - start for start, end in _error_ranges(node))
+
+
+def _is_brace_token(root: TSNode, offset: int) -> bool:
+    """Whether the byte at ``offset`` is a ``}`` token the parser read as structure."""
+    node = root.descendant_for_byte_range(offset, offset + 1)
+    return node is not None and node.type == "}" and node.start_byte == offset
+
+
+def _same_line_brace_pairs(source: bytes) -> list[tuple[int, int]]:
+    """Byte offsets of every ``{ … }`` pair that opens and closes on one source line.
+
+    A hand-rolled scanner, not a second parser: it only needs to not be fooled by a
+    brace inside a string, char literal or comment, tracked with a plain nesting
+    stack. Kotlin's own triple-quoted `\"\"\"…\"\"\"` strings are skipped as a run
+    delimited by three quote bytes, so a `{` inside one is never treated as
+    structure either.
+
+    It is not exact: a string template holding a quoted brace (`"${ "}" }"`) and a
+    nested block comment both mislead it. Neither can invent a fact, because
+    ``_recover_collapsed_parse`` checks every split against the re-parsed tree, so
+    the cost of a wrong pair is one wasted parse or one missed recovery.
+    """
+    pairs: list[tuple[int, int]] = []
+    stack: list[tuple[int, int]] = []  # (byte offset, line) of each open '{'
+    line = 1
+    i = 0
+    n = len(source)
+    while i < n:
+        c = source[i]
+        if c == 0x0A:  # \n
+            line += 1
+            i += 1
+        elif source[i : i + 3] == b'"""':
+            i += 3
+            end = source.find(b'"""', i)
+            span = source[i : end if end != -1 else n]
+            line += span.count(b"\n")
+            i = (end + 3) if end != -1 else n
+        elif c in (0x22, 0x27):  # " or '
+            quote = c
+            i += 1
+            while i < n and source[i] != quote:
+                if source[i] == 0x5C:  # backslash escape
+                    i += 1
+                elif source[i] == 0x0A:
+                    line += 1
+                i += 1
+            i += 1
+        elif source[i : i + 2] == b"//":
+            nl = source.find(b"\n", i)
+            i = nl if nl != -1 else n
+        elif source[i : i + 2] == b"/*":
+            end = source.find(b"*/", i + 2)
+            span = source[i : end if end != -1 else n]
+            line += span.count(b"\n")
+            i = (end + 2) if end != -1 else n
+        elif c == 0x7B:  # {
+            stack.append((i, line))
+            i += 1
+        elif c == 0x7D:  # }
+            if stack:
+                open_off, open_line = stack.pop()
+                if open_line == line:
+                    pairs.append((open_off, i))
+            i += 1
+        else:
+            i += 1
+    return pairs
+
+
+#: Re-parses one file's recovery may spend in total. Each accepted split costs at least
+#: one, so this is also the ceiling on how many collapses one file can have recovered;
+#: review measured the unbounded version at 190 s on a 4,000-line file with one
+#: unrelated syntax error, all of it thrown away.
+_RECOVERY_PARSE_BUDGET = 64
+
+
+def _recover_collapsed_parse(source: bytes, tree: Any, parser: Any) -> tuple[bytes, list[int], Any] | None:
+    """Best-effort recovery from a ``tree-sitter-kotlin`` 1.1.0 scanner ambiguity.
+
+    A body that opens and closes on one line can be misread — ``interface Iface {
+    fun f() }``, ``class B { fun f() {} }`` and ``interface I { fun f(): Unit }`` all
+    trigger it — and the ``ERROR`` recovery that follows loses every declaration for
+    the rest of the file, not just this one (found reviewing #396, filed as a
+    same-file ``IMPLEMENTS`` defect that turned out not to exist — this is the real
+    mechanism behind the observation). Moving the body's closing ``}`` onto its own
+    line is enough to unblock the scanner, and cannot change what the Kotlin means.
+
+    ``tree`` is ``source``'s parse, already made by the caller; this runs only when it
+    contains an ``ERROR``, so a file that parses cleanly takes none of this path. Only
+    a pair that **overlaps an ``ERROR``** is tried — a syntax error elsewhere in the
+    file has nothing to do with a brace pair, and trying every pair against it was
+    quadratic. A split is kept only when the re-parse reads that byte as a ``}`` token
+    and the total ``ERROR`` span strictly shrinks; the whole search spends at most
+    ``_RECOVERY_PARSE_BUDGET`` parses, and the result is used only when it ends with no
+    ``ERROR`` at all. Returns ``None`` otherwise, and the caller keeps the original
+    source and its exact line numbers.
+
+    Returns the rewritten source, the line map back to the original, and the rewritten
+    source's tree, so the caller does not parse it a third time.
+    """
+    errors = _error_ranges(tree.root_node)
+    if not errors:
+        return None
+    working = source
+    # `remap[i]` is the 1-based original line for 1-based modified line `i + 1`.
+    # A split duplicates one entry — both halves of the broken line point at the
+    # original line it came from, which is always the right line or the one
+    # immediately before it.
+    remap = list(range(1, working.count(b"\n") + 2))
+    best_span = sum(end - start for start, end in errors)
+    budget = _RECOVERY_PARSE_BUDGET
+    while errors and budget > 0:
+        pairs = [
+            (open_off, close_off)
+            for open_off, close_off in _same_line_brace_pairs(working)
+            if any(open_off < err_end and err_start <= close_off for err_start, err_end in errors)
+        ]
+        improved = False
+        for _open_off, close_off in pairs:
+            if budget <= 0:
+                break
+            budget -= 1
+            candidate = working[:close_off] + b"\n" + working[close_off:]
+            candidate_tree = parser.parse(candidate)
+            if not _is_brace_token(candidate_tree.root_node, close_off + 1):
+                # The brace scanner is fooled by a `}` inside a template (`"${ "}" }"`)
+                # or a nested comment. Splitting there would change a string literal,
+                # and route paths are read from string literals, so the parser has the
+                # last word on whether this byte is structure.
+                continue
+            candidate_errors = _error_ranges(candidate_tree.root_node)
+            span = sum(end - start for start, end in candidate_errors)
+            if span < best_span:
+                line_idx = working[:close_off].count(b"\n")  # 0-based line of the split
+                remap = remap[: line_idx + 1] + [remap[line_idx]] + remap[line_idx + 1 :]
+                working, tree, errors, best_span = candidate, candidate_tree, candidate_errors, span
+                improved = True
+                break
+        if not improved:
+            break
+    if working == source or errors:
+        # Either nothing changed, or an `ERROR` remains — recovery is only trusted on
+        # a fully clean result.
+        return None
+    return working, remap, tree
 
 
 def _kotlin_parser() -> Any:

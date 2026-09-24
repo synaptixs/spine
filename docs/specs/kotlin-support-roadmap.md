@@ -140,7 +140,7 @@ declared property/parameter type per scope), then each `call_expression`.
 | `this.foo()` | member | same |
 | `Type.foo()` (capitalised receiver) | object / companion / enum member via the Java rule | `CALLS` → `java:pkg.Type.foo`, external placeholder if third-party — the Java rule, unchanged |
 | `Type(args)` (constructor) | the `Type` node | `CALLS` → the `Type` (corpus rule: instantiation is a call to the type) |
-| `x.ext()` where `ext` is a same-file or imported **extension function** | by name — an extension name is unique in scope | `CALLS` → `java:pkg.ext` |
+| `x.ext()` where `ext` is a same-file, same-package or imported **extension function** | by name — an extension name is unique in scope. A same-package one needs no import (#397), and resolves only when the receiver in scope is compatible and no supertype outside the repository, nor `Any`, could declare a member of that name | `CALLS` → `java:pkg.ext` |
 | `prop.foo()` / `param.foo()` where the receiver has a **declared type** in scope | receiver type through the import map / same package | `CALLS` → `java:pkg.RecvType.foo` — placeholder if third-party. **The main event** (D8): `private val dao: TopicDao` + `dao.getTopics()` is the dominant shape in the validation repo. `?.` safe calls resolve the same way. **Two exceptions when the receiver is third-party** (#389): a scope function by name *and* shape is refused (row below), and when the file imports an extension under the called name, the placeholder is that import rather than `RecvType.foo` — `m.padding(8)` with `import androidx.compose.foundation.layout.padding` lands on the extension, because `Modifier` does not declare `padding` |
 | **Scope functions given a function** — `let`, `run`, `also`, `apply`, `takeIf`, `takeUnless`, `use`, `runCatching` (`_SCOPE_FUNCTIONS`), written `x.let { }`, `x.let({ … })` or `x.let(::f)` | — | never — a `kotlin.*` extension is not a member of its receiver. **Name and shape both**, since `run`/`apply`/`use` are also genuine members: `r.run()` on a `Runnable` and `d.with(adj)` on a `LocalDate` must still land (#389). Kotlin's own `with(x) { }` is a top-level function and never reaches this row |
 | `it.x()`, `map { … }` on an inferred receiver, callable references `::foo`, `invoke` on a lambda, calls on an unannotated `val x = something()` | — | never — inference or fabrication |
@@ -734,8 +734,9 @@ what the repository actually declares, and dropped when nothing does.
 types, to undeclared types, and to names that are unique but unreachable — plus two recall
 losses where the fix drops a call it could resolve. Eight issues track them,
 [#397](https://github.com/synaptixs/spine/issues/397); on the validation app the remaining
-fabrication shapes measure **0 occurrences**, and the two recall losses (inherited member
-calls, same-file `IMPLEMENTS`) are ordinary Kotlin and are losing real edges today. Read the
+fabrication shapes measure **0 occurrences**. The two recall losses were inherited member
+calls (fixed, #391) and same-file `IMPLEMENTS`, which turned out to be a `tree-sitter-kotlin`
+parse collapse behind a one-line body, recovered since #396. Read the
 numbers below as "these eleven paths, measured" — not as "the front-end cannot fabricate".
 
 - **A same-package type guess reached `CALLS`, and a placeholder hid it.**

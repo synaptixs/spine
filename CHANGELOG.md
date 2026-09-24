@@ -8,6 +8,26 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **A one-line Kotlin body lost every declaration after it (#396).** `interface Iface { fun
+  f() }` and `class B { fun f() {} }` are a `tree-sitter-kotlin` 1.1.0 parse ambiguity, and the
+  `ERROR` it produced dropped the rest of the file. Reported as a missing same-file
+  `IMPLEMENTS`, which it caused, but it lost every node and edge after the body. The Kotlin
+  front-end now moves such a body's closing brace onto its own line and re-parses. A split is
+  kept only when the parser reads that byte as a brace and the `ERROR` shrinks, only brace
+  pairs overlapping an `ERROR` are tried, one file spends at most 64 re-parses, and the result
+  is used only when it parses cleanly. Every line number, including those of facts emitted in
+  `finalize` (Compose routes, Ktor routes, Retrofit calls), points at the file on disk. A file
+  that parses cleanly takes no part of this path. See
+  [kotlin-support-roadmap.md](docs/specs/kotlin-support-roadmap.md).
+- **Two Kotlin recall gaps from #397.** A Room `@Insert`/`@Upsert`/`@Delete` whose parameter
+  type is reachable only through `import app.data.*` now gets its `WRITES` edge. The lookup
+  follows Kotlin's order: an explicit import, then the same package (which hides a star import
+  even when it declares a plain class), then star imports, where two candidates are an
+  ambiguity and emit nothing. Overloaded write methods are settled one method at a time, and a
+  qualified parameter type resolves as written. An extension declared in another file of the
+  caller's own package now resolves with no import, as Kotlin does. It resolves only when the
+  receiver in scope is compatible and no supertype the repository cannot see (or `Any`) could
+  declare a member of that name, because a member beats an extension.
 - **A call through a Python re-export lands on the symbol that defines it.** `from app import
   Store; Store()` put the edge on an external placeholder, `py:app.Store`, instead of
   `py:app.store.Store` — so `blast_radius`, `explain_symbol`, `investigate` and grounding

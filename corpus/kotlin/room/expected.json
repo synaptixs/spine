@@ -1,7 +1,7 @@
 {
   "language": "kotlin",
   "case": "room",
-  "why": "P3's data layer. A Room entity is a class and a table at once, and the graph has to hold both without confusing them: the id follows the declaration (`java:entity:shop.db.TopicEntity`) so it is unique and stable, while the **name** is the table (`topics`) so `data_layer_link` can reconcile it against a real `.sql` schema, which pairs entities by name. Every class here is therefore also a `Type` with its own `Field`s — the entity is a parallel view of the same declaration, the C#/PHP precedent, not a replacement for it. The case also pins the three edge sources that look alike and are not: a `ForeignKey(entity = X::class)` inside `@Entity` (REFERENCES), an `@Upsert` resolved through its *parameter type* (WRITES), and a `@Query` resolved by actually parsing the SQL — including a `DELETE` written as a raw string, which is a WRITES and not a READS.\n\n#394 adds a fourth: `insertMystery`'s parameter type, `MysteryThing`, is declared *nowhere* in this tree — not even as a plain class. A write parameter is a class, never a table name, and provenance settles that regardless of whether the class happens to be declared somewhere: no `Entity` node, no `WRITES` edge, silence rather than a node named with a dotted class FQN.",
+  "why": "P3's data layer. A Room entity is a class and a table at once, and the graph has to hold both without confusing them: the id follows the declaration (`java:entity:shop.db.TopicEntity`) so it is unique and stable, while the **name** is the table (`topics`) so `data_layer_link` can reconcile it against a real `.sql` schema, which pairs entities by name. Every class here is therefore also a `Type` with its own `Field`s — the entity is a parallel view of the same declaration, the C#/PHP precedent, not a replacement for it. The case also pins the three edge sources that look alike and are not: a `ForeignKey(entity = X::class)` inside `@Entity` (REFERENCES), an `@Upsert` resolved through its *parameter type* (WRITES), and a `@Query` resolved by actually parsing the SQL — including a `DELETE` written as a raw string, which is a WRITES and not a READS.\n\n#394 adds a fourth: `insertMystery`'s parameter type, `MysteryThing`, is declared *nowhere* in this tree — not even as a plain class. A write parameter is a class, never a table name, and provenance settles that regardless of whether the class happens to be declared somewhere: no `Entity` node, no `WRITES` edge, silence rather than a node named with a dotted class FQN.\n\n#397 adds a fifth: `insertWild`'s parameter type, `WildEntity`, is a genuine `@Entity` declared in `shop.wild` and reachable from `shop.db` only through `import shop.wild.*` — no explicit import names it. `resolve` only ever tried a precise import or a same-package guess, never a wildcard prefix, so this used to be guessed into `shop.db` (where nothing declares it) and silently refused there — a recall miss, not a fabrication, but a miss on the most ordinary shape a wildcard import exists for.\n\nThe tiers of that lookup are pinned by two refusals rather than trusted. `Wild.kt` also declares an `@Entity` `MysteryThing` and an `@Entity` `WildDto`, both reachable through the same `import shop.wild.*`. `insertMystery` imports `com.vendor.MysteryThing` explicitly, and `insertDto` takes the plain `shop.db.WildDto` declared in its own package. Kotlin resolves an explicit import first, then the same package, then a star import, so neither parameter is the wildcard entity. A resolver that treated the tiers as peers found exactly one grounded `@Entity` among the candidates in each case and wrote to it: an invented `WRITES`, caught in review of #397.",
   "root": ".repo",
   "nodes": [
     { "id": "java:shop.db", "kind": "Module" },
@@ -12,14 +12,31 @@
     { "id": "java:shop.db.TopicDao.remove", "kind": "Function" },
     { "id": "java:shop.db.TopicDao.upsert", "kind": "Function" },
     { "id": "java:shop.db.TopicDao.insertMystery", "kind": "Function" },
+    { "id": "java:shop.db.TopicDao.insertWild", "kind": "Function" },
     { "id": "java:shop.db.TopicEntity.id", "kind": "Field" },
     { "id": "java:shop.db.TopicEntity.name", "kind": "Field" },
     { "id": "java:shop.db.NewsTopicCrossRef.topic_id", "kind": "Field" },
+    { "id": "java:shop.wild", "kind": "Module" },
+    { "id": "java:shop.wild.WildEntity", "kind": "Type" },
+    { "id": "java:shop.wild.WildEntity.id", "kind": "Field" },
     { "id": "java:entity:shop.db.TopicEntity", "kind": "Entity" },
     { "id": "java:entity:shop.db.NewsTopicCrossRef", "kind": "Entity" },
     { "id": "java:entity:shop.db.TopicEntity.id", "kind": "Field" },
     { "id": "java:entity:shop.db.TopicEntity.name", "kind": "Field" },
-    { "id": "java:entity:shop.db.NewsTopicCrossRef.topic_id", "kind": "Field" }
+    { "id": "java:entity:shop.db.NewsTopicCrossRef.topic_id", "kind": "Field" },
+    { "id": "java:entity:shop.wild.WildEntity", "kind": "Entity" },
+    { "id": "java:entity:shop.wild.WildEntity.id", "kind": "Field" },
+    { "id": "java:shop.db.TopicDao.insertDto", "kind": "Function" },
+    { "id": "java:shop.db.WildDto", "kind": "Type" },
+    { "id": "java:shop.db.WildDto.id", "kind": "Field" },
+    { "id": "java:shop.wild.MysteryThing", "kind": "Type" },
+    { "id": "java:shop.wild.MysteryThing.id", "kind": "Field" },
+    { "id": "java:shop.wild.WildDto", "kind": "Type" },
+    { "id": "java:shop.wild.WildDto.id", "kind": "Field" },
+    { "id": "java:entity:shop.wild.MysteryThing", "kind": "Entity" },
+    { "id": "java:entity:shop.wild.MysteryThing.id", "kind": "Field" },
+    { "id": "java:entity:shop.wild.WildDto", "kind": "Entity" },
+    { "id": "java:entity:shop.wild.WildDto.id", "kind": "Field" }
   ],
   "edges": [
     { "src": "java:shop.db", "dst": "java:shop.db.TopicEntity", "kind": "CONTAINS" },
@@ -32,13 +49,18 @@
     { "src": "java:shop.db.TopicDao", "dst": "java:shop.db.TopicDao.remove", "kind": "CONTAINS" },
     { "src": "java:shop.db.TopicDao", "dst": "java:shop.db.TopicDao.upsert", "kind": "CONTAINS" },
     { "src": "java:shop.db.TopicDao", "dst": "java:shop.db.TopicDao.insertMystery", "kind": "CONTAINS" },
+    { "src": "java:shop.db.TopicDao", "dst": "java:shop.db.TopicDao.insertWild", "kind": "CONTAINS" },
+    { "src": "java:shop.wild", "dst": "java:shop.wild.WildEntity", "kind": "CONTAINS" },
+    { "src": "java:shop.wild.WildEntity", "dst": "java:shop.wild.WildEntity.id", "kind": "CONTAINS" },
     { "src": "java:entity:shop.db.TopicEntity", "dst": "java:entity:shop.db.TopicEntity.id", "kind": "CONTAINS" },
     { "src": "java:entity:shop.db.TopicEntity", "dst": "java:entity:shop.db.TopicEntity.name", "kind": "CONTAINS" },
     { "src": "java:entity:shop.db.NewsTopicCrossRef", "dst": "java:entity:shop.db.NewsTopicCrossRef.topic_id", "kind": "CONTAINS" },
+    { "src": "java:entity:shop.wild.WildEntity", "dst": "java:entity:shop.wild.WildEntity.id", "kind": "CONTAINS" },
     { "src": "java:entity:shop.db.NewsTopicCrossRef", "dst": "java:entity:shop.db.TopicEntity", "kind": "REFERENCES" },
     { "src": "java:shop.db.TopicDao.all", "dst": "java:entity:shop.db.TopicEntity", "kind": "READS" },
     { "src": "java:shop.db.TopicDao.remove", "dst": "java:entity:shop.db.TopicEntity", "kind": "WRITES" },
     { "src": "java:shop.db.TopicDao.upsert", "dst": "java:entity:shop.db.TopicEntity", "kind": "WRITES" },
+    { "src": "java:shop.db.TopicDao.insertWild", "dst": "java:entity:shop.wild.WildEntity", "kind": "WRITES" },
     { "src": "java:shop.db", "dst": "java:androidx.room.Dao", "kind": "IMPORTS" },
     { "src": "java:shop.db", "dst": "java:androidx.room.Entity", "kind": "IMPORTS" },
     { "src": "java:shop.db", "dst": "java:androidx.room.ForeignKey", "kind": "IMPORTS" },
@@ -46,7 +68,17 @@
     { "src": "java:shop.db", "dst": "java:androidx.room.PrimaryKey", "kind": "IMPORTS" },
     { "src": "java:shop.db", "dst": "java:androidx.room.Query", "kind": "IMPORTS" },
     { "src": "java:shop.db", "dst": "java:androidx.room.Upsert", "kind": "IMPORTS" },
-    { "src": "java:shop.db", "dst": "java:com.vendor.MysteryThing", "kind": "IMPORTS" }
+    { "src": "java:shop.db", "dst": "java:com.vendor.MysteryThing", "kind": "IMPORTS" },
+    { "src": "java:shop.wild", "dst": "java:androidx.room.Entity", "kind": "IMPORTS" },
+    { "src": "java:shop.db.TopicDao", "dst": "java:shop.db.TopicDao.insertDto", "kind": "CONTAINS" },
+    { "src": "java:shop.db", "dst": "java:shop.db.WildDto", "kind": "CONTAINS" },
+    { "src": "java:shop.db.WildDto", "dst": "java:shop.db.WildDto.id", "kind": "CONTAINS" },
+    { "src": "java:shop.wild", "dst": "java:shop.wild.MysteryThing", "kind": "CONTAINS" },
+    { "src": "java:shop.wild.MysteryThing", "dst": "java:shop.wild.MysteryThing.id", "kind": "CONTAINS" },
+    { "src": "java:shop.wild", "dst": "java:shop.wild.WildDto", "kind": "CONTAINS" },
+    { "src": "java:shop.wild.WildDto", "dst": "java:shop.wild.WildDto.id", "kind": "CONTAINS" },
+    { "src": "java:entity:shop.wild.MysteryThing", "dst": "java:entity:shop.wild.MysteryThing.id", "kind": "CONTAINS" },
+    { "src": "java:entity:shop.wild.WildDto", "dst": "java:entity:shop.wild.WildDto.id", "kind": "CONTAINS" }
   ],
   "known_gaps": [],
   "refusals": [
@@ -61,12 +93,30 @@
         "kind": "WRITES"
       },
       "why": "PREDICTED BEFORE SCORING (#394). `insertMystery`'s parameter type, `MysteryThing`, is declared nowhere in this tree. A write parameter is a class, never a table name — the id built from it must never reach the unknown-table external-placeholder path, whether or not the class is declared somewhere else. Silence is the honest answer; an `Entity` named with a dotted class FQN is not a table name at anything."
+    },
+    {
+      "edge": {
+        "src": "java:shop.db.TopicDao.insertMystery",
+        "dst": "java:entity:shop.wild.MysteryThing",
+        "kind": "WRITES"
+      },
+      "why": "PREDICTED BEFORE SCORING. `import com.vendor.MysteryThing` names the parameter's type outright, so `import shop.wild.*` is never consulted for it, although `shop.wild` does declare an `@Entity MysteryThing`. An explicit import is not a peer of a star import."
+    },
+    {
+      "edge": {
+        "src": "java:shop.db.TopicDao.insertDto",
+        "dst": "java:entity:shop.wild.WildDto",
+        "kind": "WRITES"
+      },
+      "why": "PREDICTED BEFORE SCORING, and it was happening on the #397 branch. `WildDto` is declared in `shop.db` itself, as a plain class, and a same-package type hides a star import whether or not it is an entity. The only `@Entity WildDto` is the wildcard one, so a resolver that counted grounded entities across both tiers found exactly one and wrote to it."
     }
   ],
   "excluded": [
     "`insertMystery`'s parameter type resolves to nothing: no `Entity` node and no `WRITES` edge for it, by the refusal above. `MysteryThing` is now *imported* from `com.vendor` rather than named bare, which is what makes the fixture compile (#389) and also the realistic shape — a DAO taking a DTO from a dependency, rather than a typo. It stays external either way: the point is that nothing in this repository declares it, not how the name was written.",
     "The seven `java:androidx.room.*` import targets are external, so they stay out of the node ratio per the rule in corpus/README.md; the IMPORTS edges to them still count.",
-    "READS/WRITES require the `sql` extra — `@Query` bodies are parsed with sqlglot, never regexed. Without the extra those three edges are absent by design and the case scores lower rather than the extractor guessing."
+    "READS/WRITES require the `sql` extra — `@Query` bodies are parsed with sqlglot, never regexed. Without the extra those two edges (`all`'s READS and `remove`'s WRITES) are absent by design and the case scores lower rather than the extractor guessing.",
+    "`import shop.wild.*` gets no `IMPORTS` edge: a star import names no single symbol, so there is no target to point it at. `ktor_routes` and `spring_routes` record their wildcards the same way.",
+    "A write parameter ambiguous across two star imports is not in this fixture, because Kotlin rejects that ambiguity at compile time and every fixture here compiles. It is pinned in `tests/pkg/test_kotlin_room.py` instead."
   ],
   "open_questions": []
 }

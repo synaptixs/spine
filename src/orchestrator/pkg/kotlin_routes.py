@@ -186,7 +186,7 @@ def scan_calls(
     package: str = "",
     default_package: bool = False,
     imports: Mapping[str, str] | None = None,
-    wildcard_prefixes: frozenset[str] = frozenset(),
+    wildcard_prefixes: frozenset[str],
 ) -> None:
     """Collect the Ktor routes and mounts in one function body.
 
@@ -229,7 +229,7 @@ class _Site:
 
     package: str
     imports: Mapping[str, str]
-    wildcard_prefixes: frozenset[str] = frozenset()
+    wildcard_prefixes: frozenset[str]
     default_package: bool = False
 
 

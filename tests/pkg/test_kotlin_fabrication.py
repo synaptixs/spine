@@ -930,3 +930,125 @@ class L {
         },
     )
     assert ("java:app.L.go", "java:app.L.key") not in _calls(batch)
+
+
+# ---- #397: a same-package extension needs no import at all, but never resolved ---
+
+
+def test_a_same_package_extension_with_no_import_resolves(tmp_path: Path) -> None:
+    """A cross-file, same-package extension has never resolved on any branch — only
+
+    the same-file half of D4 was ever checked. Kotlin needs no import for a
+    same-package symbol, so `imported_extension` (which only fires on an explicit
+    import) never had a candidate to offer the repo-wide extension table, and the
+    call fell through to the inherited-member walk (also a miss) and was dropped.
+    """
+    batch = _facts(
+        tmp_path,
+        {
+            "Topic.kt": "package app.data\n\nclass Topic\n",
+            "Slug.kt": 'package app.data\n\nfun Topic.slug(): String = ""\n',
+            "Use.kt": "package app.data\n\nclass Use {\n    fun go(t: Topic) = t.slug()\n}\n",
+        },
+    )
+    assert ("java:app.data.Use.go", "java:app.data.slug") in _calls(batch)
+
+
+def test_a_same_package_id_that_is_not_an_extension_is_not_offered(tmp_path: Path) -> None:
+    """The same-package candidate must still be receiver-compatible — a plain
+
+    top-level function sharing the called name is not an extension of anything,
+    and must not resolve just because it shares an id with what the call could
+    have named.
+    """
+    batch = _facts(
+        tmp_path,
+        {
+            "Topic.kt": "package app.data\n\nclass Topic\n",
+            "Slug.kt": 'package app.data\n\nfun slug(): String = ""\n',
+            "Use.kt": "package app.data\n\nclass Use {\n    fun go(t: Topic) = t.slug()\n}\n",
+        },
+    )
+    assert not _calls(batch)
+
+
+def test_a_same_package_extension_of_an_incompatible_receiver_is_not_offered(tmp_path: Path) -> None:
+    """A same-package extension of a *different*, unrelated declared type must not
+
+    satisfy a call on this receiver — receiver compatibility applies here exactly
+    as it does for an imported candidate (#390).
+    """
+    batch = _facts(
+        tmp_path,
+        {
+            "Types.kt": "package app.data\n\nclass Topic\nclass Other\n",
+            "Slug.kt": 'package app.data\n\nfun Other.slug(): String = ""\n',
+            "Use.kt": "package app.data\n\nclass Use {\n    fun go(t: Topic) = t.slug()\n}\n",
+        },
+    )
+    assert not _calls(batch)
+
+
+def test_a_same_package_extension_never_crosses_a_package_boundary(tmp_path: Path) -> None:
+    """Guard against reopening #395: the same-name candidate declared in a
+
+    *different* package, with no import, must not resolve. The candidate id is
+    built from the calling file's own package, never the receiver's, so this
+    should hold structurally — pinned explicitly rather than assumed.
+
+    `b/Slug.kt` imports `app.a.Topic`, so the extension's receiver *is* the caller's
+    type: only the package rule stands between this call and `app.b.slug`. Without
+    the import the receiver check alone refused it, and the test proved nothing.
+    """
+    batch = _facts(
+        tmp_path,
+        {
+            "a/Topic.kt": "package app.a\n\nclass Topic\n",
+            "b/Slug.kt": 'package app.b\n\nimport app.a.Topic\n\nfun Topic.slug(): String = ""\n',
+            "a/Use.kt": "package app.a\n\nclass Use {\n    fun go(t: Topic) = t.slug()\n}\n",
+        },
+    )
+    assert not _calls(batch)
+
+
+def test_a_member_of_an_external_supertype_beats_a_same_package_extension(tmp_path: Path) -> None:
+    """A member always wins over an extension. `Topic` inherits `isEmpty` from
+    `ArrayList`, which this repository cannot see, so a same-package
+    `fun Topic.isEmpty()` must not claim `t.isEmpty()`."""
+    batch = _facts(
+        tmp_path,
+        {
+            "Topic.kt": "package app\n\nclass Topic : java.util.ArrayList<String>()\n",
+            "Ext.kt": "package app\n\nfun Topic.isEmpty(): Boolean = true\n",
+            "Use.kt": "package app\n\nfun use(t: Topic) = t.isEmpty()\n",
+        },
+    )
+    assert ("java:app.use", "java:app.isEmpty") not in _calls(batch)
+
+
+def test_an_any_member_beats_a_same_package_extension(tmp_path: Path) -> None:
+    batch = _facts(
+        tmp_path,
+        {
+            "Topic.kt": "package app\n\nclass Topic\n",
+            "Ext.kt": 'package app\n\nfun Topic.toString(): String = ""\n',
+            "Use.kt": "package app\n\nfun use(t: Topic) = t.toString()\n",
+        },
+    )
+    assert ("java:app.use", "java:app.toString") not in _calls(batch)
+
+
+def test_a_same_package_extension_is_checked_against_the_type_in_scope(tmp_path: Path) -> None:
+    """`i: Item` is the same-package `app.data.Item` — same package beats a star
+    import — so an extension of the star-imported `app.x.Item` does not apply, even
+    though `app.x.Item` is one of the name's candidate readings."""
+    batch = _facts(
+        tmp_path,
+        {
+            "data/Item.kt": "package app.data\n\nclass Item\n",
+            "x/Item.kt": "package app.x\n\nclass Item\n",
+            "data/Slug.kt": 'package app.data\n\nfun app.x.Item.slug(): String = ""\n',
+            "data/Use.kt": "package app.data\n\nimport app.x.*\n\nfun use(i: Item) = i.slug()\n",
+        },
+    )
+    assert ("java:app.data.use", "java:app.data.slug") not in _calls(batch)
