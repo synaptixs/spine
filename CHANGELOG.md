@@ -28,6 +28,21 @@ All notable changes to this project are documented here. Format loosely follows
   caller's own package now resolves with no import, as Kotlin does. It resolves only when the
   receiver in scope is compatible and no supertype the repository cannot see (or `Any`) could
   declare a member of that name, because a member beats an extension.
+- **Kotlin: a bare call inside `with(x) { }` no longer lands on the enclosing class (#453).**
+  `with(x) { f() }`, `x.apply { }`, `x.run { }` and `buildString`/`buildList`/`buildSet`/`buildMap`
+  put the receiver's members ahead of the enclosing class's, and the front-end ignored that:
+  `apply("com.android.application")` inside `with(pluginManager) { }` was recorded as a Gradle
+  convention plugin's own `apply(target: Project)` calling itself — 17 invented self-loops on
+  the Android validation app. Inside those blocks an enclosing-class member reading is now
+  **refused**, and never redirected to the receiver, so the change can only remove an edge:
+  measured on seven Kotlin code bases, every edge it emits was emitted before, and every edge it
+  removes is a bare call inside such a block. Top-level and imported calls are unchanged.
+  **What it costs:** a *true* call to the enclosing class from inside one of these blocks is
+  dropped too — React Native's `ReactAndroid` loses 20, detox 4, `@react-native/gradle-plugin` 5;
+  ktor-samples, KaMPKit and spring-petclinic-kotlin are unchanged. Kotlin `CALLS` recall reads
+  0.93 → 0.85: the new corpus case labels the true targets the rule gives up as known gaps.
+  Resolving such a call *to* the receiver's member is the follow-up in #459.
+  See [kotlin-support-roadmap.md](docs/specs/kotlin-support-roadmap.md) §3.2.
 - **A call through a Python re-export lands on the symbol that defines it.** `from app import
   Store; Store()` put the edge on an external placeholder, `py:app.Store`, instead of
   `py:app.store.Store` — so `blast_radius`, `explain_symbol`, `investigate` and grounding

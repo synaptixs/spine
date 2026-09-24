@@ -781,10 +781,18 @@ class KotlinExtractor:
         scope.merge_fields(ctx.field_types.get(pend.owner or "", {}))
         _collect_bindings(pend.body, source, scope)
 
-        for call in _call_sites(pend.body):
+        for call, in_receiver_lambda in _call_sites(pend.body, source):
             line = call.start_point[0] + 1
             target = self._resolve_call(
-                call, pend.owner, ctx, scope, source, line=line, rel=rel, this_type=pend.receiver
+                call,
+                pend.owner,
+                ctx,
+                scope,
+                source,
+                line=line,
+                rel=rel,
+                this_type=pend.receiver,
+                in_receiver_lambda=in_receiver_lambda,
             )
             if target is None:
                 continue
@@ -822,6 +830,7 @@ class KotlinExtractor:
         line: int,
         rel: str,
         this_type: str = "",
+        in_receiver_lambda: bool = False,
     ) -> str | _DeferredCall | None:
         callee = next(iter(call.named_children), None)
         if callee is None:
@@ -831,7 +840,12 @@ class KotlinExtractor:
         passes_function = _passes_function(call)
         if callee.type == "identifier":
             return self._resolve_bare(
-                _text(callee, source), owner, ctx, scope, passes_function=passes_function
+                _text(callee, source),
+                owner,
+                ctx,
+                scope,
+                passes_function=passes_function,
+                in_receiver_lambda=in_receiver_lambda,
             )
         if callee.type == "navigation_expression":
             return self._resolve_navigated(
@@ -855,8 +869,29 @@ class KotlinExtractor:
         scope: _Scope,
         *,
         passes_function: bool,
+        in_receiver_lambda: bool = False,
     ) -> str | _DeferredCall | None:
-        """``foo()`` with no receiver."""
+        """``foo()`` with no receiver.
+
+        ``in_receiver_lambda`` — the call sits inside ``with(x) { }``, ``x.apply { }``,
+        ``x.run { }`` or a ``buildX { }`` builder (``_call_sites``). Kotlin searches that
+        receiver's members **before** the enclosing class's, so the enclosing-member reading
+        below is only right when the receiver lacks the name — which this front-end cannot
+        show for a library receiver, and cannot show cheaply for any other (#453). Such a
+        call is therefore **refused**, never redirected: ``apply("com.android.application")``
+        inside ``with(pluginManager) { }`` had become a Gradle convention plugin's own
+        ``apply(target: Project)`` calling itself, 17 invented edges on the Android validation
+        app.
+
+        Refusing rather than resolving to the receiver's member is deliberate. Two review
+        passes of a redirecting version each found new invented edges, because choosing the
+        receiver's member means reproducing Kotlin's resolution — companions, local and member
+        extensions, a user's own ``run``/``with`` — without type information. A refusal can
+        only remove an edge, so the change is checkable as "a subset of what was emitted
+        before, and every removed edge inside a receiver lambda". The cost is recall: a true
+        call to the enclosing class from inside such a block is dropped too (measured: 20 in
+        React Native's ``ReactAndroid``). Top-level and imported readings are unaffected.
+        """
         if not name or name in scope.bound:
             # D9: a Kotlin local *can* shadow a call — `val helper = ::other`
             # then `helper()` invokes the local through `invoke`, not the member.
@@ -868,7 +903,7 @@ class KotlinExtractor:
         holder: str | None = owner
         while holder:
             if name in ctx.members_of(holder):
-                return f"{holder}.{name}"
+                return None if in_receiver_lambda else f"{holder}.{name}"
             holder = holder.rsplit(".", 1)[0] if holder.count(".") > 1 else None
         if name in ctx.top_level_funcs or name in ctx.extensions:
             return f"java:{ctx.package}.{name}" if ctx.package else None
@@ -1582,21 +1617,72 @@ def _passes_function(call: TSNode) -> bool:
     return False
 
 
-def _call_sites(body: TSNode) -> list[TSNode]:
-    """Every ``call_expression`` in a body, excluding nested type declarations.
+#: Standard-library builders whose lambda runs with a library receiver (#453).
+_BUILDERS = frozenset({"buildString", "buildList", "buildSet", "buildMap"})
+
+
+def _opens_receiver_lambda(call: TSNode, source: bytes) -> bool:
+    """Whether ``call``'s trailing lambda runs with a receiver other than ``this``.
+
+    Only the standard library's own forms are recognised, because only there is the
+    receiver visible in the source: ``with(x) { }``, ``x.apply { }``, ``x.run { }`` and the
+    ``buildX { }`` builders. An arbitrary DSL lambda — ``dependencies { }``,
+    ``testApplication { }`` — may or may not carry a receiver, and counting every lambda
+    would refuse the calls to the enclosing class those bodies are mostly made of.
+    ``let``/``also`` pass ``it``; bare ``run { }``, ``with(this)`` and ``this.apply { }``
+    keep ``this``: none of them changes anything.
+
+    Recognition is by name, so a user's own ``run``/``with`` is recognised too. That is
+    safe because the only consequence is a refusal (``_resolve_bare``). The forms that pass
+    the lambda inside the parentheses — ``with(x, { … })`` — are not recognised, and keep
+    today's reading; a stated limit (#453).
+    """
+    head = next(iter(call.named_children), None)
+    if head is None:
+        return False
+    if head.type == "call_expression":
+        # `with(x) { … }` parses as the lambda trailing the call `with(x)`.
+        callee = next(iter(head.named_children), None)
+        if callee is None or callee.type != "identifier" or _text(callee, source) != "with":
+            return False
+        args = next((c for c in head.named_children if c.type == "value_arguments"), None)
+        values = [c for c in args.named_children if c.type == "value_argument"] if args else []
+        parts = values[0].named_children if len(values) == 1 else []
+        return bool(parts) and parts[-1].type != "this_expression"
+    if head.type == "navigation_expression":
+        parts = head.named_children
+        return (
+            len(parts) >= 2
+            and parts[-1].type == "identifier"
+            and _text(parts[-1], source) in ("apply", "run")
+            and parts[0].type != "this_expression"
+        )
+    return head.type == "identifier" and _text(head, source) in _BUILDERS
+
+
+def _call_sites(body: TSNode, source: bytes) -> list[tuple[TSNode, bool]]:
+    """Every ``call_expression`` in a body, and whether it sits inside a receiver lambda.
 
     A nested class or object is its own scope with its own members; its calls are
     emitted against *its* functions, not the enclosing one.
+
+    The flag is set for everything inside the trailing lambda of a call that
+    ``_opens_receiver_lambda`` recognises — at any depth, so an anonymous ``object`` or a
+    nested lambda inside one stays flagged — and never for that call's own arguments,
+    which are outside the receiver's scope (#453). Iterative, like every walker here.
     """
-    out: list[TSNode] = []
-    stack = list(body.named_children)
+    out: list[tuple[TSNode, bool]] = []
+    stack: list[tuple[TSNode, bool]] = [(c, False) for c in body.named_children]
     while stack:
-        node = stack.pop()
+        node, inside = stack.pop()
         if node.type in _TYPE_DECLS:
             continue
+        lambda_inside = inside
         if node.type == "call_expression":
-            out.append(node)
-        stack.extend(node.named_children)
+            out.append((node, inside))
+            lambda_inside = inside or _opens_receiver_lambda(node, source)
+        for child in node.named_children:
+            stack.append((child, lambda_inside if child.type == "annotated_lambda" else inside))
     return out
 
 
