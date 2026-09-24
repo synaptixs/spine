@@ -960,8 +960,12 @@ def _record_receiver_calls(
     """Defer every ``recv.m()`` / ``Type.m()`` call in this file to ``finalize`` (B21)."""
     for rec in types:
         _record_fields(rec, unit, source, state)
-        for written, provisional in rec.bases:
-            state.add_base(rec.type_id, provisional, _type_ref_in(written, rec.parent, rec.decl, unit))
+        for i, (written, provisional) in enumerate(rec.bases):
+            ref = _type_ref_in(written, rec.parent, rec.decl, unit)
+            state.add_base(rec.type_id, provisional, ref)
+            # Only a class's (or record's) first base can be a class; the rest are interfaces.
+            if i == 0 and rec.node.type in ("class_declaration", "record_declaration"):
+                state.add_class_base(rec.type_id, ref)
         for _name, mid, mnode in rec.methods:
             scope = _method_scope(mnode, rec, unit, source)
             method_params = _type_params(mnode, source)

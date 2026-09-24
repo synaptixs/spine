@@ -130,6 +130,55 @@ JAVA = [
 ]
 
 
+JAVA.extend(
+    [
+        pytest.param(
+            {
+                "app/Base.java": "package app;\npublic class Base { public void load() {} }\n",
+                "app/Sub.java": (
+                    "package app;\nimport java.io.Serializable;\n"
+                    "public class Sub extends Base implements Serializable { }\n"
+                ),
+                "app/Car.java": "package app;\npublic class Car { public void load() {} }\n",
+                "app/U.java": "package app;\npublic class U { void f(Sub s) { s.load(); } }\n",
+            },
+            [("java:app.U.f", "java:app.Base.load")],
+            ("java:app.U.f", "java:app.Car.load"),
+            id="an external interface does not stop the base-class walk",
+        ),
+        pytest.param(
+            {
+                "app/I.java": "package app;\npublic interface I { void size(); }\n",
+                "app/L.java": (
+                    "package app;\nimport java.util.AbstractList;\n"
+                    "public abstract class L extends AbstractList<String> implements I { }\n"
+                ),
+                "app/U.java": "package app;\npublic class U { void f(L l) { l.size(); } }\n",
+            },
+            None,
+            ("java:app.U.f", "java:app.I.size"),
+            id="an external base class does — it may implement the member itself",
+        ),
+        pytest.param(
+            {
+                "app/Msg.java": (
+                    "package app;\nimport com.google.protobuf.GeneratedMessage;\n"
+                    "public class Msg extends GeneratedMessage {\n"
+                    "  private static final Msg DEFAULT_INSTANCE = null;\n"
+                    "  public Msg toBuilder() { return this; }\n"
+                    "  public static Msg newBuilder() { return DEFAULT_INSTANCE.toBuilder(); } }\n"
+                ),
+                "app/Helper.java": "package app;\npublic class Helper { public static void help() {} }\n",
+                "app/U.java": "package app;\npublic class U { void f() { Helper.help(); } }\n",
+            },
+            [("java:app.Msg.newBuilder", "java:app.Msg.toBuilder"), ("java:app.U.f", "java:app.Helper.help")],
+            ("java:app.Msg.newBuilder", "java:app.DEFAULT_INSTANCE.toBuilder"),
+            id="a capitalized name is a declared field first, then a type",
+        ),
+    ]
+)
+
+
 @pytest.mark.parametrize(("files", "present", "absent"), JAVA)
 def test_java(
     tmp_path: Path, files: dict[str, str], present: list[tuple[str, str]] | None, absent: tuple[str, str]
@@ -247,6 +296,25 @@ CSHARP = [
         id="a property receiver resolves through its declared type",
     ),
 ]
+
+
+CSHARP.append(
+    pytest.param(
+        {
+            "H.cs": (
+                "namespace H { public static class Helper { public static void Format() {} }\n"
+                "  public class Base { }\n"
+                "  public class Svc : Base, System.IDisposable { public void Dispose() { }\n"
+                "    void M() { Helper.Format(); } }\n"
+                "  public class Web : Microsoft.AspNetCore.Mvc.ControllerBase {\n"
+                "    void M() { Helper.Format(); } } }\n"
+            ),
+        },
+        [("csharp:H.Svc.M", "csharp:H.Helper.Format")],
+        ("csharp:H.Web.M", "csharp:H.Helper.Format"),
+        id="only an external base class can hide a static name, not an external interface",
+    )
+)
 
 
 @pytest.mark.parametrize(("files", "present", "absent"), CSHARP)

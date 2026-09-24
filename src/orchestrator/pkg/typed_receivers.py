@@ -30,8 +30,11 @@ The rules, precision-first — a wrong edge is worse than a missing one:
   overrides; two unrelated interfaces at one level both declaring it is an ambiguity, and refuses.
 - **Nothing is guessed past an external supertype.** A type with a base this repository does not
   declare (``ControllerBase``, ``java.util.AbstractList``) may inherit any member or field from it,
-  so once a walk reaches one without an answer it refuses: ``User.FindFirst()`` inside a controller
-  is the framework's ``User`` property, not the in-repo ``User`` class.
+  so a field not found in the in-repo hierarchy is not read from an enclosing type or as a static
+  name: ``User.FindFirst()`` inside a controller is the framework's ``User`` property, not the
+  in-repo ``User`` class. A member lookup stops at an external base *class* only — an external
+  *interface* (``Serializable``) cannot beat a class's member, and a member two interfaces both
+  supply is a compile error, so it does not hide the in-repo declaration.
   An interface-typed receiver lands on the interface's member (D2) — true to the source.
   ``pkg.store.FactStore.interface_callers_of`` is what carries a change to an implementation to
   those callers.
@@ -90,7 +93,10 @@ class DeferredCall:
     supertypes or its enclosing types) is set. ``static`` is tried when ``field_of`` finds no
     field of that name: C#'s ``Helper.Format(x)``. With ``chain_head``, ``recv`` is only the head
     of a dotted receiver (``Status.Kind.Parse()``): if it is a field the call goes through a member
-    chain this pass does not follow, so only the static reading can produce an edge.
+    chain this pass does not follow, so only the static reading can produce an edge. With
+    ``declared_fields``, only a field the repository declares blocks the static reading — Java's
+    capitalized receiver (``DEFAULT_INSTANCE.toBuilder()`` vs ``Helper.help()``), where fields are
+    lowerCamel or UPPER_CASE by convention, unlike C#'s type-named properties.
     """
 
     caller: str
@@ -102,6 +108,7 @@ class DeferredCall:
     field_name: str = ""
     static: TypeRef | None = None
     chain_head: bool = False
+    declared_fields: bool = False
 
 
 class Scope:
@@ -150,6 +157,9 @@ class ReceiverState:
     global_prefixes: dict[str, set[str]] = field(default_factory=dict)  # project -> C# `global using`s
     # (type id, provisional base id) -> how the base name was written, for `resolve_bases`
     base_refs: dict[tuple[str, str], TypeRef | None] = field(default_factory=dict)
+    # type id -> the base written where a *class* can stand (Java `extends`, a C# class's first
+    # base); None when partial declarations disagree. A base in any other position is an interface.
+    class_base: dict[str, TypeRef | None] = field(default_factory=dict)
 
     def add_field(self, type_id: str, name: str, ref: TypeRef | None) -> None:
         """Record a field's declared type. Two declarations that disagree (partial classes that
@@ -162,6 +172,10 @@ class ReceiverState:
         key = (type_id, provisional)
         self.base_refs[key] = ref if key not in self.base_refs or self.base_refs[key] == ref else None
 
+    def add_class_base(self, type_id: str, ref: TypeRef | None) -> None:
+        known = self.class_base
+        known[type_id] = ref if type_id not in known or known[type_id] == ref else None
+
     def clear(self) -> None:
         self.calls.clear()
         self.fields.clear()
@@ -170,6 +184,7 @@ class ReceiverState:
         self.type_params.clear()
         self.global_prefixes.clear()
         self.base_refs.clear()
+        self.class_base.clear()
 
 
 class TypeIndex:
@@ -199,6 +214,21 @@ class TypeIndex:
         self._levels_memo: dict[str, list[list[str]]] = {}
         self._ancestors_memo: dict[str, frozenset[str]] = {}
         self._type_memo: dict[TypeRef, str | None] = {}
+        self._open_class: set[str] | None = None
+
+    @property
+    def open_class(self) -> set[str]:
+        """Declared types whose base *class* is not one this repository declares — an external
+        class may declare (or implement) any member, and a class's member wins over an
+        interface's, so the class-chain walk stops there. An external *interface* cannot: a
+        class member beats it, and two interfaces both supplying a member is a compile error."""
+        if self._open_class is None:
+            self._open_class = {
+                t
+                for t, ref in self.state.class_base.items()
+                if t in self.declared and (ref is None or self.type_of(ref) not in self.declared)
+            }
+        return self._open_class
 
     def type_of(self, ref: TypeRef | None) -> str | None:
         if ref is None:
@@ -252,15 +282,15 @@ class TypeIndex:
 
     def member_owner(self, type_id: str, member: str) -> str | None:
         """The nearest in-repo type that declares ``member``: ``type_id``, its base-class chain,
-        then its interfaces level by level. Refuses past an external supertype, which may declare
+        then its interfaces level by level. Refuses past an external base class, which may declare
         it, and on two unrelated interfaces at one level."""
         chain, cur = [], type_id
         while cur not in chain:
             chain.append(cur)
             if member in self.members.get(cur, ()):
                 return cur
-            if cur in self.open:
-                return None  # an external base may declare (or implement) it
+            if cur in self.open_class:
+                return None  # an external base class may declare (or implement) it
             classes = [s for s in self.supers.get(cur, ()) if s not in self.state.interfaces]
             if len(classes) != 1:
                 break
@@ -274,12 +304,12 @@ class TypeIndex:
             owners = [o for o in owners if not any(o != p and self.is_subtype(p, o) for p in owners)]
             if len(owners) == 1:
                 return owners[0]
-            if owners or any(t in self.open for t in frontier):
+            if owners:
                 return None
             frontier = sorted({s for t in frontier for s in self.supers.get(t, ()) if s not in seen})
         return None
 
-    def field_type(self, type_id: str, name: str) -> tuple[bool, str | None]:
+    def field_type(self, type_id: str, name: str, declared_only: bool = False) -> tuple[bool, str | None]:
         """``(found, type)`` for a field: the type and its supertypes nearest first, then the
         lexically enclosing types. ``found`` without a type means it exists — or may, behind an
         external base — but cannot be read, so nothing falls back to a static or outer reading."""
@@ -287,14 +317,21 @@ class TypeIndex:
         current: str | None = type_id
         while current is not None and current not in seen:
             seen.add(current)
-            for level in self._levels(current):
+            levels = self._levels(current)
+            for level in levels:
                 refs = [self.state.fields[t][name] for t in level if name in self.state.fields.get(t, {})]
                 if len(refs) == 1:
                     return True, self.type_of(refs[0])
-                # A type with an external base, or one another front-end declared (a Kotlin class
-                # in Java's `java:` space), may hold this field without our having recorded it.
-                if refs or any(t in self.open or t not in self.state.type_params for t in level):
-                    return True, None
+                if refs:
+                    return True, None  # inherited twice at one level: ambiguous
+            # Not declared in the repository's part of the hierarchy. A type with an external base,
+            # or one another front-end declared (a Kotlin class in Java's `java:` space), may hold
+            # it without our having recorded it — so no outer-field reading past them. In C# only a
+            # base *class* can: a class does not inherit an interface's members by simple name, as
+            # Java inherits an interface's constants.
+            ext = self.open_class if self.state.language == "csharp" else self.open
+            if any(t in ext or t not in self.state.type_params for level in levels for t in level):
+                return (False, None) if declared_only else (True, None)
             current = self.state.outer.get(current)
         return False, None
 
@@ -336,7 +373,7 @@ def resolve_calls(batch: FactBatch, state: ReceiverState) -> None:
     for call in state.calls:
         receiver_type: str | None
         if call.field_of is not None:
-            found, receiver_type = index.field_type(call.field_of, call.field_name)
+            found, receiver_type = index.field_type(call.field_of, call.field_name, call.declared_fields)
             if found and call.chain_head:
                 continue  # `field.member.m()` — a chain, not followed
             if not found:

@@ -176,11 +176,16 @@ class JavaExtractor:
             self._receivers.interfaces.add(type_id)
         self._receivers.type_params[type_id] = _java_type_params(node, source)
 
+        enclosing = parent_id if parent_id in type_methods else None
+        superclass = node.child_by_field_name("superclass")
+        for written in _type_names(superclass, source) if superclass is not None else ():
+            self._receivers.add_class_base(
+                type_id, _java_type_ref(written, enclosing, package, imports, self._receivers)
+            )
         for base in _supertypes(node, source):
             target = self._resolve_type(base, package, imports)
             if target is not None:
                 batch.add_edge(Edge(type_id, target, EdgeKind.IMPLEMENTS, Provenance(rel, line)))
-                enclosing = parent_id if parent_id in type_methods else None
                 ref = _java_type_ref(base, enclosing, package, imports, self._receivers)
                 self._receivers.add_base(type_id, target, ref)
 
@@ -288,13 +293,27 @@ class JavaExtractor:
                     )
                     if deferred is None and obj is not None and obj.type == "identifier" and not shadowed:
                         recv = _text(obj, source)
-                        if recv[:1].isupper():  # `Type.method()` — static, settled in `finalize`
+                        if recv[:1].isupper():  # `Type.method()` or `CONSTANT.method()`
                             ref = _java_type_ref(
                                 recv, type_id, package, imports, self._receivers, method_params
                             )
                             member = _field_text(n, "name", source)
-                            if ref is not None and member:
-                                deferred = DeferredCall(caller, member, rel, line, receiver=ref)
+                            if member and _in_anonymous(n, body):
+                                if ref is not None:
+                                    deferred = DeferredCall(caller, member, rel, line, receiver=ref)
+                            elif member:
+                                # A variable in scope wins over a type of that name (JLS 6.5.2), so a
+                                # declared field is read first and the type only when there is none.
+                                deferred = DeferredCall(
+                                    caller,
+                                    member,
+                                    rel,
+                                    line,
+                                    field_of=type_id,
+                                    field_name=recv,
+                                    static=ref,
+                                    declared_fields=True,
+                                )
                     if deferred is not None:
                         self._receivers.calls.append(deferred)
             stack.extend(n.named_children)
@@ -582,7 +601,7 @@ def _deferred_call(
         if isinstance(bound, TypeRef):
             return DeferredCall(caller, name, rel, line, receiver=bound)
         if bound is not None or in_anonymous or recv[:1].isupper():
-            return None  # unreadable; inside an anonymous class; or a type name (the static path's)
+            return None  # unreadable; inside an anonymous class; or capitalized (the caller's)
         return DeferredCall(caller, name, rel, line, field_of=type_id, field_name=recv)
     if obj.type == "field_access" and _field_text(obj, "object", source) == "this" and not in_anonymous:
         return DeferredCall(
