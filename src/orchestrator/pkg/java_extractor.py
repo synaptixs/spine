@@ -16,14 +16,14 @@ methods, and so do Spring MVC ``@GetMapping``/``@RequestMapping`` handlers, read
 through the shared ``jvm_routes`` module the Kotlin front-end also uses (D16 of
 docs/specs/kotlin-support-roadmap.md) — Spring is the framework most Java services
 actually use, and this front-end was blind to it until P6. ``CALLS`` is emitted only
-where the callee resolves precisely (a
-second pass over method bodies): unqualified / ``this.`` calls to a sibling
-method, and ``Type.method()`` calls whose ``Type`` resolves via imports or the
-same package. Calls through a *typed* receiver — a parameter, field (own, inherited,
-or an enclosing class's), typed local or ``var x = new T()`` — are deferred to
-``finalize`` and settled by ``typed_receivers`` once every declaration is known (B21);
-a receiver whose type is not written (a lambda parameter, ``var x = call()``) refuses,
-because a guessed edge poisons grounding. Overloads collapse onto one id (no arity in ids).
+where the callee resolves precisely: unqualified / ``this.`` calls to a sibling method;
+``Type.method()`` calls on a type the imports or the package name; and calls through a
+*typed* receiver — a parameter, field (own, inherited, or an enclosing class's), typed local
+or ``var x = new T()``. All but the sibling calls are deferred to ``finalize`` and settled by
+``typed_receivers`` once every declaration is known (B21): the type must be declared here and
+must have the member. A receiver whose type is not written (a lambda parameter,
+``var x = call()``) refuses, because a guessed edge poisons grounding. Overloads collapse
+onto one id (no arity in ids).
 """
 
 from __future__ import annotations
@@ -47,8 +47,11 @@ from orchestrator.pkg.jvm_routes import (
     resolves_into_spring,
 )
 from orchestrator.pkg.typed_receivers import (
+    STOP,
+    UNREADABLE,
     DeferredCall,
     ReceiverState,
+    Scope,
     TypeRef,
     resolve_bases,
     resolve_calls,
@@ -169,16 +172,25 @@ class JavaExtractor:
         batch.add_edge(Edge(parent_id, type_id, EdgeKind.CONTAINS, Provenance(rel, line)))
         if parent_id in type_methods:  # a nested / inner type: its enclosing type is in scope (D13)
             self._receivers.outer[type_id] = parent_id
+        if node.type in ("interface_declaration", "annotation_type_declaration"):
+            self._receivers.interfaces.add(type_id)
+        self._receivers.type_params[type_id] = _java_type_params(node, source)
 
         for base in _supertypes(node, source):
             target = self._resolve_type(base, package, imports)
             if target is not None:
                 batch.add_edge(Edge(type_id, target, EdgeKind.IMPLEMENTS, Provenance(rel, line)))
-                ref = _java_type_ref(
-                    base, parent_id if parent_id in type_methods else None, package, imports, self._receivers
-                )
-                if ref is not None:
-                    self._receivers.base_refs[(type_id, target)] = ref
+                enclosing = parent_id if parent_id in type_methods else None
+                ref = _java_type_ref(base, enclosing, package, imports, self._receivers)
+                self._receivers.add_base(type_id, target, ref)
+
+        if node.type == "record_declaration":  # a record's components are its fields
+            for comp in (node.child_by_field_name("parameters") or node).named_children:
+                if comp.type == "formal_parameter":
+                    cref = _java_type_node_ref(
+                        comp.child_by_field_name("type"), type_id, package, imports, self._receivers, source
+                    )
+                    self._receivers.add_field(type_id, _field_text(comp, "name", source), cref)
 
         body = node.child_by_field_name("body")
         if body is None:
@@ -213,15 +225,23 @@ class JavaExtractor:
                     mbody = member.child_by_field_name("body")
                     if mbody is not None:
                         funcs.append((fid, type_id, mbody))
-            elif member.type == "field_declaration":
+            elif member.type in ("field_declaration", "constant_declaration"):
+                # An interface's constants are fields too: an implementing (inner) class inherits them.
                 fref = _java_type_node_ref(
                     member.child_by_field_name("type"), type_id, package, imports, self._receivers, source
                 )
-                for fname in _field_names(member, source):
+                for decl in member.named_children:
+                    if decl.type != "variable_declarator":
+                        continue
+                    fname = _field_text(decl, "name", source)
+                    if not fname:
+                        continue
                     fid = f"{type_id}.{fname}"
                     batch.add_node(Node(fid, NodeKind.FIELD, fname, "java", Provenance(rel, mline)))
                     batch.add_edge(Edge(type_id, fid, EdgeKind.CONTAINS, Provenance(rel, mline)))
-                    self._receivers.add_field(type_id, fname, fref)
+                    # `Handler arr[]` declares an array, whatever the type before the name says.
+                    arr = decl.child_by_field_name("dimensions") is not None
+                    self._receivers.add_field(type_id, fname, None if arr else fref)
             elif member.type in _TYPE_DECLS:
                 self._emit_type(member, type_id, package, imports, source, rel, batch, funcs, type_methods)
 
@@ -241,6 +261,7 @@ class JavaExtractor:
         the ones through a typed receiver to ``finalize`` (B21)."""
         siblings = type_methods.get(type_id, set())
         scope = _method_scope(body.parent or body, type_id, package, imports, self._receivers, source)
+        method_params = _java_type_params(body.parent or body, source)
         stack = list(body.named_children)
         while stack:
             n = stack.pop()
@@ -248,11 +269,32 @@ class JavaExtractor:
                 continue  # nested/local class — a separate scope, not this method's calls
             if n.type == "method_invocation":
                 line = n.start_point[0] + 1
-                target = self._resolve_call(n, type_id, siblings, imports, package, source)
+                obj = n.child_by_field_name("object")
+                # A local or parameter named like a type (`void f(Car Rocket) { Rocket.run(); }`) is
+                # the variable, not a static call on the type.
+                shadowed = (
+                    obj is not None
+                    and obj.type == "identifier"
+                    and scope.lookup(_text(obj, source), n.start_byte) is not None
+                )
+                target = (
+                    None if shadowed else self._resolve_call(n, type_id, siblings, imports, package, source)
+                )
                 if target is not None:
                     batch.add_edge(Edge(caller, target, EdgeKind.CALLS, Provenance(rel, line)))
                 else:
-                    deferred = _deferred_call(n, caller, type_id, scope, rel, line, source)
+                    deferred = _deferred_call(
+                        n, caller, type_id, scope, rel, line, source, _in_anonymous(n, body)
+                    )
+                    if deferred is None and obj is not None and obj.type == "identifier" and not shadowed:
+                        recv = _text(obj, source)
+                        if recv[:1].isupper():  # `Type.method()` — static, settled in `finalize`
+                            ref = _java_type_ref(
+                                recv, type_id, package, imports, self._receivers, method_params
+                            )
+                            member = _field_text(n, "name", source)
+                            if ref is not None and member:
+                                deferred = DeferredCall(caller, member, rel, line, receiver=ref)
                     if deferred is not None:
                         self._receivers.calls.append(deferred)
             stack.extend(n.named_children)
@@ -273,14 +315,9 @@ class JavaExtractor:
         obj = inv.child_by_field_name("object")
         if obj is None or obj.type == "this":  # foo() / this.foo() → sibling method
             return f"{type_id}.{name}" if name in siblings else None
-        if obj.type == "identifier":
-            recv = _text(obj, source)
-            # A capitalized receiver is a Type (static call); lowercase is a
-            # variable (instance call) we can't resolve without type inference.
-            if recv[:1].isupper():
-                resolved = self._resolve_type(recv, package, imports)
-                if resolved is not None:
-                    return f"{resolved}.{name}"
+        # Everything else — `Type.method()` included — is deferred with the typed receivers (B21).
+        # A static call used to be emitted here as `<package>.Type.method` without checking that
+        # the type or the member exists: `LOG.info()` became a call to `app.LOG.info`, dangling.
         return None
 
     def _resolve_type(self, simple_or_fqn: str, package: str, imports: _ImportContext) -> str | None:
@@ -297,29 +334,72 @@ class JavaExtractor:
 
 # --- typed receivers (B21) --------------------------------------------------
 
-_UNREADABLE = object()  # bound, but with no type we can read — a receiver that refuses
 _PRIMITIVES = frozenset({"int", "long", "short", "byte", "char", "boolean", "float", "double", "void", "var"})
+_BLOCKS = frozenset(
+    {
+        "block",
+        "switch_block",
+        "switch_block_statement_group",
+        "switch_rule",
+        "lambda_expression",
+        "method_declaration",
+        "constructor_declaration",
+        "constructor_body",
+        "class_body",
+    }
+)
+
+
+def _java_type_params(node: TSNode, source: bytes) -> frozenset[str]:
+    """``<T, U extends X>`` of a type or method declaration."""
+    params = node.child_by_field_name("type_parameters")
+    names: set[str] = set()
+    for tp in params.named_children if params is not None else ():
+        ident = next((c for c in tp.named_children if c.type in ("type_identifier", "identifier")), None)
+        if ident is not None:
+            names.add(_text(ident, source))
+    return frozenset(names)
+
+
+def _strip_generics(text: str) -> str:
+    """Balanced generic arguments, innermost first: ``Outer<A>.Inner<B<C>>`` → ``Outer.Inner``."""
+    while True:
+        stripped = re.sub(r"<[^<>]*>", "", text)
+        if stripped == text:
+            return text.strip()
+        text = stripped
 
 
 def _java_type_ref(
-    text: str, enclosing: str | None, package: str, imports: _ImportContext, state: ReceiverState
+    text: str,
+    enclosing: str | None,
+    package: str,
+    imports: _ImportContext,
+    state: ReceiverState,
+    extra_params: frozenset[str] = frozenset(),
 ) -> TypeRef | None:
-    """The candidate ids a written Java type name can denote, in the compiler's order: a type
-    nested in an enclosing type, a single-type import, the same package, then on-demand imports
-    as one level. A qualified ``Outer.Inner`` resolves its head the same way."""
-    name = re.sub(r"<.*>", "", text).strip()
+    """The candidate ids a written Java type name can denote, in javac's order: a member type
+    of an enclosing type (its own or inherited), a single-type import — which **ends** the lookup
+    even when the imported type is external — the same package, then on-demand imports as one
+    level. A qualified ``Outer.Inner`` resolves its head the same way. A type parameter of any
+    enclosing type or of the method is never an in-repo type."""
+    name = _strip_generics(text)
     if not name or name in _PRIMITIVES or any(ch in name for ch in "[]|&?@ ") or not name[0].isalpha():
         return None
     head, _, rest = name.partition(".")
     suffix = f".{rest}" if rest else ""
-    groups: list[tuple[str, ...]] = []
     chain: list[str] = []
+    params = set(extra_params)
     cur = enclosing
     while cur is not None:
         chain.append(cur)
+        params |= state.type_params.get(cur, frozenset())
         cur = state.outer.get(cur)
+    if head in params:
+        return None
+    groups: list[tuple[str, ...]] = []
     if head in imports.by_simple:
-        groups.append((f"java:{imports.by_simple[head]}{suffix}",))
+        groups.append((f"java:{imports.by_simple[head]}{suffix}", STOP))
     if package:
         groups.append((f"java:{package}.{head}{suffix}",))
     groups.append(tuple(f"java:{w}.{head}{suffix}" for w in sorted(imports.wildcard_prefixes)))
@@ -335,6 +415,7 @@ def _java_type_node_ref(
     imports: _ImportContext,
     state: ReceiverState,
     source: bytes,
+    extra_params: frozenset[str] = frozenset(),
 ) -> TypeRef | None:
     if node is None or node.type in (
         "integral_type",
@@ -344,28 +425,57 @@ def _java_type_node_ref(
         "array_type",
     ):
         return None
-    return _java_type_ref(_text(node, source), enclosing, package, imports, state)
+    return _java_type_ref(_text(node, source), enclosing, package, imports, state, extra_params)
+
+
+def _block_of(node: TSNode) -> TSNode:
+    cur = node.parent
+    while cur is not None and cur.type not in _BLOCKS:
+        cur = cur.parent
+    return cur if cur is not None else node
+
+
+def _statement_of(node: TSNode) -> TSNode:
+    cur = node.parent
+    while cur is not None and not (
+        cur.type.endswith("_statement") or cur.type == "local_variable_declaration"
+    ):
+        cur = cur.parent
+    return cur if cur is not None else node
+
+
+def _in_anonymous(node: TSNode, body: TSNode) -> bool:
+    """Is ``node`` inside an anonymous class body declared within this method ``body``?"""
+    cur = node.parent
+    while cur is not None and cur != body:
+        if (
+            cur.type == "class_body"
+            and cur.parent is not None
+            and cur.parent.type == "object_creation_expression"
+        ):
+            return True
+        cur = cur.parent
+    return False
 
 
 def _method_scope(
     method: TSNode, type_id: str, package: str, imports: _ImportContext, state: ReceiverState, source: bytes
-) -> dict[str, object]:
-    """``name → TypeRef`` for everything a method binds, ``_UNREADABLE`` where the type is not
-    written (``var x = call()``, a lambda parameter, a union catch, a varargs array, a pattern).
+) -> Scope:
+    """Every binding a method makes, with the block it is in force in (R1). Java puts a local in
+    scope from its declaration to the end of its block; two bindings that both apply refuse.
 
     Every binding form is collected, typed or not: a name missed here would fall through to a
     field of the same name and resolve to *its* type — the one way this pass could invent."""
-    scope: dict[str, object] = {}
-
-    def bind(name_node: TSNode | None, ref: object) -> None:
-        name = _text(name_node, source) if name_node is not None else ""
-        if name:
-            prior = scope.get(name, ref)
-            scope[name] = ref if prior == ref else _UNREADABLE
+    scope = Scope(before_decl_refuses=False)
+    method_params = _java_type_params(method, source)
 
     def typed(node: TSNode | None) -> object:
-        ref = _java_type_node_ref(node, type_id, package, imports, state, source)
-        return ref if ref is not None else _UNREADABLE
+        ref = _java_type_node_ref(node, type_id, package, imports, state, source, method_params)
+        return ref if ref is not None else UNREADABLE
+
+    def bind(name_node: TSNode | None, ref: object, where: TSNode, decl: TSNode) -> None:
+        if name_node is not None:
+            scope.bind(_text(name_node, source), ref, where.start_byte, where.end_byte, decl.start_byte)
 
     stack = [method]
     while stack:
@@ -373,80 +483,108 @@ def _method_scope(
         t = n.type
         if t in _TYPE_DECLS and n is not method:
             continue  # a local class — its own scope
+        stack.extend(n.named_children)
         if t == "lambda_expression":
             params = n.child_by_field_name("parameters")
             idents = [params] if params is not None and params.type == "identifier" else []
-            idents += [
-                c for c in (params.named_children if params is not None else []) if c.type == "identifier"
-            ]
             for p in params.named_children if params is not None else []:
-                if p.type in ("formal_parameter", "spread_parameter"):
+                if p.type == "identifier":
+                    idents.append(p)
+                elif p.type in ("formal_parameter", "spread_parameter"):
                     idents.append(p.child_by_field_name("name") or p)
             for ident in idents:
-                bind(ident, _UNREADABLE)  # D13: lambda parameters refuse, typed or not
-        elif t == "formal_parameter":
-            bind(n.child_by_field_name("name"), typed(n.child_by_field_name("type")))
+                bind(ident, UNREADABLE, n, n)  # D13: lambda parameters refuse, typed or not
+        elif t == "formal_parameter" and n.parent is not None and n.parent.type == "formal_parameters":
+            owner = n.parent.parent
+            if owner is not None and owner.type == "lambda_expression":
+                continue  # bound above, unreadable
+            dims = n.child_by_field_name("dimensions")
+            ref = typed(n.child_by_field_name("type")) if dims is None else UNREADABLE  # `Handler h[]`
+            where = owner if owner is not None else method
+            bind(n.child_by_field_name("name"), ref, where, where)
         elif t == "spread_parameter":  # varargs: an array
             for d in n.named_children:
                 if d.type == "variable_declarator":
-                    bind(d.child_by_field_name("name"), _UNREADABLE)
+                    owner = (
+                        n.parent.parent if n.parent is not None and n.parent.parent is not None else method
+                    )
+                    bind(d.child_by_field_name("name"), UNREADABLE, owner, owner)
         elif t in ("local_variable_declaration", "field_declaration"):
             ty = n.child_by_field_name("type")
+            # A local is in scope to the end of its block; a field of an anonymous class, its body.
+            where = n.parent if n.parent is not None else n
             for d in n.named_children:
                 if d.type != "variable_declarator":
                     continue
-                if ty is not None and _text(ty, source) == "var":
+                if d.child_by_field_name("dimensions") is not None:
+                    ref = UNREADABLE  # `Handler arr[]`
+                elif ty is not None and _text(ty, source) == "var":
                     value = d.child_by_field_name("value")
                     new = value if value is not None and value.type == "object_creation_expression" else None
-                    bind(
-                        d.child_by_field_name("name"),
-                        typed(new.child_by_field_name("type")) if new is not None else _UNREADABLE,
-                    )
+                    ref = typed(new.child_by_field_name("type")) if new is not None else UNREADABLE
                 else:
-                    bind(
-                        d.child_by_field_name("name"),
-                        typed(ty) if not d.child_by_field_name("dimensions") else _UNREADABLE,
-                    )
-        elif t in ("enhanced_for_statement", "resource"):
+                    ref = typed(ty)
+                bind(d.child_by_field_name("name"), ref, where, d)
+        elif t == "enhanced_for_statement":
             ty = n.child_by_field_name("type")
-            bind(
-                n.child_by_field_name("name"),
-                typed(ty) if ty is not None and _text(ty, source) != "var" else _UNREADABLE,
-            )
+            ref = typed(ty) if ty is not None and _text(ty, source) != "var" else UNREADABLE
+            bind(n.child_by_field_name("name"), ref, n, n)
+        elif t == "resource":
+            ty = n.child_by_field_name("type")
+            ref = typed(ty) if ty is not None and _text(ty, source) != "var" else UNREADABLE
+            owner = n.parent.parent if n.parent is not None and n.parent.parent is not None else n
+            bind(n.child_by_field_name("name"), ref, owner, n)
         elif t == "catch_formal_parameter":
             catch_type = next((c for c in n.named_children if c.type == "catch_type"), None)
             text = _text(catch_type, source) if catch_type is not None else ""
-            ref = _java_type_ref(text, type_id, package, imports, state) if text and "|" not in text else None
-            bind(n.child_by_field_name("name"), ref if ref is not None else _UNREADABLE)
+            ref = (
+                _java_type_ref(text, type_id, package, imports, state, method_params)
+                if "|" not in text
+                else None
+            )
+            bind(n.child_by_field_name("name"), ref if ref is not None else UNREADABLE, n.parent or n, n)
         elif t == "instanceof_expression" and n.child_by_field_name("name") is not None:
-            bind(n.child_by_field_name("name"), typed(n.child_by_field_name("right")))
+            # Flow scoping: typed inside the statement that tests it; past it, where the binding may
+            # or may not still be in scope, unreadable — so a same-named field is never read there.
+            stmt, block = _statement_of(n), _block_of(n)
+            name = n.child_by_field_name("name")
+            bind(name, typed(n.child_by_field_name("right")), stmt, n)
+            if name is not None:
+                scope.bind(_text(name, source), UNREADABLE, stmt.end_byte, block.end_byte, stmt.end_byte)
         elif t in ("record_pattern", "type_pattern", "record_pattern_component"):
             for c in n.named_children:
                 if c.type == "identifier":
-                    bind(c, _UNREADABLE)
-        stack.extend(n.named_children)
+                    bind(c, UNREADABLE, _block_of(n), c)
     return scope
 
 
 def _deferred_call(
-    inv: TSNode, caller: str, type_id: str, scope: dict[str, object], rel: str, line: int, source: bytes
+    inv: TSNode,
+    caller: str,
+    type_id: str,
+    scope: Scope,
+    rel: str,
+    line: int,
+    source: bytes,
+    in_anonymous: bool = False,
 ) -> DeferredCall | None:
-    """A ``recv.m()`` through a variable or field, for ``finalize`` — or None when out of scope."""
+    """A ``recv.m()`` through a variable or field, for ``finalize`` — or None when out of scope.
+
+    Inside an anonymous class body, a name not bound in the method may be a member the anonymous
+    class inherits from the type it instantiates — so only a local or parameter resolves there."""
     name = _field_text(inv, "name", source)
     obj = inv.child_by_field_name("object")
     if not name or obj is None:
         return None
     if obj.type == "identifier":
         recv = _text(obj, source)
-        if recv[:1].isupper() and recv not in scope:
-            return None  # a type name — the static path's, not a receiver
-        if recv in scope:
-            bound = scope[recv]
-            return (
-                DeferredCall(caller, name, rel, line, receiver=bound) if isinstance(bound, TypeRef) else None
-            )
+        bound = scope.lookup(recv, inv.start_byte)
+        if isinstance(bound, TypeRef):
+            return DeferredCall(caller, name, rel, line, receiver=bound)
+        if bound is not None or in_anonymous or recv[:1].isupper():
+            return None  # unreadable; inside an anonymous class; or a type name (the static path's)
         return DeferredCall(caller, name, rel, line, field_of=type_id, field_name=recv)
-    if obj.type == "field_access" and _field_text(obj, "object", source) == "this":
+    if obj.type == "field_access" and _field_text(obj, "object", source) == "this" and not in_anonymous:
         return DeferredCall(
             caller, name, rel, line, field_of=type_id, field_name=_field_text(obj, "field", source)
         )

@@ -55,8 +55,11 @@ from orchestrator.pkg.razor import (
     razor_to_csharp,
 )
 from orchestrator.pkg.typed_receivers import (
+    STOP,
+    UNREADABLE,
     DeferredCall,
     ReceiverState,
+    Scope,
     TypeRef,
     resolve_bases,
     resolve_calls,
@@ -109,6 +112,8 @@ class _TypeRec:
     node: TSNode
     methods: list[tuple[str, str, TSNode]] = field(default_factory=list)  # (name, id, node)
     parent: _TypeRec | None = None  # the enclosing type of a nested one
+    decl: _NsDecl | None = None  # the innermost namespace declaration it sits in
+    type_params: frozenset[str] = frozenset()  # its own `<T, U>` — names that are never in-repo types
     bases: list[tuple[str, str]] = field(default_factory=list)  # (as written, provisional id)
 
 
@@ -127,6 +132,7 @@ class CSharpExtractor:
         self._receivers = ReceiverState("csharp")
         # `services.AddScoped<IFoo, Foo>()` — resolved against every declaration in `finalize`.
         self._bindings: list[Binding] = []
+        self._projects: dict[str, bool] = {}  # directory -> holds a .csproj
 
     def module_name(self, path: Path, root: Path) -> str:
         # C#'s closest thing to a package is the (first) namespace, which lives in
@@ -187,17 +193,31 @@ class CSharpExtractor:
 
     def extract(self, *, path: Path, module: str, rel: str) -> FactBatch:
         source = path.read_bytes()
+        project = self._project_of(path, rel)
         if path.suffix.lower() == ".razor":
             text = source.decode("utf-8-sig", errors="replace")
             # Line-aligned, so every provenance below is a true `.razor` line number.
             rewritten = razor_to_csharp(text, rel, namespace=code_behind_namespace(path))
-            batch = self._extract_source(rewritten.encode("utf-8"), module=module, rel=rel)
+            batch = self._extract_source(rewritten.encode("utf-8"), module=module, rel=rel, project=project)
             return _span_component(
                 batch, text, rel, namespace=component_namespace(text) or code_behind_namespace(path)
             )
-        return self._extract_source(source, module=module, rel=rel)
+        return self._extract_source(source, module=module, rel=rel, project=project)
 
-    def _extract_source(self, source: bytes, *, module: str, rel: str) -> FactBatch:
+    def _project_of(self, path: Path, rel: str) -> str:
+        """The directory of the nearest `.csproj` above ``path`` (repo-relative): the unit a
+        `global using` applies to. Two projects in one repository do not share them."""
+        root = Path(str(path)[: -len(rel)]) if rel and str(path).endswith(rel) else path.parent
+        cur = path.parent
+        while True:
+            key = str(cur)
+            if key not in self._projects:
+                self._projects[key] = any(cur.glob("*.csproj"))
+            if self._projects[key] or cur == root or cur.parent == cur:
+                return cur.relative_to(root).as_posix() if self._projects[key] and cur != root else ""
+            cur = cur.parent
+
+    def _extract_source(self, source: bytes, *, module: str, rel: str, project: str = "") -> FactBatch:
         parser = _csharp_parser()
         tree = parser.parse(source)
         batch = FactBatch()
@@ -205,21 +225,21 @@ class CSharpExtractor:
         batch.add_node(Node(module_id, NodeKind.MODULE, module or rel, "csharp", Provenance(rel, 1)))
 
         types: list[_TypeRec] = []
+        decls: list[tuple[int, int, _NsDecl]] = []
         self._usings(tree.root_node, module_id, source, rel, batch)
-        self._walk(tree.root_node.named_children, module_id, "", source, rel, batch, types)
+        self._walk(tree.root_node.named_children, module_id, "", source, rel, batch, types, None, decls)
         # Phase 1.3 — framework + call edges, computed once the full type set is known.
         _framework_edges(types, module_id, tree.root_node, source, rel, batch)
         # B21: calls through typed receivers, and DI bindings — both settled in `finalize`.
-        usings = _using_scope(tree.root_node, source, self._receivers)
-        _record_receiver_calls(types, usings, source, rel, self._receivers)
-        _record_bindings(
-            tree.root_node,
-            types,
-            usings,
-            source,
-            rel,
-            self._bindings,
-        )
+        unit = _unit_scope(tree.root_node, source, project, self._receivers)
+        for rec in types:  # the innermost namespace declaration each type sits in
+            rec.decl = max(
+                ((start, d) for start, end, d in decls if start <= rec.node.start_byte < end),
+                key=lambda sd: sd[0],
+                default=(0, None),
+            )[1]
+        _record_receiver_calls(types, unit, source, rel, self._receivers)
+        _record_bindings(tree.root_node, types, decls, unit, source, rel, self._bindings)
         return batch
 
     def _usings(self, root: TSNode, module_id: str, source: bytes, rel: str, batch: FactBatch) -> None:
@@ -243,21 +263,31 @@ class CSharpExtractor:
         rel: str,
         batch: FactBatch,
         types: list[_TypeRec],
+        decl: _NsDecl | None = None,
+        decls: list[tuple[int, int, _NsDecl]] | None = None,
     ) -> None:
         """Walk siblings, descending into namespaces and emitting top-level types.
 
         Handles both block ``namespace N { ... }`` and file-scoped ``namespace N;``
         (whose types are subsequent siblings — so the namespace sticks for the rest).
+        Each namespace declaration is recorded with the ``using``s written inside it (B21): C#
+        consults them at that declaration's level, not the file's.
         """
         current_ns = namespace
-        for node in nodes:
+        for i, node in enumerate(nodes):
             if node.type == "file_scoped_namespace_declaration":
                 current_ns = _join_ns(namespace, _field_text(node, "name", source))
+                decl = _ns_decl(current_ns, namespace, nodes[i + 1 :], decl, source)
+                if decls is not None:
+                    decls.append((node.start_byte, 1 << 62, decl))
             elif node.type == "namespace_declaration":
                 ns = _join_ns(namespace, _field_text(node, "name", source))
                 body = node.child_by_field_name("body")
                 if body is not None:
-                    self._walk(body.named_children, module_id, ns, source, rel, batch, types)
+                    inner = _ns_decl(ns, namespace, body.named_children, decl, source)
+                    if decls is not None:
+                        decls.append((node.start_byte, node.end_byte, inner))
+                    self._walk(body.named_children, module_id, ns, source, rel, batch, types, inner, decls)
             elif node.type in _TYPE_DECLS:
                 self._emit_type(node, module_id, None, current_ns, source, rel, batch, types)
 
@@ -293,7 +323,17 @@ class CSharpExtractor:
         if not any(t.type_id == type_id for t in types):
             batch.add_edge(Edge(contains_parent, type_id, EdgeKind.CONTAINS, Provenance(rel, line)))
         parent = next((t for t in types if t.type_id == parent_type_id), None) if parent_type_id else None
-        rec = _TypeRec(type_id=type_id, name=name, namespace=namespace, node=node, parent=parent)
+        rec = _TypeRec(
+            type_id=type_id,
+            name=name,
+            namespace=namespace,
+            node=node,
+            parent=parent,
+            type_params=_type_params(node, source),
+        )
+        if node.type == "interface_declaration":
+            self._receivers.interfaces.add(type_id)
+        self._receivers.type_params[type_id] = rec.type_params
         types.append(rec)
 
         if node.type == "delegate_declaration":
@@ -558,86 +598,167 @@ def _call_edges(types: list[_TypeRec], source: bytes, rel: str, batch: FactBatch
 
 
 @dataclass(frozen=True)
-class _Usings:
-    prefixes: tuple[str, ...]  # `using A.B;` in this file
-    aliases: dict[str, str]  # `using Alias = A.B.C;`
+class _NsDecl:
+    """One namespace declaration and the ``using``s written inside it. C# resolves a simple name
+    level by level: this namespace's types, then these usings and aliases, then the namespaces it
+    implicitly opens (``namespace A.B`` opens ``A``), then the enclosing declaration."""
+
+    full: str
+    outer: str  # the namespace of the enclosing declaration ('' at the top)
+    usings: tuple[str, ...]
+    aliases: tuple[tuple[str, str], ...]
+    parent: _NsDecl | None
 
 
-def _using_scope(root: TSNode, source: bytes, state: ReceiverState) -> _Usings:
-    """Every ``using`` directive in the file — at the top or inside a namespace block.
+@dataclass(frozen=True)
+class _Unit:
+    """The compilation unit's own ``using``s and aliases, and the project its ``global using``s
+    (collected repository-wide into ``ReceiverState.global_prefixes[project]``) belong to."""
 
-    ``global using X;`` applies to every file in the project, so it goes to the repository-wide
-    set in ``state``. ``using static`` brings members, not types, into scope and is skipped.
-    """
-    prefixes: set[str] = set()
-    aliases: dict[str, str] = {}
-    stack = [root]
-    while stack:
-        node = stack.pop()
+    usings: tuple[str, ...]
+    aliases: tuple[tuple[str, str], ...]
+    project: str
+
+
+def _parse_using(node: TSNode, source: bytes) -> tuple[str, str, str]:
+    """``(kind, alias, target)`` — kind is ``static``, ``global``, ``alias`` or ``plain``."""
+    words = {c.type for c in node.children}
+    if "static" in words or not node.named_children:
+        return "static", "", ""
+    target = _text(node.named_children[-1], source).removeprefix("global::")
+    alias = node.child_by_field_name("name")
+    if alias is not None:
+        return "alias", _text(alias, source), target
+    return ("global" if "global" in words else "plain"), "", target
+
+
+def _ns_decl(full: str, outer: str, members: list[TSNode], parent: _NsDecl | None, source: bytes) -> _NsDecl:
+    usings: list[str] = []
+    aliases: list[tuple[str, str]] = []
+    for node in members:
         if node.type == "using_directive":
-            words = {c.type for c in node.children}
-            if "static" in words or not node.named_children:
-                continue
-            alias = node.child_by_field_name("name")
-            target = _text(node.named_children[-1], source).removeprefix("global::")
-            if alias is not None and target:
-                aliases[_text(alias, source)] = target
-            elif target:
-                (state.global_prefixes if "global" in words else prefixes).add(target)
+            kind, alias, target = _parse_using(node, source)
+            if kind == "alias":
+                aliases.append((alias, target))
+            elif kind in ("plain", "global") and target:
+                usings.append(target)
+    return _NsDecl(full, outer, tuple(sorted(set(usings))), tuple(sorted(aliases)), parent)
+
+
+def _unit_scope(root: TSNode, source: bytes, project: str, state: ReceiverState) -> _Unit:
+    """The file's top-level ``using``s — those before any file-scoped namespace, which belong to
+    that namespace instead. ``global using`` joins the project-wide set."""
+    usings: list[str] = []
+    aliases: list[tuple[str, str]] = []
+    for node in root.named_children:
+        if node.type == "file_scoped_namespace_declaration":
+            break
+        if node.type != "using_directive":
             continue
-        stack.extend(
-            c
-            for c in node.named_children
-            if c.type
-            in (
-                "namespace_declaration",
-                "declaration_list",
-                "file_scoped_namespace_declaration",
-                "using_directive",
-            )
-            or c.parent is root
-        )
-    return _Usings(tuple(sorted(prefixes)), aliases)
+        kind, alias, target = _parse_using(node, source)
+        if kind == "global" and target:
+            state.global_prefixes.setdefault(project, set()).add(target)
+        elif kind == "alias":
+            aliases.append((alias, target))
+        elif kind == "plain" and target:
+            usings.append(target)
+    return _Unit(tuple(sorted(set(usings))), tuple(sorted(aliases)), project)
 
 
-def _type_ref(text: str, rec: _TypeRec, usings: _Usings) -> TypeRef | None:
-    return _type_ref_in(text, rec.namespace, rec, usings)
+def _type_params(node: TSNode, source: bytes) -> frozenset[str]:
+    """``<T, U>`` of a type or method declaration."""
+    names: set[str] = set()
+    for child in node.named_children:
+        if child.type == "type_parameter_list":
+            for tp in child.named_children:
+                ident = tp.child_by_field_name("name") or next(
+                    (c for c in tp.named_children if c.type == "identifier"), None
+                )
+                if ident is not None:
+                    names.add(_text(ident, source))
+    return frozenset(names)
 
 
-def _type_ref_in(text: str, namespace: str, rec: _TypeRec | None, usings: _Usings) -> TypeRef | None:
-    """The candidate ids a written C# type name can denote, in the compiler's lookup order:
-    types nested in the enclosing types, then each enclosing namespace from the innermost out,
-    then the global namespace, then ``using`` directives (file and ``global``) as one level."""
+def _strip_type(text: str) -> str | None:
+    """``global::A.List<B<C>>?`` → ``A.List``; None for arrays, pointers, tuples, keywords."""
     name = text.removeprefix("global::").strip()
-    if name.endswith("?"):
-        name = name[:-1].strip()
-    if not name or any(ch in name for ch in "[]*(),") or not (name[0].isalpha() or name[0] == "_"):
+    while True:  # balanced generic arguments, innermost first: `Outer<X>.Inner<Y>` keeps both names
+        stripped = re.sub(r"<[^<>]*>", "", name)
+        if stripped == name:
+            break
+        name = stripped
+    name = name.rstrip("?").strip()
+    if not name or any(ch in name for ch in "[]*(), ") or not (name[0].isalpha() or name[0] == "_"):
         return None
-    name = re.sub(r"<.*>", "", name).strip()
-    parts = namespace.split(".") if namespace else []
-    namespaces = tuple((f"csharp:{'.'.join(parts[:i])}.{name}",) for i in range(len(parts), 0, -1))
-    if "." in name:
-        head, _, rest = name.partition(".")
-        if head in usings.aliases:
-            return TypeRef(((f"csharp:{usings.aliases[head]}.{rest}",),))
-        return TypeRef((*namespaces, (f"csharp:{name}",)))
-    if name in usings.aliases:
-        return TypeRef(((f"csharp:{usings.aliases[name]}",),))
+    return name
+
+
+def _type_ref_in(
+    text: str,
+    rec: _TypeRec | None,
+    decl: _NsDecl | None,
+    unit: _Unit,
+    extra_params: frozenset[str] = frozenset(),
+) -> TypeRef | None:
+    """The candidate ids a written C# type name can denote, in the compiler's lookup order:
+    types nested in (or inherited by) the enclosing types; for each namespace declaration from
+    the innermost out, its namespace's types then its usings and aliases, then the namespaces it
+    implicitly opens; the global namespace; then the file's usings and aliases together with the
+    project's ``global using``s. A type parameter is never an in-repo type."""
+    name = _strip_type(text)
+    if name is None:
+        return None
+    head, _, rest = name.partition(".")
+    suffix = f".{rest}" if rest else ""
+    params = set(extra_params)
+    cur_rec = rec
+    while cur_rec is not None:
+        params |= cur_rec.type_params
+        cur_rec = cur_rec.parent
+    if head in params:
+        return None
+    groups: list[tuple[str, ...]] = []
+    d = decl
+    while d is not None:
+        opened = [p for p in d.full[len(d.outer) :].split(".") if p] if d.full.startswith(d.outer) else []
+        for k in range(len(opened), 0, -1):
+            ns = ".".join(p for p in (d.outer, *opened[:k]) if p)
+            groups.append((f"csharp:{ns}.{head}{suffix}",))
+            if k == len(opened):
+                alias = dict(d.aliases).get(head)
+                if alias is not None:
+                    groups.append((f"csharp:{alias}{suffix}", STOP))
+                elif d.usings:
+                    groups.append(tuple(f"csharp:{u}.{head}{suffix}" for u in d.usings))
+        d = d.parent
+    groups.append((f"csharp:{head}{suffix}",))  # the global namespace
+    alias = dict(unit.aliases).get(head)
+    if alias is not None:
+        groups.append((f"csharp:{alias}{suffix}", STOP))
     chain: list[str] = []
-    cur: _TypeRec | None = rec
-    while cur is not None:
-        chain.append(cur.type_id)
-        cur = cur.parent
+    cur_rec = rec
+    while cur_rec is not None:
+        chain.append(cur_rec.type_id)
+        cur_rec = cur_rec.parent
     return TypeRef(
-        (*namespaces, (f"csharp:{name}",)),
-        simple=name,
-        using_prefixes=usings.prefixes,
+        tuple(groups),
+        simple=f"{head}{suffix}",
+        using_prefixes=unit.usings,
         enclosing=tuple(chain),
-        nested=name,
+        nested=f"{head}{suffix}",
+        project=unit.project,
     )
 
 
-def _type_node_ref(node: TSNode | None, rec: _TypeRec, usings: _Usings, source: bytes) -> TypeRef | None:
+def _type_ref(
+    text: str, rec: _TypeRec, unit: _Unit, extra_params: frozenset[str] = frozenset()
+) -> TypeRef | None:
+    return _type_ref_in(text, rec, rec.decl, unit, extra_params)
+
+
+def _type_node_ref(
+    node: TSNode | None, rec: _TypeRec, unit: _Unit, source: bytes, extra_params: frozenset[str] = frozenset()
+) -> TypeRef | None:
     if node is None or node.type in (
         "implicit_type",
         "predefined_type",
@@ -646,129 +767,153 @@ def _type_node_ref(node: TSNode | None, rec: _TypeRec, usings: _Usings, source: 
         "pointer_type",
     ):
         return None
-    return _type_ref(_text(node, source), rec, usings)
+    return _type_ref(_text(node, source), rec, unit, extra_params)
 
 
-_UNREADABLE = object()  # bound, but with no type we can read — a receiver that refuses
+_BLOCKS = frozenset(
+    {
+        "block",
+        "switch_section",
+        "method_declaration",
+        "constructor_declaration",
+        "local_function_statement",
+        "lambda_expression",
+        "anonymous_method_expression",
+        "accessor_declaration",
+        "arrow_expression_clause",
+    }
+)
 
 
-def _method_scope(mnode: TSNode, rec: _TypeRec, usings: _Usings, source: bytes) -> dict[str, object]:
-    """``name → TypeRef`` for everything a method binds; ``_UNREADABLE`` where the type is not
-    written (``var x = Call()``, a lambda parameter, a query range variable, a deconstruction).
+def _block_of(node: TSNode) -> TSNode:
+    cur = node.parent
+    while cur is not None and cur.type not in _BLOCKS:
+        cur = cur.parent
+    return cur if cur is not None else node
+
+
+def _method_scope(mnode: TSNode, rec: _TypeRec, unit: _Unit, source: bytes) -> Scope:
+    """Every binding a method makes, with the block it is in force in (R1).
 
     Every binding form is collected, typed or not: a name missed here would fall through to a
     field of the same name and resolve to *its* type — the one way this pass could invent."""
-    scope: dict[str, object] = {}
+    scope = Scope(before_decl_refuses=True)  # C#: a local is in scope for its whole block
+    method_params = _type_params(mnode, source)
 
-    def bind(name_node: TSNode | None, ref: object) -> None:
-        name = _text(name_node, source) if name_node is not None else ""
-        if not name:
-            return
-        prior = scope.get(name, ref)
-        scope[name] = ref if prior == ref else _UNREADABLE
+    def typed(node: TSNode | None) -> object:
+        ref = _type_node_ref(node, rec, unit, source, method_params)
+        return ref if ref is not None else UNREADABLE
 
-    def bind_all(node: TSNode | None) -> None:  # every identifier in a pattern, untyped
+    def bind(name_node: TSNode | None, ref: object, where: TSNode, decl: TSNode) -> None:
+        if name_node is not None:
+            scope.bind(_text(name_node, source), ref, where.start_byte, where.end_byte, decl.start_byte)
+
+    def bind_all(node: TSNode | None, where: TSNode) -> None:  # every identifier in a pattern, untyped
         stack = [node] if node is not None else []
         while stack:
             n = stack.pop()
             if n.type == "identifier":
-                bind(n, _UNREADABLE)
+                bind(n, UNREADABLE, where, n)
             stack.extend(n.named_children)
-
-    def typed(node: TSNode | None) -> object:
-        ref = _type_node_ref(node, rec, usings, source)
-        return ref if ref is not None else _UNREADABLE
 
     for param in (mnode.child_by_field_name("parameters") or mnode).named_children:
         if param.type == "parameter":
-            bind(param.child_by_field_name("name"), typed(param.child_by_field_name("type")))
+            bind(param.child_by_field_name("name"), typed(param.child_by_field_name("type")), mnode, mnode)
 
     stack = [c for c in mnode.named_children if c.type != "parameter_list"]
     while stack:
         n = stack.pop()
+        stack.extend(n.named_children)
         t = n.type
         if t in ("lambda_expression", "anonymous_method_expression"):
             params = n.child_by_field_name("parameters")
             if params is not None and params.type != "parameter_list":
-                bind(params, _UNREADABLE)  # `x => …`
+                bind(params, UNREADABLE, n, n)  # `x => …`
             elif params is not None:
                 for p in params.named_children:
-                    bind(p.child_by_field_name("name"), _UNREADABLE)  # D13: lambda parameters refuse
+                    bind(p.child_by_field_name("name"), UNREADABLE, n, n)  # D13: refuse typed or not
         elif t == "local_function_statement":
-            bind(n.child_by_field_name("name"), _UNREADABLE)
+            bind(n.child_by_field_name("name"), UNREADABLE, _block_of(n), n)
             for p in (n.child_by_field_name("parameters") or n).named_children:
                 if p.type == "parameter":
-                    bind(p.child_by_field_name("name"), typed(p.child_by_field_name("type")))
+                    bind(p.child_by_field_name("name"), typed(p.child_by_field_name("type")), n, n)
         elif t == "variable_declaration":
+            container = n.parent
+            if container is not None and container.type == "local_declaration_statement":
+                where = _block_of(container)
+            else:
+                where = container or n
             ty = n.child_by_field_name("type")
             for d in n.named_children:
                 if d.type != "variable_declarator":
                     continue
                 name = d.child_by_field_name("name")
                 if name is None:
-                    bind_all(d.named_children[0] if d.named_children else None)  # `var (a, b) = …`
-                    continue
-                if ty is not None and ty.type == "implicit_type":
+                    bind_all(d.named_children[0] if d.named_children else None, where)  # `var (a, b) = …`
+                elif ty is not None and ty.type == "implicit_type":
                     init = next((c for c in d.named_children if c.type == "object_creation_expression"), None)
-                    bind(name, typed(init.child_by_field_name("type")) if init is not None else _UNREADABLE)
+                    ref = typed(init.child_by_field_name("type")) if init is not None else UNREADABLE
+                    bind(name, ref, where, d)
                 else:
-                    bind(name, typed(ty))
+                    bind(name, typed(ty), where, d)
         elif t == "foreach_statement":
             left = n.child_by_field_name("left")
             if left is not None and left.type == "identifier":
-                bind(left, typed(n.child_by_field_name("type")))
+                bind(left, typed(n.child_by_field_name("type")), n, n)
             else:
-                bind_all(left)
-        elif t in ("catch_declaration", "declaration_expression", "declaration_pattern"):
-            bind(n.child_by_field_name("name"), typed(n.child_by_field_name("type")))
+                bind_all(left, n)
+        elif t == "catch_declaration":
+            bind(n.child_by_field_name("name"), typed(n.child_by_field_name("type")), n.parent or n, n)
+        elif t in ("declaration_expression", "declaration_pattern"):
+            bind(n.child_by_field_name("name"), typed(n.child_by_field_name("type")), _block_of(n), n)
         elif t in ("single_variable_designation", "parenthesized_variable_designation"):
-            bind_all(n)
+            bind_all(n, _block_of(n))
         elif t in ("from_clause", "let_clause", "join_clause", "join_into_clause", "query_continuation"):
+            query = n.parent
+            while query is not None and query.type != "query_expression":
+                query = query.parent
             named = n.child_by_field_name("name") or next(
                 (c for c in n.named_children if c.type == "identifier"), None
             )
-            bind(named, _UNREADABLE)
-        stack.extend(n.named_children)
+            bind(named, UNREADABLE, query or n, n)
     return scope
 
 
-def _record_fields(rec: _TypeRec, usings: _Usings, source: bytes, state: ReceiverState) -> None:
+def _record_fields(rec: _TypeRec, unit: _Unit, source: bytes, state: ReceiverState) -> None:
     """Fields and properties with their declared types — and a primary-constructor or record's
     positional parameters, which are fields in all but name."""
     for child in rec.node.named_children:
         if child.type == "parameter_list":
             for p in child.named_children:
                 if p.type == "parameter":
-                    ref = _type_node_ref(p.child_by_field_name("type"), rec, usings, source)
+                    ref = _type_node_ref(p.child_by_field_name("type"), rec, unit, source)
                     state.add_field(rec.type_id, _field_text(p, "name", source), ref)
     body = rec.node.child_by_field_name("body")
     for member in body.named_children if body is not None else ():
         if member.type == "property_declaration":
-            ref = _type_node_ref(member.child_by_field_name("type"), rec, usings, source)
+            ref = _type_node_ref(member.child_by_field_name("type"), rec, unit, source)
             state.add_field(rec.type_id, _field_text(member, "name", source), ref)
-        elif member.type == "field_declaration":
+        elif member.type in ("field_declaration", "event_field_declaration"):
             for decl in member.named_children:
                 if decl.type != "variable_declaration":
                     continue
-                ref = _type_node_ref(decl.child_by_field_name("type"), rec, usings, source)
+                ref = _type_node_ref(decl.child_by_field_name("type"), rec, unit, source)
                 for d in decl.named_children:
                     if d.type == "variable_declarator":
                         state.add_field(rec.type_id, _field_text(d, "name", source), ref)
 
 
 def _record_bindings(
-    root: TSNode, types: list[_TypeRec], usings: _Usings, source: bytes, rel: str, out: list[Binding]
+    root: TSNode,
+    types: list[_TypeRec],
+    decls: list[tuple[int, int, _NsDecl]],
+    unit: _Unit,
+    source: bytes,
+    rel: str,
+    out: list[Binding],
 ) -> None:
-    """Every two-type DI registration in the file (`csharp_di`), with the context to resolve it:
-    the enclosing type if there is one, else the file's namespace (top-level `Program.cs`)."""
-    file_ns = next(
-        (
-            _field_text(c, "name", source)
-            for c in root.named_children
-            if c.type == "file_scoped_namespace_declaration"
-        ),
-        "",
-    )
+    """Every two-type DI registration in the file (`csharp_di`), resolved from where it is
+    written: inside a type, or at the top level of a `Program.cs`."""
     stack = [root]
     while stack:
         node = stack.pop()
@@ -783,20 +928,17 @@ def _record_bindings(
             key=lambda t: t.node.start_byte,
             default=None,
         )
-        namespace = enclosing.namespace if enclosing is not None else _namespace_of(node, source) or file_ns
-        iface, impl = (_type_ref_in(_text(a, source), namespace, enclosing, usings) for a in found[1])
+        if enclosing is not None:
+            decl = enclosing.decl
+        else:
+            decl = max(
+                ((start, d) for start, end, d in decls if start <= node.start_byte < end),
+                key=lambda sd: sd[0],
+                default=(0, None),
+            )[1]
+        iface, impl = (_type_ref_in(_text(a, source), enclosing, decl, unit) for a in found[1])
         if iface is not None and impl is not None:
             out.append(Binding(impl, iface, rel, node.start_point[0] + 1))
-
-
-def _namespace_of(node: TSNode, source: bytes) -> str:
-    parts: list[str] = []
-    cur = node.parent
-    while cur is not None:
-        if cur.type == "namespace_declaration":
-            parts.insert(0, _field_text(cur, "name", source))
-        cur = cur.parent
-    return ".".join(p for p in parts if p)
 
 
 def _qualified_name(node: TSNode, source: bytes) -> str | None:
@@ -813,17 +955,16 @@ def _qualified_name(node: TSNode, source: bytes) -> str | None:
 
 
 def _record_receiver_calls(
-    types: list[_TypeRec], usings: _Usings, source: bytes, rel: str, state: ReceiverState
+    types: list[_TypeRec], unit: _Unit, source: bytes, rel: str, state: ReceiverState
 ) -> None:
     """Defer every ``recv.m()`` / ``Type.m()`` call in this file to ``finalize`` (B21)."""
     for rec in types:
-        _record_fields(rec, usings, source, state)
+        _record_fields(rec, unit, source, state)
         for written, provisional in rec.bases:
-            ref = _type_ref(written, rec.parent or rec, usings)
-            if ref is not None:
-                state.base_refs[(rec.type_id, provisional)] = ref
+            state.add_base(rec.type_id, provisional, _type_ref_in(written, rec.parent, rec.decl, unit))
         for _name, mid, mnode in rec.methods:
-            scope = _method_scope(mnode, rec, usings, source)
+            scope = _method_scope(mnode, rec, unit, source)
+            method_params = _type_params(mnode, source)
             stack = [c for c in mnode.named_children if c.type != "parameter_list"]
             while stack:
                 n = stack.pop()
@@ -836,20 +977,19 @@ def _record_receiver_calls(
                 obj, member_node = fn.child_by_field_name("expression"), fn.child_by_field_name("name")
                 if obj is None or member_node is None:
                     continue
-                member = (
-                    _generic_head(member_node, source)
-                    if member_node.type == "generic_name"
-                    else _text(member_node, source)
-                )
+                if member_node.type == "generic_name":
+                    member = _generic_head(member_node, source)
+                else:
+                    member = _text(member_node, source)
                 line = n.start_point[0] + 1
+                at = n.start_byte
                 call: DeferredCall | None = None
                 if obj.type == "identifier":
                     recv = _text(obj, source)
-                    if recv in scope:
-                        bound = scope[recv]
-                        if isinstance(bound, TypeRef):
-                            call = DeferredCall(mid, member, rel, line, receiver=bound)
-                    else:
+                    bound = scope.lookup(recv, at)
+                    if isinstance(bound, TypeRef):
+                        call = DeferredCall(mid, member, rel, line, receiver=bound)
+                    elif bound is None:
                         call = DeferredCall(
                             mid,
                             member,
@@ -857,29 +997,33 @@ def _record_receiver_calls(
                             line,
                             field_of=rec.type_id,
                             field_name=recv,
-                            static=_type_ref(recv, rec, usings),
+                            static=_type_ref(recv, rec, unit, method_params),
                         )
                 elif obj.type == "member_access_expression":
                     head = obj.child_by_field_name("expression")
                     if head is not None and head.type in ("this", "this_expression"):
+                        field_name = _field_text(obj, "name", source)
                         call = DeferredCall(
-                            mid,
-                            member,
-                            rel,
-                            line,
-                            field_of=rec.type_id,
-                            field_name=_field_text(obj, "name", source),
+                            mid, member, rel, line, field_of=rec.type_id, field_name=field_name
                         )
                     else:
                         qualified = _qualified_name(obj, source)
-                        if qualified and qualified.split(".", 1)[0] not in scope:
+                        first = qualified.split(".", 1)[0] if qualified else ""
+                        if qualified and scope.lookup(first, at) is None:
+                            # `Status.Kind.Parse()`: static only if `Status` is not a field (B7).
                             call = DeferredCall(
-                                mid, member, rel, line, receiver=_type_ref(qualified, rec, usings)
+                                mid,
+                                member,
+                                rel,
+                                line,
+                                field_of=rec.type_id,
+                                field_name=first,
+                                static=_type_ref(qualified, rec, unit, method_params),
+                                chain_head=True,
                             )
                 elif obj.type == "generic_name":  # `Cache<T>.Get()` — a static call on a generic type
-                    call = DeferredCall(
-                        mid, member, rel, line, receiver=_type_ref(_generic_head(obj, source), rec, usings)
-                    )
+                    ref = _type_ref(_generic_head(obj, source), rec, unit, method_params)
+                    call = DeferredCall(mid, member, rel, line, receiver=ref)
                 if call is not None and (call.receiver is not None or call.field_of is not None):
                     state.calls.append(call)
 
