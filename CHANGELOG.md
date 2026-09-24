@@ -12,19 +12,28 @@ All notable changes to this project are documented here. Format loosely follows
   through a parameter, `local.Count()` on a typed local or `var x = new T()` — and, in C#, static
   calls on an in-repo type (`Helper.Format(x)`) — now land on the member the declared type means.
   Both front-ends used to drop them: on a .NET service 2,427 such calls were resolvable from the
-  source and 0 were emitted (775 CALLS in the whole graph, now 5,547); on mysql-connector-j 334 of
-  14,984 (CALLS 20,235 → 35,646). Resolution follows the compiler's lookup order (enclosing and
-  inherited member types, the namespace/package, `using`/imports) and the nearest in-repo type
-  that declares the member; an interface-typed receiver lands on the interface's member. A
-  receiver whose type is not written — a lambda parameter, `var x = Call()`, a query variable —
-  or a lookup the compiler would find ambiguous is refused, never guessed; a decoy class with the
-  same member name cannot fool it (corpus `*/typed_receivers_refusals`).
+  source and 0 were emitted, now all 2,427 (775 CALLS in the whole graph, now 5,456); on
+  mysql-connector-j 334 of 14,984, now 12,962 (CALLS 20,235 → 31,423). Resolution follows the
+  compiler's lookup order — enclosing and inherited member types, the namespace (with a `using`
+  inside a namespace block at that block's level, a `global using` for its own project only) or
+  package, `using`/imports — and the nearest in-repo type that declares the member, base classes
+  before interfaces; an interface-typed receiver lands on the interface's member. A local binds
+  only inside its block (and, in Java, from its declaration), a type parameter is never an
+  in-repo type, and a name the language binds explicitly — a Java single-type import, a C#
+  alias — ends the lookup even when its type is external. A receiver whose type is not written
+  (a lambda parameter, `var x = Call()`, a query variable), a lookup the compiler would find
+  ambiguous, or a static-looking name inside a class with an external base class (a controller's
+  `User` is `ControllerBase`'s property, not the in-repo `User`) is refused, never guessed
+  (corpus `*/typed_receivers_refusals`). Constructor calls (`new T()`) are not emitted yet, and
+  the corpus labels them as known gaps: C# `CALLS` recall reads 0.68 and Java 0.70 on their new
+  cases, every miss labelled.
 - **ASP.NET Core DI registrations become `PROVIDES`.** `services.AddScoped<IMailer, SmtpMailer>()`
   (and `Transient`/`Singleton`/`TryAdd*`) records `SmtpMailer PROVIDES IMailer`, the edge Kotlin's
-  Hilt bindings introduced. A factory registration is not read.
-- **`blast_radius` reaches an implementation's callers through its interface.** Every consumer of
-  a DI-bound service is handed the interface, so nothing calls the implementation by name — its
-  blast radius was empty. `blast_radius` now also reports `interface_callers` (and
+  Hilt bindings introduced — only when `SmtpMailer` really implements `IMailer`. A factory
+  registration is not read.
+- **`blast_radius` reaches an implementation's callers through its interface** — in every language
+  that emits `IMPLEMENTS`, not only Java and C#. Every consumer of a DI-bound service is handed the
+  interface, so nothing calls the implementation by name — its blast radius was empty. `blast_radius` now also reports `interface_callers` (and
   `explain_symbol` `called_through_interface`): the callers of each member this one implements, at
   every level up through `IMPLEMENTS` and `PROVIDES`, each with the `via` member. They are counted
   apart from direct callers, because they *may* reach this implementation, not must. On the .NET
@@ -38,6 +47,11 @@ All notable changes to this project are documented here. Format loosely follows
   bases on the .NET service were in-repo interfaces. They now resolve through the same lookup.
 - **Java `interface X extends Y` had no `IMPLEMENTS` edge** (an interface's `extends` list was not
   read): +126 on mysql-connector-j, which is also what lets a member an interface inherits be found.
+- **Java static calls land only on a member that exists.** `Type.method()` was emitted per file
+  whether or not the repository declared it; it is now settled once every file is known, and a
+  capitalized name that is a declared field (`DEFAULT_INSTANCE.toBuilder()`) is read as the
+  field. Dangling edges from `pkg verify` on mysql-connector-j: 4,894 → 270 (the rest are
+  external protobuf bases).
 
   **Upgrade note:** Java and C# graphs gain many `CALLS`, `IMPLEMENTS` and (C#) `PROVIDES` edges,
   so an `understand --check` in CI diffs once — regenerate `episteme/` with
