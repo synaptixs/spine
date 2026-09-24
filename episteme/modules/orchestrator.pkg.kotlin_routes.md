@@ -160,7 +160,7 @@ _24 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/kotlin_routes.py:203`](../../src/orchestrator/pkg/kotlin_routes.py#L203)
 
-- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L1077)
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L1112)
 - **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_mount_points`](../../src/orchestrator/pkg/kotlin_routes.py#L329), [`join_path`](../../src/orchestrator/pkg/jvm_routes.py#L178)
 
 ### `read_controller`

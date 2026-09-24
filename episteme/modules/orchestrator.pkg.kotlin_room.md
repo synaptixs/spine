@@ -170,7 +170,7 @@ _23 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/kotlin_room.py:485`](../../src/orchestrator/pkg/kotlin_room.py#L485)
 
-- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L1077)
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L1112)
 - **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L157), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`_settle_parameter_type`](../../src/orchestrator/pkg/kotlin_room.py#L554), [`entity_id`](../../src/orchestrator/pkg/kotlin_room.py#L65)
 
 ### `table_entity_id`

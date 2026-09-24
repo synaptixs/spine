@@ -131,7 +131,7 @@ _16 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/kotlin_nav.py:202`](../../src/orchestrator/pkg/kotlin_nav.py#L202)
 
-- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L1077)
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L1112)
 - **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_key`](../../src/orchestrator/pkg/kotlin_nav.py#L342), [`_resolve`](../../src/orchestrator/pkg/kotlin_nav.py#L319)
 
 ### `scan_calls`
