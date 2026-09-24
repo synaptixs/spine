@@ -1610,7 +1610,33 @@ def test_a_constructor_reports_who_creates_its_type(tmp_path: Path) -> None:
     explained = {m["id"]: m for m in explain_symbol(repo_path=str(tmp_path), symbol="Job")["matches"]}
     assert explained["java:a.Job.Job"]["instantiated_via_type"] == ["java:a.Use.go"]
     assert "instantiated_via_type" not in explained["java:a.Job"]
-    # a method is not a constructor, whatever it is called
+    # a method not named for its type is not a constructor
     assert (
         "instantiated_via_type_count" not in blast_radius(repo_path=str(tmp_path), symbol="go")["matches"][0]
     )
+
+
+def test_a_constructors_reach_across_repos_is_its_types(tmp_path: Path) -> None:
+    pytest.importorskip("tree_sitter_java", reason="install the 'java' extra")
+    pytest.importorskip("tree_sitter_kotlin", reason="install the 'kotlin' extra")
+    (tmp_path / "lib" / "src" / "shared").mkdir(parents=True)
+    (tmp_path / "lib" / "src" / "shared" / "Money.java").write_text(
+        "package shared;\npublic class Money { public Money(int c) { } }\n", encoding="utf-8"
+    )
+    (tmp_path / "app" / "src" / "app").mkdir(parents=True)
+    (tmp_path / "app" / "src" / "app" / "Pay.kt").write_text(
+        "package app\n\nimport shared.Money\n\nclass Pay {\n    fun charge() { val m = Money(5) }\n}\n",
+        encoding="utf-8",
+    )
+    cfg = tmp_path / "repos.yaml"
+    cfg.write_text(
+        "repos:\n  lib: lib\n  app: app\njoins:\n  - kind: package\n    consumer: app\n    provider: lib\n",
+        encoding="utf-8",
+    )
+    by_id = {m["id"]: m for m in blast_radius(symbol="Money", repos=str(cfg))["matches"]}
+    ctor = by_id["java:lib@shared.Money.Money"]
+    # "instantiated from another repo" and "no dependents in other repos" in one answer was the bug
+    assert ctor["instantiated_via_type_count"] == 1
+    assert ctor["cross_repo_count"] == by_id["java:lib@shared.Money"]["cross_repo_count"] == 1
+    explained = {m["id"]: m for m in explain_symbol(symbol="Money", repos=str(cfg))["matches"]}
+    assert explained["java:lib@shared.Money.Money"]["cross_repo_count"] == 1

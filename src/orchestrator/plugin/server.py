@@ -485,7 +485,8 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
                 entry["instantiated_via_type_count"] = len(made)
                 entry["instantiated_via_type"] = [{"id": cs.caller.id, "at": cs.at} for cs in made[:25]]
             if repos:
-                reach = _cross_repo_reach(store, node.id)
+                # a constructor's reach is its type's: no edge targets the constructor itself (B22)
+                reach = _cross_repo_reach(store, owner or node.id)
                 entry["cross_repo_count"] = len(reach)
                 entry["cross_repo"] = reach[:25]
             out.append(entry)
@@ -535,7 +536,8 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
                 entry["instantiated_via_type"] = [cs.caller.id for cs in store.callers_of(owner)[:15]]
             if repos:
                 entry["repo"] = _repo_of_node(node)
-                reach = _cross_repo_reach(store, node.id)
+                # a constructor's reach is its type's: no edge targets the constructor itself (B22)
+                reach = _cross_repo_reach(store, owner or node.id)
                 entry["cross_repo_count"] = len(reach)
                 entry["cross_repo"] = reach[:25]
             out.append(entry)
@@ -1048,7 +1050,10 @@ def _per_repo(repos: str, fn: Callable[[Any], dict[str, Any]]) -> dict[str, Any]
 
 def _constructed_type(store: Any, node: Any) -> str | None:
     """The Type a Java/C# constructor node constructs, else None. A constructor is a Function its
-    Type contains under the Type's own name (``Foo.Foo``) — one node for every overload."""
+    Type contains under the Type's own name (``Foo.Foo``) — one node for every overload. A Java
+    method spelled like its class, or a C# static constructor, mints the same id (member ids carry
+    no kind or signature — ledger B25), so the node stands for them too; its creators are still
+    the type's."""
     from orchestrator.pkg.facts import NodeKind
 
     if node.kind is not NodeKind.FUNCTION or node.language not in ("java", "csharp") or "." not in node.id:
