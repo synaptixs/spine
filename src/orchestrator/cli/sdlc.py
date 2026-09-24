@@ -476,6 +476,21 @@ def _terminal_gate() -> Any:
     return gate
 
 
+def _warn_out_deprecated() -> None:
+    """`plan`/`approve --out` wrote where the plan gate never reads (ledger B17).
+
+    `require_approved_plan` looks only in `<repo>/.spine/plans`, so an approval written anywhere
+    else is refused as missing at build time, silently until then. Warned for one release rather
+    than removed, so a script using it gets notice; removal is ledger row N11. `autorun --out` is a
+    different option (the run's artifacts) and is not affected.
+    """
+    typer.echo(
+        "WARNING: --out is deprecated and will be removed in 3.45: a plan outside "
+        "<repo>/.spine/plans cannot be built — `sdlc autorun` only reads approvals there.",
+        err=True,
+    )
+
+
 @sdlc_app.command("approve")
 def sdlc_approve(
     intent: Annotated[str, typer.Argument(help="Intent id whose plan you are deciding, e.g. PROJ-123.")],
@@ -488,7 +503,12 @@ def sdlc_approve(
         bool, typer.Option("--reject", help="Record a rejection instead of an approval.")
     ] = False,
     out: Annotated[
-        Path | None, typer.Option("--out", help="Where the plan lives (default: <repo>/.spine/plans).")
+        Path | None,
+        typer.Option(
+            "--out",
+            help="Deprecated, removed in 3.45: an approval outside <repo>/.spine/plans is one "
+            "`sdlc autorun` never reads.",
+        ),
     ] = None,
 ) -> None:
     """Record that a human read this build document and decided.
@@ -505,9 +525,12 @@ def sdlc_approve(
         derived_at,
         plan_digest,
         plan_dir,
+        planned_issue_type,
         save_approval,
     )
 
+    if out is not None:
+        _warn_out_deprecated()
     plan_file = (Path(out) if out else plan_dir(path)) / f"{intent}-build.md"
     if not plan_file.is_file():
         typer.echo(
@@ -532,6 +555,7 @@ def sdlc_approve(
         digest=plan_digest(document),
         commit=derived_at(path),
         note=note,
+        issue_type=planned_issue_type(document),
     )
     written = save_approval(approval, root=path, out=out)
     typer.echo(f"[plan] {approval.decision.lower()} by {who} — {written}")
@@ -609,15 +633,29 @@ def sdlc_autorun(
         ),
     ] = True,
 ) -> None:
-    """Drive ONE ticket through the whole happy path: research → design → code → tests → PR.
+    """Drive ONE ticket through the whole path: research → design → code → tests → review.
 
     The stages are the commands you already have — `investigate`, `design`, `sdlc feature` —
     called in order with the same spec, and each result recorded. Default --safe makes no
     external write anywhere in the chain.
 
-    It does not yet judge whether the ticket is worth doing, enforce a budget, survive a
-    crash, or loop on review findings. Each stage says plainly when it skipped and why; see
-    docs/specs/autonomous-run-agent.md for what lands when.
+    It stops rather than guessing. It refuses to build a ticket whose build document nobody
+    approved (--plan-gate, on by default; decide it with `sdlc approve`). It parks the run —
+    raises an approval listed by `sdlc runs approvals`, and exits — when the validity gate
+    finds the ticket contradicts the code, duplicates another run, is too big, or is a bug that
+    resolves to no code; when the design names code that does not exist; or when --max-cost
+    runs out. After the build, a review pass reviews the diff and tries to fix what it finds,
+    for up to two rounds; what it leaves unresolved is recorded, and the run still ends done.
+
+    `--resume <run-id>` continues a run that crashed or ran out of budget: same run id, same
+    tracker issue, every stage re-run from the start. It refuses while an approval is pending
+    and after a rejection. Approving a validity or design park does not make the run build —
+    the resumed run meets the same verdict and parks again.
+
+    Not covered: there is no spend cap unless you pass --max-cost (SDLC_RUN_BUDGET_USD is not
+    read here), and the cap counts the build stage only. The review pass's fixes are left
+    uncommitted in the worktree — under --live, after the PR is already open. Review comments
+    on an open PR are `sdlc address-review`.
     """
     import asyncio
 
@@ -668,7 +706,11 @@ def sdlc_plan(
     ] = None,
     source: Annotated[
         str | None,
-        typer.Option("--source", help="Derive the spec instead, e.g. jira://<issue-key>."),
+        typer.Option(
+            "--source",
+            help="Derive the spec from a ticket, e.g. jira://<issue-key>. With --spec, only read the "
+            "ticket's text for the criteria check — the spec stays the requirements.",
+        ),
     ] = None,
     intent: Annotated[
         str | None, typer.Option("--intent", help="Intent id to plan (default: the first).")
@@ -676,7 +718,11 @@ def sdlc_plan(
     path: Annotated[str, typer.Option("--path", help="Repo to reason about (the graph).")] = ".",
     out: Annotated[
         Path | None,
-        typer.Option("--out", help="Where the document goes (default: <repo>/.spine/plans)."),
+        typer.Option(
+            "--out",
+            help="Deprecated, removed in 3.45: a plan outside <repo>/.spine/plans cannot be built — "
+            "`sdlc autorun` reads approvals only there.",
+        ),
     ] = None,
     language: Annotated[
         str, typer.Option("--language", help="Target language for the prompt (auto detects).")
@@ -719,6 +765,8 @@ def sdlc_plan(
         typer.echo(f"ERROR: {lang_error}", err=True)
         raise typer.Exit(code=2)
 
+    if out is not None:
+        _warn_out_deprecated()
     if not spec and not source:
         typer.echo("Give --spec <file.json> or --source <uri>.", err=True)
         raise typer.Exit(code=2)
@@ -732,8 +780,33 @@ def sdlc_plan(
     async def _go() -> None:
         resolved = injected
         # The flag wins; otherwise the ticket answers. An injected spec has no ticket behind
-        # it, so with `--spec` and no flag the document is honestly untyped.
+        # it, so with `--spec` and no flag the document is honestly untyped — even beside a
+        # `--source`, because `autorun --spec` and the plan gate read no ticket for a type either,
+        # and a plan typed differently from its gate is refused as changed (ledger B18).
         resolved_type = issue_type
+        # The ticket as intake read it — description, comments, attachments — is what row 08
+        # checks each filed criterion against. A hand-written `--spec` alone has none.
+        documents: list[Any] = []
+        if resolved is not None and source:
+            # `--spec` is the requirements; `--source` supplies only the ticket's own words, for
+            # §8 to check the hand-written criteria against. So fetch, never analyse: the spec
+            # already says what to build, and the path stays free of any model call.
+            from orchestrator.core.env import load_local_env
+            from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
+            from orchestrator.intake.service import SourceUriError, parse_source_uri
+            from orchestrator.sdlc.spec_file import spec_source_mismatch
+
+            load_local_env()
+            mismatch = spec_source_mismatch(resolved, source)
+            if mismatch:
+                typer.echo(f"WARNING: {mismatch}", err=True)
+            try:
+                service = build_service_for(str(source), dry_run=True)
+                fetched = await service.fetch_source_documents(parse_source_uri(str(source))[1])
+            except (SourceUriError, IntakeNotConfiguredError) as exc:
+                typer.echo(f"ERROR: {exc}", err=True)
+                raise typer.Exit(code=2) from exc
+            documents = list(fetched.documents)
         if resolved is None:
             from orchestrator.core.env import load_local_env
             from orchestrator.core.llm.client import LLMError
@@ -765,17 +838,14 @@ def sdlc_plan(
                 typer.echo(f"Intent {intent!r} not found. Available: {ids}", err=True)
                 raise typer.Exit(code=3)
             resolved = chosen.model_dump()
+            documents = list(getattr(plan_result, "documents", []) or [])
             if not resolved_type:
                 from orchestrator.intake.ticket_meta import resolve_ticket_meta
 
                 resolved_type = resolve_ticket_meta(plan_result, chosen).issue_type
 
         intent_key = str(resolved.get("intent_id") or "spec")
-        # The ticket as intake read it — description, comments, attachments — is what row 08
-        # checks each filed criterion against. A hand-written `--spec` has none.
-        source_text = (
-            "\n\n".join(d.body for d in getattr(plan_result, "documents", []) or []) if source else ""
-        )
+        source_text = "\n\n".join(d.body for d in documents)
         # Resolved against the repo being planned, not left as the literal "auto" — the
         # codegen prompt, the layout and the test environment all read this, and the old
         # `python` default handed a C# repository Python scaffolding without saying so.

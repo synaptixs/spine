@@ -142,14 +142,37 @@ def _git(root: Path, *args: str) -> str | None:
     return proc.stdout.strip() if proc.returncode == 0 else None
 
 
+# Spine's own output inside a repository it plans against: `sdlc plan` writes build documents to
+# `<root>/.spine/plans/`. Counting them as dirt made planning invalidate the approval it was about
+# to receive — the gate re-derived a `<sha>-dirty` body — and made every later command distrust
+# the PKG cache (ledger B16). Excluding them cannot make a cached graph wrong: both walkers skip
+# dot-directories, so a plan never becomes a fact. `plans/` only — `.spine/repos.yaml` decides
+# which repositories the merged graph holds, so an uncommitted edit to it must stay dirty.
+# `top` anchors the glob at the repository root, so a plan anywhere in a monorepo is excluded
+# whichever subdirectory Spine was pointed at.
+_SPINE_GENERATED = ":(top,exclude,glob)**/.spine/plans/**"
+
+
+def worktree_dirty(root: Path | str) -> bool:
+    """Whether the checkout holding ``root`` has changes that could make a derived fact stale.
+
+    The one definition of "dirty" for trusting a commit — the fact cache (:func:`repo_state`) and
+    the build document's commit stamp (`sdlc.builddoc.derived_at`) both ask here, because two
+    copies of the rule is how they came to disagree about Spine's own files.
+    """
+    status = _git(Path(root), "status", "--porcelain", "--", _SPINE_GENERATED)
+    # A status git could not produce is not a clean tree: fail closed. It used to read as clean
+    # (`bool(None)`), and the exclude pathspec is one more way for an old git to refuse the call.
+    return status is None or bool(status)
+
+
 def repo_state(root: Path | str) -> tuple[str | None, bool]:
     """``(head_sha, dirty)`` for the repo at ``root``; ``(None, True)`` outside git."""
     root_path = Path(root)
     sha = _git(root_path, "rev-parse", "HEAD")
     if sha is None:
         return None, True
-    status = _git(root_path, "status", "--porcelain")
-    return sha, bool(status)
+    return sha, worktree_dirty(root_path)
 
 
 def default_cache_dir() -> Path:

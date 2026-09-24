@@ -78,7 +78,17 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.43.1 (current)** — a Python fix. A repository whose `src/` is a package — it has an
+**3.44.0 (current)** — an approved plan is the plan that builds. `sdlc plan` → `sdlc approve`
+→ `sdlc autorun` could refuse a plan nobody had changed. Writing the plan into `.spine/plans/`
+made the repo look modified, so the gate refused the approval it had just been given — the
+exact sequence the `spine-sdlc.yml` build job runs. A Bug that matched no code lost its
+approval because the gate forgot the issue type. `--spec` with `--source` crashed. All three
+are fixed: the spec stays the requirements and the ticket is read, with no model call, for the
+criteria check. A Jira ticket read through an MCP server now says it is the description only.
+`sdlc plan --out` and `sdlc approve --out` are deprecated — a plan written elsewhere is one
+`autorun` can never build — and go in 3.45.
+
+**3.43.1** — a Python fix. A repository whose `src/` is a package — it has an
 `__init__.py`, and the code imports `from src.services.x import …` — got a graph with no
 in-repo imports: module ids dropped `src.`, the imports kept it, and nothing joined, so
 `pkg verify` reported nearly every module as imported by nothing. `src/` is now stripped only

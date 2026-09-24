@@ -42,7 +42,7 @@ _12 of the symbols other code depends on here have no test path the graph can se
 [`scripts/sdlc_shapes.py:66`](../../scripts/sdlc_shapes.py#L66)
 
 - **Extends** (1): `AssertionError`
-- **Called by** (5): [`_run`](../../scripts/sdlc_shapes.py#L117), [`check_cross_repo_brief`](../../scripts/sdlc_shapes.py#L303), [`check_declared_repos`](../../scripts/sdlc_shapes.py#L264), [`check_merged_graph`](../../scripts/sdlc_shapes.py#L278), [`check_plan_is_deterministic`](../../scripts/sdlc_shapes.py#L236)
+- **Called by** (5): [`_run`](../../scripts/sdlc_shapes.py#L117), [`check_cross_repo_brief`](../../scripts/sdlc_shapes.py#L306), [`check_declared_repos`](../../scripts/sdlc_shapes.py#L267), [`check_merged_graph`](../../scripts/sdlc_shapes.py#L281), [`check_plan_is_deterministic`](../../scripts/sdlc_shapes.py#L236)
 
 ## Functions
 
@@ -78,7 +78,7 @@ _12 of the symbols other code depends on here have no test path the graph can se
 
 [`scripts/sdlc_shapes.py:117`](../../scripts/sdlc_shapes.py#L117)
 
-- **Called by** (2): [`check_cross_repo_brief`](../../scripts/sdlc_shapes.py#L303), [`check_plan_is_deterministic`](../../scripts/sdlc_shapes.py#L236)
+- **Called by** (2): [`check_cross_repo_brief`](../../scripts/sdlc_shapes.py#L306), [`check_plan_is_deterministic`](../../scripts/sdlc_shapes.py#L236)
 - **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`_orchestrator`](../../scripts/sdlc_shapes.py#L110), `run`
 
 ### `_spec`
@@ -120,44 +120,44 @@ _12 of the symbols other code depends on here have no test path the graph can se
 
 ### `check_cross_repo_brief`
 
-[`scripts/sdlc_shapes.py:303`](../../scripts/sdlc_shapes.py#L303)
+[`scripts/sdlc_shapes.py:306`](../../scripts/sdlc_shapes.py#L306)
 
-- **Called by** (1): [`run_shape`](../../scripts/sdlc_shapes.py#L329)
+- **Called by** (1): [`run_shape`](../../scripts/sdlc_shapes.py#L332)
 - **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`_run`](../../scripts/sdlc_shapes.py#L117), `loads`
 
 ### `check_declared_repos`
 
-[`scripts/sdlc_shapes.py:264`](../../scripts/sdlc_shapes.py#L264)
+[`scripts/sdlc_shapes.py:267`](../../scripts/sdlc_shapes.py#L267)
 
-- **Called by** (1): [`run_shape`](../../scripts/sdlc_shapes.py#L329)
-- **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L207), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L145)
+- **Called by** (1): [`run_shape`](../../scripts/sdlc_shapes.py#L332)
+- **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L207), [`repo_state`](../../src/orchestrator/pkg/persistence.py#L169)
 
 ### `check_merged_graph`
 
-[`scripts/sdlc_shapes.py:278`](../../scripts/sdlc_shapes.py#L278)
+[`scripts/sdlc_shapes.py:281`](../../scripts/sdlc_shapes.py#L281)
 
-- **Called by** (1): [`run_shape`](../../scripts/sdlc_shapes.py#L329)
-- **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L378), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L207)
+- **Called by** (1): [`run_shape`](../../scripts/sdlc_shapes.py#L332)
+- **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L401), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L207)
 
 ### `check_plan_is_deterministic`
 
 [`scripts/sdlc_shapes.py:236`](../../scripts/sdlc_shapes.py#L236)
 
-- **Called by** (1): [`run_shape`](../../scripts/sdlc_shapes.py#L329)
-- **Calls** (3): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`_run`](../../scripts/sdlc_shapes.py#L117), `loads`
+- **Called by** (1): [`run_shape`](../../scripts/sdlc_shapes.py#L332)
+- **Calls** (4): [`ShapeError`](../../scripts/sdlc_shapes.py#L66), [`_run`](../../scripts/sdlc_shapes.py#L117), `copyfile`, `loads`
 
 ### `main`
 
-[`scripts/sdlc_shapes.py:345`](../../scripts/sdlc_shapes.py#L345)
+[`scripts/sdlc_shapes.py:348`](../../scripts/sdlc_shapes.py#L348)
 
-- **Calls** (7): `ArgumentParser`, `exit`, `mkdtemp`, `pathlib.Path`, `rmtree`, [`run_shape`](../../scripts/sdlc_shapes.py#L329), `which`
+- **Calls** (7): `ArgumentParser`, `exit`, `mkdtemp`, `pathlib.Path`, `rmtree`, [`run_shape`](../../scripts/sdlc_shapes.py#L332), `which`
 
 ### `run_shape`
 
-[`scripts/sdlc_shapes.py:329`](../../scripts/sdlc_shapes.py#L329)
+[`scripts/sdlc_shapes.py:332`](../../scripts/sdlc_shapes.py#L332)
 
-- **Called by** (1): [`main`](../../scripts/sdlc_shapes.py#L345)
-- **Calls** (4): [`check_cross_repo_brief`](../../scripts/sdlc_shapes.py#L303), [`check_declared_repos`](../../scripts/sdlc_shapes.py#L264), [`check_merged_graph`](../../scripts/sdlc_shapes.py#L278), [`check_plan_is_deterministic`](../../scripts/sdlc_shapes.py#L236)
+- **Called by** (1): [`main`](../../scripts/sdlc_shapes.py#L348)
+- **Calls** (4): [`check_cross_repo_brief`](../../scripts/sdlc_shapes.py#L306), [`check_declared_repos`](../../scripts/sdlc_shapes.py#L267), [`check_merged_graph`](../../scripts/sdlc_shapes.py#L281), [`check_plan_is_deterministic`](../../scripts/sdlc_shapes.py#L236)
 
 ## Imports
 

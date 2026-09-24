@@ -457,6 +457,14 @@ same spec produce the same document every time. It lands at
 `.spine/plans/<INTENT>-build.md`; re-running overwrites it and keeps what it replaced under
 `history/`, keyed by the commit it was derived at.
 
+Committing `.spine/plans/` is up to you — Spine never counts an uncommitted plan as a change,
+so writing one leaves the tree clean and the knowledge-graph cache warm. **Don't commit between
+`sdlc approve` and `sdlc autorun`, though:** an approval is bound to the commit the plan was
+derived at, so *any* new commit — even one that only adds the plan — makes it stale, and the
+build is refused until you re-plan and re-approve. Commit plans after the build, or before you
+plan. The rest of `.spine/` (`repos.yaml`, `workflows/`) is configuration: commit it, because an
+uncommitted edit there *does* change what Spine derives.
+
 Twelve sections, always the same, in the same order. What they are for:
 
 | | |

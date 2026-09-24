@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L46) — reaches **10** symbols
-- [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L641) — reaches **8** symbols
-- [`_adopt_evidence`](../../src/orchestrator/sdlc/autorun.py#L878) — reaches **5** symbols
-- [`RunContext`](../../src/orchestrator/sdlc/autorun.py#L65) — reaches **4** symbols
-- [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L646) — reaches **4** symbols
-- [`_spent`](../../src/orchestrator/sdlc/autorun.py#L472) — reaches **4** symbols
-- [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L844) — reaches **4** symbols
-- [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L899) — reaches **4** symbols
+- [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L54) — reaches **10** symbols
+- [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L656) — reaches **8** symbols
+- [`_adopt_evidence`](../../src/orchestrator/sdlc/autorun.py#L893) — reaches **5** symbols
+- [`RunContext`](../../src/orchestrator/sdlc/autorun.py#L73) — reaches **4** symbols
+- [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L661) — reaches **4** symbols
+- [`_spent`](../../src/orchestrator/sdlc/autorun.py#L480) — reaches **4** symbols
+- [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L859) — reaches **4** symbols
+- [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L914) — reaches **4** symbols
 
 _1 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
@@ -32,176 +32,176 @@ _1 of the symbols other code depends on here have no test path the graph can see
 
 ### `AutorunError`
 
-[`src/orchestrator/sdlc/autorun.py:46`](../../src/orchestrator/sdlc/autorun.py#L46)
+[`src/orchestrator/sdlc/autorun.py:54`](../../src/orchestrator/sdlc/autorun.py#L54)
 
 - **Extends** (1): `RuntimeError`
-- **Called by** (7): [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L476), [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L503), [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L964), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1032), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L557), [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L899), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237)
+- **Called by** (7): [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L484), [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L511), [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L979), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1047), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L565), [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L914), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245)
 - **Fields**: `code`
 
 ### `RunContext`
 
-[`src/orchestrator/sdlc/autorun.py:65`](../../src/orchestrator/sdlc/autorun.py#L65)
+[`src/orchestrator/sdlc/autorun.py:73`](../../src/orchestrator/sdlc/autorun.py#L73)
 
-- **Called by** (2 production · 1 test): [`_run`](../../scripts/phase2a_parity_gate.py#L88), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237), [`_ctx`](../../tests/sdlc/test_research_pass.py#L37)
+- **Called by** (2 production · 1 test): [`_run`](../../scripts/phase2a_parity_gate.py#L88), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245), [`_ctx`](../../tests/sdlc/test_research_pass.py#L37)
 - **Fields**: `approvals_dir`, `artifacts_dir`, `branch`, `case`, `criteria`, `design_files`, `evidence`, `fixer`, `issue_key`, `issue_type`, `labels`, `landing`, `landing_facts`, `live`, `plan`, `pr_url`, `record`, `root`, `run_id`, `source`, `spec`, `stages`, `store`, `tests`, `verdict`, `worktree`
 - **Documented in**: `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/graphir-sdlc-workflow.md#appendix-what-was-rejected-from-the-source-analysis`, `docs/specs/graphir-sdlc-workflow.md#open-questions`, `docs/specs/graphir-sdlc-workflow.md#phase-2a-evidence-consumed-criteria-bound`, `docs/specs/graphir-sdlc-workflow.md#phase-3-issue-type-shaped-workflows-and-profiles-a-repo-can-carry`, `docs/specs/graphir-sdlc-workflow.md#research-is-not-wired-as-research-four-defects`
 
 ### `StageResult`
 
-[`src/orchestrator/sdlc/autorun.py:55`](../../src/orchestrator/sdlc/autorun.py#L55)
+[`src/orchestrator/sdlc/autorun.py:63`](../../src/orchestrator/sdlc/autorun.py#L63)
 
-- **Called by** (1): [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L146)
+- **Called by** (1): [`record_stage`](../../src/orchestrator/sdlc/autorun.py#L154)
 - **Fields**: `artifact`, `detail`, `name`, `status`
 
 ## Functions
 
 ### `_adopt_evidence`
 
-[`src/orchestrator/sdlc/autorun.py:878`](../../src/orchestrator/sdlc/autorun.py#L878)
+[`src/orchestrator/sdlc/autorun.py:893`](../../src/orchestrator/sdlc/autorun.py#L893)
 
-- **Called by** (1): [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L844)
+- **Called by** (1): [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L859)
 
 ### `_adopt_issue_type`
 
-[`src/orchestrator/sdlc/autorun.py:539`](../../src/orchestrator/sdlc/autorun.py#L539)
+[`src/orchestrator/sdlc/autorun.py:547`](../../src/orchestrator/sdlc/autorun.py#L547)
 
-- **Called by** (1): [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L557)
+- **Called by** (1): [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L565)
 
 ### `_imperative`
 
-[`src/orchestrator/sdlc/autorun.py:641`](../../src/orchestrator/sdlc/autorun.py#L641)
+[`src/orchestrator/sdlc/autorun.py:656`](../../src/orchestrator/sdlc/autorun.py#L656)
 
-- **Called by** (4): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L646), [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L964), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L844), [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L899)
+- **Called by** (4): [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L661), [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L979), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L859), [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L914)
 - **Calls** (1): `getenv`
 
 ### `_journal_outcome`
 
-[`src/orchestrator/sdlc/autorun.py:420`](../../src/orchestrator/sdlc/autorun.py#L420)
+[`src/orchestrator/sdlc/autorun.py:428`](../../src/orchestrator/sdlc/autorun.py#L428)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237)
-- **Calls** (1): [`_spent`](../../src/orchestrator/sdlc/autorun.py#L472)
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245)
+- **Calls** (1): [`_spent`](../../src/orchestrator/sdlc/autorun.py#L480)
 
 ### `_load_graph`
 
-[`src/orchestrator/sdlc/autorun.py:830`](../../src/orchestrator/sdlc/autorun.py#L830)
+[`src/orchestrator/sdlc/autorun.py:845`](../../src/orchestrator/sdlc/autorun.py#L845)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237)
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245)
 - **Calls** (3): [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), `orchestrator.pkg.FactStore`, `orchestrator.pkg.load_or_extract`
 
 ### `_log_run_cost`
 
-[`src/orchestrator/sdlc/autorun.py:441`](../../src/orchestrator/sdlc/autorun.py#L441)
+[`src/orchestrator/sdlc/autorun.py:449`](../../src/orchestrator/sdlc/autorun.py#L449)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237)
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245)
 - **Calls** (5): [`JiraAdapter`](../../src/orchestrator/intake/jira.py#L114), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L80), [`jira_duration`](../../src/orchestrator/sdlc/telemetry.py#L22), `monotonic`, [`render_run_worklog`](../../src/orchestrator/sdlc/telemetry.py#L75)
 
 ### `_refuse_undecided_resume`
 
-[`src/orchestrator/sdlc/autorun.py:476`](../../src/orchestrator/sdlc/autorun.py#L476)
+[`src/orchestrator/sdlc/autorun.py:484`](../../src/orchestrator/sdlc/autorun.py#L484)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237)
-- **Calls** (3): [`ApprovalStore`](../../src/orchestrator/sdlc/escalate.py#L83), [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L46), [`default_approval_dir`](../../src/orchestrator/sdlc/escalate.py#L125)
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245)
+- **Calls** (3): [`ApprovalStore`](../../src/orchestrator/sdlc/escalate.py#L83), [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L54), [`default_approval_dir`](../../src/orchestrator/sdlc/escalate.py#L125)
 
 ### `_require_plan`
 
-[`src/orchestrator/sdlc/autorun.py:503`](../../src/orchestrator/sdlc/autorun.py#L503)
+[`src/orchestrator/sdlc/autorun.py:511`](../../src/orchestrator/sdlc/autorun.py#L511)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237)
-- **Calls** (3): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L46), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1466), [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L478)
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245)
+- **Calls** (3): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L54), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1492), [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L478)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#8-blast-radius-measured-from-the-pkg-per-registration-site`, `docs/specs/perl-support-roadmap.md#7-blast-radius-measured-from-the-pkg-per-registration-site`
 
 ### `_research_pass`
 
-[`src/orchestrator/sdlc/autorun.py:646`](../../src/orchestrator/sdlc/autorun.py#L646)
+[`src/orchestrator/sdlc/autorun.py:661`](../../src/orchestrator/sdlc/autorun.py#L661)
 
-- **Called by** (2 production · 17 test): [`_run`](../../scripts/phase2a_parity_gate.py#L88), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237), [`test_a_bug_gets_rca_and_an_enhancement_does_not`](../../tests/sdlc/test_research_pass.py#L223), [`test_a_bug_that_localizes_nothing_still_says_so`](../../tests/sdlc/test_research_pass.py#L330), [`test_a_design_naming_invented_code_parks_the_run`](../../tests/sdlc/test_research_pass.py#L173), [`test_a_repo_with_no_history_says_nothing_rather_than_failing`](../../tests/sdlc/test_research_pass.py#L341), [`test_an_enhancement_runs_the_churn_node`](../../tests/sdlc/test_research_pass.py#L275), [`test_an_enhancements_evidence_says_rca_was_not_run_not_that_it_found_nothing`](../../tests/sdlc/test_research_pass.py#L314), [`test_an_unmapped_issue_type_uses_default_and_says_why`](../../tests/sdlc/test_research_pass.py#L246), [`test_broken_research_never_takes_the_run_down`](../../tests/sdlc/test_research_pass.py#L125), [`test_criteria_are_bound_and_written`](../../tests/sdlc/test_research_pass.py#L90), [`test_design_is_handed_the_evidence_blast_radius`](../../tests/sdlc/test_research_pass.py#L135), [`test_investigate_reads_the_evidence_instead_of_deriving_it_again`](../../tests/sdlc/test_research_pass.py#L64), [`test_the_bug_profile_has_no_churn_node_because_rca_answers_it`](../../tests/sdlc/test_research_pass.py#L286), [`test_the_case_is_written_on_every_path`](../../tests/sdlc/test_research_pass.py#L101), [`test_the_enhancement_rendering_does_not_borrow_rcas_regression_wording`](../../tests/sdlc/test_research_pass.py#L298), [`test_the_imperative_path_still_derives_its_own_view`](../../tests/sdlc/test_research_pass.py#L113), [`test_the_landing_facts_survive_the_stage_boundary`](../../tests/sdlc/test_research_pass.py#L76), [`test_the_research_nodes_run_for_real_and_land_in_the_case`](../../tests/sdlc/test_research_pass.py#L53)
-- **Calls** (15): [`Case`](../../src/orchestrator/sdlc/case.py#L59), [`IRValidator`](../../src/orchestrator/ir/validator.py#L49), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L641), [`bind_criteria`](../../src/orchestrator/pkg/criteria_binding.py#L196), [`default_registry`](../../src/orchestrator/runtime/tool_registry.py#L106), `dumps`, [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L141), [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L122), [`load_profile`](../../src/orchestrator/sdlc/profiles/__init__.py#L80), `monotonic`, [`profile_names`](../../src/orchestrator/sdlc/profiles/__init__.py#L50), [`rca_problem`](../../src/orchestrator/sdlc/evidence.py#L117), [`render_evidence_md`](../../src/orchestrator/sdlc/evidence.py#L264), [`select_profile`](../../src/orchestrator/sdlc/profile_select.py#L137), [`to_dict`](../../src/orchestrator/sdlc/evidence.py#L235)
+- **Called by** (2 production · 17 test): [`_run`](../../scripts/phase2a_parity_gate.py#L88), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245), [`test_a_bug_gets_rca_and_an_enhancement_does_not`](../../tests/sdlc/test_research_pass.py#L223), [`test_a_bug_that_localizes_nothing_still_says_so`](../../tests/sdlc/test_research_pass.py#L330), [`test_a_design_naming_invented_code_parks_the_run`](../../tests/sdlc/test_research_pass.py#L173), [`test_a_repo_with_no_history_says_nothing_rather_than_failing`](../../tests/sdlc/test_research_pass.py#L341), [`test_an_enhancement_runs_the_churn_node`](../../tests/sdlc/test_research_pass.py#L275), [`test_an_enhancements_evidence_says_rca_was_not_run_not_that_it_found_nothing`](../../tests/sdlc/test_research_pass.py#L314), [`test_an_unmapped_issue_type_uses_default_and_says_why`](../../tests/sdlc/test_research_pass.py#L246), [`test_broken_research_never_takes_the_run_down`](../../tests/sdlc/test_research_pass.py#L125), [`test_criteria_are_bound_and_written`](../../tests/sdlc/test_research_pass.py#L90), [`test_design_is_handed_the_evidence_blast_radius`](../../tests/sdlc/test_research_pass.py#L135), [`test_investigate_reads_the_evidence_instead_of_deriving_it_again`](../../tests/sdlc/test_research_pass.py#L64), [`test_the_bug_profile_has_no_churn_node_because_rca_answers_it`](../../tests/sdlc/test_research_pass.py#L286), [`test_the_case_is_written_on_every_path`](../../tests/sdlc/test_research_pass.py#L101), [`test_the_enhancement_rendering_does_not_borrow_rcas_regression_wording`](../../tests/sdlc/test_research_pass.py#L298), [`test_the_imperative_path_still_derives_its_own_view`](../../tests/sdlc/test_research_pass.py#L113), [`test_the_landing_facts_survive_the_stage_boundary`](../../tests/sdlc/test_research_pass.py#L76), [`test_the_research_nodes_run_for_real_and_land_in_the_case`](../../tests/sdlc/test_research_pass.py#L53)
+- **Calls** (15): [`Case`](../../src/orchestrator/sdlc/case.py#L59), [`IRValidator`](../../src/orchestrator/ir/validator.py#L49), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L656), [`bind_criteria`](../../src/orchestrator/pkg/criteria_binding.py#L196), [`default_registry`](../../src/orchestrator/runtime/tool_registry.py#L106), `dumps`, [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L141), [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L122), [`load_profile`](../../src/orchestrator/sdlc/profiles/__init__.py#L80), `monotonic`, [`profile_names`](../../src/orchestrator/sdlc/profiles/__init__.py#L50), [`rca_problem`](../../src/orchestrator/sdlc/evidence.py#L117), [`render_evidence_md`](../../src/orchestrator/sdlc/evidence.py#L264), [`select_profile`](../../src/orchestrator/sdlc/profile_select.py#L137), [`to_dict`](../../src/orchestrator/sdlc/evidence.py#L235)
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#phase-3-issue-type-shaped-workflows-and-profiles-a-repo-can-carry`
 
 ### `_spent`
 
-[`src/orchestrator/sdlc/autorun.py:472`](../../src/orchestrator/sdlc/autorun.py#L472)
+[`src/orchestrator/sdlc/autorun.py:480`](../../src/orchestrator/sdlc/autorun.py#L480)
 
-- **Called by** (3): [`_journal_outcome`](../../src/orchestrator/sdlc/autorun.py#L420), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1032), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237)
+- **Called by** (3): [`_journal_outcome`](../../src/orchestrator/sdlc/autorun.py#L428), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1047), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245)
 
 ### `_stage_design`
 
-[`src/orchestrator/sdlc/autorun.py:964`](../../src/orchestrator/sdlc/autorun.py#L964)
+[`src/orchestrator/sdlc/autorun.py:979`](../../src/orchestrator/sdlc/autorun.py#L979)
 
-- **Called by** (1 production · 2 test): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237), [`test_a_design_naming_invented_code_parks_the_run`](../../tests/sdlc/test_research_pass.py#L173), [`test_design_is_handed_the_evidence_blast_radius`](../../tests/sdlc/test_research_pass.py#L135)
-- **Calls** (7): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L46), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L641), [`digest_of`](../../src/orchestrator/core/digest.py#L46), `monotonic`, [`produce_design`](../../src/orchestrator/sdlc/design.py#L342), [`render_design_md`](../../src/orchestrator/sdlc/design.py#L314), [`validate_design`](../../src/orchestrator/sdlc/design_validator.py#L179)
+- **Called by** (1 production · 2 test): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245), [`test_a_design_naming_invented_code_parks_the_run`](../../tests/sdlc/test_research_pass.py#L173), [`test_design_is_handed_the_evidence_blast_radius`](../../tests/sdlc/test_research_pass.py#L135)
+- **Calls** (7): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L54), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L656), [`digest_of`](../../src/orchestrator/core/digest.py#L46), `monotonic`, [`produce_design`](../../src/orchestrator/sdlc/design.py#L342), [`render_design_md`](../../src/orchestrator/sdlc/design.py#L314), [`validate_design`](../../src/orchestrator/sdlc/design_validator.py#L179)
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#research-is-not-wired-as-research-four-defects`
 
 ### `_stage_implement`
 
-[`src/orchestrator/sdlc/autorun.py:1032`](../../src/orchestrator/sdlc/autorun.py#L1032)
+[`src/orchestrator/sdlc/autorun.py:1047`](../../src/orchestrator/sdlc/autorun.py#L1047)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237)
-- **Calls** (6): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L46), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L472), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L306), `nullcontext`, `pathlib.Path`, [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L735)
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245)
+- **Calls** (6): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L54), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L480), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L327), `nullcontext`, `pathlib.Path`, [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L735)
 - **Documented in**: `docs/specs/recorded-intent-tier.md#41-what-phases-2-and-3-look-like-in-practice`
 
 ### `_stage_intake`
 
-[`src/orchestrator/sdlc/autorun.py:557`](../../src/orchestrator/sdlc/autorun.py#L557)
+[`src/orchestrator/sdlc/autorun.py:565`](../../src/orchestrator/sdlc/autorun.py#L565)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237)
-- **Calls** (7): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L46), [`_adopt_issue_type`](../../src/orchestrator/sdlc/autorun.py#L539), [`analyze_cached`](../../src/orchestrator/intake/cache.py#L189), [`build_service_for`](../../src/orchestrator/intake/factory.py#L272), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40), [`resolve_ticket_meta`](../../src/orchestrator/intake/ticket_meta.py#L81)
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245)
+- **Calls** (8): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L54), [`_adopt_issue_type`](../../src/orchestrator/sdlc/autorun.py#L547), [`analyze_cached`](../../src/orchestrator/intake/cache.py#L189), [`build_service_for`](../../src/orchestrator/intake/factory.py#L272), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40), [`resolve_ticket_meta`](../../src/orchestrator/intake/ticket_meta.py#L81), [`spec_source_mismatch`](../../src/orchestrator/sdlc/spec_file.py#L95)
 
 ### `_stage_investigate`
 
-[`src/orchestrator/sdlc/autorun.py:844`](../../src/orchestrator/sdlc/autorun.py#L844)
+[`src/orchestrator/sdlc/autorun.py:859`](../../src/orchestrator/sdlc/autorun.py#L859)
 
-- **Called by** (2 production · 5 test): [`_run`](../../scripts/phase2a_parity_gate.py#L88), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237), [`test_a_design_naming_invented_code_parks_the_run`](../../tests/sdlc/test_research_pass.py#L173), [`test_design_is_handed_the_evidence_blast_radius`](../../tests/sdlc/test_research_pass.py#L135), [`test_investigate_reads_the_evidence_instead_of_deriving_it_again`](../../tests/sdlc/test_research_pass.py#L64), [`test_the_imperative_path_still_derives_its_own_view`](../../tests/sdlc/test_research_pass.py#L113), [`test_the_landing_facts_survive_the_stage_boundary`](../../tests/sdlc/test_research_pass.py#L76)
-- **Calls** (5): [`_adopt_evidence`](../../src/orchestrator/sdlc/autorun.py#L878), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L641), [`_query_text`](../../src/orchestrator/sdlc/design.py#L104), [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L124), [`render_investigation_md`](../../src/orchestrator/sdlc/investigate.py#L297)
+- **Called by** (2 production · 5 test): [`_run`](../../scripts/phase2a_parity_gate.py#L88), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245), [`test_a_design_naming_invented_code_parks_the_run`](../../tests/sdlc/test_research_pass.py#L173), [`test_design_is_handed_the_evidence_blast_radius`](../../tests/sdlc/test_research_pass.py#L135), [`test_investigate_reads_the_evidence_instead_of_deriving_it_again`](../../tests/sdlc/test_research_pass.py#L64), [`test_the_imperative_path_still_derives_its_own_view`](../../tests/sdlc/test_research_pass.py#L113), [`test_the_landing_facts_survive_the_stage_boundary`](../../tests/sdlc/test_research_pass.py#L76)
+- **Calls** (5): [`_adopt_evidence`](../../src/orchestrator/sdlc/autorun.py#L893), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L656), [`_query_text`](../../src/orchestrator/sdlc/design.py#L104), [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L124), [`render_investigation_md`](../../src/orchestrator/sdlc/investigate.py#L297)
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#phase-1-the-tool-node-type-the-evidence-artifact-and-the-sdlc-ir-in-shadow`
 
 ### `_stage_review`
 
-[`src/orchestrator/sdlc/autorun.py:1116`](../../src/orchestrator/sdlc/autorun.py#L1116)
+[`src/orchestrator/sdlc/autorun.py:1131`](../../src/orchestrator/sdlc/autorun.py#L1131)
 
-- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237)
+- **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245)
 - **Calls** (1): [`review_and_fix`](../../src/orchestrator/sdlc/reviewloop.py#L170)
 
 ### `_stage_validity`
 
-[`src/orchestrator/sdlc/autorun.py:899`](../../src/orchestrator/sdlc/autorun.py#L899)
+[`src/orchestrator/sdlc/autorun.py:914`](../../src/orchestrator/sdlc/autorun.py#L914)
 
-- **Called by** (2): [`_run`](../../scripts/phase2a_parity_gate.py#L88), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237)
-- **Calls** (5): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L46), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L641), [`assess`](../../src/orchestrator/sdlc/validity.py#L483), [`digest_of`](../../src/orchestrator/core/digest.py#L46), `monotonic`
+- **Called by** (2): [`_run`](../../scripts/phase2a_parity_gate.py#L88), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245)
+- **Calls** (5): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L54), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L656), [`assess`](../../src/orchestrator/sdlc/validity.py#L483), [`digest_of`](../../src/orchestrator/core/digest.py#L46), `monotonic`
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#phase-1-the-tool-node-type-the-evidence-artifact-and-the-sdlc-ir-in-shadow`, `docs/specs/graphir-sdlc-workflow.md#the-hybrid-split-facts-fix-the-frame-the-model-fills-it`
 
 ### `_write_case`
 
-[`src/orchestrator/sdlc/autorun.py:819`](../../src/orchestrator/sdlc/autorun.py#L819)
+[`src/orchestrator/sdlc/autorun.py:834`](../../src/orchestrator/sdlc/autorun.py#L834)
 
-- **Called by** (2 production · 1 test): [`_run`](../../scripts/phase2a_parity_gate.py#L88), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237), [`test_the_case_is_written_on_every_path`](../../tests/sdlc/test_research_pass.py#L101)
+- **Called by** (2 production · 1 test): [`_run`](../../scripts/phase2a_parity_gate.py#L88), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245), [`test_the_case_is_written_on_every_path`](../../tests/sdlc/test_research_pass.py#L101)
 - **Calls** (1): `suppress`
 
 ### `autorun`
 
-[`src/orchestrator/sdlc/autorun.py:237`](../../src/orchestrator/sdlc/autorun.py#L237)
+[`src/orchestrator/sdlc/autorun.py:245`](../../src/orchestrator/sdlc/autorun.py#L245)
 
-- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L634), [`_run`](../../tests/sdlc/test_autorun.py#L567)
-- **Calls** (27): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L46), [`RunContext`](../../src/orchestrator/sdlc/autorun.py#L65), [`RunRecord`](../../src/orchestrator/sdlc/runstate.py#L43), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L90), [`TokenLedger`](../../src/orchestrator/core/llm/recording.py#L58), [`_journal_outcome`](../../src/orchestrator/sdlc/autorun.py#L420), [`_load_graph`](../../src/orchestrator/sdlc/autorun.py#L830), [`_log_run_cost`](../../src/orchestrator/sdlc/autorun.py#L441), [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L476), [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L503), [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L646), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L472), [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L964), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1032), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L557), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L844), [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L1116), [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L899), [`_write_case`](../../src/orchestrator/sdlc/autorun.py#L819), [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L227), `getpid`, `monotonic`, `orchestrator.core.llm.RunBudget`, `pathlib.Path`, [`span`](../../src/orchestrator/obs/tracing.py#L137), +2 more
-- **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/build-document.md#6-what-changes-about-a-run`, `docs/specs/build-document.md#command-shape`, `docs/specs/build-document.md#phase-1-orchestrator-sdlc-plan-built`
+- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L672), [`_run`](../../tests/sdlc/test_autorun.py#L567)
+- **Calls** (27): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L54), [`RunContext`](../../src/orchestrator/sdlc/autorun.py#L73), [`RunRecord`](../../src/orchestrator/sdlc/runstate.py#L43), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L90), [`TokenLedger`](../../src/orchestrator/core/llm/recording.py#L58), [`_journal_outcome`](../../src/orchestrator/sdlc/autorun.py#L428), [`_load_graph`](../../src/orchestrator/sdlc/autorun.py#L845), [`_log_run_cost`](../../src/orchestrator/sdlc/autorun.py#L449), [`_refuse_undecided_resume`](../../src/orchestrator/sdlc/autorun.py#L484), [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L511), [`_research_pass`](../../src/orchestrator/sdlc/autorun.py#L661), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L480), [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L979), [`_stage_implement`](../../src/orchestrator/sdlc/autorun.py#L1047), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L565), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L859), [`_stage_review`](../../src/orchestrator/sdlc/autorun.py#L1131), [`_stage_validity`](../../src/orchestrator/sdlc/autorun.py#L914), [`_write_case`](../../src/orchestrator/sdlc/autorun.py#L834), [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L235), `getpid`, `monotonic`, `orchestrator.core.llm.RunBudget`, `pathlib.Path`, [`span`](../../src/orchestrator/obs/tracing.py#L137), +2 more
+- **Documented in**: `CHANGELOG.md`, `CLI_REFERENCE.md`, `README.md#whats-new`, `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/autonomous-run-agent.md#design-plan-the-autonomous-run-agent`, `docs/specs/build-document.md#6-what-changes-about-a-run`
 
 ### `default_artifacts_dir`
 
-[`src/orchestrator/sdlc/autorun.py:227`](../../src/orchestrator/sdlc/autorun.py#L227)
+[`src/orchestrator/sdlc/autorun.py:235`](../../src/orchestrator/sdlc/autorun.py#L235)
 
-- **Called by** (2 production · 2 test): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L237), [`sdlc_explain`](../../src/orchestrator/cli/sdlc.py#L244), [`test_sdlc_explain_renders_a_case_and_names_a_missing_one`](../../tests/test_cli_documented_commands.py#L29), [`test_the_default_artifact_dir_is_not_the_repo`](../../tests/sdlc/test_autorun.py#L189)
+- **Called by** (2 production · 2 test): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L245), [`sdlc_explain`](../../src/orchestrator/cli/sdlc.py#L244), [`test_sdlc_explain_renders_a_case_and_names_a_missing_one`](../../tests/test_cli_documented_commands.py#L29), [`test_the_default_artifact_dir_is_not_the_repo`](../../tests/sdlc/test_autorun.py#L189)
 - **Calls** (3): `getenv`, `gettempdir`, `pathlib.Path`
 - **Documented in**: `docs/specs/build-document.md#5-document-identity-name-place-and-the-commit-it-was-derived-at`
 
 ### `render_summary`
 
-[`src/orchestrator/sdlc/autorun.py:1149`](../../src/orchestrator/sdlc/autorun.py#L1149)
+[`src/orchestrator/sdlc/autorun.py:1164`](../../src/orchestrator/sdlc/autorun.py#L1164)
 
-- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L634), [`test_the_summary_reports_every_stage`](../../tests/sdlc/test_autorun.py#L240)
+- **Called by** (1 production · 1 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L672), [`test_the_summary_reports_every_stage`](../../tests/sdlc/test_autorun.py#L240)
 
 ## Imports
 
-`__future__.annotations`, `collections.abc.Callable`, `contextlib`, `dataclasses.dataclass`, `dataclasses.field`, `datetime.UTC`, `datetime.datetime`, `json`, [`orchestrator.core.digest`](../../src/orchestrator/core/digest.py#L1), [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1), [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), [`orchestrator.core.llm.recording`](../../src/orchestrator/core/llm/recording.py#L1), [`orchestrator.intake.cache`](../../src/orchestrator/intake/cache.py#L1), [`orchestrator.intake.factory`](orchestrator.intake.factory.md), [`orchestrator.intake.jira`](../../src/orchestrator/intake/jira.py#L1), [`orchestrator.intake.service`](../../src/orchestrator/intake/service.py#L1), [`orchestrator.intake.ticket_meta`](../../src/orchestrator/intake/ticket_meta.py#L1), [`orchestrator.ir.validator`](../../src/orchestrator/ir/validator.py#L1), [`orchestrator.obs.tracing`](../../src/orchestrator/obs/tracing.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.pkg.criteria_binding`](../../src/orchestrator/pkg/criteria_binding.py#L1), [`orchestrator.pkg.overview`](../../src/orchestrator/pkg/overview.py#L1), [`orchestrator.runtime.tool_registry`](../../src/orchestrator/runtime/tool_registry.py#L1), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`orchestrator.sdlc.case`](../../src/orchestrator/sdlc/case.py#L1), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.design`](orchestrator.sdlc.design.md), [`orchestrator.sdlc.design_validator`](../../src/orchestrator/sdlc/design_validator.py#L1), [`orchestrator.sdlc.escalate`](../../src/orchestrator/sdlc/escalate.py#L1), [`orchestrator.sdlc.evidence`](orchestrator.sdlc.evidence.md), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.investigate`](../../src/orchestrator/sdlc/investigate.py#L1), [`orchestrator.sdlc.profile_select`](../../src/orchestrator/sdlc/profile_select.py#L1), [`orchestrator.sdlc.profiles`](../../src/orchestrator/sdlc/profiles/__init__.py#L1), [`orchestrator.sdlc.reviewloop`](../../src/orchestrator/sdlc/reviewloop.py#L1), [`orchestrator.sdlc.runstate`](../../src/orchestrator/sdlc/runstate.py#L1), [`orchestrator.sdlc.telemetry`](../../src/orchestrator/sdlc/telemetry.py#L1), [`orchestrator.sdlc.toolchains`](orchestrator.sdlc.toolchains.md), [`orchestrator.sdlc.validity`](orchestrator.sdlc.validity.md), `os`, `pathlib.Path`, `tempfile`, `time`, `typing.Any`, `typing.Literal`, `uuid`
+`__future__.annotations`, `collections.abc.Callable`, `contextlib`, `dataclasses.dataclass`, `dataclasses.field`, `datetime.UTC`, `datetime.datetime`, `json`, [`orchestrator.core.digest`](../../src/orchestrator/core/digest.py#L1), [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1), [`orchestrator.core.llm`](../../src/orchestrator/core/llm/__init__.py#L1), [`orchestrator.core.llm.recording`](../../src/orchestrator/core/llm/recording.py#L1), [`orchestrator.intake.cache`](../../src/orchestrator/intake/cache.py#L1), [`orchestrator.intake.factory`](orchestrator.intake.factory.md), [`orchestrator.intake.jira`](../../src/orchestrator/intake/jira.py#L1), [`orchestrator.intake.service`](../../src/orchestrator/intake/service.py#L1), [`orchestrator.intake.ticket_meta`](../../src/orchestrator/intake/ticket_meta.py#L1), [`orchestrator.ir.validator`](../../src/orchestrator/ir/validator.py#L1), [`orchestrator.obs.tracing`](../../src/orchestrator/obs/tracing.py#L1), [`orchestrator.pkg`](../../src/orchestrator/pkg/__init__.py#L1), [`orchestrator.pkg.criteria_binding`](../../src/orchestrator/pkg/criteria_binding.py#L1), [`orchestrator.pkg.overview`](../../src/orchestrator/pkg/overview.py#L1), [`orchestrator.runtime.tool_registry`](../../src/orchestrator/runtime/tool_registry.py#L1), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`orchestrator.sdlc.case`](../../src/orchestrator/sdlc/case.py#L1), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.design`](orchestrator.sdlc.design.md), [`orchestrator.sdlc.design_validator`](../../src/orchestrator/sdlc/design_validator.py#L1), [`orchestrator.sdlc.escalate`](../../src/orchestrator/sdlc/escalate.py#L1), [`orchestrator.sdlc.evidence`](orchestrator.sdlc.evidence.md), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.investigate`](../../src/orchestrator/sdlc/investigate.py#L1), [`orchestrator.sdlc.profile_select`](../../src/orchestrator/sdlc/profile_select.py#L1), [`orchestrator.sdlc.profiles`](../../src/orchestrator/sdlc/profiles/__init__.py#L1), [`orchestrator.sdlc.reviewloop`](../../src/orchestrator/sdlc/reviewloop.py#L1), [`orchestrator.sdlc.runstate`](../../src/orchestrator/sdlc/runstate.py#L1), [`orchestrator.sdlc.spec_file`](../../src/orchestrator/sdlc/spec_file.py#L1), [`orchestrator.sdlc.telemetry`](../../src/orchestrator/sdlc/telemetry.py#L1), [`orchestrator.sdlc.toolchains`](orchestrator.sdlc.toolchains.md), [`orchestrator.sdlc.validity`](orchestrator.sdlc.validity.md), `os`, `pathlib.Path`, `tempfile`, `time`, `typing.Any`, `typing.Literal`, `uuid`
 
 ## Imported by
 

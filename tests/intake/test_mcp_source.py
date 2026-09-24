@@ -215,9 +215,14 @@ async def test_mcp_jira_carries_issue_type_status_and_priority() -> None:
 
 async def test_mcp_jira_matches_the_rest_adapter_byte_for_byte() -> None:
     """Parity is the actual requirement — one issue must read the same whichever transport
-    fetched it. Asserting equality (rather than each field) is what stops the two drifting."""
+    fetched it. Asserting equality (rather than each field) is what stops the two drifting.
+
+    One declared exception: the MCP path says it read the description only (ledger B19), because
+    for an issue with comments, links or attachments the two are *not* the same. Everything else
+    must still match byte for byte."""
     from orchestrator.intake.jira import JiraConfig
     from orchestrator.intake.jira_source import JiraSourceAdapter
+    from orchestrator.intake.mcp_source import MCP_JIRA_DESCRIPTION_ONLY
 
     fields = {
         "summary": "Login 500",
@@ -231,7 +236,7 @@ async def test_mcp_jira_matches_the_rest_adapter_byte_for_byte() -> None:
     rest = JiraSourceAdapter(JiraConfig(base_url="https://x.atlassian.net", email="e", api_token="t"))
     rest_doc = rest._issue_to_document({"key": "ENG-9", "fields": fields})
 
-    assert mcp_doc.body == rest_doc.body
+    assert mcp_doc.body == f"{rest_doc.body}\n\n{MCP_JIRA_DESCRIPTION_ONLY}"
     assert mcp_doc.title == rest_doc.title
     assert mcp_doc.labels == rest_doc.labels
     assert mcp_doc.space == rest_doc.space
@@ -241,7 +246,7 @@ async def test_mcp_jira_omits_the_header_when_the_issue_has_no_type() -> None:
     """A bare issue must not gain a stray blank header line."""
     adapter = _jira_adapter({"ENG-1": {"key": "ENG-1", "fields": {"summary": "S", "description": "d"}}}, {})
     doc = await adapter.fetch_document("ENG-1")
-    assert doc.body == "d"
+    assert doc.body.split("\n\n")[0] == "d"
     assert doc.space == ""
 
 
@@ -322,3 +327,13 @@ def test_nested_rest_shape_still_parses() -> None:
     assert doc.id == "ENG-1"
     assert doc.body.startswith("Bug")
     assert "d" in doc.body
+
+
+async def test_a_jira_issue_read_over_mcp_says_it_is_the_description_only() -> None:
+    """Ledger B19: the same `jira://KEY` reads far thinner over MCP than over REST (no comments,
+    links or attachments), and §8 checks criteria against whatever arrived. Say so in the text."""
+    from orchestrator.intake.mcp_source import MCP_JIRA_DESCRIPTION_ONLY
+
+    adapter = _jira_adapter({"ENG-1": {"key": "ENG-1", "fields": {"summary": "S", "description": "d"}}}, {})
+    doc = await adapter.fetch_document("ENG-1")
+    assert doc.body == f"d\n\n{MCP_JIRA_DESCRIPTION_ONLY}"

@@ -89,6 +89,49 @@ def test_repo_state_clean_dirty_and_non_git(tmp_path: Path) -> None:
     assert repo_state(tmp_path / "nowhere") == (None, True)
 
 
+def test_a_build_document_is_not_dirt(tmp_path: Path) -> None:
+    """`sdlc plan` writes into the repo it plans against; counting that as a change refused the
+    plan's own approval (ledger B16). Committed-then-edited plans are Spine's output too."""
+    repo = _git_repo(tmp_path)
+    plans = repo / ".spine" / "plans"
+    plans.mkdir(parents=True)
+    (plans / "PROJ-1-build.md").write_text("# plan\n", encoding="utf-8")
+    assert repo_state(repo)[1] is False
+
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "plans")
+    (plans / "PROJ-1-build.md").write_text("# plan, re-derived\n", encoding="utf-8")
+    assert repo_state(repo)[1] is False
+
+
+def test_spine_config_beside_the_plans_is_still_dirt(tmp_path: Path) -> None:
+    """`.spine/repos.yaml` decides which repositories the merged graph holds: an uncommitted
+    edit changes the facts, so only `plans/` is exempt — never the whole of `.spine/`."""
+    repo = _git_repo(tmp_path)
+    (repo / ".spine" / "plans").mkdir(parents=True)
+    (repo / ".spine" / "plans" / "PROJ-1-build.md").write_text("# plan\n", encoding="utf-8")
+    (repo / ".spine" / "repos.yaml").write_text("repos: {}\n", encoding="utf-8")
+    assert repo_state(repo)[1] is True
+
+
+def test_the_exemption_holds_from_a_subdirectory_and_nothing_else_is_exempt(tmp_path: Path) -> None:
+    """Spine pointed at a package inside a monorepo: a plan at either level is not dirt, a
+    change anywhere else in the checkout still is."""
+    repo = _git_repo(tmp_path)
+    pkg = repo / "pkg"
+    pkg.mkdir()
+    (pkg / "m.py").write_text("x = 1\n", encoding="utf-8")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "pkg")
+    for where in (repo, pkg):
+        (where / ".spine" / "plans").mkdir(parents=True)
+        (where / ".spine" / "plans" / "P-build.md").write_text("# plan\n", encoding="utf-8")
+    assert repo_state(pkg)[1] is False
+
+    (repo / "mod.py").write_text("def f():\n    return 2\n", encoding="utf-8")
+    assert repo_state(pkg)[1] is True
+
+
 # ---- load_or_extract --------------------------------------------------------
 
 

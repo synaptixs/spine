@@ -1209,6 +1209,29 @@ async def test_approving_binds_the_decision_to_the_document(tmp_path: Path) -> N
     assert "**approved** by falcon" in after["document"]
 
 
+async def test_approving_records_the_issue_type_the_document_was_derived_with(tmp_path: Path) -> None:
+    """The gate re-derives the plan with it, so a Bug planned through the CLI and approved here
+    is not refused as changed (ledger B18). This tool plans untyped, and records exactly that."""
+    import json
+
+    from orchestrator.plugin.server import sdlc_approve, sdlc_plan
+    from orchestrator.sdlc.builddoc import approval_path, plan_dir
+
+    repo = _tiny_repo(tmp_path)
+    await sdlc_plan(str(repo), _plan_spec())
+    sdlc_approve(str(repo), "TCK-9", decided_by="falcon")
+    assert json.loads(approval_path("TCK-9", root=repo).read_text(encoding="utf-8"))["issue_type"] == ""
+
+    document = plan_dir(repo) / "TCK-9-build.md"
+    text = document.read_text(encoding="utf-8")
+    document.write_text(
+        text.replace("**Issue type:** untyped — set it with `--issue-type`", "**Issue type:** `Bug`"),
+        encoding="utf-8",
+    )
+    sdlc_approve(str(repo), "TCK-9", decided_by="falcon")
+    assert json.loads(approval_path("TCK-9", root=repo).read_text(encoding="utf-8"))["issue_type"] == "Bug"
+
+
 async def test_a_rejection_says_who_and_why(tmp_path: Path) -> None:
     from orchestrator.plugin.server import sdlc_approve, sdlc_plan
 

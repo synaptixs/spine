@@ -1092,3 +1092,29 @@ def test_a_narrowed_criterion_is_not_stated_just_because_the_ticket_contains_it(
     )
     assert "| 1 | Deletion is cancellable | derived · model | — |" in block
     assert "| 2 | It says why. | stated | — |" in block
+
+
+# ---- the issue type a plan was derived with (Track D, D14 / B18) -------------
+
+
+@pytest.mark.asyncio
+async def test_the_header_says_which_issue_type_the_plan_was_derived_with(tmp_path: Path) -> None:
+    """The type changes the verdict — a Bug that lands nowhere is UNLOCALIZED, a Story is not — so
+    "not a bug" and "nobody said" must read differently, and neither may sit inside the digest."""
+    from orchestrator.sdlc.builddoc import build_plan, plan_digest, planned_issue_type
+
+    (tmp_path / "src.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    untyped = await build_plan(_spec(), root=tmp_path)
+    assert "**Issue type:** untyped — set it with `--issue-type`" in untyped
+    assert planned_issue_type(untyped) == ""
+
+    story = await build_plan(_spec(), root=tmp_path, issue_type="Story")
+    assert "**Issue type:** `Story`" in story
+    assert planned_issue_type(story) == "Story"
+    assert plan_digest(story) == plan_digest(untyped), "a header line, not approved content"
+
+
+def test_an_issue_type_in_the_body_is_not_read_as_the_plans_own() -> None:
+    from orchestrator.sdlc.builddoc import planned_issue_type
+
+    assert planned_issue_type("# X\n\n---\n\n**Issue type:** `Bug`\n") == ""

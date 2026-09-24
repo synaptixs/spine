@@ -22,6 +22,7 @@ nobody stated (clearly marked as such), and a file that only supplies
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -86,4 +87,37 @@ def validate_spec(payload: dict[str, Any], *, where: str = "spec") -> dict[str, 
     return spec.model_dump()
 
 
-__all__ = ["SpecFileError", "load_spec_file", "validate_spec"]
+# A tracker issue key — `PROJ-42`, not a project key or a `jql/…` query, which name no one ticket.
+_ISSUE_KEY = re.compile(r"[A-Z][A-Z0-9_]+-\d+")
+_TRACKER_KINDS = frozenset({"jira", "mcp-jira"})
+
+
+def spec_source_mismatch(spec: dict[str, Any], source: str | None) -> str:
+    """A warning when a hand-written spec and ``--source`` name different tickets, else ``""``.
+
+    With both given, the spec is the requirements and the source only supplies the ticket text,
+    so the spec's ``intent_id`` keys the plan and its approval while the run is filed against the
+    source. `PROJ-42.json` beside `jira://PROJ-43` is almost always a typo, and nothing downstream
+    would say so: the plan approves one ticket against another's words. Warned, not refused —
+    `autorun` has always let the spec win, and a deliberate pairing still works.
+
+    Only a tracker key is compared — `jira://` or `mcp-jira://`, the same ticket over either
+    transport. A `file://` or `confluence://` root is a path or a page id, which no spec's intent
+    id is expected to match.
+    """
+    if not source or "://" not in source:
+        return ""
+    kind, _, root = source.partition("://")
+    key = root.strip("/")
+    if kind not in _TRACKER_KINDS or not _ISSUE_KEY.fullmatch(key):
+        return ""
+    intent = str(spec.get("intent_id") or "")
+    if intent == key:
+        return ""
+    return (
+        f"the spec is `{intent}` but --source names `{key}` — planning and approving as `{intent}` "
+        f"against `{key}`'s ticket text. Rename the spec file if that is not what you meant."
+    )
+
+
+__all__ = ["SpecFileError", "load_spec_file", "spec_source_mismatch", "validate_spec"]

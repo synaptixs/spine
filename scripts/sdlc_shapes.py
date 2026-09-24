@@ -236,7 +236,10 @@ BUILDERS = {
 def check_plan_is_deterministic(shape: Shape, out: Path) -> Path:
     """The plan job's whole claim: same commit in, same document out. Run it twice."""
     docs: list[bytes] = []
+    intent = json.loads(shape.spec.read_text(encoding="utf-8"))["intent_id"]
     for attempt in (out / "first", out / "second"):
+        # Planned where the gate reads it, as the workflow now does — `--out` is deprecated because
+        # a plan written elsewhere is one `autorun` cannot build — then kept per attempt to compare.
         _run(
             "sdlc",
             "plan",
@@ -244,15 +247,15 @@ def check_plan_is_deterministic(shape: Shape, out: Path) -> Path:
             str(shape.spec),
             "--path",
             str(shape.graph_root),
-            "--out",
-            str(attempt),
             "--quiet",
             cwd=shape.graph_root,
         )
-        intent = json.loads(shape.spec.read_text(encoding="utf-8"))["intent_id"]
-        doc = attempt / f"{intent}-build.md"
-        if not doc.is_file():
-            raise ShapeError(f"{shape.name}: no build document at {doc}")
+        written = shape.graph_root / ".spine" / "plans" / f"{intent}-build.md"
+        if not written.is_file():
+            raise ShapeError(f"{shape.name}: no build document at {written}")
+        attempt.mkdir(parents=True, exist_ok=True)
+        doc = attempt / written.name
+        shutil.copyfile(written, doc)
         docs.append(doc.read_bytes())
     if docs[0] != docs[1]:
         raise ShapeError(f"{shape.name}: two plan runs on the same commit produced different documents")

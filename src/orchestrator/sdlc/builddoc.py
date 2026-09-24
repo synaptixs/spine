@@ -50,6 +50,7 @@ _MAX_MODULES = 6
 
 _ID_UNSAFE = re.compile(r"[^0-9A-Za-z_]")
 _DERIVED_AT = re.compile(r"\*\*Derived at:\*\* `([^`]+)`")
+_ISSUE_TYPE = re.compile(r"^\*\*Issue type:\*\* `([^`]+)`", re.MULTILINE)
 
 # Substituted after the body exists, because the status depends on a digest of the body.
 _STATUS_PLACEHOLDER = "\x00status\x00"  # noqa: S105 — a render placeholder, not a secret
@@ -71,6 +72,25 @@ def _label(label: str, source: str) -> str:
     the content is the opposite of what it is for.
     """
     return f"*{label} — {source}*\n"
+
+
+def _issue_type_line(issue_type: str) -> str:
+    """The header line naming the issue type the plan was derived with — or saying there was none.
+
+    Untyped is said rather than omitted: the type changes the validity verdict (a Bug that lands
+    nowhere is UNLOCALIZED, a Story is not), and a reader has to be able to tell "not a bug"
+    from "nobody said".
+    """
+    if issue_type.strip():
+        return f"**Issue type:** `{issue_type.strip()}`\n"
+    return "**Issue type:** untyped — set it with `--issue-type`\n"
+
+
+def planned_issue_type(document: str) -> str:
+    """The issue type a build document was derived with, read back from its header; ``""`` if none."""
+    header = document.partition(_BODY_SEP)[0]
+    found = _ISSUE_TYPE.search(header)
+    return found.group(1) if found else ""
 
 
 def _pending(what: str) -> str:
@@ -97,15 +117,11 @@ def derived_at(root: Path | str = ".") -> str:
         if rev.returncode != 0:
             return "unknown"
         commit = rev.stdout.strip() or "unknown"
-        dirty = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=str(root),
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=10,
-        )
-        return f"{commit}-dirty" if dirty.returncode == 0 and dirty.stdout.strip() else commit
+        # The fact cache's rule, not a copy of it: this stamp sits inside the approved body, so a
+        # plan counting itself as dirt re-derived as `<sha>-dirty` and refused its own approval.
+        from orchestrator.pkg.persistence import worktree_dirty
+
+        return f"{commit}-dirty" if worktree_dirty(root) else commit
     except (OSError, subprocess.SubprocessError):
         return "unknown"
 
@@ -130,6 +146,11 @@ class PlanApproval:
     digest: str  # of the document body that was read
     commit: str  # what it was derived at
     note: str = ""
+    # The issue type the approved document was derived with, read off its header. An *input* to
+    # the gate's re-derivation, not a decision: the type changes §12's validity row, so a gate
+    # re-deriving untyped refused every approved Bug that landed nowhere (ledger B18). Empty for
+    # approvals written before it existed — which re-derive untyped, exactly as they always did.
+    issue_type: str = ""
 
 
 def plan_digest(document: str) -> str:
@@ -1142,6 +1163,7 @@ def render_build_md(
     approval: PlanApproval | None = None,
     journey: list[JourneyEntry] | None = None,
     source_text: str = "",
+    issue_type: str = "",
 ) -> str:
     """Assemble the twelve sections.
 
@@ -1170,6 +1192,9 @@ def render_build_md(
 
     add(f"# {intent} — build document\n")
     add(f"**Spec:** `{intent}` · **Derived at:** `{commit}` · **Status:** {_STATUS_PLACEHOLDER}\n")
+    # In the header, outside the digest: it is an *input* the gate must reproduce, not content a
+    # reviewer approves — `approve` reads it back from here (:func:`planned_issue_type`).
+    add(_issue_type_line(issue_type))
     # .value first: str-Enum stringifies as "Verdict.PROCEED", which is a Python repr
     # leaking onto a page a human is meant to read.
     raw_verdict = getattr(validity, "verdict", "")
@@ -1453,6 +1478,7 @@ async def build_plan(
         approval=approval,
         journey=journey,
         source_text=source_text,
+        issue_type=issue_type,
     )
 
 
@@ -1498,6 +1524,8 @@ async def require_approved_plan(
             # The ticket text is an input to section 8, so it has to be re-read here or the
             # re-derivation is of a different document than the one a human approved.
             source_text=load_source_text(intent, root=root),
+            # Likewise the issue type: it decides §12's validity row.
+            issue_type=approval.issue_type,
         )
     )
     if current != approval.digest:

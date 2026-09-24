@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.43.1  (synaptixs-spine)
+Spine 3.44.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -992,12 +992,12 @@ orchestrator sdlc plan --spec ./SSPN-49.json --path .
 | Option | Description |
 |---|---|
 | `--spec` | A hand-written spec (JSON). Skips intake entirely, and makes the run LLM-free. |
-| `--source` | Derive the spec instead, e.g. `jira://<issue-key>`. One of `--spec`/`--source` is required. |
+| `--source` | Derive the spec from a ticket, e.g. `jira://<issue-key>`. Given **with** `--spec`, the spec stays the requirements and the ticket is only read — no model call — for §8 to check the hand-written criteria against; a spec file and a ticket key that differ are warned about. One of `--spec`/`--source` is required. |
 | `--intent` | Intent id to plan (default: the first). |
 | `--path` | Repo to reason about — the graph the plan is grounded in. (default: `.`) |
-| `--out` | Where the document goes (default: `<repo>/.spine/plans`). |
+| `--out` | **Deprecated — removed in 3.45.** Where the document goes (default: `<repo>/.spine/plans`). A plan written anywhere else cannot be built: `sdlc autorun` reads approvals only from `<repo>/.spine/plans`, so this now warns. |
 | `--language` | Target language named in the codegen-prompt section — it also selects the layout and test environment, so it is not cosmetic. `auto` detects it from `--path`. An unsupported value is refused, never silently treated as Python. (default: `auto`) |
-| `--issue-type` | Override the ticket's issue type (`Bug`, `Story`, …) — it decides whether the validity section requires the ticket to localize. Default: read it from the ticket; with `--spec` there is no ticket to read. |
+| `--issue-type` | Override the ticket's issue type (`Bug`, `Story`, …) — it decides whether the validity section requires the ticket to localize. Default: read it from the ticket; with `--spec` — even beside `--source` — it is only this flag, because `autorun --spec` and the plan gate read no ticket for a type either. The document's header says `untyped` when none is given. |
 | `--quiet` | Write the document without printing it. |
 
 **Section 8 takes one extra spec field.** `met_criteria` maps a stated criterion's exact
@@ -1027,7 +1027,7 @@ orchestrator sdlc approve SSPN-49 --note "criteria reconciliation checked"
 | `--by` | Who is deciding. (default: `git config user.name`) |
 | `--note` | Why — recorded with the decision. |
 | `--reject` | Record a rejection instead of an approval. |
-| `--out` | Where the plan lives. (default: `<repo>/.spine/plans`) |
+| `--out` | **Deprecated — removed in 3.45.** Where the plan lives. (default: `<repo>/.spine/plans`) An approval written anywhere else is one `sdlc autorun` never reads, so this now warns. |
 
 The decision is bound to a **digest of the document body**, so a plan that changes
 afterwards reads as *stale* rather than silently still approved. `sdlc autorun`

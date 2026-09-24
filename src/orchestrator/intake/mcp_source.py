@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from orchestrator.intake.jira_source import (
@@ -100,6 +100,17 @@ class MCPSourceConfig:
             children_arg=os.getenv("MCP_SOURCE_CHILDREN_ARG", "id"),
             children_query=os.getenv("MCP_SOURCE_CHILDREN_QUERY", "{id}"),
         )
+
+
+# What a Jira issue read over MCP does *not* carry, said in the text every later stage reads. The
+# REST adapter appends the issue's links, comments and attachment text; the MCP path returns the
+# description only, so the same `jira://KEY` yields a much thinner ticket depending on whether an
+# MCP server is configured — and §8 checked criteria against the thin one without saying so (ledger
+# B19). Reading them over MCP is Track E; until then the gap is stated, never implied away.
+MCP_JIRA_DESCRIPTION_ONLY = (
+    "_Read through an MCP server: the description only — this issue's comments, links and "
+    "attachments were not read._"
+)
 
 
 def _loads(text: str) -> Any:
@@ -216,7 +227,11 @@ class MCPSourceAdapter:
     async def fetch_document(self, doc_id: str) -> SourceDocument:
         cfg = self._config
         result = await self._registry.call(f"{cfg.server}:{cfg.doc_tool}", {cfg.doc_arg: doc_id})
-        return _parse_document(doc_id, _loads(result.text), result.text)
+        doc = _parse_document(doc_id, _loads(result.text), result.text)
+        if cfg.source_kind == "mcp-jira":
+            body = f"{doc.body}\n\n{MCP_JIRA_DESCRIPTION_ONLY}" if doc.body else MCP_JIRA_DESCRIPTION_ONLY
+            doc = replace(doc, body=body)
+        return doc
 
     async def list_children(self, doc_id: str) -> list[SourceRef]:
         cfg = self._config

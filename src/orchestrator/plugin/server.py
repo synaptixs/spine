@@ -884,6 +884,7 @@ def sdlc_approve(
         derived_at,
         plan_digest,
         plan_dir,
+        planned_issue_type,
         save_approval,
     )
 
@@ -898,14 +899,16 @@ def sdlc_approve(
         who = decided_by or decided_by_default(repo)
         if not who:
             return {"error": "cannot tell who is approving — pass decided_by"}
+        text = document.read_text(encoding="utf-8")
         approval = PlanApproval(
             intent_id=intent_id,
             decision="REJECTED" if reject else "APPROVED",
             decided_by=who,
             decided_at=_dt.date.today().isoformat(),
-            digest=plan_digest(document.read_text(encoding="utf-8")),
+            digest=plan_digest(text),
             commit=derived_at(repo),
             note=note,
+            issue_type=planned_issue_type(text),
         )
         return {
             "intent_id": intent_id,

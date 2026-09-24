@@ -5,12 +5,20 @@ Every stage of this loop exists as a command: `investigate`, `design`, `sdlc fea
 connective tissue. This is the connective tissue, and nothing more: the happy path, in order,
 with each stage's result recorded.
 
-**What this deliberately does NOT do yet** (see `docs/specs/autonomous-run-agent.md`): it does
-not judge whether the ticket is worth doing (phase 4), does not enforce budgets or survive a
-crash (phase 3), and does not loop on review findings (phase 5). Those are the parts that make
-autonomy safe, and each is its own story. A skeleton that pretended to have them would be
-worse than one that says plainly where it stops — every stage records `skipped` with a reason
-rather than quietly doing nothing.
+**What makes it safe to leave alone** (phases 3–5 of `docs/specs/autonomous-run-agent.md`):
+the `validity` stage judges whether the ticket is worth building, and it and the design
+validator park the run if not; a file-backed run record (`runstate.py`) lets `resume` pick a
+run back up and adopt the issue it already created; `max_cost_usd` caps spend and parks on
+exhaustion; and the `review` stage loops on its own findings. A park is an approval a human
+answers, and every stage records `skipped` with a reason rather than quietly doing nothing.
+
+**Where it still stops short.** A resume re-runs every stage from intake — ``record.phase`` is
+reported, not used to skip — so approving a validity or design park ("build anyway?") does
+not build: the stage meets the same verdict and parks again. The review stage records what it
+could not fix but never parks, and its fixes are left uncommitted in the worktree — under
+``live``, after the PR is already open. The budget exists only when ``max_cost_usd`` is passed (this path does
+not read ``SDLC_RUN_BUDGET_USD``), is activated around the implement stage alone, and starts
+fresh on a resume.
 
 **Additive by construction.** Every stage is a call into an existing entry point, unchanged: a
 human can still run any of them by hand and get exactly what they get today. This module owns
@@ -63,10 +71,10 @@ class StageResult:
 
 @dataclass
 class RunContext:
-    """State carried between stages. The thing a supervisor will later persist.
+    """State carried between stages, checkpointed to a ``RunRecord`` as the run goes.
 
-    Phase 3 gives this a home in the registry DB, an idempotency key and a budget. For now it
-    lives for the length of one process, which is exactly the limitation the next story fixes.
+    The context itself lives for one process; what survives it is the record ``checkpoint``
+    writes through ``RunStore`` — phase, status, issue, spend — which is what ``resume`` loads.
     """
 
     run_id: str
@@ -580,6 +588,13 @@ async def _stage_intake(
     if spec is not None:
         ctx.spec = dict(spec)
         ctx.spec.setdefault("intent_id", intent_id or "injected")
+        from orchestrator.sdlc.spec_file import spec_source_mismatch
+
+        # The spec keys the plan gate and the run is filed against the source: say so when the
+        # two name different tickets, the same line `sdlc plan` prints for the same pair.
+        mismatch = spec_source_mismatch(ctx.spec, ctx.source)
+        if mismatch:
+            emit(f"[intake] WARNING: {mismatch}")
         # An injected spec has no source document behind it, so `--issue-type` is the only
         # way this path can reach the bug profile at all. Silence here is what made a
         # spec-file run untyped and unexplained.

@@ -203,7 +203,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/knowledge/current_state.py:915`](../../src/orchestrator/knowledge/current_state.py#L915)
 
-- **Called by** (6 production · 1 test): [`_render_state_html`](../../src/orchestrator/cli/understand.py#L275), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L933), [`run`](../../src/orchestrator/plugin/server.py#L937), [`run`](../../src/orchestrator/plugin/server.py#L416), [`state_report`](../../src/orchestrator/plugin/resources.py#L116), [`validate_one`](../../scripts/validate-frontend.py#L51), [`test_the_gate_number_is_the_number_state_reports`](../../tests/pkg/test_accuracy.py#L454)
+- **Called by** (6 production · 1 test): [`_render_state_html`](../../src/orchestrator/cli/understand.py#L275), [`build_current_state`](../../src/orchestrator/knowledge/current_state.py#L933), [`run`](../../src/orchestrator/plugin/server.py#L940), [`run`](../../src/orchestrator/plugin/server.py#L416), [`state_report`](../../src/orchestrator/plugin/resources.py#L116), [`validate_one`](../../scripts/validate-frontend.py#L51), [`test_the_gate_number_is_the_number_state_reports`](../../tests/pkg/test_accuracy.py#L454)
 - **Calls** (1): [`analyse`](../../src/orchestrator/knowledge/analysis.py#L50)
 - **Documented in**: `docs/evals/clang-semantic-p5-output.txt`, `docs/specs/comprehension-skill-spec.md#the-tool-surface-new-read-only-mcp-tools`, `docs/specs/comprehension-skill-spec.md#what-already-exists-reuse-dont-rebuild`, `docs/specs/perl-support-roadmap.md#4-phases-the-living-table`
 

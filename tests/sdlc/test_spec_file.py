@@ -77,3 +77,31 @@ def test_a_json_array_is_refused(tmp_path: Path) -> None:
 def test_a_missing_file_names_itself(tmp_path: Path) -> None:
     with pytest.raises(SpecFileError, match="cannot read spec file"):
         load_spec_file(tmp_path / "nope.json")
+
+
+# ---- a spec and a source that name different tickets (Track D, D13) ----------
+
+
+@pytest.mark.parametrize(
+    ("source", "warned"),
+    [
+        ("jira://PROJ-43", True),
+        ("jira://PROJ-42", False),
+        ("mcp-jira://PROJ-43", True),  # the same ticket over the other transport
+        ("mcp-jira://PROJ-42", False),
+        ("jira://PROJ", False),  # a project names no one ticket
+        ("jira://jql/project = PROJ", False),
+        ("file://./PROJ-43.md", False),  # a path, not a key
+        ("confluence://12345", False),
+        (None, False),
+    ],
+)
+def test_only_a_ticket_key_that_differs_from_the_spec_is_warned_about(
+    source: str | None, warned: bool
+) -> None:
+    from orchestrator.sdlc.spec_file import spec_source_mismatch
+
+    said = spec_source_mismatch({"intent_id": "PROJ-42"}, source)
+    assert bool(said) is warned
+    if warned:
+        assert "PROJ-42" in said and "PROJ-43" in said
