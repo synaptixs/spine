@@ -833,10 +833,26 @@ def _method_scope(mnode: TSNode, rec: _TypeRec, unit: _Unit, source: bytes) -> S
     Every binding form is collected, typed or not: a name missed here would fall through to a
     field of the same name and resolve to *its* type — the one way this pass could invent."""
     scope = Scope(before_decl_refuses=True)  # C#: a local is in scope for its whole block
+    # The method's own type parameters, and each local function's over its byte range (B30, D5) —
+    # indexed once: walking `parent` per declaration is quadratic in nesting (review 1, S1).
+    own = _type_params(mnode, source)
+    local_functions: list[tuple[int, int, frozenset[str]]] = []
+    pending = list(mnode.named_children)
+    while pending:
+        n = pending.pop()
+        pending.extend(n.named_children)
+        if n.type == "local_function_statement":
+            local_functions.append((n.start_byte, n.end_byte, _type_params(n, source)))
+
+    def params_at(node: TSNode) -> frozenset[str]:
+        found = set(own)
+        for start, end, params in local_functions:
+            if start <= node.start_byte < end:
+                found |= params
+        return frozenset(found)
 
     def typed(node: TSNode | None) -> object:
-        params = _params_at(node, source, mnode) if node is not None else frozenset()
-        ref = _type_node_ref(node, rec, unit, source, params)
+        ref = _type_node_ref(node, rec, unit, source, params_at(node)) if node is not None else None
         return ref if ref is not None else UNREADABLE
 
     def bind(name_node: TSNode | None, ref: object, where: TSNode, decl: TSNode) -> None:
@@ -1036,11 +1052,18 @@ def _record_receiver_calls(
                 state.add_class_base(rec.type_id, ref)
         for _name, mid, mnode in rec.methods:
             scope = _method_scope(mnode, rec, unit, source)
-            stack = [c for c in mnode.named_children if c.type != "parameter_list"]
+            # The type parameters in force travel down the walk: a local function adds its own
+            # (B30, D5). Recomputing them per node from the ancestors was quadratic in nesting.
+            own = _type_params(mnode, source)
+            stack = [(c, own) for c in mnode.named_children if c.type != "parameter_list"]
             while stack:
-                n = stack.pop()
-                stack.extend(n.named_children)
-                method_params = _params_at(n, source, mnode)
+                n, method_params = stack.pop()
+                inner = (
+                    method_params | _type_params(n, source)
+                    if n.type == "local_function_statement"
+                    else method_params
+                )
+                stack.extend((c, inner) for c in n.named_children)
                 if n.type in ("object_creation_expression", "implicit_object_creation_expression"):
                     created = _creation(n, rec, unit, source, method_params)
                     if created is not None:
