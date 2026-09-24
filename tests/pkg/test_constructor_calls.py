@@ -55,10 +55,12 @@ def test_java_a_creation_of_an_external_type_gets_no_edge(tmp_path: Path) -> Non
     pytest.importorskip("tree_sitter_java", reason="install the 'java' extra")
     files = {
         "a/Use.java": (
-            "package a;\nimport java.util.HashMap;\npublic class Use { void go() { new HashMap(); } }\n"
+            "package a;\nimport java.util.HashMap;\n"
+            "public class Use { void go() { new HashMap(); } void own() { new Use(); } }\n"
         ),
     }
-    assert _edges(tmp_path, files) == set()
+    # the control: an in-repo creation in the same file does land, so the empty half is a refusal
+    assert _edges(tmp_path, files) == {("java:a.Use.own", "java:a.Use")}
 
 
 def test_csharp_target_typed_new_only_where_the_declaration_writes_the_type(tmp_path: Path) -> None:
@@ -111,3 +113,30 @@ def test_a_factory_that_is_one_creation_provides(tmp_path: Path) -> None:
 )
 def test_any_other_factory_is_not_read(tmp_path: Path, registration: str) -> None:
     assert _di(tmp_path, registration) == set()
+
+
+def test_csharp_global_qualifier_names_only_the_global_namespace(tmp_path: Path) -> None:
+    pytest.importorskip("tree_sitter_c_sharp", reason="install the 'csharp' extra")
+    files = {
+        "T.cs": (
+            "public class Order { }\nnamespace App.Svc {\n  public class Order { }\n"
+            "  public class U { void A() { new global::Order(); } void B() { new Order(); }\n"
+            "    void C() { new global::Missing(); } } }\n"
+        ),
+    }
+    # `global::` was dropped, so `A` landed on the namespace's `Order` — the one it explicitly is not
+    assert _edges(tmp_path, files) == {
+        ("csharp:App.Svc.U.A", "csharp:Order"),
+        ("csharp:App.Svc.U.B", "csharp:App.Svc.Order"),
+    }
+
+
+def test_csharp_a_nullable_struct_creation_runs_no_constructor(tmp_path: Path) -> None:
+    pytest.importorskip("tree_sitter_c_sharp", reason="install the 'csharp' extra")
+    files = {
+        "S.cs": (
+            "namespace S {\n  public struct P { }\n"
+            "  public class U { void Nullable() { var p = new P?(); } void Plain() { var q = new P(); } } }\n"
+        ),
+    }
+    assert _edges(tmp_path, files) == {("csharp:S.U.Plain", "csharp:S.P")}

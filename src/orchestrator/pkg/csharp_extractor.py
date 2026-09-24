@@ -704,10 +704,14 @@ def _type_ref_in(
     types nested in (or inherited by) the enclosing types; for each namespace declaration from
     the innermost out, its namespace's types then its usings and aliases, then the namespaces it
     implicitly opens; the global namespace; then the file's usings and aliases together with the
-    project's ``global using``s. A type parameter is never an in-repo type."""
+    project's ``global using``s. A type parameter is never an in-repo type. ``global::A.B``
+    names the global namespace's ``A.B`` and nothing else: no enclosing type, namespace or using
+    is consulted, and a miss there is not retried anywhere nearer."""
     name = _strip_type(text)
     if name is None:
         return None
+    if text.strip().startswith("global::"):
+        return TypeRef(((f"csharp:{name}", STOP),), project=unit.project)
     head, _, rest = name.partition(".")
     suffix = f".{rest}" if rest else ""
     params = set(extra_params)
@@ -969,7 +973,10 @@ def _creation(
     type comes from inference, and is refused. ``new T[n]`` is an ``array_creation_expression``
     and never read: it runs no constructor of ``T``."""
     if node.type == "object_creation_expression":
-        return _type_node_ref(node.child_by_field_name("type"), rec, unit, source, method_params)
+        written = node.child_by_field_name("type")
+        if written is not None and written.type == "nullable_type":
+            return None  # `new S?()` is a null `Nullable<S>` — no constructor of `S` runs
+        return _type_node_ref(written, rec, unit, source, method_params)
     parent = node.parent
     if parent is not None and parent.type == "equals_value_clause":
         parent = parent.parent

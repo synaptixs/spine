@@ -2,7 +2,8 @@
 
 Every consumer of a DI-bound service is handed the interface, so nothing calls the
 implementation by name and `blast_radius` on it found nothing. The two-type registration is the
-fact that connects them — and the only form read: a factory returns whatever its lambda builds.
+fact that connects them. A factory is read only when its lambda builds exactly one type,
+`sp => new T()` (B22, D9, `test_constructor_calls.py`); any factory that computes its result is not.
 """
 
 from __future__ import annotations
