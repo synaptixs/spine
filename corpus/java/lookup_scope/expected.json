@@ -1,0 +1,293 @@
+{
+  "language": "java",
+  "case": "lookup_scope",
+  "root": ".repo",
+  "why": "B30, Java. Every shape where a closer binding than the one a flat lookup finds decides a type name: a local class (from its declaration on \u2014 `beforeLocal` creates the imported `Order`), an anonymous class body where the base's member type is in scope, a qualified name whose head is a nested type that inherits the member, and a member type inherited from an external base (`AbstractMap.SimpleEntry`). Each wrong reading is a refusal; each right reading that names an in-repo type is an edge. `plain` and `order` are the controls: the same names outside those scopes resolve normally.",
+  "nodes": [
+    {
+      "id": "java:app.model",
+      "kind": "Module"
+    },
+    {
+      "id": "java:app.svc",
+      "kind": "Module"
+    },
+    {
+      "id": "java:app.model.Order",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.Helper",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.Base",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.Base.Helper",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.SimpleEntry",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.Response",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.Response.Status",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.BaseResponse",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.BaseResponse.Status",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.svc.Use",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.svc.Use.Response",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.svc.MyMap",
+      "kind": "Type"
+    },
+    {
+      "id": "java:app.model.Base.run",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.model.SimpleEntry.SimpleEntry",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Use.localClass",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Use.beforeLocal",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Use.anonymous",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Use.dotted",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.Use.plain",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.MyMap.pair",
+      "kind": "Function"
+    },
+    {
+      "id": "java:app.svc.MyMap.order",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "java:app.model",
+      "dst": "java:app.model.Order",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model",
+      "dst": "java:app.model.Helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model",
+      "dst": "java:app.model.Base",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model.Base",
+      "dst": "java:app.model.Base.Helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model",
+      "dst": "java:app.model.SimpleEntry",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model",
+      "dst": "java:app.model.Response",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model.Response",
+      "dst": "java:app.model.Response.Status",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model",
+      "dst": "java:app.model.BaseResponse",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model.BaseResponse",
+      "dst": "java:app.model.BaseResponse.Status",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc",
+      "dst": "java:app.svc.Use",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Use",
+      "dst": "java:app.svc.Use.Response",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc",
+      "dst": "java:app.svc.MyMap",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model.Base",
+      "dst": "java:app.model.Base.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.model.SimpleEntry",
+      "dst": "java:app.model.SimpleEntry.SimpleEntry",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Use",
+      "dst": "java:app.svc.Use.localClass",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Use",
+      "dst": "java:app.svc.Use.beforeLocal",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Use",
+      "dst": "java:app.svc.Use.anonymous",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Use",
+      "dst": "java:app.svc.Use.dotted",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Use",
+      "dst": "java:app.svc.Use.plain",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.MyMap",
+      "dst": "java:app.svc.MyMap.pair",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.MyMap",
+      "dst": "java:app.svc.MyMap.order",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "java:app.svc.Use.Response",
+      "dst": "java:app.model.BaseResponse",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "java:app.svc.MyMap",
+      "dst": "java:java.util.AbstractMap",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "java:app.svc",
+      "dst": "java:java.util.AbstractMap",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "java:app.svc.Use.beforeLocal",
+      "dst": "java:app.model.Order",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Use.anonymous",
+      "dst": "java:app.model.Base",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Use.dotted",
+      "dst": "java:app.model.BaseResponse.Status",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Use.plain",
+      "dst": "java:app.model.Helper",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.Use.anonymous",
+      "dst": "java:app.model.Base.Helper",
+      "kind": "CALLS"
+    },
+    {
+      "src": "java:app.svc.MyMap.order",
+      "dst": "java:app.model.Order",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "java:app.svc.Use.localClass",
+        "dst": "java:app.model.Order",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The local class `Order` declared in the block shadows the package-imported `app.model.Order` from its declaration on (D1). A local class has no node, so the true reading has no edge."
+    },
+    {
+      "edge": {
+        "src": "java:app.svc.Use.anonymous",
+        "dst": "java:app.model.Helper",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Inside the anonymous `Base` body, `Helper` is the inherited member type `Base.Helper`, which Java finds before the import-on-demand `app.model.Helper` (D2)."
+    },
+    {
+      "edge": {
+        "src": "java:app.svc.Use.dotted",
+        "dst": "java:app.model.Response.Status",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `Response` is the nested `Use.Response`, whose supertype `BaseResponse` declares `Status`: the head resolves first, the rest through its hierarchy (D4) \u2014 not the import-on-demand `app.model.Response`."
+    },
+    {
+      "edge": {
+        "src": "java:app.svc.MyMap.pair",
+        "dst": "java:app.model.SimpleEntry",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `MyMap extends AbstractMap`, which declares the member type `SimpleEntry`: an inherited member type shadows the import-on-demand `app.model.SimpleEntry`. `AbstractMap` is external, so the true reading has no edge (D3)."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [
+    "The local class `Order` in `localClass`/`beforeLocal` and the anonymous `Base` subclass have no nodes (Track I D1); `AbstractMap.SimpleEntry` is external."
+  ],
+  "open_questions": [],
+  "note": "Labelled from the source before scoring against the unfixed front-end."
+}

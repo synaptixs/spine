@@ -65,15 +65,49 @@ STOP = "!"
 #: a call through it refuses.
 UNREADABLE = object()
 
+#: Member types that external (JDK / .NET) types declare, which a subclass inherits and which then
+#: hide an in-repo type of the same simple name (B30, D3). ``class MyMap extends AbstractMap`` means
+#: ``AbstractMap.SimpleEntry`` by ``SimpleEntry`` — the compiler knows it from the JDK, this pass
+#: from this table. Each entry is a fact about a published API, inherited members included: it is
+#: incomplete by design and never wrong. Refusing every simple name under *any* external supertype
+#: instead measured at −19% of one Java repository's CALLS and −49% of a .NET service's, almost all
+#: true. Add an entry when a real repository shows a collision; cite the API.
+EXTERNAL_MEMBER_TYPES: dict[str, frozenset[str]] = {
+    # java.util: AbstractMap declares SimpleEntry / SimpleImmutableEntry and inherits Map.Entry
+    "java:java.util.Map": frozenset({"Entry"}),
+    "java:java.util.AbstractMap": frozenset({"Entry", "SimpleEntry", "SimpleImmutableEntry"}),
+    "java:java.util.HashMap": frozenset({"Entry", "SimpleEntry", "SimpleImmutableEntry"}),
+    "java:java.util.LinkedHashMap": frozenset({"Entry", "SimpleEntry", "SimpleImmutableEntry"}),
+    "java:java.util.TreeMap": frozenset({"Entry", "SimpleEntry", "SimpleImmutableEntry"}),
+    "java:java.util.concurrent.ConcurrentHashMap": frozenset(
+        {"Entry", "SimpleEntry", "SimpleImmutableEntry", "KeySetView"}
+    ),
+    # java.lang.Thread declares State and UncaughtExceptionHandler
+    "java:java.lang.Thread": frozenset({"State", "UncaughtExceptionHandler"}),
+    # System.Windows.Forms.Control declares ControlCollection; Form and UserControl derive from it
+    "csharp:System.Windows.Forms.Control": frozenset({"ControlCollection"}),
+    "csharp:System.Windows.Forms.Form": frozenset({"ControlCollection"}),
+    "csharp:System.Windows.Forms.UserControl": frozenset({"ControlCollection"}),
+}
+
+_FOUND, _REFUSED, _ABSENT = "found", "refused", "absent"
+
 
 @dataclass(frozen=True)
 class TypeRef:
     """A written type name, as the candidate ids it could denote, in the compiler's order.
 
-    ``nested`` is tried first as a member type of each ``enclosing`` type (innermost first) — its
-    own, then one its supertypes declare. Then ``groups``, in order; the first with a declared
-    match decides. Last, ``simple`` under the compilation unit's ``using_prefixes`` together with
-    the ``project``'s ``global using``s — one precedence level, so one group.
+    ``nested`` is tried first as a member type of each ``anonymous`` class base around the site
+    (Java: an anonymous class body sees its base's member types first), then of each ``enclosing``
+    type (innermost first) — its own, then one its supertypes declare. Then ``groups``, in order;
+    the first with a declared match decides. Last, ``simple`` under the compilation unit's
+    ``using_prefixes`` together with the ``project``'s ``global using``s — one precedence level.
+
+    A qualified name ``A.B.C`` carries ``head`` (``A``, resolved the full way) and ``rest``
+    (``B``, ``C``): when ``A`` is a type, ``B`` and ``C`` are its member types, own or inherited —
+    a nested ``Response`` that extends ``BaseResponse`` makes ``Response.Status`` mean
+    ``BaseResponse.Status`` (B30, D4). Only when ``A`` is no type do the groups read it as a
+    package or namespace.
     """
 
     groups: tuple[tuple[str, ...], ...]
@@ -82,6 +116,9 @@ class TypeRef:
     enclosing: tuple[str, ...] = ()
     nested: str = ""
     project: str = ""
+    anonymous: tuple[TypeRef, ...] = ()
+    head: TypeRef | None = None
+    rest: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -144,6 +181,14 @@ class Scope:
         if not hits:
             return None
         return hits[0] if len(hits) == 1 else UNREADABLE
+
+    def visible(self, at: int) -> frozenset[str]:
+        """Every name bound at ``at`` — a Java local class's name from its declaration on."""
+        return frozenset(
+            name
+            for name, spans in self._bindings.items()
+            if any(start <= at < end and decl <= at for start, end, decl, _ in spans)
+        )
 
 
 @dataclass
@@ -218,6 +263,10 @@ class TypeIndex:
         self._ancestors_memo: dict[str, frozenset[str]] = {}
         self._type_memo: dict[TypeRef, str | None] = {}
         self._open_class: set[str] | None = None
+        self._external_member_memo: dict[str, frozenset[str]] = {}
+        self._base_refs_of: dict[str, list[TypeRef | None]] = {}
+        for (src, _provisional), base_ref in state.base_refs.items():
+            self._base_refs_of.setdefault(src, []).append(base_ref)
 
     @property
     def open_class(self) -> set[str]:
@@ -241,27 +290,102 @@ class TypeIndex:
         return self._type_memo[ref]
 
     def _type_of(self, ref: TypeRef) -> str | None:
-        groups: list[tuple[str, ...]] = []
-        for outer in ref.enclosing if ref.nested else ():
-            groups.append((f"{outer}.{ref.nested}",))
-            # C# inherits nested types from base classes only; Java from interfaces too.
-            inherited = sorted(
-                a
-                for a in self._ancestors(outer)
-                if self.state.language != "csharp" or a not in self.state.interfaces
-            )
-            groups.append(tuple(f"{a}.{ref.nested}" for a in inherited))
-        groups.extend(ref.groups)
+        if ref.head is not None:
+            status, found = self._lookup(ref.head)
+            if status == _FOUND and found is not None:
+                return self._member_path(found, ref.rest)
+            if status == _REFUSED:
+                return None
+            # The head names no type: the whole name is package- or namespace-qualified.
+        status, found = self._lookup(ref)
+        return found if status == _FOUND else None
+
+    def _lookup(self, ref: TypeRef) -> tuple[str, str | None]:
+        """``(found, id)``, ``(refused, None)`` — ambiguous, explicitly external, or hidden by an
+        external member type — or ``(absent, None)``: nothing here by that name."""
+        if ref.nested:
+            for anon in ref.anonymous:  # an anonymous class body sees its base's member types first
+                base = self.type_of(anon)
+                if base is not None:
+                    status, hit = self._member(base, ref.nested)
+                elif ref.nested in self._listed(self._candidates(anon)):
+                    status, hit = _REFUSED, None
+                else:
+                    status, hit = _ABSENT, None
+                if status != _ABSENT:
+                    return status, hit
+            for outer in ref.enclosing:
+                status, hit = self._member(outer, ref.nested)
+                if status != _ABSENT:
+                    return status, hit
+        groups = list(ref.groups)
         if ref.simple:
             prefixes = sorted({*ref.using_prefixes, *self.state.global_prefixes.get(ref.project, ())})
             groups.append(tuple(f"{self.state.language}:{p}.{ref.simple}" for p in prefixes))
         for group in groups:
             hits = {c for c in group if c in self.declared}
             if len(hits) == 1:
-                return hits.pop()
+                return _FOUND, hits.pop()
             if hits or STOP in group:
-                return None  # ambiguous at the compiler's level, or explicitly an external type
-        return None
+                return _REFUSED, None  # ambiguous at the compiler's level, or explicitly an external type
+        return _ABSENT, None
+
+    def _member(self, type_id: str, name: str) -> tuple[str, str | None]:
+        """The member type ``name`` of ``type_id`` — its own, else the nearest supertype's. C#
+        inherits nested types from base classes only; Java from interfaces too. A level where an
+        external supertype declares ``name`` (``EXTERNAL_MEMBER_TYPES``) refuses: the compiler
+        binds the external type there, and it is not in this repository."""
+        for depth, level in enumerate(self._levels(type_id)):
+            if depth and self.state.language == "csharp":
+                level = [t for t in level if t not in self.state.interfaces]
+            hits = sorted({f"{t}.{name}" for t in level} & self.declared)
+            if len(hits) == 1:
+                return _FOUND, hits[0]
+            if hits:
+                return _REFUSED, None
+            if any(name in self._external_members(t) for t in level):
+                return _REFUSED, None
+        return _ABSENT, None
+
+    def _member_path(self, type_id: str, rest: tuple[str, ...]) -> str | None:
+        current: str | None = type_id
+        for name in rest:
+            status, current = self._member(current, name) if current is not None else (_ABSENT, None)
+            if status != _FOUND:
+                return None
+        return current
+
+    def _candidates(self, ref: TypeRef) -> set[str]:
+        """Every id a written name could denote — for an *external* base, the names it may be."""
+        out = {c for group in ref.groups for c in group if c != STOP}
+        if ref.simple:
+            prefixes = {*ref.using_prefixes, *self.state.global_prefixes.get(ref.project, ())}
+            out |= {f"{self.state.language}:{p}.{ref.simple}" for p in prefixes}
+        return out
+
+    @staticmethod
+    def _listed(candidates: set[str]) -> frozenset[str]:
+        names: set[str] = set()
+        for c in candidates:
+            names |= EXTERNAL_MEMBER_TYPES.get(c, frozenset())
+        return frozenset(names)
+
+    def _external_members(self, type_id: str) -> frozenset[str]:
+        """Member-type names ``type_id``'s *external* bases declare, per the committed table. C#
+        reads its base class only (nested types are not inherited from interfaces there)."""
+        memo = self._external_member_memo
+        if type_id in memo:
+            return memo[type_id]
+        memo[type_id] = frozenset()  # cycle guard: a base's own lookup may come back here
+        refs = self._base_refs_of.get(type_id, [])
+        if self.state.language == "csharp":
+            refs = [self.state.class_base[type_id]] if self.state.class_base.get(type_id) is not None else []
+        names: set[str] = set()
+        for ref in refs:
+            if ref is not None and self.type_of(ref) is None:
+                names |= self._listed(self._candidates(ref))
+        memo[type_id] = frozenset(names)
+        return memo[type_id]
 
     def _levels(self, type_id: str) -> list[list[str]]:
         """``type_id`` and its in-repo supertypes, one list per inheritance level, cycle-safe."""

@@ -265,17 +265,15 @@ class JavaExtractor:
         """Emit CALLS for precisely-resolvable ``method_invocation`` sites in a body, and defer
         the ones through a typed receiver to ``finalize`` (B21)."""
         siblings = type_methods.get(type_id, set())
-        scope = _method_scope(body.parent or body, type_id, package, imports, self._receivers, source)
-        method_params = _java_type_params(body.parent or body, source)
+        sites = _Sites(body.parent or body, body, type_id, package, imports, self._receivers, source)
+        scope = _method_scope(body.parent or body, type_id, package, imports, self._receivers, source, sites)
         stack = list(body.named_children)
         while stack:
             n = stack.pop()
             if n.type in _TYPE_DECLS:
                 continue  # nested/local class — a separate scope, not this method's calls
             if n.type == "object_creation_expression":
-                created = _creation(
-                    n, caller, type_id, package, imports, self._receivers, source, method_params, rel
-                )
+                created = _creation(n, caller, sites, rel)
                 if created is not None:
                     self._receivers.calls.append(created)
             elif n.type == "method_invocation":
@@ -300,9 +298,7 @@ class JavaExtractor:
                     if deferred is None and obj is not None and obj.type == "identifier" and not shadowed:
                         recv = _text(obj, source)
                         if recv[:1].isupper():  # `Type.method()` or `CONSTANT.method()`
-                            ref = _java_type_ref(
-                                recv, type_id, package, imports, self._receivers, method_params
-                            )
+                            ref = sites.text_ref(recv, obj)
                             member = _field_text(n, "name", source)
                             if member and _in_anonymous(n, body):
                                 if ref is not None:
@@ -402,12 +398,15 @@ def _java_type_ref(
     imports: _ImportContext,
     state: ReceiverState,
     extra_params: frozenset[str] = frozenset(),
+    anonymous: tuple[TypeRef, ...] = (),
 ) -> TypeRef | None:
-    """The candidate ids a written Java type name can denote, in javac's order: a member type
-    of an enclosing type (its own or inherited), a single-type import — which **ends** the lookup
-    even when the imported type is external — the same package, then on-demand imports as one
-    level. A qualified ``Outer.Inner`` resolves its head the same way. A type parameter of any
-    enclosing type or of the method is never an in-repo type."""
+    """The candidate ids a written Java type name can denote, in javac's order: a member type of
+    an anonymous class base around the site, then of an enclosing type (its own or inherited), a
+    single-type import — which **ends** the lookup even when the imported type is external — the
+    same package, then on-demand imports as one level. A qualified ``Outer.Inner`` resolves its
+    head the same way and ``Inner`` among the head's member types (B30, D4). A type parameter of
+    any enclosing type or of the method — or a local class in force at the site (D1), passed in
+    ``extra_params`` — is never an in-repo type."""
     name = _strip_generics(text)
     if not name or name in _PRIMITIVES or any(ch in name for ch in "[]|&?@ ") or not name[0].isalpha():
         return None
@@ -430,7 +429,9 @@ def _java_type_ref(
     groups.append(tuple(f"java:{w}.{head}{suffix}" for w in sorted(imports.wildcard_prefixes)))
     if rest:
         groups.append((f"java:{name}",))  # already fully qualified
-    return TypeRef(tuple(g for g in groups if g), enclosing=tuple(chain), nested=f"{head}{suffix}")
+        head_ref = _java_type_ref(head, enclosing, package, imports, state, extra_params, anonymous)
+        return TypeRef(tuple(g for g in groups if g), head=head_ref, rest=tuple(rest.split(".")))
+    return TypeRef(tuple(g for g in groups if g), enclosing=tuple(chain), nested=head, anonymous=anonymous)
 
 
 def _java_type_node_ref(
@@ -441,6 +442,7 @@ def _java_type_node_ref(
     state: ReceiverState,
     source: bytes,
     extra_params: frozenset[str] = frozenset(),
+    anonymous: tuple[TypeRef, ...] = (),
 ) -> TypeRef | None:
     if node is None or node.type in (
         "integral_type",
@@ -450,7 +452,7 @@ def _java_type_node_ref(
         "array_type",
     ):
         return None
-    return _java_type_ref(_text(node, source), enclosing, package, imports, state, extra_params)
+    return _java_type_ref(_text(node, source), enclosing, package, imports, state, extra_params, anonymous)
 
 
 def _block_of(node: TSNode) -> TSNode:
@@ -483,8 +485,77 @@ def _in_anonymous(node: TSNode, body: TSNode) -> bool:
     return False
 
 
+class _Sites:
+    """Where a type name written in one method body resolves (B30): the method's type parameters,
+    the local classes in force at the site (D1 — a local ``class Order`` hides ``app.model.Order``
+    from its declaration to the end of its block, and has no node, so it gets no edge), and the
+    anonymous-class bases around it, innermost first (D2 — ``new Base() { … new Helper() … }``
+    means ``Base.Helper``)."""
+
+    def __init__(
+        self,
+        method: TSNode,
+        body: TSNode,
+        type_id: str,
+        package: str,
+        imports: _ImportContext,
+        state: ReceiverState,
+        source: bytes,
+    ) -> None:
+        self.body, self.type_id, self.package, self.imports = body, type_id, package, imports
+        self.state, self.source = state, source
+        self.method_params = _java_type_params(method, source)
+        self.locals = Scope(before_decl_refuses=False)
+        stack = list(body.named_children)
+        while stack:
+            n = stack.pop()
+            stack.extend(n.named_children)
+            if n.type in _TYPE_DECLS and n.parent is not None and n.parent.type != "class_body":
+                name = n.child_by_field_name("name")
+                if name is not None:
+                    parent = n.parent
+                    self.locals.bind(
+                        _text(name, source), UNREADABLE, parent.start_byte, parent.end_byte, n.start_byte
+                    )
+
+    def _context(self, at: TSNode) -> tuple[frozenset[str], tuple[TypeRef, ...]]:
+        hidden = self.method_params | self.locals.visible(at.start_byte)
+        anonymous: list[TypeRef] = []
+        cur = at.parent
+        while cur is not None and cur != self.body:
+            creation = cur.parent
+            if (
+                cur.type == "class_body"
+                and creation is not None
+                and creation.type == "object_creation_expression"
+            ):
+                base = self.node_ref(creation.child_by_field_name("type"))
+                if base is not None:
+                    anonymous.append(base)
+            cur = cur.parent
+        return hidden, tuple(anonymous)
+
+    def text_ref(self, text: str, at: TSNode) -> TypeRef | None:
+        hidden, anonymous = self._context(at)
+        return _java_type_ref(text, self.type_id, self.package, self.imports, self.state, hidden, anonymous)
+
+    def node_ref(self, node: TSNode | None) -> TypeRef | None:
+        if node is None:
+            return None
+        hidden, anonymous = self._context(node)
+        return _java_type_node_ref(
+            node, self.type_id, self.package, self.imports, self.state, self.source, hidden, anonymous
+        )
+
+
 def _method_scope(
-    method: TSNode, type_id: str, package: str, imports: _ImportContext, state: ReceiverState, source: bytes
+    method: TSNode,
+    type_id: str,
+    package: str,
+    imports: _ImportContext,
+    state: ReceiverState,
+    source: bytes,
+    sites: _Sites | None = None,
 ) -> Scope:
     """Every binding a method makes, with the block it is in force in (R1). Java puts a local in
     scope from its declaration to the end of its block; two bindings that both apply refuse.
@@ -492,10 +563,10 @@ def _method_scope(
     Every binding form is collected, typed or not: a name missed here would fall through to a
     field of the same name and resolve to *its* type — the one way this pass could invent."""
     scope = Scope(before_decl_refuses=False)
-    method_params = _java_type_params(method, source)
+    here = sites if sites is not None else _Sites(method, method, type_id, package, imports, state, source)
 
     def typed(node: TSNode | None) -> object:
-        ref = _java_type_node_ref(node, type_id, package, imports, state, source, method_params)
+        ref = here.node_ref(node)
         return ref if ref is not None else UNREADABLE
 
     def bind(name_node: TSNode | None, ref: object, where: TSNode, decl: TSNode) -> None:
@@ -562,11 +633,7 @@ def _method_scope(
         elif t == "catch_formal_parameter":
             catch_type = next((c for c in n.named_children if c.type == "catch_type"), None)
             text = _text(catch_type, source) if catch_type is not None else ""
-            ref = (
-                _java_type_ref(text, type_id, package, imports, state, method_params)
-                if "|" not in text
-                else None
-            )
+            ref = here.text_ref(text, n) if "|" not in text else None
             bind(n.child_by_field_name("name"), ref if ref is not None else UNREADABLE, n.parent or n, n)
         elif t == "instanceof_expression" and n.child_by_field_name("name") is not None:
             # Flow scoping: typed inside the statement that tests it; past it, where the binding may
@@ -583,17 +650,7 @@ def _method_scope(
     return scope
 
 
-def _creation(
-    node: TSNode,
-    caller: str,
-    type_id: str,
-    package: str,
-    imports: _ImportContext,
-    state: ReceiverState,
-    source: bytes,
-    method_params: frozenset[str],
-    rel: str,
-) -> DeferredCall | None:
+def _creation(node: TSNode, caller: str, sites: _Sites, rel: str) -> DeferredCall | None:
     """``new Foo(…)`` — and ``new Base() { … }``, which runs ``Base``'s constructor — as an
     instantiation of the written type, settled in ``finalize`` (B22). Instantiation is ``CALLS`` to
     the Type node (``corpus/README.md``). ``outer.new Inner()`` is refused: its type is relative
@@ -601,9 +658,7 @@ def _creation(
     ``method_reference``; neither is read, because neither runs a constructor at this line."""
     if not node.children or node.children[0].type != "new":
         return None  # `outer.new Inner()` / `this.new Inner()`
-    ref = _java_type_node_ref(
-        node.child_by_field_name("type"), type_id, package, imports, state, source, method_params
-    )
+    ref = sites.node_ref(node.child_by_field_name("type"))
     if ref is None:
         return None
     return DeferredCall(caller, "", rel, node.start_point[0] + 1, receiver=ref, creates=True)
