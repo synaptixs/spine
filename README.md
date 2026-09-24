@@ -78,7 +78,15 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.45.0 (current)** — a plan's criteria are checked against the whole ticket. `sdlc plan
+**3.46.0 (current)** — graphs that say who really calls what. A Python call through a re-export
+(`from app import Store`) now lands on the symbol that defines it instead of a phantom
+third-party twin — on Spine's own graph that moved 1,271 calls to their real targets — and
+`pkg verify` warns on any `phantom-symbol` left. Kotlin: a file whose one-line body tripped the
+parser is recovered instead of losing everything after it; wildcard-imported Room entities and
+cross-file same-package extensions resolve; and a bare call inside `with(x) { }` is no longer
+pinned on the enclosing class (17 invented self-calls gone from the Android validation app).
+
+**3.45.0** — a plan's criteria are checked against the whole ticket. `sdlc plan
 --source` now reads the ticket fresh at every plan with **every attachment in full** (up to 20),
 while the AI that writes the spec still reads the same bounded summary — so nothing already
 approved moves. `--follow-links` also reads the **Confluence pages a ticket links to** (at most
