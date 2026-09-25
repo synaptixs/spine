@@ -22,7 +22,8 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any, Protocol, runtime_checkable
+from dataclasses import dataclass
+from typing import Any, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -153,6 +154,70 @@ class StructuredIntentSource(Protocol):
     def structured_intents(self, documents: list[SourceDocument]) -> list[Intent]: ...
 
 
+FitState = Literal["full", "cut", "dropped"]
+
+
+@dataclass(frozen=True)
+class DocumentFit:
+    """One document's place in the extractor's prompt: all of it, the start of it, or none."""
+
+    id: str
+    title: str
+    url: str
+    state: FitState
+
+
+@dataclass(frozen=True)
+class PromptFit:
+    """What the intent extractor's prompt holds of each document, under :data:`_MAX_PROMPT_CHARS`.
+
+    The prompt builder is made of this, so a report computed from it cannot disagree with what
+    the model was given (ledger N14: `--follow-links` said "5 read" while the model saw one page,
+    cut). It is also recomputed, not stored: the intake cache keeps the bounded documents the
+    extractor was handed, so running :func:`extraction_fit` over them says what a cached spec was
+    derived from. That holds only while the budget is the one the entry was extracted under — a
+    change to :data:`_MAX_PROMPT_CHARS` must bump the cache's ``_CACHE_VERSION``.
+    """
+
+    chunks: tuple[str, ...]
+    documents: tuple[DocumentFit, ...]
+    budget: int
+
+    @property
+    def complete(self) -> bool:
+        return all(d.state == "full" for d in self.documents)
+
+    def state_of(self, doc_id: str) -> FitState | None:
+        """``None`` when the document was not part of the extraction at all."""
+        return next((d.state for d in self.documents if d.id == doc_id), None)
+
+
+def fit_documents(documents: list[SourceDocument], *, budget: int = _MAX_PROMPT_CHARS) -> PromptFit:
+    """Lay ``documents`` into the prompt budget in order: whole while they fit, the next one cut
+    with ``…[truncated]``, and every one after that left out."""
+    chunks: list[str] = []
+    fits: list[DocumentFit] = []
+    remaining = budget
+    for d in documents:
+        if remaining <= 0:
+            fits.append(DocumentFit(d.id, d.title, d.url, "dropped"))
+            continue
+        chunk = f"# {d.title} (id={d.id})\n{d.body}"
+        state: FitState = "full"
+        if len(chunk) > remaining:
+            chunk = chunk[:remaining] + "\n…[truncated]"
+            state = "cut"
+        chunks.append(chunk)
+        fits.append(DocumentFit(d.id, d.title, d.url, state))
+        remaining -= len(chunk)
+    return PromptFit(chunks=tuple(chunks), documents=tuple(fits), budget=budget)
+
+
+def extraction_fit(documents: list[SourceDocument]) -> PromptFit:
+    """The fit of what :meth:`IntentExtractor.extract` sends: the non-empty documents, in order."""
+    return fit_documents([d for d in documents if not d.is_empty])
+
+
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 
@@ -196,17 +261,7 @@ class IntentExtractor:
         return self._parse(result.text, title_to_id, fallback_doc_ids=fallback_doc_ids)
 
     def _build_user_message(self, documents: list[SourceDocument]) -> str:
-        parts: list[str] = []
-        budget = _MAX_PROMPT_CHARS
-        for d in documents:
-            chunk = f"# {d.title} (id={d.id})\n{d.body}"
-            if len(chunk) > budget:
-                chunk = chunk[:budget] + "\n…[truncated]"
-            parts.append(chunk)
-            budget -= len(chunk)
-            if budget <= 0:
-                break
-        return "Requirements documents:\n\n" + "\n\n---\n\n".join(parts)
+        return "Requirements documents:\n\n" + "\n\n---\n\n".join(fit_documents(documents).chunks)
 
     def _parse(self, text: str, title_to_id: dict[str, str], *, fallback_doc_ids: list[str]) -> list[Intent]:
         payload = _loads_json_object(text)
