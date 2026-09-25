@@ -1,6 +1,6 @@
-# State of Spine — 3.47.0
+# State of Spine — 3.48.0
 
-**The one document to read.** Verified against source on **2026-09-24**, at the 3.47.0 release
+**The one document to read.** Verified against source on **2026-09-24**, at the 3.48.0 release
 cut. Every gated number below was re-measured that day (`scripts/state-numbers.py --check`).
 
 > **Why this exists.** `docs/specs/` holds **91** markdown files — **87 specs** plus this
@@ -24,7 +24,7 @@ gates (before building, before merging). The product is **Spine**; it ships as
 
 | | Value | How it is known |
 |---|---|---|
-| Version | **3.47.0** | cutting now; 3.46.0 is the last on PyPI. **Minor** — Java and C# graphs that say who calls what: a call through a typed receiver (a field, a parameter, a typed local) lands on the member the declared type means (a .NET service: 0 → 2,427 of 2,427 resolvable calls; mysql-connector-j: 334 → 12,962 of 14,984), `new Foo()` is a `CALLS` edge to `Foo` (mysql-connector-j `result.Field` 0 → 264 callers), ASP.NET Core DI registrations become `PROVIDES`, and `blast_radius` reaches an implementation's callers through the interface member it implements (`interface_callers`, `via`), in every language with `IMPLEMENTS` |
+| Version | **3.48.0** | cutting now; 3.47.0 is the last on PyPI. **Minor** — `sdlc autorun --live` publishes the reviewed change: the PR opens after the review, carrying its fixes as `<KEY>: review fixes`, and a review that does not finish clean opens a draft PR and exits 1 (#468, B13); `SDLC_RUN_BUDGET_USD` caps `sdlc feature` and `sdlc autorun` as documented — $25 default, `0` disables, `--max-cost` overrides; upgrade note in CHANGELOG (#468, B14); the Java/C# type lookup sees every binding closer than the one it found (guava: 16 edges moved, all 16 now right; no edge moved on four field repositories) (#467, B30) |
 | Languages extracted | **12** languages (**13** front-ends) | Python, Java, TypeScript, JavaScript, C#, C, C++, Go, PHP, Perl, Kotlin, SQL, plus a **Gradle** reader that turns `.kts` build scripts into a module dependency graph rather than parsing them as source (D11) — Perl has comprehension + `CALLS` + routes + data layer (all six phases of [perl-support-roadmap.md](perl-support-roadmap.md)); Kotlin is at P0–P11 (all phases) of [kotlin-support-roadmap.md](kotlin-support-roadmap.md) (comprehension, `CALLS`, Room entities + DAO data edges, Retrofit calls as cross-repo `CONSUMES` candidates, Compose navigation as `NAV` endpoints, Hilt/Dagger wiring through the new `PROVIDES` edge, a Gradle `.kts` module graph that gives `state` real components instead of package-name prefixes, and Ktor + Spring MVC server routes that make a Kotlin service a **provider** — the Spring half is shared with the Java front-end, which had read JAX-RS only, Multiplatform source sets with `expect`/`actual` ids joined by `IMPLEMENTS`, and **Kotlin/JVM codegen** on Gradle — whose runner also gives *Java* codegen its first Gradle support) |
 | Perl codegen progress | **C-0 through C-5 DONE** | [Roadmap](perl-codegen-roadmap.md): dispatch mutation detection **4/8 → 8/8**, 0 skipped mutations; `--language perl` enabled with real green/red runner proof; greenfield live proof passes 81 assertions from a clean checkout; brownfield clean-checkout proof passes 4,192 tests, with 116 regression gaps unchanged |
 | PHP delivery | Composer or pinned PHPUnit PHAR | Configured test layout, changed-file lint, modern PHPUnit; [validation roadmap](php-codegen-roadmap.md) |
