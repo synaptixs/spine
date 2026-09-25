@@ -1,0 +1,21 @@
+{
+  "blocked": false,
+  "documents": [
+    {
+      "body": "Bug \u00b7 status: To Do \u00b7 priority: High\n\nThe CSV export loses the currency column.\n\nAttachments read (5, 945 of 20,000 chars):\n--- note1.md ---\n# Note 1\n\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n- rule 1\n--- note2.md ---\n# Note 2\n\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n- rule 2\n--- note3.md ---\n# Note 3\n\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n- rule 3\n--- note4.md ---\n# Note 4\n\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n- rule 4\n--- note5.md ---\n# Note 5\n\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n- rule 5\n\nAttachments (names only \u2014 contents not read): note6.md (bound of 5 reached), note7.md (bound of 5 reached)",
+      "id": "FIN-43",
+      "issue_type": "Bug",
+      "labels": [
+        "export"
+      ],
+      "space": "FIN",
+      "title": "Orders export drops the currency column",
+      "url": "https://acme.atlassian.net/browse/FIN-43"
+    }
+  ],
+  "gaps": [],
+  "intents": [],
+  "specs": [],
+  "truncated": false,
+  "version": 2
+}
