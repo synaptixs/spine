@@ -471,9 +471,13 @@ warning says so when any did not fit. §8 still checks against every word.
 The spec itself comes from the intake cache, so a page linked after it was extracted is named
 in that line but is not in it. `sdlc plan --refresh --follow-links` re-extracts it (`--refresh`
 alone re-extracts the plan without linked pages; neither touches the other). Re-extraction is an
-AI call and can change the spec: if it does and the plan was approved, a warning says so, the
-plan reads as stale, and `sdlc autorun` refuses to build until you approve it again — in every
-checkout of the ticket, since the cache is shared.
+AI call and can change the spec: if it does and the plan was approved, a warning says so and
+whether the approval still holds. When the re-rendered plan differs from the one approved, it
+reads as stale and `sdlc autorun` refuses to build until you read it and approve it again; a change
+only in what the plan does not show (such as estimates) leaves the approval standing. Other
+approved intents of the ticket whose spec changed are named with the `sdlc plan` command that
+re-renders them — re-plan before approving. The cache is shared, so every checkout of the ticket
+plans from the new spec.
 
 Committing `.spine/plans/` is up to you — Spine never counts an uncommitted plan as a change,
 so writing one leaves the tree clean and the knowledge-graph cache warm. **Don't commit between

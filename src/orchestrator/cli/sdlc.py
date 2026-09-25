@@ -13,7 +13,9 @@ from ._common import _print
 
 if TYPE_CHECKING:
     from orchestrator.intake.intents import PromptFit
+    from orchestrator.intake.service import BacklogPlan
     from orchestrator.intake.source import FetchTreeResult
+    from orchestrator.sdlc.builddoc import PlanApproval
 
 sdlc_app = typer.Typer(
     help="Run the end-to-end SDLC pipeline: plan, approve, build, review, complete.", no_args_is_help=True
@@ -801,8 +803,8 @@ def sdlc_plan(
             "--refresh",
             help="Re-extract the spec from the source (default: reuse the cached one) — the intake "
             "spec, not the PKG. Only the entry these flags select: with --follow-links the one "
-            "derived with linked pages, without it the ticket-only one. A spec that changes stales "
-            "its approval, and a WARNING says so. Not with --spec.",
+            "derived with linked pages, without it the ticket-only one. A WARNING says when it "
+            "changes an approved spec, and whether the approval still holds. Not with --spec.",
         ),
     ] = False,
 ) -> None:
@@ -821,6 +823,7 @@ def sdlc_plan(
         load_approval,
         load_journey,
         persist,
+        plan_digest,
         save_source_text,
     )
     from orchestrator.sdlc.feature_runner import unsupported_language_error
@@ -867,9 +870,9 @@ def sdlc_plan(
         fetched: FetchTreeResult | None = None
         extraction: PromptFit | None = None
         hand_written = resolved is not None
-        # (the cached plan before a `--refresh`, the refreshed one) — only when there was one to
-        # compare with.
-        refresh_report: tuple[Any, Any] | None = None
+        # The approval of the rendered intent when a `--refresh` changed its spec: whether it still
+        # holds is only known once the plan is re-rendered (B37, D4).
+        moved_approval: PlanApproval | None = None
         if resolved is not None and source:
             # `--spec` is the requirements; `--source` supplies only the ticket's own words, for
             # §8 to check the hand-written criteria against. So fetch, never analyse: the spec
@@ -885,7 +888,12 @@ def sdlc_plan(
         if resolved is None:
             from orchestrator.core.env import load_local_env
             from orchestrator.core.llm.client import LLMError
-            from orchestrator.intake.cache import FOLLOW_LINKS, analyze_cached, load_cached_plan
+            from orchestrator.intake.cache import (
+                FOLLOW_LINKS,
+                analyze_cached,
+                load_cached_plan,
+                load_progress,
+            )
             from orchestrator.intake.factory import (
                 IntakeNotConfiguredError,
                 build_service_for,
@@ -906,6 +914,9 @@ def sdlc_plan(
                 if refresh
                 else None
             )
+            # A flag-off refresh prunes the ticket's progress to the intents still held, so what a
+            # renamed intent loses is read off the two, never assumed.
+            progress_before = load_progress(str(source)) if before is not None else {}
             try:
                 plan_result = await analyze_cached(
                     service, str(source), refresh=refresh, log=lambda _m: None, follow_links=follow_links
@@ -920,6 +931,24 @@ def sdlc_plan(
             except LLMError as exc:
                 typer.echo(f"ERROR: {exc}", err=True)
                 raise typer.Exit(code=2) from exc
+            if before is not None:
+                # Said now, not after the render: the cache was rewritten inside the refresh, and
+                # every exit below — a renamed `--intent`, a fetch that fails, a render that
+                # raises — would otherwise leave an approval moved without a word.
+                rendered = intent or (plan_result.specs[0].intent_id if plan_result.specs else "")
+                warnings, moved_approval = _refresh_warnings(
+                    before,
+                    plan_result,
+                    root=path,
+                    source=str(source),
+                    follow_links=follow_links,
+                    rendered=rendered,
+                    dropped_progress={
+                        k: v for k, v in progress_before.items() if k not in load_progress(str(source))
+                    },
+                )
+                for warning in warnings:
+                    typer.echo(f"WARNING: {warning}", err=True)
             if not plan_result.specs:
                 typer.echo("No specs derived from the source — nothing to plan.", err=True)
                 raise typer.Exit(code=3)
@@ -938,8 +967,6 @@ def sdlc_plan(
                 typer.echo(f"Intent {intent!r} not found. Available: {ids}{why}", err=True)
                 raise typer.Exit(code=3)
             resolved = chosen.model_dump()
-            if before is not None:
-                refresh_report = (before, plan_result)
             # The spec comes from the cache — re-extracting it could move an approved plan — but
             # the ticket text §8 checks against is read fresh, with no model call: what the ticket
             # says *now*, attachments uncut, which a cache entry written before either could not
@@ -998,49 +1025,117 @@ def sdlc_plan(
         typer.echo(f"[plan] {written}", err=True)
         if superseded is not None:
             typer.echo(f"[plan] superseded document kept at {superseded}", err=True)
-        if refresh_report is not None:
-            for warning in _refresh_warnings(*refresh_report, root=path):
-                typer.echo(f"WARNING: {warning}", err=True)
+        if moved_approval is not None:
+            # The gate's own comparison: the digest of what was rendered against the one approved.
+            # A spec can change in fields the plan never shows (`nfrs`, `estimate`, …), and then
+            # the approval holds — so exit 6 is claimed only when the digest moved.
+            who, when = moved_approval.decided_by or "someone", moved_approval.decided_at
+            autorun = "sdlc autorun --follow-links" if follow_links else "sdlc autorun"
+            if plan_digest(document) != moved_approval.digest:
+                typer.echo(
+                    f"WARNING: the re-rendered plan of {intent_key} is not the one {who} approved on "
+                    f"{when} — it reads as stale, and `{autorun}` for it parks (exit 6) until you read "
+                    f"it and `sdlc approve {intent_key}{_path_arg(path)}` again.",
+                    err=True,
+                )
+            else:
+                typer.echo(
+                    f"[plan] the re-rendered plan of {intent_key} reads the same as the one {who} "
+                    f"approved on {when} — the spec's change does not reach the plan, so the "
+                    f"approval still holds and `{autorun}` is not parked by it.",
+                    err=True,
+                )
 
     asyncio.run(_go())
 
 
-def _refresh_warnings(before: Any, after: Any, *, root: str) -> list[str]:
-    """What a `--refresh` did to an approval under ``root``, said only when the spec moved.
+def _path_arg(path: str) -> str:
+    return "" if path == "." else f" --path {path}"
 
-    The gate already fails closed — the re-derived digest moves and `autorun` parks with exit 6 —
-    so this is about telling the user, not stopping anything (B37, D4). It compares the cached spec
-    from before the refresh with the new one, never the digest, which also moves with the code.
-    The intake cache is user-global while approvals live per checkout, so every other checkout of
-    this ticket is stale too, and nothing here can see them.
+
+def _refresh_warnings(
+    before: BacklogPlan,
+    after: BacklogPlan,
+    *,
+    root: str,
+    source: str,
+    follow_links: bool,
+    rendered: str,
+    dropped_progress: dict[str, dict[str, Any]],
+) -> tuple[list[str], PlanApproval | None]:
+    """What a `--refresh` did to the approvals under ``root``, said only when a spec moved.
+
+    The gate already fails closed, so this is about telling the user, not stopping anything (B37,
+    D4). It compares the cached spec from before the refresh with the new one, never the digest,
+    which also moves with the code — but a changed spec is not a moved plan: the digest covers what
+    the plan renders, and fields like `nfrs` or `estimate` it does not. So nothing here claims exit
+    6. For ``rendered``, the intent this command is about to render, its approval is returned and
+    the caller settles it against the rendered digest; any other approved intent's plan on disk was
+    rendered from the old spec, and only re-planning it can say.
+
+    Returns the warnings and, when the rendered intent's approved spec changed, its approval.
     """
     from orchestrator.sdlc.builddoc import load_approval
 
-    shared = (
-        "The intake cache is shared by every checkout, so this ticket's plan is stale in each of them too."
-    )
+    this = "with `--follow-links`" if follow_links else "without `--follow-links`"
+    other = "without `--follow-links`" if follow_links else "with `--follow-links`"
+    autorun = "sdlc autorun --follow-links" if follow_links else "sdlc autorun"
+    other_autorun = "sdlc autorun" if follow_links else "sdlc autorun --follow-links"
+    links = " --follow-links" if follow_links else ""
     new = {s.intent_id: s.model_dump() for s in after.specs}
     warnings: list[str] = []
+    moved: PlanApproval | None = None
     for old in before.specs:
         approval = load_approval(old.intent_id, root=root)
         if approval is None or approval.decision != "APPROVED":
             continue
-        who, when = approval.decided_by or "someone", approval.decided_at
-        if old.intent_id not in new:
+        iid, who, when = old.intent_id, approval.decided_by or "someone", approval.decided_at
+        if iid not in new:
+            # `save_plan` prunes a flag-off entry's progress to the intents still held; a
+            # variant's refresh leaves it alone — so the record's loss is read, never assumed.
+            record = dropped_progress.get(iid)
+            lost = ""
+            if record is not None:
+                what = ", ".join(
+                    x
+                    for x in (
+                        str(record.get("status") or ""),
+                        f"PR {record['pr_url']}" if record.get("pr_url") else "",
+                    )
+                    if x
+                )
+                lost = f" Its recorded progress ({what}) was dropped with it."
             warnings.append(
-                f"re-extraction renamed or dropped {old.intent_id}, which {who} approved on {when} — "
-                f"`sdlc autorun` for it parks (exit 6); the ticket's intents are now: "
-                f"{', '.join(new) or 'none'}. {shared}"
+                f"re-extraction renamed or dropped {iid}, which {who} approved on {when} — the "
+                f"ticket's intents are now: {', '.join(new) or 'none'}. `{autorun} --intent {iid}` "
+                f"no longer finds it (exit 3), and the approval does not carry over to a new id: "
+                f"plan and approve the intent that replaced it.{lost}"
             )
-        elif old.model_dump() != new[old.intent_id]:
-            # Every approved intent of the refreshed entry, not only the one rendered: each of
-            # their plans reads as stale from its next `sdlc plan`.
-            warnings.append(
-                f"re-extraction changed the spec of {old.intent_id} that {who} approved on {when} — "
-                f"its plan now reads as stale, and `sdlc autorun` parks (exit 6) until "
-                f"`sdlc approve {old.intent_id}` approves it again. {shared}"
-            )
-    return warnings
+        elif old.model_dump() != new[iid]:
+            if iid == rendered:
+                moved = approval
+                warnings.append(
+                    f"re-extraction changed the spec of {iid} that {who} approved on {when} — "
+                    "re-rendering its plan to see whether the approval still holds."
+                )
+            else:
+                warnings.append(
+                    f"re-extraction changed the spec of {iid} that {who} approved on {when} — its "
+                    "plan in this checkout was rendered from the old spec, so whether the approval "
+                    "still holds is known only once it is re-planned: "
+                    f"`sdlc plan --source {source} --intent {iid}{links}{_path_arg(root)}`, then, if "
+                    f"it reads as stale, read it and `sdlc approve {iid}{_path_arg(root)}`."
+                )
+    if warnings:
+        # Approvals are per checkout and do not record which cache entry they were read from; the
+        # cache is per user and shared. Neither is visible from here, so both are said once.
+        warnings.append(
+            f"the intake cache is shared by every checkout, so each one planning or running this "
+            f"ticket {this} now reads the new spec. Approvals do not record which plan they were "
+            f"made from: one made from the plan {other} reads a spec this refresh left as it was, "
+            f"so it moves nothing for `{other_autorun}`."
+        )
+    return warnings, moved
 
 
 @sdlc_app.command("feature")

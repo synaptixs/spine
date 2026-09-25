@@ -218,16 +218,37 @@ async def test_following_links_is_its_own_cache_entry_and_never_the_flag_off_one
     assert list(tmp_path.glob("*.json")) == [cache_path(_SOURCE, tmp_path)]  # one ticket, one file
 
 
-async def test_a_cache_hit_names_the_command_that_re_extracts_its_entry(tmp_path: Path) -> None:
-    """B37: the hint said `--refresh` to every caller, `autorun` included, which has no such flag;
-    only `sdlc plan --refresh` reaches both entries (D1)."""
+async def test_a_cache_hit_names_the_callers_own_way_to_re_extract(tmp_path: Path) -> None:
+    """B37, review pass 1: the hint is the caller's — `ingest`, `openspec draft` and `sdlc feature`
+    have `--refresh`, so they keep the one they had; only `autorun`, which has none, names
+    `sdlc plan` (tested there)."""
     svc, said = _Analyser(), list[str]()
-    for follow in (False, True):
-        await analyze_cached(svc, _SOURCE, cache_dir=tmp_path, follow_links=follow)  # type: ignore[arg-type]
-        await analyze_cached(svc, _SOURCE, cache_dir=tmp_path, follow_links=follow, log=said.append)  # type: ignore[arg-type]
-    assert "(`sdlc plan --refresh` re-extracts)" in said[0]
-    assert "(`sdlc plan --refresh --follow-links` re-extracts)" in said[1]
-    assert not any("(--refresh to re-extract)" in line for line in said)
+    await analyze_cached(svc, _SOURCE, cache_dir=tmp_path)  # type: ignore[arg-type]
+    await analyze_cached(svc, _SOURCE, cache_dir=tmp_path, log=said.append)  # type: ignore[arg-type]
+    await analyze_cached(
+        svc,  # type: ignore[arg-type]
+        _SOURCE,
+        cache_dir=tmp_path,
+        log=said.append,
+        refresh_hint="`sdlc plan --source jira://FIN-42 --refresh` re-extracts",
+    )
+    assert "(--refresh to re-extract)" in said[0]
+    assert "(`sdlc plan --source jira://FIN-42 --refresh` re-extracts)" in said[1]
+
+
+def test_ingest_s_cache_hit_names_its_own_refresh(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from typer.testing import CliRunner
+
+    from orchestrator.cli import app
+
+    monkeypatch.setenv("ORCHESTRATOR_INTAKE_CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr("orchestrator.core.env.load_local_env", lambda *a, **k: 0)
+    monkeypatch.setattr("orchestrator.intake.factory.build_service_for", lambda *_a, **_k: _Analyser())
+    assert CliRunner().invoke(app, ["ingest", "--source", _SOURCE]).exit_code == 0
+    again = CliRunner().invoke(app, ["ingest", "--source", _SOURCE])
+    assert again.exit_code == 0, again.output
+    assert "reusing cached backlog" in again.output and "(--refresh to re-extract)" in again.output
+    assert "sdlc plan" not in again.output
 
 
 def test_progress_is_one_record_per_ticket_whichever_entry_it_was_planned_from(tmp_path: Path) -> None:

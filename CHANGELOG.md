@@ -17,16 +17,25 @@ All notable changes to this project are documented here. Format loosely follows
   `--spec` (exit 2). `ingest`, `openspec draft` and `sdlc feature` keep their flag-off `--refresh`;
   `sdlc autorun` gets none, because it re-checks the approval right after intake and a refresh
   there could only park it.
-  - A refresh that changes an approved spec prints a `WARNING:` naming who approved it, that
-    `sdlc autorun` parks (exit 6) until `sdlc approve` again, and that the intake cache is shared
-    by every checkout of the ticket — so their plans are stale too. It compares the spec before
-    and after, so a refresh that returns the same spec, or a change in the code, says nothing. An
-    approved intent the re-extraction renamed or dropped is named with the ids now available, and
-    a pinned `--intent` that vanished keeps exit 3 and says why. The plan's header already reads
-    **stale**; exit codes are unchanged.
-  - The cache-hit hint `(--refresh to re-extract)` — printed by `sdlc autorun`, which has no
-    `--refresh` — now names `sdlc plan --refresh` (with `--follow-links` for that entry), and the
-    `**Linked pages:**` clause for a page linked since extraction ends with the same command.
+  - A refresh that changes an approved spec prints a `WARNING:` naming who approved it — before
+    anything else can exit, since the cache is already rewritten. For the intent it renders, it
+    then says whether the approval still holds, by the gate's own comparison: when the re-rendered
+    plan differs from the approved one, `sdlc autorun` parks (exit 6) until `sdlc approve` again;
+    a change only in fields the plan does not render (`nfrs`, `estimate`, …) leaves it holding,
+    and it says so. Any other approved intent whose spec changed is named with the command that
+    re-plans it before it is re-approved — its plan on disk was rendered from the old spec, so
+    approving that would approve an unread document. One line adds that the intake cache is
+    shared by every checkout, and that an approval made from the plan with the other flag is not
+    moved. It compares the spec before and after, so a refresh that returns the same spec, or a
+    change in the code, says nothing. An approved intent the re-extraction renamed or dropped is
+    named with the ids now available (and, when a flag-off refresh prunes it, the progress and PR
+    recorded for it); a pinned `--intent` that vanished keeps exit 3 and says why. Exit codes are
+    unchanged.
+  - The cache-hit hint `(--refresh to re-extract)` — printed by `sdlc autorun` too, which has no
+    `--refresh` — now names `sdlc plan --source <uri> --refresh` there (with `--follow-links` for
+    that entry); `ingest`, `openspec draft` and `sdlc feature` keep their own `--refresh`. The
+    `**Linked pages:**` clause for a page linked since extraction ends with
+    `sdlc plan --refresh --follow-links`.
 
 ### Fixed
 
@@ -41,11 +50,8 @@ All notable changes to this project are documented here. Format loosely follows
   PR recorded for their intent — and so does a `--refresh` of a ticket that has both; its `sdlc
   complete` renders an empty ledger. `sdlc plan --refresh --follow-links` re-extracts what was
   lost, at the price of a new spec. Documented rather than guarded: a cache version bump would
-  make 3.44 re-extract every ticket, not fewer (see `intake/cache.py`).
-- **The byte-pinned intake goldens cover the attachments 3.44 never downloaded** — a sixth
-  readable file, a failure past the five-file bound, a failure after the 20,000-character budget —
-  rendered by v3.44.0 itself as a second ticket, so the existing goldens did not move.
-
+  make 3.44 re-extract every ticket, not fewer (see `intake/cache.py`). The byte-pinned intake
+  goldens now also cover the attachments 3.44 never downloaded, rendered by v3.44.0 itself.
 - **`--follow-links` says what the spec was derived from, not only what it fetched.** The intent
   extractor reads at most 60,000 characters, fills them with the ticket first, and linked pages
   come last — so `sdlc plan`'s header could say "5 read" while the spec was derived from one of

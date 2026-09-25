@@ -833,6 +833,36 @@ def test_follow_links_reaches_intake_as_its_own_analysis(
     assert seen == [False, True]
 
 
+@pytest.mark.parametrize("follow", [False, True])
+def test_a_cache_hit_names_sdlc_plan_refresh_for_the_source(
+    follow: bool, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """B37, review pass 1: `autorun` has no `--refresh`, so its cache-hit line names the command
+    that re-extracts that entry — with the source, and `--follow-links` for that one."""
+    _install(monkeypatch, tmp_path)
+    import orchestrator.intake.cache as intake_cache
+    from orchestrator.intake.intents import Intent
+    from orchestrator.intake.service import BacklogPlan
+    from orchestrator.intake.specs import FeatureSpec
+
+    real = intake_cache.analyze_cached
+    cached = BacklogPlan(
+        intents=[Intent(id="intent-a", title="t", description="d")],
+        specs=[FeatureSpec(intent_id="intent-a", title="t")],
+    )
+    intake_cache.save_plan("file://./spec.md", cached, variant=intake_cache.FOLLOW_LINKS if follow else "")
+
+    async def _hit(service: Any, source: str, **kwargs: Any) -> Any:
+        await real(service, source, **kwargs)  # a hit: says its line through autorun's log
+        return await service.analyze(source)  # the fake plan, for the stages after intake
+
+    monkeypatch.setattr(intake_cache, "analyze_cached", _hit)
+    lines: list[str] = []
+    _run(tmp_path, follow_links=follow, log=lines.append)
+    hint = "`sdlc plan --source file://./spec.md --refresh" + (" --follow-links" if follow else "") + "`"
+    assert any("reusing cached backlog" in line and f"({hint} re-extracts)" in line for line in lines)
+
+
 def test_follow_links_with_a_spec_says_it_has_nothing_to_follow(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

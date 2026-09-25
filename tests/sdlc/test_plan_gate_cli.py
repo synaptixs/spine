@@ -678,6 +678,11 @@ class _Extractor:
         self.calls: list[bool] = []
         self.intent = {False: "intent-cart-total", True: "intent-cart-total"}
         self.criteria = {False: ["Cart.total skips unpriced skus"], True: ["Cart.total skips unpriced skus"]}
+        # Fields of the first spec beyond its criteria — some the plan renders, some it does not.
+        self.extra: dict[bool, dict[str, Any]] = {False: {}, True: {}}
+        # Further intents of the ticket: id → criteria.
+        self.others: dict[bool, dict[str, list[str]]] = {False: {}, True: {}}
+        self.fetch_error: Exception | None = None
 
     async def analyze(self, root_id: str, *, follow_links: bool = False) -> Any:
         from orchestrator.intake.intents import Intent
@@ -686,17 +691,32 @@ class _Extractor:
         from orchestrator.intake.specs import FeatureSpec
 
         self.calls.append(follow_links)
-        iid, criteria = self.intent[follow_links], list(self.criteria[follow_links])
+        first = (self.intent[follow_links], list(self.criteria[follow_links]))
         title = "Cart.total raises KeyError for an unknown sku"
+        every = [first, *((iid, list(c)) for iid, c in self.others[follow_links].items())]
+        titles = [title, *(f"{title} ({iid})" for iid in self.others[follow_links])]
         return BacklogPlan(
             documents=[SourceDocument(id=root_id, title=root_id, body="the ticket")],
-            intents=[Intent(id=iid, title=title, description="d", acceptance_criteria=criteria)],
-            specs=[FeatureSpec(intent_id=iid, title=title, acceptance_criteria=criteria)],
+            intents=[
+                Intent(id=iid, title=titles[n], description="d", acceptance_criteria=criteria)
+                for n, (iid, criteria) in enumerate(every)
+            ],
+            specs=[
+                FeatureSpec(
+                    intent_id=iid,
+                    title=titles[n],
+                    acceptance_criteria=criteria,
+                    **(self.extra[follow_links] if n == 0 else {}),
+                )
+                for n, (iid, criteria) in enumerate(every)
+            ],
         )
 
     async def fetch_source_documents(self, root_id: str, *, follow_links: bool = False) -> Any:
         from orchestrator.intake.source import FetchTreeResult, SourceDocument
 
+        if self.fetch_error is not None:
+            raise self.fetch_error
         return FetchTreeResult(documents=[SourceDocument(id=root_id, title=root_id, body="the ticket")])
 
 
@@ -772,11 +792,16 @@ def test_refresh_with_a_hand_written_spec_is_refused(
     assert extractor.calls == []
 
 
+def _warnings(output: str) -> list[str]:
+    return [line for line in output.splitlines() if line.startswith("WARNING:")]
+
+
 def test_a_refresh_that_changes_an_approved_spec_says_so_and_the_gate_refuses(
     checkout: Path, extractor: _Extractor
 ) -> None:
     """D4(a): the plan is re-rendered (its header says stale) and a WARNING names the approver,
-    that autorun parks with exit 6, and that the cache is shared with other checkouts."""
+    that autorun parks with exit 6 — because the re-rendered plan's digest moved, the comparison
+    the gate makes — and that the cache is shared with other checkouts."""
     from orchestrator.sdlc.builddoc import PlanNotApprovedError, require_approved_plan
 
     assert _plan_source(checkout, "--follow-links").exit_code == 0
@@ -787,16 +812,128 @@ def test_a_refresh_that_changes_an_approved_spec_says_so_and_the_gate_refuses(
 
     assert result.exit_code == 0, result.output
     assert "**stale** — approved by reviewer" in _build_doc(checkout)
-    warning = next(line for line in result.output.splitlines() if line.startswith("WARNING:"))
-    assert "changed the spec of intent-cart-total that reviewer approved" in warning
-    assert "exit 6" in warning and "sdlc approve intent-cart-total" in warning
-    assert "shared" in warning
+    changed, shared, moved = _warnings(result.output)  # the digest is known only once rendered
+    assert "changed the spec of intent-cart-total that reviewer approved" in changed
+    assert "whether the approval still holds" in changed and "exit 6" not in changed
+    assert "the re-rendered plan of intent-cart-total is not the one reviewer approved" in moved
+    assert "`sdlc autorun --follow-links` for it parks (exit 6)" in moved
+    assert f"`sdlc approve intent-cart-total --path {checkout}` again" in moved
+    assert "shared by every checkout" in shared and "with `--follow-links` now reads the new spec" in shared
+    # Approvals do not say which entry they were read from, so the other flag's is named.
+    assert "the plan without `--follow-links`" in shared and "`sdlc autorun`" in shared
     from orchestrator.intake.cache import FOLLOW_LINKS, load_cached_plan
 
     fresh = load_cached_plan("jira://PROJ-42", variant=FOLLOW_LINKS)
     assert fresh is not None
     with pytest.raises(PlanNotApprovedError, match="changed since"):
         asyncio.run(require_approved_plan(fresh.specs[0].model_dump(), root=checkout))
+
+
+def test_a_refresh_that_changes_only_what_the_plan_does_not_render_says_the_approval_holds(
+    checkout: Path, extractor: _Extractor
+) -> None:
+    """Review pass 1: the plan's digest covers the rendered sections, not every spec field — a
+    re-extraction that moves only `nfrs` or `estimate` leaves the gate passing, so claiming that
+    autorun parks (exit 6) was false."""
+    from orchestrator.intake.cache import load_cached_plan
+    from orchestrator.sdlc.builddoc import require_approved_plan
+
+    assert _plan_source(checkout).exit_code == 0
+    _approve(checkout)
+    extractor.extra[False] = {"nfrs": ["p99 under 50ms"], "estimate": "2d"}
+
+    result = _plan_source(checkout, "--refresh")
+
+    assert result.exit_code == 0, result.output
+    assert "exit 6" not in result.output
+    assert "changed the spec of intent-cart-total that reviewer approved" in _warnings(result.output)[0]
+    assert (
+        "[plan] the re-rendered plan of intent-cart-total reads the same as the one reviewer approved"
+        in result.output
+    )
+    assert "the approval still holds" in result.output
+    assert "**approved** by reviewer" in _build_doc(checkout)
+    fresh = load_cached_plan("jira://PROJ-42")
+    assert fresh is not None and fresh.specs[0].nfrs == ["p99 under 50ms"]
+    assert (
+        asyncio.run(require_approved_plan(fresh.specs[0].model_dump(), root=checkout)).decided_by
+        == "reviewer"
+    )
+
+
+def test_a_refresh_names_every_approved_intent_it_changed_and_how_to_re_plan_it(
+    checkout: Path, extractor: _Extractor
+) -> None:
+    """Review pass 1: for an approved intent this command does not render, `sdlc approve` would
+    digest the document on disk — rendered from the old spec — so the advice is to re-plan it
+    first, and nothing is claimed about exit 6 until it has been."""
+    extractor.others[False] = {"intent-cart-log": ["Cart.total logs the sku"]}
+    assert _plan_source(checkout).exit_code == 0
+    assert _plan_source(checkout, "--intent", "intent-cart-log").exit_code == 0
+    _approve(checkout)
+    _approve(checkout, "intent-cart-log")
+    extractor.others[False] = {"intent-cart-log": ["Cart.total logs the sku", "at warning level"]}
+
+    result = _plan_source(checkout, "--refresh")
+
+    assert result.exit_code == 0, result.output
+    other, shared = _warnings(result.output)
+    assert "changed the spec of intent-cart-log that reviewer approved" in other
+    assert "rendered from the old spec" in other
+    assert (
+        f"`sdlc plan --source jira://PROJ-42 --intent intent-cart-log --path {checkout}`, then, if it "
+        f"reads as stale, read it and `sdlc approve intent-cart-log --path {checkout}`"
+    ) in other
+    assert "exit 6" not in other and "now reads as stale" not in other
+    assert "shared by every checkout" in shared
+    # The rendered intent did not change, so nothing is said about it.
+    assert not any("intent-cart-total" in line for line in _warnings(result.output))
+
+
+@pytest.mark.parametrize("follow", [False, True])
+def test_a_refresh_keeps_the_other_entry_and_every_recorded_pr(
+    follow: bool, checkout: Path, extractor: _Extractor
+) -> None:
+    """D3: a refresh of one entry leaves the other's spec as it was, and the per-ticket progress
+    — the PR recorded for each entry's intent — survives it, whichever entry was refreshed."""
+    from orchestrator.intake.cache import FOLLOW_LINKS, load_cached_plan, load_progress, set_progress
+
+    extractor.intent[True] = "intent-with-links"
+    assert _plan_source(checkout).exit_code == 0
+    assert _plan_source(checkout, "--follow-links").exit_code == 0
+    set_progress("jira://PROJ-42", "intent-cart-total", status="in_progress", pr_url="https://x/pr/1")
+    set_progress("jira://PROJ-42", "intent-with-links", status="in_progress", pr_url="https://x/pr/2")
+    extractor.criteria[follow] = ["Cart.total skips unpriced skus", "and logs the sku"]
+
+    result = _plan_source(checkout, "--refresh", *(["--follow-links"] if follow else []))
+
+    assert result.exit_code == 0, result.output
+    assert load_progress("jira://PROJ-42") == {
+        "intent-cart-total": {"status": "in_progress", "pr_url": "https://x/pr/1"},
+        "intent-with-links": {"status": "in_progress", "pr_url": "https://x/pr/2"},
+    }
+    other = load_cached_plan("jira://PROJ-42", variant="" if follow else FOLLOW_LINKS)
+    assert other is not None
+    assert [s.intent_id for s in other.specs] == ["intent-cart-total" if follow else "intent-with-links"]
+    assert other.specs[0].acceptance_criteria == ["Cart.total skips unpriced skus"]
+
+
+def test_a_cold_cache_refresh_still_renders_an_approval_it_moved_as_stale(
+    checkout: Path, extractor: _Extractor, tmp_path: Path
+) -> None:
+    """With no cached spec to compare, nothing is warned — the header is what says it."""
+    import shutil
+
+    assert _plan_source(checkout).exit_code == 0
+    _approve(checkout)
+    shutil.rmtree(tmp_path / "intake-cache")
+    extractor.criteria[False] = ["something else entirely"]
+
+    result = _plan_source(checkout, "--refresh")
+
+    assert result.exit_code == 0, result.output
+    assert "WARNING" not in result.output
+    assert "**stale** — approved by reviewer" in _build_doc(checkout)
 
 
 def test_a_refresh_that_leaves_the_spec_as_it_was_warns_nothing(
@@ -844,19 +981,87 @@ def test_a_refresh_that_renames_the_pinned_intent_exits_3_naming_it(
     assert "re-extraction renamed or dropped it" in result.output
 
 
+@pytest.mark.parametrize("follow", [False, True])
 def test_a_refresh_that_renames_an_approved_intent_warns_naming_it(
+    follow: bool, checkout: Path, extractor: _Extractor
+) -> None:
+    """A renamed intent is not found by `autorun --intent` (exit 3, not 6), and its approval does
+    not carry to the new id. A flag-off refresh prunes progress to the intents still held, so the
+    PR recorded for it goes too — said only then: a variant's refresh never touches progress."""
+    from orchestrator.intake.cache import load_progress, set_progress
+
+    links = ["--follow-links"] if follow else []
+    assert _plan_source(checkout, *links).exit_code == 0
+    _approve(checkout)
+    set_progress("jira://PROJ-42", "intent-cart-total", status="in_progress", pr_url="https://x/pr/7")
+    extractor.intent[follow] = "intent-cart-total-skips-unpriced"
+
+    result = _plan_source(checkout, "--refresh", *links)
+
+    assert result.exit_code == 0, result.output
+    warning = _warnings(result.output)[0]
+    assert "renamed or dropped intent-cart-total, which reviewer approved" in warning
+    assert "the ticket's intents are now: intent-cart-total-skips-unpriced" in warning
+    autorun = "sdlc autorun --follow-links" if follow else "sdlc autorun"
+    assert f"`{autorun} --intent intent-cart-total` no longer finds it (exit 3)" in warning
+    assert "exit 6" not in warning
+    dropped = "Its recorded progress (in_progress, PR https://x/pr/7) was dropped with it."
+    assert (dropped in warning) is (not follow)
+    assert ("intent-cart-total" in load_progress("jira://PROJ-42")) is follow
+
+
+def test_a_refresh_that_renames_the_pinned_approved_intent_warns_before_exit_3(
     checkout: Path, extractor: _Extractor
 ) -> None:
-    assert _plan_source(checkout).exit_code == 0
+    """Review pass 1: the cache is rewritten inside the refresh, so its warning is said before
+    any later exit — here the exit 3 for a pinned `--intent` the re-extraction renamed."""
+    assert _plan_source(checkout, "--intent", "intent-cart-total").exit_code == 0
     _approve(checkout)
     extractor.intent[False] = "intent-cart-total-skips-unpriced"
 
+    result = _plan_source(checkout, "--refresh", "--intent", "intent-cart-total")
+
+    assert result.exit_code == 3
+    assert "renamed or dropped intent-cart-total, which reviewer approved" in _warnings(result.output)[0]
+    assert "shared by every checkout" in result.output
+
+
+def test_a_refresh_whose_fresh_fetch_fails_still_warns(checkout: Path, extractor: _Extractor) -> None:
+    from orchestrator.intake.jira import IssueTrackerError
+
+    assert _plan_source(checkout).exit_code == 0
+    _approve(checkout)
+    extractor.criteria[False] = ["something else entirely"]
+    extractor.fetch_error = IssueTrackerError("503 from the tracker")
+
     result = _plan_source(checkout, "--refresh")
 
-    assert result.exit_code == 0, result.output
-    warning = next(line for line in result.output.splitlines() if line.startswith("WARNING:"))
-    assert "renamed or dropped intent-cart-total, which reviewer approved" in warning
-    assert "intent-cart-total-skips-unpriced" in warning and "exit 6" in warning
+    assert result.exit_code == 2
+    assert "ERROR: could not read jira://PROJ-42" in result.output
+    assert "changed the spec of intent-cart-total that reviewer approved" in _warnings(result.output)[0]
+    assert "shared by every checkout" in result.output
+
+
+def test_a_refresh_whose_render_fails_still_warns(
+    checkout: Path, extractor: _Extractor, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The extraction is saved before the plan is rendered, so a render that fails must not take
+    the warning with it."""
+    assert _plan_source(checkout).exit_code == 0
+    _approve(checkout)
+    extractor.criteria[False] = ["something else entirely"]
+
+    async def _boom(*_a: object, **_k: object) -> str:
+        raise RuntimeError("render failed")
+
+    monkeypatch.setattr("orchestrator.sdlc.builddoc.build_plan", _boom)
+
+    result = _plan_source(checkout, "--refresh")
+
+    assert isinstance(result.exception, RuntimeError)
+    assert "changed the spec of intent-cart-total that reviewer approved" in _warnings(result.output)[0]
+    assert "shared by every checkout" in result.output
+    assert _cached_criteria(follow_links=False) == ["something else entirely"]
 
 
 def test_without_refresh_a_cached_spec_is_planned_as_before(checkout: Path, extractor: _Extractor) -> None:

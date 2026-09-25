@@ -281,6 +281,7 @@ async def analyze_cached(
     refresh: bool = False,
     log: Callable[[str], None] | None = None,
     follow_links: bool = False,
+    refresh_hint: str = "--refresh to re-extract",
 ) -> BacklogPlan:
     """``service.analyze`` with a persistent cache keyed by ``source_uri``.
 
@@ -290,6 +291,10 @@ async def analyze_cached(
 
     ``follow_links`` analyses the ticket *with* its linked Confluence pages, which is a different
     extraction, so it is its own entry (:data:`FOLLOW_LINKS`) — never the flag-off one.
+
+    ``refresh_hint`` is how the caller re-extracts, said on a cache hit. The caller's own words,
+    because only it knows: ``ingest``, ``openspec draft`` and ``sdlc feature`` have ``--refresh``;
+    ``autorun`` has none and names ``sdlc plan --refresh`` (B37).
     """
     emit = log or (lambda _m: None)
     _, root_id = parse_source_uri(source_uri)
@@ -297,12 +302,9 @@ async def analyze_cached(
     if not refresh:
         cached = load_cached_plan(source_uri, cache_dir, variant=variant)
         if cached is not None:
-            # Named for the command that can act on it: `autorun` prints this and has no `--refresh`,
-            # and `ingest`'s re-extracts only the flag-off entry. `sdlc plan` reaches both (B37, D1).
-            how = "`sdlc plan --refresh --follow-links`" if follow_links else "`sdlc plan --refresh`"
             emit(
                 f"[intake] reusing cached backlog: {len(cached.intents)} intents for {source_uri} "
-                f"({how} re-extracts) — {cache_path(source_uri, cache_dir)}"
+                f"({refresh_hint}) — {cache_path(source_uri, cache_dir)}"
             )
             return cached
     plan = await (service.analyze(root_id, follow_links=True) if follow_links else service.analyze(root_id))
