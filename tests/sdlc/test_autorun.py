@@ -130,7 +130,7 @@ def test_stages_run_in_order_and_record_themselves(monkeypatch: pytest.MonkeyPat
     assert [s.name for s in ctx.stages] == list(STAGES)
     # Review runs for real now: the stub worktree is not a git repo, so there is no diff to
     # review and the loop says so rather than pretending it reviewed something.
-    assert [s.status for s in ctx.stages] == ["ok"] * 6
+    assert [s.status for s in ctx.stages] == ["ok"] * 6 + ["skipped"]  # safe mode publishes nothing
     assert ctx.verdict == "PROCEED"
     assert ctx.passed
 

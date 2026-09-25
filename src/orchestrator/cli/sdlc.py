@@ -629,7 +629,11 @@ def sdlc_autorun(
     ] = None,
     max_cost: Annotated[
         float | None,
-        typer.Option("--max-cost", help="Cap LLM spend (USD) for this run; exhausting it parks it."),
+        typer.Option(
+            "--max-cost",
+            help="Cap LLM spend (USD) for this run; exhausting it parks it. "
+            "Default: SDLC_RUN_BUDGET_USD, else $25; 0 disables.",
+        ),
     ] = None,
     spec: Annotated[
         Path | None,
@@ -666,17 +670,21 @@ def sdlc_autorun(
     finds the ticket contradicts the code, duplicates another run, is too big, or is a bug that
     resolves to no code; when the design names code that does not exist; or when --max-cost
     runs out. After the build, a review pass reviews the diff and tries to fix what it finds,
-    for up to two rounds; what it leaves unresolved is recorded, and the run still ends done.
+    for up to two rounds; what it leaves unresolved is recorded and fails the run.
 
     `--resume <run-id>` continues a run that crashed or ran out of budget: same run id, same
     tracker issue, every stage re-run from the start. It refuses while an approval is pending
     and after a rejection. Approving a validity or design park does not make the run build —
     the resumed run meets the same verdict and parks again.
 
-    Not covered: there is no spend cap unless you pass --max-cost (SDLC_RUN_BUDGET_USD is not
-    read here), and the cap counts the build stage only. The review pass's fixes are left
-    uncommitted in the worktree — under --live, after the PR is already open. Review comments
-    on an open PR are `sdlc address-review`.
+    The review comes before the pull request: its fixes are committed on the branch, and under
+    --live the PR opens afterwards. A review that leaves findings unresolved opens a *draft* PR
+    listing them, leaves the ticket In Progress, and the run exits 1.
+
+    Spend is capped by --max-cost, or else by SDLC_RUN_BUDGET_USD ($25 by default, 0 disables).
+    The cap covers the build and the review; intake, research and design are not capped. A
+    resumed run continues from what it already spent. Review comments on an open PR are
+    `sdlc address-review`.
     """
     import asyncio
 
@@ -716,6 +724,10 @@ def sdlc_autorun(
             typer.echo(str(exc), err=True)
             raise typer.Exit(code=exc.code) from exc
         typer.echo("\n" + render_summary(ctx))
+        if not ctx.passed:
+            # A stage failed without stopping the run — a review that left findings unresolved
+            # (the PR, if any, is a draft). Automation must not read that as a clean run (B13).
+            raise typer.Exit(code=1)
 
     asyncio.run(_go())
 
@@ -1075,8 +1087,11 @@ async def _run_sdlc_feature(
     language: str,
     spec: dict[str, Any] | None = None,
 ) -> None:
+    from orchestrator.core.llm import BudgetExceededError, run_budget_from_env
     from orchestrator.sdlc.feature_runner import FeatureRunError, run_feature
 
+    # The documented per-run cap (B14): SDLC_RUN_BUDGET_USD, $25 by default, 0 to disable.
+    budget = run_budget_from_env()
     try:
         result = await run_feature(
             source,
@@ -1093,10 +1108,16 @@ async def _run_sdlc_feature(
             refresh=refresh,
             language=language,
             log=typer.echo,  # stream the pipeline's progress to stdout
+            budget=budget,
         )
     except FeatureRunError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=exc.code) from exc
+    except BudgetExceededError as exc:
+        typer.echo(
+            f"{exc} — raise SDLC_RUN_BUDGET_USD for this run, or set it to 0 to disable the cap.", err=True
+        )
+        raise typer.Exit(code=4) from exc
 
     typer.echo("\n" + "=" * 70)
     typer.echo("VERDICT: PASSED — ready for deployment.")

@@ -14,11 +14,15 @@ answers, and every stage records `skipped` with a reason rather than quietly doi
 
 **Where it still stops short.** A resume re-runs every stage from intake — ``record.phase`` is
 reported, not used to skip — so approving a validity or design park ("build anyway?") does
-not build: the stage meets the same verdict and parks again. The review stage records what it
-could not fix but never parks, and its fixes are left uncommitted in the worktree — under
-``live``, after the PR is already open. The budget exists only when ``max_cost_usd`` is passed (this path does
-not read ``SDLC_RUN_BUDGET_USD``), is activated around the implement stage alone, and starts
-fresh on a resume.
+not build: the stage meets the same verdict and parks again.
+
+**Review, then publish** (B13). The build commits locally and hands back its publishing step;
+the review loop runs on that branch, its fixes are committed as their own commit, and only then
+does a live run push and open the PR. A review that leaves findings unresolved opens a *draft*
+listing them, leaves the ticket In Progress, and fails the run. **The budget** (B14) is
+``max_cost_usd`` when given, else ``SDLC_RUN_BUDGET_USD`` ($25 by default, 0 disables); it covers
+the build and the review — intake, research and design are not capped — and a resume continues
+from what the run already spent.
 
 **Additive by construction.** Every stage is a call into an existing entry point, unchanged: a
 human can still run any of them by hand and get exactly what they get today. This module owns
@@ -48,7 +52,7 @@ from orchestrator.core.digest import digest_of
 StageStatus = Literal["ok", "skipped", "failed"]
 
 # The order is the contract: research before design, design before code, code before review.
-STAGES: tuple[str, ...] = ("intake", "investigate", "validity", "design", "implement", "review")
+STAGES: tuple[str, ...] = ("intake", "investigate", "validity", "design", "implement", "review", "publish")
 
 
 class AutorunError(RuntimeError):
@@ -109,6 +113,11 @@ class RunContext:
     # what review finds, so the fixer knows the repo's conventions and the layout it chose.
     fixer: Any = None
     tests: Any = None
+    # Set by the implement stage on a live run: the build's own publishing step (push, PR,
+    # ticket), called by the publish stage once the review has had its say (B13).
+    publish: Any = None
+    # What the review loop left behind — clean or not, and what it could not resolve.
+    review: Any = None
     approvals_dir: Path | None = None
     stages: list[StageResult] = field(default_factory=list)
     # Durable state. Written after every stage, so a crash leaves a findable run rather than
@@ -345,10 +354,20 @@ async def autorun(
     # One ledger for the run. The implement stage fills most of it and the review loop adds
     # to it afterwards, so the account is of the whole run rather than its middle.
     ledger = TokenLedger()
-    budget = RunBudget(max_cost_usd=max_cost_usd) if max_cost_usd else None
+    # The documented cap (B14): `--max-cost` when given, else SDLC_RUN_BUDGET_USD — $25 by
+    # default, 0 to switch enforcement off. A resume continues from what the run already spent:
+    # a cap that resets on every resume is not a cap.
+    from orchestrator.core.llm import run_budget_from_env
+
+    budget = RunBudget(max_cost_usd=max_cost_usd) if max_cost_usd is not None else run_budget_from_env()
+    if record.spent_usd:
+        budget.spent_usd[run_id] = record.spent_usd
     emit(f"[autorun] run {run_id} · source {source} · {'live' if live else 'safe'}")
-    if budget is not None:
-        emit(f"[budget] cap ${max_cost_usd:.2f} for this run")
+    if budget.max_cost_usd > 0:
+        carried = f" (${record.spent_usd:.2f} already spent)" if record.spent_usd else ""
+        emit(f"[budget] cap ${budget.max_cost_usd:.2f} for this run{carried}")
+    else:
+        emit("[budget] no cap (SDLC_RUN_BUDGET_USD=0) — spend is tracked, not enforced")
 
     from orchestrator.obs import tracing
 
@@ -400,8 +419,15 @@ async def autorun(
                 )
             with ctx.stage_span("review"):
                 await _stage_review(
-                    ctx, fixer=ctx.fixer, tests=ctx.tests, max_rounds=review_rounds, emit=emit
+                    ctx,
+                    fixer=ctx.fixer,
+                    tests=ctx.tests,
+                    max_rounds=review_rounds,
+                    budget=budget,
+                    emit=emit,
                 )
+            with ctx.stage_span("publish"):
+                await _stage_publish(ctx, emit=emit)
         except AutorunError:
             # Already recorded by the stage that raised it: re-raise untouched so exit codes,
             # parking and approvals survive.
@@ -426,9 +452,12 @@ async def autorun(
             # success cannot tell "clean" from "never ran".
             _write_case(ctx)
 
-    ctx.checkpoint(phase="done", status="done", spent_usd=_spent(budget, run_id))
-    await _log_run_cost(ctx, ledger=ledger, started=started, verdict="PASSED", emit=emit)
-    _journal_outcome(ctx, ledger=ledger, budget=budget, verdict="PASSED")
+    # A run whose review left findings unresolved has published a draft at most; it did not
+    # pass, and the record, the verdict and the exit code all say so (B13).
+    verdict = "PASSED" if ctx.passed else "FAILED"
+    ctx.checkpoint(phase="done", status="done" if ctx.passed else "failed", spent_usd=_spent(budget, run_id))
+    await _log_run_cost(ctx, ledger=ledger, started=started, verdict=verdict, emit=emit)
+    _journal_outcome(ctx, ledger=ledger, budget=budget, verdict=verdict)
     emit(f"[autorun] artifacts in {ctx.artifacts_dir}")
     return ctx
 
@@ -1111,6 +1140,9 @@ async def _stage_implement(
                 # This run's worklog covers every stage and is posted once, at the end.
                 post_worklog=False,
                 log=emit,
+                # The review comes before the PR: the build hands its publishing step back
+                # instead of opening the PR itself (B13).
+                publish=False,
             )
     except BudgetExceededError as exc:
         # Out of money mid-change. Park it: the work so far is on a branch and a human can
@@ -1132,6 +1164,7 @@ async def _stage_implement(
     ctx.worktree = result.worktree
     ctx.pr_url = result.pr_url
     ctx.fixer, ctx.tests = result.codegen, result.tests
+    ctx.publish = getattr(result, "publish", None)
     # A withdrawn cover test rides on the outcome line: the run is green, and less proven than
     # green implies. Anyone reading the journey later must see that in the same place.
     withdrawn = ", ".join(Path(f).name for f in getattr(result, "coverage_withdrawn", ()))
@@ -1153,28 +1186,57 @@ async def _stage_implement(
 
 
 async def _stage_review(
-    ctx: RunContext, *, fixer: Any, tests: Any, max_rounds: int, emit: Callable[[str], None]
+    ctx: RunContext,
+    *,
+    fixer: Any,
+    tests: Any,
+    max_rounds: int,
+    emit: Callable[[str], None],
+    budget: Any = None,
 ) -> None:
     """Review the change and fix what it finds, before anyone is asked to look at it.
 
     Runs on the worktree diff rather than a pull request: a loop that waited for a PR could
-    never fix anything *before* opening one, which is the entire point.
+    never fix anything *before* opening one, which is the entire point. The fixes are
+    committed as their own commit, so the PR opened next carries them and shows what the
+    loop changed (B13). The fixer is the build's own adapter, so its calls are charged to
+    this run's budget, not to a shared bucket (B14).
     """
-    from orchestrator.sdlc.reviewloop import review_and_fix
+    from orchestrator.core.llm import BudgetExceededError
+    from orchestrator.sdlc import reviewloop
+    from orchestrator.sdlc.feature_runner import commit_worktree
 
     if not ctx.worktree:
         ctx.record_stage("review", "skipped", "no worktree to review")
         emit("[review] skipped — nothing was built")
         return
 
-    outcome = await review_and_fix(
-        path=ctx.worktree,
-        spec=ctx.spec or {},
-        issue_key=ctx.issue_key,
-        fixer=fixer,
-        tests=tests,
-        max_rounds=max_rounds,
-    )
+    scope = budget.activate(ctx.run_id) if budget is not None else contextlib.nullcontext()
+    try:
+        with scope:
+            outcome = await reviewloop.review_and_fix(
+                path=ctx.worktree,
+                spec=ctx.spec or {},
+                issue_key=ctx.issue_key,
+                fixer=fixer,
+                tests=tests,
+                max_rounds=max_rounds,
+            )
+    except BudgetExceededError as exc:
+        # Same as a build that ran out: the change is on its branch, unpublished, and a human
+        # decides whether to raise the cap or drop it.
+        ctx.record_stage("review", "failed", f"budget exhausted: {exc}")
+        ctx.checkpoint(spent_usd=_spent(budget, ctx.run_id))
+        approval = ctx.park(
+            kind="budget", title="budget exhausted — raise the cap or drop the run?", reason=str(exc)
+        )
+        emit(f"[approval] {approval.approval_id} raised{' and notified' if approval.notified else ''}")
+        raise AutorunError(f"budget exhausted — run parked: {exc}", code=4) from exc
+    ctx.review = outcome
+    edited = sorted({f for r in outcome.rounds for f in r.fixed_files})
+    if edited:
+        await commit_worktree(ctx.worktree, f"{ctx.issue_key}: review fixes")
+        emit(f"[review] committed the fixes to {', '.join(edited)}")
     path = ctx.write_artifact("review.md", outcome.render())
     detail = f"{outcome.stopped}"
     if outcome.remaining:
@@ -1183,6 +1245,35 @@ async def _stage_review(
         detail += f" · {len(outcome.deferred)} for a human"
     ctx.record_stage("review", "ok" if outcome.clean else "failed", detail, path)
     emit(f"[review] {detail}")
+
+
+async def _stage_publish(ctx: RunContext, *, emit: Callable[[str], None]) -> None:
+    """Open the PR — after the review, with its fixes committed (B13).
+
+    A review that left findings unresolved publishes a **draft** whose body lists them: the
+    change is there for a human to finish, not for a reviewer to approve, and the ticket stays
+    In Progress. The run is not a pass either way — the review stage already said so.
+    """
+    if not ctx.live:
+        ctx.record_stage("publish", "skipped", "safe mode — committed locally, nothing pushed")
+        return
+    if ctx.publish is None:
+        ctx.record_stage("publish", "skipped", "nothing to publish — the build did not hand back a PR step")
+        return
+    review = ctx.review
+    clean = review is None or bool(getattr(review, "clean", True))
+    note = ""
+    if not clean:
+        unresolved = [f"- {f.severity.value} `{f.path}:{f.line}` — {f.message}" for f in review.remaining]
+        note = "**Draft — the automated review left these unresolved:**\n" + "\n".join(unresolved)
+    ctx.pr_url = await ctx.publish(draft=not clean, note=note)
+    detail = (
+        f"PR opened: {ctx.pr_url}"
+        if clean
+        else f"draft PR opened ({len(review.remaining)} unresolved): {ctx.pr_url}"
+    )
+    ctx.record_stage("publish", "ok", detail)
+    emit(f"[publish] {detail}")
 
 
 def render_summary(ctx: RunContext) -> str:
