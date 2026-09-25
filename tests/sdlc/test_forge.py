@@ -137,3 +137,26 @@ async def test_pr_without_a_base_leaves_the_repo_default(tmp_path: Path) -> None
 
     create = next(c for c in adapter.gh_calls if c[:2] == ("pr", "create"))
     assert "--base" not in create
+
+
+async def test_a_draft_reaches_gh(tmp_path: Path) -> None:
+    """A review that left findings unresolved opens a draft (B13)."""
+    wt, branch = await _make_worktree(tmp_path)
+    (wt / "feature.py").write_text("x = 1\n")
+
+    adapter = _FakeGhAdapter()
+    await adapter.open_pr(issue_key="ENG-9", path=str(wt), branch=branch, title="T", body="b", draft=True)
+
+    create = next(c for c in adapter.gh_calls if c[:2] == ("pr", "create"))
+    assert "--draft" in create
+
+
+async def test_a_ready_pr_is_not_a_draft(tmp_path: Path) -> None:
+    wt, branch = await _make_worktree(tmp_path)
+    (wt / "feature.py").write_text("x = 1\n")
+
+    adapter = _FakeGhAdapter()
+    await adapter.open_pr(issue_key="ENG-9", path=str(wt), branch=branch, title="T", body="b")
+
+    create = next(c for c in adapter.gh_calls if c[:2] == ("pr", "create"))
+    assert "--draft" not in create

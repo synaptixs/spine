@@ -9,7 +9,12 @@ the test suite stays deterministic in CI.
 """
 
 from orchestrator.core.llm import catalog
-from orchestrator.core.llm.budget import BudgetedLLMClient, BudgetExceededError, RunBudget
+from orchestrator.core.llm.budget import (
+    BudgetedLLMClient,
+    BudgetExceededError,
+    RunBudget,
+    run_budget_from_env,
+)
 from orchestrator.core.llm.client import (
     CompletionResult,
     LLMClient,
@@ -34,6 +39,7 @@ __all__ = [
     "MockLLMClient",
     "RecordingLLMClient",
     "RunBudget",
+    "run_budget_from_env",
     "StageUsage",
     "StructuredOutputError",
     "ToolCall",

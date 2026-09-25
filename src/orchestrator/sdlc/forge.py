@@ -113,7 +113,11 @@ class GhPRAdapter:
         self._commit_prefix = commit_prefix
         self._timeout = timeout
 
-    async def open_pr(self, *, issue_key: str, path: str, branch: str, title: str, body: str) -> PRResult:
+    async def open_pr(
+        self, *, issue_key: str, path: str, branch: str, title: str, body: str, draft: bool = False
+    ) -> PRResult:
+        """``draft`` opens it as a draft — a change whose own review left findings unresolved is
+        published for a human to finish, not for a reviewer to approve (B13)."""
         await self._git(path, "add", "-A")
         # Commit only if the index has staged changes; an empty commit would
         # fail and a no-op push/PR on an unchanged branch is pointless.
@@ -123,6 +127,8 @@ class GhPRAdapter:
         await self._git(path, "push", "-u", "origin", branch)
 
         args = ["pr", "create", "--head", branch, "--title", title, "--body", body]
+        if draft:
+            args.append("--draft")
         if self._base_branch:
             args += ["--base", self._base_branch]
         url = (await self._gh(path, *args)).strip().splitlines()[-1].strip()

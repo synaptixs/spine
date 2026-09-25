@@ -227,9 +227,9 @@ proposed   intake → investigate → validity → design → RCA → BUILD DOCU
 ```
 
 **`autorun`'s stage list already draws the line.** `STAGES` is
-`("intake", "investigate", "validity", "design", "implement", "review")` — the
+`("intake", "investigate", "validity", "design", "implement", "review", "publish")` — the
 first four already write artifacts to the run directory and cost almost nothing;
-the last two do the work and carry the risk. The split is latent in the design.
+the last three do the work and carry the risk. The split is latent in the design.
 
 ### Command shape
 
