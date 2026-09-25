@@ -460,7 +460,9 @@ same spec produce the same document every time. It lands at
 
 **What the criteria are checked against.** Give it the ticket too (`--source jira://…`) and §8
 checks each criterion against the ticket's own words — read fresh at every plan, with **every
-attachment read in full** (up to 20 files). The AI that derives a spec still reads the bounded
+attachment read in full**: 20 files, then more while the AI's bounded read still has room for
+one — which, when that read ends a few dozen characters short of its budget, is every readable
+attachment on the ticket. The AI that derives a spec still reads the bounded
 summary it always has, so nothing already approved moves. Add `--follow-links` to read the
 **Confluence pages the ticket links to** as well (at most 5, direct links only); it needs
 Confluence access, and refuses without it rather than planning from less than you asked for.

@@ -52,6 +52,24 @@ All notable changes to this project are documented here. Format loosely follows
   lost, at the price of a new spec. Documented rather than guarded: a cache version bump would
   make 3.44 re-extract every ticket, not fewer (see `intake/cache.py`). The byte-pinned intake
   goldens now also cover the attachments 3.44 never downloaded, rendered by v3.44.0 itself.
+- **Past 20 attachments, the spec is derived from the same text 3.44.0 gave it.** Since 3.45.0
+  the extractor's bounded view of a ticket's attachments is derived from the full read, which stops
+  at 20 files — so on a ticket with more than 20 readable attachments a later file the bounded view
+  still had room for was never downloaded, and was named `(bound of 20 reached)` instead of read or
+  named as 3.44.0 did. It took a budget cut that happened to end on whitespace, or a small file
+  after many long ones; measured on seeded random tickets, about 1 in 100 with 21–30 attachments,
+  none with 20 or fewer. The full read now keeps fetching past 20 files while the bounded view can
+  still take one, and stops once it cannot, so the extractor reads 3.44.0's bytes again — proved
+  by a new golden rendered by 3.44.0 itself — over REST and MCP alike. The full view §8 checks
+  criteria against carries every file downloaded, so it can hold more than 20 — and when the
+  bounded view ends a few dozen characters short of its budget (too few to carry a cut file), it
+  never closes, so every readable attachment on the ticket is downloaded and lands in the full
+  view (and `source.txt`). 3.44.0 downloaded those files too, and one cannot be dropped from the
+  full view without changing the reason the extractor's view names it with; capping it is
+  SSPN-77. A spec already cached from such a ticket keeps its text (the cache is keyed by the
+  ticket, not its body): nothing approved re-parks, and only a fresh extraction reads the
+  corrected view.
+
 - **`--follow-links` says what the spec was derived from, not only what it fetched.** The intent
   extractor reads at most 60,000 characters, fills them with the ticket first, and linked pages
   come last — so `sdlc plan`'s header could say "5 read" while the spec was derived from one of

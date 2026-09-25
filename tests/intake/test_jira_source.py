@@ -605,6 +605,129 @@ async def test_the_full_view_is_bounded_too_and_names_what_it_left() -> None:
     assert len(mock.downloaded) == _MAX_ATTACHMENTS_READ_IN_FULL
 
 
+# ---- past the full-read bound (N15, SSPN-59) ---------------------------------------------------
+# More than twenty readable attachments. The full read's bound is twenty; the extractor's bounded view
+# is derived from it and must read what 3.44.0 did, which had no such bound. A: the ticket's route —
+# 40 chars of budget left and a 10-char 21st file. B: the same with a 5,000-char 21st file, which
+# 3.44.0 names by the budget. C: a budget cut on spaces, shortened by `rstrip`, leaves a few chars of
+# budget open. D: the control — a cut on a letter spends the budget exactly.
+_PAST_THE_BOUND: dict[str, list[str]] = {
+    "A": ["a" * 8_000, "b" * 8_000, "c" * 2_000, "d" * 1_960] + ["e" * 500] * 16 + ["tiny note!"],
+    "B": ["a" * 8_000, "b" * 8_000, "c" * 2_000, "d" * 1_960] + ["e" * 500] * 16 + ["z" * 5_000],
+    "C": ["a" * 9_000, "b" * 9_000, "w" * 3_900 + " " * 60 + "tail" * 2_000] + ["x" * 300] * 19,
+    "D": ["a" * 9_000, "b" * 9_000, "c" * 9_000] + ["x" * 300] * 19,
+}
+
+
+async def _past_the_bound(route: str) -> tuple[Any, _JiraMock]:
+    texts = _PAST_THE_BOUND[route]
+    fields = _fields("T")
+    fields["attachment"] = [_attachment(f"f{i:02d}.txt", str(i), size=len(t)) for i, t in enumerate(texts)]
+    mock = _JiraMock({"K-1": fields}, attachments={str(i): t.encode() for i, t in enumerate(texts)})
+    adapter, http = _adapter(mock)
+    async with http:
+        doc = await adapter.fetch_document("K-1")
+    return doc, mock
+
+
+@pytest.mark.parametrize("route", sorted(_PAST_THE_BOUND))
+async def test_the_extractors_view_never_names_the_full_read_bound(route: str) -> None:
+    """3.44.0 could not write this reason, so in the extractor's view it is exactly the drift.
+
+    Proof of the fix for A–C, which fail on the base; D is the control and a regression guard only
+    — its budget is spent before the bound, so it passes on the base too."""
+    from orchestrator.intake.jira_source import _MAX_ATTACHMENTS_READ_IN_FULL
+
+    doc, _ = await _past_the_bound(route)
+    assert f"bound of {_MAX_ATTACHMENTS_READ_IN_FULL} reached" not in doc.body
+
+
+async def test_past_the_bound_a_file_the_extractor_still_has_room_for_is_still_fetched() -> None:
+    """Route A: after twenty files read in full the bounded view still has 40 chars free, so the
+    ten-char 21st file is downloaded and read — as 3.44.0 read it — and the full view carries it too
+    (D2: the full view is never less than what the extractor read)."""
+    doc, mock = await _past_the_bound("A")
+
+    assert f"Attachments read (5, 19,970 of {_MAX_ATTACHMENTS_TOTAL_CHARS:,} chars):" in doc.body
+    assert "--- f20.txt ---\ntiny note!" in doc.body
+    assert "Attachments read in full (21):" in doc.full_body
+    assert len(mock.downloaded) == 21
+
+
+async def test_once_the_extractors_view_is_full_the_full_read_bound_holds() -> None:
+    """Route D: the budget is spent exactly, so nothing past the twentieth file can reach the
+    extractor — and nothing past it is downloaded."""
+    from orchestrator.intake.jira_source import _MAX_ATTACHMENTS_READ_IN_FULL
+
+    doc, mock = await _past_the_bound("D")
+
+    bound = f"bound of {_MAX_ATTACHMENTS_READ_IN_FULL} reached"
+    assert f"Attachments read in full ({_MAX_ATTACHMENTS_READ_IN_FULL}):" in doc.full_body
+    assert f"f20.txt ({bound}), f21.txt ({bound})" in doc.full_body
+    assert len(mock.downloaded) == _MAX_ATTACHMENTS_READ_IN_FULL
+
+
+@pytest.mark.parametrize("route", sorted(_PAST_THE_BOUND))
+async def test_the_full_view_carries_every_file_the_extractor_read(route: str) -> None:
+    """§8 checks criteria against the full view: it must never have read less than the extractor.
+
+    A regression guard, not proof of the fix: it passes on the base too, where the bounded view is
+    derived from the full read and so can never hold a file the full read did not."""
+    import re
+
+    doc, mock = await _past_the_bound(route)
+
+    def read_in(text: str) -> set[str]:
+        return set(re.findall(r"^--- (f\d\d\.txt) ---$", text, flags=re.MULTILINE))
+
+    assert read_in(doc.body) <= read_in(doc.full_body)
+    assert len(mock.downloaded) == len(set(mock.downloaded))  # each file once, for both views
+
+
+# No attachment ids (MCP and other paths key on the filename) and ``same.txt`` more than once. The
+# bounded view reads each copy and spends 8,000 + 8,000 + 4,000 — the budget, exactly — but keeps
+# one entry per key, and the full read keeps only the *last* copy's text. "count": summing the
+# entries (12,000) reported the view open. "overwritten": 8,000 + 8,000 + 4,000 again, but a
+# 7,960-char second ``same.txt``, read inside the first twenty, replaced the text the first was
+# counted by — a view fed from the full read later counted 7,960 + 8,000 + 4,000, open with 40
+# chars left for good. Either way every file past the twentieth was downloaded for a view that
+# could take none of them. 3.44.0 stopped at three downloads and the base at the bound.
+_REPEATED_NAME: dict[str, tuple[list[str], list[str]]] = {
+    "count": (
+        ["a" * 9_000, "b" * 9_000, "c" * 4_000] + ["x" * 300] * 21,
+        ["same.txt", "same.txt"] + [f"f{i:02d}.txt" for i in range(2, 24)],
+    ),
+    "overwritten": (
+        ["a" * 9_000, "b" * 9_000, "c" * 4_000, "d" * 7_960] + ["x" * 300] * 20,
+        ["same.txt", "f01.txt", "f02.txt", "same.txt"] + [f"f{i:02d}.txt" for i in range(4, 24)],
+    ),
+}
+
+
+@pytest.mark.parametrize("case", sorted(_REPEATED_NAME))
+async def test_past_the_bound_a_repeated_filename_spends_the_budget_as_3_44_0_counted_it(case: str) -> None:
+    """Past the bound, nothing more may be fetched than 3.44.0 or the base fetched."""
+    from orchestrator.intake.jira_source import _MAX_ATTACHMENTS_READ_IN_FULL
+
+    texts, names = _REPEATED_NAME[case]
+    fields = _fields("T")
+    fields["attachment"] = [
+        _attachment(n, str(i), size=len(t)) for i, (n, t) in enumerate(zip(names, texts, strict=True))
+    ]
+    for a in fields["attachment"]:
+        del a["id"]
+    mock = _JiraMock({"K-1": fields}, attachments={str(i): t.encode() for i, t in enumerate(texts)})
+    adapter, http = _adapter(mock)
+    async with http:
+        doc = await adapter.fetch_document("K-1")
+
+    bound = f"bound of {_MAX_ATTACHMENTS_READ_IN_FULL} reached"
+    copies = names.count("same.txt")
+    assert len(mock.downloaded) == _MAX_ATTACHMENTS_READ_IN_FULL + copies - 1  # every copy, one key
+    extras = ", ".join(f"{n} ({bound})" for n in names[-3:])
+    assert extras in doc.full_body
+
+
 async def test_nothing_cut_means_no_second_copy() -> None:
     from orchestrator.intake.source import document_text
 
