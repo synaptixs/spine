@@ -413,7 +413,8 @@ orchestrator sdlc feature --source confluence://<page_id> --safe
 - Pin one requirement with `--intent <intent-id>` if a page has several.
 
 > **Stable, tracked backlog.** The extracted intents are cached deterministically
-> (first run extracts; later runs reuse — no re-fetch, no LLM — until `--refresh`),
+> (first run extracts; later runs reuse — no re-fetch, no LLM — until `--refresh`;
+> a spec planned with `--follow-links` is re-extracted only by `sdlc plan --refresh --follow-links`),
 > so a pinned `--intent` is stable. Each run also writes a **`BACKLOG.md`** ledger:
 > `[ ]` todo, `[~]` in progress (a `--live` PR is open), `[x]` done (PR merged, via
 > `sdlc complete`). View/regenerate it anytime with
@@ -466,6 +467,13 @@ Confluence access, and refuses without it rather than planning from less than yo
 The AI's bounded read fills with the ticket first, so long pages may not all reach it: the
 document's `**Linked pages:**` line says how many did — whole, cut, or not at all — and a
 warning says so when any did not fit. §8 still checks against every word.
+
+The spec itself comes from the intake cache, so a page linked after it was extracted is named
+in that line but is not in it. `sdlc plan --refresh --follow-links` re-extracts it (`--refresh`
+alone re-extracts the plan without linked pages; neither touches the other). Re-extraction is an
+AI call and can change the spec: if it does and the plan was approved, a warning says so, the
+plan reads as stale, and `sdlc autorun` refuses to build until you approve it again — in every
+checkout of the ticket, since the cache is shared.
 
 Committing `.spine/plans/` is up to you — Spine never counts an uncommitted plan as a change,
 so writing one leaves the tree clean and the knowledge-graph cache warm. **Don't commit between

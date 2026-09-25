@@ -6,7 +6,45 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Added
+
+- **`sdlc plan --refresh` re-extracts the spec — the only way to refresh a `--follow-links` one.**
+  A ticket planned with `--follow-links` is cached as its own entry, and nothing could re-extract
+  it: `ingest --refresh` rewrote the flag-off entry and left the linked-pages spec as it was, so a
+  page linked after extraction never reached the spec (the header named it, and nothing acted on
+  it). `sdlc plan --refresh --follow-links` re-extracts that entry; `sdlc plan --refresh` alone the
+  ticket-only one — never both. It re-extracts the intake spec, not the PKG, and is refused with
+  `--spec` (exit 2). `ingest`, `openspec draft` and `sdlc feature` keep their flag-off `--refresh`;
+  `sdlc autorun` gets none, because it re-checks the approval right after intake and a refresh
+  there could only park it.
+  - A refresh that changes an approved spec prints a `WARNING:` naming who approved it, that
+    `sdlc autorun` parks (exit 6) until `sdlc approve` again, and that the intake cache is shared
+    by every checkout of the ticket — so their plans are stale too. It compares the spec before
+    and after, so a refresh that returns the same spec, or a change in the code, says nothing. An
+    approved intent the re-extraction renamed or dropped is named with the ids now available, and
+    a pinned `--intent` that vanished keeps exit 3 and says why. The plan's header already reads
+    **stale**; exit codes are unchanged.
+  - The cache-hit hint `(--refresh to re-extract)` — printed by `sdlc autorun`, which has no
+    `--refresh` — now names `sdlc plan --refresh` (with `--follow-links` for that entry), and the
+    `**Linked pages:**` clause for a page linked since extraction ends with the same command.
+
 ### Fixed
+
+- **`sdlc complete` renders the ledger that holds the merged intent.** When the PR came from a
+  `--follow-links` plan whose intent the ticket-only plan names differently, `BACKLOG.md` was
+  re-rendered from the ticket-only plan — `0 / 1 done`, without the intent whose PR had just
+  merged. It now renders the plan that holds it (the ticket-only one when both do, as before).
+- **Upgrade note: Spine 3.44 and older delete the `--follow-links` cache entry.** Entries planned
+  with `--follow-links` (3.45+) sit beside the ticket-only one in the same intake-cache file. A
+  3.44-or-older run on that file drops them: planning a ticket only ever analysed with the flag
+  treats it as a miss (no `--refresh` needed) and rewrites the file without them — and without the
+  PR recorded for their intent — and so does a `--refresh` of a ticket that has both; its `sdlc
+  complete` renders an empty ledger. `sdlc plan --refresh --follow-links` re-extracts what was
+  lost, at the price of a new spec. Documented rather than guarded: a cache version bump would
+  make 3.44 re-extract every ticket, not fewer (see `intake/cache.py`).
+- **The byte-pinned intake goldens cover the attachments 3.44 never downloaded** — a sixth
+  readable file, a failure past the five-file bound, a failure after the 20,000-character budget —
+  rendered by v3.44.0 itself as a second ticket, so the existing goldens did not move.
 
 - **`--follow-links` says what the spec was derived from, not only what it fetched.** The intent
   extractor reads at most 60,000 characters, fills them with the ticket first, and linked pages
