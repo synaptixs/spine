@@ -9,19 +9,19 @@
 
 ## Changing this safely
 
-**Tested by** (1): `tests.sdlc.test_android_codegen`
+**Tested by** (2): `tests.sdlc.test_android_codegen`, `tests.sdlc.test_autorun_publish`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`_fetch_ticket_documents`](../../src/orchestrator/cli/sdlc.py#L479) — reaches **1** symbol · **no test path visible**
 - [`_run_address_review`](../../src/orchestrator/cli/sdlc.py#L180) — reaches **1** symbol · **no test path visible**
 - [`_run_sdlc`](../../src/orchestrator/cli/sdlc.py#L79) — reaches **1** symbol · **no test path visible**
-- [`_run_sdlc_complete`](../../src/orchestrator/cli/sdlc.py#L1232) — reaches **1** symbol · **no test path visible**
-- [`_run_sdlc_feature`](../../src/orchestrator/cli/sdlc.py#L1062) — reaches **1** symbol · **no test path visible**
-- [`_run_sdlc_remediate`](../../src/orchestrator/cli/sdlc.py#L1155) — reaches **1** symbol · **no test path visible**
+- [`_run_sdlc_complete`](../../src/orchestrator/cli/sdlc.py#L1263) — reaches **1** symbol · **no test path visible**
+- [`_run_sdlc_feature`](../../src/orchestrator/cli/sdlc.py#L1075) — reaches **1** symbol
+- [`_run_sdlc_remediate`](../../src/orchestrator/cli/sdlc.py#L1186) — reaches **1** symbol · **no test path visible**
 - [`_terminal_gate`](../../src/orchestrator/cli/sdlc.py#L442) — reaches **1** symbol · **no test path visible**
 
-_7 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_6 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Documented in
 
@@ -33,7 +33,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/sdlc.py:479`](../../src/orchestrator/cli/sdlc.py#L479)
 
-- **Called by** (1): [`_go`](../../src/orchestrator/cli/sdlc.py#L800)
+- **Called by** (1): [`_go`](../../src/orchestrator/cli/sdlc.py#L813)
 - **Calls** (5): `Exit`, [`build_service_for`](../../src/orchestrator/intake/factory.py#L309), [`document_text`](../../src/orchestrator/intake/source.py#L72), `echo`, [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40)
 
 ### `_run_address_review`
@@ -41,7 +41,7 @@ _7 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/sdlc.py:180`](../../src/orchestrator/cli/sdlc.py#L180)
 
 - **Called by** (1): [`sdlc_address_review`](../../src/orchestrator/cli/sdlc.py#L155)
-- **Calls** (8): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L183), [`checkout_pr_worktree`](../../src/orchestrator/sdlc/review_response.py#L51), `echo`, `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`respond_to_pr_feedback`](../../src/orchestrator/sdlc/review_response.py#L83)
+- **Calls** (8): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L186), [`checkout_pr_worktree`](../../src/orchestrator/sdlc/review_response.py#L51), `echo`, `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`respond_to_pr_feedback`](../../src/orchestrator/sdlc/review_response.py#L83)
 
 ### `_run_sdlc`
 
@@ -52,30 +52,30 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 ### `_run_sdlc_complete`
 
-[`src/orchestrator/cli/sdlc.py:1232`](../../src/orchestrator/cli/sdlc.py#L1232)
+[`src/orchestrator/cli/sdlc.py:1263`](../../src/orchestrator/cli/sdlc.py#L1263)
 
-- **Called by** (1): [`sdlc_complete`](../../src/orchestrator/cli/sdlc.py#L1206)
+- **Called by** (1): [`sdlc_complete`](../../src/orchestrator/cli/sdlc.py#L1237)
 - **Calls** (5): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), [`complete_issue_for_pr`](../../src/orchestrator/sdlc/complete.py#L66), `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20)
 
 ### `_run_sdlc_feature`
 
-[`src/orchestrator/cli/sdlc.py:1062`](../../src/orchestrator/cli/sdlc.py#L1062)
+[`src/orchestrator/cli/sdlc.py:1075`](../../src/orchestrator/cli/sdlc.py#L1075)
 
-- **Called by** (1): [`sdlc_feature`](../../src/orchestrator/cli/sdlc.py#L914)
-- **Calls** (3): `Exit`, `echo`, [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L735)
+- **Called by** (1 production · 1 test): [`sdlc_feature`](../../src/orchestrator/cli/sdlc.py#L927), [`test_sdlc_feature_reads_the_cap_from_the_environment`](../../tests/sdlc/test_autorun_publish.py#L298)
+- **Calls** (5): `Exit`, `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`run_budget_from_env`](../../src/orchestrator/core/llm/budget.py#L85), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L739)
 
 ### `_run_sdlc_remediate`
 
-[`src/orchestrator/cli/sdlc.py:1155`](../../src/orchestrator/cli/sdlc.py#L1155)
+[`src/orchestrator/cli/sdlc.py:1186`](../../src/orchestrator/cli/sdlc.py#L1186)
 
-- **Called by** (1): [`sdlc_remediate`](../../src/orchestrator/cli/sdlc.py#L1113)
+- **Called by** (1): [`sdlc_remediate`](../../src/orchestrator/cli/sdlc.py#L1144)
 - **Calls** (8): `Exit`, [`MappingStore`](../../src/orchestrator/spine/store.py#L56), `echo`, [`execute_remediations`](../../src/orchestrator/spine/execute.py#L55), [`from_infodrift`](../../src/orchestrator/spine/drift.py#L84), [`infer_entity_iris`](../../src/orchestrator/spine/execute.py#L39), `loads`, `pathlib.Path`
 
 ### `_terminal_gate`
 
 [`src/orchestrator/cli/sdlc.py:442`](../../src/orchestrator/cli/sdlc.py#L442)
 
-- **Called by** (1): [`_go`](../../src/orchestrator/cli/sdlc.py#L693)
+- **Called by** (1): [`_go`](../../src/orchestrator/cli/sdlc.py#L702)
 
 ### `sdlc_address_review`
 
@@ -103,33 +103,33 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 ### `sdlc_complete`
 
-[`src/orchestrator/cli/sdlc.py:1206`](../../src/orchestrator/cli/sdlc.py#L1206)
+[`src/orchestrator/cli/sdlc.py:1237`](../../src/orchestrator/cli/sdlc.py#L1237)
 
-- **Calls** (2): [`_run_sdlc_complete`](../../src/orchestrator/cli/sdlc.py#L1232), `run`
+- **Calls** (2): [`_run_sdlc_complete`](../../src/orchestrator/cli/sdlc.py#L1263), `run`
 
 ### `sdlc_explain`
 
 [`src/orchestrator/cli/sdlc.py:244`](../../src/orchestrator/cli/sdlc.py#L244)
 
-- **Calls** (6): `Exit`, [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L235), `dumps`, `echo`, [`load_case`](../../src/orchestrator/sdlc/case.py#L194), `secho`
+- **Calls** (6): `Exit`, [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L250), `dumps`, `echo`, [`load_case`](../../src/orchestrator/sdlc/case.py#L194), `secho`
 
 ### `sdlc_feature`
 
-[`src/orchestrator/cli/sdlc.py:914`](../../src/orchestrator/cli/sdlc.py#L914)
+[`src/orchestrator/cli/sdlc.py:927`](../../src/orchestrator/cli/sdlc.py#L927)
 
-- **Calls** (6): `Exit`, [`_run_sdlc_feature`](../../src/orchestrator/cli/sdlc.py#L1062), `echo`, [`load_spec_file`](../../src/orchestrator/sdlc/spec_file.py#L36), `run`, [`unsupported_language_error`](../../src/orchestrator/sdlc/feature_runner.py#L713)
+- **Calls** (6): `Exit`, [`_run_sdlc_feature`](../../src/orchestrator/cli/sdlc.py#L1075), `echo`, [`load_spec_file`](../../src/orchestrator/sdlc/spec_file.py#L36), `run`, [`unsupported_language_error`](../../src/orchestrator/sdlc/feature_runner.py#L717)
 
 ### `sdlc_plan`
 
-[`src/orchestrator/cli/sdlc.py:724`](../../src/orchestrator/cli/sdlc.py#L724)
+[`src/orchestrator/cli/sdlc.py:737`](../../src/orchestrator/cli/sdlc.py#L737)
 
-- **Calls** (5): `Exit`, `echo`, [`load_spec_file`](../../src/orchestrator/sdlc/spec_file.py#L36), `run`, [`unsupported_language_error`](../../src/orchestrator/sdlc/feature_runner.py#L713)
+- **Calls** (5): `Exit`, `echo`, [`load_spec_file`](../../src/orchestrator/sdlc/spec_file.py#L36), `run`, [`unsupported_language_error`](../../src/orchestrator/sdlc/feature_runner.py#L717)
 
 ### `sdlc_remediate`
 
-[`src/orchestrator/cli/sdlc.py:1113`](../../src/orchestrator/cli/sdlc.py#L1113)
+[`src/orchestrator/cli/sdlc.py:1144`](../../src/orchestrator/cli/sdlc.py#L1144)
 
-- **Calls** (2): [`_run_sdlc_remediate`](../../src/orchestrator/cli/sdlc.py#L1155), `run`
+- **Calls** (2): [`_run_sdlc_remediate`](../../src/orchestrator/cli/sdlc.py#L1186), `run`
 
 ### `sdlc_run`
 
@@ -157,8 +157,8 @@ _7 of the symbols other code depends on here have no test path the graph can see
 
 ## Imports
 
-`__future__.annotations`, `asyncio`, `dataclasses.asdict`, `datetime`, `json`, [`orchestrator.cli._common`](../../src/orchestrator/cli/_common.py#L1), [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1), [`orchestrator.core.llm.client`](../../src/orchestrator/core/llm/client.py#L1), [`orchestrator.evals.agent_corpus`](../../src/orchestrator/evals/agent_corpus.py#L1), [`orchestrator.intake.cache`](../../src/orchestrator/intake/cache.py#L1), [`orchestrator.intake.factory`](orchestrator.intake.factory.md), [`orchestrator.intake.service`](../../src/orchestrator/intake/service.py#L1), [`orchestrator.intake.source`](../../src/orchestrator/intake/source.py#L1), [`orchestrator.intake.ticket_meta`](../../src/orchestrator/intake/ticket_meta.py#L1), [`orchestrator.ir.graph`](../../src/orchestrator/ir/graph.py#L1), [`orchestrator.ir.validator`](../../src/orchestrator/ir/validator.py#L1), [`orchestrator.pkg.persistence`](orchestrator.pkg.persistence.md), [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`orchestrator.sdlc.case`](../../src/orchestrator/sdlc/case.py#L1), [`orchestrator.sdlc.complete`](../../src/orchestrator/sdlc/complete.py#L1), [`orchestrator.sdlc.escalate`](../../src/orchestrator/sdlc/escalate.py#L1), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.profile_select`](../../src/orchestrator/sdlc/profile_select.py#L1), [`orchestrator.sdlc.profiles`](../../src/orchestrator/sdlc/profiles/__init__.py#L1), [`orchestrator.sdlc.review_response`](../../src/orchestrator/sdlc/review_response.py#L1), [`orchestrator.sdlc.runstate`](../../src/orchestrator/sdlc/runstate.py#L1), [`orchestrator.sdlc.spec_file`](../../src/orchestrator/sdlc/spec_file.py#L1), [`orchestrator.sdlc.toolchains`](orchestrator.sdlc.toolchains.md), [`orchestrator.sdlc.types`](../../src/orchestrator/sdlc/types.py#L1), [`orchestrator.sdlc.worker`](../../src/orchestrator/sdlc/worker.py#L1), [`orchestrator.sdlc.workflows`](../../src/orchestrator/sdlc/workflows.py#L1), [`orchestrator.spine.drift`](../../src/orchestrator/spine/drift.py#L1), [`orchestrator.spine.execute`](../../src/orchestrator/spine/execute.py#L1), [`orchestrator.spine.remediation`](../../src/orchestrator/spine/remediation.py#L1), [`orchestrator.spine.store`](../../src/orchestrator/spine/store.py#L1), [`orchestrator.temporal.config`](../../src/orchestrator/temporal/config.py#L1), `os`, `pathlib.Path`, `subprocess`, `sys`, `typer`, `typing.Annotated`, `typing.Any`, `uuid`
+`__future__.annotations`, `asyncio`, `dataclasses.asdict`, `datetime`, `json`, [`orchestrator.cli._common`](../../src/orchestrator/cli/_common.py#L1), [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1), [`orchestrator.core.llm.budget`](../../src/orchestrator/core/llm/budget.py#L1), [`orchestrator.core.llm.client`](../../src/orchestrator/core/llm/client.py#L1), [`orchestrator.evals.agent_corpus`](../../src/orchestrator/evals/agent_corpus.py#L1), [`orchestrator.intake.cache`](../../src/orchestrator/intake/cache.py#L1), [`orchestrator.intake.factory`](orchestrator.intake.factory.md), [`orchestrator.intake.service`](../../src/orchestrator/intake/service.py#L1), [`orchestrator.intake.source`](../../src/orchestrator/intake/source.py#L1), [`orchestrator.intake.ticket_meta`](../../src/orchestrator/intake/ticket_meta.py#L1), [`orchestrator.ir.graph`](../../src/orchestrator/ir/graph.py#L1), [`orchestrator.ir.validator`](../../src/orchestrator/ir/validator.py#L1), [`orchestrator.pkg.persistence`](orchestrator.pkg.persistence.md), [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`orchestrator.sdlc.case`](../../src/orchestrator/sdlc/case.py#L1), [`orchestrator.sdlc.complete`](../../src/orchestrator/sdlc/complete.py#L1), [`orchestrator.sdlc.escalate`](../../src/orchestrator/sdlc/escalate.py#L1), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.profile_select`](../../src/orchestrator/sdlc/profile_select.py#L1), [`orchestrator.sdlc.profiles`](../../src/orchestrator/sdlc/profiles/__init__.py#L1), [`orchestrator.sdlc.review_response`](../../src/orchestrator/sdlc/review_response.py#L1), [`orchestrator.sdlc.runstate`](../../src/orchestrator/sdlc/runstate.py#L1), [`orchestrator.sdlc.spec_file`](../../src/orchestrator/sdlc/spec_file.py#L1), [`orchestrator.sdlc.toolchains`](orchestrator.sdlc.toolchains.md), [`orchestrator.sdlc.types`](../../src/orchestrator/sdlc/types.py#L1), [`orchestrator.sdlc.worker`](../../src/orchestrator/sdlc/worker.py#L1), [`orchestrator.sdlc.workflows`](../../src/orchestrator/sdlc/workflows.py#L1), [`orchestrator.spine.drift`](../../src/orchestrator/spine/drift.py#L1), [`orchestrator.spine.execute`](../../src/orchestrator/spine/execute.py#L1), [`orchestrator.spine.remediation`](../../src/orchestrator/spine/remediation.py#L1), [`orchestrator.spine.store`](../../src/orchestrator/spine/store.py#L1), [`orchestrator.temporal.config`](../../src/orchestrator/temporal/config.py#L1), `os`, `pathlib.Path`, `subprocess`, `sys`, `typer`, `typing.Annotated`, `typing.Any`, `uuid`
 
 ## Imported by
 
-[`orchestrator.cli`](../../src/orchestrator/cli/__init__.py#L1), [`tests.sdlc.test_android_codegen`](../../tests/sdlc/test_android_codegen.py#L1)
+[`orchestrator.cli`](../../src/orchestrator/cli/__init__.py#L1), [`tests.sdlc.test_android_codegen`](../../tests/sdlc/test_android_codegen.py#L1), [`tests.sdlc.test_autorun_publish`](../../tests/sdlc/test_autorun_publish.py#L1)
