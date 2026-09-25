@@ -9,15 +9,20 @@ link arrives as a remote link whose ``globalId`` carries the page id outright �
 for links made that way. A URL pasted into the description or a comment arrives only as text.
 Remote links are read first, then the text; the same page found twice is one page.
 
-**Only the site's own URLs.** A scanned URL counts only when its host is one of the Atlassian
-site's (Jira's or Confluence's base URL). A bare ``/wiki/`` path would otherwise make
-``en.wikipedia.org/wiki/Currency`` a "Confluence link". The same holds for a remote link Jira types
-``com.atlassian.confluence``: a page id is only meaningful on the site that issued it, and page
-``123`` on a partner's Confluence read from this one is a *different page*. So one whose URL is on
-another host is named, not read.
+**Only the site's own URLs are read.** A page id is only meaningful on the site that issued it:
+page ``123`` on a partner's Confluence, read from this one, is a *different page*. So a page on
+another host is named, never read — whether it arrived as a remote link Jira types
+``com.atlassian.confluence`` or pasted into the text. A pasted URL on another host counts as a
+Confluence page only when its path says so (a ``/wiki/`` path or ``viewpage.action``) *and* it
+resolves like one; otherwise ``en.wikipedia.org/wiki/Currency`` or any site's ``/pages/123`` would
+be named as a Confluence link. Before N14 a pasted page on another site vanished without a word,
+while the same page as a remote link was named.
 
 **What resolves, and what is only named.**
-- ``…/pages/<id>/…`` and ``…viewpage.action?pageId=<id>`` carry the id.
+- ``…/pages/<id>/…``, ``…/pages/edit-v2/<id>`` (the editor's URL) and
+  ``…viewpage.action?pageId=<id>`` carry the id.
+- ``resumedraft.action?draftId=<id>`` carries a *draft* id, which is not a page id: named, not
+  read.
 - ``/x/<code>`` tiny links are decoded offline — the page id, little-endian, base64 with ``/`` →
   ``-`` and ``+`` → ``_``, padding and trailing ``A`` stripped. Atlassian calls that algorithm
   "not officially supported", so a decoded id is kept only if re-encoding it reproduces the code
@@ -38,7 +43,7 @@ from urllib.parse import parse_qs, urlparse
 
 CONFLUENCE_APPLICATION = "com.atlassian.confluence"
 
-_PAGE_PATH = re.compile(r"/pages/(\d+)(?:/|$)")
+_PAGE_PATH = re.compile(r"/pages/(?:edit-v2/)?(\d+)(?:/|$)")
 _TINY_PATH = re.compile(r"(?:^|/)x/([A-Za-z0-9_-]+)/?$")
 _DISPLAY_PATH = re.compile(r"(?:^|/)display/[^/]+/[^/]+")
 _GLOBAL_PAGE_ID = re.compile(r"(?:^|&)pageId=(\d+)(?:&|$)")
@@ -95,6 +100,8 @@ def resolve_page_url(url: str) -> str | Unresolved | None:
     found = _PAGE_PATH.search(path)
     if found:
         return found.group(1)
+    if path.endswith("resumedraft.action"):
+        return Unresolved(url, "draft link, not a published page")
     if path.endswith("viewpage.action"):
         ids = parse_qs(parsed.query).get("pageId") or []
         if ids and ids[0].isdigit():
@@ -155,6 +162,16 @@ def _host(url: str) -> str:
     return urlparse(url).netloc.lower()
 
 
+def _on_another_site(url: str) -> Unresolved | None:
+    """A pasted URL on a host that is not ours, when it is a Confluence page by its path."""
+    path = urlparse(url).path
+    if "/wiki/" not in path and not path.endswith("viewpage.action"):
+        return None
+    if resolve_page_url(url) is None:
+        return None
+    return Unresolved(url, f"on another Confluence site ({_host(url)})")
+
+
 def find_linked_pages(
     *,
     remote_links: Sequence[Any] = (),
@@ -165,7 +182,7 @@ def find_linked_pages(
 
     ``texts`` is ``(where, field)`` pairs — ``("description", …)``, ``("comment", …)`` — each field
     ADF, wiki markup or plain text. ``site_hosts`` are the Atlassian site's hosts; a scanned URL on
-    any other host is not a Confluence link and is ignored.
+    any other host is named when it is a Confluence page there, and otherwise ignored.
     """
     hosts = {h.lower() for h in site_hosts if h}
     out = LinkedPages()
@@ -210,6 +227,8 @@ def find_linked_pages(
         for url in urls_in_field(value):
             if _host(url) in hosts:
                 add(resolve_page_url(url), url, where)
+            else:
+                add(_on_another_site(url), url, where)
     return out
 
 
