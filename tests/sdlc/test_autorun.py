@@ -925,3 +925,65 @@ def test_a_ticket_with_no_intent_id_journals_nothing(monkeypatch: pytest.MonkeyP
 
     written = list(plan_dir(tmp_path / "repo").glob("*-journey.jsonl"))
     assert [p.name for p in written] == ["injected-journey.jsonl"]
+
+
+# ---- what the spec was derived from (N14) --------------------------------------------------
+
+
+def _extracted_from(monkeypatch: pytest.MonkeyPatch, documents: list[Any]) -> None:
+    """The real analysis, with the cached extraction's documents replaced by ``documents``."""
+    import orchestrator.intake.cache as intake_cache
+
+    real = intake_cache.analyze_cached
+
+    async def _with(*args: Any, follow_links: bool = False, **kwargs: Any) -> Any:
+        plan = await real(*args, follow_links=False, **kwargs)  # the fake service takes no flag
+        plan.documents = documents
+        return plan
+
+    monkeypatch.setattr(intake_cache, "analyze_cached", _with)
+
+
+def test_follow_links_says_which_linked_pages_the_spec_was_derived_from(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """N14 (D4, D5): autorun said nothing about linked pages, however many the budget left out."""
+    from orchestrator.intake.source import SourceDocument
+
+    _install(monkeypatch, tmp_path)
+    url = "https://acme.atlassian.net/wiki/spaces/ENG/pages"
+    pages = [
+        SourceDocument(id=f"confluence:{i}", title=f"Linked page: P{i}", body="p" * 30_000, url=f"{url}/{i}")
+        for i in range(3)
+    ]
+    _extracted_from(monkeypatch, [SourceDocument(id="SPEC", title="SPEC", body="t" * 32_000), *pages])
+    lines: list[str] = []
+    _run(tmp_path, follow_links=True, log=lines.append)
+    assert (
+        f"[intake] linked pages: followed — 3 read; 1 cut ({url}/0), "
+        f"2 did not fit the 60,000-char budget ({url}/1, {url}/2)"
+    ) in lines
+    assert any(
+        line.startswith("[intake] WARNING: the spec was extracted from part of the source") for line in lines
+    )
+
+
+def test_without_follow_links_only_a_cut_ticket_is_worth_a_line(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.intake.source import SourceDocument
+
+    _install(monkeypatch, tmp_path)
+    _extracted_from(monkeypatch, [SourceDocument(id="SPEC", title="SPEC", body="t" * 70_000)])
+    lines: list[str] = []
+    _run(tmp_path, log=lines.append)
+    assert not any("linked pages" in line for line in lines)
+    assert (
+        "[intake] WARNING: the spec was extracted from part of the source — "
+        "SPEC cut at the 60,000-char budget"
+    ) in lines
+
+    _extracted_from(monkeypatch, [SourceDocument(id="SPEC", title="SPEC", body="short")])
+    lines.clear()
+    _run(tmp_path, log=lines.append)
+    assert not any("WARNING" in line for line in lines)

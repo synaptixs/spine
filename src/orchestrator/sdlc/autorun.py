@@ -693,6 +693,7 @@ async def _stage_intake(
     if not plan.specs:
         ctx.record_stage("intake", "failed", "no specs derived from the source")
         raise AutorunError("No specs derived from the source — nothing to implement.", code=3)
+    _say_what_the_spec_saw(plan.documents, follow_links=follow_links, emit=emit)
 
     chosen = next((s for s in plan.specs if s.intent_id == intent_id), None) if intent_id else plan.specs[0]
     if chosen is None:
@@ -709,6 +710,30 @@ async def _stage_intake(
         _adopt_issue_type(ctx, meta.issue_type, origin=meta.origin, detail=meta.detail, emit=emit)
     ctx.record_stage("intake", "ok", f"spec: {ctx.spec.get('title', '')}")
     emit(f"[intake] {ctx.spec.get('title', '')} (intent {ctx.spec.get('intent_id', '')})")
+
+
+def _say_what_the_spec_saw(documents: list[Any], *, follow_links: bool, emit: Callable[[str], None]) -> None:
+    """N14 (D4, D5): which linked pages, and how much of the ticket, the spec was derived from.
+
+    Computed from the cached extraction's own documents — the bounded bodies the extractor was
+    given — so it describes the spec this run builds, not a fresh read of the ticket. Pages that
+    could not be read never reached the extraction; `sdlc plan --follow-links` names those.
+    """
+    from orchestrator.intake.follow_links import FollowReport, extraction_warning, is_linked_page
+    from orchestrator.intake.intents import extraction_fit
+
+    fit = extraction_fit(documents)
+    if follow_links:
+        pages = [d for d in documents if is_linked_page(d)]
+        said = (
+            FollowReport(documents=pages).summary(extraction=fit)
+            if pages
+            else "none in the spec's extraction"
+        )
+        emit(f"[intake] linked pages: {said}")
+    lost = extraction_warning(fit)
+    if lost:
+        emit(f"[intake] WARNING: {lost}")
 
 
 # The imperative path, kept for one release. A migration with no way back is one nobody can

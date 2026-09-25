@@ -452,10 +452,15 @@ def test_investigate_reads_linked_pages_only_when_asked(
 
     service = _LinkedService()
     monkeypatch.setattr("orchestrator.intake.factory.build_service_for", lambda *_a, **_k: service)
+    briefs = []
     for flags in ([], ["--follow-links"]):
         result = CliRunner().invoke(app, ["investigate", str(checkout), "--source", "jira://PROJ-42", *flags])
         assert result.exit_code == 0, result.output
+        briefs.append(result.output)
     assert service.asked == [False, True]
+    # N14 (D4): the brief says what was followed — investigate has no budget, so no fit clause.
+    assert "**Linked pages:**" not in briefs[0]
+    assert "**Linked pages:** followed — 1 read" in briefs[1]
 
 
 def test_a_source_that_cannot_be_read_is_an_error_on_every_path(
