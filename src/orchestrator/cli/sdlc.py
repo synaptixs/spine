@@ -476,7 +476,7 @@ def _terminal_gate() -> Any:
     return gate
 
 
-async def _fetch_ticket_documents(source: str, *, follow_links: bool = False) -> tuple[list[Any], str]:
+async def _fetch_ticket_documents(source: str, *, follow_links: bool = False) -> tuple[list[Any], Any]:
     """The ticket's documents, fetched fresh and never analysed — what `source.txt` is built from.
 
     A source that cannot be read is an `ERROR` and exit 2, whatever failed underneath: a missing
@@ -509,7 +509,23 @@ async def _fetch_ticket_documents(source: str, *, follow_links: bool = False) ->
             f"WARNING: {source} returned no text — the criteria are checked against the spec alone.",
             err=True,
         )
-    return documents, fetched.linked_pages
+    return documents, fetched
+
+
+def _what_the_spec_saw(fetched: Any, extraction: Any) -> tuple[str, str]:
+    """The Linked pages line and the warning, from the fresh fetch and the extraction's fit.
+
+    ``extraction`` is ``None`` when the spec was hand-written: then the pages reached `source.txt`
+    and nothing else, and nothing was cut from a spec nobody extracted.
+    """
+    from orchestrator.intake.follow_links import extraction_warning
+
+    follow = getattr(fetched, "follow", None)
+    if follow is not None:
+        linked = follow.summary(extraction=extraction, spec_extracted=extraction is not None)
+    else:
+        linked = getattr(fetched, "linked_pages", "") or ""
+    return linked, extraction_warning(extraction) if extraction is not None else ""
 
 
 @sdlc_app.command("approve")
@@ -820,8 +836,10 @@ def sdlc_plan(
         # The ticket as intake read it — description, comments, attachments — is what row 08
         # checks each filed criterion against. A hand-written `--spec` alone has none.
         documents: list[Any] = []
-        # What the header says about linked Confluence pages: only meaningful with a ticket.
-        linked = ""
+        # The fresh fetch (for the Linked pages line) and the fit of what the spec was derived
+        # from: they are different reads, and the header says what each holds (N14).
+        fetched: Any = None
+        extraction: Any = None
         if resolved is not None and source:
             # `--spec` is the requirements; `--source` supplies only the ticket's own words, for
             # §8 to check the hand-written criteria against. So fetch, never analyse: the spec
@@ -833,7 +851,7 @@ def sdlc_plan(
             mismatch = spec_source_mismatch(resolved, source)
             if mismatch:
                 typer.echo(f"WARNING: {mismatch}", err=True)
-            documents, linked = await _fetch_ticket_documents(str(source), follow_links=follow_links)
+            documents, fetched = await _fetch_ticket_documents(str(source), follow_links=follow_links)
         if resolved is None:
             from orchestrator.core.env import load_local_env
             from orchestrator.core.llm.client import LLMError
@@ -882,7 +900,12 @@ def sdlc_plan(
             # the ticket text §8 checks against is read fresh, with no model call: what the ticket
             # says *now*, attachments uncut, which a cache entry written before either could not
             # hold (Track E, D3).
-            documents, linked = await _fetch_ticket_documents(str(source), follow_links=follow_links)
+            documents, fetched = await _fetch_ticket_documents(str(source), follow_links=follow_links)
+            # The cache holds the bounded documents the extractor was given, so their fit is what
+            # the spec was derived from — not the fresh fetch, which may say something newer.
+            from orchestrator.intake.intents import extraction_fit
+
+            extraction = extraction_fit(plan_result.documents)
             if not resolved_type:
                 from orchestrator.intake.ticket_meta import resolve_ticket_meta
 
@@ -891,9 +914,17 @@ def sdlc_plan(
         intent_key = str(resolved.get("intent_id") or "spec")
         # The whole ticket — every attachment uncut — because §8 checks criteria against its own
         # words; the extractor already had its bounded view (`SourceDocument.full_body`).
+        from orchestrator.intake.follow_links import extraction_note
         from orchestrator.intake.source import document_text
 
         source_text = "\n\n".join(document_text(d) for d in documents)
+        linked, lost = _what_the_spec_saw(fetched, extraction)
+        if lost:
+            typer.echo(
+                f"WARNING: {lost} — source.txt still holds every word, "
+                "and §8 checks the criteria against it.",
+                err=True,
+            )
         # Resolved against the repo being planned, not left as the literal "auto" — the
         # codegen prompt, the layout and the test environment all read this, and the old
         # `python` default handed a C# repository Python scaffolding without saying so.
@@ -904,6 +935,7 @@ def sdlc_plan(
             issue_type=resolved_type,
             source_text=source_text,
             linked_pages=linked or ("not followed — `--follow-links` reads them" if source else ""),
+            extraction=extraction_note(extraction) if extraction is not None else "",
             # Rendered, never stored in the document: a plan that changed since it was
             # approved shows as stale rather than carrying an approval it outgrew.
             approval=load_approval(intent_key, root=path),

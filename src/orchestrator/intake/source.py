@@ -16,7 +16,10 @@ The caps keep one ingest from pulling an entire wiki.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from orchestrator.intake.follow_links import FollowReport
 
 DEFAULT_MAX_DEPTH = 3
 DEFAULT_MAX_DOCS = 100
@@ -83,6 +86,9 @@ class FetchTreeResult:
     #: What `--follow-links` read and could not, as the build document's header states it; empty
     #: when links were not followed.
     linked_pages: str = ""
+    #: The same, unrendered — for a caller that can also say what of each page the spec was
+    #: derived from (`FollowReport.summary(extraction=…)`, N14). ``None`` when links were not followed.
+    follow: FollowReport | None = None
 
 
 class SourceAdapter(Protocol):

@@ -287,3 +287,94 @@ def test_a_flag_off_plan_never_prunes_progress_a_variant_still_holds(tmp_path: P
 
     assert load_progress(_SOURCE, tmp_path)["intent-with-links"]["pr_url"] == "https://x/pr/2"
     assert complete_by_pr("https://x/pr/2", cache_dir=tmp_path) is not None
+
+
+# ---- what the model saw of them (N14) --------------------------------------------------------
+
+
+def _linked(i: int, chars: int = 100) -> SourceDocument:
+    return SourceDocument(
+        id=f"confluence:{i}",
+        title=f"Linked page: P{i}",
+        body="p" * chars,
+        url=f"https://{_SITE}/wiki/spaces/ENG/pages/{i}",
+    )
+
+
+def _ticket(chars: int = 100) -> SourceDocument:
+    return SourceDocument(id="FIN-42", title="FIN-42", body="t" * chars)
+
+
+def test_pages_that_all_reached_the_model_say_so() -> None:
+    from orchestrator.intake.intents import extraction_fit
+
+    pages = [_linked(1), _linked(2)]
+    fit = extraction_fit([_ticket(), *pages])
+    assert (
+        FollowReport(documents=pages).summary(extraction=fit)
+        == "followed — 2 read, all 2 in the spec's extraction"
+    )
+    assert FollowReport(documents=pages[:1]).summary(extraction=extraction_fit([_ticket(), pages[0]])) == (
+        "followed — 1 read, in the spec's extraction"
+    )
+
+
+def test_pages_the_budget_cut_or_left_out_are_counted_and_named() -> None:
+    """N14's reproduction: "5 read" while the model saw one page, cut."""
+    from orchestrator.intake.intents import extraction_fit
+
+    pages = [_linked(i, 30_000) for i in range(5)]
+    fit = extraction_fit([_ticket(32_000), *pages])
+    urls = [p.url for p in pages]
+    assert FollowReport(documents=pages).summary(extraction=fit) == (
+        f"followed — 5 read; 1 cut ({urls[0]}), 4 did not fit the 60,000-char budget ({', '.join(urls[1:])})"
+    )
+
+
+def test_a_page_linked_after_the_spec_was_extracted_is_named_and_so_is_one_no_longer_linked() -> None:
+    """The header reads the ticket fresh, the spec comes from the cache: the two can disagree, and
+    the header says where rather than counting a page the spec never saw (D7)."""
+    from orchestrator.intake.intents import extraction_fit
+
+    cached = extraction_fit([_ticket(), _linked(1), _linked(2)])
+    fresh = FollowReport(
+        documents=[_linked(1), _linked(3)], not_read=[("https://x/y", "could not be read (HTTPError)")]
+    )
+    assert fresh.summary(extraction=cached) == (
+        "followed — 2 read; 1 in the spec's extraction in full"
+        f"; 1 linked since the spec was extracted ({_linked(3).url}) — not in it"
+        f"; 1 in the spec's extraction but no longer linked ({_linked(2).url})"
+        "; 1 not read (https://x/y: could not be read (HTTPError))"
+    )
+
+
+def test_with_a_hand_written_spec_the_pages_only_reach_source_txt() -> None:
+    report = FollowReport(documents=[_linked(1), _linked(2)])
+    assert report.summary(spec_extracted=False) == (
+        "followed — 2 read into source.txt; the spec is hand-written, so none was extracted"
+    )
+
+
+def test_without_an_extraction_the_summary_is_what_it_was() -> None:
+    assert FollowReport(documents=[_linked(1)]).summary() == "followed — 1 read"
+
+
+def test_a_cut_ticket_is_noted_and_warned_about_and_a_ticket_that_fits_is_not() -> None:
+    """D8/D9: the ticket's own text cut is the same dishonesty, with or without linked pages."""
+    from orchestrator.intake.follow_links import extraction_note, extraction_warning
+    from orchestrator.intake.intents import extraction_fit
+
+    assert extraction_note(extraction_fit([_ticket()])) == ""
+    assert extraction_warning(extraction_fit([_ticket(), _linked(1)])) == ""
+
+    cut = extraction_fit([_ticket(70_000)])
+    assert extraction_note(cut) == "FIN-42 cut at the 60,000-char extraction budget"
+    assert extraction_warning(cut) == (
+        "the spec was extracted from part of the source — FIN-42 cut at the 60,000-char budget"
+    )
+    pages = extraction_fit([_ticket(32_000), *[_linked(i, 30_000) for i in range(3)]])
+    assert extraction_note(pages) == ""  # the ticket fitted; its pages are the Linked pages line's
+    assert extraction_warning(pages) == (
+        "the spec was extracted from part of the source — "
+        f"{_linked(0).url} cut, {_linked(1).url} and {_linked(2).url} did not fit the 60,000-char budget"
+    )

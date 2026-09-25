@@ -225,6 +225,7 @@ class BacklogService:
             documents=[*tree.documents, *report.documents],
             truncated=tree.truncated,
             linked_pages=report.summary(),
+            follow=report,
         )
 
     async def analyze(self, root_id: str, *, follow_links: bool = False) -> BacklogPlan:
