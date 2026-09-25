@@ -61,9 +61,14 @@ All notable changes to this project are documented here. Format loosely follows
   none with 20 or fewer. The full read now keeps fetching past 20 files while the bounded view can
   still take one, and stops once it cannot, so the extractor reads 3.44.0's bytes again — proved
   by a new golden rendered by 3.44.0 itself — over REST and MCP alike. The full view §8 checks
-  criteria against carries those files too, so it can hold more than 20. A spec already cached
-  from such a ticket keeps its text (the cache is keyed by the ticket, not its body): nothing
-  approved re-parks, and only a fresh extraction reads the corrected view.
+  criteria against carries every file downloaded, so it can hold more than 20 — and when the
+  bounded view ends a few dozen characters short of its budget (too few to carry a cut file), it
+  never closes, so every readable attachment on the ticket is downloaded and lands in the full
+  view (and `source.txt`). 3.44.0 downloaded those files too, and one cannot be dropped from the
+  full view without changing the reason the extractor's view names it with; capping it is
+  SSPN-77. A spec already cached from such a ticket keeps its text (the cache is keyed by the
+  ticket, not its body): nothing approved re-parks, and only a fresh extraction reads the
+  corrected view.
 
 - **`--follow-links` says what the spec was derived from, not only what it fetched.** The intent
   extractor reads at most 60,000 characters, fills them with the ticket first, and linked pages

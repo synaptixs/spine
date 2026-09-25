@@ -86,12 +86,15 @@ _MAX_ATTACHMENT_CHARS = 8_000
 #: attachment, and leaves the ticket's own words whole.
 _MAX_ATTACHMENTS_TOTAL_CHARS = 20_000
 #: The *full* view (``SourceDocument.full_body``) has no character cap — it is what §8 checks a
-#: plan's criteria against, and a cut there is a criterion that reads as unstated. It is still
-#: bounded (invariant 7): a ticket with two hundred log files attached must not stall a plan,
-#: so at most this many files are read — plus any the extractor's bounded view still needs, so
-#: its input never depends on this bound (N15) — the byte cap above still applies to each, and
-#: every file past the bound is named with why. The bounded view above is derived from the same
-#: reads, so no attachment is downloaded twice.
+#: plan's criteria against, and a cut there is a criterion that reads as unstated. This many files
+#: are read in full, then more for as long as the extractor's bounded view could still take one, so
+#: its input never depends on this number (N15); the byte cap above applies to each, and every file
+#: not read is named with why. So this is not a cap on the files read: a bounded view left a few
+#: dozen characters short of its budget — too few to carry a cut file, enough for a tiny one — never
+#: closes, and then every readable attachment on the ticket is downloaded and carried in the full
+#: view. 3.44.0 downloaded them too, and a file the full read took cannot be dropped from it without
+#: changing the reason the extractor's view names it with. Capping that is B38 (SSPN-77). The
+#: bounded view is derived from the same reads, so no attachment is downloaded twice.
 _MAX_ATTACHMENTS_READ_IN_FULL = 20
 
 _MULTI_BLANK_RE = re.compile(r"\n{3,}")
@@ -314,46 +317,55 @@ def _attachments_read_in_full_text(texts: dict[str, tuple[str, str]]) -> str:
     return "\n".join(lines)
 
 
-def _bound_attachments(
-    fields: dict[str, Any], full: dict[str, tuple[str, str]], not_read: dict[str, str]
-) -> tuple[dict[str, tuple[str, str]], dict[str, str]]:
-    """The bounded view the intent extractor reads, derived from the full reads.
+class _BoundedView:
+    """The extractor's bounded view, taken one attachment at a time — the 3.44.0 arithmetic.
 
-    Byte-identical to what 3.44.0 produced by downloading as it went: the same checks in the same
-    order (image → no reader → the five-file bound → the budget → why the full read failed), the
-    same cuts and markers, the same reasons. Pinned by ``tests/intake/test_llm_input_pinned.py`` —
-    a cached spec was extracted from exactly this text, and moving it can re-park approved runs.
+    :func:`_bound_attachments` feeds it a ticket's attachments to render the view; the full read
+    (:func:`read_attachments_in_full`) feeds it each attachment's own outcome as it goes, to ask
+    whether the view could still take a file. One class, so both ask the one piece of arithmetic,
+    and ``used`` is its own running total: a repeated key is read twice but kept once, so summing
+    ``read`` undercounts it.
     """
-    from orchestrator.pkg.doc_source import is_doc_file
-    from orchestrator.pkg.media import MEDIA_SUFFIXES
 
-    read: dict[str, tuple[str, str]] = {}
-    unread: dict[str, str] = {}
-    used = 0
-    for a in fields.get("attachment") or []:
+    def __init__(self) -> None:
+        self.read: dict[str, tuple[str, str]] = {}
+        self.unread: dict[str, str] = {}
+        self.used = 0
+
+    @property
+    def open(self) -> bool:
+        """Could the view still take a file? Once false it stays false: each later attachment
+        only adds to the files read and the characters used."""
+        return len(self.read) < _MAX_ATTACHMENTS and self.used < _MAX_ATTACHMENTS_TOTAL_CHARS
+
+    def take(self, a: Any, full: dict[str, tuple[str, str]], not_read: dict[str, str]) -> None:
+        """Add one attachment record: read it (cut to the budget) or name it with why."""
+        from orchestrator.pkg.doc_source import is_doc_file
+        from orchestrator.pkg.media import MEDIA_SUFFIXES
+
         if not isinstance(a, dict):
-            continue
+            return
         key = _attachment_key(a)
         name = Path(str(a.get("filename") or "")).name
         if not name or not str(a.get("content") or ""):
-            continue
+            return
         if Path(name).suffix.lower() in MEDIA_SUFFIXES:
-            unread[key] = "image, not read"
-            continue
+            self.unread[key] = "image, not read"
+            return
         if not is_doc_file(Path(name)):
-            unread[key] = "no reader for this type"
-            continue
-        if len(read) >= _MAX_ATTACHMENTS:
-            unread[key] = f"bound of {_MAX_ATTACHMENTS} reached"
-            continue
-        if used >= _MAX_ATTACHMENTS_TOTAL_CHARS:
-            unread[key] = f"attachment budget of {_MAX_ATTACHMENTS_TOTAL_CHARS:,} chars reached"
-            continue
+            self.unread[key] = "no reader for this type"
+            return
+        if len(self.read) >= _MAX_ATTACHMENTS:
+            self.unread[key] = f"bound of {_MAX_ATTACHMENTS} reached"
+            return
+        if self.used >= _MAX_ATTACHMENTS_TOTAL_CHARS:
+            self.unread[key] = f"attachment budget of {_MAX_ATTACHMENTS_TOTAL_CHARS:,} chars reached"
+            return
         if key not in full:
-            unread[key] = not_read.get(key, "download failed")
-            continue
+            self.unread[key] = not_read.get(key, "download failed")
+            return
         text = full[key][1]
-        remaining = _MAX_ATTACHMENTS_TOTAL_CHARS - used
+        remaining = _MAX_ATTACHMENTS_TOTAL_CHARS - self.used
         if len(text) > min(_MAX_ATTACHMENT_CHARS, remaining):
             why = (
                 f" — attachment budget of {_MAX_ATTACHMENTS_TOTAL_CHARS:,} chars reached"
@@ -367,12 +379,28 @@ def _bound_attachments(
             if keep <= 0:
                 # Not even room for the sentence saying it was cut. Naming it costs
                 # nothing and keeps the header's arithmetic true.
-                unread[key] = f"attachment budget of {_MAX_ATTACHMENTS_TOTAL_CHARS:,} chars reached"
-                continue
+                self.unread[key] = f"attachment budget of {_MAX_ATTACHMENTS_TOTAL_CHARS:,} chars reached"
+                return
             text = text[:keep].rstrip() + marker
-        used += len(text)
-        read[key] = (name, text)
-    return read, unread
+        self.used += len(text)
+        self.read[key] = (name, text)
+
+
+def _bound_attachments(
+    fields: dict[str, Any], full: dict[str, tuple[str, str]], not_read: dict[str, str]
+) -> tuple[dict[str, tuple[str, str]], dict[str, str]]:
+    """The bounded view the intent extractor reads, derived from the full reads.
+
+    Byte-identical to what 3.44.0 produced by downloading as it went: the same checks in the same
+    order (image → no reader → the five-file bound → the budget → why the full read failed), the
+    same cuts and markers, the same reasons. Pinned by ``tests/intake/test_llm_input_pinned.py`` —
+    a cached spec was extracted from exactly this text, and moving it can re-park approved runs.
+    The arithmetic is :class:`_BoundedView`'s, which the full read asks too.
+    """
+    view = _BoundedView()
+    for a in fields.get("attachment") or []:
+        view.take(a, full, not_read)
+    return view.read, view.unread
 
 
 def render_issue_bodies(
@@ -443,20 +471,6 @@ class _UnreadableError(Exception):
     """An attachment the transport cannot supply; the message is the reason it is named with."""
 
 
-def _bounded_view_open(
-    seen: list[dict[str, Any]], full: dict[str, tuple[str, str]], not_read: dict[str, str]
-) -> bool:
-    """Could the extractor's bounded view still take a file after the attachments ``seen`` so far?
-
-    Asked of :func:`_bound_attachments` itself, so the 3.44.0 arithmetic lives in one place: open
-    while fewer than ``_MAX_ATTACHMENTS`` files are read and the budget is not spent. Once closed it
-    never reopens — each later attachment only adds to the files read and the characters used.
-    """
-    read, _ = _bound_attachments({"attachment": seen}, full, not_read)
-    used = sum(len(text) for _, text in read.values())
-    return len(read) < _MAX_ATTACHMENTS and used < _MAX_ATTACHMENTS_TOTAL_CHARS
-
-
 async def read_attachments_in_full(
     fields: dict[str, Any], fetch: Callable[[dict[str, Any]], Awaitable[bytes]]
 ) -> tuple[dict[str, tuple[str, str]], dict[str, str]]:
@@ -464,24 +478,29 @@ async def read_attachments_in_full(
     for every one that was not — whichever transport ``fetch`` downloads through.
 
     No character cap — :func:`_bound_attachments` derives the extractor's bounded view from
-    these reads, so each file is downloaded at most once. Still bounded, each reason stated:
-    at most ``_MAX_ATTACHMENTS_READ_IN_FULL`` files, none over ``_MAX_ATTACHMENT_BYTES``
+    these reads, so each file is downloaded at most once. None over ``_MAX_ATTACHMENT_BYTES``
     (checked against the record's ``size`` before any request, and by ``fetch`` on the bytes).
-    Past that bound a file is still read while the bounded view could take it — 3.44.0, which
-    had no such bound, read it, and the extractor's input must not move (N15) — so the full view
-    never holds less than the bounded one, and may then hold more than the bound.
+    ``_MAX_ATTACHMENTS_READ_IN_FULL`` files are read, and past them a file is still read while
+    the bounded view could take one — 3.44.0, which had no such bound, read it, and the
+    extractor's input must not move (N15) — so the full view never holds less than the bounded
+    one. That is no cap on the count: a bounded view left a few dozen characters short of its
+    budget never closes, and then every readable attachment is read (B38, SSPN-77).
     Any failure — HTTP, a reader that yields nothing, an unreadable file, a record with a
     malformed ``size`` — leaves that attachment named with why. Never raises.
 
     The readers are ``pkg.doc_source``'s, run over a temporary directory: the same PDF,
     docx and markdown paths ``understand`` uses, with the same optional-extra behaviour.
     """
-    from orchestrator.pkg.doc_source import is_doc_file, read_doc_pages
+    from orchestrator.pkg.doc_source import is_doc_file
     from orchestrator.pkg.media import MEDIA_SUFFIXES
 
     read: dict[str, tuple[str, str]] = {}
     unread: dict[str, str] = {}
-    seen: list[dict[str, Any]] = []
+    # The extractor's bounded view as 3.44.0 built it while downloading: each attachment counted by
+    # its own outcome, as it is read. ``read`` keeps only the last text per key, so a view derived
+    # from it later counts a repeated filename by another copy's text. Fed once per attachment and
+    # not at all once closed — it never reopens — so the work stays linear.
+    view = _BoundedView()
     for a in fields.get("attachment") or []:
         if not isinstance(a, dict):
             continue
@@ -490,7 +509,6 @@ async def read_attachments_in_full(
         url = str(a.get("content") or "")
         if not name or not url:
             continue
-        seen.append(a)
         if Path(name).suffix.lower() in MEDIA_SUFFIXES:
             # `is_doc_file` claims images too, because `pkg.media` registers a reader for
             # them — one that reads a *committed* transcript artifact, which a downloaded
@@ -500,35 +518,46 @@ async def read_attachments_in_full(
         if not is_doc_file(Path(name)):
             unread[key] = "no reader for this type"
             continue
-        if len(read) >= _MAX_ATTACHMENTS_READ_IN_FULL and not _bounded_view_open(seen[:-1], read, unread):
+        if len(read) >= _MAX_ATTACHMENTS_READ_IN_FULL and not view.open:
             unread[key] = f"bound of {_MAX_ATTACHMENTS_READ_IN_FULL} reached"
             continue
-        try:
-            if int(a.get("size") or 0) > _MAX_ATTACHMENT_BYTES:
-                unread[key] = f"over the {_MAX_ATTACHMENT_BYTES // 1_000_000} MB cap"
-                continue
-            data = await fetch(a)
-            with tempfile.TemporaryDirectory() as tmp:
-                (Path(tmp) / name).write_bytes(data)
-                pages = read_doc_pages(tmp, sections=False)
-        except _UnreadableError as exc:
-            unread[key] = str(exc)
-            continue
-        except _AttachmentTooLargeError:
-            unread[key] = f"over the {_MAX_ATTACHMENT_BYTES // 1_000_000} MB cap"
-            continue
-        except _OffHostError:
-            unread[key] = "not on the tracker's host"
-            continue
-        except (httpx.HTTPError, IssueTrackerError, OSError, ValueError, TypeError, LookupError):
-            unread[key] = "download failed"
-            continue
-        text = "\n\n".join(p.text for p in pages).strip()
-        if not text:
-            unread[key] = "no text could be read"
-            continue
-        read[key] = (name, text)
+        outcome = await _read_in_full(a, name, fetch)
+        if isinstance(outcome, str):
+            unread[key] = outcome
+            if view.open:
+                view.take(a, {}, {key: outcome})
+        else:
+            read[key] = outcome
+            if view.open:
+                view.take(a, {key: outcome}, {})
     return read, unread
+
+
+async def _read_in_full(
+    a: dict[str, Any], name: str, fetch: Callable[[dict[str, Any]], Awaitable[bytes]]
+) -> tuple[str, str] | str:
+    """One readable attachment read in full: ``(filename, text)``, or the reason it was not."""
+    from orchestrator.pkg.doc_source import read_doc_pages
+
+    try:
+        if int(a.get("size") or 0) > _MAX_ATTACHMENT_BYTES:
+            return f"over the {_MAX_ATTACHMENT_BYTES // 1_000_000} MB cap"
+        data = await fetch(a)
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / name).write_bytes(data)
+            pages = read_doc_pages(tmp, sections=False)
+    except _UnreadableError as exc:
+        return str(exc)
+    except _AttachmentTooLargeError:
+        return f"over the {_MAX_ATTACHMENT_BYTES // 1_000_000} MB cap"
+    except _OffHostError:
+        return "not on the tracker's host"
+    except (httpx.HTTPError, IssueTrackerError, OSError, ValueError, TypeError, LookupError):
+        return "download failed"
+    text = "\n\n".join(p.text for p in pages).strip()
+    if not text:
+        return "no text could be read"
+    return (name, text)
 
 
 class JiraSourceAdapter:
