@@ -11,17 +11,23 @@ All notable changes to this project are documented here. Format loosely follows
 - **`sdlc autorun --live` opens the pull request after its own review, with the fixes in it.** The
   build used to open the PR, and the review that followed fixed what it found in the worktree,
   uncommitted, so the PR never carried the fixes. Now the build commits locally, the review runs,
-  its fixes are committed as `<KEY>: review fixes`, and then the PR opens. A review that leaves
-  findings unresolved opens a **draft** PR listing them, leaves the ticket In Progress, marks the
-  run failed and exits 1 — it used to end `done`, exit 0.
+  its fixes are committed as `<KEY>: review fixes`, and then the PR opens. A review that does not
+  finish clean — findings left unresolved, a fix that broke the tests, a crash — opens a **draft**
+  PR saying why, leaves the ticket In Progress, marks the run failed and exits 1; it used to end
+  `done`, exit 0. Edits that broke the tests or came from a crashed review are discarded, so the
+  PR carries the tested build. With `--review`, the review's own fixes are shown and asked about
+  before they are committed; declining discards them.
 - **`SDLC_RUN_BUDGET_USD` is the per-run cap it is documented to be.** Only the Temporal worker
-  read it. `sdlc feature` and `sdlc autorun` now apply it too: $25 by default, `0` disables, and
-  `autorun --max-cost` overrides it. autorun's cap now covers the review's fixes as well as the
+  applied it. `sdlc feature` and `sdlc autorun` now apply it too, read from the environment or
+  `.env`: $25 by default, `0` disables, and `autorun --max-cost` overrides it. A malformed value
+  (or `nan`, or a negative) refuses the run with exit 2. The MCP `sdlc_feature` and remediate
+  tools and `sdlc remediate` do not apply it yet. autorun's cap now covers the review's fixes as well as the
   build, and a resumed run continues from what it had already spent instead of starting from $0.
 
   **Upgrade note:** `sdlc feature` and `sdlc autorun` without `--max-cost` now stop a run that
   spends more than $25 (autorun parks it; `sdlc feature` exits 4). Set `SDLC_RUN_BUDGET_USD` to raise
-  it, or to `0` for the old uncapped behaviour. Scripts that treated autorun's exit 0 as success
+  it, or to `0` for the old uncapped behaviour; a budget park names the `--resume … --max-cost`
+  that continues it. Scripts that treated autorun's exit 0 as success
   now see exit 1 for a run whose review left findings unresolved.
 
 - **The Java/C# type lookup no longer skips a closer binding.** Every Java and C# edge that names

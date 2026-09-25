@@ -1076,13 +1076,13 @@ orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --path . --saf
 | `--path` | Repo to reason about — the graph the run is grounded in. (default: `.`) |
 | `--live` / `--safe` | Write for real, or make no external write. (default: `--safe`) |
 | `--max-refine` | Correction attempts allowed **per check** — a red suite, a type error and a coverage gap each get their own allowance, so one cannot starve another. (default: `5`) |
-| `--review` / `--no-review` | Show the diff and ask before committing or pushing anything. (default: `--no-review`) |
+| `--review` / `--no-review` | Show the diff and ask before committing or pushing anything — and ask again about any fixes the review loop writes afterwards. (default: `--no-review`) |
 | `--base` | Branch to build on **and** open the PR into (default `$SDLC_PR_BASE`, else the remote's default branch). The run's worktree is cut from this, so on a repo that merges to `develop`, leaving it unset builds the change on `main`. |
 | `--language` | Target language (auto detects). (default: `auto`) |
 | `--issue-type` | Override the ticket's issue type (`Bug`, `Story`, …), which selects the workflow profile and decides whether the ticket must localize. Default: read it from the ticket. With `--spec` there is no ticket to read, so this is the only way to type that run. |
 | `--out` | Where run artifacts go (default: a run dir under the temp dir). |
 | `--resume` | Continue a run by id — adopts the issue it already created. |
-| `--max-cost` | Cap LLM spend (USD) for this run; exhausting it parks the run. |
+| `--max-cost` | Cap LLM spend (USD) for this run; exhausting it parks the run. Default: `SDLC_RUN_BUDGET_USD` (from the environment or `.env`), else $25; `0` disables. Covers the build and the review; a resumed run continues from what it already spent. |
 | `--spec` | Implement a hand-written spec (JSON) instead of deriving one from the source. Intake is skipped entirely and recorded as `skipped`. |
 | `--plan-gate` / `--no-plan-gate` | Refuse to build unless a human approved this ticket's build document (see `sdlc approve`). The plan is re-derived and re-digested, so an approval that no longer matches the code refuses too. (default: `--plan-gate`) |
 | `--follow-links` | With `--source` and no `--spec`: derive the spec from the ticket **and** the Confluence pages it links to — the same reading as `sdlc plan --follow-links`, from its own intake-cache entry. Refuses (exit 2) without Confluence access. Has no effect with `--spec`: plan with it instead. |
@@ -1130,10 +1130,20 @@ whether a change ships:
 | `[gate]` | `--review` only: waiting for you. Nothing has been committed yet. |
 
 **`--review` is the last gate before the first write.** It prints the full diff,
-asks once, and defaults to no. Every other check above is a model or a heuristic;
-this one is you. It **fails closed** when there is no terminal to ask on, so an
+asks, and defaults to no. If the review loop then fixes anything, it asks again about
+those fixes before they are committed; declining discards them and opens the PR as a
+draft. Every other check above is a model or a heuristic; this one is you. It **fails closed** when there is no terminal to ask on, so an
 unattended run (cron, a background shell, the MCP server) stops rather than
 assuming yes — pass `--review` only from an interactive session.
+
+**Review, then publish.** The build commits locally; the review loop runs on that branch and
+its fixes are committed as `<KEY>: review fixes`; only then does a `--live` run push and open
+the PR (the `publish` stage — `skipped` under `--safe`). A review that does not finish clean —
+findings left unresolved, a fix that broke the tests (its edits are discarded), a crash —
+opens a **draft** PR that says why, leaves the ticket In Progress, and the run **exits 1**.
+Exit codes: 1 failed (including an unclean review), 2 configuration (a malformed
+`SDLC_RUN_BUDGET_USD` too), 3 no spec or intent, 4 parked on the budget, 5 parked on a
+validity or design verdict, 6 an approval pending or refused.
 
 **Resuming.** A parked or failed run continues with `--resume <run-id>`, keeping
 its id and adopting the issue it already created. A run parked on an approval
@@ -1155,6 +1165,10 @@ the issue.
 
 Pass --issue <KEY> when the work is already tracked: the run adopts that
 issue instead of creating a second one for the same story.
+
+Spend is capped by `SDLC_RUN_BUDGET_USD` (from the environment or `.env`; $25 by default,
+`0` disables). A run that exhausts it stops with **exit 4** and hands the ticket back; a
+malformed value refuses the run with exit 2.
 
 ```
 orchestrator sdlc feature [OPTIONS]
