@@ -693,7 +693,7 @@ async def _stage_intake(
     if not plan.specs:
         ctx.record_stage("intake", "failed", "no specs derived from the source")
         raise AutorunError("No specs derived from the source — nothing to implement.", code=3)
-    _say_what_the_spec_saw(plan.documents, follow_links=follow_links, emit=emit)
+    _say_what_the_spec_saw(plan.documents, service=service, follow_links=follow_links, emit=emit)
 
     chosen = next((s for s in plan.specs if s.intent_id == intent_id), None) if intent_id else plan.specs[0]
     if chosen is None:
@@ -712,25 +712,26 @@ async def _stage_intake(
     emit(f"[intake] {ctx.spec.get('title', '')} (intent {ctx.spec.get('intent_id', '')})")
 
 
-def _say_what_the_spec_saw(documents: list[Any], *, follow_links: bool, emit: Callable[[str], None]) -> None:
+def _say_what_the_spec_saw(
+    documents: list[Any], *, service: Any, follow_links: bool, emit: Callable[[str], None]
+) -> None:
     """N14 (D4, D5): which linked pages, and how much of the ticket, the spec was derived from.
 
     Computed from the cached extraction's own documents — the bounded bodies the extractor was
     given — so it describes the spec this run builds, not a fresh read of the ticket. Pages that
-    could not be read never reached the extraction; `sdlc plan --follow-links` names those.
+    could not be read never reached the extraction; `sdlc plan --follow-links` names those. A
+    structured source (OpenSpec) is parsed, never extracted: no budget, so nothing to report cut.
     """
-    from orchestrator.intake.follow_links import FollowReport, extraction_warning, is_linked_page
+    from orchestrator.intake.follow_links import extraction_warning, linked_in_extraction
     from orchestrator.intake.intents import extraction_fit
 
+    if follow_links and not getattr(service, "follows_links", True):
+        emit("[intake] linked pages: not followed — links are followed only for Jira tickets")
+    if not getattr(service, "uses_the_extractor", True):
+        return
     fit = extraction_fit(documents)
-    if follow_links:
-        pages = [d for d in documents if is_linked_page(d)]
-        said = (
-            FollowReport(documents=pages).summary(extraction=fit)
-            if pages
-            else "none in the spec's extraction"
-        )
-        emit(f"[intake] linked pages: {said}")
+    if follow_links and getattr(service, "follows_links", True):
+        emit(f"[intake] linked pages: {linked_in_extraction(fit)}")
     lost = extraction_warning(fit)
     if lost:
         emit(f"[intake] WARNING: {lost}")

@@ -16,15 +16,21 @@ All notable changes to this project are documented here. Format loosely follows
   cached spec was extracted (`followed — 5 read; 1 cut (…), 4 did not fit the 60,000-char budget
   (…)`); with a hand-written `--spec` it says the pages reached `source.txt` only. The counts come
   from the documents the intake cache already holds, through the same function that builds the
-  extractor's prompt, so they cannot disagree with what the model was given.
+  extractor's prompt, so they cannot disagree with what the model was given. A page the spec was
+  derived from that no longer reads is named as unreadable, and one no longer linked as such —
+  never dropped from the count.
+  - A structured source (`openspec://`) is parsed verbatim, with no model and no budget, so it is
+    never reported as cut.
   - A ticket whose own text the budget cut gets an `**Extraction:**` header line, with or without
     `--follow-links`; `sdlc plan` and `sdlc autorun` print a `WARNING:` whenever anything did
     not fit. Exit codes are unchanged.
-  - `sdlc autorun --follow-links` prints `[intake] linked pages: …`, and `investigate
-    --follow-links` puts `**Linked pages:** …` in its brief — both said nothing before.
+  - `sdlc autorun --follow-links` prints `[intake] linked pages: …` — which linked pages the
+    cached spec was extracted from, whole, cut or left out — and `investigate --follow-links` puts
+    `**Linked pages:** …` in its brief. Both said nothing before.
   - Three kinds of link used to vanish without a word: a `/pages/edit-v2/<id>` URL now resolves
     to its page; a draft link (`resumedraft.action?draftId=…`) and a Confluence page on another
-    site pasted into the ticket are named, not read.
+    site pasted into the ticket (`/wiki/spaces/<KEY>/pages/<id>` or `viewpage.action?pageId=`) are
+    named, not read — once per page.
 
   What the model reads is unchanged byte for byte, and both new lines are header, outside the
   approval digest, so no approved plan goes stale.

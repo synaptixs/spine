@@ -411,6 +411,7 @@ def test_the_header_says_whether_linked_pages_were_read(
     assert result.exit_code == 0, result.output
     document = (checkout / ".spine" / "plans" / "PROJ-42-build.md").read_text(encoding="utf-8")
     assert header in document
+    assert "WARNING" not in result.output  # a hand-written spec was never extracted, so nothing was cut
     assert service.asked == [bool(flags)]
     assert ("a criterion from the page" in load_source_text("PROJ-42", root=checkout)) is bool(flags)
 
@@ -552,6 +553,7 @@ def _plan_from_cache(
     page_chars: int,
     pages: int,
     flags: list[str],
+    extracts_with_model: bool = True,
 ) -> Any:
     """`sdlc plan --source` whose spec comes from a cached extraction of exactly these documents,
     and whose fresh fetch returns the same ones — so the header can only be computed from the fit."""
@@ -574,6 +576,9 @@ def _plan_from_cache(
         return BacklogPlan(documents=[ticket, *linked], specs=[spec])
 
     class _Service:
+        # An OpenSpec source parses its changes verbatim: no model, so no budget to cut.
+        uses_the_extractor = extracts_with_model
+
         async def fetch_source_documents(
             self, root_id: str, *, follow_links: bool = False
         ) -> FetchTreeResult:
@@ -636,13 +641,27 @@ def test_a_ticket_the_extraction_cut_is_on_the_document_even_without_follow_link
     assert "WARNING: the spec was extracted from part of the source — PROJ-42 cut" in result.output
 
 
-def test_the_extraction_line_is_outside_the_approval_digest(
+def test_a_plan_with_an_extraction_line_is_the_plan_the_gate_accepts(
+    checkout: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Header, not body: the gate re-derives the plan without the line, and must still pass it."""
+    result = _plan_from_cache(monkeypatch, checkout, ticket_chars=70_000, page_chars=0, pages=0, flags=[])
+    assert result.exit_code == 0, result.output
+    assert "**Extraction:**" in _document(checkout)
+    approved = CliRunner().invoke(
+        app, ["sdlc", "approve", "PROJ-42", "--path", str(checkout), "--by", "reviewer"]
+    )
+    assert approved.exit_code == 0, approved.output
+    assert _gate(_spec_file(tmp_path), checkout) == "PASSED: reviewer"
+
+
+def test_a_structured_source_is_parsed_not_extracted_so_nothing_is_reported_cut(
     checkout: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Header, not body: reporting a cut must never stale an approval the reviewer already gave."""
-    from orchestrator.sdlc.builddoc import plan_digest
-
-    _plan_from_cache(monkeypatch, checkout, ticket_chars=70_000, page_chars=0, pages=0, flags=[])
-    document = _document(checkout)
-    without = "\n".join(line for line in document.splitlines() if not line.startswith("**Extraction:**"))
-    assert without != document and plan_digest(without) == plan_digest(document)
+    """Review, both passes: an OpenSpec change is parsed verbatim, with no model and no budget — a
+    70,000-char one was reported "cut", in a warning and on the document a reviewer approves."""
+    result = _plan_from_cache(
+        monkeypatch, checkout, ticket_chars=70_000, page_chars=0, pages=0, flags=[], extracts_with_model=False
+    )
+    assert result.exit_code == 0, result.output
+    assert "WARNING" not in result.output and "**Extraction:**" not in _document(checkout)

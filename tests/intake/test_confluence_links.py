@@ -199,7 +199,9 @@ def test_a_confluence_page_pasted_from_another_site_is_named_like_a_remote_link(
     other site is not a Confluence link, and Wikipedia's `/wiki/` stays nothing."""
     text = (
         "See https://partner.atlassian.net/wiki/spaces/X/pages/999/Other, "
-        "https://github.com/acme/app/pages/123 and https://en.wikipedia.org/wiki/Currency"
+        "https://partner.atlassian.net/wiki/spaces/X/pages/999 (the same page), "
+        "https://github.com/acme/app/pages/123, https://github.com/o/r/wiki/pages/12, "
+        "https://en.wikipedia.org/wiki/Currency and https://en.wikipedia.org/wiki/x/Currency"
     )
     found = find_linked_pages(texts=[("description", text)], site_hosts=[_SITE])
     assert found.pages == []

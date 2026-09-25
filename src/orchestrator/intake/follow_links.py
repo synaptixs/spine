@@ -94,56 +94,65 @@ class FollowReport:
     documents: list[SourceDocument] = field(default_factory=list)
     not_read: list[tuple[str, str]] = field(default_factory=list)  # (url, why)
     unsupported: str = ""  # set when the source is not one whose links can be followed
+    #: Pages found but not read *that have a page id* — document id → url. A spec extracted when
+    #: the page still read is checked against this, so a page failing now is "not read", never
+    #: "no longer linked" (N14 review).
+    unread: dict[str, str] = field(default_factory=dict)
 
     def summary(self, extraction: PromptFit | None = None, *, spec_extracted: bool = True) -> str:
         """``followed — 2 read, 1 not read (<url>: <why>)`` — or why nothing was followed.
 
         With ``extraction`` — the fit of the documents the spec was derived from — it also says
-        what of each page reached the model. ``spec_extracted=False`` says the spec was written by
-        hand, so the pages reached `source.txt` and nothing else.
+        what of each page reached the model, and which pages the spec holds that are not linked,
+        or not readable, now. ``spec_extracted=False`` says the spec was written by hand, so the
+        pages reached `source.txt` and nothing else.
         """
         if self.unsupported:
             return f"not followed — {self.unsupported}"
+        if extraction is not None and spec_extracted:
+            return self._against(extraction)
         read = len(self.documents)
         if not read and not self.not_read:
             return "followed — the ticket links no Confluence pages"
-        not_read = ""
-        if self.not_read:
-            reasons = "; ".join(f"{url}: {why}" for url, why in self.not_read)
-            not_read = f"{len(self.not_read)} not read ({reasons})"
+        not_read = self._not_read()
         if not spec_extracted and read:
             text = f"followed — {read} read into source.txt; the spec is hand-written, so none was extracted"
             return f"{text}; {not_read}" if not_read else text
-        if extraction is None or not read:
-            text = f"followed — {read} read"
-            return f"{text}, {not_read}" if not_read else text
-        return self._against(extraction, read, not_read)
+        text = f"followed — {read} read"
+        return f"{text}, {not_read}" if not_read else text
 
-    def _against(self, extraction: PromptFit, read: int, not_read: str) -> str:
+    def _not_read(self, extracted: frozenset[str] = frozenset()) -> str:
+        if not self.not_read:
+            return ""
+        in_spec = {url for doc_id, url in self.unread.items() if doc_id in extracted}
+        reasons = "; ".join(
+            f"{url}: {why}" + (" — the cached spec was extracted with it" if url in in_spec else "")
+            for url, why in self.not_read
+        )
+        return f"{len(self.not_read)} not read ({reasons})"
+
+    def _against(self, extraction: PromptFit) -> str:
+        read = len(self.documents)
         fetched = {d.id for d in self.documents}
+        extracted = frozenset(d.id for d in extraction.documents)
         seen = [d for d in extraction.documents if d.id in fetched]
-        since = [_name(d) for d in self.documents if extraction.state_of(d.id) is None]
-        gone = [_name(d) for d in extraction.documents if is_linked_page(d) and d.id not in fetched]
-        if not since and not gone and all(d.state == "full" for d in seen):
-            text = f"followed — {read} read, " + (
-                "in the spec's extraction" if read == 1 else f"all {read} in the spec's extraction"
-            )
-            return f"{text}, {not_read}" if not_read else text
-        full = sum(1 for d in seen if d.state == "full")
-        cut = [_name(d) for d in seen if d.state == "cut"]
-        dropped = [_name(d) for d in seen if d.state == "dropped"]
-        fit: list[str] = []
-        if full:
-            fit.append(f"{full} in the spec's extraction in full")
-        if cut:
-            fit.append(f"{len(cut)} cut ({', '.join(cut)})")
-        if dropped:
-            fit.append(
-                f"{len(dropped)} did not fit the {extraction.budget:,}-char budget ({', '.join(dropped)})"
-            )
+        since = [_name(d) for d in self.documents if d.id not in extracted]
+        gone = [
+            _name(d)
+            for d in extraction.documents
+            if is_linked_page(d) and d.id not in fetched and d.id not in self.unread
+        ]
+        not_read = self._not_read(extracted)
+        if not read and not not_read and not gone:
+            return "followed — the ticket links no Confluence pages"
         parts = [f"followed — {read} read"]
-        if fit:
-            parts.append(", ".join(fit))
+        if read and not since and all(d.state == "full" for d in seen):
+            parts = [
+                f"followed — {read} read, "
+                + ("in the spec's extraction" if read == 1 else f"all {read} in the spec's extraction")
+            ]
+        elif seen:
+            parts.append(_fit_clause(seen, extraction.budget, lead="in the spec's extraction in full"))
         if since:
             parts.append(f"{len(since)} linked since the spec was extracted ({', '.join(since)}) — not in it")
         if gone:
@@ -151,6 +160,37 @@ class FollowReport:
         if not_read:
             parts.append(not_read)
         return "; ".join(parts)
+
+
+def _fit_clause(fits: list[DocumentFit], budget: int, *, lead: str) -> str:
+    """``1 in full, 1 cut (<url>), 2 did not fit the 60,000-char budget (<url>, <url>)``."""
+    full = sum(1 for d in fits if d.state == "full")
+    cut = [_name(d) for d in fits if d.state == "cut"]
+    dropped = [_name(d) for d in fits if d.state == "dropped"]
+    bits: list[str] = []
+    if full:
+        bits.append(f"{full} {lead}")
+    if cut:
+        bits.append(f"{len(cut)} cut ({', '.join(cut)})")
+    if dropped:
+        bits.append(f"{len(dropped)} did not fit the {budget:,}-char budget ({', '.join(dropped)})")
+    return ", ".join(bits)
+
+
+def linked_in_extraction(fit: PromptFit) -> str:
+    """The linked pages a cached extraction holds, and how much of each reached the model — what
+    `autorun` can say without reading the ticket again. Pages that could not be read never reached
+    the extraction; `sdlc plan --follow-links` names those."""
+    pages = [d for d in fit.documents if is_linked_page(d)]
+    if not pages:
+        return "none in the spec's extraction"
+    if all(d.state == "full" for d in pages):
+        return (
+            "1 in the spec's extraction, whole"
+            if len(pages) == 1
+            else f"all {len(pages)} in the spec's extraction, whole"
+        )
+    return f"{len(pages)} in the spec's extraction — " + _fit_clause(pages, fit.budget, lead="in full")
 
 
 def _default_reader() -> PageReader:
@@ -183,9 +223,9 @@ async def follow_confluence_links(
         try:
             doc = await reader.fetch_document(page.page_id)
         except Exception as exc:  # noqa: BLE001 — any failure names the page; none stops the run
-            report.not_read.append(
-                (page.url or f"page {page.page_id}", f"could not be read ({type(exc).__name__})")
-            )
+            url = page.url or f"page {page.page_id}"
+            report.not_read.append((url, f"could not be read ({type(exc).__name__})"))
+            report.unread[f"confluence:{page.page_id}"] = url
             continue
         report.documents.append(
             SourceDocument(
@@ -197,9 +237,9 @@ async def follow_confluence_links(
             )
         )
     for page in linked.pages[MAX_LINKED_PAGES:]:
-        report.not_read.append(
-            (page.url or f"page {page.page_id}", f"bound of {MAX_LINKED_PAGES} pages reached")
-        )
+        url = page.url or f"page {page.page_id}"
+        report.not_read.append((url, f"bound of {MAX_LINKED_PAGES} pages reached"))
+        report.unread[f"confluence:{page.page_id}"] = url
     for unresolved in linked.unresolved:
         report.not_read.append((unresolved.url, unresolved.reason))
     return report
@@ -214,4 +254,5 @@ __all__ = [
     "extraction_warning",
     "follow_confluence_links",
     "is_linked_page",
+    "linked_in_extraction",
 ]

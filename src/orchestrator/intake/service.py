@@ -205,6 +205,18 @@ class BacklogService:
         self._labels = issue_labels
         self._epic_issue_type = epic_issue_type
 
+    @property
+    def uses_the_extractor(self) -> bool:
+        """Whether ``analyze`` derives intents through the budgeted LLM extractor. ``False`` for a
+        structured source (OpenSpec), parsed verbatim: no model, no budget, so nothing to report
+        as cut (N14 review)."""
+        return not isinstance(self._source, StructuredIntentSource)
+
+    @property
+    def follows_links(self) -> bool:
+        """Whether the source can hold links `--follow-links` follows — Jira's adapters can."""
+        return hasattr(self._source, "linked_pages")
+
     async def fetch_source_documents(self, root_id: str, *, follow_links: bool = False) -> FetchTreeResult:
         """Just the source fetch — no LLM, no tracker. For read-only consumers
         (e.g. the investigation brief) that want the raw documents, not a backlog.

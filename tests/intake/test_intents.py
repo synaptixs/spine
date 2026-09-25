@@ -130,7 +130,7 @@ def test_the_fit_says_which_documents_reached_the_model() -> None:
         ("confluence:3", "dropped"),
         ("confluence:4", "dropped"),
     ]
-    assert fit.budget == 60_000 and not fit.complete
+    assert fit.budget == 60_000
 
 
 def test_the_fit_is_what_the_prompt_builder_sends() -> None:
@@ -153,4 +153,28 @@ def test_a_ticket_that_fits_reports_nothing_cut_and_empty_documents_are_not_sent
     fit = extraction_fit(
         [*_ticket_and_pages(1_000, 1_000, pages=2), SourceDocument(id="e", title="E", body="  ")]
     )
-    assert fit.complete and [d.id for d in fit.documents] == ["FIN-42", "confluence:0", "confluence:1"]
+    assert [(d.id, d.state) for d in fit.documents] == [
+        ("FIN-42", "full"),
+        ("confluence:0", "full"),
+        ("confluence:1", "full"),
+    ]
+
+
+def test_a_document_whose_body_never_reached_the_model_did_not_fit_even_if_its_heading_did() -> None:
+    """Review nit: cut inside the `# title (id=…)` line, the model saw a heading and no text."""
+    from orchestrator.intake.intents import fit_documents
+
+    docs = [
+        SourceDocument(id="A", title="A", body="a" * 100),
+        SourceDocument(id="B", title="B", body="b" * 100),
+    ]
+    fit = fit_documents(docs, budget=len("# A (id=A)\n" + "a" * 100) + 5)
+    assert [d.state for d in fit.documents] == ["full", "dropped"] and len(fit.chunks) == 2
+
+
+def test_a_budget_of_nothing_still_sends_the_first_heading_as_the_old_loop_did() -> None:
+    """Byte-for-byte with the loop it replaced, even at a budget no caller uses."""
+    from orchestrator.intake.intents import fit_documents
+
+    fit = fit_documents(_ticket_and_pages(10, 10, pages=1), budget=0)
+    assert fit.chunks == ("\n…[truncated]",) and [d.state for d in fit.documents] == ["dropped", "dropped"]

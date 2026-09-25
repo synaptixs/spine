@@ -930,6 +930,16 @@ def test_a_ticket_with_no_intent_id_journals_nothing(monkeypatch: pytest.MonkeyP
 # ---- what the spec was derived from (N14) --------------------------------------------------
 
 
+class _Overriding:
+    """A service whose answers to a few questions are overridden; everything else is the real one."""
+
+    def __init__(self, inner: Any, **answers: Any) -> None:
+        self._inner, self._answers = inner, answers
+
+    def __getattr__(self, name: str) -> Any:
+        return self._answers[name] if name in self._answers else getattr(self._inner, name)
+
+
 def _extracted_from(monkeypatch: pytest.MonkeyPatch, documents: list[Any]) -> None:
     """The real analysis, with the cached extraction's documents replaced by ``documents``."""
     import orchestrator.intake.cache as intake_cache
@@ -960,7 +970,7 @@ def test_follow_links_says_which_linked_pages_the_spec_was_derived_from(
     lines: list[str] = []
     _run(tmp_path, follow_links=True, log=lines.append)
     assert (
-        f"[intake] linked pages: followed — 3 read; 1 cut ({url}/0), "
+        f"[intake] linked pages: 3 in the spec's extraction — 1 cut ({url}/0), "
         f"2 did not fit the 60,000-char budget ({url}/1, {url}/2)"
     ) in lines
     assert any(
@@ -985,5 +995,46 @@ def test_without_follow_links_only_a_cut_ticket_is_worth_a_line(
 
     _extracted_from(monkeypatch, [SourceDocument(id="SPEC", title="SPEC", body="short")])
     lines.clear()
+    _run(tmp_path, log=lines.append)
+    assert not any("WARNING" in line for line in lines)
+
+
+def test_a_source_that_holds_no_links_says_so_rather_than_counting_none(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Review: autorun said "none in the spec's extraction" for a source that cannot hold links,
+    where `sdlc plan` says why nothing was followed."""
+    import orchestrator.intake.factory as factory
+    from orchestrator.intake.source import SourceDocument
+
+    _install(monkeypatch, tmp_path)
+    _extracted_from(monkeypatch, [SourceDocument(id="SPEC", title="SPEC", body="short")])
+    real = factory.build_service_for
+
+    def _no_links(*a: Any, **k: Any) -> Any:
+        return _Overriding(real(*a, **k), follows_links=False)
+
+    monkeypatch.setattr(factory, "build_service_for", _no_links)
+    lines: list[str] = []
+    _run(tmp_path, follow_links=True, log=lines.append)
+    assert "[intake] linked pages: not followed — links are followed only for Jira tickets" in lines
+
+
+def test_a_structured_source_warns_about_nothing_it_did_not_cut(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An OpenSpec change is parsed, not extracted: no model, no budget, nothing cut."""
+    import orchestrator.intake.factory as factory
+    from orchestrator.intake.source import SourceDocument
+
+    _install(monkeypatch, tmp_path)
+    _extracted_from(monkeypatch, [SourceDocument(id="SPEC", title="SPEC", body="t" * 70_000)])
+    real = factory.build_service_for
+
+    def _structured(*a: Any, **k: Any) -> Any:
+        return _Overriding(real(*a, **k), uses_the_extractor=False)
+
+    monkeypatch.setattr(factory, "build_service_for", _structured)
+    lines: list[str] = []
     _run(tmp_path, log=lines.append)
     assert not any("WARNING" in line for line in lines)

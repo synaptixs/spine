@@ -5,11 +5,15 @@ from __future__ import annotations
 import os
 from dataclasses import asdict
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 
 from ._common import _print
+
+if TYPE_CHECKING:
+    from orchestrator.intake.intents import PromptFit
+    from orchestrator.intake.source import FetchTreeResult
 
 sdlc_app = typer.Typer(
     help="Run the end-to-end SDLC pipeline: plan, approve, build, review, complete.", no_args_is_help=True
@@ -476,7 +480,9 @@ def _terminal_gate() -> Any:
     return gate
 
 
-async def _fetch_ticket_documents(source: str, *, follow_links: bool = False) -> tuple[list[Any], Any]:
+async def _fetch_ticket_documents(
+    source: str, *, follow_links: bool = False
+) -> tuple[list[Any], FetchTreeResult]:
     """The ticket's documents, fetched fresh and never analysed — what `source.txt` is built from.
 
     A source that cannot be read is an `ERROR` and exit 2, whatever failed underneath: a missing
@@ -512,19 +518,22 @@ async def _fetch_ticket_documents(source: str, *, follow_links: bool = False) ->
     return documents, fetched
 
 
-def _what_the_spec_saw(fetched: Any, extraction: Any) -> tuple[str, str]:
+def _what_the_spec_saw(
+    fetched: FetchTreeResult | None, extraction: PromptFit | None, *, hand_written: bool
+) -> tuple[str, str]:
     """The Linked pages line and the warning, from the fresh fetch and the extraction's fit.
 
-    ``extraction`` is ``None`` when the spec was hand-written: then the pages reached `source.txt`
-    and nothing else, and nothing was cut from a spec nobody extracted.
+    ``hand_written``: the pages reached `source.txt` and nothing else. ``extraction`` is ``None``
+    then, and also for a structured source the extractor never read — either way nothing was cut.
     """
     from orchestrator.intake.follow_links import extraction_warning
 
-    follow = getattr(fetched, "follow", None)
-    if follow is not None:
-        linked = follow.summary(extraction=extraction, spec_extracted=extraction is not None)
+    if fetched is None:
+        return "", ""
+    if fetched.follow is not None:
+        linked = fetched.follow.summary(extraction=extraction, spec_extracted=not hand_written)
     else:
-        linked = getattr(fetched, "linked_pages", "") or ""
+        linked = fetched.linked_pages
     return linked, extraction_warning(extraction) if extraction is not None else ""
 
 
@@ -838,8 +847,9 @@ def sdlc_plan(
         documents: list[Any] = []
         # The fresh fetch (for the Linked pages line) and the fit of what the spec was derived
         # from: they are different reads, and the header says what each holds (N14).
-        fetched: Any = None
-        extraction: Any = None
+        fetched: FetchTreeResult | None = None
+        extraction: PromptFit | None = None
+        hand_written = resolved is not None
         if resolved is not None and source:
             # `--spec` is the requirements; `--source` supplies only the ticket's own words, for
             # §8 to check the hand-written criteria against. So fetch, never analyse: the spec
@@ -905,7 +915,10 @@ def sdlc_plan(
             # the spec was derived from — not the fresh fetch, which may say something newer.
             from orchestrator.intake.intents import extraction_fit
 
-            extraction = extraction_fit(plan_result.documents)
+            # Only when the extractor ran: a structured source (OpenSpec) is parsed verbatim, with
+            # no model and no budget, so nothing in it was cut.
+            if getattr(service, "uses_the_extractor", True):
+                extraction = extraction_fit(plan_result.documents)
             if not resolved_type:
                 from orchestrator.intake.ticket_meta import resolve_ticket_meta
 
@@ -918,7 +931,7 @@ def sdlc_plan(
         from orchestrator.intake.source import document_text
 
         source_text = "\n\n".join(document_text(d) for d in documents)
-        linked, lost = _what_the_spec_saw(fetched, extraction)
+        linked, lost = _what_the_spec_saw(fetched, extraction, hand_written=hand_written)
         if lost:
             typer.echo(
                 f"WARNING: {lost} — source.txt still holds every word, "

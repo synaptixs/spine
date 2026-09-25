@@ -183,10 +183,6 @@ class PromptFit:
     documents: tuple[DocumentFit, ...]
     budget: int
 
-    @property
-    def complete(self) -> bool:
-        return all(d.state == "full" for d in self.documents)
-
     def state_of(self, doc_id: str) -> FitState | None:
         """``None`` when the document was not part of the extraction at all."""
         return next((d.state for d in self.documents if d.id == doc_id), None)
@@ -194,22 +190,27 @@ class PromptFit:
 
 def fit_documents(documents: list[SourceDocument], *, budget: int = _MAX_PROMPT_CHARS) -> PromptFit:
     """Lay ``documents`` into the prompt budget in order: whole while they fit, the next one cut
-    with ``…[truncated]``, and every one after that left out."""
+    with ``…[truncated]``, and every one after that left out — the loop `_build_user_message` ran
+    before N14, byte for byte. A document cut inside its own heading line is ``dropped``: the model
+    saw its title and none of its text."""
     chunks: list[str] = []
     fits: list[DocumentFit] = []
     remaining = budget
+    full = False
     for d in documents:
-        if remaining <= 0:
+        if full:
             fits.append(DocumentFit(d.id, d.title, d.url, "dropped"))
             continue
-        chunk = f"# {d.title} (id={d.id})\n{d.body}"
+        heading = f"# {d.title} (id={d.id})\n"
+        chunk = heading + d.body
         state: FitState = "full"
         if len(chunk) > remaining:
-            chunk = chunk[:remaining] + "\n…[truncated]"
-            state = "cut"
+            chunk = chunk[: max(remaining, 0)] + "\n…[truncated]"
+            state = "cut" if remaining > len(heading) else "dropped"
         chunks.append(chunk)
         fits.append(DocumentFit(d.id, d.title, d.url, state))
         remaining -= len(chunk)
+        full = remaining <= 0
     return PromptFit(chunks=tuple(chunks), documents=tuple(fits), budget=budget)
 
 

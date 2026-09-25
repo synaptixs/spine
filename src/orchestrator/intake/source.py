@@ -16,10 +16,7 @@ The caps keep one ingest from pulling an entire wiki.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol
-
-if TYPE_CHECKING:
-    from orchestrator.intake.follow_links import FollowReport
+from typing import Any, Protocol
 
 DEFAULT_MAX_DEPTH = 3
 DEFAULT_MAX_DOCS = 100
@@ -77,6 +74,16 @@ def document_text(doc: SourceDocument) -> str:
     return doc.full_body or doc.body
 
 
+class LinkedPagesReport(Protocol):
+    """What `--follow-links` read, unrendered: :class:`~orchestrator.intake.follow_links.FollowReport`.
+
+    A Protocol rather than an import, because `follow_links` imports this module — an import back,
+    even one only for type checking, is a cycle CodeQL reports (`py/cyclic-import`).
+    """
+
+    def summary(self, extraction: Any = None, *, spec_extracted: bool = True) -> str: ...
+
+
 @dataclass
 class FetchTreeResult:
     """Outcome of a tree walk: the documents + whether a cap was hit."""
@@ -88,7 +95,7 @@ class FetchTreeResult:
     linked_pages: str = ""
     #: The same, unrendered — for a caller that can also say what of each page the spec was
     #: derived from (`FollowReport.summary(extraction=…)`, N14). ``None`` when links were not followed.
-    follow: FollowReport | None = None
+    follow: LinkedPagesReport | None = None
 
 
 class SourceAdapter(Protocol):

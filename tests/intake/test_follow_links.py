@@ -378,3 +378,50 @@ def test_a_cut_ticket_is_noted_and_warned_about_and_a_ticket_that_fits_is_not() 
         "the spec was extracted from part of the source — "
         f"{_linked(0).url} cut, {_linked(1).url} and {_linked(2).url} did not fit the 60,000-char budget"
     )
+
+
+def _failed(i: int) -> tuple[str, str]:
+    return (_linked(i).url, "could not be read (HTTPError)")
+
+
+def test_a_page_that_fails_to_read_now_is_not_reported_as_unlinked() -> None:
+    """Review, both passes: a 403 today made the page "no longer linked" *and* "not read"."""
+    from orchestrator.intake.intents import extraction_fit
+
+    cached = extraction_fit([_ticket(), _linked(1), _linked(2)])
+    now = FollowReport(documents=[_linked(1)], not_read=[_failed(2)], unread={"confluence:2": _linked(2).url})
+    assert now.summary(extraction=cached) == (
+        "followed — 1 read, in the spec's extraction"
+        f"; 1 not read ({_linked(2).url}: could not be read (HTTPError)"
+        " — the cached spec was extracted with it)"
+    )
+
+
+def test_the_pages_a_spec_came_from_are_named_even_when_none_reads_now() -> None:
+    """Review: with nothing read now, the summary said "links no Confluence pages" or "0 read"
+    and never mentioned the pages the spec was derived from."""
+    from orchestrator.intake.intents import extraction_fit
+
+    cached = extraction_fit([_ticket(), _linked(1), _linked(2)])
+    one_gone_one_failing = FollowReport(not_read=[_failed(2)], unread={"confluence:2": _linked(2).url})
+    assert one_gone_one_failing.summary(extraction=cached) == (
+        f"followed — 0 read; 1 in the spec's extraction but no longer linked ({_linked(1).url})"
+        f"; 1 not read ({_linked(2).url}: could not be read (HTTPError)"
+        " — the cached spec was extracted with it)"
+    )
+    assert FollowReport().summary(extraction=cached) == (
+        "followed — 0 read; 2 in the spec's extraction but no longer linked "
+        f"({_linked(1).url}, {_linked(2).url})"
+    )
+    assert FollowReport().summary(extraction=extraction_fit([_ticket()])) == (
+        "followed — the ticket links no Confluence pages"
+    )
+
+
+async def test_a_page_that_is_not_read_keeps_its_id_so_the_spec_can_be_checked_against_it() -> None:
+    linked = LinkedPages(pages=[_page(1), _page(2)])
+    report = await follow_confluence_links(
+        _Ticket(linked), "FIN-42", reader_factory=lambda: _Wiki(broken={"2"})
+    )
+    assert [d.id for d in report.documents] == ["confluence:1"]
+    assert report.unread == {"confluence:2": report.not_read[0][0]}
