@@ -565,6 +565,72 @@ async def test_two_attachments_with_one_name_are_both_named_not_one_read() -> No
     assert doc.body.count(f"spec.md ({same})") == 2
 
 
+async def test_past_the_full_read_bound_mcp_reads_what_rest_reads() -> None:
+    """N15 (SSPN-59): both transports share the full read and the bounded view, so a ticket past the
+    twenty-file bound reads the same over either — the ten-char 21st file included."""
+    import base64
+
+    import httpx
+
+    from orchestrator.intake.jira import JiraConfig
+    from orchestrator.intake.jira_source import _MAX_ATTACHMENTS_READ_IN_FULL, JiraSourceAdapter
+
+    texts = ["a" * 8_000, "b" * 8_000, "c" * 2_000, "d" * 1_960] + ["e" * 500] * 16 + ["tiny note!"]
+    files = {f"f{i:02d}.txt": t.encode() for i, t in enumerate(texts)}
+    rest_fields: dict[str, Any] = {
+        "summary": "T",
+        "issuetype": {"name": "Story"},
+        "status": {"name": "To Do"},
+        "attachment": [
+            {"filename": n, "size": len(b), "content": f"https://x.atlassian.net/att/{n}"}
+            for n, b in files.items()
+        ],
+    }
+
+    class _PastTheBound(_RichJira):
+        async def call_tool(self, name: str, arguments: dict[str, Any]) -> MCPToolResult:
+            self.calls.append((name, arguments))
+            if name == "jira_get_issue":
+                payload = {
+                    "key": "FIN-59",
+                    "summary": "T",
+                    "issue_type": {"name": "Story"},
+                    "status": {"name": "To Do"},
+                    "attachments": [
+                        {"filename": a["filename"], "size": a["size"], "url": a["content"]}
+                        for a in rest_fields["attachment"]
+                    ],
+                }
+                return MCPToolResult(text=json.dumps(payload))
+            parts = [json.dumps({"success": True, "issue_key": "FIN-59", "total": len(files)})]
+            parts += [
+                json.dumps({"filename": n, "encoding": "base64", "content": base64.b64encode(b).decode()})
+                for n, b in files.items()
+            ]
+            return MCPToolResult(text="".join(parts))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/issue/FIN-59"):
+            return httpx.Response(200, json={"key": "FIN-59", "fields": rest_fields})
+        return httpx.Response(200, content=files[request.url.path.rsplit("/", 1)[1]])
+
+    mcp_doc = await _rich_adapter(_PastTheBound()).fetch_document("FIN-59")
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://x.atlassian.net")
+    rest = JiraSourceAdapter(
+        JiraConfig(base_url="https://x.atlassian.net", email="e", api_token="t"), http_client=http
+    )
+    async with http:
+        rest_doc = await rest.fetch_document("FIN-59")
+
+    def attachments(text: str) -> str:
+        return text[text.index("Attachments read") :]
+
+    assert attachments(mcp_doc.body) == attachments(rest_doc.body)
+    assert attachments(mcp_doc.full_body) == attachments(rest_doc.full_body)
+    assert "--- f20.txt ---\ntiny note!" in mcp_doc.body
+    assert f"bound of {_MAX_ATTACHMENTS_READ_IN_FULL} reached" not in mcp_doc.body
+
+
 async def test_a_server_without_the_download_tool_names_each_attachment_with_why() -> None:
     doc = await _rich_adapter(_RichJira(), allow=("jira_get_issue",)).fetch_document("FIN-42")
     assert "mapping.md (the MCP server offers no attachment download (PermissionError))" in doc.body

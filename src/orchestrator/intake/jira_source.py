@@ -88,8 +88,9 @@ _MAX_ATTACHMENTS_TOTAL_CHARS = 20_000
 #: The *full* view (``SourceDocument.full_body``) has no character cap — it is what §8 checks a
 #: plan's criteria against, and a cut there is a criterion that reads as unstated. It is still
 #: bounded (invariant 7): a ticket with two hundred log files attached must not stall a plan,
-#: so at most this many files are read, the byte cap above still applies to each, and every
-#: file past the bound is named with why. The bounded view above is derived from the same
+#: so at most this many files are read — plus any the extractor's bounded view still needs, so
+#: its input never depends on this bound (N15) — the byte cap above still applies to each, and
+#: every file past the bound is named with why. The bounded view above is derived from the same
 #: reads, so no attachment is downloaded twice.
 _MAX_ATTACHMENTS_READ_IN_FULL = 20
 
@@ -442,6 +443,20 @@ class _UnreadableError(Exception):
     """An attachment the transport cannot supply; the message is the reason it is named with."""
 
 
+def _bounded_view_open(
+    seen: list[dict[str, Any]], full: dict[str, tuple[str, str]], not_read: dict[str, str]
+) -> bool:
+    """Could the extractor's bounded view still take a file after the attachments ``seen`` so far?
+
+    Asked of :func:`_bound_attachments` itself, so the 3.44.0 arithmetic lives in one place: open
+    while fewer than ``_MAX_ATTACHMENTS`` files are read and the budget is not spent. Once closed it
+    never reopens — each later attachment only adds to the files read and the characters used.
+    """
+    read, _ = _bound_attachments({"attachment": seen}, full, not_read)
+    used = sum(len(text) for _, text in read.values())
+    return len(read) < _MAX_ATTACHMENTS and used < _MAX_ATTACHMENTS_TOTAL_CHARS
+
+
 async def read_attachments_in_full(
     fields: dict[str, Any], fetch: Callable[[dict[str, Any]], Awaitable[bytes]]
 ) -> tuple[dict[str, tuple[str, str]], dict[str, str]]:
@@ -452,6 +467,9 @@ async def read_attachments_in_full(
     these reads, so each file is downloaded at most once. Still bounded, each reason stated:
     at most ``_MAX_ATTACHMENTS_READ_IN_FULL`` files, none over ``_MAX_ATTACHMENT_BYTES``
     (checked against the record's ``size`` before any request, and by ``fetch`` on the bytes).
+    Past that bound a file is still read while the bounded view could take it — 3.44.0, which
+    had no such bound, read it, and the extractor's input must not move (N15) — so the full view
+    never holds less than the bounded one, and may then hold more than the bound.
     Any failure — HTTP, a reader that yields nothing, an unreadable file, a record with a
     malformed ``size`` — leaves that attachment named with why. Never raises.
 
@@ -463,6 +481,7 @@ async def read_attachments_in_full(
 
     read: dict[str, tuple[str, str]] = {}
     unread: dict[str, str] = {}
+    seen: list[dict[str, Any]] = []
     for a in fields.get("attachment") or []:
         if not isinstance(a, dict):
             continue
@@ -471,6 +490,7 @@ async def read_attachments_in_full(
         url = str(a.get("content") or "")
         if not name or not url:
             continue
+        seen.append(a)
         if Path(name).suffix.lower() in MEDIA_SUFFIXES:
             # `is_doc_file` claims images too, because `pkg.media` registers a reader for
             # them — one that reads a *committed* transcript artifact, which a downloaded
@@ -480,7 +500,7 @@ async def read_attachments_in_full(
         if not is_doc_file(Path(name)):
             unread[key] = "no reader for this type"
             continue
-        if len(read) >= _MAX_ATTACHMENTS_READ_IN_FULL:
+        if len(read) >= _MAX_ATTACHMENTS_READ_IN_FULL and not _bounded_view_open(seen[:-1], read, unread):
             unread[key] = f"bound of {_MAX_ATTACHMENTS_READ_IN_FULL} reached"
             continue
         try:

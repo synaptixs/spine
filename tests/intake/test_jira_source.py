@@ -639,6 +639,45 @@ async def test_the_extractors_view_never_names_the_full_read_bound(route: str) -
     assert f"bound of {_MAX_ATTACHMENTS_READ_IN_FULL} reached" not in doc.body
 
 
+async def test_past_the_bound_a_file_the_extractor_still_has_room_for_is_still_fetched() -> None:
+    """Route A: after twenty files read in full the bounded view still has 40 chars free, so the
+    ten-char 21st file is downloaded and read — as 3.44.0 read it — and the full view carries it too
+    (D2: the full view is never less than what the extractor read)."""
+    doc, mock = await _past_the_bound("A")
+
+    assert f"Attachments read (5, 19,970 of {_MAX_ATTACHMENTS_TOTAL_CHARS:,} chars):" in doc.body
+    assert "--- f20.txt ---\ntiny note!" in doc.body
+    assert "Attachments read in full (21):" in doc.full_body
+    assert len(mock.downloaded) == 21
+
+
+async def test_once_the_extractors_view_is_full_the_full_read_bound_holds() -> None:
+    """Route D: the budget is spent exactly, so nothing past the twentieth file can reach the
+    extractor — and nothing past it is downloaded."""
+    from orchestrator.intake.jira_source import _MAX_ATTACHMENTS_READ_IN_FULL
+
+    doc, mock = await _past_the_bound("D")
+
+    bound = f"bound of {_MAX_ATTACHMENTS_READ_IN_FULL} reached"
+    assert f"Attachments read in full ({_MAX_ATTACHMENTS_READ_IN_FULL}):" in doc.full_body
+    assert f"f20.txt ({bound}), f21.txt ({bound})" in doc.full_body
+    assert len(mock.downloaded) == _MAX_ATTACHMENTS_READ_IN_FULL
+
+
+@pytest.mark.parametrize("route", sorted(_PAST_THE_BOUND))
+async def test_the_full_view_carries_every_file_the_extractor_read(route: str) -> None:
+    """§8 checks criteria against the full view: it must never have read less than the extractor."""
+    import re
+
+    doc, mock = await _past_the_bound(route)
+
+    def read_in(text: str) -> set[str]:
+        return set(re.findall(r"^--- (f\d\d\.txt) ---$", text, flags=re.MULTILINE))
+
+    assert read_in(doc.body) <= read_in(doc.full_body)
+    assert len(mock.downloaded) == len(set(mock.downloaded))  # each file once, for both views
+
+
 async def test_nothing_cut_means_no_second_copy() -> None:
     from orchestrator.intake.source import document_text
 
