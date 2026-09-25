@@ -317,3 +317,61 @@ async def test_the_llm_reads_attachments_3_44_never_downloaded_exactly_as_it_did
 @pytest.mark.parametrize("case", sorted(_FIN43_CASES))
 async def test_the_intake_cache_stores_attachments_3_44_never_downloaded_exactly_as_it_did(case: str) -> None:
     _check(f"fin43-{case}-cache.json", _cached([await _fin43_document(case)]))
+
+
+# ---- past the full-read bound (N15, SSPN-59) ------------------------------------------------------
+# Two tickets with more than twenty readable attachments. The full read stops at twenty files; the
+# extractor's bounded view is derived from it and must still read what 3.44.0 read, which had no
+# such bound. Route A is the ticket's: four files leave 40 chars of the 20,000-char budget, sixteen
+# more are each too long to fit even their cut marker, and the 21st is ten characters. Route C is
+# the likelier one: a budget cut that lands on spaces is shortened by `rstrip`, leaving a few
+# characters of budget, so every later readable file is named with 3.44.0's reason.
+_PAST_THE_BOUND_ROUTES: dict[str, list[str]] = {
+    "FIN-51": ["a" * 8_000, "b" * 8_000, "c" * 2_000, "d" * 1_960] + ["e" * 500] * 16 + ["tiny note!"],
+    "FIN-52": ["a" * 9_000, "b" * 9_000, "w" * 3_900 + " " * 60 + "tail" * 2_000] + ["x" * 300] * 19,
+}
+
+
+async def _past_the_bound_document(key: str) -> SourceDocument:
+    texts = _PAST_THE_BOUND_ROUTES[key]
+    fields = {
+        "summary": f"{len(texts)} attachments",
+        "issuetype": {"name": "Story"},
+        "status": {"name": "To Do"},
+        "attachment": [
+            {
+                "id": str(i),
+                "filename": f"f{i:02d}.txt",
+                "size": len(text),
+                "content": f"https://{_HOST}/rest/api/3/attachment/content/{i}",
+            }
+            for i, text in enumerate(texts)
+        ],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith(f"/issue/{key}"):
+            return httpx.Response(200, json={"id": key, "key": key, "fields": fields})
+        if "/attachment/content/" in path:
+            return httpx.Response(200, content=texts[int(path.rsplit("/", 1)[1])].encode())
+        return httpx.Response(404, json={})
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url=f"https://{_HOST}")
+    adapter = JiraSourceAdapter(
+        JiraConfig(base_url=f"https://{_HOST}", email="e", api_token="t"), http_client=http
+    )
+    async with http:
+        return await adapter.fetch_document(key)
+
+
+async def _past_the_bound_documents() -> list[SourceDocument]:
+    return [await _past_the_bound_document(key) for key in _PAST_THE_BOUND_ROUTES]
+
+
+async def test_past_the_full_read_bound_the_llm_reads_exactly_what_3_44_did() -> None:
+    """N15 (SSPN-59). This golden was rendered by 3.44.0 itself — the code in a `git worktree` of
+    `v3.44.0` running this module's `_past_the_bound_documents` and `_llm_message` — never by the
+    code under test. Never regenerate it with ``SPINE_REGEN_GOLDEN=1``: a golden the fixed code
+    wrote proves only that the code agrees with itself."""
+    _check("past-the-full-read-bound-llm-message.txt", _llm_message(await _past_the_bound_documents()))

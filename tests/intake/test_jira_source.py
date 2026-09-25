@@ -605,6 +605,40 @@ async def test_the_full_view_is_bounded_too_and_names_what_it_left() -> None:
     assert len(mock.downloaded) == _MAX_ATTACHMENTS_READ_IN_FULL
 
 
+# ---- past the full-read bound (N15, SSPN-59) ---------------------------------------------------
+# More than twenty readable attachments. The full read stops at twenty; the extractor's bounded view
+# is derived from it and must read what 3.44.0 did, which had no such bound. A: the ticket's route —
+# 40 chars of budget left and a 10-char 21st file. B: the same with a 5,000-char 21st file, which
+# 3.44.0 names by the budget. C: a budget cut on spaces, shortened by `rstrip`, leaves a few chars of
+# budget open. D: the control — a cut on a letter spends the budget exactly.
+_PAST_THE_BOUND: dict[str, list[str]] = {
+    "A": ["a" * 8_000, "b" * 8_000, "c" * 2_000, "d" * 1_960] + ["e" * 500] * 16 + ["tiny note!"],
+    "B": ["a" * 8_000, "b" * 8_000, "c" * 2_000, "d" * 1_960] + ["e" * 500] * 16 + ["z" * 5_000],
+    "C": ["a" * 9_000, "b" * 9_000, "w" * 3_900 + " " * 60 + "tail" * 2_000] + ["x" * 300] * 19,
+    "D": ["a" * 9_000, "b" * 9_000, "c" * 9_000] + ["x" * 300] * 19,
+}
+
+
+async def _past_the_bound(route: str) -> tuple[Any, _JiraMock]:
+    texts = _PAST_THE_BOUND[route]
+    fields = _fields("T")
+    fields["attachment"] = [_attachment(f"f{i:02d}.txt", str(i), size=len(t)) for i, t in enumerate(texts)]
+    mock = _JiraMock({"K-1": fields}, attachments={str(i): t.encode() for i, t in enumerate(texts)})
+    adapter, http = _adapter(mock)
+    async with http:
+        doc = await adapter.fetch_document("K-1")
+    return doc, mock
+
+
+@pytest.mark.parametrize("route", sorted(_PAST_THE_BOUND))
+async def test_the_extractors_view_never_names_the_full_read_bound(route: str) -> None:
+    """3.44.0 could not write this reason, so in the extractor's view it is exactly the drift."""
+    from orchestrator.intake.jira_source import _MAX_ATTACHMENTS_READ_IN_FULL
+
+    doc, _ = await _past_the_bound(route)
+    assert f"bound of {_MAX_ATTACHMENTS_READ_IN_FULL} reached" not in doc.body
+
+
 async def test_nothing_cut_means_no_second_copy() -> None:
     from orchestrator.intake.source import document_text
 
