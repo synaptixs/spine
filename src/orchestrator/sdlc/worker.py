@@ -72,9 +72,12 @@ def build_run_budget() -> RunBudget:
 
     Defaults to $25 per run — generous for a normal feature, fatal for a
     runaway loop (run #6's credit burn is the motivating case). Set ``0`` to
-    disable enforcement (spend is still tracked).
+    disable enforcement (spend is still tracked). The same reader serves
+    ``sdlc feature`` and ``sdlc autorun`` (B14).
     """
-    return RunBudget(max_cost_usd=float(os.getenv("SDLC_RUN_BUDGET_USD", "25")))
+    from orchestrator.core.llm import run_budget_from_env
+
+    return run_budget_from_env()
 
 
 def _build_llm(budget: RunBudget) -> LLMClient:
