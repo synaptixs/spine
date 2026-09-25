@@ -87,6 +87,10 @@ class FeatureRunResult:
     # them. Empty on a run whose coverage stands. Rendered into the journey, never silent: a
     # withdrawn test means the change is *less* proven than a green suite implies.
     coverage_withdrawn: list[str] = field(default_factory=list)
+    # With ``publish=False`` on a live run: the step that pushes, opens the PR and moves the
+    # ticket, handed back so a supervisor can review first (B13). ``await publish(draft=…,
+    # note=…)`` returns the PR's URL. None when the run published itself, or is safe.
+    publish: Callable[..., Awaitable[str]] | None = None
 
 
 def _pr_body(spec: dict[str, Any], withdrawn: list[str]) -> str:
@@ -766,8 +770,13 @@ async def run_feature(
     refresh: bool = False,
     spec: dict[str, Any] | None = None,
     log: Callable[[str], None] | None = None,
+    publish: bool = True,
 ) -> FeatureRunResult:
     """Build one intent end to end. See module docstring for safe vs live.
+
+    ``publish=False`` builds, tests and commits, but on a live run does **not** push, open the
+    PR or move the ticket: the result carries that step as ``publish`` for a supervisor to call
+    once it has reviewed the change (`sdlc autorun`, B13). Every other caller keeps the default.
 
     ``spec`` injects a pre-built spec (title / summary / acceptance_criteria) and
     skips intake — used by Spine remediation (drift → governed run from a task spec).
@@ -1226,31 +1235,53 @@ async def run_feature(
     title = f"{issue_key}: {spec['title']}"
     body = _pr_body(spec, withdrawn)
     pr_url: str | None = None
+    publish_step: Callable[..., Awaitable[str]] | None = None
     if live:
-        # Mark in-progress and drop BACKLOG.md into the worktree BEFORE open_pr so
-        # the PR carries the updated progress ledger (the "both locations" rule).
-        set_progress(source, spec["intent_id"], status="in_progress", issue_key=issue_key)
-        if plan is not None:
-            write_backlog(path / local_backlog.name, source, plan, load_progress(source))
-        # Without an explicit base, ``gh`` targets the repo's *default* branch — which
-        # for a repo whose contributing guide says "work off develop, never commit to
-        # main" is precisely the wrong branch, with no way to say so from the CLI.
-        pr = await GhPRAdapter(
-            commit_prefix=f"{issue_key}: ",
-            base_branch=base_branch or os.getenv("SDLC_PR_BASE") or None,
-        ).open_pr(issue_key=issue_key, path=str(path), branch=branch, title=title, body=body)
-        pr_url = pr.url
-        emit(f"[pr] opened: {pr.url}")
-        # Now that the PR URL is known, record it and refresh the local ledger.
-        set_progress(source, spec["intent_id"], status="in_progress", issue_key=issue_key, pr_url=pr.url)
-        if plan is not None:
-            write_backlog(local_backlog, source, plan, load_progress(source))
-        await jira.comment_issue(issue_key, f"PR opened for this story: {pr.url}")
-        emit(f"[jira] commented PR link on {issue_key}")
-        # The work is done and waiting on a human. Done is never the agent's to set —
-        # that is `sdlc complete`, after someone has actually looked at the change.
-        await move("In Review")
-        await log_run_cost("PASSED")
+
+        async def _publish(*, draft: bool = False, note: str = "") -> str:
+            # Mark in-progress and drop BACKLOG.md into the worktree BEFORE open_pr so
+            # the PR carries the updated progress ledger (the "both locations" rule).
+            set_progress(source, spec["intent_id"], status="in_progress", issue_key=issue_key)
+            if plan is not None:
+                write_backlog(path / local_backlog.name, source, plan, load_progress(source))
+            # Without an explicit base, ``gh`` targets the repo's *default* branch — which
+            # for a repo whose contributing guide says "work off develop, never commit to
+            # main" is precisely the wrong branch, with no way to say so from the CLI.
+            pr = await GhPRAdapter(
+                commit_prefix=f"{issue_key}: ",
+                base_branch=base_branch or os.getenv("SDLC_PR_BASE") or None,
+            ).open_pr(
+                issue_key=issue_key,
+                path=str(path),
+                branch=branch,
+                title=title,
+                body=f"{body}\n\n{note}" if note else body,
+                draft=draft,
+            )
+            emit(f"[pr] opened{' as a draft' if draft else ''}: {pr.url}")
+            # Now that the PR URL is known, record it and refresh the local ledger.
+            set_progress(source, spec["intent_id"], status="in_progress", issue_key=issue_key, pr_url=pr.url)
+            if plan is not None:
+                write_backlog(local_backlog, source, plan, load_progress(source))
+            await jira.comment_issue(
+                issue_key, f"{'Draft PR' if draft else 'PR'} opened for this story: {pr.url}"
+            )
+            emit(f"[jira] commented PR link on {issue_key}")
+            if not draft:
+                # The work is done and waiting on a human. Done is never the agent's to set —
+                # that is `sdlc complete`, after someone has actually looked at the change. A
+                # draft is not waiting on a reviewer: the ticket stays In Progress.
+                await move("In Review")
+            await log_run_cost("PASSED")
+            return str(pr.url)
+
+        if publish:
+            pr_url = await _publish()
+        else:
+            # The supervisor reviews first. Commit the build so its review sees a clean base.
+            await _local_commit(path, title)
+            emit("[commit] committed locally — the PR opens after the review")
+            publish_step = _publish
     else:
         await _local_commit(path, title)
         emit("[commit] committed locally (safe mode — no push/PR)")
@@ -1270,7 +1301,13 @@ async def run_feature(
         codegen=codegen,
         tests=runner,
         coverage_withdrawn=withdrawn,
+        publish=publish_step,
     )
 
 
-__all__ = ["FeatureRunError", "FeatureRunResult", "run_feature"]
+async def commit_worktree(path: Path | str, message: str) -> None:
+    """Stage and commit everything in a worktree — the review loop's fixes, for `autorun`."""
+    await _local_commit(Path(path), message)
+
+
+__all__ = ["FeatureRunError", "FeatureRunResult", "commit_worktree", "run_feature"]
