@@ -92,7 +92,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/intake/factory.py:167`](../../src/orchestrator/intake/factory.py#L167)
 
 - **Called by** (0 production · 1 test): [`test_jira_builder_unconfigured_raises`](../../tests/intake/test_jira_source.py#L344)
-- **Calls** (8): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L80), [`JiraSourceAdapter`](../../src/orchestrator/intake/jira_source.py#L514), [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L229), [`_build_service`](../../src/orchestrator/intake/factory.py#L40), [`_with_server`](../../src/orchestrator/intake/factory.py#L100), [`for_jira`](../../src/orchestrator/intake/mcp_source.py#L99), [`mcp_server_for`](../../src/orchestrator/intake/factory.py#L61)
+- **Calls** (8): [`IntakeNotConfiguredError`](../../src/orchestrator/intake/factory.py#L36), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L80), [`JiraSourceAdapter`](../../src/orchestrator/intake/jira_source.py#L563), [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L229), [`_build_service`](../../src/orchestrator/intake/factory.py#L40), [`_with_server`](../../src/orchestrator/intake/factory.py#L100), [`for_jira`](../../src/orchestrator/intake/mcp_source.py#L99), [`mcp_server_for`](../../src/orchestrator/intake/factory.py#L61)
 
 ### `build_mcp_confluence_service`
 

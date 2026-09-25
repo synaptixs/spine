@@ -51,7 +51,7 @@ _Everything imported from outside this codebase, by how often — standard libra
 - `collections.abc` — imported 167 times
 - `json` — imported 158 times
 - `os` — imported 120 times
-- `re` — imported 93 times
-- `httpx` — imported 87 times
+- `re` — imported 94 times
+- `httpx` — imported 88 times
 
 _Top 10 of 229._
