@@ -45,6 +45,9 @@ def _worktree(tmp_path: Path) -> Path:
     wt = tmp_path / "wt"
     wt.mkdir()
     _git(wt, "init", "-q")
+    # A repo-local identity: CI's runner has none, and the review-fix commit uses plain `git commit`.
+    _git(wt, "config", "user.email", "t@e")
+    _git(wt, "config", "user.name", "t")
     _git(wt, "-c", "user.email=t@e", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "base")
     (wt / "x.py").write_text("def f():\n    return 1\n", encoding="utf-8")
     _git(wt, "add", "-A")
