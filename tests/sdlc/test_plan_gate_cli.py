@@ -665,3 +665,209 @@ def test_a_structured_source_is_parsed_not_extracted_so_nothing_is_reported_cut(
     )
     assert result.exit_code == 0, result.output
     assert "WARNING" not in result.output and "**Extraction:**" not in _document(checkout)
+
+
+# ---- `sdlc plan --refresh` (B37, D1–D4) ------------------------------------------------------
+
+
+class _Extractor:
+    """A ticket intake extracts, through the real intake cache: `analyze` is the model call, and
+    what it returns is whatever the test set last — so a re-extraction can move the spec or not."""
+
+    def __init__(self) -> None:
+        self.calls: list[bool] = []
+        self.intent = {False: "intent-cart-total", True: "intent-cart-total"}
+        self.criteria = {False: ["Cart.total skips unpriced skus"], True: ["Cart.total skips unpriced skus"]}
+
+    async def analyze(self, root_id: str, *, follow_links: bool = False) -> Any:
+        from orchestrator.intake.intents import Intent
+        from orchestrator.intake.service import BacklogPlan
+        from orchestrator.intake.source import SourceDocument
+        from orchestrator.intake.specs import FeatureSpec
+
+        self.calls.append(follow_links)
+        iid, criteria = self.intent[follow_links], list(self.criteria[follow_links])
+        title = "Cart.total raises KeyError for an unknown sku"
+        return BacklogPlan(
+            documents=[SourceDocument(id=root_id, title=root_id, body="the ticket")],
+            intents=[Intent(id=iid, title=title, description="d", acceptance_criteria=criteria)],
+            specs=[FeatureSpec(intent_id=iid, title=title, acceptance_criteria=criteria)],
+        )
+
+    async def fetch_source_documents(self, root_id: str, *, follow_links: bool = False) -> Any:
+        from orchestrator.intake.source import FetchTreeResult, SourceDocument
+
+        return FetchTreeResult(documents=[SourceDocument(id=root_id, title=root_id, body="the ticket")])
+
+
+@pytest.fixture
+def extractor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Extractor:
+    service = _Extractor()
+    monkeypatch.setenv("ORCHESTRATOR_INTAKE_CACHE_DIR", str(tmp_path / "intake-cache"))
+    monkeypatch.setattr("orchestrator.intake.factory.build_service_for", lambda *_a, **_k: service)
+    return service
+
+
+def _plan_source(root: Path, *extra: str) -> Any:
+    return CliRunner().invoke(
+        app, ["sdlc", "plan", "--source", "jira://PROJ-42", "--path", str(root), "--quiet", *extra]
+    )
+
+
+def _approve(root: Path, intent: str = "intent-cart-total") -> None:
+    approved = CliRunner().invoke(app, ["sdlc", "approve", intent, "--path", str(root), "--by", "reviewer"])
+    assert approved.exit_code == 0, approved.output
+
+
+def _cached_criteria(*, follow_links: bool) -> list[str]:
+    from orchestrator.intake.cache import FOLLOW_LINKS, load_cached_plan
+
+    plan = load_cached_plan("jira://PROJ-42", variant=FOLLOW_LINKS if follow_links else "")
+    assert plan is not None
+    return list(plan.specs[0].acceptance_criteria)
+
+
+def _build_doc(root: Path, intent: str = "intent-cart-total") -> str:
+    return (root / ".spine" / "plans" / f"{intent}-build.md").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("follow", [True, False])
+def test_refresh_re_extracts_only_the_entry_its_flags_select(
+    follow: bool, checkout: Path, extractor: _Extractor
+) -> None:
+    """B37: nothing re-extracted a `--follow-links` spec — `ingest --refresh` rewrote the flag-off
+    entry and left the variant as it was. D3: the entry the flags select, and only that one."""
+    links = ["--follow-links"] if follow else []
+    assert _plan_source(checkout).exit_code == 0
+    assert _plan_source(checkout, "--follow-links").exit_code == 0
+    extractor.criteria[follow] = ["Cart.total skips unpriced skus", "and logs the sku"]
+
+    result = _plan_source(checkout, "--refresh", *links)
+
+    assert result.exit_code == 0, result.output
+    assert extractor.calls == [False, True, follow]
+    assert _cached_criteria(follow_links=follow) == ["Cart.total skips unpriced skus", "and logs the sku"]
+    assert _cached_criteria(follow_links=not follow) == ["Cart.total skips unpriced skus"]
+    assert "and logs the sku" in _build_doc(checkout)
+
+
+def test_refresh_with_a_hand_written_spec_is_refused(
+    checkout: Path, tmp_path: Path, extractor: _Extractor
+) -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "sdlc",
+            "plan",
+            "--spec",
+            str(_spec_file(tmp_path)),
+            "--path",
+            str(checkout),
+            "--quiet",
+            "--refresh",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "--refresh" in result.output and "--spec" in result.output
+    assert extractor.calls == []
+
+
+def test_a_refresh_that_changes_an_approved_spec_says_so_and_the_gate_refuses(
+    checkout: Path, extractor: _Extractor
+) -> None:
+    """D4(a): the plan is re-rendered (its header says stale) and a WARNING names the approver,
+    that autorun parks with exit 6, and that the cache is shared with other checkouts."""
+    from orchestrator.sdlc.builddoc import PlanNotApprovedError, require_approved_plan
+
+    assert _plan_source(checkout, "--follow-links").exit_code == 0
+    _approve(checkout)
+    extractor.criteria[True] = ["Cart.total skips unpriced skus", "and logs the sku"]
+
+    result = _plan_source(checkout, "--refresh", "--follow-links")
+
+    assert result.exit_code == 0, result.output
+    assert "**stale** — approved by reviewer" in _build_doc(checkout)
+    warning = next(line for line in result.output.splitlines() if line.startswith("WARNING:"))
+    assert "changed the spec of intent-cart-total that reviewer approved" in warning
+    assert "exit 6" in warning and "sdlc approve intent-cart-total" in warning
+    assert "shared" in warning
+    from orchestrator.intake.cache import FOLLOW_LINKS, load_cached_plan
+
+    fresh = load_cached_plan("jira://PROJ-42", variant=FOLLOW_LINKS)
+    assert fresh is not None
+    with pytest.raises(PlanNotApprovedError, match="changed since"):
+        asyncio.run(require_approved_plan(fresh.specs[0].model_dump(), root=checkout))
+
+
+def test_a_refresh_that_leaves_the_spec_as_it_was_warns_nothing(
+    checkout: Path, extractor: _Extractor
+) -> None:
+    """The warning compares the spec before and after, never the digest — a re-extraction that
+    returns the same spec stales nothing and says nothing."""
+    assert _plan_source(checkout).exit_code == 0
+    _approve(checkout)
+
+    result = _plan_source(checkout, "--refresh")
+
+    assert result.exit_code == 0, result.output
+    assert extractor.calls == [False, False]
+    assert "WARNING" not in result.output
+    assert "**approved** by reviewer" in _build_doc(checkout)
+
+
+def test_a_refresh_that_changes_an_unapproved_spec_warns_nothing(
+    checkout: Path, extractor: _Extractor
+) -> None:
+    assert _plan_source(checkout).exit_code == 0
+    extractor.criteria[False] = ["something else entirely"]
+
+    result = _plan_source(checkout, "--refresh")
+
+    assert result.exit_code == 0, result.output
+    assert "WARNING" not in result.output
+    assert "something else entirely" in _build_doc(checkout)
+
+
+def test_a_refresh_that_renames_the_pinned_intent_exits_3_naming_it(
+    checkout: Path, extractor: _Extractor
+) -> None:
+    """Intent ids come from the model's titles, so a re-extraction can rename the one `--intent`
+    pins; today's exit 3, saying why."""
+    assert _plan_source(checkout, "--intent", "intent-cart-total").exit_code == 0
+    extractor.intent[False] = "intent-cart-total-skips-unpriced"
+
+    result = _plan_source(checkout, "--refresh", "--intent", "intent-cart-total")
+
+    assert result.exit_code == 3
+    assert "'intent-cart-total' not found" in result.output
+    assert "intent-cart-total-skips-unpriced" in result.output
+    assert "re-extraction renamed or dropped it" in result.output
+
+
+def test_a_refresh_that_renames_an_approved_intent_warns_naming_it(
+    checkout: Path, extractor: _Extractor
+) -> None:
+    assert _plan_source(checkout).exit_code == 0
+    _approve(checkout)
+    extractor.intent[False] = "intent-cart-total-skips-unpriced"
+
+    result = _plan_source(checkout, "--refresh")
+
+    assert result.exit_code == 0, result.output
+    warning = next(line for line in result.output.splitlines() if line.startswith("WARNING:"))
+    assert "renamed or dropped intent-cart-total, which reviewer approved" in warning
+    assert "intent-cart-total-skips-unpriced" in warning and "exit 6" in warning
+
+
+def test_without_refresh_a_cached_spec_is_planned_as_before(checkout: Path, extractor: _Extractor) -> None:
+    """The flag is inert unless given: a warm cache makes no model call, and the document is the
+    one a refresh returning the same spec renders."""
+    assert _plan_source(checkout).exit_code == 0
+    first = _build_doc(checkout)
+    again = _plan_source(checkout)
+    assert again.exit_code == 0 and "WARNING" not in again.output
+    assert extractor.calls == [False]
+    assert _build_doc(checkout) == first
+    assert _plan_source(checkout, "--refresh").exit_code == 0
+    assert extractor.calls == [False, False]
+    assert _build_doc(checkout) == first

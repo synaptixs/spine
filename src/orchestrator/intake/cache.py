@@ -297,9 +297,12 @@ async def analyze_cached(
     if not refresh:
         cached = load_cached_plan(source_uri, cache_dir, variant=variant)
         if cached is not None:
+            # Named for the command that can act on it: `autorun` prints this and has no `--refresh`,
+            # and `ingest`'s re-extracts only the flag-off entry. `sdlc plan` reaches both (B37, D1).
+            how = "`sdlc plan --refresh --follow-links`" if follow_links else "`sdlc plan --refresh`"
             emit(
                 f"[intake] reusing cached backlog: {len(cached.intents)} intents for {source_uri} "
-                f"(--refresh to re-extract) — {cache_path(source_uri, cache_dir)}"
+                f"({how} re-extracts) — {cache_path(source_uri, cache_dir)}"
             )
             return cached
     plan = await (service.analyze(root_id, follow_links=True) if follow_links else service.analyze(root_id))

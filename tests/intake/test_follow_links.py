@@ -218,6 +218,18 @@ async def test_following_links_is_its_own_cache_entry_and_never_the_flag_off_one
     assert list(tmp_path.glob("*.json")) == [cache_path(_SOURCE, tmp_path)]  # one ticket, one file
 
 
+async def test_a_cache_hit_names_the_command_that_re_extracts_its_entry(tmp_path: Path) -> None:
+    """B37: the hint said `--refresh` to every caller, `autorun` included, which has no such flag;
+    only `sdlc plan --refresh` reaches both entries (D1)."""
+    svc, said = _Analyser(), list[str]()
+    for follow in (False, True):
+        await analyze_cached(svc, _SOURCE, cache_dir=tmp_path, follow_links=follow)  # type: ignore[arg-type]
+        await analyze_cached(svc, _SOURCE, cache_dir=tmp_path, follow_links=follow, log=said.append)  # type: ignore[arg-type]
+    assert "(`sdlc plan --refresh` re-extracts)" in said[0]
+    assert "(`sdlc plan --refresh --follow-links` re-extracts)" in said[1]
+    assert not any("(--refresh to re-extract)" in line for line in said)
+
+
 def test_progress_is_one_record_per_ticket_whichever_entry_it_was_planned_from(tmp_path: Path) -> None:
     save_plan(_SOURCE, _plan("with linked pages"), tmp_path, variant=FOLLOW_LINKS)  # flag-only ticket
     set_progress(_SOURCE, "intent-x", status="in_progress", pr_url="https://x/pr/1", cache_dir=tmp_path)
@@ -384,6 +396,7 @@ def test_a_page_linked_after_the_spec_was_extracted_is_named_and_so_is_one_no_lo
     assert fresh.summary(extraction=cached) == (
         "followed — 2 read; 1 in the spec's extraction in full"
         f"; 1 linked since the spec was extracted ({_linked(3).url}) — not in it"
+        "; `sdlc plan --refresh --follow-links` re-extracts"
         f"; 1 in the spec's extraction but no longer linked ({_linked(2).url})"
         "; 1 not read (https://x/y: could not be read (HTTPError))"
     )
