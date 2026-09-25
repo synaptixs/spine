@@ -289,6 +289,47 @@ def test_a_flag_off_plan_never_prunes_progress_a_variant_still_holds(tmp_path: P
     assert complete_by_pr("https://x/pr/2", cache_dir=tmp_path) is not None
 
 
+def _both_entries(tmp_path: Path, *, variant_id: str) -> None:
+    save_plan(_SOURCE, _plan("ticket only"), tmp_path)  # intent-x at the top level
+    followed = _plan("with linked pages")
+    followed.intents[0] = followed.intents[0].model_copy(update={"id": variant_id})
+    save_plan(_SOURCE, followed, tmp_path, variant=FOLLOW_LINKS)
+
+
+def test_completing_a_pr_renders_the_entry_that_holds_its_intent(tmp_path: Path) -> None:
+    """N16(a): the PR was opened from the `--follow-links` plan, whose intent the flag-off plan
+    does not hold. `sdlc complete` re-rendered the top level — a ledger of `0 / 1 done` that did
+    not list the intent whose PR had just merged."""
+    from orchestrator.intake.backlog_doc import write_backlog
+
+    _both_entries(tmp_path, variant_id="intent-with-links")
+    set_progress(
+        _SOURCE, "intent-with-links", status="in_progress", pr_url="https://x/pr/3", cache_dir=tmp_path
+    )
+
+    matched = complete_by_pr("https://x/pr/3", cache_dir=tmp_path)
+
+    assert matched is not None
+    source, plan = matched
+    assert [i.id for i in plan.intents] == ["intent-with-links"]
+    ledger = write_backlog(tmp_path / "BACKLOG.md", source, plan, load_progress(source, tmp_path))
+    text = ledger.read_text(encoding="utf-8")
+    assert "**Progress:** 1 / 1 done" in text
+    assert "- [x] `intent-with-links`" in text
+
+
+def test_completing_a_pr_both_entries_hold_renders_the_flag_off_plan(tmp_path: Path) -> None:
+    """D5(a)'s tie: both plans hold the intent and share its progress, so either ledger shows it
+    done — the flag-off plan, which is what `sdlc complete` rendered before."""
+    _both_entries(tmp_path, variant_id="intent-x")
+    set_progress(_SOURCE, "intent-x", status="in_progress", pr_url="https://x/pr/4", cache_dir=tmp_path)
+
+    matched = complete_by_pr("https://x/pr/4", cache_dir=tmp_path)
+
+    assert matched is not None
+    assert matched[1].specs[0].title == "ticket only"
+
+
 # ---- what the model saw of them (N14) --------------------------------------------------------
 
 
