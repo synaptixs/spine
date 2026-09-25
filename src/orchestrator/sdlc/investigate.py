@@ -48,6 +48,9 @@ class Investigation:
     knowledge: str = ""  # episteme excerpt, or ""
     prior_notes: list[str] = field(default_factory=list)  # cross-run recall, best-effort
     grounded: bool = False  # the PKG had grounded nodes
+    #: What `--follow-links` read and could not, as `FollowReport.summary` says it; empty when
+    #: links were not followed. Stated under the problem, which is where those pages now are.
+    linked_pages: str = ""
 
 
 def _owning_module(store: FactStore, node_id: str, parents: dict[str, str]) -> str:
@@ -305,7 +308,8 @@ def render_investigation_md(inv: Investigation) -> str:
     """
     doc = Brief(f"Investigation — {inv.title or 'ticket'}", tier=Tier.EVIDENCE)
     if inv.problem:
-        doc.add(brief.PROBLEM, inv.problem)
+        linked = f"\n\n**Linked pages:** {inv.linked_pages}" if inv.linked_pages else ""
+        doc.add(brief.PROBLEM, inv.problem + linked)
 
     out: list[str] = []
     excerpts = _excerpts_for(inv)

@@ -218,6 +218,39 @@ async def test_following_links_is_its_own_cache_entry_and_never_the_flag_off_one
     assert list(tmp_path.glob("*.json")) == [cache_path(_SOURCE, tmp_path)]  # one ticket, one file
 
 
+async def test_a_cache_hit_names_the_callers_own_way_to_re_extract(tmp_path: Path) -> None:
+    """B37, review pass 1: the hint is the caller's — `ingest`, `openspec draft` and `sdlc feature`
+    have `--refresh`, so they keep the one they had; only `autorun`, which has none, names
+    `sdlc plan` (tested there)."""
+    svc, said = _Analyser(), list[str]()
+    await analyze_cached(svc, _SOURCE, cache_dir=tmp_path)  # type: ignore[arg-type]
+    await analyze_cached(svc, _SOURCE, cache_dir=tmp_path, log=said.append)  # type: ignore[arg-type]
+    await analyze_cached(
+        svc,  # type: ignore[arg-type]
+        _SOURCE,
+        cache_dir=tmp_path,
+        log=said.append,
+        refresh_hint="`sdlc plan --source jira://FIN-42 --refresh` re-extracts",
+    )
+    assert "(--refresh to re-extract)" in said[0]
+    assert "(`sdlc plan --source jira://FIN-42 --refresh` re-extracts)" in said[1]
+
+
+def test_ingest_s_cache_hit_names_its_own_refresh(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from typer.testing import CliRunner
+
+    from orchestrator.cli import app
+
+    monkeypatch.setenv("ORCHESTRATOR_INTAKE_CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr("orchestrator.core.env.load_local_env", lambda *a, **k: 0)
+    monkeypatch.setattr("orchestrator.intake.factory.build_service_for", lambda *_a, **_k: _Analyser())
+    assert CliRunner().invoke(app, ["ingest", "--source", _SOURCE]).exit_code == 0
+    again = CliRunner().invoke(app, ["ingest", "--source", _SOURCE])
+    assert again.exit_code == 0, again.output
+    assert "reusing cached backlog" in again.output and "(--refresh to re-extract)" in again.output
+    assert "sdlc plan" not in again.output
+
+
 def test_progress_is_one_record_per_ticket_whichever_entry_it_was_planned_from(tmp_path: Path) -> None:
     save_plan(_SOURCE, _plan("with linked pages"), tmp_path, variant=FOLLOW_LINKS)  # flag-only ticket
     set_progress(_SOURCE, "intent-x", status="in_progress", pr_url="https://x/pr/1", cache_dir=tmp_path)
@@ -287,3 +320,183 @@ def test_a_flag_off_plan_never_prunes_progress_a_variant_still_holds(tmp_path: P
 
     assert load_progress(_SOURCE, tmp_path)["intent-with-links"]["pr_url"] == "https://x/pr/2"
     assert complete_by_pr("https://x/pr/2", cache_dir=tmp_path) is not None
+
+
+def _both_entries(tmp_path: Path, *, variant_id: str) -> None:
+    save_plan(_SOURCE, _plan("ticket only"), tmp_path)  # intent-x at the top level
+    followed = _plan("with linked pages")
+    followed.intents[0] = followed.intents[0].model_copy(update={"id": variant_id})
+    save_plan(_SOURCE, followed, tmp_path, variant=FOLLOW_LINKS)
+
+
+def test_completing_a_pr_renders_the_entry_that_holds_its_intent(tmp_path: Path) -> None:
+    """N16(a): the PR was opened from the `--follow-links` plan, whose intent the flag-off plan
+    does not hold. `sdlc complete` re-rendered the top level — a ledger of `0 / 1 done` that did
+    not list the intent whose PR had just merged."""
+    from orchestrator.intake.backlog_doc import write_backlog
+
+    _both_entries(tmp_path, variant_id="intent-with-links")
+    set_progress(
+        _SOURCE, "intent-with-links", status="in_progress", pr_url="https://x/pr/3", cache_dir=tmp_path
+    )
+
+    matched = complete_by_pr("https://x/pr/3", cache_dir=tmp_path)
+
+    assert matched is not None
+    source, plan = matched
+    assert [i.id for i in plan.intents] == ["intent-with-links"]
+    ledger = write_backlog(tmp_path / "BACKLOG.md", source, plan, load_progress(source, tmp_path))
+    text = ledger.read_text(encoding="utf-8")
+    assert "**Progress:** 1 / 1 done" in text
+    assert "- [x] `intent-with-links`" in text
+
+
+def test_completing_a_pr_both_entries_hold_renders_the_flag_off_plan(tmp_path: Path) -> None:
+    """D5(a)'s tie: both plans hold the intent and share its progress, so either ledger shows it
+    done — the flag-off plan, which is what `sdlc complete` rendered before."""
+    _both_entries(tmp_path, variant_id="intent-x")
+    set_progress(_SOURCE, "intent-x", status="in_progress", pr_url="https://x/pr/4", cache_dir=tmp_path)
+
+    matched = complete_by_pr("https://x/pr/4", cache_dir=tmp_path)
+
+    assert matched is not None
+    assert matched[1].specs[0].title == "ticket only"
+
+
+# ---- what the model saw of them (N14) --------------------------------------------------------
+
+
+def _linked(i: int, chars: int = 100) -> SourceDocument:
+    return SourceDocument(
+        id=f"confluence:{i}",
+        title=f"Linked page: P{i}",
+        body="p" * chars,
+        url=f"https://{_SITE}/wiki/spaces/ENG/pages/{i}",
+    )
+
+
+def _ticket(chars: int = 100) -> SourceDocument:
+    return SourceDocument(id="FIN-42", title="FIN-42", body="t" * chars)
+
+
+def test_pages_that_all_reached_the_model_say_so() -> None:
+    from orchestrator.intake.intents import extraction_fit
+
+    pages = [_linked(1), _linked(2)]
+    fit = extraction_fit([_ticket(), *pages])
+    assert (
+        FollowReport(documents=pages).summary(extraction=fit)
+        == "followed — 2 read, all 2 in the spec's extraction"
+    )
+    assert FollowReport(documents=pages[:1]).summary(extraction=extraction_fit([_ticket(), pages[0]])) == (
+        "followed — 1 read, in the spec's extraction"
+    )
+
+
+def test_pages_the_budget_cut_or_left_out_are_counted_and_named() -> None:
+    """N14's reproduction: "5 read" while the model saw one page, cut."""
+    from orchestrator.intake.intents import extraction_fit
+
+    pages = [_linked(i, 30_000) for i in range(5)]
+    fit = extraction_fit([_ticket(32_000), *pages])
+    urls = [p.url for p in pages]
+    assert FollowReport(documents=pages).summary(extraction=fit) == (
+        f"followed — 5 read; 1 cut ({urls[0]}), 4 did not fit the 60,000-char budget ({', '.join(urls[1:])})"
+    )
+
+
+def test_a_page_linked_after_the_spec_was_extracted_is_named_and_so_is_one_no_longer_linked() -> None:
+    """The header reads the ticket fresh, the spec comes from the cache: the two can disagree, and
+    the header says where rather than counting a page the spec never saw (D7)."""
+    from orchestrator.intake.intents import extraction_fit
+
+    cached = extraction_fit([_ticket(), _linked(1), _linked(2)])
+    fresh = FollowReport(
+        documents=[_linked(1), _linked(3)], not_read=[("https://x/y", "could not be read (HTTPError)")]
+    )
+    assert fresh.summary(extraction=cached) == (
+        "followed — 2 read; 1 in the spec's extraction in full"
+        f"; 1 linked since the spec was extracted ({_linked(3).url}) — not in it"
+        "; `sdlc plan --refresh --follow-links` re-extracts"
+        f"; 1 in the spec's extraction but no longer linked ({_linked(2).url})"
+        "; 1 not read (https://x/y: could not be read (HTTPError))"
+    )
+
+
+def test_with_a_hand_written_spec_the_pages_only_reach_source_txt() -> None:
+    report = FollowReport(documents=[_linked(1), _linked(2)])
+    assert report.summary(spec_extracted=False) == (
+        "followed — 2 read into source.txt; the spec is hand-written, so none was extracted"
+    )
+
+
+def test_without_an_extraction_the_summary_is_what_it_was() -> None:
+    assert FollowReport(documents=[_linked(1)]).summary() == "followed — 1 read"
+
+
+def test_a_cut_ticket_is_noted_and_warned_about_and_a_ticket_that_fits_is_not() -> None:
+    """D8/D9: the ticket's own text cut is the same dishonesty, with or without linked pages."""
+    from orchestrator.intake.follow_links import extraction_note, extraction_warning
+    from orchestrator.intake.intents import extraction_fit
+
+    assert extraction_note(extraction_fit([_ticket()])) == ""
+    assert extraction_warning(extraction_fit([_ticket(), _linked(1)])) == ""
+
+    cut = extraction_fit([_ticket(70_000)])
+    assert extraction_note(cut) == "FIN-42 cut at the 60,000-char extraction budget"
+    assert extraction_warning(cut) == (
+        "the spec was extracted from part of the source — FIN-42 cut at the 60,000-char budget"
+    )
+    pages = extraction_fit([_ticket(32_000), *[_linked(i, 30_000) for i in range(3)]])
+    assert extraction_note(pages) == ""  # the ticket fitted; its pages are the Linked pages line's
+    assert extraction_warning(pages) == (
+        "the spec was extracted from part of the source — "
+        f"{_linked(0).url} cut, {_linked(1).url} and {_linked(2).url} did not fit the 60,000-char budget"
+    )
+
+
+def _failed(i: int) -> tuple[str, str]:
+    return (_linked(i).url, "could not be read (HTTPError)")
+
+
+def test_a_page_that_fails_to_read_now_is_not_reported_as_unlinked() -> None:
+    """Review, both passes: a 403 today made the page "no longer linked" *and* "not read"."""
+    from orchestrator.intake.intents import extraction_fit
+
+    cached = extraction_fit([_ticket(), _linked(1), _linked(2)])
+    now = FollowReport(documents=[_linked(1)], not_read=[_failed(2)], unread={"confluence:2": _linked(2).url})
+    assert now.summary(extraction=cached) == (
+        "followed — 1 read, in the spec's extraction"
+        f"; 1 not read ({_linked(2).url}: could not be read (HTTPError)"
+        " — the cached spec was extracted with it)"
+    )
+
+
+def test_the_pages_a_spec_came_from_are_named_even_when_none_reads_now() -> None:
+    """Review: with nothing read now, the summary said "links no Confluence pages" or "0 read"
+    and never mentioned the pages the spec was derived from."""
+    from orchestrator.intake.intents import extraction_fit
+
+    cached = extraction_fit([_ticket(), _linked(1), _linked(2)])
+    one_gone_one_failing = FollowReport(not_read=[_failed(2)], unread={"confluence:2": _linked(2).url})
+    assert one_gone_one_failing.summary(extraction=cached) == (
+        f"followed — 0 read; 1 in the spec's extraction but no longer linked ({_linked(1).url})"
+        f"; 1 not read ({_linked(2).url}: could not be read (HTTPError)"
+        " — the cached spec was extracted with it)"
+    )
+    assert FollowReport().summary(extraction=cached) == (
+        "followed — 0 read; 2 in the spec's extraction but no longer linked "
+        f"({_linked(1).url}, {_linked(2).url})"
+    )
+    assert FollowReport().summary(extraction=extraction_fit([_ticket()])) == (
+        "followed — the ticket links no Confluence pages"
+    )
+
+
+async def test_a_page_that_is_not_read_keeps_its_id_so_the_spec_can_be_checked_against_it() -> None:
+    linked = LinkedPages(pages=[_page(1), _page(2)])
+    report = await follow_confluence_links(
+        _Ticket(linked), "FIN-42", reader_factory=lambda: _Wiki(broken={"2"})
+    )
+    assert [d.id for d in report.documents] == ["confluence:1"]
+    assert report.unread == {"confluence:2": report.not_read[0][0]}

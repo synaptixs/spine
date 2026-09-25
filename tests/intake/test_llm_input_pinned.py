@@ -204,3 +204,174 @@ async def test_the_llm_reads_a_rest_ticket_exactly_as_it_did_on_3_44() -> None:
 
 async def test_the_intake_cache_stores_a_rest_ticket_exactly_as_it_did_on_3_44() -> None:
     _check("rest-cache.json", _cached([await _rest_document()]))
+
+
+def _over_budget_pages() -> list[SourceDocument]:
+    return [
+        SourceDocument(
+            id=f"confluence:{i}",
+            title=f"Linked page: Spec part {i}",
+            body=f"Linked from FIN-42 (description): https://acme.atlassian.net/wiki/spaces/FIN/pages/{i}\n\n"
+            + (f"- rule {i}: every amount keeps its currency\n" * 500),
+            url=f"https://acme.atlassian.net/wiki/spaces/FIN/pages/{i}",
+        )
+        for i in range(1, 5)
+    ]
+
+
+async def test_an_over_budget_message_is_cut_exactly_as_it_was_on_3_48() -> None:
+    """N14 review: the ticket above fits, so nothing here pinned the cut. This golden was rendered
+    by the loop `_build_user_message` ran on 3.48.0 (`c6b91dfc`, from a worktree), before
+    `fit_documents` replaced it: one page cut with `…[truncated]`, the rest left out."""
+    _check("over-budget-llm-message.txt", _llm_message([await _rest_document(), *_over_budget_pages()]))
+
+
+# ---- FIN-43: the attachments 3.44 never downloaded (N16c) ------------------------------------
+#
+# 3.44 downloaded as it went and stopped at the first bound; HEAD downloads every attachment for
+# `full_body` and derives the bounded view afterwards (`_bound_attachments`). The two can only
+# diverge where HEAD downloads something 3.44 never did — a sixth readable file, a failure past
+# the five-file bound, a failure after the 20,000-char budget ran out — and FIN-42 reaches none of
+# them. These goldens were rendered by v3.44.0's own adapter, prompt builder and cache serialiser
+# (a throwaway worktree of the tag, the fixtures below imported into it), so they pin what 3.44
+# said, not what this branch says.
+
+
+def _att(key: str, filename: str, size: int) -> dict[str, Any]:
+    return {
+        "id": key,
+        "filename": filename,
+        "size": size,
+        "content": f"https://{_HOST}/rest/api/3/attachment/content/{key}",
+    }
+
+
+def _note(i: int) -> bytes:
+    return (f"# Note {i}\n\n" + f"- rule {i}\n" * 20).encode()
+
+
+_FIN43_CASES: dict[str, tuple[list[dict[str, Any]], dict[str, bytes]]] = {
+    # Seven readable files: 3.44 read five and named the last two "bound of 5 reached".
+    "seven-readable": (
+        [_att(f"r{i}", f"note{i}.md", 300) for i in range(1, 8)],
+        {f"r{i}": _note(i) for i in range(1, 8)},
+    ),
+    # Past the bound: a 404, a file over the 1 MB cap and a readable one — 3.44 fetched none of
+    # them and named all three for the bound; HEAD fetches all three.
+    "failure-past-the-bound": (
+        [_att(f"r{i}", f"note{i}.md", 300) for i in range(1, 6)]
+        + [_att("f6", "gone.md", 300), _att("f7", "big.txt", 300), _att("r8", "late.md", 300)],
+        {**{f"r{i}": _note(i) for i in range(1, 6)}, "f7": b"y" * 1_200_000, "r8": b"late\n"},
+    ),
+    # A 404 after the 20,000-char budget ran out: 3.44 named it for the budget, never fetched it.
+    "failure-past-the-budget": (
+        [
+            _att("b1", "a.txt", 9_000),
+            _att("b2", "b.txt", 9_000),
+            _att("b3", "c.txt", 9_000),
+            _att("f4", "gone.txt", 10),
+        ],
+        {"b1": b"a" * 9_000, "b2": b"b" * 9_000, "b3": b"c" * 9_000},
+    ),
+}
+
+
+def _fin43_issue(attachments: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "summary": "Orders export drops the currency column",
+        "issuetype": {"name": "Bug"},
+        "status": {"name": "To Do"},
+        "priority": {"name": "High"},
+        "labels": ["export"],
+        "description": _adf(_para(_text("The CSV export loses the currency column."))),
+        "comment": {"total": 0, "comments": []},
+        "attachment": attachments,
+    }
+
+
+async def _fin43_document(case: str) -> SourceDocument:
+    attachments, content = _FIN43_CASES[case]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith("/issue/FIN-43"):
+            return httpx.Response(200, json={"id": "1", "key": "FIN-43", "fields": _fin43_issue(attachments)})
+        if "/attachment/content/" in path:
+            body = content.get(path.rsplit("/", 1)[1])
+            return httpx.Response(200, content=body) if body is not None else httpx.Response(404, content=b"")
+        return httpx.Response(404, json={})
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url=f"https://{_HOST}")
+    adapter = JiraSourceAdapter(
+        JiraConfig(base_url=f"https://{_HOST}", email="e", api_token="t"), http_client=http
+    )
+    async with http:
+        return await adapter.fetch_document("FIN-43")
+
+
+@pytest.mark.parametrize("case", sorted(_FIN43_CASES))
+async def test_the_llm_reads_attachments_3_44_never_downloaded_exactly_as_it_did(case: str) -> None:
+    _check(f"fin43-{case}-llm-message.txt", _llm_message([await _fin43_document(case)]))
+
+
+@pytest.mark.parametrize("case", sorted(_FIN43_CASES))
+async def test_the_intake_cache_stores_attachments_3_44_never_downloaded_exactly_as_it_did(case: str) -> None:
+    _check(f"fin43-{case}-cache.json", _cached([await _fin43_document(case)]))
+
+
+# ---- past the full-read bound (N15, SSPN-59) ------------------------------------------------------
+# Two tickets with more than twenty readable attachments. The full read stops at twenty files; the
+# extractor's bounded view is derived from it and must still read what 3.44.0 read, which had no
+# such bound. Route A is the ticket's: four files leave 40 chars of the 20,000-char budget, sixteen
+# more are each too long to fit even their cut marker, and the 21st is ten characters. Route C is
+# the likelier one: a budget cut that lands on spaces is shortened by `rstrip`, leaving a few
+# characters of budget, so every later readable file is named with 3.44.0's reason.
+_PAST_THE_BOUND_ROUTES: dict[str, list[str]] = {
+    "FIN-51": ["a" * 8_000, "b" * 8_000, "c" * 2_000, "d" * 1_960] + ["e" * 500] * 16 + ["tiny note!"],
+    "FIN-52": ["a" * 9_000, "b" * 9_000, "w" * 3_900 + " " * 60 + "tail" * 2_000] + ["x" * 300] * 19,
+}
+
+
+async def _past_the_bound_document(key: str) -> SourceDocument:
+    texts = _PAST_THE_BOUND_ROUTES[key]
+    fields = {
+        "summary": f"{len(texts)} attachments",
+        "issuetype": {"name": "Story"},
+        "status": {"name": "To Do"},
+        "attachment": [
+            {
+                "id": str(i),
+                "filename": f"f{i:02d}.txt",
+                "size": len(text),
+                "content": f"https://{_HOST}/rest/api/3/attachment/content/{i}",
+            }
+            for i, text in enumerate(texts)
+        ],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith(f"/issue/{key}"):
+            return httpx.Response(200, json={"id": key, "key": key, "fields": fields})
+        if "/attachment/content/" in path:
+            return httpx.Response(200, content=texts[int(path.rsplit("/", 1)[1])].encode())
+        return httpx.Response(404, json={})
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url=f"https://{_HOST}")
+    adapter = JiraSourceAdapter(
+        JiraConfig(base_url=f"https://{_HOST}", email="e", api_token="t"), http_client=http
+    )
+    async with http:
+        return await adapter.fetch_document(key)
+
+
+async def _past_the_bound_documents() -> list[SourceDocument]:
+    return [await _past_the_bound_document(key) for key in _PAST_THE_BOUND_ROUTES]
+
+
+async def test_past_the_full_read_bound_the_llm_reads_exactly_what_3_44_did() -> None:
+    """N15 (SSPN-59). This golden was rendered by 3.44.0 itself — the code in a `git worktree` of
+    `v3.44.0` running this module's `_past_the_bound_documents` and `_llm_message` — never by the
+    code under test. Never regenerate it with ``SPINE_REGEN_GOLDEN=1``: a golden the fixed code
+    wrote proves only that the code agrees with itself."""
+    _check("past-the-full-read-bound-llm-message.txt", _llm_message(await _past_the_bound_documents()))

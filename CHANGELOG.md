@@ -4,6 +4,99 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.49.0 — 2026-09-25
+
+### Added
+
+- **`sdlc plan --refresh` re-extracts the spec — the only way to refresh a `--follow-links` one.**
+  A ticket planned with `--follow-links` is cached as its own entry, and nothing could re-extract
+  it: `ingest --refresh` rewrote the flag-off entry and left the linked-pages spec as it was, so a
+  page linked after extraction never reached the spec (the header named it, and nothing acted on
+  it). `sdlc plan --refresh --follow-links` re-extracts that entry; `sdlc plan --refresh` alone the
+  ticket-only one — never both. It re-extracts the intake spec, not the PKG, and is refused with
+  `--spec` (exit 2). `ingest`, `openspec draft` and `sdlc feature` keep their flag-off `--refresh`;
+  `sdlc autorun` gets none, because it re-checks the approval right after intake and a refresh
+  there could only park it.
+  - A refresh that changes an approved spec prints a `WARNING:` naming who approved it — before
+    anything else can exit, since the cache is already rewritten. For the intent it renders, it
+    then says whether the approval still holds, by the gate's own comparison: when the re-rendered
+    plan differs from the approved one, `sdlc autorun` parks (exit 6) until `sdlc approve` again;
+    a change only in fields the plan does not render (`nfrs`, `estimate`, …) leaves it holding,
+    and it says so. Any other approved intent whose spec changed is named with the command that
+    re-plans it before it is re-approved — its plan on disk was rendered from the old spec, so
+    approving that would approve an unread document. One line adds that the intake cache is
+    shared by every checkout, and that an approval made from the plan with the other flag is not
+    moved. It compares the spec before and after, so a refresh that returns the same spec, or a
+    change in the code, says nothing. An approved intent the re-extraction renamed or dropped is
+    named with the ids now available (and, when a flag-off refresh prunes it, the progress and PR
+    recorded for it); a pinned `--intent` that vanished keeps exit 3 and says why. Exit codes are
+    unchanged.
+  - The cache-hit hint `(--refresh to re-extract)` — printed by `sdlc autorun` too, which has no
+    `--refresh` — now names `sdlc plan --source <uri> --refresh` there (with `--follow-links` for
+    that entry); `ingest`, `openspec draft` and `sdlc feature` keep their own `--refresh`. The
+    `**Linked pages:**` clause for a page linked since extraction ends with
+    `sdlc plan --refresh --follow-links`.
+
+### Fixed
+
+- **`sdlc complete` renders the ledger that holds the merged intent.** When the PR came from a
+  `--follow-links` plan whose intent the ticket-only plan names differently, `BACKLOG.md` was
+  re-rendered from the ticket-only plan — `0 / 1 done`, without the intent whose PR had just
+  merged. It now renders the plan that holds it (the ticket-only one when both do, as before).
+- **Upgrade note: Spine 3.44 and older delete the `--follow-links` cache entry.** Entries planned
+  with `--follow-links` (3.45+) sit beside the ticket-only one in the same intake-cache file. A
+  3.44-or-older run on that file drops them: planning a ticket only ever analysed with the flag
+  treats it as a miss (no `--refresh` needed) and rewrites the file without them — and without the
+  PR recorded for their intent — and so does a `--refresh` of a ticket that has both; its `sdlc
+  complete` renders an empty ledger. `sdlc plan --refresh --follow-links` re-extracts what was
+  lost, at the price of a new spec. Documented rather than guarded: a cache version bump would
+  make 3.44 re-extract every ticket, not fewer (see `intake/cache.py`). The byte-pinned intake
+  goldens now also cover the attachments 3.44 never downloaded, rendered by v3.44.0 itself.
+- **Past 20 attachments, the spec is derived from the same text 3.44.0 gave it.** Since 3.45.0
+  the extractor's bounded view of a ticket's attachments is derived from the full read, which stops
+  at 20 files — so on a ticket with more than 20 readable attachments a later file the bounded view
+  still had room for was never downloaded, and was named `(bound of 20 reached)` instead of read or
+  named as 3.44.0 did. It took a budget cut that happened to end on whitespace, or a small file
+  after many long ones; measured on seeded random tickets, about 1 in 100 with 21–30 attachments,
+  none with 20 or fewer. The full read now keeps fetching past 20 files while the bounded view can
+  still take one, and stops once it cannot, so the extractor reads 3.44.0's bytes again — proved
+  by a new golden rendered by 3.44.0 itself — over REST and MCP alike. The full view §8 checks
+  criteria against carries every file downloaded, so it can hold more than 20 — and when the
+  bounded view ends a few dozen characters short of its budget (too few to carry a cut file), it
+  never closes, so every readable attachment on the ticket is downloaded and lands in the full
+  view (and `source.txt`). 3.44.0 downloaded those files too, and one cannot be dropped from the
+  full view without changing the reason the extractor's view names it with; capping it is
+  SSPN-77. A spec already cached from such a ticket keeps its text (the cache is keyed by the
+  ticket, not its body): nothing approved re-parks, and only a fresh extraction reads the
+  corrected view.
+
+- **`--follow-links` says what the spec was derived from, not only what it fetched.** The intent
+  extractor reads at most 60,000 characters, fills them with the ticket first, and linked pages
+  come last — so `sdlc plan`'s header could say "5 read" while the spec was derived from one of
+  those pages, cut, and nothing said so. The `**Linked pages:**` line now counts the pages that
+  reached the spec in full, names the ones cut or left out, and names any page linked since the
+  cached spec was extracted (`followed — 5 read; 1 cut (…), 4 did not fit the 60,000-char budget
+  (…)`); with a hand-written `--spec` it says the pages reached `source.txt` only. The counts come
+  from the documents the intake cache already holds, through the same function that builds the
+  extractor's prompt, so they cannot disagree with what the model was given. A page the spec was
+  derived from that no longer reads is named as unreadable, and one no longer linked as such —
+  never dropped from the count.
+  - A structured source (`openspec://`) is parsed verbatim, with no model and no budget, so it is
+    never reported as cut.
+  - A ticket whose own text the budget cut gets an `**Extraction:**` header line, with or without
+    `--follow-links`; `sdlc plan` and `sdlc autorun` print a `WARNING:` whenever anything did
+    not fit. Exit codes are unchanged.
+  - `sdlc autorun --follow-links` prints `[intake] linked pages: …` — which linked pages the
+    cached spec was extracted from, whole, cut or left out — and `investigate --follow-links` puts
+    `**Linked pages:** …` in its brief. Both said nothing before.
+  - Three kinds of link used to vanish without a word: a `/pages/edit-v2/<id>` URL now resolves
+    to its page; a draft link (`resumedraft.action?draftId=…`) and a Confluence page on another
+    site pasted into the ticket (`/wiki/spaces/<KEY>/pages/<id>` or `viewpage.action?pageId=`) are
+    named, not read — once per page.
+
+  What the model reads is unchanged byte for byte, and both new lines are header, outside the
+  approval digest, so no approved plan goes stale.
+
 ## 3.48.0 — 2026-09-24
 
 ### Fixed

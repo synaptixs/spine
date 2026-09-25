@@ -114,7 +114,7 @@ def test_a_spec_with_its_ticket_plans_from_the_spec_and_keeps_the_ticket_text(
     Fetched, never analysed — the spec already says what to build, so the path stays free of the
     model call intake's analysis makes. (It crashed on an unbound `plan_result`: ledger B15.)
     """
-    import orchestrator.intake.cache as intake_cache
+    from orchestrator.intake import cache as intake_cache
 
     def _no_analysis(*_a: object, **_k: object) -> object:
         raise AssertionError("intake analysed the source although --spec supplied the requirements")
@@ -273,7 +273,7 @@ def test_a_cached_ticket_is_planned_from_its_cached_spec_and_its_fresh_text(
 ) -> None:
     """Track E, D3: the spec comes from the intake cache — re-extracting it could move an approved
     plan — while `source.txt` is read fresh, with no model call."""
-    import orchestrator.intake.cache as intake_cache
+    from orchestrator.intake import cache as intake_cache
     from orchestrator.intake.service import BacklogPlan
     from orchestrator.intake.source import FetchTreeResult, SourceDocument
     from orchestrator.intake.specs import FeatureSpec
@@ -365,17 +365,24 @@ class _LinkedService:
         docs = [SourceDocument(id=root_id, title=root_id, body="the ticket")]
         if not follow_links:
             return FetchTreeResult(documents=docs)
+        from orchestrator.intake.follow_links import FollowReport
+
         page = SourceDocument(
             id="confluence:9", title="Linked page: Spec", body="- a criterion from the page"
         )
-        return FetchTreeResult(documents=[*docs, page], linked_pages="followed — 1 read")
+        report = FollowReport(documents=[page])
+        return FetchTreeResult(documents=[*docs, page], linked_pages=report.summary(), follow=report)
 
 
 @pytest.mark.parametrize(
     ("flags", "header"),
     [
         ([], "**Linked pages:** not followed — `--follow-links` reads them"),
-        (["--follow-links"], "**Linked pages:** followed — 1 read"),
+        (
+            ["--follow-links"],
+            "**Linked pages:** followed — 1 read into source.txt; "
+            "the spec is hand-written, so none was extracted",
+        ),
     ],
 )
 def test_the_header_says_whether_linked_pages_were_read(
@@ -404,6 +411,7 @@ def test_the_header_says_whether_linked_pages_were_read(
     assert result.exit_code == 0, result.output
     document = (checkout / ".spine" / "plans" / "PROJ-42-build.md").read_text(encoding="utf-8")
     assert header in document
+    assert "WARNING" not in result.output  # a hand-written spec was never extracted, so nothing was cut
     assert service.asked == [bool(flags)]
     assert ("a criterion from the page" in load_source_text("PROJ-42", root=checkout)) is bool(flags)
 
@@ -445,10 +453,15 @@ def test_investigate_reads_linked_pages_only_when_asked(
 
     service = _LinkedService()
     monkeypatch.setattr("orchestrator.intake.factory.build_service_for", lambda *_a, **_k: service)
+    briefs = []
     for flags in ([], ["--follow-links"]):
         result = CliRunner().invoke(app, ["investigate", str(checkout), "--source", "jira://PROJ-42", *flags])
         assert result.exit_code == 0, result.output
+        briefs.append(result.output)
     assert service.asked == [False, True]
+    # N14 (D4): the brief says what was followed — investigate has no budget, so no fit clause.
+    assert "**Linked pages:**" not in briefs[0]
+    assert "**Linked pages:** followed — 1 read" in briefs[1]
 
 
 def test_a_source_that_cannot_be_read_is_an_error_on_every_path(
@@ -525,3 +538,541 @@ def test_a_blank_page_warns_like_an_empty_source(
     )
     assert result.exit_code == 0, result.output
     assert "WARNING: confluence://1 returned no text" in result.output
+
+
+# ---- what the model saw (N14) ----------------------------------------------------------------
+
+_WIKI = "https://acme.atlassian.net/wiki/spaces/ENG/pages"
+
+
+def _plan_from_cache(
+    monkeypatch: pytest.MonkeyPatch,
+    checkout: Path,
+    *,
+    ticket_chars: int,
+    page_chars: int,
+    pages: int,
+    flags: list[str],
+    extracts_with_model: bool = True,
+) -> Any:
+    """`sdlc plan --source` whose spec comes from a cached extraction of exactly these documents,
+    and whose fresh fetch returns the same ones — so the header can only be computed from the fit."""
+    from orchestrator.intake import cache as intake_cache
+    from orchestrator.intake.follow_links import FollowReport
+    from orchestrator.intake.service import BacklogPlan
+    from orchestrator.intake.source import FetchTreeResult, SourceDocument
+    from orchestrator.intake.specs import FeatureSpec
+
+    ticket = SourceDocument(id="PROJ-42", title="PROJ-42", body="t" * ticket_chars)
+    linked = [
+        SourceDocument(
+            id=f"confluence:{i}", title=f"Linked page: P{i}", body="p" * page_chars, url=f"{_WIKI}/{i}"
+        )
+        for i in range(pages)
+    ]
+    spec = FeatureSpec.model_validate({**_SPEC, "user_story": "", "summary": _SPEC["summary"]})
+
+    async def _cached(*_a: object, **_k: object) -> BacklogPlan:
+        return BacklogPlan(documents=[ticket, *linked], specs=[spec])
+
+    class _Service:
+        # An OpenSpec source parses its changes verbatim: no model, so no budget to cut.
+        uses_the_extractor = extracts_with_model
+
+        async def fetch_source_documents(
+            self, root_id: str, *, follow_links: bool = False
+        ) -> FetchTreeResult:
+            if not follow_links:
+                return FetchTreeResult(documents=[ticket])
+            report = FollowReport(documents=linked)
+            return FetchTreeResult(documents=[ticket, *linked], linked_pages=report.summary(), follow=report)
+
+    monkeypatch.setattr(intake_cache, "analyze_cached", _cached)
+    monkeypatch.setattr("orchestrator.intake.factory.build_service_for", lambda *_a, **_k: _Service())
+    return CliRunner().invoke(
+        app, ["sdlc", "plan", "--source", "jira://PROJ-42", "--path", str(checkout), "--quiet", *flags]
+    )
+
+
+def _document(checkout: Path) -> str:
+    return (checkout / ".spine" / "plans" / "PROJ-42-build.md").read_text(encoding="utf-8")
+
+
+def test_linked_pages_the_extraction_left_out_are_counted_named_and_warned_about(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """N14: a full ticket and five long pages — the header said "5 read" while the spec was derived
+    from one page, cut."""
+    result = _plan_from_cache(
+        monkeypatch, checkout, ticket_chars=32_000, page_chars=30_000, pages=5, flags=["--follow-links"]
+    )
+    assert result.exit_code == 0, result.output
+    header = next(line for line in _document(checkout).splitlines() if line.startswith("**Linked pages:**"))
+    assert header == (
+        f"**Linked pages:** followed — 5 read; 1 cut ({_WIKI}/0), 4 did not fit the 60,000-char budget "
+        f"({_WIKI}/1, {_WIKI}/2, {_WIKI}/3, {_WIKI}/4)"
+    )
+    assert "**Extraction:**" not in _document(checkout)  # the ticket itself fitted
+    assert "WARNING: the spec was extracted from part of the source — " in result.output
+    assert "source.txt still holds every word" in result.output
+
+
+def test_pages_that_all_reached_the_model_say_so_and_warn_nothing(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    result = _plan_from_cache(
+        monkeypatch, checkout, ticket_chars=500, page_chars=500, pages=2, flags=["--follow-links"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "**Linked pages:** followed — 2 read, all 2 in the spec's extraction" in _document(checkout)
+    assert "WARNING" not in result.output and "**Extraction:**" not in _document(checkout)
+
+
+def test_a_ticket_the_extraction_cut_is_on_the_document_even_without_follow_links(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D8/D9: the ticket's own text cut is recorded where the reviewer reads — shown only then."""
+    result = _plan_from_cache(monkeypatch, checkout, ticket_chars=70_000, page_chars=0, pages=0, flags=[])
+    assert result.exit_code == 0, result.output
+    assert (
+        "**Extraction:** PROJ-42 cut at the 60,000-char extraction budget; "
+        "§8 still checks the criteria against every word of it in source.txt"
+    ) in _document(checkout)
+    assert "WARNING: the spec was extracted from part of the source — PROJ-42 cut" in result.output
+
+
+def test_a_plan_with_an_extraction_line_is_the_plan_the_gate_accepts(
+    checkout: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Header, not body: the gate re-derives the plan without the line, and must still pass it."""
+    result = _plan_from_cache(monkeypatch, checkout, ticket_chars=70_000, page_chars=0, pages=0, flags=[])
+    assert result.exit_code == 0, result.output
+    assert "**Extraction:**" in _document(checkout)
+    approved = CliRunner().invoke(
+        app, ["sdlc", "approve", "PROJ-42", "--path", str(checkout), "--by", "reviewer"]
+    )
+    assert approved.exit_code == 0, approved.output
+    assert _gate(_spec_file(tmp_path), checkout) == "PASSED: reviewer"
+
+
+def test_a_structured_source_is_parsed_not_extracted_so_nothing_is_reported_cut(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review, both passes: an OpenSpec change is parsed verbatim, with no model and no budget — a
+    70,000-char one was reported "cut", in a warning and on the document a reviewer approves."""
+    result = _plan_from_cache(
+        monkeypatch, checkout, ticket_chars=70_000, page_chars=0, pages=0, flags=[], extracts_with_model=False
+    )
+    assert result.exit_code == 0, result.output
+    assert "WARNING" not in result.output and "**Extraction:**" not in _document(checkout)
+
+
+# ---- `sdlc plan --refresh` (B37, D1–D4) ------------------------------------------------------
+
+
+class _Extractor:
+    """A ticket intake extracts, through the real intake cache: `analyze` is the model call, and
+    what it returns is whatever the test set last — so a re-extraction can move the spec or not."""
+
+    def __init__(self) -> None:
+        self.calls: list[bool] = []
+        self.intent = {False: "intent-cart-total", True: "intent-cart-total"}
+        self.criteria = {False: ["Cart.total skips unpriced skus"], True: ["Cart.total skips unpriced skus"]}
+        # Fields of the first spec beyond its criteria — some the plan renders, some it does not.
+        self.extra: dict[bool, dict[str, Any]] = {False: {}, True: {}}
+        # Further intents of the ticket: id → criteria.
+        self.others: dict[bool, dict[str, list[str]]] = {False: {}, True: {}}
+        self.fetch_error: Exception | None = None
+
+    async def analyze(self, root_id: str, *, follow_links: bool = False) -> Any:
+        from orchestrator.intake.intents import Intent
+        from orchestrator.intake.service import BacklogPlan
+        from orchestrator.intake.source import SourceDocument
+        from orchestrator.intake.specs import FeatureSpec
+
+        self.calls.append(follow_links)
+        first = (self.intent[follow_links], list(self.criteria[follow_links]))
+        title = "Cart.total raises KeyError for an unknown sku"
+        every = [first, *((iid, list(c)) for iid, c in self.others[follow_links].items())]
+        titles = [title, *(f"{title} ({iid})" for iid in self.others[follow_links])]
+        return BacklogPlan(
+            documents=[SourceDocument(id=root_id, title=root_id, body="the ticket")],
+            intents=[
+                Intent(id=iid, title=titles[n], description="d", acceptance_criteria=criteria)
+                for n, (iid, criteria) in enumerate(every)
+            ],
+            specs=[
+                FeatureSpec(
+                    intent_id=iid,
+                    title=titles[n],
+                    acceptance_criteria=criteria,
+                    **(self.extra[follow_links] if n == 0 else {}),
+                )
+                for n, (iid, criteria) in enumerate(every)
+            ],
+        )
+
+    async def fetch_source_documents(self, root_id: str, *, follow_links: bool = False) -> Any:
+        from orchestrator.intake.source import FetchTreeResult, SourceDocument
+
+        if self.fetch_error is not None:
+            raise self.fetch_error
+        return FetchTreeResult(documents=[SourceDocument(id=root_id, title=root_id, body="the ticket")])
+
+
+@pytest.fixture
+def extractor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Extractor:
+    service = _Extractor()
+    monkeypatch.setenv("ORCHESTRATOR_INTAKE_CACHE_DIR", str(tmp_path / "intake-cache"))
+    monkeypatch.setattr("orchestrator.intake.factory.build_service_for", lambda *_a, **_k: service)
+    return service
+
+
+def _plan_source(root: Path, *extra: str) -> Any:
+    return CliRunner().invoke(
+        app, ["sdlc", "plan", "--source", "jira://PROJ-42", "--path", str(root), "--quiet", *extra]
+    )
+
+
+def _approve(root: Path, intent: str = "intent-cart-total") -> None:
+    approved = CliRunner().invoke(app, ["sdlc", "approve", intent, "--path", str(root), "--by", "reviewer"])
+    assert approved.exit_code == 0, approved.output
+
+
+def _cached_criteria(*, follow_links: bool) -> list[str]:
+    from orchestrator.intake.cache import FOLLOW_LINKS, load_cached_plan
+
+    plan = load_cached_plan("jira://PROJ-42", variant=FOLLOW_LINKS if follow_links else "")
+    assert plan is not None
+    return list(plan.specs[0].acceptance_criteria)
+
+
+def _build_doc(root: Path, intent: str = "intent-cart-total") -> str:
+    return (root / ".spine" / "plans" / f"{intent}-build.md").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("follow", [True, False])
+def test_refresh_re_extracts_only_the_entry_its_flags_select(
+    follow: bool, checkout: Path, extractor: _Extractor
+) -> None:
+    """B37: nothing re-extracted a `--follow-links` spec — `ingest --refresh` rewrote the flag-off
+    entry and left the variant as it was. D3: the entry the flags select, and only that one."""
+    links = ["--follow-links"] if follow else []
+    assert _plan_source(checkout).exit_code == 0
+    assert _plan_source(checkout, "--follow-links").exit_code == 0
+    extractor.criteria[follow] = ["Cart.total skips unpriced skus", "and logs the sku"]
+
+    result = _plan_source(checkout, "--refresh", *links)
+
+    assert result.exit_code == 0, result.output
+    assert extractor.calls == [False, True, follow]
+    assert _cached_criteria(follow_links=follow) == ["Cart.total skips unpriced skus", "and logs the sku"]
+    assert _cached_criteria(follow_links=not follow) == ["Cart.total skips unpriced skus"]
+    assert "and logs the sku" in _build_doc(checkout)
+
+
+def test_refresh_with_a_hand_written_spec_is_refused(
+    checkout: Path, tmp_path: Path, extractor: _Extractor
+) -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "sdlc",
+            "plan",
+            "--spec",
+            str(_spec_file(tmp_path)),
+            "--path",
+            str(checkout),
+            "--quiet",
+            "--refresh",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "--refresh" in result.output and "--spec" in result.output
+    assert extractor.calls == []
+
+
+def _warnings(output: str) -> list[str]:
+    return [line for line in output.splitlines() if line.startswith("WARNING:")]
+
+
+def test_a_refresh_that_changes_an_approved_spec_says_so_and_the_gate_refuses(
+    checkout: Path, extractor: _Extractor
+) -> None:
+    """D4(a): the plan is re-rendered (its header says stale) and a WARNING names the approver,
+    that autorun parks with exit 6 — because the re-rendered plan's digest moved, the comparison
+    the gate makes — and that the cache is shared with other checkouts."""
+    from orchestrator.sdlc.builddoc import PlanNotApprovedError, require_approved_plan
+
+    assert _plan_source(checkout, "--follow-links").exit_code == 0
+    _approve(checkout)
+    extractor.criteria[True] = ["Cart.total skips unpriced skus", "and logs the sku"]
+
+    result = _plan_source(checkout, "--refresh", "--follow-links")
+
+    assert result.exit_code == 0, result.output
+    assert "**stale** — approved by reviewer" in _build_doc(checkout)
+    changed, shared, moved = _warnings(result.output)  # the digest is known only once rendered
+    assert "changed the spec of intent-cart-total that reviewer approved" in changed
+    assert "whether the approval still holds" in changed and "exit 6" not in changed
+    assert "the re-rendered plan of intent-cart-total is not the one reviewer approved" in moved
+    assert "`sdlc autorun --follow-links` for it parks (exit 6)" in moved
+    assert f"`sdlc approve intent-cart-total --path {checkout}` again" in moved
+    assert "shared by every checkout" in shared and "with `--follow-links` now reads the new spec" in shared
+    # Approvals do not say which entry they were read from, so the other flag's is named.
+    assert "the plan without `--follow-links`" in shared and "`sdlc autorun`" in shared
+    from orchestrator.intake.cache import FOLLOW_LINKS, load_cached_plan
+
+    fresh = load_cached_plan("jira://PROJ-42", variant=FOLLOW_LINKS)
+    assert fresh is not None
+    with pytest.raises(PlanNotApprovedError, match="changed since"):
+        asyncio.run(require_approved_plan(fresh.specs[0].model_dump(), root=checkout))
+
+
+def test_a_refresh_that_changes_only_what_the_plan_does_not_render_says_the_approval_holds(
+    checkout: Path, extractor: _Extractor
+) -> None:
+    """Review pass 1: the plan's digest covers the rendered sections, not every spec field — a
+    re-extraction that moves only `nfrs` or `estimate` leaves the gate passing, so claiming that
+    autorun parks (exit 6) was false."""
+    from orchestrator.intake.cache import load_cached_plan
+    from orchestrator.sdlc.builddoc import require_approved_plan
+
+    assert _plan_source(checkout).exit_code == 0
+    _approve(checkout)
+    extractor.extra[False] = {"nfrs": ["p99 under 50ms"], "estimate": "2d"}
+
+    result = _plan_source(checkout, "--refresh")
+
+    assert result.exit_code == 0, result.output
+    assert "exit 6" not in result.output
+    assert "changed the spec of intent-cart-total that reviewer approved" in _warnings(result.output)[0]
+    assert (
+        "[plan] the re-rendered plan of intent-cart-total reads the same as the one reviewer approved"
+        in result.output
+    )
+    assert "the approval still holds" in result.output
+    assert "**approved** by reviewer" in _build_doc(checkout)
+    fresh = load_cached_plan("jira://PROJ-42")
+    assert fresh is not None and fresh.specs[0].nfrs == ["p99 under 50ms"]
+    assert (
+        asyncio.run(require_approved_plan(fresh.specs[0].model_dump(), root=checkout)).decided_by
+        == "reviewer"
+    )
+
+
+def test_a_refresh_names_every_approved_intent_it_changed_and_how_to_re_plan_it(
+    checkout: Path, extractor: _Extractor
+) -> None:
+    """Review pass 1: for an approved intent this command does not render, `sdlc approve` would
+    digest the document on disk — rendered from the old spec — so the advice is to re-plan it
+    first, and nothing is claimed about exit 6 until it has been."""
+    extractor.others[False] = {"intent-cart-log": ["Cart.total logs the sku"]}
+    assert _plan_source(checkout).exit_code == 0
+    assert _plan_source(checkout, "--intent", "intent-cart-log").exit_code == 0
+    _approve(checkout)
+    _approve(checkout, "intent-cart-log")
+    extractor.others[False] = {"intent-cart-log": ["Cart.total logs the sku", "at warning level"]}
+
+    result = _plan_source(checkout, "--refresh")
+
+    assert result.exit_code == 0, result.output
+    other, shared = _warnings(result.output)
+    assert "changed the spec of intent-cart-log that reviewer approved" in other
+    assert "rendered from the old spec" in other
+    assert (
+        f"`sdlc plan --source jira://PROJ-42 --intent intent-cart-log --path {checkout}`, then, if it "
+        f"reads as stale, read it and `sdlc approve intent-cart-log --path {checkout}`"
+    ) in other
+    assert "exit 6" not in other and "now reads as stale" not in other
+    assert "shared by every checkout" in shared
+    # The rendered intent did not change, so nothing is said about it.
+    assert not any("intent-cart-total" in line for line in _warnings(result.output))
+
+
+@pytest.mark.parametrize("follow", [False, True])
+def test_a_refresh_keeps_the_other_entry_and_every_recorded_pr(
+    follow: bool, checkout: Path, extractor: _Extractor
+) -> None:
+    """D3: a refresh of one entry leaves the other's spec as it was, and the per-ticket progress
+    — the PR recorded for each entry's intent — survives it, whichever entry was refreshed."""
+    from orchestrator.intake.cache import FOLLOW_LINKS, load_cached_plan, load_progress, set_progress
+
+    extractor.intent[True] = "intent-with-links"
+    assert _plan_source(checkout).exit_code == 0
+    assert _plan_source(checkout, "--follow-links").exit_code == 0
+    set_progress("jira://PROJ-42", "intent-cart-total", status="in_progress", pr_url="https://x/pr/1")
+    set_progress("jira://PROJ-42", "intent-with-links", status="in_progress", pr_url="https://x/pr/2")
+    extractor.criteria[follow] = ["Cart.total skips unpriced skus", "and logs the sku"]
+
+    result = _plan_source(checkout, "--refresh", *(["--follow-links"] if follow else []))
+
+    assert result.exit_code == 0, result.output
+    assert load_progress("jira://PROJ-42") == {
+        "intent-cart-total": {"status": "in_progress", "pr_url": "https://x/pr/1"},
+        "intent-with-links": {"status": "in_progress", "pr_url": "https://x/pr/2"},
+    }
+    other = load_cached_plan("jira://PROJ-42", variant="" if follow else FOLLOW_LINKS)
+    assert other is not None
+    assert [s.intent_id for s in other.specs] == ["intent-cart-total" if follow else "intent-with-links"]
+    assert other.specs[0].acceptance_criteria == ["Cart.total skips unpriced skus"]
+
+
+def test_a_cold_cache_refresh_still_renders_an_approval_it_moved_as_stale(
+    checkout: Path, extractor: _Extractor, tmp_path: Path
+) -> None:
+    """With no cached spec to compare, nothing is warned — the header is what says it."""
+    import shutil
+
+    assert _plan_source(checkout).exit_code == 0
+    _approve(checkout)
+    shutil.rmtree(tmp_path / "intake-cache")
+    extractor.criteria[False] = ["something else entirely"]
+
+    result = _plan_source(checkout, "--refresh")
+
+    assert result.exit_code == 0, result.output
+    assert "WARNING" not in result.output
+    assert "**stale** — approved by reviewer" in _build_doc(checkout)
+
+
+def test_a_refresh_that_leaves_the_spec_as_it_was_warns_nothing(
+    checkout: Path, extractor: _Extractor
+) -> None:
+    """The warning compares the spec before and after, never the digest — a re-extraction that
+    returns the same spec stales nothing and says nothing."""
+    assert _plan_source(checkout).exit_code == 0
+    _approve(checkout)
+
+    result = _plan_source(checkout, "--refresh")
+
+    assert result.exit_code == 0, result.output
+    assert extractor.calls == [False, False]
+    assert "WARNING" not in result.output
+    assert "**approved** by reviewer" in _build_doc(checkout)
+
+
+def test_a_refresh_that_changes_an_unapproved_spec_warns_nothing(
+    checkout: Path, extractor: _Extractor
+) -> None:
+    assert _plan_source(checkout).exit_code == 0
+    extractor.criteria[False] = ["something else entirely"]
+
+    result = _plan_source(checkout, "--refresh")
+
+    assert result.exit_code == 0, result.output
+    assert "WARNING" not in result.output
+    assert "something else entirely" in _build_doc(checkout)
+
+
+def test_a_refresh_that_renames_the_pinned_intent_exits_3_naming_it(
+    checkout: Path, extractor: _Extractor
+) -> None:
+    """Intent ids come from the model's titles, so a re-extraction can rename the one `--intent`
+    pins; today's exit 3, saying why."""
+    assert _plan_source(checkout, "--intent", "intent-cart-total").exit_code == 0
+    extractor.intent[False] = "intent-cart-total-skips-unpriced"
+
+    result = _plan_source(checkout, "--refresh", "--intent", "intent-cart-total")
+
+    assert result.exit_code == 3
+    assert "'intent-cart-total' not found" in result.output
+    assert "intent-cart-total-skips-unpriced" in result.output
+    assert "re-extraction renamed or dropped it" in result.output
+
+
+@pytest.mark.parametrize("follow", [False, True])
+def test_a_refresh_that_renames_an_approved_intent_warns_naming_it(
+    follow: bool, checkout: Path, extractor: _Extractor
+) -> None:
+    """A renamed intent is not found by `autorun --intent` (exit 3, not 6), and its approval does
+    not carry to the new id. A flag-off refresh prunes progress to the intents still held, so the
+    PR recorded for it goes too — said only then: a variant's refresh never touches progress."""
+    from orchestrator.intake.cache import load_progress, set_progress
+
+    links = ["--follow-links"] if follow else []
+    assert _plan_source(checkout, *links).exit_code == 0
+    _approve(checkout)
+    set_progress("jira://PROJ-42", "intent-cart-total", status="in_progress", pr_url="https://x/pr/7")
+    extractor.intent[follow] = "intent-cart-total-skips-unpriced"
+
+    result = _plan_source(checkout, "--refresh", *links)
+
+    assert result.exit_code == 0, result.output
+    warning = _warnings(result.output)[0]
+    assert "renamed or dropped intent-cart-total, which reviewer approved" in warning
+    assert "the ticket's intents are now: intent-cart-total-skips-unpriced" in warning
+    autorun = "sdlc autorun --follow-links" if follow else "sdlc autorun"
+    assert f"`{autorun} --intent intent-cart-total` no longer finds it (exit 3)" in warning
+    assert "exit 6" not in warning
+    dropped = "Its recorded progress (in_progress, PR https://x/pr/7) was dropped with it."
+    assert (dropped in warning) is (not follow)
+    assert ("intent-cart-total" in load_progress("jira://PROJ-42")) is follow
+
+
+def test_a_refresh_that_renames_the_pinned_approved_intent_warns_before_exit_3(
+    checkout: Path, extractor: _Extractor
+) -> None:
+    """Review pass 1: the cache is rewritten inside the refresh, so its warning is said before
+    any later exit — here the exit 3 for a pinned `--intent` the re-extraction renamed."""
+    assert _plan_source(checkout, "--intent", "intent-cart-total").exit_code == 0
+    _approve(checkout)
+    extractor.intent[False] = "intent-cart-total-skips-unpriced"
+
+    result = _plan_source(checkout, "--refresh", "--intent", "intent-cart-total")
+
+    assert result.exit_code == 3
+    assert "renamed or dropped intent-cart-total, which reviewer approved" in _warnings(result.output)[0]
+    assert "shared by every checkout" in result.output
+
+
+def test_a_refresh_whose_fresh_fetch_fails_still_warns(checkout: Path, extractor: _Extractor) -> None:
+    from orchestrator.intake.jira import IssueTrackerError
+
+    assert _plan_source(checkout).exit_code == 0
+    _approve(checkout)
+    extractor.criteria[False] = ["something else entirely"]
+    extractor.fetch_error = IssueTrackerError("503 from the tracker")
+
+    result = _plan_source(checkout, "--refresh")
+
+    assert result.exit_code == 2
+    assert "ERROR: could not read jira://PROJ-42" in result.output
+    assert "changed the spec of intent-cart-total that reviewer approved" in _warnings(result.output)[0]
+    assert "shared by every checkout" in result.output
+
+
+def test_a_refresh_whose_render_fails_still_warns(
+    checkout: Path, extractor: _Extractor, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The extraction is saved before the plan is rendered, so a render that fails must not take
+    the warning with it."""
+    assert _plan_source(checkout).exit_code == 0
+    _approve(checkout)
+    extractor.criteria[False] = ["something else entirely"]
+
+    async def _boom(*_a: object, **_k: object) -> str:
+        raise RuntimeError("render failed")
+
+    monkeypatch.setattr("orchestrator.sdlc.builddoc.build_plan", _boom)
+
+    result = _plan_source(checkout, "--refresh")
+
+    assert isinstance(result.exception, RuntimeError)
+    assert "changed the spec of intent-cart-total that reviewer approved" in _warnings(result.output)[0]
+    assert "shared by every checkout" in result.output
+    assert _cached_criteria(follow_links=False) == ["something else entirely"]
+
+
+def test_without_refresh_a_cached_spec_is_planned_as_before(checkout: Path, extractor: _Extractor) -> None:
+    """The flag is inert unless given: a warm cache makes no model call, and the document is the
+    one a refresh returning the same spec renders."""
+    assert _plan_source(checkout).exit_code == 0
+    first = _build_doc(checkout)
+    again = _plan_source(checkout)
+    assert again.exit_code == 0 and "WARNING" not in again.output
+    assert extractor.calls == [False]
+    assert _build_doc(checkout) == first
+    assert _plan_source(checkout, "--refresh").exit_code == 0
+    assert extractor.calls == [False, False]
+    assert _build_doc(checkout) == first

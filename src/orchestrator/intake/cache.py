@@ -12,6 +12,23 @@ finally stable.
 The cache lives in a user dir (``~/.cache/orchestrator/intake`` by default, or
 ``$ORCHESTRATOR_INTAKE_CACHE_DIR``) so it persists across runs from any working
 directory.
+
+**Spine ≤ 3.44 deletes the ``--follow-links`` entry.** ``variants`` arrived in 3.45; every release
+since carries it through every write. A 3.44 (or older) run on the same cache file does not, and
+nothing written here can change what that code does with it:
+
+* a flag-off plan of a ticket only ever analysed with ``--follow-links`` finds no top-level entry,
+  treats it as a miss (no ``--refresh`` needed), re-extracts, and writes a file with no
+  ``variants`` — and progress pruned to its own intent ids, so a PR recorded for the variant's
+  intent is gone too;
+* a ``--refresh`` of a ticket that has both entries does the same;
+* ``sdlc complete`` on a variant-only file renders an empty ledger (it keeps ``variants``).
+
+The loss is re-extractable (``sdlc plan --refresh --follow-links``), at the price of a new spec and
+a stale approval. Bumping ``_CACHE_VERSION`` would not guard it — 3.44 reads an unknown version as
+a miss and rewrites the file without ``variants`` even without ``--refresh``, and 3.45+ would treat
+every 3.44 file the same way, re-extracting every ticket on each up/downgrade — and a sidecar file
+would still lose the variant's progress to 3.44's pruning. So it is documented, not guarded.
 """
 
 from __future__ import annotations
@@ -174,20 +191,32 @@ def complete_by_pr(pr_url: str, cache_dir: Path | None = None) -> tuple[str, Bac
     for file in sorted(root.glob("*.json")):
         raw = _read_raw(file)
         progress: dict[str, dict[str, Any]] = raw.get("progress") or {}
-        for entry in progress.values():
+        for intent_id, entry in progress.items():
             if entry.get("pr_url") == pr_url:
                 entry["status"] = "done"
                 raw["progress"] = progress
                 file.write_text(json.dumps(raw, indent=2), encoding="utf-8")
                 source = str(raw.get("source") or "")
-                # A ticket only ever analysed with `--follow-links` has no top-level plan; its
-                # variant is the backlog to re-render.
-                variants = _variants_of(raw)
-                plan_data = (
-                    raw if raw.get("version") == _CACHE_VERSION else next(iter(variants.values()), raw)
-                )
-                return source, _plan_from_dict(plan_data)
+                return source, _plan_from_dict(_entry_holding(raw, intent_id))
     return None
+
+
+def _entry_holding(raw: dict[str, Any], intent_id: str) -> dict[str, Any]:
+    """The cached plan to re-render for a completed intent: the one that holds it.
+
+    Progress is one record per ticket, but the flag-off plan and a ``--follow-links`` variant can
+    name their intents differently (ids come from the model's titles). Rendering the top level for
+    an intent only the variant holds wrote a ledger without the intent whose PR had just merged
+    (N16). When both hold it, the top level — they share the done mark, and it is what was rendered
+    before. When neither does, the top level if it is current, else the first variant: a ticket
+    only ever analysed with ``--follow-links`` has no top-level plan.
+    """
+    top = raw if raw.get("version") == _CACHE_VERSION else None
+    variants = [v for _, v in sorted(_variants_of(raw).items()) if isinstance(v, dict)]
+    for entry in ([top] if top is not None else []) + variants:
+        if any(isinstance(i, dict) and i.get("id") == intent_id for i in entry.get("intents") or []):
+            return entry
+    return top if top is not None else next(iter(variants), raw)
 
 
 def load_cached_plan(
@@ -252,6 +281,7 @@ async def analyze_cached(
     refresh: bool = False,
     log: Callable[[str], None] | None = None,
     follow_links: bool = False,
+    refresh_hint: str = "--refresh to re-extract",
 ) -> BacklogPlan:
     """``service.analyze`` with a persistent cache keyed by ``source_uri``.
 
@@ -261,6 +291,10 @@ async def analyze_cached(
 
     ``follow_links`` analyses the ticket *with* its linked Confluence pages, which is a different
     extraction, so it is its own entry (:data:`FOLLOW_LINKS`) — never the flag-off one.
+
+    ``refresh_hint`` is how the caller re-extracts, said on a cache hit. The caller's own words,
+    because only it knows: ``ingest``, ``openspec draft`` and ``sdlc feature`` have ``--refresh``;
+    ``autorun`` has none and names ``sdlc plan --refresh`` (B37).
     """
     emit = log or (lambda _m: None)
     _, root_id = parse_source_uri(source_uri)
@@ -270,7 +304,7 @@ async def analyze_cached(
         if cached is not None:
             emit(
                 f"[intake] reusing cached backlog: {len(cached.intents)} intents for {source_uri} "
-                f"(--refresh to re-extract) — {cache_path(source_uri, cache_dir)}"
+                f"({refresh_hint}) — {cache_path(source_uri, cache_dir)}"
             )
             return cached
     plan = await (service.analyze(root_id, follow_links=True) if follow_links else service.analyze(root_id))

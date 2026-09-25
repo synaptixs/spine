@@ -78,7 +78,15 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.48.0 (current)** — `sdlc autorun --live` opens its pull request *after* its own review,
+**3.49.0 (current)** — plans that say what they were built from, and a way to rebuild them.
+`--follow-links` now reports how many linked Confluence pages actually reached the spec — whole,
+cut, or left out by the extractor's 60,000-char budget — instead of how many were fetched, with a
+warning when any did not fit; `autorun` and `investigate` report it too. New `sdlc plan --refresh`
+re-extracts a cached spec (ticket-only or `--follow-links`) and says when that stales an approval.
+Past 20 attachments the extractor again reads exactly what 3.44.0 did. **Upgrade note:** Spine
+3.44 or older deletes `--follow-links` cache entries if run on the same cache.
+
+**3.48.0** — `sdlc autorun --live` opens its pull request *after* its own review,
 with the review's fixes committed in it; a review that does not finish clean opens a **draft** PR
 saying why and exits 1 instead of ending `done`. `SDLC_RUN_BUDGET_USD` now caps `sdlc feature` and
 `sdlc autorun` too ($25 by default, `0` disables) — **upgrade note:** an uncapped run that spends

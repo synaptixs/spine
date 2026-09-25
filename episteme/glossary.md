@@ -46,4 +46,4 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **VerifierFailure** | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | — |
 | **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#6-how-spine-is-adopted-without-entering-anyones-build-image` |
 
-_Top 40 of 770 types by graph centrality._
+_Top 40 of 773 types by graph centrality._

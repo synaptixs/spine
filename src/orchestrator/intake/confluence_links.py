@@ -9,15 +9,22 @@ link arrives as a remote link whose ``globalId`` carries the page id outright �
 for links made that way. A URL pasted into the description or a comment arrives only as text.
 Remote links are read first, then the text; the same page found twice is one page.
 
-**Only the site's own URLs.** A scanned URL counts only when its host is one of the Atlassian
-site's (Jira's or Confluence's base URL). A bare ``/wiki/`` path would otherwise make
-``en.wikipedia.org/wiki/Currency`` a "Confluence link". The same holds for a remote link Jira types
-``com.atlassian.confluence``: a page id is only meaningful on the site that issued it, and page
-``123`` on a partner's Confluence read from this one is a *different page*. So one whose URL is on
-another host is named, not read.
+**Only the site's own URLs are read.** A page id is only meaningful on the site that issued it:
+page ``123`` on a partner's Confluence, read from this one, is a *different page*. So a page on
+another host is named, never read — whether it arrived as a remote link Jira types
+``com.atlassian.confluence`` or pasted into the text. A pasted URL on another host counts only in a
+page's own URL shape, with its id: ``/wiki/spaces/<KEY>/pages/<id>`` (Cloud) or
+``viewpage.action?pageId=<id>``. Anything looser names what is not Confluence at all —
+``en.wikipedia.org/wiki/x/Currency`` decodes as a tiny link, ``github.com/o/r/wiki/pages/12`` has a
+``/pages/<id>`` — and a title or tiny link there carries no id to name a page by. One page pasted
+twice, with and without its title slug, is named once. Before N14 a pasted page on another site
+vanished without a word, while the same page as a remote link was named.
 
 **What resolves, and what is only named.**
-- ``…/pages/<id>/…`` and ``…viewpage.action?pageId=<id>`` carry the id.
+- ``…/pages/<id>/…``, ``…/pages/edit-v2/<id>`` (the editor's URL) and
+  ``…viewpage.action?pageId=<id>`` carry the id.
+- ``resumedraft.action?draftId=<id>`` carries a *draft* id, which is not a page id: named, not
+  read.
 - ``/x/<code>`` tiny links are decoded offline — the page id, little-endian, base64 with ``/`` →
   ``-`` and ``+`` → ``_``, padding and trailing ``A`` stripped. Atlassian calls that algorithm
   "not officially supported", so a decoded id is kept only if re-encoding it reproduces the code
@@ -38,10 +45,12 @@ from urllib.parse import parse_qs, urlparse
 
 CONFLUENCE_APPLICATION = "com.atlassian.confluence"
 
-_PAGE_PATH = re.compile(r"/pages/(\d+)(?:/|$)")
+_PAGE_PATH = re.compile(r"/pages/(?:edit-v2/)?(\d+)(?:/|$)")
 _TINY_PATH = re.compile(r"(?:^|/)x/([A-Za-z0-9_-]+)/?$")
 _DISPLAY_PATH = re.compile(r"(?:^|/)display/[^/]+/[^/]+")
 _GLOBAL_PAGE_ID = re.compile(r"(?:^|&)pageId=(\d+)(?:&|$)")
+# A page on a site that is not ours, in the only shapes that are Confluence beyond doubt.
+_CLOUD_PAGE_PATH = re.compile(r"/wiki/spaces/[^/]+/pages/(?:edit-v2/)?(\d+)(?:/|$)")
 # A URL in running text or wiki markup — stops at whitespace and at the markup's own delimiters.
 _URL = re.compile(r"https?://[^\s\]\[|\"'<>)]+")
 
@@ -95,6 +104,8 @@ def resolve_page_url(url: str) -> str | Unresolved | None:
     found = _PAGE_PATH.search(path)
     if found:
         return found.group(1)
+    if path.endswith("resumedraft.action"):
+        return Unresolved(url, "draft link, not a published page")
     if path.endswith("viewpage.action"):
         ids = parse_qs(parsed.query).get("pageId") or []
         if ids and ids[0].isdigit():
@@ -155,6 +166,19 @@ def _host(url: str) -> str:
     return urlparse(url).netloc.lower()
 
 
+def _page_on_another_site(url: str) -> tuple[str, str] | None:
+    """``(host, page id)`` for a pasted URL that is a Confluence page on a host that is not ours."""
+    parsed = urlparse(url)
+    found = _CLOUD_PAGE_PATH.search(parsed.path)
+    if found:
+        return _host(url), found.group(1)
+    if parsed.path.endswith("viewpage.action"):
+        ids = parse_qs(parsed.query).get("pageId") or []
+        if ids and ids[0].isdigit():
+            return _host(url), ids[0]
+    return None
+
+
 def find_linked_pages(
     *,
     remote_links: Sequence[Any] = (),
@@ -165,12 +189,13 @@ def find_linked_pages(
 
     ``texts`` is ``(where, field)`` pairs — ``("description", …)``, ``("comment", …)`` — each field
     ADF, wiki markup or plain text. ``site_hosts`` are the Atlassian site's hosts; a scanned URL on
-    any other host is not a Confluence link and is ignored.
+    any other host is named when it is a Confluence page there, and otherwise ignored.
     """
     hosts = {h.lower() for h in site_hosts if h}
     out = LinkedPages()
     seen_ids: set[str] = set()
     seen_unresolved: set[str] = set()
+    seen_elsewhere: set[tuple[str, str]] = set()
 
     def add(resolved: str | Unresolved | None, url: str, via: str) -> None:
         if resolved is None:
@@ -210,6 +235,11 @@ def find_linked_pages(
         for url in urls_in_field(value):
             if _host(url) in hosts:
                 add(resolve_page_url(url), url, where)
+            else:
+                elsewhere = _page_on_another_site(url)
+                if elsewhere is not None and elsewhere not in seen_elsewhere:
+                    seen_elsewhere.add(elsewhere)
+                    add(Unresolved(url, f"on another Confluence site ({elsewhere[0]})"), url, where)
     return out
 
 

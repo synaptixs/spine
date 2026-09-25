@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.intake`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 25 modules — 53 types and 140 functions. It sits in the middle of the graph: 4 areas below it, 6 above. Changes here can reach both ways.
+**`orchestrator.intake`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 25 modules — 57 types and 153 functions. It sits in the middle of the graph: 4 areas below it, 6 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR

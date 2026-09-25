@@ -1,0 +1,125 @@
+Requirements documents:
+
+# Orders export drops the currency column (id=FIN-43)
+Bug · status: To Do · priority: High
+
+The CSV export loses the currency column.
+
+Attachments read (5, 945 of 20,000 chars):
+--- note1.md ---
+# Note 1
+
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+- rule 1
+--- note2.md ---
+# Note 2
+
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+- rule 2
+--- note3.md ---
+# Note 3
+
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+- rule 3
+--- note4.md ---
+# Note 4
+
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+- rule 4
+--- note5.md ---
+# Note 5
+
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+- rule 5
+
+Attachments (names only — contents not read): gone.md (bound of 5 reached), big.txt (bound of 5 reached), late.md (bound of 5 reached)

@@ -5,11 +5,17 @@ from __future__ import annotations
 import os
 from dataclasses import asdict
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 
 from ._common import _print
+
+if TYPE_CHECKING:
+    from orchestrator.intake.intents import PromptFit
+    from orchestrator.intake.service import BacklogPlan
+    from orchestrator.intake.source import FetchTreeResult
+    from orchestrator.sdlc.builddoc import PlanApproval
 
 sdlc_app = typer.Typer(
     help="Run the end-to-end SDLC pipeline: plan, approve, build, review, complete.", no_args_is_help=True
@@ -476,7 +482,9 @@ def _terminal_gate() -> Any:
     return gate
 
 
-async def _fetch_ticket_documents(source: str, *, follow_links: bool = False) -> tuple[list[Any], str]:
+async def _fetch_ticket_documents(
+    source: str, *, follow_links: bool = False
+) -> tuple[list[Any], FetchTreeResult]:
     """The ticket's documents, fetched fresh and never analysed — what `source.txt` is built from.
 
     A source that cannot be read is an `ERROR` and exit 2, whatever failed underneath: a missing
@@ -509,7 +517,26 @@ async def _fetch_ticket_documents(source: str, *, follow_links: bool = False) ->
             f"WARNING: {source} returned no text — the criteria are checked against the spec alone.",
             err=True,
         )
-    return documents, fetched.linked_pages
+    return documents, fetched
+
+
+def _what_the_spec_saw(
+    fetched: FetchTreeResult | None, extraction: PromptFit | None, *, hand_written: bool
+) -> tuple[str, str]:
+    """The Linked pages line and the warning, from the fresh fetch and the extraction's fit.
+
+    ``hand_written``: the pages reached `source.txt` and nothing else. ``extraction`` is ``None``
+    then, and also for a structured source the extractor never read — either way nothing was cut.
+    """
+    from orchestrator.intake.follow_links import extraction_warning
+
+    if fetched is None:
+        return "", ""
+    if fetched.follow is not None:
+        linked = fetched.follow.summary(extraction=extraction, spec_extracted=not hand_written)
+    else:
+        linked = fetched.linked_pages
+    return linked, extraction_warning(extraction) if extraction is not None else ""
 
 
 @sdlc_app.command("approve")
@@ -770,6 +797,16 @@ def sdlc_plan(
             "access — an MCP server or CONFLUENCE_* credentials — or the run refuses).",
         ),
     ] = False,
+    refresh: Annotated[
+        bool,
+        typer.Option(
+            "--refresh",
+            help="Re-extract the spec from the source (default: reuse the cached one) — the intake "
+            "spec, not the PKG. Only the entry these flags select: with --follow-links the one "
+            "derived with linked pages, without it the ticket-only one. A WARNING says when it "
+            "changes an approved spec, and whether the approval still holds. Not with --spec.",
+        ),
+    ] = False,
 ) -> None:
     """Produce the build document for ONE ticket and stop. No worktree, no code, no spend.
 
@@ -786,6 +823,7 @@ def sdlc_plan(
         load_approval,
         load_journey,
         persist,
+        plan_digest,
         save_source_text,
     )
     from orchestrator.sdlc.feature_runner import unsupported_language_error
@@ -802,6 +840,13 @@ def sdlc_plan(
 
     if not spec and not source:
         typer.echo("Give --spec <file.json> or --source <uri>.", err=True)
+        raise typer.Exit(code=2)
+    if refresh and spec:
+        typer.echo(
+            "ERROR: --refresh re-extracts a spec derived from --source; a --spec file is never "
+            "extracted, so there is nothing to refresh.",
+            err=True,
+        )
         raise typer.Exit(code=2)
 
     try:
@@ -820,8 +865,14 @@ def sdlc_plan(
         # The ticket as intake read it — description, comments, attachments — is what row 08
         # checks each filed criterion against. A hand-written `--spec` alone has none.
         documents: list[Any] = []
-        # What the header says about linked Confluence pages: only meaningful with a ticket.
-        linked = ""
+        # The fresh fetch (for the Linked pages line) and the fit of what the spec was derived
+        # from: they are different reads, and the header says what each holds (N14).
+        fetched: FetchTreeResult | None = None
+        extraction: PromptFit | None = None
+        hand_written = resolved is not None
+        # The approval of the rendered intent when a `--refresh` changed its spec: whether it still
+        # holds is only known once the plan is re-rendered (B37, D4).
+        moved_approval: PlanApproval | None = None
         if resolved is not None and source:
             # `--spec` is the requirements; `--source` supplies only the ticket's own words, for
             # §8 to check the hand-written criteria against. So fetch, never analyse: the spec
@@ -833,11 +884,16 @@ def sdlc_plan(
             mismatch = spec_source_mismatch(resolved, source)
             if mismatch:
                 typer.echo(f"WARNING: {mismatch}", err=True)
-            documents, linked = await _fetch_ticket_documents(str(source), follow_links=follow_links)
+            documents, fetched = await _fetch_ticket_documents(str(source), follow_links=follow_links)
         if resolved is None:
             from orchestrator.core.env import load_local_env
             from orchestrator.core.llm.client import LLMError
-            from orchestrator.intake.cache import analyze_cached
+            from orchestrator.intake.cache import (
+                FOLLOW_LINKS,
+                analyze_cached,
+                load_cached_plan,
+                load_progress,
+            )
             from orchestrator.intake.factory import (
                 IntakeNotConfiguredError,
                 build_service_for,
@@ -851,9 +907,19 @@ def sdlc_plan(
             except (SourceUriError, IntakeNotConfiguredError) as exc:
                 typer.echo(f"ERROR: {exc}", err=True)
                 raise typer.Exit(code=2) from exc
+            # What the spec was before a refresh, so the warning below says "the spec changed" only
+            # when it did — the digest also moves when the code does (B37, D4).
+            before = (
+                load_cached_plan(str(source), variant=FOLLOW_LINKS if follow_links else "")
+                if refresh
+                else None
+            )
+            # A flag-off refresh prunes the ticket's progress to the intents still held, so what a
+            # renamed intent loses is read off the two, never assumed.
+            progress_before = load_progress(str(source)) if before is not None else {}
             try:
                 plan_result = await analyze_cached(
-                    service, str(source), refresh=False, log=lambda _m: None, follow_links=follow_links
+                    service, str(source), refresh=refresh, log=lambda _m: None, follow_links=follow_links
                 )
             except IntakeNotConfiguredError as exc:
                 typer.echo(f"ERROR: {exc}", err=True)
@@ -865,6 +931,24 @@ def sdlc_plan(
             except LLMError as exc:
                 typer.echo(f"ERROR: {exc}", err=True)
                 raise typer.Exit(code=2) from exc
+            if before is not None:
+                # Said now, not after the render: the cache was rewritten inside the refresh, and
+                # every exit below — a renamed `--intent`, a fetch that fails, a render that
+                # raises — would otherwise leave an approval moved without a word.
+                rendered = intent or (plan_result.specs[0].intent_id if plan_result.specs else "")
+                warnings, moved_approval = _refresh_warnings(
+                    before,
+                    plan_result,
+                    root=path,
+                    source=str(source),
+                    follow_links=follow_links,
+                    rendered=rendered,
+                    dropped_progress={
+                        k: v for k, v in progress_before.items() if k not in load_progress(str(source))
+                    },
+                )
+                for warning in warnings:
+                    typer.echo(f"WARNING: {warning}", err=True)
             if not plan_result.specs:
                 typer.echo("No specs derived from the source — nothing to plan.", err=True)
                 raise typer.Exit(code=3)
@@ -875,14 +959,27 @@ def sdlc_plan(
             )
             if chosen is None:
                 ids = ", ".join(s.intent_id for s in plan_result.specs)
-                typer.echo(f"Intent {intent!r} not found. Available: {ids}", err=True)
+                why = (
+                    " — the re-extraction renamed or dropped it"
+                    if before is not None and any(s.intent_id == intent for s in before.specs)
+                    else ""
+                )
+                typer.echo(f"Intent {intent!r} not found. Available: {ids}{why}", err=True)
                 raise typer.Exit(code=3)
             resolved = chosen.model_dump()
             # The spec comes from the cache — re-extracting it could move an approved plan — but
             # the ticket text §8 checks against is read fresh, with no model call: what the ticket
             # says *now*, attachments uncut, which a cache entry written before either could not
             # hold (Track E, D3).
-            documents, linked = await _fetch_ticket_documents(str(source), follow_links=follow_links)
+            documents, fetched = await _fetch_ticket_documents(str(source), follow_links=follow_links)
+            # The cache holds the bounded documents the extractor was given, so their fit is what
+            # the spec was derived from — not the fresh fetch, which may say something newer.
+            from orchestrator.intake.intents import extraction_fit
+
+            # Only when the extractor ran: a structured source (OpenSpec) is parsed verbatim, with
+            # no model and no budget, so nothing in it was cut.
+            if getattr(service, "uses_the_extractor", True):
+                extraction = extraction_fit(plan_result.documents)
             if not resolved_type:
                 from orchestrator.intake.ticket_meta import resolve_ticket_meta
 
@@ -891,9 +988,17 @@ def sdlc_plan(
         intent_key = str(resolved.get("intent_id") or "spec")
         # The whole ticket — every attachment uncut — because §8 checks criteria against its own
         # words; the extractor already had its bounded view (`SourceDocument.full_body`).
+        from orchestrator.intake.follow_links import extraction_note
         from orchestrator.intake.source import document_text
 
         source_text = "\n\n".join(document_text(d) for d in documents)
+        linked, lost = _what_the_spec_saw(fetched, extraction, hand_written=hand_written)
+        if lost:
+            typer.echo(
+                f"WARNING: {lost} — source.txt still holds every word, "
+                "and §8 checks the criteria against it.",
+                err=True,
+            )
         # Resolved against the repo being planned, not left as the literal "auto" — the
         # codegen prompt, the layout and the test environment all read this, and the old
         # `python` default handed a C# repository Python scaffolding without saying so.
@@ -904,6 +1009,7 @@ def sdlc_plan(
             issue_type=resolved_type,
             source_text=source_text,
             linked_pages=linked or ("not followed — `--follow-links` reads them" if source else ""),
+            extraction=extraction_note(extraction) if extraction is not None else "",
             # Rendered, never stored in the document: a plan that changed since it was
             # approved shows as stale rather than carrying an approval it outgrew.
             approval=load_approval(intent_key, root=path),
@@ -919,8 +1025,117 @@ def sdlc_plan(
         typer.echo(f"[plan] {written}", err=True)
         if superseded is not None:
             typer.echo(f"[plan] superseded document kept at {superseded}", err=True)
+        if moved_approval is not None:
+            # The gate's own comparison: the digest of what was rendered against the one approved.
+            # A spec can change in fields the plan never shows (`nfrs`, `estimate`, …), and then
+            # the approval holds — so exit 6 is claimed only when the digest moved.
+            who, when = moved_approval.decided_by or "someone", moved_approval.decided_at
+            autorun = "sdlc autorun --follow-links" if follow_links else "sdlc autorun"
+            if plan_digest(document) != moved_approval.digest:
+                typer.echo(
+                    f"WARNING: the re-rendered plan of {intent_key} is not the one {who} approved on "
+                    f"{when} — it reads as stale, and `{autorun}` for it parks (exit 6) until you read "
+                    f"it and `sdlc approve {intent_key}{_path_arg(path)}` again.",
+                    err=True,
+                )
+            else:
+                typer.echo(
+                    f"[plan] the re-rendered plan of {intent_key} reads the same as the one {who} "
+                    f"approved on {when} — the spec's change does not reach the plan, so the "
+                    f"approval still holds and `{autorun}` is not parked by it.",
+                    err=True,
+                )
 
     asyncio.run(_go())
+
+
+def _path_arg(path: str) -> str:
+    return "" if path == "." else f" --path {path}"
+
+
+def _refresh_warnings(
+    before: BacklogPlan,
+    after: BacklogPlan,
+    *,
+    root: str,
+    source: str,
+    follow_links: bool,
+    rendered: str,
+    dropped_progress: dict[str, dict[str, Any]],
+) -> tuple[list[str], PlanApproval | None]:
+    """What a `--refresh` did to the approvals under ``root``, said only when a spec moved.
+
+    The gate already fails closed, so this is about telling the user, not stopping anything (B37,
+    D4). It compares the cached spec from before the refresh with the new one, never the digest,
+    which also moves with the code — but a changed spec is not a moved plan: the digest covers what
+    the plan renders, and fields like `nfrs` or `estimate` it does not. So nothing here claims exit
+    6. For ``rendered``, the intent this command is about to render, its approval is returned and
+    the caller settles it against the rendered digest; any other approved intent's plan on disk was
+    rendered from the old spec, and only re-planning it can say.
+
+    Returns the warnings and, when the rendered intent's approved spec changed, its approval.
+    """
+    from orchestrator.sdlc.builddoc import load_approval
+
+    this = "with `--follow-links`" if follow_links else "without `--follow-links`"
+    other = "without `--follow-links`" if follow_links else "with `--follow-links`"
+    autorun = "sdlc autorun --follow-links" if follow_links else "sdlc autorun"
+    other_autorun = "sdlc autorun" if follow_links else "sdlc autorun --follow-links"
+    links = " --follow-links" if follow_links else ""
+    new = {s.intent_id: s.model_dump() for s in after.specs}
+    warnings: list[str] = []
+    moved: PlanApproval | None = None
+    for old in before.specs:
+        approval = load_approval(old.intent_id, root=root)
+        if approval is None or approval.decision != "APPROVED":
+            continue
+        iid, who, when = old.intent_id, approval.decided_by or "someone", approval.decided_at
+        if iid not in new:
+            # `save_plan` prunes a flag-off entry's progress to the intents still held; a
+            # variant's refresh leaves it alone — so the record's loss is read, never assumed.
+            record = dropped_progress.get(iid)
+            lost = ""
+            if record is not None:
+                what = ", ".join(
+                    x
+                    for x in (
+                        str(record.get("status") or ""),
+                        f"PR {record['pr_url']}" if record.get("pr_url") else "",
+                    )
+                    if x
+                )
+                lost = f" Its recorded progress ({what}) was dropped with it."
+            warnings.append(
+                f"re-extraction renamed or dropped {iid}, which {who} approved on {when} — the "
+                f"ticket's intents are now: {', '.join(new) or 'none'}. `{autorun} --intent {iid}` "
+                f"no longer finds it (exit 3), and the approval does not carry over to a new id: "
+                f"plan and approve the intent that replaced it.{lost}"
+            )
+        elif old.model_dump() != new[iid]:
+            if iid == rendered:
+                moved = approval
+                warnings.append(
+                    f"re-extraction changed the spec of {iid} that {who} approved on {when} — "
+                    "re-rendering its plan to see whether the approval still holds."
+                )
+            else:
+                warnings.append(
+                    f"re-extraction changed the spec of {iid} that {who} approved on {when} — its "
+                    "plan in this checkout was rendered from the old spec, so whether the approval "
+                    "still holds is known only once it is re-planned: "
+                    f"`sdlc plan --source {source} --intent {iid}{links}{_path_arg(root)}`, then, if "
+                    f"it reads as stale, read it and `sdlc approve {iid}{_path_arg(root)}`."
+                )
+    if warnings:
+        # Approvals are per checkout and do not record which cache entry they were read from; the
+        # cache is per user and shared. Neither is visible from here, so both are said once.
+        warnings.append(
+            f"the intake cache is shared by every checkout, so each one planning or running this "
+            f"ticket {this} now reads the new spec. Approvals do not record which plan they were "
+            f"made from: one made from the plan {other} reads a spec this refresh left as it was, "
+            f"so it moves nothing for `{other_autorun}`."
+        )
+    return warnings, moved
 
 
 @sdlc_app.command("feature")
