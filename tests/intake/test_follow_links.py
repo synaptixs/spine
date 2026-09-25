@@ -218,6 +218,39 @@ async def test_following_links_is_its_own_cache_entry_and_never_the_flag_off_one
     assert list(tmp_path.glob("*.json")) == [cache_path(_SOURCE, tmp_path)]  # one ticket, one file
 
 
+async def test_a_cache_hit_names_the_callers_own_way_to_re_extract(tmp_path: Path) -> None:
+    """B37, review pass 1: the hint is the caller's — `ingest`, `openspec draft` and `sdlc feature`
+    have `--refresh`, so they keep the one they had; only `autorun`, which has none, names
+    `sdlc plan` (tested there)."""
+    svc, said = _Analyser(), list[str]()
+    await analyze_cached(svc, _SOURCE, cache_dir=tmp_path)  # type: ignore[arg-type]
+    await analyze_cached(svc, _SOURCE, cache_dir=tmp_path, log=said.append)  # type: ignore[arg-type]
+    await analyze_cached(
+        svc,  # type: ignore[arg-type]
+        _SOURCE,
+        cache_dir=tmp_path,
+        log=said.append,
+        refresh_hint="`sdlc plan --source jira://FIN-42 --refresh` re-extracts",
+    )
+    assert "(--refresh to re-extract)" in said[0]
+    assert "(`sdlc plan --source jira://FIN-42 --refresh` re-extracts)" in said[1]
+
+
+def test_ingest_s_cache_hit_names_its_own_refresh(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from typer.testing import CliRunner
+
+    from orchestrator.cli import app
+
+    monkeypatch.setenv("ORCHESTRATOR_INTAKE_CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr("orchestrator.core.env.load_local_env", lambda *a, **k: 0)
+    monkeypatch.setattr("orchestrator.intake.factory.build_service_for", lambda *_a, **_k: _Analyser())
+    assert CliRunner().invoke(app, ["ingest", "--source", _SOURCE]).exit_code == 0
+    again = CliRunner().invoke(app, ["ingest", "--source", _SOURCE])
+    assert again.exit_code == 0, again.output
+    assert "reusing cached backlog" in again.output and "(--refresh to re-extract)" in again.output
+    assert "sdlc plan" not in again.output
+
+
 def test_progress_is_one_record_per_ticket_whichever_entry_it_was_planned_from(tmp_path: Path) -> None:
     save_plan(_SOURCE, _plan("with linked pages"), tmp_path, variant=FOLLOW_LINKS)  # flag-only ticket
     set_progress(_SOURCE, "intent-x", status="in_progress", pr_url="https://x/pr/1", cache_dir=tmp_path)
@@ -289,6 +322,47 @@ def test_a_flag_off_plan_never_prunes_progress_a_variant_still_holds(tmp_path: P
     assert complete_by_pr("https://x/pr/2", cache_dir=tmp_path) is not None
 
 
+def _both_entries(tmp_path: Path, *, variant_id: str) -> None:
+    save_plan(_SOURCE, _plan("ticket only"), tmp_path)  # intent-x at the top level
+    followed = _plan("with linked pages")
+    followed.intents[0] = followed.intents[0].model_copy(update={"id": variant_id})
+    save_plan(_SOURCE, followed, tmp_path, variant=FOLLOW_LINKS)
+
+
+def test_completing_a_pr_renders_the_entry_that_holds_its_intent(tmp_path: Path) -> None:
+    """N16(a): the PR was opened from the `--follow-links` plan, whose intent the flag-off plan
+    does not hold. `sdlc complete` re-rendered the top level — a ledger of `0 / 1 done` that did
+    not list the intent whose PR had just merged."""
+    from orchestrator.intake.backlog_doc import write_backlog
+
+    _both_entries(tmp_path, variant_id="intent-with-links")
+    set_progress(
+        _SOURCE, "intent-with-links", status="in_progress", pr_url="https://x/pr/3", cache_dir=tmp_path
+    )
+
+    matched = complete_by_pr("https://x/pr/3", cache_dir=tmp_path)
+
+    assert matched is not None
+    source, plan = matched
+    assert [i.id for i in plan.intents] == ["intent-with-links"]
+    ledger = write_backlog(tmp_path / "BACKLOG.md", source, plan, load_progress(source, tmp_path))
+    text = ledger.read_text(encoding="utf-8")
+    assert "**Progress:** 1 / 1 done" in text
+    assert "- [x] `intent-with-links`" in text
+
+
+def test_completing_a_pr_both_entries_hold_renders_the_flag_off_plan(tmp_path: Path) -> None:
+    """D5(a)'s tie: both plans hold the intent and share its progress, so either ledger shows it
+    done — the flag-off plan, which is what `sdlc complete` rendered before."""
+    _both_entries(tmp_path, variant_id="intent-x")
+    set_progress(_SOURCE, "intent-x", status="in_progress", pr_url="https://x/pr/4", cache_dir=tmp_path)
+
+    matched = complete_by_pr("https://x/pr/4", cache_dir=tmp_path)
+
+    assert matched is not None
+    assert matched[1].specs[0].title == "ticket only"
+
+
 # ---- what the model saw of them (N14) --------------------------------------------------------
 
 
@@ -343,6 +417,7 @@ def test_a_page_linked_after_the_spec_was_extracted_is_named_and_so_is_one_no_lo
     assert fresh.summary(extraction=cached) == (
         "followed — 2 read; 1 in the spec's extraction in full"
         f"; 1 linked since the spec was extracted ({_linked(3).url}) — not in it"
+        "; `sdlc plan --refresh --follow-links` re-extracts"
         f"; 1 in the spec's extraction but no longer linked ({_linked(2).url})"
         "; 1 not read (https://x/y: could not be read (HTTPError))"
     )

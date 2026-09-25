@@ -154,7 +154,12 @@ class FollowReport:
         elif seen:
             parts.append(_fit_clause(seen, extraction.budget, lead="in the spec's extraction in full"))
         if since:
-            parts.append(f"{len(since)} linked since the spec was extracted ({', '.join(since)}) — not in it")
+            # The spec comes from the cache, so the page reaches it only by re-extracting — which
+            # can stale an approval, so it is named, never done here (B37).
+            parts.append(
+                f"{len(since)} linked since the spec was extracted ({', '.join(since)}) — not in it"
+                "; `sdlc plan --refresh --follow-links` re-extracts"
+            )
         if gone:
             parts.append(f"{len(gone)} in the spec's extraction but no longer linked ({', '.join(gone)})")
         if not_read:

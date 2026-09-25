@@ -682,7 +682,18 @@ async def _stage_intake(
     # and writes its own cache entry; the plan gate re-derives against the `source.txt` the plan
     # saved, so a run and a plan made with different flags are different plans, and say so.
     try:
-        plan = await analyze_cached(service, ctx.source, refresh=False, log=emit, follow_links=follow_links)
+        plan = await analyze_cached(
+            service,
+            ctx.source,
+            refresh=False,
+            log=emit,
+            follow_links=follow_links,
+            # `autorun` has no `--refresh` — it re-checks the approval right after intake, so a
+            # refresh here could only park it — so its hint names the command that has (B37, D1).
+            refresh_hint=f"`sdlc plan --source {ctx.source} --refresh"
+            + (" --follow-links" if follow_links else "")
+            + "` re-extracts",
+        )
     except IntakeNotConfiguredError as exc:
         ctx.record_stage("intake", "failed", str(exc))
         raise AutorunError(str(exc), code=2) from exc
