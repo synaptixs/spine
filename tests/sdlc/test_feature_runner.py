@@ -1752,3 +1752,144 @@ async def test_the_runner_tells_the_layout_which_files_the_ticket_names(
 
     # The ticket names `AuctionCoilsUi.razor`; the resolver is told, not left to sort names.
     assert seen.get("prefer_paths") == ["WebApp/AuctionCoilsUi.razor"]
+
+
+# ---- B13: a supervisor can review before publishing ---------------------------------------------
+
+
+class _RecordingForge:
+    opened: list[dict[str, Any]] = []
+
+    def __init__(self, *a: Any, **k: Any) -> None:
+        pass
+
+    async def open_pr(self, **kwargs: Any) -> Any:
+        _RecordingForge.opened.append(kwargs)
+        return SimpleNamespace(url="https://github.com/x/y/pull/8")
+
+
+async def test_publish_false_builds_and_hands_back_the_publishing_step(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """autorun reviews the change before anyone is asked to look at it, so the build must not
+    open the PR itself — it hands back the step that does, unchanged."""
+    jira = _FakeJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, jira=jira)
+    _RecordingForge.opened = []
+    monkeypatch.setattr("orchestrator.sdlc.forge.GhPRAdapter", _RecordingForge)
+
+    result = await run_feature(
+        "file://./spec.md",
+        intent_id="intent-a",
+        repo="https://x/widget",
+        live=True,
+        issue="SSPN-1",
+        publish=False,
+    )
+
+    assert _RecordingForge.opened == [] and result.pr_url is None
+    assert jira.transitions == ["In Progress"]
+    assert result.publish is not None
+    url = await result.publish(draft=False, note="")
+    assert url == "https://github.com/x/y/pull/8"
+    assert _RecordingForge.opened[0]["draft"] is False
+    assert jira.transitions == ["In Progress", "In Review"]
+
+
+async def test_a_draft_says_why_and_leaves_the_ticket_in_progress(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    jira = _FakeJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, jira=jira)
+    _RecordingForge.opened = []
+    monkeypatch.setattr("orchestrator.sdlc.forge.GhPRAdapter", _RecordingForge)
+
+    result = await run_feature(
+        "file://./spec.md",
+        intent_id="intent-a",
+        repo="https://x/widget",
+        live=True,
+        issue="SSPN-1",
+        publish=False,
+    )
+    assert result.publish is not None
+    await result.publish(draft=True, note="Unresolved: x.py:2 bare except")
+
+    [opened] = _RecordingForge.opened
+    assert opened["draft"] is True
+    assert "Unresolved: x.py:2 bare except" in opened["body"]
+    assert jira.transitions == ["In Progress"]  # a draft is not ready for review
+
+
+async def test_a_safe_run_has_nothing_to_publish(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", publish=False)
+
+    assert result.publish is None
+
+
+class _CommentingJira(_FakeJira):
+    def __init__(self) -> None:
+        super().__init__()
+        self.comments: list[str] = []
+
+    async def comment_issue(self, issue_key: str, body: str) -> None:
+        self.comments.append(body)
+
+
+async def test_the_default_path_publishes_exactly_as_before(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`publish=True` (every caller but autorun) must be the old live block, unchanged: a ready
+    PR whose body is the spec's own, the same comment text, one move to In Review."""
+    from orchestrator.sdlc import feature_runner
+
+    bodies: list[str] = []
+    real_body = feature_runner._pr_body
+
+    def _body(spec: dict[str, Any], withdrawn: list[str]) -> str:
+        bodies.append(real_body(spec, withdrawn))
+        return bodies[-1]
+
+    jira = _CommentingJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, jira=jira)
+    _RecordingForge.opened = []
+    monkeypatch.setattr("orchestrator.sdlc.forge.GhPRAdapter", _RecordingForge)
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner._pr_body", _body)
+
+    await run_feature(
+        "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
+    )
+
+    [opened] = _RecordingForge.opened
+    assert opened["draft"] is False
+    assert opened["title"].startswith("SSPN-1: ")
+    assert opened["body"] == bodies[-1]  # exactly the spec's body — no note appended
+    assert jira.comments == ["PR opened for this story: https://github.com/x/y/pull/8"]
+    assert jira.transitions == ["In Progress", "In Review"]
+
+
+async def test_publish_false_commits_the_build_before_handing_back(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The review diffs against the build commit, so the build must be committed first."""
+    commits: list[str] = []
+
+    async def _commit(path: Path, message: str) -> None:
+        commits.append(message)
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setattr("orchestrator.sdlc.forge.GhPRAdapter", _RecordingForge)
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner._local_commit", _commit)
+
+    await run_feature(
+        "file://./spec.md",
+        intent_id="intent-a",
+        repo="https://x/widget",
+        live=True,
+        issue="SSPN-1",
+        publish=False,
+    )
+
+    assert len(commits) == 1 and commits[0].startswith("SSPN-1: ")

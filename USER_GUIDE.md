@@ -605,8 +605,10 @@ run rather than passing it.
 orchestrator sdlc autorun --source jira://PROJ-14 --issue PROJ-14 --safe --review
 ```
 
-`--review` prints the full diff and asks, once, after every check above and before
-the first write. Declining commits nothing and pushes nothing.
+`--review` prints the full diff and asks after every check above and before the first
+write — and again about any fixes the review loop writes afterwards, before they are
+committed. Declining the first commits and pushes nothing; declining the second discards
+the fixes and opens the PR as a draft.
 
 Everything between `[validity]` and `[judge]` is a model or a heuristic. **Two gates are
 a person, and they catch different failures.** The plan gate (Step 3.4) asks whether the

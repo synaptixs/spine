@@ -3,10 +3,11 @@
 **Status:** Phases 2–5 shipped — walking skeleton `7443568`, run supervisor `e1f2e11`, validity
 gate `bb22a04`, review loop `3bac7da`; the plan gate before code followed in `373f38c`. Short of
 what they deliver, as built: a resume re-runs every stage rather than continuing from the
-recorded phase, so approving a validity or design park re-parks instead of building; `autorun`'s
-budget is only its `--max-cost` flag (it does not read `SDLC_RUN_BUDGET_USD`); and under
-`--live` the review loop runs after the PR is opened. Phases 6–9 were not audited for this line
-(2026-09-23). Nine phases; phases 0–3 are strictly serial, 4–6 run in parallel once the
+recorded phase, so approving a validity or design park re-parks instead of building. (Since
+B13/B14: the review runs before the PR opens and its fixes are committed, an unclean
+review opens a draft and fails the run, and the budget is `--max-cost` or `SDLC_RUN_BUDGET_USD`
+over the build and the review, carried across a resume.) Phases 6–9 were not audited for this
+line (2026-09-23). Nine phases; phases 0–3 are strictly serial, 4–6 run in parallel once the
 supervisor exists.
 
 **One-liner:** one agent drives a ticket from Jira through design, code, tests, review and

@@ -21,6 +21,8 @@ workflow already knows how to terminate on.
 from __future__ import annotations
 
 import contextlib
+import math
+import os
 from collections.abc import Iterator
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -80,6 +82,22 @@ class RunBudget:
             )
 
 
+def run_budget_from_env(default_usd: float = 25.0) -> RunBudget:
+    """The documented per-run cap: ``SDLC_RUN_BUDGET_USD`` dollars, $25 when unset, ``0`` to
+    disable enforcement (spend is still tracked). The one reader behind the Temporal worker,
+    ``sdlc feature`` and ``sdlc autorun`` (B14). The MCP ``sdlc_feature`` / remediate tools and
+    ``sdlc remediate`` do not apply it yet."""
+    raw = os.getenv("SDLC_RUN_BUDGET_USD", "").strip()
+    try:
+        cap = float(raw) if raw else default_usd
+    except ValueError as exc:
+        raise ValueError(f"SDLC_RUN_BUDGET_USD must be a number of dollars, got {raw!r}") from exc
+    if not math.isfinite(cap) or cap < 0:
+        # `nan` would compare false against every spend and silently mean "no cap".
+        raise ValueError(f"SDLC_RUN_BUDGET_USD must be 0 or a positive number of dollars, got {raw!r}")
+    return RunBudget(max_cost_usd=cap)
+
+
 class BudgetedLLMClient:
     """An ``LLMClient`` that enforces a ``RunBudget`` around every call."""
 
@@ -114,4 +132,4 @@ class BudgetedLLMClient:
         return result
 
 
-__all__ = ["BudgetExceededError", "BudgetedLLMClient", "RunBudget"]
+__all__ = ["BudgetExceededError", "BudgetedLLMClient", "RunBudget", "run_budget_from_env"]

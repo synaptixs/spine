@@ -4,6 +4,57 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.48.0 — 2026-09-24
+
+### Fixed
+
+- **`sdlc autorun --live` opens the pull request after its own review, with the fixes in it.** The
+  build used to open the PR, and the review that followed fixed what it found in the worktree,
+  uncommitted, so the PR never carried the fixes. Now the build commits locally, the review runs,
+  its fixes are committed as `<KEY>: review fixes`, and then the PR opens. A review that does not
+  finish clean — findings left unresolved, a fix that broke the tests, a crash — opens a **draft**
+  PR saying why, leaves the ticket In Progress, marks the run failed and exits 1; it used to end
+  `done`, exit 0. Edits that broke the tests or came from a crashed review are discarded, so the
+  PR carries the tested build. With `--review`, the review's own fixes are shown and asked about
+  before they are committed; declining discards them.
+- **`SDLC_RUN_BUDGET_USD` is the per-run cap it is documented to be.** Only the Temporal worker
+  applied it. `sdlc feature` and `sdlc autorun` now apply it too, read from the environment or
+  `.env`: $25 by default, `0` disables, and `autorun --max-cost` overrides it. A malformed value
+  (or `nan`, or a negative) refuses the run with exit 2. The MCP `sdlc_feature` and remediate
+  tools and `sdlc remediate` do not apply it yet. autorun's cap now covers the review's fixes as well as the
+  build, and a resumed run continues from what it had already spent instead of starting from $0.
+
+  **Upgrade note:** `sdlc feature` and `sdlc autorun` without `--max-cost` now stop a run that
+  spends more than $25 (autorun parks it; `sdlc feature` exits 4). Set `SDLC_RUN_BUDGET_USD` to raise
+  it, or to `0` for the old uncapped behaviour; a budget park names the `--resume … --max-cost`
+  that continues it. Scripts that treated autorun's exit 0 as success
+  now see exit 1 for a run whose review left findings unresolved.
+
+- **The Java/C# type lookup no longer skips a closer binding.** Every Java and C# edge that names
+  a type — a typed receiver's member, a static call, a creation, a base type, a DI binding —
+  resolves it through one lookup. That lookup could not see some bindings closer than the one it
+  found, and grounded the name on a farther in-repo type of the same name:
+  - a Java local class hides a same-named type from its declaration on, so `new Order()` there gets
+    no edge instead of landing on the package's `Order`;
+  - inside an anonymous class body, the base's member types come first (`Base.Helper`);
+  - a qualified name resolves its head first, so `Response.Status`, where the nested `Response`
+    extends `BaseResponse`, is `BaseResponse.Status`. In C# a head that names a nearer namespace is
+    that namespace;
+  - a member type that an external supertype declares hides an in-repo namesake. `class MyMap
+    extends AbstractMap` means `AbstractMap.SimpleEntry`, and `Panel : Control` means
+    `Control.ControlCollection`. This comes from a small committed table of published API facts,
+    because refusing every name under any external base would have dropped 19–49% of true calls;
+  - C# type parameters of a local function, or of the generic method a DI registration sits in, hide
+    an in-repo class of that name.
+
+  On four field repositories (one Java, three .NET), and on commons-collections, gson, ShareX and
+  Newtonsoft.Json, it moves no edge. On guava it moves 16, and all 16 are now right: members that a
+  nearer class hides (`ForwardingSortedMap.StandardKeySet` over `ForwardingMap`'s), and member types
+  inside nested anonymous classes. Extraction speed is unchanged. Java `CALLS` recall on the corpus
+  is 0.92 and C# 0.89; the two new cases add their right readings as edges.
+  - A Java `private` member type is not inherited, but it still hides a deeper one. `java.lang.*` is
+    imported implicitly. A C# alias to a namespace (`using M = App.Model;`) heads `M.Order`.
+
 ## 3.47.0 — 2026-09-24
 
 ### Added

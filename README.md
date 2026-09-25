@@ -78,7 +78,15 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.47.0 (current)** — Java and C# graphs that say who calls what. A call through a typed
+**3.48.0 (current)** — `sdlc autorun --live` opens its pull request *after* its own review,
+with the review's fixes committed in it; a review that does not finish clean opens a **draft** PR
+saying why and exits 1 instead of ending `done`. `SDLC_RUN_BUDGET_USD` now caps `sdlc feature` and
+`sdlc autorun` too ($25 by default, `0` disables) — **upgrade note:** an uncapped run that spends
+more now stops; set the variable to raise the cap. The Java/C# type lookup also sees every binding
+closer than the one it used to find (local classes, anonymous-class bodies, qualified heads, member
+types an external base declares) — on guava 16 edges moved, all 16 now right.
+
+**3.47.0** — Java and C# graphs that say who calls what. A call through a typed
 receiver — `_service.Do()` through a field, `repo.Load(id)` through a parameter, a typed local — now
 lands on the member the declared type means (on a .NET service, 2,427 of 2,427 resolvable calls,
 from 0), and `new Foo()` is a call to `Foo`, so a class's `blast_radius` lists who creates it.

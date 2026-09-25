@@ -145,7 +145,7 @@ _9 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/scope.py:595`](../../src/orchestrator/pkg/scope.py#L595)
 
 - **Called by** (1): [`scopes_for_source`](../../src/orchestrator/pkg/scope.py#L624)
-- **Calls** (6): [`_c_parser`](../../src/orchestrator/pkg/c_extractor.py#L512), [`_cpp_parser`](../../src/orchestrator/pkg/cpp_extractor.py#L527), [`_csharp_parser`](../../src/orchestrator/pkg/csharp_extractor.py#L1320), [`_go_parser`](../../src/orchestrator/pkg/go_extractor.py#L514), [`_kotlin_parser`](../../src/orchestrator/pkg/kotlin_extractor.py#L2097), [`_ts_parser`](../../src/orchestrator/pkg/typescript_extractor.py#L1061)
+- **Calls** (6): [`_c_parser`](../../src/orchestrator/pkg/c_extractor.py#L512), [`_cpp_parser`](../../src/orchestrator/pkg/cpp_extractor.py#L527), [`_csharp_parser`](../../src/orchestrator/pkg/csharp_extractor.py#L1376), [`_go_parser`](../../src/orchestrator/pkg/go_extractor.py#L514), [`_kotlin_parser`](../../src/orchestrator/pkg/kotlin_extractor.py#L2097), [`_ts_parser`](../../src/orchestrator/pkg/typescript_extractor.py#L1061)
 
 ### `_text`
 

@@ -148,7 +148,7 @@ Two changes make attribution durable:
 **Already shipped (reuse, don't rebuild):**
 - Per-stage ledger with tokens/cost/latency/models — [recording.py](../../src/orchestrator/core/llm/recording.py).
 - Per-call OTel spans (`llm.complete`) with token/cost attributes — exported when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (the `otel` extra).
-- Per-run budget cap + enforcement — `RunBudget` / `BudgetedLLMClient`, `SDLC_RUN_BUDGET_USD` (default $25) — [budget.py](../../src/orchestrator/core/llm/budget.py), wired in [worker.py](../../src/orchestrator/sdlc/worker.py).
+- Per-run budget cap + enforcement — `RunBudget` / `BudgetedLLMClient`, `SDLC_RUN_BUDGET_USD` (default $25) — [budget.py](../../src/orchestrator/core/llm/budget.py); read by `run_budget_from_env()` and applied by the worker, `sdlc feature` and `sdlc autorun` (B14).
 - Ledger → HTML audit table — [intake/report.py](../../src/orchestrator/intake/report.py).
 - Cost in the **evals** harness (mean/total $) — [evals/models.py](../../src/orchestrator/evals/models.py).
 - `iterations`, `grounding_chars`, `blast_radius` signals.
