@@ -1099,113 +1099,125 @@ async def run_feature(
         await _release_the_ticket(move, emit)
         raise
 
-    passed = False
-    iterations = 0
-    # One allowance per kind of problem, not one pool for all three. A live run spent
-    # iterations 1-2 on real test failures and 3-4 on type errors, so when the coverage
-    # probe found its gap on iteration 5 there was nothing left to answer it with — the
-    # change was fixable and the run reported FAILED. Each check now gets guaranteed room,
-    # with a hard ceiling so a pathological run still terminates.
-    spent = {"tests": 0, "types": 0, "coverage": 0}
-    cover_written: list[str] = []
-    withdrawn: list[str] = []
-    budgets = {"tests": max_refine, "types": max_refine, "coverage": _MAX_COVERAGE_FIXES}
-    ceiling = sum(budgets.values()) + 1
-    while iterations < ceiling:
-        result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
-        iterations += 1
-        emit(f"[run_tests #{iterations}] passed={result.passed} rc={result.returncode}")
-        failures = result.output
-        kind = "tests"
-        if result.passed:
-            # Green is necessary and not sufficient. The generated tests are written by the
-            # same model as the code and routinely exercise a new helper directly while never
-            # importing the module the ticket was about — so they pass over a NameError or a
-            # wrong attribute sitting on the line that matters. The type checker does not.
-            changed = await _changed_files(path)
-            failures = await _typecheck_the_change(path, testenv, changed, emit)
-            kind = "types"
-            if not failures:
-                # Type-clean and green still allows a change nothing tests. Probe each
-                # production file on its own; a gap is answered by writing the missing
-                # test, not by editing the implementation, so it goes to author_tests.
-                gaps = await _files_no_test_exercises(path, changed, runner, emit)
-                if not gaps:
-                    passed = True
+    from orchestrator.core.llm import BudgetExceededError
+
+    try:
+        passed = False
+        iterations = 0
+        # One allowance per kind of problem, not one pool for all three. A live run spent
+        # iterations 1-2 on real test failures and 3-4 on type errors, so when the coverage
+        # probe found its gap on iteration 5 there was nothing left to answer it with — the
+        # change was fixable and the run reported FAILED. Each check now gets guaranteed room,
+        # with a hard ceiling so a pathological run still terminates.
+        spent = {"tests": 0, "types": 0, "coverage": 0}
+        cover_written: list[str] = []
+        withdrawn: list[str] = []
+        budgets = {"tests": max_refine, "types": max_refine, "coverage": _MAX_COVERAGE_FIXES}
+        ceiling = sum(budgets.values()) + 1
+        while iterations < ceiling:
+            result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
+            iterations += 1
+            emit(f"[run_tests #{iterations}] passed={result.passed} rc={result.returncode}")
+            failures = result.output
+            kind = "tests"
+            if result.passed:
+                # Green is necessary and not sufficient. The generated tests are written by the
+                # same model as the code and routinely exercise a new helper directly while never
+                # importing the module the ticket was about — so they pass over a NameError or a
+                # wrong attribute sitting on the line that matters. The type checker does not.
+                changed = await _changed_files(path)
+                failures = await _typecheck_the_change(path, testenv, changed, emit)
+                kind = "types"
+                if not failures:
+                    # Type-clean and green still allows a change nothing tests. Probe each
+                    # production file on its own; a gap is answered by writing the missing
+                    # test, not by editing the implementation, so it goes to author_tests.
+                    gaps = await _files_no_test_exercises(path, changed, runner, emit)
+                    if not gaps:
+                        passed = True
+                        break
+                    if spent["coverage"] >= budgets["coverage"]:
+                        emit("[cover] out of coverage attempts — the change is not proven tested")
+                        break
+                    spent["coverage"] += 1
+                    with llm.stage("author_tests"):
+                        covered = await codegen.author_tests(
+                            spec=spec, path=str(path), issue_key=issue_key, gaps=gaps
+                        )
+                    emit(f"[cover] {[Path(f).name for f in covered.files]} - {covered.summary}")
+                    # Only what the cover stage *created*. Nothing is committed until the run
+                    # ends, so every generated test is untracked and `git checkout` cannot bring
+                    # one back: withdrawing a file an earlier stage wrote — the spec's tests, or
+                    # the file `author_tests` created and the cover stage appended to — would
+                    # delete the ticket's own tests and open a PR with none of them.
+                    cover_written.extend(f for f in covered.files if _is_test_path(f) and f not in authored)
+                    authored.update(covered.files)
+                    if not covered.files:
+                        emit("[cover] no tests written for the gap — stopping rather than looping")
+                        break
+                    continue
+            if spent[kind] >= budgets[kind]:
+                # The tests budget died on a test the cover stage itself wrote (CB-760). Withdraw
+                # it — once, only those files — and let the suite the ticket actually asked for
+                # decide. A red test the output does not attribute to a cover file is still fatal.
+                culprits = (
+                    [f for f in cover_written if _named_in_failures(f, failures)] if kind == "tests" else []
+                )
+                if culprits and not withdrawn:
+                    await _withdraw_cover_tests(path, culprits, emit, attempts=spent["tests"])
+                    withdrawn = list(culprits)
+                    result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
+                    iterations += 1
+                    emit(f"[run_tests #{iterations}] passed={result.passed} rc={result.returncode}")
+                    if result.passed:
+                        changed = await _changed_files(path)
+                        passed = not await _typecheck_the_change(path, testenv, changed, emit)
                     break
-                if spent["coverage"] >= budgets["coverage"]:
-                    emit("[cover] out of coverage attempts — the change is not proven tested")
-                    break
-                spent["coverage"] += 1
-                with llm.stage("author_tests"):
-                    covered = await codegen.author_tests(
-                        spec=spec, path=str(path), issue_key=issue_key, gaps=gaps
-                    )
-                emit(f"[cover] {[Path(f).name for f in covered.files]} - {covered.summary}")
-                # Only what the cover stage *created*. Nothing is committed until the run
-                # ends, so every generated test is untracked and `git checkout` cannot bring
-                # one back: withdrawing a file an earlier stage wrote — the spec's tests, or
-                # the file `author_tests` created and the cover stage appended to — would
-                # delete the ticket's own tests and open a PR with none of them.
-                cover_written.extend(f for f in covered.files if _is_test_path(f) and f not in authored)
-                authored.update(covered.files)
-                if not covered.files:
-                    emit("[cover] no tests written for the gap — stopping rather than looping")
-                    break
-                continue
-        if spent[kind] >= budgets[kind]:
-            # The tests budget died on a test the cover stage itself wrote (CB-760). Withdraw
-            # it — once, only those files — and let the suite the ticket actually asked for
-            # decide. A red test the output does not attribute to a cover file is still fatal.
-            culprits = (
-                [f for f in cover_written if _named_in_failures(f, failures)] if kind == "tests" else []
-            )
-            if culprits and not withdrawn:
-                await _withdraw_cover_tests(path, culprits, emit, attempts=spent["tests"])
-                withdrawn = list(culprits)
-                result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
-                iterations += 1
-                emit(f"[run_tests #{iterations}] passed={result.passed} rc={result.returncode}")
-                if result.passed:
-                    changed = await _changed_files(path)
-                    passed = not await _typecheck_the_change(path, testenv, changed, emit)
+                emit(f"[refine] out of {kind} attempts — stopping")
                 break
-            emit(f"[refine] out of {kind} attempts — stopping")
-            break
-        spent[kind] += 1
-        with llm.stage("refine"):
-            change = await codegen.refine(spec=spec, path=str(path), issue_key=issue_key, failures=failures)
-        emit(f"[refine] {[Path(f).name for f in change.files]} - {change.summary}")
-        authored.update(change.files)
-        if not change.files:
-            # Refine only edits files. Having changed none, the next run is
-            # byte-identical to the one that just failed, so another iteration
-            # cannot change the verdict — it just spends an LLM call to watch the
-            # same error. The classic case is an environment fault the model
-            # diagnoses correctly and structurally cannot act on ("install the
-            # missing dependency"): left alone it burns every remaining iteration.
-            emit("[refine] no file changes — not fixable by editing code; stopping early")
-            break
+            spent[kind] += 1
+            with llm.stage("refine"):
+                change = await codegen.refine(
+                    spec=spec, path=str(path), issue_key=issue_key, failures=failures
+                )
+            emit(f"[refine] {[Path(f).name for f in change.files]} - {change.summary}")
+            authored.update(change.files)
+            if not change.files:
+                # Refine only edits files. Having changed none, the next run is
+                # byte-identical to the one that just failed, so another iteration
+                # cannot change the verdict — it just spends an LLM call to watch the
+                # same error. The classic case is an environment fault the model
+                # diagnoses correctly and structurally cannot act on ("install the
+                # missing dependency"): left alone it burns every remaining iteration.
+                emit("[refine] no file changes — not fixable by editing code; stopping early")
+                break
 
-    files = await _changed_files(path)
-
-    if passed:
-        await _prove_the_tests_test_something(path, files, runner, emit)
-        await _satisfy_the_ticket(
-            llm,
-            codegen=codegen,
-            runner=runner,
-            testenv=testenv,
-            path=path,
-            issue_key=issue_key,
-            spec=spec,
-            max_revisions=max_judge_revisions,
-            max_repairs=max_revision_repairs,
-            emit=emit,
-        )
-        # A revision may have added a file no earlier stage touched (a doc, most often),
-        # so the PR's file list has to be taken after the judge is satisfied, not before.
         files = await _changed_files(path)
+
+        if passed:
+            await _prove_the_tests_test_something(path, files, runner, emit)
+            await _satisfy_the_ticket(
+                llm,
+                codegen=codegen,
+                runner=runner,
+                testenv=testenv,
+                path=path,
+                issue_key=issue_key,
+                spec=spec,
+                max_revisions=max_judge_revisions,
+                max_repairs=max_revision_repairs,
+                emit=emit,
+            )
+            # A revision may have added a file no earlier stage touched (a doc, most often),
+            # so the PR's file list has to be taken after the judge is satisfied, not before.
+            files = await _changed_files(path)
+    except BudgetExceededError:
+        # The run's spend cap (SDLC_RUN_BUDGET_USD by default, B14) ran out mid-change. A
+        # standalone run hands the ticket back, as a failed run does; a supervisor that asked
+        # not to publish (`sdlc autorun`) parks the run with the work on its branch instead.
+        if publish:
+            await _release_the_ticket(move, emit)
+        raise
 
     if not passed:
         # A failed run is where the spend most needs explaining — it bought no PR.
@@ -1305,9 +1317,24 @@ async def run_feature(
     )
 
 
-async def commit_worktree(path: Path | str, message: str) -> None:
-    """Stage and commit everything in a worktree — the review loop's fixes, for `autorun`."""
-    await _local_commit(Path(path), message)
+async def commit_worktree(path: Path | str, message: str) -> bool:
+    """Stage and commit everything in a worktree — the review loop's fixes, for `autorun`.
+
+    True when a commit was made, False when there was nothing to commit. Raises RuntimeError
+    with git's own words when git refuses (a pre-commit hook, a locked index): unlike the
+    build's best-effort commit, a fix that silently failed to commit would be swept into the
+    PR later by ``open_pr``'s ``add -A``, reviewed by nobody."""
+    for argv in (["git", "add", "-A"], ["git", "commit", "-m", message]):
+        proc = await asyncio.create_subprocess_exec(
+            *argv, cwd=str(path), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
+        )
+        out, _ = await proc.communicate()
+        text = out.decode("utf-8", "replace").strip()
+        if proc.returncode != 0:
+            if argv[1] == "commit" and "nothing to commit" in text:
+                return False
+            raise RuntimeError(text.splitlines()[-1] if text else f"git {argv[1]} failed")
+    return True
 
 
 __all__ = ["FeatureRunError", "FeatureRunResult", "commit_worktree", "run_feature"]

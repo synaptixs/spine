@@ -19,6 +19,7 @@ from typing import Any
 import pytest
 
 from orchestrator.codereview.verifiers import Finding, Severity
+from orchestrator.core.env import load_local_env as _real_load_local_env
 from orchestrator.sdlc.autorun import autorun
 from orchestrator.sdlc.reviewloop import LoopResult, Round
 from orchestrator.sdlc.runstate import RunRecord, RunStore
@@ -76,6 +77,7 @@ def _install(
     *,
     outcome: LoopResult,
     edit: bool = True,
+    crash: Exception | None = None,
 ) -> dict[str, Any]:
     seen: dict[str, Any] = {}
     wt = _worktree(tmp_path)
@@ -106,6 +108,9 @@ def _install(
         seen["review_charged_to"] = _active_run.get()
         if edit:  # the fixer's edit, left in the worktree exactly as the real loop leaves it
             (Path(kwargs["path"]) / "x.py").write_text("def f():\n    return 2\n", encoding="utf-8")
+            (Path(kwargs["path"]) / "new_helper.py").write_text("X = 1\n", encoding="utf-8")
+        if crash is not None:
+            raise crash
         return outcome
 
     monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _feature)
@@ -326,3 +331,192 @@ def test_sdlc_feature_reads_the_cap_from_the_environment(monkeypatch: pytest.Mon
             )
         )
     assert seen["budget"].max_cost_usd == 4.0
+
+
+# ---- review pass 1 --------------------------------------------------------------------------------
+
+
+def _file(tmp_path: Path) -> str:
+    return (tmp_path / "wt" / "x.py").read_text(encoding="utf-8")
+
+
+def test_the_review_gate_is_asked_again_about_the_reviews_own_fixes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """--review approves the build's diff; code the review wrote afterwards is asked about too."""
+    asked: list[list[str]] = []
+
+    async def _gate(path: Path, files: list[str]) -> bool:
+        asked.append(files)
+        return True
+
+    seen = _install(monkeypatch, tmp_path, outcome=CLEAN)
+    _run(tmp_path, gate=_gate)
+
+    assert asked == [["new_helper.py", "x.py"]]
+    assert seen["published"].calls[0]["log"].splitlines()[0] == "SSPN-42: review fixes"
+
+
+def test_fixes_declined_at_the_gate_are_discarded_and_the_pr_is_a_draft(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    async def _gate(path: Path, files: list[str]) -> bool:
+        return False
+
+    seen = _install(monkeypatch, tmp_path, outcome=CLEAN)
+    ctx = _run(tmp_path, gate=_gate)
+
+    [call] = seen["published"].calls
+    assert call["draft"] is True and "declined at the --review gate" in call["note"]
+    assert call["log"].splitlines()[0] == "SSPN-42: Add CSV export"  # nobody saw the fixes; none pushed
+    assert call["dirty"] == "" and _file(tmp_path) == "def f():\n    return 1\n"
+    assert not ctx.passed
+
+
+def test_a_fix_that_broke_the_tests_is_discarded_and_the_draft_says_so(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    red = LoopResult(
+        rounds=[Round(number=1, findings=1, fixed_files=("x.py",), tests_passed=False)],
+        remaining=UNCLEAN.remaining,
+        stopped="a review fix broke the tests — stopping rather than building on it",
+        clean=False,
+    )
+    seen = _install(monkeypatch, tmp_path, outcome=red)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert call["draft"] is True
+    assert "broke the tests" in call["note"] and "tested build" in call["note"]
+    assert call["log"].splitlines()[0] == "SSPN-42: Add CSV export"
+    assert _file(tmp_path) == "def f():\n    return 1\n"
+    assert not (tmp_path / "wt" / "new_helper.py").exists()
+
+
+def test_a_crashed_review_still_publishes_the_tested_build_as_a_draft(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    seen = _install(monkeypatch, tmp_path, outcome=CLEAN, crash=RuntimeError("model returned nonsense"))
+
+    ctx = _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert call["draft"] is True and "review crashed" in call["note"]
+    assert call["dirty"] == ""
+    assert not ctx.passed
+
+
+def test_fixes_git_refuses_to_commit_are_discarded_not_swept_into_the_pr(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    seen = _install(monkeypatch, tmp_path, outcome=CLEAN)
+    hook = tmp_path / "wt" / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\necho 'lint says no' >&2\nexit 1\n", encoding="utf-8")
+    hook.chmod(0o755)
+
+    _run(tmp_path)
+
+    [call] = seen["published"].calls
+    assert call["draft"] is True and "could not be committed" in call["note"]
+    assert call["dirty"] == ""
+
+
+def test_a_review_that_edited_nothing_commits_nothing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    commits: list[str] = []
+
+    async def _commit(path: Any, message: str) -> bool:
+        commits.append(message)
+        return True
+
+    _install(monkeypatch, tmp_path, outcome=LoopResult(stopped="review clean", clean=True), edit=False)
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner.commit_worktree", _commit)
+
+    _run(tmp_path)
+
+    assert commits == []
+
+
+def test_a_budget_set_in_dotenv_is_the_one_applied(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("orchestrator.core.env.load_local_env", _real_load_local_env)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text("SDLC_RUN_BUDGET_USD=0\n", encoding="utf-8")
+    seen = _install(monkeypatch, tmp_path, outcome=CLEAN)
+
+    _run(tmp_path, live=False)
+
+    assert seen["feature_kwargs"]["budget"].max_cost_usd == 0.0
+
+
+@pytest.mark.parametrize("value", ["abc", "nan", "-5"])
+def test_a_malformed_cap_refuses_before_any_record(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, value: str
+) -> None:
+    from orchestrator.sdlc.autorun import AutorunError
+
+    monkeypatch.setenv("SDLC_RUN_BUDGET_USD", value)
+    _install(monkeypatch, tmp_path, outcome=CLEAN)
+    store = RunStore(root=tmp_path / "state")
+
+    with pytest.raises(AutorunError) as exc:
+        _run(tmp_path, live=False, store=store)
+
+    assert exc.value.code == 2 and "SDLC_RUN_BUDGET_USD" in str(exc.value)
+    assert store.all() == []
+
+
+def test_max_cost_zero_disables_the_cap_and_says_so(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    lines: list[str] = []
+    seen = _install(monkeypatch, tmp_path, outcome=CLEAN)
+
+    _run(tmp_path, live=False, max_cost_usd=0, log=lines.append)
+
+    assert seen["feature_kwargs"]["budget"].max_cost_usd == 0
+    assert any("no cap (--max-cost=0)" in line for line in lines)
+
+
+def test_sdlc_feature_exits_4_when_the_cap_runs_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    import typer
+
+    from orchestrator.cli.sdlc import _run_sdlc_feature
+    from orchestrator.core.llm import BudgetExceededError
+
+    async def _feature(source: str, **kwargs: Any) -> Any:  # noqa: ARG001
+        raise BudgetExceededError("spent $25.10 of $25.00 cap")
+
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner.run_feature", _feature)
+    with pytest.raises(typer.Exit) as exc:
+        asyncio.run(_feature_cli(_run_sdlc_feature))
+
+    assert exc.value.exit_code == 4
+
+
+def test_sdlc_feature_refuses_a_malformed_cap(monkeypatch: pytest.MonkeyPatch) -> None:
+    import typer
+
+    from orchestrator.cli.sdlc import _run_sdlc_feature
+
+    monkeypatch.setenv("SDLC_RUN_BUDGET_USD", "twenty")
+    with pytest.raises(typer.Exit) as exc:
+        asyncio.run(_feature_cli(_run_sdlc_feature))
+
+    assert exc.value.exit_code == 2
+
+
+def _feature_cli(run: Any) -> Any:
+    return run(
+        "file://./spec.md",
+        intent_id=None,
+        repo=None,
+        model=None,
+        max_refine=1,
+        live=False,
+        issue=None,
+        base=None,
+        layout_mode="auto",
+        package_name=None,
+        refresh=False,
+        language="auto",
+    )

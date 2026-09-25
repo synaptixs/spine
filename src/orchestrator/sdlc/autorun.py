@@ -36,6 +36,7 @@ under a run directory in the system temp dir unless ``SPINE_RUN_ARTIFACTS`` says
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 import os
@@ -118,6 +119,11 @@ class RunContext:
     publish: Any = None
     # What the review loop left behind — clean or not, and what it could not resolve.
     review: Any = None
+    # The `--review` gate, asked again about the review loop's own fixes before they are
+    # committed: approving the build's diff is not approving code written after it (B13).
+    gate: Any = None
+    # What a resumed run had already spent when this attempt began (B14).
+    spent_seed: float = 0.0
     approvals_dir: Path | None = None
     stages: list[StageResult] = field(default_factory=list)
     # Durable state. Written after every stage, so a crash leaves a findable run rather than
@@ -300,6 +306,20 @@ async def autorun(
     started = time.monotonic()
     store = store or RunStore()
 
+    # The documented cap (B14): `--max-cost` when given, else SDLC_RUN_BUDGET_USD — $25 by
+    # default, 0 to switch enforcement off. Read first: `.env` is where the docs say to set it,
+    # so it is loaded before the read, and a malformed value refuses the run before any record
+    # is written for it (review 1, blocker 2).
+    from orchestrator.core.env import load_local_env
+    from orchestrator.core.llm import run_budget_from_env
+
+    load_local_env()
+    try:
+        budget = RunBudget(max_cost_usd=max_cost_usd) if max_cost_usd is not None else run_budget_from_env()
+    except ValueError as exc:
+        raise AutorunError(str(exc), code=2) from exc
+    cap_source = "--max-cost" if max_cost_usd is not None else "SDLC_RUN_BUDGET_USD"
+
     record = store.load(resume) if resume else None
     if resume and record is None:
         raise AutorunError(f"no run {resume!r} to resume", code=2)
@@ -345,6 +365,7 @@ async def autorun(
         record.issue_key = issue
 
     ctx.approvals_dir = approvals_dir
+    ctx.gate = gate
     ctx.record, ctx.store = record, store
     ctx.issue_key = record.issue_key
     ctx.checkpoint(phase="start", status="running")
@@ -354,20 +375,18 @@ async def autorun(
     # One ledger for the run. The implement stage fills most of it and the review loop adds
     # to it afterwards, so the account is of the whole run rather than its middle.
     ledger = TokenLedger()
-    # The documented cap (B14): `--max-cost` when given, else SDLC_RUN_BUDGET_USD — $25 by
-    # default, 0 to switch enforcement off. A resume continues from what the run already spent:
-    # a cap that resets on every resume is not a cap.
-    from orchestrator.core.llm import run_budget_from_env
-
-    budget = RunBudget(max_cost_usd=max_cost_usd) if max_cost_usd is not None else run_budget_from_env()
+    # A resume continues from what the run already spent: a cap that resets on every resume is
+    # not a cap. The journal records only this attempt's share, so section 11 does not count
+    # the earlier attempt twice.
     if record.spent_usd:
         budget.spent_usd[run_id] = record.spent_usd
+        ctx.spent_seed = record.spent_usd
     emit(f"[autorun] run {run_id} · source {source} · {'live' if live else 'safe'}")
     if budget.max_cost_usd > 0:
         carried = f" (${record.spent_usd:.2f} already spent)" if record.spent_usd else ""
         emit(f"[budget] cap ${budget.max_cost_usd:.2f} for this run{carried}")
     else:
-        emit("[budget] no cap (SDLC_RUN_BUDGET_USD=0) — spend is tracked, not enforced")
+        emit(f"[budget] no cap ({cap_source}=0) — spend is tracked, not enforced")
 
     from orchestrator.obs import tracing
 
@@ -468,7 +487,7 @@ def _journal_outcome(ctx: RunContext, *, ledger: Any, budget: Any, verdict: str)
     Section 11 promises a cost *estimate*; this is the actual, recorded per run so the two
     can be compared later instead of the estimate being graded by the thing that produced it.
     """
-    spent = _spent(budget, ctx.run_id)
+    spent = max(_spent(budget, ctx.run_id) - ctx.spent_seed, 0.0)
     try:
         tokens = ledger.total().total_tokens
     except (AttributeError, TypeError):  # pragma: no cover — a ledger that cannot total
@@ -1153,10 +1172,15 @@ async def _stage_implement(
             kind="budget", title="budget exhausted — raise the cap or drop the run?", reason=str(exc)
         )
         emit(f"[approval] {approval.approval_id} raised{' and notified' if approval.notified else ''}")
-        raise AutorunError(f"budget exhausted — run parked: {exc}", code=4) from exc
+        raise AutorunError(
+            f"budget exhausted — run parked: {exc}. Resume it with --resume {ctx.run_id} and a "
+            "higher --max-cost.",
+            code=4,
+        ) from exc
     except FeatureRunError as exc:
         ctx.record_stage("implement", "failed", str(exc))
-        ctx.checkpoint(status="failed")
+        # What it spent, so a resume continues from it rather than from $0 (B14).
+        ctx.checkpoint(status="failed", spent_usd=_spent(budget, ctx.run_id))
         raise AutorunError(str(exc), code=exc.code) from exc
 
     ctx.issue_key = result.issue_key
@@ -1204,7 +1228,7 @@ async def _stage_review(
     """
     from orchestrator.core.llm import BudgetExceededError
     from orchestrator.sdlc import reviewloop
-    from orchestrator.sdlc.feature_runner import commit_worktree
+    from orchestrator.sdlc.feature_runner import _changed_files, commit_worktree
 
     if not ctx.worktree:
         ctx.record_stage("review", "skipped", "no worktree to review")
@@ -1231,12 +1255,48 @@ async def _stage_review(
             kind="budget", title="budget exhausted — raise the cap or drop the run?", reason=str(exc)
         )
         emit(f"[approval] {approval.approval_id} raised{' and notified' if approval.notified else ''}")
-        raise AutorunError(f"budget exhausted — run parked: {exc}", code=4) from exc
+        raise AutorunError(
+            f"budget exhausted — run parked: {exc}. Resume it with --resume {ctx.run_id} and a "
+            "higher --max-cost.",
+            code=4,
+        ) from exc
+    except Exception as exc:  # noqa: BLE001 — a crashed review must not strand a green build
+        # The build was tested and committed before the review began. A review that crashed
+        # leaves edits nobody tested: discard them and publish the build as a draft, rather
+        # than failing a run whose change is sound and leaving no PR at all (review 1, S2).
+        await _discard_review_edits(ctx.worktree)
+        outcome = reviewloop.LoopResult(
+            stopped=f"the review crashed ({type(exc).__name__}: {exc}) — its edits were discarded",
+            clean=False,
+        )
     ctx.review = outcome
-    edited = sorted({f for r in outcome.rounds for f in r.fixed_files})
+    # What the review actually left in the worktree — not what the loop reported: the gate and
+    # the commit are about every changed file, including one a fix created and did not name.
+    edited = sorted(await _changed_files(Path(ctx.worktree))) if outcome.rounds else []
+    if edited and outcome.rounds and outcome.rounds[-1].tests_passed is False:
+        # The loop stopped because a fix turned the suite red. The build before it was green;
+        # publish that, not a change nobody can run (review 1, S1).
+        await _discard_review_edits(ctx.worktree)
+        outcome.stopped += " — the review's edits were discarded; the PR carries the tested build"
+        outcome.clean = False
+        edited = []
+    if edited and ctx.gate is not None:
+        emit(f"[review] asking again — the review changed {', '.join(edited)} after you approved the build")
+        if not await ctx.gate(Path(ctx.worktree), edited):
+            await _discard_review_edits(ctx.worktree)
+            outcome.stopped += " — its fixes were declined at the --review gate and discarded"
+            outcome.clean = False
+            edited = []
     if edited:
-        await commit_worktree(ctx.worktree, f"{ctx.issue_key}: review fixes")
-        emit(f"[review] committed the fixes to {', '.join(edited)}")
+        try:
+            committed = await commit_worktree(ctx.worktree, f"{ctx.issue_key}: review fixes")
+        except RuntimeError as exc:
+            await _discard_review_edits(ctx.worktree)
+            outcome.stopped += f" — the fixes could not be committed ({exc}) and were discarded"
+            outcome.clean = False
+            committed = False
+        if committed:
+            emit(f"[review] committed the fixes to {', '.join(edited)}")
     path = ctx.write_artifact("review.md", outcome.render())
     detail = f"{outcome.stopped}"
     if outcome.remaining:
@@ -1245,6 +1305,18 @@ async def _stage_review(
         detail += f" · {len(outcome.deferred)} for a human"
     ctx.record_stage("review", "ok" if outcome.clean else "failed", detail, path)
     emit(f"[review] {detail}")
+
+
+async def _discard_review_edits(worktree: str | None) -> None:
+    """Put the worktree back to the committed build: every edit the review loop made, tracked
+    or new, is dropped. The worktree is the run's own; nothing else writes there."""
+    if not worktree:
+        return
+    for argv in (["git", "reset", "--hard", "--quiet", "HEAD"], ["git", "clean", "-fdq"]):
+        proc = await asyncio.create_subprocess_exec(
+            *argv, cwd=worktree, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL
+        )
+        await proc.wait()
 
 
 async def _stage_publish(ctx: RunContext, *, emit: Callable[[str], None]) -> None:
@@ -1261,17 +1333,17 @@ async def _stage_publish(ctx: RunContext, *, emit: Callable[[str], None]) -> Non
         ctx.record_stage("publish", "skipped", "nothing to publish — the build did not hand back a PR step")
         return
     review = ctx.review
-    clean = review is None or bool(getattr(review, "clean", True))
+    clean = review is None or bool(getattr(review, "clean", False))
     note = ""
     if not clean:
         unresolved = [f"- {f.severity.value} `{f.path}:{f.line}` — {f.message}" for f in review.remaining]
-        note = "**Draft — the automated review left these unresolved:**\n" + "\n".join(unresolved)
+        # Why it stopped comes first: "a fix broke the tests", "the review crashed", "declined at
+        # the gate" — the list alone would not say whether the tests are green.
+        note = f"**Draft — the automated review did not finish clean:** {review.stopped}"
+        if unresolved:
+            note += "\n\n**Unresolved:**\n" + "\n".join(unresolved)
     ctx.pr_url = await ctx.publish(draft=not clean, note=note)
-    detail = (
-        f"PR opened: {ctx.pr_url}"
-        if clean
-        else f"draft PR opened ({len(review.remaining)} unresolved): {ctx.pr_url}"
-    )
+    detail = f"PR opened: {ctx.pr_url}" if clean else f"draft PR opened — {review.stopped}: {ctx.pr_url}"
     ctx.record_stage("publish", "ok", detail)
     emit(f"[publish] {detail}")
 

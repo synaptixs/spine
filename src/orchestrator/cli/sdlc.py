@@ -607,7 +607,8 @@ def sdlc_autorun(
         bool,
         typer.Option(
             "--review/--no-review",
-            help="Show the diff and ask before committing or pushing anything.",
+            help="Show the diff and ask before committing or pushing anything — and again about "
+            "any fixes the review loop writes afterwards.",
         ),
     ] = False,
     base: Annotated[str | None, typer.Option("--base", help="PR target branch.")] = None,
@@ -1087,11 +1088,20 @@ async def _run_sdlc_feature(
     language: str,
     spec: dict[str, Any] | None = None,
 ) -> None:
+    from orchestrator.core.env import load_local_env
     from orchestrator.core.llm import BudgetExceededError, run_budget_from_env
     from orchestrator.sdlc.feature_runner import FeatureRunError, run_feature
 
-    # The documented per-run cap (B14): SDLC_RUN_BUDGET_USD, $25 by default, 0 to disable.
-    budget = run_budget_from_env()
+    # The documented per-run cap (B14): SDLC_RUN_BUDGET_USD, $25 by default, 0 to disable —
+    # read after `.env`, which is where the docs say to set it.
+    load_local_env()
+    try:
+        budget = run_budget_from_env()
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    if budget.max_cost_usd > 0:
+        typer.echo(f"[budget] cap ${budget.max_cost_usd:.2f} for this run (SDLC_RUN_BUDGET_USD; 0 disables)")
     try:
         result = await run_feature(
             source,

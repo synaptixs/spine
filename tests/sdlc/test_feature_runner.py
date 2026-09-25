@@ -1827,3 +1827,69 @@ async def test_a_safe_run_has_nothing_to_publish(monkeypatch: pytest.MonkeyPatch
     result = await run_feature("file://./spec.md", intent_id="intent-a", publish=False)
 
     assert result.publish is None
+
+
+class _CommentingJira(_FakeJira):
+    def __init__(self) -> None:
+        super().__init__()
+        self.comments: list[str] = []
+
+    async def comment_issue(self, issue_key: str, body: str) -> None:
+        self.comments.append(body)
+
+
+async def test_the_default_path_publishes_exactly_as_before(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`publish=True` (every caller but autorun) must be the old live block, unchanged: a ready
+    PR whose body is the spec's own, the same comment text, one move to In Review."""
+    from orchestrator.sdlc import feature_runner
+
+    bodies: list[str] = []
+    real_body = feature_runner._pr_body
+
+    def _body(spec: dict[str, Any], withdrawn: list[str]) -> str:
+        bodies.append(real_body(spec, withdrawn))
+        return bodies[-1]
+
+    jira = _CommentingJira()
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner, jira=jira)
+    _RecordingForge.opened = []
+    monkeypatch.setattr("orchestrator.sdlc.forge.GhPRAdapter", _RecordingForge)
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner._pr_body", _body)
+
+    await run_feature(
+        "file://./spec.md", intent_id="intent-a", repo="https://x/widget", live=True, issue="SSPN-1"
+    )
+
+    [opened] = _RecordingForge.opened
+    assert opened["draft"] is False
+    assert opened["title"].startswith("SSPN-1: ")
+    assert opened["body"] == bodies[-1]  # exactly the spec's body — no note appended
+    assert jira.comments == ["PR opened for this story: https://github.com/x/y/pull/8"]
+    assert jira.transitions == ["In Progress", "In Review"]
+
+
+async def test_publish_false_commits_the_build_before_handing_back(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The review diffs against the build commit, so the build must be committed first."""
+    commits: list[str] = []
+
+    async def _commit(path: Path, message: str) -> None:
+        commits.append(message)
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setattr("orchestrator.sdlc.forge.GhPRAdapter", _RecordingForge)
+    monkeypatch.setattr("orchestrator.sdlc.feature_runner._local_commit", _commit)
+
+    await run_feature(
+        "file://./spec.md",
+        intent_id="intent-a",
+        repo="https://x/widget",
+        live=True,
+        issue="SSPN-1",
+        publish=False,
+    )
+
+    assert len(commits) == 1 and commits[0].startswith("SSPN-1: ")
