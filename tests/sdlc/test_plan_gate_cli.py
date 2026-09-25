@@ -114,7 +114,7 @@ def test_a_spec_with_its_ticket_plans_from_the_spec_and_keeps_the_ticket_text(
     Fetched, never analysed — the spec already says what to build, so the path stays free of the
     model call intake's analysis makes. (It crashed on an unbound `plan_result`: ledger B15.)
     """
-    import orchestrator.intake.cache as intake_cache
+    from orchestrator.intake import cache as intake_cache
 
     def _no_analysis(*_a: object, **_k: object) -> object:
         raise AssertionError("intake analysed the source although --spec supplied the requirements")
@@ -273,7 +273,7 @@ def test_a_cached_ticket_is_planned_from_its_cached_spec_and_its_fresh_text(
 ) -> None:
     """Track E, D3: the spec comes from the intake cache — re-extracting it could move an approved
     plan — while `source.txt` is read fresh, with no model call."""
-    import orchestrator.intake.cache as intake_cache
+    from orchestrator.intake import cache as intake_cache
     from orchestrator.intake.service import BacklogPlan
     from orchestrator.intake.source import FetchTreeResult, SourceDocument
     from orchestrator.intake.specs import FeatureSpec
@@ -557,7 +557,7 @@ def _plan_from_cache(
 ) -> Any:
     """`sdlc plan --source` whose spec comes from a cached extraction of exactly these documents,
     and whose fresh fetch returns the same ones — so the header can only be computed from the fit."""
-    import orchestrator.intake.cache as intake_cache
+    from orchestrator.intake import cache as intake_cache
     from orchestrator.intake.follow_links import FollowReport
     from orchestrator.intake.service import BacklogPlan
     from orchestrator.intake.source import FetchTreeResult, SourceDocument
