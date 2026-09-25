@@ -537,7 +537,7 @@ orchestrator pkg accuracy [PATH] [OPTIONS]
 | `--tests` | Test target(s) for `--oracle runtime`; defaults to the repo's own. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
 
-**Current corpus results** (106 fixture cases — 100 single-language, 6 multi-repo — across
+**Current corpus results** (108 fixture cases — 102 single-language, 6 multi-repo — across
 all 13 front-ends, Perl's own corpus grown across P2–P5 of its track: 9 cases). Precision is
 **1.00 on every node kind and every edge kind in every language**; recall is 1.00 on every
 kind except `CALLS`, JavaScript `IMPORTS` (189 of 190: an immediately-called `require`) and
@@ -547,15 +547,15 @@ multi-repo `CONSUMES` (5 of 6) — each a declared known gap:
 |---|---|
 | `c` `cpp` (with `clang`) `sql` | 1.00 |
 | `javascript` | 0.97 |
-| `java` | 0.91 |
+| `java` | 0.92 |
 | `csharp` `perl` `python` | 0.89 |
 | `kotlin` | 0.87 |
 | `typescript` | 0.86 |
 | `cpp` `go` `php` | 0.75 |
 
 C# and Java carry typed-receiver cases (B21) that label every true call in their source,
-and constructor-call cases (B22) now that `new Foo()` is a `CALLS` edge to `Foo`: C# 32 of 36,
-Java 30 of 33. Each remaining miss is a type the source does not write at the site — a receiver's (a
+constructor-call cases (B22) now that `new Foo()` is a `CALLS` edge to `Foo`, and lookup-scope
+cases (B30): C# 34 of 38, Java 36 of 39. Each remaining miss is a type the source does not write at the site — a receiver's (a
 return value, a lambda parameter, an extension method) or a `return new()`'s — a labelled
 known gap.
 
