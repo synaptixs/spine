@@ -171,7 +171,7 @@ def investigate(
     from orchestrator.pkg import FactStore, RepoCodeExtractor, load_or_extract
     from orchestrator.sdlc.investigate import build_investigation, render_investigation_md
 
-    ticket_title, problem = _load_ticket(source, title, text, follow_links=follow_links)
+    ticket_title, problem, linked_pages = _load_ticket(source, title, text, follow_links=follow_links)
     if not ticket_title and not problem:
         typer.echo("ERROR: provide --source or --title (the ticket to investigate).", err=True)
         raise typer.Exit(code=2)
@@ -224,6 +224,9 @@ def investigate(
                 )
             inv = build_investigation(ticket_title, problem, store=FactStore(batch), root=repo)
 
+    # What `--follow-links` read and could not (N14, D4). No budget here: every page read
+    # reaches the lexical retrieval, so the line carries no fit clause.
+    inv.linked_pages = linked_pages
     md = render_investigation_md(inv)
     if out is not None:
         out.write_text(md, encoding="utf-8")
@@ -232,10 +235,13 @@ def investigate(
         typer.echo(md)
 
 
-def _load_ticket(source: str | None, title: str, text: str, *, follow_links: bool = False) -> tuple[str, str]:
+def _load_ticket(
+    source: str | None, title: str, text: str, *, follow_links: bool = False
+) -> tuple[str, str, str]:
     """Resolve the ticket to investigate: a source URI's documents, or inline flags.
 
-    ``follow_links`` appends the Confluence pages the ticket links to, after its own documents.
+    ``follow_links`` appends the Confluence pages the ticket links to, after its own documents;
+    the third value says what that read and could not (empty without the flag).
     """
     if source:
         import asyncio
@@ -267,8 +273,8 @@ def _load_ticket(source: str | None, title: str, text: str, *, follow_links: boo
             raise typer.Exit(code=1)
         resolved_title = docs[0].title or source
         body = "\n\n".join(f"## {d.title}\n{d.body}".strip() for d in docs)
-        return resolved_title, body
-    return title, text
+        return resolved_title, body, tree.linked_pages
+    return title, text, ""
 
 
 @app.command("localize", rich_help_panel=PANEL_CHANGE)
@@ -400,7 +406,7 @@ def rca(
 def _load_bug_text(source: str | None, trace: Path | None, text: str) -> str:
     """Resolve the bug text: a source ticket, a trace file, --text, or stdin."""
     if source:
-        title, body = _load_ticket(source, "", "")
+        title, body, _ = _load_ticket(source, "", "")
         return f"{title}\n\n{body}".strip()
     if trace is not None:
         return trace.read_text(encoding="utf-8")

@@ -365,17 +365,24 @@ class _LinkedService:
         docs = [SourceDocument(id=root_id, title=root_id, body="the ticket")]
         if not follow_links:
             return FetchTreeResult(documents=docs)
+        from orchestrator.intake.follow_links import FollowReport
+
         page = SourceDocument(
             id="confluence:9", title="Linked page: Spec", body="- a criterion from the page"
         )
-        return FetchTreeResult(documents=[*docs, page], linked_pages="followed — 1 read")
+        report = FollowReport(documents=[page])
+        return FetchTreeResult(documents=[*docs, page], linked_pages=report.summary(), follow=report)
 
 
 @pytest.mark.parametrize(
     ("flags", "header"),
     [
         ([], "**Linked pages:** not followed — `--follow-links` reads them"),
-        (["--follow-links"], "**Linked pages:** followed — 1 read"),
+        (
+            ["--follow-links"],
+            "**Linked pages:** followed — 1 read into source.txt; "
+            "the spec is hand-written, so none was extracted",
+        ),
     ],
 )
 def test_the_header_says_whether_linked_pages_were_read(
@@ -404,6 +411,7 @@ def test_the_header_says_whether_linked_pages_were_read(
     assert result.exit_code == 0, result.output
     document = (checkout / ".spine" / "plans" / "PROJ-42-build.md").read_text(encoding="utf-8")
     assert header in document
+    assert "WARNING" not in result.output  # a hand-written spec was never extracted, so nothing was cut
     assert service.asked == [bool(flags)]
     assert ("a criterion from the page" in load_source_text("PROJ-42", root=checkout)) is bool(flags)
 
@@ -445,10 +453,15 @@ def test_investigate_reads_linked_pages_only_when_asked(
 
     service = _LinkedService()
     monkeypatch.setattr("orchestrator.intake.factory.build_service_for", lambda *_a, **_k: service)
+    briefs = []
     for flags in ([], ["--follow-links"]):
         result = CliRunner().invoke(app, ["investigate", str(checkout), "--source", "jira://PROJ-42", *flags])
         assert result.exit_code == 0, result.output
+        briefs.append(result.output)
     assert service.asked == [False, True]
+    # N14 (D4): the brief says what was followed — investigate has no budget, so no fit clause.
+    assert "**Linked pages:**" not in briefs[0]
+    assert "**Linked pages:** followed — 1 read" in briefs[1]
 
 
 def test_a_source_that_cannot_be_read_is_an_error_on_every_path(
@@ -525,3 +538,130 @@ def test_a_blank_page_warns_like_an_empty_source(
     )
     assert result.exit_code == 0, result.output
     assert "WARNING: confluence://1 returned no text" in result.output
+
+
+# ---- what the model saw (N14) ----------------------------------------------------------------
+
+_WIKI = "https://acme.atlassian.net/wiki/spaces/ENG/pages"
+
+
+def _plan_from_cache(
+    monkeypatch: pytest.MonkeyPatch,
+    checkout: Path,
+    *,
+    ticket_chars: int,
+    page_chars: int,
+    pages: int,
+    flags: list[str],
+    extracts_with_model: bool = True,
+) -> Any:
+    """`sdlc plan --source` whose spec comes from a cached extraction of exactly these documents,
+    and whose fresh fetch returns the same ones — so the header can only be computed from the fit."""
+    import orchestrator.intake.cache as intake_cache
+    from orchestrator.intake.follow_links import FollowReport
+    from orchestrator.intake.service import BacklogPlan
+    from orchestrator.intake.source import FetchTreeResult, SourceDocument
+    from orchestrator.intake.specs import FeatureSpec
+
+    ticket = SourceDocument(id="PROJ-42", title="PROJ-42", body="t" * ticket_chars)
+    linked = [
+        SourceDocument(
+            id=f"confluence:{i}", title=f"Linked page: P{i}", body="p" * page_chars, url=f"{_WIKI}/{i}"
+        )
+        for i in range(pages)
+    ]
+    spec = FeatureSpec.model_validate({**_SPEC, "user_story": "", "summary": _SPEC["summary"]})
+
+    async def _cached(*_a: object, **_k: object) -> BacklogPlan:
+        return BacklogPlan(documents=[ticket, *linked], specs=[spec])
+
+    class _Service:
+        # An OpenSpec source parses its changes verbatim: no model, so no budget to cut.
+        uses_the_extractor = extracts_with_model
+
+        async def fetch_source_documents(
+            self, root_id: str, *, follow_links: bool = False
+        ) -> FetchTreeResult:
+            if not follow_links:
+                return FetchTreeResult(documents=[ticket])
+            report = FollowReport(documents=linked)
+            return FetchTreeResult(documents=[ticket, *linked], linked_pages=report.summary(), follow=report)
+
+    monkeypatch.setattr(intake_cache, "analyze_cached", _cached)
+    monkeypatch.setattr("orchestrator.intake.factory.build_service_for", lambda *_a, **_k: _Service())
+    return CliRunner().invoke(
+        app, ["sdlc", "plan", "--source", "jira://PROJ-42", "--path", str(checkout), "--quiet", *flags]
+    )
+
+
+def _document(checkout: Path) -> str:
+    return (checkout / ".spine" / "plans" / "PROJ-42-build.md").read_text(encoding="utf-8")
+
+
+def test_linked_pages_the_extraction_left_out_are_counted_named_and_warned_about(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """N14: a full ticket and five long pages — the header said "5 read" while the spec was derived
+    from one page, cut."""
+    result = _plan_from_cache(
+        monkeypatch, checkout, ticket_chars=32_000, page_chars=30_000, pages=5, flags=["--follow-links"]
+    )
+    assert result.exit_code == 0, result.output
+    header = next(line for line in _document(checkout).splitlines() if line.startswith("**Linked pages:**"))
+    assert header == (
+        f"**Linked pages:** followed — 5 read; 1 cut ({_WIKI}/0), 4 did not fit the 60,000-char budget "
+        f"({_WIKI}/1, {_WIKI}/2, {_WIKI}/3, {_WIKI}/4)"
+    )
+    assert "**Extraction:**" not in _document(checkout)  # the ticket itself fitted
+    assert "WARNING: the spec was extracted from part of the source — " in result.output
+    assert "source.txt still holds every word" in result.output
+
+
+def test_pages_that_all_reached_the_model_say_so_and_warn_nothing(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    result = _plan_from_cache(
+        monkeypatch, checkout, ticket_chars=500, page_chars=500, pages=2, flags=["--follow-links"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "**Linked pages:** followed — 2 read, all 2 in the spec's extraction" in _document(checkout)
+    assert "WARNING" not in result.output and "**Extraction:**" not in _document(checkout)
+
+
+def test_a_ticket_the_extraction_cut_is_on_the_document_even_without_follow_links(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D8/D9: the ticket's own text cut is recorded where the reviewer reads — shown only then."""
+    result = _plan_from_cache(monkeypatch, checkout, ticket_chars=70_000, page_chars=0, pages=0, flags=[])
+    assert result.exit_code == 0, result.output
+    assert (
+        "**Extraction:** PROJ-42 cut at the 60,000-char extraction budget; "
+        "§8 still checks the criteria against every word of it in source.txt"
+    ) in _document(checkout)
+    assert "WARNING: the spec was extracted from part of the source — PROJ-42 cut" in result.output
+
+
+def test_a_plan_with_an_extraction_line_is_the_plan_the_gate_accepts(
+    checkout: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Header, not body: the gate re-derives the plan without the line, and must still pass it."""
+    result = _plan_from_cache(monkeypatch, checkout, ticket_chars=70_000, page_chars=0, pages=0, flags=[])
+    assert result.exit_code == 0, result.output
+    assert "**Extraction:**" in _document(checkout)
+    approved = CliRunner().invoke(
+        app, ["sdlc", "approve", "PROJ-42", "--path", str(checkout), "--by", "reviewer"]
+    )
+    assert approved.exit_code == 0, approved.output
+    assert _gate(_spec_file(tmp_path), checkout) == "PASSED: reviewer"
+
+
+def test_a_structured_source_is_parsed_not_extracted_so_nothing_is_reported_cut(
+    checkout: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review, both passes: an OpenSpec change is parsed verbatim, with no model and no budget — a
+    70,000-char one was reported "cut", in a warning and on the document a reviewer approves."""
+    result = _plan_from_cache(
+        monkeypatch, checkout, ticket_chars=70_000, page_chars=0, pages=0, flags=[], extracts_with_model=False
+    )
+    assert result.exit_code == 0, result.output
+    assert "WARNING" not in result.output and "**Extraction:**" not in _document(checkout)

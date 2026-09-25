@@ -204,3 +204,23 @@ async def test_the_llm_reads_a_rest_ticket_exactly_as_it_did_on_3_44() -> None:
 
 async def test_the_intake_cache_stores_a_rest_ticket_exactly_as_it_did_on_3_44() -> None:
     _check("rest-cache.json", _cached([await _rest_document()]))
+
+
+def _over_budget_pages() -> list[SourceDocument]:
+    return [
+        SourceDocument(
+            id=f"confluence:{i}",
+            title=f"Linked page: Spec part {i}",
+            body=f"Linked from FIN-42 (description): https://acme.atlassian.net/wiki/spaces/FIN/pages/{i}\n\n"
+            + (f"- rule {i}: every amount keeps its currency\n" * 500),
+            url=f"https://acme.atlassian.net/wiki/spaces/FIN/pages/{i}",
+        )
+        for i in range(1, 5)
+    ]
+
+
+async def test_an_over_budget_message_is_cut_exactly_as_it_was_on_3_48() -> None:
+    """N14 review: the ticket above fits, so nothing here pinned the cut. This golden was rendered
+    by the loop `_build_user_message` ran on 3.48.0 (`c6b91dfc`, from a worktree), before
+    `fit_documents` replaced it: one page cut with `…[truncated]`, the rest left out."""
+    _check("over-budget-llm-message.txt", _llm_message([await _rest_document(), *_over_budget_pages()]))

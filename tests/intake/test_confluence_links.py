@@ -171,3 +171,43 @@ def test_a_confluence_page_on_another_site_is_named_not_read_from_ours() -> None
     found = find_linked_pages(remote_links=remote, site_hosts=[_SITE])
     assert [p.page_id for p in found.pages] == ["56"]
     assert [u.reason for u in found.unresolved] == ["on another Confluence site (wiki.partner.example)"]
+
+
+# ---- links that used to vanish without a word (N14) ------------------------------------------
+
+
+def test_an_edit_link_is_the_page_it_edits() -> None:
+    """`/pages/edit-v2/<id>` is what the browser shows while editing — the id is the page's."""
+    url = f"https://{_SITE}/wiki/spaces/ENG/pages/edit-v2/12345"
+    assert resolve_page_url(url) == "12345"
+    found = find_linked_pages(texts=[("description", f"Spec: {url}")], site_hosts=[_SITE])
+    assert [(p.page_id, p.via) for p in found.pages] == [("12345", "description")]
+
+
+def test_a_draft_link_is_named_not_read() -> None:
+    """A `draftId` is not a page id: reading it as one would fetch a different page, or none."""
+    url = f"https://{_SITE}/wiki/pages/resumedraft.action?draftId=12345"
+    resolved = resolve_page_url(url)
+    assert isinstance(resolved, Unresolved) and resolved.reason == "draft link, not a published page"
+    found = find_linked_pages(texts=[("comment", url)], site_hosts=[_SITE])
+    assert found.pages == [] and [u.reason for u in found.unresolved] == ["draft link, not a published page"]
+
+
+def test_a_confluence_page_pasted_from_another_site_is_named_like_a_remote_link() -> None:
+    """The remote-link path named a page on another Confluence site; the same page pasted into the
+    description vanished. Only a URL that is Confluence by its path counts — a `/pages/123` on any
+    other site is not a Confluence link, and Wikipedia's `/wiki/` stays nothing."""
+    text = (
+        "See https://partner.atlassian.net/wiki/spaces/X/pages/999/Other, "
+        "https://partner.atlassian.net/wiki/spaces/X/pages/999 (the same page), "
+        "https://github.com/acme/app/pages/123, https://github.com/o/r/wiki/pages/12, "
+        "https://en.wikipedia.org/wiki/Currency and https://en.wikipedia.org/wiki/x/Currency"
+    )
+    found = find_linked_pages(texts=[("description", text)], site_hosts=[_SITE])
+    assert found.pages == []
+    assert [(u.url, u.reason) for u in found.unresolved] == [
+        (
+            "https://partner.atlassian.net/wiki/spaces/X/pages/999/Other",
+            "on another Confluence site (partner.atlassian.net)",
+        )
+    ]
