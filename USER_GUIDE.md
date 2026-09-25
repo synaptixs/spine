@@ -463,6 +463,9 @@ attachment read in full** (up to 20 files). The AI that derives a spec still rea
 summary it always has, so nothing already approved moves. Add `--follow-links` to read the
 **Confluence pages the ticket links to** as well (at most 5, direct links only); it needs
 Confluence access, and refuses without it rather than planning from less than you asked for.
+The AI's bounded read fills with the ticket first, so long pages may not all reach it: the
+document's `**Linked pages:**` line says how many did — whole, cut, or not at all — and a
+warning says so when any did not fit. §8 still checks against every word.
 
 Committing `.spine/plans/` is up to you — Spine never counts an uncommitted plan as a change,
 so writing one leaves the tree clean and the knowledge-graph cache warm. **Don't commit between
