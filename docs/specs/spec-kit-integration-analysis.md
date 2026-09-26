@@ -315,6 +315,30 @@ through a harness-only shim: its client sends `max_tokens`, and OpenAI accepts t
 for that model only on the Responses API. That is a Spine gap, tracked separately. Held-out tests
 passed in 4 of 6 runs in every arm; one ticket failed in all of them.
 
+**How confident these numbers are.** The cost gap is statistically significant on every model
+tested; its exact size, and any difference in quality, are not.
+
+| Model | spec-kit per feature (runs) | Spine + PKG per feature (runs) | Ranges overlap? | Exact Mann-Whitney p | Cost ratio, 95% bootstrap CI |
+|---|---|---|---|---|---|
+| `claude-sonnet-5` | $3.67–$5.33 (6) | $0.13–$0.48 (9) | No | 0.0004 | 17.6× (13.5–23.0×) |
+| `gpt-5.6-sol` | $4.05–$7.61 (6) | $0.28–$0.67 (6) | No | 0.002 | 12.7× (9.1–17.9×) |
+| `gpt-6-astra` | $8.02–$15.92 (6) | $0.67–$1.69 (6) | No | 0.002 | 10.9× (8.2–15.0×) |
+
+- **On every model, spec-kit's cheapest run cost more than Spine + PKG's most expensive run.**
+  The three stalled Claude runs, which produced no code, also cost more ($2.07–$2.36) than any
+  Spine + PKG run, so excluding them does not flatter the result.
+- **Runs on one ticket are not independent,** so the stricter unit is the ticket: all nine
+  ticket-and-model combinations go the same way, at 9× to 24× (sign test p ≈ 0.004).
+- **Quote the range, not a point.** "About 10–20× cheaper per feature" is supported; "17.6×" is
+  one model's mean inside a wide interval.
+- **Quality is not established either way.** Held-out tests passed in 4/9 vs 6/9 (Claude), 4/6
+  vs 4/6 (sol) and 4/6 vs 4/6 (astra); none of these differences is significant. The supported
+  statement is "no detectable difference in working-code rate", not "equal" or "better".
+- **Scope.** Three small tickets, one repository, spec-kit v1.0.11, a headless protocol with two
+  scripted answers. The rows priced rather than run carry no statistical claim, and the fleet
+  tables multiply the measured per-feature gap by an assumed four features per developer per
+  month.
+
 **What the measurement corrected.** The estimate this section used before it was measured had
 spec-kit at 1.25M tokens over 26 calls per feature with the coding loop at 83% of the cost, and
 Spine at 3 calls. Measured: 13.0M tokens over 101–123 turns, with the steps before any code at
