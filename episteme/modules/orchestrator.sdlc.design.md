@@ -5,21 +5,21 @@
 
 **Source:** [`src/orchestrator/sdlc/design.py`](../../src/orchestrator/sdlc/design.py)
 
-0 types · 15 functions · python
+0 types · 16 functions · python
 
 ## Changing this safely
 
-**Tested by** (5): `tests.sdlc.test_design`, `tests.sdlc.test_design_impact`, `tests.sdlc.test_design_validator`, `tests.sdlc.test_honest_uncertainty`, `tests.sdlc.test_research_pass`
+**Tested by** (6): `tests.sdlc.test_design`, `tests.sdlc.test_design_impact`, `tests.sdlc.test_design_validator`, `tests.sdlc.test_honest_uncertainty`, `tests.sdlc.test_plan_honesty`, `tests.sdlc.test_research_pass`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_query_text`](../../src/orchestrator/sdlc/design.py#L104) — reaches **21** symbols
-- [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L195) — reaches **16** symbols
-- [`_llm_design`](../../src/orchestrator/sdlc/design.py#L266) — reaches **16** symbols
+- [`_query_text`](../../src/orchestrator/sdlc/design.py#L104) — reaches **29** symbols
+- [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L218) — reaches **16** symbols
+- [`_llm_design`](../../src/orchestrator/sdlc/design.py#L288) — reaches **16** symbols
 - [`_landing_state`](../../src/orchestrator/sdlc/design.py#L129) — reaches **15** symbols
 - [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L70) — reaches **15** symbols
-- [`produce_design`](../../src/orchestrator/sdlc/design.py#L342) — reaches **15** symbols
-- [`_normalise`](../../src/orchestrator/sdlc/design.py#L252) — reaches **14** symbols
+- [`produce_design`](../../src/orchestrator/sdlc/design.py#L364) — reaches **15** symbols
+- [`_normalise`](../../src/orchestrator/sdlc/design.py#L274) — reaches **14** symbols
 - [`_overview_files`](../../src/orchestrator/sdlc/design.py#L164) — reaches **14** symbols
 
 _2 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
@@ -32,17 +32,17 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 ### `_fallback_design`
 
-[`src/orchestrator/sdlc/design.py:195`](../../src/orchestrator/sdlc/design.py#L195)
+[`src/orchestrator/sdlc/design.py:218`](../../src/orchestrator/sdlc/design.py#L218)
 
-- **Called by** (1 production · 8 test): [`produce_design`](../../src/orchestrator/sdlc/design.py#L342), [`test_a_path_the_spec_names_is_used`](../../tests/sdlc/test_design.py#L309), [`test_a_spec_naming_nothing_still_falls_back_to_the_overview`](../../tests/sdlc/test_design.py#L371), [`test_an_all_weak_ticket_does_not_fall_through_to_the_overview_guess`](../../tests/sdlc/test_honest_uncertainty.py#L230), [`test_an_exact_name_of_common_words_is_a_named_thing`](../../tests/sdlc/test_honest_uncertainty.py#L208), [`test_nss_1231_a_bare_cs_filename_in_the_ticket_is_a_stated_path`](../../tests/sdlc/test_design.py#L462), [`test_nss_1231_the_paraphrase_alone_proposes_no_files_and_says_so`](../../tests/sdlc/test_honest_uncertainty.py#L133), [`test_the_risks_say_which_reading_produced_the_files`](../../tests/sdlc/test_design.py#L357), [`test_with_the_ticket_s_own_words_the_design_proposes_exactly_the_named_file`](../../tests/sdlc/test_honest_uncertainty.py#L141)
-- **Calls** (3): [`_landing_state`](../../src/orchestrator/sdlc/design.py#L129), [`_overview_files`](../../src/orchestrator/sdlc/design.py#L164), [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L70)
+- **Called by** (1 production · 8 test): [`produce_design`](../../src/orchestrator/sdlc/design.py#L364), [`test_a_path_the_spec_names_is_used`](../../tests/sdlc/test_design.py#L309), [`test_a_spec_naming_nothing_still_falls_back_to_the_overview`](../../tests/sdlc/test_design.py#L371), [`test_an_all_weak_ticket_does_not_fall_through_to_the_overview_guess`](../../tests/sdlc/test_honest_uncertainty.py#L230), [`test_an_exact_name_of_common_words_is_a_named_thing`](../../tests/sdlc/test_honest_uncertainty.py#L208), [`test_nss_1231_a_bare_cs_filename_in_the_ticket_is_a_stated_path`](../../tests/sdlc/test_design.py#L462), [`test_nss_1231_the_paraphrase_alone_proposes_no_files_and_says_so`](../../tests/sdlc/test_honest_uncertainty.py#L133), [`test_the_risks_say_which_reading_produced_the_files`](../../tests/sdlc/test_design.py#L357), [`test_with_the_ticket_s_own_words_the_design_proposes_exactly_the_named_file`](../../tests/sdlc/test_honest_uncertainty.py#L141)
+- **Calls** (4): [`_landing_state`](../../src/orchestrator/sdlc/design.py#L129), [`_overview_files`](../../src/orchestrator/sdlc/design.py#L164), [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L70), [`_test_strategy`](../../src/orchestrator/sdlc/design.py#L195)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/constitution-roadmap.md#what-that-result-does-and-does-not-mean`, `docs/specs/graphir-sdlc-workflow.md#half-two-the-bounded-replan-built-then-reverted-as-unreachable`
 
 ### `_key`
 
 [`src/orchestrator/sdlc/design.py:28`](../../src/orchestrator/sdlc/design.py#L28)
 
-- **Called by** (1): [`_put`](../../src/orchestrator/sdlc/design.py#L408)
+- **Called by** (1): [`_put`](../../src/orchestrator/sdlc/design.py#L430)
 
 ### `_landing_files`
 
@@ -54,35 +54,35 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:129`](../../src/orchestrator/sdlc/design.py#L129)
 
-- **Called by** (2): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L195), [`_landing_files`](../../src/orchestrator/sdlc/design.py#L124)
+- **Called by** (2): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L218), [`_landing_files`](../../src/orchestrator/sdlc/design.py#L124)
 - **Calls** (2): [`_query_text`](../../src/orchestrator/sdlc/design.py#L104), [`build_investigation`](../../src/orchestrator/sdlc/investigate.py#L127)
 
 ### `_llm_design`
 
-[`src/orchestrator/sdlc/design.py:266`](../../src/orchestrator/sdlc/design.py#L266)
+[`src/orchestrator/sdlc/design.py:288`](../../src/orchestrator/sdlc/design.py#L288)
 
-- **Called by** (1 production · 2 test): [`produce_design`](../../src/orchestrator/sdlc/design.py#L342), [`test_memory_bank_conventions_are_fenced_as_untrusted`](../../tests/sdlc/test_design.py#L89), [`test_the_design_model_answer_parses_out_of_a_fence`](../../tests/sdlc/test_design_validator.py#L146)
-- **Calls** (6): [`Message`](../../src/orchestrator/core/llm/client.py#L48), [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L2669), [`_normalise`](../../src/orchestrator/sdlc/design.py#L252), [`_structure_lines`](../../src/orchestrator/sdlc/design.py#L50), [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L47)
+- **Called by** (1 production · 2 test): [`produce_design`](../../src/orchestrator/sdlc/design.py#L364), [`test_memory_bank_conventions_are_fenced_as_untrusted`](../../tests/sdlc/test_design.py#L89), [`test_the_design_model_answer_parses_out_of_a_fence`](../../tests/sdlc/test_design_validator.py#L146)
+- **Calls** (6): [`Message`](../../src/orchestrator/core/llm/client.py#L48), [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L2669), [`_normalise`](../../src/orchestrator/sdlc/design.py#L274), [`_structure_lines`](../../src/orchestrator/sdlc/design.py#L50), [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L47)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/design-promotion-ab-results.md#consequences`, `docs/specs/design-promotion-ab-results.md#the-question-and-why-it-had-to-be-asked`, `docs/specs/design-promotion-ab-results.md#three-defects-the-pre-flight-found-for-about-250`, `docs/specs/graphir-sdlc-workflow.md#class-model`
 
 ### `_load_context`
 
 [`src/orchestrator/sdlc/design.py:32`](../../src/orchestrator/sdlc/design.py#L32)
 
-- **Called by** (1): [`design_feature`](../../src/orchestrator/sdlc/design.py#L390)
+- **Called by** (1): [`design_feature`](../../src/orchestrator/sdlc/design.py#L412)
 - **Calls** (2): `loads`, `suppress`
 
 ### `_normalise`
 
-[`src/orchestrator/sdlc/design.py:252`](../../src/orchestrator/sdlc/design.py#L252)
+[`src/orchestrator/sdlc/design.py:274`](../../src/orchestrator/sdlc/design.py#L274)
 
-- **Called by** (1): [`_llm_design`](../../src/orchestrator/sdlc/design.py#L266)
+- **Called by** (1): [`_llm_design`](../../src/orchestrator/sdlc/design.py#L288)
 
 ### `_overview_files`
 
 [`src/orchestrator/sdlc/design.py:164`](../../src/orchestrator/sdlc/design.py#L164)
 
-- **Called by** (1): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L195)
+- **Called by** (1): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L218)
 - **Calls** (2): [`_query_text`](../../src/orchestrator/sdlc/design.py#L104), `split`
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#half-two-the-bounded-replan-built-then-reverted-as-unreachable`
 
@@ -90,13 +90,13 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:104`](../../src/orchestrator/sdlc/design.py#L104)
 
-- **Called by** (5): [`_landing_state`](../../src/orchestrator/sdlc/design.py#L129), [`_overview_files`](../../src/orchestrator/sdlc/design.py#L164), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L968), [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L70), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1406)
+- **Called by** (6): [`_landing_state`](../../src/orchestrator/sdlc/design.py#L129), [`_overview_files`](../../src/orchestrator/sdlc/design.py#L164), [`_spec_text_all`](../../src/orchestrator/sdlc/validity.py#L475), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L971), [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L70), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1482)
 
 ### `_stated_paths`
 
 [`src/orchestrator/sdlc/design.py:70`](../../src/orchestrator/sdlc/design.py#L70)
 
-- **Called by** (2 production · 8 test): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L195), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1406), [`test_a_path_named_in_the_description_is_a_stated_path`](../../tests/sdlc/test_design.py#L446), [`test_a_stated_path_that_does_not_exist_is_dropped`](../../tests/sdlc/test_design.py#L329), [`test_a_windows_path_in_the_ticket_is_read`](../../tests/sdlc/test_design.py#L482), [`test_an_ambiguous_bare_name_is_not_guessed`](../../tests/sdlc/test_design.py#L491), [`test_duplicate_mentions_are_listed_once`](../../tests/sdlc/test_design.py#L345), [`test_several_bare_names_in_a_ticket_cost_one_walk`](../../tests/sdlc/test_design.py#L500), [`test_stated_paths_are_taken_as_written_without_a_root`](../../tests/sdlc/test_design.py#L338), [`test_technical_notes_are_read_too`](../../tests/sdlc/test_design.py#L320)
+- **Called by** (2 production · 8 test): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L218), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1482), [`test_a_path_named_in_the_description_is_a_stated_path`](../../tests/sdlc/test_design.py#L446), [`test_a_stated_path_that_does_not_exist_is_dropped`](../../tests/sdlc/test_design.py#L329), [`test_a_windows_path_in_the_ticket_is_read`](../../tests/sdlc/test_design.py#L482), [`test_an_ambiguous_bare_name_is_not_guessed`](../../tests/sdlc/test_design.py#L491), [`test_duplicate_mentions_are_listed_once`](../../tests/sdlc/test_design.py#L345), [`test_several_bare_names_in_a_ticket_cost_one_walk`](../../tests/sdlc/test_design.py#L500), [`test_stated_paths_are_taken_as_written_without_a_root`](../../tests/sdlc/test_design.py#L338), [`test_technical_notes_are_read_too`](../../tests/sdlc/test_design.py#L320)
 - **Calls** (4): [`_query_text`](../../src/orchestrator/sdlc/design.py#L104), [`basename_index`](../../src/orchestrator/sdlc/source_paths.py#L108), [`named_paths`](../../src/orchestrator/sdlc/source_paths.py#L76), [`resolve`](../../src/orchestrator/sdlc/source_paths.py#L131)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/graphir-sdlc-workflow.md#half-two-the-bounded-replan-built-then-reverted-as-unreachable`
 
@@ -104,11 +104,17 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:50`](../../src/orchestrator/sdlc/design.py#L50)
 
-- **Called by** (1): [`_llm_design`](../../src/orchestrator/sdlc/design.py#L266)
+- **Called by** (1): [`_llm_design`](../../src/orchestrator/sdlc/design.py#L288)
+
+### `_test_strategy`
+
+[`src/orchestrator/sdlc/design.py:195`](../../src/orchestrator/sdlc/design.py#L195)
+
+- **Called by** (1 production · 1 test): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L218), [`test_the_test_strategy_never_ends_on_a_colon`](../../tests/sdlc/test_plan_honesty.py#L171)
 
 ### `design_bank`
 
-[`src/orchestrator/sdlc/design.py:428`](../../src/orchestrator/sdlc/design.py#L428)
+[`src/orchestrator/sdlc/design.py:450`](../../src/orchestrator/sdlc/design.py#L450)
 
 - **Called by** (2): [`design`](../../src/orchestrator/cli/change.py#L16), [`run`](../../src/orchestrator/plugin/server.py#L1294)
 - **Calls** (2): [`existing_bank_dir`](../../src/orchestrator/knowledge/understand.py#L49), `suppress`
@@ -116,24 +122,24 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 ### `design_feature`
 
-[`src/orchestrator/sdlc/design.py:390`](../../src/orchestrator/sdlc/design.py#L390)
+[`src/orchestrator/sdlc/design.py:412`](../../src/orchestrator/sdlc/design.py#L412)
 
 - **Called by** (1 production · 3 test): [`design_feature`](../../src/orchestrator/sdlc/activities.py#L278), [`test_heuristic_design_grounded_in_graph_and_persisted`](../../tests/sdlc/test_design.py#L44), [`test_llm_design_used_when_client_present`](../../tests/sdlc/test_design.py#L115), [`test_llm_failure_falls_back_to_heuristic`](../../tests/sdlc/test_design.py#L132)
-- **Calls** (4): [`_load_context`](../../src/orchestrator/sdlc/design.py#L32), `dumps`, [`produce_design`](../../src/orchestrator/sdlc/design.py#L342), [`render_design_md`](../../src/orchestrator/sdlc/design.py#L314)
+- **Calls** (4): [`_load_context`](../../src/orchestrator/sdlc/design.py#L32), `dumps`, [`produce_design`](../../src/orchestrator/sdlc/design.py#L364), [`render_design_md`](../../src/orchestrator/sdlc/design.py#L336)
 
 ### `produce_design`
 
-[`src/orchestrator/sdlc/design.py:342`](../../src/orchestrator/sdlc/design.py#L342)
+[`src/orchestrator/sdlc/design.py:364`](../../src/orchestrator/sdlc/design.py#L364)
 
-- **Called by** (6 production · 6 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L1088), [`build_design`](../../scripts/codegen_benchmark.py#L1615), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1406), [`design`](../../src/orchestrator/cli/change.py#L16), [`design_feature`](../../src/orchestrator/sdlc/design.py#L390), [`run`](../../src/orchestrator/plugin/server.py#L1294), [`test_a_design_that_cannot_tell_says_so_and_proposes_nothing`](../../tests/sdlc/test_design.py#L254), [`test_heuristic_files_come_from_where_the_ticket_lands`](../../tests/sdlc/test_design.py#L232), [`test_nss_1231_the_named_file_outranks_the_paraphrase_s_invented_word`](../../tests/sdlc/test_design.py#L422), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_the_design_agrees_with_the_investigation`](../../tests/sdlc/test_design.py#L270)
-- **Calls** (5): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L195), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L266), [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L219), `suppress`, [`to_dict`](../../src/orchestrator/sdlc/impact.py#L269)
+- **Called by** (6 production · 6 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L1091), [`build_design`](../../scripts/codegen_benchmark.py#L1615), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1482), [`design`](../../src/orchestrator/cli/change.py#L16), [`design_feature`](../../src/orchestrator/sdlc/design.py#L412), [`run`](../../src/orchestrator/plugin/server.py#L1294), [`test_a_design_that_cannot_tell_says_so_and_proposes_nothing`](../../tests/sdlc/test_design.py#L254), [`test_heuristic_files_come_from_where_the_ticket_lands`](../../tests/sdlc/test_design.py#L232), [`test_nss_1231_the_named_file_outranks_the_paraphrase_s_invented_word`](../../tests/sdlc/test_design.py#L422), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_the_design_agrees_with_the_investigation`](../../tests/sdlc/test_design.py#L270)
+- **Calls** (5): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L218), [`_llm_design`](../../src/orchestrator/sdlc/design.py#L288), [`blast_radius`](../../src/orchestrator/sdlc/impact.py#L219), `suppress`, [`to_dict`](../../src/orchestrator/sdlc/impact.py#L269)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/design-promotion-ab-results.md#three-defects-the-pre-flight-found-for-about-250`
 
 ### `render_design_md`
 
-[`src/orchestrator/sdlc/design.py:314`](../../src/orchestrator/sdlc/design.py#L314)
+[`src/orchestrator/sdlc/design.py:336`](../../src/orchestrator/sdlc/design.py#L336)
 
-- **Called by** (5 production · 3 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L1088), [`build_design`](../../scripts/codegen_benchmark.py#L1615), [`design`](../../src/orchestrator/cli/change.py#L16), [`design_feature`](../../src/orchestrator/sdlc/design.py#L390), [`run`](../../src/orchestrator/plugin/server.py#L1294), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_render_design_md_sections`](../../tests/sdlc/test_design.py#L204)
+- **Called by** (5 production · 3 test): [`_stage_design`](../../src/orchestrator/sdlc/autorun.py#L1091), [`build_design`](../../scripts/codegen_benchmark.py#L1615), [`design`](../../src/orchestrator/cli/change.py#L16), [`design_feature`](../../src/orchestrator/sdlc/design.py#L412), [`run`](../../src/orchestrator/plugin/server.py#L1294), [`test_produce_design_annotates_with_blast_radius`](../../tests/sdlc/test_design_impact.py#L119), [`test_produce_design_without_store_is_unannotated`](../../tests/sdlc/test_design_impact.py#L132), [`test_render_design_md_sections`](../../tests/sdlc/test_design.py#L204)
 - **Calls** (1): [`render_md`](../../src/orchestrator/sdlc/impact.py#L300)
 
 ## Imports
@@ -142,4 +148,4 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.cli.change`](../../src/orchestrator/cli/change.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.sdlc.activities`](../../src/orchestrator/sdlc/activities.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`scripts.codegen_benchmark`](../../scripts/codegen_benchmark.py#L1), [`tests.sdlc.test_design`](../../tests/sdlc/test_design.py#L1), [`tests.sdlc.test_design_impact`](../../tests/sdlc/test_design_impact.py#L1), [`tests.sdlc.test_design_validator`](../../tests/sdlc/test_design_validator.py#L1), [`tests.sdlc.test_honest_uncertainty`](../../tests/sdlc/test_honest_uncertainty.py#L1), [`tests.sdlc.test_research_pass`](../../tests/sdlc/test_research_pass.py#L1)
+[`orchestrator.cli.change`](../../src/orchestrator/cli/change.py#L1), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`orchestrator.sdlc.activities`](../../src/orchestrator/sdlc/activities.py#L1), [`orchestrator.sdlc.autorun`](orchestrator.sdlc.autorun.md), [`orchestrator.sdlc.builddoc`](orchestrator.sdlc.builddoc.md), [`orchestrator.sdlc.validity`](orchestrator.sdlc.validity.md), [`scripts.codegen_benchmark`](../../scripts/codegen_benchmark.py#L1), [`tests.sdlc.test_design`](../../tests/sdlc/test_design.py#L1), [`tests.sdlc.test_design_impact`](../../tests/sdlc/test_design_impact.py#L1), [`tests.sdlc.test_design_validator`](../../tests/sdlc/test_design_validator.py#L1), [`tests.sdlc.test_honest_uncertainty`](../../tests/sdlc/test_honest_uncertainty.py#L1), [`tests.sdlc.test_plan_honesty`](../../tests/sdlc/test_plan_honesty.py#L1), [`tests.sdlc.test_research_pass`](../../tests/sdlc/test_research_pass.py#L1)

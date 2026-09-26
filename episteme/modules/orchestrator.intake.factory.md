@@ -51,7 +51,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/intake/factory.py:40`](../../src/orchestrator/intake/factory.py#L40)
 
 - **Called by** (6): [`_build_mcp_service`](../../src/orchestrator/intake/factory.py#L229), [`build_confluence_service`](../../src/orchestrator/intake/factory.py#L157), [`build_file_service`](../../src/orchestrator/intake/factory.py#L206), [`build_jira_service`](../../src/orchestrator/intake/factory.py#L167), [`build_notion_service`](../../src/orchestrator/intake/factory.py#L195), [`build_openspec_service`](../../src/orchestrator/intake/factory.py#L216)
-- **Calls** (9): [`BacklogService`](../../src/orchestrator/intake/service.py#L179), [`GapAnalyzer`](../../src/orchestrator/intake/gaps.py#L124), [`IntentExtractor`](../../src/orchestrator/intake/intents.py#L230), [`JiraAdapter`](../../src/orchestrator/intake/jira.py#L114), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L80), [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L75), [`SpecWriter`](../../src/orchestrator/intake/specs.py#L135), `getenv`, [`load_gap_rules`](../../src/orchestrator/intake/gaps.py#L118)
+- **Calls** (9): [`BacklogService`](../../src/orchestrator/intake/service.py#L179), [`GapAnalyzer`](../../src/orchestrator/intake/gaps.py#L124), [`IntentExtractor`](../../src/orchestrator/intake/intents.py#L230), [`JiraAdapter`](../../src/orchestrator/intake/jira.py#L114), [`JiraConfig`](../../src/orchestrator/intake/jira.py#L80), [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L75), [`SpecWriter`](../../src/orchestrator/intake/specs.py#L142), `getenv`, [`load_gap_rules`](../../src/orchestrator/intake/gaps.py#L118)
 
 ### `_mcp_source_adapter`
 
