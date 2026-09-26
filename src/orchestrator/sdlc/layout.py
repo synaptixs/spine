@@ -128,6 +128,11 @@ class TargetLayout:
     # `template.yaml` (CB-764) — its modules import each other flat and it has no package — else
     # "". A layout with an empty `package_name` and no framework is a repo of top-level modules.
     framework: str = ""
+    # TypeScript, Go, C and C++: the directory holding the project's build file when it is not
+    # the repository root (`frontend`, `svc`, `native`), repo-relative and `/`-separated; "" at
+    # the root. The test environment and runner work from here — `npm test` at a root with no
+    # `package.json` runs nothing. `source_dir` and `tests_dir` already include it.
+    project_dir: str = ""
 
     def module_rel_path(self, module: str) -> str:
         """Worktree-relative path for a new source module/class (no leading dir)."""
@@ -595,6 +600,10 @@ def derive_npm_package(name: str) -> str:
     return slug or _FALLBACK_PACKAGE
 
 
+def _has_node_lockfile(root: Path) -> bool:
+    return any((root / f).is_file() for f in ("pnpm-lock.yaml", "yarn.lock", "package-lock.json"))
+
+
 def _detect_node_pm(root: Path) -> str:
     """Package manager from the lockfile (pnpm > yarn > npm); default ``npm``."""
     if (root / "pnpm-lock.yaml").is_file():
@@ -631,20 +640,35 @@ def detect_typescript_layout(root: Path) -> tuple[str, str, str] | None:
 def _resolve_typescript_layout(
     root: Path, *, mode: str, package_name: str | None, repo: str | None, prefer_paths: Sequence[str] = ()
 ) -> TargetLayout:
+    project, why = "", ""
     existing = detect_typescript_layout(root)
-    pm = _detect_node_pm(root)
+    if existing is None and mode != "new":
+        nested = _nested_project(
+            root, frozenset({"package.json"}), prefer_paths=prefer_paths, language="typescript"
+        )
+        if nested is not None:
+            project, why = nested
+            existing = detect_typescript_layout(root / project)
+    # A workspace keeps its lockfile at the top; a standalone package beside others keeps its own.
+    pm = (
+        _detect_node_pm(root / project)
+        if project and _has_node_lockfile(root / project)
+        else _detect_node_pm(root)
+    )
     derived = package_name or derive_npm_package(repo or str(root))
     if mode == "existing" or (mode == "auto" and existing is not None):
         if existing is not None:
             pkg, source_dir, tests_dir = existing
             return TargetLayout(
                 package_name=package_name or pkg,
-                source_dir=source_dir,
-                tests_dir=tests_dir,
+                source_dir=_under(project, source_dir),
+                tests_dir=_under(project, tests_dir),
                 src_layout=source_dir.startswith("src"),
                 mode="existing",
                 language="typescript",
                 build_tool=pm,
+                chosen_reason=why,
+                project_dir=project,
             )
         return TargetLayout(derived, "src", "src", True, "existing", language="typescript", build_tool=pm)
     return TargetLayout(derived, "src", "src", True, "new", language="typescript", build_tool=pm)
@@ -775,11 +799,14 @@ def _project_dir(candidate: Path) -> Path:
     return candidate.parent if candidate.is_file() else candidate
 
 
-def _source_file_count(directory: Path, suffixes: frozenset[str] = frozenset()) -> int:
+def _source_file_count(
+    directory: Path, suffixes: frozenset[str] = frozenset(), *, skip: frozenset[str] = frozenset()
+) -> int:
     """Source files under ``directory``, skipping what the extractor skips.
 
     Counted rather than guessed, and with the same ignore rules, so a generated `obj/` tree or a
-    vendored dependency cannot outvote the project a human would name.
+    vendored dependency cannot outvote the project a human would name. ``skip`` names further
+    directories (lower-case) to leave out.
     """
     from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo
 
@@ -791,6 +818,7 @@ def _source_file_count(directory: Path, suffixes: frozenset[str] = frozenset()) 
             for d in dirnames
             if d not in DEFAULT_IGNORE_DIRS
             and d.lower() not in _NOT_OURS
+            and d.lower() not in skip
             and not d.startswith(".")
             and not is_nested_repo(here, d)
         )
@@ -802,10 +830,21 @@ def _source_file_count(directory: Path, suffixes: frozenset[str] = frozenset()) 
 #: the union was wrong in the direction that matters: an ASP.NET app's `wwwroot/lib/` holds
 #: vendored jQuery and Bootstrap, so a ten-file web project with 1,200 vendored `.js` beat an
 #: eighty-file API client on "most source". A project is weighed by the language being resolved.
+#: The same table decides what `--layout auto` counts as existing code before it will scaffold,
+#: so a family is the whole of what a project in that language compiles — C#'s `.razor` pages as
+#: well as its `.cs` — and nothing it merely runs: a Kotlin `build.gradle.kts` is a build script,
+#: and a TypeScript repository's `.js` is as likely tooling config as source.
 SOURCE_SUFFIXES_BY_LANGUAGE: dict[str, frozenset[str]] = {
+    "python": frozenset({".py"}),
     "csharp": frozenset({".cs", ".razor", ".cshtml"}),
     "java": frozenset({".java"}),
-    "kotlin": frozenset({".kt", ".kts"}),
+    "kotlin": frozenset({".kt"}),
+    "typescript": frozenset({".ts", ".tsx"}),
+    "go": frozenset({".go"}),
+    "c": frozenset({".c", ".h"}),
+    "cpp": frozenset({".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx"}),
+    "perl": frozenset({".pl", ".pm"}),
+    "php": frozenset({".php"}),
 }
 #: The fallback when no language is named — only a direct `choose_project` call reaches it.
 _SOURCE_SUFFIXES = frozenset(
@@ -821,6 +860,23 @@ def _csproj_candidates(root: Path, prefer_paths: Sequence[str] = ()) -> list[Pat
     PR editing somebody else's .NET code. A project the ticket names is kept whatever
     directory it sits in.
     """
+    return _build_file_candidates(root, lambda f: f.endswith(".csproj"), prefer_paths)
+
+
+def _build_file_candidates(
+    root: Path,
+    is_build_file: Callable[[str], bool],
+    prefer_paths: Sequence[str] = (),
+    *,
+    outermost: bool = False,
+) -> list[Path]:
+    """Every build file under ``root`` that could be this repository's own, in sorted order.
+
+    Walked by the extractor's rules — ignored and vendored directories, and a nested checkout,
+    are somebody else's — except that a directory the ticket names is kept wherever it sits.
+    ``outermost`` stops below the first build file on each path: a `CMakeLists.txt` under
+    `native/src/` is an `add_subdirectory` of `native/`, and `native/` is the project to build.
+    """
     from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS, is_nested_repo
 
     found: list[Path] = []
@@ -834,8 +890,46 @@ def _csproj_candidates(root: Path, prefer_paths: Sequence[str] = ()) -> list[Pat
             and not d.startswith(".")
             and not is_nested_repo(here, d)
         )
-        found.extend(here / f for f in sorted(filenames) if f.endswith(".csproj"))
+        hits = [here / f for f in sorted(filenames) if is_build_file(f)]
+        found.extend(hits)
+        if outermost and hits:
+            dirnames[:] = []
     return sorted(found)
+
+
+def _nested_project(
+    root: Path, build_files: frozenset[str], *, prefer_paths: Sequence[str], language: str
+) -> tuple[str, str] | None:
+    """``(project dir, why)`` for the project below ``root`` the work belongs to, or ``None``.
+
+    Only asked when ``root`` itself holds none of ``build_files``. A monorepo keeps its web app
+    in `frontend/package.json` and its service in `svc/go.mod`; looking only at the root saw no
+    project at all, answered "new", and scaffolded a second one beside them. The directory is
+    :func:`choose_project`'s answer, so a design naming `frontend/src/cart.ts` picks `frontend/`.
+    ``project dir`` is repo-relative and `/`-separated.
+    """
+    if any((root / name).is_file() for name in build_files):
+        return None
+    candidates = [
+        found
+        for found in _build_file_candidates(root, lambda f: f in build_files, prefer_paths, outermost=True)
+        if found.parent != root
+    ]
+    # One vote per directory: `native/` holding both a `CMakeLists.txt` and a `Makefile` is one
+    # project, not two that could tie.
+    by_dir = sorted({found.parent for found in candidates})
+    why: list[str] = []
+    chosen = choose_project(by_dir, prefer_paths=prefer_paths, root=root, why=why, language=language)
+    if chosen is None:
+        return None
+    return chosen.relative_to(root).as_posix(), why[0] if why else ""
+
+
+def _under(project: str, rel: str) -> str:
+    """``rel`` (relative to a nested ``project``) as a repo-relative path."""
+    if not project:
+        return rel
+    return project if rel in ("", ".") else f"{project}/{rel}"
 
 
 def detect_csharp_layout(
@@ -983,6 +1077,9 @@ def _csharp_namespaces(
     return namespace, test_namespace, note, source.file_scoped
 
 
+_NATIVE_BUILD_FILES = frozenset({"CMakeLists.txt", "meson.build", "Makefile", "makefile"})
+
+
 def _detect_c_build_tool(root: Path) -> str:
     if (root / "CMakeLists.txt").is_file():
         return "cmake"
@@ -1037,21 +1134,30 @@ def _resolve_native_layout(
     repo: str | None,
     language: str,
     detect: Callable[[Path], tuple[str, str, str] | None],
+    prefer_paths: Sequence[str] = (),
 ) -> TargetLayout:
+    project, why = "", ""
     existing = detect(root)
+    if existing is None and mode != "new":
+        nested = _nested_project(root, _NATIVE_BUILD_FILES, prefer_paths=prefer_paths, language=language)
+        if nested is not None:
+            project, why = nested
+            existing = detect(root / project)
     derived = package_name or derive_package_name(repo or str(root))
-    build_tool = _detect_c_build_tool(root) or "cmake"
+    build_tool = _detect_c_build_tool(root / project) or "cmake"
     if mode == "existing" or (mode == "auto" and existing is not None):
         if existing is not None:
             pkg, source_dir, tests_dir = existing
             return TargetLayout(
                 package_name=package_name or pkg,
-                source_dir=source_dir,
-                tests_dir=tests_dir,
+                source_dir=_under(project, source_dir),
+                tests_dir=_under(project, tests_dir),
                 src_layout=source_dir.startswith("src"),
                 mode="existing",
                 language=language,
                 build_tool=build_tool,
+                chosen_reason=why,
+                project_dir=project,
             )
         return TargetLayout(
             derived, "src", "tests", True, "existing", language=language, build_tool=build_tool
@@ -1063,7 +1169,13 @@ def _resolve_c_layout(
     root: Path, *, mode: str, package_name: str | None, repo: str | None, prefer_paths: Sequence[str] = ()
 ) -> TargetLayout:
     return _resolve_native_layout(
-        root, mode=mode, package_name=package_name, repo=repo, language="c", detect=detect_c_layout
+        root,
+        mode=mode,
+        package_name=package_name,
+        repo=repo,
+        language="c",
+        detect=detect_c_layout,
+        prefer_paths=prefer_paths,
     )
 
 
@@ -1104,7 +1216,13 @@ def _resolve_cpp_layout(
     root: Path, *, mode: str, package_name: str | None, repo: str | None, prefer_paths: Sequence[str] = ()
 ) -> TargetLayout:
     return _resolve_native_layout(
-        root, mode=mode, package_name=package_name, repo=repo, language="cpp", detect=detect_cpp_layout
+        root,
+        mode=mode,
+        package_name=package_name,
+        repo=repo,
+        language="cpp",
+        detect=detect_cpp_layout,
+        prefer_paths=prefer_paths,
     )
 
 
@@ -1216,20 +1334,29 @@ def _resolve_go_layout(
     """Go layout. Greenfield = a single package at the module root (``go.mod`` + `.go`
     files beside it), the simplest module ``go build ./...`` / ``go test ./...`` accept.
     Brownfield = a library package in the root module, using that dir's existing ``package``
-    clause. Co-located tests → ``tests_dir == source_dir``. ``build_tool`` is ``go``."""
+    clause. Co-located tests → ``tests_dir == source_dir``. ``build_tool`` is ``go``.
+    With no root ``go.mod``, the module below it the design points at (:func:`_nested_project`)."""
+    project, why = "", ""
     existing = detect_go_layout(root)
+    if existing is None and mode != "new":
+        nested = _nested_project(root, frozenset({"go.mod"}), prefer_paths=prefer_paths, language="go")
+        if nested is not None:
+            project, why = nested
+            existing = detect_go_layout(root / project)
     derived = package_name or derive_go_module(repo or str(root))
     if mode == "existing" or (mode == "auto" and existing is not None):
         if existing is not None:
             pkg_clause, source_dir, tests_dir = existing
             return TargetLayout(
                 package_name=package_name or pkg_clause,
-                source_dir=source_dir,
-                tests_dir=tests_dir,
+                source_dir=_under(project, source_dir),
+                tests_dir=_under(project, tests_dir),
                 src_layout=False,
                 mode="existing",
                 language="go",
                 build_tool="go",
+                chosen_reason=why,
+                project_dir=project,
             )
         return TargetLayout(derived, ".", ".", False, "existing", language="go", build_tool="go")
     return TargetLayout(derived, ".", ".", False, "new", language="go", build_tool="go")
@@ -1289,9 +1416,54 @@ def _resolve_php_layout(
     )
 
 
-def existing_source_count(root: Path, source_ext: str) -> int:
-    """How many ``.<source_ext>`` files the repository already holds, by the extractor's rules."""
-    return _source_file_count(root, frozenset({f".{source_ext.lstrip('.').lower()}"}))
+#: Where a lone file is documentation, not a project: a snippet under `docs/` or a sample under
+#: `examples/` must not stop `--layout auto` from scaffolding into an otherwise empty repository.
+#: `_NOT_OURS` already leaves `examples/` and `samples/` out of every count; these are added for
+#: this count only. Test directories still count — tests are code a new scaffold would orphan.
+SAMPLE_DIRS = frozenset({"docs", "doc", "examples", "samples"})
+
+#: What `--layout auto` looked for and did not find, per language, for the message that refuses
+#: to scaffold beside existing code. Every language it applies to is here; SQL is not, because
+#: its scaffold writes only `migrations/README.md` and a `.gitignore` — nothing a repository
+#: could be built by instead of its own files.
+LOOKED_FOR: dict[str, str] = {
+    "python": "no Python package or module layout it recognises",
+    "csharp": "no `.csproj`",
+    "java": "no `src/main/java` source tree (the Maven/Gradle layout)",
+    "kotlin": "no `src/main/kotlin` source tree (the Gradle layout)",
+    "typescript": "no `package.json`",
+    "go": "no `go.mod`",
+    "c": "no `CMakeLists.txt`, `meson.build` or `Makefile`",
+    "cpp": "no `CMakeLists.txt`, `meson.build` or `Makefile`",
+    # Loose Perl and PHP source already resolves `existing`, so these two are reached only if a
+    # resolver stops recognising it — and then they stop too, rather than scaffold beside it.
+    "perl": "no Perl distribution it recognises",
+    "php": "no PHP project it recognises",
+}
+
+
+def existing_source_count(root: Path, language: str) -> int:
+    """How many of ``language``'s source files the repository already holds.
+
+    The whole suffix family (:data:`SOURCE_SUFFIXES_BY_LANGUAGE`), by the extractor's rules,
+    leaving out :data:`SAMPLE_DIRS`. Zero for a language with no family.
+    """
+    suffixes = SOURCE_SUFFIXES_BY_LANGUAGE.get(language)
+    if not suffixes:
+        return 0
+    return _source_file_count(root, suffixes, skip=SAMPLE_DIRS)
+
+
+def auto_layout_refusal(language: str, count: int, source_dir: str) -> str:
+    """Why `--layout auto` will not scaffold here, and the two ways on — one wording for the
+    Build that stops and the plan that warns it will."""
+    kinds = " ".join(sorted(SOURCE_SUFFIXES_BY_LANGUAGE.get(language, ())))
+    return (
+        f"--layout auto found {LOOKED_FOR.get(language, 'no project')} for {language} in this "
+        f"repository, which already holds {count} source file(s) ({kinds}) — it will not scaffold "
+        f"a new '{source_dir}/' beside them. Point the run at the existing code with --layout "
+        "existing (and --package-name for the package), or pass --layout new to scaffold anyway."
+    )
 
 
 def is_effectively_empty(root: Path) -> bool:
@@ -1437,7 +1609,11 @@ def _sam_layout(root: Path, prefer_paths: Sequence[str]) -> TargetLayout | None:
 
 
 __all__ = [
+    "LOOKED_FOR",
+    "SAMPLE_DIRS",
+    "SOURCE_SUFFIXES_BY_LANGUAGE",
     "TargetLayout",
+    "auto_layout_refusal",
     "derive_csharp_namespace",
     "derive_go_module",
     "derive_java_package",

@@ -60,15 +60,18 @@ def _scaffold(name: str) -> Callable[[TargetLayout], dict[str, str]]:
     return files
 
 
-def _environment(name: str, default: str = "") -> Callable[[str], TestEnvironment]:
-    def create(build_tool: str) -> TestEnvironment:
+def _environment(name: str, default: str = "") -> Callable[[str, str], TestEnvironment]:
+    def create(build_tool: str, project_dir: str = "") -> TestEnvironment:
         args = (build_tool or default,) if default else ()
-        return cast("TestEnvironment", _load("testenv", name)(*args))
+        # Only the resolvers that look below the root (TypeScript, Go, C, C++) ever set a project
+        # directory, and only their environments take one.
+        kwargs = {"project_dir": project_dir} if project_dir else {}
+        return cast("TestEnvironment", _load("testenv", name)(*args, **kwargs))
 
     return create
 
 
-def _python_environment(build_tool: str) -> TestEnvironment:
+def _python_environment(build_tool: str, project_dir: str = "") -> TestEnvironment:
     name = (
         "LocalTestEnvironment"
         if os.getenv("SDLC_TEST_ISOLATION", "venv").lower() == "local"
@@ -91,7 +94,10 @@ def _python_runner(env: TestEnvironment) -> TestRunner:
 def _node_runner(env: TestEnvironment) -> TestRunner:
     return cast(
         "TestRunner",
-        _load("testrunner", "NodeTestRunner")(package_manager=getattr(env, "package_manager", "npm")),
+        _load("testrunner", "NodeTestRunner")(
+            package_manager=getattr(env, "package_manager", "npm"),
+            project_dir=getattr(env, "project_dir", ""),
+        ),
     )
 
 
@@ -109,7 +115,13 @@ def _jvm_runner(env: TestEnvironment) -> TestRunner:
 
 def _native_runner(env: TestEnvironment) -> TestRunner:
     name = "MesonTestRunner" if getattr(env, "build_tool", "cmake") == "meson" else "CTestRunner"
-    return cast("TestRunner", _load("testrunner", name)())
+    return cast("TestRunner", _load("testrunner", name)(project_dir=getattr(env, "project_dir", "")))
+
+
+def _go_runner(env: TestEnvironment) -> TestRunner:
+    return cast(
+        "TestRunner", _load("testrunner", "GoTestRunner")(project_dir=getattr(env, "project_dir", ""))
+    )
 
 
 def _php_runner(env: TestEnvironment) -> TestRunner:
@@ -216,7 +228,7 @@ class Toolchain:
     source_ext: str
     layout: Callable[..., TargetLayout]
     scaffold: Callable[[TargetLayout], dict[str, str]]
-    environment: Callable[[str], TestEnvironment]
+    environment: Callable[[str, str], TestEnvironment]
     runner: Callable[[TestEnvironment], TestRunner]
     prompts: PromptSet
     guidance: str
@@ -265,7 +277,7 @@ class Toolchain:
         elif build_tool in ("cmake", ""):
             if not self.available(build_tool):
                 return f"{label} codegen needs CMake + a {label} compiler on PATH (install both, then retry)."
-            if layout.mode == "existing" and not (root / "CMakeLists.txt").is_file():
+            if layout.mode == "existing" and not (root / layout.project_dir / "CMakeLists.txt").is_file():
                 return (
                     f"{label} codegen builds with CMake or Meson, but this repo has neither a "
                     "CMakeLists.txt nor a recognized meson.build."
@@ -364,7 +376,7 @@ TOOLCHAINS: Mapping[str, Toolchain] = MappingProxyType(
             _layout("_resolve_go_layout"),
             _scaffold("_go_files"),
             _environment("GoToolEnvironment"),
-            _runner("GoTestRunner"),
+            _go_runner,
             _prompts("_GO"),
             "go_guidance",
             available=_probe("go_toolchain_available"),

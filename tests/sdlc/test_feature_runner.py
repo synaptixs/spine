@@ -1748,7 +1748,10 @@ async def test_the_runner_tells_the_layout_which_files_the_ticket_names(
     (tmp_path / "WebApp").mkdir()
     (tmp_path / "WebApp" / "AuctionCoilsUi.razor").write_text("<div/>\n", encoding="utf-8")
 
-    await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1)
+    # A `.razor` page with no `.csproj` anywhere is C# source `--layout auto` cannot place, so
+    # the run stops rather than scaffold a solution beside it — after resolving the layout.
+    with pytest.raises(FeatureRunError, match="will not scaffold"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1)
 
     # The ticket names `AuctionCoilsUi.razor`; the resolver is told, not left to sort names.
     assert seen.get("prefer_paths") == ["WebApp/AuctionCoilsUi.razor"]
@@ -1983,6 +1986,149 @@ async def test_a_sam_repo_runs_without_a_scaffold(monkeypatch: pytest.MonkeyPatc
 
     assert created and getattr(created[0].layout, "framework", "") == "aws-sam"
     assert not (tmp_path / "pyproject.toml").exists()
+
+
+# ---- auto-layout-guard: the same stop for every language whose scaffold writes a build file ------
+
+#: language → (one loose source file, the build file its scaffold writes)
+_BESIDE: dict[str, tuple[str, str]] = {
+    "csharp": ("Legacy/Program.cs", "*.sln"),
+    "typescript": ("lib/index.ts", "package.json"),
+    "java": ("Main.java", "pom.xml"),
+    "kotlin": ("Main.kt", "settings.gradle.kts"),
+    "go": ("main.go", "go.mod"),
+    "c": ("include/api.h", "CMakeLists.txt"),
+    "cpp": ("engine.cc", "CMakeLists.txt"),
+}
+
+
+class _StoppedAfterLayoutError(Exception):
+    """Raised where the run would build its test environment — after the layout and scaffold."""
+
+
+def _stop_after_layout(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _stop(*a: Any, **k: Any) -> Any:
+        raise _StoppedAfterLayoutError
+
+    monkeypatch.setattr("orchestrator.sdlc.testenv.make_test_environment", _stop)
+
+
+def _tree(root: Path) -> set[str]:
+    """Every path under ``root`` but the run's own intake bookkeeping, which is not the scaffold."""
+    return {
+        rel
+        for rel in (p.relative_to(root).as_posix() for p in root.rglob("*"))
+        if rel != "BACKLOG.md" and not rel.startswith("intake-cache")
+    }
+
+
+@pytest.mark.parametrize("language", sorted(_BESIDE))
+async def test_auto_will_not_scaffold_beside_loose_source_in_any_language(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, language: str
+) -> None:
+    """One file, no build file: every language stops with exit 2 and writes nothing — a root
+    `go.mod` or `.sln` beside code it does not build is a second project, not the repository's."""
+    from orchestrator.sdlc.layout import LOOKED_FOR
+
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    _stop_after_layout(monkeypatch)
+    source, _build_file = _BESIDE[language]
+    (tmp_path / source).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / source).write_text("// existing\n", encoding="utf-8")
+    before = _tree(tmp_path)
+
+    with pytest.raises(FeatureRunError, match="will not scaffold") as caught:
+        await run_feature("file://./spec.md", intent_id="intent-a", language=language, max_refine=1)
+
+    assert caught.value.code == 2
+    assert LOOKED_FOR[language] in str(caught.value)
+    assert "--layout new" in str(caught.value)
+    assert _tree(tmp_path) == before  # no build file, no source tree
+
+
+@pytest.mark.parametrize("language", sorted(_BESIDE))
+async def test_auto_still_scaffolds_an_empty_repository(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, language: str
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    _stop_after_layout(monkeypatch)
+    (tmp_path / "README.md").write_text("# empty\n", encoding="utf-8")
+
+    with pytest.raises(_StoppedAfterLayoutError):
+        await run_feature("file://./spec.md", intent_id="intent-a", language=language, max_refine=1)
+
+    assert list(tmp_path.glob(_BESIDE[language][1]))
+
+
+@pytest.mark.parametrize("language", sorted(_BESIDE))
+async def test_layout_new_still_scaffolds_beside_source(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, language: str
+) -> None:
+    """`--layout new` is the one way past the stop (D4) — it scaffolds exactly as before."""
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    _stop_after_layout(monkeypatch)
+    source, build_file = _BESIDE[language]
+    (tmp_path / source).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / source).write_text("// existing\n", encoding="utf-8")
+
+    with pytest.raises(_StoppedAfterLayoutError):
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", language=language, layout_mode="new", max_refine=1
+        )
+
+    assert list(tmp_path.glob(build_file))
+
+
+async def test_sql_still_scaffolds_beside_loose_sql(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """SQL's scaffold is a `migrations/README.md` and a `.gitignore` — nothing that could be built
+    instead of the repository's own files — so it is the one language `auto` does not stop (D1)."""
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    _stop_after_layout(monkeypatch)
+    (tmp_path / "schema.sql").write_text("create table t (id int);\n", encoding="utf-8")
+
+    with pytest.raises(_StoppedAfterLayoutError):
+        await run_feature("file://./spec.md", intent_id="intent-a", language="sql", max_refine=1)
+
+    assert (tmp_path / "migrations" / "README.md").is_file()
+
+
+async def test_a_lone_sample_does_not_stop_the_scaffold(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A snippet under `docs/` or `examples/` is documentation, not a project to extend (D3)."""
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    _stop_after_layout(monkeypatch)
+    for rel in ("docs/usage.ts", "examples/hello.ts", "samples/demo.ts", "doc/api.ts"):
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text("export {}\n", encoding="utf-8")
+
+    with pytest.raises(_StoppedAfterLayoutError):
+        await run_feature("file://./spec.md", intent_id="intent-a", language="typescript", max_refine=1)
+
+    assert (tmp_path / "package.json").is_file()
+
+
+async def test_a_nested_project_is_followed_not_refused(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """D7: the build file one level down is the project; the stop never sees a monorepo."""
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    seen: dict[str, Any] = {}
+
+    def _stop(language: str, **kwargs: Any) -> Any:
+        seen.update(kwargs)
+        raise _StoppedAfterLayoutError
+
+    monkeypatch.setattr("orchestrator.sdlc.testenv.make_test_environment", _stop)
+    (tmp_path / "svc" / "lib").mkdir(parents=True)
+    (tmp_path / "svc" / "go.mod").write_text("module example.com/svc\n", encoding="utf-8")
+    (tmp_path / "svc" / "lib" / "lib.go").write_text("package lib\n", encoding="utf-8")
+
+    with pytest.raises(_StoppedAfterLayoutError):
+        await run_feature("file://./spec.md", intent_id="intent-a", language="go", max_refine=1)
+
+    assert seen.get("project_dir") == "svc"
+    assert not (tmp_path / "go.mod").exists()
 
 
 # ---- P10: a local checkout's uncommitted work is not in the build --------------------------------

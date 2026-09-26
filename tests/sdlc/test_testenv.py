@@ -781,3 +781,73 @@ async def test_dotnet_runner_leads_with_the_first_error_a_tail_would_cut(
     result = await DotnetTestRunner().run(path=str(tmp_path))
 
     assert result.output.splitlines()[1].strip().startswith("WebApp/A.cs(2,7): error CS1003")
+
+
+# --- a nested project (auto-layout-guard D7): the environment and runner work where it lives --
+
+
+async def test_a_nested_node_project_installs_and_tests_in_its_own_directory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.sdlc import testenv
+    from orchestrator.sdlc.testenv import make_test_environment, make_test_runner
+
+    installs: list[tuple[object, ...]] = []
+    tests: list[object] = []
+
+    async def fake_run_in(cwd: object, *argv: str) -> int:
+        installs.append((cwd, *argv))
+        return 0
+
+    async def fake_exec(*a: object, **k: object) -> _FakeProc:
+        tests.append(k.get("cwd"))
+        return _FakeProc(0, b"ok")
+
+    monkeypatch.setattr(testenv, "_run_in", fake_run_in)
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
+    env = make_test_environment("typescript", build_tool="npm", project_dir="frontend")
+    await env.ensure("/wt")
+    await make_test_runner("typescript", env).run(path="/wt")
+
+    assert installs == [(Path("/wt/frontend"), "npm", "install")]
+    assert tests == [str(Path("/wt/frontend"))]
+
+
+@pytest.mark.parametrize(("build_tool", "first"), [("cmake", "cmake"), ("meson", "meson")])
+async def test_a_nested_native_project_builds_in_its_own_directory(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, build_tool: str, first: str
+) -> None:
+    from orchestrator.sdlc.testenv import make_test_environment, make_test_runner
+
+    cwds: list[str] = []
+
+    async def fake_capture(argv: tuple[str, ...], *, cwd: str, timeout: float) -> tuple[int, str]:
+        cwds.append(cwd)
+        return 0, ""
+
+    monkeypatch.setattr("orchestrator.sdlc.testrunner._exec_capture", fake_capture)
+    env = make_test_environment("c", build_tool=build_tool, project_dir="native")
+    await make_test_runner("c", env).run(path=str(tmp_path))
+
+    assert cwds and set(cwds) == {str(tmp_path / "native")}
+
+
+async def test_a_nested_go_module_is_the_fallback_before_anything_changed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The baseline run happens before codegen, so `git status` names no module; the root holds
+    no `go.mod`, and `go test ./...` there would fail for a reason the change did not cause."""
+    from orchestrator.sdlc.testenv import make_test_environment, make_test_runner
+
+    cwds: list[str] = []
+
+    async def fake_capture(argv: tuple[str, ...], *, cwd: str, timeout: float) -> tuple[int, str]:
+        cwds.append(cwd)
+        return 0, ""
+
+    monkeypatch.setattr("orchestrator.sdlc.testrunner._exec_capture", fake_capture)
+    env = make_test_environment("go", project_dir="svc")
+    await make_test_runner("go", env).run(path=str(tmp_path))
+
+    assert cwds[0] == str(tmp_path)  # `git status`, from the worktree
+    assert set(cwds[1:]) == {str(tmp_path / "svc")}

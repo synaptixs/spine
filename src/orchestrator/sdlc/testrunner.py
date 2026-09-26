@@ -220,16 +220,20 @@ class NodeTestRunner:
     yarn / pnpm all run that script with ``<pm> test``. Vitest exits non-zero on a
     failing test or a TS compile error → ``passed`` is ``returncode == 0``."""
 
-    def __init__(self, package_manager: str = "npm", *, timeout: float = 600.0) -> None:
+    def __init__(
+        self, package_manager: str = "npm", *, timeout: float = 600.0, project_dir: str = ""
+    ) -> None:
         self._pm = package_manager or "npm"
         self._timeout = timeout
+        # A nested project's own directory (`frontend`), where its `package.json` is.
+        self._project_dir = project_dir
 
     async def run(self, *, path: str) -> TestRunResult:
         env = {k: v for k, v in os.environ.items() if not k.startswith(_SECRET_ENV_PREFIXES)}
         proc = await asyncio.create_subprocess_exec(
             self._pm,
             "test",
-            cwd=path,
+            cwd=str(Path(path) / self._project_dir),
             env=env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
@@ -257,12 +261,16 @@ class CTestRunner:
     greenfield scaffold's ``CMakeLists.txt`` globs ``src/*.c`` into a library and each
     ``tests/*.c`` into a ctest executable, so no build argument is needed."""
 
-    def __init__(self, cmake: str = "cmake", ctest: str = "ctest", *, timeout: float = 600.0) -> None:
+    def __init__(
+        self, cmake: str = "cmake", ctest: str = "ctest", *, timeout: float = 600.0, project_dir: str = ""
+    ) -> None:
         self._cmake = cmake
         self._ctest = ctest
         self._timeout = timeout
+        self._project_dir = project_dir  # a nested project's directory (`native`), else the root
 
     async def run(self, *, path: str) -> TestRunResult:
+        path = str(Path(path) / self._project_dir)
         build = str(Path(path) / "build")
         steps = (
             (self._cmake, "-S", path, "-B", build),
@@ -288,11 +296,13 @@ class MesonTestRunner:
     the refine prompt needs. Used for brownfield C repos whose build system is
     Meson; greenfield still scaffolds CMake."""
 
-    def __init__(self, meson: str = "meson", *, timeout: float = 600.0) -> None:
+    def __init__(self, meson: str = "meson", *, timeout: float = 600.0, project_dir: str = "") -> None:
         self._meson = meson
         self._timeout = timeout
+        self._project_dir = project_dir  # a nested project's directory, else the root
 
     async def run(self, *, path: str) -> TestRunResult:
+        path = str(Path(path) / self._project_dir)
         captured: list[str] = []
         if not (Path(path) / "build").exists():
             rc, out = await _exec_capture((self._meson, "setup", "build"), cwd=path, timeout=self._timeout)
@@ -459,14 +469,16 @@ class GoTestRunner:
     So this discovers the modules containing the changed ``.go`` files (via ``git status`` +
     the nearest ``go.mod``) and builds/tests each. The first non-zero step fails the run
     (``passed`` is rc == 0); its output is what the refine prompt needs. Falls back to the
-    repo root when nothing is detected (fresh greenfield scaffold, or no git)."""
+    repo root — or the layout's nested module, when it chose one — when nothing is detected
+    (fresh greenfield scaffold, a baseline run before any change, or no git)."""
 
-    def __init__(self, go: str = "go", *, timeout: float = 600.0) -> None:
+    def __init__(self, go: str = "go", *, timeout: float = 600.0, project_dir: str = "") -> None:
         self._go = go
         self._timeout = timeout
+        self._project_dir = project_dir
 
     async def run(self, *, path: str) -> TestRunResult:
-        modules = await self._changed_modules(path) or ["."]
+        modules = await self._changed_modules(path) or [self._project_dir or "."]
         captured: list[str] = []
         for mod in modules:
             cwd = path if mod == "." else str(Path(path) / mod)

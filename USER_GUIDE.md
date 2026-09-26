@@ -439,8 +439,16 @@ orchestrator sdlc feature --source confluence://<page_id> --safe
   names, else the one with the most Python — with each function's `requirements.txt` and
   `boto3` installed for its tests), or a repository of top-level modules. For C#, generated code
   declares the project's own namespace (its `<RootNamespace>`, or what its files already declare).
-- If `--layout auto` finds Python it cannot place, it **stops** and says so rather than
-  scaffolding a new package beside it (exit 2).
+- **A project below the root** is followed too: with no root build file, TypeScript, Go, C and
+  C++ look for one further down (`frontend/package.json`, `svc/go.mod`,
+  `native/CMakeLists.txt`) and take the project holding the files the design names — else the
+  one with the most source. Dependencies install and tests run in that directory.
+- If `--layout auto` finds source it cannot place, it **stops** and says so rather than
+  scaffolding a new project beside it (exit 2). This holds in every language but SQL, whose
+  scaffold is only a `migrations/` README; the message names the build file it looked for (no
+  `.csproj`, no `go.mod`, …). One file is enough to stop it; a sample under `docs/`, `doc/`,
+  `examples/` or `samples/` is not. `sdlc plan` warns about this before the Build (a
+  `layout_would_stop` Validity finding).
 - Default is `--layout auto` (the above). Force it with `--layout new|existing`, and
   override the name with `--package-name <name>`.
 
