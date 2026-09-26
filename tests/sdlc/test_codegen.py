@@ -2212,3 +2212,18 @@ def test_php_dispatch_samples_php_conventions(tmp_path: Path) -> None:
     assert "library/Widget.class.php" in block
     assert "Checks/WidgetCheck.php" in block
     assert "require_once" in block
+
+
+async def test_refine_shows_the_preexisting_file_a_compiler_error_names(tmp_path: Path) -> None:
+    """NSS-1243: the file that broke the build was only ever a path in the output, never shown."""
+    target = tmp_path / "WebApp" / "Shared" / "OilStatus.razor.cs"
+    target.parent.mkdir(parents=True)
+    target.write_text("using Xunit;\nusing Broken Name;\nclass X {}\n", encoding="utf-8")
+    llm = _ScriptedLLM([_files_response({"calculator.py": "def add(a, b):\n    return a + b\n"})])
+    failures = f"{target}(2,13): error CS1002: ; expected [{tmp_path}/WebApp/App.csproj]"
+
+    await LLMCodegenAdapter(llm).refine(spec=_SPEC, path=str(tmp_path), issue_key="S-1", failures=failures)
+
+    user_msg = llm.calls[0][1].content
+    assert "FILES THE FAILURE NAMES" in user_msg
+    assert "using Broken Name;" in user_msg

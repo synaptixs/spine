@@ -317,7 +317,8 @@ def _csharp_files(layout: TargetLayout) -> dict[str, str]:
     ref = os.path.relpath(src_csproj, start=test_dir).replace("/", "\\")
     return {
         f"{name}.sln": _sln(name, src_csproj, test_name, test_csproj),
-        src_csproj: _CSPROJ_LIB.format(name=name, tfm=tfm),
+        # The namespace, not the project name: a name is a file stem and may hold `-`.
+        src_csproj: _CSPROJ_LIB.format(name=layout.namespace or name, tfm=tfm),
         test_csproj: _CSPROJ_TEST.format(ref=ref, tfm=tfm),
         # SDK-style projects anchor their own dirs in git; xUnit's default template
         # has no source files, so a placeholder keeps the source dir non-empty.

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from orchestrator.sdlc.csharp_names import is_namespace
+
 if TYPE_CHECKING:
     from orchestrator.sdlc.layout import TargetLayout
 
@@ -107,15 +109,50 @@ def typescript_guidance(layout: TargetLayout) -> str:
 
 
 def csharp_guidance(layout: TargetLayout) -> str:
+    """The C# layout block. The namespace is ``layout.namespace`` — read from the project —
+    never ``package_name``, which for an existing repository is the `.csproj` file stem that
+    selects the project (``commercial-secondary-sales``) and was handed to the model as the
+    namespace on NSS-1243, three runs of three."""
     tfm = layout.target_framework or "net8.0"
+    ns = layout.namespace or layout.package_name
+    test_ns = layout.test_namespace or f"{ns}.Tests"
+    if layout.mode != "existing":
+        source = (
+            f"- C# namespace is `{ns}`. Put each public type at "
+            f"`{layout.source_dir}/<TypeName>.cs`, one public type per file, declaring "
+            f"`namespace {ns};` (target {tfm}, nullable enabled).\n"
+        )
+    else:
+        style = (
+            "block `namespace X { ... }`"
+            if layout.file_scoped_namespace is False
+            else "file-scoped `namespace X;`"
+        )
+        evidence = f" ({layout.namespace_note})" if layout.namespace_note else ""
+        source = (
+            f"- Source project: `{layout.source_dir}/`. Its root namespace is `{ns}`{evidence}. "
+            "Namespaces follow folders: a file at "
+            f"`{layout.source_dir}/<Folder>/<Sub>/<TypeName>.cs` declares `namespace {ns}.<Folder>.<Sub>`, "
+            f"in the {style} style this project uses (target {tfm}, nullable enabled).\n"
+            "- Put a new type in the folder of the feature it belongs to (the files the design names "
+            "show where), one public type per file named after the type; only a type with no clear "
+            f"home goes at `{layout.source_dir}/<TypeName>.cs`. To use a type from another folder, "
+            f"add `using {ns}.<Folder>;`.\n"
+            "- A Razor component takes its namespace from its folder: never add `@namespace` to a "
+            "`.razor` file. Its code-behind `<Name>.razor.cs` declares the same namespace as the folder.\n"
+        )
+        if layout.package_name and not is_namespace(layout.package_name):
+            source += (
+                f"- `{layout.package_name}` is the project's file name, not a namespace — never use "
+                "it in a `namespace` or `using` line.\n"
+            )
     return (
         "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
-        f"- C# namespace is `{layout.package_name}`. Put each public type at "
-        f"`{layout.source_dir}/<TypeName>.cs`, one public type per file, declaring "
-        f"`namespace {layout.package_name};` (target {tfm}, nullable enabled).\n"
-        f"- Put xUnit tests at `{layout.tests_dir}/<TypeName>Tests.cs` (the test "
-        "project already references the source project).\n"
-        f"- Declare any new dependency as a `<PackageReference>` in the source "
+        + source
+        + f"- Put xUnit tests at `{layout.tests_dir}/<TypeName>Tests.cs`, declaring `namespace {test_ns}` "
+        f"and importing the code under test with `using {ns}.<Folder>;` for the folder it lives in "
+        "(the test project already references the source project).\n"
+        "- Declare any new dependency as a `<PackageReference>` in the source "
         "`.csproj` (edit it); don't invent unrelated paths.\n\n"
     )
 

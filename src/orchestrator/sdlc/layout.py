@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import cast
 
 from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS
+from orchestrator.sdlc.csharp_names import is_namespace, project_namespace
 
 # Top-level dirs that are never a project's source package.
 _NON_PACKAGE_DIRS = {"tests", "test", "docs", "doc", "examples", "scripts", "build", "dist"}
@@ -109,6 +110,20 @@ class TargetLayout:
     # never runs one, so the guidance has to rule them out rather than let the model reach for
     # Espresso and produce a suite that cannot run.
     android: bool = False
+    # C# only. The namespace generated code declares, read from the project (see
+    # `csharp_names`) — distinct from `package_name`, which for an existing repository is the
+    # `.csproj` stem that *selects* the project. NSS-1243: the stem `commercial-secondary-sales`
+    # was handed to the model as the namespace, and three runs of three wrote code that could
+    # not parse. Empty → `package_name` (every other language, and greenfield C#).
+    namespace: str = ""
+    # The namespace the test project's own files declare (C#), for the tests' `namespace` line.
+    test_namespace: str = ""
+    # How `namespace` was established, plus one real file showing the folder convention —
+    # printed on the `[layout]` line and carried into the guidance.
+    namespace_note: str = ""
+    # True / False when the project's files mostly use file-scoped / block namespaces; None
+    # when nothing was read.
+    file_scoped_namespace: bool | None = None
 
     def module_rel_path(self, module: str) -> str:
         """Worktree-relative path for a new source module/class (no leading dir)."""
@@ -894,9 +909,14 @@ def _resolve_csharp_layout(
     why: list[str] = []
     existing = detect_csharp_layout(root, prefer_paths=prefer_paths, why=why, project=package_name or "")
     derived = package_name or derive_csharp_namespace(repo or str(root))
+    # The name may be an operator's `--package-name` with a `-` in it; the namespace may not.
+    derived_ns = derived if is_namespace(derived) else derive_csharp_namespace(derived)
     if mode == "existing" or (mode == "auto" and existing is not None):
         if existing is not None:
             pkg, source_dir, tests_dir = existing
+            namespace, test_namespace, note, file_scoped = _csharp_namespaces(
+                root, pkg, source_dir, tests_dir, override=package_name or ""
+            )
             return TargetLayout(
                 package_name=package_name or pkg,
                 source_dir=source_dir,
@@ -906,11 +926,57 @@ def _resolve_csharp_layout(
                 language="csharp",
                 build_tool="dotnet",
                 chosen_reason=why[0] if why else "",
+                namespace=namespace,
+                test_namespace=test_namespace,
+                namespace_note=note,
+                file_scoped_namespace=file_scoped,
             )
         src, tst = _csharp_dirs(derived)
-        return TargetLayout(derived, src, tst, True, "existing", language="csharp", build_tool="dotnet")
+        return TargetLayout(
+            derived,
+            src,
+            tst,
+            True,
+            "existing",
+            language="csharp",
+            build_tool="dotnet",
+            namespace=derived_ns,
+            test_namespace=f"{derived_ns}.Tests",
+        )
     src, tst = _csharp_dirs(derived)
-    return TargetLayout(derived, src, tst, True, "new", language="csharp", build_tool="dotnet")
+    return TargetLayout(
+        derived,
+        src,
+        tst,
+        True,
+        "new",
+        language="csharp",
+        build_tool="dotnet",
+        namespace=derived_ns,
+        test_namespace=f"{derived_ns}.Tests",
+    )
+
+
+def _csharp_namespaces(
+    root: Path, project: str, source_dir: str, tests_dir: str, *, override: str = ""
+) -> tuple[str, str, str, bool | None]:
+    """``(namespace, test_namespace, note, file_scoped)`` for an existing .NET project.
+
+    Read from the project, never from its file name (see ``csharp_names``). An operator's
+    ``--package-name`` that is a legal namespace and does not name a project is taken as the
+    namespace, which is what the flag meant before it could retarget the project.
+    """
+    source = project_namespace(root / source_dir / f"{project}.csproj", root)
+    namespace, note = source.root, f"from {source.source}"
+    if override and override.lower() != project.lower() and is_namespace(override):
+        namespace, note = override, "from --package-name"
+    if source.example:
+        note += f"; {source.example}"
+    test_projects = sorted((root / tests_dir).glob("*.csproj")) if tests_dir else []
+    test_namespace = (
+        project_namespace(test_projects[0], root).root if len(test_projects) == 1 else f"{namespace}.Tests"
+    )
+    return namespace, test_namespace, note, source.file_scoped
 
 
 def _detect_c_build_tool(root: Path) -> str:

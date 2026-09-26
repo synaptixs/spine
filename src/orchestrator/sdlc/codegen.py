@@ -29,6 +29,8 @@ from typing import Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
 from orchestrator.core.llm import LLMClient, Message, ToolSpec, catalog
+from orchestrator.sdlc.csharp_names import directive_error
+from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 from orchestrator.sdlc.layout import TargetLayout
 
@@ -75,9 +77,31 @@ _MAX_CONTEXT_BYTES = 200_000
 _MAX_FAILURE_BYTES = 40_000
 # The subject of a type error, as mypy names it: `"MCPToolHandler" has no attribute "tool"`,
 # `Name "Any" is not defined`, `Argument 1 to "_type_label" has incompatible type`. Quoted
-# CamelCase or identifier-shaped words — the things the graph can look up.
-_SYMBOLS_IN_ERRORS = re.compile(r'"([A-Za-z_][A-Za-z0-9_]{2,})"')
+# CamelCase or identifier-shaped words — the things the graph can look up. Either quote:
+# C# says `The type or namespace name 'OilStatus' could not be found` and Python's own
+# `NameError` uses single quotes too, so double-quotes-only found nothing on a .NET run.
+_SYMBOLS_IN_ERRORS = re.compile(r"""(["'])([A-Za-z_][A-Za-z0-9_]{2,})\1""")
 _MAX_EDITS_PER_FILE = 20  # anchored find/replace edits per file
+# Pre-existing files a failure names that refine is shown beside its own. Enough for a
+# cause and its first knock-on; a cascade naming forty files is not forty things to read.
+_MAX_FAILURE_NAMED_FILES = 6
+# Dependency manifests refine may always edit: every refine prompt tells the model to add a
+# dependency by editing one, and no failure line names the manifest it is missing from.
+_DEPENDENCY_MANIFESTS = frozenset(
+    {
+        "package.json",
+        "pyproject.toml",
+        "requirements.txt",
+        "pom.xml",
+        "build.gradle",
+        "build.gradle.kts",
+        "composer.json",
+        "cpanfile",
+        "go.mod",
+        "Cargo.toml",
+    }
+)
+_PROJECT_FILE_SUFFIXES = (".csproj", ".fsproj", ".vbproj")
 _MAX_PATCHED_FILE_BYTES = 256_000  # a patched existing file may be bigger than a generated one
 # Without an explicit cap the provider default (~4k tokens) applies, and a
 # large generated test file gets truncated mid-JSON — the "model output was
@@ -982,6 +1006,8 @@ class LLMCodegenAdapter:
         # Files written per worktree root this session — fed back to the model
         # in author_tests/refine instead of dumping the whole tree.
         self._written: dict[Path, list[Path]] = {}
+        # Set only while `refine` runs: the pre-existing files it may edit (see `refine`).
+        self._refine_editable: frozenset[str] | None = None
         # Derived house-style digest per worktree root (G8), computed once.
         self._conventions: dict[Path, str] = {}
         # Phase 1b (cross-run semantic memory) — when a DB session factory + a
@@ -1409,27 +1435,71 @@ class LLMCodegenAdapter:
     async def refine(self, *, spec: dict[str, Any], path: str, issue_key: str, failures: str) -> CodeChange:
         root = Path(path)
         fail_anchors = _spec_anchors(failures)
-        return await self._generate(
-            self._condition_system(self._refine_system(), self._skills, phase="refine"),
-            f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
-            f"SPEC:\n{_spec_text(spec)}\n\n"
-            "IMPORTANT: Fix the IMPLEMENTATION files only. Do NOT modify test files to "
-            "make them match a broken implementation — fix the source code so the tests "
-            "pass as written.\n\n"
-            # Aim the windows at whatever the traceback names: on a big file the excerpt
-            # should cover the line that failed, not the top of the module.
-            f"CURRENT FILES:\n{self._session_files(root, include_tests=True, anchors=fail_anchors)}"
-            f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}\n\n"
-            f"FAILURE OUTPUT:\n{_truncate(failures, _MAX_FAILURE_BYTES)}\n\n"
-            f"{self._definitions_for(failures, root)}",
+        named_by_failure = paths_named(failures, root)
+        named_by_ticket = _paths_from(spec, self._design, root)
+        only_failure_named = [p for p in named_by_failure if p not in named_by_ticket]
+        # Refine may change a pre-existing file only when something the model was shown
+        # names it: the failure, the spec or the design. NSS-1243's refine read a cascade of
+        # errors and edited a correct `_Imports.razor` in all three runs — once down to a bare
+        # `.Ui` — while the file that broke the build went untouched.
+        self._refine_editable = frozenset(named_by_failure + named_by_ticket)
+        try:
+            return await self._generate(
+                self._condition_system(self._refine_system(), self._skills, phase="refine"),
+                f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}"
+                f"Issue: {issue_key}\n\n"
+                f"SPEC:\n{_spec_text(spec)}\n\n"
+                "IMPORTANT: Fix the IMPLEMENTATION files only. Do NOT modify test files to "
+                "make them match a broken implementation — fix the source code so the tests "
+                "pass as written.\n\n"
+                # Aim the windows at whatever the traceback names: on a big file the excerpt
+                # should cover the line that failed, not the top of the module.
+                f"CURRENT FILES:\n{self._session_files(root, include_tests=True, anchors=fail_anchors)}"
+                f"{_named_existing_files(spec, root, self._design)}"
+                # Minus what the spec or design names: `_named_existing_files` shows those.
+                f"{self._failure_named_files(root, failures, only_failure_named)}"
+                f"{self._convention_block(root)}\n\n"
+                f"FAILURE OUTPUT:\n{_truncate(failures, _MAX_FAILURE_BYTES)}\n\n"
+                f"{self._definitions_for(failures, root)}",
+                root,
+                # A refine pass that yields no applicable edits is a legitimate
+                # no-op (the model judged it had nothing to change, or returned a
+                # bare explanation), not a hard error: returning an empty change
+                # lets the test/refine loop reach its normal FAILED verdict instead
+                # of aborting the whole run with an unhandled CodegenError.
+                allow_empty=True,
+            )
+        finally:
+            self._refine_editable = None
+
+    def _failure_named_files(self, root: Path, failures: str, named: list[str]) -> str:
+        """The pre-existing files the failure names, windowed on the lines it names.
+
+        Session files are shown already. A compiler error in a file this run never wrote —
+        a code-behind, `_Imports.razor` — was otherwise visible only as a path, so the model
+        edited it blind or edited something else.
+        """
+        written = {p.resolve() for p in self._written.get(root.resolve(), [])}
+        others = [rel for rel in named if (root / rel).resolve() not in written][:_MAX_FAILURE_NAMED_FILES]
+        if not others:
+            return ""
+        anchors: dict[str, list[str]] = {}
+        for diag in dotnet_errors(failures, root):
+            if diag.path in others:
+                try:
+                    lines = (root / diag.path).read_text(encoding="utf-8").splitlines()
+                except (OSError, UnicodeDecodeError):
+                    continue
+                if 0 < diag.line <= len(lines) and lines[diag.line - 1].strip():
+                    anchors.setdefault(diag.path, []).append(lines[diag.line - 1].strip())
+        block = _excerpt_files(
             root,
-            # A refine pass that yields no applicable edits is a legitimate
-            # no-op (the model judged it had nothing to change, or returned a
-            # bare explanation), not a hard error: returning an empty change
-            # lets the test/refine loop reach its normal FAILED verdict instead
-            # of aborting the whole run with an unhandled CodegenError.
-            allow_empty=True,
+            others,
+            budget=_MAX_CONTEXT_BYTES // 4,
+            anchors_by_path=anchors,
+            label="named by the failure",
         )
+        return f"\n\nFILES THE FAILURE NAMES (not written this session):\n{block}" if block else ""
 
     def _definitions_for_tests(self, root: Path) -> str:
         """Definitions of the types the code under test imports, for the fixtures.
@@ -1465,7 +1535,7 @@ class LLMCodegenAdapter:
         a second attribute name (``handler.tool``), was rejected identically, and the loop
         spent its whole budget proposing names for something it had never been shown.
         """
-        names = _SYMBOLS_IN_ERRORS.findall(failures)
+        names = [name for _quote, name in _SYMBOLS_IN_ERRORS.findall(failures)]
         if not names:
             return ""
         grounder = self._resolve_grounder(root)
@@ -1554,7 +1624,7 @@ class LLMCodegenAdapter:
             logger.warning("sdlc.codegen.syntax_retry", extra={"errors": exc.syntax_errors[:3]})
             listed = "\n".join(f"  - {m}" for m in exc.syntax_errors)
             return (
-                "\n\nYOUR PREVIOUS ATTEMPT PRODUCED PYTHON THAT DOES NOT PARSE, so it was "
+                "\n\nYOUR PREVIOUS ATTEMPT PRODUCED CODE THAT DOES NOT PARSE, so it was "
                 "not written:\n"
                 f"{listed}\n"
                 "Re-emit those files complete and syntactically valid. Send only the file's "
@@ -1729,6 +1799,7 @@ class LLMCodegenAdapter:
             written_tracker=self._written,
             grounded=self._grounder is not None,
             summary=str(payload.get("summary") or "").strip(),
+            editable_existing=self._refine_editable,
         )
 
 
@@ -1903,8 +1974,14 @@ def apply_files(
     written_tracker: dict[Path, list[Path]],
     grounded: bool,
     summary: str = "",
+    editable_existing: frozenset[str] | None = None,
 ) -> CodeChange:
     """Apply a ``files`` list (new ``content`` / existing ``edits``) to a worktree.
+
+    ``editable_existing`` (refine only): the worktree-relative pre-existing files this pass
+    may change. On a grounded run whose session has tracked its own writes, any other file
+    that exists and this session did not write is refused, in either form; dependency
+    manifests and project files are always allowed.
 
     The shared write path for both single-shot codegen (``_apply``) and the
     agentic loop's ``write_files`` tool — every guard (path safety, stdlib
@@ -1923,6 +2000,7 @@ def apply_files(
     syntax_messages: list[str] = []
     missing_targets: list[str] = []  # edits aimed at a file that doesn't exist yet
     placeholders: list[str] = []  # stub submissions dropped before they counted as work
+    refused: list[str] = []  # pre-existing files refine was not allowed to touch
     tracked_now = written_tracker.get(root.resolve(), [])
     for entry in files:
         if not isinstance(entry, dict):
@@ -1933,6 +2011,20 @@ def apply_files(
         if not rel:
             continue
         target = _safe_target(root, rel)
+        # Only where "pre-existing" is knowable: a grounded (real-repo) run whose session has
+        # recorded what it wrote. A fresh adapter resuming a worktree has tracked nothing, and
+        # would otherwise see every file — its own included — as someone else's.
+        if (
+            editable_existing is not None
+            and grounded
+            and tracked_now
+            and target.exists()
+            and target not in tracked_now
+            and not _may_edit_existing(root, target, editable_existing)
+        ):
+            refused.append(rel)
+            logger.warning("sdlc.codegen.refused_unnamed_edit: %s — named by no failure, spec or design", rel)
+            continue
 
         # ---- edits form: anchored find/replace on an EXISTING file ------
         # Per-file atomic: every edit must anchor (exactly-once match) or
@@ -1959,7 +2051,7 @@ def apply_files(
             if len(patched.encode("utf-8")) > _MAX_PATCHED_FILE_BYTES:
                 edit_failures.append(f"{rel}: patched file exceeds {_MAX_PATCHED_FILE_BYTES} bytes")
                 continue
-            broken = _python_syntax_error(rel, patched)
+            broken = _syntax_error(rel, patched)
             if broken:
                 edit_failures.append(broken)
                 syntax_failures.append(rel)
@@ -2010,7 +2102,7 @@ def apply_files(
             continue
         if len(content.encode("utf-8")) > _MAX_FILE_BYTES:
             raise CodegenError(f"generated file {rel!r} exceeds {_MAX_FILE_BYTES} bytes")
-        broken = _python_syntax_error(rel, content)
+        broken = _syntax_error(rel, content)
         if broken:
             # Never write it. A file that does not parse turns the whole suite into a
             # collection error, and every later stage then reads an unrelated wall of
@@ -2058,7 +2150,21 @@ def apply_files(
             syntax_errors=syntax_messages,
             applied_paths=_relative_paths(written, root),
         )
+    if refused:
+        summary = f"{summary} (refused: {', '.join(refused)} — named by no failure, spec or design)".strip()
     if not written:
+        if refused and not edit_failures:
+            # Recoverable: one corrective retry, told why. The model's reading of the failure
+            # was off — the file it wants to change is not one anything points at.
+            raise CodegenError(
+                f"refine changed only files nothing names: {', '.join(refused)}",
+                empty_summary=(
+                    f"changed only {', '.join(refused)}, which no failure line, the spec or the "
+                    "design names — so it was not applied. A pre-existing file may be changed only "
+                    "when one of those names it: fix the file the FAILURE OUTPUT points at (its "
+                    "first error is usually the cause)"
+                ),
+            )
         if placeholders and not edit_failures:
             # Recoverable, and the same shape as submitting nothing: the model answered but
             # said nothing. Carrying `empty_summary` routes it to the corrective retry that
@@ -2073,6 +2179,19 @@ def apply_files(
         detail = f" ({'; '.join(edit_failures)})" if edit_failures else ""
         raise CodegenError(f"model output produced no writable files{detail}")
     return CodeChange(files=written, summary=summary)
+
+
+def _may_edit_existing(root: Path, target: Path, editable: frozenset[str]) -> bool:
+    """True when refine may change the pre-existing ``target`` (see ``apply_files``)."""
+    if target.name in _DEPENDENCY_MANIFESTS or target.suffix.lower() in _PROJECT_FILE_SUFFIXES:
+        return True
+    if target.name.startswith("requirements") and target.suffix == ".txt":
+        return True
+    try:
+        rel = target.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return False
+    return rel in editable
 
 
 def _ruff_fix(root: Path, files: list[str]) -> None:
@@ -2398,6 +2517,16 @@ def _failure_kind(exc: CodegenError) -> str:
     if exc.empty_summary:
         return "empty"
     return "other"
+
+
+def _syntax_error(rel: str, source: str) -> str:
+    """``""`` when ``source`` passes every pre-write check its suffix has, else one line.
+
+    Python is parsed; C# and Razor have their namespace/using directives checked (NSS-1243:
+    every defect three runs produced was an illegal directive, and each cost a `dotnet test`
+    and a refine pass that edited the wrong file). Other languages pass through.
+    """
+    return _python_syntax_error(rel, source) or directive_error(rel, source)
 
 
 def _python_syntax_error(rel: str, source: str) -> str:

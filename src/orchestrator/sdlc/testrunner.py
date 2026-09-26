@@ -25,6 +25,7 @@ from pathlib import Path
 from orchestrator.sdlc import android, process
 from orchestrator.sdlc.contracts import TestRunner as TestRunner
 from orchestrator.sdlc.contracts import TestRunResult as TestRunResult
+from orchestrator.sdlc.diagnostics import digest_dotnet_output
 from orchestrator.sdlc.process import _SECRET_ENV_PREFIXES as _SECRET_ENV_PREFIXES
 
 # Cap captured output so a chatty test run can't bloat the activity result /
@@ -192,9 +193,11 @@ class DotnetTestRunner:
             proc.kill()
             await proc.wait()
             return TestRunResult(passed=False, returncode=-1, output="dotnet test run timed out")
-        output = stdout_bytes.decode("utf-8", "replace")
-        if len(output) > _MAX_OUTPUT_CHARS:
-            output = output[-_MAX_OUTPUT_CHARS:]
+        # Errors first, lifted from the WHOLE output, then the tail. A plain tail on a project
+        # with 138 warnings (NSS-1243) kept warnings and dropped the one error that mattered.
+        output = digest_dotnet_output(
+            stdout_bytes.decode("utf-8", "replace"), Path(path), cap=_MAX_OUTPUT_CHARS
+        )
         rc = proc.returncode if proc.returncode is not None else -1
         return TestRunResult(passed=rc == 0, returncode=rc, output=output)
 

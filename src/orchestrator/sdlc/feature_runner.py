@@ -1009,7 +1009,16 @@ async def run_feature(
                 "repo; existing files were left untouched"
             )
     chosen = f" (project chosen: {layout.chosen_reason})" if layout.chosen_reason else ""
-    emit(f"[layout] mode={layout.mode} package={layout.package_name} src={layout.source_dir}{chosen}")
+    # The namespace the prompt will carry, and where it came from — the value NSS-1243 got wrong
+    # was invisible here, so nothing on screen showed the model being told a file name.
+    ns_shown = (
+        f" namespace={layout.namespace} ({layout.namespace_note})"
+        if layout.namespace and layout.namespace != layout.package_name
+        else ""
+    )
+    emit(
+        f"[layout] mode={layout.mode} package={layout.package_name}{ns_shown} src={layout.source_dir}{chosen}"
+    )
 
     # Build an isolated test environment for the worktree — a per-project venv
     # with the project's own deps — so generated tests don't depend on (or run
