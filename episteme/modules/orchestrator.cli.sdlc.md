@@ -55,14 +55,14 @@ _9 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/sdlc.py:186`](../../src/orchestrator/cli/sdlc.py#L186)
 
 - **Called by** (1): [`sdlc_address_review`](../../src/orchestrator/cli/sdlc.py#L161)
-- **Calls** (8): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L186), [`checkout_pr_worktree`](../../src/orchestrator/sdlc/review_response.py#L51), `echo`, `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`respond_to_pr_feedback`](../../src/orchestrator/sdlc/review_response.py#L83)
+- **Calls** (8): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L181), [`checkout_pr_worktree`](../../src/orchestrator/sdlc/review_response.py#L51), `echo`, `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`respond_to_pr_feedback`](../../src/orchestrator/sdlc/review_response.py#L83)
 
 ### `_run_sdlc`
 
 [`src/orchestrator/cli/sdlc.py:85`](../../src/orchestrator/cli/sdlc.py#L85)
 
 - **Called by** (1): [`sdlc_run`](../../src/orchestrator/cli/sdlc.py#L26)
-- **Calls** (11): `Exit`, [`SDLCWorkflowInput`](../../src/orchestrator/sdlc/types.py#L17), [`_print`](../../src/orchestrator/cli/_common.py#L34), [`connect_client`](../../src/orchestrator/temporal/config.py#L62), `echo`, [`from_env`](../../src/orchestrator/temporal/config.py#L45), `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40), [`sdlc_task_queue`](../../src/orchestrator/sdlc/worker.py#L65), `uuid4`
+- **Calls** (11): `Exit`, [`SDLCWorkflowInput`](../../src/orchestrator/sdlc/types.py#L17), [`_print`](../../src/orchestrator/cli/_common.py#L34), [`connect_client`](../../src/orchestrator/temporal/config.py#L62), `echo`, [`from_env`](../../src/orchestrator/temporal/config.py#L45), `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40), [`sdlc_task_queue`](../../src/orchestrator/sdlc/worker.py#L60), `uuid4`
 
 ### `_run_sdlc_complete`
 

@@ -44,6 +44,6 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/contracts.py#L25) | `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/java-codegen.md#test-runner-env` |
 | **TypeIndex** | [`TypeIndex`](../src/orchestrator/pkg/typed_receivers.py#L241) | — |
 | **VerifierFailure** | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | — |
-| **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L59) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#6-how-spine-is-adopted-without-entering-anyones-build-image` |
+| **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L112) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#6-how-spine-is-adopted-without-entering-anyones-build-image` |
 
 _Top 40 of 773 types by graph centrality._
