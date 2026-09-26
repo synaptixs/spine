@@ -556,6 +556,43 @@ def _check_named_paths(spec: dict[str, Any], root: Path | None, language: str) -
     return findings
 
 
+def _check_layout_would_stop(root: Path | None, language: str) -> list[Finding]:
+    """The Build's `--layout auto` will refuse to scaffold beside the code already here.
+
+    Said at plan time, because the Build says it only after a human has read and approved a
+    plan for a run that cannot start. The same resolver and the same count the Build uses
+    (`feature_runner`), so the plan and the Build cannot disagree about it. Reported, not
+    refused: the plan does not know which `--layout` the Build will be given, and
+    `--layout existing` or `--layout new` both go past it.
+    """
+    from orchestrator.sdlc.layout import (
+        LOOKED_FOR,
+        auto_layout_refusal,
+        existing_source_count,
+        resolve_layout,
+    )
+
+    if root is None or language not in LOOKED_FOR:
+        return []
+    try:
+        layout = resolve_layout(root, mode="auto", language=language)
+    except ValueError:
+        return []  # a resolver that stops with its own question — the Build asks it, not this
+    if layout.mode != "new":
+        return []
+    count = existing_source_count(root, language)
+    if not count:
+        return []
+    return [
+        Finding(
+            check="layout_would_stop",
+            detail=f"Build will stop under `--layout auto` (the default): {LOOKED_FOR[language]} beside "
+            f"{count} {language} file(s). Use `--layout existing` or `--layout new`.",
+            evidence=auto_layout_refusal(language, count, layout.source_dir),
+        )
+    ]
+
+
 def _check_stated_criteria(spec: dict[str, Any]) -> list[Finding]:
     """Every criterion the build will be graded against was written by the spec writer."""
     if spec.get("acceptance_criteria") or not spec.get("proposed_criteria"):
@@ -625,6 +662,7 @@ def assess(
     # Reported with any PROCEED, never a refusal on their own (see each check).
     findings: list[Finding] = [
         *_check_named_paths(spec, Path(root) if root else None, language),
+        *_check_layout_would_stop(Path(root) if root else None, language),
         *_check_stated_criteria(spec),
     ]
 

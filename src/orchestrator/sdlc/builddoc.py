@@ -556,6 +556,11 @@ def _confidence_block(
             bool(signals.get("named_elsewhere")),
             "a file in another language that the repository does not have (see Validity)",
         ),
+        (
+            "Build layout",
+            bool(signals.get("layout_would_stop")),
+            "`--layout auto` will stop — no project here to extend beside existing code (see Validity)",
+        ),
     ):
         if failed:
             possible += 1
@@ -1462,6 +1467,7 @@ def render_build_md(
                 "named_elsewhere": any(
                     getattr(f, "check", "") == "named_path_other_language" for f in findings
                 ),
+                "layout_would_stop": any(getattr(f, "check", "") == "layout_would_stop" for f in findings),
                 "no_files": not files,
             },
             journey=entries,

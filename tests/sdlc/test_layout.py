@@ -769,3 +769,150 @@ def test_the_kotlin_layout_names_the_package_match_too(tmp_path: Path) -> None:
 
     layout = resolve_layout(tmp_path, mode="existing", language="kotlin", package_name="com.acme.app")
     assert layout.chosen_reason == "module already holds this package"
+
+
+# ---- auto-layout-guard D7: TypeScript, Go, C and C++ find a build file below the root -----------
+
+#: language → {project dir → its files}, two projects of the same language, no root build file.
+_MONOREPOS: dict[str, dict[str, dict[str, str]]] = {
+    "typescript": {
+        "frontend": {"package.json": '{"name": "web"}', "src/cart.ts": "export const a = 1\n"},
+        "api": {"package.json": '{"name": "api"}', "src/orders.ts": "export const b = 1\n"},
+    },
+    "go": {
+        "svc": {"go.mod": "module example.com/svc\n", "billing/billing.go": "package billing\n"},
+        "tool": {"go.mod": "module example.com/tool\n", "gen/gen.go": "package gen\n"},
+    },
+    "c": {
+        "native": {"CMakeLists.txt": "project(native C)\n", "src/codec.c": "int a;\n"},
+        "legacy": {"Makefile": "all:\n", "src/io.c": "int b;\n"},
+    },
+    "cpp": {
+        "engine": {"CMakeLists.txt": "project(engine CXX)\n", "src/render.cpp": "int a;\n"},
+        "tools": {"meson.build": "project('tools', 'cpp')\n", "src/pack.cpp": "int b;\n"},
+    },
+}
+
+
+def _monorepo(root: Path, language: str) -> dict[str, str]:
+    """Write the two projects; answer each project dir → the one source file it holds."""
+    named: dict[str, str] = {}
+    for project, files in _MONOREPOS[language].items():
+        for rel, body in files.items():
+            path = root / project / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(body, encoding="utf-8")
+            if not rel.startswith(("package.json", "go.mod", "CMakeLists", "Makefile", "meson")):
+                named[project] = f"{project}/{rel}"
+    return named
+
+
+@pytest.mark.parametrize("language", sorted(_MONOREPOS))
+def test_a_nested_project_resolves_existing_and_the_design_chooses_which(
+    tmp_path: Path, language: str
+) -> None:
+    named = _monorepo(tmp_path, language)
+    for project, source in named.items():
+        layout = resolve_layout(tmp_path, mode="auto", language=language, prefer_paths=[source])
+        assert layout.mode == "existing"
+        assert layout.project_dir == project
+        assert layout.source_dir == project or layout.source_dir.startswith(f"{project}/")
+        assert "design names" in layout.chosen_reason
+
+
+@pytest.mark.parametrize("language", sorted(_MONOREPOS))
+def test_a_root_build_file_is_still_the_project(tmp_path: Path, language: str) -> None:
+    """Unchanged for every repository that already worked: the root wins, `project_dir` is ""."""
+    _monorepo(tmp_path, language)
+    root_file = {"typescript": "package.json", "go": "go.mod", "c": "CMakeLists.txt", "cpp": "CMakeLists.txt"}
+    (tmp_path / root_file[language]).write_text(
+        {"typescript": '{"name": "root"}', "go": "module example.com/root\n"}.get(
+            language, "project(root)\n"
+        ),
+        encoding="utf-8",
+    )
+    layout = resolve_layout(tmp_path, mode="auto", language=language)
+    assert layout.mode == "existing"
+    assert layout.project_dir == ""
+
+
+def test_the_outermost_native_build_file_is_the_project(tmp_path: Path) -> None:
+    """`native/src/CMakeLists.txt` is an `add_subdirectory` of `native/`, not a second project."""
+    (tmp_path / "native" / "src").mkdir(parents=True)
+    (tmp_path / "native" / "CMakeLists.txt").write_text("project(native C)\nadd_subdirectory(src)\n")
+    (tmp_path / "native" / "src" / "CMakeLists.txt").write_text("add_library(n codec.c)\n")
+    (tmp_path / "native" / "src" / "codec.c").write_text("int a;\n")
+    layout = resolve_layout(tmp_path, mode="auto", language="c", prefer_paths=["native/src/codec.c"])
+    assert layout.project_dir == "native"
+    assert layout.build_tool == "cmake"
+
+
+def test_a_vendored_package_json_is_not_a_project(tmp_path: Path) -> None:
+    (tmp_path / "third_party" / "widget").mkdir(parents=True)
+    (tmp_path / "third_party" / "widget" / "package.json").write_text('{"name": "widget"}')
+    (tmp_path / "third_party" / "widget" / "index.ts").write_text("export {}\n")
+    assert resolve_layout(tmp_path, mode="auto", language="typescript").mode == "new"
+
+
+def test_a_nested_package_keeps_its_own_lockfile_s_package_manager(tmp_path: Path) -> None:
+    _monorepo(tmp_path, "typescript")
+    (tmp_path / "frontend" / "pnpm-lock.yaml").write_text("")
+    layout = resolve_layout(
+        tmp_path, mode="auto", language="typescript", prefer_paths=["frontend/src/cart.ts"]
+    )
+    assert layout.build_tool == "pnpm"
+
+
+def test_layout_new_never_looks_below_the_root(tmp_path: Path) -> None:
+    _monorepo(tmp_path, "go")
+    layout = resolve_layout(tmp_path, mode="new", language="go")
+    assert layout.mode == "new" and layout.project_dir == ""
+
+
+# ---- auto-layout-guard D2/D3: what counts as source the scaffold would sit beside ----------------
+
+
+@pytest.mark.parametrize(
+    ("language", "files", "expected"),
+    [
+        ("csharp", ["Pages/Index.razor", "Views/Home.cshtml", "Program.cs"], 3),
+        ("kotlin", ["build.gradle.kts", "settings.gradle.kts"], 0),  # build scripts, not source
+        ("kotlin", ["Main.kt"], 1),
+        ("typescript", ["jest.config.js", "tools/gen.js"], 0),  # `.js` is not TypeScript source
+        ("typescript", ["a.ts", "b.tsx"], 2),
+        ("c", ["api.h"], 1),
+        ("cpp", ["a.cc", "b.cxx", "c.hpp", "d.hh", "e.hxx", "f.cpp"], 6),
+        ("go", ["tests/x_test.go"], 1),  # test directories still count
+        ("go", ["docs/x.go", "doc/y.go", "examples/z.go", "samples/w.go"], 0),
+        ("go", ["vendor/v.go", "node_modules/n.go", ".hidden/h.go"], 0),  # the extractor's rules
+        ("sql", ["schema.sql"], 0),  # no family: SQL never stops
+    ],
+)
+def test_existing_source_counts_the_family_and_skips_samples(
+    tmp_path: Path, language: str, files: list[str], expected: int
+) -> None:
+    from orchestrator.sdlc.layout import existing_source_count
+
+    for rel in files:
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text("x\n")
+    assert existing_source_count(tmp_path, language) == expected
+
+
+def test_a_nested_checkout_is_not_counted(tmp_path: Path) -> None:
+    from orchestrator.sdlc.layout import existing_source_count
+
+    (tmp_path / "sub" / ".git").mkdir(parents=True)
+    (tmp_path / "sub" / "main.go").write_text("package main\n")
+    assert existing_source_count(tmp_path, "go") == 0
+
+
+def test_every_language_that_stops_names_what_it_looked_for() -> None:
+    """D1: every language whose scaffold writes a build file stops; SQL alone does not."""
+    from orchestrator.sdlc.layout import LOOKED_FOR, SOURCE_SUFFIXES_BY_LANGUAGE, auto_layout_refusal
+    from orchestrator.sdlc.toolchains import TOOLCHAINS
+
+    assert set(LOOKED_FOR) == set(TOOLCHAINS) - {"sql"}
+    assert set(LOOKED_FOR) <= set(SOURCE_SUFFIXES_BY_LANGUAGE)
+    message = auto_layout_refusal("csharp", 2, "src/App")
+    assert "no `.csproj`" in message and ".razor" in message and "--layout existing" in message
