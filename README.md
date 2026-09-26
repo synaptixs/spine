@@ -78,7 +78,16 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.50.0 (current)** — field fixes for .NET and Python builds. A workspace base that git can no
+**3.51.0 (current)** — `--layout auto` never scaffolds a second project beside code it cannot
+place, in any language but SQL. 3.50.0 stopped this for Python; C#, TypeScript, Java, Kotlin, Go, C
+and C++ now stop too, with exit 2 and the build file they looked for (no `.csproj`, no `go.mod`, …).
+A TypeScript, Go, C or C++ project below the root (`frontend/package.json`, `svc/go.mod`,
+`native/CMakeLists.txt`) is followed rather than refused, and its dependencies install and tests
+run in that directory. `sdlc plan` warns before the Build that it would stop. **Upgrade notes:** a
+Build that used to scaffold beside existing code now exits 2 — pass `--layout existing` or
+`--layout new`; plans for such repositories gain a finding and need approving again.
+
+**3.50.0** — field fixes for .NET and Python builds. A workspace base that git can no
 longer read is rebuilt instead of failing every run, and bases move from `/tmp` to
 `~/.cache/orchestrator/sdlc-workspaces`, one per repository. C# code declares the project's own
 namespace (its `<RootNamespace>`), an illegal `namespace`/`using` line is refused before it is
