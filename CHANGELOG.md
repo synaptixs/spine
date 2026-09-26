@@ -4,6 +4,69 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.50.0 — 2026-09-26
+
+A fixes release driven by field reports from a .NET/Blazor and a Python/AWS SAM pilot: every
+Build failed before codegen, C# builds wrote namespaces that could not parse, Python builds were
+failed by tests that predated the change, and plans rated an invented spec "high".
+
+### Fixed
+
+- **A damaged workspace base is rebuilt, not reused — and bases live out of `/tmp`.** Every
+  `sdlc feature` run failed with `git worktree add … fatal: not a git repository`: the shared base
+  under `/tmp/sdlc-workspaces` had lost `.git/HEAD` to macOS's age-based `/tmp` sweep, and `.git`
+  existing was the whole check. A base is now reused only when git can read its `HEAD` commit
+  (via `--git-dir`, so a repository enclosing the root is never mistaken for it); there is one
+  base per repository and branch under `<root>/_bases/`, so switching repositories no longer
+  re-clones and orphans the other's worktrees; an advisory lock serialises separate processes; a
+  failed refresh now prints git's reason. See OPERATIONS.md, "Build workspaces".
+- **C# code declares the project's real namespace.** For an existing .NET project the guidance
+  told the model the `.csproj` file stem (`acme-order-portal`) *was* the namespace. It is
+  now read from `<RootNamespace>`, else what the project's files declare, else `<AssemblyName>`,
+  else the stem made legal; namespaces follow folders, `@namespace` is never added to a `.razor`
+  file, and the `[layout]` line prints the namespace with its evidence.
+- **An illegal `namespace`/`using` line is refused before it is written** — `.cs`, `.razor`, and
+  any non-directive line in `_Imports.razor` — and costs one corrective retry, not a `dotnet test`.
+- **Refine sees the compiler's first error.** `dotnet test` output was cut to its last 4,000
+  characters, which on a project with many warnings kept the cascade and dropped the cause. Errors
+  are now lifted from the whole output, de-duplicated and put first; refine is shown the
+  pre-existing files a failure names, and may change a pre-existing file only when the failure,
+  the spec or the design names it (dependency manifests and project files always).
+- **A Python run is judged by the failures it caused.** Before codegen the suite runs once on
+  the untouched worktree; a later run whose every failure was already failing passes (reported,
+  not counted), and refine is told which failures are not its to fix. pytest now runs with
+  `--continue-on-collection-errors`, so one unimportable test file no longer stops the suite.
+  Without a baseline, a failure made only of old test files missing a dependency stops the run
+  with that diagnosis instead of refining.
+- **Python layout follows an existing repository.** An AWS SAM repository is recognised from
+  `template.yaml` (the `CodeUri` function the design names, else the one with the most Python),
+  each function's `requirements.txt` and the runtime-provided `boto3` are installed for its tests,
+  and a repository of top-level modules is followed rather than given a new `src/<pkg>/`.
+- **The plan reports an invented spec.** The spec writer is told the repository's languages and
+  the symbols the ticket's words match, and to flag an ambiguous term instead of choosing a
+  meaning. The validity line reports — without refusing — a named file that is absent and in
+  another language than the run's, and a ticket whose criteria were all proposed; §7 lists every
+  named-but-absent file.
+- **§12 no longer rates a keyword guess "high".** "Named paths" is n/a when the files came from
+  the graph; the band is capped at medium when the files are the plan's own keyword retrieval and
+  set to low when no files are proposed. The heuristic test strategy no longer ends on a colon.
+- **An edited `file://` ticket is re-extracted.** A cache hit never re-read the source; a local
+  file is now fingerprinted and a changed one re-extracts, and says so.
+- **A build from a local checkout names the uncommitted work it leaves out** (`[workspace]
+  WARNING: N uncommitted file(s) … are not in this build`).
+
+### Changed — upgrade notes
+
+- **Workspaces default to `~/.cache/orchestrator/sdlc-workspaces`** (was `/tmp/sdlc-workspaces`).
+  `SDLC_WORKSPACE_ROOT` still wins and now expands `~`. The old `/tmp` base is ignored — delete it.
+- **`--layout auto` on Python stops (exit 2)** rather than scaffold a new package beside `.py`
+  files it cannot place; pass `--layout new` to scaffold anyway. Other languages are unchanged.
+- **A Python build runs the suite once more, before codegen.** `SDLC_TEST_BASELINE=0` skips it.
+- **Plans render differently (§7, §12, Validity), so approvals made before the upgrade read as
+  stale once.** Re-plan and re-approve.
+- **Specs cached before the upgrade keep their old extraction** and say so; run
+  `sdlc plan --refresh` once to extract with the repository context.
+
 ## 3.49.0 — 2026-09-25
 
 ### Added
@@ -743,7 +806,7 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## 3.39.0 — 2026-09-19
 
-A field report from the Nucor engagement (NSS-1239) and the follow-ups a maintainer review
+A field report from a pilot engagement (NSS-1239) and the follow-ups a maintainer review
 found around it. **NSS-1239:** `sdlc feature` scaffolded a WebApp ticket into `ApiClient` and
 failed after six test runs — the target project was whichever `.csproj` sorted first, and the
 domain type it needed is unreachable from there by construction. Two CI guards that were

@@ -78,7 +78,18 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.49.0 (current)** — plans that say what they were built from, and a way to rebuild them.
+**3.50.0 (current)** — field fixes for .NET and Python builds. A workspace base that git can no
+longer read is rebuilt instead of failing every run, and bases move from `/tmp` to
+`~/.cache/orchestrator/sdlc-workspaces`, one per repository. C# code declares the project's own
+namespace (its `<RootNamespace>`), an illegal `namespace`/`using` line is refused before it is
+written, and refine leads with the compiler's first error. A Python run takes a test baseline first
+and judges only the failures it caused, and follows AWS SAM and top-level-module repositories. Plans
+report files the spec invents and criteria nobody stated, and stop rating a keyword guess "high".
+**Upgrade notes:** `--layout auto` on Python now stops rather than scaffold beside existing code;
+approvals made before the upgrade read as stale once; run `sdlc plan --refresh` for tickets cached
+earlier.
+
+**3.49.0** — plans that say what they were built from, and a way to rebuild them.
 `--follow-links` now reports how many linked Confluence pages actually reached the spec — whole,
 cut, or left out by the extractor's 60,000-char budget — instead of how many were fetched, with a
 warning when any did not fit; `autorun` and `investigate` report it too. New `sdlc plan --refresh`
