@@ -193,8 +193,9 @@ class NodeToolEnvironment:
 
     declared: set[str] = set()
 
-    def __init__(self, package_manager: str = "npm") -> None:
+    def __init__(self, package_manager: str = "npm", *, project_dir: str = "") -> None:
         self.package_manager = package_manager or "npm"
+        self.project_dir = project_dir
 
     @property
     def python(self) -> str:
@@ -203,7 +204,7 @@ class NodeToolEnvironment:
     async def ensure(self, worktree: Path | str) -> None:
         # Install declared deps so Vitest + tsc are present before the test loop.
         # Best-effort: a failure here surfaces as a test failure the refine loop sees.
-        await _run_in(Path(worktree), self.package_manager, "install")
+        await _run_in(Path(worktree) / self.project_dir, self.package_manager, "install")
 
     async def install(self, packages: list[str]) -> bool:
         return False  # Node deps are declared in package.json, not auto-installed
@@ -347,8 +348,9 @@ class CToolEnvironment:
 
     declared: set[str] = set()
 
-    def __init__(self, build_tool: str = "cmake") -> None:
+    def __init__(self, build_tool: str = "cmake", *, project_dir: str = "") -> None:
         self.build_tool = build_tool or "cmake"
+        self.project_dir = project_dir
 
     @property
     def python(self) -> str:
@@ -553,6 +555,9 @@ class GoToolEnvironment:
 
     declared: set[str] = set()
 
+    def __init__(self, *, project_dir: str = "") -> None:
+        self.project_dir = project_dir
+
     @property
     def python(self) -> str:
         raise RuntimeError("GoToolEnvironment has no Python interpreter")
@@ -566,7 +571,7 @@ class GoToolEnvironment:
                 exe,
                 "mod",
                 "download",
-                cwd=str(worktree),
+                cwd=str(Path(worktree) / self.project_dir),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
@@ -675,13 +680,16 @@ def go_toolchain_available() -> bool:
     return shutil.which("go") is not None
 
 
-def make_test_environment(language: str = "python", *, build_tool: str = "") -> TestEnvironment:
+def make_test_environment(
+    language: str = "python", *, build_tool: str = "", project_dir: str = ""
+) -> TestEnvironment:
     """The test environment for ``language``: Java toolchain, Node toolchain
     (``build_tool`` selects the package manager), or a Python venv
-    (``VenvTestEnvironment`` unless ``SDLC_TEST_ISOLATION=local``)."""
+    (``VenvTestEnvironment`` unless ``SDLC_TEST_ISOLATION=local``). ``project_dir`` is the
+    layout's nested project directory, where the environment and its runner work."""
     from orchestrator.sdlc.toolchains import get_toolchain
 
-    return get_toolchain(language).environment(build_tool)
+    return get_toolchain(language).environment(build_tool, project_dir)
 
 
 def make_test_runner(language: str, env: TestEnvironment) -> TestRunner:

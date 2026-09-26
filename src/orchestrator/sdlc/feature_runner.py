@@ -837,7 +837,9 @@ async def run_feature(
     from orchestrator.sdlc.forge import GhPRAdapter
     from orchestrator.sdlc.grounding import PKGCodegenGrounder
     from orchestrator.sdlc.layout import (
+        LOOKED_FOR,
         TargetLayout,
+        auto_layout_refusal,
         existing_source_count,
         is_effectively_empty,
         resolve_layout,
@@ -1050,25 +1052,19 @@ async def run_feature(
 
     toolchain = get_toolchain(lang)
     layout = cast(TargetLayout, toolchain.prepare_layout(layout))
-    # Python only, for now: it is the language whose existing layouts this release learned to
-    # recognise (SAM functions, top-level modules). Every other resolver still answers "new"
-    # for loose source with no build file, and refusing there would block runs that used to work.
-    if layout.mode == "new" and layout_mode == "auto" and lang == "python":
+    # Every language whose scaffold writes a build file — all but SQL (`LOOKED_FOR`). The
+    # TypeScript, Go, C and C++ resolvers look below the root for their build file first, so a
+    # monorepo's `frontend/package.json` is followed rather than refused.
+    if layout.mode == "new" and layout_mode == "auto" and lang in LOOKED_FOR:
         # `auto` means "scaffold only an empty repository" — its own --help says so — yet it
         # scaffolded any repository whose code it did not recognise. CB-764: a new
         # `src/<repo>_crud_apis/` and root `pyproject.toml` landed in a deployed SAM repo,
         # beside code nothing would ever import it from. Recognising more layouts is the fix;
-        # refusing is the guard for the ones still unrecognised.
-        already = existing_source_count(path, toolchain.source_ext)
+        # refusing is the guard for the ones still unrecognised. A `.csproj` or `go.mod`
+        # scaffolded beside loose code builds only itself, so every language refuses alike.
+        already = existing_source_count(path, lang)
         if already:
-            raise FeatureRunError(
-                f"--layout auto found no {lang} project it can extend in this repository, which "
-                f"already holds {already} .{toolchain.source_ext} file(s) — it will not scaffold a new "
-                f"'{layout.source_dir}/' beside them. Point the run at the existing code with "
-                "--layout existing (and --package-name for the package), or pass --layout new to "
-                "scaffold anyway.",
-                code=2,
-            )
+            raise FeatureRunError(auto_layout_refusal(lang, already, layout.source_dir), code=2)
     if layout.mode == "new":
         was_empty = is_effectively_empty(path)
         created = scaffold(path, layout)
@@ -1096,7 +1092,7 @@ async def run_feature(
     # Build an isolated test environment for the worktree — a per-project venv
     # with the project's own deps — so generated tests don't depend on (or run
     # in) the orchestrator's interpreter. SDLC_TEST_ISOLATION=local opts out.
-    testenv = make_test_environment(lang, build_tool=layout.build_tool)
+    testenv = make_test_environment(lang, build_tool=layout.build_tool, project_dir=layout.project_dir)
     toolchain_error = toolchain.availability_error(path, layout)
     if toolchain_error is not None:
         raise FeatureRunError(toolchain_error, code=2)
