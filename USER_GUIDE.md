@@ -432,9 +432,23 @@ orchestrator sdlc feature --source confluence://<page_id> --safe
   with `tests/` and a pytest-ready `pyproject`, then generates into it. The first
   `--live` run lands this structure on the remote as part of the PR; later runs detect
   it and extend it.
-- **Existing codebase** → it **follows the repo's layout**, never scaffolding.
+- **Existing codebase** → it **follows the repo's layout**, never scaffolding. For Python
+  that means a package (`src/<pkg>/` or `<pkg>/`), an **AWS SAM** repository (the Lambda
+  function directory `template.yaml` names as `CodeUri` — the one holding a file the design
+  names, else the one with the most Python — with each function's `requirements.txt` and
+  `boto3` installed for its tests), or a repository of top-level modules. For C#, generated code
+  declares the project's own namespace (its `<RootNamespace>`, or what its files already declare).
+- If `--layout auto` finds Python it cannot place, it **stops** and says so rather than
+  scaffolding a new package beside it (exit 2).
 - Default is `--layout auto` (the above). Force it with `--layout new|existing`, and
   override the name with `--package-name <name>`.
+
+**Tests that were already failing** don't count against a run. Before generating code the
+runner runs the suite once and records what fails (`[baseline] …`); afterwards only new
+failures are sent to refine, and it is told which failures are not its to fix. A test file
+that cannot even be imported no longer stops the rest of the suite. `SDLC_TEST_BASELINE=0`
+skips the extra run; then a failure made only of old test files missing a dependency stops the
+run with that diagnosis instead of asking the model to edit code.
 
 As it runs it prints each stage, including `[layout] mode=… package=…` and
 `[grounding] target-KG context: N chars` — that's it reading the existing codebase so

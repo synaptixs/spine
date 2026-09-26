@@ -32,6 +32,7 @@ from pathlib import Path
 
 from orchestrator.sdlc.contracts import TestEnvironment as TestEnvironment
 from orchestrator.sdlc.contracts import ToolchainLayout
+from orchestrator.sdlc.sam import RUNTIME_PROVIDED, function_requirements, sam_template
 from orchestrator.sdlc.testrunner import TestRunner, TestRunResult
 
 # Import module name (as seen in "No module named 'X'") → PyPI package name when
@@ -818,7 +819,13 @@ def _project_dependencies(root: Path) -> list[str]:
             deps += _test_group_deps(data.get("dependency-groups"))
         except (OSError, ValueError, ModuleNotFoundError):
             pass
-    for req in (*root.glob("requirements*.txt"), root / "requirements" / "base.txt"):
+    # An AWS SAM repository declares its dependencies per function, beside each handler, and
+    # leaves out what the Lambda runtime provides (CB-764: `boto3` was never installed, so every
+    # test importing a handler failed to collect). Read both.
+    functions = function_requirements(root)
+    if sam_template(root) is not None:
+        deps += list(RUNTIME_PROVIDED)
+    for req in (*root.glob("requirements*.txt"), root / "requirements" / "base.txt", *functions):
         if req.is_file():
             try:
                 for line in req.read_text(encoding="utf-8").splitlines():

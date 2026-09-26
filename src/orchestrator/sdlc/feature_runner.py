@@ -799,10 +799,22 @@ async def run_feature(
     from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
     from orchestrator.intake.jira import IssueTrackerError, JiraAdapter, JiraConfig
     from orchestrator.intake.service import parse_source_uri
+    from orchestrator.sdlc.baseline import (
+        BaselineAwareRunner,
+        baseline_enabled,
+        environment_blocker,
+        names_problems,
+        take_baseline,
+    )
     from orchestrator.sdlc.codegen import LLMCodegenAdapter, resolve_codegen_model
     from orchestrator.sdlc.forge import GhPRAdapter
     from orchestrator.sdlc.grounding import PKGCodegenGrounder
-    from orchestrator.sdlc.layout import TargetLayout, is_effectively_empty, resolve_layout
+    from orchestrator.sdlc.layout import (
+        TargetLayout,
+        existing_source_count,
+        is_effectively_empty,
+        resolve_layout,
+    )
     from orchestrator.sdlc.scaffold import scaffold
     from orchestrator.sdlc.telemetry import jira_duration, render_worklog
     from orchestrator.sdlc.testenv import (
@@ -996,6 +1008,25 @@ async def run_feature(
 
     toolchain = get_toolchain(lang)
     layout = cast(TargetLayout, toolchain.prepare_layout(layout))
+    # Python only, for now: it is the language whose existing layouts this release learned to
+    # recognise (SAM functions, top-level modules). Every other resolver still answers "new"
+    # for loose source with no build file, and refusing there would block runs that used to work.
+    if layout.mode == "new" and layout_mode == "auto" and lang == "python":
+        # `auto` means "scaffold only an empty repository" — its own --help says so — yet it
+        # scaffolded any repository whose code it did not recognise. CB-764: a new
+        # `src/cannabee_crud_apis/` and root `pyproject.toml` landed in a deployed SAM repo,
+        # beside code nothing would ever import it from. Recognising more layouts is the fix;
+        # refusing is the guard for the ones still unrecognised.
+        already = existing_source_count(path, toolchain.source_ext)
+        if already:
+            raise FeatureRunError(
+                f"--layout auto found no {lang} project it can extend in this repository, which "
+                f"already holds {already} .{toolchain.source_ext} file(s) — it will not scaffold a new "
+                f"'{layout.source_dir}/' beside them. Point the run at the existing code with "
+                "--layout existing (and --package-name for the package), or pass --layout new to "
+                "scaffold anyway.",
+                code=2,
+            )
     if layout.mode == "new":
         was_empty = is_effectively_empty(path)
         created = scaffold(path, layout)
@@ -1077,6 +1108,13 @@ async def run_feature(
         codegen_kwargs["model"] = codegen_model
     codegen = LLMCodegenAdapter(llm, **codegen_kwargs)
     runner = make_test_runner(lang, testenv)
+    # What already fails, measured before anything is generated, so it is never counted against
+    # this run (CB-764: four pre-existing test files that could not import in a fresh env failed
+    # six runs of six while the new test passed). One extra suite run; SDLC_TEST_BASELINE=0 skips.
+    if names_problems(runner) and baseline_enabled():
+        before = await take_baseline(runner, str(path), emit)
+        if before:
+            runner = BaselineAwareRunner(runner, before)
 
     # Attribute each leg's LLM spans + token ledger to a named stage, so the trace
     # reads implement / author_tests / refine instead of "unattributed".
@@ -1165,6 +1203,13 @@ async def run_feature(
                         emit("[cover] no tests written for the gap — stopping rather than looping")
                         break
                     continue
+            if kind == "tests":
+                # Not a code problem: files this run never wrote cannot import a dependency the
+                # environment lacks. Refine cannot edit its way out, and CB-764 watched it try.
+                blocked = environment_blocker(result, authored, path)
+                if blocked:
+                    emit(f"[tests] stopping — {blocked}")
+                    break
             if spent[kind] >= budgets[kind]:
                 # The tests budget died on a test the cover stage itself wrote (CB-760). Withdraw
                 # it — once, only those files — and let the suite the ticket actually asked for

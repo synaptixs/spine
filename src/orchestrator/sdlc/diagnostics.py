@@ -131,4 +131,36 @@ def paths_named(text: str, root: Path) -> list[str]:
     return found
 
 
-__all__ = ["Diagnostic", "digest_dotnet_output", "dotnet_errors", "paths_named"]
+# --- pytest ---------------------------------------------------------------------------------
+
+# pytest's short summary (`-rfE`): `FAILED tests/x.py::test_a - assert …` for a failing test,
+# `ERROR tests/y.py - ModuleNotFoundError: …` for a file that did not collect. A parametrized id
+# may hold spaces (`test_p[x y]`), so the id runs to the ` - ` separator, not to whitespace.
+_PYTEST_SUMMARY = re.compile(r"^(?:FAILED|ERROR) (?P<id>.+?)(?: - .*)?$", re.MULTILINE)
+_MISSING_MODULE = re.compile(r"No module named '([\w.]+)'")
+
+
+def pytest_problems(output: str) -> tuple[str, ...]:
+    """Node ids (and uncollectable files) pytest's short summary names, in order, once each."""
+    return tuple(dict.fromkeys(m["id"].strip() for m in _PYTEST_SUMMARY.finditer(output)))
+
+
+def is_collection_error(problem: str) -> bool:
+    """A problem naming a file and no test is a file that failed to collect."""
+    return "::" not in problem
+
+
+def missing_modules(output: str) -> list[str]:
+    """Top-level modules an import could not find, in first-mention order."""
+    return list(dict.fromkeys(m.split(".")[0] for m in _MISSING_MODULE.findall(output)))
+
+
+__all__ = [
+    "Diagnostic",
+    "digest_dotnet_output",
+    "dotnet_errors",
+    "is_collection_error",
+    "missing_modules",
+    "paths_named",
+    "pytest_problems",
+]

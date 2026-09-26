@@ -1197,8 +1197,10 @@ def sdlc_feature(
         str,
         typer.Option(
             "--layout",
-            help="Target structure: auto (scaffold only empty repos), new (always scaffold a "
-            "src/<pkg>/ skeleton), or existing (follow the repo's layout).",
+            help="Target structure: auto (follow the repo's layout, scaffolding only when it "
+            "recognises none; for Python it stops rather than scaffold beside code it cannot "
+            "place), new (always scaffold a src/<pkg>/ skeleton), or existing (follow the repo's "
+            "layout).",
         ),
     ] = "auto",
     package_name: Annotated[

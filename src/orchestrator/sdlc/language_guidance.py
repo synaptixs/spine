@@ -157,6 +157,23 @@ def csharp_guidance(layout: TargetLayout) -> str:
     )
 
 
+def _sam_guidance(layout: TargetLayout) -> str:
+    """CB-764: a SAM function is a directory Lambda runs from, not a package to scaffold."""
+    return (
+        "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
+        f"- This is an AWS SAM repository. The change belongs in the Lambda function at "
+        f"`{layout.source_dir}/` (a `CodeUri` in `template.yaml`): put new modules at "
+        f"`{layout.source_dir}/<module>.py`, beside its handler.\n"
+        f"- Lambda runs the function from `{layout.source_dir}/`, so modules inside it import each "
+        "other by bare name (`from <module> import ...`). Tests import them the way this "
+        "repository's existing tests already do — read one before writing yours.\n"
+        f"- Put tests under `{layout.tests_dir}/` as `{layout.tests_dir}/test_<name>.py`.\n"
+        f"- A dependency the function needs goes in `{layout.source_dir}/requirements.txt` "
+        "(`boto3` is provided by the Lambda runtime).\n"
+        "- Do NOT create a new package, a new top-level directory or a `pyproject.toml`.\n\n"
+    )
+
+
 def c_guidance(layout: TargetLayout) -> str:
     if layout.build_tool == "meson":
         build_line = (
@@ -258,6 +275,17 @@ def perl_guidance(layout: TargetLayout) -> str:
 
 
 def python_guidance(layout: TargetLayout) -> str:
+    if layout.framework == "aws-sam":
+        return _sam_guidance(layout)
+    if layout.mode == "existing" and not layout.package_name:
+        return (
+            "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
+            "- This repository keeps its modules at the top level, with no package. Put new "
+            "modules at `<module>.py` in the repository root and import them as "
+            "`from <module> import ...`.\n"
+            f"- Put tests under `{layout.tests_dir}/` as `{layout.tests_dir}/test_<name>.py`.\n"
+            "- Do NOT create a package directory, a `src/` tree or a new `pyproject.toml`.\n\n"
+        )
     return (
         "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
         f"- Source package is `{layout.package_name}` under `{layout.source_dir}/`. "

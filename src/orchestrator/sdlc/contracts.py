@@ -30,6 +30,11 @@ class TestRunResult:
     passed: bool
     returncode: int
     output: str = ""
+    # What failed, as the runner could identify it from the WHOLE output — pytest node ids
+    # (`tests/x.py::test_a`) and, for a collection error, the file (`tests/y.py`). Empty when
+    # the runner does not parse its output, or found nothing it could name. Lets a run tell
+    # the failures that predate its change from the ones it caused (`sdlc/baseline.py`).
+    problems: tuple[str, ...] = ()
 
 
 @runtime_checkable
