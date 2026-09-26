@@ -195,7 +195,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/layout.py:910`](../../src/orchestrator/sdlc/layout.py#L910)
 
-- **Called by** (0 production · 4 test): [`test_a_greenfield_package_name_with_a_hyphen_still_gets_a_legal_namespace`](../../tests/sdlc/test_csharp_names.py#L121), [`test_block_namespaces_are_reported_as_block_style`](../../tests/sdlc/test_csharp_names.py#L111), [`test_the_guidance_never_offers_the_file_name_as_a_namespace`](../../tests/sdlc/test_csharp_names.py#L63), [`test_the_namespace_comes_from_root_namespace_not_the_file_name`](../../tests/sdlc/test_csharp_names.py#L51)
+- **Called by** (0 production · 4 test): [`test_a_greenfield_package_name_with_a_hyphen_still_gets_a_legal_namespace`](../../tests/sdlc/test_csharp_names.py#L120), [`test_block_namespaces_are_reported_as_block_style`](../../tests/sdlc/test_csharp_names.py#L110), [`test_the_guidance_never_offers_the_file_name_as_a_namespace`](../../tests/sdlc/test_csharp_names.py#L62), [`test_the_namespace_comes_from_root_namespace_not_the_file_name`](../../tests/sdlc/test_csharp_names.py#L50)
 - **Calls** (6): [`TargetLayout`](../../src/orchestrator/sdlc/layout.py#L70), [`_csharp_dirs`](../../src/orchestrator/sdlc/layout.py#L671), [`_csharp_namespaces`](../../src/orchestrator/sdlc/layout.py#L964), [`derive_csharp_namespace`](../../src/orchestrator/sdlc/layout.py#L653), [`detect_csharp_layout`](../../src/orchestrator/sdlc/layout.py#L841), [`is_namespace`](../../src/orchestrator/sdlc/csharp_names.py#L44)
 
 ### `_resolve_go_layout`

@@ -43,7 +43,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/sdlc/scaffold.py:305`](../../src/orchestrator/sdlc/scaffold.py#L305)
 
-- **Called by** (0 production · 1 test): [`test_a_greenfield_package_name_with_a_hyphen_still_gets_a_legal_namespace`](../../tests/sdlc/test_csharp_names.py#L121)
+- **Called by** (0 production · 1 test): [`test_a_greenfield_package_name_with_a_hyphen_still_gets_a_legal_namespace`](../../tests/sdlc/test_csharp_names.py#L120)
 - **Calls** (1): [`_sln`](../../src/orchestrator/sdlc/scaffold.py#L335)
 
 ### `_ensure_build_ignores`
