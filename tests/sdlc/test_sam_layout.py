@@ -2,7 +2,7 @@
 
 A SAM repository keeps each Lambda function in its template's `CodeUri` directory, with no
 `__init__.py`. Layout detection saw no package, and `--layout auto` scaffolded
-`src/cannabee_crud_apis/` and a root `pyproject.toml` into it — code nothing deploys, and a pytest
+`src/<repo>_crud_apis/` and a root `pyproject.toml` into it — code nothing deploys, and a pytest
 config for the whole repo. The test env never installed `boto3`, which Lambda provides.
 """
 
@@ -46,7 +46,7 @@ def _write(root: Path, rel: str, text: str = "") -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def _cannabee(root: Path) -> None:
+def _sam_repo(root: Path) -> None:
     _write(root, "template.yaml", _TEMPLATE)
     _write(root, "src/licence_scraper/app.py", "def lambda_handler(e, c):\n    return {}\n")
     _write(root, "src/licence_scraper/requirements.txt", "requests==2.32.3\nbeautifulsoup4\n")
@@ -57,12 +57,12 @@ def _cannabee(root: Path) -> None:
 
 
 def test_function_dirs_are_the_local_code_uris(tmp_path: Path) -> None:
-    _cannabee(tmp_path)
+    _sam_repo(tmp_path)
     assert function_dirs(tmp_path) == ["src/licence_scraper", "src/crud"]
 
 
 def test_a_sam_repo_is_existing_not_scaffolded_and_the_busiest_function_wins(tmp_path: Path) -> None:
-    _cannabee(tmp_path)
+    _sam_repo(tmp_path)
 
     layout = resolve_layout(tmp_path, mode="auto", language="python")
 
@@ -72,7 +72,7 @@ def test_a_sam_repo_is_existing_not_scaffolded_and_the_busiest_function_wins(tmp
 
 
 def test_the_function_the_design_names_wins(tmp_path: Path) -> None:
-    _cannabee(tmp_path)
+    _sam_repo(tmp_path)
 
     layout = resolve_layout(
         tmp_path, mode="auto", language="python", prefer_paths=["src/licence_scraper/app.py"]
@@ -96,7 +96,7 @@ def test_a_function_dir_that_is_not_an_identifier_has_no_package(tmp_path: Path)
 
 
 def test_sam_guidance_forbids_a_new_package_and_names_the_function(tmp_path: Path) -> None:
-    _cannabee(tmp_path)
+    _sam_repo(tmp_path)
     guidance = python_guidance(resolve_layout(tmp_path, mode="auto", language="python"))
 
     assert "AWS SAM repository" in guidance and "`src/crud/`" in guidance
@@ -105,7 +105,7 @@ def test_sam_guidance_forbids_a_new_package_and_names_the_function(tmp_path: Pat
 
 
 def test_function_requirements_and_the_runtime_boto3_are_declared(tmp_path: Path) -> None:
-    _cannabee(tmp_path)
+    _sam_repo(tmp_path)
 
     deps = _project_dependencies(tmp_path)
 
@@ -130,5 +130,5 @@ def test_top_level_modules_are_followed_not_given_a_package(tmp_path: Path) -> N
 
 
 def test_an_explicit_new_layout_still_scaffolds(tmp_path: Path) -> None:
-    _cannabee(tmp_path)
+    _sam_repo(tmp_path)
     assert resolve_layout(tmp_path, mode="new", language="python").mode == "new"

@@ -3,7 +3,7 @@
 **Why this exists.** A SAM repository keeps each Lambda function in the directory its
 ``template.yaml`` names as ``CodeUri`` — ``src/licence_scraper/app.py`` beside a
 ``requirements.txt`` — usually with no ``__init__.py``. Layout detection only recognised a Python
-*package*, found none, and in ``auto`` mode scaffolded ``src/cannabee_crud_apis/`` and a root
+*package*, found none, and in ``auto`` mode scaffolded ``src/<repo>_crud_apis/`` and a root
 ``pyproject.toml`` into a deployed repository: the new code went into a package nothing deploys,
 and the new ``pyproject.toml`` rewrote pytest's settings for the whole repo. The test environment
 read only root requirements, so the functions' dependencies — and ``boto3``, which the Lambda

@@ -21,13 +21,13 @@ _CAP = 4000
 def _build_log(root: Path, *, cascade: int = 40, warnings: int = 138) -> str:
     """A `dotnet test` log shaped like the field's: the cause, then its cascade, warnings, recap."""
     web = f"{root}/WebApp"
-    proj = f"[{web}/commercial-secondary-sales.csproj]"
+    proj = f"[{web}/acme-order-portal.csproj]"
     cause = (
         f"{web}/Shared/Components/OilStatus.razor.cs(1,7): error CS1003: Syntax error, ',' expected {proj}"
     )
     knock_on = [
         f"{web}/_Imports.razor({9 + i},7): error CS0234: The type or namespace name 'Ui{i}' does not "
-        f"exist in the namespace 'Commercial.Secondary.Sales.Features.Home' {proj}"
+        f"exist in the namespace 'Acme.Order.Portal.Features.Home' {proj}"
         for i in range(cascade)
     ]
     noise = [

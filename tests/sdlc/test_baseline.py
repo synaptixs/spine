@@ -30,7 +30,7 @@ def _cb764(root: Path) -> None:
     """The field's shape: an existing tests/ dir whose files need what a fresh venv lacks."""
     tests = root / "tests"
     tests.mkdir()
-    (tests / "test_ask_cannabee.py").write_text("import langchain_not_installed\n", encoding="utf-8")
+    (tests / "test_ask_assistant.py").write_text("import langchain_not_installed\n", encoding="utf-8")
     (tests / "test_check_email.py").write_text(
         "import os\nHOST = os.environ['DB_HOST_NEVER_SET']\n", encoding="utf-8"
     )
@@ -75,7 +75,7 @@ async def test_one_unimportable_file_no_longer_stops_the_suite(tmp_path: Path) -
 
     assert names_problems(runner)
     assert result.returncode == 1  # tests ran; before --continue-on-collection-errors it was 2
-    assert set(result.problems) == {"tests/test_ask_cannabee.py", "tests/test_check_email.py"}
+    assert set(result.problems) == {"tests/test_ask_assistant.py", "tests/test_check_email.py"}
     assert "1 passed" in result.output  # the healthy test was not held hostage
 
 
@@ -90,7 +90,7 @@ async def test_the_baseline_passes_a_change_that_adds_only_passing_tests(tmp_pat
     )
     result = await BaselineAwareRunner(inner, before or frozenset()).run(path=str(tmp_path))
 
-    assert before == frozenset({"tests/test_ask_cannabee.py", "tests/test_check_email.py"})
+    assert before == frozenset({"tests/test_ask_assistant.py", "tests/test_check_email.py"})
     assert "2 failure(s) predate this change" in said[0]
     assert result.passed
     assert result.output.startswith("[baseline] every failure predates this change")
@@ -106,7 +106,7 @@ async def test_a_new_failure_still_fails_and_refine_is_told_which_are_not_its(tm
 
     assert not result.passed
     first, second = result.output.splitlines()[:2]
-    assert first.startswith("[baseline] NOT YOURS") and "tests/test_ask_cannabee.py" in first
+    assert first.startswith("[baseline] NOT YOURS") and "tests/test_ask_assistant.py" in first
     assert second == "[baseline] caused by this change: tests/test_new.py::test_new"
 
 

@@ -111,7 +111,7 @@ def typescript_guidance(layout: TargetLayout) -> str:
 def csharp_guidance(layout: TargetLayout) -> str:
     """The C# layout block. The namespace is ``layout.namespace`` — read from the project —
     never ``package_name``, which for an existing repository is the `.csproj` file stem that
-    selects the project (``commercial-secondary-sales``) and was handed to the model as the
+    selects the project (``acme-order-portal``) and was handed to the model as the
     namespace on NSS-1243, three runs of three."""
     tfm = layout.target_framework or "net8.0"
     ns = layout.namespace or layout.package_name

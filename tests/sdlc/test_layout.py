@@ -368,7 +368,7 @@ def _nss_1239(root: Path) -> None:
             (root / proj / f).write_text("class X {}\n", encoding="utf-8")
     (root / "ApiClient" / "ApiClient.csproj").write_text("<Project/>\n", encoding="utf-8")
     (root / "UnitTests" / "UnitTests.csproj").write_text("<Project/>\n", encoding="utf-8")
-    (root / "WebApp" / "commercial-secondary-sales.csproj").write_text("<Project/>\n", encoding="utf-8")
+    (root / "WebApp" / "acme-order-portal.csproj").write_text("<Project/>\n", encoding="utf-8")
     ui = root / "WebApp" / "Features" / "Common" / "Auctions" / "Ui"
     ui.mkdir(parents=True)
     (ui / "AuctionCoilsUi.razor").write_text("<div/>\n", encoding="utf-8")
@@ -390,7 +390,7 @@ def test_nss_1239_the_project_holding_the_design_s_files_is_the_target(tmp_path:
         "WebApp/C1.cs",
     ]
     assert detect_csharp_layout(tmp_path, prefer_paths=design) == (
-        "commercial-secondary-sales",
+        "acme-order-portal",
         "WebApp",
         "UnitTests",
     )

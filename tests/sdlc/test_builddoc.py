@@ -984,7 +984,7 @@ def test_containment_does_not_count_dotnet_tests_as_product_code() -> None:
     from orchestrator.sdlc.builddoc import _blast_prose
 
     names = [
-        "Commercial.Secondary.Sales.Functions.Repositories",
+        "Acme.Order.Portal.Functions.Repositories",
         "UnitTests/Functions/GetProductsFunctionTests.cs",
     ]
     module = {"ref": "a.cs", "importers": 2, "importer_names": names}

@@ -40,8 +40,8 @@ _NSS_1243: dict[str, Any] = {
 
 def _blazor(root: Path) -> None:
     (root / "WebApp" / "Shared").mkdir(parents=True)
-    (root / "WebApp" / "Shared" / "SSConstants.cs").write_text(
-        "namespace Commercial.Secondary.Sales.Shared;\npublic static class SSConstants {\n"
+    (root / "WebApp" / "Shared" / "AppConstants.cs").write_text(
+        "namespace Acme.Order.Portal.Shared;\npublic static class AppConstants {\n"
         '    public const string OR_OilQuantity = "Oil Quantity";\n}\n',
         encoding="utf-8",
     )
@@ -124,7 +124,7 @@ def test_the_nss_1243_plan_is_no_longer_rated_high(tmp_path: Path) -> None:
     validity = assess(_NSS_1243, store=_Store(), root=tmp_path, language="csharp")
 
     md = _render(
-        tmp_path, _NSS_1243, files=["WebApp/Shared/SSConstants.cs"], origin="landing", validity=validity
+        tmp_path, _NSS_1243, files=["WebApp/Shared/AppConstants.cs"], origin="landing", validity=validity
     )
 
     section_7 = md.split("## 7. Files", 1)[1].split("## 8.", 1)[0]
@@ -150,7 +150,7 @@ def test_a_same_language_file_to_create_is_listed_not_dropped(tmp_path: Path) ->
     spec = {**_NSS_1243, "summary": "Add WebApp/Shared/OilStatusHelper.cs.", "acceptance_criteria": ["x"]}
 
     md = _render(
-        tmp_path, spec, files=["WebApp/Shared/SSConstants.cs"], origin="stated", validity=_Validity([])
+        tmp_path, spec, files=["WebApp/Shared/AppConstants.cs"], origin="stated", validity=_Validity([])
     )
 
     assert (

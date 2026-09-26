@@ -1,12 +1,12 @@
 """The namespace a .NET project's code actually lives in — read, never guessed from a file name.
 
 **Why this exists (NSS-1243, three runs of three).** For an existing repository the layout's
-``package_name`` is the chosen ``.csproj``'s file stem — ``commercial-secondary-sales`` — and the
-C# guidance handed that straight to the model as *"C# namespace is `commercial-secondary-sales`
-… declaring `namespace commercial-secondary-sales;`"*. The model did as it was told: one run
-wrote ``using commercial-secondary-sales;``, another ``@namespace commercial-secondary-sales``
-beside a code-behind that "repaired" it to ``commercial_secondary_sales``. The project's real
-namespace, ``Commercial.Secondary.Sales``, sat in its ``<RootNamespace>`` one directory away,
+``package_name`` is the chosen ``.csproj``'s file stem — ``acme-order-portal`` — and the
+C# guidance handed that straight to the model as *"C# namespace is `acme-order-portal`
+… declaring `namespace acme-order-portal;`"*. The model did as it was told: one run
+wrote ``using acme-order-portal;``, another ``@namespace acme-order-portal``
+beside a code-behind that "repaired" it to ``acme_order_portal``. The project's real
+namespace, ``Acme.Order.Portal``, sat in its ``<RootNamespace>`` one directory away,
 and every existing file declared it. A project's *name* selects the project; its *namespace* is
 a separate fact, and this module is where it is read.
 
@@ -42,7 +42,7 @@ _NOT_SOURCE_DIRS = frozenset({"bin", "obj", "node_modules", "wwwroot"})
 
 
 def is_namespace(name: str) -> bool:
-    """True when ``name`` is a legal dotted C# namespace (``Commercial.Secondary.Sales``).
+    """True when ``name`` is a legal dotted C# namespace (``Acme.Order.Portal``).
 
     Each segment is an identifier, optionally ``@``-prefixed (a verbatim identifier).
     ``str.isidentifier`` applies the same Unicode letter/digit/underscore rule C# does.
@@ -55,7 +55,7 @@ def is_namespace(name: str) -> bool:
 def sanitize_namespace(name: str) -> str:
     """Make ``name`` a legal namespace the way the .NET templates do: invalid characters → ``_``.
 
-    ``commercial-secondary-sales`` → ``commercial_secondary_sales``; a digit-leading segment gets
+    ``acme-order-portal`` → ``acme_order_portal``; a digit-leading segment gets
     a leading ``_``. Empty input → ``App``.
     """
     segments = []
@@ -77,7 +77,7 @@ class ProjectNamespace:
     #: ``project name`` — so the prompt and the log can say how sure to be.
     source: str
     #: One real file showing the folder convention, e.g. ``WebApp/Features/Home/Ui/Home.razor.cs
-    #: declares `namespace Commercial.Secondary.Sales.Features.Home.Ui`` — or ``""``.
+    #: declares `namespace Acme.Order.Portal.Features.Home.Ui`` — or ``""``.
     example: str = ""
     #: True when most files use file-scoped ``namespace X;``, False for block ``namespace X { }``,
     #: None when no declaration was seen.
@@ -165,8 +165,8 @@ def project_namespace(csproj: Path, root: Path) -> ProjectNamespace:
 
 # --- The pre-write directive check (P3) ----------------------------------------------------
 #
-# Every defect NSS-1243's three runs produced was a directive line: `using commercial-secondary-
-# sales;`, `@namespace commercial-secondary-sales`, and an `_Imports.razor` line truncated to a
+# Every defect NSS-1243's three runs produced was a directive line: `using acme-order-portal;`,
+# `@namespace acme-order-portal`, and an `_Imports.razor` line truncated to a
 # bare `.Ui`. Each was written, then `dotnet test` failed, and the refine loop read a wall of
 # cascade errors and edited the wrong file five times. None of them needs a compiler to catch:
 # a directive's target is dotted identifiers or it is not a directive.

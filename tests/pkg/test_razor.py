@@ -18,8 +18,8 @@ from orchestrator.pkg.razor import component_class_name, component_namespace, ra
 
 GRID = """\
 @page "/auctions/products"
-@using Commercial.Secondary.Sales.Shared.Enums
-@using Commercial.Secondary.Sales.Features.Common.Products.Model
+@using Acme.Order.Portal.Shared.Enums
+@using Acme.Order.Portal.Features.Common.Products.Model
 @inject IProductService ProductService
 
 <h3>Products</h3>
@@ -46,8 +46,8 @@ def _line_of(src: str, needle: str) -> int:
 def test_every_line_keeps_its_number() -> None:
     out = razor_to_csharp(GRID, "WebApp/Features/AuctionProductsGrid.razor").splitlines()
     assert len(out) == len(GRID.splitlines())
-    assert out[_line_of(GRID, "@using Commercial.Secondary.Sales.Shared.Enums") - 1] == (
-        "using Commercial.Secondary.Sales.Shared.Enums;"
+    assert out[_line_of(GRID, "@using Acme.Order.Portal.Shared.Enums") - 1] == (
+        "using Acme.Order.Portal.Shared.Enums;"
     )
     assert out[_line_of(GRID, "@inject") - 1] == (
         "partial class AuctionProductsGrid { IProductService ProductService; }"
@@ -123,8 +123,8 @@ def test_a_component_s_usings_are_imports_and_its_module_is_its_path(tmp_path: P
     assert any(n.id == module_id and n.kind is NodeKind.MODULE for n in batch.nodes)
     imports = {e.dst for e in batch.edges if e.src == module_id and e.kind is EdgeKind.IMPORTS}
     assert imports == {
-        "csharp:Commercial.Secondary.Sales.Shared.Enums",
-        "csharp:Commercial.Secondary.Sales.Features.Common.Products.Model",
+        "csharp:Acme.Order.Portal.Shared.Enums",
+        "csharp:Acme.Order.Portal.Features.Common.Products.Model",
     }
     # `@inject` and `@code` each open a partial declaration of the component: one containment.
     contains = [

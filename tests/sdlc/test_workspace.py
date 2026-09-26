@@ -433,10 +433,10 @@ def test_the_default_root_is_not_under_tmp(tmp_path: Path, monkeypatch: pytest.M
 
 
 def test_base_names_are_readable_distinct_and_carry_no_credentials() -> None:
-    main = _base_dirname("https://x-access-token:s3cret@github.com/acme/secondary-sales.git")
-    develop = _base_dirname("https://x-access-token:s3cret@github.com/acme/secondary-sales.git#develop")
+    main = _base_dirname("https://x-access-token:s3cret@github.com/acme/order-portal.git")
+    develop = _base_dirname("https://x-access-token:s3cret@github.com/acme/order-portal.git#develop")
 
-    assert main.startswith("secondary-sales-")
+    assert main.startswith("order-portal-")
     assert main != develop
     assert "s3cret" not in main + develop
     assert _base_dirname("(scratch)").startswith("scratch-")

@@ -112,7 +112,7 @@ class TargetLayout:
     android: bool = False
     # C# only. The namespace generated code declares, read from the project (see
     # `csharp_names`) — distinct from `package_name`, which for an existing repository is the
-    # `.csproj` stem that *selects* the project. NSS-1243: the stem `commercial-secondary-sales`
+    # `.csproj` stem that *selects* the project. NSS-1243: the stem `acme-order-portal`
     # was handed to the model as the namespace, and three runs of three wrote code that could
     # not parse. Empty → `package_name` (every other language, and greenfield C#).
     namespace: str = ""
@@ -684,7 +684,7 @@ def choose_project(
     """Which of several same-language projects the work belongs to.
 
     A repository with more than one project used to resolve to whichever sorted first. On
-    Nucor's `commercial-secondary-sales` that is `ApiClient`, so NSS-1239 scaffolded into the API
+    a pilot's `acme-order-portal` that is `ApiClient`, so NSS-1239 scaffolded into the API
     client while its own plan named five files under `WebApp/` — codegen could not resolve
     `Product`, spent every refine on `using` directives, and ended FAILED after six test runs.
     The design already knew where the work was; nothing passed it on.

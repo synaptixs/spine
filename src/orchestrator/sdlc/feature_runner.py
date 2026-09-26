@@ -1056,7 +1056,7 @@ async def run_feature(
     if layout.mode == "new" and layout_mode == "auto" and lang == "python":
         # `auto` means "scaffold only an empty repository" — its own --help says so — yet it
         # scaffolded any repository whose code it did not recognise. CB-764: a new
-        # `src/cannabee_crud_apis/` and root `pyproject.toml` landed in a deployed SAM repo,
+        # `src/<repo>_crud_apis/` and root `pyproject.toml` landed in a deployed SAM repo,
         # beside code nothing would ever import it from. Recognising more layouts is the fix;
         # refusing is the guard for the ones still unrecognised.
         already = existing_source_count(path, toolchain.source_ext)
