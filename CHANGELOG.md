@@ -4,6 +4,43 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## Unreleased
+
+`--layout auto` never scaffolds a second project beside code it cannot place — in any language.
+
+### Fixed
+
+- **`--layout auto` stops in every language but SQL, not only Python.** 3.50.0 stopped a Python
+  run from scaffolding a new package beside `.py` files it could not place. C#, TypeScript,
+  Java, Kotlin, Go, C and C++ still scaffolded a `.sln`, `package.json`, `pom.xml`,
+  `build.gradle.kts`, `go.mod` or `CMakeLists.txt` beside loose source that build would never
+  compile. `sdlc feature` now stops with exit 2 and names the build file it looked for (no
+  `.csproj`, no `go.mod`, …). A language's whole suffix family counts (C# `.cs .razor .cshtml`,
+  TypeScript `.ts .tsx`, Kotlin `.kt` but not a `.kts` build script, C `.c .h`, C++ sources and
+  headers). One file is enough; a sample under `docs/`, `doc/`, `examples/` or `samples/` is
+  not. SQL still scaffolds: its scaffold is a `migrations/README.md` and a `.gitignore`.
+- **A TypeScript, Go, C or C++ project below the root is followed, not refused.** With no
+  root build file, these look further down (`frontend/package.json`, `svc/go.mod`,
+  `native/CMakeLists.txt`, skipping vendored trees and nested checkouts) and take the project
+  holding the files the design names, else the one with the most source, as C#, Java and Kotlin
+  already did. Dependencies install and tests run in that directory: `npm install`/`npm test`,
+  `cmake`/`ctest` or `meson`, and the Go baseline run no longer start at a root with no build
+  file.
+- **`sdlc plan` says the Build will stop before anyone approves it.** A `layout_would_stop`
+  Validity finding, from the same resolver and count the Build uses, plus a penalty-only
+  "Build layout" row in §12. It is reported, never a refusal: the plan does not know which
+  `--layout` the Build will get.
+
+### Changed — upgrade notes
+
+- **A Build that used to scaffold beside existing code now exits 2.** This happens only when
+  all three hold: `--layout auto` (the default), a language other than SQL, and source in that
+  language with no build file the resolver recognises. Pass `--layout existing` (with
+  `--package-name`) to build into the code that is there, or `--layout new` to scaffold anyway.
+  `--layout new` is the only override; there is no environment variable.
+- **Plans for such repositories render a new finding and §12 row**, so an approval made before
+  the upgrade reads as stale for them; approve the plan again.
+
 ## 3.50.0 — 2026-09-26
 
 A fixes release driven by field reports from a .NET/Blazor and a Python/AWS SAM pilot: every
