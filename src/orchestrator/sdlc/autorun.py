@@ -677,6 +677,9 @@ async def _stage_intake(
     except IntakeNotConfiguredError as exc:
         ctx.record_stage("intake", "failed", str(exc))
         raise AutorunError(str(exc), code=2) from exc
+    from orchestrator.sdlc.spec_context import attach_repo_context
+
+    attach_repo_context(service, ctx.root)  # the same aid `sdlc plan` gives (NSS-1243)
 
     # `--follow-links` is a different extraction — the ticket *and* its linked pages — so it reads
     # and writes its own cache entry; the plan gate re-derives against the `source.txt` the plan

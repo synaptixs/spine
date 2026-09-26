@@ -229,7 +229,11 @@ def test_a_design_that_took_its_files_from_the_brief_cannot_agree_with_it(tmp_pa
     assert "**The design's files are this brief's own reading.**" in md
     assert "agrees with the design" not in md
     assert "the same reading twice is not agreement | n/a |" in md
-    assert "of 3 applicable checks" in md  # root cause is n/a in this fixture too
+    # Named paths is n/a too: files taken *from* the graph are always found in it. With the
+    # location its own keyword reading, the plan is capped below high (NSS-1231, NSS-1243).
+    assert "finding them there proves nothing | n/a |" in md
+    assert "**Is the analysis right? — medium** (2 of 2 applicable checks" in md
+    assert "**Capped at medium:** no file was located independently" in md
 
 
 def test_a_stated_path_still_earns_the_agreement(tmp_path: Path) -> None:

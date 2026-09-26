@@ -455,6 +455,122 @@ def _check_context_budget(files: list[str], root: Path | None, budget: int) -> t
     ], False
 
 
+#: Toolchain language id → the language names (``spec_context.LANGUAGE_OF_SUFFIX``) a run in it
+#: may legitimately name a file in. TypeScript projects hold JavaScript; C and C++ share headers.
+_RUN_LANGUAGES: dict[str, frozenset[str]] = {
+    "python": frozenset({"Python"}),
+    "csharp": frozenset({"C#"}),
+    "java": frozenset({"Java"}),
+    "kotlin": frozenset({"Kotlin", "Java"}),
+    "typescript": frozenset({"TypeScript", "JavaScript"}),
+    "go": frozenset({"Go"}),
+    "php": frozenset({"PHP"}),
+    "perl": frozenset({"Perl"}),
+    "c": frozenset({"C", "C/C++"}),
+    "cpp": frozenset({"C++", "C", "C/C++"}),
+    "sql": frozenset({"SQL"}),
+}
+
+
+def _spec_text_all(spec: dict[str, Any]) -> str:
+    """Every field that can name a file, proposed criteria included — they are handed to codegen."""
+    from orchestrator.sdlc.design import _query_text
+
+    return " ".join([_query_text(spec, title=False), *_all_criteria_text(spec)])
+
+
+#: Library and product names that end like a file: "Node.js" in a ticket is a runtime, not a path.
+_NOT_FILES = frozenset(
+    {
+        "node",
+        "vue",
+        "next",
+        "nuxt",
+        "react",
+        "express",
+        "angular",
+        "ember",
+        "backbone",
+        "three",
+        "chart",
+        "d3",
+    }
+)
+#: Suffixes the shared extractor (`source_paths.SOURCE_SUFFIXES`) leaves out because no front-end
+#: reads them — yet naming one is exactly how a spec invents a file in the wrong language.
+_OTHER_SUFFIX_RE = re.compile(r"\b((?:[\w.-]+[\\/])*[\w.-]+\.(?:js|jsx|mjs|rb|rs))\b")
+
+
+def named_files(text: str) -> list[str]:
+    """Every file ``text`` names: the shared extractor's, plus other-language names that are
+    shaped like a file — a directory, or a stem with ``_``/``-``/a digit, or a lower-case stem that
+    is not a known library ("oil_status.js" yes, "Node.js" no)."""
+    from orchestrator.sdlc.source_paths import named_paths, normalise
+
+    found = named_paths(text)
+    for raw in _OTHER_SUFFIX_RE.findall(text):
+        rel = normalise(raw)
+        stem = Path(rel).stem
+        shaped = "/" in rel or any(c in stem for c in "_-") or any(c.isdigit() for c in stem)
+        shaped = shaped or (stem.islower() and stem not in _NOT_FILES)
+        if rel and shaped and rel not in found:
+            found.append(rel)
+    return found
+
+
+def _check_named_paths(spec: dict[str, Any], root: Path | None, language: str) -> list[Finding]:
+    """A file the spec names that is not in the repository **and** is in another language.
+
+    NSS-1243's spec put its threshold "in oil_status.js" — a file that does not exist, in a
+    language the C# run does not write — and the gate said PROCEED: a missing stated path was
+    dropped silently. A missing file in the run's own language may simply be one to create
+    (§7 lists it so); one in another language is almost always an invention. Reported, not
+    refused: a C# web project can legitimately name a `wwwroot/` script.
+    """
+    from orchestrator.sdlc.source_paths import basename_index, resolve
+    from orchestrator.sdlc.spec_context import LANGUAGE_OF_SUFFIX
+
+    allowed = _RUN_LANGUAGES.get(language)
+    if root is None or allowed is None:
+        return []
+    findings: list[Finding] = []
+    index: dict[str, list[str]] | None = None
+    for rel in named_files(_spec_text_all(spec)):
+        named_language = LANGUAGE_OF_SUFFIX.get(Path(rel).suffix.lower())
+        if named_language is None or named_language in allowed:
+            continue
+        if "/" not in rel and index is None:
+            index = basename_index(root)
+        if resolve(rel, root, index=index):
+            continue  # it exists: the ticket is about a real file, whatever its language
+        findings.append(
+            Finding(
+                check="named_path_other_language",
+                detail=(
+                    f"The spec names `{rel}`, which is not in this repository and is {named_language} "
+                    f"— this is a {language} run. Confirm where that name came from before building."
+                ),
+                evidence=f"no `{Path(rel).name}` under the checkout",
+            )
+        )
+    return findings
+
+
+def _check_stated_criteria(spec: dict[str, Any]) -> list[Finding]:
+    """Every criterion the build will be graded against was written by the spec writer."""
+    if spec.get("acceptance_criteria") or not spec.get("proposed_criteria"):
+        return []
+    return [
+        Finding(
+            check="no_stated_criteria",
+            detail=(
+                "The ticket states no acceptance criteria: every one in §8 was proposed by the spec "
+                "writer. Confirm them with the ticket's author — the tests and the judge are built to them."
+            ),
+        )
+    ]
+
+
 def _check_prior_runs(issue_key: str, runs: list[Any]) -> list[Finding]:
     """Another run already carried this ticket **to a PR**.
 
@@ -493,6 +609,7 @@ def assess(
     root: Path | str | None = None,
     context_budget: int = 0,
     criteria: Any = None,
+    language: str = "",
 ) -> Assessment:
     """Judge one ticket against the code. Deterministic; the graph answers, not a model.
 
@@ -505,7 +622,11 @@ def assess(
     parity gate two answers to compare.
     """
     landing = landing or []
-    findings: list[Finding] = []
+    # Reported with any PROCEED, never a refusal on their own (see each check).
+    findings: list[Finding] = [
+        *_check_named_paths(spec, Path(root) if root else None, language),
+        *_check_stated_criteria(spec),
+    ]
 
     duplicate = _check_prior_runs(issue_key, prior_runs or [])
     if duplicate:

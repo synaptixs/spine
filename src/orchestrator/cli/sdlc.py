@@ -907,6 +907,12 @@ def sdlc_plan(
             except (SourceUriError, IntakeNotConfiguredError) as exc:
                 typer.echo(f"ERROR: {exc}", err=True)
                 raise typer.Exit(code=2) from exc
+            # The spec writer is told what this checkout is written in and which of its symbols
+            # the ticket's words match (NSS-1243 invented a JavaScript file for a C# repository).
+            # Only a fresh extraction reads it; a cached spec is what it was.
+            from orchestrator.sdlc.spec_context import attach_repo_context
+
+            attach_repo_context(service, path)
             # What the spec was before a refresh, so the warning below says "the spec changed" only
             # when it did — the digest also moves when the code does (B37, D4).
             before = (

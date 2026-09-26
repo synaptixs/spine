@@ -192,6 +192,29 @@ def _overview_files(spec: dict[str, Any], overview: dict[str, Any] | None) -> li
     return [name for _, name in scored[:5]]
 
 
+def _test_strategy(spec: dict[str, Any]) -> str:
+    """The heuristic's test strategy, which never ends on a bare colon.
+
+    It listed ``acceptance_criteria`` only, so a ticket whose criteria were all *proposed* by
+    the spec writer read "Add tests covering each acceptance criterion: " and stopped (NSS-1231,
+    NSS-1243).
+    """
+    stated = [str(a) for a in (spec.get("acceptance_criteria") or [])]
+    if stated:
+        return "Add tests covering each acceptance criterion: " + "; ".join(stated[:6])
+    proposed = [
+        str(p.get("criterion") or p.get("text") or "") if isinstance(p, dict) else str(p)
+        for p in (spec.get("proposed_criteria") or [])
+    ]
+    proposed = [p for p in proposed if p]
+    if proposed:
+        return (
+            "The ticket states no criteria; add tests for the ones the spec writer proposed — "
+            "confirm them first: " + "; ".join(proposed[:6])
+        )
+    return "The ticket states no criteria and none were proposed — derive the tests from the requirement."
+
+
 def _fallback_design(
     spec: dict[str, Any],
     overview: dict[str, Any] | None,
@@ -212,7 +235,6 @@ def _fallback_design(
     # naming four unrelated files. Only a stated path or a model's design can *independently*
     # agree with the brief.
     origin = "stated" if stated else "landing" if landed else "overview" if files else "none"
-    ac = [str(a) for a in (spec.get("acceptance_criteria") or [])]
     # Say which it is. A consumer — a human reading design.md, or the codegen prompt now
     # carrying it — has to be able to tell a grounded reading from a shrug.
     risks = ["Heuristic design (no LLM) — confirm the affected files before building."]
@@ -242,7 +264,7 @@ def _fallback_design(
         "interfaces": [],
         "data_changes": [],
         "risks": risks,
-        "test_strategy": "Add tests covering each acceptance criterion: " + "; ".join(ac[:6]),
+        "test_strategy": _test_strategy(spec),
         "grounded": bool(files),
         "llm": False,
         "files_origin": origin,

@@ -413,8 +413,9 @@ orchestrator sdlc feature --source confluence://<page_id> --safe
 - Pin one requirement with `--intent <intent-id>` if a page has several.
 
 > **Stable, tracked backlog.** The extracted intents are cached deterministically
-> (first run extracts; later runs reuse — no re-fetch, no LLM — until `--refresh`;
-> a spec planned with `--follow-links` is re-extracted only by `sdlc plan --refresh --follow-links`),
+> (first run extracts; later runs reuse — no re-fetch, no LLM — until `--refresh`, or until a
+> `file://` source's content changes, which re-extracts and says so; a spec planned with
+> `--follow-links` is re-extracted only by `sdlc plan --refresh --follow-links`),
 > so a pinned `--intent` is stable. Each run also writes a **`BACKLOG.md`** ledger:
 > `[ ]` todo, `[~]` in progress (a `--live` PR is open), `[x]` done (PR merged, via
 > `sdlc complete`). View/regenerate it anytime with
@@ -494,6 +495,14 @@ only in what the plan does not show (such as estimates) leaves the approval stan
 approved intents of the ticket whose spec changed are named with the `sdlc plan` command that
 re-renders them — re-plan before approving. The cache is shared, so every checkout of the ticket
 plans from the new spec.
+
+**What the plan will not let pass quietly.** When `sdlc plan` extracts a spec it tells the AI
+what the repository is written in and which of its symbols the ticket's words match, and asks
+it to flag an ambiguous term rather than guess one. The validity line then reports — without
+refusing — a file the spec names that is not in the repository and is in another language
+(`oil_status.js` in a C# run), and a ticket whose criteria were all proposed by the AI; §7 lists
+every file the spec names that is absent. §12 caps its band: **medium** at most when the files
+came from the plan's own keyword match, **low** when it proposes no files.
 
 Committing `.spine/plans/` is up to you — Spine never counts an uncommitted plan as a change,
 so writing one leaves the tree clean and the knowledge-graph cache warm. **Don't commit between
