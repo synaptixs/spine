@@ -40,6 +40,10 @@ _NSS_1243: dict[str, Any] = {
 
 def _blazor(root: Path) -> None:
     (root / "WebApp" / "Shared").mkdir(parents=True)
+    # A Blazor app has its project file; without one `--layout auto` would stop (D8's finding).
+    (root / "WebApp" / "WebApp.csproj").write_text(
+        '<Project Sdk="Microsoft.NET.Sdk.Web" />\n', encoding="utf-8"
+    )
     (root / "WebApp" / "Shared" / "AppConstants.cs").write_text(
         "namespace Acme.Order.Portal.Shared;\npublic static class AppConstants {\n"
         '    public const string OR_OilQuantity = "Oil Quantity";\n}\n',
@@ -245,3 +249,39 @@ def test_repo_context_names_the_symbols_the_ticket_matches(tmp_path: Path) -> No
 
 def test_a_service_without_the_setter_is_left_alone() -> None:
     attach_repo_context(object(), ".")  # no attribute error: a test double or older service
+
+
+# --- auto-layout-guard D8: the plan says the Build will stop, before anyone approves it -------
+
+
+def test_loose_csharp_with_no_project_warns_the_build_will_stop(tmp_path: Path) -> None:
+    (tmp_path / "Legacy").mkdir()
+    (tmp_path / "Legacy" / "Billing.cs").write_text("class Billing {}\n", encoding="utf-8")  # no `.csproj`
+    result = assess(_NSS_1243, store=_Store(), root=tmp_path, language="csharp")
+    stop = [f for f in result.findings if f.check == "layout_would_stop"]
+    assert len(stop) == 1
+    assert "no `.csproj`" in stop[0].detail and "1 csharp file(s)" in stop[0].detail
+    assert "--layout existing" in stop[0].detail and "--layout new" in stop[0].detail
+    assert "will not scaffold" in stop[0].evidence  # the Build's own words
+    # Reported, not refused: the Build may be given `--layout existing`.
+    assert result.verdict is Verdict.PROCEED
+
+
+@pytest.mark.parametrize(
+    ("language", "files"),
+    [
+        ("csharp", {"WebApp/WebApp.csproj": "<Project/>", "WebApp/Program.cs": "class P {}"}),
+        ("go", {"svc/go.mod": "module example.com/svc\n", "svc/lib/lib.go": "package lib\n"}),
+        ("csharp", {}),  # an empty repository scaffolds, as it always has
+        ("csharp", {"docs/snippet.cs": "class S {}"}),  # a sample is not a project
+        ("sql", {"schema.sql": "create table t (id int);"}),  # SQL never stops
+    ],
+)
+def test_no_stop_warning_where_the_build_would_go_ahead(
+    tmp_path: Path, language: str, files: dict[str, str]
+) -> None:
+    for rel, body in files.items():
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text(body, encoding="utf-8")
+    result = assess(_NSS_1243, store=_Store(), root=tmp_path, language=language)
+    assert "layout_would_stop" not in {f.check for f in result.findings}

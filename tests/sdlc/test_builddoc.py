@@ -1122,3 +1122,34 @@ def test_an_issue_type_in_the_body_is_not_read_as_the_plans_own() -> None:
     from orchestrator.sdlc.builddoc import planned_issue_type
 
     assert planned_issue_type("# X\n\n---\n\n**Issue type:** `Bug`\n") == ""
+
+
+# ---- auto-layout-guard D8: a plan for a repository the Build would stop in -------------------
+
+
+@pytest.mark.asyncio
+async def test_the_plan_warns_a_build_would_stop_and_stays_deterministic(tmp_path: Path) -> None:
+    (tmp_path / "Legacy").mkdir()
+    (tmp_path / "Legacy" / "Billing.cs").write_text("class Billing {}\n", encoding="utf-8")
+
+    first = await build_plan(_spec(), root=tmp_path, language="csharp")
+    second = await build_plan(_spec(), root=tmp_path, language="csharp")
+
+    assert first == second
+    assert "Build will stop under `--layout auto`" in first  # the Validity section's finding
+    assert "| Build layout | `--layout auto` will stop" in first  # §12's penalty row
+
+
+def test_the_build_layout_row_is_a_penalty_only() -> None:
+    """Its absence proves nothing about the analysis, so it counts only when it fails."""
+    from orchestrator.sdlc.builddoc import _confidence_block
+
+    clean = _confidence_block(signals={"verdict": "PROCEED"}, journey=[])
+    stopped = _confidence_block(signals={"verdict": "PROCEED", "layout_would_stop": True}, journey=[])
+
+    def possible(block: str) -> int:
+        return int(re.search(r"of (\d+) applicable", block).group(1))  # type: ignore[union-attr]
+
+    assert "Build layout" not in clean
+    assert "| Build layout |" in stopped
+    assert possible(stopped) == possible(clean) + 1
