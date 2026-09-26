@@ -25,6 +25,7 @@ from pathlib import Path
 from orchestrator.sdlc import android, process
 from orchestrator.sdlc.contracts import TestRunner as TestRunner
 from orchestrator.sdlc.contracts import TestRunResult as TestRunResult
+from orchestrator.sdlc.diagnostics import digest_dotnet_output, pytest_problems
 from orchestrator.sdlc.process import _SECRET_ENV_PREFIXES as _SECRET_ENV_PREFIXES
 
 # Cap captured output so a chatty test run can't bloat the activity result /
@@ -67,6 +68,9 @@ class SubprocessTestRunner:
     collected") is treated as a failure so an empty worktree doesn't look green.
     """
 
+    #: Fills ``TestRunResult.problems`` from pytest's summary, so a run can take a baseline.
+    names_problems = True
+
     def __init__(self, python: str | None = None, *, timeout: float | None = None) -> None:
         self._python = python or sys.executable
         # Python ran on a 120s budget while every other language runner here gets 600 —
@@ -99,6 +103,13 @@ class SubprocessTestRunner:
             "-q",
             "-p",
             "no:cacheprovider",
+            # One unimportable file no longer aborts the session (CB-764: four pre-existing
+            # tests needing boto3, langchain and DB_HOST stopped every run at collection, and
+            # the new test — which passed — never ran). The summary still names each one.
+            "--continue-on-collection-errors",
+            # The short summary is what `problems` is read from; stated rather than relying on
+            # the default, which a repo's own `addopts` can change.
+            "-rfE",
             cwd=path,
             env=env,
             stdout=asyncio.subprocess.PIPE,
@@ -112,10 +123,11 @@ class SubprocessTestRunner:
             return TestRunResult(passed=False, returncode=-1, output="test run timed out")
 
         output = stdout_bytes.decode("utf-8", "replace")
+        problems = pytest_problems(output)  # from the whole output, before the tail is cut
         if len(output) > _MAX_OUTPUT_CHARS:
             output = output[-_MAX_OUTPUT_CHARS:]
         rc = proc.returncode if proc.returncode is not None else -1
-        return TestRunResult(passed=rc == 0, returncode=rc, output=output)
+        return TestRunResult(passed=rc == 0, returncode=rc, output=output, problems=problems)
 
 
 class MavenTestRunner:
@@ -192,9 +204,11 @@ class DotnetTestRunner:
             proc.kill()
             await proc.wait()
             return TestRunResult(passed=False, returncode=-1, output="dotnet test run timed out")
-        output = stdout_bytes.decode("utf-8", "replace")
-        if len(output) > _MAX_OUTPUT_CHARS:
-            output = output[-_MAX_OUTPUT_CHARS:]
+        # Errors first, lifted from the WHOLE output, then the tail. A plain tail on a project
+        # with 138 warnings (NSS-1243) kept warnings and dropped the one error that mattered.
+        output = digest_dotnet_output(
+            stdout_bytes.decode("utf-8", "replace"), Path(path), cap=_MAX_OUTPUT_CHARS
+        )
         rc = proc.returncode if proc.returncode is not None else -1
         return TestRunResult(passed=rc == 0, returncode=rc, output=output)
 

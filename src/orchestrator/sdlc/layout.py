@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import cast
 
 from orchestrator.pkg.extractor import DEFAULT_IGNORE_DIRS
+from orchestrator.sdlc.csharp_names import is_namespace, project_namespace
 
 # Top-level dirs that are never a project's source package.
 _NON_PACKAGE_DIRS = {"tests", "test", "docs", "doc", "examples", "scripts", "build", "dist"}
@@ -109,6 +110,24 @@ class TargetLayout:
     # never runs one, so the guidance has to rule them out rather than let the model reach for
     # Espresso and produce a suite that cannot run.
     android: bool = False
+    # C# only. The namespace generated code declares, read from the project (see
+    # `csharp_names`) — distinct from `package_name`, which for an existing repository is the
+    # `.csproj` stem that *selects* the project. NSS-1243: the stem `acme-order-portal`
+    # was handed to the model as the namespace, and three runs of three wrote code that could
+    # not parse. Empty → `package_name` (every other language, and greenfield C#).
+    namespace: str = ""
+    # The namespace the test project's own files declare (C#), for the tests' `namespace` line.
+    test_namespace: str = ""
+    # How `namespace` was established, plus one real file showing the folder convention —
+    # printed on the `[layout]` line and carried into the guidance.
+    namespace_note: str = ""
+    # True / False when the project's files mostly use file-scoped / block namespaces; None
+    # when nothing was read.
+    file_scoped_namespace: bool | None = None
+    # Python only. "aws-sam" when the source is a Lambda function directory named by
+    # `template.yaml` (CB-764) — its modules import each other flat and it has no package — else
+    # "". A layout with an empty `package_name` and no framework is a repo of top-level modules.
+    framework: str = ""
 
     def module_rel_path(self, module: str) -> str:
         """Worktree-relative path for a new source module/class (no leading dir)."""
@@ -665,7 +684,7 @@ def choose_project(
     """Which of several same-language projects the work belongs to.
 
     A repository with more than one project used to resolve to whichever sorted first. On
-    Nucor's `commercial-secondary-sales` that is `ApiClient`, so NSS-1239 scaffolded into the API
+    a pilot's `acme-order-portal` that is `ApiClient`, so NSS-1239 scaffolded into the API
     client while its own plan named five files under `WebApp/` — codegen could not resolve
     `Product`, spent every refine on `using` directives, and ended FAILED after six test runs.
     The design already knew where the work was; nothing passed it on.
@@ -894,9 +913,14 @@ def _resolve_csharp_layout(
     why: list[str] = []
     existing = detect_csharp_layout(root, prefer_paths=prefer_paths, why=why, project=package_name or "")
     derived = package_name or derive_csharp_namespace(repo or str(root))
+    # The name may be an operator's `--package-name` with a `-` in it; the namespace may not.
+    derived_ns = derived if is_namespace(derived) else derive_csharp_namespace(derived)
     if mode == "existing" or (mode == "auto" and existing is not None):
         if existing is not None:
             pkg, source_dir, tests_dir = existing
+            namespace, test_namespace, note, file_scoped = _csharp_namespaces(
+                root, pkg, source_dir, tests_dir, override=package_name or ""
+            )
             return TargetLayout(
                 package_name=package_name or pkg,
                 source_dir=source_dir,
@@ -906,11 +930,57 @@ def _resolve_csharp_layout(
                 language="csharp",
                 build_tool="dotnet",
                 chosen_reason=why[0] if why else "",
+                namespace=namespace,
+                test_namespace=test_namespace,
+                namespace_note=note,
+                file_scoped_namespace=file_scoped,
             )
         src, tst = _csharp_dirs(derived)
-        return TargetLayout(derived, src, tst, True, "existing", language="csharp", build_tool="dotnet")
+        return TargetLayout(
+            derived,
+            src,
+            tst,
+            True,
+            "existing",
+            language="csharp",
+            build_tool="dotnet",
+            namespace=derived_ns,
+            test_namespace=f"{derived_ns}.Tests",
+        )
     src, tst = _csharp_dirs(derived)
-    return TargetLayout(derived, src, tst, True, "new", language="csharp", build_tool="dotnet")
+    return TargetLayout(
+        derived,
+        src,
+        tst,
+        True,
+        "new",
+        language="csharp",
+        build_tool="dotnet",
+        namespace=derived_ns,
+        test_namespace=f"{derived_ns}.Tests",
+    )
+
+
+def _csharp_namespaces(
+    root: Path, project: str, source_dir: str, tests_dir: str, *, override: str = ""
+) -> tuple[str, str, str, bool | None]:
+    """``(namespace, test_namespace, note, file_scoped)`` for an existing .NET project.
+
+    Read from the project, never from its file name (see ``csharp_names``). An operator's
+    ``--package-name`` that is a legal namespace and does not name a project is taken as the
+    namespace, which is what the flag meant before it could retarget the project.
+    """
+    source = project_namespace(root / source_dir / f"{project}.csproj", root)
+    namespace, note = source.root, f"from {source.source}"
+    if override and override.lower() != project.lower() and is_namespace(override):
+        namespace, note = override, "from --package-name"
+    if source.example:
+        note += f"; {source.example}"
+    test_projects = sorted((root / tests_dir).glob("*.csproj")) if tests_dir else []
+    test_namespace = (
+        project_namespace(test_projects[0], root).root if len(test_projects) == 1 else f"{namespace}.Tests"
+    )
+    return namespace, test_namespace, note, source.file_scoped
 
 
 def _detect_c_build_tool(root: Path) -> str:
@@ -1219,6 +1289,11 @@ def _resolve_php_layout(
     )
 
 
+def existing_source_count(root: Path, source_ext: str) -> int:
+    """How many ``.<source_ext>`` files the repository already holds, by the extractor's rules."""
+    return _source_file_count(root, frozenset({f".{source_ext.lstrip('.').lower()}"}))
+
+
 def is_effectively_empty(root: Path) -> bool:
     """True when the worktree holds no source the model could extend (a fresh
     clone of an empty repo is just ``.git`` + maybe a README/LICENSE). Used to
@@ -1283,8 +1358,20 @@ def _resolve_python_layout(
     src_layout: bool = True,
     prefer_paths: Sequence[str] = (),
 ) -> TargetLayout:
-    existing = detect_existing_package(root_path)
     derived = package_name or derive_package_name(repo or str(root_path))
+    # A SAM repository is recognised before a package: its functions rarely are packages, and
+    # when one is, which function the ticket is about is the question — not which sorts first.
+    if mode != "new" and not package_name:
+        sam = _sam_layout(root_path, prefer_paths)
+        if sam is not None:
+            return sam
+    existing = detect_existing_package(root_path)
+    # A repository of top-level modules (`app.py`, `utils.py`, no package) is followed, not
+    # given a new `src/<pkg>/` beside it.
+    if mode == "auto" and existing is None and not package_name and _top_level_modules(root_path):
+        return TargetLayout(
+            "", ".", "tests", False, "existing", chosen_reason="top-level modules, no package"
+        )
 
     if mode == "existing" or (mode == "auto" and existing is not None):
         if existing is not None:
@@ -1305,6 +1392,50 @@ def _resolve_python_layout(
     return TargetLayout(derived, source_dir, "tests", src_layout, "new")
 
 
+#: Python files at a repository's root that are tooling, not the code a ticket changes.
+_ROOT_TOOLING = frozenset({"setup.py", "conftest.py", "noxfile.py", "tasks.py", "manage.py", "fabfile.py"})
+
+
+def _top_level_modules(root: Path) -> list[str]:
+    """``.py`` files at the root that are the project's own modules (sorted)."""
+    return sorted(
+        p.name for p in root.glob("*.py") if p.name not in _ROOT_TOOLING and not p.name.startswith("test_")
+    )
+
+
+def _sam_layout(root: Path, prefer_paths: Sequence[str]) -> TargetLayout | None:
+    """The Lambda function a ticket belongs in, for an AWS SAM repository (see ``sdlc/sam``).
+
+    The function holding a file the design names, else the one with the most Python — never
+    whichever sorts first.
+    """
+    from orchestrator.sdlc.sam import function_dirs
+
+    dirs = function_dirs(root)
+    if not dirs:
+        return None
+    named = [d for d in dirs if any(p == d or p.startswith(f"{d}/") for p in prefer_paths)]
+    if named:
+        chosen, why = named[0], "holds a file the design names"
+    else:
+        counts = {d: sum(1 for _ in (root / d).rglob("*.py")) for d in dirs}
+        chosen = sorted(dirs, key=lambda d: (-counts[d], d))[0]
+        why = f"most Python ({counts[chosen]} file(s))"
+    base = chosen.removeprefix("src/")
+    dotted = base.replace("/", ".")
+    package = dotted if all(seg.isidentifier() for seg in dotted.split(".")) else ""
+    tests = "tests" if (root / "tests").is_dir() or not (root / "test").is_dir() else "test"
+    return TargetLayout(
+        package,
+        chosen,
+        tests,
+        chosen.startswith("src/"),
+        "existing",
+        chosen_reason=f"AWS SAM function {chosen}/ — {why}; {len(dirs)} in template",
+        framework="aws-sam",
+    )
+
+
 __all__ = [
     "TargetLayout",
     "derive_csharp_namespace",
@@ -1320,6 +1451,7 @@ __all__ = [
     "detect_php_layout",
     "detect_java_layout",
     "detect_typescript_layout",
+    "existing_source_count",
     "is_effectively_empty",
     "resolve_layout",
 ]

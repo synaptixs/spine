@@ -640,6 +640,33 @@ def _is_test_path(rel: str) -> bool:
     )
 
 
+#: What Spine itself writes into a checkout: plans and approvals, and the backlog ledger. Never
+#: committed by design, so never evidence that a clone is missing someone's work.
+_SPINE_WRITES = (".spine/", "BACKLOG.md")
+
+
+async def _uncommitted_in(repo: str | None) -> list[str]:
+    """Paths ``git status`` reports in ``repo`` when it is a local checkout; ``[]`` otherwise."""
+    if not repo or "://" in repo or not Path(repo).is_dir():
+        return []
+    proc = await asyncio.create_subprocess_exec(
+        "git",
+        "status",
+        "--porcelain",
+        "--untracked-files=normal",
+        cwd=repo,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    out, _ = await proc.communicate()
+    if proc.returncode != 0:
+        return []  # not a git checkout: nothing to compare a clone against
+    paths = [
+        line[3:].strip().strip('"') for line in out.decode("utf-8", "replace").splitlines() if line.strip()
+    ]
+    return [p for p in paths if not p.startswith(_SPINE_WRITES)]
+
+
 async def _git(path: Path, *args: str) -> bool:
     ok, _ = await _git_out(path, *args)
     return ok
@@ -799,10 +826,22 @@ async def run_feature(
     from orchestrator.intake.factory import IntakeNotConfiguredError, build_service_for
     from orchestrator.intake.jira import IssueTrackerError, JiraAdapter, JiraConfig
     from orchestrator.intake.service import parse_source_uri
+    from orchestrator.sdlc.baseline import (
+        BaselineAwareRunner,
+        baseline_enabled,
+        environment_blocker,
+        names_problems,
+        take_baseline,
+    )
     from orchestrator.sdlc.codegen import LLMCodegenAdapter, resolve_codegen_model
     from orchestrator.sdlc.forge import GhPRAdapter
     from orchestrator.sdlc.grounding import PKGCodegenGrounder
-    from orchestrator.sdlc.layout import TargetLayout, is_effectively_empty, resolve_layout
+    from orchestrator.sdlc.layout import (
+        TargetLayout,
+        existing_source_count,
+        is_effectively_empty,
+        resolve_layout,
+    )
     from orchestrator.sdlc.scaffold import scaffold
     from orchestrator.sdlc.telemetry import jira_duration, render_worklog
     from orchestrator.sdlc.testenv import (
@@ -811,7 +850,7 @@ async def run_feature(
         run_with_autoheal,
     )
     from orchestrator.sdlc.testrunner import pytest_available
-    from orchestrator.sdlc.workspace import WorkspaceManager
+    from orchestrator.sdlc.workspace import WorkspaceManager, default_workspace_root
 
     started_at = time.monotonic()
     load_local_env()
@@ -959,9 +998,24 @@ async def run_feature(
         except (IssueTrackerError, OSError) as exc:
             emit(f"[jira] could not log run cost on {issue_key}: {exc}")
 
+    # 3a. A local checkout's uncommitted work is not in the build. The base is a clone, and a
+    # clone carries commits only — while `sdlc plan` read the working tree (NSS-1231's plan says
+    # `Derived at: 949a568c-dirty`). Said before the clone, so nobody reads a result built without
+    # their edits as a result built with them.
+    uncommitted = await _uncommitted_in(repo_url)
+    if uncommitted:
+        shown = ", ".join(uncommitted[:5]) + (
+            f" (+{len(uncommitted) - 5} more)" if len(uncommitted) > 5 else ""
+        )
+        emit(
+            f"[workspace] WARNING: {len(uncommitted)} uncommitted file(s) in {repo_url} are not in "
+            f"this build — it clones committed history only: {shown}. Commit or stash them if the "
+            "change depends on them."
+        )
+
     # 3. worktree branch off the real repo (or a scratch repo in safe/no-repo mode).
     sdlc_id = uuid.uuid4().hex[:16]
-    ws_root = Path(os.getenv("SDLC_WORKSPACE_ROOT", "/tmp/sdlc-workspaces"))
+    ws_root = default_workspace_root()
     # Branch from the PR target, not the remote's default: a run opening a PR into
     # `develop` must build on `develop`, or it is written against a tree that predates
     # everything merged there since the last release.
@@ -996,6 +1050,25 @@ async def run_feature(
 
     toolchain = get_toolchain(lang)
     layout = cast(TargetLayout, toolchain.prepare_layout(layout))
+    # Python only, for now: it is the language whose existing layouts this release learned to
+    # recognise (SAM functions, top-level modules). Every other resolver still answers "new"
+    # for loose source with no build file, and refusing there would block runs that used to work.
+    if layout.mode == "new" and layout_mode == "auto" and lang == "python":
+        # `auto` means "scaffold only an empty repository" — its own --help says so — yet it
+        # scaffolded any repository whose code it did not recognise. CB-764: a new
+        # `src/<repo>_crud_apis/` and root `pyproject.toml` landed in a deployed SAM repo,
+        # beside code nothing would ever import it from. Recognising more layouts is the fix;
+        # refusing is the guard for the ones still unrecognised.
+        already = existing_source_count(path, toolchain.source_ext)
+        if already:
+            raise FeatureRunError(
+                f"--layout auto found no {lang} project it can extend in this repository, which "
+                f"already holds {already} .{toolchain.source_ext} file(s) — it will not scaffold a new "
+                f"'{layout.source_dir}/' beside them. Point the run at the existing code with "
+                "--layout existing (and --package-name for the package), or pass --layout new to "
+                "scaffold anyway.",
+                code=2,
+            )
     if layout.mode == "new":
         was_empty = is_effectively_empty(path)
         created = scaffold(path, layout)
@@ -1009,7 +1082,16 @@ async def run_feature(
                 "repo; existing files were left untouched"
             )
     chosen = f" (project chosen: {layout.chosen_reason})" if layout.chosen_reason else ""
-    emit(f"[layout] mode={layout.mode} package={layout.package_name} src={layout.source_dir}{chosen}")
+    # The namespace the prompt will carry, and where it came from — the value NSS-1243 got wrong
+    # was invisible here, so nothing on screen showed the model being told a file name.
+    ns_shown = (
+        f" namespace={layout.namespace} ({layout.namespace_note})"
+        if layout.namespace and layout.namespace != layout.package_name
+        else ""
+    )
+    emit(
+        f"[layout] mode={layout.mode} package={layout.package_name}{ns_shown} src={layout.source_dir}{chosen}"
+    )
 
     # Build an isolated test environment for the worktree — a per-project venv
     # with the project's own deps — so generated tests don't depend on (or run
@@ -1068,6 +1150,13 @@ async def run_feature(
         codegen_kwargs["model"] = codegen_model
     codegen = LLMCodegenAdapter(llm, **codegen_kwargs)
     runner = make_test_runner(lang, testenv)
+    # What already fails, measured before anything is generated, so it is never counted against
+    # this run (CB-764: four pre-existing test files that could not import in a fresh env failed
+    # six runs of six while the new test passed). One extra suite run; SDLC_TEST_BASELINE=0 skips.
+    if names_problems(runner) and baseline_enabled():
+        before = await take_baseline(runner, str(path), emit)
+        if before:
+            runner = BaselineAwareRunner(runner, before)
 
     # Attribute each leg's LLM spans + token ledger to a named stage, so the trace
     # reads implement / author_tests / refine instead of "unattributed".
@@ -1156,6 +1245,13 @@ async def run_feature(
                         emit("[cover] no tests written for the gap — stopping rather than looping")
                         break
                     continue
+            if kind == "tests":
+                # Not a code problem: files this run never wrote cannot import a dependency the
+                # environment lacks. Refine cannot edit its way out, and CB-764 watched it try.
+                blocked = environment_blocker(result, authored, path)
+                if blocked:
+                    emit(f"[tests] stopping — {blocked}")
+                    break
             if spent[kind] >= budgets[kind]:
                 # The tests budget died on a test the cover stage itself wrote (CB-760). Withdraw
                 # it — once, only those files — and let the suite the ticket actually asked for

@@ -1893,3 +1893,161 @@ async def test_publish_false_commits_the_build_before_handing_back(
     )
 
     assert len(commits) == 1 and commits[0].startswith("SSPN-1: ")
+
+
+# ---- CB-764: failures that predate the change are not the change's ------------------------------
+
+
+class _PreexistingFailureRunner:
+    """A suite with one old file that never imports — before the change and after it."""
+
+    names_problems = True
+    calls = 0
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        type(self).calls += 1
+        return SimpleNamespace(
+            passed=False,
+            returncode=1,
+            output="E   No module named 'boto3'\nERROR tests/test_api.py\n4 passed, 1 error",
+            problems=("tests/test_api.py",),
+        )
+
+
+async def test_a_failure_the_baseline_already_had_is_not_refined(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    monkeypatch.delenv("SDLC_TEST_BASELINE", raising=False)
+    _PreexistingFailureRunner.calls = 0
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_PreexistingFailureRunner)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", lambda *a, **k: _aresult([]))
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+
+    await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert created and created[0].refine_calls == 0
+    assert _PreexistingFailureRunner.calls >= 2  # the baseline, then the judged run
+
+
+async def test_without_a_baseline_a_missing_dependency_stops_instead_of_refining(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SDLC_TEST_BASELINE", "0")
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_PreexistingFailureRunner)
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=5)
+
+    assert created and created[0].refine_calls == 0
+
+
+# ---- CB-764: `--layout auto` follows an existing repository or refuses; it never scaffolds beside it
+
+
+async def test_auto_will_not_scaffold_into_a_repo_it_cannot_read(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    (tmp_path / "lambdas" / "scraper").mkdir(parents=True)
+    (tmp_path / "lambdas" / "scraper" / "handler.py").write_text("def handle(e, c):\n    return 1\n")
+
+    with pytest.raises(FeatureRunError, match="will not scaffold") as caught:
+        await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1)
+
+    assert caught.value.code == 2
+    assert not (tmp_path / "pyproject.toml").exists()
+    assert not (tmp_path / "src").exists()
+
+
+async def test_a_sam_repo_runs_without_a_scaffold(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    created = _install_pipeline(monkeypatch, tmp_path, runner=_PassingRunner)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", lambda *a, **k: _aresult([]))
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+    (tmp_path / "template.yaml").write_text(
+        "Resources:\n  F:\n    Type: AWS::Serverless::Function\n"
+        "    Properties:\n      CodeUri: src/scraper/\n"
+    )
+    (tmp_path / "src" / "scraper").mkdir(parents=True)
+    (tmp_path / "src" / "scraper" / "app.py").write_text("def lambda_handler(e, c):\n    return {}\n")
+
+    await run_feature("file://./spec.md", intent_id="intent-a", max_refine=1)
+
+    assert created and getattr(created[0].layout, "framework", "") == "aws-sam"
+    assert not (tmp_path / "pyproject.toml").exists()
+
+
+# ---- P10: a local checkout's uncommitted work is not in the build --------------------------------
+
+
+def _checkout(root: Path) -> Path:
+    import subprocess
+
+    repo = root / "checkout"
+    repo.mkdir()
+    git = ["git", "-c", "user.email=t@e", "-c", "user.name=t"]
+    subprocess.run([*git, "init", "-q"], cwd=repo, check=True)
+    (repo / "App.cs").write_text("class App {}\n")
+    subprocess.run([*git, "add", "."], cwd=repo, check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "base"], cwd=repo, check=True)
+    return repo
+
+
+async def test_uncommitted_work_in_a_local_repo_is_named(tmp_path: Path) -> None:
+    from orchestrator.sdlc.feature_runner import _uncommitted_in
+
+    repo = _checkout(tmp_path)
+    assert await _uncommitted_in(str(repo)) == []
+
+    (repo / "App.cs").write_text("class App { int x; }\n")
+    (repo / "New.cs").write_text("class New {}\n")
+    # What Spine writes itself is never evidence of missing work.
+    (repo / ".spine" / "plans").mkdir(parents=True)
+    (repo / ".spine" / "plans" / "x-build.md").write_text("plan\n")
+    (repo / "BACKLOG.md").write_text("backlog\n")
+
+    assert sorted(await _uncommitted_in(str(repo))) == ["App.cs", "New.cs"]
+
+
+@pytest.mark.parametrize("repo", [None, "", "https://github.com/acme/app.git", "git@github.com:acme/app.git"])
+async def test_a_remote_or_absent_repo_has_nothing_uncommitted(repo: str | None) -> None:
+    from orchestrator.sdlc.feature_runner import _uncommitted_in
+
+    assert await _uncommitted_in(repo) == []
+
+
+async def test_a_directory_that_is_not_a_checkout_is_not_warned_about(tmp_path: Path) -> None:
+    from orchestrator.sdlc.feature_runner import _uncommitted_in
+
+    (tmp_path / "plain").mkdir()
+    (tmp_path / "plain" / "x.cs").write_text("")
+    assert await _uncommitted_in(str(tmp_path / "plain")) == []
+
+
+async def test_the_run_warns_before_building_without_local_edits(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    worktree = tmp_path / "wt"
+    worktree.mkdir()
+    _install_pipeline(monkeypatch, worktree, runner=_PassingRunner)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", lambda *a, **k: _aresult([]))
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+    repo = _checkout(tmp_path)
+    (repo / "Draft.cs").write_text("class Draft {}\n")
+    said: list[str] = []
+
+    await run_feature("file://./spec.md", intent_id="intent-a", repo=str(repo), max_refine=1, log=said.append)
+
+    [warning] = [line for line in said if "uncommitted file(s)" in line]
+    assert "Draft.cs" in warning and "clones committed history only" in warning

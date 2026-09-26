@@ -97,7 +97,7 @@ _Showing 9 of 20 neighbouring areas._
 - [`orchestrator.pkg.schema`](../../src/orchestrator/pkg/schema.py#L1)
 - [`orchestrator.pkg.scope`](../modules/orchestrator.pkg.scope.md)
 - [`orchestrator.pkg.scoping`](../../src/orchestrator/pkg/scoping.py#L1)
-- [`orchestrator.pkg.sql_extractor`](../modules/orchestrator.pkg.sql_extractor.md)
+- [`orchestrator.pkg.sql_extractor`](../../src/orchestrator/pkg/sql_extractor.py#L1)
 - [`orchestrator.pkg.stats`](../../src/orchestrator/pkg/stats.py#L1)
 - [`orchestrator.pkg.store`](../../src/orchestrator/pkg/store.py#L1)
 - [`orchestrator.pkg.typed_receivers`](../../src/orchestrator/pkg/typed_receivers.py#L1)

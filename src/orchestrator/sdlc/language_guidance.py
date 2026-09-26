@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from orchestrator.sdlc.csharp_names import is_namespace
+
 if TYPE_CHECKING:
     from orchestrator.sdlc.layout import TargetLayout
 
@@ -107,16 +109,68 @@ def typescript_guidance(layout: TargetLayout) -> str:
 
 
 def csharp_guidance(layout: TargetLayout) -> str:
+    """The C# layout block. The namespace is ``layout.namespace`` — read from the project —
+    never ``package_name``, which for an existing repository is the `.csproj` file stem that
+    selects the project (``acme-order-portal``) and was handed to the model as the
+    namespace on NSS-1243, three runs of three."""
     tfm = layout.target_framework or "net8.0"
+    ns = layout.namespace or layout.package_name
+    test_ns = layout.test_namespace or f"{ns}.Tests"
+    if layout.mode != "existing":
+        source = (
+            f"- C# namespace is `{ns}`. Put each public type at "
+            f"`{layout.source_dir}/<TypeName>.cs`, one public type per file, declaring "
+            f"`namespace {ns};` (target {tfm}, nullable enabled).\n"
+        )
+    else:
+        style = (
+            "block `namespace X { ... }`"
+            if layout.file_scoped_namespace is False
+            else "file-scoped `namespace X;`"
+        )
+        evidence = f" ({layout.namespace_note})" if layout.namespace_note else ""
+        source = (
+            f"- Source project: `{layout.source_dir}/`. Its root namespace is `{ns}`{evidence}. "
+            "Namespaces follow folders: a file at "
+            f"`{layout.source_dir}/<Folder>/<Sub>/<TypeName>.cs` declares `namespace {ns}.<Folder>.<Sub>`, "
+            f"in the {style} style this project uses (target {tfm}, nullable enabled).\n"
+            "- Put a new type in the folder of the feature it belongs to (the files the design names "
+            "show where), one public type per file named after the type; only a type with no clear "
+            f"home goes at `{layout.source_dir}/<TypeName>.cs`. To use a type from another folder, "
+            f"add `using {ns}.<Folder>;`.\n"
+            "- A Razor component takes its namespace from its folder: never add `@namespace` to a "
+            "`.razor` file. Its code-behind `<Name>.razor.cs` declares the same namespace as the folder.\n"
+        )
+        if layout.package_name and not is_namespace(layout.package_name):
+            source += (
+                f"- `{layout.package_name}` is the project's file name, not a namespace — never use "
+                "it in a `namespace` or `using` line.\n"
+            )
     return (
         "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
-        f"- C# namespace is `{layout.package_name}`. Put each public type at "
-        f"`{layout.source_dir}/<TypeName>.cs`, one public type per file, declaring "
-        f"`namespace {layout.package_name};` (target {tfm}, nullable enabled).\n"
-        f"- Put xUnit tests at `{layout.tests_dir}/<TypeName>Tests.cs` (the test "
-        "project already references the source project).\n"
-        f"- Declare any new dependency as a `<PackageReference>` in the source "
+        + source
+        + f"- Put xUnit tests at `{layout.tests_dir}/<TypeName>Tests.cs`, declaring `namespace {test_ns}` "
+        f"and importing the code under test with `using {ns}.<Folder>;` for the folder it lives in "
+        "(the test project already references the source project).\n"
+        "- Declare any new dependency as a `<PackageReference>` in the source "
         "`.csproj` (edit it); don't invent unrelated paths.\n\n"
+    )
+
+
+def _sam_guidance(layout: TargetLayout) -> str:
+    """CB-764: a SAM function is a directory Lambda runs from, not a package to scaffold."""
+    return (
+        "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
+        f"- This is an AWS SAM repository. The change belongs in the Lambda function at "
+        f"`{layout.source_dir}/` (a `CodeUri` in `template.yaml`): put new modules at "
+        f"`{layout.source_dir}/<module>.py`, beside its handler.\n"
+        f"- Lambda runs the function from `{layout.source_dir}/`, so modules inside it import each "
+        "other by bare name (`from <module> import ...`). Tests import them the way this "
+        "repository's existing tests already do — read one before writing yours.\n"
+        f"- Put tests under `{layout.tests_dir}/` as `{layout.tests_dir}/test_<name>.py`.\n"
+        f"- A dependency the function needs goes in `{layout.source_dir}/requirements.txt` "
+        "(`boto3` is provided by the Lambda runtime).\n"
+        "- Do NOT create a new package, a new top-level directory or a `pyproject.toml`.\n\n"
     )
 
 
@@ -221,6 +275,17 @@ def perl_guidance(layout: TargetLayout) -> str:
 
 
 def python_guidance(layout: TargetLayout) -> str:
+    if layout.framework == "aws-sam":
+        return _sam_guidance(layout)
+    if layout.mode == "existing" and not layout.package_name:
+        return (
+            "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
+            "- This repository keeps its modules at the top level, with no package. Put new "
+            "modules at `<module>.py` in the repository root and import them as "
+            "`from <module> import ...`.\n"
+            f"- Put tests under `{layout.tests_dir}/` as `{layout.tests_dir}/test_<name>.py`.\n"
+            "- Do NOT create a package directory, a `src/` tree or a new `pyproject.toml`.\n\n"
+        )
     return (
         "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"
         f"- Source package is `{layout.package_name}` under `{layout.source_dir}/`. "

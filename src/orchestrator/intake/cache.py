@@ -50,6 +50,9 @@ from orchestrator.intake.specs import FeatureSpec
 
 logger = logging.getLogger("orchestrator.intake.cache")
 
+#: The key an entry's source fingerprint is kept under (see :func:`source_fingerprint`).
+_FINGERPRINT = "source_fingerprint"
+
 # Bump when the serialized shape changes so stale files are ignored, not crashed on.
 #
 # 2: `SourceDocument.issue_type`. A new optional field would not *crash* a v1 read — it
@@ -120,6 +123,53 @@ def _plan_from_dict(data: dict[str, Any]) -> BacklogPlan:
         blocked=bool(data.get("blocked", False)),
         truncated=bool(data.get("truncated", False)),
     )
+
+
+#: How many files of a ``file://`` *directory* source are hashed. A ticket folder holds a handful;
+#: a mistaken root that holds a whole tree should cost a bounded read, not a full one.
+_MAX_FINGERPRINT_FILES = 500
+
+
+def source_fingerprint(source_uri: str) -> str:
+    """A content hash of a local ``file://`` source, or ``""`` when there is none to take.
+
+    Why: a cache hit never re-read the source, so an edited ticket kept its first extraction
+    until someone passed ``--refresh`` — and a report tool that rewrites ``NSS-1243.md`` from
+    the tracker before every step was planning from whatever the file said the first time.
+    Only local files are hashed: fingerprinting a Jira or Confluence source would put a network
+    call on every hit, which is the cost the cache exists to avoid.
+    """
+    try:
+        kind, root_id = parse_source_uri(source_uri)
+    except ValueError:
+        return ""
+    if kind != "file":
+        return ""
+    root = Path(root_id)
+    digest = hashlib.sha256()
+    try:
+        if root.is_file():
+            digest.update(root.read_bytes())
+        elif root.is_dir():
+            files = sorted(p for p in root.rglob("*") if p.is_file())[:_MAX_FINGERPRINT_FILES]
+            for f in files:
+                digest.update(f.relative_to(root).as_posix().encode("utf-8") + b"\0")
+                digest.update(f.read_bytes() + b"\0")
+        else:
+            return ""
+    except OSError:
+        return ""
+    return f"sha256:{digest.hexdigest()}"
+
+
+def cached_fingerprint(source_uri: str, cache_dir: Path | None = None, *, variant: str = "") -> str | None:
+    """The fingerprint a cached entry was extracted from: ``None`` with no entry, ``""`` when the
+    entry predates fingerprints (so whether the source changed since is unknown)."""
+    raw = _read_raw(cache_path(source_uri, cache_dir))
+    entry = (_variants_of(raw).get(variant) or {}) if variant else raw
+    if entry.get("version") != _CACHE_VERSION:
+        return None
+    return str(entry.get(_FINGERPRINT) or "")
 
 
 def _read_raw(path: Path) -> dict[str, Any]:
@@ -238,21 +288,31 @@ def load_cached_plan(
 
 
 def save_plan(
-    source_uri: str, plan: BacklogPlan, cache_dir: Path | None = None, *, variant: str = ""
+    source_uri: str,
+    plan: BacklogPlan,
+    cache_dir: Path | None = None,
+    *,
+    variant: str = "",
+    fingerprint: str = "",
 ) -> Path:
     path = cache_path(source_uri, cache_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
+    entry = _plan_to_dict(plan)
+    if fingerprint:
+        # An extra key, not a new `_CACHE_VERSION`: an older reader ignores it, and bumping the
+        # version would re-extract every ticket on each up/downgrade (see the module docstring).
+        entry[_FINGERPRINT] = fingerprint
     if variant:
         # Beside the top-level plan and its progress, never over them.
         raw = _read_raw(path)
         raw["source"] = source_uri
         raw.setdefault("progress", {})
         variants = _variants_of(raw)
-        variants[variant] = _plan_to_dict(plan)
+        variants[variant] = entry
         raw[_VARIANTS] = variants
         path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
         return path
-    payload = _plan_to_dict(plan)
+    payload = entry
     payload["source"] = source_uri
     # Carry progress forward across a --refresh re-extract: keep entries for
     # intents that still exist (deterministic ids map cleanly), drop the rest.
@@ -285,9 +345,11 @@ async def analyze_cached(
 ) -> BacklogPlan:
     """``service.analyze`` with a persistent cache keyed by ``source_uri``.
 
-    On a cache hit (and not ``refresh``) returns the stored plan without touching
-    the source or the LLM — so the intent set is identical run to run. On a miss
-    or ``refresh`` it extracts, persists, and returns the fresh plan.
+    On a cache hit (and not ``refresh``) returns the stored plan without calling the LLM — so
+    the intent set is identical run to run — unless the source is a local file whose content no
+    longer matches the fingerprint the entry was extracted from; then it re-extracts, and says
+    so. Remote sources are not re-read on a hit. On a miss or ``refresh`` it extracts,
+    persists (with the fingerprint), and returns the fresh plan.
 
     ``follow_links`` analyses the ticket *with* its linked Confluence pages, which is a different
     extraction, so it is its own entry (:data:`FOLLOW_LINKS`) — never the flag-off one.
@@ -299,16 +361,29 @@ async def analyze_cached(
     emit = log or (lambda _m: None)
     _, root_id = parse_source_uri(source_uri)
     variant = FOLLOW_LINKS if follow_links else ""
+    current = source_fingerprint(source_uri)
     if not refresh:
         cached = load_cached_plan(source_uri, cache_dir, variant=variant)
-        if cached is not None:
+        stored = cached_fingerprint(source_uri, cache_dir, variant=variant) if cached is not None else None
+        if cached is not None and current and stored and stored != current:
+            # The file is not what was extracted. Re-extract rather than plan an old ticket; the
+            # plan (and any approval of it) moves with the ticket, which is the point.
+            emit(f"[intake] {source_uri} changed since it was extracted — re-extracting")
+        elif cached is not None:
             emit(
                 f"[intake] reusing cached backlog: {len(cached.intents)} intents for {source_uri} "
                 f"({refresh_hint}) — {cache_path(source_uri, cache_dir)}"
             )
+            if current and stored == "":
+                # Cached before fingerprints existed. Not stamped now: the file may already
+                # differ from what was extracted, and a stamp would vouch for it.
+                emit(
+                    "[intake] note: this entry predates change detection, so an edit to the source "
+                    f"since it was cached is not noticed ({refresh_hint})"
+                )
             return cached
     plan = await (service.analyze(root_id, follow_links=True) if follow_links else service.analyze(root_id))
-    path = save_plan(source_uri, plan, cache_dir, variant=variant)
+    path = save_plan(source_uri, plan, cache_dir, variant=variant, fingerprint=current)
     emit(f"[intake] extracted + cached {len(plan.intents)} intents for {source_uri} — {path}")
     return plan
 
@@ -316,10 +391,12 @@ async def analyze_cached(
 __all__ = [
     "analyze_cached",
     "cache_path",
+    "cached_fingerprint",
     "complete_by_pr",
     "default_cache_dir",
     "load_cached_plan",
     "load_progress",
     "save_plan",
     "set_progress",
+    "source_fingerprint",
 ]

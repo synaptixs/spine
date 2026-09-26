@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Callable
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -53,7 +54,13 @@ _SYSTEM_PROMPT = (
     "identifiers the intent names (file paths, module/class/function names, "
     "env vars, endpoints) must be carried into the spec VERBATIM — codegen "
     "edits the exact files named; 'the statistics module' instead of "
-    "'src/orchestrator/pkg/stats.py' makes it guess."
+    "'src/orchestrator/pkg/stats.py' makes it guess.\n\n"
+    "GROUNDING: name no file, component, module, technology or unit the intent does not "
+    "name. When a REPOSITORY CONTEXT block is given it lists the repository's language(s) and "
+    "the real symbols matching the intent's words: prefer those names, and never propose a file "
+    "in a language the repository is not written in. When a term is ambiguous — an acronym the "
+    "code uses as an identifier versus a physical quantity, say — do not pick a meaning: write "
+    "the question into technical_notes and keep the criteria to what the intent states."
 )
 
 # The same contract as the prompt, as a tool the provider makes the model call.
@@ -138,6 +145,11 @@ class SpecWriter:
     def __init__(self, llm: LLMClient, *, model: str = "") -> None:
         self._llm = llm
         self._model = model or catalog.resolve("intake")
+        # Intent text → a REPOSITORY CONTEXT block, or "". Set by a caller that has a checkout
+        # (`sdlc plan`, `sdlc feature`); intake itself knows no repository. NSS-1243: with only
+        # the ticket to go on, the writer read "PSI" as pounds per square inch — the code uses it
+        # as an identifier (`PsiLocalId`) — and put a threshold "in oil_status.js" in a C# repo.
+        self.context_for: Callable[[str], str] | None = None
 
     async def write(self, intent: Intent) -> FeatureSpec:
         messages = [
@@ -180,6 +192,15 @@ class SpecWriter:
             lines.append(f"NFRs: {', '.join(intent.nfrs)}")
         if intent.open_questions:
             lines.append(f"Open questions (resolve in technical_notes): {'; '.join(intent.open_questions)}")
+        if self.context_for is not None:
+            try:
+                context = self.context_for(f"{intent.title}\n{intent.description}\n{intent.scope}")
+            except Exception:  # noqa: BLE001 — context is an aid; a spec without it is still a spec
+                logger.warning("intake.specs.context_failed", exc_info=True)
+                context = ""
+            if context:
+                lines.append("")
+                lines.append(context)
         return "\n".join(lines)
 
     def _parse(self, text: str, intent: Intent) -> FeatureSpec:

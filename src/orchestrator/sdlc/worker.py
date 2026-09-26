@@ -23,7 +23,6 @@ import logging
 import os
 import signal
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -45,7 +44,7 @@ from orchestrator.sdlc.preflight import SubprocessPreflightRunner
 from orchestrator.sdlc.review import ReviewAdapter, SemanticReviewAdapter, StubReviewAdapter
 from orchestrator.sdlc.testrunner import SubprocessTestRunner
 from orchestrator.sdlc.workflows import FeatureImplementationWorkflow, SDLCWorkflow
-from orchestrator.sdlc.workspace import WorkspaceManager
+from orchestrator.sdlc.workspace import WorkspaceManager, default_workspace_root
 from orchestrator.temporal.config import TemporalConfig, connect_client
 
 logger = logging.getLogger("orchestrator.sdlc.worker")
@@ -56,10 +55,6 @@ def _default_database_url() -> str:
         "ORCHESTRATOR_DATABASE_URL",
         "postgresql+psycopg://orchestrator:orchestrator@localhost:5433/orchestrator",
     )
-
-
-def _default_workspace_root() -> Path:
-    return Path(os.getenv("SDLC_WORKSPACE_ROOT", "/tmp/sdlc-workspaces"))
 
 
 def sdlc_task_queue() -> str:
@@ -205,7 +200,7 @@ def build_deps() -> SDLCDeps:
     codegen_is_llm = (os.getenv("SDLC_CODEGEN") or "stub").strip().lower() == "llm"
     return SDLCDeps(
         session_factory=factory,
-        workspace=WorkspaceManager(root=_default_workspace_root(), repo_url=repo_url),
+        workspace=WorkspaceManager(root=default_workspace_root(), repo_url=repo_url),
         # Real test execution by default — the generated tests are runnable.
         # Codegen is real when SDLC_CODEGEN=llm; CI is real when SDLC_CI=gha.
         codegen=_build_codegen(llm, memory_factory=factory, memory_repo_key=repo_url),

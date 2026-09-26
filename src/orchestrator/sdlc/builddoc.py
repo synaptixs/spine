@@ -518,11 +518,13 @@ def _confidence_block(
         ),
         (
             "Named paths",
-            True,
+            # The design's own keyword retrieval took its files *from* the graph, so finding
+            # them there is a tautology — NSS-1231 and NSS-1243 each scored a "+" on it.
+            not signals.get("same_reading"),
             not signals.get("unverified"),
             "every path the design names is in the graph",
             "the design names paths the graph has never seen",
-            "",
+            "the design's files came from the graph, so finding them there proves nothing",
         ),
         (
             "Context budget",
@@ -540,13 +542,43 @@ def _confidence_block(
         score += 1 if ok else 0
         rows.append(f"| {label} | {good if ok else bad} | {'+' if ok else '−'} |")
 
+    # Penalties, not evidence: their absence proves nothing about the analysis, so they count
+    # only when they fail. Scored both ways they diluted the band — a plan that established
+    # little read "medium" because nothing was *wrong* with its criteria.
+    for label, failed, bad in (
+        (
+            "Stated criteria",
+            not signals.get("stated_criteria"),
+            "none stated — every criterion in §8 was proposed by the spec writer",
+        ),
+        (
+            "Files the spec names",
+            bool(signals.get("named_elsewhere")),
+            "a file in another language that the repository does not have (see Validity)",
+        ),
+    ):
+        if failed:
+            possible += 1
+            rows.append(f"| {label} | {bad} | − |")
+
     band = "high" if score == possible else "medium" if score * 2 >= possible else "low"
+    # Where the change lands bounds everything else. With the location unknown, or known only
+    # from the plan's own keyword match, the remaining checks — the gate, the budget — are true
+    # of almost any ticket, and "high" on them alone was the band NSS-1231 and NSS-1243 got.
+    cap = ""
+    if signals.get("no_files"):
+        band, cap = "low", "the design proposes no files, so nothing says where this change lands"
+    elif signals.get("same_reading") and band == "high":
+        band = "medium"
+        cap = "no file was located independently — the design's files are this plan's own keyword retrieval"
     out = [
         f"**Is the analysis right? — {band}** ({score} of {possible} applicable checks "
         "positive). A band, not a percentage: nothing here measures correctness, only how "
         "much the plan managed to establish.\n",
-        "\n".join(rows) + "\n",
     ]
+    if cap:
+        out.append(f"**Capped at {band}:** {cap}.\n")
+    out.append("\n".join(rows) + "\n")
 
     runs = _measured_runs(journey)
     if runs:
@@ -1145,6 +1177,38 @@ def _file_rows(paths: list[str], root: Path) -> tuple[list[str], list[str], int]
     return changed, created, total
 
 
+def _named_absent_rows(spec: dict[str, Any], root: Path, language: str, listed: set[str]) -> list[str]:
+    """Rows for the files the spec names that are not in the repository.
+
+    They used to vanish: `design._stated_paths` drops a path that does not resolve, so NSS-1243's
+    "a constant in oil_status.js" appeared nowhere a reviewer would look. A missing file in the
+    run's language may be one to create; one in another language is flagged under Validity.
+    """
+    from orchestrator.sdlc.source_paths import basename_index, resolve
+    from orchestrator.sdlc.spec_context import LANGUAGE_OF_SUFFIX
+    from orchestrator.sdlc.validity import _RUN_LANGUAGES, _spec_text_all, named_files
+
+    rows: list[str] = []
+    index: dict[str, list[str]] | None = None
+    for rel in named_files(_spec_text_all(spec)):
+        if rel in listed:
+            continue
+        if "/" not in rel and index is None:
+            index = basename_index(root)
+        if resolve(rel, root, index=index):
+            continue
+        named_language = LANGUAGE_OF_SUFFIX.get(Path(rel).suffix.lower())
+        if named_language and named_language not in _RUN_LANGUAGES.get(language, frozenset({named_language})):
+            note = (
+                f"named by the spec, not in the repository — and {named_language}, "
+                f"not {language} (see Validity)"
+            )
+        else:
+            note = "named by the spec, not in the repository — a file to create, or a name to check"
+        rows.append(f"| `{rel}` | {note} |")
+    return rows
+
+
 # ---- the document ----------------------------------------------------------
 
 
@@ -1336,6 +1400,13 @@ def render_build_md(
         add("|---|---|")
         out.extend(created)
         add("")
+    absent = _named_absent_rows(spec, root, language, set(files))
+    if absent:
+        add("**Named but absent**\n")
+        add("| file | note |")
+        add("|---|---|")
+        out.extend(absent)
+        add("")
     if not changed and not created:
         add("_The design proposes no files. Locate the change before building._\n")
 
@@ -1387,6 +1458,11 @@ def render_build_md(
                 "unverified": bool(blast.get("unverified_references")),
                 "over_budget": carried > context_budget,
                 "untested": len((evidence or {}).get("uncovered") or []),
+                "stated_criteria": bool(spec.get("acceptance_criteria")),
+                "named_elsewhere": any(
+                    getattr(f, "check", "") == "named_path_other_language" for f in findings
+                ),
+                "no_files": not files,
             },
             journey=entries,
         )
@@ -1468,6 +1544,7 @@ async def build_plan(
         issue_type=issue_type,
         root=root_path,
         context_budget=_MAX_CONTEXT_BYTES,
+        language=language,
     )
     design = await produce_design(spec, overview=overview, store=store, llm=None, root=root_path)
     # llm=None keeps this whole path free of a model call. `build_rca` enriches with one

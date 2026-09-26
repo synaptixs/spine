@@ -757,3 +757,27 @@ dev = ["pytest>=8", {include-group = "base"}]
 def test_unreadable_pyproject_yields_no_deps(tmp_path: Path) -> None:
     root = _pyproject(tmp_path, "this is not valid toml [[[")
     assert _project_dependencies(root) == []
+
+
+async def test_dotnet_runner_leads_with_the_first_error_a_tail_would_cut(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """NSS-1243: the tail of a long build kept the cascade and dropped the cause."""
+    from orchestrator.sdlc.testrunner import DotnetTestRunner
+
+    cause = (
+        f"{tmp_path}/WebApp/A.cs(2,7): error CS1003: Syntax error, ',' expected [{tmp_path}/WebApp/W.csproj]"
+    )
+    cascade = [
+        f"{tmp_path}/WebApp/_Imports.razor({i},7): error CS0234: The namespace 'U{i}' does not exist"
+        for i in range(60)
+    ]
+    log = "\n".join([cause, *cascade, "Build FAILED.", cause, *cascade]).encode()
+
+    async def fake_exec(*a: object, **k: object) -> _FakeProc:
+        return _FakeProc(1, log)
+
+    monkeypatch.setattr("orchestrator.sdlc.testrunner.asyncio.create_subprocess_exec", fake_exec)
+    result = await DotnetTestRunner().run(path=str(tmp_path))
+
+    assert result.output.splitlines()[1].strip().startswith("WebApp/A.cs(2,7): error CS1003")

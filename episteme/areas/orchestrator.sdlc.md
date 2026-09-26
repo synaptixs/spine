@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.sdlc`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 57 modules — 136 types and 507 functions. It sits in the middle of the graph: 17 areas below it, 17 above. Changes here can reach both ways.
+**`orchestrator.sdlc`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 62 modules — 139 types and 551 functions. It sits in the middle of the graph: 17 areas below it, 17 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -48,6 +48,7 @@ _Showing 16 of 34 neighbouring areas._
 - [`orchestrator.sdlc.activities`](../../src/orchestrator/sdlc/activities.py#L1)
 - [`orchestrator.sdlc.android`](../../src/orchestrator/sdlc/android.py#L1)
 - [`orchestrator.sdlc.autorun`](../modules/orchestrator.sdlc.autorun.md)
+- [`orchestrator.sdlc.baseline`](../../src/orchestrator/sdlc/baseline.py#L1)
 - [`orchestrator.sdlc.brief`](../../src/orchestrator/sdlc/brief.py#L1)
 - [`orchestrator.sdlc.builddoc`](../modules/orchestrator.sdlc.builddoc.md)
 - [`orchestrator.sdlc.case`](../../src/orchestrator/sdlc/case.py#L1)
@@ -59,9 +60,11 @@ _Showing 16 of 34 neighbouring areas._
 - [`orchestrator.sdlc.contracts`](../../src/orchestrator/sdlc/contracts.py#L1)
 - [`orchestrator.sdlc.conventions`](../../src/orchestrator/sdlc/conventions.py#L1)
 - [`orchestrator.sdlc.coverage`](../../src/orchestrator/sdlc/coverage.py#L1)
+- [`orchestrator.sdlc.csharp_names`](../../src/orchestrator/sdlc/csharp_names.py#L1)
 - [`orchestrator.sdlc.deps`](../../src/orchestrator/sdlc/deps.py#L1)
 - [`orchestrator.sdlc.design`](../modules/orchestrator.sdlc.design.md)
 - [`orchestrator.sdlc.design_validator`](../../src/orchestrator/sdlc/design_validator.py#L1)
+- [`orchestrator.sdlc.diagnostics`](../../src/orchestrator/sdlc/diagnostics.py#L1)
 - [`orchestrator.sdlc.escalate`](../../src/orchestrator/sdlc/escalate.py#L1)
 - [`orchestrator.sdlc.escalation`](../../src/orchestrator/sdlc/escalation.py#L1)
 - [`orchestrator.sdlc.evidence`](../modules/orchestrator.sdlc.evidence.md)
@@ -88,8 +91,10 @@ _Showing 16 of 34 neighbouring areas._
 - [`orchestrator.sdlc.reviewloop`](../../src/orchestrator/sdlc/reviewloop.py#L1)
 - [`orchestrator.sdlc.run_control`](../../src/orchestrator/sdlc/run_control.py#L1)
 - [`orchestrator.sdlc.runstate`](../../src/orchestrator/sdlc/runstate.py#L1)
+- [`orchestrator.sdlc.sam`](../../src/orchestrator/sdlc/sam.py#L1)
 - [`orchestrator.sdlc.scaffold`](../modules/orchestrator.sdlc.scaffold.md)
 - [`orchestrator.sdlc.source_paths`](../../src/orchestrator/sdlc/source_paths.py#L1)
+- [`orchestrator.sdlc.spec_context`](../../src/orchestrator/sdlc/spec_context.py#L1)
 - [`orchestrator.sdlc.spec_file`](../../src/orchestrator/sdlc/spec_file.py#L1)
 - [`orchestrator.sdlc.sql_build`](../../src/orchestrator/sdlc/sql_build.py#L1)
 - [`orchestrator.sdlc.telemetry`](../../src/orchestrator/sdlc/telemetry.py#L1)

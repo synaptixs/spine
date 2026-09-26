@@ -29,6 +29,33 @@ credentials, defaults and optional switches. The sections below show how to use 
 
 ---
 
+## Build workspaces
+Every `sdlc feature` run (and the Temporal worker) clones its target once and branches a
+worktree per ticket from that clone. They live under `SDLC_WORKSPACE_ROOT`, default
+**`~/.cache/orchestrator/sdlc-workspaces`**:
+
+```
+<root>/_bases/<repo>-<hash>/        one base clone per repository + branch
+<root>/_bases/<repo>-<hash>.source  which source that base was built for (written last)
+<root>/_bases/<repo>-<hash>.lock    held while a run uses the base, across processes
+<root>/<run-id>/<ISSUE>/            the worktree a run builds in — kept for you to inspect
+```
+
+- **Keep it out of `/tmp`.** macOS deletes files there that have not been touched for three
+  days, one at a time; a base that loses `.git/HEAD` is not a repository. A base git can no
+  longer read is rebuilt automatically, and the run says so (`sdlc.workspace.base_unusable`).
+- **Deployments** set `SDLC_WORKSPACE_ROOT` to a directory only the service account can write,
+  so the shared parent cannot be pre-created by another user.
+- **A local `--repo` is cloned, not used in place.** Its uncommitted changes are not in the
+  build, and the run warns with the list before it starts. Commit or stash first.
+- **Two runs on the same repository wait for each other** (`waiting_for_lock`); runs on
+  different repositories do not.
+- **Housekeeping.** Worktrees are never deleted automatically. Remove old `<run-id>/`
+  directories when you no longer need them; the next run prunes git's records of them. Deleting
+  a `_bases/` entry is always safe — the next run clones it again.
+
+---
+
 ## Step 7 — The full pipeline + web dashboard
 
 Steps 3–6 build one requirement at a time from the terminal. When you want

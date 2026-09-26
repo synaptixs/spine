@@ -413,8 +413,9 @@ orchestrator sdlc feature --source confluence://<page_id> --safe
 - Pin one requirement with `--intent <intent-id>` if a page has several.
 
 > **Stable, tracked backlog.** The extracted intents are cached deterministically
-> (first run extracts; later runs reuse — no re-fetch, no LLM — until `--refresh`;
-> a spec planned with `--follow-links` is re-extracted only by `sdlc plan --refresh --follow-links`),
+> (first run extracts; later runs reuse — no re-fetch, no LLM — until `--refresh`, or until a
+> `file://` source's content changes, which re-extracts and says so; a spec planned with
+> `--follow-links` is re-extracted only by `sdlc plan --refresh --follow-links`),
 > so a pinned `--intent` is stable. Each run also writes a **`BACKLOG.md`** ledger:
 > `[ ]` todo, `[~]` in progress (a `--live` PR is open), `[x]` done (PR merged, via
 > `sdlc complete`). View/regenerate it anytime with
@@ -432,9 +433,23 @@ orchestrator sdlc feature --source confluence://<page_id> --safe
   with `tests/` and a pytest-ready `pyproject`, then generates into it. The first
   `--live` run lands this structure on the remote as part of the PR; later runs detect
   it and extend it.
-- **Existing codebase** → it **follows the repo's layout**, never scaffolding.
+- **Existing codebase** → it **follows the repo's layout**, never scaffolding. For Python
+  that means a package (`src/<pkg>/` or `<pkg>/`), an **AWS SAM** repository (the Lambda
+  function directory `template.yaml` names as `CodeUri` — the one holding a file the design
+  names, else the one with the most Python — with each function's `requirements.txt` and
+  `boto3` installed for its tests), or a repository of top-level modules. For C#, generated code
+  declares the project's own namespace (its `<RootNamespace>`, or what its files already declare).
+- If `--layout auto` finds Python it cannot place, it **stops** and says so rather than
+  scaffolding a new package beside it (exit 2).
 - Default is `--layout auto` (the above). Force it with `--layout new|existing`, and
   override the name with `--package-name <name>`.
+
+**Tests that were already failing** don't count against a run. Before generating code the
+runner runs the suite once and records what fails (`[baseline] …`); afterwards only new
+failures are sent to refine, and it is told which failures are not its to fix. A test file
+that cannot even be imported no longer stops the rest of the suite. `SDLC_TEST_BASELINE=0`
+skips the extra run; then a failure made only of old test files missing a dependency stops the
+run with that diagnosis instead of asking the model to edit code.
 
 As it runs it prints each stage, including `[layout] mode=… package=…` and
 `[grounding] target-KG context: N chars` — that's it reading the existing codebase so
@@ -480,6 +495,14 @@ only in what the plan does not show (such as estimates) leaves the approval stan
 approved intents of the ticket whose spec changed are named with the `sdlc plan` command that
 re-renders them — re-plan before approving. The cache is shared, so every checkout of the ticket
 plans from the new spec.
+
+**What the plan will not let pass quietly.** When `sdlc plan` extracts a spec it tells the AI
+what the repository is written in and which of its symbols the ticket's words match, and asks
+it to flag an ambiguous term rather than guess one. The validity line then reports — without
+refusing — a file the spec names that is not in the repository and is in another language
+(`oil_status.js` in a C# run), and a ticket whose criteria were all proposed by the AI; §7 lists
+every file the spec names that is absent. §12 caps its band: **medium** at most when the files
+came from the plan's own keyword match, **low** when it proposes no files.
 
 Committing `.spine/plans/` is up to you — Spine never counts an uncommitted plan as a change,
 so writing one leaves the tree clean and the knowledge-graph cache warm. **Don't commit between

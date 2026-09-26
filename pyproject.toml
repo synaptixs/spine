@@ -1,6 +1,6 @@
 [project]
 name = "synaptixs-spine"
-version = "3.49.0"
+version = "3.50.0"
 description = "Agent orchestration platform — planner, registry, runtime, verifier."
 readme = "README.md"
 license = { text = "MIT" }
@@ -288,14 +288,6 @@ ignore = [
 "src/orchestrator/registry/api/tasks.py" = ["S101"]
 "src/orchestrator/registry/api/workspace.py" = ["S101"]
 "src/orchestrator/runtime/graphs.py" = ["S101"]
-# `/tmp/sdlc-workspaces` is an env-overridable DEFAULT (SDLC_WORKSPACE_ROOT), and
-# each run lands in a `uuid4()` subdirectory, so the path an attacker would have to
-# predict isn't predictable. What S108 does still reach: the shared parent, which is
-# pre-createable as a symlink on a multi-tenant host. Deployments set the env var
-# (OPERATIONS.md). Left for the Phase 2 sdlc/ review rather than fixed blind —
-# see docs/specs/security-review-plan.md.
-"src/orchestrator/sdlc/feature_runner.py" = ["S108"]
-"src/orchestrator/sdlc/worker.py" = ["S108"]
 # Dev/live-testing helpers — not packaged (hatch ships src/orchestrator only), run
 # by hand against test accounts. Same two categories as above: asserts that narrow a
 # type, and an env-overridable workspace-root default.

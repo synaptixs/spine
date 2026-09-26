@@ -20,7 +20,7 @@ resolution is a documented future extension.
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -204,6 +204,11 @@ class BacklogService:
         self._tracker = tracker
         self._labels = issue_labels
         self._epic_issue_type = epic_issue_type
+
+    def set_spec_context(self, context_for: Callable[[str], str] | None) -> None:
+        """Give the spec writer a REPOSITORY CONTEXT source (intent text → block). See
+        ``SpecWriter.context_for``; the factory has no checkout, so the caller that does sets it."""
+        self._spec_writer.context_for = context_for
 
     @property
     def uses_the_extractor(self) -> bool:
