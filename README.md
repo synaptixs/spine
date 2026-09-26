@@ -78,7 +78,13 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.51.0 (current)** — `--layout auto` never scaffolds a second project beside code it cannot
+**3.51.1 (current)** — a sandbox fix. `run_python_analysis` on the local sandbox enforces its
+time limit twice, as wall-clock time and as a CPU-time limit, and a busy loop reaches both at
+once. When the CPU limit won, about one run in six, the tool raised `ProcessLookupError` or
+returned exit `-24` with an empty stderr. It now reports exit `124` and `timeout after Ns` either
+way, adding `of CPU time` when the CPU limit stopped it.
+
+**3.51.0** — `--layout auto` never scaffolds a second project beside code it cannot
 place, in any language but SQL. 3.50.0 stopped this for Python; C#, TypeScript, Java, Kotlin, Go, C
 and C++ now stop too, with exit 2 and the build file they looked for (no `.csproj`, no `go.mod`, …).
 A TypeScript, Go, C or C++ project below the root (`frontend/package.json`, `svc/go.mod`,
