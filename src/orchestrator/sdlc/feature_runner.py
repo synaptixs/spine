@@ -640,6 +640,33 @@ def _is_test_path(rel: str) -> bool:
     )
 
 
+#: What Spine itself writes into a checkout: plans and approvals, and the backlog ledger. Never
+#: committed by design, so never evidence that a clone is missing someone's work.
+_SPINE_WRITES = (".spine/", "BACKLOG.md")
+
+
+async def _uncommitted_in(repo: str | None) -> list[str]:
+    """Paths ``git status`` reports in ``repo`` when it is a local checkout; ``[]`` otherwise."""
+    if not repo or "://" in repo or not Path(repo).is_dir():
+        return []
+    proc = await asyncio.create_subprocess_exec(
+        "git",
+        "status",
+        "--porcelain",
+        "--untracked-files=normal",
+        cwd=repo,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    out, _ = await proc.communicate()
+    if proc.returncode != 0:
+        return []  # not a git checkout: nothing to compare a clone against
+    paths = [
+        line[3:].strip().strip('"') for line in out.decode("utf-8", "replace").splitlines() if line.strip()
+    ]
+    return [p for p in paths if not p.startswith(_SPINE_WRITES)]
+
+
 async def _git(path: Path, *args: str) -> bool:
     ok, _ = await _git_out(path, *args)
     return ok
@@ -970,6 +997,21 @@ async def run_feature(
             emit(f"[jira] worklog on {issue_key}: {total.total_tokens:,} tokens, {total.calls} call(s)")
         except (IssueTrackerError, OSError) as exc:
             emit(f"[jira] could not log run cost on {issue_key}: {exc}")
+
+    # 3a. A local checkout's uncommitted work is not in the build. The base is a clone, and a
+    # clone carries commits only — while `sdlc plan` read the working tree (NSS-1231's plan says
+    # `Derived at: 949a568c-dirty`). Said before the clone, so nobody reads a result built without
+    # their edits as a result built with them.
+    uncommitted = await _uncommitted_in(repo_url)
+    if uncommitted:
+        shown = ", ".join(uncommitted[:5]) + (
+            f" (+{len(uncommitted) - 5} more)" if len(uncommitted) > 5 else ""
+        )
+        emit(
+            f"[workspace] WARNING: {len(uncommitted)} uncommitted file(s) in {repo_url} are not in "
+            f"this build — it clones committed history only: {shown}. Commit or stash them if the "
+            "change depends on them."
+        )
 
     # 3. worktree branch off the real repo (or a scratch repo in safe/no-repo mode).
     sdlc_id = uuid.uuid4().hex[:16]

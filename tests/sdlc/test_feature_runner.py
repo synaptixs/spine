@@ -1983,3 +1983,71 @@ async def test_a_sam_repo_runs_without_a_scaffold(monkeypatch: pytest.MonkeyPatc
 
     assert created and getattr(created[0].layout, "framework", "") == "aws-sam"
     assert not (tmp_path / "pyproject.toml").exists()
+
+
+# ---- P10: a local checkout's uncommitted work is not in the build --------------------------------
+
+
+def _checkout(root: Path) -> Path:
+    import subprocess
+
+    repo = root / "checkout"
+    repo.mkdir()
+    git = ["git", "-c", "user.email=t@e", "-c", "user.name=t"]
+    subprocess.run([*git, "init", "-q"], cwd=repo, check=True)
+    (repo / "App.cs").write_text("class App {}\n")
+    subprocess.run([*git, "add", "."], cwd=repo, check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "base"], cwd=repo, check=True)
+    return repo
+
+
+async def test_uncommitted_work_in_a_local_repo_is_named(tmp_path: Path) -> None:
+    from orchestrator.sdlc.feature_runner import _uncommitted_in
+
+    repo = _checkout(tmp_path)
+    assert await _uncommitted_in(str(repo)) == []
+
+    (repo / "App.cs").write_text("class App { int x; }\n")
+    (repo / "New.cs").write_text("class New {}\n")
+    # What Spine writes itself is never evidence of missing work.
+    (repo / ".spine" / "plans").mkdir(parents=True)
+    (repo / ".spine" / "plans" / "x-build.md").write_text("plan\n")
+    (repo / "BACKLOG.md").write_text("backlog\n")
+
+    assert sorted(await _uncommitted_in(str(repo))) == ["App.cs", "New.cs"]
+
+
+@pytest.mark.parametrize("repo", [None, "", "https://github.com/acme/app.git", "git@github.com:acme/app.git"])
+async def test_a_remote_or_absent_repo_has_nothing_uncommitted(repo: str | None) -> None:
+    from orchestrator.sdlc.feature_runner import _uncommitted_in
+
+    assert await _uncommitted_in(repo) == []
+
+
+async def test_a_directory_that_is_not_a_checkout_is_not_warned_about(tmp_path: Path) -> None:
+    from orchestrator.sdlc.feature_runner import _uncommitted_in
+
+    (tmp_path / "plain").mkdir()
+    (tmp_path / "plain" / "x.cs").write_text("")
+    assert await _uncommitted_in(str(tmp_path / "plain")) == []
+
+
+async def test_the_run_warns_before_building_without_local_edits(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from orchestrator.sdlc import feature_runner as fr
+
+    worktree = tmp_path / "wt"
+    worktree.mkdir()
+    _install_pipeline(monkeypatch, worktree, runner=_PassingRunner)
+    monkeypatch.setattr(fr, "_files_no_test_exercises", lambda *a, **k: _aresult([]))
+    monkeypatch.setattr(fr, "_typecheck_the_change", lambda *a, **k: _aresult(""))
+    monkeypatch.setattr(fr, "_prove_the_tests_test_something", lambda *a, **k: _aresult(None))
+    repo = _checkout(tmp_path)
+    (repo / "Draft.cs").write_text("class Draft {}\n")
+    said: list[str] = []
+
+    await run_feature("file://./spec.md", intent_id="intent-a", repo=str(repo), max_refine=1, log=said.append)
+
+    [warning] = [line for line in said if "uncommitted file(s)" in line]
+    assert "Draft.cs" in warning and "clones committed history only" in warning
