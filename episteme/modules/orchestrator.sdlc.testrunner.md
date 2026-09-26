@@ -9,17 +9,17 @@
 
 ## Changing this safely
 
-**Tested by** (12): `tests.sdlc.test_android_codegen`, `tests.sdlc.test_codegen`, `tests.sdlc.test_go_integration`, `tests.sdlc.test_java_integration`, `tests.sdlc.test_kotlin_codegen`, `tests.sdlc.test_perl_codegen`, `tests.sdlc.test_perl_integration`, `tests.sdlc.test_php_codegen`, +4 more
+**Tested by** (13): `tests.sdlc.test_android_codegen`, `tests.sdlc.test_baseline`, `tests.sdlc.test_codegen`, `tests.sdlc.test_go_integration`, `tests.sdlc.test_java_integration`, `tests.sdlc.test_kotlin_codegen`, `tests.sdlc.test_perl_codegen`, `tests.sdlc.test_perl_integration`, +5 more
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
 - [`SubprocessTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L64) — reaches **13** symbols
-- [`_exec_capture`](../../src/orchestrator/sdlc/testrunner.py#L709) — reaches **10** symbols · **no test path visible**
+- [`_exec_capture`](../../src/orchestrator/sdlc/testrunner.py#L720) — reaches **10** symbols · **no test path visible**
 - [`pytest_available`](../../src/orchestrator/sdlc/testrunner.py#L47) — reaches **9** symbols
-- [`_clip`](../../src/orchestrator/sdlc/testrunner.py#L705) — reaches **6** symbols · **no test path visible**
-- [`_nearest_go_mod`](../../src/orchestrator/sdlc/testrunner.py#L692) — reaches **2** symbols · **no test path visible**
-- [`_nearest_gradle_module`](../../src/orchestrator/sdlc/testrunner.py#L679) — reaches **2** symbols
-- [`_discover_dotnet_target`](../../src/orchestrator/sdlc/testrunner.py#L717) — reaches **1** symbol · **no test path visible**
+- [`_clip`](../../src/orchestrator/sdlc/testrunner.py#L716) — reaches **6** symbols · **no test path visible**
+- [`_nearest_go_mod`](../../src/orchestrator/sdlc/testrunner.py#L703) — reaches **2** symbols · **no test path visible**
+- [`_nearest_gradle_module`](../../src/orchestrator/sdlc/testrunner.py#L690) — reaches **2** symbols
+- [`_discover_dotnet_target`](../../src/orchestrator/sdlc/testrunner.py#L728) — reaches **1** symbol · **no test path visible**
 - [`_timeout_from_env`](../../src/orchestrator/sdlc/testrunner.py#L39) — reaches **1** symbol · **no test path visible**
 
 _5 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
@@ -32,7 +32,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ### `CTestRunner`
 
-[`src/orchestrator/sdlc/testrunner.py:239`](../../src/orchestrator/sdlc/testrunner.py#L239)
+[`src/orchestrator/sdlc/testrunner.py:250`](../../src/orchestrator/sdlc/testrunner.py#L250)
 
 - **Called by** (0 production · 2 test): [`test_ctest_runner_passes_when_all_steps_succeed`](../../tests/sdlc/test_testenv.py#L455), [`test_ctest_runner_short_circuits_on_compile_error`](../../tests/sdlc/test_testenv.py#L471)
 - **Fields**: `_cmake`, `_ctest`, `_timeout`
@@ -40,7 +40,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ### `DotnetTestRunner`
 
-[`src/orchestrator/sdlc/testrunner.py:158`](../../src/orchestrator/sdlc/testrunner.py#L158)
+[`src/orchestrator/sdlc/testrunner.py:169`](../../src/orchestrator/sdlc/testrunner.py#L169)
 
 - **Called by** (0 production · 5 test): [`test_dotnet_runner_fails_and_captures_output`](../../tests/sdlc/test_testenv.py#L365), [`test_dotnet_runner_leads_with_the_first_error_a_tail_would_cut`](../../tests/sdlc/test_testenv.py#L762), [`test_dotnet_runner_no_target_runs_at_root`](../../tests/sdlc/test_testenv.py#L398), [`test_dotnet_runner_passes_on_zero_exit`](../../tests/sdlc/test_testenv.py#L354), [`test_dotnet_runner_targets_a_nested_solution`](../../tests/sdlc/test_testenv.py#L376)
 - **Fields**: `_dotnet`, `_timeout`
@@ -48,7 +48,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ### `GoTestRunner`
 
-[`src/orchestrator/sdlc/testrunner.py:441`](../../src/orchestrator/sdlc/testrunner.py#L441)
+[`src/orchestrator/sdlc/testrunner.py:452`](../../src/orchestrator/sdlc/testrunner.py#L452)
 
 - **Called by** (0 production · 7 test): [`test_go_build_and_test_pass_for_correct_code`](../../tests/sdlc/test_go_integration.py#L34), [`test_go_build_fails_for_compile_error`](../../tests/sdlc/test_go_integration.py#L58), [`test_go_runner_short_circuits_on_build_error`](../../tests/sdlc/test_testenv.py#L663), [`test_go_runner_tests_root_when_root_files_change`](../../tests/sdlc/test_testenv.py#L629), [`test_go_runner_tests_the_changed_submodule`](../../tests/sdlc/test_testenv.py#L645), [`test_go_test_fails_for_wrong_code`](../../tests/sdlc/test_go_integration.py#L46), [`test_scaffold_alone_is_green`](../../tests/sdlc/test_go_integration.py#L27)
 - **Fields**: `_go`, `_timeout`
@@ -56,7 +56,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ### `GradleTestRunner`
 
-[`src/orchestrator/sdlc/testrunner.py:491`](../../src/orchestrator/sdlc/testrunner.py#L491)
+[`src/orchestrator/sdlc/testrunner.py:502`](../../src/orchestrator/sdlc/testrunner.py#L502)
 
 - **Called by** (0 production · 5 test): [`test_a_brand_new_test_directory_is_still_attributed_to_its_module`](../../tests/sdlc/test_android_codegen.py#L369), [`test_a_resolved_variant_task_is_remembered`](../../tests/sdlc/test_android_codegen.py#L427), [`test_an_android_module_is_tested_with_its_variant_task`](../../tests/sdlc/test_android_codegen.py#L349), [`test_no_wrapper_and_no_gradle_fails_with_a_hint`](../../tests/sdlc/test_kotlin_codegen.py#L168), [`test_the_wrapper_is_preferred_over_gradle_on_path`](../../tests/sdlc/test_kotlin_codegen.py#L160)
 - **Fields**: `_gradle`, `_resolved`, `_timeout`
@@ -64,7 +64,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ### `MavenTestRunner`
 
-[`src/orchestrator/sdlc/testrunner.py:122`](../../src/orchestrator/sdlc/testrunner.py#L122)
+[`src/orchestrator/sdlc/testrunner.py:133`](../../src/orchestrator/sdlc/testrunner.py#L133)
 
 - **Called by** (0 production · 4 test): [`test_maven_build_fails_for_wrong_java`](../../tests/sdlc/test_java_integration.py#L50), [`test_maven_build_passes_for_correct_java`](../../tests/sdlc/test_java_integration.py#L34), [`test_maven_runner_fails_and_captures_output`](../../tests/sdlc/test_testenv.py#L206), [`test_maven_runner_passes_on_zero_exit`](../../tests/sdlc/test_testenv.py#L195)
 - **Fields**: `_mvn`, `_timeout`
@@ -72,7 +72,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ### `MesonTestRunner`
 
-[`src/orchestrator/sdlc/testrunner.py:270`](../../src/orchestrator/sdlc/testrunner.py#L270)
+[`src/orchestrator/sdlc/testrunner.py:281`](../../src/orchestrator/sdlc/testrunner.py#L281)
 
 - **Called by** (0 production · 2 test): [`test_meson_runner_configures_then_tests`](../../tests/sdlc/test_testenv.py#L522), [`test_meson_runner_fails_on_setup`](../../tests/sdlc/test_testenv.py#L537)
 - **Fields**: `_meson`, `_timeout`
@@ -80,7 +80,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ### `NodeTestRunner`
 
-[`src/orchestrator/sdlc/testrunner.py:205`](../../src/orchestrator/sdlc/testrunner.py#L205)
+[`src/orchestrator/sdlc/testrunner.py:216`](../../src/orchestrator/sdlc/testrunner.py#L216)
 
 - **Called by** (0 production · 4 test): [`test_node_runner_fails_and_captures_output`](../../tests/sdlc/test_testenv.py#L286), [`test_node_runner_passes_on_zero_exit`](../../tests/sdlc/test_testenv.py#L275), [`test_vitest_fails_for_wrong_ts`](../../tests/sdlc/test_typescript_integration.py#L51), [`test_vitest_passes_for_correct_ts`](../../tests/sdlc/test_typescript_integration.py#L43)
 - **Fields**: `_pm`, `_timeout`
@@ -88,7 +88,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ### `PhpUnitTestRunner`
 
-[`src/orchestrator/sdlc/testrunner.py:298`](../../src/orchestrator/sdlc/testrunner.py#L298)
+[`src/orchestrator/sdlc/testrunner.py:309`](../../src/orchestrator/sdlc/testrunner.py#L309)
 
 - **Called by** (0 production · 2 test): [`test_runner_lints_then_targets_each_changed_test`](../../tests/sdlc/test_php_codegen.py#L147), [`test_runner_never_false_green`](../../tests/sdlc/test_php_codegen.py#L186)
 - **Fields**: `_php`, `_phpunit`, `_timeout`
@@ -96,7 +96,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ### `PostgresSqlTestRunner`
 
-[`src/orchestrator/sdlc/testrunner.py:768`](../../src/orchestrator/sdlc/testrunner.py#L768)
+[`src/orchestrator/sdlc/testrunner.py:779`](../../src/orchestrator/sdlc/testrunner.py#L779)
 
 - **Called by** (0 production · 2 test): [`test_postgres_runner_applies_and_enforces_fks`](../../tests/sdlc/test_sql_build.py#L154), [`test_postgres_runner_is_graceful_without_toolchain`](../../tests/sdlc/test_sql_build.py#L129)
 - **Fields**: `_dialect`, `_timeout`
@@ -104,7 +104,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ### `ProveTestRunner`
 
-[`src/orchestrator/sdlc/testrunner.py:355`](../../src/orchestrator/sdlc/testrunner.py#L355)
+[`src/orchestrator/sdlc/testrunner.py:366`](../../src/orchestrator/sdlc/testrunner.py#L366)
 
 - **Called by** (0 production · 5 test): [`test_perl_real_green_red_and_clean_checkout`](../../tests/sdlc/test_perl_integration.py#L19), [`test_perl_real_nested_suite_cannot_hide_red`](../../tests/sdlc/test_perl_integration.py#L81), [`test_perl_runner_owning_then_whole_argv`](../../tests/sdlc/test_perl_codegen.py#L156), [`test_perl_runner_refuses_empty_suite`](../../tests/sdlc/test_perl_codegen.py#L171), [`test_perl_test_runner_honors_registered_preflight_failure`](../../tests/sdlc/test_perl_codegen.py#L275)
 - **Fields**: `_perl`, `_prove`, `_timeout`
@@ -112,7 +112,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ### `SqlTestRunner`
 
-[`src/orchestrator/sdlc/testrunner.py:734`](../../src/orchestrator/sdlc/testrunner.py#L734)
+[`src/orchestrator/sdlc/testrunner.py:745`](../../src/orchestrator/sdlc/testrunner.py#L745)
 
 - **Called by** (0 production · 3 test): [`test_sql_generate_validate_refine_loop`](../../tests/sdlc/test_codegen.py#L343), [`test_sql_runner_fails_on_broken_ddl`](../../tests/sdlc/test_sql_build.py#L106), [`test_sql_runner_passes_on_valid_migrations`](../../tests/sdlc/test_sql_build.py#L96)
 - **Fields**: `_dialect`
@@ -120,7 +120,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ### `StubTestRunner`
 
-[`src/orchestrator/sdlc/testrunner.py:821`](../../src/orchestrator/sdlc/testrunner.py#L821)
+[`src/orchestrator/sdlc/testrunner.py:832`](../../src/orchestrator/sdlc/testrunner.py#L832)
 
 - **Called by** (0 production · 2 test): [`test_stub_defaults_to_pass`](../../tests/sdlc/test_testrunner.py#L29), [`test_stub_scripts_outcomes_then_repeats_last`](../../tests/sdlc/test_testrunner.py#L17)
 - **Fields**: `_calls`, `_outcomes`
@@ -130,56 +130,56 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:64`](../../src/orchestrator/sdlc/testrunner.py#L64)
 
-- **Called by** (3 production · 9 test): [`_agentic_tools`](../../src/orchestrator/sdlc/codegen.py#L1203), [`build_codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L58), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L181), [`test_a_garbage_timeout_falls_back_to_the_default`](../../tests/sdlc/test_testrunner.py#L74), [`test_an_explicit_timeout_still_wins`](../../tests/sdlc/test_testrunner.py#L79), [`test_implement_then_author_tests_runs_green`](../../tests/sdlc/test_codegen.py#L119), [`test_python_suite_gets_the_same_budget_as_every_other_language`](../../tests/sdlc/test_testrunner.py#L63), [`test_refine_fixes_a_failing_test`](../../tests/sdlc/test_codegen.py#L147), [`test_subprocess_runner_fails_on_red_test`](../../tests/sdlc/test_testrunner.py#L46), [`test_subprocess_runner_passes_on_green_test`](../../tests/sdlc/test_testrunner.py#L39), [`test_subprocess_runner_treats_no_tests_as_failure`](../../tests/sdlc/test_testrunner.py#L54), [`test_timeout_is_overridable_for_a_slow_suite`](../../tests/sdlc/test_testrunner.py#L69)
-- **Fields**: `_python`, `_timeout`
+- **Called by** (3 production · 12 test): [`_agentic_tools`](../../src/orchestrator/sdlc/codegen.py#L1203), [`build_codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L58), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L181), [`test_a_garbage_timeout_falls_back_to_the_default`](../../tests/sdlc/test_testrunner.py#L74), [`test_a_new_failure_still_fails_and_refine_is_told_which_are_not_its`](../../tests/sdlc/test_baseline.py#L99), [`test_an_explicit_timeout_still_wins`](../../tests/sdlc/test_testrunner.py#L79), [`test_implement_then_author_tests_runs_green`](../../tests/sdlc/test_codegen.py#L119), [`test_one_unimportable_file_no_longer_stops_the_suite`](../../tests/sdlc/test_baseline.py#L70), [`test_python_suite_gets_the_same_budget_as_every_other_language`](../../tests/sdlc/test_testrunner.py#L63), [`test_refine_fixes_a_failing_test`](../../tests/sdlc/test_codegen.py#L147), [`test_subprocess_runner_fails_on_red_test`](../../tests/sdlc/test_testrunner.py#L46), [`test_subprocess_runner_passes_on_green_test`](../../tests/sdlc/test_testrunner.py#L39), [`test_subprocess_runner_treats_no_tests_as_failure`](../../tests/sdlc/test_testrunner.py#L54), [`test_the_baseline_passes_a_change_that_adds_only_passing_tests`](../../tests/sdlc/test_baseline.py#L82), [`test_timeout_is_overridable_for_a_slow_suite`](../../tests/sdlc/test_testrunner.py#L69)
+- **Fields**: `_python`, `_timeout`, `names_problems`
 - **Documented in**: `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout`, `docs/specs/archive/BLOCK-C-DESIGN.md#5-child-featureimplementationworkflow`, `docs/specs/archive/BLOCK-C-DESIGN.md#5a-adapter-seams-the-block-d-plug-points`, `docs/specs/phase5-agentic-codegen-loop.md#3-the-in-loop-tool-surface`, `docs/specs/sandboxed-test-execution.md#problem-root-cause`, `docs/specs/sdlc-target-layout-scaffold.md#5-pytest-runtime-gap-bundled`
 
 ## Functions
 
 ### `_clip`
 
-[`src/orchestrator/sdlc/testrunner.py:705`](../../src/orchestrator/sdlc/testrunner.py#L705)
+[`src/orchestrator/sdlc/testrunner.py:716`](../../src/orchestrator/sdlc/testrunner.py#L716)
 
-- **Called by** (6): [`run`](../../src/orchestrator/sdlc/testrunner.py#L254), [`run`](../../src/orchestrator/sdlc/testrunner.py#L457), [`run`](../../src/orchestrator/sdlc/testrunner.py#L529), [`run`](../../src/orchestrator/sdlc/testrunner.py#L284), [`run`](../../src/orchestrator/sdlc/testrunner.py#L306), [`run`](../../src/orchestrator/sdlc/testrunner.py#L363)
+- **Called by** (6): [`run`](../../src/orchestrator/sdlc/testrunner.py#L265), [`run`](../../src/orchestrator/sdlc/testrunner.py#L468), [`run`](../../src/orchestrator/sdlc/testrunner.py#L540), [`run`](../../src/orchestrator/sdlc/testrunner.py#L295), [`run`](../../src/orchestrator/sdlc/testrunner.py#L317), [`run`](../../src/orchestrator/sdlc/testrunner.py#L374)
 - **Documented in**: `docs/specs/go-support-roadmap.md#why-go-now-and-why-it-is-cheaper-than-cc`, `docs/specs/kotlin-support-roadmap.md#93-gradletestrunner-gradle-aware-javatoolenvironment-the-jvm-codegen-gap`, `docs/specs/perl-codegen-roadmap.md#0-decisions-surfaced-up-front`, `docs/specs/perl-codegen-roadmap.md#53-the-build-then-test-runner-template-shared-exists`
 
 ### `_discover_dotnet_target`
 
-[`src/orchestrator/sdlc/testrunner.py:717`](../../src/orchestrator/sdlc/testrunner.py#L717)
+[`src/orchestrator/sdlc/testrunner.py:728`](../../src/orchestrator/sdlc/testrunner.py#L728)
 
-- **Called by** (1): [`run`](../../src/orchestrator/sdlc/testrunner.py#L172)
+- **Called by** (1): [`run`](../../src/orchestrator/sdlc/testrunner.py#L183)
 
 ### `_exec_capture`
 
-[`src/orchestrator/sdlc/testrunner.py:709`](../../src/orchestrator/sdlc/testrunner.py#L709)
+[`src/orchestrator/sdlc/testrunner.py:720`](../../src/orchestrator/sdlc/testrunner.py#L720)
 
-- **Called by** (10): [`_changed_module_tasks`](../../src/orchestrator/sdlc/testrunner.py#L582), [`_changed_modules`](../../src/orchestrator/sdlc/testrunner.py#L469), [`ensure`](../../src/orchestrator/sdlc/testenv.py#L497), [`ensure`](../../src/orchestrator/sdlc/testenv.py#L381), [`run`](../../src/orchestrator/sdlc/testrunner.py#L254), [`run`](../../src/orchestrator/sdlc/testrunner.py#L457), [`run`](../../src/orchestrator/sdlc/testrunner.py#L529), [`run`](../../src/orchestrator/sdlc/testrunner.py#L284), [`run`](../../src/orchestrator/sdlc/testrunner.py#L306), [`run`](../../src/orchestrator/sdlc/testrunner.py#L363)
+- **Called by** (10): [`_changed_module_tasks`](../../src/orchestrator/sdlc/testrunner.py#L593), [`_changed_modules`](../../src/orchestrator/sdlc/testrunner.py#L480), [`ensure`](../../src/orchestrator/sdlc/testenv.py#L498), [`ensure`](../../src/orchestrator/sdlc/testenv.py#L382), [`run`](../../src/orchestrator/sdlc/testrunner.py#L265), [`run`](../../src/orchestrator/sdlc/testrunner.py#L468), [`run`](../../src/orchestrator/sdlc/testrunner.py#L540), [`run`](../../src/orchestrator/sdlc/testrunner.py#L295), [`run`](../../src/orchestrator/sdlc/testrunner.py#L317), [`run`](../../src/orchestrator/sdlc/testrunner.py#L374)
 - **Calls** (1): [`exec_capture`](../../src/orchestrator/sdlc/process.py#L33)
 
 ### `_nearest_go_mod`
 
-[`src/orchestrator/sdlc/testrunner.py:692`](../../src/orchestrator/sdlc/testrunner.py#L692)
+[`src/orchestrator/sdlc/testrunner.py:703`](../../src/orchestrator/sdlc/testrunner.py#L703)
 
-- **Called by** (1): [`_changed_modules`](../../src/orchestrator/sdlc/testrunner.py#L469)
+- **Called by** (1): [`_changed_modules`](../../src/orchestrator/sdlc/testrunner.py#L480)
 
 ### `_nearest_gradle_module`
 
-[`src/orchestrator/sdlc/testrunner.py:679`](../../src/orchestrator/sdlc/testrunner.py#L679)
+[`src/orchestrator/sdlc/testrunner.py:690`](../../src/orchestrator/sdlc/testrunner.py#L690)
 
-- **Called by** (1 production · 1 test): [`_changed_module_tasks`](../../src/orchestrator/sdlc/testrunner.py#L582), [`test_changed_files_select_their_owning_module`](../../tests/sdlc/test_kotlin_codegen.py#L200)
+- **Called by** (1 production · 1 test): [`_changed_module_tasks`](../../src/orchestrator/sdlc/testrunner.py#L593), [`test_changed_files_select_their_owning_module`](../../tests/sdlc/test_kotlin_codegen.py#L200)
 
 ### `_timeout_from_env`
 
 [`src/orchestrator/sdlc/testrunner.py:39`](../../src/orchestrator/sdlc/testrunner.py#L39)
 
-- **Called by** (1): [`__init__`](../../src/orchestrator/sdlc/testrunner.py#L71)
+- **Called by** (1): [`__init__`](../../src/orchestrator/sdlc/testrunner.py#L74)
 - **Calls** (1): `getenv`
 
 ### `_variant_tasks`
 
-[`src/orchestrator/sdlc/testrunner.py:633`](../../src/orchestrator/sdlc/testrunner.py#L633)
+[`src/orchestrator/sdlc/testrunner.py:644`](../../src/orchestrator/sdlc/testrunner.py#L644)
 
-- **Called by** (1 production · 5 test): [`run`](../../src/orchestrator/sdlc/testrunner.py#L529), [`test_a_debug_variant_is_preferred_over_release`](../../tests/sdlc/test_android_codegen.py#L416), [`test_a_failing_test_is_not_mistaken_for_a_missing_task`](../../tests/sdlc/test_android_codegen.py#L409), [`test_gradle_ambiguity_is_resolved_from_its_own_candidate_list`](../../tests/sdlc/test_android_codegen.py#L389), [`test_only_the_task_gradle_complained_about_is_rewritten`](../../tests/sdlc/test_android_codegen.py#L400), [`test_the_other_spelling_of_the_same_failure_is_understood`](../../tests/sdlc/test_android_codegen.py#L396)
+- **Called by** (1 production · 5 test): [`run`](../../src/orchestrator/sdlc/testrunner.py#L540), [`test_a_debug_variant_is_preferred_over_release`](../../tests/sdlc/test_android_codegen.py#L416), [`test_a_failing_test_is_not_mistaken_for_a_missing_task`](../../tests/sdlc/test_android_codegen.py#L409), [`test_gradle_ambiguity_is_resolved_from_its_own_candidate_list`](../../tests/sdlc/test_android_codegen.py#L389), [`test_only_the_task_gradle_complained_about_is_rewritten`](../../tests/sdlc/test_android_codegen.py#L400), [`test_the_other_spelling_of_the_same_failure_is_understood`](../../tests/sdlc/test_android_codegen.py#L396)
 
 ### `pytest_available`
 
@@ -195,4 +195,4 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 ## Imported by
 
-[`orchestrator.agentic.codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L1), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.deps`](../../src/orchestrator/sdlc/deps.py#L1), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.testenv`](orchestrator.sdlc.testenv.md), [`orchestrator.sdlc.worker`](../../src/orchestrator/sdlc/worker.py#L1), [`tests.sdlc.test_android_codegen`](../../tests/sdlc/test_android_codegen.py#L1), [`tests.sdlc.test_codegen`](../../tests/sdlc/test_codegen.py#L1), [`tests.sdlc.test_go_integration`](../../tests/sdlc/test_go_integration.py#L1), [`tests.sdlc.test_java_integration`](../../tests/sdlc/test_java_integration.py#L1), [`tests.sdlc.test_kotlin_codegen`](../../tests/sdlc/test_kotlin_codegen.py#L1), [`tests.sdlc.test_perl_codegen`](../../tests/sdlc/test_perl_codegen.py#L1), [`tests.sdlc.test_perl_integration`](../../tests/sdlc/test_perl_integration.py#L1), [`tests.sdlc.test_php_codegen`](../../tests/sdlc/test_php_codegen.py#L1), [`tests.sdlc.test_sql_build`](../../tests/sdlc/test_sql_build.py#L1), [`tests.sdlc.test_testenv`](../../tests/sdlc/test_testenv.py#L1), [`tests.sdlc.test_testrunner`](../../tests/sdlc/test_testrunner.py#L1), [`tests.sdlc.test_typescript_integration`](../../tests/sdlc/test_typescript_integration.py#L1)
+[`orchestrator.agentic.codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L1), [`orchestrator.sdlc.codegen`](orchestrator.sdlc.codegen.md), [`orchestrator.sdlc.deps`](../../src/orchestrator/sdlc/deps.py#L1), [`orchestrator.sdlc.feature_runner`](orchestrator.sdlc.feature_runner.md), [`orchestrator.sdlc.testenv`](orchestrator.sdlc.testenv.md), [`orchestrator.sdlc.worker`](../../src/orchestrator/sdlc/worker.py#L1), [`tests.sdlc.test_android_codegen`](../../tests/sdlc/test_android_codegen.py#L1), [`tests.sdlc.test_baseline`](../../tests/sdlc/test_baseline.py#L1), [`tests.sdlc.test_codegen`](../../tests/sdlc/test_codegen.py#L1), [`tests.sdlc.test_go_integration`](../../tests/sdlc/test_go_integration.py#L1), [`tests.sdlc.test_java_integration`](../../tests/sdlc/test_java_integration.py#L1), [`tests.sdlc.test_kotlin_codegen`](../../tests/sdlc/test_kotlin_codegen.py#L1), [`tests.sdlc.test_perl_codegen`](../../tests/sdlc/test_perl_codegen.py#L1), [`tests.sdlc.test_perl_integration`](../../tests/sdlc/test_perl_integration.py#L1), [`tests.sdlc.test_php_codegen`](../../tests/sdlc/test_php_codegen.py#L1), [`tests.sdlc.test_sql_build`](../../tests/sdlc/test_sql_build.py#L1), [`tests.sdlc.test_testenv`](../../tests/sdlc/test_testenv.py#L1), [`tests.sdlc.test_testrunner`](../../tests/sdlc/test_testrunner.py#L1), [`tests.sdlc.test_typescript_integration`](../../tests/sdlc/test_typescript_integration.py#L1)
