@@ -25,6 +25,7 @@ import contextlib
 import logging
 import os
 import resource
+import signal
 import sys
 import tempfile
 import textwrap
@@ -128,17 +129,21 @@ class LocalSubprocessSandbox:
                 )
                 exit_code = process.returncode or 0
             except TimeoutError:
-                process.kill()
+                # A busy loop spends CPU seconds as fast as wall seconds, so `RLIMIT_CPU` can end
+                # the child in the instant before this runs; it has then already been reaped.
+                with contextlib.suppress(ProcessLookupError):
+                    process.kill()
                 await process.wait()
-                elapsed_ms = (time.perf_counter() - start) * 1000.0
-                return SandboxResult(
-                    stdout="",
-                    stderr=f"timeout after {time_limit_seconds}s",
-                    exit_code=124,
-                    elapsed_ms=round(elapsed_ms, 3),
-                    backend=self.name,
-                    truncated=False,
-                )
+                return self._timed_out(start, time_limit_seconds)
+
+            # The CPU limit enforces the same contract as the wall clock and can win the race to
+            # it. Report it the same way: an exit of -24 and an empty stderr told the caller
+            # nothing about why their code stopped. SIGXCPU has no other sender; SIGKILL does
+            # (the OOM killer), so it counts only once the time limit has actually passed.
+            if exit_code == -signal.SIGXCPU or (
+                exit_code == -signal.SIGKILL and time.perf_counter() - start >= time_limit_seconds
+            ):
+                return self._timed_out(start, time_limit_seconds, cpu=True)
 
             elapsed_ms = (time.perf_counter() - start) * 1000.0
             stdout, stderr, truncated = _bound_output(stdout_bytes, stderr_bytes, max_output_bytes)
@@ -150,6 +155,17 @@ class LocalSubprocessSandbox:
                 backend=self.name,
                 truncated=truncated,
             )
+
+    def _timed_out(self, start: float, time_limit_seconds: int, *, cpu: bool = False) -> SandboxResult:
+        elapsed_ms = (time.perf_counter() - start) * 1000.0
+        return SandboxResult(
+            stdout="",
+            stderr=f"timeout after {time_limit_seconds}s" + (" of CPU time" if cpu else ""),
+            exit_code=124,
+            elapsed_ms=round(elapsed_ms, 3),
+            backend=self.name,
+            truncated=False,
+        )
 
 
 class E2BSandbox:
