@@ -54,6 +54,62 @@ async def test_local_sandbox_times_out_long_running_code() -> None:
     assert "timeout" in out["stderr"].lower()
 
 
+# A busy loop spends CPU seconds as fast as wall seconds, so `RLIMIT_CPU` and the wall-clock
+# timeout expire together and either can win. The test above failed about one run in six on
+# whichever lost; these pin each outcome instead of hoping for one.
+
+
+async def test_the_cpu_limit_winning_the_race_still_reads_as_a_timeout() -> None:
+    """SIGXCPU before the wall clock used to return exit -24 with an empty stderr."""
+    handler = RunPythonAnalysisHandler(sandbox=LocalSubprocessSandbox())
+    out = await handler(
+        {"code": "import os, signal\nos.kill(os.getpid(), signal.SIGXCPU)", "time_limit_seconds": 5},
+        _ctx(),
+    )
+    assert out["exit_code"] == 124
+    assert "timeout" in out["stderr"] and "CPU time" in out["stderr"]
+
+
+async def test_a_child_already_gone_when_the_timeout_fires_is_not_an_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The CPU limit reaped the child a moment before `kill()`: that raised ProcessLookupError."""
+    import asyncio
+
+    class _Gone:
+        returncode = -24
+
+        async def communicate(self) -> tuple[bytes, bytes]:
+            raise TimeoutError  # what `wait_for` raises when the limit expires
+
+        def kill(self) -> None:
+            raise ProcessLookupError
+
+        async def wait(self) -> int:
+            return -24
+
+    async def _spawn(*a: object, **k: object) -> _Gone:
+        return _Gone()
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", _spawn)
+    out = await RunPythonAnalysisHandler(sandbox=LocalSubprocessSandbox())(
+        {"code": "while True:\n    pass", "time_limit_seconds": 1}, _ctx()
+    )
+    assert out["exit_code"] == 124
+    assert "timeout" in out["stderr"]
+
+
+async def test_a_sigkill_before_the_time_limit_is_not_called_a_timeout() -> None:
+    """SIGKILL has other senders (the OOM killer); it is a timeout only once the limit passed."""
+    handler = RunPythonAnalysisHandler(sandbox=LocalSubprocessSandbox())
+    out = await handler(
+        {"code": "import os, signal\nos.kill(os.getpid(), signal.SIGKILL)", "time_limit_seconds": 5},
+        _ctx(),
+    )
+    assert out["exit_code"] == -9
+    assert "timeout" not in out["stderr"]
+
+
 async def test_empty_code_rejected() -> None:
     handler = RunPythonAnalysisHandler(sandbox=LocalSubprocessSandbox())
     with pytest.raises(ValueError, match="non-empty"):
