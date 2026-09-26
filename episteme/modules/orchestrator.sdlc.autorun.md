@@ -112,7 +112,7 @@
 [`src/orchestrator/sdlc/autorun.py:567`](../../src/orchestrator/sdlc/autorun.py#L567)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L260)
-- **Calls** (3): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L59), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1586), [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L478)
+- **Calls** (3): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L59), [`require_approved_plan`](../../src/orchestrator/sdlc/builddoc.py#L1592), [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L490)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#8-blast-radius-measured-from-the-pkg-per-registration-site`, `docs/specs/perl-support-roadmap.md#7-blast-radius-measured-from-the-pkg-per-registration-site`
 
 ### `_research_pass`
@@ -178,14 +178,14 @@
 [`src/orchestrator/sdlc/autorun.py:1252`](../../src/orchestrator/sdlc/autorun.py#L1252)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L260)
-- **Calls** (9): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L59), [`LoopResult`](../../src/orchestrator/sdlc/reviewloop.py#L76), [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L701), [`_discard_review_edits`](../../src/orchestrator/sdlc/autorun.py#L1350), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L536), [`commit_worktree`](../../src/orchestrator/sdlc/feature_runner.py#L1416), `nullcontext`, `pathlib.Path`, [`review_and_fix`](../../src/orchestrator/sdlc/reviewloop.py#L170)
+- **Calls** (9): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L59), [`LoopResult`](../../src/orchestrator/sdlc/reviewloop.py#L76), [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L701), [`_discard_review_edits`](../../src/orchestrator/sdlc/autorun.py#L1350), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L536), [`commit_worktree`](../../src/orchestrator/sdlc/feature_runner.py#L1412), `nullcontext`, `pathlib.Path`, [`review_and_fix`](../../src/orchestrator/sdlc/reviewloop.py#L170)
 
 ### `_stage_validity`
 
 [`src/orchestrator/sdlc/autorun.py:1026`](../../src/orchestrator/sdlc/autorun.py#L1026)
 
 - **Called by** (2): [`_run`](../../scripts/phase2a_parity_gate.py#L88), [`autorun`](../../src/orchestrator/sdlc/autorun.py#L260)
-- **Calls** (5): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L59), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L768), [`assess`](../../src/orchestrator/sdlc/validity.py#L599), [`digest_of`](../../src/orchestrator/core/digest.py#L46), `monotonic`
+- **Calls** (5): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L59), [`_imperative`](../../src/orchestrator/sdlc/autorun.py#L768), [`assess`](../../src/orchestrator/sdlc/validity.py#L636), [`digest_of`](../../src/orchestrator/core/digest.py#L46), `monotonic`
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#phase-1-the-tool-node-type-the-evidence-artifact-and-the-sdlc-ir-in-shadow`, `docs/specs/graphir-sdlc-workflow.md#the-hybrid-split-facts-fix-the-frame-the-model-fills-it`
 
 ### `_write_case`

@@ -30,7 +30,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **Node** | [`Node`](../src/orchestrator/pkg/facts.py#L128) | `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class` |
 | **NodeKind** | [`NodeKind`](../src/orchestrator/pkg/facts.py#L38) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-ab-harness.txt` |
 | **PlannerError** | [`PlannerError`](../src/orchestrator/planner/v0.py#L38) | — |
-| **PreflightResult** | [`PreflightResult`](../src/orchestrator/sdlc/contracts.py#L84) | `docs/evidence/perl-codegen-c5-validation.txt` |
+| **PreflightResult** | [`PreflightResult`](../src/orchestrator/sdlc/contracts.py#L86) | `docs/evidence/perl-codegen-c5-validation.txt` |
 | **Provenance** | [`Provenance`](../src/orchestrator/pkg/facts.py#L88) | — |
 | **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L186) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#8-outstanding-everything-else` |
 | **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L84) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
@@ -41,7 +41,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **SDLCWorkflow** | [`SDLCWorkflow`](../src/orchestrator/sdlc/workflows.py#L475) | `CLI_REFERENCE.md`, `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new` |
 | **SourceDocument** | [`SourceDocument`](../src/orchestrator/intake/source.py#L35) | `CHANGELOG.md`, `docs/specs/capability-recommendations-kg-grounded.md#c10-generalized-mcp-backed-sources-confluence-jira-any-source-effort-m-enhancement` |
 | **TargetLayout** | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L70) | `docs/evidence/perl-codegen-c0-php-conventions.txt`, `docs/specs/java-codegen.md#feature-runner` |
-| **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/contracts.py#L25) | `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/java-codegen.md#test-runner-env` |
+| **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/contracts.py#L27) | `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/java-codegen.md#test-runner-env` |
 | **TypeIndex** | [`TypeIndex`](../src/orchestrator/pkg/typed_receivers.py#L241) | — |
 | **VerifierFailure** | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | — |
 | **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L112) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#6-how-spine-is-adopted-without-entering-anyones-build-image` |
