@@ -149,7 +149,7 @@
 [`src/orchestrator/sdlc/autorun.py:1159`](../../src/orchestrator/sdlc/autorun.py#L1159)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L260)
-- **Calls** (6): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L59), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L536), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L327), `nullcontext`, `pathlib.Path`, [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L739)
+- **Calls** (6): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L59), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L536), [`design_disagreement`](../../src/orchestrator/sdlc/builddoc.py#L327), `nullcontext`, `pathlib.Path`, [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L766)
 - **Documented in**: `docs/specs/recorded-intent-tier.md#41-what-phases-2-and-3-look-like-in-practice`
 
 ### `_stage_intake`
@@ -178,7 +178,7 @@
 [`src/orchestrator/sdlc/autorun.py:1252`](../../src/orchestrator/sdlc/autorun.py#L1252)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L260)
-- **Calls** (9): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L59), [`LoopResult`](../../src/orchestrator/sdlc/reviewloop.py#L76), [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L674), [`_discard_review_edits`](../../src/orchestrator/sdlc/autorun.py#L1350), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L536), [`commit_worktree`](../../src/orchestrator/sdlc/feature_runner.py#L1374), `nullcontext`, `pathlib.Path`, [`review_and_fix`](../../src/orchestrator/sdlc/reviewloop.py#L170)
+- **Calls** (9): [`AutorunError`](../../src/orchestrator/sdlc/autorun.py#L59), [`LoopResult`](../../src/orchestrator/sdlc/reviewloop.py#L76), [`_changed_files`](../../src/orchestrator/sdlc/feature_runner.py#L701), [`_discard_review_edits`](../../src/orchestrator/sdlc/autorun.py#L1350), [`_spent`](../../src/orchestrator/sdlc/autorun.py#L536), [`commit_worktree`](../../src/orchestrator/sdlc/feature_runner.py#L1416), `nullcontext`, `pathlib.Path`, [`review_and_fix`](../../src/orchestrator/sdlc/reviewloop.py#L170)
 
 ### `_stage_validity`
 
