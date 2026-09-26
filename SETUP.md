@@ -358,6 +358,8 @@ Only set the groups your workflow uses; optional capabilities remain off until e
 `SDLC_CODEGEN`, `SDLC_CODEGEN_MODEL` / `SDLC_REVIEW_MODEL`.
 
 **Pipeline & governance** — `SDLC_REPO_URL`, `SDLC_RUN_BUDGET_USD` (hard spend cap),
+`SDLC_WORKSPACE_ROOT` (run worktrees and one base clone per repo; default
+`~/.cache/orchestrator/sdlc-workspaces` — keep it out of `/tmp`),
 `SPINE_SDLC_IMPERATIVE` (fall back to the pre-3.20 path),
 `SDLC_AGENTIC_CODEGEN` (ReAct loop, default off), `SDLC_AGENTIC_POLICY`,
 `SDLC_TEST_ISOLATION`, `SDLC_GITHUB_INSTALLATION_ID` (live PR auth).

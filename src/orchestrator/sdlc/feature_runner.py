@@ -811,7 +811,7 @@ async def run_feature(
         run_with_autoheal,
     )
     from orchestrator.sdlc.testrunner import pytest_available
-    from orchestrator.sdlc.workspace import WorkspaceManager
+    from orchestrator.sdlc.workspace import WorkspaceManager, default_workspace_root
 
     started_at = time.monotonic()
     load_local_env()
@@ -961,7 +961,7 @@ async def run_feature(
 
     # 3. worktree branch off the real repo (or a scratch repo in safe/no-repo mode).
     sdlc_id = uuid.uuid4().hex[:16]
-    ws_root = Path(os.getenv("SDLC_WORKSPACE_ROOT", "/tmp/sdlc-workspaces"))
+    ws_root = default_workspace_root()
     # Branch from the PR target, not the remote's default: a run opening a PR into
     # `develop` must build on `develop`, or it is written against a tree that predates
     # everything merged there since the last release.
