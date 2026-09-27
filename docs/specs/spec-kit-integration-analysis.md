@@ -339,6 +339,43 @@ tested; its exact size, and any difference in quality, are not.
   tables multiply the measured per-feature gap by an assumed four features per developer per
   month.
 
+**Spine + PKG after two fixes the measurement found (2026-09-27).** The comparison exposed two
+defects on Spine's side. It edited files the ticket was not about: on OpenAI models, up to six
+(`gpt-5.6-sol`) and twelve (`gpt-6-astra`) in a run, each named by Spine's own design (B44, [SSPN-89](https://fibonacci-solutions.atlassian.net/browse/SSPN-89),
+merged in [#490](https://github.com/synaptixs/spine/pull/490)). And lint or type errors in the
+tests it wrote survived refine, which is told never to edit tests (B47,
+[SSPN-93](https://fibonacci-solutions.atlassian.net/browse/SSPN-93), in review as
+[#491](https://github.com/synaptixs/spine/pull/491)). Re-measured on the same three tickets, two
+passes per model, codegen only (Spine's own benchmark, deterministic design, PKG built):
+
+| Model | Stage | Unrelated files changed (max in a run) | Preflight | Accepted | Held-out | Codegen $/ticket | Tokens/ticket |
+|---|---|---|---|---|---|---|---|
+| `claude-sonnet-5` | before B44 | 4 (2) | 6/6 | 3/6 | 4/6 | $0.255 | 115k |
+| | after B44 | 0 (0) | 4/6 | 4/6 | 4/6 | $0.131 | 55k |
+| | after B44 + B47 | **0 (0)** | **6/6** | **6/6** | 4/6 | **$0.097** | **39k** |
+| `gpt-5.6-sol` | before B44 | 22 (6) | 6/6 | 0/6 | 4/6 | $0.305 | 67k |
+| | after B44 | 0 (0) | 5/6 | 5/6 | 4/6 | $0.097 | 23k |
+| | after B44 + B47 | **0 (0)** | **6/6** | **6/6** | 4/6 | **$0.088** | **17k** |
+| `gpt-6-astra` | before B44 | 54 (12) | 6/6 | 0/6 | 4/6 | $1.138 | 89k |
+| | after B44 | 0 (0) | 6/6 | 6/6 | 4/6 | $0.247 | 19k |
+| | after B44 + B47 | **0 (0)** | **6/6** | **6/6** | 4/6 | **$0.301** | **19k** |
+
+- **Spine + PKG no longer touches files outside the ticket,** on any model: 80 unrelated edits
+  across 18 runs became 0. Each run now writes one module and its test file.
+- **Every run now passes Spine's own acceptance gate** (tests, preflight, fit): 18 of 18, against
+  3 of 18 before. Accepted runs rose because the unrelated edits used to fail the fit check.
+- **Held-out tests are unchanged at 4 of 6 on every model,** the same as spec-kit's 4 of 6 on
+  OpenAI. `NEW-DRIFTMD-1` still fails in every run of every arm. So the quality statement above
+  stands: no detectable difference in working-code rate.
+- **Codegen got cheaper** on two models and slightly dearer on `gpt-6-astra` ($0.247 → $0.301,
+  inside run-to-run noise at n=6). The cost tables above were measured before these fixes and are
+  left as measured. Spine's side only got cheaper, so the gap they show is conservative. They are
+  not restated here because these runs are codegen only, without intake.
+- **Scope.** Different commits: the spec-kit rows are `bd16dbb7`; these are `develop` before B44
+  and the two fix branches. spec-kit itself is unaffected by Spine's changes. Preflight and
+  acceptance are Spine's own gates and were not measured on spec-kit's output. The per-run
+  figures are in the measurement sections of #490 and #491.
+
 **What the measurement corrected.** The estimate this section used before it was measured had
 spec-kit at 1.25M tokens over 26 calls per feature with the coding loop at 83% of the cost, and
 Spine at 3 calls. Measured: 13.0M tokens over 101–123 turns, with the steps before any code at
