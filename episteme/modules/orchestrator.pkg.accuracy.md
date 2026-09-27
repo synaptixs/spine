@@ -88,7 +88,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/accuracy.py:268`](../../src/orchestrator/pkg/accuracy.py#L268)
 
 - **Called by** (1): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L294)
-- **Calls** (4): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L730), [`joins_from_list`](../../src/orchestrator/pkg/repos.py#L72), [`link_joins`](../../src/orchestrator/pkg/join_link.py#L150), [`merge_repos`](../../src/orchestrator/pkg/scoping.py#L150)
+- **Calls** (4): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L730), [`joins_from_list`](../../src/orchestrator/pkg/repos.py#L99), [`link_joins`](../../src/orchestrator/pkg/join_link.py#L150), [`merge_repos`](../../src/orchestrator/pkg/scoping.py#L150)
 
 ### `_corpus_repos`
 
@@ -228,7 +228,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/accuracy.py:500`](../../src/orchestrator/pkg/accuracy.py#L500)
 
 - **Called by** (2 production · 3 test): [`_drift_oracle`](../../src/orchestrator/cli/pkg.py#L577), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L737), [`test_drift_counts_claims_the_graph_cannot_support`](../../tests/pkg/test_accuracy.py#L392), [`test_no_documentation_is_not_a_clean_result`](../../tests/pkg/test_accuracy.py#L402), [`test_the_gate_number_is_the_number_state_reports`](../../tests/pkg/test_accuracy.py#L454)
-- **Calls** (7): [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57), [`DocReconciler`](../../src/orchestrator/pkg/docs.py#L218), [`DriftReport`](../../src/orchestrator/pkg/accuracy.py#L470), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L730), `pathlib.Path`, [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L153), [`symbolish_drift`](../../src/orchestrator/pkg/doc_link.py#L40)
+- **Calls** (7): [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57), [`DocReconciler`](../../src/orchestrator/pkg/docs.py#L218), [`DriftReport`](../../src/orchestrator/pkg/accuracy.py#L470), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L730), `pathlib.Path`, [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L199), [`symbolish_drift`](../../src/orchestrator/pkg/doc_link.py#L40)
 
 ### `score_parity`
 

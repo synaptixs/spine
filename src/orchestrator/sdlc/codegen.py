@@ -24,7 +24,7 @@ import re
 from collections import Counter
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
@@ -33,6 +33,7 @@ from orchestrator.sdlc.csharp_names import directive_error
 from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 from orchestrator.sdlc.layout import TargetLayout
+from orchestrator.sdlc.scope import READ_HEADING, EditScope
 
 logger = logging.getLogger("orchestrator.sdlc.codegen")
 
@@ -969,8 +970,14 @@ class LLMCodegenAdapter:
         memory_factory: Any = None,
         memory_repo_key: str | None = None,
         memory_tenant_id: str = "default",
+        # The pre-existing files this ticket may edit (B44). ``None`` = no scope guard, so every
+        # caller that does not pass one builds exactly the change it builds today.
+        edit_scope: EditScope | None = None,
     ) -> None:
         self._llm = llm
+        self._edit_scope = edit_scope
+        # Set only while single-shot ``implement`` runs: the scope ``apply_files`` enforces.
+        self._implement_scope: EditScope | None = None
         self._model = model
         # When set, ``implement`` runs the agentic tool-use loop (Phase 5) instead
         # of the single-shot path. Off by default — single-shot stays the default
@@ -1006,6 +1013,9 @@ class LLMCodegenAdapter:
         # Files written per worktree root this session — fed back to the model
         # in author_tests/refine instead of dumping the whole tree.
         self._written: dict[Path, list[Path]] = {}
+        # The subset of `_written` this session *created* (B47): a pre-existing file it only edited
+        # stays someone else's test, which refine may not unlock for lint repair.
+        self._created: dict[Path, list[Path]] = {}
         # Set only while `refine` runs: the pre-existing files it may edit (see `refine`).
         self._refine_editable: frozenset[str] | None = None
         # Derived house-style digest per worktree root (G8), computed once.
@@ -1184,6 +1194,7 @@ class LLMCodegenAdapter:
             f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}"
             f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}"
+            f"{_scope_block(self._edit_scope)}"
         )
         if self._agentic:
             # Per-call plan values (from the run's capability plan) take
@@ -1198,7 +1209,11 @@ class LLMCodegenAdapter:
         # skills too (no persona + no skills → the historical prompt, unchanged).
         resolved = skills if skills is not None else self._skills
         system = self._condition_system(self._impl_system(), resolved, phase="implement")
-        return await self._generate(system, task, root)
+        self._implement_scope = self._edit_scope
+        try:
+            return await self._generate(system, task, root)
+        finally:
+            self._implement_scope = None
 
     async def _agentic_tools(self, root: Path, mcp_servers: list[str] | None, session: Any) -> list[Any]:
         """Build the loop's toolset bound to ``root`` + ``session`` (read-only +
@@ -1438,6 +1453,10 @@ class LLMCodegenAdapter:
         named_by_failure = paths_named(failures, root)
         named_by_ticket = _paths_from(spec, self._design, root)
         only_failure_named = [p for p in named_by_failure if p not in named_by_ticket]
+        shown = _truncate(failures, _MAX_FAILURE_BYTES)
+        # The findings the model is shown, never ones truncation cut: an allowance must name
+        # only files whose finding is in front of it.
+        lint_tests = _lint_named_session_tests(shown, root, self._created.get(root.resolve(), []))
         # Refine may change a pre-existing file only when something the model was shown
         # names it: the failure, the spec or the design. NSS-1243's refine read a cascade of
         # errors and edited a correct `_Imports.razor` in all three runs — once down to a bare
@@ -1452,6 +1471,7 @@ class LLMCodegenAdapter:
                 "IMPORTANT: Fix the IMPLEMENTATION files only. Do NOT modify test files to "
                 "make them match a broken implementation — fix the source code so the tests "
                 "pass as written.\n\n"
+                f"{_lint_test_allowance(lint_tests)}"
                 # Aim the windows at whatever the traceback names: on a big file the excerpt
                 # should cover the line that failed, not the top of the module.
                 f"CURRENT FILES:\n{self._session_files(root, include_tests=True, anchors=fail_anchors)}"
@@ -1459,7 +1479,7 @@ class LLMCodegenAdapter:
                 # Minus what the spec or design names: `_named_existing_files` shows those.
                 f"{self._failure_named_files(root, failures, only_failure_named)}"
                 f"{self._convention_block(root)}\n\n"
-                f"FAILURE OUTPUT:\n{_truncate(failures, _MAX_FAILURE_BYTES)}\n\n"
+                f"FAILURE OUTPUT:\n{shown}\n\n"
                 f"{self._definitions_for(failures, root)}",
                 root,
                 # A refine pass that yields no applicable edits is a legitimate
@@ -1797,9 +1817,11 @@ class LLMCodegenAdapter:
             files,
             root,
             written_tracker=self._written,
+            created_tracker=self._created,
             grounded=self._grounder is not None,
             summary=str(payload.get("summary") or "").strip(),
             editable_existing=self._refine_editable,
+            scope=self._implement_scope,
         )
 
 
@@ -1974,14 +1996,23 @@ def apply_files(
     written_tracker: dict[Path, list[Path]],
     grounded: bool,
     summary: str = "",
+    created_tracker: dict[Path, list[Path]] | None = None,
     editable_existing: frozenset[str] | None = None,
+    scope: EditScope | None = None,
 ) -> CodeChange:
     """Apply a ``files`` list (new ``content`` / existing ``edits``) to a worktree.
 
     ``editable_existing`` (refine only): the worktree-relative pre-existing files this pass
     may change. On a grounded run whose session has tracked its own writes, any other file
     that exists and this session did not write is refused, in either form; dependency
-    manifests and project files are always allowed.
+    manifests and project files are always allowed. Its presence also marks the pass as refine
+    for the test guard: an edit to a Python test this session wrote that loses an assert or a
+    test is refused, in either form (``_refuse_weakened_test``, B47).
+
+    ``scope`` (implement only, B44): the ticket's edit scope. An edit to a pre-existing file
+    outside it that changes no code (comments and docstrings only) is refused when the scope
+    is *confident*; every other out-of-scope edit is applied and reported in the summary (see
+    ``_refuse_out_of_scope`` and ``orchestrator.sdlc.scope``).
 
     The shared write path for both single-shot codegen (``_apply``) and the
     agentic loop's ``write_files`` tool — every guard (path safety, stdlib
@@ -2001,7 +2032,26 @@ def apply_files(
     missing_targets: list[str] = []  # edits aimed at a file that doesn't exist yet
     placeholders: list[str] = []  # stub submissions dropped before they counted as work
     refused: list[str] = []  # pre-existing files refine was not allowed to touch
+    out_of_scope: list[str] = []  # comment/docstring-only edits outside a confident scope: refused (B44)
+    beyond_scope: list[str] = []  # any other edit outside the scope: applied, reported
+    weakened: list[str] = []  # refine edits to a session test that drop an assert or a test: refused (B47)
+    created: list[Path] = []  # files that did not exist before this pass wrote them
     tracked_now = written_tracker.get(root.resolve(), [])
+    from orchestrator.sdlc.source_paths import normalise
+
+    # Packages this change adds a file to — their `__init__.py` is where a new module's exports go.
+    new_dirs = frozenset(
+        str(PurePosixPath(normalise(str(e.get("path") or ""))).parent)
+        for e in files
+        if isinstance(e, dict)
+        and e.get("path")
+        and isinstance(e.get("content"), str)
+        and not (root / normalise(str(e.get("path")))).exists()
+    ) | frozenset(
+        str(PurePosixPath(t.relative_to(root.resolve()).as_posix()).parent)
+        for t in tracked_now
+        if t.is_relative_to(root.resolve())
+    )
     for entry in files:
         if not isinstance(entry, dict):
             continue
@@ -2025,6 +2075,13 @@ def apply_files(
             refused.append(rel)
             logger.warning("sdlc.codegen.refused_unnamed_edit: %s — named by no failure, spec or design", rel)
             continue
+        outside = (
+            scope is not None
+            and target.exists()
+            and target not in tracked_now
+            and not _may_edit_existing(root, target, frozenset())
+            and not scope.allows(target.resolve().relative_to(root.resolve()).as_posix(), new_dirs=new_dirs)
+        )
 
         # ---- edits form: anchored find/replace on an EXISTING file ------
         # Per-file atomic: every edit must anchor (exactly-once match) or
@@ -2038,8 +2095,9 @@ def apply_files(
                 missing_targets.append(rel)
                 edit_failures.append(f"{rel}: edits to a file that does not exist")
                 continue
+            original = target.read_text(encoding="utf-8")
             try:
-                patched = _apply_edit_list(target.read_text(encoding="utf-8"), edits, rel)
+                patched = _apply_edit_list(original, edits, rel)
             except CodegenError as exc:
                 edit_failures.append(str(exc))
                 edit_failure_paths.append(rel)
@@ -2056,6 +2114,12 @@ def apply_files(
                 edit_failures.append(broken)
                 syntax_failures.append(rel)
                 syntax_messages.append(broken)
+                continue
+            if _refuse_weakened_test(
+                editable_existing, root, target, tracked_now, original, patched, weakened
+            ):
+                continue
+            if outside and _refuse_out_of_scope(scope, rel, original, patched, out_of_scope, beyond_scope):
                 continue
             target.write_text(patched, encoding="utf-8")
             written.append(str(target))
@@ -2111,6 +2175,22 @@ def apply_files(
             syntax_failures.append(rel)
             syntax_messages.append(broken)
             continue
+        if target.exists() and _refuse_weakened_test(
+            editable_existing,
+            root,
+            target,
+            tracked_now,
+            target.read_text(encoding="utf-8"),
+            content,
+            weakened,
+        ):
+            continue
+        if outside and _refuse_out_of_scope(
+            scope, rel, target.read_text(encoding="utf-8"), content, out_of_scope, beyond_scope
+        ):
+            continue
+        if not target.exists():
+            created.append(Path(str(target)))
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
         written.append(str(target))
@@ -2124,6 +2204,9 @@ def apply_files(
         for f in written:
             if Path(f) not in tracked:
                 tracked.append(Path(f))
+        if created_tracker is not None:
+            mine = created_tracker.setdefault(root.resolve(), [])
+            mine.extend(p for p in created if p not in mine)
 
     # Existing files the model tried to modify the wrong way (full-content
     # rewrite → guard-skipped, or a bad anchor → edit failed) must trigger
@@ -2140,6 +2223,9 @@ def apply_files(
         notes = [
             f"skipped existing (use edits, not full content): {', '.join(skipped)}" if skipped else "",
             f"edit issues: {'; '.join(edit_failures)}" if edit_failures else "",
+            (f"refused test edits, not applied: {'; '.join(weakened)} — keep every existing assert and test")
+            if weakened
+            else "",
         ]
         detail = " (" + "; ".join(n for n in notes if n) + ")"
         raise CodegenError(
@@ -2152,7 +2238,39 @@ def apply_files(
         )
     if refused:
         summary = f"{summary} (refused: {', '.join(refused)} — named by no failure, spec or design)".strip()
+    if weakened:
+        summary = (
+            f"{summary} (refused: {'; '.join(weakened)} — a test may not lose an assert or a test)".strip()
+        )
+    if out_of_scope:
+        summary = f"{summary} (not applied: {', '.join(out_of_scope)} — outside this ticket's scope)".strip()
+    if beyond_scope:
+        summary = f"{summary} (outside the design's edit list: {', '.join(beyond_scope)})".strip()
+    if not written and out_of_scope and not edit_failures:
+        # Recoverable, like refine's refusal: one corrective retry, told why. Everything it
+        # changed was a file this ticket is not about.
+        raise CodegenError(
+            f"implement only added comments or docstrings to files outside this ticket's scope: "
+            f"{', '.join(out_of_scope)}",
+            empty_summary=(
+                f"only added comments or docstrings to {', '.join(out_of_scope)}, which this ticket's "
+                "design does not list to edit — so nothing was applied. Make the change the ticket "
+                "asks for: create the new module, or edit the files the design lists to edit"
+            ),
+        )
     if not written:
+        if weakened and not edit_failures:
+            # Recoverable, like the refusals below: one corrective retry, told why. A lint fix in
+            # a test never needs to drop or rewrite an assertion.
+            raise CodegenError(
+                f"refine weakened a test: {'; '.join(weakened)}",
+                empty_summary=(
+                    f"edited {'; '.join(weakened)} — so it was not applied. In a test file you may fix "
+                    "the lint/type findings the FAILURE OUTPUT reports, adding lines if needed (e.g. "
+                    "`assert x is not None`), but every existing assert and test function must stay "
+                    "exactly as it is; fix the implementation for anything else"
+                ),
+            )
         if refused and not edit_failures:
             # Recoverable: one corrective retry, told why. The model's reading of the failure
             # was off — the file it wants to change is not one anything points at.
@@ -2179,6 +2297,190 @@ def apply_files(
         detail = f" ({'; '.join(edit_failures)})" if edit_failures else ""
         raise CodegenError(f"model output produced no writable files{detail}")
     return CodeChange(files=written, summary=summary)
+
+
+def _refuse_out_of_scope(
+    scope: EditScope | None, rel: str, old: str, new: str, refused: list[str], reported: list[str]
+) -> bool:
+    """Decide an edit to a pre-existing file outside ``scope``: True means refuse it (B44).
+
+    What B44 measured was noise: GPT models gave every file a design listed a justifying comment
+    or docstring. That is refused when the scope is sure. A real code change outside the scope is
+    applied and reported — it may be wiring the change genuinely needs (registering a new
+    command, a barrel export), and refusing it would ship half a change.
+    """
+    if scope is not None and scope.confident and _changes_no_code(rel, old, new):
+        refused.append(rel)
+        logger.warning(
+            "sdlc.codegen.refused_out_of_scope: %s — changes no code, and the design lists no edit to it", rel
+        )
+        return True
+    reported.append(rel)
+    return False
+
+
+def _refuse_weakened_test(
+    editable_existing: frozenset[str] | None,
+    root: Path,
+    target: Path,
+    tracked: list[Path],
+    old: str,
+    new: str,
+    refused: list[str],
+) -> bool:
+    """Decide a refine edit to a Python test this session wrote: True means refuse it (B47).
+
+    Refine may fix lint and type findings in the tests it wrote (``_lint_test_allowance``), and
+    the rule it is otherwise held to — do not change a test to make it pass — is enforced here
+    rather than hoped for in the prompt: an edit that loses an assert or a test is refused, the
+    file keeps its content, and the reason reaches the summary. Only refine is held to it
+    (``editable_existing`` is set on refine alone); ``author_tests`` may rewrite its own tests.
+    """
+    if editable_existing is None or target not in tracked or target.suffix != ".py":
+        return False
+    try:
+        rel = target.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return False
+    reason = _weakens_test(old, new) if _is_test_file(Path(rel)) else None
+    if reason is None:
+        return False
+    refused.append(f"{rel} ({reason})")
+    logger.warning("sdlc.codegen.refused_weakened_test: %s — %s", rel, reason)
+    return True
+
+
+def _changes_no_code(rel: str, old: str, new: str) -> bool:
+    """True when ``new`` differs from ``old`` only in comments and docstrings.
+
+    Python only, where the AST says so exactly: comments are not in it, and docstrings are
+    stripped before comparing. For any other language this returns False — a change is never
+    discarded on a guess about another language's comment syntax.
+    """
+    if not rel.endswith(".py"):
+        return False
+    try:
+        before, after = ast.parse(old), ast.parse(new)
+    except SyntaxError:
+        return False
+    return ast.dump(_without_docstrings(before)) == ast.dump(_without_docstrings(after))
+
+
+# A lint or type finding that names a Python file (B47). Only these unlock a test file this
+# session wrote: refine is told to leave tests alone so a model cannot make a failing test pass
+# by changing it, and a pytest line (`FAILED tests/x.py::t`, `tests/x.py:12: AssertionError`)
+# names a test for exactly that reason — so none of these shapes matches one.
+_LINT_FINDING = re.compile(
+    r"^\s*(?:"
+    r"--> (?P<full>\S+?\.py):\d+:\d+"  # ruff check / ruff format --check, default ("full") output
+    r"|(?P<concise>\S+?\.py):\d+:\d+: [A-Z]+[0-9]+\b"  # ruff check, concise output
+    r"|(?P<mypy>\S+?\.py):\d+(?::\d+)?: error: "  # mypy
+    r"|Would reformat: (?P<fmt>\S+?\.py)"  # ruff format --check, older output
+    r"|(?:ruff check|ruff format|mypy): (?P<baseline>\S+?\.py) \["  # preflight's baseline mode
+    r")",
+    re.MULTILINE,
+)
+# Any sign of a failing pytest run. Lint output reaches refine only after the tests are green, and
+# pytest echoes a test's source and its captured output — where a lint-shaped line can sit — so
+# text carrying a pytest failure unlocks nothing, whatever else it contains.
+_PYTEST_FAILURE = re.compile(
+    r"^(?:=+ (?:FAILURES|ERRORS|short test summary info) =+\s*$|(?:FAILED|ERROR) \S|E {3}|"
+    r"(?:=+ )?\d+ (?:failed|errors?)\b)",
+    re.MULTILINE,
+)
+
+
+def _lint_named_session_tests(failures: str, root: Path, created: list[Path]) -> list[str]:
+    """Python test files this session created that a lint/type line in ``failures`` names (B47).
+
+    ``created`` is the files this session created — not ones it only edited. Worktree-relative, in
+    first-mention order. A pre-existing test is never returned, and nothing is returned when
+    ``failures`` shows a failing pytest run: refine may fix *lint* in the tests it wrote, never
+    make a red test green by editing it.
+    """
+    if _PYTEST_FAILURE.search(failures):
+        return []
+    mine = {p.resolve() for p in created}
+    base = root.resolve()
+    found: list[str] = []
+    for match in _LINT_FINDING.finditer(failures):
+        target = (root / next(g for g in match.groups() if g)).resolve()
+        if target not in mine or not target.is_relative_to(base):
+            continue
+        rel = target.relative_to(base).as_posix()
+        if _is_test_file(Path(rel)) and rel not in found:
+            found.append(rel)
+    return found
+
+
+def _lint_test_allowance(tests: list[str]) -> str:
+    """The refine prompt's one exception to "do not modify test files", or ''."""
+    if not tests:
+        return ""
+    return (
+        "EXCEPTION — lint/type findings in tests you wrote: the FAILURE OUTPUT reports ruff or "
+        f"mypy findings in test files you wrote earlier this session: {', '.join(tests)}. You may "
+        "edit those files to fix those findings only — for example move a module docstring above "
+        "`from __future__`, or add `assert x is not None` before using an Optional value. Do not "
+        "remove or change any existing assert and do not remove any test function: such an edit "
+        "is refused.\n\n"
+    )
+
+
+def _weakens_test(old: str, new: str) -> str | None:
+    """Why ``new`` weakens the Python test file ``old``, or None when it does not (B47).
+
+    Weakening is losing an existing ``assert`` — removed or changed, compared on the AST so a
+    reformat is not a change — or losing a ``test*`` function. Asserts are counted, so one of
+    two identical checks removed is caught. *Adding* an assert is allowed: the usual fix for a
+    mypy ``union-attr`` is ``assert x is not None``, which strengthens the test. When ``old``
+    does not parse there is nothing to compare, and None is returned.
+    """
+    try:
+        before, after = ast.parse(old), ast.parse(new)
+    except SyntaxError:
+        return None
+    lost = Counter(_assert_dumps(before)) - Counter(_assert_dumps(after))
+    kept = set(_test_names(after))
+    gone = [name for name in _test_names(before) if name not in kept]
+    reasons = []
+    if gone:
+        reasons.append(f"removes test {', '.join(gone)}")
+    if lost:
+        reasons.append(f"removes or changes {sum(lost.values())} existing assert(s)")
+    return "; ".join(reasons) or None
+
+
+def _assert_dumps(tree: ast.AST) -> list[str]:
+    return [ast.dump(node) for node in ast.walk(tree) if isinstance(node, ast.Assert)]
+
+
+def _test_names(tree: ast.Module) -> list[str]:
+    """Qualified names of the ``test*`` functions pytest collects by default (``TestX.test_y``)."""
+    names: list[str] = []
+
+    def visit(body: list[ast.stmt], prefix: str) -> None:
+        for node in body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test"):
+                names.append(prefix + node.name)
+            elif isinstance(node, ast.ClassDef):
+                visit(node.body, f"{prefix}{node.name}.")
+
+    visit(tree.body, "")
+    return names
+
+
+def _without_docstrings(tree: ast.AST) -> ast.AST:
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            first = node.body[0] if node.body else None
+            if (
+                isinstance(first, ast.Expr)
+                and isinstance(first.value, ast.Constant)
+                and isinstance(first.value.value, str)
+            ):
+                node.body = node.body[1:] or [ast.Pass()]
+    return tree
 
 
 def _may_edit_existing(root: Path, target: Path, editable: frozenset[str]) -> bool:
@@ -2208,6 +2510,14 @@ def _ruff_fix(root: Path, files: list[str]) -> None:
     py = [f for f in files if f.endswith(".py")]
     if not py:
         return
+    for f in py:
+        target = root / f
+        try:
+            fixed = _hoist_future_docstring(target.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError):
+            continue
+        if fixed is not None:
+            target.write_text(fixed, encoding="utf-8")
     # Module invocation: the worker's PATH may not expose a `ruff` script,
     # but the interpreter's environment has the package installed.
     base = [sys.executable, "-m", "ruff"]
@@ -2219,6 +2529,56 @@ def _ruff_fix(root: Path, files: list[str]) -> None:
             subprocess.run(args, cwd=str(root), capture_output=True, timeout=60, check=False)
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return
+
+
+def _hoist_future_docstring(text: str) -> str | None:
+    """``text`` with a docstring written after ``from __future__`` moved above it, else None.
+
+    Models write ``from __future__ import annotations`` first and the module docstring second.
+    The string is then an ordinary statement, every import after it is ruff E402, and ruff has
+    no autofix for it — measured (B47) as the commonest preflight failure left in a generated
+    test file. Moving the string is a pure text move of whole lines, and the result is checked
+    on the AST: the docstring first, every other statement exactly as it was. Anything that does
+    not fit that shape, or fails the check, returns None and the file is left alone.
+    """
+    try:
+        body = ast.parse(text).body
+    except SyntaxError:
+        return None
+    k = 0
+    while (
+        k < len(body)
+        and isinstance(body[k], ast.ImportFrom)
+        and getattr(body[k], "module", None) == "__future__"
+    ):
+        k += 1
+    doc = body[k] if 0 < k < len(body) else None
+    if not (
+        isinstance(doc, ast.Expr) and isinstance(doc.value, ast.Constant) and isinstance(doc.value.value, str)
+    ):
+        return None
+    lines = text.splitlines(keepends=True)
+    start, end = doc.lineno - 1, doc.end_lineno or doc.lineno
+    # Whole lines only: nothing before the string on its first line, nothing after it on its last.
+    # ast's column offsets count UTF-8 bytes, not characters.
+    after_doc = lines[end - 1].encode("utf-8")[doc.end_col_offset or 0 :]
+    if doc.col_offset != 0 or after_doc.strip():
+        return None
+    moved = lines[start:end]
+    eol = "\r\n" if lines[start].endswith("\r\n") else "\n"
+    if not moved[-1].endswith("\n"):
+        moved[-1] += eol
+    rest = lines[:start] + lines[end:]
+    if start < len(rest) and not rest[start].strip():
+        del rest[start]  # the blank line that separated the docstring from what followed it
+    first = body[0].lineno - 1
+    fixed = "".join(rest[:first] + moved + [eol] + rest[first:])
+    try:
+        after = ast.parse(fixed).body
+    except SyntaxError:
+        return None
+    unchanged = [ast.dump(s) for s in after[1:]] == [ast.dump(s) for s in body[:k] + body[k + 1 :]]
+    return fixed if after and ast.dump(after[0]) == ast.dump(doc) and unchanged else None
 
 
 def _apply_edit_list(original: str, edits: list[Any], rel: str) -> str:
@@ -2373,7 +2733,10 @@ def _existing_test_examples(spec: dict[str, Any], root: Path, design: str = "") 
     convention for invoking *any* entry point under test is best stated by the tests that
     already do it.
     """
-    targets = _paths_from(spec, design, root)
+    # The files the design lists to read count too: a module the new code reuses is exactly the
+    # one whose tests show this repo's conventions. Taking them away left create tickets with no
+    # examples, and generated tests drifted from the repo's style (B44 P4: E402 in 6 of 30 runs).
+    targets = _paths_from(spec, design, root) + _design_read_paths(design, root)
     if not targets:
         return ""
     modules = {_module_path_of(rel) for rel in targets if _module_path_of(rel)}
@@ -2433,13 +2796,55 @@ def _paths_from(spec: dict[str, Any], design: str, root: Path | None = None) -> 
     )
     seen: list[str] = []
     index: dict[str, list[str]] | None = None
-    for rel in named_paths(blob) + named_paths(design):
+    # A file the design lists to read is never one to change, even where another section of the
+    # design mentions it — the Approach naming a module to reuse put it straight back in the
+    # "change these" block (B44 review).
+    reads = set(named_paths(_design_sections(design, edit=False)))
+    design_edits = [r for r in named_paths(_design_sections(design, edit=True)) if r not in reads]
+    for rel in named_paths(blob) + design_edits:
         if root is not None and "/" not in rel and index is None:
             index = basename_index(root)  # one walk for every bare name, not one each
         resolved = resolve(rel, root, index=index) if root is not None else rel
         if resolved and resolved not in seen:
             seen.append(resolved)
     return seen
+
+
+def _scope_block(scope: EditScope | None) -> str:
+    """Say up front what the guard will discard, so a model is never surprised by it (B44)."""
+    if scope is None or not scope.confident:
+        return ""
+    listed = ", ".join(scope.files) if scope.files else "none — this ticket adds new files"
+    return (
+        f"\n\nSCOPE: the existing files this ticket changes are: {listed}. New files and tests are "
+        "always fine, and so is any code change another file genuinely needs. An edit to any other "
+        "existing file that changes no code — only comments or docstrings — is discarded.\n"
+    )
+
+
+def _design_sections(design: str, *, edit: bool) -> str:
+    """The part of a rendered design that names files to change (``edit``), or files to read.
+
+    ``_paths_from`` used to read every path in the design, so the files a design listed to read
+    and the modules its blast radius named were shown to the model as ones "this ticket is going
+    to change" — and GPT models changed them (B44). The blast radius is an annotation about
+    dependents, never a list of files to edit, so it belongs to neither side.
+    """
+    out: list[str] = []
+    section = "edit"
+    for line in design.splitlines():
+        if line.startswith("## "):
+            heading = line[3:].strip()
+            section = (
+                "read"
+                if heading == READ_HEADING
+                else "radius"
+                if heading.startswith("Blast radius")
+                else "edit"
+            )
+        if section == ("edit" if edit else "read"):
+            out.append(line)
+    return "\n".join(out)
 
 
 def _exercises_module(body: str, module: str) -> int:
@@ -2596,12 +3001,39 @@ def _named_existing_files(spec: dict[str, Any], root: Path, design: str = "") ->
         anchors_by_path=anchors,
         label="current content — edit THIS via the edits form",
     )
+    reference = _reference_files(root, design, seen)
     if not body:
-        return ""
+        return reference
     return (
         "\n\nEXISTING FILES THE SPEC NAMES — change these with the `edits` form, "
         "anchoring on snippets copied verbatim from the content below. Do NOT "
-        "re-emit them as full `content`:\n" + body
+        "re-emit them as full `content`:\n" + body + reference
+    )
+
+
+def _design_read_paths(design: str, root: Path) -> list[str]:
+    """The existing files a rendered design lists to read (``READ_HEADING``), resolved."""
+    from orchestrator.sdlc.source_paths import named_paths, resolve
+
+    out: list[str] = []
+    for rel in named_paths(_design_sections(design, edit=False)):
+        resolved = resolve(rel, root)
+        if resolved and resolved not in out:
+            out.append(resolved)
+    return out
+
+
+def _reference_files(root: Path, design: str, shown: list[str]) -> str:
+    """The files a design lists to read, shown as reference and labelled as not to change (B44)."""
+    reads = [r for r in _design_read_paths(design, root) if r not in shown]
+    if not reads:
+        return ""
+    body = _excerpt_files(root, reads, budget=_MAX_CONTEXT_BYTES, label="reference — read only")
+    if not body:
+        return ""
+    return (
+        "\n\nREFERENCE FILES — the design lists these to read: reuse what they define, but do NOT "
+        "modify them; this ticket's change does not include them:\n" + body
     )
 
 

@@ -4,6 +4,124 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.52.0 — 2026-09-27
+
+Docs join the blast radius — the repository's own, Confluence and Jira pages, and any RAG system
+over MCP — and codegen stays inside the ticket it was given.
+
+### Added
+
+- **`blast_radius` and `explain_symbol` list the docs that describe a symbol.** Each match now
+  carries `docs` — the repository's own doc sections naming the symbol, its class or its module
+  (`via`), each with `file:line` — plus `doc_count` and `related_doc_count` (pages naming its
+  callers or the code it touches, counted rather than listed). A public class with no callers in
+  its own repository read as safe to change; on a real SDK repository, one such class is described
+  by 12 doc sections. Docs never enter `touches`, so code-impact counts are unchanged. With
+  `repos=`, a document binds only to symbols in the repository it lives in, and only the matched
+  repository's docs are read. If linking docs fails, the code answer still returns, with
+  `docs_unavailable` saying why. ([SSPN-79](https://fibonacci-solutions.atlassian.net/browse/SSPN-79))
+- **`${VAR}` in `mcp.json` `headers` values and `url` is filled from the environment.** A
+  remote MCP server's bearer token no longer has to sit in plaintext in the file:
+  `"Authorization": "Bearer ${INTERNAL_MCP_TOKEN}"` reads the token at load time (the example
+  OPERATIONS.md already showed, which until now was sent literally). An unset variable is an
+  error naming the variable and the server, never an empty header; `$${VAR}` is a literal
+  `${VAR}`, and `$VAR` without braces is left alone. `command`, `args`, `env` and `allow` are
+  not expanded. The expanded value never leaves: writes keep the placeholder, the Connections
+  page shows it, and error text from a failing server has the value swapped back to `${VAR}`.
+  Adding a server from the Connections page now tests the expanded url rather than the text as
+  typed. ([SSPN-81](https://fibonacci-solutions.atlassian.net/browse/SSPN-81))
+
+- **`orchestrator mcp ingest-docs` — Confluence and Jira docs join the blast radius.** Declare a
+  repository's external doc sources under a new `docs:` block in `.spine/repos.yaml`
+  (`confluence: {roots, max_depth, max_docs}` or `jira: {jql, max_issues}`, through an onboarded
+  MCP server) and the command pulls them into a cache outside the checkout. `blast_radius`,
+  `explain_symbol` and `docs_for` then bind the cached pages at read time with the same binder as
+  the repository's own docs — a rename drops a stale mention without a re-pull — listing them with
+  `origin: "mcp:<server>"`, `source`, `title` and `url`; `docs_for` adds `external` per match and
+  external coverage and drift apart from the repository's numbers. Every answer that read them
+  carries `external_docs` — each source's status, age and `stale` flag (over 7 days); a failed
+  pull keeps the last good data and says from when. A section identical to a repository doc is
+  listed once, under it, with `also_in`. The pull calls only allow-listed tools the server declares
+  read-only and refuses any other by name; Jira reads never touch view history. `understand` and
+  `state` never read pulled docs. ([SSPN-80](https://fibonacci-solutions.atlassian.net/browse/SSPN-80))
+- **Any RAG system's MCP server can be a docs source — a `rag:` kind under `docs:`.** Onboard
+  the server (chroma-mcp, mcp-server-qdrant, Bedrock Knowledge Bases, Ragie, a `search`/`fetch`
+  pair) and declare `rag: {collection, top_k, max_queries, max_chunks, trust_read_only}` — every
+  key optional; `tool` / `query_arg` pin what detection picks. `mcp ingest-docs` reads the tools'
+  input schemas: with a list tool it walks the corpus (`N of M`), otherwise it asks one query per
+  module and class, most-called first (`queried N of M symbols (cap reached)`). Two tools fitting
+  one role are refused naming both, nothing called. Chunks are listed in `blast_radius`,
+  `explain_symbol` and `docs_for` only where the binder finds one symbol they name; per symbol
+  asked about, `external_retrieved_count` / `external_unverified_count` and "10 retrieved, 2 name
+  the symbol" count the rest. A chunk from one of the repo's own doc files collapses into it as
+  `also_in`. `external_docs` standings add `strategy` and `pull_bound`; drift is reported only for
+  a walked corpus. ([SSPN-82](https://fibonacci-solutions.atlassian.net/browse/SSPN-82))
+- **`trust_read_only` — vouching for an unannotated RAG tool.** The docs pull still calls only
+  allow-listed tools that declare `readOnlyHint: true`; a `rag` source may also name tools in
+  `trust_read_only`, because neither chroma-mcp nor mcp-server-qdrant annotates any tool. The
+  allow list is never widened, and Confluence/Jira sources keep the strict rule.
+  ([SSPN-82](https://fibonacci-solutions.atlassian.net/browse/SSPN-82))
+- **`MCPToolResult` keeps each text block (`blocks`) and the structured content (`structured`).**
+  `text` is unchanged; a server that answers one block per chunk no longer loses its separators.
+
+### Fixed
+
+- **Refine can now fix lint and type errors in the tests it wrote, and may not drop their asserts.**
+  A generated test file that failed preflight stayed failed: refine is told not to modify tests,
+  and ruff has no autofix for the common cases. On develop, preflight passed on 25 of 30 benchmark
+  runs, and every failure was in a test file the run had written. Two changes. A module docstring
+  written after `from __future__ import annotations` (ruff E402 on every import after it) is now
+  moved to the top before ruff runs; the move is checked on the AST and changes no code. And when
+  a ruff, mypy or `ruff format --check` line names a Python test file this run created, refine is
+  told it may fix those findings in that file. Nothing is unlocked while the output shows a failing
+  pytest run, and a test that existed before the run is never unlocked, even one the run edited.
+  A refine edit to a test this run wrote that removes or changes an existing `assert` statement,
+  or removes a test function, is refused and reported (in the retry, when the pass is retried);
+  new asserts are allowed (the usual mypy `union-attr` fix adds `assert x is not None`). Other ways
+  of weakening a test — a skip marker, a changed expected value — are not caught yet
+  ([SSPN-94](https://fibonacci-solutions.atlassian.net/browse/SSPN-94)). Measured on the same 30
+  runs: preflight 27/30, with no failure left in a test file (the three remaining are an
+  implementation file's mypy error and two failing test runs). Python only; other languages and
+  the agentic loop keep today's rule. ([SSPN-93](https://fibonacci-solutions.atlassian.net/browse/SSPN-93))
+- **Codegen no longer edits files the ticket is not about.** On OpenAI models a run edited 6-9
+  unrelated files, each named by Spine's own design. A module a ticket names by its dotted name
+  (`orchestrator.codereview.verifiers`, "the orchestrator.pkg docs module") now resolves through the
+  graph (Python modules only) and the design lists it ahead of word matches. The design heading is
+  now **Files to edit**, and codegen takes files to change only from it: the blast radius and the
+  new **Files to read (reference — do not modify)** list are shown as reference, never as files to
+  change. When a design says the ticket creates code, its named modules and word matches go to the
+  read list; today only the codegen benchmark says so — a spec from intake carries no create/edit
+  kind, so there a named module stays a file to edit. When the ticket stated its file paths or
+  creates code, an edit to any other existing file that changes no code (comments and docstrings
+  only) is discarded and the model is told so up front; a real code change elsewhere is applied and
+  reported in the change summary. The agentic loop, `author_tests` and refine are not guarded.
+  `files_to_touch` keeps its name and now holds edit targets only; `files_to_read` is new.
+  ([SSPN-89](https://fibonacci-solutions.atlassian.net/browse/SSPN-89))
+- **A `#` comment inside a code block no longer splits a doc into a phantom section.**
+  Section splitting in markdown and HTML now skips fenced code (```` ``` ```` / `~~~`, CommonMark
+  rules: a line like ```` ```x``` ```` is inline code, not a fence; Word and Excel text has no
+  fences), and an HTML `<pre>` block is
+  read as a fenced sample with its lines kept — flattened to one line, a `#`-led sample became a
+  single heading with a 476-character id. Measured before the fix: 68 of this repository's 2,257
+  markdown headings, and 14% of one field repository's, were code comments. The code stays in its
+  real section, so its mentions still bind. ([SSPN-83](https://fibonacci-solutions.atlassian.net/browse/SSPN-83))
+- **`requirements*.txt` and `constraints*.txt` are no longer ingested as docs**, and doc section
+  ids are capped at 100 characters, numeric suffix included (ordinary headings keep their full
+  GitHub anchor).
+- The `docs_for` "no docs" note lists every format the reader accepts, not four of them.
+
+### Changed — upgrade notes
+
+- **A plan whose ticket names a module can read as changed after upgrading.** The design now
+  resolves a module a ticket names (by dotted name) through the graph and lists it first, so that
+  plan's design files, provenance and confidence band render differently — measured: the same spec
+  on the same commit renders a different plan under 3.51.1 and 3.52.0. `require_approved_plan`
+  then refuses the old approval once ("the plan … has changed since … approved it"): re-run
+  `orchestrator sdlc plan --spec <file>`, read it, and `orchestrator sdlc approve <INTENT>`.
+- **A literal `${NAME}` in an `mcp.json` `headers` value or `url` is now expanded.** If `NAME` is
+  unset, loading that server fails with an error naming it. Set the variable, or write `$${NAME}`
+  to keep the text literal.
+
 ## 3.51.1 — 2026-09-26
 
 A patch release: one sandbox fix.

@@ -229,3 +229,89 @@ def test_corrupt_office_file_is_skipped_not_fatal(tmp_path: Path) -> None:
     (tmp_path / "broken.xlsx").write_bytes(b"also not a zip")
     (tmp_path / "ok.md").write_text("fine\n", encoding="utf-8")
     assert {p.title for p in read_doc_pages(tmp_path)} == {"ok.md"}
+
+
+# ---- section splitting honours code (B39 / SSPN-83) -----------------------------------
+
+
+def test_a_comment_inside_a_code_fence_is_not_a_section(tmp_path: Path) -> None:
+    (tmp_path / "a.md").write_text(
+        "# Title\n\ntext\n\n```python\n# a comment in code\nx = 1\n```\n\n"
+        "~~~sh\n# shell too\n~~~\n\n## Real\nmore\n",
+        encoding="utf-8",
+    )
+    pages = {p.title: p.text for p in read_doc_pages(tmp_path)}
+    assert set(pages) == {"a.md#title", "a.md#real"}
+    # the code stays in its section's text, so its mentions still bind
+    assert "# a comment in code" in pages["a.md#title"]
+
+
+def test_a_longer_fence_is_only_closed_by_one_as_long(tmp_path: Path) -> None:
+    (tmp_path / "a.md").write_text(
+        "# Top\n\n````md\n```\n# still inside\n```\n````\n\n# After\n", encoding="utf-8"
+    )
+    assert {p.title for p in read_doc_pages(tmp_path)} == {"a.md#top", "a.md#after"}
+
+
+def test_an_html_pre_block_does_not_become_a_heading(tmp_path: Path) -> None:
+    """A heading followed by a `<pre>` whose first line is a `#` comment used to
+    flatten into one 400-character "heading" — the pre block is a fenced sample now."""
+    (tmp_path / "plan.html").write_text(
+        "<h2>Step 1</h2><pre><code># sample.py\nfrom app.client import ApiClient\n"
+        "client = ApiClient()</code></pre><h2>Step 2</h2><p>done</p>",
+        encoding="utf-8",
+    )
+    pages = {p.title: p.text for p in read_doc_pages(tmp_path)}
+    assert set(pages) == {"plan.html#step-1", "plan.html#step-2"}
+    assert "from app.client import ApiClient" in pages["plan.html#step-1"]
+
+
+def test_a_section_id_is_capped_at_100_characters(tmp_path: Path) -> None:
+    heading = "word " * 40  # a 199-character slug uncapped
+    (tmp_path / "a.md").write_text(
+        "".join(f"# {heading}\n\nbody {i}\n\n" for i in range(3)), encoding="utf-8"
+    )
+    titles = [p.title for p in read_doc_pages(tmp_path)]
+    slugs = [t.split("#", 1)[1] for t in titles]
+    assert len(set(titles)) == 3  # duplicates still get their numeric suffix...
+    assert all(len(s) <= 100 and not s.endswith("-") for s in slugs)  # ...inside the cap, not past it
+
+
+def test_an_ordinary_long_heading_keeps_its_github_anchor(tmp_path: Path) -> None:
+    heading = "Prompts and resources the workflow and the documents through the protocol"
+    (tmp_path / "a.md").write_text(f"# {heading}\n\nbody\n", encoding="utf-8")
+    [page] = read_doc_pages(tmp_path)
+    assert page.title == "a.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol"
+
+
+def test_requirements_and_constraints_files_are_not_docs(tmp_path: Path) -> None:
+    for name in ("requirements.txt", "requirements-dev.txt", "requirements_db.txt", "constraints.txt"):
+        (tmp_path / name).write_text("httpx>=0.27\n", encoding="utf-8")
+    (tmp_path / "NOTES.txt").write_text("Real prose about `Client`.\n", encoding="utf-8")
+    assert [p.title for p in read_doc_pages(tmp_path)] == ["NOTES.txt"]
+
+
+def test_a_line_opening_with_inline_backticks_is_not_a_fence(tmp_path: Path) -> None:
+    """CommonMark: a backtick fence's info string cannot contain a backtick, so this is inline
+    code — treating it as a fence swallowed every later heading."""
+    (tmp_path / "a.md").write_text(
+        "# A\n```foo``` inline\n# B\n``` `x` ``` is how to quote\n## C\n```\ncode\n```\n# D\n",
+        encoding="utf-8",
+    )
+    assert [p.title for p in read_doc_pages(tmp_path)] == ["a.md#a", "a.md#b", "a.md#c", "a.md#d"]
+
+
+def test_only_markdown_and_html_track_code_fences(tmp_path: Path, restore_readers: None) -> None:
+    """Fences mean nothing in Word or Excel: a `~~~~~~` divider there must not swallow the headings
+    after it."""
+    register_reader(
+        DocReader("fake-office", frozenset({".fake"}), lambda _p: "# A\n~~~~~~~~~~\n# B\n", sections=True)
+    )
+    (tmp_path / "a.fake").write_text("x", encoding="utf-8")
+    assert [p.title for p in read_doc_pages(tmp_path)] == ["a.fake#a", "a.fake#b"]
+    assert {r.name: r.fences for r in _READERS.values() if r.sections and r.name != "fake-office"} == {
+        "markdown": True,
+        "html": True,
+        "docx": False,
+        "xlsx": False,
+    }

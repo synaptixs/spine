@@ -1,0 +1,427 @@
+"""Pull a repository's external docs over MCP into the docs cache — ``orchestrator mcp ingest-docs``.
+
+The network half of SSPN-80. Everything after the network — the cache format, the conversion to
+``DocPage``, the binding — lives in :mod:`orchestrator.pkg.external_docs`, which never imports
+this package; this module only asks servers for pages and hands them over.
+
+**The tool guard (D22, D36).** A pull calls a tool only when it is allow-listed on the server
+*and* the server declares it read-only (``readOnlyHint: true`` → ``MCPTool.read_only is True``).
+Discovery runs first; any tool the pull needs that fails either test is refused by name, and
+nothing is called. The rule is local to the pull on purpose: an operator's ``mcp.json``
+allow-list routinely includes write tools (``jira_create_issue`` for intake), and a docs pull
+that could reach one because a tool name was mistyped is a pull that can change a tracker.
+Tightening :meth:`MCPRegistry.call` for every caller is a separate decision (ledger B43).
+
+A ``rag`` source (SSPN-82) keeps both tests with one widening (D47): a tool its
+``trust_read_only`` names passes the second. Most RAG servers (chroma-mcp, mcp-server-qdrant)
+annotate nothing, so ``readOnlyHint`` alone would refuse every one of them; the operator
+vouches instead, by name, in the committed ``repos.yaml`` where a reviewer sees it. The allow-list
+test is never widened, and a Confluence or Jira source has no such list.
+
+**What each source asks for.**
+
+- *Confluence* (D16, D32): breadth-first from each root page — ``confluence_get_page`` per page
+  and ``confluence_get_page_children`` (paged, 50 at a time) per parent — to ``max_depth``,
+  at most ``max_docs`` pages. ``convert_to_markdown: true`` is always sent, so a page arrives
+  as markdown and splits by heading like a local file; a server that answers in HTML anyway is
+  flattened by the local HTML reader.
+- *Jira* (D33, D34): ``jira_search`` paged 50 at a time to ``max_issues``, then
+  ``jira_get_issue`` per key with ``comment_limit: 10`` and **always** ``update_history:
+  false`` — mcp-atlassian defaults it to true, which would stamp every pulled issue into the
+  operator's "recently viewed".
+- *RAG* (D10, D16): whatever :mod:`orchestrator.mcp.discovery` reads off the server's schemas —
+  a walk of the corpus with a list tool, else one query per module and class — run by
+  :mod:`orchestrator.mcp.rag_pull`.
+
+Every bound is reported honestly (invariant 7): ``N of M`` when the server said how many there
+were, ``N of at least M (cap reached)`` when a walk stopped with pages still queued.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from orchestrator.mcp.discovery import discover
+from orchestrator.mcp.models import MCPServerStatus, MCPTool
+from orchestrator.mcp.pull_base import Pulled, PullError, ToolGuardError, _Caller
+from orchestrator.mcp.rag_pull import pull_rag, rag_plan_of
+from orchestrator.mcp.registry import MCPRegistry
+from orchestrator.pkg.external_docs import (
+    ExternalPage,
+    collapse_stats,
+    page_text,
+    record_failure,
+    source_cache_dir,
+    utc_stamp,
+    write_pull,
+)
+from orchestrator.pkg.repos import DocSource
+
+if TYPE_CHECKING:
+    from orchestrator.pkg.facts import FactBatch
+
+#: The tools each kind of source calls — and so the tools the guard must clear before a pull.
+TOOLS: dict[str, tuple[str, ...]] = {
+    "confluence": ("confluence_get_page", "confluence_get_page_children"),
+    "jira": ("jira_search", "jira_get_issue"),
+}
+#: The most mcp-atlassian returns per page of children or search results.
+_PAGE_SIZE = 50
+#: Comments read per Jira issue (D33).
+_COMMENT_LIMIT = 10
+
+
+def _text_of(value: Any) -> str:
+    """Prose from a string, or from an ADF-ish object's ``text`` leaves, in order."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        if isinstance(value.get("text"), str):
+            return str(value["text"])
+        return _text_of(value.get("content") or value.get("value") or "")
+    if isinstance(value, list):
+        return "\n".join(t for t in (_text_of(v) for v in value) if t)
+    return ""
+
+
+def server_status(source: DocSource, status: MCPServerStatus | None) -> MCPServerStatus:
+    """``status``, when the server is configured and answered its tool listing."""
+    if status is None:
+        raise ToolGuardError(f"source {source.name!r}: MCP server {source.server!r} is not configured")
+    if not status.ok:
+        raise PullError(f"MCP server {source.server!r} is unavailable: {status.error or status.kind}")
+    return status
+
+
+def vet_tools(
+    source: DocSource, status: MCPServerStatus | None, needed: Sequence[str] | None = None
+) -> dict[str, MCPTool]:
+    """The tools ``source`` needs, each cleared by the guard — or :class:`ToolGuardError`
+    naming every one that is not, before anything is called.
+
+    ``needed`` defaults to the kind's fixed tools (:data:`TOOLS`); a ``rag`` pull passes what
+    discovery picked. A ``rag`` source's ``trust_read_only`` clears a tool the server does not
+    annotate (D47) — the operator vouching for it in the committed ``repos.yaml``. Confluence and
+    Jira sources carry no such list, so their rule is exactly ``readOnlyHint: true``."""
+    offered = {t.name: t for t in server_status(source, status).tools}
+    names = tuple(needed) if needed is not None else TOOLS[source.kind]
+    trusted = set(source.trust_read_only)
+    refused: list[str] = []
+    for name in names:
+        tool = offered.get(name)
+        if tool is None:
+            refused.append(f"{source.server}:{name} (not allow-listed or not offered)")
+        elif tool.read_only is not True and name not in trusted:
+            vouch = ", nor named in rag.trust_read_only" if source.kind == "rag" else ""
+            refused.append(
+                f"{source.server}:{name} (read_only={tool.read_only!r}, not declared read-only{vouch})"
+            )
+    if refused:
+        rule = "that declare readOnlyHint=true"
+        if source.kind == "rag":
+            rule += " or that the source's trust_read_only names"
+        raise ToolGuardError(
+            f"source {source.name!r}: refusing to pull — the docs pull calls only allow-listed tools "
+            f"{rule}: {'; '.join(refused)}"
+        )
+    return {name: offered[name] for name in names}
+
+
+def _confluence_page(page_id: str, data: Any, raw: str) -> ExternalPage:
+    doc: dict[str, Any] = data if isinstance(data, dict) else {}
+    nested = doc.get("metadata")
+    meta: dict[str, Any] = nested if isinstance(nested, dict) else doc
+    body: Any = None
+    for holder in (meta, doc):
+        for key in ("content", "body", "text"):
+            candidate = holder.get(key)
+            if isinstance(candidate, dict):
+                candidate = candidate.get("value")
+            if isinstance(candidate, str) and candidate.strip():
+                body = candidate
+                break
+        if body is not None:
+            break
+    if body is None:
+        body = raw if not isinstance(data, dict) else ""
+    return ExternalPage(
+        id=str(meta.get("id") or page_id),
+        title=str(meta.get("title") or page_id),
+        text=page_text(body),
+        url=str(meta.get("url") or meta.get("link") or ""),
+        kind="confluence",
+    )
+
+
+def _child_ids(data: Any) -> list[str]:
+    items = (
+        data if isinstance(data, list) else (data or {}).get("results") or (data or {}).get("children") or []
+    )
+    return [str(it["id"]) for it in items if isinstance(it, dict) and it.get("id")]
+
+
+async def _pull_confluence(caller: _Caller, source: DocSource) -> Pulled:
+    pages: list[ExternalPage] = []
+    seen: set[str] = set()
+    queue: list[tuple[str, int]] = [(root, 0) for root in source.roots]
+    queued = set(source.roots)
+    truncated = False
+    while queue:
+        page_id, depth = queue.pop(0)
+        if page_id in seen:
+            continue
+        if len(pages) >= source.max_docs:
+            truncated = True
+            break
+        seen.add(page_id)
+        data, raw = await caller.call(
+            "confluence_get_page", {"page_id": page_id, "convert_to_markdown": True, "include_metadata": True}
+        )
+        pages.append(_confluence_page(page_id, data, raw))
+        if depth >= source.max_depth:
+            continue
+        start = 0
+        while True:
+            data, _raw = await caller.call(
+                "confluence_get_page_children",
+                {
+                    "parent_id": page_id,
+                    "limit": _PAGE_SIZE,
+                    "start": start,
+                    "include_content": False,
+                    "convert_to_markdown": True,
+                },
+            )
+            ids = _child_ids(data)
+            for child in ids:
+                if child not in queued:
+                    queued.add(child)
+                    queue.append((child, depth + 1))
+            if len(ids) < _PAGE_SIZE:
+                break
+            start += _PAGE_SIZE
+    return Pulled(pages=pages, cap=source.max_docs, discovered=len(queued), truncated=truncated)
+
+
+def _issue_text(key: str, data: Any, raw: str) -> tuple[str, str, str]:
+    """``(title, text, url)`` — summary, description and up to ten comments."""
+    if not isinstance(data, dict):
+        return key, raw.strip(), ""
+    nested = data.get("fields")
+    fields: dict[str, Any] = nested if isinstance(nested, dict) else data
+    summary = str(fields.get("summary") or data.get("summary") or key)
+    parts = [f"{key}: {summary}"]
+    description = _text_of(fields.get("description")).strip()
+    if description:
+        parts.append(description)
+    comments = data.get("comments")
+    if comments is None and isinstance(fields.get("comment"), dict):
+        comments = fields["comment"].get("comments")
+    for comment in (comments or [])[:_COMMENT_LIMIT]:
+        body = _text_of(comment.get("body") if isinstance(comment, dict) else comment).strip()
+        if body:
+            parts.append(body)
+    url = str(data.get("browse_url") or data.get("url") or "")
+    return summary, "\n\n".join(parts), url
+
+
+async def _pull_jira(caller: _Caller, source: DocSource) -> Pulled:
+    keys: list[str] = []
+    total: int | None = None
+    token = ""
+    while len(keys) < source.max_issues:
+        want = min(_PAGE_SIZE, source.max_issues - len(keys))
+        args: dict[str, Any] = {"jql": source.jql, "limit": want, "fields": "summary"}
+        if token:
+            args["page_token"] = token
+        else:
+            args["start_at"] = len(keys)
+        data, _raw = await caller.call("jira_search", args)
+        data = data if isinstance(data, dict) else {"issues": data if isinstance(data, list) else []}
+        reported = data.get("total")
+        if isinstance(reported, int) and not isinstance(reported, bool) and reported >= 0:
+            total = reported
+        batch = [str(i["key"]) for i in data.get("issues") or [] if isinstance(i, dict) and i.get("key")]
+        fresh = [k for k in batch if k not in keys]
+        keys.extend(fresh[: source.max_issues - len(keys)])
+        token = str(data.get("next_page_token") or data.get("nextPageToken") or "")
+        if not fresh or len(batch) < want or (total is not None and len(keys) >= total):
+            break
+    pages: list[ExternalPage] = []
+    for key in keys:
+        data, raw = await caller.call(
+            "jira_get_issue",
+            {
+                "issue_key": key,
+                "comment_limit": _COMMENT_LIMIT,
+                "update_history": False,
+                "fields": "summary,description,comment",
+            },
+        )
+        title, text, url = _issue_text(key, data, raw)
+        pages.append(ExternalPage(id=key, title=title, text=text, url=url, kind="jira"))
+    truncated = len(keys) >= source.max_issues and (total is None or total > len(keys))
+    return Pulled(pages=pages, cap=source.max_issues, total=total, discovered=len(keys), truncated=truncated)
+
+
+def plan_of(source: DocSource) -> list[dict[str, Any]]:
+    """What a pull of ``source`` would call — ``--dry-run``'s answer, no tool touched."""
+    if source.kind == "confluence":
+        return [
+            {"tool": "confluence_get_page", "args": {"page_id": "<each page>", "convert_to_markdown": True}},
+            {
+                "tool": "confluence_get_page_children",
+                "args": {
+                    "parent_id": "<each page above max_depth>",
+                    "limit": _PAGE_SIZE,
+                    "convert_to_markdown": True,
+                },
+            },
+        ]
+    return [
+        {"tool": "jira_search", "args": {"jql": source.jql, "limit": _PAGE_SIZE}},
+        {
+            "tool": "jira_get_issue",
+            "args": {"issue_key": "<each result>", "comment_limit": _COMMENT_LIMIT, "update_history": False},
+        },
+    ]
+
+
+async def ingest_docs(
+    registry: MCPRegistry,
+    repo_root: Path,
+    repo_key: str,
+    sources: Sequence[DocSource],
+    *,
+    dry_run: bool = False,
+    cache_base: Path | None = None,
+    graph: Callable[[], FactBatch] | None = None,
+) -> list[dict[str, Any]]:
+    """Pull every source in ``sources`` for ``repo_key`` — one summary per source.
+
+    A source that fails — refused by the guard, a server error, an unreadable answer — keeps
+    its last good pull and gets a ``failure.json`` beside it; the others still pull.
+
+    A query-driven ``rag`` source asks about the repository's modules and classes, so it needs
+    the code graph: ``graph`` when given, else ``load_or_extract(repo_root)`` — built once, and
+    only when such a source actually pulls (never on a dry run)."""
+
+    built: list[FactBatch] = []
+
+    def code_graph() -> FactBatch:
+        if not built:
+            if graph is not None:
+                built.append(graph())
+            else:
+                from orchestrator.pkg import load_or_extract
+
+                built.append(load_or_extract(repo_root))
+        return built[0]
+
+    statuses = {s.name: s for s in await registry.probe()}
+    out: list[dict[str, Any]] = []
+    for source in sources:
+        dest = source_cache_dir(repo_root, repo_key, source.name, base=cache_base)
+        row: dict[str, Any] = {
+            "source": source.name,
+            "server": source.server,
+            "kind": source.kind,
+            "cap": source.cap,
+            "cache": str(dest),
+        }
+        plan = None
+        try:
+            if source.kind == "rag":
+                status = server_status(source, statuses.get(source.server))
+                plan = discover(source, status.tools)
+                vetted = vet_tools(source, status, plan.tools)
+            else:
+                vetted = vet_tools(source, statuses.get(source.server))
+        except (ToolGuardError, PullError) as exc:
+            row.update(
+                {"status": "refused" if isinstance(exc, ToolGuardError) else "failed", "error": str(exc)}
+            )
+            if not dry_run:
+                record_failure(dest, str(exc))
+            out.append(row)
+            continue
+        if plan is not None:
+            row["strategy"] = plan.strategy
+        if dry_run:
+            row.update({"status": "planned", "tools": rag_plan_of(source, plan) if plan else plan_of(source)})
+            out.append(row)
+            continue
+        caller = _Caller(registry, source.server, frozenset(vetted))
+        try:
+            if plan is not None:
+                pulled = await pull_rag(caller, source, plan, code_graph)
+            elif source.kind == "confluence":
+                pulled = await _pull_confluence(caller, source)
+            else:
+                pulled = await _pull_jira(caller, source)
+            counts: dict[str, Any] = {
+                "pages": len(pulled.pages),
+                "cap": pulled.cap,
+                "total": pulled.total,
+                "discovered": pulled.discovered,
+                "truncated": pulled.truncated,
+                "bound": pulled.bound,
+            }
+            manifest: dict[str, Any] = {
+                "source": source.name,
+                "kind": source.kind,
+                "server": source.server,
+                # The SDK client does not surface the server's `serverInfo` through the registry.
+                "server_version": None,
+                "pulled_at": utc_stamp(),
+                "tools_called": caller.calls,
+                "counts": counts,
+            }
+            if plan is not None:
+                manifest.update({"strategy": plan.strategy, "plan": plan.describe()})
+                if source.collection:
+                    manifest["collection"] = source.collection
+                if pulled.queried is not None:
+                    counts.update({"queried": pulled.queried, "candidates": pulled.candidates})
+            written = write_pull(dest, pulled.pages, manifest, queries=pulled.queries)
+        except (ToolGuardError, PullError, OSError, ValueError, KeyError, RuntimeError) as exc:
+            reason = f"{type(exc).__name__}: {exc}"
+            record_failure(dest, reason)
+            row.update({"status": "failed", "error": reason, "tools_called": len(caller.calls)})
+            out.append(row)
+            continue
+        row.update(
+            {
+                "status": "ok",
+                "cap": pulled.cap,
+                "pulled": len(pulled.pages),
+                "bound": pulled.bound,
+                "truncated": pulled.truncated,
+                "pulled_at": written["pulled_at"],
+                "tools_called": _tally(caller.calls),
+                "collapse": collapse_stats(repo_root, pulled.pages, source.server),
+            }
+        )
+        out.append(row)
+    return out
+
+
+def _tally(calls: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for call in calls:
+        counts[call["tool"]] = counts.get(call["tool"], 0) + 1
+    return dict(sorted(counts.items()))
+
+
+__all__ = [
+    "TOOLS",
+    "PullError",
+    "Pulled",
+    "ToolGuardError",
+    "ingest_docs",
+    "plan_of",
+    "server_status",
+    "vet_tools",
+]

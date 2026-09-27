@@ -76,7 +76,7 @@ _9 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/sdlc.py:1298`](../../src/orchestrator/cli/sdlc.py#L1298)
 
 - **Called by** (1 production · 1 test): [`sdlc_feature`](../../src/orchestrator/cli/sdlc.py#L1148), [`test_sdlc_feature_reads_the_cap_from_the_environment`](../../tests/sdlc/test_autorun_publish.py#L298)
-- **Calls** (5): `Exit`, `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`run_budget_from_env`](../../src/orchestrator/core/llm/budget.py#L85), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L766)
+- **Calls** (5): `Exit`, `echo`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`run_budget_from_env`](../../src/orchestrator/core/llm/budget.py#L85), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L767)
 
 ### `_run_sdlc_remediate`
 
@@ -120,7 +120,7 @@ _9 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/sdlc.py:222`](../../src/orchestrator/cli/sdlc.py#L222)
 
-- **Calls** (9): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L90), [`baseline_summary`](../../src/orchestrator/evals/agent_corpus.py#L300), `dumps`, `echo`, [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260), [`render_report`](../../src/orchestrator/evals/agent_corpus.py#L322), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`score_runs`](../../src/orchestrator/evals/agent_corpus.py#L282)
+- **Calls** (9): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L90), [`baseline_summary`](../../src/orchestrator/evals/agent_corpus.py#L300), `dumps`, `echo`, [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L261), [`render_report`](../../src/orchestrator/evals/agent_corpus.py#L322), [`score_gate`](../../src/orchestrator/evals/agent_corpus.py#L218), [`score_runs`](../../src/orchestrator/evals/agent_corpus.py#L282)
 
 ### `sdlc_complete`
 
@@ -132,19 +132,19 @@ _9 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/sdlc.py:250`](../../src/orchestrator/cli/sdlc.py#L250)
 
-- **Calls** (6): `Exit`, [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L250), `dumps`, `echo`, [`load_case`](../../src/orchestrator/sdlc/case.py#L194), `secho`
+- **Calls** (6): `Exit`, [`default_artifacts_dir`](../../src/orchestrator/sdlc/autorun.py#L253), `dumps`, `echo`, [`load_case`](../../src/orchestrator/sdlc/case.py#L194), `secho`
 
 ### `sdlc_feature`
 
 [`src/orchestrator/cli/sdlc.py:1148`](../../src/orchestrator/cli/sdlc.py#L1148)
 
-- **Calls** (6): `Exit`, [`_run_sdlc_feature`](../../src/orchestrator/cli/sdlc.py#L1298), `echo`, [`load_spec_file`](../../src/orchestrator/sdlc/spec_file.py#L36), `run`, [`unsupported_language_error`](../../src/orchestrator/sdlc/feature_runner.py#L744)
+- **Calls** (6): `Exit`, [`_run_sdlc_feature`](../../src/orchestrator/cli/sdlc.py#L1298), `echo`, [`load_spec_file`](../../src/orchestrator/sdlc/spec_file.py#L36), `run`, [`unsupported_language_error`](../../src/orchestrator/sdlc/feature_runner.py#L745)
 
 ### `sdlc_plan`
 
 [`src/orchestrator/cli/sdlc.py:764`](../../src/orchestrator/cli/sdlc.py#L764)
 
-- **Calls** (5): `Exit`, `echo`, [`load_spec_file`](../../src/orchestrator/sdlc/spec_file.py#L36), `run`, [`unsupported_language_error`](../../src/orchestrator/sdlc/feature_runner.py#L744)
+- **Calls** (5): `Exit`, `echo`, [`load_spec_file`](../../src/orchestrator/sdlc/spec_file.py#L36), `run`, [`unsupported_language_error`](../../src/orchestrator/sdlc/feature_runner.py#L745)
 
 ### `sdlc_remediate`
 

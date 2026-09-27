@@ -219,6 +219,42 @@ class CrossRepoReach(TypedDict, total=False):
 
 
 @with_config(_OPEN)
+class DocRef(TypedDict, total=False):
+    doc: str
+    via: str  # symbol | class | module — what the page names
+    origin: str  # "repo" — the repository's own docs; "mcp:<server>" — pulled by `mcp ingest-docs`
+    where: str | None
+    source: str  # external only: the repos.yaml `docs:` source name
+    title: str  # external only: the page or issue title
+    url: str  # external only: where the page lives
+    source_path: str  # a RAG chunk: the path or uri its server's metadata names
+    # a repository doc an external source holds verbatim — or, a RAG source, indexes from this
+    # very file — as "mcp:<server>/<source>"
+    also_in: list[str]
+
+
+@with_config(_OPEN)
+class ExternalDocStanding(TypedDict, total=False):
+    """How far to trust one external doc source's cached pages (SSPN-80, D17/D21)."""
+
+    repo: str
+    source: str
+    server: str
+    status: str  # ok | failed | never_pulled
+    pulled_at: str | None
+    age_days: float | None
+    stale: bool  # older than seven days
+    error: str  # failed: why, and the date of the data still shown
+    note: str
+    pages: int
+    sections: int
+    bound_sections: int
+    collapsed_into_repo_docs: int  # identical to a repository doc section, listed there as also_in
+    strategy: str  # a rag source: "enumerate" (walked the corpus) or "query" (one query per symbol)
+    pull_bound: str  # what the pull covered: "N of M", "queried N of M symbols (cap reached) → K chunk(s)"
+
+
+@with_config(_OPEN)
 class BlastMatch(TypedDict, total=False):
     id: str
     kind: str
@@ -231,6 +267,11 @@ class BlastMatch(TypedDict, total=False):
     instantiated_via_type: list[CallSite]
     touch_count: int
     touches: list[Touched]
+    doc_count: int
+    docs: list[DocRef]
+    related_doc_count: int
+    external_retrieved_count: int  # chunks a query-driven rag pull got back for this symbol's query
+    external_unverified_count: int  # … of which the binder ties none to this symbol: counted, not listed
     cross_repo_count: int
     cross_repo: list[CrossRepoReach]
 
@@ -241,6 +282,8 @@ class BlastRadiusOut(Failure, total=False):
     found: bool
     matches: list[BlastMatch]
     markdown: str
+    docs_unavailable: str  # docs could not be linked; the code answer above still stands
+    external_docs: list[ExternalDocStanding]
     standing: Standing
     multi_repo_available: ReposNote
 
@@ -257,6 +300,11 @@ class SymbolMatch(TypedDict, total=False):
     instantiated_via_type: list[str]
     calls: list[str]
     contains: list[str]
+    doc_count: int
+    docs: list[DocRef]
+    related_doc_count: int
+    external_retrieved_count: int  # as BlastMatch
+    external_unverified_count: int
     repo: str
     cross_repo_count: int
     cross_repo: list[CrossRepoReach]
@@ -267,6 +315,8 @@ class ExplainSymbolOut(Failure, total=False):
     symbol: str
     found: bool
     matches: list[SymbolMatch]
+    docs_unavailable: str  # docs could not be linked; the code answer above still stands
+    external_docs: list[ExternalDocStanding]
     standing: Standing
     multi_repo_available: ReposNote
 
@@ -404,6 +454,10 @@ class DocMatch(TypedDict, total=False):
     kind: str
     where: str | None
     docs: list[str]
+    external: list[DocRef]  # docs pulled over MCP that name it (origin "mcp:<server>")
+    also_in: dict[str, list[str]]  # repository doc → the external sources holding it verbatim
+    external_retrieved_count: int  # as BlastMatch
+    external_unverified_count: int
 
 
 @with_config(_OPEN)
@@ -425,6 +479,11 @@ class DocsForOut(Failure, total=False):
     coverage_pct: int
     drift_total: int
     drift_top: list[Drift]
+    external_doc_count: int  # external doc sections admitted — never part of `docs`
+    external_documented_symbols: int
+    external_drift: int  # enumerated external sources only — never part of `drift_total`
+    external_drift_top: list[Drift]
+    external_docs: list[ExternalDocStanding]
     reproducible: bool
     repos: dict[str, Any]  # the per-repository fan-out: each value is a DocsForOut
     standing: Standing

@@ -44,11 +44,16 @@ class SessionMCPClient:
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> MCPToolResult:
         async with self._session() as session:
             result = await session.call_tool(name, arguments)
-            text = "".join(getattr(c, "text", "") or "" for c in (result.content or []))
+            blocks = tuple(getattr(c, "text", "") or "" for c in (result.content or []))
             # Read the flag, don't `getattr(..., False)` it. v1 spelled this `isError`; a
             # defaulted lookup silently reported every tool error as a success when the name
             # changed, which is worse than the AttributeError it was written to avoid.
-            return MCPToolResult(text=text, is_error=bool(result.is_error))
+            return MCPToolResult(
+                text="".join(blocks),
+                is_error=bool(result.is_error),
+                blocks=tuple(b for b in blocks if b),
+                structured=result.structured_content,
+            )
 
     @contextlib.asynccontextmanager
     async def _session(self) -> AsyncIterator[Any]:

@@ -359,6 +359,15 @@ Tool names are namespaced `server:tool`, so two servers may expose the same tool
 colliding. Point the Atlassian presets at a specific server with `MCP_JIRA_SERVER` /
 `MCP_CONFLUENCE_SERVER` when you run more than one that could serve them.
 
+- **`${VAR}` in `headers` and `url`** is filled from the environment when the file is
+  loaded, so a remote server's token never has to sit in `mcp.json` (the `internal` entry
+  above). The `orchestrator mcp` commands load `./.env` first, so a token kept there works.
+  An **unset** variable is an error naming the variable and the server — Spine never sends
+  an empty `Authorization` header. Only the braced form expands: `$VAR` and a lone `$` are
+  left as written, and `$${VAR}` is a literal `${VAR}`. `command`, `args`, `env` and `allow`
+  are *not* expanded (a stdio server already inherits the environment). Spine never writes
+  the expanded value back: the Connections page shows and saves the placeholder, and a
+  failing server's error text has the value swapped back to `${VAR}`.
 - **`allow`** is an allow-list — only those tools are callable (omit = all, with a warning).
 - **Writes are off by default**: mutating tools are refused unless you set
   `write_enabled: true` on that server.
@@ -395,6 +404,50 @@ the request for those fields is read with its defaults, and the ticket says so �
 only. With `--follow-links`, the pages it links to are read through `confluence_get_page`.
 In the pipeline (Step 7), configured MCP tools are auto-onboarded at startup with
 the same rate-limit + audit + approval path.
+
+**9.3a — Pull a repository's external docs into the graph's read tools.** Declare the sources in
+the repo's `.spine/repos.yaml` under `docs:` ([USER_GUIDE.md](USER_GUIDE.md) has the block), then:
+```bash
+orchestrator mcp ingest-docs --dry-run            # resolve config + tool guard, call nothing
+orchestrator mcp ingest-docs --source handbook    # pull one source (default: every declared one)
+```
+- **Tool guard.** The pull calls a tool only when it is on the server's `allow` list **and** the
+  server declares it read-only (`readOnlyHint: true` — `read_only: true` in `mcp list`). Anything
+  else is refused by name before any call, and the command exits `2`. An allow-list that also
+  carries `jira_create_issue` for intake is fine: the docs pull never reaches it. Confluence needs
+  `confluence_get_page` + `confluence_get_page_children`; Jira needs `jira_search` +
+  `jira_get_issue`. Every `jira_get_issue` passes `update_history: false`, so a pull does not fill
+  your "recently viewed"; every Confluence call passes `convert_to_markdown: true`.
+- **Cache.** `$ORCHESTRATOR_DOCS_CACHE_DIR`, else `~/.cache/orchestrator/docs/`, then
+  `<sha256(repo root)[:16]>-<repo key>/<source>/` holding `pages.jsonl` (id, title, url, text,
+  kind) and `manifest.json` (server, tools called with their arguments, `pulled_at`, counts
+  including truncation, content sha256). Each pull replaces the folder whole — written beside it,
+  then swapped with `os.replace` — so a reader never sees half a pull.
+- **Failure.** A failed pull leaves the last good folder untouched and writes
+  `<source>.failure.json` beside it; tools then report `last pull failed: <reason>; showing data
+  from <pulled_at>`. A source never pulled reports `never_pulled`. Pulls older than 7 days are
+  flagged `stale`. Re-run the command to refresh; there is no background pull.
+- **Bounds.** Confluence stops at `max_depth` / `max_docs`, Jira at `max_issues`; the summary says
+  `N of M` when the server reported a total, `N of at least M (cap reached)` when a walk stopped
+  with pages still queued. `collapse` counts sections identical to the repo's own docs.
+- **Reproducibility.** Only `blast_radius`, `explain_symbol` and `docs_for` read the cache.
+  `understand` / `state` / `episteme/` never do, so CI output does not depend on a token.
+- **RAG servers (`rag:` sources).** Onboard the server in `mcp.json` like any other, and run it
+  read-only where it offers the switch — mcp-server-qdrant with `QDRANT_READ_ONLY=true` drops
+  `qdrant-store` altogether; for chroma-mcp keep `chroma_add_documents` / `chroma_delete_*` off the
+  `allow` list. Most RAG servers declare no `readOnlyHint` at all (chroma-mcp and
+  mcp-server-qdrant declare none), so the guard refuses their tools until the source's
+  `trust_read_only` names them in the committed `repos.yaml` — the operator's written vouch, per
+  tool. The `allow` list is never widened by it. The pull picks its tools from their input
+  schemas; `--dry-run` shows which one and how its arguments are spelled
+  (`collection_name`/`knowledge_base_id`, `n_results`/`number_of_results`), and refuses — by name,
+  before any call — two tools that fit one role or a required argument it cannot supply. A server
+  with a list tool is walked (`max_chunks`, default 2000); otherwise the pull extracts the repo's
+  code graph and asks one query per module and class, most-called first (`max_queries`, default
+  300, `top_k` chunks each), so a query pull costs up to `max_queries` tool calls. The cache holds
+  one `pages.jsonl` record per chunk (`kind: "chunk"`, with the server's `source` path/uri and
+  `score` when given) and, for a query pull, `queries.json` — each query and the chunk ids it
+  returned — swapped in with the rest.
 
 **9.4 — Manage MCP servers from the web UI.** The **Connections** page
 (`/app/connections`) lists every configured server and **tests each live**

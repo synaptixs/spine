@@ -16,7 +16,8 @@ import importlib.metadata
 import importlib.util
 import json
 import subprocess
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -321,6 +322,10 @@ class MergedFacts:
     #: What the declared joins placed, and what they could not. ``None`` when no joins are
     #: declared — which is not the same as "nothing to join", and the CLI says so.
     joins: JoinReport | None = None
+    #: Each repository's own, unscoped batch, as extracted for this merge — so a caller that needs
+    #: one repository on its own (its docs bind only to its own symbols) reuses it rather than
+    #: extracting that repository a second time, which on a dirty tree is a full re-parse.
+    repo_batches: Mapping[str, FactBatch] = field(default_factory=dict)
 
     @property
     def trusted(self) -> bool:
@@ -459,7 +464,7 @@ def load_or_extract_repos(
     report = None
     if repo_set.joins:
         merged, report = link_joins(merged, repo_set.joins, unresolved)
-    return MergedFacts(merged, tuple(states), report)
+    return MergedFacts(merged, tuple(states), report, batches)
 
 
 __all__ = [

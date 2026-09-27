@@ -97,10 +97,11 @@ class MCPRegistry:
                 tools = await self._factory(cfg).list_tools()
             except Exception as exc:  # noqa: BLE001 — a down server must not blank the rest
                 kind, remedy = _classify(exc)
-                logger.warning(
-                    "mcp.list_failed", extra={"server": name, "error": str(exc)[:200], "kind": kind}
-                )
-                out.append(MCPServerStatus(name=name, kind=kind, error=str(exc)[:300], remedy=remedy))
+                # Redact before truncating: an HTTP error quotes the url it hit, which may
+                # carry an expanded ``${VAR}`` token, and a cut could leave half of one.
+                error = cfg.redact(str(exc))
+                logger.warning("mcp.list_failed", extra={"server": name, "error": error[:200], "kind": kind})
+                out.append(MCPServerStatus(name=name, kind=kind, error=error[:300], remedy=remedy))
                 continue
             allowed = tuple(t for t in tools if cfg.allows(t.name))
             self._schemas.update({f"{name}:{t.name}": t.input_schema for t in allowed})

@@ -90,7 +90,7 @@ from __future__ import annotations
 
 import functools
 import inspect
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -258,12 +258,285 @@ def _open_repo(repo_path: str) -> Iterator[Any]:
 
 
 @contextmanager
-def _repo_store(repo_path: str) -> Iterator[tuple[Any, Any]]:
-    """Yield ``(FactStore, repo Path)`` for a local path or git URL."""
+def _repo_store(repo_path: str, *, with_docs: bool = False) -> Iterator[tuple[Any, Any, _Docs | None]]:
+    """Yield ``(FactStore, repo Path, docs)`` for a local path or git URL.
+
+    The store is always the code-only graph. ``with_docs`` adds a doc lookup beside it (D14,
+    SSPN-79) — ``link_docs`` on the same batch, after the store has taken its snapshot of the
+    edges, so no tool that queries the store ever sees a ``MENTIONS`` edge."""
     from orchestrator.pkg import FactStore, load_or_extract
 
     with _open_repo(repo_path) as repo:
-        yield FactStore(load_or_extract(repo)), repo
+        batch = load_or_extract(repo)
+        store = FactStore(batch)
+        yield store, repo, (_Docs.single(batch, repo) if with_docs else None)
+
+
+_VIA_RANK = {"symbol": 0, "class": 1, "module": 2}
+
+
+class _Docs:
+    """The doc pages describing a symbol, looked up in a doc-linked view kept apart from the
+    code graph a tool queries. In the same store, ``MENTIONS`` edges would make every page that
+    names a symbol one of its ``touches`` and every section title a ``find`` hit.
+
+    ``resolve(node_id)`` answers which doc-linked store to ask, and by which id. One repository:
+    its own batch, linked on first use — a symbol that is not found never pays for the doc pass.
+    Several (D26): the node's own repository, from the batch the merge already extracted, asked by
+    unscoped id — a document describes the repository it lives in, so a web README naming
+    ``create_order`` never lands on billing's handler, and a neighbour in another repository is
+    never a reason to read that repository's docs.
+
+    Docs are extra evidence. Linking that fails leaves every match with no docs and ``error``
+    set, and the tool still returns its code answer.
+
+    **External docs join the same view** (SSPN-80). When the repository declares ``docs:``
+    sources in ``.spine/repos.yaml``, their cached pages are bound against the same linked store
+    at link time — never stored as edges, so a rename drops a stale mention without a re-pull —
+    and ``external`` collects each source's standing (age, failure) for the answer to carry. A
+    source that cannot be bound becomes a ``failed`` standing; the repository's docs stand."""
+
+    def __init__(
+        self,
+        resolve: Callable[[_Docs, str], tuple[Any, str] | None],
+        scope: Callable[[str], str] = lambda _node_id: "",
+    ) -> None:
+        self._resolve_with = resolve
+        self._scope = scope
+        self._indexes: dict[int, tuple[dict[str, list[str]], dict[str, str]]] = {}
+        self._bindings: dict[int, Any] = {}
+        self.error: str | None = None
+        #: One standing per external doc source a linked repository declares (D17, D21).
+        self.external: list[dict[str, Any]] = []
+
+    def _resolve(self, node_id: str) -> tuple[Any, str] | None:
+        return self._resolve_with(self, node_id)
+
+    def _link(self, batch: Any, root: Any, key: str | None = None, sources: tuple[Any, ...] = ()) -> Any:
+        """A doc-linked store over ``batch`` — plus ``key``'s external ``sources``, bound at read
+        time — or ``None`` with ``error`` recorded."""
+        from orchestrator.pkg import FactStore
+        from orchestrator.pkg.doc_link import link_docs
+
+        try:
+            if not sources or key is None:
+                return FactStore(link_docs(batch, root))
+            from orchestrator.pkg.doc_source import read_doc_pages
+
+            pages = read_doc_pages(root)
+            link_docs(batch, root, pages=pages)
+            binding, standings = _bind_external(batch, root, key, sources, pages)
+            store = FactStore(binding.apply(batch) if binding is not None else batch)
+            if binding is not None:
+                self._bindings[id(store)] = binding
+            self.external.extend(standings)
+            return store
+        except Exception as exc:  # noqa: BLE001 — docs are extra evidence; the code answer must survive
+            self.error = f"{type(exc).__name__}: {exc}"
+            return None
+
+    @classmethod
+    def single(cls, batch: Any, repo: Any) -> _Docs:
+        linked: list[Any] = []
+
+        def resolve(docs: _Docs, node_id: str) -> tuple[Any, str] | None:
+            if not linked:
+                linked.append(docs._link(batch, repo, *_local_doc_sources(repo)))
+            return (linked[0], node_id) if linked[0] is not None else None
+
+        return cls(resolve)
+
+    @classmethod
+    def per_repo(cls, repo_set: Any, repo_batches: Mapping[str, Any]) -> _Docs:
+        from orchestrator.pkg import load_or_extract
+        from orchestrator.pkg.scoping import unscope_id
+
+        linked: dict[str, Any] = {}
+
+        def resolve(docs: _Docs, node_id: str) -> tuple[Any, str] | None:
+            repo, unscoped = unscope_id(node_id)
+            if not repo or repo not in repo_set.keys:
+                return None
+            if repo not in linked:
+                root = repo_set.path(repo)
+                batch = repo_batches.get(repo)
+                linked[repo] = docs._link(
+                    batch if batch is not None else load_or_extract(root),
+                    root,
+                    repo,
+                    repo_set.doc_sources(repo),
+                )
+            return (linked[repo], unscoped) if linked[repo] is not None else None
+
+        return cls(resolve, scope=lambda node_id: unscope_id(node_id)[0])
+
+    def _index(self, store: Any) -> tuple[dict[str, list[str]], dict[str, str]]:
+        """``(symbol id → the doc ids naming it, child → parent)`` for one linked store, built once."""
+        from orchestrator.pkg.facts import EdgeKind
+
+        key = id(store)
+        if key not in self._indexes:
+            named: dict[str, list[str]] = {}
+            for e in store.edges_of_kind(EdgeKind.MENTIONS):
+                named.setdefault(e.dst, []).append(e.src)
+            self._indexes[key] = (named, store.parents_index())
+        return self._indexes[key]
+
+    def refs(self, node_id: str, neighbours: list[str]) -> dict[str, Any]:
+        """``docs`` naming the symbol or its owning class/module (D3), and a count of the other
+        docs naming its callers or the code it touches — counted, not listed: a caller's docs
+        describe the caller."""
+        from orchestrator.pkg.facts import NodeKind
+
+        empty: dict[str, Any] = {"doc_count": 0, "docs": [], "related_doc_count": 0}
+        found = self._resolve(node_id)
+        if found is None:
+            return empty
+        store, own = found
+        named, parent_of = self._index(store)
+        binding = self._bindings.get(id(store))
+        chain: list[tuple[str, str]] = [(own, "symbol")]
+        seen_up = {own}
+        up = parent_of.get(own)
+        while up is not None and up not in seen_up:
+            seen_up.add(up)
+            owner = store.node(up)
+            if owner is not None and owner.kind in (NodeKind.TYPE, NodeKind.MODULE):
+                chain.append((up, "class" if owner.kind is NodeKind.TYPE else "module"))
+            up = parent_of.get(up)
+        refs: dict[str, dict[str, Any]] = {}
+        for sym, via in chain:
+            for doc_id in named.get(sym, ()):
+                doc = store.node(doc_id)
+                if doc is None or doc_id in refs:
+                    continue
+                ref: dict[str, Any] = {
+                    "doc": doc.name,
+                    "via": via,
+                    "origin": "repo",
+                    "where": str(doc.provenance) if doc.provenance else None,
+                }
+                if binding is not None:
+                    ref.update(_external_ref_fields(binding, doc_id))
+                refs[doc_id] = ref
+        related: set[str] = set()
+        home = self._scope(node_id)
+        for other in neighbours:
+            if self._scope(other) != home:
+                continue
+            local = self._resolve(other)
+            if local is not None and local[0] is store:
+                related.update(d for d in named.get(local[1], ()) if d not in refs)
+        # the repository's own docs first at each distance: they are reviewed with the code
+        listed = sorted(refs.values(), key=lambda r: (_VIA_RANK[r["via"]], r["origin"] != "repo", r["doc"]))
+        out: dict[str, Any] = {
+            "doc_count": len(listed),
+            "docs": listed[:25],
+            "related_doc_count": len(related),
+        }
+        if binding is not None:
+            out.update(_retrieval_fields(binding, store.node(own), own))
+        return out
+
+
+def _local_doc_sources(repo: Any) -> tuple[str | None, tuple[Any, ...]]:
+    """``(repo key, docs: sources)`` for a single repository — from its own
+    ``.spine/repos.yaml``, the entry whose path is this checkout. ``(None, ())`` without one; a
+    config too broken to read is reported by ``multi_repo_available`` and contributes nothing."""
+    from orchestrator.pkg.repos import RepoConfigError, find_repo_config, load_repo_config
+
+    config = find_repo_config(repo)
+    if config is None:
+        return None, ()
+    try:
+        repo_set = load_repo_config(config)
+    except RepoConfigError:
+        return None, ()
+    key = repo_set.key_for(repo)
+    return (key, repo_set.doc_sources(key)) if key is not None else (None, ())
+
+
+def _bind_external(
+    batch: Any, root: Any, key: str, sources: tuple[Any, ...], pages: Any = None
+) -> tuple[Any, list[dict[str, Any]]]:
+    """``(ExternalBinding | None, standings)`` for ``key``'s cached external docs. A binding that
+    raises becomes a ``failed`` standing per source — external docs are extra evidence too."""
+    from orchestrator.pkg.external_docs import bind_external
+
+    try:
+        binding = bind_external(batch, root, key, sources, repo_pages=pages)
+    except Exception as exc:  # noqa: BLE001 — the repository's own docs must survive a bad cache
+        reason = f"external docs could not be bound: {type(exc).__name__}: {exc}"
+        failed = {"status": "failed", "pulled_at": None, "age_days": None, "stale": False, "error": reason}
+        return None, [{"repo": key, "source": s.name, "server": s.server, **failed} for s in sources]
+    return binding, [{"repo": key, **row} for row in binding.standings]
+
+
+def _external_ref_fields(binding: Any, doc_id: str) -> dict[str, Any]:
+    """What a ``DocRef`` adds for an external doc (``origin``, ``source``, ``title``, ``url``) or
+    for a repository doc an external source holds an identical copy of (``also_in``)."""
+    out: dict[str, Any] = {}
+    meta = binding.meta.get(doc_id)
+    if meta is not None:
+        out.update({"origin": meta["origin"], "source": meta["source"], "title": meta["title"]})
+        if meta["url"]:
+            out["url"] = meta["url"]
+        if meta.get("source_path"):
+            out["source_path"] = meta["source_path"]
+    also = binding.also_in.get(doc_id)
+    if also:
+        out["also_in"] = list(also)
+    return out
+
+
+def _retrieval_fields(binding: Any, node: Any, node_id: str) -> dict[str, int]:
+    """``external_retrieved_count`` / ``external_unverified_count`` for a symbol a query-driven
+    ``rag`` pull asked about (SSPN-82, D9): what the servers returned for its query, and how many
+    of those the binder could not tie to it — counted, never listed, because a retrieved chunk
+    is not a mention. Empty when no pull asked about this symbol."""
+    counted = binding.retrieval(node, node_id) if node is not None else None
+    if counted is None:
+        return {}
+    retrieved, naming = counted
+    return {"external_retrieved_count": retrieved, "external_unverified_count": retrieved - naming}
+
+
+def _retrieval_line(match: dict[str, Any]) -> str | None:
+    """ "N retrieved, K name the symbol" — the markdown for :func:`_retrieval_fields`."""
+    if "external_retrieved_count" not in match:
+        return None
+    retrieved = match["external_retrieved_count"]
+    naming = retrieved - match["external_unverified_count"]
+    return (
+        f"- **RAG retrieval:** {retrieved} retrieved, {naming} name the symbol"
+        + (" (listed above)" if naming else "")
+        + (f"; {retrieved - naming} counted, not listed — no unique anchor" if retrieved - naming else "")
+    )
+
+
+def _external_markdown(standings: list[dict[str, Any]]) -> list[str]:
+    """One line per external doc source: where its pages came from and how far to trust them."""
+    lines: list[str] = []
+    for row in standings:
+        label = f"`{row['source']}` (mcp:{row['server']})"
+        if row["status"] == "never_pulled":
+            state = "never pulled — run `orchestrator mcp ingest-docs`"
+        elif row["status"] == "failed":
+            state = str(row.get("error") or "last pull failed")
+        else:
+            state = f"pulled {row['pulled_at']} ({row['age_days']} d ago)"
+        if row.get("pull_bound"):
+            how = f"{row['strategy']}: " if row.get("strategy") else ""
+            state += f"; {how}{row['pull_bound']}"
+        if row.get("stale"):
+            state += " — **stale** (over 7 days)"
+        lines.append(f"- **External docs** {label}: {state}")
+    return lines
+
+
+def _doc_neighbours(callers: list[Any], through: list[Any], touched: list[Any]) -> list[str]:
+    """What a symbol's ``related_doc_count`` looks at — one definition for both tools that report it."""
+    return [cs.caller.id for cs in callers] + [c.caller.id for c in through] + [t.id for t in touched]
 
 
 def _repos_note(repo: Any) -> dict[str, Any] | None:
@@ -326,14 +599,16 @@ def _in_repo(repo_path: str, fn: Callable[[Any], dict[str, Any]], *, hint: bool 
 
 
 def _in_repo_store(
-    repo_path: str, fn: Callable[[Any, Any], dict[str, Any]], *, hint: bool = True
+    repo_path: str, fn: Callable[..., dict[str, Any]], *, hint: bool = True, docs: bool = False
 ) -> dict[str, Any]:
-    """Run ``fn(store, repo)`` inside a resolved repo; a bad path / URL returns ``{"error": …}``."""
+    """Run ``fn(store, repo)`` inside a resolved repo — ``fn(store, repo, docs)`` with
+    ``docs=True`` — and a bad path / URL returns ``{"error": …}``."""
     from orchestrator.registry.api.workspace import RepoPathError, RepoSourceError
 
     try:
-        with _repo_store(repo_path) as (store, repo):
-            return _with_repos_note(fn(store, repo), repo, hint=hint)
+        with _repo_store(repo_path, with_docs=docs) as (store, repo, lookup):
+            out = fn(store, repo, lookup) if docs else fn(store, repo)
+            return _with_repos_note(out, repo, hint=hint)
     except (RepoSourceError, RepoPathError) as exc:
         return {"error": str(exc)}
 
@@ -364,16 +639,16 @@ def _standing(merged: Any) -> dict[str, Any]:
     }
 
 
-def _in_repos_store(repos: str, fn: Callable[[Any, Any], dict[str, Any]]) -> dict[str, Any]:
-    """Run ``fn(store, merged)`` over a merged multi-repo graph; a bad config returns
-    ``{"error": …}``."""
+def _in_repos_store(repos: str, fn: Callable[..., dict[str, Any]], *, docs: bool = False) -> dict[str, Any]:
+    """Run ``fn(store, merged)`` over a merged multi-repo graph — ``fn(store, merged, docs)``
+    with ``docs=True`` — and a bad config returns ``{"error": …}``."""
     from orchestrator.pkg.repos import RepoConfigError
 
     try:
-        store, merged, _repo_set = _merged_store(repos)
+        store, merged, repo_set = _merged_store(repos)
     except RepoConfigError as exc:
         return {"error": str(exc)}
-    out = fn(store, merged)
+    out = fn(store, merged, _Docs.per_repo(repo_set, merged.repo_batches)) if docs else fn(store, merged)
     out.setdefault("standing", _standing(merged))
     return out
 
@@ -442,18 +717,23 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
     member — they may reach it, not must), plus the cross-layer set a change ripples into
     (CALLS + IMPORTS + REFERENCES), each with ``file:line``. A type's callers are the code that
     creates it; a Java/C# constructor reports those creators as ``instantiated_via_type``.
-    Deterministic.
+    Also the repository's docs that describe it (``docs``, each with ``via``). Deterministic.
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to answer across every
     declared repository: each match then also reports the dependents a change reaches **in
     other repositories**, which is what a single-repo graph cannot see. An HTTP handler with
-    zero callers in its own source is the case this exists for."""
+    zero callers in its own source is the case this exists for.
+
+    Each match also lists the repository's own **docs** that describe it — pages naming the
+    symbol, its class or its module (``via``) — with ``doc_count``, and counts
+    (``related_doc_count``) the other pages naming its callers or the code it touches. A public
+    class nothing in the repo calls can still be what twenty pages of docs tell users to use."""
     if not symbol:
         return {"error": "provide a symbol"}
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
-    def run(store: Any, _ctx: Any) -> dict[str, Any]:
+    def run(store: Any, _ctx: Any, docs: _Docs) -> dict[str, Any]:
         matches = store.find(symbol)
         if not matches:
             return {"symbol": symbol, "found": False, "matches": []}
@@ -477,6 +757,7 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
                     {"id": t.id, "where": str(t.provenance) if t.provenance else None} for t in touched[:25]
                 ],
             }
+            entry.update(docs.refs(node.id, _doc_neighbours(callers, through, touched)))
             owner = _constructed_type(store, node)
             if owner is not None:
                 # A Java/C# `new Foo(…)` lands on the Type (B22, D1), so its constructor node has no
@@ -490,47 +771,64 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
                 entry["cross_repo_count"] = len(reach)
                 entry["cross_repo"] = reach[:25]
             out.append(entry)
-        return {"symbol": symbol, "found": True, "matches": out, "markdown": _blast_markdown(out)}
+        markdown = _blast_markdown(out)
+        if docs.external:
+            markdown = "\n".join([markdown, *_external_markdown(docs.external)])
+        result: dict[str, Any] = {
+            "symbol": symbol,
+            "found": True,
+            "matches": out,
+            "markdown": markdown,
+        }
+        if docs.error:
+            result["docs_unavailable"] = docs.error
+        if docs.external:
+            result["external_docs"] = docs.external
+        return result
 
     if repos:
-        return _in_repos_store(repos, run)
-    return _in_repo_store(repo_path, run)
+        return _in_repos_store(repos, run, docs=True)
+    return _in_repo_store(repo_path, run, docs=True)
 
 
 def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
     """What a symbol is and how it connects: kind, location, who calls it (and who calls it
     through an interface member it implements, with the ``via`` member; for a Java/C#
-    constructor, who creates its type), what it calls, and what it contains. Deterministic (no
-    LLM).
+    constructor, who creates its type), what it calls, what it contains, and the docs that
+    describe it. Deterministic (no LLM).
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to explain it across every
     declared repository: each match then says which repository it lives in and lists the
     symbols in *other* repositories a change to it reaches — the callers a single-repo graph
-    cannot see."""
+    cannot see.
+
+    Each match also lists the docs that describe it (``docs``, ``doc_count``,
+    ``related_doc_count``) — the same doc radius ``blast_radius`` reports."""
     if not symbol:
         return {"error": "provide a symbol"}
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
-    def run(store: Any, _repo: Any) -> dict[str, Any]:
+    def run(store: Any, _repo: Any, docs: _Docs) -> dict[str, Any]:
         matches = store.find(symbol)
         if not matches:
             return {"symbol": symbol, "found": False, "matches": []}
         out: list[dict[str, Any]] = []
         for node in matches[:5]:
+            callers = store.callers_of(node.id)
+            through = store.interface_callers_of(node.id)
             entry: dict[str, Any] = {
                 "id": node.id,
                 "kind": node.kind.value,
                 "name": node.name,
                 "language": node.language,
                 "where": str(node.provenance) if node.provenance else None,
-                "called_by": [cs.caller.id for cs in store.callers_of(node.id)[:15]],
-                "called_through_interface": [
-                    {"id": c.caller.id, "via": c.via} for c in store.interface_callers_of(node.id)[:15]
-                ],
+                "called_by": [cs.caller.id for cs in callers[:15]],
+                "called_through_interface": [{"id": c.caller.id, "via": c.via} for c in through[:15]],
                 "calls": [n.id for n in store.callees_of(node.id)[:15]],
                 "contains": [n.id for n in store.children_of(node.id)[:25]],
             }
+            entry.update(docs.refs(node.id, _doc_neighbours(callers, through, store.touches(node.id))))
             owner = _constructed_type(store, node)
             if owner is not None:  # a constructor: who creates its type (B22, D8)
                 entry["instantiated_via_type"] = [cs.caller.id for cs in store.callers_of(owner)[:15]]
@@ -541,11 +839,16 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
                 entry["cross_repo_count"] = len(reach)
                 entry["cross_repo"] = reach[:25]
             out.append(entry)
-        return {"symbol": symbol, "found": True, "matches": out}
+        result: dict[str, Any] = {"symbol": symbol, "found": True, "matches": out}
+        if docs.error:
+            result["docs_unavailable"] = docs.error
+        if docs.external:
+            result["external_docs"] = docs.external
+        return result
 
     if repos:
-        return _in_repos_store(repos, run)
-    return _in_repo_store(repo_path, run)
+        return _in_repos_store(repos, run, docs=True)
+    return _in_repo_store(repo_path, run, docs=True)
 
 
 def _repo_of_node(node: Any) -> str:
@@ -813,7 +1116,7 @@ async def root_cause(repo_path: str, bug: str, use_llm: bool = False) -> dict[st
         client = LiteLLMClient()
 
     try:
-        with _repo_store(repo_path) as (store, repo):
+        with _repo_store(repo_path) as (store, repo, _docs):
             report = await build_rca(bug, store=store, root=repo, llm=client)
     except (RepoSourceError, RepoPathError) as exc:
         return {"error": str(exc)}
@@ -959,17 +1262,43 @@ def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) ->
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to ask every declared
     repository — **each on its own**, keyed by repository. Docs are not merged across repos: a
     document describes the repository it lives in, and binding one repo's docs to another's
-    symbols by name would be a false edge. Each entry carries its own ``reproducible`` flag."""
+    symbols by name would be a false edge. Each entry carries its own ``reproducible`` flag.
+
+    A repository declaring ``docs:`` sources in ``.spine/repos.yaml`` (pulled by ``orchestrator
+    mcp ingest-docs``) also gets its **external** docs: per match ``external`` (with ``origin``
+    ``mcp:<server>``), and in the summary their own coverage and drift lines — kept apart from the
+    repository's numbers, which ``understand``/``state`` report and never include them in. Every
+    answer that read them carries ``external_docs``: each source's age, staleness and failures."""
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
+
+    declared: dict[Path, tuple[str, tuple[Any, ...]]] = {}
+    if repos:
+        from orchestrator.pkg.repos import RepoConfigError, load_repo_config
+
+        try:
+            repo_set = load_repo_config(repos)
+            declared = {root: (key, repo_set.doc_sources(key)) for key, root in repo_set.roots}
+        except RepoConfigError:
+            pass  # `_per_repo` reports the broken config
 
     def run(repo: Any) -> dict[str, Any]:
         from orchestrator.knowledge.current_state import load_current_state
         from orchestrator.pkg import FactStore
 
         state, batch = load_current_state(repo)
-        if not state.docs:
-            return {"repo": str(repo), "docs": 0, "note": "no docs ingested (no .md/.rst/.txt/.pdf found)"}
+        key, sources = declared.get(Path(repo).resolve(), (None, ())) if repos else _local_doc_sources(repo)
+        binding, standings = _bind_external(batch, repo, key, sources) if key and sources else (None, [])
+        external_nodes = binding.nodes if binding is not None else []
+        if not state.docs and not external_nodes:
+            empty: dict[str, Any] = {
+                "repo": str(repo),
+                "docs": 0,
+                "note": "no docs ingested (no .md/.rst/.txt/.html/.pdf/.docx/.xlsx found)",
+            }
+            if standings:
+                empty["external_docs"] = standings
+            return empty
         if symbol:
             store = FactStore(batch)
             matches = store.find(symbol)
@@ -978,13 +1307,39 @@ def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) ->
             out: list[dict[str, Any]] = []
             lines = [f"# Docs describing `{symbol}`", ""]
             for node in matches[:5]:
-                doc_names = [d.name for d in store.docs_for(node.id)]
+                repo_docs = store.docs_for(node.id)
+                doc_names = [d.name for d in repo_docs]
                 where = str(node.provenance) if node.provenance else None
-                out.append({"id": node.id, "kind": node.kind.value, "where": where, "docs": doc_names})
+                match: dict[str, Any] = {
+                    "id": node.id,
+                    "kind": node.kind.value,
+                    "where": where,
+                    "docs": doc_names,
+                }
                 loc = f" @ {where}" if where else ""
                 shown = ", ".join(f"`{d}`" for d in doc_names) or "_no docs mention this symbol_"
                 lines += [f"### `{node.id}` — {node.kind.value}{loc}", f"- {shown}"]
-            return {"symbol": symbol, "found": True, "matches": out, "markdown": "\n".join(lines)}
+                if binding is not None:
+                    external = _external_refs(binding, node.id)
+                    match["external"] = external
+                    also = {d.name: list(binding.also_in[d.id]) for d in repo_docs if d.id in binding.also_in}
+                    if also:
+                        match["also_in"] = also
+                    if external:
+                        lines.append(
+                            f"- external ({len(external)}): "
+                            + ", ".join(f"`{r['doc']}` ({r['origin']}/{r['source']})" for r in external[:10])
+                        )
+                    match.update(_retrieval_fields(binding, node, node.id))
+                    if (retrieval := _retrieval_line(match)) is not None:
+                        lines.append(retrieval)
+                out.append(match)
+            answer: dict[str, Any] = {"symbol": symbol, "found": True, "matches": out}
+            if standings:
+                answer["external_docs"] = standings
+                lines += ["", *_external_markdown(standings)]
+            answer["markdown"] = "\n".join(lines)
+            return answer
 
         pct = (
             round(100 * state.documented_symbols / state.coverable_symbols) if state.coverable_symbols else 0
@@ -1002,7 +1357,7 @@ def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) ->
             )
             lines += ["", "| Doc claims… | …in |", "|---|---|"]
             lines += [f"| `{d['claim']}` | {d['doc']} |" for d in drift_top]
-        return {
+        summary: dict[str, Any] = {
             "symbol": None,
             "docs": state.docs,
             "documented_symbols": state.documented_symbols,
@@ -1010,12 +1365,65 @@ def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) ->
             "coverage_pct": pct,
             "drift_total": state.doc_drift_total,
             "drift_top": drift_top,
-            "markdown": "\n".join(lines),
         }
+        if binding is not None:
+            summary.update(_external_summary(binding, FactStore(batch)))
+            lines += [
+                "",
+                f"- **{summary['external_doc_count']} external doc section(s)** (pulled over MCP) name "
+                f"**{summary['external_documented_symbols']} symbols** — counted apart from the "
+                "numbers above.",
+            ]
+            if summary["external_drift"]:
+                lines.append(
+                    f"- **{summary['external_drift']} potential drift in external docs** (enumerated "
+                    "sources only) — never part of the repository's drift."
+                )
+                lines += ["", "| External doc claims… | …in |", "|---|---|"]
+                lines += [f"| `{d['claim']}` | {d['doc']} |" for d in summary["external_drift_top"]]
+        if standings:
+            summary["external_docs"] = standings
+            lines += ["", *_external_markdown(standings)]
+        summary["markdown"] = "\n".join(lines)
+        return summary
 
     if repos:
         return _per_repo(repos, run)
     return _in_repo(repo_path, run)
+
+
+def _external_refs(binding: Any, node_id: str) -> list[dict[str, Any]]:
+    """The external docs naming ``node_id`` directly, as ``DocRef`` entries — ``docs_for``'s
+    ``external``, alongside the repository docs it lists by name."""
+    nodes = {n.id: n for n in binding.nodes}
+    refs: list[dict[str, Any]] = []
+    for edge in binding.edges:
+        node = nodes.get(edge.src) if edge.dst == node_id else None
+        if node is None or any(r["doc"] == node.name for r in refs):
+            continue
+        ref: dict[str, Any] = {
+            "doc": node.name,
+            "via": "symbol",
+            "origin": "repo",
+            "where": str(node.provenance) if node.provenance else None,
+        }
+        ref.update(_external_ref_fields(binding, node.id))
+        refs.append(ref)
+    return sorted(refs, key=lambda r: r["doc"])
+
+
+def _external_summary(binding: Any, store: Any) -> dict[str, Any]:
+    """External coverage and drift for ``docs_for``'s summary — its own lines (D20, D25)."""
+    from orchestrator.pkg.facts import NodeKind
+
+    coverable = (NodeKind.TYPE, NodeKind.FUNCTION, NodeKind.MODULE)
+    named = {e.dst for e in binding.edges if (n := store.node(e.dst)) is not None and n.kind in coverable}
+    return {
+        "external_doc_count": binding.doc_count,
+        "external_documented_symbols": len(named),
+        "external_drift": len(binding.drift),
+        "external_drift_top": [{"claim": f.mention, "doc": f.page_title} for f in binding.drift[:8]],
+    }
 
 
 def _per_repo(repos: str, fn: Callable[[Any], dict[str, Any]]) -> dict[str, Any]:
@@ -1082,6 +1490,18 @@ def _blast_markdown(matches: list[dict[str, Any]]) -> str:
                 f"- **Instantiated through its type ({count}) — each runs one of these overloads:** {made}"
             )
         lines.append(f"- **Touches ({m['touch_count']}):** " + ", ".join(t["id"] for t in m["touches"][:10]))
+        if m.get("doc_count"):
+            named = ", ".join(
+                d["doc"] + ("" if d["via"] == "symbol" else f" (via {d['via']})") for d in m["docs"][:10]
+            )
+            shown = f"{m['doc_count']}" if m["doc_count"] <= 10 else f"{m['doc_count']}, top 10 shown"
+            lines.append(f"- **Documented in ({shown}):** {named}")
+        if m.get("related_doc_count"):
+            lines.append(
+                f"- **{m['related_doc_count']} more doc(s)** name its callers or the code it touches"
+            )
+        if (retrieval := _retrieval_line(m)) is not None:
+            lines.append(retrieval)
         # Only on a merged graph. Rendered even at zero: "no dependents in other repos" is an
         # answer, and its absence would read the same as never having looked.
         if "cross_repo_count" in m:

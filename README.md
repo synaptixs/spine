@@ -78,7 +78,17 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.51.1 (current)** — a sandbox fix. `run_python_analysis` on the local sandbox enforces its
+**3.52.0 (current)** — docs in the blast radius, and codegen that stays in scope.
+`blast_radius`, `explain_symbol` and `docs_for` list the doc sections that describe a symbol: the
+repository's own, plus Confluence and Jira pages and any RAG system's chunks pulled over MCP
+(`orchestrator mcp ingest-docs`, a `docs:` block in `.spine/repos.yaml`). `${VAR}` in `mcp.json`
+headers and urls is read from the environment, so a token need not sit in the file. Codegen no
+longer edits files a ticket is not about (on OpenAI models it used to touch 6–9 per run), and refine
+can fix lint and type errors in the tests it wrote without dropping their asserts. **Upgrade notes:**
+a plan whose ticket names a module can read as changed and needs approving again; a literal
+`${NAME}` in an `mcp.json` header or url now needs `NAME` set, or `$${NAME}`.
+
+**3.51.1** — a sandbox fix. `run_python_analysis` on the local sandbox enforces its
 time limit twice, as wall-clock time and as a CPU-time limit, and a busy loop reaches both at
 once. When the CPU limit won, about one run in six, the tool raised `ProcessLookupError` or
 returned exit `-24` with an empty stderr. It now reports exit `124` and `timeout after Ns` either
@@ -334,7 +344,7 @@ in [CLI_REFERENCE.md](https://github.com/synaptixs/spine/blob/main/CLI_REFERENCE
 | Local/offline or mixed-provider models, selected per stage | ✅ | `models`; [configuration](https://github.com/synaptixs/spine/blob/main/SETUP.md#local-and-mixed-model-configuration) |
 | PR reviewer/auditor personas, eval harness and cross-run semantic memory | ✅ | Persona registry, `evals`; `ORCHESTRATOR_SEMANTIC_MEMORY=1` |
 | Live OpenTelemetry tracing joined to the audit log | ✅ opt-in | `OTEL_EXPORTER_OTLP_ENDPOINT`; [Setup](https://github.com/synaptixs/spine/blob/main/SETUP.md#6-live-tracing-optional) |
-| Consume external MCP tools and database schema | ✅ | `mcp list`, `mcp call`, `mcp contracts`, `mcp ingest-db` |
+| Consume external MCP tools, database schema and Confluence/Jira docs | ✅ | `mcp list`, `mcp call`, `mcp contracts`, `mcp ingest-db`, `mcp ingest-docs` |
 | Expose Spine tools, prompts and resources to Claude Code, Codex or other MCP hosts | ✅ | [Agent guide](https://github.com/synaptixs/spine/blob/main/AGENT_GUIDE.md); stdio or authenticated HTTP |
 | Domain-grounded build through ontomesh (semantic-spine seam 1) | ✅ opt-in | `SPINE_ONTOMESH_URL`, `SPINE_ONTOMESH_FLAVOR` |
 | Drift remediation and shipped-unit registration (seams 3 and 2) | 🟡 operator-gated | `sdlc remediate`; [deployment sequence and gaps](https://github.com/synaptixs/spine/blob/main/OPERATIONS.md#the-semantic-spine) |

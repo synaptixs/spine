@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.mcp`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 10 modules — 11 types and 25 functions. It sits in the middle of the graph: 3 areas below it, 5 above. Changes here can reach both ways.
+**`orchestrator.mcp`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 14 modules — 18 types and 69 functions. It sits in the middle of the graph: 3 areas below it, 5 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -33,9 +33,13 @@ flowchart LR
 - [`orchestrator.mcp.config`](../../src/orchestrator/mcp/config.py#L1)
 - [`orchestrator.mcp.contract`](../../src/orchestrator/mcp/contract.py#L1)
 - [`orchestrator.mcp.db`](../../src/orchestrator/mcp/db.py#L1)
+- [`orchestrator.mcp.discovery`](../../src/orchestrator/mcp/discovery.py#L1)
+- [`orchestrator.mcp.doc_pull`](../../src/orchestrator/mcp/doc_pull.py#L1)
 - [`orchestrator.mcp.handler`](../../src/orchestrator/mcp/handler.py#L1)
 - [`orchestrator.mcp.models`](../../src/orchestrator/mcp/models.py#L1)
 - [`orchestrator.mcp.onboard`](../../src/orchestrator/mcp/onboard.py#L1)
+- [`orchestrator.mcp.pull_base`](../../src/orchestrator/mcp/pull_base.py#L1)
+- [`orchestrator.mcp.rag_pull`](../modules/orchestrator.mcp.rag_pull.md)
 - [`orchestrator.mcp.registry`](../../src/orchestrator/mcp/registry.py#L1)
 - [`orchestrator.mcp.schema_types`](../../src/orchestrator/mcp/schema_types.py#L1)
 

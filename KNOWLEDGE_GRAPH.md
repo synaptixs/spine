@@ -353,7 +353,31 @@ text, **HTML**, and — with extras — **PDF** (`[docs]`) and **Word/Excel** (`
 into the same graph: a `Doc` node per doc
 section, `MENTIONS`-linked to each code symbol it names. Nothing to configure; a repo with
 no docs is unaffected. This is what lets `state` report doc coverage and the `docs_for`
-`/spine` tool answer *"which docs describe this symbol?"*.
+`/spine` tool answer *"which docs describe this symbol?"* — and what `blast_radius` and
+`explain_symbol` list beside each match: the pages naming the symbol, its class or its module
+(`via`), plus a count of the pages naming its callers. A class nothing in the repo calls can
+still be what the docs tell every user to use.
+
+Two things are deliberately not sections or docs: a `#` line inside a fenced code block (or an
+HTML `<pre>`) is a code comment, not a heading, and `requirements*.txt` / `constraints*.txt` are
+dependency pins, not prose. Section ids are capped at 100 characters.
+
+**External docs** — Confluence pages and Jira issues a repository declares under `docs:` in
+`.spine/repos.yaml` — are pulled by `orchestrator mcp ingest-docs` into a cache outside the
+checkout, then bound to symbols **at read time** by the same binder and the same one-anchor rule,
+as `Doc` nodes with ids `doc:mcp:<server>/<page id>#<section>`. They appear only in
+`blast_radius`, `explain_symbol` and `docs_for` (with `origin: "mcp:<server>"` and each source's
+age in `external_docs`), and **never** in `understand`, `state` or `episteme/`: CI has no
+credentials to pull them, and those outputs must reproduce there byte for byte. A section
+identical to one of the repo's own is listed once, under the repo doc, with `also_in`.
+
+A **`rag:` source** — any RAG system's MCP server — caches *chunks* the same way: each chunk is
+one `Doc` node, `doc:mcp:<server>/<chunk id>` (the server's id, else `sha1(text)[:12]`), never
+split further. A chunk becomes a `MENTIONS` edge only under the same one-anchor rule; retrieval
+alone admits nothing. What a query-driven pull retrieved for a symbol but cannot bind to it is
+reported as a count (`external_retrieved_count` / `external_unverified_count`), never an edge. A
+chunk whose source metadata names one of the repo's doc files collapses into that file's
+sections as `also_in`.
 
 **Media** (architecture diagrams, screenshots, recorded design reviews) join the graph the
 same way — as `Doc` nodes + `MENTIONS` — but through one extra, deliberate step. Because OCR

@@ -27,7 +27,7 @@
 `sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc workflow` · `sdlc workflows` · `sdlc explain` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
 
 **MCP — external tools** — Consume onboarded Model Context Protocol servers (governed, audited).  
-`mcp list` · `mcp contracts` · `mcp call` · `mcp ingest-db`
+`mcp list` · `mcp contracts` · `mcp call` · `mcp ingest-db` · `mcp ingest-docs`
 
 **Registry — templates & contracts** — Manage reusable capability templates and API contracts in the registry service.  
 `template register` · `template list` · `template show` · `template publish` · `template deprecate` · `contract register` · `contract list` · `contract show` · `contract publish` · `contract deprecate`
@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.51.1  (synaptixs-spine)
+Spine 3.52.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -1501,6 +1501,42 @@ orchestrator mcp ingest-db [OPTIONS]
 | `--sql-arg` | The query tool's SQL argument name. (default: `sql`) |
 | `--schema` | DB schema to introspect. (default: `public`) |
 | `--config` | mcpServers JSON file path. |
+
+### `orchestrator mcp ingest-docs`
+
+Pull a repo's Confluence/Jira/RAG docs (repos.yaml docs:) over MCP into the docs cache.
+
+The pulled pages are bound to code at read time by `blast_radius`, `explain_symbol` and
+`docs_for` — never by `understand`/`state`. Only allow-listed tools that declare themselves
+read-only (or, for a `rag` source, that its `trust_read_only` names) are called; anything else is
+refused by name. Each source is replaced whole (atomic), and a failed pull keeps the last good one.
+
+```
+orchestrator mcp ingest-docs [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `--repo` | The repository whose docs: sources to pull. (default: `.`) |
+| `--repos` | The repos.yaml declaring docs: (default <repo>/.spine/repos.yaml). |
+| `--source` | Pull only this source name (repeatable). |
+| `--config` | mcpServers JSON file path. |
+| `--dry-run` | Resolve config and the tool guard; call no tools. |
+
+Sources come from the `docs:` block of `.spine/repos.yaml` (see [USER_GUIDE.md](USER_GUIDE.md)).
+Prints one JSON row per source: `status` (`ok` · `failed` · `refused` · `planned`), `pulled`,
+`bound` (`N of M`, or `N of at least M (cap reached)`), the `cache` folder, the tools called, and
+`collapse` — how many pulled sections are identical to one of the repository's own doc sections.
+Exit `2` when the tool guard refuses a source or the config is wrong, `1` when a source failed.
+
+A `rag` source (any RAG system's MCP server — Chroma, Qdrant, Bedrock Knowledge Bases, Ragie, a
+`search`/`fetch` pair) has its tools discovered from their input schemas; the row adds `strategy`:
+`enumerate` when the server offers a list tool (the corpus is walked, at most `max_chunks`; `bound`
+is `N of M`), else `query` — one query per module and class, most-called first, at most
+`max_queries` (`bound` reads `queried N of M symbols (cap reached) → K chunk(s)`). `--dry-run`
+prints the discovered tool and argument spelling. Two tools that fit one role, a required argument
+the pull cannot supply, or an unannotated tool not named in `trust_read_only` are refused by name
+(exit `2`) before any call; the code graph is only extracted when a query pull actually runs.
 
 ---
 

@@ -375,7 +375,10 @@ the repo already had from counting against a run),
 
 **MCP** — `ORCHESTRATOR_MCP_CONFIG` (servers Spine consumes), `ORCHESTRATOR_MCP_HOST`
 / `_PORT` / `_PATH` (Spine-as-server), `ORCHESTRATOR_MCP_ISSUER_URL` / `_INTROSPECTION_*`
-(remote OAuth).
+(remote OAuth). In `mcp.json` itself, `headers` values and `url` may reference any variable
+as `${VAR}` — e.g. `"Authorization": "Bearer ${INTERNAL_MCP_TOKEN}"` — so the token lives
+in the environment or `.env`, not the file. An unset variable is an error; `$${VAR}` is a
+literal `${VAR}`. See [OPERATIONS, Step 9](OPERATIONS.md#step-9--connect-external-tools-mcp) for the full rules.
 
 **Semantic spine** — see [semantic-spine configuration](#semantic-spine-configuration).
 
@@ -443,6 +446,7 @@ records — the *why* — are indexed at [docs/specs/README.md](docs/specs/READM
 | `sdlc run` hangs at a gate | Approve it in the console or via `/v1/approvals/.../approve`. |
 | Worker does nothing | It reads the process env, not `.env` — `set -a; source .env; set +a` before starting it. |
 | `mcp list` shows no servers | Add an `mcpServers` file (`--config`, `$ORCHESTRATOR_MCP_CONFIG`, or `./mcp.json`). |
+| `server '<name>': … references ${VAR}, but VAR is not set` | `mcp.json` uses a `${VAR}` placeholder in a `headers` value or `url`: export `VAR`, or add it to `./.env`. |
 | `mcp` commands fail to import | Install the extra: `pip install 'synaptixs-spine[mcp]'` (or `uv sync --extra mcp`). |
 | **macOS: `pytest`/`mypy` hang at ~0% CPU** | The checkout is under iCloud (*Desktop & Documents*) and the venv's files have been evicted, so every import is a network fetch. Confirm with `time (find .venv/lib/python3.12/site-packages/litellm -name '*.py' \| head -150 \| xargs cat > /dev/null)` — under a second when local, ~55s when evicted. Fix by keeping the environment out of the synced tree: `export UV_PROJECT_ENVIRONMENT="$HOME/.venvs/spine"` before `uv sync`. To unblock the current one in place, pre-fetch it: `find .venv -name '*.py' \| xargs -P 48 -n 40 cat > /dev/null`. |
 | An MCP tool is "not allow-listed" / write-gated | Add it to the server's `allow`; for mutating tools set `write_enabled: true`. |

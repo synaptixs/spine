@@ -343,6 +343,96 @@ languages `invention` reports every candidate as *unexaminable*, which prints as
 "not measured", not "clean". `pkg verify` is the complement — it catches self-contradiction, but
 it cannot catch a fabricated edge whose target node was fabricated alongside it.
 
+### Docs that live outside the repo — Confluence and Jira
+
+`blast_radius`, `explain_symbol` and `docs_for` list the doc sections that describe a symbol.
+The repository's own docs are always there; pages that live in Confluence, or the Jira issues
+that specified the code, join them once you declare them in `.spine/repos.yaml` and pull them
+through an onboarded MCP server (see [OPERATIONS.md](OPERATIONS.md) §9):
+
+```yaml
+repos:
+  app: ..                       # this checkout (paths are relative to .spine/)
+docs:
+  app:                          # a key declared under repos:
+    - name: handbook            # unique per repo; also the cache folder name
+      server: atlassian         # an onboarded server in mcp.json
+      confluence: {roots: ["123456"], max_depth: 3, max_docs: 100}
+    - name: tickets
+      server: atlassian
+      jira: {jql: "project = APP AND labels = api", max_issues: 100}
+```
+
+```bash
+orchestrator mcp ingest-docs --dry-run     # which tools would be called, nothing is
+orchestrator mcp ingest-docs               # pull every declared source into the docs cache
+```
+
+Each source declares exactly one of `confluence` (page-id `roots`, walked to `max_depth`, at most
+`max_docs` pages — defaults 3 and 100) or `jira` (`jql`, at most `max_issues` — default 100). A
+mistake names the entry: `docs[app][1]: declare exactly one of 'confluence', 'jira' or 'rag'`
+(`rag` — a RAG system's MCP server — is described below). A file without a `docs:` block is as
+valid as before.
+
+What you then see:
+
+- **In `blast_radius` / `explain_symbol`**, external sections sit in `docs` beside the repo's,
+  with `origin: "mcp:<server>"`, the `source`, the page `title` and `url`. A section identical to
+  one of the repo's own (a Confluence mirror of `docs/`) is listed once, under the repo doc, with
+  `also_in`.
+- **In `docs_for`**, a symbol lookup keeps `docs` (the repo's) and adds `external`; the summary adds
+  `external_doc_count`, `external_documented_symbols` and `external_drift` — counted apart, never
+  mixed into the repository's numbers.
+- **Every answer that read them carries `external_docs`**: per source, `status` (`ok`, `failed`,
+  `never_pulled`), `pulled_at`, `age_days` and `stale` (older than 7 days). A failed pull keeps
+  showing the last good data and says from when.
+
+Pages are bound to code **when a tool reads them**, not when they are pulled — rename a class and
+the page that named it stops listing it (and shows up as external drift) without a re-pull.
+`understand` and `state` never read pulled docs: CI cannot pull them, and `episteme/` must be
+reproducible there.
+
+#### A RAG system's MCP server — the `rag:` kind
+
+Any retrieval system that publishes an MCP server (Chroma, Qdrant, Bedrock Knowledge Bases, Ragie,
+or a `search`/`fetch` pair) can be a third kind of source — no code, just the entry:
+
+```yaml
+docs:
+  app:
+    - name: kb
+      server: chroma                  # onboarded in mcp.json, its tools on the allow list
+      rag:
+        collection: app-docs          # where the server takes one (collection_name, knowledge_base_id)
+        top_k: 10                     # chunks per query (default 10)
+        max_queries: 300              # query path: at most this many modules/classes asked (default)
+        max_chunks: 2000              # enumerate path: at most this many chunks walked (default)
+        trust_read_only: [chroma_get_documents, chroma_query_documents]
+```
+
+Every key is optional. The pull reads each allowed tool's input schema to find its role: a
+**list** tool (`get_documents`, `list_documents`, `scroll`) means the whole corpus is walked; a
+**retrieve** tool (a required `query`/`q`/`question`/`search_query`/`query_text`/`text`, or an
+array `query_texts`) means one query per module and class of your code, the most-called first,
+each asking for the symbol's short name. `tool:` and `query_arg:` pin the tool and its query
+parameter when detection can't — if two tools fit, the pull refuses and names both rather than
+guess.
+
+**`trust_read_only`** is how you vouch for tools the server does not mark read-only. The pull
+calls only allow-listed tools that declare `readOnlyHint: true` — and neither chroma-mcp nor
+mcp-server-qdrant declares it on any tool — so name the ones you have checked here, in the
+committed file, where review sees it. A tool not on the server's `allow` list stays refused
+whatever this says.
+
+What a chunk adds to the read tools: it is **listed** in `docs` (with `origin: "mcp:<server>"`)
+only where the binder finds exactly one symbol it names — retrieval is not a mention. For a
+symbol a query pull asked about, the match also carries `external_retrieved_count` and
+`external_unverified_count`, and the markdown says `10 retrieved, 2 name the symbol`: the other
+eight came back for the query but name nothing the binder can tie to it, so they are counted, not
+listed. A chunk whose source metadata is one of your repo's own doc files (same repo-relative
+path) is that file, indexed — it collapses into the file's sections as `also_in`. Only a walked
+corpus reports external drift; a query only ever retrieves text about names that exist.
+
 ### Which ticket was this code written for? (opt-in)
 
 `understand` and `state` both accept `--intents`, which records the ticket each symbol was last
@@ -458,6 +548,14 @@ failures are sent to refine, and it is told which failures are not its to fix. A
 that cannot even be imported no longer stops the rest of the suite. `SDLC_TEST_BASELINE=0`
 skips the extra run; then a failure made only of old test files missing a dependency stops the
 run with that diagnosis instead of asking the model to edit code.
+
+**Refine fixes the code, not the tests.** The one exception is a ruff or mypy finding in a
+Python test the run itself created: refine may fix that finding in that file. A failing test run
+never unlocks it, and neither does a test that was there before the run. A refine edit to such a
+test that removes or changes an existing `assert`, or removes a test, is refused and reported in
+the change summary. Other ways of weakening a test (a skip marker, a changed expected value) are not caught
+yet. A module docstring written after `from __future__` (ruff E402) is moved to the top before
+refine is needed at all.
 
 As it runs it prints each stage, including `[layout] mode=… package=…` and
 `[grounding] target-KG context: N chars` — that's it reading the existing codebase so
