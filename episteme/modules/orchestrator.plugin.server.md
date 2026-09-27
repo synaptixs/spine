@@ -296,7 +296,7 @@ _17 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:1940`](../../src/orchestrator/plugin/server.py#L1940)
 
 - **Called by** (0 production · 1 test): [`test_audit_repo_needs_a_model_and_then_reports_findings`](../../tests/plugin/test_server.py#L872)
-- **Calls** (3): [`_open_repo`](../../src/orchestrator/plugin/server.py#L249), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L47)
+- **Calls** (3): [`_open_repo`](../../src/orchestrator/plugin/server.py#L249), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L48)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#progress-from-the-long-tools`, `AGENT_GUIDE.md#who-did-what-over-http`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`
 
 ### `blast_radius`
@@ -334,7 +334,7 @@ _17 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:1681`](../../src/orchestrator/plugin/server.py#L1681)
 
 - **Called by** (0 production · 3 test): [`test_design_change_is_grounded_and_never_writes`](../../tests/plugin/test_server.py#L680), [`test_design_change_refuses_a_bad_spec_naming_the_valid_fields`](../../tests/plugin/test_server.py#L701), [`test_design_change_with_llm_needs_a_model`](../../tests/plugin/test_server.py#L709)
-- **Calls** (5): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L75), [`_open_repo`](../../src/orchestrator/plugin/server.py#L249), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L47), [`validate_spec`](../../src/orchestrator/sdlc/spec_file.py#L61)
+- **Calls** (5): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L75), [`_open_repo`](../../src/orchestrator/plugin/server.py#L249), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L48), [`validate_spec`](../../src/orchestrator/sdlc/spec_file.py#L61)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `CHANGELOG.md`, `docs/evidence/perl-codegen-c4-validation.txt`, `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/kotlin-support-roadmap.md#4-testing-the-phases-with-spine-itself`, `docs/specs/mcp-plugin-surface.md#2-the-32-tools-in-three-tiers-plus-an-operator-set`
 
 ### `docs_for`
@@ -464,7 +464,7 @@ _17 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:1094`](../../src/orchestrator/plugin/server.py#L1094)
 
 - **Called by** (0 production · 3 test): [`test_root_cause_deterministic_by_default`](../../tests/plugin/test_server.py#L368), [`test_root_cause_llm_without_model_errors`](../../tests/plugin/test_server.py#L386), [`test_root_cause_requires_a_bug`](../../tests/plugin/test_server.py#L382)
-- **Calls** (6): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L75), [`_repo_store`](../../src/orchestrator/plugin/server.py#L261), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L219), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L306), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L47)
+- **Calls** (6): [`LiteLLMClient`](../../src/orchestrator/core/llm/litellm_client.py#L75), [`_repo_store`](../../src/orchestrator/plugin/server.py#L261), [`build_rca`](../../src/orchestrator/sdlc/rca.py#L219), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`render_rca_md`](../../src/orchestrator/sdlc/rca.py#L306), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L48)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#9-safe-vs-live-the-write-gate`, `AGENT_GUIDE.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol`, `CHANGELOG.md`, `codex-marketplace/README.md#what-it-exposes`, `docs/specs/codex-plugin-keyless-roadmap.md#invariants`
 
 ### `scope_denial`
@@ -515,7 +515,7 @@ _17 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:148`](../../src/orchestrator/plugin/server.py#L148)
 
 - **Called by** (0 production · 4 test): [`test_sdlc_feature_live_requires_confirm`](../../tests/plugin/test_server.py#L445), [`test_sdlc_feature_maps_run_error`](../../tests/plugin/test_server.py#L510), [`test_sdlc_feature_passes_greenfield_brownfield_params`](../../tests/plugin/test_server.py#L474), [`test_sdlc_feature_safe_maps_result`](../../tests/plugin/test_server.py#L451)
-- **Calls** (2): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L766)
+- **Calls** (2): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L767)
 
 ### `sdlc_plan`
 
