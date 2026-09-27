@@ -644,18 +644,25 @@ decide whether to look at it, with nobody checking the build against it. The map
 difference when something checks the work against it. Spine is the map and the inspector;
 spec-kit with the PKG keeps the map and drops the inspector.
 
-### Q4. "Didn't Spine edit more files than spec-kit?"
+### Q4. "Does either tool edit files it shouldn't?"
 
-It did, and it counted against Spine. In the measurement (`bd16dbb7`), Spine + PKG on the OpenAI
-models edited an average of 6–9 tracked files per run that the ticket was not about, against about
-one for spec-kit; on `claude-sonnet-5` both were about one. The cause was Spine's design stage: it
-listed every file whose words matched the ticket as a file to edit, and GPT models treated that as
-licence, most often by adding a justifying comment or docstring to each one.
+**Spine did, and the fix shipped in 3.52.0.** In the measured runs, Spine + PKG changed tracked
+files the ticket was not about. On the OpenAI models it averaged 6.3 per run on `gpt-5.6-sol`
+and 9.0 on `gpt-6-astra`, as many as 12 in one run. spec-kit changed 1.2 and 1.5. On
+`claude-sonnet-5` the two were level, at 1.2 against 1.1. The edits were harmless, mostly a
+justifying comment or docstring. They still left an unrelated diff for a reviewer to read, and on
+GPT models they made Spine's own fit check reject runs whose code was correct.
 
-**Fixed in 3.52.0** (B44, [SSPN-89](https://fibonacci-solutions.atlassian.net/browse/SSPN-89),
-[#490](https://github.com/synaptixs/spine/pull/490)). The design now lists only the files to
-edit, and shows everything else as read-only reference. When the ticket names its files or creates
-code, an edit elsewhere that changes no code is refused. Re-measured on the same three tickets:
+The cause was Spine's design stage. It listed every file whose words matched the ticket as a
+file to edit, and GPT models took that as licence to edit each one. B44
+([SSPN-89](https://fibonacci-solutions.atlassian.net/browse/SSPN-89),
+[#490](https://github.com/synaptixs/spine/pull/490)) fixed it in three ways:
+- the design lists only the files to edit;
+- every other file is shown as read-only reference;
+- when the ticket names its files or creates code, an edit elsewhere that changes no code is
+  refused.
+
+Re-measured on the same three tickets:
 
 | | Before the fix | After |
 |---|---|---|
@@ -663,13 +670,12 @@ code, an edit elsewhere that changes no code is refused. Re-measured on the same
 | Spine's own acceptance | 3/18 | **18/18** |
 | Held-out tests | 4/6 per model | 4/6 per model |
 
-Spec-kit's edits were re-counted from its kept worktrees: 1.1 tracked files per run on Claude,
-1.2 on `gpt-5.6-sol`, 1.5 on `gpt-6-astra`. Most are integration a reviewer would want: a
-package `__init__.py` export, a `CHANGELOG.md` entry, this repository's STATE-OF-SPINE count
-gate. Spine now touches none of these on a create ticket. That is tighter, but it also means Spine
-does not yet do that bookkeeping; the count gate is tracked as B46
-([SSPN-91](https://fibonacci-solutions.atlassian.net/browse/SSPN-91)). The per-model numbers are
-in [reason 10](#10-what-it-costs-at-fleet-scale--measured).
+spec-kit's edits were re-counted from its kept worktrees. Most of them are integration work a
+reviewer would want: a package `__init__.py` export, a `CHANGELOG.md` entry, and this
+repository's STATE-OF-SPINE count gate. Spine now touches none of those on a create ticket.
+That is tighter, but it also means Spine does not yet do that bookkeeping; the count gate is
+tracked as B46 ([SSPN-91](https://fibonacci-solutions.atlassian.net/browse/SSPN-91)). The
+per-model numbers are in [reason 10](#10-what-it-costs-at-fleet-scale--measured).
 
 ## Revisit condition
 
