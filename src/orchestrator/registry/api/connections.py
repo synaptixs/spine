@@ -91,7 +91,8 @@ async def _test_server(cfg: Any, factory: Any) -> ServerInfo:
     base = {
         "name": cfg.name,
         "transport": _transport(cfg),
-        "target": cfg.command or cfg.url or "",
+        # display_url / redact: the file's ``${VAR}`` spelling, never the expanded secret.
+        "target": cfg.command or cfg.display_url or "",
         "enabled": cfg.enabled,
         "write_enabled": cfg.write_enabled,
         "allow": list(cfg.allow) if cfg.allow else None,
@@ -103,7 +104,7 @@ async def _test_server(cfg: Any, factory: Any) -> ServerInfo:
     except TimeoutError:
         return ServerInfo(**base, reachable=False, tools=[], error="timed out")
     except Exception as exc:  # noqa: BLE001 — a down/misconfigured server is reported, not fatal
-        return ServerInfo(**base, reachable=False, tools=[], error=str(exc)[:300])
+        return ServerInfo(**base, reachable=False, tools=[], error=cfg.redact(str(exc))[:300])
     allowed = [
         ToolInfo(name=t.name, read_only=t.read_only, description=t.description)
         for t in tools
@@ -187,7 +188,8 @@ def _require_writable(request: Request) -> None:
 async def add_server(body: ServerSpec, request: Request, _principal: PrincipalDep) -> ServerInfo:
     """Add or update an MCP server in the config, then test it. Gated."""
     _require_writable(request)
-    from orchestrator.mcp import MCPConfigError, MCPServerConfig, upsert_mcp_server
+    from orchestrator.mcp import MCPConfigError, upsert_mcp_server
+    from orchestrator.mcp.config import server_config_from_spec
 
     if bool(body.command) == bool(body.url):
         raise HTTPException(
@@ -206,14 +208,23 @@ async def add_server(body: ServerSpec, request: Request, _principal: PrincipalDe
     except (MCPConfigError, OSError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    cfg = MCPServerConfig(
-        name=body.name,
-        command=body.command,
-        args=tuple(body.args),
-        url=body.url,
-        allow=tuple(body.allow) if body.allow is not None else None,
-        enabled=body.enabled,
-    )
+    # The file keeps the ``${VAR}`` spelling; the test must hit the expanded url, as
+    # the next load would. An unset variable is saved but reported, not raised: the
+    # entry is valid, the environment just is not ready for it yet.
+    try:
+        cfg = server_config_from_spec(body.name, spec)
+    except MCPConfigError as exc:
+        return ServerInfo(
+            name=body.name,
+            transport="stdio" if body.command else "http",
+            target=body.command or body.url or "",
+            enabled=body.enabled,
+            write_enabled=False,
+            allow=list(body.allow) if body.allow else None,
+            reachable=False,
+            tools=[],
+            error=str(exc)[:300],
+        )
     return await _test_server(cfg, _factory(request))
 
 
