@@ -9,7 +9,7 @@
 
 ## Changing this safely
 
-**Tested by** (3): `tests.mcp.test_doc_pull`, `tests.test_cli`, `tests.test_mcp_contracts_types`
+**Tested by** (4): `tests.mcp.test_doc_pull`, `tests.mcp.test_rag_pull`, `tests.test_cli`, `tests.test_mcp_contracts_types`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
@@ -45,21 +45,21 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/registry.py:29`](../../src/orchestrator/cli/registry.py#L29)
 
-- **Called by** (2): [`mcp_contracts`](../../src/orchestrator/cli/registry.py#L323), [`mcp_ingest_docs`](../../src/orchestrator/cli/registry.py#L259)
+- **Called by** (2): [`mcp_contracts`](../../src/orchestrator/cli/registry.py#L324), [`mcp_ingest_docs`](../../src/orchestrator/cli/registry.py#L259)
 - **Calls** (1): [`MCPRegistry`](../../src/orchestrator/mcp/registry.py#L56)
 
 ### `_mcp_build_tools`
 
 [`src/orchestrator/cli/registry.py:36`](../../src/orchestrator/cli/registry.py#L36)
 
-- **Called by** (1): [`mcp_contracts`](../../src/orchestrator/cli/registry.py#L323)
+- **Called by** (1): [`mcp_contracts`](../../src/orchestrator/cli/registry.py#L324)
 - **Calls** (1): [`build_mcp_tools`](../../src/orchestrator/mcp/handler.py#L85)
 
 ### `_mcp_load_configs`
 
 [`src/orchestrator/cli/registry.py:22`](../../src/orchestrator/cli/registry.py#L22)
 
-- **Called by** (2): [`mcp_contracts`](../../src/orchestrator/cli/registry.py#L323), [`mcp_ingest_docs`](../../src/orchestrator/cli/registry.py#L259)
+- **Called by** (2): [`mcp_contracts`](../../src/orchestrator/cli/registry.py#L324), [`mcp_ingest_docs`](../../src/orchestrator/cli/registry.py#L259)
 - **Calls** (1): [`load_mcp_configs`](../../src/orchestrator/mcp/config.py#L115)
 
 ### `_publish`
@@ -87,13 +87,13 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 ### `catalog_list`
 
-[`src/orchestrator/cli/registry.py:396`](../../src/orchestrator/cli/registry.py#L396)
+[`src/orchestrator/cli/registry.py:397`](../../src/orchestrator/cli/registry.py#L397)
 
 - **Calls** (3): [`_print`](../../src/orchestrator/cli/_common.py#L34), [`default_catalog`](../../src/orchestrator/catalog/catalog.py#L147), `echo`
 
 ### `catalog_plan`
 
-[`src/orchestrator/cli/registry.py:425`](../../src/orchestrator/cli/registry.py#L425)
+[`src/orchestrator/cli/registry.py:426`](../../src/orchestrator/cli/registry.py#L426)
 
 - **Calls** (5): [`_print`](../../src/orchestrator/cli/_common.py#L34), [`_repo_arg`](../../src/orchestrator/cli/_common.py#L39), `echo`, [`from_repo`](../../src/orchestrator/catalog/profile.py#L76), [`plan_capabilities`](../../src/orchestrator/catalog/planner.py#L16)
 
@@ -129,13 +129,13 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 ### `mcp_call`
 
-[`src/orchestrator/cli/registry.py:365`](../../src/orchestrator/cli/registry.py#L365)
+[`src/orchestrator/cli/registry.py:366`](../../src/orchestrator/cli/registry.py#L366)
 
 - **Calls** (7): `Exit`, [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, [`from_config`](../../src/orchestrator/mcp/registry.py#L75), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `loads`, `run`
 
 ### `mcp_contracts`
 
-[`src/orchestrator/cli/registry.py:323`](../../src/orchestrator/cli/registry.py#L323)
+[`src/orchestrator/cli/registry.py:324`](../../src/orchestrator/cli/registry.py#L324)
 
 - **Calls** (8): [`_mcp_build_registry`](../../src/orchestrator/cli/registry.py#L29), [`_mcp_build_tools`](../../src/orchestrator/cli/registry.py#L36), [`_mcp_load_configs`](../../src/orchestrator/cli/registry.py#L22), [`_print`](../../src/orchestrator/cli/_common.py#L34), [`argument_type_label`](../../src/orchestrator/mcp/schema_types.py#L44), [`format_argument`](../../src/orchestrator/mcp/schema_types.py#L67), [`load_local_env`](../../src/orchestrator/core/env.py#L20), `run`
 
@@ -149,7 +149,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/registry.py:259`](../../src/orchestrator/cli/registry.py#L259)
 
-- **Calls** (10): `Exit`, [`_mcp_build_registry`](../../src/orchestrator/cli/registry.py#L29), [`_mcp_load_configs`](../../src/orchestrator/cli/registry.py#L22), [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, [`ingest_docs`](../../src/orchestrator/mcp/doc_pull.py#L338), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L373), `pathlib.Path`, `run`
+- **Calls** (10): `Exit`, [`_mcp_build_registry`](../../src/orchestrator/cli/registry.py#L29), [`_mcp_load_configs`](../../src/orchestrator/cli/registry.py#L22), [`_print`](../../src/orchestrator/cli/_common.py#L34), `echo`, [`ingest_docs`](../../src/orchestrator/mcp/doc_pull.py#L292), [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432), `pathlib.Path`, `run`
 
 ### `mcp_list`
 
@@ -196,8 +196,8 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 ## Imports
 
-`__future__.annotations`, `asyncio`, `json`, [`orchestrator.catalog.catalog`](../../src/orchestrator/catalog/catalog.py#L1), [`orchestrator.catalog.planner`](../../src/orchestrator/catalog/planner.py#L1), [`orchestrator.catalog.profile`](../../src/orchestrator/catalog/profile.py#L1), [`orchestrator.cli._common`](../../src/orchestrator/cli/_common.py#L1), [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1), [`orchestrator.mcp.config`](../../src/orchestrator/mcp/config.py#L1), [`orchestrator.mcp.db`](../../src/orchestrator/mcp/db.py#L1), [`orchestrator.mcp.doc_pull`](orchestrator.mcp.doc_pull.md), [`orchestrator.mcp.handler`](../../src/orchestrator/mcp/handler.py#L1), [`orchestrator.mcp.registry`](../../src/orchestrator/mcp/registry.py#L1), [`orchestrator.mcp.schema_types`](../../src/orchestrator/mcp/schema_types.py#L1), [`orchestrator.pkg.repos`](../../src/orchestrator/pkg/repos.py#L1), [`orchestrator.pkg.schema`](../../src/orchestrator/pkg/schema.py#L1), `pathlib.Path`, `typer`, `typing.Annotated`, `typing.Any`
+`__future__.annotations`, `asyncio`, `json`, [`orchestrator.catalog.catalog`](../../src/orchestrator/catalog/catalog.py#L1), [`orchestrator.catalog.planner`](../../src/orchestrator/catalog/planner.py#L1), [`orchestrator.catalog.profile`](../../src/orchestrator/catalog/profile.py#L1), [`orchestrator.cli._common`](../../src/orchestrator/cli/_common.py#L1), [`orchestrator.core.env`](../../src/orchestrator/core/env.py#L1), [`orchestrator.mcp.config`](../../src/orchestrator/mcp/config.py#L1), [`orchestrator.mcp.db`](../../src/orchestrator/mcp/db.py#L1), [`orchestrator.mcp.doc_pull`](../../src/orchestrator/mcp/doc_pull.py#L1), [`orchestrator.mcp.handler`](../../src/orchestrator/mcp/handler.py#L1), [`orchestrator.mcp.registry`](../../src/orchestrator/mcp/registry.py#L1), [`orchestrator.mcp.schema_types`](../../src/orchestrator/mcp/schema_types.py#L1), [`orchestrator.pkg.repos`](../../src/orchestrator/pkg/repos.py#L1), [`orchestrator.pkg.schema`](../../src/orchestrator/pkg/schema.py#L1), `pathlib.Path`, `typer`, `typing.Annotated`, `typing.Any`
 
 ## Imported by
 
-[`orchestrator.cli`](../../src/orchestrator/cli/__init__.py#L1), [`tests.mcp.test_doc_pull`](../../tests/mcp/test_doc_pull.py#L1), [`tests.test_cli`](../../tests/test_cli.py#L1), [`tests.test_mcp_contracts_types`](../../tests/test_mcp_contracts_types.py#L1)
+[`orchestrator.cli`](../../src/orchestrator/cli/__init__.py#L1), [`tests.mcp.test_doc_pull`](../../tests/mcp/test_doc_pull.py#L1), [`tests.mcp.test_rag_pull`](../../tests/mcp/test_rag_pull.py#L1), [`tests.test_cli`](../../tests/test_cli.py#L1), [`tests.test_mcp_contracts_types`](../../tests/test_mcp_contracts_types.py#L1)

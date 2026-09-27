@@ -5,188 +5,228 @@
 
 **Source:** [`src/orchestrator/pkg/external_docs.py`](../../src/orchestrator/pkg/external_docs.py)
 
-3 types · 20 functions · python
+3 types · 26 functions · python
 
 ## Changing this safely
 
-**Tested by** (3): `tests.mcp.test_doc_pull`, `tests.pkg.test_external_docs`, `tests.plugin.test_external_docs_tools`
+**Tested by** (5): `tests.mcp.test_doc_pull`, `tests.mcp.test_rag_pull`, `tests.pkg.test_external_docs`, `tests.plugin.test_external_docs_tools`, `tests.plugin.test_rag_docs_tools`
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_now`](../../src/orchestrator/pkg/external_docs.py#L69) — reaches **9** symbols
-- [`failure_path`](../../src/orchestrator/pkg/external_docs.py#L101) — reaches **9** symbols
-- [`_previous_path`](../../src/orchestrator/pkg/external_docs.py#L107) — reaches **8** symbols
-- [`normalized`](../../src/orchestrator/pkg/external_docs.py#L298) — reaches **8** symbols
-- [`_repo_sections`](../../src/orchestrator/pkg/external_docs.py#L303) — reaches **7** symbols
-- [`doc_pages`](../../src/orchestrator/pkg/external_docs.py#L283) — reaches **7** symbols
-- [`repo_cache_dir`](../../src/orchestrator/pkg/external_docs.py#L85) — reaches **7** symbols
-- [`docs_cache_root`](../../src/orchestrator/pkg/external_docs.py#L79) — reaches **6** symbols
+- [`_now`](../../src/orchestrator/pkg/external_docs.py#L87) — reaches **9** symbols
+- [`chunk_id`](../../src/orchestrator/pkg/external_docs.py#L175) — reaches **9** symbols
+- [`failure_path`](../../src/orchestrator/pkg/external_docs.py#L119) — reaches **9** symbols
+- [`_previous_path`](../../src/orchestrator/pkg/external_docs.py#L125) — reaches **8** symbols
+- [`normalized`](../../src/orchestrator/pkg/external_docs.py#L421) — reaches **8** symbols
+- [`_repo_files`](../../src/orchestrator/pkg/external_docs.py#L465) — reaches **7** symbols
+- [`_repo_sections`](../../src/orchestrator/pkg/external_docs.py#L426) — reaches **7** symbols
+- [`doc_pages`](../../src/orchestrator/pkg/external_docs.py#L405) — reaches **7** symbols
 
 ## Types
 
 ### `CachedSource`
 
-[`src/orchestrator/pkg/external_docs.py:197`](../../src/orchestrator/pkg/external_docs.py#L197)
+[`src/orchestrator/pkg/external_docs.py:293`](../../src/orchestrator/pkg/external_docs.py#L293)
 
-- **Called by** (1): [`read_source`](../../src/orchestrator/pkg/external_docs.py#L223)
-- **Fields**: `error`, `manifest`, `pages`, `pulled_at`, `source`, `status`
+- **Called by** (1): [`read_source`](../../src/orchestrator/pkg/external_docs.py#L345)
+- **Fields**: `error`, `manifest`, `pages`, `pulled_at`, `queries`, `source`, `status`
 
 ### `ExternalBinding`
 
-[`src/orchestrator/pkg/external_docs.py:323`](../../src/orchestrator/pkg/external_docs.py#L323)
+[`src/orchestrator/pkg/external_docs.py:492`](../../src/orchestrator/pkg/external_docs.py#L492)
 
-- **Called by** (1): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L350)
-- **Fields**: `also_in`, `drift`, `edges`, `meta`, `nodes`, `standings`
+- **Called by** (1): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L541)
+- **Fields**: `also_in`, `anchors`, `drift`, `edges`, `meta`, `nodes`, `retrieved`, `standings`
 
 ### `ExternalPage`
 
-[`src/orchestrator/pkg/external_docs.py:112`](../../src/orchestrator/pkg/external_docs.py#L112)
+[`src/orchestrator/pkg/external_docs.py:130`](../../src/orchestrator/pkg/external_docs.py#L130)
 
-- **Called by** (2 production · 5 test): [`_confluence_page`](../../src/orchestrator/mcp/doc_pull.py#L178), [`_pull_jira`](../../src/orchestrator/mcp/doc_pull.py#L276), [`_page`](../../tests/pkg/test_external_docs.py#L41), [`test_an_identical_mirror_is_listed_once_under_the_repo_doc`](../../tests/plugin/test_external_docs_tools.py#L106), [`test_docs_for_lists_external_docs_apart_and_summarises_them`](../../tests/plugin/test_external_docs_tools.py#L159), [`test_each_repository_binds_only_its_own_sources`](../../tests/plugin/test_external_docs_tools.py#L179), [`test_understand_and_state_never_see_a_populated_cache`](../../tests/plugin/test_external_docs_tools.py#L204)
-- **Fields**: `id`, `kind`, `text`, `title`, `url`
+- **Called by** (3 production · 9 test): [`_confluence_page`](../../src/orchestrator/mcp/doc_pull.py#L132), [`_pull_jira`](../../src/orchestrator/mcp/doc_pull.py#L230), [`page`](../../src/orchestrator/mcp/rag_pull.py#L79), [`_chunk`](../../tests/plugin/test_rag_docs_tools.py#L50), [`_page`](../../tests/pkg/test_external_docs.py#L45), [`test_a_chunk_is_one_doc_never_split_by_heading`](../../tests/pkg/test_external_docs.py#L328), [`test_a_p2_page_record_is_unchanged_and_a_chunk_carries_its_source_and_score`](../../tests/pkg/test_external_docs.py#L320), [`test_an_identical_mirror_is_listed_once_under_the_repo_doc`](../../tests/plugin/test_external_docs_tools.py#L106), [`test_docs_for_lists_external_docs_apart_and_summarises_them`](../../tests/plugin/test_external_docs_tools.py#L159), [`test_each_repository_binds_only_its_own_sources`](../../tests/plugin/test_external_docs_tools.py#L179), [`test_queries_swap_with_the_chunks_they_index`](../../tests/pkg/test_external_docs.py#L333), [`test_understand_and_state_never_see_a_populated_cache`](../../tests/plugin/test_external_docs_tools.py#L204)
+- **Fields**: `id`, `kind`, `score`, `source`, `text`, `title`, `url`
 
 ## Functions
 
 ### `_now`
 
-[`src/orchestrator/pkg/external_docs.py:69`](../../src/orchestrator/pkg/external_docs.py#L69)
+[`src/orchestrator/pkg/external_docs.py:87`](../../src/orchestrator/pkg/external_docs.py#L87)
 
-- **Called by** (3): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L350), [`standing`](../../src/orchestrator/pkg/external_docs.py#L258), [`utc_stamp`](../../src/orchestrator/pkg/external_docs.py#L74)
+- **Called by** (3): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L541), [`standing`](../../src/orchestrator/pkg/external_docs.py#L380), [`utc_stamp`](../../src/orchestrator/pkg/external_docs.py#L92)
 - **Calls** (1): `now`
 
 ### `_parse_stamp`
 
-[`src/orchestrator/pkg/external_docs.py:251`](../../src/orchestrator/pkg/external_docs.py#L251)
+[`src/orchestrator/pkg/external_docs.py:373`](../../src/orchestrator/pkg/external_docs.py#L373)
 
-- **Called by** (1): [`standing`](../../src/orchestrator/pkg/external_docs.py#L258)
+- **Called by** (1): [`standing`](../../src/orchestrator/pkg/external_docs.py#L380)
 - **Calls** (1): `strptime`
 
 ### `_previous_path`
 
-[`src/orchestrator/pkg/external_docs.py:107`](../../src/orchestrator/pkg/external_docs.py#L107)
+[`src/orchestrator/pkg/external_docs.py:125`](../../src/orchestrator/pkg/external_docs.py#L125)
 
-- **Called by** (2): [`read_source`](../../src/orchestrator/pkg/external_docs.py#L223), [`write_pull`](../../src/orchestrator/pkg/external_docs.py#L154)
+- **Called by** (2): [`read_source`](../../src/orchestrator/pkg/external_docs.py#L345), [`write_pull`](../../src/orchestrator/pkg/external_docs.py#L237)
 
 ### `_read_folder`
 
-[`src/orchestrator/pkg/external_docs.py:211`](../../src/orchestrator/pkg/external_docs.py#L211)
+[`src/orchestrator/pkg/external_docs.py:331`](../../src/orchestrator/pkg/external_docs.py#L331)
 
-- **Called by** (1): [`read_source`](../../src/orchestrator/pkg/external_docs.py#L223)
+- **Called by** (1): [`read_source`](../../src/orchestrator/pkg/external_docs.py#L345)
+- **Calls** (2): [`_read_queries`](../../src/orchestrator/pkg/external_docs.py#L321), `loads`
+
+### `_read_queries`
+
+[`src/orchestrator/pkg/external_docs.py:321`](../../src/orchestrator/pkg/external_docs.py#L321)
+
+- **Called by** (1): [`_read_folder`](../../src/orchestrator/pkg/external_docs.py#L331)
 - **Calls** (1): `loads`
+
+### `_repo_files`
+
+[`src/orchestrator/pkg/external_docs.py:465`](../../src/orchestrator/pkg/external_docs.py#L465)
+
+- **Called by** (2): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L541), [`collapse_stats`](../../src/orchestrator/pkg/external_docs.py#L474)
 
 ### `_repo_sections`
 
-[`src/orchestrator/pkg/external_docs.py:303`](../../src/orchestrator/pkg/external_docs.py#L303)
+[`src/orchestrator/pkg/external_docs.py:426`](../../src/orchestrator/pkg/external_docs.py#L426)
 
-- **Called by** (2): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L350), [`collapse_stats`](../../src/orchestrator/pkg/external_docs.py#L313)
-- **Calls** (1): [`normalized`](../../src/orchestrator/pkg/external_docs.py#L298)
+- **Called by** (2): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L541), [`collapse_stats`](../../src/orchestrator/pkg/external_docs.py#L474)
+- **Calls** (1): [`normalized`](../../src/orchestrator/pkg/external_docs.py#L421)
 
 ### `bind_external`
 
-[`src/orchestrator/pkg/external_docs.py:350`](../../src/orchestrator/pkg/external_docs.py#L350)
+[`src/orchestrator/pkg/external_docs.py:541`](../../src/orchestrator/pkg/external_docs.py#L541)
 
-- **Called by** (1 production · 4 test): [`_bind_external`](../../src/orchestrator/plugin/server.py#L452), [`test_a_page_naming_a_symbol_binds_with_the_unique_anchor_rule`](../../tests/pkg/test_external_docs.py#L204), [`test_a_rename_after_the_pull_drops_the_mention_without_a_re_pull`](../../tests/pkg/test_external_docs.py#L249), [`test_an_identical_section_collapses_into_the_repo_doc`](../../tests/pkg/test_external_docs.py#L233), [`test_no_sources_or_nothing_pulled_binds_nothing`](../../tests/pkg/test_external_docs.py#L259)
-- **Calls** (15): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`ExternalBinding`](../../src/orchestrator/pkg/external_docs.py#L323), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_now`](../../src/orchestrator/pkg/external_docs.py#L69), [`_repo_sections`](../../src/orchestrator/pkg/external_docs.py#L303), [`doc_pages`](../../src/orchestrator/pkg/external_docs.py#L283), [`extract_mentions`](../../src/orchestrator/pkg/docs.py#L186), [`from_nodes`](../../src/orchestrator/pkg/docs.py#L230), [`normalized`](../../src/orchestrator/pkg/external_docs.py#L298), [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L199), [`read_source`](../../src/orchestrator/pkg/external_docs.py#L223), [`source_cache_dir`](../../src/orchestrator/pkg/external_docs.py#L94), [`standing`](../../src/orchestrator/pkg/external_docs.py#L258), [`symbolish_drift`](../../src/orchestrator/pkg/doc_link.py#L40)
+- **Called by** (1 production · 4 test): [`_bind_external`](../../src/orchestrator/plugin/server.py#L459), [`test_a_page_naming_a_symbol_binds_with_the_unique_anchor_rule`](../../tests/pkg/test_external_docs.py#L208), [`test_a_rename_after_the_pull_drops_the_mention_without_a_re_pull`](../../tests/pkg/test_external_docs.py#L253), [`test_an_identical_section_collapses_into_the_repo_doc`](../../tests/pkg/test_external_docs.py#L237), [`test_no_sources_or_nothing_pulled_binds_nothing`](../../tests/pkg/test_external_docs.py#L263)
+- **Calls** (16): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`ExternalBinding`](../../src/orchestrator/pkg/external_docs.py#L492), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_now`](../../src/orchestrator/pkg/external_docs.py#L87), [`_repo_files`](../../src/orchestrator/pkg/external_docs.py#L465), [`_repo_sections`](../../src/orchestrator/pkg/external_docs.py#L426), [`doc_pages`](../../src/orchestrator/pkg/external_docs.py#L405), [`from_nodes`](../../src/orchestrator/pkg/docs.py#L230), [`normalized`](../../src/orchestrator/pkg/external_docs.py#L421), [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L199), [`read_source`](../../src/orchestrator/pkg/external_docs.py#L345), [`repo_relative`](../../src/orchestrator/pkg/external_docs.py#L439), [`source_cache_dir`](../../src/orchestrator/pkg/external_docs.py#L112), [`standing`](../../src/orchestrator/pkg/external_docs.py#L380), [`symbolish_drift`](../../src/orchestrator/pkg/doc_link.py#L40)
+
+### `chunk_id`
+
+[`src/orchestrator/pkg/external_docs.py:175`](../../src/orchestrator/pkg/external_docs.py#L175)
+
+- **Called by** (1 production · 3 test): [`_chunk`](../../src/orchestrator/mcp/rag_pull.py#L92), [`test_a_p2_page_record_is_unchanged_and_a_chunk_carries_its_source_and_score`](../../tests/pkg/test_external_docs.py#L320), [`test_every_server_shape_normalises_to_the_same_chunks`](../../tests/mcp/test_rag_pull.py#L81), [`test_without_a_list_tool_one_query_per_module_and_class_most_called_first`](../../tests/mcp/test_rag_pull.py#L182)
+- **Calls** (1): `sha1`
 
 ### `collapse_stats`
 
-[`src/orchestrator/pkg/external_docs.py:313`](../../src/orchestrator/pkg/external_docs.py#L313)
+[`src/orchestrator/pkg/external_docs.py:474`](../../src/orchestrator/pkg/external_docs.py#L474)
 
-- **Called by** (1 production · 1 test): [`ingest_docs`](../../src/orchestrator/mcp/doc_pull.py#L338), [`test_an_identical_section_collapses_into_the_repo_doc`](../../tests/pkg/test_external_docs.py#L233)
-- **Calls** (4): [`_repo_sections`](../../src/orchestrator/pkg/external_docs.py#L303), [`doc_pages`](../../src/orchestrator/pkg/external_docs.py#L283), [`normalized`](../../src/orchestrator/pkg/external_docs.py#L298), [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L199)
+- **Called by** (1 production · 1 test): [`ingest_docs`](../../src/orchestrator/mcp/doc_pull.py#L292), [`test_an_identical_section_collapses_into_the_repo_doc`](../../tests/pkg/test_external_docs.py#L237)
+- **Calls** (6): [`_repo_files`](../../src/orchestrator/pkg/external_docs.py#L465), [`_repo_sections`](../../src/orchestrator/pkg/external_docs.py#L426), [`doc_pages`](../../src/orchestrator/pkg/external_docs.py#L405), [`normalized`](../../src/orchestrator/pkg/external_docs.py#L421), [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L199), [`repo_relative`](../../src/orchestrator/pkg/external_docs.py#L439)
 
 ### `doc_pages`
 
-[`src/orchestrator/pkg/external_docs.py:283`](../../src/orchestrator/pkg/external_docs.py#L283)
+[`src/orchestrator/pkg/external_docs.py:405`](../../src/orchestrator/pkg/external_docs.py#L405)
 
-- **Called by** (2 production · 1 test): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L350), [`collapse_stats`](../../src/orchestrator/pkg/external_docs.py#L313), [`test_confluence_pages_split_by_heading_with_d18_ids_jira_stays_whole`](../../tests/pkg/test_external_docs.py#L164)
+- **Called by** (2 production · 2 test): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L541), [`collapse_stats`](../../src/orchestrator/pkg/external_docs.py#L474), [`test_a_chunk_is_one_doc_never_split_by_heading`](../../tests/pkg/test_external_docs.py#L328), [`test_confluence_pages_split_by_heading_with_d18_ids_jira_stays_whole`](../../tests/pkg/test_external_docs.py#L168)
 - **Calls** (2): [`DocPage`](../../src/orchestrator/pkg/docs.py#L115), [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L137)
 
 ### `docs_cache_root`
 
-[`src/orchestrator/pkg/external_docs.py:79`](../../src/orchestrator/pkg/external_docs.py#L79)
+[`src/orchestrator/pkg/external_docs.py:97`](../../src/orchestrator/pkg/external_docs.py#L97)
 
-- **Called by** (1): [`repo_cache_dir`](../../src/orchestrator/pkg/external_docs.py#L85)
+- **Called by** (1): [`repo_cache_dir`](../../src/orchestrator/pkg/external_docs.py#L103)
 - **Calls** (2): `home`, `pathlib.Path`
 
 ### `failure_path`
 
-[`src/orchestrator/pkg/external_docs.py:101`](../../src/orchestrator/pkg/external_docs.py#L101)
+[`src/orchestrator/pkg/external_docs.py:119`](../../src/orchestrator/pkg/external_docs.py#L119)
 
-- **Called by** (3 production · 3 test): [`read_source`](../../src/orchestrator/pkg/external_docs.py#L223), [`record_failure`](../../src/orchestrator/pkg/external_docs.py#L187), [`write_pull`](../../src/orchestrator/pkg/external_docs.py#L154), [`test_a_failure_keeps_the_last_good_folder_and_says_so`](../../tests/pkg/test_external_docs.py#L97), [`test_a_later_good_pull_clears_the_failure`](../../tests/pkg/test_external_docs.py#L110), [`test_a_server_error_keeps_the_last_good_pull`](../../tests/mcp/test_doc_pull.py#L228)
+- **Called by** (3 production · 3 test): [`read_source`](../../src/orchestrator/pkg/external_docs.py#L345), [`record_failure`](../../src/orchestrator/pkg/external_docs.py#L283), [`write_pull`](../../src/orchestrator/pkg/external_docs.py#L237), [`test_a_failure_keeps_the_last_good_folder_and_says_so`](../../tests/pkg/test_external_docs.py#L101), [`test_a_later_good_pull_clears_the_failure`](../../tests/pkg/test_external_docs.py#L114), [`test_a_server_error_keeps_the_last_good_pull`](../../tests/mcp/test_doc_pull.py#L228)
 
 ### `looks_like_html`
 
-[`src/orchestrator/pkg/external_docs.py:138`](../../src/orchestrator/pkg/external_docs.py#L138)
+[`src/orchestrator/pkg/external_docs.py:221`](../../src/orchestrator/pkg/external_docs.py#L221)
 
-- **Called by** (1): [`page_text`](../../src/orchestrator/pkg/external_docs.py#L143)
+- **Called by** (1): [`page_text`](../../src/orchestrator/pkg/external_docs.py#L226)
 
 ### `normalized`
 
-[`src/orchestrator/pkg/external_docs.py:298`](../../src/orchestrator/pkg/external_docs.py#L298)
+[`src/orchestrator/pkg/external_docs.py:421`](../../src/orchestrator/pkg/external_docs.py#L421)
 
-- **Called by** (3): [`_repo_sections`](../../src/orchestrator/pkg/external_docs.py#L303), [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L350), [`collapse_stats`](../../src/orchestrator/pkg/external_docs.py#L313)
+- **Called by** (3): [`_repo_sections`](../../src/orchestrator/pkg/external_docs.py#L426), [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L541), [`collapse_stats`](../../src/orchestrator/pkg/external_docs.py#L474)
 
 ### `page_text`
 
-[`src/orchestrator/pkg/external_docs.py:143`](../../src/orchestrator/pkg/external_docs.py#L143)
+[`src/orchestrator/pkg/external_docs.py:226`](../../src/orchestrator/pkg/external_docs.py#L226)
 
-- **Called by** (1 production · 1 test): [`_confluence_page`](../../src/orchestrator/mcp/doc_pull.py#L178), [`test_an_html_body_is_flattened_by_the_local_html_reader`](../../tests/pkg/test_external_docs.py#L178)
-- **Calls** (2): [`html_to_text`](../../src/orchestrator/pkg/doc_source.py#L357), [`looks_like_html`](../../src/orchestrator/pkg/external_docs.py#L138)
+- **Called by** (1 production · 1 test): [`_confluence_page`](../../src/orchestrator/mcp/doc_pull.py#L132), [`test_an_html_body_is_flattened_by_the_local_html_reader`](../../tests/pkg/test_external_docs.py#L182)
+- **Calls** (2): [`html_to_text`](../../src/orchestrator/pkg/doc_source.py#L357), [`looks_like_html`](../../src/orchestrator/pkg/external_docs.py#L221)
+
+### `query_name`
+
+[`src/orchestrator/pkg/external_docs.py:183`](../../src/orchestrator/pkg/external_docs.py#L183)
+
+- **Called by** (2 production · 1 test): [`rag_queries`](../../src/orchestrator/pkg/external_docs.py#L190), [`retrieval`](../../src/orchestrator/pkg/external_docs.py#L515), [`test_query_name_is_the_last_segment`](../../tests/pkg/test_external_docs.py#L376)
+
+### `rag_queries`
+
+[`src/orchestrator/pkg/external_docs.py:190`](../../src/orchestrator/pkg/external_docs.py#L190)
+
+- **Called by** (1 production · 2 test): [`_query`](../../src/orchestrator/mcp/rag_pull.py#L329), [`test_rag_queries_are_modules_and_classes_most_called_first_capped`](../../tests/pkg/test_external_docs.py#L346), [`test_rag_queries_never_ask_about_libraries_the_repo_only_imports`](../../tests/pkg/test_external_docs.py#L360)
+- **Calls** (1): [`query_name`](../../src/orchestrator/pkg/external_docs.py#L183)
 
 ### `read_source`
 
-[`src/orchestrator/pkg/external_docs.py:223`](../../src/orchestrator/pkg/external_docs.py#L223)
+[`src/orchestrator/pkg/external_docs.py:345`](../../src/orchestrator/pkg/external_docs.py#L345)
 
-- **Called by** (1 production · 13 test): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L350), [`test_a_corrupt_cache_is_a_failed_standing_not_an_exception`](../../tests/pkg/test_external_docs.py#L130), [`test_a_crash_between_the_two_renames_still_reads_the_old_pull`](../../tests/pkg/test_external_docs.py#L89), [`test_a_failure_keeps_the_last_good_folder_and_says_so`](../../tests/pkg/test_external_docs.py#L97), [`test_a_later_good_pull_clears_the_failure`](../../tests/pkg/test_external_docs.py#L110), [`test_a_server_error_keeps_the_last_good_pull`](../../tests/mcp/test_doc_pull.py#L228), [`test_a_tool_that_is_not_declared_read_only_is_refused_by_name_and_nothing_is_called`](../../tests/mcp/test_doc_pull.py#L132), [`test_an_error_body_with_is_error_false_is_a_failure_not_an_empty_page`](../../tests/mcp/test_doc_pull.py#L241), [`test_an_html_body_is_flattened_before_caching`](../../tests/mcp/test_doc_pull.py#L219), [`test_an_identical_section_collapses_into_the_repo_doc`](../../tests/pkg/test_external_docs.py#L233), [`test_confluence_walks_breadth_first_and_always_asks_for_markdown`](../../tests/mcp/test_doc_pull.py#L166), [`test_jira_pages_the_search_and_never_updates_view_history`](../../tests/mcp/test_doc_pull.py#L270), [`test_never_pulled_and_failed_without_data`](../../tests/pkg/test_external_docs.py#L118), [`test_stale_after_seven_days`](../../tests/pkg/test_external_docs.py#L138)
-- **Calls** (5): [`CachedSource`](../../src/orchestrator/pkg/external_docs.py#L197), [`_previous_path`](../../src/orchestrator/pkg/external_docs.py#L107), [`_read_folder`](../../src/orchestrator/pkg/external_docs.py#L211), [`failure_path`](../../src/orchestrator/pkg/external_docs.py#L101), `loads`
+- **Called by** (1 production · 20 test): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L541), [`test_a_corrupt_cache_is_a_failed_standing_not_an_exception`](../../tests/pkg/test_external_docs.py#L134), [`test_a_crash_between_the_two_renames_still_reads_the_old_pull`](../../tests/pkg/test_external_docs.py#L93), [`test_a_failure_keeps_the_last_good_folder_and_says_so`](../../tests/pkg/test_external_docs.py#L101), [`test_a_later_good_pull_clears_the_failure`](../../tests/pkg/test_external_docs.py#L114), [`test_a_list_tool_walks_the_corpus_in_pages`](../../tests/mcp/test_rag_pull.py#L157), [`test_a_server_error_keeps_the_last_good_pull`](../../tests/mcp/test_doc_pull.py#L228), [`test_a_tool_that_is_not_declared_read_only_is_refused_by_name_and_nothing_is_called`](../../tests/mcp/test_doc_pull.py#L132), [`test_an_error_body_mid_pull_keeps_the_last_good_cache`](../../tests/mcp/test_rag_pull.py#L273), [`test_an_error_body_with_is_error_false_is_a_failure_not_an_empty_page`](../../tests/mcp/test_doc_pull.py#L241), [`test_an_html_body_is_flattened_before_caching`](../../tests/mcp/test_doc_pull.py#L219), [`test_an_identical_section_collapses_into_the_repo_doc`](../../tests/pkg/test_external_docs.py#L237), [`test_an_unannotated_tool_is_refused_at_pull_and_nothing_is_called`](../../tests/mcp/test_rag_pull.py#L251), [`test_confluence_walks_breadth_first_and_always_asks_for_markdown`](../../tests/mcp/test_doc_pull.py#L166), [`test_jira_pages_the_search_and_never_updates_view_history`](../../tests/mcp/test_doc_pull.py#L270), [`test_never_pulled_and_failed_without_data`](../../tests/pkg/test_external_docs.py#L122), [`test_queries_swap_with_the_chunks_they_index`](../../tests/pkg/test_external_docs.py#L333), [`test_search_then_fetch_each_result_up_to_top_k`](../../tests/mcp/test_rag_pull.py#L219), [`test_stale_after_seven_days`](../../tests/pkg/test_external_docs.py#L142), [`test_top_k_bounds_a_server_that_takes_no_count`](../../tests/mcp/test_rag_pull.py#L212), [`test_without_a_list_tool_one_query_per_module_and_class_most_called_first`](../../tests/mcp/test_rag_pull.py#L182)
+- **Calls** (5): [`CachedSource`](../../src/orchestrator/pkg/external_docs.py#L293), [`_previous_path`](../../src/orchestrator/pkg/external_docs.py#L125), [`_read_folder`](../../src/orchestrator/pkg/external_docs.py#L331), [`failure_path`](../../src/orchestrator/pkg/external_docs.py#L119), `loads`
 
 ### `record_failure`
 
-[`src/orchestrator/pkg/external_docs.py:187`](../../src/orchestrator/pkg/external_docs.py#L187)
+[`src/orchestrator/pkg/external_docs.py:283`](../../src/orchestrator/pkg/external_docs.py#L283)
 
-- **Called by** (1 production · 4 test): [`ingest_docs`](../../src/orchestrator/mcp/doc_pull.py#L338), [`test_a_failed_pull_shows_the_last_good_data_and_says_when_it_is_from`](../../tests/plugin/test_external_docs_tools.py#L132), [`test_a_failure_keeps_the_last_good_folder_and_says_so`](../../tests/pkg/test_external_docs.py#L97), [`test_a_later_good_pull_clears_the_failure`](../../tests/pkg/test_external_docs.py#L110), [`test_never_pulled_and_failed_without_data`](../../tests/pkg/test_external_docs.py#L118)
-- **Calls** (3): `dumps`, [`failure_path`](../../src/orchestrator/pkg/external_docs.py#L101), [`utc_stamp`](../../src/orchestrator/pkg/external_docs.py#L74)
+- **Called by** (1 production · 4 test): [`ingest_docs`](../../src/orchestrator/mcp/doc_pull.py#L292), [`test_a_failed_pull_shows_the_last_good_data_and_says_when_it_is_from`](../../tests/plugin/test_external_docs_tools.py#L132), [`test_a_failure_keeps_the_last_good_folder_and_says_so`](../../tests/pkg/test_external_docs.py#L101), [`test_a_later_good_pull_clears_the_failure`](../../tests/pkg/test_external_docs.py#L114), [`test_never_pulled_and_failed_without_data`](../../tests/pkg/test_external_docs.py#L122)
+- **Calls** (3): `dumps`, [`failure_path`](../../src/orchestrator/pkg/external_docs.py#L119), [`utc_stamp`](../../src/orchestrator/pkg/external_docs.py#L92)
 
 ### `repo_cache_dir`
 
-[`src/orchestrator/pkg/external_docs.py:85`](../../src/orchestrator/pkg/external_docs.py#L85)
+[`src/orchestrator/pkg/external_docs.py:103`](../../src/orchestrator/pkg/external_docs.py#L103)
 
-- **Called by** (1): [`source_cache_dir`](../../src/orchestrator/pkg/external_docs.py#L94)
-- **Calls** (3): [`docs_cache_root`](../../src/orchestrator/pkg/external_docs.py#L79), `pathlib.Path`, `sha256`
+- **Called by** (1): [`source_cache_dir`](../../src/orchestrator/pkg/external_docs.py#L112)
+- **Calls** (3): [`docs_cache_root`](../../src/orchestrator/pkg/external_docs.py#L97), `pathlib.Path`, `sha256`
+
+### `repo_relative`
+
+[`src/orchestrator/pkg/external_docs.py:439`](../../src/orchestrator/pkg/external_docs.py#L439)
+
+- **Called by** (2 production · 1 test): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L541), [`collapse_stats`](../../src/orchestrator/pkg/external_docs.py#L474), [`test_repo_relative_normalises_exact_paths_only`](../../tests/pkg/test_external_docs.py#L386)
+- **Calls** (4): `normpath`, `pathlib.Path`, `pathlib.PurePosixPath`, `urllib.parse.unquote`
 
 ### `source_cache_dir`
 
-[`src/orchestrator/pkg/external_docs.py:94`](../../src/orchestrator/pkg/external_docs.py#L94)
+[`src/orchestrator/pkg/external_docs.py:112`](../../src/orchestrator/pkg/external_docs.py#L112)
 
-- **Called by** (2 production · 5 test): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L350), [`ingest_docs`](../../src/orchestrator/mcp/doc_pull.py#L338), [`_cache`](../../tests/pkg/test_external_docs.py#L198), [`_pull`](../../tests/mcp/test_doc_pull.py#L120), [`_pull`](../../tests/plugin/test_external_docs_tools.py#L43), [`test_an_identical_section_collapses_into_the_repo_doc`](../../tests/pkg/test_external_docs.py#L233), [`test_the_cache_is_keyed_by_checkout_and_repo_key`](../../tests/pkg/test_external_docs.py#L150)
-- **Calls** (1): [`repo_cache_dir`](../../src/orchestrator/pkg/external_docs.py#L85)
+- **Called by** (2 production · 7 test): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L541), [`ingest_docs`](../../src/orchestrator/mcp/doc_pull.py#L292), [`_cache`](../../tests/pkg/test_external_docs.py#L202), [`_pull`](../../tests/mcp/test_doc_pull.py#L120), [`_pull`](../../tests/mcp/test_rag_pull.py#L56), [`_pull`](../../tests/plugin/test_external_docs_tools.py#L43), [`_pull`](../../tests/plugin/test_rag_docs_tools.py#L60), [`test_an_identical_section_collapses_into_the_repo_doc`](../../tests/pkg/test_external_docs.py#L237), [`test_the_cache_is_keyed_by_checkout_and_repo_key`](../../tests/pkg/test_external_docs.py#L154)
+- **Calls** (1): [`repo_cache_dir`](../../src/orchestrator/pkg/external_docs.py#L103)
 
 ### `standing`
 
-[`src/orchestrator/pkg/external_docs.py:258`](../../src/orchestrator/pkg/external_docs.py#L258)
+[`src/orchestrator/pkg/external_docs.py:380`](../../src/orchestrator/pkg/external_docs.py#L380)
 
-- **Called by** (1 production · 3 test): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L350), [`test_a_failure_keeps_the_last_good_folder_and_says_so`](../../tests/pkg/test_external_docs.py#L97), [`test_never_pulled_and_failed_without_data`](../../tests/pkg/test_external_docs.py#L118), [`test_stale_after_seven_days`](../../tests/pkg/test_external_docs.py#L138)
-- **Calls** (2): [`_now`](../../src/orchestrator/pkg/external_docs.py#L69), [`_parse_stamp`](../../src/orchestrator/pkg/external_docs.py#L251)
+- **Called by** (1 production · 3 test): [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L541), [`test_a_failure_keeps_the_last_good_folder_and_says_so`](../../tests/pkg/test_external_docs.py#L101), [`test_never_pulled_and_failed_without_data`](../../tests/pkg/test_external_docs.py#L122), [`test_stale_after_seven_days`](../../tests/pkg/test_external_docs.py#L142)
+- **Calls** (2): [`_now`](../../src/orchestrator/pkg/external_docs.py#L87), [`_parse_stamp`](../../src/orchestrator/pkg/external_docs.py#L373)
 
 ### `utc_stamp`
 
-[`src/orchestrator/pkg/external_docs.py:74`](../../src/orchestrator/pkg/external_docs.py#L74)
+[`src/orchestrator/pkg/external_docs.py:92`](../../src/orchestrator/pkg/external_docs.py#L92)
 
-- **Called by** (2 production · 3 test): [`ingest_docs`](../../src/orchestrator/mcp/doc_pull.py#L338), [`record_failure`](../../src/orchestrator/pkg/external_docs.py#L187), [`_cache`](../../tests/pkg/test_external_docs.py#L198), [`_pull`](../../tests/plugin/test_external_docs_tools.py#L43), [`test_stale_after_seven_days`](../../tests/pkg/test_external_docs.py#L138)
-- **Calls** (1): [`_now`](../../src/orchestrator/pkg/external_docs.py#L69)
+- **Called by** (2 production · 4 test): [`ingest_docs`](../../src/orchestrator/mcp/doc_pull.py#L292), [`record_failure`](../../src/orchestrator/pkg/external_docs.py#L283), [`_cache`](../../tests/pkg/test_external_docs.py#L202), [`_pull`](../../tests/plugin/test_external_docs_tools.py#L43), [`_pull`](../../tests/plugin/test_rag_docs_tools.py#L60), [`test_stale_after_seven_days`](../../tests/pkg/test_external_docs.py#L142)
+- **Calls** (1): [`_now`](../../src/orchestrator/pkg/external_docs.py#L87)
 
 ### `write_pull`
 
-[`src/orchestrator/pkg/external_docs.py:154`](../../src/orchestrator/pkg/external_docs.py#L154)
+[`src/orchestrator/pkg/external_docs.py:237`](../../src/orchestrator/pkg/external_docs.py#L237)
 
-- **Called by** (1 production · 8 test): [`ingest_docs`](../../src/orchestrator/mcp/doc_pull.py#L338), [`_cache`](../../tests/pkg/test_external_docs.py#L198), [`_pull`](../../tests/plugin/test_external_docs_tools.py#L43), [`test_a_crash_between_the_two_renames_still_reads_the_old_pull`](../../tests/pkg/test_external_docs.py#L89), [`test_a_crash_mid_write_leaves_the_last_good_pull_intact`](../../tests/pkg/test_external_docs.py#L70), [`test_a_failure_keeps_the_last_good_folder_and_says_so`](../../tests/pkg/test_external_docs.py#L97), [`test_a_later_good_pull_clears_the_failure`](../../tests/pkg/test_external_docs.py#L110), [`test_a_pull_writes_pages_sorted_by_id_and_a_manifest`](../../tests/pkg/test_external_docs.py#L59), [`test_stale_after_seven_days`](../../tests/pkg/test_external_docs.py#L138)
-- **Calls** (8): [`_previous_path`](../../src/orchestrator/pkg/external_docs.py#L107), `dumps`, [`failure_path`](../../src/orchestrator/pkg/external_docs.py#L101), `mkdtemp`, `pathlib.Path`, `replace`, `rmtree`, `sha256`
+- **Called by** (1 production · 10 test): [`ingest_docs`](../../src/orchestrator/mcp/doc_pull.py#L292), [`_cache`](../../tests/pkg/test_external_docs.py#L202), [`_pull`](../../tests/plugin/test_external_docs_tools.py#L43), [`_pull`](../../tests/plugin/test_rag_docs_tools.py#L60), [`test_a_crash_between_the_two_renames_still_reads_the_old_pull`](../../tests/pkg/test_external_docs.py#L93), [`test_a_crash_mid_write_leaves_the_last_good_pull_intact`](../../tests/pkg/test_external_docs.py#L74), [`test_a_failure_keeps_the_last_good_folder_and_says_so`](../../tests/pkg/test_external_docs.py#L101), [`test_a_later_good_pull_clears_the_failure`](../../tests/pkg/test_external_docs.py#L114), [`test_a_pull_writes_pages_sorted_by_id_and_a_manifest`](../../tests/pkg/test_external_docs.py#L63), [`test_queries_swap_with_the_chunks_they_index`](../../tests/pkg/test_external_docs.py#L333), [`test_stale_after_seven_days`](../../tests/pkg/test_external_docs.py#L142)
+- **Calls** (8): [`_previous_path`](../../src/orchestrator/pkg/external_docs.py#L125), `dumps`, [`failure_path`](../../src/orchestrator/pkg/external_docs.py#L119), `mkdtemp`, `pathlib.Path`, `replace`, `rmtree`, `sha256`
 
 ## Imports
 
-`__future__.annotations`, `collections.abc.Iterable`, `collections.abc.Mapping`, `collections.abc.Sequence`, `dataclasses.dataclass`, `dataclasses.field`, `datetime.UTC`, `datetime.datetime`, `hashlib`, `json`, [`orchestrator.pkg.doc_link`](../../src/orchestrator/pkg/doc_link.py#L1), [`orchestrator.pkg.doc_source`](orchestrator.pkg.doc_source.md), [`orchestrator.pkg.docs`](../../src/orchestrator/pkg/docs.py#L1), [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.repos`](../../src/orchestrator/pkg/repos.py#L1), `os`, `pathlib.Path`, `re`, `shutil`, `tempfile`, `typing.Any`
+`__future__.annotations`, `collections.abc.Iterable`, `collections.abc.Mapping`, `collections.abc.Sequence`, `dataclasses.dataclass`, `dataclasses.field`, `datetime.UTC`, `datetime.datetime`, `hashlib`, `json`, [`orchestrator.pkg.doc_link`](../../src/orchestrator/pkg/doc_link.py#L1), [`orchestrator.pkg.doc_source`](orchestrator.pkg.doc_source.md), [`orchestrator.pkg.docs`](../../src/orchestrator/pkg/docs.py#L1), [`orchestrator.pkg.facts`](../../src/orchestrator/pkg/facts.py#L1), [`orchestrator.pkg.repos`](../../src/orchestrator/pkg/repos.py#L1), `os`, `pathlib.Path`, `pathlib.PurePosixPath`, `posixpath`, `re`, `shutil`, `tempfile`, `typing.Any`, `urllib.parse.unquote`
 
 ## Imported by
 
-[`orchestrator.mcp.doc_pull`](orchestrator.mcp.doc_pull.md), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`tests.mcp.test_doc_pull`](../../tests/mcp/test_doc_pull.py#L1), [`tests.pkg.test_external_docs`](../../tests/pkg/test_external_docs.py#L1), [`tests.plugin.test_external_docs_tools`](../../tests/plugin/test_external_docs_tools.py#L1)
+[`orchestrator.mcp.doc_pull`](../../src/orchestrator/mcp/doc_pull.py#L1), [`orchestrator.mcp.pull_base`](../../src/orchestrator/mcp/pull_base.py#L1), [`orchestrator.mcp.rag_pull`](orchestrator.mcp.rag_pull.md), [`orchestrator.plugin.server`](orchestrator.plugin.server.md), [`tests.mcp.test_doc_pull`](../../tests/mcp/test_doc_pull.py#L1), [`tests.mcp.test_rag_pull`](../../tests/mcp/test_rag_pull.py#L1), [`tests.pkg.test_external_docs`](../../tests/pkg/test_external_docs.py#L1), [`tests.plugin.test_external_docs_tools`](../../tests/plugin/test_external_docs_tools.py#L1), [`tests.plugin.test_rag_docs_tools`](../../tests/plugin/test_rag_docs_tools.py#L1)

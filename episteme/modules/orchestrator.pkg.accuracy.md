@@ -88,7 +88,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/accuracy.py:268`](../../src/orchestrator/pkg/accuracy.py#L268)
 
 - **Called by** (1): [`score_case`](../../src/orchestrator/pkg/accuracy.py#L294)
-- **Calls** (4): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L730), [`joins_from_list`](../../src/orchestrator/pkg/repos.py#L90), [`link_joins`](../../src/orchestrator/pkg/join_link.py#L150), [`merge_repos`](../../src/orchestrator/pkg/scoping.py#L150)
+- **Calls** (4): [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L730), [`joins_from_list`](../../src/orchestrator/pkg/repos.py#L99), [`link_joins`](../../src/orchestrator/pkg/join_link.py#L150), [`merge_repos`](../../src/orchestrator/pkg/scoping.py#L150)
 
 ### `_corpus_repos`
 
