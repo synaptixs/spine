@@ -652,7 +652,7 @@ one for spec-kit; on `claude-sonnet-5` both were about one. The cause was Spine'
 listed every file whose words matched the ticket as a file to edit, and GPT models treated that as
 licence, most often by adding a justifying comment or docstring to each one.
 
-**Fixed on `develop`** (B44, [SSPN-89](https://fibonacci-solutions.atlassian.net/browse/SSPN-89),
+**Fixed in 3.52.0** (B44, [SSPN-89](https://fibonacci-solutions.atlassian.net/browse/SSPN-89),
 [#490](https://github.com/synaptixs/spine/pull/490)). The design now lists only the files to
 edit, and shows everything else as read-only reference. When the ticket names its files or creates
 code, an edit elsewhere that changes no code is refused. Re-measured on the same three tickets:
