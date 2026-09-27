@@ -43,6 +43,7 @@ class _FakeAtlassian:
         read_only: dict[str, bool | None] | None = None,
         total: int | None = None,
         fail: str = "",
+        soft_fail: str = "",
     ) -> None:
         self.pages = pages or {}
         self.children = children or {}
@@ -50,6 +51,7 @@ class _FakeAtlassian:
         self.read_only = read_only or dict(_READ)
         self.total = total
         self.fail = fail
+        self.soft_fail = soft_fail
         self.calls: list[tuple[str, dict[str, Any]]] = []
 
     async def list_tools(self) -> list[MCPTool]:
@@ -59,6 +61,11 @@ class _FakeAtlassian:
         self.calls.append((name, arguments))
         if name == self.fail:
             return MCPToolResult(text="Error: 403 Forbidden", is_error=True)
+        if name == self.soft_fail:
+            # mcp-atlassian's own shape for a failed call: an ordinary result whose JSON body is
+            # `{"error": ...}` — `is_error` stays False (servers/confluence.py, servers/jira.py).
+            msg = "Failed to retrieve page by ID: Authentication failed for Confluence API (403)."
+            return MCPToolResult(text=json.dumps({"error": msg}), is_error=False)
         if name == "confluence_get_page":
             page = self.pages[arguments["page_id"]]
             meta = {
@@ -228,6 +235,20 @@ async def test_a_server_error_keeps_the_last_good_pull(tmp_path: Path) -> None:
     assert row["status"] == "failed" and "403 Forbidden" in row["error"]
     assert (dest / "pages.jsonl").read_bytes() == good
     assert failure_path(dest).is_file()
+    assert read_source(dest, _WIKI).status == "failed"
+
+
+async def test_an_error_body_with_is_error_false_is_a_failure_not_an_empty_page(tmp_path: Path) -> None:
+    """An expired token comes back as `{"error": ...}` with `is_error` False. Read as a page it
+    "succeeds" with nothing in it and replaces the last good pull — it must fail instead."""
+    pages, children = _tree()
+    _row, dest = await _pull(_FakeAtlassian(pages=pages, children=children), _WIKI, tmp_path)
+    good = (dest / "pages.jsonl").read_bytes()
+    row, _dest = await _pull(
+        _FakeAtlassian(pages=pages, children=children, soft_fail="confluence_get_page"), _WIKI, tmp_path
+    )
+    assert row["status"] == "failed" and "Authentication failed" in row["error"]
+    assert (dest / "pages.jsonl").read_bytes() == good
     assert read_source(dest, _WIKI).status == "failed"
 
 

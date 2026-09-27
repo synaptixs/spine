@@ -129,7 +129,30 @@ class _Caller:
             raise PullError(
                 f"{self.server}:{tool} failed ({json.dumps(args, sort_keys=True)}): {result.text[:300]}"
             )
-        return _loads(result.text) if result.text.strip() else None, result.text
+        data = _loads(result.text) if result.text.strip() else None
+        if (reason := _error_body(data)) is not None:
+            raise PullError(
+                f"{self.server}:{tool} failed ({json.dumps(args, sort_keys=True)}): {reason[:300]}"
+            )
+        return data, result.text
+
+
+# Keys that make a JSON body an answer rather than a complaint — a page, a child listing, a search,
+# an issue. A body carrying ``error`` and none of these is a failure.
+_ANSWER_KEYS = frozenset({"metadata", "content", "results", "issues", "key", "id", "fields"})
+
+
+def _error_body(data: Any) -> str | None:
+    """The failure a tool reported *inside* an ordinary result, or ``None``.
+
+    mcp-atlassian answers a failed call — an expired token, a missing page — with a normal result
+    whose body is ``{"error": "..."}`` and ``is_error`` left False (its ``servers/confluence.py`` and
+    ``servers/jira.py``). Read as data, that is a page with no title and no text: the pull
+    "succeeds" and swaps an empty cache in over the last good one, which D21 exists to prevent.
+    """
+    if isinstance(data, dict) and "error" in data and not (_ANSWER_KEYS & data.keys()):
+        return str(data["error"])
+    return None
 
 
 @dataclass
