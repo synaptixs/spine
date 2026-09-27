@@ -63,6 +63,20 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **Refine can now fix lint and type errors in the tests it wrote, without weakening them.** A
+  generated test file that failed preflight stayed failed: refine is told not to modify tests, and
+  ruff has no autofix for the common cases. On develop, preflight passed on 25 of 30 benchmark
+  runs, and every failure was in a test file the run had written. Two changes. A module
+  docstring written after `from __future__ import annotations` (ruff E402 on every import after
+  it) is now moved to the top before ruff runs; the move is checked on the AST and changes no code.
+  And when a ruff, mypy or `ruff format --check` line names a Python test file this run wrote,
+  refine is told it may fix those findings in that file. A pytest failure never unlocks a test,
+  and a test that existed before the run is never unlocked. Any refine edit to such a test that
+  removes or changes an existing `assert`, or removes a test function, is refused and refine is
+  told why; new asserts are allowed (the usual mypy `union-attr` fix adds `assert x is not None`).
+  Measured on the same 30 runs: preflight 27/30, with no failure left in a test file (the three
+  remaining are an implementation file's mypy error and two failing test runs). Python only; other
+  languages and the agentic loop keep today's rule. ([SSPN-93](https://fibonacci-solutions.atlassian.net/browse/SSPN-93))
 - **Codegen no longer edits files the ticket is not about.** On OpenAI models a run edited 6-9
   unrelated files, each named by Spine's own design. A module a ticket names by its dotted name
   (`orchestrator.codereview.verifiers`, "the orchestrator.pkg docs module") now resolves through the
