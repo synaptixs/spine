@@ -229,3 +229,61 @@ def test_corrupt_office_file_is_skipped_not_fatal(tmp_path: Path) -> None:
     (tmp_path / "broken.xlsx").write_bytes(b"also not a zip")
     (tmp_path / "ok.md").write_text("fine\n", encoding="utf-8")
     assert {p.title for p in read_doc_pages(tmp_path)} == {"ok.md"}
+
+
+# ---- section splitting honours code (B39 / SSPN-83) -----------------------------------
+
+
+def test_a_comment_inside_a_code_fence_is_not_a_section(tmp_path: Path) -> None:
+    (tmp_path / "a.md").write_text(
+        "# Title\n\ntext\n\n```python\n# a comment in code\nx = 1\n```\n\n"
+        "~~~sh\n# shell too\n~~~\n\n## Real\nmore\n",
+        encoding="utf-8",
+    )
+    pages = {p.title: p.text for p in read_doc_pages(tmp_path)}
+    assert set(pages) == {"a.md#title", "a.md#real"}
+    # the code stays in its section's text, so its mentions still bind
+    assert "# a comment in code" in pages["a.md#title"]
+
+
+def test_a_longer_fence_is_only_closed_by_one_as_long(tmp_path: Path) -> None:
+    (tmp_path / "a.md").write_text(
+        "# Top\n\n````md\n```\n# still inside\n```\n````\n\n# After\n", encoding="utf-8"
+    )
+    assert {p.title for p in read_doc_pages(tmp_path)} == {"a.md#top", "a.md#after"}
+
+
+def test_an_html_pre_block_does_not_become_a_heading(tmp_path: Path) -> None:
+    """The heading `Phase 5` followed by a `<pre>` whose first line is a `#` comment used to
+    flatten into one 400-character "heading" — the pre block is a fenced sample now."""
+    (tmp_path / "plan.html").write_text(
+        "<h2>Phase 5</h2><pre><code># grounded.py\nfrom app.client import ApiClient\n"
+        "client = ApiClient()</code></pre><h2>Phase 6</h2><p>done</p>",
+        encoding="utf-8",
+    )
+    pages = {p.title: p.text for p in read_doc_pages(tmp_path)}
+    assert set(pages) == {"plan.html#phase-5", "plan.html#phase-6"}
+    assert "from app.client import ApiClient" in pages["plan.html#phase-5"]
+
+
+def test_a_section_id_is_capped_at_100_characters(tmp_path: Path) -> None:
+    heading = "word " * 40  # a 199-character slug uncapped
+    (tmp_path / "a.md").write_text(f"# {heading}\n\nbody\n\n# {heading}\n\nagain\n", encoding="utf-8")
+    titles = sorted(p.title for p in read_doc_pages(tmp_path))
+    slugs = [t.split("#", 1)[1] for t in titles]
+    assert all(len(s) <= 100 for s in slugs[:1]) and not slugs[0].endswith("-")
+    assert len(set(titles)) == 2  # the duplicate still gets its numeric suffix
+
+
+def test_an_ordinary_long_heading_keeps_its_github_anchor(tmp_path: Path) -> None:
+    heading = "Prompts and resources the workflow and the documents through the protocol"
+    (tmp_path / "a.md").write_text(f"# {heading}\n\nbody\n", encoding="utf-8")
+    [page] = read_doc_pages(tmp_path)
+    assert page.title == "a.md#prompts-and-resources-the-workflow-and-the-documents-through-the-protocol"
+
+
+def test_requirements_and_constraints_files_are_not_docs(tmp_path: Path) -> None:
+    for name in ("requirements.txt", "requirements-dev.txt", "requirements_db.txt", "constraints.txt"):
+        (tmp_path / name).write_text("httpx>=0.27\n", encoding="utf-8")
+    (tmp_path / "NOTES.txt").write_text("Real prose about `Client`.\n", encoding="utf-8")
+    assert [p.title for p in read_doc_pages(tmp_path)] == ["NOTES.txt"]
