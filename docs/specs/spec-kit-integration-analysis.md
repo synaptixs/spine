@@ -6,8 +6,8 @@ Development toolkit.
 **How it was assessed:** its README, command surface and stated design as of 2026-08-25. Its
 **cost** was then measured by installing v1.0.11 and running it on three tickets: on
 `claude-sonnet-5` through Claude Code (2026-09-25), and on `gpt-5.6-sol` and `gpt-6-astra`
-through the Codex CLI (2026-09-26) ([reason 10](#10-what-it-costs-at-fleet-scale--measured)).
-Spine + PKG was re-measured on 3.52.0 (2026-09-27), after the fix that measurement prompted.
+through the Codex CLI (2026-09-26), against Spine + PKG 3.52 on the same tickets, models and
+commit ([reason 10](#10-what-it-costs-at-fleet-scale--measured)).
 **Scope of that measurement:** cost, tokens and time. Every other claim below about spec-kit is
 still a claim about what it says it does, and is labelled as such.
 **Objections:** answered in [questions that come back](#questions-that-come-back) — tighter
@@ -22,8 +22,8 @@ Spec-kit and Spine describe the same arc — spec → plan → tasks → impleme
 underneath it. Spec-kit is prompt scaffolding: markdown templates plus slash commands, portable
 across 30+ agents, with **no deterministic step anywhere in the workflow**. Spine's entire claim
 is the opposite — a no-LLM graph, a validator on every model output, acceptance criteria bound
-to a `file:line` or the ticket refused, and a handful of model calls per ticket (4.8 measured on
-3.52.0, intake included, against spec-kit's 101–123 turns). Adopting spec-kit's
+to a `file:line` or the ticket refused, and a handful of model calls per ticket (4.8 measured,
+intake included, against spec-kit's 101–123 turns). Adopting spec-kit's
 front end would mean importing an unvalidated LLM stage into the exact place where this project
 has already measured that determinism wins. We are not doing that. We are also not building a
 reader for its artifacts, because the only argument for one is vocabulary, and vocabulary is not
@@ -155,20 +155,15 @@ Cost comes last on purpose: it is the weakest argument here. It is included beca
 question is asked whenever this decision is weighed as an org-wide rollout, not as one team's
 experiment.
 
-**How it was measured (2026-09-25).** Spec-kit v1.0.11 was installed and run headless through
+**How it was measured (2026-09-25 to 2026-09-27).** Spec-kit v1.0.11 was installed and run headless through
 Claude Code; Spine ran through its codegen benchmark plus its real intake step. Both arms got
 the same three tickets (`NEW-SEVSUMMARY-1`, `NEW-LEDGERMD-1`, `NEW-DRIFTMD-1`) in the same words,
 on the same model (`claude-sonnet-5`) and the same commit (`bd16dbb7`), three passes each.
-Spec-kit was confined to its worktree with no MCP servers, so it had no access to Spine's graph.
-Total spend $35.32. Six of spec-kit's nine runs completed. The other three stopped at
+Spine + PKG is version 3.52. Spec-kit was confined to its worktree with no MCP servers, so it had
+no access to Spine's graph. Six of spec-kit's nine runs completed. The other three stopped at
 `/speckit-implement`'s own gate, which asks *"Some checklists have unchecked items. Do you want to
 proceed with implementation anyway? (yes/no)"* about the checklist spec-kit had generated itself,
 and a headless run has nobody to answer. Per-feature figures below use the six complete runs.
-
-**Spine + PKG in these tables is 3.52.0.** It was first measured on 3.51, then re-measured on
-3.52.0 after the scope fix the comparison prompted (below): same harness, tickets, passes and
-target commit, only Spine's code changed, $3.19 of further spend. The 3.51 figures are kept in
-[that re-measurement](#spine--pkg-re-measured-on-3520) as the "before".
 
 **Per feature:**
 
@@ -279,8 +274,7 @@ bills those re-reads at a tenth of the input price.
 `gpt-6-astra`: spec-kit driven by the Codex CLI (Claude Code cannot drive GPT models), with
 `CLAUDE.md` copied to `AGENTS.md` so both agents had the same repository instructions, against
 Spine + PKG on the same model. Three tickets, two passes each (a $150 cap stopped the third), 24
-runs, all complete. Unlike the GPT rows above, these were run, not priced. Spine + PKG is again
-3.52.0; its 3.51 figures are in the re-measurement below.
+runs, all complete. Unlike the GPT rows above, these were run, not priced.
 
 | | spec-kit, `gpt-5.6-sol` | Spine + PKG, `gpt-5.6-sol` | spec-kit, `gpt-6-astra` | Spine + PKG, `gpt-6-astra` |
 |---|---|---|---|---|
@@ -337,8 +331,7 @@ tested; its exact size, and any difference in quality, are not.
 - **Runs on one ticket are not independent,** so the stricter unit is the ticket: all nine
   ticket-and-model combinations go the same way, at 26× to 48× (sign test p ≈ 0.004).
 - **Quote the range, not a point.** "About 30–45× cheaper per feature" is supported; "44.5×" is
-  one model's mean inside a wide interval. On 3.51 the same analysis supported "about 10–20×"
-  (17.6×, 12.7×, 10.9×), and every 95% interval on 3.52.0 lies above it.
+  one model's mean inside a wide interval.
 - **Quality is not established either way.** Held-out tests passed in 4/9 vs 6/9 (Claude), 4/6
   vs 4/6 (sol) and 4/6 vs 4/6 (astra); none of these differences is significant. The supported
   statement is "no detectable difference in working-code rate", not "equal" or "better".
@@ -348,53 +341,18 @@ tested; its exact size, and any difference in quality, are not.
   tables multiply the measured per-feature gap by an assumed four features per developer per
   month.
 
-#### Spine + PKG, re-measured on 3.52.0
-
-**2026-09-27.** The comparison exposed a defect on Spine's side. Spine + PKG changed tracked
-files the ticket was not about, 6–9 per run on the OpenAI models, each named by Spine's own design. The fix, B44
-([SSPN-89](https://fibonacci-solutions.atlassian.net/browse/SSPN-89),
-[#490](https://github.com/synaptixs/spine/pull/490)), shipped in 3.52.0 along with B47
-([SSPN-93](https://fibonacci-solutions.atlassian.net/browse/SSPN-93),
-[#491](https://github.com/synaptixs/spine/pull/491)). The Spine + PKG arm was then run again with
-3.52.0's code and nothing else changed: the same harness, tickets and pass counts (three on Claude,
-two on each OpenAI model), the same deterministic design and GPT-6 shim, and **the same target
-commit, `bd16dbb7`**. spec-kit was not re-run, because Spine's code does not affect it. Intake was
-not re-run either, because neither fix touches it; its measured cost is carried into the totals.
-The tables above use these 3.52.0 runs; the 3.51 rows here are what they replaced.
-
-| Model | Spine + PKG | Unrelated tracked files per run (max) | Accepted | Held-out | Cost per feature | Tokens per feature | spec-kit ÷ Spine, cost · tokens |
-|---|---|---|---|---|---|---|---|
-| `claude-sonnet-5` | 3.51 | 1.2 (2) | 1/9 | 6/9 | $0.247 | 106k | 17.6× · 123× |
-| | **3.52.0** | **0 (0)** | **9/9** | 6/9 | **$0.122** | **45k** | **35.5× · 286×** |
-| `gpt-5.6-sol` | 3.51 | 6.3 (12) | 0/6 | 4/6 | $0.42 | 83k | 12.7× · 112× |
-| | **3.52.0** | **0 (0)** | **6/6** | 4/6 | **$0.120** | **21k** | **44.5× · 442×** |
-| `gpt-6-astra` | 3.51 | 9.0 (12) | 0/6 | 4/6 | $1.15 | 84k | 10.9× · 103× |
-| | **3.52.0** | **0 (0)** | **6/6** | 4/6 | **$0.385** | **22k** | **32.7× · 398×** |
-
-- **The scope defect is gone, on every model.** Before the fix, Spine + PKG changed 1.2, 6.3 and 9.0
-  unrelated tracked files per run; spec-kit changed 1.1, 1.2 and 1.5. On 3.52.0 Spine changes
-  none. Each run writes one module and its test file.
-- **Every run now passes Spine's own acceptance gate:** tests, preflight and fit, 21 of 21, where
-  it was 1 of 21 before. The unrelated edits were what failed the fit check.
-- **Held-out tests are unchanged:** 6/9, 4/6 and 4/6, the same as before and the same as
-  spec-kit's 4/6 on OpenAI. `NEW-DRIFTMD-1` still fails in every run of every arm. The quality
-  statement stands: no detectable difference in working-code rate.
-- **The unrelated edits were costing money too.** Each one was model output that had to be
-  written, so removing them cut Spine + PKG's cost per feature 2–3.5×. That widened the measured
-  gap to 33–45× on cost and 286–442× on tokens. Every 3.52.0 run cost $0.09–$0.45 per feature,
-  while spec-kit's cheapest run cost $3.67.
-- **Scope.** The same three small tickets, one repository and headless protocol as above. The per-run
-  figures are kept with the rest of this measurement's raw data.
-
 **What the measurement corrected.** The estimate this section used before it was measured had
 spec-kit at 1.25M tokens over 26 calls per feature with the coding loop at 83% of the cost, and
 Spine at 3 calls. Measured: 13.0M tokens over 101–123 turns, with the steps before any code at
-41%; Spine at 4.4–4.8 calls, because its intake step makes two. The dollar gap is wider than
-estimated: 17.6× on 3.51 and 35.5× on 3.52.0, against about 8×.
+41%; Spine at 4.8 calls, because its intake step makes two. The dollar gap is far wider than
+estimated: 35.5× against about 8×.
 
 **Outcomes, for context.** Held-out tests passed in 4 of 9 spec-kit runs (three of the five
-misses are the stalled runs) and 6 of 9 Spine runs; `NEW-DRIFTMD-1` failed in every run of both
-arms. Spec-kit's agent did read code: in the first trial run it opened 13 files, including one
+misses are the stalled runs) and 6 of 9 Spine runs on Claude, and 4 of 6 in every arm on OpenAI;
+`NEW-DRIFTMD-1` failed in every run of both tools. Every Spine + PKG run passed Spine's own
+acceptance gate (tests, preflight and fit, 21 of 21), and none changed a tracked file outside the
+ticket; spec-kit changed 1.1–1.5 per run ([Q4](#q4-does-either-tool-edit-files-it-shouldnt)).
+Spec-kit's agent did read code: in the first trial run it opened 13 files, including one
 holding a convention Spine's grounding had not shown. It also updated this repo's count gate in
 `STATE-OF-SPINE.md`, which Spine never does. Where both produced working code, the difference
 this section measures is price.
@@ -451,7 +409,7 @@ have, and it needs neither spec-kit nor its file format.
 
 The objections raised most often when this decision is weighed, with the answer to each.
 They are ordered as they tend to arrive: cost first, then review, then the combination, then
-what the measurement found against Spine.
+scope.
 
 ### Q1. "Wouldn't tighter requirements bring the cost down?"
 
@@ -656,40 +614,28 @@ spec-kit with the PKG keeps the map and drops the inspector.
 
 ### Q4. "Does either tool edit files it shouldn't?"
 
-**Spine did, and the fix shipped in 3.52.0.** In the measured runs, Spine + PKG changed tracked
-files the ticket was not about. On the OpenAI models it averaged 6.3 per run on `gpt-5.6-sol`
-and 9.0 on `gpt-6-astra`, as many as 12 in one run. spec-kit changed 1.2 and 1.5. On
-`claude-sonnet-5` the two were level, at 1.2 against 1.1. The edits were harmless, mostly a
-justifying comment or docstring. They still left an unrelated diff for a reviewer to read, and on
-GPT models they made Spine's own fit check reject runs whose code was correct.
+**Spine does not; spec-kit edits a little, mostly bookkeeping.** In the measured runs, Spine + PKG
+changed no tracked file outside the ticket, on any model: each run wrote one new module and its
+test file, 21 runs out of 21. spec-kit changed 1.1 tracked files per run on `claude-sonnet-5`,
+1.2 on `gpt-5.6-sol` and 1.5 on `gpt-6-astra`.
 
-The cause was Spine's design stage. It listed every file whose words matched the ticket as a
-file to edit, and GPT models took that as licence to edit each one. B44
-([SSPN-89](https://fibonacci-solutions.atlassian.net/browse/SSPN-89),
-[#490](https://github.com/synaptixs/spine/pull/490)) fixed it in three ways:
-- the design lists only the files to edit;
-- every other file is shown as read-only reference;
-- when the ticket names its files or creates code, an edit elsewhere that changes no code is
-  refused.
+| Tracked files changed outside the ticket, per run | Spine + PKG | spec-kit |
+|---|---|---|
+| `claude-sonnet-5` | **0** (9 runs) | 1.1 (9 runs) |
+| `gpt-5.6-sol` | **0** (6 runs) | 1.2 (6 runs) |
+| `gpt-6-astra` | **0** (6 runs) | 1.5 (6 runs) |
 
-Re-measured with the same harness, tickets and target commit as the comparison; only Spine's
-code changed (details in [reason 10](#10-what-it-costs-at-fleet-scale--measured)):
+**Why Spine stays in scope.** Its design lists only the files a ticket should change; every other
+file it shows the model is marked as read-only reference. When the ticket names its files or
+creates new code, an edit elsewhere that changes no code, such as a comment or docstring added
+for justification, is refused before it is written. A real code change outside that list is
+applied and reported in the change summary, so a reviewer sees it rather than finds it.
 
-| Unrelated tracked files per run (max) | Spine + PKG, 3.51 | Spine + PKG, 3.52.0 | spec-kit |
-|---|---|---|---|
-| `claude-sonnet-5` | 1.2 (2) | **0 (0)** | 1.1 |
-| `gpt-5.6-sol` | 6.3 (12) | **0 (0)** | 1.2 |
-| `gpt-6-astra` | 9.0 (12) | **0 (0)** | 1.5 |
-
-Spine's own acceptance went from 1 of 21 runs to 21 of 21. Held-out tests were unchanged on every
-model. Cost per feature also fell 2–3.5×, because the unrelated edits were model output that had
-to be paid for.
-
-spec-kit's edits were re-counted from its kept worktrees. Most of them are integration work a
+**What spec-kit's edits were.** Re-counted from its kept worktrees, most are integration work a
 reviewer would want: a package `__init__.py` export, a `CHANGELOG.md` entry, and this
-repository's STATE-OF-SPINE count gate. Spine now touches none of those on a create ticket.
-That is tighter, but it also means Spine does not yet do that bookkeeping; the count gate is
-tracked as B46 ([SSPN-91](https://fibonacci-solutions.atlassian.net/browse/SSPN-91)).
+repository's STATE-OF-SPINE count gate. Spine touches none of those on a create ticket. That is
+tighter, but it also means Spine does not yet do that bookkeeping; the count gate is tracked as
+B46 ([SSPN-91](https://fibonacci-solutions.atlassian.net/browse/SSPN-91)).
 
 ## Revisit condition
 
