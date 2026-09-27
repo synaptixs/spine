@@ -30,6 +30,17 @@ same :class:`~orchestrator.pkg.docs.DocReconciler` finds exactly one anchor — 
 not a mention until the binder says so. And a section whose text is identical to one of the
 repository's own (a Confluence mirror of ``docs/``) is listed once, under the repository doc,
 with ``also_in`` naming the source (D19): the repository copy is the one reviewed with the code.
+
+**RAG chunks (SSPN-82) ride the same path.** A ``rag`` source caches chunks (``kind: "chunk"``) —
+one ``Doc`` node each, never section-split, id ``doc:mcp:<server>/<chunk id>`` — plus a
+``queries.json`` mapping each query the pull asked to the chunk ids it got back. Retrieval is not
+admission: a chunk is listed only where the binder finds one anchor, exactly as above. What the
+server returned for a symbol's query but the binder cannot tie to it is *counted*, per symbol, at
+read time (:meth:`ExternalBinding.retrieval`) — so an answer can say "10 retrieved, 2 name the
+symbol" without inventing the other eight edges (D9). A chunk whose source metadata names a doc
+file of this repository (exact repo-relative path) is that file, indexed: it collapses into the
+file's sections as ``also_in`` rather than listing twice (Q42). Only a pull that walked the corpus
+reports drift: a query-driven pull only ever holds text retrieved *for* a current name.
 """
 
 from __future__ import annotations
@@ -37,14 +48,16 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import posixpath
 import re
 import shutil
 import tempfile
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import unquote
 
 from orchestrator.pkg.doc_link import symbolish_drift
 from orchestrator.pkg.doc_source import html_to_text, read_doc_pages, split_sections
@@ -58,6 +71,11 @@ ENV_CACHE_DIR = "ORCHESTRATOR_DOCS_CACHE_DIR"
 STALE_AFTER_DAYS = 7
 PAGES_FILE = "pages.jsonl"
 MANIFEST_FILE = "manifest.json"
+#: A query-driven ``rag`` pull's record of what it asked: query string → chunk ids returned.
+QUERIES_FILE = "queries.json"
+#: How a ``rag`` pull covered its corpus — recorded in the manifest as ``strategy``.
+STRATEGY_ENUMERATE = "enumerate"
+STRATEGY_QUERY = "query"
 
 # A body that opens with a tag and holds a block element is markup, whatever the server claims.
 _BLOCK_TAG_RE = re.compile(
@@ -110,29 +128,94 @@ def _previous_path(dest: Path) -> Path:
 
 @dataclass(frozen=True)
 class ExternalPage:
-    """One pulled document, as cached: a Confluence page or a Jira issue.
+    """One pulled document, as cached: a Confluence page, a Jira issue or a RAG chunk.
 
-    ``id`` is the source's own identifier (page id, issue key), so a doc id built from it is
-    stable across pulls and points back at the page."""
+    ``id`` is the source's own identifier (page id, issue key, chunk id — or ``sha1(text)[:12]``
+    for a chunk the server gave none), so a doc id built from it is stable across pulls and
+    points back at the page. ``source`` is a chunk's origin as the server's metadata names it (a
+    path or uri — what repo-path collapse compares); ``score`` its relevance, when reported.
+    Both are written only when set, so a P2 page's cache record is unchanged."""
 
     id: str
     title: str
     text: str
     url: str = ""
     kind: str = "confluence"
+    source: str = ""
+    score: float | None = None
 
-    def to_json(self) -> dict[str, str]:
-        return {"id": self.id, "title": self.title, "url": self.url, "text": self.text, "kind": self.kind}
+    def to_json(self) -> dict[str, Any]:
+        out: dict[str, Any] = {
+            "id": self.id,
+            "title": self.title,
+            "url": self.url,
+            "text": self.text,
+            "kind": self.kind,
+        }
+        if self.source:
+            out["source"] = self.source
+        if self.score is not None:
+            out["score"] = self.score
+        return out
 
     @classmethod
     def from_json(cls, raw: Mapping[str, Any]) -> ExternalPage:
+        score = raw.get("score")
         return cls(
             id=str(raw["id"]),
             title=str(raw.get("title") or raw["id"]),
             text=str(raw.get("text") or ""),
             url=str(raw.get("url") or ""),
             kind=str(raw.get("kind") or "confluence"),
+            source=str(raw.get("source") or ""),
+            score=float(score) if isinstance(score, int | float) and not isinstance(score, bool) else None,
         )
+
+
+def chunk_id(text: str) -> str:
+    """The id of a chunk its server gave none: ``sha1(text)[:12]`` — stable across pulls."""
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()[:12]  # noqa: S324 — an id, not security
+
+
+_NAME_SPLIT_RE = re.compile(r"::|[./:\\#]")
+
+
+def query_name(name: str) -> str:
+    """A symbol's short name — the query a ``rag`` pull asks for it, and the key a read looks
+    its retrieval up by: ``lib.client`` → ``client``, ``pkg::Client`` → ``Client``."""
+    parts = [p for p in _NAME_SPLIT_RE.split(name) if p]
+    return parts[-1] if parts else ""
+
+
+def rag_queries(batch: FactBatch, cap: int) -> tuple[list[str], int]:
+    """``(queries, candidates)`` for a query-driven ``rag`` pull (D16).
+
+    One query per module and class of this repository — never an imported library, and not
+    methods: a method's name is rarely what prose calls it — ordered by how many distinct nodes
+    call or import it, most first, then by id, so the
+    cap keeps the symbols a change most often ripples from. Queries are short names,
+    de-duplicated (two modules called ``utils`` ask once); ``candidates`` is how many distinct
+    queries there were before ``cap``, so the pull can say "queried N of M"."""
+    wanted = (NodeKind.MODULE, NodeKind.TYPE)
+    callers: dict[str, set[str]] = {}
+    for edge in batch.edges:
+        if edge.kind in (EdgeKind.CALLS, EdgeKind.IMPORTS) and edge.src != edge.dst:
+            callers.setdefault(edge.dst, set()).add(edge.src)
+    # Only this repository's own symbols: an imported library (`os`, `json`, `typing.Any`) is an
+    # external node that every module imports, so it would top a most-imported order and spend the
+    # cap on names the corpus does not document — half of 60 queries, measured on a real repo.
+    nodes = sorted(
+        (n for n in batch.nodes if n.kind in wanted and not n.external and n.grounded),
+        key=lambda n: (-len(callers.get(n.id, ())), n.id),
+    )
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for node in nodes:
+        name = query_name(node.name)
+        if name and not name.startswith("__") and name not in seen:
+            seen.add(name)
+            ordered.append(name)
+    return ordered[:cap], len(ordered)
 
 
 def looks_like_html(body: str) -> bool:
@@ -151,20 +234,33 @@ def page_text(body: str) -> str:
     return body.strip()
 
 
-def write_pull(dest: Path, pages: Iterable[ExternalPage], manifest: Mapping[str, Any]) -> dict[str, Any]:
+def write_pull(
+    dest: Path,
+    pages: Iterable[ExternalPage],
+    manifest: Mapping[str, Any],
+    *,
+    queries: Mapping[str, Sequence[str]] | None = None,
+) -> dict[str, Any]:
     """Replace ``dest`` with a fresh pull — whole, or not at all (D37).
 
     Written to a temporary folder beside ``dest`` and swapped in with ``os.replace``, so a
     reader sees the old pull or the new one, never half of either. A crash before the swap
     leaves the old folder untouched; one between the two renames leaves it at
     ``.<name>.previous``, which :func:`read_source` falls back to. Success clears any
-    ``failure.json`` an earlier attempt left. Returns the manifest as written."""
+    ``failure.json`` an earlier attempt left. ``queries`` (a query-driven ``rag`` pull's
+    query → chunk ids) is written in the same folder, so it swaps with the chunks it indexes.
+    Returns the manifest as written."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp(prefix=f".{dest.name}.tmp-", dir=dest.parent))
     try:
         ordered = sorted(pages, key=lambda p: p.id)
         body = "".join(json.dumps(p.to_json(), sort_keys=True, ensure_ascii=False) + "\n" for p in ordered)
         (tmp / PAGES_FILE).write_text(body, encoding="utf-8")
+        if queries is not None:
+            asked = {q: list(ids) for q, ids in sorted(queries.items())}
+            (tmp / QUERIES_FILE).write_text(
+                json.dumps(asked, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8"
+            )
         final = {
             **manifest,
             "content_sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
@@ -206,9 +302,35 @@ class CachedSource:
     pulled_at: str | None = None
     error: str | None = None
     manifest: Mapping[str, Any] = field(default_factory=dict)
+    #: A query-driven ``rag`` pull's query → chunk ids; empty for every other pull.
+    queries: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+
+    @property
+    def strategy(self) -> str | None:
+        """``enumerate`` / ``query`` for a ``rag`` pull, as its manifest recorded it."""
+        value = self.manifest.get("strategy")
+        return str(value) if value else None
+
+    @property
+    def enumerated(self) -> bool:
+        """Coverage fixed by the declaration or by a walk of the whole corpus — the pulls whose
+        unbound claims can be drift (D20)."""
+        return self.source.enumerated or self.strategy == STRATEGY_ENUMERATE
 
 
-def _read_folder(folder: Path) -> tuple[tuple[ExternalPage, ...], dict[str, Any]]:
+def _read_queries(folder: Path) -> dict[str, tuple[str, ...]]:
+    path = folder / QUERIES_FILE
+    if not path.is_file():
+        return {}
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError("queries.json is not an object")
+    return {str(q): tuple(str(i) for i in ids) for q, ids in raw.items() if isinstance(ids, list)}
+
+
+def _read_folder(
+    folder: Path,
+) -> tuple[tuple[ExternalPage, ...], dict[str, Any], dict[str, tuple[str, ...]]]:
     manifest = json.loads((folder / MANIFEST_FILE).read_text(encoding="utf-8"))
     if not isinstance(manifest, dict):
         raise ValueError("manifest is not an object")
@@ -217,7 +339,7 @@ def _read_folder(folder: Path) -> tuple[tuple[ExternalPage, ...], dict[str, Any]
         for line in (folder / PAGES_FILE).read_text(encoding="utf-8").splitlines()
         if line.strip()
     )
-    return tuple(sorted(pages, key=lambda p: p.id)), manifest
+    return tuple(sorted(pages, key=lambda p: p.id)), manifest, _read_queries(folder)
 
 
 def read_source(dest: Path, source: DocSource) -> CachedSource:
@@ -237,15 +359,15 @@ def read_source(dest: Path, source: DocSource) -> CachedSource:
             return CachedSource(source, "never_pulled")
         return CachedSource(source, "failed", error=str(failure.get("reason") or "unknown"))
     try:
-        pages, manifest = _read_folder(folder)
+        pages, manifest, queries = _read_folder(folder)
     except (OSError, ValueError, KeyError) as exc:
         return CachedSource(source, "failed", error=f"cache unreadable: {type(exc).__name__}: {exc}")
     pulled_at = str(manifest.get("pulled_at") or "") or None
     if failure is not None:
         return CachedSource(
-            source, "failed", pages, pulled_at, str(failure.get("reason") or "unknown"), manifest
+            source, "failed", pages, pulled_at, str(failure.get("reason") or "unknown"), manifest, queries
         )
-    return CachedSource(source, "ok", pages, pulled_at, None, manifest)
+    return CachedSource(source, "ok", pages, pulled_at, None, manifest, queries)
 
 
 def _parse_stamp(stamp: str) -> datetime | None:
@@ -285,7 +407,8 @@ def doc_pages(pages: Iterable[ExternalPage], server: str) -> list[tuple[DocPage,
 
     Ids follow D18 — ``mcp:<server>/<native id>`` plus ``#<section>`` — so the ``Doc`` node is
     ``doc:mcp:<server>/<id>#<section>``. A Confluence page splits by heading exactly like a local
-    markdown file (fences respected); a Jira issue stays one page."""
+    markdown file (fences respected); a Jira issue stays one page, and so does a RAG chunk — it
+    is already a section, cut by the server (``doc:mcp:<server>/<chunk id>``)."""
     out: list[tuple[DocPage, ExternalPage]] = []
     for page in sorted(pages, key=lambda p: p.id):
         ref = f"mcp:{server}/{page.id}"
@@ -310,13 +433,59 @@ def _repo_sections(repo_pages: Iterable[DocPage]) -> dict[str, str]:
     return by_text
 
 
+_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
+
+
+def repo_relative(source: str, repo_root: Path | str) -> str | None:
+    """A chunk's ``source`` as a repo-relative posix path, or ``None`` when it names no file
+    of this checkout (a URL, a path outside the root, nothing at all).
+
+    ``file://`` is unwrapped, backslashes become slashes, an absolute path under the resolved
+    root is made relative, ``./`` and ``..`` segments are normalised. That is all: Q42 asks
+    for an exact match after normalising, never a basename or suffix guess."""
+    text = source.strip()
+    if text.lower().startswith("file://"):
+        text = unquote(text[7:])
+    text = text.replace("\\", "/")
+    if not text or _SCHEME_RE.match(text):
+        return None
+    path = PurePosixPath(text)
+    if path.is_absolute():
+        root = PurePosixPath(Path(repo_root).resolve().as_posix())
+        try:
+            text = path.relative_to(root).as_posix()
+        except ValueError:
+            return None
+    text = posixpath.normpath(text)
+    if text in ("", ".") or text == ".." or text.startswith("../"):
+        return None
+    return text
+
+
+def _repo_files(repo_pages: Iterable[DocPage]) -> dict[str, list[str]]:
+    """repo-relative doc file → the repository doc ids (its sections) read from it."""
+    by_file: dict[str, list[str]] = {}
+    for page in repo_pages:
+        if page.source_file:
+            by_file.setdefault(page.source_file, []).append(f"doc:{page.title}")
+    return by_file
+
+
 def collapse_stats(repo_root: Path | str, pages: Sequence[ExternalPage], server: str) -> dict[str, int]:
     """How many of a pull's sections are identical to one of the repository's own — the
-    collapse rate D28 asked to be measured before any fuzzier de-dup is considered."""
+    collapse rate D28 asked to be measured before any fuzzier de-dup is considered — and, for
+    RAG chunks, how many name one of the repository's doc files as their source (Q42)."""
     sections = doc_pages(pages, server)
-    repo = _repo_sections(read_doc_pages(repo_root)) if sections else {}
+    repo_pages = read_doc_pages(repo_root) if sections else []
+    repo = _repo_sections(repo_pages)
     same = sum(1 for section, _page in sections if normalized(section.text) in repo)
-    return {"sections": len(sections), "identical_to_repo_sections": same}
+    out = {"sections": len(sections), "identical_to_repo_sections": same}
+    if any(p.kind == "chunk" for p in pages):
+        files = _repo_files(repo_pages)
+        out["from_repo_doc_files"] = sum(
+            1 for p in pages if p.source and repo_relative(p.source, repo_root) in files
+        )
+    return out
 
 
 @dataclass
@@ -325,7 +494,10 @@ class ExternalBinding:
     repository's own doc links.
 
     ``meta`` carries, per admitted doc id, what a ``DocRef`` reports about its origin;
-    ``also_in`` names, per *repository* doc id, the sources holding an identical copy."""
+    ``also_in`` names, per *repository* doc id, the sources holding an identical copy (or, for a
+    RAG chunk, indexing that very file). ``retrieved`` maps each query a query-driven ``rag``
+    pull asked to the chunk doc ids it got back, and ``anchors`` every such chunk to the symbols
+    the binder ties it to — listed or collapsed — so :meth:`retrieval` can count per symbol."""
 
     nodes: list[Node] = field(default_factory=list)
     edges: list[Edge] = field(default_factory=list)
@@ -333,10 +505,29 @@ class ExternalBinding:
     also_in: dict[str, list[str]] = field(default_factory=dict)
     standings: list[dict[str, Any]] = field(default_factory=list)
     drift: list[DocDriftFinding] = field(default_factory=list)
+    retrieved: dict[str, set[str]] = field(default_factory=dict)
+    anchors: dict[str, set[str]] = field(default_factory=dict)
 
     @property
     def doc_count(self) -> int:
         return len(self.nodes)
+
+    def retrieval(self, node: Node, node_id: str | None = None) -> tuple[int, int] | None:
+        """``(retrieved, naming)`` for a symbol a query-driven ``rag`` pull asked about.
+
+        ``retrieved`` is how many chunks the servers returned for the symbol's query (its short
+        name); ``naming`` how many of those the binder ties to *this* symbol (``node_id``, when
+        the caller holds the node under another id). ``None`` when no pull asked — a method, a
+        symbol past the query cap, a repository with no such source — because "0 retrieved"
+        would claim a question that was never put."""
+        if node.kind not in (NodeKind.MODULE, NodeKind.TYPE):
+            return None
+        chunks = self.retrieved.get(query_name(node.name))
+        if chunks is None:
+            return None
+        own = node_id or node.id
+        naming = sum(1 for doc_id in chunks if own in self.anchors.get(doc_id, ()))
+        return len(chunks), naming
 
     def apply(self, batch: FactBatch) -> FactBatch:
         """Add the admitted ``Doc`` nodes and ``MENTIONS`` edges to ``batch`` (in place)."""
@@ -362,51 +553,73 @@ def bind_external(
     The reconciler is built from ``batch``'s non-``Doc`` nodes, so a page never "mentions" a
     doc section. ``repo_pages`` (the repository's own sections, from
     :func:`doc_source.read_doc_pages`) are what de-dup compares against; read from disk when not
-    passed. Drift is collected for enumerated sources only (D20), over the sections that were
-    not collapsed into a repository doc — those already count in the repository's own drift."""
+    passed. Drift is collected for enumerated sources only (D20) — a ``rag`` source counts when
+    its pull walked the corpus — over the sections that were not collapsed into a repository
+    doc: those already count in the repository's own drift."""
     out = ExternalBinding()
     if not sources:
         return out
     moment = now or _now()
     cached = [read_source(source_cache_dir(repo_root, repo_key, s.name, base=cache_base), s) for s in sources]
     anything = any(c.pages for c in cached)
-    repo_texts = (
-        _repo_sections(read_doc_pages(repo_root) if repo_pages is None else repo_pages) if anything else {}
-    )
+    own_pages = (read_doc_pages(repo_root) if repo_pages is None else repo_pages) if anything else []
+    repo_texts = _repo_sections(own_pages)
+    repo_files = _repo_files(own_pages) if any(p.kind == "chunk" for c in cached for p in c.pages) else {}
     reconciler = DocReconciler.from_nodes(
         (n for n in batch.nodes if n.kind is not NodeKind.DOC) if anything else (), repo_root=repo_root
     )
+
+    def unique_anchors(section: DocPage) -> list[str]:
+        found: list[str] = []
+        for mention in extract_mentions(section):
+            ids = reconciler.bind(mention, base_dir=section.base_dir).anchor_ids
+            if len(ids) == 1 and ids[0] not in found:  # the local rule: one anchor, or no edge
+                found.append(ids[0])
+        return found
+
     for entry in cached:
         src = entry.source
         origin = f"mcp:{src.server}"
+        label = f"{origin}/{src.name}"
         admitted: list[DocPage] = []
         collapsed = bound = 0
         for section, page in doc_pages(entry.pages, src.server):
-            twin = repo_texts.get(normalized(section.text))
-            if twin is not None:
-                sources_of = out.also_in.setdefault(twin, [])
-                label = f"{origin}/{src.name}"
-                if label not in sources_of:
-                    sources_of.append(label)
+            doc_id = f"doc:{section.title}"
+            chunk = page.kind == "chunk"
+            path = repo_relative(page.source, repo_root) if chunk and page.source else None
+            twins = repo_files.get(path, []) if path is not None else []
+            text_twin = repo_texts.get(normalized(section.text))
+            if not twins and text_twin is not None:
+                twins = [text_twin]
+            if twins:
+                for twin in twins:
+                    sources_of = out.also_in.setdefault(twin, [])
+                    if label not in sources_of:
+                        sources_of.append(label)
+                if chunk and doc_id not in out.anchors:
+                    out.anchors[doc_id] = set(unique_anchors(section))
                 collapsed += 1
                 continue
-            doc_id = f"doc:{section.title}"
             if doc_id in out.meta:  # two sources on one server pulled the same page: list it once
                 continue
             prov = Provenance(section.source_file or section.title, section.line)
             out.nodes.append(Node(doc_id, NodeKind.DOC, section.title, "doc", prov))
-            out.meta[doc_id] = {"origin": origin, "source": src.name, "url": page.url, "title": page.title}
+            meta = {"origin": origin, "source": src.name, "url": page.url, "title": page.title}
+            if chunk and page.source:
+                meta["source_path"] = page.source
+            out.meta[doc_id] = meta
             admitted.append(section)
-            named = False
-            for mention in extract_mentions(section):
-                anchors = reconciler.bind(mention, base_dir=section.base_dir).anchor_ids
-                if len(anchors) == 1:  # the local rule: an unambiguous anchor, or no edge
-                    out.edges.append(Edge(doc_id, anchors[0], EdgeKind.MENTIONS, prov))
-                    named = True
-            bound += named
-        if src.enumerated and admitted:
+            named = unique_anchors(section)
+            for anchor in named:
+                out.edges.append(Edge(doc_id, anchor, EdgeKind.MENTIONS, prov))
+            if chunk:
+                out.anchors[doc_id] = set(named)
+            bound += bool(named)
+        if entry.enumerated and admitted:
             _bindings, drift = reconciler.reconcile(admitted)
             out.drift.extend(f for f in drift if symbolish_drift(f.mention))
+        for query, ids in entry.queries.items():
+            out.retrieved.setdefault(query, set()).update(f"doc:mcp:{src.server}/{i}" for i in ids)
         row = standing(entry, now=moment)
         row.update(
             {
@@ -416,6 +629,11 @@ def bind_external(
                 "collapsed_into_repo_docs": collapsed,
             }
         )
+        if entry.strategy:
+            row["strategy"] = entry.strategy
+        counts = entry.manifest.get("counts")
+        if isinstance(counts, Mapping) and counts.get("bound"):
+            row["pull_bound"] = str(counts["bound"])
         out.standings.append(row)
     return out
 
@@ -424,11 +642,15 @@ __all__ = [
     "ENV_CACHE_DIR",
     "MANIFEST_FILE",
     "PAGES_FILE",
+    "QUERIES_FILE",
     "STALE_AFTER_DAYS",
+    "STRATEGY_ENUMERATE",
+    "STRATEGY_QUERY",
     "CachedSource",
     "ExternalBinding",
     "ExternalPage",
     "bind_external",
+    "chunk_id",
     "collapse_stats",
     "doc_pages",
     "docs_cache_root",
@@ -436,9 +658,12 @@ __all__ = [
     "looks_like_html",
     "normalized",
     "page_text",
+    "query_name",
+    "rag_queries",
     "read_source",
     "record_failure",
     "repo_cache_dir",
+    "repo_relative",
     "source_cache_dir",
     "standing",
     "utc_stamp",

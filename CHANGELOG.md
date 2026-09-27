@@ -41,6 +41,25 @@ All notable changes to this project are documented here. Format loosely follows
   listed once, under it, with `also_in`. The pull calls only allow-listed tools the server declares
   read-only and refuses any other by name; Jira reads never touch view history. `understand` and
   `state` never read pulled docs. ([SSPN-80](https://fibonacci-solutions.atlassian.net/browse/SSPN-80))
+- **Any RAG system's MCP server can be a docs source — a `rag:` kind under `docs:`.** Onboard
+  the server (chroma-mcp, mcp-server-qdrant, Bedrock Knowledge Bases, Ragie, a `search`/`fetch`
+  pair) and declare `rag: {collection, top_k, max_queries, max_chunks, trust_read_only}` — every
+  key optional; `tool` / `query_arg` pin what detection picks. `mcp ingest-docs` reads the tools'
+  input schemas: with a list tool it walks the corpus (`N of M`), otherwise it asks one query per
+  module and class, most-called first (`queried N of M symbols (cap reached)`). Two tools fitting
+  one role are refused naming both, nothing called. Chunks are listed in `blast_radius`,
+  `explain_symbol` and `docs_for` only where the binder finds one symbol they name; per symbol
+  asked about, `external_retrieved_count` / `external_unverified_count` and "10 retrieved, 2 name
+  the symbol" count the rest. A chunk from one of the repo's own doc files collapses into it as
+  `also_in`. `external_docs` standings add `strategy` and `pull_bound`; drift is reported only for
+  a walked corpus. ([SSPN-82](https://fibonacci-solutions.atlassian.net/browse/SSPN-82))
+- **`trust_read_only` — vouching for an unannotated RAG tool.** The docs pull still calls only
+  allow-listed tools that declare `readOnlyHint: true`; a `rag` source may also name tools in
+  `trust_read_only`, because neither chroma-mcp nor mcp-server-qdrant annotates any tool. The
+  allow list is never widened, and Confluence/Jira sources keep the strict rule.
+  ([SSPN-82](https://fibonacci-solutions.atlassian.net/browse/SSPN-82))
+- **`MCPToolResult` keeps each text block (`blocks`) and the structured content (`structured`).**
+  `text` is unchanged; a server that answers one block per chunk no longer loses its separators.
 
 ### Fixed
 

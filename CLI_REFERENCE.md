@@ -1504,12 +1504,12 @@ orchestrator mcp ingest-db [OPTIONS]
 
 ### `orchestrator mcp ingest-docs`
 
-Pull a repo's Confluence/Jira docs (repos.yaml docs:) over MCP into the docs cache.
+Pull a repo's Confluence/Jira/RAG docs (repos.yaml docs:) over MCP into the docs cache.
 
 The pulled pages are bound to code at read time by `blast_radius`, `explain_symbol` and
 `docs_for` — never by `understand`/`state`. Only allow-listed tools that declare themselves
-read-only are called; anything else is refused by name. Each source is replaced whole (atomic),
-and a failed pull keeps the last good one.
+read-only (or, for a `rag` source, that its `trust_read_only` names) are called; anything else is
+refused by name. Each source is replaced whole (atomic), and a failed pull keeps the last good one.
 
 ```
 orchestrator mcp ingest-docs [OPTIONS]
@@ -1528,6 +1528,15 @@ Prints one JSON row per source: `status` (`ok` · `failed` · `refused` · `plan
 `bound` (`N of M`, or `N of at least M (cap reached)`), the `cache` folder, the tools called, and
 `collapse` — how many pulled sections are identical to one of the repository's own doc sections.
 Exit `2` when the tool guard refuses a source or the config is wrong, `1` when a source failed.
+
+A `rag` source (any RAG system's MCP server — Chroma, Qdrant, Bedrock Knowledge Bases, Ragie, a
+`search`/`fetch` pair) has its tools discovered from their input schemas; the row adds `strategy`:
+`enumerate` when the server offers a list tool (the corpus is walked, at most `max_chunks`; `bound`
+is `N of M`), else `query` — one query per module and class, most-called first, at most
+`max_queries` (`bound` reads `queried N of M symbols (cap reached) → K chunk(s)`). `--dry-run`
+prints the discovered tool and argument spelling. Two tools that fit one role, a required argument
+the pull cannot supply, or an unannotated tool not named in `trust_read_only` are refused by name
+(exit `2`) before any call; the code graph is only extracted when a query pull actually runs.
 
 ---
 

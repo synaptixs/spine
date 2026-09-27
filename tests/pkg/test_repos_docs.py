@@ -55,6 +55,41 @@ def test_defaults_are_depth_3_and_100_documents(tmp_path: Path) -> None:
     assert wiki.enumerated and jira.enumerated
 
 
+def test_a_rag_source_parses_with_its_settings_and_defaults(tmp_path: Path) -> None:
+    """SSPN-82 Q40: the third kind. Every setting optional; `trust_read_only` de-duplicated."""
+    docs = """docs:
+  app:
+    - name: kb
+      server: chroma
+      rag:
+        collection: app-docs
+        tool: chroma_query_documents
+        query_arg: query_texts
+        top_k: 5
+        max_queries: 40
+        max_chunks: 900
+        trust_read_only: [chroma_query_documents, chroma_get_documents, chroma_query_documents]
+    - {name: plain, server: qdrant, rag: {}}
+"""
+    kb, plain = load_repo_config(_config(tmp_path, docs)).doc_sources("app")
+    assert kb == DocSource(
+        "kb",
+        "chroma",
+        "rag",
+        collection="app-docs",
+        tool="chroma_query_documents",
+        query_arg="query_texts",
+        top_k=5,
+        max_queries=40,
+        max_chunks=900,
+        trust_read_only=("chroma_query_documents", "chroma_get_documents"),
+    )
+    assert (plain.top_k, plain.max_queries, plain.max_chunks, plain.cap) == (10, 300, 2000, 2000)
+    assert (plain.collection, plain.tool, plain.query_arg, plain.trust_read_only) == ("", "", "", ())
+    # a rag source's coverage is decided by its pull (enumerate vs query), not its declaration
+    assert not plain.enumerated
+
+
 def test_key_for_resolves_a_checkout_to_its_declared_key(tmp_path: Path) -> None:
     repo_set = load_repo_config(_config(tmp_path))
     assert repo_set.key_for(tmp_path / "app") == "app"
@@ -78,10 +113,10 @@ def test_key_for_resolves_a_checkout_to_its_declared_key(tmp_path: Path) -> None
             r"docs\[app\]\[0\]: 'name' must be",
         ),
         ("docs:\n  app:\n    - {name: a, jira: {jql: x}}\n", r"docs\[app\]\[0\]: 'server'"),
-        ("docs:\n  app:\n    - {name: a, server: s}\n", "exactly one of 'confluence' or 'jira'"),
+        ("docs:\n  app:\n    - {name: a, server: s}\n", "exactly one of 'confluence', 'jira' or 'rag'"),
         (
             "docs:\n  app:\n    - {name: a, server: s, jira: {jql: x}, confluence: {roots: ['1']}}\n",
-            "exactly one of 'confluence' or 'jira'",
+            "exactly one of 'confluence', 'jira' or 'rag'",
         ),
         (
             "docs:\n  app:\n    - {name: a, server: s, confluence: {roots: []}}\n",
@@ -106,6 +141,28 @@ def test_key_for_resolves_a_checkout_to_its_declared_key(tmp_path: Path) -> None
             r"docs\[app\]\[1\] repeats the source name 'a'",
         ),
         ("docs:\n  app:\n    - {name: a, server: s, wiki: {}}\n", r"unknown key\(s\) \['wiki'\]"),
+        (
+            "docs:\n  app:\n    - {name: a, server: s, rag: {top_k: 0}}\n",
+            "'top_k' must be an integer >= 1",
+        ),
+        (
+            "docs:\n  app:\n    - {name: a, server: s, rag: {max_queries: x}}\n",
+            "'max_queries' must be an integer >= 1",
+        ),
+        ("docs:\n  app:\n    - {name: a, server: s, rag: {collection: ''}}\n", "'rag.collection' must be"),
+        ("docs:\n  app:\n    - {name: a, server: s, rag: {tool: 3}}\n", "'rag.tool' must be"),
+        (
+            "docs:\n  app:\n    - {name: a, server: s, rag: {trust_read_only: find}}\n",
+            "'rag.trust_read_only' must be a list of tool names",
+        ),
+        (
+            "docs:\n  app:\n    - {name: a, server: s, rag: {n_results: 5}}\n",
+            r"'rag' has unknown key\(s\) \['n_results'\]",
+        ),
+        (
+            "docs:\n  app:\n    - {name: a, server: s, rag: {}, jira: {jql: x}}\n",
+            "exactly one of 'confluence', 'jira' or 'rag'",
+        ),
     ],
 )
 def test_a_bad_docs_block_names_the_entry(tmp_path: Path, docs: str, message: str) -> None:

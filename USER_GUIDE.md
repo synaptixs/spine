@@ -370,8 +370,9 @@ orchestrator mcp ingest-docs               # pull every declared source into the
 
 Each source declares exactly one of `confluence` (page-id `roots`, walked to `max_depth`, at most
 `max_docs` pages — defaults 3 and 100) or `jira` (`jql`, at most `max_issues` — default 100). A
-mistake names the entry: `docs[app][1]: declare exactly one of 'confluence' or 'jira'`. A file
-without a `docs:` block is as valid as before.
+mistake names the entry: `docs[app][1]: declare exactly one of 'confluence', 'jira' or 'rag'`
+(`rag` — a RAG system's MCP server — is described below). A file without a `docs:` block is as
+valid as before.
 
 What you then see:
 
@@ -390,6 +391,47 @@ Pages are bound to code **when a tool reads them**, not when they are pulled —
 the page that named it stops listing it (and shows up as external drift) without a re-pull.
 `understand` and `state` never read pulled docs: CI cannot pull them, and `episteme/` must be
 reproducible there.
+
+#### A RAG system's MCP server — the `rag:` kind
+
+Any retrieval system that publishes an MCP server (Chroma, Qdrant, Bedrock Knowledge Bases, Ragie,
+or a `search`/`fetch` pair) can be a third kind of source — no code, just the entry:
+
+```yaml
+docs:
+  app:
+    - name: kb
+      server: chroma                  # onboarded in mcp.json, its tools on the allow list
+      rag:
+        collection: app-docs          # where the server takes one (collection_name, knowledge_base_id)
+        top_k: 10                     # chunks per query (default 10)
+        max_queries: 300              # query path: at most this many modules/classes asked (default)
+        max_chunks: 2000              # enumerate path: at most this many chunks walked (default)
+        trust_read_only: [chroma_get_documents, chroma_query_documents]
+```
+
+Every key is optional. The pull reads each allowed tool's input schema to find its role: a
+**list** tool (`get_documents`, `list_documents`, `scroll`) means the whole corpus is walked; a
+**retrieve** tool (a required `query`/`q`/`question`/`search_query`/`query_text`/`text`, or an
+array `query_texts`) means one query per module and class of your code, the most-called first,
+each asking for the symbol's short name. `tool:` and `query_arg:` pin the tool and its query
+parameter when detection can't — if two tools fit, the pull refuses and names both rather than
+guess.
+
+**`trust_read_only`** is how you vouch for tools the server does not mark read-only. The pull
+calls only allow-listed tools that declare `readOnlyHint: true` — and neither chroma-mcp nor
+mcp-server-qdrant declares it on any tool — so name the ones you have checked here, in the
+committed file, where review sees it. A tool not on the server's `allow` list stays refused
+whatever this says.
+
+What a chunk adds to the read tools: it is **listed** in `docs` (with `origin: "mcp:<server>"`)
+only where the binder finds exactly one symbol it names — retrieval is not a mention. For a
+symbol a query pull asked about, the match also carries `external_retrieved_count` and
+`external_unverified_count`, and the markdown says `10 retrieved, 2 name the symbol`: the other
+eight came back for the query but name nothing the binder can tie to it, so they are counted, not
+listed. A chunk whose source metadata is one of your repo's own doc files (same repo-relative
+path) is that file, indexed — it collapses into the file's sections as `also_in`. Only a walked
+corpus reports external drift; a query only ever retrieves text about names that exist.
 
 ### Which ticket was this code written for? (opt-in)
 
