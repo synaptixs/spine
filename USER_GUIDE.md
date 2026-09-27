@@ -549,6 +549,14 @@ that cannot even be imported no longer stops the rest of the suite. `SDLC_TEST_B
 skips the extra run; then a failure made only of old test files missing a dependency stops the
 run with that diagnosis instead of asking the model to edit code.
 
+**Refine fixes the code, not the tests.** The one exception is a ruff or mypy finding in a
+Python test the run itself created: refine may fix that finding in that file. A failing test run
+never unlocks it, and neither does a test that was there before the run. A refine edit to such a
+test that removes or changes an existing `assert`, or removes a test, is refused and reported in
+the change summary. Other ways of weakening a test (a skip marker, a changed expected value) are not caught
+yet. A module docstring written after `from __future__` (ruff E402) is moved to the top before
+refine is needed at all.
+
 As it runs it prints each stage, including `[layout] mode=… package=…` and
 `[grounding] target-KG context: N chars` — that's it reading the existing codebase so
 the new code reuses what's already there. When it finishes, check out the branch it
