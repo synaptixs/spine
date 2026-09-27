@@ -91,7 +91,7 @@
 [`src/orchestrator/sdlc/autorun.py:957`](../../src/orchestrator/sdlc/autorun.py#L957)
 
 - **Called by** (1): [`autorun`](../../src/orchestrator/sdlc/autorun.py#L260)
-- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L260)
+- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`build_overview`](../../src/orchestrator/pkg/overview.py#L23), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L261)
 
 ### `_log_run_cost`
 

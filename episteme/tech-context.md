@@ -47,8 +47,8 @@ _Everything imported from outside this codebase, by how often — standard libra
 - `pathlib.Path` — imported 372 times
 - `typing.Any` — imported 284 times
 - `pytest` — imported 246 times
+- `collections.abc` — imported 175 times
 - `dataclasses.dataclass` — imported 175 times
-- `collections.abc` — imported 173 times
 - `json` — imported 159 times
 - `os` — imported 125 times
 - `re` — imported 99 times
