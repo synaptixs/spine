@@ -354,10 +354,10 @@ class _HtmlToText(HTMLParser):
         return "\n".join(out).strip()
 
 
-def _read_html(path: Path) -> str | None:
-    raw = _read_text(path)  # reuses the size cap + UTF-8 handling
-    if raw is None:
-        return None
+def html_to_text(raw: str) -> str | None:
+    """HTML markup flattened to markdown-ish text (ATX headings, backticked inline code, fenced
+    ``<pre>``), or ``None`` when it is unparseable or empty. The string half of the HTML reader,
+    shared with documents that arrive as HTML from somewhere other than a file."""
     parser = _HtmlToText()
     try:
         parser.feed(raw)
@@ -365,6 +365,13 @@ def _read_html(path: Path) -> str | None:
     except Exception:  # noqa: BLE001 — malformed markup must not fail the walk
         return None
     return parser.text() or None
+
+
+def _read_html(path: Path) -> str | None:
+    raw = _read_text(path)  # reuses the size cap + UTF-8 handling
+    if raw is None:
+        return None
+    return html_to_text(raw)
 
 
 # ---- Office (.docx / .xlsx) -------------------------------------------------
@@ -561,4 +568,4 @@ register_reader(DocReader("media", MEDIA_SUFFIXES, read_media_artifact))
 # `register_reader` a YAML reader itself.
 
 
-__all__ = ["DocReader", "is_doc_file", "read_doc_pages", "register_reader", "split_sections"]
+__all__ = ["DocReader", "html_to_text", "is_doc_file", "read_doc_pages", "register_reader", "split_sections"]
