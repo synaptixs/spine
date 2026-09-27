@@ -16,6 +16,65 @@ requirements, engineer-validated context, and spec-kit with the PKG underneath.
 
 ---
 
+## Spine + PKG, measured
+
+Spine + PKG turns a ticket into working, reviewed code on an existing codebase, and backs every
+step with evidence rather than trust. The PKG (Product Knowledge Graph) is built from the code
+itself by parsers, with no model involved, so the same commit always yields the same facts. It
+is gated at a precision of 1.00 on every kind of node and edge it records, with zero invented
+symbols. Spine's pipeline uses those facts as evidence. Each acceptance criterion must bind to a
+real `file:line` or the ticket is parked. A design that names code which doesn't exist is refused
+before anything is written. Every model output then passes a deterministic check: tests, a
+lint-and-type preflight, and a scope check. The graph pays off where it matters most, when the
+model can't see where a change should land: new modules integrated correctly in **47 of 68**
+runs with the graph, against **3 of 68** without it
+([reason 3](#3-it-is-a-poor-fit-for-brownfield-work--which-is-the-case-that-matters)).
+
+Because the graph supplies the context, the model does only the work that needs a model. Spine +
+PKG 3.52 delivered each feature in **4.8 model calls, about 45,000 tokens and $0.12** on
+`claude-sonnet-5`, in about 1.3 minutes. On the same tickets, model and commit, spec-kit took
+101–123 turns, 13 million tokens, $4.35 and nearly 19 minutes. Across three models Spine + PKG
+was **30–45× cheaper per feature** and used **286–442× fewer tokens**, and no run of either tool
+overlapped the other on cost. At 2,000 developers on `claude-sonnet-5` that is about **$11,800 a
+year against $418,000**, and the gap scales linearly from there
+([reason 10](#10-what-it-costs-at-fleet-scale--measured)).
+
+The saving doesn't come at the expense of quality or control. On held-out tests, Spine + PKG
+matched spec-kit's working-code rate. It also stayed inside the ticket: across 21 runs on three
+models it changed no file the ticket didn't call for, and all 21 passed Spine's own acceptance
+gate. That discipline is itself a measured result. This research surfaced a scope defect in
+Spine, and it was fixed, re-measured and shipped in 3.52. The comparison covered three small
+tickets on one repository, so the claim is about the order of magnitude, not an exact
+multiplier: Spine + PKG gets the same working code for a small fraction of the cost, and a
+reviewer can check every step of it.
+
+## What spec-kit lacks for an enterprise
+
+Spec-kit is a well-made set of prompts, and nothing more: markdown templates and slash commands
+that ask a model to write a spec, a plan and a task list, then the code. There is no
+deterministic step anywhere in it. It has no parser or graph of the codebase, so on an existing
+system the plan is written from whatever files the model happens to open. That is the situation
+where, in Spine's measurements, new code integrated correctly in 3 of 68 runs. Its acceptance
+criteria are written by the same model that wrote the spec, and nothing binds them to real code.
+It has no gate that can refuse a bad ticket, and it doesn't attempt blast radius or root cause.
+Its own checks (`analyze`, `converge`) ask a model whether one document agrees with another, so
+the model ends up grading its own work. The specs it writes into the repository go stale as the
+code moves, and nothing detects that. It also publishes no accuracy figures, because nothing it
+produces can be scored against the code.
+
+For an enterprise those gaps become costs that grow with every team that adopts it. Headless, it
+isn't reliable enough to automate: 3 of its 9 runs on Claude stopped at its own checklist
+question waiting for a person, and through Codex it stopped there every time. At 2,000
+developers on `claude-sonnet-5` its token bill is about **$418,000 a year**, against about
+$11,800 for Spine + PKG. The only way to catch its errors is human review, since it has no
+mechanical check. At 4 features per developer per month that is 96,000 specs a year for
+engineers to validate from memory; ten minutes on each is about **$1.6 million a year** in
+engineering time, more than the token bill on every model priced ([Q2](#q2-isnt-a-clean-context-validated-by-an-engineer-the-validator)).
+None of that review leaves a record of what was checked. Spec-kit is a reasonable fit for a
+greenfield prototype, where there is no codebase to get wrong. For an enterprise changing large
+existing systems, it adds cost and risk and offers no way to verify either. The detailed case
+follows.
+
 ## The decision, in one paragraph
 
 Spec-kit and Spine describe the same arc — spec → plan → tasks → implement — and share nothing
