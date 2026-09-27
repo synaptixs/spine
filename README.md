@@ -78,7 +78,17 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.51.1 (current)** — a sandbox fix. `run_python_analysis` on the local sandbox enforces its
+**3.52.0 (current)** — docs in the blast radius, and codegen that stays in scope.
+`blast_radius`, `explain_symbol` and `docs_for` list the doc sections that describe a symbol: the
+repository's own, plus Confluence and Jira pages and any RAG system's chunks pulled over MCP
+(`orchestrator mcp ingest-docs`, a `docs:` block in `.spine/repos.yaml`). `${VAR}` in `mcp.json`
+headers and urls is read from the environment, so a token need not sit in the file. Codegen no
+longer edits files a ticket is not about (on OpenAI models it used to touch 6–9 per run), and refine
+can fix lint and type errors in the tests it wrote without dropping their asserts. **Upgrade notes:**
+a plan whose ticket names a module can read as changed and needs approving again; a literal
+`${NAME}` in an `mcp.json` header or url now needs `NAME` set, or `$${NAME}`.
+
+**3.51.1** — a sandbox fix. `run_python_analysis` on the local sandbox enforces its
 time limit twice, as wall-clock time and as a CPU-time limit, and a busy loop reaches both at
 once. When the CPU limit won, about one run in six, the tool raised `ProcessLookupError` or
 returned exit `-24` with an empty stderr. It now reports exit `124` and `timeout after Ns` either

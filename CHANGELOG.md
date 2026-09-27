@@ -4,7 +4,10 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
-## Unreleased
+## 3.52.0 — 2026-09-27
+
+Docs join the blast radius — the repository's own, Confluence and Jira pages, and any RAG system
+over MCP — and codegen stays inside the ticket it was given.
 
 ### Added
 
@@ -106,6 +109,18 @@ All notable changes to this project are documented here. Format loosely follows
   ids are capped at 100 characters, numeric suffix included (ordinary headings keep their full
   GitHub anchor).
 - The `docs_for` "no docs" note lists every format the reader accepts, not four of them.
+
+### Changed — upgrade notes
+
+- **A plan whose ticket names a module can read as changed after upgrading.** The design now
+  resolves a module a ticket names (by dotted name) through the graph and lists it first, so that
+  plan's design files, provenance and confidence band render differently — measured: the same spec
+  on the same commit renders a different plan under 3.51.1 and 3.52.0. `require_approved_plan`
+  then refuses the old approval once ("the plan … has changed since … approved it"): re-run
+  `orchestrator sdlc plan --spec <file>`, read it, and `orchestrator sdlc approve <INTENT>`.
+- **A literal `${NAME}` in an `mcp.json` `headers` value or `url` is now expanded.** If `NAME` is
+  unset, loading that server fails with an error naming it. Set the variable, or write `$${NAME}`
+  to keep the text literal.
 
 ## 3.51.1 — 2026-09-26
 
