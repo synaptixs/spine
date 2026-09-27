@@ -2323,6 +2323,14 @@ def _ruff_fix(root: Path, files: list[str]) -> None:
     py = [f for f in files if f.endswith(".py")]
     if not py:
         return
+    for f in py:
+        target = root / f
+        try:
+            fixed = _hoist_future_docstring(target.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError):
+            continue
+        if fixed is not None:
+            target.write_text(fixed, encoding="utf-8")
     # Module invocation: the worker's PATH may not expose a `ruff` script,
     # but the interpreter's environment has the package installed.
     base = [sys.executable, "-m", "ruff"]
@@ -2334,6 +2342,53 @@ def _ruff_fix(root: Path, files: list[str]) -> None:
             subprocess.run(args, cwd=str(root), capture_output=True, timeout=60, check=False)
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return
+
+
+def _hoist_future_docstring(text: str) -> str | None:
+    """``text`` with a docstring written after ``from __future__`` moved above it, else None.
+
+    Models write ``from __future__ import annotations`` first and the module docstring second.
+    The string is then an ordinary statement, every import after it is ruff E402, and ruff has
+    no autofix for it — measured (B47) as the commonest preflight failure left in a generated
+    test file. Moving the string is a pure text move of whole lines, and the result is checked
+    on the AST: the docstring first, every other statement exactly as it was. Anything that does
+    not fit that shape, or fails the check, returns None and the file is left alone.
+    """
+    try:
+        body = ast.parse(text).body
+    except SyntaxError:
+        return None
+    k = 0
+    while (
+        k < len(body)
+        and isinstance(body[k], ast.ImportFrom)
+        and getattr(body[k], "module", None) == "__future__"
+    ):
+        k += 1
+    doc = body[k] if 0 < k < len(body) else None
+    if not (
+        isinstance(doc, ast.Expr) and isinstance(doc.value, ast.Constant) and isinstance(doc.value.value, str)
+    ):
+        return None
+    lines = text.splitlines(keepends=True)
+    start, end = doc.lineno - 1, doc.end_lineno or doc.lineno
+    # Whole lines only: nothing before the string on its first line, nothing after it on its last.
+    if doc.col_offset != 0 or lines[end - 1][doc.end_col_offset or 0 :].strip():
+        return None
+    moved = lines[start:end]
+    if not moved[-1].endswith("\n"):
+        moved[-1] += "\n"
+    rest = lines[:start] + lines[end:]
+    if start < len(rest) and not rest[start].strip():
+        del rest[start]  # the blank line that separated the docstring from what followed it
+    first = body[0].lineno - 1
+    fixed = "".join(rest[:first] + moved + ["\n"] + rest[first:])
+    try:
+        after = ast.parse(fixed).body
+    except SyntaxError:
+        return None
+    unchanged = [ast.dump(s) for s in after[1:]] == [ast.dump(s) for s in body[:k] + body[k + 1 :]]
+    return fixed if after and ast.dump(after[0]) == ast.dump(doc) and unchanged else None
 
 
 def _apply_edit_list(original: str, edits: list[Any], rel: str) -> str:
