@@ -40,8 +40,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from orchestrator.mcp.discovery import ENUMERATE, SEARCH_FETCH, RagPlan
-from orchestrator.mcp.doc_pull import Pulled, PullError, _Caller
 from orchestrator.mcp.models import MCPToolResult
+from orchestrator.mcp.pull_base import Pulled, PullError, _Caller
 from orchestrator.pkg.external_docs import ExternalPage, chunk_id, rag_queries
 from orchestrator.pkg.repos import DocSource
 

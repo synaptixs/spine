@@ -13,8 +13,13 @@ from pathlib import Path
 
 import pytest
 
-import orchestrator.pkg.external_docs as ext
-from orchestrator.pkg.external_docs import ExternalPage, source_cache_dir, write_pull
+from orchestrator.pkg.external_docs import (
+    ENV_CACHE_DIR,
+    ExternalPage,
+    source_cache_dir,
+    utc_stamp,
+    write_pull,
+)
 from orchestrator.plugin.server import blast_radius, docs_for, explain_symbol
 
 _T0 = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
@@ -24,8 +29,8 @@ _DOCS = "docs:\n  app:\n    - {name: kb, server: chroma, rag: {collection: docs}
 @pytest.fixture(autouse=True)
 def _cache_dir(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> Path:
     cache = tmp_path_factory.mktemp("docs-cache")
-    monkeypatch.setenv(ext.ENV_CACHE_DIR, str(cache))
-    monkeypatch.setattr(ext, "_now", lambda: _T0)
+    monkeypatch.setenv(ENV_CACHE_DIR, str(cache))
+    monkeypatch.setattr("orchestrator.pkg.external_docs._now", lambda: _T0)
     return cache
 
 
@@ -63,7 +68,7 @@ def _pull(
 ) -> Path:
     dest = source_cache_dir(repo, key, source)
     counts = {"bound": "queried 1 of 1 symbols → 3 chunk(s)" if strategy == "query" else "3 of 3"}
-    manifest = {"pulled_at": ext.utc_stamp(), "strategy": strategy, "counts": counts}
+    manifest = {"pulled_at": utc_stamp(), "strategy": strategy, "counts": counts}
     write_pull(dest, pages, manifest, queries=queries if strategy == "query" else None)
     return dest
 
@@ -196,7 +201,7 @@ def test_understand_and_state_never_see_a_populated_rag_cache(
     _query_pull(repo)
     _pull(repo, [_NAMES, _STALE], strategy="enumerate", source="walk")
     with_cache, batch_with = load_current_state(repo)
-    monkeypatch.setenv(ext.ENV_CACHE_DIR, str(tmp_path / "empty-cache"))
+    monkeypatch.setenv(ENV_CACHE_DIR, str(tmp_path / "empty-cache"))
     without, batch_without = load_current_state(repo)
     assert render_current_state(with_cache) == render_current_state(without)
     assert (with_cache.docs, with_cache.doc_drift_total) == (without.docs, without.doc_drift_total)

@@ -35,8 +35,8 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from typing import Any
 
-from orchestrator.mcp.doc_pull import ToolGuardError
 from orchestrator.mcp.models import MCPTool
+from orchestrator.mcp.pull_base import ToolGuardError
 from orchestrator.pkg.repos import DocSource
 
 #: Required string parameters that make a tool a retriever.
