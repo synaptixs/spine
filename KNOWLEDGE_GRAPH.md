@@ -362,6 +362,15 @@ Two things are deliberately not sections or docs: a `#` line inside a fenced cod
 HTML `<pre>`) is a code comment, not a heading, and `requirements*.txt` / `constraints*.txt` are
 dependency pins, not prose. Section ids are capped at 100 characters.
 
+**External docs** — Confluence pages and Jira issues a repository declares under `docs:` in
+`.spine/repos.yaml` — are pulled by `orchestrator mcp ingest-docs` into a cache outside the
+checkout, then bound to symbols **at read time** by the same binder and the same one-anchor rule,
+as `Doc` nodes with ids `doc:mcp:<server>/<page id>#<section>`. They appear only in
+`blast_radius`, `explain_symbol` and `docs_for` (with `origin: "mcp:<server>"` and each source's
+age in `external_docs`), and **never** in `understand`, `state` or `episteme/`: CI has no
+credentials to pull them, and those outputs must reproduce there byte for byte. A section
+identical to one of the repo's own is listed once, under the repo doc, with `also_in`.
+
 **Media** (architecture diagrams, screenshots, recorded design reviews) join the graph the
 same way — as `Doc` nodes + `MENTIONS` — but through one extra, deliberate step. Because OCR
 and speech-to-text are model inference (non-deterministic, slow, sometimes networked), they

@@ -48,14 +48,15 @@ def _doc_id(page: DocPage) -> str:
     return f"doc:{page.title}"
 
 
-def link_docs(batch: FactBatch, repo_root: Path | str) -> FactBatch:
+def link_docs(batch: FactBatch, repo_root: Path | str, *, pages: list[DocPage] | None = None) -> FactBatch:
     """Return ``batch`` with a ``Doc`` node per doc *section* + ``MENTIONS`` edges to the symbols it
     names. No-op when the repo has no docs. The reconciler is built from the (code-only) batch, so
     ``Doc`` nodes are never themselves mention targets. Section-granular by default: a markdown doc
     becomes one ``Doc`` node per heading (``doc:README.md#usage``), each with provenance at its
     heading line, so ``MENTIONS`` point at the section that names a symbol (see
-    :func:`doc_source.split_sections`)."""
-    pages = read_doc_pages(repo_root)
+    :func:`doc_source.split_sections`). ``pages`` passes an already-read
+    :func:`doc_source.read_doc_pages` result, so a caller that needs the pages too reads once."""
+    pages = read_doc_pages(repo_root) if pages is None else pages
     if not pages:
         return batch
     reconciler = DocReconciler(batch, repo_root=repo_root)

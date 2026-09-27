@@ -405,6 +405,34 @@ only. With `--follow-links`, the pages it links to are read through `confluence_
 In the pipeline (Step 7), configured MCP tools are auto-onboarded at startup with
 the same rate-limit + audit + approval path.
 
+**9.3a — Pull a repository's external docs into the graph's read tools.** Declare the sources in
+the repo's `.spine/repos.yaml` under `docs:` ([USER_GUIDE.md](USER_GUIDE.md) has the block), then:
+```bash
+orchestrator mcp ingest-docs --dry-run            # resolve config + tool guard, call nothing
+orchestrator mcp ingest-docs --source handbook    # pull one source (default: every declared one)
+```
+- **Tool guard.** The pull calls a tool only when it is on the server's `allow` list **and** the
+  server declares it read-only (`readOnlyHint: true` — `read_only: true` in `mcp list`). Anything
+  else is refused by name before any call, and the command exits `2`. An allow-list that also
+  carries `jira_create_issue` for intake is fine: the docs pull never reaches it. Confluence needs
+  `confluence_get_page` + `confluence_get_page_children`; Jira needs `jira_search` +
+  `jira_get_issue`. Every `jira_get_issue` passes `update_history: false`, so a pull does not fill
+  your "recently viewed"; every Confluence call passes `convert_to_markdown: true`.
+- **Cache.** `$ORCHESTRATOR_DOCS_CACHE_DIR`, else `~/.cache/orchestrator/docs/`, then
+  `<sha256(repo root)[:16]>-<repo key>/<source>/` holding `pages.jsonl` (id, title, url, text,
+  kind) and `manifest.json` (server, tools called with their arguments, `pulled_at`, counts
+  including truncation, content sha256). Each pull replaces the folder whole — written beside it,
+  then swapped with `os.replace` — so a reader never sees half a pull.
+- **Failure.** A failed pull leaves the last good folder untouched and writes
+  `<source>.failure.json` beside it; tools then report `last pull failed: <reason>; showing data
+  from <pulled_at>`. A source never pulled reports `never_pulled`. Pulls older than 7 days are
+  flagged `stale`. Re-run the command to refresh; there is no background pull.
+- **Bounds.** Confluence stops at `max_depth` / `max_docs`, Jira at `max_issues`; the summary says
+  `N of M` when the server reported a total, `N of at least M (cap reached)` when a walk stopped
+  with pages still queued. `collapse` counts sections identical to the repo's own docs.
+- **Reproducibility.** Only `blast_radius`, `explain_symbol` and `docs_for` read the cache.
+  `understand` / `state` / `episteme/` never do, so CI output does not depend on a token.
+
 **9.4 — Manage MCP servers from the web UI.** The **Connections** page
 (`/app/connections`) lists every configured server and **tests each live**
 (reachable? which allow-listed tools?), alongside your source/tracker status. Use

@@ -334,7 +334,7 @@ in [CLI_REFERENCE.md](https://github.com/synaptixs/spine/blob/main/CLI_REFERENCE
 | Local/offline or mixed-provider models, selected per stage | ✅ | `models`; [configuration](https://github.com/synaptixs/spine/blob/main/SETUP.md#local-and-mixed-model-configuration) |
 | PR reviewer/auditor personas, eval harness and cross-run semantic memory | ✅ | Persona registry, `evals`; `ORCHESTRATOR_SEMANTIC_MEMORY=1` |
 | Live OpenTelemetry tracing joined to the audit log | ✅ opt-in | `OTEL_EXPORTER_OTLP_ENDPOINT`; [Setup](https://github.com/synaptixs/spine/blob/main/SETUP.md#6-live-tracing-optional) |
-| Consume external MCP tools and database schema | ✅ | `mcp list`, `mcp call`, `mcp contracts`, `mcp ingest-db` |
+| Consume external MCP tools, database schema and Confluence/Jira docs | ✅ | `mcp list`, `mcp call`, `mcp contracts`, `mcp ingest-db`, `mcp ingest-docs` |
 | Expose Spine tools, prompts and resources to Claude Code, Codex or other MCP hosts | ✅ | [Agent guide](https://github.com/synaptixs/spine/blob/main/AGENT_GUIDE.md); stdio or authenticated HTTP |
 | Domain-grounded build through ontomesh (semantic-spine seam 1) | ✅ opt-in | `SPINE_ONTOMESH_URL`, `SPINE_ONTOMESH_FLAVOR` |
 | Drift remediation and shipped-unit registration (seams 3 and 2) | 🟡 operator-gated | `sdlc remediate`; [deployment sequence and gaps](https://github.com/synaptixs/spine/blob/main/OPERATIONS.md#the-semantic-spine) |

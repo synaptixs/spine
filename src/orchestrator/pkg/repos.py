@@ -25,10 +25,28 @@ notice on the first run. That is the opposite of a configuration whose absence r
 **Local paths only, for now.** Cloning is ``WorkspaceManager``'s job; pulling it in here would
 drag in auth, shallow-clone policy and workspace layout for a feature whose point is that
 merging works. Remote support is a later decision, not an oversight.
+
+**``docs:`` — the external documents a repository is described by** (SSPN-80, decisions D6, D15,
+D35). Keyed by repository key, beside ``repos:`` and ``joins:``::
+
+    docs:
+      billing:
+        - name: handbook
+          server: atlassian              # an onboarded server in mcp.json
+          confluence: {roots: ["12345"], max_depth: 3, max_docs: 100}
+        - name: tickets
+          server: atlassian
+          jira: {jql: "project = BILL AND labels = api", max_issues: 100}
+
+What to read is repository configuration, so it is committed here; the credentials to read it
+stay in ``mcp.json`` and the environment. Declaring a source pulls nothing —
+``orchestrator mcp ingest-docs`` does, into a cache outside the checkout. A file without the
+block is exactly as valid as it was.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -101,6 +119,142 @@ def joins_from_list(raw: Any, *, where: Path | str = "<inline>") -> tuple[Join, 
     return tuple(sorted(out, key=lambda j: (j.kind, j.consumer, j.provider, j.base)))
 
 
+#: The external document kinds a ``docs:`` entry can declare, each with the settings it takes.
+DOC_SOURCE_KINDS = frozenset({"confluence", "jira"})
+#: A source name becomes a cache folder name, so it is held to what is safe as one everywhere.
+_SOURCE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+_CONFLUENCE_KEYS = frozenset({"roots", "max_depth", "max_docs"})
+_JIRA_KEYS = frozenset({"jql", "max_issues"})
+_ENTRY_KEYS = frozenset({"name", "server"}) | DOC_SOURCE_KINDS
+
+
+@dataclass(frozen=True)
+class DocSource:
+    """One external document source a repository declares under ``docs:``.
+
+    ``confluence`` walks page trees from ``roots`` (page ids) to ``max_depth``, at most
+    ``max_docs`` pages; ``jira`` pages a JQL search to at most ``max_issues``. Both are
+    *enumerated* sources — what they cover is fixed by the declaration, not by what anyone asked
+    — which is why their unbound claims can be reported as drift (D20).
+    """
+
+    name: str
+    server: str
+    kind: str
+    roots: tuple[str, ...] = ()
+    max_depth: int = 3
+    max_docs: int = 100
+    jql: str = ""
+    max_issues: int = 100
+
+    @property
+    def enumerated(self) -> bool:
+        return self.kind in DOC_SOURCE_KINDS
+
+    @property
+    def cap(self) -> int:
+        return self.max_docs if self.kind == "confluence" else self.max_issues
+
+
+def _int_setting(block: dict[str, Any], key: str, default: int, *, minimum: int, where: str) -> int:
+    value = block.get(key, default)
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise RepoConfigError(f"{where}: '{key}' must be an integer >= {minimum}, got {value!r}")
+    return value
+
+
+def _doc_source(entry: Any, *, where: str) -> DocSource:
+    if not isinstance(entry, dict):
+        raise RepoConfigError(f"{where} is not a mapping")
+    unknown = sorted(str(k) for k in entry if k not in _ENTRY_KEYS)
+    if unknown:
+        raise RepoConfigError(
+            f"{where} has unknown key(s) {unknown} — expected name, server, confluence|jira"
+        )
+    name = entry.get("name")
+    if not isinstance(name, str) or not _SOURCE_NAME_RE.match(name):
+        raise RepoConfigError(
+            f"{where}: 'name' must be letters, digits, '.', '_' or '-' (it names a cache folder), "
+            f"got {name!r}"
+        )
+    server = entry.get("server")
+    if not isinstance(server, str) or not server.strip():
+        raise RepoConfigError(f"{where}: 'server' must name an onboarded MCP server")
+    kinds = [k for k in sorted(DOC_SOURCE_KINDS) if k in entry]
+    if len(kinds) != 1:
+        raise RepoConfigError(
+            f"{where}: declare exactly one of 'confluence' or 'jira', found {kinds or 'neither'}"
+        )
+    kind = kinds[0]
+    block = entry[kind]
+    if not isinstance(block, dict):
+        raise RepoConfigError(f"{where}: '{kind}' must be a mapping")
+    allowed = _CONFLUENCE_KEYS if kind == "confluence" else _JIRA_KEYS
+    extra = sorted(str(k) for k in block if k not in allowed)
+    if extra:
+        raise RepoConfigError(f"{where}: '{kind}' has unknown key(s) {extra} — expected {sorted(allowed)}")
+    if kind == "confluence":
+        roots = block.get("roots")
+        if not isinstance(roots, list) or not roots:
+            raise RepoConfigError(f"{where}: 'confluence.roots' must be a non-empty list of page ids")
+        ids: list[str] = []
+        for root in roots:
+            if isinstance(root, bool) or not isinstance(root, str | int) or not str(root).strip():
+                raise RepoConfigError(f"{where}: 'confluence.roots' holds {root!r}, which is not a page id")
+            ids.append(str(root).strip())
+        return DocSource(
+            name=name,
+            server=server.strip(),
+            kind=kind,
+            roots=tuple(dict.fromkeys(ids)),
+            max_depth=_int_setting(block, "max_depth", 3, minimum=0, where=where),
+            max_docs=_int_setting(block, "max_docs", 100, minimum=1, where=where),
+        )
+    jql = block.get("jql")
+    if not isinstance(jql, str) or not jql.strip():
+        raise RepoConfigError(f"{where}: 'jira.jql' must be a non-empty JQL string")
+    return DocSource(
+        name=name,
+        server=server.strip(),
+        kind=kind,
+        jql=jql.strip(),
+        max_issues=_int_setting(block, "max_issues", 100, minimum=1, where=where),
+    )
+
+
+def docs_from_mapping(
+    raw: Any, *, known: set[str] | frozenset[str], where: Path | str = "<inline>"
+) -> tuple[tuple[str, tuple[DocSource, ...]], ...]:
+    """Validate a ``docs:`` block — the ``joins:`` pattern: every error names ``docs[<key>][i]``.
+
+    Keys must be declared repositories; a source's ``name`` is unique within its repository.
+    Sorted by key, sources in declaration order, so two spellings of one file agree.
+    """
+    if raw in (None, {}):
+        return ()
+    if not isinstance(raw, dict):
+        raise RepoConfigError(f"{where}: 'docs' must be a mapping of repo key to a list of sources")
+    out: list[tuple[str, tuple[DocSource, ...]]] = []
+    for key, entries in raw.items():
+        if key not in known:
+            raise RepoConfigError(
+                f"{where}: docs[{key}] names an undeclared repository — declared repos are {sorted(known)}"
+            )
+        if not isinstance(entries, list):
+            raise RepoConfigError(f"{where}: docs[{key}] must be a list of sources")
+        sources: list[DocSource] = []
+        seen: set[str] = set()
+        for i, entry in enumerate(entries):
+            source = _doc_source(entry, where=f"{where}: docs[{key}][{i}]")
+            if source.name in seen:
+                raise RepoConfigError(f"{where}: docs[{key}][{i}] repeats the source name {source.name!r}")
+            seen.add(source.name)
+            sources.append(source)
+        if sources:
+            out.append((str(key), tuple(sources)))
+    return tuple(sorted(out))
+
+
 @dataclass(frozen=True)
 class RepoSet:
     """Repository keys mapped to their checkout roots, in a stable order.
@@ -113,6 +267,8 @@ class RepoSet:
     roots: tuple[tuple[str, Path], ...]
     source: Path | None = None
     joins: tuple[Join, ...] = ()
+    #: The ``docs:`` block — ``(repo key, its external doc sources)``, sorted by key.
+    docs: tuple[tuple[str, tuple[DocSource, ...]], ...] = ()
 
     def __post_init__(self) -> None:
         if not self.roots:
@@ -128,6 +284,15 @@ class RepoSet:
                 return root
         raise KeyError(key)
 
+    def doc_sources(self, key: str) -> tuple[DocSource, ...]:
+        """The external doc sources ``key`` declares, or ``()``."""
+        return next((sources for candidate, sources in self.docs if candidate == key), ())
+
+    def key_for(self, root: Path | str) -> str | None:
+        """The key whose checkout is ``root`` (both resolved), or ``None``."""
+        target = Path(root).resolve()
+        return next((key for key, path in self.roots if path == target), None)
+
     def __len__(self) -> int:
         return len(self.roots)
 
@@ -141,6 +306,7 @@ def from_mapping(
     base: Path,
     source: Path | None = None,
     joins: Any = None,
+    docs: Any = None,
 ) -> RepoSet:
     """Build a :class:`RepoSet` from ``{key: path}``. Relative paths resolve against ``base``.
 
@@ -201,7 +367,7 @@ def from_mapping(
                     f"{where}: join {join} names an undeclared {role} {key!r} "
                     f"— declared repos are {sorted(known)}"
                 )
-    return RepoSet(tuple(sorted(roots)), source, declared)
+    return RepoSet(tuple(sorted(roots)), source, declared, docs_from_mapping(docs, known=known, where=where))
 
 
 def load_repo_config(path: Path | str, *, base: Path | None = None) -> RepoSet:
@@ -219,7 +385,9 @@ def load_repo_config(path: Path | str, *, base: Path | None = None) -> RepoSet:
         raise RepoConfigError(f"{config}: invalid YAML — {exc}") from exc
     if not isinstance(doc, dict) or "repos" not in doc:
         raise RepoConfigError(f"{config}: expected a top-level 'repos:' mapping")
-    return from_mapping(doc["repos"], base=base or config.parent, source=config, joins=doc.get("joins"))
+    return from_mapping(
+        doc["repos"], base=base or config.parent, source=config, joins=doc.get("joins"), docs=doc.get("docs")
+    )
 
 
 def find_repo_config(start: Path | str = ".") -> Path | None:
@@ -234,10 +402,13 @@ def find_repo_config(start: Path | str = ".") -> Path | None:
 
 __all__ = [
     "DEFAULT_CONFIG",
+    "DOC_SOURCE_KINDS",
     "JOIN_KINDS",
+    "DocSource",
     "Join",
     "RepoConfigError",
     "RepoSet",
+    "docs_from_mapping",
     "joins_from_list",
     "find_repo_config",
     "from_mapping",
