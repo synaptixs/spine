@@ -96,7 +96,7 @@ makes `design` the one stage where a **hybrid** node is warranted.
 
 | Field | Source | Why |
 |---|---|---|
-| `files_to_touch` | **fact** — Evidence landing sites | the graph knows where the ticket lands; a model would guess |
+| `files_to_touch` | **fact** — edit targets only: stated paths and dotted modules, else Evidence landing sites; a create ticket's become `files_to_read` (B44, 2026-09-27) | the graph knows where the ticket lands; a model would guess |
 | `blast_radius` | **fact** — computed from landing, *before* design runs | must never be computed from the model's own proposal (defect 2) |
 | `risks` | **fact** — dependents, hotspots, recently-changed | derivable, so derive it |
 | `approach` | **model**, framed by Evidence | not in the graph |
