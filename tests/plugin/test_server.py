@@ -139,6 +139,90 @@ def test_docs_for_no_docs_reports_zero(tmp_path: Path) -> None:
     assert docs_for(_comprehension_repo(tmp_path))["docs"] == 0
 
 
+# ---- docs in the blast radius (SSPN-79) ---------------------------------------------
+
+_CLIENT = "class Client:\n    def ask(self, q):\n        return q\n"
+
+
+def _documented_repo(tmp_path: Path) -> str:
+    """A public class nothing in the repo calls, described by three doc sections."""
+    (tmp_path / "lib").mkdir()
+    (tmp_path / "lib" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "lib" / "client.py").write_text(_CLIENT, encoding="utf-8")
+    (tmp_path / "README.md").write_text(
+        "# Quickstart\n\nCreate a `Client`.\n\n# Reference\n\n`Client` answers questions.\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "guide.md").write_text("The `lib.client` module holds the SDK.\n", encoding="utf-8")
+    return str(tmp_path)
+
+
+def test_blast_radius_lists_the_docs_that_describe_a_zero_caller_class(tmp_path: Path) -> None:
+    out = blast_radius(_documented_repo(tmp_path), "Client")
+    m = out["matches"][0]
+    # The code graph's honest answer is "nothing calls it"; the docs say who depends on it.
+    assert m["caller_count"] == 0
+    assert m["doc_count"] == 3
+    assert [(d["doc"], d["via"]) for d in m["docs"]] == [
+        ("README.md#quickstart", "symbol"),
+        ("README.md#reference", "symbol"),
+        ("docs/guide.md", "module"),
+    ]
+    assert all(d["origin"] == "repo" for d in m["docs"])
+    assert m["docs"][0]["where"] == "README.md:1"
+    assert "Documented in (3)" in out["markdown"]
+
+
+def test_a_method_inherits_its_class_and_module_docs(tmp_path: Path) -> None:
+    m = blast_radius(_documented_repo(tmp_path), "ask")["matches"][0]
+    assert {(d["doc"], d["via"]) for d in m["docs"]} == {
+        ("README.md#quickstart", "class"),
+        ("README.md#reference", "class"),
+        ("docs/guide.md", "module"),
+    }
+
+
+def test_docs_never_count_as_code_touches(tmp_path: Path) -> None:
+    """MENTIONS edges must not leak into `touches` or make a doc title a `find` hit — the code
+    impact numbers are exactly what they were before docs joined the answer."""
+    repo = _documented_repo(tmp_path)
+    m = blast_radius(repo, "Client")["matches"][0]
+    assert not any(t["id"].startswith("doc:") for t in m["touches"])
+    assert m["touch_count"] == len(m["touches"])
+    assert blast_radius(repo, "README.md#quickstart")["found"] is False
+
+
+def test_docs_naming_callers_are_counted_not_listed(tmp_path: Path) -> None:
+    repo = _comprehension_repo(tmp_path)
+    (tmp_path / "README.md").write_text("Requests go through `handler`.\n", encoding="utf-8")
+    m = blast_radius(repo, "validate")["matches"][0]
+    assert m["doc_count"] == 0 and m["docs"] == []
+    assert m["related_doc_count"] == 1
+
+
+def test_explain_symbol_carries_the_same_docs(tmp_path: Path) -> None:
+    m = explain_symbol(_documented_repo(tmp_path), "Client")["matches"][0]
+    assert m["doc_count"] == 3
+    assert [d["doc"] for d in m["docs"]][:2] == ["README.md#quickstart", "README.md#reference"]
+
+
+def test_blast_radius_without_docs_reports_zero(tmp_path: Path) -> None:
+    m = blast_radius(_comprehension_repo(tmp_path), "validate")["matches"][0]
+    assert m["doc_count"] == 0 and m["docs"] == [] and m["related_doc_count"] == 0
+    assert "Documented in" not in blast_radius(_comprehension_repo(tmp_path), "validate")["markdown"]
+
+
+def test_across_repos_a_doc_binds_only_its_own_repository(tmp_path: Path) -> None:
+    """D26: web's README naming `create_order` describes web, not billing's handler."""
+    (tmp_path / "billing").mkdir()
+    (tmp_path / "billing" / "API.md").write_text("`create_order` takes a payload.\n", encoding="utf-8")
+    (tmp_path / "web").mkdir()
+    (tmp_path / "web" / "NOTES.md").write_text("We call `create_order` remotely.\n", encoding="utf-8")
+    m = blast_radius(symbol="create_order", repos=_repos_config(tmp_path))["matches"][0]
+    assert [d["doc"] for d in m["docs"]] == ["API.md"]
+
+
 def test_investigate_lands_on_real_symbols(tmp_path: Path) -> None:
     out = investigate(_comprehension_repo(tmp_path), "validate rejects empty input")
     names = {h["name"] for h in out["landing"]}

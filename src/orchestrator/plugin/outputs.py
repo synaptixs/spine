@@ -219,6 +219,14 @@ class CrossRepoReach(TypedDict, total=False):
 
 
 @with_config(_OPEN)
+class DocRef(TypedDict, total=False):
+    doc: str
+    via: str  # symbol | class | module — what the page names
+    origin: str  # "repo" — the repository's own docs
+    where: str | None
+
+
+@with_config(_OPEN)
 class BlastMatch(TypedDict, total=False):
     id: str
     kind: str
@@ -231,6 +239,9 @@ class BlastMatch(TypedDict, total=False):
     instantiated_via_type: list[CallSite]
     touch_count: int
     touches: list[Touched]
+    doc_count: int
+    docs: list[DocRef]
+    related_doc_count: int
     cross_repo_count: int
     cross_repo: list[CrossRepoReach]
 
@@ -257,6 +268,9 @@ class SymbolMatch(TypedDict, total=False):
     instantiated_via_type: list[str]
     calls: list[str]
     contains: list[str]
+    doc_count: int
+    docs: list[DocRef]
+    related_doc_count: int
     repo: str
     cross_repo_count: int
     cross_repo: list[CrossRepoReach]
