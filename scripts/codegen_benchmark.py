@@ -1672,6 +1672,8 @@ async def build_design(
         "design_fell_back": fell_back,
         "design_llm": bool(design.get("llm")),
         "design_files": len(design.get("files_to_touch") or []),
+        # B44: files the design lists to read, not change. Earlier runs counted both as files.
+        "design_reads": len(design.get("files_to_read") or []),
         "design_rejected": not validation.ok,
         "design_findings": [f.named for f in validation.findings],
         "design_scope": EditScope.from_design(design, design_spec),

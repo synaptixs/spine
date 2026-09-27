@@ -163,6 +163,20 @@ def test_the_design_is_handed_to_the_implement_stage(monkeypatch: pytest.MonkeyP
     assert Path(design_artifact).read_text(encoding="utf-8") == ctx.plan
 
 
+def test_the_design_s_edit_scope_is_handed_to_the_implement_stage(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """B44: the scope the design implies reaches codegen through `run_feature`."""
+    from orchestrator.sdlc.scope import EditScope
+
+    seen = _install(monkeypatch, tmp_path)
+
+    ctx = _run(tmp_path)
+
+    assert isinstance(ctx.edit_scope, EditScope)
+    assert seen["feature_kwargs"]["edit_scope"] is ctx.edit_scope
+
+
 def test_artifacts_are_written_outside_the_repo(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """``understand`` ingests markdown from disk regardless of git, so a brief written into
     the working tree would become a Doc node and change the graph the next stage reads."""

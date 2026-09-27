@@ -33,7 +33,7 @@ from orchestrator.sdlc.csharp_names import directive_error
 from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 from orchestrator.sdlc.layout import TargetLayout
-from orchestrator.sdlc.scope import EditScope
+from orchestrator.sdlc.scope import READ_HEADING, EditScope
 
 logger = logging.getLogger("orchestrator.sdlc.codegen")
 
@@ -1191,6 +1191,7 @@ class LLMCodegenAdapter:
             f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}Issue: {issue_key}\n\n"
             f"SPEC:\n{_spec_text(spec)}"
             f"{_named_existing_files(spec, root, self._design)}{self._convention_block(root)}"
+            f"{_scope_block(self._edit_scope)}"
         )
         if self._agentic:
             # Per-call plan values (from the run's capability plan) take
@@ -1996,10 +1997,10 @@ def apply_files(
     that exists and this session did not write is refused, in either form; dependency
     manifests and project files are always allowed.
 
-    ``scope`` (implement only, B44): the ticket's edit scope. When it is *confident* a
-    pre-existing file outside it is refused before it is written — the same refusal refine
-    gets, so nothing out of scope ever changes. A scope that is only a guess is reported in
-    the summary and not enforced (see ``orchestrator.sdlc.scope``).
+    ``scope`` (implement only, B44): the ticket's edit scope. An edit to a pre-existing file
+    outside it that changes no code (comments and docstrings only) is refused when the scope
+    is *confident*; every other out-of-scope edit is applied and reported in the summary (see
+    ``_refuse_out_of_scope`` and ``orchestrator.sdlc.scope``).
 
     The shared write path for both single-shot codegen (``_apply``) and the
     agentic loop's ``write_files`` tool — every guard (path safety, stdlib
@@ -2019,8 +2020,8 @@ def apply_files(
     missing_targets: list[str] = []  # edits aimed at a file that doesn't exist yet
     placeholders: list[str] = []  # stub submissions dropped before they counted as work
     refused: list[str] = []  # pre-existing files refine was not allowed to touch
-    out_of_scope: list[str] = []  # pre-existing files outside a confident edit scope (B44)
-    beyond_guess: list[str] = []  # outside a scope that is only a guess: reported, applied
+    out_of_scope: list[str] = []  # comment/docstring-only edits outside a confident scope: refused (B44)
+    beyond_scope: list[str] = []  # any other edit outside the scope: applied, reported
     tracked_now = written_tracker.get(root.resolve(), [])
     from orchestrator.sdlc.source_paths import normalise
 
@@ -2028,7 +2029,10 @@ def apply_files(
     new_dirs = frozenset(
         str(PurePosixPath(normalise(str(e.get("path") or ""))).parent)
         for e in files
-        if isinstance(e, dict) and e.get("path") and not (root / str(e.get("path"))).exists()
+        if isinstance(e, dict)
+        and e.get("path")
+        and isinstance(e.get("content"), str)
+        and not (root / normalise(str(e.get("path")))).exists()
     ) | frozenset(
         str(PurePosixPath(t.relative_to(root.resolve()).as_posix()).parent)
         for t in tracked_now
@@ -2057,21 +2061,13 @@ def apply_files(
             refused.append(rel)
             logger.warning("sdlc.codegen.refused_unnamed_edit: %s — named by no failure, spec or design", rel)
             continue
-        if (
+        outside = (
             scope is not None
             and target.exists()
             and target not in tracked_now
             and not _may_edit_existing(root, target, frozenset())
-        ):
-            rel_posix = target.resolve().relative_to(root.resolve()).as_posix()
-            if not scope.allows(rel_posix, new_dirs=new_dirs):
-                if scope.confident:
-                    out_of_scope.append(rel)
-                    logger.warning(
-                        "sdlc.codegen.refused_out_of_scope: %s — the design lists no edit to it", rel
-                    )
-                    continue
-                beyond_guess.append(rel)
+            and not scope.allows(target.resolve().relative_to(root.resolve()).as_posix(), new_dirs=new_dirs)
+        )
 
         # ---- edits form: anchored find/replace on an EXISTING file ------
         # Per-file atomic: every edit must anchor (exactly-once match) or
@@ -2085,8 +2081,9 @@ def apply_files(
                 missing_targets.append(rel)
                 edit_failures.append(f"{rel}: edits to a file that does not exist")
                 continue
+            original = target.read_text(encoding="utf-8")
             try:
-                patched = _apply_edit_list(target.read_text(encoding="utf-8"), edits, rel)
+                patched = _apply_edit_list(original, edits, rel)
             except CodegenError as exc:
                 edit_failures.append(str(exc))
                 edit_failure_paths.append(rel)
@@ -2103,6 +2100,8 @@ def apply_files(
                 edit_failures.append(broken)
                 syntax_failures.append(rel)
                 syntax_messages.append(broken)
+                continue
+            if outside and _refuse_out_of_scope(scope, rel, original, patched, out_of_scope, beyond_scope):
                 continue
             target.write_text(patched, encoding="utf-8")
             written.append(str(target))
@@ -2158,6 +2157,10 @@ def apply_files(
             syntax_failures.append(rel)
             syntax_messages.append(broken)
             continue
+        if outside and _refuse_out_of_scope(
+            scope, rel, target.read_text(encoding="utf-8"), content, out_of_scope, beyond_scope
+        ):
+            continue
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
         written.append(str(target))
@@ -2201,17 +2204,18 @@ def apply_files(
         summary = f"{summary} (refused: {', '.join(refused)} — named by no failure, spec or design)".strip()
     if out_of_scope:
         summary = f"{summary} (not applied: {', '.join(out_of_scope)} — outside this ticket's scope)".strip()
-    if beyond_guess:
-        summary = f"{summary} (outside the design's edit list: {', '.join(beyond_guess)})".strip()
+    if beyond_scope:
+        summary = f"{summary} (outside the design's edit list: {', '.join(beyond_scope)})".strip()
     if not written and out_of_scope and not edit_failures:
         # Recoverable, like refine's refusal: one corrective retry, told why. Everything it
         # changed was a file this ticket is not about.
         raise CodegenError(
-            f"implement changed only files outside this ticket's scope: {', '.join(out_of_scope)}",
+            f"implement only added comments or docstrings to files outside this ticket's scope: "
+            f"{', '.join(out_of_scope)}",
             empty_summary=(
-                f"changed only {', '.join(out_of_scope)}, which this ticket's design does not list to "
-                "edit — so it was not applied. Change only the files the design lists to edit; for a "
-                "new feature, create the new module and leave existing files as they are"
+                f"only added comments or docstrings to {', '.join(out_of_scope)}, which this ticket's "
+                "design does not list to edit — so nothing was applied. Make the change the ticket "
+                "asks for: create the new module, or edit the files the design lists to edit"
             ),
         )
     if not written:
@@ -2241,6 +2245,55 @@ def apply_files(
         detail = f" ({'; '.join(edit_failures)})" if edit_failures else ""
         raise CodegenError(f"model output produced no writable files{detail}")
     return CodeChange(files=written, summary=summary)
+
+
+def _refuse_out_of_scope(
+    scope: EditScope | None, rel: str, old: str, new: str, refused: list[str], reported: list[str]
+) -> bool:
+    """Decide an edit to a pre-existing file outside ``scope``: True means refuse it (B44).
+
+    What B44 measured was noise: GPT models gave every file a design listed a justifying comment
+    or docstring. That is refused when the scope is sure. A real code change outside the scope is
+    applied and reported — it may be wiring the change genuinely needs (registering a new
+    command, a barrel export), and refusing it would ship half a change.
+    """
+    if scope is not None and scope.confident and _changes_no_code(rel, old, new):
+        refused.append(rel)
+        logger.warning(
+            "sdlc.codegen.refused_out_of_scope: %s — changes no code, and the design lists no edit to it", rel
+        )
+        return True
+    reported.append(rel)
+    return False
+
+
+def _changes_no_code(rel: str, old: str, new: str) -> bool:
+    """True when ``new`` differs from ``old`` only in comments and docstrings.
+
+    Python only, where the AST says so exactly: comments are not in it, and docstrings are
+    stripped before comparing. For any other language this returns False — a change is never
+    discarded on a guess about another language's comment syntax.
+    """
+    if not rel.endswith(".py"):
+        return False
+    try:
+        before, after = ast.parse(old), ast.parse(new)
+    except SyntaxError:
+        return False
+    return ast.dump(_without_docstrings(before)) == ast.dump(_without_docstrings(after))
+
+
+def _without_docstrings(tree: ast.AST) -> ast.AST:
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            first = node.body[0] if node.body else None
+            if (
+                isinstance(first, ast.Expr)
+                and isinstance(first.value, ast.Constant)
+                and isinstance(first.value.value, str)
+            ):
+                node.body = node.body[1:] or [ast.Pass()]
+    return tree
 
 
 def _may_edit_existing(root: Path, target: Path, editable: frozenset[str]) -> bool:
@@ -2495,13 +2548,30 @@ def _paths_from(spec: dict[str, Any], design: str, root: Path | None = None) -> 
     )
     seen: list[str] = []
     index: dict[str, list[str]] | None = None
-    for rel in named_paths(blob) + named_paths(_design_sections(design, edit=True)):
+    # A file the design lists to read is never one to change, even where another section of the
+    # design mentions it — the Approach naming a module to reuse put it straight back in the
+    # "change these" block (B44 review).
+    reads = set(named_paths(_design_sections(design, edit=False)))
+    design_edits = [r for r in named_paths(_design_sections(design, edit=True)) if r not in reads]
+    for rel in named_paths(blob) + design_edits:
         if root is not None and "/" not in rel and index is None:
             index = basename_index(root)  # one walk for every bare name, not one each
         resolved = resolve(rel, root, index=index) if root is not None else rel
         if resolved and resolved not in seen:
             seen.append(resolved)
     return seen
+
+
+def _scope_block(scope: EditScope | None) -> str:
+    """Say up front what the guard will discard, so a model is never surprised by it (B44)."""
+    if scope is None or not scope.confident:
+        return ""
+    listed = ", ".join(scope.files) if scope.files else "none — this ticket adds new files"
+    return (
+        f"\n\nSCOPE: the existing files this ticket changes are: {listed}. New files and tests are "
+        "always fine, and so is any code change another file genuinely needs. An edit to any other "
+        "existing file that changes no code — only comments or docstrings — is discarded.\n"
+    )
 
 
 def _design_sections(design: str, *, edit: bool) -> str:
@@ -2512,8 +2582,6 @@ def _design_sections(design: str, *, edit: bool) -> str:
     to change" — and GPT models changed them (B44). The blast radius is an annotation about
     dependents, never a list of files to edit, so it belongs to neither side.
     """
-    from orchestrator.sdlc.design import READ_HEADING
-
     out: list[str] = []
     section = "edit"
     for line in design.splitlines():

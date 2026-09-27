@@ -31,6 +31,20 @@ def _graph(*modules: tuple[str, str]) -> Any:
         fid = f"{mid}.{leaf}_summary"
         batch.add_node(Node(fid, NodeKind.FUNCTION, f"{leaf}_summary", "python", Provenance(file, 5)))
         batch.add_edge(Edge(mid, fid, EdgeKind.CONTAINS))
+    if any(name == "orchestrator.codereview.verifiers" for name, _ in modules):
+        tid = "py:orchestrator.codereview.verifiers.Finding"
+        where = Provenance("src/orchestrator/codereview/verifiers.py", 45)
+        batch.add_node(Node(tid, NodeKind.TYPE, "Finding", "python", where))
+    # A Java package: one Module node shared by the package, provenance on whichever file came first.
+    batch.add_node(
+        Node(
+            "java:com.acme.orders",
+            NodeKind.MODULE,
+            "com.acme.orders",
+            "java",
+            Provenance("src/Address.java", 1),
+        )
+    )
     return FactStore(batch)
 
 
@@ -101,7 +115,8 @@ async def test_a_create_ticket_reads_the_module_it_names_and_edits_nothing_exist
 
     assert design["files_to_touch"] == []
     assert design["files_to_read"] == ["src/orchestrator/codereview/verifiers.py"]
-    assert design["files_origin"] == "stated"
+    assert design["files_origin"] == "module"
+    assert EditScope.from_design(design, {"kind": "create"}).confident  # a create ticket is sure
     assert "src/orchestrator/codereview" in design["approach"]
     # The word "models"/"summary" matching other modules no longer lists them anywhere.
     assert "src/orchestrator/catalog/models.py" not in design["files_to_read"]
@@ -114,8 +129,23 @@ async def test_an_edit_ticket_edits_the_module_it_names() -> None:
         {**_CREATE, "kind": "edit"}, overview=None, store=_graph(*_MODULES), llm=None
     )
 
-    assert design["files_to_touch"] == ["src/orchestrator/codereview/verifiers.py"]
+    assert design["files_to_touch"][0] == "src/orchestrator/codereview/verifiers.py"
     assert design["files_to_read"] == []
+
+
+async def test_a_ticket_of_unknown_kind_edits_the_module_it_names_and_keeps_its_landing() -> None:
+    """Production specs carry no kind (review B1): a bug ticket naming `orchestrator.pkg.docs` names
+    the file to fix, so it must be an edit target — and a module named in passing must not
+    replace the file the ticket lands in."""
+    from orchestrator.sdlc.design import produce_design
+
+    spec = {"title": "Fix the docs summary", "summary": "orchestrator.pkg.docs drops a docs summary line"}
+    design = await produce_design(spec, overview=None, store=_graph(*_MODULES), llm=None)
+
+    assert design["files_to_touch"][0] == "src/orchestrator/pkg/docs.py"
+    assert design["files_to_read"] == []
+    assert design["files_origin"] == "module"
+    assert not EditScope.from_design(design, spec).confident  # graph-resolved, never enforced
 
 
 async def test_a_create_ticket_that_names_nothing_reads_its_word_matches() -> None:
@@ -142,7 +172,8 @@ async def test_a_ticket_of_unknown_kind_keeps_its_word_matches_as_edit_targets()
 
 
 def test_the_rendered_design_separates_edit_and_read() -> None:
-    from orchestrator.sdlc.design import READ_HEADING, render_design_md
+    from orchestrator.sdlc.design import render_design_md
+    from orchestrator.sdlc.scope import READ_HEADING
 
     md = render_design_md(
         _CREATE, {"approach": "A", "files_to_touch": ["src/a.py"], "files_to_read": ["src/b.py"]}
@@ -155,7 +186,7 @@ def test_the_rendered_design_separates_edit_and_read() -> None:
 
 def test_codegen_takes_edit_paths_only_from_the_edit_sections(tmp_path: Path) -> None:
     from orchestrator.sdlc.codegen import _paths_from
-    from orchestrator.sdlc.design import READ_HEADING
+    from orchestrator.sdlc.scope import READ_HEADING
 
     for rel in ("src/a.py", "src/b.py", "src/c.py"):
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -171,7 +202,7 @@ def test_codegen_takes_edit_paths_only_from_the_edit_sections(tmp_path: Path) ->
 
 def test_read_files_are_shown_as_reference_not_as_files_to_change(tmp_path: Path) -> None:
     from orchestrator.sdlc.codegen import _named_existing_files
-    from orchestrator.sdlc.design import READ_HEADING
+    from orchestrator.sdlc.scope import READ_HEADING
 
     (tmp_path / "src").mkdir()
     (tmp_path / "src/b.py").write_text("def helper() -> int:\n    return 1\n", encoding="utf-8")
@@ -233,13 +264,13 @@ def test_a_confident_scope_refuses_an_out_of_scope_edit_and_keeps_the_new_module
     assert "outside this ticket's scope" in change.summary
 
 
-def test_a_change_that_is_only_out_of_scope_asks_for_one_corrective_retry(tmp_path: Path) -> None:
+def test_a_change_that_only_comments_other_files_asks_for_one_corrective_retry(tmp_path: Path) -> None:
     from orchestrator.sdlc.codegen import CodegenError, apply_files
 
     root = _tree(tmp_path)
     with pytest.raises(CodegenError) as exc:
         apply_files(
-            [{"path": "src/unrelated.py", "edits": [{"find": "Y = 2", "replace": "Y = 3"}]}],
+            [{"path": "src/unrelated.py", "edits": [{"find": "Y = 2", "replace": "Y = 2  # see summary"}]}],
             root,
             written_tracker={},
             grounded=False,
@@ -296,3 +327,149 @@ def test_no_scope_changes_nothing(tmp_path: Path) -> None:
 
     assert (root / "src/unrelated.py").read_text() == "Y = 3\n"
     assert "scope" not in change.summary and "edit list" not in change.summary
+
+
+# --- review pass 1 ---------------------------------------------------------------------
+
+
+def test_a_real_code_change_outside_a_confident_scope_is_applied_and_reported(tmp_path: Path) -> None:
+    """Wiring a change genuinely needs (registering a command, an export) must never be dropped:
+    refusing it ships half a change (review S1/S2). Only no-code noise is refused."""
+    from orchestrator.sdlc.codegen import apply_files
+
+    root = _tree(tmp_path)
+    change = apply_files(
+        [{"path": "src/unrelated.py", "edits": [{"find": "Y = 2", "replace": "Y = 3"}]}],
+        root,
+        written_tracker={},
+        grounded=False,
+        scope=EditScope(files=("src/pkg/verifiers.py",), confident=True),
+    )
+
+    assert (root / "src/unrelated.py").read_text() == "Y = 3\n"
+    assert "outside the design's edit list: src/unrelated.py" in change.summary
+
+
+def test_a_docstring_only_edit_outside_scope_is_refused(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import apply_files
+
+    root = _tree(tmp_path)
+    (root / "src/unrelated.py").write_text("def f() -> int:\n    return 1\n", encoding="utf-8")
+    change = apply_files(
+        [
+            {"path": "src/pkg/summary.py", "content": "X = 1\n"},
+            {
+                "path": "src/unrelated.py",
+                "edits": [
+                    {"find": "def f() -> int:\n", "replace": 'def f() -> int:\n    """Not the summary."""\n'}
+                ],
+            },
+        ],
+        root,
+        written_tracker={},
+        grounded=False,
+        scope=EditScope(create=True, confident=True),
+    )
+
+    assert '"""' not in (root / "src/unrelated.py").read_text()
+    assert "not applied: src/unrelated.py" in change.summary
+
+
+def test_a_non_python_edit_is_never_judged_as_no_code(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import _changes_no_code
+
+    assert _changes_no_code("a.py", "X = 1\n", "X = 1  # c\n")
+    assert _changes_no_code("a.py", "def f():\n    pass\n", 'def f():\n    """d"""\n    pass\n')
+    assert not _changes_no_code("a.py", "X = 1\n", "X = 2\n")
+    assert not _changes_no_code("a.ts", "const x = 1;\n", "const x = 1; // c\n")
+
+
+def test_test_files_in_every_front_ends_layout_are_in_scope() -> None:
+    scope = EditScope(confident=True)
+    for rel in (
+        "src/test/java/FooTest.java",
+        "pkg/foo_test.go",
+        "web/src/foo.test.ts",
+        "web/src/__tests__/a.ts",
+        "App.Tests/FooTests.cs",
+        "tests/x.py",
+        "src/pkg/test_x.py",
+    ):
+        assert scope.allows(rel), rel
+    assert not scope.allows("src/pkg/latest.py")
+
+
+def test_scope_paths_are_compared_normalised() -> None:
+    scope = EditScope.from_design({"files_to_touch": ["./src/a.py"], "files_origin": "stated"}, {})
+
+    assert scope.allows("src/a.py")
+
+
+def test_the_model_is_told_the_scope_up_front_only_when_it_is_enforced() -> None:
+    from orchestrator.sdlc.codegen import _scope_block
+
+    assert "SCOPE:" in _scope_block(EditScope(files=("src/a.py",), confident=True))
+    assert _scope_block(EditScope(files=("src/a.py",), confident=False)) == ""
+    assert _scope_block(None) == ""
+
+
+async def test_a_create_design_rendered_for_codegen_keeps_its_reuse_module_read_only(tmp_path: Path) -> None:
+    """Review B2: the Approach sentence named the reuse module and put it back in the "change
+    these" block. End to end: produce → render → what codegen shows."""
+    from orchestrator.sdlc.codegen import _named_existing_files, _paths_from
+    from orchestrator.sdlc.design import produce_design, render_design_md
+
+    rel = "src/orchestrator/codereview/verifiers.py"
+    (tmp_path / rel).parent.mkdir(parents=True)
+    (tmp_path / rel).write_text("def worst_severity() -> int:\n    return 1\n", encoding="utf-8")
+    design = await produce_design(
+        {**_CREATE, "kind": "create"}, overview=None, store=_graph(*_MODULES), llm=None
+    )
+    md = render_design_md(_CREATE, design)
+
+    assert _paths_from(_CREATE, md, tmp_path) == []
+    block = _named_existing_files(_CREATE, tmp_path, md)
+    assert "REFERENCE FILES" in block and "verifiers.py" in block
+    assert "EXISTING FILES THE SPEC NAMES" not in block
+
+
+def test_a_module_the_graph_lacks_is_not_its_parent_package() -> None:
+    from orchestrator.sdlc.design import _stated_modules
+
+    spec = {"summary": "Add a new module orchestrator.codereview.summary_line for PR comments."}
+    assert _stated_modules(spec, _graph(*_MODULES)) == []
+
+
+def test_a_dotted_name_after_a_package_is_not_swallowed_as_its_word() -> None:
+    from orchestrator.sdlc.design import _stated_modules
+
+    spec = {"summary": "see orchestrator.pkg orchestrator.codereview.verifiers for both"}
+    assert _stated_modules(spec, _graph(*_MODULES)) == [
+        "src/orchestrator/pkg/__init__.py",
+        "src/orchestrator/codereview/verifiers.py",
+    ]
+
+
+def test_a_non_python_package_is_not_resolved_to_an_arbitrary_file() -> None:
+    from orchestrator.sdlc.design import _stated_modules
+
+    spec = {"summary": "com.acme.orders placeOrder must validate the address"}
+    assert _stated_modules(spec, _graph(*_MODULES)) == []
+
+
+async def test_implement_resets_its_scope_even_when_generation_fails(tmp_path: Path) -> None:
+    from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter
+
+    adapter = LLMCodegenAdapter(object(), edit_scope=EditScope(files=("src/a.py",), confident=True))  # type: ignore[arg-type]
+    seen: list[Any] = []
+
+    async def _boom(*_a: Any, **_k: Any) -> Any:
+        seen.append(adapter._implement_scope)
+        raise CodegenError("model output had no 'files' list")
+
+    adapter._generate = _boom  # type: ignore[method-assign]
+    with pytest.raises(CodegenError):
+        await adapter.implement(spec={"title": "t"}, path=str(tmp_path), issue_key="K-1")
+
+    assert seen and seen[0] is not None  # enforced during implement
+    assert adapter._implement_scope is None  # and never leaks into author_tests/refine
