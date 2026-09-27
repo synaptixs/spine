@@ -359,6 +359,15 @@ Tool names are namespaced `server:tool`, so two servers may expose the same tool
 colliding. Point the Atlassian presets at a specific server with `MCP_JIRA_SERVER` /
 `MCP_CONFLUENCE_SERVER` when you run more than one that could serve them.
 
+- **`${VAR}` in `headers` and `url`** is filled from the environment when the file is
+  loaded, so a remote server's token never has to sit in `mcp.json` (the `internal` entry
+  above). The `orchestrator mcp` commands load `./.env` first, so a token kept there works.
+  An **unset** variable is an error naming the variable and the server — Spine never sends
+  an empty `Authorization` header. Only the braced form expands: `$VAR` and a lone `$` are
+  left as written, and `$${VAR}` is a literal `${VAR}`. `command`, `args`, `env` and `allow`
+  are *not* expanded (a stdio server already inherits the environment). Spine never writes
+  the expanded value back: the Connections page shows and saves the placeholder, and a
+  failing server's error text has the value swapped back to `${VAR}`.
 - **`allow`** is an allow-list — only those tools are callable (omit = all, with a warning).
 - **Writes are off by default**: mutating tools are refused unless you set
   `write_enabled: true` on that server.

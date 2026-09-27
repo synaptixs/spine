@@ -17,6 +17,16 @@ All notable changes to this project are documented here. Format loosely follows
   `repos=`, a document binds only to symbols in the repository it lives in, and only the matched
   repository's docs are read. If linking docs fails, the code answer still returns, with
   `docs_unavailable` saying why. ([SSPN-79](https://fibonacci-solutions.atlassian.net/browse/SSPN-79))
+- **`${VAR}` in `mcp.json` `headers` values and `url` is filled from the environment.** A
+  remote MCP server's bearer token no longer has to sit in plaintext in the file:
+  `"Authorization": "Bearer ${INTERNAL_MCP_TOKEN}"` reads the token at load time (the example
+  OPERATIONS.md already showed, which until now was sent literally). An unset variable is an
+  error naming the variable and the server, never an empty header; `$${VAR}` is a literal
+  `${VAR}`, and `$VAR` without braces is left alone. `command`, `args`, `env` and `allow` are
+  not expanded. The expanded value never leaves: writes keep the placeholder, the Connections
+  page shows it, and error text from a failing server has the value swapped back to `${VAR}`.
+  Adding a server from the Connections page now tests the expanded url rather than the text as
+  typed. ([SSPN-81](https://fibonacci-solutions.atlassian.net/browse/SSPN-81))
 
 ### Fixed
 
