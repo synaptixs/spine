@@ -117,7 +117,7 @@ async def test_a_create_ticket_reads_the_module_it_names_and_edits_nothing_exist
     assert design["files_to_read"] == ["src/orchestrator/codereview/verifiers.py"]
     assert design["files_origin"] == "module"
     assert EditScope.from_design(design, {"kind": "create"}).confident  # a create ticket is sure
-    assert "src/orchestrator/codereview" in design["approach"]
+    assert "Create a new module" in design["approach"] and ".py" not in design["approach"]
     # The word "models"/"summary" matching other modules no longer lists them anywhere.
     assert "src/orchestrator/catalog/models.py" not in design["files_to_read"]
 
@@ -473,3 +473,13 @@ async def test_implement_resets_its_scope_even_when_generation_fails(tmp_path: P
 
     assert seen and seen[0] is not None  # enforced during implement
     assert adapter._implement_scope is None  # and never leaks into author_tests/refine
+
+
+def test_a_re_exported_class_resolves_to_its_package_not_a_parent() -> None:
+    """P4 regression: `orchestrator.core.llm.TokenLedger` is re-exported, not defined, by the
+    package; walking past it to `orchestrator.core` sent the new module to the wrong package."""
+    from orchestrator.sdlc.design import _stated_modules
+
+    graph = _graph(*_MODULES, ("orchestrator.core", "src/orchestrator/core/__init__.py"))
+    spec = {"summary": "renders the token ledger (orchestrator.core.llm.TokenLedger) as Markdown"}
+    assert _stated_modules(spec, graph) == ["src/orchestrator/core/llm/__init__.py"]

@@ -13,7 +13,7 @@ from __future__ import annotations
 import contextlib
 import json
 import re
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from orchestrator.runtime import ArtifactStore
@@ -143,18 +143,20 @@ def _stated_modules(spec: dict[str, Any], store: FactStore | None) -> list[str]:
     for match in _DOTTED_RE.finditer(_query_text(spec, title=False)):
         dotted, word = match.group(1), match.group(2)
         parts = dotted.split(".")
-        name = dotted if dotted in modules else None
-        if name is None:
-            # A symbol inside a module (`…verifiers.Finding`) resolves to that module — but only
-            # when the module defines it. A dotted name the graph lacks (`orchestrator.sdlc.new_mod`)
-            # is a module to create, never its parent package.
-            for k in range(len(parts) - 1, 1, -1):
-                prefix = ".".join(parts[:k])
-                if prefix in modules and f"py:{prefix}.{parts[k]}" in ids:
-                    name = prefix
-                    break
-        if name is None:
+        # The longest module prefix only — never a shorter one: `orchestrator.core.llm.TokenLedger`
+        # walked past `core.llm` to `orchestrator.core` and sent a new module there (B44 P4).
+        k = next((k for k in range(len(parts), 1, -1) if ".".join(parts[:k]) in modules), 0)
+        if not k:
             continue
+        name = ".".join(parts[:k])
+        if k < len(parts):
+            # What follows the module must be something it holds: a symbol it defines, or a class
+            # name (`TokenLedger` is re-exported by `orchestrator.core.llm`, defined elsewhere). A
+            # lower-case name the module lacks (`orchestrator.sdlc.new_mod`) is a module to create,
+            # and resolving it to the package would say "the change lives here" about the wrong file.
+            following = parts[k]
+            if f"py:{name}.{following}" not in ids and not following[:1].isupper():
+                continue
         found = modules[name]
         child = f"{name}.{word}" if word else ""
         if name == dotted and found.endswith("__init__.py") and child in modules:
@@ -361,11 +363,12 @@ def _fallback_design(
     title = spec.get("title", "the feature")
     approach = f"Implement '{title}' following the repo's existing structure and conventions."
     if kind == "create" and modules:
-        # Names the package, never a file: codegen reads paths out of this section.
-        package = str(PurePosixPath(modules[0]).parent)
+        # No file and no package: codegen reads paths out of this section, and a package inferred
+        # from the first reuse module is a placement the ticket never gave (it sent one to the
+        # wrong package, B44 P4). Where the new module goes is the grounding's call.
         approach = (
-            f"Create a new module for '{title}' in the `{package}` package, reusing what the ticket "
-            "names from the files listed to read, without changing them."
+            f"Create a new module for '{title}', reusing what the ticket names from the files listed "
+            "to read, without changing them."
         )
     return {
         "approach": approach,
