@@ -339,42 +339,44 @@ tested; its exact size, and any difference in quality, are not.
   tables multiply the measured per-feature gap by an assumed four features per developer per
   month.
 
-**Spine + PKG after two fixes the measurement found (2026-09-27).** The comparison exposed two
-defects on Spine's side. It edited files the ticket was not about: on OpenAI models, up to six
-(`gpt-5.6-sol`) and twelve (`gpt-6-astra`) in a run, each named by Spine's own design (B44, [SSPN-89](https://fibonacci-solutions.atlassian.net/browse/SSPN-89),
-merged in [#490](https://github.com/synaptixs/spine/pull/490)). And lint or type errors in the
-tests it wrote survived refine, which is told never to edit tests (B47,
-[SSPN-93](https://fibonacci-solutions.atlassian.net/browse/SSPN-93), merged in
-[#491](https://github.com/synaptixs/spine/pull/491)). Re-measured on the same three tickets, two
-passes per model, codegen only (Spine's own benchmark, deterministic design, PKG built):
+**Spine + PKG on 3.52.0, re-measured the same way (2026-09-27).** The comparison exposed a
+defect on Spine's side. Spine + PKG changed tracked files the ticket was not about, 6–9 per run
+on the OpenAI models, each named by Spine's own design. The fix, B44
+([SSPN-89](https://fibonacci-solutions.atlassian.net/browse/SSPN-89),
+[#490](https://github.com/synaptixs/spine/pull/490)), shipped in 3.52.0 along with B47
+([SSPN-93](https://fibonacci-solutions.atlassian.net/browse/SSPN-93),
+[#491](https://github.com/synaptixs/spine/pull/491)). The Spine + PKG arm was then run again with
+3.52.0's code and nothing else changed: the same harness, tickets and pass counts (three on Claude,
+two on each OpenAI model), the same deterministic design and GPT-6 shim, and **the same target
+commit, `bd16dbb7`**. spec-kit was not re-run, because Spine's code does not affect it. Intake was
+not re-run either, because neither fix touches it; its measured cost is carried into the totals.
 
-| Model | Stage | Unrelated files changed (max in a run) | Preflight | Accepted | Held-out | Codegen $/ticket | Tokens/ticket |
+| Model | Spine + PKG | Unrelated tracked files per run (max) | Accepted | Held-out | Cost per feature | Tokens per feature | spec-kit ÷ Spine, cost · tokens |
 |---|---|---|---|---|---|---|---|
-| `claude-sonnet-5` | before B44 | 4 (2) | 6/6 | 3/6 | 4/6 | $0.255 | 115k |
-| | after B44 | 0 (0) | 4/6 | 4/6 | 4/6 | $0.131 | 55k |
-| | after B44 + B47 | **0 (0)** | **6/6** | **6/6** | 4/6 | **$0.097** | **39k** |
-| `gpt-5.6-sol` | before B44 | 22 (6) | 6/6 | 0/6 | 4/6 | $0.305 | 67k |
-| | after B44 | 0 (0) | 5/6 | 5/6 | 4/6 | $0.097 | 23k |
-| | after B44 + B47 | **0 (0)** | **6/6** | **6/6** | 4/6 | **$0.088** | **17k** |
-| `gpt-6-astra` | before B44 | 54 (12) | 6/6 | 0/6 | 4/6 | $1.138 | 89k |
-| | after B44 | 0 (0) | 6/6 | 6/6 | 4/6 | $0.247 | 19k |
-| | after B44 + B47 | **0 (0)** | **6/6** | **6/6** | 4/6 | **$0.301** | **19k** |
+| `claude-sonnet-5` | 3.51 (measured above) | 1.2 (2) | 1/9 | 6/9 | $0.247 | 106k | 17.6× · 123× |
+| | **3.52.0** | **0 (0)** | **9/9** | 6/9 | **$0.122** | **45k** | **35.5× · 286×** |
+| `gpt-5.6-sol` | 3.51 (measured above) | 6.3 (12) | 0/6 | 4/6 | $0.42 | 83k | 12.7× · 112× |
+| | **3.52.0** | **0 (0)** | **6/6** | 4/6 | **$0.120** | **21k** | **44.5× · 442×** |
+| `gpt-6-astra` | 3.51 (measured above) | 9.0 (12) | 0/6 | 4/6 | $1.15 | 84k | 10.9× · 103× |
+| | **3.52.0** | **0 (0)** | **6/6** | 4/6 | **$0.385** | **22k** | **32.7× · 398×** |
 
-- **Spine + PKG no longer touches files outside the ticket,** on any model: 80 unrelated edits
-  across 18 runs became 0. Each run now writes one module and its test file.
-- **Every run now passes Spine's own acceptance gate** (tests, preflight, fit): 18 of 18, against
-  3 of 18 before. Accepted runs rose because the unrelated edits used to fail the fit check.
-- **Held-out tests are unchanged at 4 of 6 on every model,** the same as spec-kit's 4 of 6 on
-  OpenAI. `NEW-DRIFTMD-1` still fails in every run of every arm. So the quality statement above
-  stands: no detectable difference in working-code rate.
-- **Codegen got cheaper** on two models and slightly dearer on `gpt-6-astra` ($0.247 → $0.301,
-  inside run-to-run noise at n=6). The cost tables above were measured before these fixes and are
-  left as measured. Spine's side only got cheaper, so the gap they show is conservative. They are
-  not restated here because these runs are codegen only, without intake.
-- **Scope.** Different commits: the spec-kit rows are `bd16dbb7`; these are `develop` before B44
-  and the two fix branches. spec-kit itself is unaffected by Spine's changes. Preflight and
-  acceptance are Spine's own gates and were not measured on spec-kit's output. The per-run
-  figures are in the measurement sections of #490 and #491.
+- **The scope defect is gone, on every model.** Before the fix, Spine + PKG changed 1.2, 6.3 and 9.0
+  unrelated tracked files per run; spec-kit changed 1.1, 1.2 and 1.5. On 3.52.0 Spine changes
+  none. Each run writes one module and its test file.
+- **Every run now passes Spine's own acceptance gate:** tests, preflight and fit, 21 of 21, where
+  it was 1 of 21 before. The unrelated edits were what failed the fit check.
+- **Held-out tests are unchanged:** 6/9, 4/6 and 4/6, the same as before and the same as
+  spec-kit's 4/6 on OpenAI. `NEW-DRIFTMD-1` still fails in every run of every arm. The quality
+  statement above stands: no detectable difference in working-code rate.
+- **The unrelated edits were costing money too.** Each one was model output that had to be
+  written, so removing them cut Spine + PKG's cost per feature 2–3.5×. That widened the measured
+  gap to 33–45× on cost and 286–442× on tokens. Every 3.52.0 run cost $0.09–$0.45 per feature,
+  while spec-kit's cheapest run cost $3.67.
+- **The fleet tables and the confidence analysis above are the 3.51 measurements.** They are left
+  as measured and are now conservative. "About 10–20× cheaper" stays the quotable claim until
+  those tables are recomputed on 3.52.0.
+- **Scope.** The same three small tickets, one repository and headless protocol as above. The per-run
+  figures are kept with the rest of this measurement's raw data.
 
 **What the measurement corrected.** The estimate this section used before it was measured had
 spec-kit at 1.25M tokens over 26 calls per feature with the coding loop at 83% of the cost, and
@@ -662,20 +664,24 @@ file to edit, and GPT models took that as licence to edit each one. B44
 - when the ticket names its files or creates code, an edit elsewhere that changes no code is
   refused.
 
-Re-measured on the same three tickets:
+Re-measured with the same harness, tickets and target commit as the comparison; only Spine's
+code changed (details in [reason 10](#10-what-it-costs-at-fleet-scale--measured)):
 
-| | Before the fix | After |
-|---|---|---|
-| Unrelated tracked files changed, 18 runs | 80 (up to 12 in one `gpt-6-astra` run) | **0**, on every model |
-| Spine's own acceptance | 3/18 | **18/18** |
-| Held-out tests | 4/6 per model | 4/6 per model |
+| Unrelated tracked files per run (max) | Spine + PKG, 3.51 | Spine + PKG, 3.52.0 | spec-kit |
+|---|---|---|---|
+| `claude-sonnet-5` | 1.2 (2) | **0 (0)** | 1.1 |
+| `gpt-5.6-sol` | 6.3 (12) | **0 (0)** | 1.2 |
+| `gpt-6-astra` | 9.0 (12) | **0 (0)** | 1.5 |
+
+Spine's own acceptance went from 1 of 21 runs to 21 of 21. Held-out tests were unchanged on every
+model. Cost per feature also fell 2–3.5×, because the unrelated edits were model output that had
+to be paid for.
 
 spec-kit's edits were re-counted from its kept worktrees. Most of them are integration work a
 reviewer would want: a package `__init__.py` export, a `CHANGELOG.md` entry, and this
 repository's STATE-OF-SPINE count gate. Spine now touches none of those on a create ticket.
 That is tighter, but it also means Spine does not yet do that bookkeeping; the count gate is
-tracked as B46 ([SSPN-91](https://fibonacci-solutions.atlassian.net/browse/SSPN-91)). The
-per-model numbers are in [reason 10](#10-what-it-costs-at-fleet-scale--measured).
+tracked as B46 ([SSPN-91](https://fibonacci-solutions.atlassian.net/browse/SSPN-91)).
 
 ## Revisit condition
 
