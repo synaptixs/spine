@@ -33,7 +33,9 @@ runs with the graph, against **3 of 68** without it
 Because the graph supplies the context, the model does only the work that needs a model. Spine +
 PKG 3.52 delivered each feature in **4.8 model calls, about 45,000 tokens and $0.12** on
 `claude-sonnet-5`, in about 1.3 minutes. On the same tickets, model and commit, spec-kit took
-101–123 turns, 13 million tokens, $4.35 and nearly 19 minutes. Across three models Spine + PKG
+101–123 turns, 13 million tokens, $4.35 and nearly 19 minutes. On OpenAI models it was $0.12 per
+feature on `gpt-5.6-sol` against spec-kit's $5.35 (44.5×), and $0.39 on `gpt-6-astra` against
+$12.57 (32.7×). Across three models Spine + PKG
 was **30–45× cheaper per feature** and used **286–442× fewer tokens**, and no run of either tool
 overlapped the other on cost. At 2,000 developers on `claude-sonnet-5` that is about **$11,800 a
 year against $418,000**, and the gap scales linearly from there
@@ -271,9 +273,9 @@ bills those re-reads at a tenth of the input price.
 | `claude-opus-5-5` ($4/$20) | $24.82 | $297.89 | $0.98 | $11.76 | 25.3× |
 | `claude-sonnet-5` ($2/$10) | $17.40 | $208.83 | $0.49 | $5.88 | 35.5× |
 | `claude-haiku-4-5` ($1/$5) | $8.70 | $104.42 | $0.24 | $2.94 | 35.5× |
-| `gpt-5.6-sol` ($4/$20) | $34.81 | $417.66 | $0.98 | $11.76 | 35.5× |
-| `gpt-5.6-terra` ($2/$12) | $18.02 | $216.25 | $0.52 | $6.26 | 34.6× |
-| `gpt-5.6-luna` ($0.2/$1.2) | $1.80 | $21.62 | $0.05 | $0.63 | 34.6× |
+| `gpt-5.6-sol` ($4/$20), priced, not run | $34.81 | $417.66 | $0.98 | $11.76 | 35.5× |
+| `gpt-5.6-terra` ($2/$12), priced, not run | $18.02 | $216.25 | $0.52 | $6.26 | 34.6× |
+| `gpt-5.6-luna` ($0.2/$1.2), priced, not run | $1.80 | $21.62 | $0.05 | $0.63 | 34.6× |
 | `grok-4.7` ($2/$6) | $30.27 | $363.27 | $0.43 | $5.12 | 70.9× |
 | `grok-build-0.1` ($1/$2) | $12.33 | $147.98 | $0.20 | $2.37 | 62.4× |
 
@@ -297,11 +299,11 @@ bills those re-reads at a tenth of the input price.
 | | with PKG | $2,939 | $5,878 | $8,818 | $11,757 | $29,392 | $58,785 |
 | `claude-haiku-4-5` ($1/$5) | no PKG | $52,208 | $104,416 | $156,624 | $208,832 | $522,081 | $1,044,162 |
 | | with PKG | $1,470 | $2,939 | $4,409 | $5,878 | $14,696 | $29,392 |
-| `gpt-5.6-sol` ($4/$20) | no PKG | $208,832 | $417,665 | $626,497 | $835,330 | $2,088,325 | $4,176,650 |
+| `gpt-5.6-sol` ($4/$20), priced, not run | no PKG | $208,832 | $417,665 | $626,497 | $835,330 | $2,088,325 | $4,176,650 |
 | | with PKG | $5,878 | $11,757 | $17,635 | $23,514 | $58,785 | $117,570 |
-| `gpt-5.6-terra` ($2/$12) | no PKG | $108,125 | $216,250 | $324,375 | $432,500 | $1,081,249 | $2,162,498 |
+| `gpt-5.6-terra` ($2/$12), priced, not run | no PKG | $108,125 | $216,250 | $324,375 | $432,500 | $1,081,249 | $2,162,498 |
 | | with PKG | $3,128 | $6,257 | $9,385 | $12,513 | $31,283 | $62,567 |
-| `gpt-5.6-luna` ($0.2/$1.2) | no PKG | $10,812 | $21,625 | $32,437 | $43,250 | $108,125 | $216,250 |
+| `gpt-5.6-luna` ($0.2/$1.2), priced, not run | no PKG | $10,812 | $21,625 | $32,437 | $43,250 | $108,125 | $216,250 |
 | | with PKG | $313 | $626 | $939 | $1,251 | $3,128 | $6,257 |
 | `grok-4.7` ($2/$6) | no PKG | $181,637 | $363,274 | $544,910 | $726,547 | $1,816,368 | $3,632,736 |
 | | with PKG | $2,561 | $5,122 | $7,683 | $10,244 | $25,610 | $51,221 |
