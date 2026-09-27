@@ -344,7 +344,7 @@ defects on Spine's side. It edited files the ticket was not about: on OpenAI mod
 (`gpt-5.6-sol`) and twelve (`gpt-6-astra`) in a run, each named by Spine's own design (B44, [SSPN-89](https://fibonacci-solutions.atlassian.net/browse/SSPN-89),
 merged in [#490](https://github.com/synaptixs/spine/pull/490)). And lint or type errors in the
 tests it wrote survived refine, which is told never to edit tests (B47,
-[SSPN-93](https://fibonacci-solutions.atlassian.net/browse/SSPN-93), in review as
+[SSPN-93](https://fibonacci-solutions.atlassian.net/browse/SSPN-93), merged in
 [#491](https://github.com/synaptixs/spine/pull/491)). Re-measured on the same three tickets, two
 passes per model, codegen only (Spine's own benchmark, deterministic design, PKG built):
 
@@ -440,7 +440,8 @@ have, and it needs neither spec-kit nor its file format.
 ## Questions that come back
 
 The objections raised most often when this decision is weighed, with the answer to each.
-They are ordered as they tend to arrive: cost first, then review, then the combination.
+They are ordered as they tend to arrive: cost first, then review, then the combination, then
+what the measurement found against Spine.
 
 ### Q1. "Wouldn't tighter requirements bring the cost down?"
 
@@ -642,6 +643,33 @@ was measured against a graph-built one, it cost twice as much and did not help.
 decide whether to look at it, with nobody checking the build against it. The map only makes a
 difference when something checks the work against it. Spine is the map and the inspector;
 spec-kit with the PKG keeps the map and drops the inspector.
+
+### Q4. "Didn't Spine edit more files than spec-kit?"
+
+It did, and it counted against Spine. In the measurement (`bd16dbb7`), Spine + PKG on the OpenAI
+models edited an average of 6–9 tracked files per run that the ticket was not about, against about
+one for spec-kit; on `claude-sonnet-5` both were about one. The cause was Spine's design stage: it
+listed every file whose words matched the ticket as a file to edit, and GPT models treated that as
+licence, most often by adding a justifying comment or docstring to each one.
+
+**Fixed on `develop`** (B44, [SSPN-89](https://fibonacci-solutions.atlassian.net/browse/SSPN-89),
+[#490](https://github.com/synaptixs/spine/pull/490)). The design now lists only the files to
+edit, and shows everything else as read-only reference. When the ticket names its files or creates
+code, an edit elsewhere that changes no code is refused. Re-measured on the same three tickets:
+
+| | Before the fix | After |
+|---|---|---|
+| Unrelated tracked files changed, 18 runs | 80 (up to 12 in one `gpt-6-astra` run) | **0**, on every model |
+| Spine's own acceptance | 3/18 | **18/18** |
+| Held-out tests | 4/6 per model | 4/6 per model |
+
+Spec-kit's edits were re-counted from its kept worktrees: 1.1 tracked files per run on Claude,
+1.2 on `gpt-5.6-sol`, 1.5 on `gpt-6-astra`. Most are integration a reviewer would want: a
+package `__init__.py` export, a `CHANGELOG.md` entry, this repository's STATE-OF-SPINE count
+gate. Spine now touches none of these on a create ticket. That is tighter, but it also means Spine
+does not yet do that bookkeeping; the count gate is tracked as B46
+([SSPN-91](https://fibonacci-solutions.atlassian.net/browse/SSPN-91)). The per-model numbers are
+in [reason 10](#10-what-it-costs-at-fleet-scale--measured).
 
 ## Revisit condition
 
