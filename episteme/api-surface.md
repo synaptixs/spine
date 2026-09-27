@@ -5,7 +5,7 @@
 
 | Route | Handler | Declared at |
 |---|---|---|
-| `DELETE /v1/connections/servers/{name}` | [`remove_server`](../src/orchestrator/registry/api/connections.py#L221) | [`src/orchestrator/registry/api/connections.py:220`](../src/orchestrator/registry/api/connections.py#L220) |
+| `DELETE /v1/connections/servers/{name}` | [`remove_server`](../src/orchestrator/registry/api/connections.py#L232) | [`src/orchestrator/registry/api/connections.py:231`](../src/orchestrator/registry/api/connections.py#L231) |
 | `GET /` | [`index`](../src/orchestrator/intake/web/app.py#L142), [`list_entities`](../src/orchestrator/registry/api/routes.py#L156), [`root`](../src/orchestrator/registry/api/web/home.py#L23) | [`src/orchestrator/intake/web/app.py:141`](../src/orchestrator/intake/web/app.py#L141) |
 | `GET /app` | [`home`](../src/orchestrator/registry/api/web/home.py#L129) | [`src/orchestrator/registry/api/web/home.py:128`](../src/orchestrator/registry/api/web/home.py#L128) |
 | `GET /app/advanced` | [`advanced_page`](../src/orchestrator/registry/api/web/advanced.py#L22) | [`src/orchestrator/registry/api/web/advanced.py:21`](../src/orchestrator/registry/api/web/advanced.py#L21) |
@@ -39,7 +39,7 @@
 | `GET /v1/audit/{run_id}/governance` | [`run_governance`](../src/orchestrator/registry/api/audit.py#L244) | [`src/orchestrator/registry/api/audit.py:243`](../src/orchestrator/registry/api/audit.py#L243) |
 | `GET /v1/capabilities/catalog` | [`catalog`](../src/orchestrator/registry/api/capabilities.py#L111) | [`src/orchestrator/registry/api/capabilities.py:110`](../src/orchestrator/registry/api/capabilities.py#L110) |
 | `GET /v1/capabilities/memory-bank` | [`memory_bank`](../src/orchestrator/registry/api/capabilities.py#L160) | [`src/orchestrator/registry/api/capabilities.py:159`](../src/orchestrator/registry/api/capabilities.py#L159) |
-| `GET /v1/connections` | [`connections`](../src/orchestrator/registry/api/connections.py#L116) | [`src/orchestrator/registry/api/connections.py:115`](../src/orchestrator/registry/api/connections.py#L115) |
+| `GET /v1/connections` | [`connections`](../src/orchestrator/registry/api/connections.py#L117) | [`src/orchestrator/registry/api/connections.py:116`](../src/orchestrator/registry/api/connections.py#L116) |
 | `GET /v1/fs/list` | [`list_dir`](../src/orchestrator/registry/api/fs.py#L50) | [`src/orchestrator/registry/api/fs.py:49`](../src/orchestrator/registry/api/fs.py#L49) |
 | `GET /v1/jobs` | [`list_jobs`](../src/orchestrator/registry/api/jobs.py#L253) | [`src/orchestrator/registry/api/jobs.py:252`](../src/orchestrator/registry/api/jobs.py#L252) |
 | `GET /v1/jobs/{job_id}` | [`get_job`](../src/orchestrator/registry/api/jobs.py#L272) | [`src/orchestrator/registry/api/jobs.py:271`](../src/orchestrator/registry/api/jobs.py#L271) |
@@ -69,7 +69,7 @@
 | `POST /v1/capabilities/profile` | [`profile`](../src/orchestrator/registry/api/capabilities.py#L86) | [`src/orchestrator/registry/api/capabilities.py:85`](../src/orchestrator/registry/api/capabilities.py#L85) |
 | `POST /v1/capabilities/state` | [`state`](../src/orchestrator/registry/api/capabilities.py#L253) | [`src/orchestrator/registry/api/capabilities.py:252`](../src/orchestrator/registry/api/capabilities.py#L252) |
 | `POST /v1/capabilities/understand` | [`understand`](../src/orchestrator/registry/api/capabilities.py#L214) | [`src/orchestrator/registry/api/capabilities.py:213`](../src/orchestrator/registry/api/capabilities.py#L213) |
-| `POST /v1/connections/servers` | [`add_server`](../src/orchestrator/registry/api/connections.py#L187) | [`src/orchestrator/registry/api/connections.py:186`](../src/orchestrator/registry/api/connections.py#L186) |
+| `POST /v1/connections/servers` | [`add_server`](../src/orchestrator/registry/api/connections.py#L188) | [`src/orchestrator/registry/api/connections.py:187`](../src/orchestrator/registry/api/connections.py#L187) |
 | `POST /v1/github/webhook` | [`github_webhook`](../src/orchestrator/codereview/webhook.py#L61) | [`src/orchestrator/codereview/webhook.py:52`](../src/orchestrator/codereview/webhook.py#L52) |
 | `POST /v1/intake/preview` | [`preview`](../src/orchestrator/intake/web/app.py#L146), [`preview`](../src/orchestrator/registry/api/backlog.py#L56) | [`src/orchestrator/intake/web/app.py:145`](../src/orchestrator/intake/web/app.py#L145) |
 | `POST /v1/runs/start` | [`start_run`](../src/orchestrator/registry/api/runs.py#L107) | [`src/orchestrator/registry/api/runs.py:106`](../src/orchestrator/registry/api/runs.py#L106) |

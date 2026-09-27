@@ -60,7 +60,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/registry.py:22`](../../src/orchestrator/cli/registry.py#L22)
 
 - **Called by** (1): [`mcp_contracts`](../../src/orchestrator/cli/registry.py#L259)
-- **Calls** (1): [`load_mcp_configs`](../../src/orchestrator/mcp/config.py#L57)
+- **Calls** (1): [`load_mcp_configs`](../../src/orchestrator/mcp/config.py#L115)
 
 ### `_publish`
 

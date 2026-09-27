@@ -136,7 +136,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/intake/factory.py:61`](../../src/orchestrator/intake/factory.py#L61)
 
 - **Called by** (2 production · 8 test): [`build_confluence_source`](../../src/orchestrator/intake/factory.py#L133), [`build_jira_service`](../../src/orchestrator/intake/factory.py#L167), [`test_a_lone_unrestricted_server_is_trusted`](../../tests/intake/test_mcp_preferred.py#L69), [`test_a_malformed_config_falls_back_rather_than_exploding`](../../tests/intake/test_mcp_preferred.py#L92), [`test_disabled_servers_are_skipped`](../../tests/intake/test_mcp_preferred.py#L83), [`test_env_var_naming_an_absent_server_is_ignored`](../../tests/intake/test_mcp_preferred.py#L62), [`test_env_var_overrides_the_allow_list_scan`](../../tests/intake/test_mcp_preferred.py#L48), [`test_no_config_means_no_mcp`](../../tests/intake/test_mcp_preferred.py#L28), [`test_picks_the_server_that_allow_lists_the_tool`](../../tests/intake/test_mcp_preferred.py#L34), [`test_several_unrestricted_servers_decline_to_guess`](../../tests/intake/test_mcp_preferred.py#L75)
-- **Calls** (2): `getenv`, [`load_mcp_configs`](../../src/orchestrator/mcp/config.py#L57)
+- **Calls** (2): `getenv`, [`load_mcp_configs`](../../src/orchestrator/mcp/config.py#L115)
 - **Documented in**: `docs/specs/conversational-source-access.md#what-already-exists-build-on-this-do-not-rebuild`, `docs/specs/conversational-source-access.md#why`
 
 ### `source_read_errors`
