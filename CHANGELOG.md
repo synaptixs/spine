@@ -63,6 +63,20 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **Codegen no longer edits files the ticket is not about.** On OpenAI models a run edited 6-9
+  unrelated files, each named by Spine's own design. A module a ticket names by its dotted name
+  (`orchestrator.codereview.verifiers`, "the orchestrator.pkg docs module") now resolves through the
+  graph (Python modules only) and the design lists it ahead of word matches. The design heading is
+  now **Files to edit**, and codegen takes files to change only from it: the blast radius and the
+  new **Files to read (reference — do not modify)** list are shown as reference, never as files to
+  change. When a design says the ticket creates code, its named modules and word matches go to the
+  read list; today only the codegen benchmark says so — a spec from intake carries no create/edit
+  kind, so there a named module stays a file to edit. When the ticket stated its file paths or
+  creates code, an edit to any other existing file that changes no code (comments and docstrings
+  only) is discarded and the model is told so up front; a real code change elsewhere is applied and
+  reported in the change summary. The agentic loop, `author_tests` and refine are not guarded.
+  `files_to_touch` keeps its name and now holds edit targets only; `files_to_read` is new.
+  ([SSPN-89](https://fibonacci-solutions.atlassian.net/browse/SSPN-89))
 - **A `#` comment inside a code block no longer splits a doc into a phantom section.**
   Section splitting in markdown and HTML now skips fenced code (```` ``` ```` / `~~~`, CommonMark
   rules: a line like ```` ```x``` ```` is inline code, not a fence; Word and Excel text has no
