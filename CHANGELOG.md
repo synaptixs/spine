@@ -4,6 +4,19 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.51.1 — 2026-09-26
+
+A patch release: one sandbox fix.
+
+### Fixed
+
+- **`run_python_analysis` reports its time limit reliably on the local sandbox.** The sandbox
+  enforces the limit twice, as wall-clock time and as `RLIMIT_CPU`, and a busy loop reaches
+  both at once. When the CPU limit won, about one run in six, the tool either raised
+  `ProcessLookupError` or returned exit `-24` with an empty stderr. It now returns exit `124`
+  and `timeout after Ns` either way, adding `of CPU time` when the CPU limit stopped it. A
+  `SIGKILL` before the limit (the OOM killer) is still reported as itself.
+
 ## 3.51.0 — 2026-09-26
 
 `--layout auto` never scaffolds a second project beside code it cannot place — in any language.
