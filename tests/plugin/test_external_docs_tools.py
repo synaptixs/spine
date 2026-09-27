@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-import orchestrator.pkg.external_docs as ext
+from orchestrator.pkg import external_docs as ext
 from orchestrator.pkg.external_docs import ExternalPage, record_failure, source_cache_dir, write_pull
 from orchestrator.plugin.server import blast_radius, docs_for, explain_symbol
 

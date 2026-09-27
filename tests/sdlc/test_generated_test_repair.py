@@ -130,13 +130,17 @@ def _session(tmp_path: Path) -> list[Path]:
     "failures",
     [
         # ruff check, default ("full") output
-        "--- ruff check failed (exit 1) ---\n"
-        "E402 Module level import not at top of file\n --> tests/test_mine.py:5:1\n",
+        (
+            "--- ruff check failed (exit 1) ---\n"
+            "E402 Module level import not at top of file\n --> tests/test_mine.py:5:1\n"
+        ),
         # ruff check, concise output
         "tests/test_mine.py:5:1: E402 Module level import not at top of file\n",
         # mypy, with and without a column
-        'tests/test_mine.py:12: error: Item "None" of "Match[str] | None" '
-        'has no attribute "group"  [union-attr]\n',
+        (
+            'tests/test_mine.py:12: error: Item "None" of "Match[str] | None" '
+            'has no attribute "group"  [union-attr]\n'
+        ),
         "tests/test_mine.py:12:9: error: Incompatible types in assignment  [assignment]\n",
         # ruff format --check, both spellings
         "Would reformat: tests/test_mine.py\n",
@@ -169,13 +173,17 @@ def test_an_absolute_path_on_a_lint_line_still_counts(tmp_path: Path) -> None:
         "tests/test_mine.py:12: in test_total\n    assert total() == 4\n",
         "E   AssertionError: assert 3 == 4\n  tests/test_mine.py\n",
         # pytest echoes a failing test's source: a lint-shaped line inside a string is not a finding
-        "=================================== FAILURES ===================================\n"
-        '    def test_parse() -> None:\n        text = """\n'
-        '    tests/test_mine.py:3: error: Name "y" is not defined  [name-defined]\n'
-        '        """\n>       assert parse(text)\nE       AssertionError\n',
+        (
+            "=================================== FAILURES ===================================\n"
+            '    def test_parse() -> None:\n        text = """\n'
+            '    tests/test_mine.py:3: error: Name "y" is not defined  [name-defined]\n'
+            '        """\n>       assert parse(text)\nE       AssertionError\n'
+        ),
         # nor is one a test printed, whatever pytest flags were used
-        "----- Captured stdout call -----\ntests/test_mine.py:3:1: E402 Module level import\n"
-        "1 failed, 2 passed in 0.12s\n",
+        (
+            "----- Captured stdout call -----\ntests/test_mine.py:3:1: E402 Module level import\n"
+            "1 failed, 2 passed in 0.12s\n"
+        ),
         # a lint shape mentioned mid-line is prose, not a finding
         "see tests/test_mine.py:3: error: x\n",
     ],
