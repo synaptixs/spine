@@ -19,12 +19,16 @@ from orchestrator.pkg.doc_source import html_to_text
 from orchestrator.pkg.external_docs import (
     ExternalPage,
     bind_external,
+    chunk_id,
     collapse_stats,
     doc_pages,
     failure_path,
     page_text,
+    query_name,
+    rag_queries,
     read_source,
     record_failure,
+    repo_relative,
     source_cache_dir,
     standing,
     write_pull,
@@ -308,3 +312,67 @@ def test_importing_external_docs_loads_no_mcp_module() -> None:
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     assert out.stdout.strip() == "[]"
+
+
+# ---- RAG chunks (SSPN-82) -------------------------------------------------------------------
+
+
+def test_a_p2_page_record_is_unchanged_and_a_chunk_carries_its_source_and_score() -> None:
+    assert set(_page("1", "x").to_json()) == {"id", "title", "url", "text", "kind"}
+    chunk = ExternalPage(id="c1", title="t", text="x", kind="chunk", source="docs/a.md", score=0.5)
+    assert ExternalPage.from_json(chunk.to_json()) == chunk
+    assert chunk_id("same text") == chunk_id("same text") != chunk_id("other text")
+    assert len(chunk_id("x")) == 12
+
+
+def test_a_chunk_is_one_doc_never_split_by_heading() -> None:
+    chunk = ExternalPage(id="c1", title="t", text="# One\n\n`A`\n\n# Two\n\n`B`", kind="chunk")
+    assert [p.title for p, _ in doc_pages([chunk], "chroma")] == ["mcp:chroma/c1"]
+
+
+def test_queries_swap_with_the_chunks_they_index(tmp_path: Path) -> None:
+    dest = tmp_path / "cache" / "kb"
+    source = DocSource("kb", "chroma", "rag")
+    chunk = ExternalPage(id="c1", title="t", text="x", kind="chunk")
+    write_pull(dest, [chunk], {"pulled_at": "t0", "strategy": "query"}, queries={"b": ["c1"], "a": []})
+    cached = read_source(dest, source)
+    assert cached.queries == {"a": (), "b": ("c1",)} and cached.strategy == "query"
+    assert not cached.enumerated
+    write_pull(dest, [chunk], {"pulled_at": "t1", "strategy": "enumerate"})
+    walked = read_source(dest, source)
+    assert walked.queries == {} and walked.enumerated  # the old queries.json went with its pull
+
+
+def test_rag_queries_are_modules_and_classes_most_called_first_capped(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    (repo / "lib" / "server.py").write_text(
+        "from lib.client import Client\n\n"
+        "class Server:\n    def run(self):\n        return Client().ask(1)\n",
+        encoding="utf-8",
+    )
+    batch = load_or_extract(repo)
+    queries, candidates = rag_queries(batch, 3)
+    assert candidates == 5  # lib, lib.client, Client, lib.server, Server — never a method
+    assert queries == ["Client", "lib", "client"]  # 2 callers first, then by id
+    assert rag_queries(batch, 300) == (["Client", "lib", "client", "server", "Server"], 5)
+
+
+def test_query_name_is_the_last_segment() -> None:
+    assert [query_name(n) for n in ("lib.client", "pkg::Client", "a/b/c", "Client", "")] == [
+        "client",
+        "Client",
+        "c",
+        "Client",
+        "",
+    ]
+
+
+def test_repo_relative_normalises_exact_paths_only(tmp_path: Path) -> None:
+    root = tmp_path.resolve()
+    assert repo_relative("docs/a.md", root) == "docs/a.md"
+    assert repo_relative("./docs/../docs/a.md", root) == "docs/a.md"
+    assert repo_relative("docs\\a.md", root) == "docs/a.md"
+    assert repo_relative(f"{root}/docs/a.md", root) == "docs/a.md"
+    assert repo_relative(f"file://{root}/docs/a.md", root) == "docs/a.md"
+    for outside in ("https://wiki/docs/a.md", "/elsewhere/docs/a.md", "../sibling/a.md", "", "s3://b/a.md"):
+        assert repo_relative(outside, root) is None, outside

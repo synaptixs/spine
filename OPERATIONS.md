@@ -432,6 +432,22 @@ orchestrator mcp ingest-docs --source handbook    # pull one source (default: ev
   with pages still queued. `collapse` counts sections identical to the repo's own docs.
 - **Reproducibility.** Only `blast_radius`, `explain_symbol` and `docs_for` read the cache.
   `understand` / `state` / `episteme/` never do, so CI output does not depend on a token.
+- **RAG servers (`rag:` sources).** Onboard the server in `mcp.json` like any other, and run it
+  read-only where it offers the switch — mcp-server-qdrant with `QDRANT_READ_ONLY=true` drops
+  `qdrant-store` altogether; for chroma-mcp keep `chroma_add_documents` / `chroma_delete_*` off the
+  `allow` list. Most RAG servers declare no `readOnlyHint` at all (chroma-mcp and
+  mcp-server-qdrant declare none), so the guard refuses their tools until the source's
+  `trust_read_only` names them in the committed `repos.yaml` — the operator's written vouch, per
+  tool. The `allow` list is never widened by it. The pull picks its tools from their input
+  schemas; `--dry-run` shows which one and how its arguments are spelled
+  (`collection_name`/`knowledge_base_id`, `n_results`/`number_of_results`), and refuses — by name,
+  before any call — two tools that fit one role or a required argument it cannot supply. A server
+  with a list tool is walked (`max_chunks`, default 2000); otherwise the pull extracts the repo's
+  code graph and asks one query per module and class, most-called first (`max_queries`, default
+  300, `top_k` chunks each), so a query pull costs up to `max_queries` tool calls. The cache holds
+  one `pages.jsonl` record per chunk (`kind: "chunk"`, with the server's `source` path/uri and
+  `score` when given) and, for a query pull, `queries.json` — each query and the chunk ids it
+  returned — swapped in with the rest.
 
 **9.4 — Manage MCP servers from the web UI.** The **Connections** page
 (`/app/connections`) lists every configured server and **tests each live**

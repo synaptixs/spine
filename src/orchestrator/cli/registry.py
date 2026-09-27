@@ -270,12 +270,13 @@ def mcp_ingest_docs(
         bool, typer.Option("--dry-run", help="Resolve config and the tool guard; call no tools.")
     ] = False,
 ) -> None:
-    """Pull a repo's Confluence/Jira docs (repos.yaml docs:) over MCP into the docs cache.
+    """Pull a repo's Confluence/Jira/RAG docs (repos.yaml docs:) over MCP into the docs cache.
 
     The pulled pages are bound to code at read time by blast_radius, explain_symbol and
     docs_for — never by understand/state. Only allow-listed tools that declare themselves
-    read-only are called; anything else is refused by name. Each source is replaced whole
-    (atomic), and a failed pull keeps the last good one.
+    read-only (or, for a rag source, that its trust_read_only names) are called; anything else
+    is refused by name. Each source is replaced whole (atomic), and a failed pull keeps the
+    last good one.
     """
     import asyncio
 

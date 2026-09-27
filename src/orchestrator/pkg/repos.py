@@ -37,6 +37,15 @@ D35). Keyed by repository key, beside ``repos:`` and ``joins:``::
         - name: tickets
           server: atlassian
           jira: {jql: "project = BILL AND labels = api", max_issues: 100}
+        - name: kb
+          server: chroma                 # any RAG system's MCP server (SSPN-82)
+          rag: {collection: billing-docs, top_k: 10, max_queries: 300,
+                trust_read_only: [chroma_query_documents, chroma_get_documents]}
+
+``rag`` is the third kind: the pull discovers the server's retrieve / list tools from their
+input schemas (``tool`` and ``query_arg`` override that), and ``trust_read_only`` is how an
+operator vouches, in this committed file, for tools a server does not annotate
+``readOnlyHint`` — most RAG servers declare none.
 
 What to read is repository configuration, so it is committed here; the credentials to read it
 stay in ``mcp.json`` and the environment. Declaring a source pulls nothing —
@@ -120,11 +129,18 @@ def joins_from_list(raw: Any, *, where: Path | str = "<inline>") -> tuple[Join, 
 
 
 #: The external document kinds a ``docs:`` entry can declare, each with the settings it takes.
-DOC_SOURCE_KINDS = frozenset({"confluence", "jira"})
+DOC_SOURCE_KINDS = frozenset({"confluence", "jira", "rag"})
+#: The kinds whose coverage the declaration fixes — their unbound claims can be drift (D20). A
+#: ``rag`` source is enumerated only when its pull walked the corpus (its manifest says so).
+ENUMERATED_KINDS = frozenset({"confluence", "jira"})
 #: A source name becomes a cache folder name, so it is held to what is safe as one everywhere.
 _SOURCE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 _CONFLUENCE_KEYS = frozenset({"roots", "max_depth", "max_docs"})
 _JIRA_KEYS = frozenset({"jql", "max_issues"})
+_RAG_KEYS = frozenset(
+    {"collection", "tool", "query_arg", "top_k", "max_queries", "max_chunks", "trust_read_only"}
+)
+_KIND_KEYS = {"confluence": _CONFLUENCE_KEYS, "jira": _JIRA_KEYS, "rag": _RAG_KEYS}
 _ENTRY_KEYS = frozenset({"name", "server"}) | DOC_SOURCE_KINDS
 
 
@@ -136,6 +152,12 @@ class DocSource:
     ``max_docs`` pages; ``jira`` pages a JQL search to at most ``max_issues``. Both are
     *enumerated* sources — what they cover is fixed by the declaration, not by what anyone asked
     — which is why their unbound claims can be reported as drift (D20).
+
+    ``rag`` (SSPN-82) pulls chunks from a retrieval server: by walking the corpus when the server
+    offers a list tool (at most ``max_chunks``), else by one query per module and class (at most
+    ``max_queries``, ``top_k`` chunks each). ``collection``, ``tool`` and ``query_arg`` pin what
+    discovery would otherwise infer; ``trust_read_only`` names the tools the operator vouches
+    are read-only when the server does not say so.
     """
 
     name: str
@@ -146,14 +168,24 @@ class DocSource:
     max_docs: int = 100
     jql: str = ""
     max_issues: int = 100
+    collection: str = ""
+    tool: str = ""
+    query_arg: str = ""
+    top_k: int = 10
+    max_queries: int = 300
+    max_chunks: int = 2000
+    trust_read_only: tuple[str, ...] = ()
 
     @property
     def enumerated(self) -> bool:
-        return self.kind in DOC_SOURCE_KINDS
+        """Fixed by the declaration alone — a ``rag`` source's pull decides for itself."""
+        return self.kind in ENUMERATED_KINDS
 
     @property
     def cap(self) -> int:
-        return self.max_docs if self.kind == "confluence" else self.max_issues
+        if self.kind == "confluence":
+            return self.max_docs
+        return self.max_issues if self.kind == "jira" else self.max_chunks
 
 
 def _int_setting(block: dict[str, Any], key: str, default: int, *, minimum: int, where: str) -> int:
@@ -169,7 +201,7 @@ def _doc_source(entry: Any, *, where: str) -> DocSource:
     unknown = sorted(str(k) for k in entry if k not in _ENTRY_KEYS)
     if unknown:
         raise RepoConfigError(
-            f"{where} has unknown key(s) {unknown} — expected name, server, confluence|jira"
+            f"{where} has unknown key(s) {unknown} — expected name, server, confluence|jira|rag"
         )
     name = entry.get("name")
     if not isinstance(name, str) or not _SOURCE_NAME_RE.match(name):
@@ -183,13 +215,13 @@ def _doc_source(entry: Any, *, where: str) -> DocSource:
     kinds = [k for k in sorted(DOC_SOURCE_KINDS) if k in entry]
     if len(kinds) != 1:
         raise RepoConfigError(
-            f"{where}: declare exactly one of 'confluence' or 'jira', found {kinds or 'neither'}"
+            f"{where}: declare exactly one of 'confluence', 'jira' or 'rag', found {kinds or 'none'}"
         )
     kind = kinds[0]
     block = entry[kind]
     if not isinstance(block, dict):
         raise RepoConfigError(f"{where}: '{kind}' must be a mapping")
-    allowed = _CONFLUENCE_KEYS if kind == "confluence" else _JIRA_KEYS
+    allowed = _KIND_KEYS[kind]
     extra = sorted(str(k) for k in block if k not in allowed)
     if extra:
         raise RepoConfigError(f"{where}: '{kind}' has unknown key(s) {extra} — expected {sorted(allowed)}")
@@ -210,6 +242,8 @@ def _doc_source(entry: Any, *, where: str) -> DocSource:
             max_depth=_int_setting(block, "max_depth", 3, minimum=0, where=where),
             max_docs=_int_setting(block, "max_docs", 100, minimum=1, where=where),
         )
+    if kind == "rag":
+        return _rag_source(name, server.strip(), block, where=where)
     jql = block.get("jql")
     if not isinstance(jql, str) or not jql.strip():
         raise RepoConfigError(f"{where}: 'jira.jql' must be a non-empty JQL string")
@@ -219,6 +253,31 @@ def _doc_source(entry: Any, *, where: str) -> DocSource:
         kind=kind,
         jql=jql.strip(),
         max_issues=_int_setting(block, "max_issues", 100, minimum=1, where=where),
+    )
+
+
+def _optional_name(block: dict[str, Any], key: str, *, where: str) -> str:
+    value = block.get(key, "")
+    if not isinstance(value, str) or (key in block and not value.strip()):
+        raise RepoConfigError(f"{where}: 'rag.{key}' must be a non-empty string, got {value!r}")
+    return value.strip()
+
+
+def _rag_source(name: str, server: str, block: dict[str, Any], *, where: str) -> DocSource:
+    trusted = block.get("trust_read_only", [])
+    if not isinstance(trusted, list) or not all(isinstance(t, str) and t.strip() for t in trusted):
+        raise RepoConfigError(f"{where}: 'rag.trust_read_only' must be a list of tool names, got {trusted!r}")
+    return DocSource(
+        name=name,
+        server=server,
+        kind="rag",
+        collection=_optional_name(block, "collection", where=where),
+        tool=_optional_name(block, "tool", where=where),
+        query_arg=_optional_name(block, "query_arg", where=where),
+        top_k=_int_setting(block, "top_k", 10, minimum=1, where=where),
+        max_queries=_int_setting(block, "max_queries", 300, minimum=1, where=where),
+        max_chunks=_int_setting(block, "max_chunks", 2000, minimum=1, where=where),
+        trust_read_only=tuple(dict.fromkeys(t.strip() for t in trusted)),
     )
 
 
@@ -403,6 +462,7 @@ def find_repo_config(start: Path | str = ".") -> Path | None:
 __all__ = [
     "DEFAULT_CONFIG",
     "DOC_SOURCE_KINDS",
+    "ENUMERATED_KINDS",
     "JOIN_KINDS",
     "DocSource",
     "Join",

@@ -12,6 +12,12 @@ allow-list routinely includes write tools (``jira_create_issue`` for intake), an
 that could reach one because a tool name was mistyped is a pull that can change a tracker.
 Tightening :meth:`MCPRegistry.call` for every caller is a separate decision (ledger B43).
 
+A ``rag`` source (SSPN-82) keeps both tests with one widening (D47): a tool its
+``trust_read_only`` names passes the second. Most RAG servers (chroma-mcp, mcp-server-qdrant)
+annotate nothing, so ``readOnlyHint`` alone would refuse every one of them; the operator
+vouches instead, by name, in the committed ``repos.yaml`` where a reviewer sees it. The allow-list
+test is never widened, and a Confluence or Jira source has no such list.
+
 **What each source asks for.**
 
 - *Confluence* (D16, D32): breadth-first from each root page — ``confluence_get_page`` per page
@@ -23,6 +29,9 @@ Tightening :meth:`MCPRegistry.call` for every caller is a separate decision (led
   ``jira_get_issue`` per key with ``comment_limit: 10`` and **always** ``update_history:
   false`` — mcp-atlassian defaults it to true, which would stamp every pulled issue into the
   operator's "recently viewed".
+- *RAG* (D10, D16): whatever :mod:`orchestrator.mcp.discovery` reads off the server's schemas —
+  a walk of the corpus with a list tool, else one query per module and class — run by
+  :mod:`orchestrator.mcp.rag_pull`.
 
 Every bound is reported honestly (invariant 7): ``N of M`` when the server said how many there
 were, ``N of at least M (cap reached)`` when a walk stopped with pages still queued.
@@ -31,12 +40,12 @@ were, ``N of at least M (cap reached)`` when a walk stopped with pages still que
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from orchestrator.mcp.models import MCPServerStatus, MCPTool
+from orchestrator.mcp.models import MCPServerStatus, MCPTool, MCPToolResult
 from orchestrator.mcp.registry import MCPRegistry
 from orchestrator.pkg.external_docs import (
     ExternalPage,
@@ -48,6 +57,9 @@ from orchestrator.pkg.external_docs import (
     write_pull,
 )
 from orchestrator.pkg.repos import DocSource
+
+if TYPE_CHECKING:
+    from orchestrator.pkg.facts import FactBatch
 
 #: The tools each kind of source calls — and so the tools the guard must clear before a pull.
 TOOLS: dict[str, tuple[str, ...]] = {
@@ -88,27 +100,47 @@ def _text_of(value: Any) -> str:
     return ""
 
 
-def vet_tools(source: DocSource, status: MCPServerStatus | None) -> dict[str, MCPTool]:
-    """The tools ``source`` needs, each cleared by the guard — or :class:`ToolGuardError`
-    naming every one that is not, before anything is called."""
+def server_status(source: DocSource, status: MCPServerStatus | None) -> MCPServerStatus:
+    """``status``, when the server is configured and answered its tool listing."""
     if status is None:
         raise ToolGuardError(f"source {source.name!r}: MCP server {source.server!r} is not configured")
     if not status.ok:
         raise PullError(f"MCP server {source.server!r} is unavailable: {status.error or status.kind}")
-    offered = {t.name: t for t in status.tools}
+    return status
+
+
+def vet_tools(
+    source: DocSource, status: MCPServerStatus | None, needed: Sequence[str] | None = None
+) -> dict[str, MCPTool]:
+    """The tools ``source`` needs, each cleared by the guard — or :class:`ToolGuardError`
+    naming every one that is not, before anything is called.
+
+    ``needed`` defaults to the kind's fixed tools (:data:`TOOLS`); a ``rag`` pull passes what
+    discovery picked. A ``rag`` source's ``trust_read_only`` clears a tool the server does not
+    annotate (D47) — the operator vouching for it in the committed ``repos.yaml``. Confluence and
+    Jira sources carry no such list, so their rule is exactly ``readOnlyHint: true``."""
+    offered = {t.name: t for t in server_status(source, status).tools}
+    names = tuple(needed) if needed is not None else TOOLS[source.kind]
+    trusted = set(source.trust_read_only)
     refused: list[str] = []
-    for name in TOOLS[source.kind]:
+    for name in names:
         tool = offered.get(name)
         if tool is None:
             refused.append(f"{source.server}:{name} (not allow-listed or not offered)")
-        elif tool.read_only is not True:
-            refused.append(f"{source.server}:{name} (read_only={tool.read_only!r}, not declared read-only)")
+        elif tool.read_only is not True and name not in trusted:
+            vouch = ", nor named in rag.trust_read_only" if source.kind == "rag" else ""
+            refused.append(
+                f"{source.server}:{name} (read_only={tool.read_only!r}, not declared read-only{vouch})"
+            )
     if refused:
+        rule = "that declare readOnlyHint=true"
+        if source.kind == "rag":
+            rule += " or that the source's trust_read_only names"
         raise ToolGuardError(
             f"source {source.name!r}: refusing to pull — the docs pull calls only allow-listed tools "
-            f"that declare readOnlyHint=true: {'; '.join(refused)}"
+            f"{rule}: {'; '.join(refused)}"
         )
-    return {name: offered[name] for name in TOOLS[source.kind]}
+    return {name: offered[name] for name in names}
 
 
 @dataclass
@@ -121,6 +153,13 @@ class _Caller:
     calls: list[dict[str, Any]] = field(default_factory=list)
 
     async def call(self, tool: str, args: dict[str, Any]) -> tuple[Any, str]:
+        data, result = await self.call_result(tool, args)
+        return data, result.text
+
+    async def call_result(self, tool: str, args: dict[str, Any]) -> tuple[Any, MCPToolResult]:
+        """``(parsed JSON text or None, the whole result)`` — for a caller that needs the text
+        blocks apart or the structured content (a RAG answer). The same guard and the same
+        failure detection as :meth:`call`, including an ``{"error": ...}`` structured body."""
         if tool not in self.vetted:
             raise ToolGuardError(f"refusing {self.server}:{tool} — not cleared by the docs-pull tool guard")
         self.calls.append({"tool": tool, "args": dict(args)})
@@ -130,11 +169,14 @@ class _Caller:
                 f"{self.server}:{tool} failed ({json.dumps(args, sort_keys=True)}): {result.text[:300]}"
             )
         data = _loads(result.text) if result.text.strip() else None
-        if (reason := _error_body(data)) is not None:
+        reason = _error_body(data)
+        if reason is None and data is None:
+            reason = _error_body(result.structured)
+        if reason is not None:
             raise PullError(
                 f"{self.server}:{tool} failed ({json.dumps(args, sort_keys=True)}): {reason[:300]}"
             )
-        return data, result.text
+        return data, result
 
 
 # Keys that make a JSON body an answer rather than a complaint — a page, a child listing, a search,
@@ -164,10 +206,18 @@ class Pulled:
     total: int | None = None  # what the server said exists, when it said
     discovered: int = 0  # pages seen (fetched + still queued) when a walk stopped
     truncated: bool = False
+    queried: int | None = None  # a query-driven rag pull: queries asked …
+    candidates: int | None = None  # … of how many modules and classes could have been asked
+    queries: dict[str, list[str]] | None = None  # query → chunk ids, for queries.json
 
     @property
     def bound(self) -> str:
         n = len(self.pages)
+        if self.queried is not None:
+            asked = f"queried {self.queried} of {self.candidates} symbols"
+            if self.candidates is not None and self.queried < self.candidates:
+                asked += " (cap reached)"
+            return f"{asked} → {n} chunk(s)"
         if self.total is not None:
             return f"{n} of {self.total}" + (" (cap reached)" if n < self.total else "")
         if self.truncated:
@@ -343,11 +393,31 @@ async def ingest_docs(
     *,
     dry_run: bool = False,
     cache_base: Path | None = None,
+    graph: Callable[[], FactBatch] | None = None,
 ) -> list[dict[str, Any]]:
     """Pull every source in ``sources`` for ``repo_key`` — one summary per source.
 
     A source that fails — refused by the guard, a server error, an unreadable answer — keeps
-    its last good pull and gets a ``failure.json`` beside it; the others still pull."""
+    its last good pull and gets a ``failure.json`` beside it; the others still pull.
+
+    A query-driven ``rag`` source asks about the repository's modules and classes, so it needs
+    the code graph: ``graph`` when given, else ``load_or_extract(repo_root)`` — built once, and
+    only when such a source actually pulls (never on a dry run)."""
+    from orchestrator.mcp.discovery import discover
+    from orchestrator.mcp.rag_pull import pull_rag, rag_plan_of
+
+    built: list[FactBatch] = []
+
+    def code_graph() -> FactBatch:
+        if not built:
+            if graph is not None:
+                built.append(graph())
+            else:
+                from orchestrator.pkg import load_or_extract
+
+                built.append(load_or_extract(repo_root))
+        return built[0]
+
     statuses = {s.name: s for s in await registry.probe()}
     out: list[dict[str, Any]] = []
     for source in sources:
@@ -359,8 +429,14 @@ async def ingest_docs(
             "cap": source.cap,
             "cache": str(dest),
         }
+        plan = None
         try:
-            vetted = vet_tools(source, statuses.get(source.server))
+            if source.kind == "rag":
+                status = server_status(source, statuses.get(source.server))
+                plan = discover(source, status.tools)
+                vetted = vet_tools(source, status, plan.tools)
+            else:
+                vetted = vet_tools(source, statuses.get(source.server))
         except (ToolGuardError, PullError) as exc:
             row.update(
                 {"status": "refused" if isinstance(exc, ToolGuardError) else "failed", "error": str(exc)}
@@ -369,18 +445,29 @@ async def ingest_docs(
                 record_failure(dest, str(exc))
             out.append(row)
             continue
+        if plan is not None:
+            row["strategy"] = plan.strategy
         if dry_run:
-            row.update({"status": "planned", "tools": plan_of(source)})
+            row.update({"status": "planned", "tools": rag_plan_of(source, plan) if plan else plan_of(source)})
             out.append(row)
             continue
         caller = _Caller(registry, source.server, frozenset(vetted))
         try:
-            pulled = await (
-                _pull_confluence(caller, source)
-                if source.kind == "confluence"
-                else _pull_jira(caller, source)
-            )
-            manifest = {
+            if plan is not None:
+                pulled = await pull_rag(caller, source, plan, code_graph)
+            elif source.kind == "confluence":
+                pulled = await _pull_confluence(caller, source)
+            else:
+                pulled = await _pull_jira(caller, source)
+            counts: dict[str, Any] = {
+                "pages": len(pulled.pages),
+                "cap": pulled.cap,
+                "total": pulled.total,
+                "discovered": pulled.discovered,
+                "truncated": pulled.truncated,
+                "bound": pulled.bound,
+            }
+            manifest: dict[str, Any] = {
                 "source": source.name,
                 "kind": source.kind,
                 "server": source.server,
@@ -388,16 +475,15 @@ async def ingest_docs(
                 "server_version": None,
                 "pulled_at": utc_stamp(),
                 "tools_called": caller.calls,
-                "counts": {
-                    "pages": len(pulled.pages),
-                    "cap": pulled.cap,
-                    "total": pulled.total,
-                    "discovered": pulled.discovered,
-                    "truncated": pulled.truncated,
-                    "bound": pulled.bound,
-                },
+                "counts": counts,
             }
-            written = write_pull(dest, pulled.pages, manifest)
+            if plan is not None:
+                manifest.update({"strategy": plan.strategy, "plan": plan.describe()})
+                if source.collection:
+                    manifest["collection"] = source.collection
+                if pulled.queried is not None:
+                    counts.update({"queried": pulled.queried, "candidates": pulled.candidates})
+            written = write_pull(dest, pulled.pages, manifest, queries=pulled.queries)
         except (ToolGuardError, PullError, OSError, ValueError, KeyError, RuntimeError) as exc:
             reason = f"{type(exc).__name__}: {exc}"
             record_failure(dest, reason)
@@ -407,6 +493,7 @@ async def ingest_docs(
         row.update(
             {
                 "status": "ok",
+                "cap": pulled.cap,
                 "pulled": len(pulled.pages),
                 "bound": pulled.bound,
                 "truncated": pulled.truncated,
@@ -426,4 +513,13 @@ def _tally(calls: list[dict[str, Any]]) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
-__all__ = ["TOOLS", "PullError", "Pulled", "ToolGuardError", "ingest_docs", "plan_of", "vet_tools"]
+__all__ = [
+    "TOOLS",
+    "PullError",
+    "Pulled",
+    "ToolGuardError",
+    "ingest_docs",
+    "plan_of",
+    "server_status",
+    "vet_tools",
+]

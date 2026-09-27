@@ -429,7 +429,14 @@ class _Docs:
                 related.update(d for d in named.get(local[1], ()) if d not in refs)
         # the repository's own docs first at each distance: they are reviewed with the code
         listed = sorted(refs.values(), key=lambda r: (_VIA_RANK[r["via"]], r["origin"] != "repo", r["doc"]))
-        return {"doc_count": len(listed), "docs": listed[:25], "related_doc_count": len(related)}
+        out: dict[str, Any] = {
+            "doc_count": len(listed),
+            "docs": listed[:25],
+            "related_doc_count": len(related),
+        }
+        if binding is not None:
+            out.update(_retrieval_fields(binding, store.node(own), own))
+        return out
 
 
 def _local_doc_sources(repo: Any) -> tuple[str | None, tuple[Any, ...]]:
@@ -474,10 +481,37 @@ def _external_ref_fields(binding: Any, doc_id: str) -> dict[str, Any]:
         out.update({"origin": meta["origin"], "source": meta["source"], "title": meta["title"]})
         if meta["url"]:
             out["url"] = meta["url"]
+        if meta.get("source_path"):
+            out["source_path"] = meta["source_path"]
     also = binding.also_in.get(doc_id)
     if also:
         out["also_in"] = list(also)
     return out
+
+
+def _retrieval_fields(binding: Any, node: Any, node_id: str) -> dict[str, int]:
+    """``external_retrieved_count`` / ``external_unverified_count`` for a symbol a query-driven
+    ``rag`` pull asked about (SSPN-82, D9): what the servers returned for its query, and how many
+    of those the binder could not tie to it — counted, never listed, because a retrieved chunk
+    is not a mention. Empty when no pull asked about this symbol."""
+    counted = binding.retrieval(node, node_id) if node is not None else None
+    if counted is None:
+        return {}
+    retrieved, naming = counted
+    return {"external_retrieved_count": retrieved, "external_unverified_count": retrieved - naming}
+
+
+def _retrieval_line(match: dict[str, Any]) -> str | None:
+    """ "N retrieved, K name the symbol" — the markdown for :func:`_retrieval_fields`."""
+    if "external_retrieved_count" not in match:
+        return None
+    retrieved = match["external_retrieved_count"]
+    naming = retrieved - match["external_unverified_count"]
+    return (
+        f"- **RAG retrieval:** {retrieved} retrieved, {naming} name the symbol"
+        + (" (listed above)" if naming else "")
+        + (f"; {retrieved - naming} counted, not listed — no unique anchor" if retrieved - naming else "")
+    )
 
 
 def _external_markdown(standings: list[dict[str, Any]]) -> list[str]:
@@ -491,6 +525,9 @@ def _external_markdown(standings: list[dict[str, Any]]) -> list[str]:
             state = str(row.get("error") or "last pull failed")
         else:
             state = f"pulled {row['pulled_at']} ({row['age_days']} d ago)"
+        if row.get("pull_bound"):
+            how = f"{row['strategy']}: " if row.get("strategy") else ""
+            state += f"; {how}{row['pull_bound']}"
         if row.get("stale"):
             state += " — **stale** (over 7 days)"
         lines.append(f"- **External docs** {label}: {state}")
@@ -1293,6 +1330,9 @@ def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) ->
                             f"- external ({len(external)}): "
                             + ", ".join(f"`{r['doc']}` ({r['origin']}/{r['source']})" for r in external[:10])
                         )
+                    match.update(_retrieval_fields(binding, node, node.id))
+                    if (retrieval := _retrieval_line(match)) is not None:
+                        lines.append(retrieval)
                 out.append(match)
             answer: dict[str, Any] = {"symbol": symbol, "found": True, "matches": out}
             if standings:
@@ -1460,6 +1500,8 @@ def _blast_markdown(matches: list[dict[str, Any]]) -> str:
             lines.append(
                 f"- **{m['related_doc_count']} more doc(s)** name its callers or the code it touches"
             )
+        if (retrieval := _retrieval_line(m)) is not None:
+            lines.append(retrieval)
         # Only on a merged graph. Rendered even at zero: "no dependents in other repos" is an
         # answer, and its absence would read the same as never having looked.
         if "cross_repo_count" in m:

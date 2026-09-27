@@ -227,7 +227,10 @@ class DocRef(TypedDict, total=False):
     source: str  # external only: the repos.yaml `docs:` source name
     title: str  # external only: the page or issue title
     url: str  # external only: where the page lives
-    also_in: list[str]  # a repository doc an external source holds verbatim: "mcp:<server>/<source>"
+    source_path: str  # a RAG chunk: the path or uri its server's metadata names
+    # a repository doc an external source holds verbatim — or, a RAG source, indexes from this
+    # very file — as "mcp:<server>/<source>"
+    also_in: list[str]
 
 
 @with_config(_OPEN)
@@ -247,6 +250,8 @@ class ExternalDocStanding(TypedDict, total=False):
     sections: int
     bound_sections: int
     collapsed_into_repo_docs: int  # identical to a repository doc section, listed there as also_in
+    strategy: str  # a rag source: "enumerate" (walked the corpus) or "query" (one query per symbol)
+    pull_bound: str  # what the pull covered: "N of M", "queried N of M symbols (cap reached) → K chunk(s)"
 
 
 @with_config(_OPEN)
@@ -265,6 +270,8 @@ class BlastMatch(TypedDict, total=False):
     doc_count: int
     docs: list[DocRef]
     related_doc_count: int
+    external_retrieved_count: int  # chunks a query-driven rag pull got back for this symbol's query
+    external_unverified_count: int  # … of which the binder ties none to this symbol: counted, not listed
     cross_repo_count: int
     cross_repo: list[CrossRepoReach]
 
@@ -296,6 +303,8 @@ class SymbolMatch(TypedDict, total=False):
     doc_count: int
     docs: list[DocRef]
     related_doc_count: int
+    external_retrieved_count: int  # as BlastMatch
+    external_unverified_count: int
     repo: str
     cross_repo_count: int
     cross_repo: list[CrossRepoReach]
@@ -447,6 +456,8 @@ class DocMatch(TypedDict, total=False):
     docs: list[str]
     external: list[DocRef]  # docs pulled over MCP that name it (origin "mcp:<server>")
     also_in: dict[str, list[str]]  # repository doc → the external sources holding it verbatim
+    external_retrieved_count: int  # as BlastMatch
+    external_unverified_count: int
 
 
 @with_config(_OPEN)

@@ -29,10 +29,17 @@ class MCPTool:
 
 @dataclass(frozen=True)
 class MCPToolResult:
-    """The flattened result of one MCP tool call (text content concatenated)."""
+    """The flattened result of one MCP tool call (text content concatenated).
+
+    ``blocks`` keeps each text content block apart and ``structured`` carries the server's
+    ``structuredContent`` — both for callers the joined ``text`` loses information for: a RAG
+    server that answers one block per chunk has no separator left once the blocks are joined
+    (SSPN-82). Both default empty, so a result built from ``text`` alone reads as before."""
 
     text: str
     is_error: bool = False
+    blocks: tuple[str, ...] = ()
+    structured: Any = None
 
 
 @dataclass(frozen=True)

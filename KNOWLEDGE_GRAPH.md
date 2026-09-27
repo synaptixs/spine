@@ -371,6 +371,14 @@ age in `external_docs`), and **never** in `understand`, `state` or `episteme/`: 
 credentials to pull them, and those outputs must reproduce there byte for byte. A section
 identical to one of the repo's own is listed once, under the repo doc, with `also_in`.
 
+A **`rag:` source** — any RAG system's MCP server — caches *chunks* the same way: each chunk is
+one `Doc` node, `doc:mcp:<server>/<chunk id>` (the server's id, else `sha1(text)[:12]`), never
+split further. A chunk becomes a `MENTIONS` edge only under the same one-anchor rule; retrieval
+alone admits nothing. What a query-driven pull retrieved for a symbol but cannot bind to it is
+reported as a count (`external_retrieved_count` / `external_unverified_count`), never an edge. A
+chunk whose source metadata names one of the repo's doc files collapses into that file's
+sections as `also_in`.
+
 **Media** (architecture diagrams, screenshots, recorded design reviews) join the graph the
 same way — as `Doc` nodes + `MENTIONS` — but through one extra, deliberate step. Because OCR
 and speech-to-text are model inference (non-deterministic, slow, sometimes networked), they
