@@ -343,6 +343,54 @@ languages `invention` reports every candidate as *unexaminable*, which prints as
 "not measured", not "clean". `pkg verify` is the complement — it catches self-contradiction, but
 it cannot catch a fabricated edge whose target node was fabricated alongside it.
 
+### Docs that live outside the repo — Confluence and Jira
+
+`blast_radius`, `explain_symbol` and `docs_for` list the doc sections that describe a symbol.
+The repository's own docs are always there; pages that live in Confluence, or the Jira issues
+that specified the code, join them once you declare them in `.spine/repos.yaml` and pull them
+through an onboarded MCP server (see [OPERATIONS.md](OPERATIONS.md) §9):
+
+```yaml
+repos:
+  app: ..                       # this checkout (paths are relative to .spine/)
+docs:
+  app:                          # a key declared under repos:
+    - name: handbook            # unique per repo; also the cache folder name
+      server: atlassian         # an onboarded server in mcp.json
+      confluence: {roots: ["123456"], max_depth: 3, max_docs: 100}
+    - name: tickets
+      server: atlassian
+      jira: {jql: "project = APP AND labels = api", max_issues: 100}
+```
+
+```bash
+orchestrator mcp ingest-docs --dry-run     # which tools would be called, nothing is
+orchestrator mcp ingest-docs               # pull every declared source into the docs cache
+```
+
+Each source declares exactly one of `confluence` (page-id `roots`, walked to `max_depth`, at most
+`max_docs` pages — defaults 3 and 100) or `jira` (`jql`, at most `max_issues` — default 100). A
+mistake names the entry: `docs[app][1]: declare exactly one of 'confluence' or 'jira'`. A file
+without a `docs:` block is as valid as before.
+
+What you then see:
+
+- **In `blast_radius` / `explain_symbol`**, external sections sit in `docs` beside the repo's,
+  with `origin: "mcp:<server>"`, the `source`, the page `title` and `url`. A section identical to
+  one of the repo's own (a Confluence mirror of `docs/`) is listed once, under the repo doc, with
+  `also_in`.
+- **In `docs_for`**, a symbol lookup keeps `docs` (the repo's) and adds `external`; the summary adds
+  `external_doc_count`, `external_documented_symbols` and `external_drift` — counted apart, never
+  mixed into the repository's numbers.
+- **Every answer that read them carries `external_docs`**: per source, `status` (`ok`, `failed`,
+  `never_pulled`), `pulled_at`, `age_days` and `stale` (older than 7 days). A failed pull keeps
+  showing the last good data and says from when.
+
+Pages are bound to code **when a tool reads them**, not when they are pulled — rename a class and
+the page that named it stops listing it (and shows up as external drift) without a re-pull.
+`understand` and `state` never read pulled docs: CI cannot pull them, and `episteme/` must be
+reproducible there.
+
 ### Which ticket was this code written for? (opt-in)
 
 `understand` and `state` both accept `--intents`, which records the ticket each symbol was last

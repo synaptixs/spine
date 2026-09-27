@@ -255,6 +255,70 @@ def mcp_ingest_db(
     )
 
 
+@mcp_app.command("ingest-docs")
+def mcp_ingest_docs(
+    repo: Annotated[str, typer.Option("--repo", help="The repository whose docs: sources to pull.")] = ".",
+    repos: Annotated[
+        str | None,
+        typer.Option("--repos", help="The repos.yaml declaring docs: (default <repo>/.spine/repos.yaml)."),
+    ] = None,
+    source: Annotated[
+        list[str] | None, typer.Option("--source", help="Pull only this source name (repeatable).")
+    ] = None,
+    config: Annotated[str | None, typer.Option("--config", help="mcpServers JSON file path.")] = None,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Resolve config and the tool guard; call no tools.")
+    ] = False,
+) -> None:
+    """Pull a repo's Confluence/Jira docs (repos.yaml docs:) over MCP into the docs cache.
+
+    The pulled pages are bound to code at read time by blast_radius, explain_symbol and
+    docs_for — never by understand/state. Only allow-listed tools that declare themselves
+    read-only are called; anything else is refused by name. Each source is replaced whole
+    (atomic), and a failed pull keeps the last good one.
+    """
+    import asyncio
+
+    from orchestrator.core.env import load_local_env
+    from orchestrator.mcp.doc_pull import ingest_docs
+    from orchestrator.pkg.repos import DEFAULT_CONFIG, RepoConfigError, load_repo_config
+
+    root = Path(repo).expanduser().resolve()
+    config_path = Path(repos) if repos else root / DEFAULT_CONFIG
+    try:
+        repo_set = load_repo_config(config_path)
+    except RepoConfigError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    key = repo_set.key_for(root)
+    if key is None:
+        typer.echo(f"{root} is not declared under repos: in {config_path}", err=True)
+        raise typer.Exit(code=2)
+    declared = repo_set.doc_sources(key)
+    if not declared:
+        typer.echo(f"{config_path} declares no docs: sources for {key!r}", err=True)
+        raise typer.Exit(code=2)
+    wanted = list(dict.fromkeys(source or []))
+    unknown = [name for name in wanted if name not in {s.name for s in declared}]
+    if unknown:
+        typer.echo(
+            f"no docs: source named {unknown} for {key!r} — declared: {[s.name for s in declared]}", err=True
+        )
+        raise typer.Exit(code=2)
+    chosen = [s for s in declared if not wanted or s.name in wanted]
+
+    load_local_env()
+    registry = _mcp_build_registry(_mcp_load_configs(config))
+    rows = asyncio.run(ingest_docs(registry, root, key, chosen, dry_run=dry_run))
+    _print({"repo": key, "root": str(root), "dry_run": dry_run, "sources": rows})
+    # A refusal is a configuration problem the operator must fix (2, like `mcp call`); any other
+    # failed source is 1 — the ones that succeeded are cached either way.
+    if any(r["status"] == "refused" for r in rows):
+        raise typer.Exit(code=2)
+    if any(r["status"] == "failed" for r in rows):
+        raise typer.Exit(code=1)
+
+
 @mcp_app.command("contracts")
 def mcp_contracts(
     config: Annotated[str | None, typer.Option("--config", help="mcpServers JSON file path.")] = None,

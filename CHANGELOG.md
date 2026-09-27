@@ -28,6 +28,20 @@ All notable changes to this project are documented here. Format loosely follows
   Adding a server from the Connections page now tests the expanded url rather than the text as
   typed. ([SSPN-81](https://fibonacci-solutions.atlassian.net/browse/SSPN-81))
 
+- **`orchestrator mcp ingest-docs` — Confluence and Jira docs join the blast radius.** Declare a
+  repository's external doc sources under a new `docs:` block in `.spine/repos.yaml`
+  (`confluence: {roots, max_depth, max_docs}` or `jira: {jql, max_issues}`, through an onboarded
+  MCP server) and the command pulls them into a cache outside the checkout. `blast_radius`,
+  `explain_symbol` and `docs_for` then bind the cached pages at read time with the same binder as
+  the repository's own docs — a rename drops a stale mention without a re-pull — listing them with
+  `origin: "mcp:<server>"`, `source`, `title` and `url`; `docs_for` adds `external` per match and
+  external coverage and drift apart from the repository's numbers. Every answer that read them
+  carries `external_docs` — each source's status, age and `stale` flag (over 7 days); a failed
+  pull keeps the last good data and says from when. A section identical to a repository doc is
+  listed once, under it, with `also_in`. The pull calls only allow-listed tools the server declares
+  read-only and refuses any other by name; Jira reads never touch view history. `understand` and
+  `state` never read pulled docs. ([SSPN-80](https://fibonacci-solutions.atlassian.net/browse/SSPN-80))
+
 ### Fixed
 
 - **A `#` comment inside a code block no longer splits a doc into a phantom section.**
