@@ -92,7 +92,7 @@ _Showing 16 of 34 neighbouring areas._
 - [`orchestrator.sdlc.run_control`](../../src/orchestrator/sdlc/run_control.py#L1)
 - [`orchestrator.sdlc.runstate`](../../src/orchestrator/sdlc/runstate.py#L1)
 - [`orchestrator.sdlc.sam`](../../src/orchestrator/sdlc/sam.py#L1)
-- [`orchestrator.sdlc.scaffold`](../modules/orchestrator.sdlc.scaffold.md)
+- [`orchestrator.sdlc.scaffold`](../../src/orchestrator/sdlc/scaffold.py#L1)
 - [`orchestrator.sdlc.source_paths`](../../src/orchestrator/sdlc/source_paths.py#L1)
 - [`orchestrator.sdlc.spec_context`](../../src/orchestrator/sdlc/spec_context.py#L1)
 - [`orchestrator.sdlc.spec_file`](../../src/orchestrator/sdlc/spec_file.py#L1)

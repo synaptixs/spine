@@ -7,4 +7,4 @@
 
 ## Modules
 
-- [`scripts.render_knowledge_foundation_svg`](../modules/scripts.render_knowledge_foundation_svg.md)
+- [`scripts.render_knowledge_foundation_svg`](../../scripts/render_knowledge_foundation_svg.py#L1)
