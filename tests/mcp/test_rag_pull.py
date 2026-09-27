@@ -140,6 +140,13 @@ def test_a_zero_hit_qdrant_answer_is_no_chunk() -> None:
     assert normalise(None, MCPToolResult(text=miss, blocks=(miss,))) == []
 
 
+def test_a_tool_that_returned_nothing_is_no_chunk() -> None:
+    """``qdrant-find`` answers a miss with ``return None`` (its mcp_server.py); depending on the SDK
+    that reaches the client as no content at all or as the JSON text ``null`` — never a passage."""
+    assert normalise(None, MCPToolResult(text="null", blocks=("null",))) == []
+    assert normalise(None, MCPToolResult(text="", blocks=())) == []
+
+
 # ---- strategy: enumerate vs query -----------------------------------------------------------
 
 

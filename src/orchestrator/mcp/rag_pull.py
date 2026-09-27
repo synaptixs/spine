@@ -248,6 +248,8 @@ def normalise(data: Any, result: MCPToolResult) -> list[Chunk]:
     only fills ``structuredContent``); last, each text block as one bare chunk (Ragie)."""
     if isinstance(data, Mapping | list):
         return _dedupe(_from_json(data))
+    if data is None and result.text.strip() == "null":
+        return []  # a tool that returned nothing (``qdrant-find`` on a miss), JSON-encoded
     if "<entry>" in result.text:
         return _dedupe(_from_entries(result.text))
     objects = _json_objects(result.text)

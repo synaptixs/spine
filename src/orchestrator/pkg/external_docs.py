@@ -190,8 +190,9 @@ def query_name(name: str) -> str:
 def rag_queries(batch: FactBatch, cap: int) -> tuple[list[str], int]:
     """``(queries, candidates)`` for a query-driven ``rag`` pull (D16).
 
-    One query per module and class — not methods: a method's name is rarely what prose calls
-    it — ordered by how many distinct nodes call or import it, most first, then by id, so the
+    One query per module and class of this repository — never an imported library, and not
+    methods: a method's name is rarely what prose calls it — ordered by how many distinct nodes
+    call or import it, most first, then by id, so the
     cap keeps the symbols a change most often ripples from. Queries are short names,
     de-duplicated (two modules called ``utils`` ask once); ``candidates`` is how many distinct
     queries there were before ``cap``, so the pull can say "queried N of M"."""
@@ -200,8 +201,11 @@ def rag_queries(batch: FactBatch, cap: int) -> tuple[list[str], int]:
     for edge in batch.edges:
         if edge.kind in (EdgeKind.CALLS, EdgeKind.IMPORTS) and edge.src != edge.dst:
             callers.setdefault(edge.dst, set()).add(edge.src)
+    # Only this repository's own symbols: an imported library (`os`, `json`, `typing.Any`) is an
+    # external node that every module imports, so it would top a most-imported order and spend the
+    # cap on names the corpus does not document — half of 60 queries, measured on a real repo.
     nodes = sorted(
-        (n for n in batch.nodes if n.kind in wanted),
+        (n for n in batch.nodes if n.kind in wanted and not n.external and n.grounded),
         key=lambda n: (-len(callers.get(n.id, ())), n.id),
     )
     ordered: list[str] = []

@@ -357,6 +357,22 @@ def test_rag_queries_are_modules_and_classes_most_called_first_capped(tmp_path: 
     assert rag_queries(batch, 300) == (["Client", "lib", "client", "server", "Server"], 5)
 
 
+def test_rag_queries_never_ask_about_libraries_the_repo_only_imports(tmp_path: Path) -> None:
+    """`os`, `json` and `typing.Any` are imported everywhere, so a most-imported-first order put
+    them at the top — measured on a real repo, half of 60 queries went to stdlib and typing names.
+    The corpus documents this repo, so only its own modules and classes are asked about."""
+    repo = _repo(tmp_path)
+    (repo / "lib" / "server.py").write_text(
+        "import json\nimport os\nfrom typing import Any\n\n"
+        "class Server:\n    def run(self, x: Any) -> str:\n        return json.dumps(os.getcwd())\n",
+        encoding="utf-8",
+    )
+    (repo / "lib" / "worker.py").write_text("import json\nimport os\n", encoding="utf-8")
+    queries, _candidates = rag_queries(load_or_extract(repo), 300)
+    assert not {"json", "os", "Any", "typing"} & set(queries)
+    assert {"Client", "Server"} <= set(queries)
+
+
 def test_query_name_is_the_last_segment() -> None:
     assert [query_name(n) for n in ("lib.client", "pkg::Client", "a/b/c", "Client", "")] == [
         "client",
