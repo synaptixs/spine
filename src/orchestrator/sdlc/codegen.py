@@ -1013,6 +1013,9 @@ class LLMCodegenAdapter:
         # Files written per worktree root this session — fed back to the model
         # in author_tests/refine instead of dumping the whole tree.
         self._written: dict[Path, list[Path]] = {}
+        # The subset of `_written` this session *created* (B47): a pre-existing file it only edited
+        # stays someone else's test, which refine may not unlock for lint repair.
+        self._created: dict[Path, list[Path]] = {}
         # Set only while `refine` runs: the pre-existing files it may edit (see `refine`).
         self._refine_editable: frozenset[str] | None = None
         # Derived house-style digest per worktree root (G8), computed once.
@@ -1450,7 +1453,10 @@ class LLMCodegenAdapter:
         named_by_failure = paths_named(failures, root)
         named_by_ticket = _paths_from(spec, self._design, root)
         only_failure_named = [p for p in named_by_failure if p not in named_by_ticket]
-        lint_tests = _lint_named_session_tests(failures, root, self._written.get(root.resolve(), []))
+        shown = _truncate(failures, _MAX_FAILURE_BYTES)
+        # The findings the model is shown, never ones truncation cut: an allowance must name
+        # only files whose finding is in front of it.
+        lint_tests = _lint_named_session_tests(shown, root, self._created.get(root.resolve(), []))
         # Refine may change a pre-existing file only when something the model was shown
         # names it: the failure, the spec or the design. NSS-1243's refine read a cascade of
         # errors and edited a correct `_Imports.razor` in all three runs — once down to a bare
@@ -1473,7 +1479,7 @@ class LLMCodegenAdapter:
                 # Minus what the spec or design names: `_named_existing_files` shows those.
                 f"{self._failure_named_files(root, failures, only_failure_named)}"
                 f"{self._convention_block(root)}\n\n"
-                f"FAILURE OUTPUT:\n{_truncate(failures, _MAX_FAILURE_BYTES)}\n\n"
+                f"FAILURE OUTPUT:\n{shown}\n\n"
                 f"{self._definitions_for(failures, root)}",
                 root,
                 # A refine pass that yields no applicable edits is a legitimate
@@ -1811,6 +1817,7 @@ class LLMCodegenAdapter:
             files,
             root,
             written_tracker=self._written,
+            created_tracker=self._created,
             grounded=self._grounder is not None,
             summary=str(payload.get("summary") or "").strip(),
             editable_existing=self._refine_editable,
@@ -1989,6 +1996,7 @@ def apply_files(
     written_tracker: dict[Path, list[Path]],
     grounded: bool,
     summary: str = "",
+    created_tracker: dict[Path, list[Path]] | None = None,
     editable_existing: frozenset[str] | None = None,
     scope: EditScope | None = None,
 ) -> CodeChange:
@@ -2027,6 +2035,7 @@ def apply_files(
     out_of_scope: list[str] = []  # comment/docstring-only edits outside a confident scope: refused (B44)
     beyond_scope: list[str] = []  # any other edit outside the scope: applied, reported
     weakened: list[str] = []  # refine edits to a session test that drop an assert or a test: refused (B47)
+    created: list[Path] = []  # files that did not exist before this pass wrote them
     tracked_now = written_tracker.get(root.resolve(), [])
     from orchestrator.sdlc.source_paths import normalise
 
@@ -2180,6 +2189,8 @@ def apply_files(
             scope, rel, target.read_text(encoding="utf-8"), content, out_of_scope, beyond_scope
         ):
             continue
+        if not target.exists():
+            created.append(Path(str(target)))
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
         written.append(str(target))
@@ -2193,6 +2204,9 @@ def apply_files(
         for f in written:
             if Path(f) not in tracked:
                 tracked.append(Path(f))
+        if created_tracker is not None:
+            mine = created_tracker.setdefault(root.resolve(), [])
+            mine.extend(p for p in created if p not in mine)
 
     # Existing files the model tried to modify the wrong way (full-content
     # rewrite → guard-skipped, or a bad anchor → edit failed) must trigger
@@ -2209,6 +2223,9 @@ def apply_files(
         notes = [
             f"skipped existing (use edits, not full content): {', '.join(skipped)}" if skipped else "",
             f"edit issues: {'; '.join(edit_failures)}" if edit_failures else "",
+            (f"refused test edits, not applied: {'; '.join(weakened)} — keep every existing assert and test")
+            if weakened
+            else "",
         ]
         detail = " (" + "; ".join(n for n in notes if n) + ")"
         raise CodegenError(
@@ -2355,24 +2372,35 @@ def _changes_no_code(rel: str, old: str, new: str) -> bool:
 # names a test for exactly that reason — so none of these shapes matches one.
 _LINT_FINDING = re.compile(
     r"^\s*(?:"
-    r"--> (?P<full>\S+?\.pyi?):\d+:\d+"  # ruff check / ruff format --check, default ("full") output
-    r"|(?P<concise>\S+?\.pyi?):\d+:\d+: [A-Z]+[0-9]+\b"  # ruff check, concise output
-    r"|(?P<mypy>\S+?\.pyi?):\d+(?::\d+)?: error: "  # mypy
-    r"|Would reformat: (?P<fmt>\S+?\.pyi?)"  # ruff format --check, older output
-    r"|(?:ruff check|ruff format|mypy): (?P<baseline>\S+?\.pyi?) \["  # preflight's baseline mode
+    r"--> (?P<full>\S+?\.py):\d+:\d+"  # ruff check / ruff format --check, default ("full") output
+    r"|(?P<concise>\S+?\.py):\d+:\d+: [A-Z]+[0-9]+\b"  # ruff check, concise output
+    r"|(?P<mypy>\S+?\.py):\d+(?::\d+)?: error: "  # mypy
+    r"|Would reformat: (?P<fmt>\S+?\.py)"  # ruff format --check, older output
+    r"|(?:ruff check|ruff format|mypy): (?P<baseline>\S+?\.py) \["  # preflight's baseline mode
     r")",
+    re.MULTILINE,
+)
+# Any sign of a failing pytest run. Lint output reaches refine only after the tests are green, and
+# pytest echoes a test's source and its captured output — where a lint-shaped line can sit — so
+# text carrying a pytest failure unlocks nothing, whatever else it contains.
+_PYTEST_FAILURE = re.compile(
+    r"^(?:=+ (?:FAILURES|ERRORS|short test summary info) =+\s*$|(?:FAILED|ERROR) \S|E {3}|"
+    r"(?:=+ )?\d+ (?:failed|errors?)\b)",
     re.MULTILINE,
 )
 
 
-def _lint_named_session_tests(failures: str, root: Path, written: list[Path]) -> list[str]:
-    """Python test files this session wrote that a lint/type line in ``failures`` names (B47).
+def _lint_named_session_tests(failures: str, root: Path, created: list[Path]) -> list[str]:
+    """Python test files this session created that a lint/type line in ``failures`` names (B47).
 
-    Worktree-relative, in first-mention order. A pre-existing test is never returned, nor is a
-    test only a pytest failure names: refine may fix *lint* in the tests it wrote, never make a
-    red test green by editing it.
+    ``created`` is the files this session created — not ones it only edited. Worktree-relative, in
+    first-mention order. A pre-existing test is never returned, and nothing is returned when
+    ``failures`` shows a failing pytest run: refine may fix *lint* in the tests it wrote, never
+    make a red test green by editing it.
     """
-    mine = {p.resolve() for p in written}
+    if _PYTEST_FAILURE.search(failures):
+        return []
+    mine = {p.resolve() for p in created}
     base = root.resolve()
     found: list[str] = []
     for match in _LINT_FINDING.finditer(failures):
@@ -2532,16 +2560,19 @@ def _hoist_future_docstring(text: str) -> str | None:
     lines = text.splitlines(keepends=True)
     start, end = doc.lineno - 1, doc.end_lineno or doc.lineno
     # Whole lines only: nothing before the string on its first line, nothing after it on its last.
-    if doc.col_offset != 0 or lines[end - 1][doc.end_col_offset or 0 :].strip():
+    # ast's column offsets count UTF-8 bytes, not characters.
+    after_doc = lines[end - 1].encode("utf-8")[doc.end_col_offset or 0 :]
+    if doc.col_offset != 0 or after_doc.strip():
         return None
     moved = lines[start:end]
+    eol = "\r\n" if lines[start].endswith("\r\n") else "\n"
     if not moved[-1].endswith("\n"):
-        moved[-1] += "\n"
+        moved[-1] += eol
     rest = lines[:start] + lines[end:]
     if start < len(rest) and not rest[start].strip():
         del rest[start]  # the blank line that separated the docstring from what followed it
     first = body[0].lineno - 1
-    fixed = "".join(rest[:first] + moved + ["\n"] + rest[first:])
+    fixed = "".join(rest[:first] + moved + [eol] + rest[first:])
     try:
         after = ast.parse(fixed).body
     except SyntaxError:

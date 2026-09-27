@@ -26,6 +26,7 @@ from orchestrator.sdlc.codegen import (
     LLMCodegenAdapter,
     _hoist_future_docstring,
     _lint_named_session_tests,
+    _lint_test_allowance,
     _weakens_test,
     apply_files,
 )
@@ -43,6 +44,13 @@ def test_a_docstring_after_future_is_moved_to_the_top() -> None:
     assert fixed is not None
     assert fixed.startswith('"""Tests for the ledger."""\n\nfrom __future__ import annotations\n')
     assert ast.get_docstring(ast.parse(fixed)) == "Tests for the ledger."
+
+
+def test_a_line_ending_is_kept() -> None:
+    fixed = _hoist_future_docstring(_MISPLACED.replace("\n", "\r\n"))
+
+    assert fixed is not None
+    assert "\n" not in fixed.replace("\r\n", "")
 
 
 def test_the_rewrite_changes_no_code() -> None:
@@ -79,6 +87,9 @@ def test_several_future_imports_and_a_leading_comment_are_kept() -> None:
         'import os\n\n"""Not after a future import."""\n',
         'from __future__ import annotations\n\nx = 1\n"""A string later on."""\n',
         'from __future__ import annotations\n"""On a line with code."""; x = 1\n',
+        'from __future__ import annotations\n"""Doc."""  # a trailing comment\n',
+        # ast counts bytes: sliced by characters, this comment would look like nothing
+        'from __future__ import annotations\n"""éééééééééé"""  # c\n',
         "def broken(:\n",
         "",
     ],
@@ -133,6 +144,7 @@ def _session(tmp_path: Path) -> list[Path]:
         # baseline mode
         "--- 2 NEW finding(s) vs baseline ---\n  ruff check: tests/test_mine.py [E402] x2\n",
         "  mypy: tests/test_mine.py [union-attr] x1\n",
+        "  ruff format: tests/test_mine.py [unformatted] x1\n",
     ],
 )
 def test_a_lint_or_type_line_unlocks_a_session_test(tmp_path: Path, failures: str) -> None:
@@ -156,6 +168,16 @@ def test_an_absolute_path_on_a_lint_line_still_counts(tmp_path: Path) -> None:
         "tests/test_mine.py:12: AssertionError\n",
         "tests/test_mine.py:12: in test_total\n    assert total() == 4\n",
         "E   AssertionError: assert 3 == 4\n  tests/test_mine.py\n",
+        # pytest echoes a failing test's source: a lint-shaped line inside a string is not a finding
+        "=================================== FAILURES ===================================\n"
+        '    def test_parse() -> None:\n        text = """\n'
+        '    tests/test_mine.py:3: error: Name "y" is not defined  [name-defined]\n'
+        '        """\n>       assert parse(text)\nE       AssertionError\n',
+        # nor is one a test printed, whatever pytest flags were used
+        "----- Captured stdout call -----\ntests/test_mine.py:3:1: E402 Module level import\n"
+        "1 failed, 2 passed in 0.12s\n",
+        # a lint shape mentioned mid-line is prose, not a finding
+        "see tests/test_mine.py:3: error: x\n",
     ],
 )
 def test_a_pytest_failure_never_unlocks_a_test(tmp_path: Path, failures: str) -> None:
@@ -177,6 +199,34 @@ def test_a_lint_line_on_implementation_code_unlocks_no_test(tmp_path: Path) -> N
     written = _session(tmp_path)
 
     assert _lint_named_session_tests("  mypy: src/impl.py [union-attr] x1\n", tmp_path, written) == []
+
+
+def test_findings_come_back_once_each_in_first_mention_order(tmp_path: Path) -> None:
+    (tmp_path / "tests").mkdir()
+    files = [tmp_path / "tests" / "test_a.py", tmp_path / "tests" / "test_b.py"]
+    for f in files:
+        f.write_text("x = 1\n", encoding="utf-8")
+    failures = (
+        "  mypy: tests/test_b.py [union-attr] x1\n"
+        "  ruff check: tests/test_a.py [E402] x1\n"
+        "  mypy: tests/test_b.py [arg-type] x1\n"
+    )
+
+    found = _lint_named_session_tests(failures, tmp_path, [f.resolve() for f in files])
+
+    assert found == ["tests/test_b.py", "tests/test_a.py"]
+
+
+def test_a_stub_file_is_never_unlocked(tmp_path: Path) -> None:
+    """Python test files only: the guard reads `.py`, so the allowance must not name anything else."""
+    (tmp_path / "tests").mkdir()
+    stub = tmp_path / "tests" / "test_mine.pyi"
+    stub.write_text("x: int\n", encoding="utf-8")
+
+    assert (
+        _lint_named_session_tests("tests/test_mine.pyi:1: error: x  [misc]\n", tmp_path, [stub.resolve()])
+        == []
+    )
 
 
 def test_a_non_python_test_is_never_unlocked(tmp_path: Path) -> None:
@@ -239,6 +289,19 @@ def test_removing_a_test_function_weakens() -> None:
 
 def test_renaming_a_test_function_weakens() -> None:
     assert _weakens_test(_TEST, _TEST.replace("def test_group", "def check_group")) is not None
+
+
+def test_removing_an_async_test_weakens() -> None:
+    with_async = _TEST + "\n\nasync def test_later() -> None:\n    pass\n"
+
+    reason = _weakens_test(with_async, _TEST)
+
+    assert reason is not None
+    assert "test_later" in reason
+
+
+def test_an_old_file_that_does_not_parse_cannot_be_judged() -> None:
+    assert _weakens_test("def broken(:\n", _TEST) is None
 
 
 def test_a_duplicated_assert_removed_once_weakens() -> None:
@@ -323,6 +386,26 @@ def test_refine_rewriting_a_session_test_without_a_test_is_refused(tmp_path: Pat
     assert (tmp_path / "tests" / "test_mine.py").read_text(encoding="utf-8") == _TEST
 
 
+def test_a_refused_test_edit_is_named_when_a_repair_pass_follows(tmp_path: Path) -> None:
+    """The repair retry quotes this message to the model: the refusal must not vanish in it."""
+    tracker = _refine_repo(tmp_path)
+
+    with pytest.raises(CodegenError) as caught:
+        apply_files(
+            [
+                {"path": "tests/test_mine.py", "edits": [{"find": "== 3", "replace": "== 4"}]},
+                {"path": "impl.py", "edits": [{"find": "not in the file", "replace": "x"}]},
+            ],
+            tmp_path,
+            written_tracker=tracker,
+            grounded=True,
+            editable_existing=frozenset(),
+        )
+
+    assert "refused test edits, not applied: tests/test_mine.py" in str(caught.value)
+    assert caught.value.failed_edit_paths == ["impl.py"]
+
+
 def test_outside_refine_the_guard_stands_aside(tmp_path: Path) -> None:
     """author_tests may rewrite the tests it wrote; only refine is held to them."""
     tracker = _refine_repo(tmp_path)
@@ -396,7 +479,7 @@ async def test_a_lint_named_session_test_is_offered_to_refine(tmp_path: Path) ->
 
     prompt = llm.calls[-1][1].content
     assert "Do NOT modify test files" in prompt  # the rule stands for everything else
-    assert "mypy findings in test files you wrote earlier this session: tests/test_mine.py." in prompt
+    assert _lint_test_allowance(["tests/test_mine.py"]) in prompt
 
 
 async def test_a_pytest_failure_offers_no_test_to_refine(tmp_path: Path) -> None:
@@ -409,4 +492,51 @@ async def test_a_pytest_failure_offers_no_test_to_refine(tmp_path: Path) -> None
         failures="FAILED tests/test_mine.py::test_group - x\n",
     )
 
-    assert "EXCEPTION — lint/type findings" not in llm.calls[-1][1].content
+    assert _lint_test_allowance(["tests/test_mine.py"]) not in llm.calls[-1][1].content
+
+
+async def test_a_test_the_session_only_edited_is_never_offered(tmp_path: Path) -> None:
+    """Pre-existing means existed before the run: implement editing a test does not make it ours."""
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_old.py").write_text(_TEST, encoding="utf-8")
+    implement = json.dumps(
+        {
+            "files": [
+                {"path": "impl.py", "content": "X = 1\n"},
+                {"path": "tests/test_old.py", "edits": [{"find": "== 3", "replace": "== 3  # still"}]},
+            ],
+            "summary": "s",
+        }
+    )
+    llm = _ScriptedLLM([implement, _files({"impl.py": "X = 2\n"})])
+    adapter = LLMCodegenAdapter(llm)
+    await adapter.implement(spec=_SPEC, path=str(tmp_path), issue_key="SSPN-93")
+
+    await adapter.refine(
+        spec=_SPEC,
+        path=str(tmp_path),
+        issue_key="SSPN-93",
+        failures="  mypy: tests/test_old.py [union-attr] x1\n",
+    )
+
+    assert _lint_test_allowance(["tests/test_old.py"]) not in llm.calls[-1][1].content
+
+
+async def test_refine_is_held_to_the_guard_and_told_why(tmp_path: Path) -> None:
+    """End to end through refine: the weakening reply is refused, and the retry says why."""
+    weakening = _files({"tests/test_mine.py": _TEST.split("class TestTotals")[0]})
+    adapter, llm = await _session_adapter(tmp_path, weakening)
+    llm._responses.append(_files({"impl.py": "X = 1\n"}))
+
+    change = await adapter.refine(
+        spec=_SPEC,
+        path=str(tmp_path),
+        issue_key="SSPN-93",
+        failures="  mypy: tests/test_mine.py [union-attr] x1\n",
+    )
+
+    assert [Path(f).name for f in change.files] == ["impl.py"]
+    assert (tmp_path / "tests" / "test_mine.py").read_text(encoding="utf-8") == _TEST
+    retry = llm.calls[-1][1].content
+    assert "TestTotals.test_sum" in retry
+    assert "every existing assert and test function must stay" in retry
