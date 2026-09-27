@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-import orchestrator.pkg.external_docs as ext
+from orchestrator.pkg import external_docs as ext
 from orchestrator.pkg import load_or_extract
 from orchestrator.pkg.doc_source import html_to_text
 from orchestrator.pkg.external_docs import (
