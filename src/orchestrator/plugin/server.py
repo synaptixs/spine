@@ -90,7 +90,7 @@ from __future__ import annotations
 
 import functools
 import inspect
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -281,40 +281,68 @@ class _Docs:
     names a symbol one of its ``touches`` and every section title a ``find`` hit.
 
     ``resolve(node_id)`` answers which doc-linked store to ask, and by which id. One repository:
-    its own linked batch. Several (D26): the node's own repository, linked on first use and asked
-    by unscoped id — a document describes the repository it lives in, so a web README naming
-    ``create_order`` never lands on billing's handler."""
+    its own batch, linked on first use — a symbol that is not found never pays for the doc pass.
+    Several (D26): the node's own repository, from the batch the merge already extracted, asked by
+    unscoped id — a document describes the repository it lives in, so a web README naming
+    ``create_order`` never lands on billing's handler, and a neighbour in another repository is
+    never a reason to read that repository's docs.
 
-    def __init__(self, resolve: Callable[[str], tuple[Any, str] | None]) -> None:
-        self._resolve = resolve
+    Docs are extra evidence. Linking that fails leaves every match with no docs and ``error``
+    set, and the tool still returns its code answer."""
+
+    def __init__(
+        self,
+        resolve: Callable[[_Docs, str], tuple[Any, str] | None],
+        scope: Callable[[str], str] = lambda _node_id: "",
+    ) -> None:
+        self._resolve_with = resolve
+        self._scope = scope
         self._indexes: dict[int, tuple[dict[str, list[str]], dict[str, str]]] = {}
+        self.error: str | None = None
 
-    @classmethod
-    def single(cls, batch: Any, repo: Any) -> _Docs:
+    def _resolve(self, node_id: str) -> tuple[Any, str] | None:
+        return self._resolve_with(self, node_id)
+
+    def _link(self, batch: Any, root: Any) -> Any:
+        """A doc-linked store over ``batch``, or ``None`` with ``error`` recorded."""
         from orchestrator.pkg import FactStore
         from orchestrator.pkg.doc_link import link_docs
 
-        linked = FactStore(link_docs(batch, repo))
-        return cls(lambda node_id: (linked, node_id))
+        try:
+            return FactStore(link_docs(batch, root))
+        except Exception as exc:  # noqa: BLE001 — docs are extra evidence; the code answer must survive
+            self.error = f"{type(exc).__name__}: {exc}"
+            return None
 
     @classmethod
-    def per_repo(cls, repo_set: Any) -> _Docs:
-        from orchestrator.pkg import FactStore, load_or_extract
-        from orchestrator.pkg.doc_link import link_docs
+    def single(cls, batch: Any, repo: Any) -> _Docs:
+        linked: list[Any] = []
+
+        def resolve(docs: _Docs, node_id: str) -> tuple[Any, str] | None:
+            if not linked:
+                linked.append(docs._link(batch, repo))
+            return (linked[0], node_id) if linked[0] is not None else None
+
+        return cls(resolve)
+
+    @classmethod
+    def per_repo(cls, repo_set: Any, repo_batches: Mapping[str, Any]) -> _Docs:
+        from orchestrator.pkg import load_or_extract
         from orchestrator.pkg.scoping import unscope_id
 
         linked: dict[str, Any] = {}
 
-        def resolve(node_id: str) -> tuple[Any, str] | None:
+        def resolve(docs: _Docs, node_id: str) -> tuple[Any, str] | None:
             repo, unscoped = unscope_id(node_id)
             if not repo or repo not in repo_set.keys:
                 return None
             if repo not in linked:
                 root = repo_set.path(repo)
-                linked[repo] = FactStore(link_docs(load_or_extract(root), root))
-            return linked[repo], unscoped
+                batch = repo_batches.get(repo)
+                linked[repo] = docs._link(batch if batch is not None else load_or_extract(root), root)
+            return (linked[repo], unscoped) if linked[repo] is not None else None
 
-        return cls(resolve)
+        return cls(resolve, scope=lambda node_id: unscope_id(node_id)[0])
 
     def _index(self, store: Any) -> tuple[dict[str, list[str]], dict[str, str]]:
         """``(symbol id → the doc ids naming it, child → parent)`` for one linked store, built once."""
@@ -362,12 +390,20 @@ class _Docs:
                     "where": str(doc.provenance) if doc.provenance else None,
                 }
         related: set[str] = set()
+        home = self._scope(node_id)
         for other in neighbours:
+            if self._scope(other) != home:
+                continue
             local = self._resolve(other)
             if local is not None and local[0] is store:
                 related.update(d for d in named.get(local[1], ()) if d not in refs)
         listed = sorted(refs.values(), key=lambda r: (_VIA_RANK[r["via"]], r["doc"]))
         return {"doc_count": len(listed), "docs": listed[:25], "related_doc_count": len(related)}
+
+
+def _doc_neighbours(callers: list[Any], through: list[Any], touched: list[Any]) -> list[str]:
+    """What a symbol's ``related_doc_count`` looks at — one definition for both tools that report it."""
+    return [cs.caller.id for cs in callers] + [c.caller.id for c in through] + [t.id for t in touched]
 
 
 def _repos_note(repo: Any) -> dict[str, Any] | None:
@@ -479,7 +515,7 @@ def _in_repos_store(repos: str, fn: Callable[..., dict[str, Any]], *, docs: bool
         store, merged, repo_set = _merged_store(repos)
     except RepoConfigError as exc:
         return {"error": str(exc)}
-    out = fn(store, merged, _Docs.per_repo(repo_set)) if docs else fn(store, merged)
+    out = fn(store, merged, _Docs.per_repo(repo_set, merged.repo_batches)) if docs else fn(store, merged)
     out.setdefault("standing", _standing(merged))
     return out
 
@@ -588,10 +624,7 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
                     {"id": t.id, "where": str(t.provenance) if t.provenance else None} for t in touched[:25]
                 ],
             }
-            neighbours = (
-                [cs.caller.id for cs in callers] + [c.caller.id for c in through] + [t.id for t in touched]
-            )
-            entry.update(docs.refs(node.id, neighbours))
+            entry.update(docs.refs(node.id, _doc_neighbours(callers, through, touched)))
             owner = _constructed_type(store, node)
             if owner is not None:
                 # A Java/C# `new Foo(…)` lands on the Type (B22, D1), so its constructor node has no
@@ -605,7 +638,15 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
                 entry["cross_repo_count"] = len(reach)
                 entry["cross_repo"] = reach[:25]
             out.append(entry)
-        return {"symbol": symbol, "found": True, "matches": out, "markdown": _blast_markdown(out)}
+        result: dict[str, Any] = {
+            "symbol": symbol,
+            "found": True,
+            "matches": out,
+            "markdown": _blast_markdown(out),
+        }
+        if docs.error:
+            result["docs_unavailable"] = docs.error
+        return result
 
     if repos:
         return _in_repos_store(repos, run, docs=True)
@@ -636,23 +677,20 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
             return {"symbol": symbol, "found": False, "matches": []}
         out: list[dict[str, Any]] = []
         for node in matches[:5]:
+            callers = store.callers_of(node.id)
+            through = store.interface_callers_of(node.id)
             entry: dict[str, Any] = {
                 "id": node.id,
                 "kind": node.kind.value,
                 "name": node.name,
                 "language": node.language,
                 "where": str(node.provenance) if node.provenance else None,
-                "called_by": [cs.caller.id for cs in store.callers_of(node.id)[:15]],
-                "called_through_interface": [
-                    {"id": c.caller.id, "via": c.via} for c in store.interface_callers_of(node.id)[:15]
-                ],
+                "called_by": [cs.caller.id for cs in callers[:15]],
+                "called_through_interface": [{"id": c.caller.id, "via": c.via} for c in through[:15]],
                 "calls": [n.id for n in store.callees_of(node.id)[:15]],
                 "contains": [n.id for n in store.children_of(node.id)[:25]],
             }
-            neighbours = [cs.caller.id for cs in store.callers_of(node.id)] + [
-                t.id for t in store.touches(node.id)
-            ]
-            entry.update(docs.refs(node.id, neighbours))
+            entry.update(docs.refs(node.id, _doc_neighbours(callers, through, store.touches(node.id))))
             owner = _constructed_type(store, node)
             if owner is not None:  # a constructor: who creates its type (B22, D8)
                 entry["instantiated_via_type"] = [cs.caller.id for cs in store.callers_of(owner)[:15]]
@@ -663,7 +701,10 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
                 entry["cross_repo_count"] = len(reach)
                 entry["cross_repo"] = reach[:25]
             out.append(entry)
-        return {"symbol": symbol, "found": True, "matches": out}
+        result: dict[str, Any] = {"symbol": symbol, "found": True, "matches": out}
+        if docs.error:
+            result["docs_unavailable"] = docs.error
+        return result
 
     if repos:
         return _in_repos_store(repos, run, docs=True)
@@ -1212,7 +1253,8 @@ def _blast_markdown(matches: list[dict[str, Any]]) -> str:
             named = ", ".join(
                 d["doc"] + ("" if d["via"] == "symbol" else f" (via {d['via']})") for d in m["docs"][:10]
             )
-            lines.append(f"- **Documented in ({m['doc_count']}):** {named}")
+            shown = f"{m['doc_count']}" if m["doc_count"] <= 10 else f"{m['doc_count']}, top 10 shown"
+            lines.append(f"- **Documented in ({shown}):** {named}")
         if m.get("related_doc_count"):
             lines.append(
                 f"- **{m['related_doc_count']} more doc(s)** name its callers or the code it touches"

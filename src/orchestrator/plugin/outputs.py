@@ -252,6 +252,7 @@ class BlastRadiusOut(Failure, total=False):
     found: bool
     matches: list[BlastMatch]
     markdown: str
+    docs_unavailable: str  # docs could not be linked; the code answer above still stands
     standing: Standing
     multi_repo_available: ReposNote
 
@@ -281,6 +282,7 @@ class ExplainSymbolOut(Failure, total=False):
     symbol: str
     found: bool
     matches: list[SymbolMatch]
+    docs_unavailable: str  # docs could not be linked; the code answer above still stands
     standing: Standing
     multi_repo_available: ReposNote
 

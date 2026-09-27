@@ -47,14 +47,14 @@ _MAX_SECTIONS = 40
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
 # A fenced code block's opening/closing line (CommonMark: up to 3 spaces, then 3+ backticks or
 # tildes). A `# comment` inside one is code, not a heading — splitting on it minted phantom
-# sections (B39: 68 of Spine's 2,257 markdown headings, and 14% of a field repository's).
+# sections (B39: 68 of this repository's markdown headings, and 14% of a field repository's).
 _FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 # A section id past this is a heading that swallowed something it shouldn't have. 60 would cut
 # 162 of Spine's own ordinary headings and break their GitHub anchors; over 100 there were six,
 # all pathological (decision D27).
 _MAX_SLUG = 100
-# Dependency pins are `.txt` but not documentation: `requirements-runtime.txt` naming a package
-# bound as a doc "describing" the class of the same name.
+# Dependency pins are `.txt` but not documentation: a pinned package whose name matches a class
+# bound the pin file as a doc "describing" that class.
 _NOT_DOCS_RE = re.compile(r"^(requirements|constraints)([-_.][^/]*)?\.txt$", re.IGNORECASE)
 
 
@@ -69,12 +69,17 @@ class DocReader:
     ``sections=True`` marks formats whose text carries markdown-style ATX headings, so
     :func:`split_sections` can split them into section-granular pages. A format that doesn't
     (plain text, PDF) stays one page per file.
+
+    ``fences=True`` marks formats where ```` ``` ```` / ``~~~`` open a code block — markdown, and
+    the HTML reader, which writes ``<pre>`` that way. Word and Excel text has no such syntax: a
+    ``~~~~~~`` divider there is decoration, and read as a fence it swallowed every later heading.
     """
 
     name: str
     suffixes: frozenset[str]
     read: Callable[[Path], str | None]
     sections: bool = False
+    fences: bool = False
 
 
 _READERS: dict[str, DocReader] = {}
@@ -105,17 +110,21 @@ def _slug(heading: str) -> str:
     return re.sub(r"[\s_]+", "-", text).strip("-")[:_MAX_SLUG].rstrip("-")
 
 
-def _heading_lines(lines: list[str]) -> list[tuple[int, re.Match[str]]]:
+def _heading_lines(lines: list[str], *, fences: bool = True) -> list[tuple[int, re.Match[str]]]:
     """``(index, match)`` for every ATX heading outside a fenced code block.
 
     A fence closes only on the same character, at least as long as the one that opened it, so a
-    ```` ```` ```` block can quote a ```` ``` ```` one."""
+    ```` ```` ```` block can quote a ```` ``` ```` one. A backtick run followed by another backtick
+    on its line is inline code (```` ```x``` ````), never a fence — CommonMark forbids a backtick
+    in a backtick fence's info string. ``fences=False`` (Word, Excel) treats no line as a fence."""
     heads: list[tuple[int, re.Match[str]]] = []
     fence = ""
     for i, line in enumerate(lines):
-        if (f := _FENCE_RE.match(line)) is not None:
+        if fences and (f := _FENCE_RE.match(line)) is not None:
             run = f.group(1)
             if not fence:
+                if run[0] == "`" and "`" in line.strip()[len(run) :]:
+                    continue
                 fence = run
             elif run[0] == fence[0] and len(run) >= len(fence) and not line.strip()[len(run) :]:
                 fence = ""
@@ -125,7 +134,7 @@ def _heading_lines(lines: list[str]) -> list[tuple[int, re.Match[str]]]:
     return heads
 
 
-def split_sections(page: DocPage) -> list[DocPage]:
+def split_sections(page: DocPage, *, fences: bool = True) -> list[DocPage]:
     """Split a markdown ``DocPage`` into one page per heading (``path#slug``), or ``[page]`` unchanged.
 
     Section granularity lets a ``MENTIONS`` edge point at the *section* that names a symbol, not the
@@ -134,7 +143,7 @@ def split_sections(page: DocPage) -> list[DocPage]:
     the first heading (a preamble) becomes a section keyed by the bare path, so nothing is dropped.
     Deterministic; unique slugs are disambiguated with a numeric suffix."""
     lines = page.text.splitlines()
-    heads = _heading_lines(lines)
+    heads = _heading_lines(lines, fences=fences)
     if not heads or len(heads) > _MAX_SECTIONS:
         return [page]
 
@@ -142,15 +151,21 @@ def split_sections(page: DocPage) -> list[DocPage]:
     bounds = [i for i, _ in heads] + [len(lines)]
     sections: list[DocPage] = []
     seen: dict[str, int] = {}
+    used: set[str] = set()
     # Preamble before the first heading (if any real content) → a page keyed by the bare path.
     if heads[0][0] > 0 and "".join(lines[: heads[0][0]]).strip():
         pre = "\n".join(lines[: heads[0][0]])
         sections.append(DocPage(title=file, text=pre, base_dir=page.base_dir, source_file=file, line=1))
     for idx, (line_no, m) in enumerate(heads):
-        slug = _slug(m.group(2)) or "section"
-        seen[slug] = seen.get(slug, 0) + 1
-        if seen[slug] > 1:
-            slug = f"{slug}-{seen[slug]}"
+        base = _slug(m.group(2)) or "section"
+        slug = base
+        while slug in used:
+            # the numeric suffix fits inside the cap too: a capped heading repeated would otherwise
+            # push its id past it
+            seen[base] = seen.get(base, 1) + 1
+            suffix = f"-{seen[base]}"
+            slug = base[: _MAX_SLUG - len(suffix)].rstrip("-") + suffix
+        used.add(slug)
         body = "\n".join(lines[line_no : bounds[idx + 1]])
         title = f"{file}#{slug}"
         sections.append(
@@ -212,7 +227,7 @@ def read_doc_pages(root: Path | str, *, sections: bool = True) -> list[DocPage]:
             rel = path.relative_to(root_path).as_posix()
             page = DocPage(title=rel, text=text, base_dir=Path(rel).parent.as_posix(), source_file=rel)
             if sections and reader.sections:
-                pages.extend(split_sections(page))
+                pages.extend(split_sections(page, fences=reader.fences))
             else:
                 pages.append(page)
     return pages
@@ -523,9 +538,11 @@ def _read_markdown(path: Path) -> str | None:
 # Registered here rather than branched in `read_doc_pages`, so a new format is one
 # `register_reader` call and touches nothing that already works.
 
-register_reader(DocReader("markdown", frozenset({".md", ".markdown"}), _read_markdown, sections=True))
+register_reader(
+    DocReader("markdown", frozenset({".md", ".markdown"}), _read_markdown, sections=True, fences=True)
+)
 register_reader(DocReader("text", frozenset({".rst", ".txt"}), _read_text))
-register_reader(DocReader("html", frozenset({".html", ".htm"}), _read_html, sections=True))
+register_reader(DocReader("html", frozenset({".html", ".htm"}), _read_html, sections=True, fences=True))
 register_reader(DocReader("pdf", frozenset({".pdf"}), _read_pdf))
 register_reader(DocReader("docx", frozenset({".docx"}), _read_docx, sections=True))
 register_reader(DocReader("xlsx", frozenset({".xlsx"}), _read_xlsx, sections=True))

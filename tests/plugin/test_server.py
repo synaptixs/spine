@@ -214,13 +214,115 @@ def test_blast_radius_without_docs_reports_zero(tmp_path: Path) -> None:
 
 
 def test_across_repos_a_doc_binds_only_its_own_repository(tmp_path: Path) -> None:
-    """D26: web's README naming `create_order` describes web, not billing's handler."""
+    """D26: both repos define `create_order`; each repo's doc describes its own, never the other's."""
     (tmp_path / "billing").mkdir()
     (tmp_path / "billing" / "API.md").write_text("`create_order` takes a payload.\n", encoding="utf-8")
-    (tmp_path / "web").mkdir()
-    (tmp_path / "web" / "NOTES.md").write_text("We call `create_order` remotely.\n", encoding="utf-8")
-    m = blast_radius(symbol="create_order", repos=_repos_config(tmp_path))["matches"][0]
+    (tmp_path / "web" / "app").mkdir(parents=True)
+    (tmp_path / "web" / "app" / "routes.py").write_text(
+        "def create_order(form):\n    return form\n", encoding="utf-8"
+    )
+    (tmp_path / "web" / "NOTES.md").write_text("Our `create_order` renders the form.\n", encoding="utf-8")
+    matches = blast_radius(symbol="create_order", repos=_repos_config(tmp_path))["matches"]
+    by_repo = {("billing" if "billing" in m["id"] else "web"): [d["doc"] for d in m["docs"]] for m in matches}
+    assert by_repo == {"billing": ["API.md"], "web": ["NOTES.md"]}
+
+
+def test_across_repos_only_the_matched_repository_is_linked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A neighbour in another repository is never a reason to read that repository's docs, and
+    a repository the merged graph already extracted is not extracted again."""
+    import orchestrator.pkg as pkg
+    import orchestrator.pkg.doc_link as doc_link
+
+    (tmp_path / "billing").mkdir()
+    (tmp_path / "billing" / "API.md").write_text("`create_order` takes a payload.\n", encoding="utf-8")
+    config = _repos_config(tmp_path)
+    linked: list[str] = []
+    real_link = doc_link.link_docs
+
+    def spy(batch: Any, root: Any) -> Any:
+        linked.append(Path(root).name)
+        return real_link(batch, root)
+
+    def no_second_extraction(*_a: Any, **_k: Any) -> Any:
+        raise AssertionError("per-repo docs re-extracted a repository the merged graph already holds")
+
+    monkeypatch.setattr(doc_link, "link_docs", spy)
+    monkeypatch.setattr(pkg, "load_or_extract", no_second_extraction)
+    m = blast_radius(symbol="create_order", repos=config)["matches"][0]
     assert [d["doc"] for d in m["docs"]] == ["API.md"]
+    assert linked == ["billing"]
+
+
+def test_blast_radius_and_explain_symbol_report_the_same_doc_radius(tmp_path: Path) -> None:
+    """`DiskStore.save` is reached only through `Store.save`; docs naming that interface caller
+    count for both tools, not just one."""
+    pytest.importorskip("tree_sitter_java", reason="install the 'java' extra")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "App.java").write_text(
+        "interface Store {\n    void save();\n}\n\n"
+        "class DiskStore implements Store {\n    public void save() {}\n}\n\n"
+        "class Checkout {\n    private Store store;\n\n    void pay() {\n        store.save();\n    }\n}\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "README.md").write_text("`Checkout.pay` saves the order.\n", encoding="utf-8")
+    keys = ("doc_count", "docs", "related_doc_count")
+    blast = {m["id"]: {k: m[k] for k in keys} for m in blast_radius(str(tmp_path), "save")["matches"]}
+    explain = {m["id"]: {k: m[k] for k in keys} for m in explain_symbol(str(tmp_path), "save")["matches"]}
+    impl = next(i for i in blast if "DiskStore" in i)
+    assert blast[impl]["related_doc_count"] == 1
+    assert explain == blast
+
+
+def test_docs_are_ordered_by_how_close_they_are_then_by_title(tmp_path: Path) -> None:
+    repo = _documented_repo(tmp_path)
+    (tmp_path / "API.md").write_text("Import `lib.client`.\n", encoding="utf-8")  # sorts before README
+    m = blast_radius(repo, "Client")["matches"][0]
+    assert [(d["doc"], d["via"]) for d in m["docs"]] == [
+        ("README.md#quickstart", "symbol"),
+        ("README.md#reference", "symbol"),
+        ("API.md", "module"),
+        ("docs/guide.md", "module"),
+    ]
+
+
+def test_a_doc_naming_a_method_and_its_class_is_listed_once_as_the_closer(tmp_path: Path) -> None:
+    repo = _documented_repo(tmp_path)
+    (tmp_path / "METHODS.md").write_text("`Client.ask` sends one `Client` query.\n", encoding="utf-8")
+    m = blast_radius(repo, "ask")["matches"][0]
+    assert [(d["doc"], d["via"]) for d in m["docs"] if d["doc"] == "METHODS.md"] == [("METHODS.md", "symbol")]
+
+
+def test_the_docs_list_is_capped_with_the_full_count_kept(tmp_path: Path) -> None:
+    repo = _documented_repo(tmp_path)
+    for i in range(30):
+        (tmp_path / "docs" / f"page{i:02}.md").write_text("Use `Client`.\n", encoding="utf-8")
+    out = blast_radius(repo, "Client")
+    m = out["matches"][0]
+    assert m["doc_count"] == 33 and len(m["docs"]) == 25
+    assert "Documented in (33, top 10 shown)" in out["markdown"]
+
+
+def test_a_doc_already_listed_is_not_counted_again_as_related(tmp_path: Path) -> None:
+    repo = _comprehension_repo(tmp_path)
+    (tmp_path / "README.md").write_text("`validate` is called by `handler`.\n", encoding="utf-8")
+    m = blast_radius(repo, "validate")["matches"][0]
+    assert m["doc_count"] == 1 and m["related_doc_count"] == 0
+
+
+def test_a_doc_linking_failure_degrades_to_no_docs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Docs are extra evidence: the code answer must survive a failure to produce them."""
+    import orchestrator.pkg.doc_link as doc_link
+
+    def boom(*_a: Any, **_k: Any) -> Any:
+        raise RuntimeError("binder exploded")
+
+    monkeypatch.setattr(doc_link, "link_docs", boom)
+    out = blast_radius(_documented_repo(tmp_path), "Client")
+    assert out["found"] and out["matches"][0]["docs"] == []
+    assert "RuntimeError: binder exploded" in out["docs_unavailable"]
+    assert "docs_unavailable" in explain_symbol(str(tmp_path), "Client")
 
 
 def test_investigate_lands_on_real_symbols(tmp_path: Path) -> None:

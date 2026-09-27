@@ -14,18 +14,23 @@ All notable changes to this project are documented here. Format loosely follows
   callers or the code it touches, counted rather than listed). A public class with no callers in
   its own repository read as safe to change; on a real SDK repository, one such class is described
   by 12 doc sections. Docs never enter `touches`, so code-impact counts are unchanged. With
-  `repos=`, a document binds only to symbols in the repository it lives in. ([SSPN-79](https://fibonacci-solutions.atlassian.net/browse/SSPN-79))
+  `repos=`, a document binds only to symbols in the repository it lives in, and only the matched
+  repository's docs are read. If linking docs fails, the code answer still returns, with
+  `docs_unavailable` saying why. ([SSPN-79](https://fibonacci-solutions.atlassian.net/browse/SSPN-79))
 
 ### Fixed
 
 - **A `#` comment inside a code block no longer splits a doc into a phantom section.**
-  Section splitting now skips fenced code (```` ``` ```` / `~~~`), and an HTML `<pre>` block is
+  Section splitting in markdown and HTML now skips fenced code (```` ``` ```` / `~~~`, CommonMark
+  rules: a line like ```` ```x``` ```` is inline code, not a fence; Word and Excel text has no
+  fences), and an HTML `<pre>` block is
   read as a fenced sample with its lines kept — flattened to one line, a `#`-led sample became a
   single heading with a 476-character id. Measured before the fix: 68 of this repository's 2,257
   markdown headings, and 14% of one field repository's, were code comments. The code stays in its
   real section, so its mentions still bind. ([SSPN-83](https://fibonacci-solutions.atlassian.net/browse/SSPN-83))
 - **`requirements*.txt` and `constraints*.txt` are no longer ingested as docs**, and doc section
-  ids are capped at 100 characters (ordinary headings keep their full GitHub anchor).
+  ids are capped at 100 characters, numeric suffix included (ordinary headings keep their full
+  GitHub anchor).
 - The `docs_for` "no docs" note lists every format the reader accepts, not four of them.
 
 ## 3.51.1 — 2026-09-26
