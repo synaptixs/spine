@@ -26,6 +26,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, cast
 
+from orchestrator.sdlc.scope import EditScope
 from orchestrator.sdlc.toolchains import TOOLCHAINS
 
 # Test-run byproducts that should never appear in a feature's changed-files
@@ -798,6 +799,7 @@ async def run_feature(
     spec: dict[str, Any] | None = None,
     log: Callable[[str], None] | None = None,
     publish: bool = True,
+    edit_scope: EditScope | None = None,
 ) -> FeatureRunResult:
     """Build one intent end to end. See module docstring for safe vs live.
 
@@ -1139,6 +1141,8 @@ async def run_feature(
         "persona": SOFTWARE_ENGINEER,
         # Research and design are worthless to a model that never sees them.
         "design": design,
+        # The files the design lists to edit; enforced only when the list is sure (B44).
+        "edit_scope": edit_scope,
     }
     if design:
         emit(f"[design] carrying {len(design)} chars of agreed design into codegen")

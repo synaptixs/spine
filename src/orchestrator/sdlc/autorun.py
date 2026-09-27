@@ -49,6 +49,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from orchestrator.core.digest import digest_of
+from orchestrator.sdlc.scope import EditScope
 
 StageStatus = Literal["ok", "skipped", "failed"]
 
@@ -109,6 +110,8 @@ class RunContext:
     # What the design said to touch — kept structured so implement can be compared against
     # it. The rendered design (``plan``) is prose and cannot be diffed.
     design_files: list[str] = field(default_factory=list)
+    # The same list as codegen's edit scope, with whether it is sure enough to enforce (B44).
+    edit_scope: EditScope | None = None
     verdict: str = ""
     # Set by the implement stage: the same adapter and runner that built the change also fix
     # what review finds, so the fixer knows the repo's conventions and the layout it chose.
@@ -1111,6 +1114,7 @@ async def _stage_design(
     rendered = render_design_md(spec, design)
     path = ctx.write_artifact("design.md", rendered)
     ctx.design_files = [str(f) for f in (design.get("files_to_touch") or [])]
+    ctx.edit_scope = EditScope.from_design(design, spec)
     touched = len(design.get("files_to_touch") or [])
     # The validator on design's output edge — the clause the promotion rule requires before this
     # node may ever call a model. It runs whether or not one wrote the design: a deterministic
@@ -1191,6 +1195,7 @@ async def _stage_implement(
                 live=ctx.live,
                 issue=issue,
                 design=ctx.plan,
+                edit_scope=ctx.edit_scope,
                 base_branch=base_branch,
                 language=language,
                 spec=ctx.spec,

@@ -24,7 +24,7 @@ import re
 from collections import Counter
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
@@ -33,6 +33,7 @@ from orchestrator.sdlc.csharp_names import directive_error
 from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
 from orchestrator.sdlc.layout import TargetLayout
+from orchestrator.sdlc.scope import EditScope
 
 logger = logging.getLogger("orchestrator.sdlc.codegen")
 
@@ -969,8 +970,14 @@ class LLMCodegenAdapter:
         memory_factory: Any = None,
         memory_repo_key: str | None = None,
         memory_tenant_id: str = "default",
+        # The pre-existing files this ticket may edit (B44). ``None`` = no scope guard, so every
+        # caller that does not pass one builds exactly the change it builds today.
+        edit_scope: EditScope | None = None,
     ) -> None:
         self._llm = llm
+        self._edit_scope = edit_scope
+        # Set only while single-shot ``implement`` runs: the scope ``apply_files`` enforces.
+        self._implement_scope: EditScope | None = None
         self._model = model
         # When set, ``implement`` runs the agentic tool-use loop (Phase 5) instead
         # of the single-shot path. Off by default — single-shot stays the default
@@ -1198,7 +1205,11 @@ class LLMCodegenAdapter:
         # skills too (no persona + no skills → the historical prompt, unchanged).
         resolved = skills if skills is not None else self._skills
         system = self._condition_system(self._impl_system(), resolved, phase="implement")
-        return await self._generate(system, task, root)
+        self._implement_scope = self._edit_scope
+        try:
+            return await self._generate(system, task, root)
+        finally:
+            self._implement_scope = None
 
     async def _agentic_tools(self, root: Path, mcp_servers: list[str] | None, session: Any) -> list[Any]:
         """Build the loop's toolset bound to ``root`` + ``session`` (read-only +
@@ -1800,6 +1811,7 @@ class LLMCodegenAdapter:
             grounded=self._grounder is not None,
             summary=str(payload.get("summary") or "").strip(),
             editable_existing=self._refine_editable,
+            scope=self._implement_scope,
         )
 
 
@@ -1975,6 +1987,7 @@ def apply_files(
     grounded: bool,
     summary: str = "",
     editable_existing: frozenset[str] | None = None,
+    scope: EditScope | None = None,
 ) -> CodeChange:
     """Apply a ``files`` list (new ``content`` / existing ``edits``) to a worktree.
 
@@ -1982,6 +1995,11 @@ def apply_files(
     may change. On a grounded run whose session has tracked its own writes, any other file
     that exists and this session did not write is refused, in either form; dependency
     manifests and project files are always allowed.
+
+    ``scope`` (implement only, B44): the ticket's edit scope. When it is *confident* a
+    pre-existing file outside it is refused before it is written — the same refusal refine
+    gets, so nothing out of scope ever changes. A scope that is only a guess is reported in
+    the summary and not enforced (see ``orchestrator.sdlc.scope``).
 
     The shared write path for both single-shot codegen (``_apply``) and the
     agentic loop's ``write_files`` tool — every guard (path safety, stdlib
@@ -2001,7 +2019,21 @@ def apply_files(
     missing_targets: list[str] = []  # edits aimed at a file that doesn't exist yet
     placeholders: list[str] = []  # stub submissions dropped before they counted as work
     refused: list[str] = []  # pre-existing files refine was not allowed to touch
+    out_of_scope: list[str] = []  # pre-existing files outside a confident edit scope (B44)
+    beyond_guess: list[str] = []  # outside a scope that is only a guess: reported, applied
     tracked_now = written_tracker.get(root.resolve(), [])
+    from orchestrator.sdlc.source_paths import normalise
+
+    # Packages this change adds a file to — their `__init__.py` is where a new module's exports go.
+    new_dirs = frozenset(
+        str(PurePosixPath(normalise(str(e.get("path") or ""))).parent)
+        for e in files
+        if isinstance(e, dict) and e.get("path") and not (root / str(e.get("path"))).exists()
+    ) | frozenset(
+        str(PurePosixPath(t.relative_to(root.resolve()).as_posix()).parent)
+        for t in tracked_now
+        if t.is_relative_to(root.resolve())
+    )
     for entry in files:
         if not isinstance(entry, dict):
             continue
@@ -2025,6 +2057,21 @@ def apply_files(
             refused.append(rel)
             logger.warning("sdlc.codegen.refused_unnamed_edit: %s — named by no failure, spec or design", rel)
             continue
+        if (
+            scope is not None
+            and target.exists()
+            and target not in tracked_now
+            and not _may_edit_existing(root, target, frozenset())
+        ):
+            rel_posix = target.resolve().relative_to(root.resolve()).as_posix()
+            if not scope.allows(rel_posix, new_dirs=new_dirs):
+                if scope.confident:
+                    out_of_scope.append(rel)
+                    logger.warning(
+                        "sdlc.codegen.refused_out_of_scope: %s — the design lists no edit to it", rel
+                    )
+                    continue
+                beyond_guess.append(rel)
 
         # ---- edits form: anchored find/replace on an EXISTING file ------
         # Per-file atomic: every edit must anchor (exactly-once match) or
@@ -2152,6 +2199,21 @@ def apply_files(
         )
     if refused:
         summary = f"{summary} (refused: {', '.join(refused)} — named by no failure, spec or design)".strip()
+    if out_of_scope:
+        summary = f"{summary} (not applied: {', '.join(out_of_scope)} — outside this ticket's scope)".strip()
+    if beyond_guess:
+        summary = f"{summary} (outside the design's edit list: {', '.join(beyond_guess)})".strip()
+    if not written and out_of_scope and not edit_failures:
+        # Recoverable, like refine's refusal: one corrective retry, told why. Everything it
+        # changed was a file this ticket is not about.
+        raise CodegenError(
+            f"implement changed only files outside this ticket's scope: {', '.join(out_of_scope)}",
+            empty_summary=(
+                f"changed only {', '.join(out_of_scope)}, which this ticket's design does not list to "
+                "edit — so it was not applied. Change only the files the design lists to edit; for a "
+                "new feature, create the new module and leave existing files as they are"
+            ),
+        )
     if not written:
         if refused and not edit_failures:
             # Recoverable: one corrective retry, told why. The model's reading of the failure
@@ -2433,13 +2495,40 @@ def _paths_from(spec: dict[str, Any], design: str, root: Path | None = None) -> 
     )
     seen: list[str] = []
     index: dict[str, list[str]] | None = None
-    for rel in named_paths(blob) + named_paths(design):
+    for rel in named_paths(blob) + named_paths(_design_sections(design, edit=True)):
         if root is not None and "/" not in rel and index is None:
             index = basename_index(root)  # one walk for every bare name, not one each
         resolved = resolve(rel, root, index=index) if root is not None else rel
         if resolved and resolved not in seen:
             seen.append(resolved)
     return seen
+
+
+def _design_sections(design: str, *, edit: bool) -> str:
+    """The part of a rendered design that names files to change (``edit``), or files to read.
+
+    ``_paths_from`` used to read every path in the design, so the files a design listed to read
+    and the modules its blast radius named were shown to the model as ones "this ticket is going
+    to change" — and GPT models changed them (B44). The blast radius is an annotation about
+    dependents, never a list of files to edit, so it belongs to neither side.
+    """
+    from orchestrator.sdlc.design import READ_HEADING
+
+    out: list[str] = []
+    section = "edit"
+    for line in design.splitlines():
+        if line.startswith("## "):
+            heading = line[3:].strip()
+            section = (
+                "read"
+                if heading == READ_HEADING
+                else "radius"
+                if heading.startswith("Blast radius")
+                else "edit"
+            )
+        if section == ("edit" if edit else "read"):
+            out.append(line)
+    return "\n".join(out)
 
 
 def _exercises_module(body: str, module: str) -> int:
@@ -2596,12 +2685,33 @@ def _named_existing_files(spec: dict[str, Any], root: Path, design: str = "") ->
         anchors_by_path=anchors,
         label="current content — edit THIS via the edits form",
     )
+    reference = _reference_files(root, design, seen)
     if not body:
-        return ""
+        return reference
     return (
         "\n\nEXISTING FILES THE SPEC NAMES — change these with the `edits` form, "
         "anchoring on snippets copied verbatim from the content below. Do NOT "
-        "re-emit them as full `content`:\n" + body
+        "re-emit them as full `content`:\n" + body + reference
+    )
+
+
+def _reference_files(root: Path, design: str, shown: list[str]) -> str:
+    """The files a design lists to read, shown as reference and labelled as not to change (B44)."""
+    from orchestrator.sdlc.source_paths import named_paths, resolve
+
+    reads: list[str] = []
+    for rel in named_paths(_design_sections(design, edit=False)):
+        resolved = resolve(rel, root)
+        if resolved and resolved not in shown and resolved not in reads:
+            reads.append(resolved)
+    if not reads:
+        return ""
+    body = _excerpt_files(root, reads, budget=_MAX_CONTEXT_BYTES, label="reference — read only")
+    if not body:
+        return ""
+    return (
+        "\n\nREFERENCE FILES — the design lists these to read: reuse what they define, but do NOT "
+        "modify them; this ticket's change does not include them:\n" + body
     )
 
 

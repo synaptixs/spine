@@ -22,6 +22,10 @@ if TYPE_CHECKING:
     from orchestrator.pkg import FactStore
 
 _FIELDS = ("approach", "files_to_touch", "interfaces", "data_changes", "risks", "test_strategy")
+
+#: The rendered heading for files a design lists as context. ``codegen`` keys on it to keep these
+#: out of the files it shows as ones "this ticket is going to change".
+READ_HEADING = "Files to read (reference — do not modify)"
 _LIST_FIELDS = ("files_to_touch", "interfaces", "data_changes", "risks")
 
 
@@ -98,6 +102,51 @@ def _stated_paths(spec: dict[str, Any], root: Path | None = None) -> list[str]:
         resolved = resolve(rel, root, index=index) if root is not None else rel
         if resolved and resolved not in out:
             out.append(resolved)
+    return out
+
+
+#: A dotted name as tickets write one — ``orchestrator.codereview.verifiers``, optionally followed
+#: by a word (``the orchestrator.pkg docs module``). The lookbehind keeps it off path fragments.
+_DOTTED_RE = re.compile(r"(?<![\w./\\])([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+)(?:\s+([A-Za-z_]\w*))?")
+
+
+def _stated_modules(spec: dict[str, Any], store: FactStore | None) -> list[str]:
+    """The files of the modules a spec names by dotted name, read from the graph.
+
+    ``_stated_paths`` sees file paths only, so a ticket saying "reuse the helpers from
+    orchestrator.codereview.verifiers" stated nothing, and the design fell back to matching its
+    words — five unrelated files that GPT models then edited (B44). The graph already holds
+    every module with its file; this is a lookup, not a guess.
+
+    The longest dotted prefix that is a module wins (``…verifiers.Finding`` → ``verifiers``). A
+    package followed by a word resolves to the child module of that name when there is one
+    (``orchestrator.pkg docs`` → ``pkg/docs.py``); otherwise to the package itself. A name the
+    graph does not hold is dropped — prose like ``e.g.`` never becomes a file.
+    """
+    if store is None:
+        return []
+    from orchestrator.pkg.facts import NodeKind
+
+    modules = {
+        n.name: n.provenance.file
+        for n in store.nodes
+        if n.kind is NodeKind.MODULE and not n.external and n.provenance is not None and n.provenance.file
+    }
+    out: list[str] = []
+    for match in _DOTTED_RE.finditer(_query_text(spec, title=False)):
+        dotted, word = match.group(1), match.group(2)
+        parts = dotted.split(".")
+        name = next(
+            (".".join(parts[:k]) for k in range(len(parts), 1, -1) if ".".join(parts[:k]) in modules), None
+        )
+        if name is None:
+            continue
+        found = modules[name]
+        child = f"{name}.{word}" if word else ""
+        if name == dotted and found.endswith("__init__.py") and child in modules:
+            found = modules[child]
+        if found not in out:
+            out.append(found)
     return out
 
 
@@ -225,16 +274,37 @@ def _fallback_design(
     # at all rather than a guess. A path the ticket names is not a heuristic — inferring
     # around it is how a design ends up contradicting the spec it was built from.
     stated = _stated_paths(spec, root)
+    # A module the ticket names by its dotted name is as stated as a path: "reuse the helpers
+    # from orchestrator.codereview.verifiers" says where the change lives. Missing it sent
+    # three benchmark tickets to the keyword guess (B44).
+    modules = [m for m in _stated_modules(spec, store) if m not in stated]
+    kind = str(spec.get("kind") or "").strip().lower()
+    # A module a *create* ticket names is one to reuse, not to change; only an edit ticket's
+    # named module is an edit target. Unknown kind reads it — a wrong read costs a file of
+    # context, a wrong edit costs a change nobody asked for.
+    edit_modules = modules if kind == "edit" else []
+    read_modules = [] if kind == "edit" else modules
     landed, all_weak = _landing_state(spec, store)
-    # An all-weak reading is an answer — "this does not localize" — not a miss to paper over
-    # with the overview's own keyword guess, which has no floor at all.
-    files = stated or landed or ([] if all_weak else _overview_files(spec, overview))
+    reads: list[str] = []
+    if stated or modules:
+        # What the ticket says outranks what its words match: the keyword guess is dropped.
+        files = stated + edit_modules
+        reads = read_modules
+    else:
+        # An all-weak reading is an answer — "this does not localize" — not a miss to paper
+        # over with the overview's own keyword guess, which has no floor at all.
+        guess = landed or ([] if all_weak else _overview_files(spec, overview))
+        # A create ticket adds code; a file its words happen to match is context to read, never
+        # a file to change. On GPT models "Files to touch" read as an instruction, and every
+        # matched file got a justifying edit (B44).
+        files, reads = ([], guess) if kind == "create" else (guess, [])
     # Which reading produced the list, for the build document's §12. The brief is the same
     # `build_investigation` call, so a design that took its files from `landed` agrees with
     # the brief by construction — and NSS-1231 scored "4 of 4" on that agreement while
     # naming four unrelated files. Only a stated path or a model's design can *independently*
     # agree with the brief.
-    origin = "stated" if stated else "landing" if landed else "overview" if files else "none"
+    listed = files or reads
+    origin = "stated" if stated or modules else "landing" if landed else "overview" if listed else "none"
     # Say which it is. A consumer — a human reading design.md, or the codegen prompt now
     # carrying it — has to be able to tell a grounded reading from a shrug.
     risks = ["Heuristic design (no LLM) — confirm the affected files before building."]
@@ -243,29 +313,44 @@ def _fallback_design(
         # from the ticket itself does not need to second-guess them the way a keyword match
         # deserves to be second-guessed.
         risks = ["Files taken from the paths this ticket names, not inferred from its words."]
-    if not files and all_weak:
+    elif modules:
+        risks = ["Files taken from the modules this ticket names, resolved through the graph."]
+    elif reads:
+        risks = [
+            "Heuristic design (no LLM): this ticket creates code, so the files its words match are "
+            "listed to read, not to change."
+        ]
+    if not listed and all_weak:
         risks = [
             "Heuristic design (no LLM): every symbol matching this ticket's words rests only on "
             "words other files use too, so no files are proposed. Name the file, class or endpoint "
             "involved rather than trusting this list."
         ]
-    elif not files:
+    elif not listed:
         risks = [
             "Heuristic design (no LLM) and nothing in the graph matched this ticket's words, "
             "so no files are proposed. Locate the change before building rather than trusting "
             "this list."
         ]
+    title = spec.get("title", "the feature")
+    approach = f"Implement '{title}' following the repo's existing structure and conventions."
+    if kind == "create" and modules:
+        package = str(Path(modules[0]).parent)
+        approach = (
+            f"Create a new module for '{title}' in `{package}`, reusing "
+            f"what the ticket names from {', '.join(f'`{m}`' for m in modules)} without changing it."
+        )
     return {
-        "approach": (
-            f"Implement '{spec.get('title', 'the feature')}' following the repo's existing "
-            "structure and conventions."
-        ),
+        "approach": approach,
+        # Edit targets only (B44). The key keeps its name: seven consumers and every stored
+        # design read it.
         "files_to_touch": files,
+        "files_to_read": reads,
         "interfaces": [],
         "data_changes": [],
         "risks": risks,
         "test_strategy": _test_strategy(spec),
-        "grounded": bool(files),
+        "grounded": bool(listed),
         "llm": False,
         "files_origin": origin,
     }
@@ -279,6 +364,8 @@ def _normalise(design: dict[str, Any]) -> dict[str, Any]:
             out[f] = [str(x) for x in v] if isinstance(v, list) else ([str(v)] if v else [])
         else:
             out[f] = str(v) if v is not None else ""
+    reads = design.get("files_to_read")
+    out["files_to_read"] = [str(x) for x in reads] if isinstance(reads, list) else []
     out["grounded"] = bool(design.get("grounded", True))
     out["llm"] = bool(design.get("llm", False))
     out["files_origin"] = str(design.get("files_origin") or ("model" if out["llm"] else ""))
@@ -352,7 +439,10 @@ def render_design_md(spec: dict[str, Any], design: dict[str, Any]) -> str:
         f"# Design — {spec.get('title', 'feature')}\n\n"
         f"_{origin}, grounded in the knowledge graph: {design.get('grounded')}_\n\n"
         f"## Approach\n{design.get('approach', '')}\n"
-        + _list("Files to touch", design.get("files_to_touch") or [])
+        # "Files to edit", not "to touch": GPT models read "touch" as an instruction and gave
+        # every listed file a justifying edit (B44). Reference files are listed apart, and say so.
+        + _list("Files to edit", design.get("files_to_touch") or [])
+        + _list(READ_HEADING, design.get("files_to_read") or [])
         + _list("Interfaces", design.get("interfaces") or [])
         + _list("Data changes", design.get("data_changes") or [])
         + _list("Risks", design.get("risks") or [])

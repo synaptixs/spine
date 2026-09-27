@@ -205,7 +205,7 @@ def test_render_design_md_sections() -> None:
     md = render_design_md(
         _SPEC, {"approach": "A", "files_to_touch": ["x.py"], "test_strategy": "T", "llm": True}
     )
-    assert "## Approach" in md and "## Files to touch" in md and "x.py" in md and "## Test strategy" in md
+    assert "## Approach" in md and "## Files to edit" in md and "x.py" in md and "## Test strategy" in md
 
 
 # --------------------------------------------------------------------------- #

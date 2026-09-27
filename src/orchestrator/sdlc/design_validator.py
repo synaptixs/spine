@@ -55,7 +55,7 @@ __all__ = ["DesignFinding", "DesignValidation", "validate_design"]
 # Fields a design may name code in. `approach` and `test_strategy` are prose and are not mined:
 # a sentence mentioning a module is not a claim to touch it, and treating it as one would refuse
 # designs for describing the repository correctly.
-_REFERENCE_FIELDS = ("files_to_touch", "interfaces", "data_changes")
+_REFERENCE_FIELDS = ("files_to_touch", "files_to_read", "interfaces", "data_changes")
 
 
 @dataclass(frozen=True)

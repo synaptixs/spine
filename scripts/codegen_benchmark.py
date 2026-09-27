@@ -57,6 +57,7 @@ from orchestrator.sdlc.preflight import (  # noqa: E402
     PreflightBaselineError,
     SubprocessPreflightRunner,
 )
+from orchestrator.sdlc.scope import EditScope  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -1644,8 +1645,11 @@ async def build_design(
         store=store,
         root=repo_root,
     )
+    # The ticket's kind reaches the design: a create ticket's named modules and word matches are
+    # to read, not to edit (B44). Codegen still receives `ticket.spec` unchanged.
+    design_spec = {**ticket.spec, "kind": ticket.kind}
     design = await produce_design(
-        ticket.spec,
+        design_spec,
         overview=build_overview(batch),
         store=store,
         # The model writes `approach`, `interfaces`, `data_changes` and `test_strategy`; the
@@ -1670,6 +1674,7 @@ async def build_design(
         "design_files": len(design.get("files_to_touch") or []),
         "design_rejected": not validation.ok,
         "design_findings": [f.named for f in validation.findings],
+        "design_scope": EditScope.from_design(design, design_spec),
     }
     if not validation.ok:
         print(f"  design:    REJECTED — {', '.join(meta['design_findings'])}")
@@ -1699,7 +1704,8 @@ async def run_ticket(
     # `EVAL_SKILL=<id> ... codegen_benchmark.py` still works.
     if eval_skill is None:
         eval_skill = os.getenv("EVAL_SKILL", "").strip()
-    design_text, design_meta = "", {"design_arm": design_arm}
+    design_text = ""
+    design_meta: dict[str, Any] = {"design_arm": design_arm}
     adapter = LLMCodegenAdapter(
         llm,
         model=model or MODEL,
@@ -1725,6 +1731,8 @@ async def run_ticket(
                     agentic=agentic,
                     skills=[eval_skill] if eval_skill else None,
                     design=design_text,
+                    # Popped, not read: the result dict stays JSON-serialisable.
+                    edit_scope=design_meta.pop("design_scope", None),
                 )
             impl = await _stage(adapter.implement, spec=ticket.spec, path=str(workdir), issue_key=key)
             print(f"  implement: {_rel(impl.files, workdir)} — {impl.summary[:120]}")

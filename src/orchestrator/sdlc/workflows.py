@@ -958,7 +958,7 @@ def _spec_with_design(spec: dict[str, Any], design: dict[str, Any]) -> dict[str,
         return spec
     parts = [f"APPROVED DESIGN — approach: {d.get('approach', '')}"]
     if d.get("files_to_touch"):
-        parts.append("Files to touch: " + ", ".join(str(f) for f in d["files_to_touch"]))
+        parts.append("Files to edit: " + ", ".join(str(f) for f in d["files_to_touch"]))
     if d.get("interfaces"):
         parts.append("Interfaces: " + "; ".join(str(i) for i in d["interfaces"]))
     if d.get("data_changes"):
