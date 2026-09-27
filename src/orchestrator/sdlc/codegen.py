@@ -2488,7 +2488,10 @@ def _existing_test_examples(spec: dict[str, Any], root: Path, design: str = "") 
     convention for invoking *any* entry point under test is best stated by the tests that
     already do it.
     """
-    targets = _paths_from(spec, design, root)
+    # The files the design lists to read count too: a module the new code reuses is exactly the
+    # one whose tests show this repo's conventions. Taking them away left create tickets with no
+    # examples, and generated tests drifted from the repo's style (B44 P4: E402 in 6 of 30 runs).
+    targets = _paths_from(spec, design, root) + _design_read_paths(design, root)
     if not targets:
         return ""
     modules = {_module_path_of(rel) for rel in targets if _module_path_of(rel)}
@@ -2763,15 +2766,21 @@ def _named_existing_files(spec: dict[str, Any], root: Path, design: str = "") ->
     )
 
 
-def _reference_files(root: Path, design: str, shown: list[str]) -> str:
-    """The files a design lists to read, shown as reference and labelled as not to change (B44)."""
+def _design_read_paths(design: str, root: Path) -> list[str]:
+    """The existing files a rendered design lists to read (``READ_HEADING``), resolved."""
     from orchestrator.sdlc.source_paths import named_paths, resolve
 
-    reads: list[str] = []
+    out: list[str] = []
     for rel in named_paths(_design_sections(design, edit=False)):
         resolved = resolve(rel, root)
-        if resolved and resolved not in shown and resolved not in reads:
-            reads.append(resolved)
+        if resolved and resolved not in out:
+            out.append(resolved)
+    return out
+
+
+def _reference_files(root: Path, design: str, shown: list[str]) -> str:
+    """The files a design lists to read, shown as reference and labelled as not to change (B44)."""
+    reads = [r for r in _design_read_paths(design, root) if r not in shown]
     if not reads:
         return ""
     body = _excerpt_files(root, reads, budget=_MAX_CONTEXT_BYTES, label="reference — read only")

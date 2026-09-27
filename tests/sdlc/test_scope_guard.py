@@ -483,3 +483,23 @@ def test_a_re_exported_class_resolves_to_its_package_not_a_parent() -> None:
     graph = _graph(*_MODULES, ("orchestrator.core", "src/orchestrator/core/__init__.py"))
     spec = {"summary": "renders the token ledger (orchestrator.core.llm.TokenLedger) as Markdown"}
     assert _stated_modules(spec, graph) == ["src/orchestrator/core/llm/__init__.py"]
+
+
+def test_a_create_ticket_still_gets_example_tests_from_the_modules_it_reads(tmp_path: Path) -> None:
+    """P4 regression: with no files to edit, author_tests lost its example tests and generated
+    tests drifted from the repo's style. The modules a design lists to read supply them."""
+    from orchestrator.sdlc.codegen import _existing_test_examples
+    from orchestrator.sdlc.scope import READ_HEADING
+
+    (tmp_path / "src/pkg").mkdir(parents=True)
+    (tmp_path / "src/pkg/__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "src/pkg/verifiers.py").write_text("def worst() -> int:\n    return 1\n", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests/test_verifiers.py").write_text(
+        "from pkg.verifiers import worst\n\n\ndef test_worst() -> None:\n    assert worst() == 1\n",
+        encoding="utf-8",
+    )
+
+    block = _existing_test_examples({}, tmp_path, f"## {READ_HEADING}\n- src/pkg/verifiers.py\n")
+
+    assert "tests/test_verifiers.py" in block
