@@ -768,7 +768,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4828 symbols; 
 | `_import_server_class` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_import_server_class) | [`_import_server_class`](../src/orchestrator/plugin/server.py#L2357) |
 | `_import_target` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_import_target) | [`_import_target`](../src/orchestrator/pkg/typescript_extractor.py#L462) |
 | `_importable` | `orchestrator.doctor` | [`_importable`](../src/orchestrator/doctor.py#L190) |
-| `_importable_names` | `scripts.codegen_benchmark` | [`_importable_names`](../scripts/codegen_benchmark.py#L1549) |
+| `_importable_names` | `scripts.codegen_benchmark` | [`_importable_names`](../scripts/codegen_benchmark.py#L1556) |
 | `_ImportContext` | [`orchestrator.pkg.java_extractor`](modules/orchestrator.pkg.java_extractor.md#_importcontext) | [`_ImportContext`](../src/orchestrator/pkg/java_extractor.py#L72) |
 | `_ImportContext` | [`orchestrator.pkg.kotlin_extractor`](modules/orchestrator.pkg.kotlin_extractor.md#_importcontext) | [`_ImportContext`](../src/orchestrator/pkg/kotlin_extractor.py#L135) |
 | `_imported_locals` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_imported_locals) | [`_imported_locals`](../src/orchestrator/pkg/typescript_extractor.py#L983) |
@@ -1059,7 +1059,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4828 symbols; 
 | `_model_classes` | [`orchestrator.pkg.js_orm`](modules/orchestrator.pkg.js_orm.md#_model_classes) | [`_model_classes`](../src/orchestrator/pkg/js_orm.py#L434) |
 | `_model_end` | [`orchestrator.pkg.js_orm`](modules/orchestrator.pkg.js_orm.md#_model_end) | [`_model_end`](../src/orchestrator/pkg/js_orm.py#L609) |
 | `_ModelInits` | [`orchestrator.pkg.verify`](modules/orchestrator.pkg.verify.md#_modelinits) | [`_ModelInits`](../src/orchestrator/pkg/verify.py#L351) |
-| `_modified_tracked` | `scripts.codegen_benchmark` | [`_modified_tracked`](../scripts/codegen_benchmark.py#L1513) |
+| `_modified_tracked` | `scripts.codegen_benchmark` | [`_modified_tracked`](../scripts/codegen_benchmark.py#L1520) |
 | `_module_dep_section` | [`orchestrator.knowledge.renderers`](modules/orchestrator.knowledge.renderers.md#_module_dep_section) | [`_module_dep_section`](../src/orchestrator/knowledge/renderers.py#L492) |
 | `_module_layout` | [`orchestrator.sdlc.layout`](modules/orchestrator.sdlc.layout.md#_module_layout) | [`_module_layout`](../src/orchestrator/sdlc/layout.py#L428) |
 | `_module_level` | `orchestrator.pkg.python_reexport` | [`_module_level`](../src/orchestrator/pkg/python_reexport.py#L90) |
@@ -1130,7 +1130,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4828 symbols; 
 | `_on_repo_tasks` | `scripts.agentic_eval` | [`_on_repo_tasks`](../scripts/agentic_eval.py#L69) |
 | `_one_line` | `orchestrator.intake.openspec_writer` | [`_one_line`](../src/orchestrator/intake/openspec_writer.py#L172) |
 | `_only_stated` | `orchestrator.sdlc.review` | [`_only_stated`](../src/orchestrator/sdlc/review.py#L303) |
-| `_ontomesh_tickets` | `scripts.codegen_benchmark` | [`_ontomesh_tickets`](../scripts/codegen_benchmark.py#L967) |
+| `_ontomesh_tickets` | `scripts.codegen_benchmark` | [`_ontomesh_tickets`](../scripts/codegen_benchmark.py#L974) |
 | `_Open` | [`orchestrator.pkg.scope`](modules/orchestrator.pkg.scope.md#_open) | [`_Open`](../src/orchestrator/pkg/scope.py#L144) |
 | `_open_repo` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_open_repo) | [`_open_repo`](../src/orchestrator/plugin/server.py#L249) |
 | `_opens_receiver_lambda` | [`orchestrator.pkg.kotlin_extractor`](modules/orchestrator.pkg.kotlin_extractor.md#_opens_receiver_lambda) | [`_opens_receiver_lambda`](../src/orchestrator/pkg/kotlin_extractor.py#L1624) |
@@ -1150,7 +1150,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4828 symbols; 
 | `_owning_module_name` | [`orchestrator.knowledge.current_state`](modules/orchestrator.knowledge.current_state.md#_owning_module_name) | [`_owning_module_name`](../src/orchestrator/knowledge/current_state.py#L229) |
 | `_package` | `orchestrator.pkg.joins_propose` | [`_package`](../src/orchestrator/pkg/joins_propose.py#L124) |
 | `_package_in` | [`orchestrator.sdlc.layout`](modules/orchestrator.sdlc.layout.md#_package_in) | [`_package_in`](../src/orchestrator/sdlc/layout.py#L281) |
-| `_package_roots` | `scripts.codegen_benchmark` | [`_package_roots`](../scripts/codegen_benchmark.py#L1520) |
+| `_package_roots` | `scripts.codegen_benchmark` | [`_package_roots`](../scripts/codegen_benchmark.py#L1527) |
 | `_page` | `orchestrator.registry.api.web.intelligence` | [`_page`](../src/orchestrator/registry/api/web/intelligence.py#L50) |
 | `_page_on_another_site` | `orchestrator.intake.confluence_links` | [`_page_on_another_site`](../src/orchestrator/intake/confluence_links.py#L169) |
 | `_page_title` | `orchestrator.intake.notion` | [`_page_title`](../src/orchestrator/intake/notion.py#L85) |
@@ -1374,7 +1374,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4828 symbols; 
 | `_regression_surface` | `orchestrator.sdlc.rca` | [`_regression_surface`](../src/orchestrator/sdlc/rca.py#L84) |
 | `_rejects_temperature` | `orchestrator.core.llm.litellm_client` | [`_rejects_temperature`](../src/orchestrator/core/llm/litellm_client.py#L37) |
 | `_rel` | `scripts.codegen_ab` | [`_rel`](../scripts/codegen_ab.py#L193) |
-| `_rel` | `scripts.codegen_benchmark` | [`_rel`](../scripts/codegen_benchmark.py#L1509) |
+| `_rel` | `scripts.codegen_benchmark` | [`_rel`](../scripts/codegen_benchmark.py#L1516) |
 | `_rel` | `scripts.skill_promote` | [`_rel`](../scripts/skill_promote.py#L48) |
 | `_relation_targets` | [`orchestrator.pkg.kotlin_room`](modules/orchestrator.pkg.kotlin_room.md#_relation_targets) | [`_relation_targets`](../src/orchestrator/pkg/kotlin_room.py#L270) |
 | `_relative` | `orchestrator.codereview.semgrep` | [`_relative`](../src/orchestrator/codereview/semgrep.py#L120) |

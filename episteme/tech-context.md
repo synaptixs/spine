@@ -38,15 +38,15 @@ _How this system starts._
 - `main()` @ scripts/bench_aggregate.py:94
 - `main()` @ scripts/brief-sections.py:95
 - `main()` @ scripts/codegen_ab.py:242
-- `main()` @ scripts/codegen_benchmark.py:1863
+- `main()` @ scripts/codegen_benchmark.py:1870
 
 ## Most-used external imports
 _Everything imported from outside this codebase, by how often — standard library and test dependencies included, so this is wider than the install list._
 
-- `__future__.annotations` — imported 805 times
-- `pathlib.Path` — imported 383 times
+- `__future__.annotations` — imported 806 times
+- `pathlib.Path` — imported 384 times
 - `typing.Any` — imported 298 times
-- `pytest` — imported 256 times
+- `pytest` — imported 257 times
 - `collections.abc` — imported 186 times
 - `dataclasses.dataclass` — imported 180 times
 - `json` — imported 168 times
