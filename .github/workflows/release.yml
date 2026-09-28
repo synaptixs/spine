@@ -14,6 +14,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      created: ${{ steps.create.outputs.created }}
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -28,6 +31,7 @@ jobs:
           echo "Detected version: $v"
 
       - name: Create release if the tag doesn't exist yet
+        id: create
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.ver.outputs.version }}
@@ -43,3 +47,16 @@ jobs:
             --target "${GITHUB_SHA}" \
             --title "Spine $tag" \
             --generate-notes
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+  notify-teams:
+    needs: release
+    if: needs.release.outputs.created == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/notify-release-teams.yml
+    with:
+      source: GitHub
+      version: ${{ needs.release.outputs.version }}
+    secrets:
+      TEAMS_RELEASE_WEBHOOK_URL: ${{ secrets.TEAMS_RELEASE_WEBHOOK_URL }}

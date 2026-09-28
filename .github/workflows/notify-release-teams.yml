@@ -1,0 +1,99 @@
+name: Notify Teams of release
+
+# Automated releases use GITHUB_TOKEN, so their release events cannot trigger
+# another workflow. release.yml calls this directly after creating a new release.
+# This event additionally covers releases published by a person or another app.
+on:
+  release:
+    types: [published]
+  workflow_dispatch: # sends a clearly labeled connection test, never publishes
+  workflow_call:
+    inputs:
+      source:
+        type: string
+        required: true
+      version:
+        type: string
+        required: true
+    secrets:
+      TEAMS_RELEASE_WEBHOOK_URL:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    if: github.repository == 'synaptixs/spine'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Send release card to Teams
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_RELEASE_WEBHOOK_URL }}
+          SOURCE: ${{ inputs.source || (github.event_name == 'release' && 'GitHub') || 'Test' }}
+          VERSION: ${{ inputs.version || github.event.release.tag_name || 'connection test' }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          REPOSITORY: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$TEAMS_WEBHOOK_URL" ]]; then
+            echo "::error::Configure the TEAMS_RELEASE_WEBHOOK_URL repository secret."
+            exit 1
+          fi
+          if [[ "$TEAMS_WEBHOOK_URL" != https://* ]]; then
+            echo "::error::The Teams webhook must use HTTPS."
+            exit 1
+          fi
+          if [[ -z "$VERSION" ]]; then
+            echo "::error::A release version is required."
+            exit 1
+          fi
+          case "$SOURCE" in
+            GitHub)
+              tag="$VERSION"
+              [[ "$tag" == v* ]] || tag="v$tag"
+              tag_uri="$(jq -rn --arg tag "$tag" '$tag | @uri')"
+              url="${RELEASE_URL:-${SERVER_URL}/${REPOSITORY}/releases/tag/${tag_uri}}"
+              title="Spine $VERSION — GitHub release"
+              detail="A new GitHub release is available. Open the release for notes and downloads."
+              ;;
+            PyPI)
+              version_uri="$(jq -rn --arg version "$VERSION" '$version | @uri')"
+              url="https://pypi.org/project/synaptixs-spine/${version_uri}/"
+              title="Spine $VERSION — published to PyPI"
+              detail="Install: pip install --upgrade synaptixs-spine==$VERSION"
+              ;;
+            Test)
+              url="${SERVER_URL}/${REPOSITORY}/actions"
+              title="Spine release notifications — connection test"
+              detail="Teams webhook delivery is working. This is a setup test, not a new release."
+              ;;
+            *)
+              echo "::error::Unknown notification source."
+              exit 1
+              ;;
+          esac
+          jq -n --arg title "$title" --arg detail "$detail" --arg url "$url" \
+            '{type: "message", attachments: [{contentType: "application/vnd.microsoft.card.adaptive",
+              contentUrl: null, content: {"$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                type: "AdaptiveCard", version: "1.2", body: [
+                  {type: "TextBlock", text: $title, weight: "Bolder", size: "Medium", wrap: true},
+                  {type: "TextBlock", text: $detail, wrap: true}],
+                actions: [{type: "Action.OpenUrl", title: "View details", url: $url}]}}]}' \
+            > "$RUNNER_TEMP/teams-release.json"
+          # Do not print the credential, response body, or curl diagnostics.
+          if ! status="$(curl --silent --fail --output "$RUNNER_TEMP/teams-response.txt" \
+            --write-out '%{http_code}' --connect-timeout 10 --max-time 20 \
+            --retry 3 --retry-max-time 60 \
+            --header 'Content-Type: application/json' \
+            --data-binary "@$RUNNER_TEMP/teams-release.json" "$TEAMS_WEBHOOK_URL")"; then
+            echo "::error::Teams delivery failed (HTTP $status). Check the Teams workflow run history."
+            exit 1
+          fi
+          if [[ "$status" != 2?? ]]; then
+            echo "::error::Unexpected Teams response (HTTP $status)."
+            exit 1
+          fi
+          echo "Teams accepted the $SOURCE notification (HTTP $status)." >> "$GITHUB_STEP_SUMMARY"

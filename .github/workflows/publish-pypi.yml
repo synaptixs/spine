@@ -14,6 +14,8 @@ on:
 jobs:
   publish-pypi:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     environment: pypi
     permissions:
       contents: read # an explicit permissions block drops the defaults; checkout needs this
@@ -32,8 +34,25 @@ jobs:
       - name: Build sdist + wheel
         run: uv build
 
+      - name: Read published version
+        id: ver
+        run: |
+          version="$(uv run --no-project --python 3.12 python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Check metadata
         run: uvx twine check dist/*
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+
+  notify-teams:
+    needs: publish-pypi
+    permissions:
+      contents: read
+    uses: ./.github/workflows/notify-release-teams.yml
+    with:
+      source: PyPI
+      version: ${{ needs.publish-pypi.outputs.version }}
+    secrets:
+      TEAMS_RELEASE_WEBHOOK_URL: ${{ secrets.TEAMS_RELEASE_WEBHOOK_URL }}
