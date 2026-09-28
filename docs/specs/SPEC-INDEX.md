@@ -144,7 +144,7 @@ Analysis, comparisons, test plans and assets. No completion state applies.
 | [ticket-to-landing-sites](ticket-to-landing-sites.md) | How a ticket's words become `file:line` landing sites — tokenising, scoring, and what the result is bound to (2026-08-25) |
 | [competitive-landscape](competitive-landscape.md) | Competitive **narrative and strategy** (2026-08-21). Its duplicate scored matrix was removed — see `capability-matrix.md` |
 | [graphify-vs-spine-comparison](graphify-vs-spine-comparison.md) | One competitor in depth — **at v3.7.0, stale** |
-| [spec-kit-integration-analysis](spec-kit-integration-analysis.md) | GitHub's spec-kit — **evaluated and declined 2026-08-25**. LLM-driven end to end, no validator, never reads the target codebase. Carries a revisit condition |
+| [spec-kit-integration-analysis](spec-kit-integration-analysis.md) | GitHub's spec-kit — **evaluated and declined 2026-08-25**. LLM-driven end to end, no validator, no deterministic read of the target codebase. Cost measured against Spine + PKG 3.52: about 30–45× per feature. Carries a revisit condition |
 | [enhancement-index](enhancement-index.md) | Directory of the enhancements planned in the 2026-08-25 session — E1–E6, with state and what gates each. **Not a third backlog**; `STATE-OF-SPINE` §8 remains the authority |
 | [constitution-roadmap](constitution-roadmap.md) | Durable project rules a run is *checked* against, not prompted with. **Spec only — Phase 0 is a blocking trigger probe** that may close it unbuilt |
 | [cli-test-plan](cli-test-plan.md) | 50 commands, written against 3.16.0 |
