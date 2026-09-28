@@ -620,3 +620,34 @@ scoped and provenance is fiction. Build it once per repo+ontology.
 
 **Before a live (`--live`) run:** GitHub App auth set, budget cap set, local quality
 gate green, approvals reachable.
+
+---
+
+## Release notifications in Microsoft Teams
+
+GitHub releases and successful production PyPI uploads send separate Adaptive Cards
+to **Spine Engineering - SDLC Orchestrator → Spine Releases**. The cards include the
+version and a link to the release; PyPI cards also include the install command.
+TestPyPI and the reserved `synaptixs` package do not send notifications.
+
+The Teams Workflows app owns the incoming webhook, named **Spine GitHub and PyPI
+release alerts**. Store its URL as the repository Actions secret
+`TEAMS_RELEASE_WEBHOOK_URL`; never commit it. For a replacement, use the channel's
+**Workflows → Send webhook alerts to a channel** template and update that secret.
+Microsoft documents the setup at
+<https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook>.
+
+`release.yml` calls `notify-release-teams.yml` only after creating a new release;
+an already-existing release sends nothing. Direct invocation is necessary because
+releases made with `GITHUB_TOKEN` do not trigger another release-event workflow.
+The notifier also handles `release: published` for releases made outside that
+workflow. `publish-pypi.yml` calls it only after the upload job succeeds.
+
+To test delivery, manually run **Notify Teams of release** from Actions. It posts
+a clearly labeled connection test and does not publish a package or release.
+Notification failures appear as a separate failed job; the completed release/upload
+is retained. After fixing delivery, rerun only failed jobs. Repeated notification
+runs or HTTP retries can produce duplicate cards. A successful HTTP response means
+Teams accepted the request; verify the channel or Teams workflow run history for
+actual delivery. Notifications for PyPI uploads made outside `publish-pypi.yml` are
+not covered. Changes must reach the publishing branch before they take effect.
