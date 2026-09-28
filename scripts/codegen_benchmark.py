@@ -326,9 +326,12 @@ def test_reports_the_token_counts():
 _HO_NEW_DRIFTMD = (
     _HO_FIND
     + """
-def test_returns_non_empty_markdown_and_names_the_mentions():
-    import importlib, pkgutil
+import re
 
+from orchestrator.pkg.docs import DocDriftFinding, MentionKind
+
+
+def test_returns_non_empty_markdown_and_names_the_mentions():
     fn = None
     for pkg_name in ("orchestrator.pkg", "orchestrator.knowledge"):
         try:
@@ -338,16 +341,20 @@ def test_returns_non_empty_markdown_and_names_the_mentions():
             continue
     assert fn is not None, "render_drift_markdown not found"
 
-    class F:
-        def __init__(self, page_title, mention, kind):
-            self.page_title = page_title
-            self.mention = mention
-            self.kind = kind
-
-    out = fn([F("Design", "missing_symbol", "symbol"), F("Design", "gone.py", "file")])
+    # The real finding type, as the ticket requires. A hand-made stand-in (a str
+    # `kind`, no `message`) failed every correct solution on `kind.value` (B51).
+    kinds = list(MentionKind)
+    out = fn(
+        [
+            DocDriftFinding("Design", "missing_symbol", kinds[0], "not defined in code"),
+            DocDriftFinding("Design", "gone.py", kinds[-1], "file not found"),
+        ]
+    )
     assert isinstance(out, str) and out.strip()
-    assert "missing_symbol" in out and "gone.py" in out
-    assert "Design" in out
+    # Checked on the rendered text: `missing\\_symbol` is Markdown for missing_symbol.
+    text = re.sub(r"\\\\(.)", r"\\1", out)
+    assert "missing_symbol" in text and "gone.py" in text
+    assert "Design" in text
 """
 )
 
