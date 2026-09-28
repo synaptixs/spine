@@ -4,6 +4,19 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## Unreleased
+
+### Fixed
+
+- **The codegen benchmark's `NEW-DRIFTMD-1` ticket can be passed.** Its held-out test built a
+  stand-in for the doc-drift finding (a `str` kind, no `message`) where the ticket requires the
+  real `DocDriftFinding`, so correct code failed on `kind.value` — every run of every tool on
+  every model failed the ticket. The test now builds real findings and checks the rendered text,
+  so a Markdown-escaped `missing\_symbol` counts. Re-graded on the kept runs: 7/7 for Spine + PKG,
+  and 6/7 for spec-kit, whose one failure never wrote the function. A new guard runs the suite
+  against a reference solution, and against a wrong one that must fail.
+  ([SSPN-97](https://fibonacci-solutions.atlassian.net/browse/SSPN-97))
+
 ## 3.52.0 — 2026-09-27
 
 Docs join the blast radius — the repository's own, Confluence and Jira pages, and any RAG system
