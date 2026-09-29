@@ -8,6 +8,21 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **Python methods called through a typed variable now have callers in the graph.** The Python
+  front-end dropped every call through a parameter, a local or a stored attribute, so
+  `blast_radius` answered "0 callers" for most methods — `FactStore.impact_of`, `edges_of_kind`,
+  `docs_for` and `summary` and `LLMCodegenAdapter.refine`/`author_tests` among them. A call now
+  lands on the method its declared type means: a parameter annotation (`Optional[X]` and
+  `X | None` included), a local assigned once from a constructor, a `self.attr` typed by a class
+  annotation, a constructor or a typed parameter, and an inherited `self.m()`. It refuses rather
+  than guesses — a name bound to two types, a union of two classes, a type this repository does
+  not declare, a class with two bases or an external base — and a new corpus case with decoys
+  holds precision at 1.00. On this repository: +2,077 `CALLS` edges (779 from non-test code); a
+  20-edge hand sample was 20/20 correct. `Class.inherited()` on a class name now lands on the
+  ancestor that declares it; the 25 edges that pointed at an invented `Class.member` (22 of them
+  pydantic's `model_validate`) are dropped instead. **Build documents render new caller counts, so
+  a plan approved before the upgrade reads as stale once** — re-plan and re-approve.
+  ([SSPN-48](https://fibonacci-solutions.atlassian.net/browse/SSPN-48))
 - **Concurrent features on one SDLC worker no longer switch each other's codegen guards off.**
   The worker shares one codegen adapter across features running in parallel, and refine stored
   its edit allowlist on it — as single-shot implement did its edit scope — before awaiting the
