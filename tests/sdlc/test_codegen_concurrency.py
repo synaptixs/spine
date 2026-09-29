@@ -93,6 +93,7 @@ async def test_a_refine_that_finishes_first_does_not_clear_the_other_refines_all
     a, b = h.root("featA", "a.py"), h.root("featB", "b.py")
     ta, tb = _refine(h, a, "A-1", "a.py"), _refine(h, b, "B-1", "b.py")
     await _settle()
+    assert h.calls == {"A-1": 1, "B-1": 1}  # both parked on the model: the interleaving is real
     h.release("B-1")
     await tb
     h.release("A-1")
@@ -110,6 +111,7 @@ async def test_an_implement_during_a_refine_gets_no_refine_allowlist(
     a, c = h.root("featA", "a.py"), h.root("featC", "c.py")
     ta, tc = _refine(h, a, "A-1", "a.py"), _implement(h, c, "C-1")
     await _settle()
+    assert h.calls == {"A-1": 1, "C-1": 1}
     h.release("C-1")
     await tc
     h.release("A-1")
@@ -126,6 +128,7 @@ async def test_a_refine_during_an_implement_gets_no_implement_scope(
     a, c = h.root("featA", "a.py"), h.root("featC", "c.py")
     tc, ta = _implement(h, c, "C-1"), _refine(h, a, "A-1", "a.py")
     await _settle()
+    assert h.calls == {"C-1": 1, "A-1": 1}
     h.release("A-1")
     await ta
     h.release("C-1")
@@ -142,6 +145,7 @@ async def test_an_implement_that_finishes_first_does_not_clear_the_other_impleme
     c, d = h.root("featC", "c.py"), h.root("featD", "d.py")
     tc, td = _implement(h, c, "C-1"), _implement(h, d, "D-1")
     await _settle()
+    assert h.calls == {"C-1": 1, "D-1": 1}
     h.release("D-1")
     await td
     h.release("C-1")
@@ -165,18 +169,71 @@ async def test_the_allowlist_survives_a_corrective_retry_while_another_refine_ru
     await _settle()
     tb = _refine(h, b, "B-1", "b.py")
     await _settle()
+    assert h.calls == {"A-1": 2, "B-1": 1}  # A parked on its retry, B on its first call
     h.release("B-1")
     await tb
     h.release("A-1")
     await ta
 
-    assert h.calls["A-1"] == 2  # the corrective retry really ran
     assert h.seen("featA") == [(frozenset({"src/a.py"}), None)]
     assert h.seen("featB") == [(frozenset({"src/b.py"}), None)]
 
 
+async def test_revise_and_author_tests_during_a_refine_get_no_guards(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Neither is refine: they apply with no allowlist and no scope, whatever runs beside them."""
+    h = _Harness(monkeypatch, tmp_path)
+    a, c, d = h.root("featA", "a.py"), h.root("featC", "c.py"), h.root("featD", "d.py")
+    ta = _refine(h, a, "A-1", "a.py")
+    tc = asyncio.create_task(
+        h.adapter.revise(spec=_SPEC, path=str(c), issue_key="C-1", blockers=["criterion 1"])
+    )
+    td = asyncio.create_task(h.adapter.author_tests(spec=_SPEC, path=str(d), issue_key="D-1"))
+    await _settle()
+    assert h.calls == {"A-1": 1, "C-1": 1, "D-1": 1}
+    h.release("C-1")
+    h.release("D-1")
+    await asyncio.gather(tc, td)
+    h.release("A-1")
+    await ta
+
+    assert h.seen("featC") == [(None, None)]
+    assert h.seen("featD") == [(None, None)]
+    assert h.seen("featA") == [(frozenset({"src/a.py"}), None)]
+
+
+def _bound_names(node: ast.AST) -> list[ast.expr]:
+    """Every target a statement binds, unpacking tuples, lists and starred names."""
+    if isinstance(node, ast.Assign):
+        pending = list(node.targets)
+    elif isinstance(node, ast.AnnAssign | ast.AugAssign | ast.For | ast.AsyncFor):
+        pending = [node.target]
+    elif isinstance(node, ast.With | ast.AsyncWith):
+        pending = [i.optional_vars for i in node.items if i.optional_vars is not None]
+    else:
+        return []
+    out: list[ast.expr] = []
+    while pending:
+        target = pending.pop()
+        if isinstance(target, ast.Tuple | ast.List):
+            pending.extend(target.elts)
+        elif isinstance(target, ast.Starred):
+            pending.append(target.value)
+        else:
+            out.append(target)
+    return out
+
+
+def _is_self(node: ast.expr) -> bool:
+    return isinstance(node, ast.Name) and node.id == "self"
+
+
 def test_no_adapter_method_stores_state_on_the_adapter() -> None:
-    """The class of B49, not its two instances: outside ``__init__`` nothing assigns ``self.<name>``.
+    """The class of B49, not its two instances: outside ``__init__`` nothing binds ``self.<name>``.
+
+    Any method, not only ``async`` ones: a sync setter called from an async method leaks the same
+    way. Plain, unpacked, ``for``/``with`` targets and ``setattr(self, …)`` all count.
 
     Per-worktree caches (``self._conventions[key] = …``) are keyed by the call's own root, so
     item assignment stays allowed; rebinding an attribute is what one call leaks into another.
@@ -188,16 +245,15 @@ def test_no_adapter_method_stores_state_on_the_adapter() -> None:
         if not isinstance(fn, ast.FunctionDef | ast.AsyncFunctionDef) or fn.name == "__init__":
             continue
         for node in ast.walk(fn):
-            targets: list[ast.expr] = []
-            if isinstance(node, ast.Assign):
-                targets = node.targets
-            elif isinstance(node, ast.AnnAssign | ast.AugAssign):
-                targets = [node.target]
-            for target in targets:
-                if (
-                    isinstance(target, ast.Attribute)
-                    and isinstance(target.value, ast.Name)
-                    and target.value.id == "self"
-                ):
+            for target in _bound_names(node):
+                if isinstance(target, ast.Attribute) and _is_self(target.value):
                     offenders.append(f"{fn.name}:{target.lineno} self.{target.attr}")
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "setattr"
+                and node.args
+                and _is_self(node.args[0])
+            ):
+                offenders.append(f"{fn.name}:{node.lineno} setattr(self, …)")
     assert offenders == []
