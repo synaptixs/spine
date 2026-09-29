@@ -1,0 +1,824 @@
+{
+  "language": "python",
+  "case": "instance_calls",
+  "why": "B35 (SSPN-48): calls through a variable whose type the code itself declares \u2014 an annotated parameter (plain, Optional, X | None), a local assigned once from a constructor, a `self.attr` typed by a class annotation, a constructor or a typed parameter, an inherited `self.m()`, an inherited classmethod on a class name, a Protocol, multiple inheritance. And the shapes that must be refused: a decoy class sharing the method name, a two-class union, a name bound to two types, an external type, an external base.",
+  "root": ".repo",
+  "nodes": [
+    {
+      "id": "py:app",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.mixins",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.mixins.Both",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.mixins.Left",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.mixins.Left.ping",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.mixins.Right",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.mixins.Right.ping",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.mixins.Wrapped",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.mixins.Wrapped.own",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.proto",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.proto.Reader",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.proto.Reader.read",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.store",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.store.Base",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.store.Base.make",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.store.Base.shared",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.store.Rocket",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.store.Rocket.get",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.store.Store",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.store.Store.get",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.store.Store.put",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.use.Service",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.use.Service.__init__",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.Service._rocket",
+      "kind": "Field"
+    },
+    {
+      "id": "py:app.use.Service._store",
+      "kind": "Field"
+    },
+    {
+      "id": "py:app.use.Service.cache",
+      "kind": "Field"
+    },
+    {
+      "id": "py:app.use.Service.client",
+      "kind": "Field"
+    },
+    {
+      "id": "py:app.use.Service.later",
+      "kind": "Field"
+    },
+    {
+      "id": "py:app.use.Service.mixed",
+      "kind": "Field"
+    },
+    {
+      "id": "py:app.use.Service.via_class_annotation",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.Service.via_ctor_field",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.Service.via_external_field",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.Service.via_mixed_field",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.Service.via_none_then_type",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.Service.via_param_field",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.Special",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.use.Special.via_inherited_field",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_chain",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_classmethod",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_closure",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_closure.inner",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_external_param",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_inherited",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_local",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_mro",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_open_base",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_optional",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_param",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_protocol",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_reassigned",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_union_none",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_union_two",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "py:app",
+      "dst": "py:app.store.Store",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.mixins",
+      "dst": "py:app.mixins.Both",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.mixins",
+      "dst": "py:app.mixins.Left",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.mixins",
+      "dst": "py:app.mixins.Right",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.mixins",
+      "dst": "py:app.mixins.Wrapped",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.mixins",
+      "dst": "py:somelib.Widget",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.mixins.Both",
+      "dst": "py:app.mixins.Left",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:app.mixins.Both",
+      "dst": "py:app.mixins.Right",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:app.mixins.Left",
+      "dst": "py:app.mixins.Left.ping",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.mixins.Right",
+      "dst": "py:app.mixins.Right.ping",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.mixins.Wrapped",
+      "dst": "py:app.mixins.Wrapped.own",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.mixins.Wrapped",
+      "dst": "py:somelib.Widget",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:app.proto",
+      "dst": "py:app.proto.Reader",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.proto",
+      "dst": "py:typing.Protocol",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.proto.Reader",
+      "dst": "py:app.proto.Reader.read",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.proto.Reader",
+      "dst": "py:typing.Protocol",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:app.store",
+      "dst": "py:app.store.Base",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.store",
+      "dst": "py:app.store.Rocket",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.store",
+      "dst": "py:app.store.Store",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.store.Base",
+      "dst": "py:app.store.Base.make",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.store.Base",
+      "dst": "py:app.store.Base.shared",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.store.Rocket",
+      "dst": "py:app.store.Rocket.get",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.store.Store",
+      "dst": "py:app.store.Base",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:app.store.Store",
+      "dst": "py:app.store.Store.get",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.store.Store",
+      "dst": "py:app.store.Store.put",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.mixins.Both",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.mixins.Wrapped",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.proto.Reader",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.store.Rocket",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.store.Store",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.Service",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.Special",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_chain",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_classmethod",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_closure",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_external_param",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_inherited",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_local",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_mro",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_open_base",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_optional",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_param",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_protocol",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_reassigned",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_union_none",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_union_two",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:somelib.Client",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:typing.Optional",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.use.Service",
+      "dst": "py:app.use.Service.__init__",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.Service",
+      "dst": "py:app.use.Service._rocket",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.Service",
+      "dst": "py:app.use.Service._store",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.Service",
+      "dst": "py:app.use.Service.cache",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.Service",
+      "dst": "py:app.use.Service.client",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.Service",
+      "dst": "py:app.use.Service.later",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.Service",
+      "dst": "py:app.use.Service.mixed",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.Service",
+      "dst": "py:app.use.Service.via_class_annotation",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.Service",
+      "dst": "py:app.use.Service.via_ctor_field",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.Service",
+      "dst": "py:app.use.Service.via_external_field",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.Service",
+      "dst": "py:app.use.Service.via_mixed_field",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.Service",
+      "dst": "py:app.use.Service.via_none_then_type",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.Service",
+      "dst": "py:app.use.Service.via_param_field",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.Special",
+      "dst": "py:app.use.Service",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:app.use.Special",
+      "dst": "py:app.use.Special.via_inherited_field",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.via_closure",
+      "dst": "py:app.use.via_closure.inner",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.Service.__init__",
+      "dst": "py:app.store.Rocket",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.Service.__init__",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.Service.__init__",
+      "dst": "py:somelib.Client",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_chain",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_chain",
+      "dst": "py:app.use.Service",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_closure",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_local",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_reassigned",
+      "dst": "py:app.store.Rocket",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_reassigned",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.store.Store.put",
+      "dst": "py:app.store.Base.shared",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.Service.via_param_field",
+      "dst": "py:app.store.Store.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.Service.via_ctor_field",
+      "dst": "py:app.store.Rocket.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.Service.via_class_annotation",
+      "dst": "py:app.store.Store.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.Service.via_none_then_type",
+      "dst": "py:app.store.Store.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.Special.via_inherited_field",
+      "dst": "py:app.store.Store.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_param",
+      "dst": "py:app.store.Store.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_optional",
+      "dst": "py:app.store.Store.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_union_none",
+      "dst": "py:app.store.Store.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_local",
+      "dst": "py:app.store.Store.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_inherited",
+      "dst": "py:app.store.Base.shared",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_classmethod",
+      "dst": "py:app.store.Base.make",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_protocol",
+      "dst": "py:app.proto.Reader.read",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_mro",
+      "dst": "py:app.mixins.Left.ping",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_open_base",
+      "dst": "py:app.mixins.Wrapped.own",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_closure.inner",
+      "dst": "py:app.store.Store.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_chain",
+      "dst": "py:app.store.Store.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_closure",
+      "dst": "py:app.use.via_closure.inner",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "py:app.use.via_closure.inner",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `s` is the enclosing function's local, read from a nested function (a closure). B35 types a function's own names only (D1); counted as a recall miss."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.via_chain",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `Service(Store()).cache.get()` \u2014 an attribute of a call's result: a chain, out of scope for v1 (D5)."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.via_closure",
+        "dst": "py:app.use.via_closure.inner",
+        "kind": "CALLS"
+      },
+      "why": "FOUND BY MEASUREMENT, NOT PREDICTED: a call to a function defined inside the caller. Predates B35 \u2014 nested defs are not in the module-level name table \u2014 and is recorded so the gap is visible."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.via_mro",
+        "dst": "py:app.mixins.Left.ping",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. True under Python's MRO (`Left` before `Right`), but D3 keeps the precision-first rule shared with Java/C#: a lookup that reaches a class with two or more bases refuses rather than rank them. Counted as a recall miss."
+    }
+  ],
+  "refusals": [
+    {
+      "edge": {
+        "src": "py:app.use.via_param",
+        "dst": "py:app.store.Rocket.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The decoy: `store` is a `Store` \u2014 the declared type, not the method name, decides."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.via_union_two",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `Store | Rocket` has two class arms: either could be passed, so neither is claimed (D2)."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.via_union_two",
+        "dst": "py:app.store.Rocket.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Same union as above, the other arm."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.Service.via_mixed_field",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `self.mixed` is assigned a `Store` and a `Rocket`: two types, so it has no single type (D1)."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.Service.via_mixed_field",
+        "dst": "py:app.store.Rocket.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Same field, the other assignment."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.via_reassigned",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `s` is bound twice in the function, to different types \u2014 refused, never first- or last-wins (D1)."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.via_reassigned",
+        "dst": "py:app.store.Rocket.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Same local, the other binding."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.Service.via_external_field",
+        "dst": "py:somelib.Client.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `Client` is not declared in this repository: no edge to an invented external member (typed-receivers D11)."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.via_external_param",
+        "dst": "py:somelib.Client.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. Same rule, through a parameter."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.via_open_base",
+        "dst": "py:app.mixins.Wrapped.close",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `Wrapped` extends an external class that may define `close`; nothing is claimed past an external base, and no member is invented on `Wrapped`."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.via_mro",
+        "dst": "py:app.mixins.Right.ping",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. `Both(Left, Right)`: Python's MRO puts `Left` first, so `Left.ping` wins \u2014 `Right.ping` is shadowed."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.via_classmethod",
+        "dst": "py:app.Store.make",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The phantom the per-file pass emitted before B35 (D6): `make` is inherited from `Base`, so neither the re-export path nor `Store` declares it."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.via_classmethod",
+        "dst": "py:app.store.Store.make",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING. The same phantom after re-export resolution: `Store` does not declare `make`."
+    }
+  ],
+  "false_positives": [],
+  "excluded": [
+    "`cls()` inside `Base.make` \u2014 construction through `cls` builds `Base` or any subclass; not labelled.",
+    "Calls to builtins \u2014 the graph emits no node or edge for them."
+  ],
+  "open_questions": [],
+  "note": "Written before the B35 front-end change; every CALLS edge under 'new receiver rules' was predicted, not read off output."
+}
