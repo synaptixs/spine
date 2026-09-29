@@ -37,6 +37,14 @@ reproduce. Committed docs are in CI's checkout too, so local and CI agree by con
 **Never delete one to "tidy up", and never leave an untracked markdown tree inside the
 checkout** — that is the trap this paragraph exists to close, and it is unchanged.
 
+**Grill the user before writing any roadmap or plan — no exceptions.** Before the first
+line of a roadmap, plan, or design record (a doc, a file, or chat), ask the questions whose
+answers change the plan and **wait for the answers**: the goal and who reviews it; scope and
+non-goals; constraints (budget, deps, air-gap, deadlines); how success is measured and the
+target; owners and dates; which options are already ruled out. Push back on vague answers.
+Never draft on assumptions and ask afterwards — the user has had to repeat this rule many
+times.
+
 **New plans and new design records go outside the checkout** (ruled 2026-09-16; the earlier
 instruction to add them here is superseded). Tracking one costs a `SPEC-INDEX.md` row, a
 prose count, an `ls … wc -l` beside it, a spec count in `STATE-OF-SPINE.md` and an indexing
