@@ -976,8 +976,6 @@ class LLMCodegenAdapter:
     ) -> None:
         self._llm = llm
         self._edit_scope = edit_scope
-        # Set only while single-shot ``implement`` runs: the scope ``apply_files`` enforces.
-        self._implement_scope: EditScope | None = None
         self._model = model
         # When set, ``implement`` runs the agentic tool-use loop (Phase 5) instead
         # of the single-shot path. Off by default — single-shot stays the default
@@ -1016,8 +1014,9 @@ class LLMCodegenAdapter:
         # The subset of `_written` this session *created* (B47): a pre-existing file it only edited
         # stays someone else's test, which refine may not unlock for lint repair.
         self._created: dict[Path, list[Path]] = {}
-        # Set only while `refine` runs: the pre-existing files it may edit (see `refine`).
-        self._refine_editable: frozenset[str] | None = None
+        # No per-call state lives here (B49). The worker shares one adapter across concurrent
+        # features, so a value one call stored before awaiting the model was read by whichever
+        # call applied next: refine's allowlist and implement's scope ride down as arguments.
         # Derived house-style digest per worktree root (G8), computed once.
         self._conventions: dict[Path, str] = {}
         # Phase 1b (cross-run semantic memory) — when a DB session factory + a
@@ -1209,11 +1208,7 @@ class LLMCodegenAdapter:
         # skills too (no persona + no skills → the historical prompt, unchanged).
         resolved = skills if skills is not None else self._skills
         system = self._condition_system(self._impl_system(), resolved, phase="implement")
-        self._implement_scope = self._edit_scope
-        try:
-            return await self._generate(system, task, root)
-        finally:
-            self._implement_scope = None
+        return await self._generate(system, task, root, scope=self._edit_scope)
 
     async def _agentic_tools(self, root: Path, mcp_servers: list[str] | None, session: Any) -> list[Any]:
         """Build the loop's toolset bound to ``root`` + ``session`` (read-only +
@@ -1461,36 +1456,34 @@ class LLMCodegenAdapter:
         # names it: the failure, the spec or the design. NSS-1243's refine read a cascade of
         # errors and edited a correct `_Imports.razor` in all three runs — once down to a bare
         # `.Ui` — while the file that broke the build went untouched.
-        self._refine_editable = frozenset(named_by_failure + named_by_ticket)
-        try:
-            return await self._generate(
-                self._condition_system(self._refine_system(), self._skills, phase="refine"),
-                f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}"
-                f"Issue: {issue_key}\n\n"
-                f"SPEC:\n{_spec_text(spec)}\n\n"
-                "IMPORTANT: Fix the IMPLEMENTATION files only. Do NOT modify test files to "
-                "make them match a broken implementation — fix the source code so the tests "
-                "pass as written.\n\n"
-                f"{_lint_test_allowance(lint_tests)}"
-                # Aim the windows at whatever the traceback names: on a big file the excerpt
-                # should cover the line that failed, not the top of the module.
-                f"CURRENT FILES:\n{self._session_files(root, include_tests=True, anchors=fail_anchors)}"
-                f"{_named_existing_files(spec, root, self._design)}"
-                # Minus what the spec or design names: `_named_existing_files` shows those.
-                f"{self._failure_named_files(root, failures, only_failure_named)}"
-                f"{self._convention_block(root)}\n\n"
-                f"FAILURE OUTPUT:\n{shown}\n\n"
-                f"{self._definitions_for(failures, root)}",
-                root,
-                # A refine pass that yields no applicable edits is a legitimate
-                # no-op (the model judged it had nothing to change, or returned a
-                # bare explanation), not a hard error: returning an empty change
-                # lets the test/refine loop reach its normal FAILED verdict instead
-                # of aborting the whole run with an unhandled CodegenError.
-                allow_empty=True,
-            )
-        finally:
-            self._refine_editable = None
+        editable = frozenset(named_by_failure + named_by_ticket)
+        return await self._generate(
+            self._condition_system(self._refine_system(), self._skills, phase="refine"),
+            f"{self._layout_block()}{self._grounding(spec, root)}{self._design_block()}"
+            f"Issue: {issue_key}\n\n"
+            f"SPEC:\n{_spec_text(spec)}\n\n"
+            "IMPORTANT: Fix the IMPLEMENTATION files only. Do NOT modify test files to "
+            "make them match a broken implementation — fix the source code so the tests "
+            "pass as written.\n\n"
+            f"{_lint_test_allowance(lint_tests)}"
+            # Aim the windows at whatever the traceback names: on a big file the excerpt
+            # should cover the line that failed, not the top of the module.
+            f"CURRENT FILES:\n{self._session_files(root, include_tests=True, anchors=fail_anchors)}"
+            f"{_named_existing_files(spec, root, self._design)}"
+            # Minus what the spec or design names: `_named_existing_files` shows those.
+            f"{self._failure_named_files(root, failures, only_failure_named)}"
+            f"{self._convention_block(root)}\n\n"
+            f"FAILURE OUTPUT:\n{shown}\n\n"
+            f"{self._definitions_for(failures, root)}",
+            root,
+            # A refine pass that yields no applicable edits is a legitimate
+            # no-op (the model judged it had nothing to change, or returned a
+            # bare explanation), not a hard error: returning an empty change
+            # lets the test/refine loop reach its normal FAILED verdict instead
+            # of aborting the whole run with an unhandled CodegenError.
+            allow_empty=True,
+            editable_existing=editable,
+        )
 
     def _failure_named_files(self, root: Path, failures: str, named: list[str]) -> str:
         """The pre-existing files the failure names, windowed on the lines it names.
@@ -1584,7 +1577,16 @@ class LLMCodegenAdapter:
             allow_empty=True,
         )
 
-    async def _generate(self, system: str, user: str, root: Path, *, allow_empty: bool = False) -> CodeChange:
+    async def _generate(
+        self,
+        system: str,
+        user: str,
+        root: Path,
+        *,
+        allow_empty: bool = False,
+        editable_existing: frozenset[str] | None = None,
+        scope: EditScope | None = None,
+    ) -> CodeChange:
         """One LLM call → apply, with a single anchor-repair retry.
 
         The grounding context shows *snippets* of existing files, so a first
@@ -1599,6 +1601,10 @@ class LLMCodegenAdapter:
         refine): the caller gets an empty ``CodeChange`` rather than an
         exception. Initial implement/test passes leave it False — producing
         nothing there is a real failure.
+
+        ``editable_existing`` (refine) and ``scope`` (single-shot implement) are this call's
+        guards, handed to every attempt's ``apply_files``. They are arguments, not adapter
+        state, because each attempt awaits the model and the adapter is shared (B49).
         """
         text = await self._complete(system, user)
         # A corrective allowance per KIND of failure, not one shared by all of them.
@@ -1617,7 +1623,9 @@ class LLMCodegenAdapter:
         spent: Counter[str] = Counter()
         for _ in range(_MAX_GENERATE_ATTEMPTS):
             try:
-                return self._apply(text, root, allow_empty=allow_empty)
+                return self._apply(
+                    text, root, allow_empty=allow_empty, editable_existing=editable_existing, scope=scope
+                )
             except CodegenError as exc:
                 kind = _failure_kind(exc)
                 if spent[kind] >= _CORRECTIONS_PER_KIND.get(kind, _DEFAULT_CORRECTIONS):
@@ -1780,7 +1788,15 @@ class LLMCodegenAdapter:
         logger.warning("sdlc.codegen.no_tool_call len=%d", len(result.text))
         return result.text
 
-    def _apply(self, text: str, root: Path, *, allow_empty: bool = False) -> CodeChange:
+    def _apply(
+        self,
+        text: str,
+        root: Path,
+        *,
+        allow_empty: bool = False,
+        editable_existing: frozenset[str] | None = None,
+        scope: EditScope | None = None,
+    ) -> CodeChange:
         payload = _loads_json_object(text)
         if payload is None:
             # The tail is the diagnostic fact: a truncated emission ends
@@ -1820,8 +1836,8 @@ class LLMCodegenAdapter:
             created_tracker=self._created,
             grounded=self._grounder is not None,
             summary=str(payload.get("summary") or "").strip(),
-            editable_existing=self._refine_editable,
-            scope=self._implement_scope,
+            editable_existing=editable_existing,
+            scope=scope,
         )
 
 

@@ -457,22 +457,25 @@ def test_a_non_python_package_is_not_resolved_to_an_arbitrary_file() -> None:
     assert _stated_modules(spec, _graph(*_MODULES)) == []
 
 
-async def test_implement_resets_its_scope_even_when_generation_fails(tmp_path: Path) -> None:
+async def test_implement_hands_its_scope_to_generation_and_keeps_none_on_the_adapter(tmp_path: Path) -> None:
+    """The scope rides down as an argument (B49): stored on the shared adapter, a concurrent
+    feature's call would read it, or clear it — see `test_codegen_concurrency.py`."""
     from orchestrator.sdlc.codegen import CodegenError, LLMCodegenAdapter
 
-    adapter = LLMCodegenAdapter(object(), edit_scope=EditScope(files=("src/a.py",), confident=True))  # type: ignore[arg-type]
+    scope = EditScope(files=("src/a.py",), confident=True)
+    adapter = LLMCodegenAdapter(object(), edit_scope=scope)  # type: ignore[arg-type]
     seen: list[Any] = []
 
-    async def _boom(*_a: Any, **_k: Any) -> Any:
-        seen.append(adapter._implement_scope)
+    async def _boom(*_a: Any, **kw: Any) -> Any:
+        seen.append(kw.get("scope"))
         raise CodegenError("model output had no 'files' list")
 
     adapter._generate = _boom  # type: ignore[method-assign]
     with pytest.raises(CodegenError):
         await adapter.implement(spec={"title": "t"}, path=str(tmp_path), issue_key="K-1")
 
-    assert seen and seen[0] is not None  # enforced during implement
-    assert adapter._implement_scope is None  # and never leaks into author_tests/refine
+    assert seen == [scope]  # enforced during implement, passed not stored
+    assert not hasattr(adapter, "_implement_scope")
 
 
 def test_a_re_exported_class_resolves_to_its_package_not_a_parent() -> None:
