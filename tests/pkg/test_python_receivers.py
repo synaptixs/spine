@@ -322,3 +322,174 @@ def test_a_property_on_the_chain_shadows_an_inherited_field(tmp_path: Path) -> N
     """
     calls = _calls(tmp_path, {"app/use.py": src})
     assert {d for s, d in calls if s == "py:app.use.Sub.go"} & {GET, ROCKET_GET} == set()
+
+
+# ---- review pass 2: a name is typed only when every binding of it is one we read -----------
+
+
+def test_every_unlisted_binding_form_refuses(tmp_path: Path) -> None:
+    """The census counts each store generically, so forms nobody listed refuse too (H7)."""
+    src = """\
+    from app.store import Store
+    def a(xs):
+        s = Store()
+        try:
+            pass
+        except* ValueError as s:
+            pass
+        return s.get(1)
+    def b(xs):
+        s = Store()
+        match xs:
+            case {**s}:
+                pass
+        return s.get(1)
+    def c():
+        s = Store()
+        type s = int
+        return s.get(1)
+    def d(xs):
+        s = Store()
+        for s.attr in xs:
+            pass
+        return s.get(1)
+    """
+    calls = _calls(tmp_path, {"app/use.py": src})
+    for caller in ("a", "b", "c"):
+        assert GET not in _from(calls, caller), caller
+    assert GET in _from(calls, "d")  # `s.attr` stores into s; `s` itself is still the Store
+
+
+def test_a_nested_rebinding_refuses(tmp_path: Path) -> None:
+    """`nonlocal` in an inner function, or `self.x = …` inside one, rebinds the outer name (H6)."""
+    src = """\
+    from app.store import Rocket, Store
+    def outer(s: Store):
+        def reset():
+            nonlocal s
+            s = Rocket()
+        reset()
+        return s.get(1)
+    class Holder:
+        def __init__(self):
+            self.x = Store()
+            def reset():
+                self.x = Rocket()
+            reset()
+        def go(self):
+            return self.x.get(1)
+    class Pool:
+        def __init__(self):
+            self.conn = Store()
+        def use(self):
+            with open("f") as self.conn:
+                pass
+            return self.conn.get(1)
+    """
+    calls = _calls(tmp_path, {"app/use.py": src})
+    assert _from(calls, "outer") & {GET, ROCKET_GET} == set()
+    assert {d for s, d in calls if s == "py:app.use.Holder.go"} & {GET, ROCKET_GET} == set()
+    assert {d for s, d in calls if s == "py:app.use.Pool.use"} & {GET, ROCKET_GET} == set()
+
+
+def test_imports_are_module_level_and_must_agree(tmp_path: Path) -> None:
+    """A function-local import binds a local there; two module-level imports of one name refuse (H3)."""
+    other = "class Store:\n    def get(self, k):\n        return k\n"
+    src = """\
+    from app.store import Store
+    try:
+        from app.fast import P
+    except ImportError:
+        from app.slow import P
+    def g(s: Store):
+        return s.get(1)
+    def h():
+        from app.other import Store
+        return Store
+    def f(p: P):
+        return p.run()
+    """
+    files = {
+        "app/other.py": other,
+        "app/fast.py": "class P:\n    def run(self): ...\n",
+        "app/slow.py": "class P:\n    def run(self): ...\n",
+        "app/use.py": src,
+    }
+    calls = _calls(tmp_path, files)
+    assert _from(calls, "g") == {GET}
+    assert _from(calls, "f") == set()
+
+
+def test_a_method_signature_sees_its_class_body(tmp_path: Path) -> None:
+    """`x: Inner` in a method signature means the nested `Outer.Inner`, not the module's (H8)."""
+    src = """\
+    class Inner:
+        def run(self):
+            return 1
+    class Outer:
+        class Inner:
+            def run(self):
+                return 2
+        field: Inner
+        def m(self, x: Inner):
+            x.run()
+            y = Inner()
+            y.run()
+            return self.field.run()
+    """
+    root = tmp_path / "repo"
+    for rel, text in {"app/__init__.py": "", "app/store.py": STORE, "app/use.py": src}.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(textwrap.dedent(text), encoding="utf-8")
+    batch = RepoCodeExtractor(default_extractors()).extract(root)
+    lines = sorted(
+        e.provenance.line if e.provenance else 0
+        for e in batch.edges
+        if e.kind is EdgeKind.CALLS and e.src == "py:app.use.Outer.m" and e.dst == "py:app.use.Inner.run"
+    )
+    # Only `y.run()` (line 12): `y = Inner()` runs in the method body, which skips the class scope.
+    # `x.run()` (line 10) and `self.field.run()` (line 13) are typed by `Inner` as the class body
+    # reads it — the nested class, which this pass refuses rather than claim the module's.
+    assert lines == [12]
+
+
+def test_no_edge_from_a_caller_without_a_node(tmp_path: Path) -> None:
+    """A def inside a `match` case gets no node from the per-file pass; no edge may start there (H4)."""
+    src = """\
+    from app.store import Store
+    def outer(v):
+        match v:
+            case 1:
+                def inner(s: Store):
+                    return s.get(1)
+    """
+    root = tmp_path / "repo"
+    for rel, text in {"app/__init__.py": "", "app/store.py": STORE, "app/use.py": src}.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(textwrap.dedent(text), encoding="utf-8")
+    batch = RepoCodeExtractor(default_extractors()).extract(root)
+    ids = {n.id for n in batch.nodes}
+    assert all(e.src in ids and e.dst in ids for e in batch.edges if e.kind is EdgeKind.CALLS)
+
+
+def test_a_function_local_import_is_a_readable_binding(tmp_path: Path) -> None:
+    """Lazy imports inside a function (common in CLI code) type a receiver like a module-level
+    one; the same name also rebound in the function refuses."""
+    src = """\
+    def lazy():
+        from app.store import Store
+        s = Store()
+        return s.get(1)
+    def lazy_param(s: "Store"):
+        from app.store import Store
+        return s.get(1)
+    def rebound():
+        from app.store import Store
+        Store = object
+        s = Store()
+        return s.get(1)
+    """
+    calls = _calls(tmp_path, {"app/use.py": src})
+    assert GET in _from(calls, "lazy")
+    assert GET not in _from(calls, "lazy_param")  # the annotation is read where the def runs
+    assert GET not in _from(calls, "rebound")

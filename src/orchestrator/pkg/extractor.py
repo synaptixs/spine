@@ -231,7 +231,8 @@ class PythonExtractor:
         # raises and still reaches the caller, which is what marks a file unparseable.
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", SyntaxWarning)
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
+            source = path.read_text(encoding="utf-8")
+            tree = ast.parse(source, filename=rel)
         batch = FactBatch()
         module_id = f"py:{module}" if module else "py:<root>"
         batch.add_node(Node(module_id, NodeKind.MODULE, module or rel, "python", Provenance(rel, 1)))
@@ -247,7 +248,7 @@ class PythonExtractor:
         scan_module(tree, module_id=module_id, rel=rel, imports=imports, state=self._routes)
         scan_orm(tree, module_id=module_id, rel=rel, state=self._orm)
         scan_calls(tree, module_id=module_id, rel=rel, state=self._calls)
-        self._receivers.scan(tree, module_id=module_id, rel=rel, imports=imports, names=module_names)
+        self._receivers.scan(tree, module_id=module_id, rel=rel, import_base=self._import_base, source=source)
         return batch
 
     def finalize(self, batch: FactBatch) -> FactBatch:

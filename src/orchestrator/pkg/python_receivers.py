@@ -93,28 +93,54 @@ class ReceiverScan:
         *,
         module_id: str,
         rel: str,
-        imports: dict[str, str],
-        names: dict[str, str],
+        import_base: Callable[[ast.ImportFrom], str],
+        source: str,
     ) -> None:
-        _FileScan(self, module_id=module_id, rel=rel, imports=imports, names=names).walk(tree.body, module_id)
+        _SCOPE_MEMO.clear()
+        try:
+            _FileScan(self, tree, module_id=module_id, rel=rel, import_base=import_base, source=source).walk(
+                tree.body, module_id
+            )
+        finally:
+            _SCOPE_MEMO.clear()
 
 
 class _FileScan:
+    """One file. Every name is read with the scope Python would read it in, and a name is typed
+    only when *every* binding of it is one this pass understands — the census counts all of them
+    generically (each ``ast.Name`` in store/del context, plus the binders that carry a bare
+    string), so a binding form nobody listed refuses instead of slipping through (review 1, A)."""
+
     def __init__(
-        self, out: ReceiverScan, *, module_id: str, rel: str, imports: dict[str, str], names: dict[str, str]
+        self,
+        out: ReceiverScan,
+        tree: ast.Module,
+        *,
+        module_id: str,
+        rel: str,
+        import_base: Callable[[ast.ImportFrom], str],
+        source: str,
     ) -> None:
         self.out = out
         self.module_id = module_id
         self.rel = rel
-        self.imports = imports
-        self.names = names
+        self.import_base = import_base
+        # Both need a whole-tree walk, so skip it when the source cannot contain either keyword.
+        self._nonlocal_below: dict[int, set[str]] = {}
+        global_names: set[str] = set()
+        if "nonlocal" in source or "global" in source:
+            _collect_nonlocals(tree, [], self._nonlocal_below, global_names)
+        self.module = _module_scope(tree, module_id, import_base, global_names)
         # PEP 695 type parameters in scope (`def f[T](x: T)`, `class Box[T]`): a written name that
         # is one of them means the parameter, never a class of the same name (typed-receivers B3).
         self._type_params: list[frozenset[str]] = []
-        # Names each enclosing function binds. A written type that one of them binds means that
-        # local (a class defined in the function, say), never the module-level name (review 1).
-        self._local_names: list[frozenset[str]] = []
+        # Enclosing scopes, innermost last: ("func" | "class", each name it binds -> what the name
+        # means there when every binding is one import of one target, else None). A function body
+        # sees every enclosing function's names but no class's; a class body, a method signature
+        # and a class-body annotation also see the class they are written in.
+        self._frames: list[tuple[str, dict[str, str | None]]] = []
         self._bindings_memo: dict[int, dict[str, str]] = {}
+        self._meanings_memo: dict[int, dict[str, str | None]] = {}
 
     # -- the tree, with the parent ids the per-file pass gives every def --------------------
 
@@ -125,65 +151,94 @@ class _FileScan:
             if isinstance(stmt, ast.ClassDef):
                 type_id = f"{parent}.{stmt.name}"
                 self._type_params.append(_type_param_names(stmt))
+                # Bases are evaluated before the class body exists; its annotations inside it.
+                self.out.bases[type_id] = [self.type_of(b, allow_generic=True) or "" for b in stmt.bases]
+                self._frames.append(("class", _scope_meanings(stmt.body, self.import_base)))
                 self._class(stmt, type_id)
                 own = frozenset(
                     s.name for s in _flat(stmt.body) if isinstance(s, ast.FunctionDef | ast.AsyncFunctionDef)
                 )
                 self.walk(stmt.body, type_id, type_id, own)
+                self._frames.pop()
                 self._type_params.pop()
             elif isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef):
                 func_id = f"{parent}.{stmt.name}"
-                self._type_params.append(_type_param_names(stmt))
-                self._local_names.append(_local_names(stmt))
+                self._enter(stmt)
                 self._function(stmt, func_id, cls, methods)
                 # Nested defs belong to this function; `self` inside them is not the class's.
                 self.walk(stmt.body, func_id)
-                self._local_names.pop()
-                self._type_params.pop()
+                self._leave()
             else:
                 for inner in _sub_bodies(stmt):
                     self.walk([inner], parent, cls, methods)
 
-    # -- a class: its bases and the declared types of its fields ----------------------------
+    def _enter(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        self._type_params.append(_type_param_names(node))
+        key = id(node)
+        if key not in self._meanings_memo:
+            self._meanings_memo[key] = _function_meanings(node, self.import_base)
+        self._frames.append(("func", self._meanings_memo[key]))
+
+    def _leave(self) -> None:
+        self._frames.pop()
+        self._type_params.pop()
+
+    # -- a class: the declared types of its fields ------------------------------------------
 
     def _class(self, node: ast.ClassDef, type_id: str) -> None:
-        self.out.bases[type_id] = [self.type_of(b, allow_generic=True) or "" for b in node.bases]
         fields = self.out.fields.setdefault(type_id, {})
-        for stmt in node.body:
-            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
-                fields.setdefault(stmt.target.id, []).append(self.type_of(stmt.annotation) or _UNREADABLE)
-            elif isinstance(stmt, ast.Assign):
+        # Class-body names: an `x = Store()` or `x: Store` is typed; any other binding of the name
+        # at class level (a loop target, an import, a nested class) makes it unreadable.
+        typed: dict[int, str] = {}
+        for stmt in _statements(node.body):
+            if isinstance(stmt, ast.Assign):
                 for tgt in stmt.targets:
                     if isinstance(tgt, ast.Name):
-                        fields.setdefault(tgt.id, []).append(self._value_type(stmt.value, {}))
+                        typed[id(tgt)] = self._value_type(stmt.value, {})
+            elif isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                typed[id(stmt.target)] = self.type_of(stmt.annotation) or _UNREADABLE
+        stored, strings, _ = _scope_bindings(node.body, self.import_base)
+        methods = {s.name for s in _flat(node.body) if isinstance(s, ast.FunctionDef | ast.AsyncFunctionDef)}
+        for name_node in stored:
+            fields.setdefault(name_node.id, []).append(typed.get(id(name_node), _UNREADABLE))
+        for name in strings:
+            if name not in methods:  # a `def` in the class body is a member, not a field
+                fields.setdefault(name, []).append(_UNREADABLE)
+        # `self.<attr>`: only a plain `self.x = …` / `self.x: T = …` in a method's own body is typed;
+        # every other store of it anywhere in a method — a nested def, `with … as self.x`, a loop,
+        # a tuple, `del`, `setattr(self, "x", …)` — makes the field unreadable.
         for method in _flat(node.body):
             if not isinstance(method, ast.FunctionDef | ast.AsyncFunctionDef):
                 continue
-            # Read the method's assignments as its own body reads names: with its locals in scope.
-            self._type_params.append(_type_param_names(method))
-            self._local_names.append(_local_names(method))
+            self._enter(method)
             scope = self._bindings(method)
-            self._collect_self_fields(method, scope, fields)
-            self._local_names.pop()
-            self._type_params.pop()
-
-    def _collect_self_fields(
-        self,
-        method: ast.FunctionDef | ast.AsyncFunctionDef,
-        scope: dict[str, str],
-        fields: dict[str, list[str]],
-    ) -> None:
-        for stmt in _statements(method.body):
-            if isinstance(stmt, ast.AnnAssign) and (attr := _self_attr(stmt.target)):
-                fields.setdefault(attr, []).append(self.type_of(stmt.annotation) or _UNREADABLE)
-            elif isinstance(stmt, ast.Assign):
-                for tgt in stmt.targets:
-                    for leaf in _targets(tgt):
-                        if attr := _self_attr(leaf):
-                            source = self._value_type(stmt.value, scope) if leaf is tgt else _UNREADABLE
-                            fields.setdefault(attr, []).append(source)
-            elif isinstance(stmt, ast.AugAssign) and (attr := _self_attr(stmt.target)):
-                fields.setdefault(attr, []).append(_UNREADABLE)
+            self_typed: dict[int, str] = {}
+            for stmt in _statements(method.body):
+                if isinstance(stmt, ast.AnnAssign) and _self_attr(stmt.target):
+                    self_typed[id(stmt.target)] = self.type_of(stmt.annotation) or _UNREADABLE
+                elif isinstance(stmt, ast.Assign):
+                    for tgt in stmt.targets:
+                        if _self_attr(tgt):
+                            self_typed[id(tgt)] = self._value_type(stmt.value, scope)
+            self._leave()
+            for n in ast.walk(method):
+                if (
+                    isinstance(n, ast.Attribute)
+                    and isinstance(n.ctx, ast.Store | ast.Del)
+                    and (attr := _self_attr(n))
+                ):
+                    fields.setdefault(attr, []).append(self_typed.get(id(n), _UNREADABLE))
+                elif (
+                    isinstance(n, ast.Call)
+                    and isinstance(n.func, ast.Name)
+                    and n.func.id in {"setattr", "delattr"}
+                    and len(n.args) >= 2
+                    and isinstance(n.args[0], ast.Name)
+                    and n.args[0].id == "self"
+                    and isinstance(n.args[1], ast.Constant)
+                    and isinstance(n.args[1].value, str)
+                ):
+                    fields.setdefault(n.args[1].value, []).append(_UNREADABLE)
 
     # -- a function: its own names, and the receiver calls in its body ----------------------
 
@@ -228,48 +283,33 @@ class _FileScan:
         sources: dict[str, list[str]] = {}
         args = node.args
         # A signature's annotations are evaluated where the `def` runs, not inside the function:
-        # `def f(box: box.Box)` means the module's `box`, though the parameter shadows it within.
-        own = self._local_names.pop() if self._local_names else None
+        # `def f(box: box.Box)` means the module's `box`, though the parameter shadows it within —
+        # and for a method, the class body's names are visible there (review 1, H8).
+        own = self._frames.pop()
         for a in [*args.posonlyargs, *args.args, *args.kwonlyargs]:
             sources.setdefault(a.arg, []).append(self.type_of(a.annotation) or _UNREADABLE)
-        if own is not None:
-            self._local_names.append(own)
+        self._frames.append(own)
         for extra in (args.vararg, args.kwarg):
             if extra is not None:
                 sources.setdefault(extra.arg, []).append(_UNREADABLE)  # *args / **kwargs: a tuple, a dict
+        # The only typed forms: `x = Ctor(...)` / `x = None` and `x: T = ...` as whole statements.
+        typed: dict[int, str] = {}
         for stmt in _statements(node.body):
             if isinstance(stmt, ast.Assign):
                 for tgt in stmt.targets:
                     if isinstance(tgt, ast.Name):
-                        sources.setdefault(tgt.id, []).append(self._value_type(stmt.value, {}))
-                    else:
-                        for leaf in _targets(tgt):
-                            if isinstance(leaf, ast.Name):
-                                sources.setdefault(leaf.id, []).append(_UNREADABLE)
+                        typed[id(tgt)] = self._value_type(stmt.value, {})
             elif isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
-                sources.setdefault(stmt.target.id, []).append(self.type_of(stmt.annotation) or _UNREADABLE)
-            elif isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
-                sources.setdefault(stmt.name, []).append(_UNREADABLE)
-            elif isinstance(stmt, ast.Global | ast.Nonlocal):
-                for name in stmt.names:
-                    sources.setdefault(name, []).append(_UNREADABLE)
-            for name in _other_bound_names(stmt):
-                sources.setdefault(name, []).append(_UNREADABLE)
-        # Names bound inside expressions anywhere in the body — comprehension targets, lambda
-        # parameters, `:=` — are a different scope or a rebinding; either way, not readable.
-        for expr in _expressions(node.body):
-            for n in ast.walk(expr):
-                if isinstance(n, ast.comprehension):
-                    for leaf in _targets(n.target):
-                        if isinstance(leaf, ast.Name):
-                            sources.setdefault(leaf.id, []).append(_UNREADABLE)
-                elif isinstance(n, ast.Lambda):
-                    la = n.args
-                    lambda_args = [*la.posonlyargs, *la.args, *la.kwonlyargs, la.vararg, la.kwarg]
-                    for param in (p for p in lambda_args if p is not None):
-                        sources.setdefault(param.arg, []).append(_UNREADABLE)
-                elif isinstance(n, ast.NamedExpr) and isinstance(n.target, ast.Name):
-                    sources.setdefault(n.target.id, []).append(_UNREADABLE)
+                typed[id(stmt.target)] = self.type_of(stmt.annotation) or _UNREADABLE
+        # Every binding of every name, generically; one we did not type makes the name unreadable.
+        stored, strings, _ = _scope_bindings(node.body, self.import_base)
+        for name_node in stored:
+            sources.setdefault(name_node.id, []).append(typed.get(id(name_node), _UNREADABLE))
+        for name in strings:
+            sources.setdefault(name, []).append(_UNREADABLE)
+        # A nested def that declares `nonlocal x` may rebind this function's `x` (review 1, H6).
+        for name in self._nonlocal_below.get(id(node), ()):
+            sources.setdefault(name, []).append(_UNREADABLE)
         return {name: _agree(found) for name, found in sources.items()}
 
     def _value_type(self, value: ast.expr, scope: dict[str, str]) -> str:
@@ -285,6 +325,18 @@ class _FileScan:
 
     # -- a written type -> a candidate id, resolved against the repository in finalize -------
 
+    def _enclosing(self, name: str) -> tuple[bool, str | None]:
+        """Whether an enclosing scope binds ``name``, and what it means there — every function
+        frame counts, a class frame only when it is the innermost one (a function body does not
+        see its class's names). A local ``from x import Store`` is a readable binding; any other
+        local binding shadows the module's name with something this pass cannot type."""
+        for depth, (kind, names) in enumerate(reversed(self._frames)):
+            if kind == "class" and depth:
+                continue
+            if name in names:
+                return True, names[name]
+        return False, None
+
     def type_of(self, expr: ast.expr | None, *, allow_generic: bool = False) -> str | None:
         if expr is None:
             return None
@@ -297,12 +349,8 @@ class _FileScan:
         if isinstance(expr, ast.Name):
             if any(expr.id in params for params in self._type_params):
                 return None
-            if any(expr.id in names for names in self._local_names):
-                return None  # bound by an enclosing function: a local class or variable, not the module's
-            imported, defined = self.imports.get(expr.id), self.names.get(expr.id)
-            if imported and defined:
-                return None  # bound twice at module level: nobody can say which
-            return imported or defined
+            local, meaning = self._enclosing(expr.id)
+            return meaning if local else self.module.get(expr.id)
         if isinstance(expr, ast.Attribute):
             head = self.type_of(expr.value)
             return f"{head}.{expr.attr}" if head else None
@@ -353,6 +401,10 @@ def resolve_receivers(
 
     added: list[Edge] = []
     for call in scan.calls:
+        if call.caller not in nodes:
+            # A def the per-file pass emits no node for (one inside a `match` case, say): an edge
+            # from it would dangle, which `pkg verify` rightly fails (review 1, H4).
+            continue
         if call.self_of:
             start: str | None = call.self_of
         elif call.field_of:
@@ -488,20 +540,166 @@ def _agree(sources: list[str]) -> str:
     return _NONE if not typed else _UNREADABLE
 
 
-def _local_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> frozenset[str]:
-    """Every name a function binds in its own scope — what shadows a module-level name there."""
+def _collect_nonlocals(
+    node: ast.AST, enclosing: list[int], out: dict[int, set[str]], global_names: set[str]
+) -> None:
+    """Record each ``nonlocal`` name against every function enclosing the def that declares it
+    (the declaring function binds nothing by it), and every ``global`` name."""
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, ast.Nonlocal):
+            for fid in enclosing[:-1]:
+                out.setdefault(fid, set()).update(child.names)
+        elif isinstance(child, ast.Global):
+            global_names.update(child.names)
+        if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):
+            _collect_nonlocals(child, [*enclosing, id(child)], out, global_names)
+        else:
+            _collect_nonlocals(child, enclosing, out, global_names)
+
+
+def _module_scope(
+    tree: ast.Module,
+    module_id: str,
+    import_base: Callable[[ast.ImportFrom], str],
+    global_names: set[str],
+) -> dict[str, str]:
+    """What each module-level name means, when every binding of it agrees (review 1, H3).
+
+    Only module-level bindings count — an import inside a function binds a local there, which
+    the function's own frame shadows. Every binding is counted: an import (``try``/``except
+    ImportError`` fallbacks included), a ``def`` or ``class``, any other store; two that name
+    different things, or one this pass cannot read, leave the name out. ``global x`` in any
+    function counts as a binding nobody can read."""
+    found: dict[str, set[str]] = {}
+
+    def bind(name: str, target: str) -> None:
+        found.setdefault(name, set()).add(target)
+
+    for stmt in _statements(tree.body):
+        if isinstance(stmt, ast.Import):
+            for a in stmt.names:
+                top = a.name.split(".")[0]
+                bind(a.asname or top, f"py:{a.name if a.asname else top}")
+        elif isinstance(stmt, ast.ImportFrom):
+            base = import_base(stmt)
+            for a in stmt.names:
+                if a.name == "*":
+                    continue  # a star binds names nobody listed here: re-export resolution owns it
+                bind(a.asname or a.name, f"py:{base}.{a.name}" if base else f"py:{a.name}")
+        elif isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            bind(stmt.name, f"{module_id}.{stmt.name}")
+    stored, strings, _ = _scope_bindings(tree.body, import_base)
+    for name_node in stored:
+        bind(name_node.id, _UNREADABLE)
+    for name in strings:
+        if name not in found:  # imports and defs are bound above with their meaning
+            bind(name, _UNREADABLE)
+    for name in global_names:
+        bind(name, _UNREADABLE)
+    return {name: next(iter(t)) for name, t in found.items() if len(t) == 1 and _UNREADABLE not in t}
+
+
+def _scope_bindings(
+    body: list[ast.stmt], import_base: Callable[[ast.ImportFrom], str] | None = None
+) -> tuple[list[ast.Name], list[str], list[tuple[str, str]]]:
+    """Every binding in one scope: the ``ast.Name`` nodes it stores to or deletes (a loop, a
+    ``with … as``, a walrus, a ``type`` alias, a comprehension or lambda inside it — counted,
+    conservatively, as this scope's), and the names bound by a bare string: an import alias, a
+    nested ``def``/``class``, an ``except … as``, a ``match`` capture, ``global``/``nonlocal``, a
+    lambda parameter. With ``import_base``, each import alias's target too. Nested ``def`` and
+    ``class`` bodies are their own scopes and not entered."""
+    key = (id(body), import_base is not None)
+    if key in _SCOPE_MEMO and _SCOPE_MEMO[key][0] is body:
+        return _SCOPE_MEMO[key][1]
+    stored: list[ast.Name] = []
+    strings: list[str] = []
+    imports: list[tuple[str, str]] = []
+    pending: list[ast.AST] = list(body)
+    while pending:
+        node = pending.pop()
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            strings.append(node.name)
+            continue
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store | ast.Del):
+            stored.append(node)
+        elif isinstance(node, ast.Import | ast.ImportFrom):
+            for name, target in _import_bindings(node, import_base):
+                strings.append(name)
+                if target:
+                    imports.append((name, target))
+        elif isinstance(node, ast.ExceptHandler | ast.MatchAs | ast.MatchStar) and node.name:
+            strings.append(node.name)
+        elif isinstance(node, ast.MatchMapping) and node.rest:
+            strings.append(node.rest)
+        elif isinstance(node, ast.Global | ast.Nonlocal):
+            strings += node.names
+        elif isinstance(node, ast.Lambda):
+            la = node.args
+            strings += [p.arg for p in [*la.posonlyargs, *la.args, *la.kwonlyargs, la.vararg, la.kwarg] if p]
+        pending.extend(ast.iter_child_nodes(node))
+    result = (stored, strings, imports)
+    _SCOPE_MEMO[key] = (body, result)
+    return result
+
+
+#: One file's scope walks, keyed by the identity of the statement list walked (checked against
+#: the list itself, so a reused id never answers for another body). Cleared per file.
+_SCOPE_MEMO: dict[
+    tuple[int, bool], tuple[list[ast.stmt], tuple[list[ast.Name], list[str], list[tuple[str, str]]]]
+] = {}
+
+
+def _import_bindings(
+    node: ast.Import | ast.ImportFrom, import_base: Callable[[ast.ImportFrom], str] | None
+) -> list[tuple[str, str]]:
+    """``(name, target)`` per alias an import binds; the target is empty without ``import_base``
+    for a ``from`` import. A star binds names nobody listed here: re-export resolution owns it."""
+    out: list[tuple[str, str]] = []
+    if isinstance(node, ast.Import):
+        for a in node.names:
+            top = a.name.split(".")[0]
+            out.append((a.asname or top, f"py:{a.name if a.asname else top}"))
+    else:
+        base = import_base(node) if import_base is not None else None
+        for a in node.names:
+            if a.name == "*":
+                continue
+            target = "" if base is None else (f"py:{base}.{a.name}" if base else f"py:{a.name}")
+            out.append((a.asname or a.name, target))
+    return out
+
+
+def _scope_meanings(
+    body: list[ast.stmt], import_base: Callable[[ast.ImportFrom], str]
+) -> dict[str, str | None]:
+    """Each name a scope binds -> its import target when *every* binding of it is an import of
+    that one target (`from x import Store` inside a function), else ``None``."""
+    stored, strings, imports = _scope_bindings(body, import_base)
+    counts: dict[str, int] = {}
+    for name in [n.id for n in stored] + strings:
+        counts[name] = counts.get(name, 0) + 1
+    targets: dict[str, set[str]] = {}
+    import_counts: dict[str, int] = {}
+    for name, target in imports:
+        targets.setdefault(name, set()).add(target)
+        import_counts[name] = import_counts.get(name, 0) + 1
+    out: dict[str, str | None] = {}
+    for name, count in counts.items():
+        found = targets.get(name, set())
+        out[name] = next(iter(found)) if len(found) == 1 and import_counts.get(name) == count else None
+    return out
+
+
+def _function_meanings(
+    node: ast.FunctionDef | ast.AsyncFunctionDef, import_base: Callable[[ast.ImportFrom], str]
+) -> dict[str, str | None]:
+    """Every name a function binds in its own scope — what shadows an outer name inside it."""
     args = node.args
-    names = {a.arg for a in [*args.posonlyargs, *args.args, *args.kwonlyargs]}
-    names |= {a.arg for a in (args.vararg, args.kwarg) if a is not None}
-    for stmt in _statements(node.body):
-        if isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
-            names.add(stmt.name)
-        elif isinstance(stmt, ast.Assign):
-            names |= {leaf.id for t in stmt.targets for leaf in _targets(t) if isinstance(leaf, ast.Name)}
-        elif isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
-            names.add(stmt.target.id)
-        names |= set(_other_bound_names(stmt))
-    return frozenset(names)
+    meanings = _scope_meanings(node.body, import_base)
+    for a in [*args.posonlyargs, *args.args, *args.kwonlyargs, args.vararg, args.kwarg]:
+        if a is not None:
+            meanings[a.arg] = None  # a parameter is bound once more, by the call: not import-only
+    return meanings
 
 
 def _type_param_names(node: ast.AST) -> frozenset[str]:
@@ -578,33 +776,6 @@ def _expressions(body: list[ast.stmt]) -> list[ast.AST]:
         else:
             out.append(stmt)
     return out
-
-
-def _other_bound_names(stmt: ast.stmt) -> list[str]:
-    """Names a statement binds that carry no readable type."""
-    names: list[str] = []
-    if isinstance(stmt, ast.For | ast.AsyncFor):
-        names += [leaf.id for leaf in _targets(stmt.target) if isinstance(leaf, ast.Name)]
-    elif isinstance(stmt, ast.With | ast.AsyncWith):
-        for item in stmt.items:
-            if item.optional_vars is not None:
-                names += [leaf.id for leaf in _targets(item.optional_vars) if isinstance(leaf, ast.Name)]
-    elif isinstance(stmt, ast.AugAssign) and isinstance(stmt.target, ast.Name):
-        names.append(stmt.target.id)
-    elif isinstance(stmt, ast.Import | ast.ImportFrom):
-        names += [(a.asname or a.name).split(".")[0] for a in stmt.names]
-    elif isinstance(stmt, ast.Delete):
-        names += [leaf.id for t in stmt.targets for leaf in _targets(t) if isinstance(leaf, ast.Name)]
-    elif isinstance(stmt, ast.Try):
-        names += [h.name for h in stmt.handlers if h.name]
-    elif isinstance(stmt, ast.Match):
-        names += [
-            n.name
-            for c in stmt.cases
-            for n in ast.walk(c.pattern)
-            if isinstance(n, ast.MatchAs | ast.MatchStar) and n.name
-        ]
-    return names
 
 
 __all__ = ["ReceiverScan", "resolve_receivers"]
