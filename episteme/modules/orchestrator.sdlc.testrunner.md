@@ -13,8 +13,8 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`SubprocessTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L64) — reaches **13** symbols
-- [`_exec_capture`](../../src/orchestrator/sdlc/testrunner.py#L732) — reaches **10** symbols · **no test path visible**
+- [`SubprocessTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L64) — reaches **15** symbols
+- [`_exec_capture`](../../src/orchestrator/sdlc/testrunner.py#L732) — reaches **10** symbols
 - [`pytest_available`](../../src/orchestrator/sdlc/testrunner.py#L47) — reaches **9** symbols
 - [`_clip`](../../src/orchestrator/sdlc/testrunner.py#L728) — reaches **6** symbols · **no test path visible**
 - [`_nearest_go_mod`](../../src/orchestrator/sdlc/testrunner.py#L715) — reaches **2** symbols · **no test path visible**
@@ -22,7 +22,7 @@
 - [`_discover_dotnet_target`](../../src/orchestrator/sdlc/testrunner.py#L740) — reaches **1** symbol · **no test path visible**
 - [`_timeout_from_env`](../../src/orchestrator/sdlc/testrunner.py#L39) — reaches **1** symbol · **no test path visible**
 
-_5 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_4 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Documented in
 

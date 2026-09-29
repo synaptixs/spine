@@ -13,11 +13,11 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L199) — reaches **50** symbols
-- [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L137) — reaches **41** symbols
-- [`_heading_lines`](../../src/orchestrator/pkg/doc_source.py#L113) — reaches **29** symbols
-- [`_slug`](../../src/orchestrator/pkg/doc_source.py#L107) — reaches **29** symbols
-- [`is_doc_file`](../../src/orchestrator/pkg/doc_source.py#L98) — reaches **8** symbols
+- [`read_doc_pages`](../../src/orchestrator/pkg/doc_source.py#L199) — reaches **54** symbols
+- [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L137) — reaches **44** symbols
+- [`_heading_lines`](../../src/orchestrator/pkg/doc_source.py#L113) — reaches **31** symbols
+- [`_slug`](../../src/orchestrator/pkg/doc_source.py#L107) — reaches **31** symbols
+- [`is_doc_file`](../../src/orchestrator/pkg/doc_source.py#L98) — reaches **9** symbols
 - [`_HtmlToText`](../../src/orchestrator/pkg/doc_source.py#L277) — reaches **5** symbols
 - [`html_to_text`](../../src/orchestrator/pkg/doc_source.py#L357) — reaches **5** symbols
 - [`_read_text`](../../src/orchestrator/pkg/doc_source.py#L236) — reaches **2** symbols · **no test path visible**
@@ -135,7 +135,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/doc_source.py:357`](../../src/orchestrator/pkg/doc_source.py#L357)
 
 - **Called by** (2 production · 2 test): [`_read_html`](../../src/orchestrator/pkg/doc_source.py#L370), [`page_text`](../../src/orchestrator/pkg/external_docs.py#L226), [`test_an_html_body_is_flattened_by_the_local_html_reader`](../../tests/pkg/test_external_docs.py#L182), [`test_html_to_text_is_the_file_reader_behaviour`](../../tests/pkg/test_external_docs.py#L190)
-- **Calls** (1): [`_HtmlToText`](../../src/orchestrator/pkg/doc_source.py#L277)
+- **Calls** (2): [`_HtmlToText`](../../src/orchestrator/pkg/doc_source.py#L277), [`text`](../../src/orchestrator/pkg/doc_source.py#L342)
 
 ### `is_doc_file`
 
@@ -148,7 +148,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/doc_source.py:199`](../../src/orchestrator/pkg/doc_source.py#L199)
 
 - **Called by** (9 production · 34 test): [`_binding`](../../scripts/state-numbers.py#L83), [`_link`](../../src/orchestrator/plugin/server.py#L315), [`_read_in_full`](../../src/orchestrator/intake/jira_source.py#L536), [`bind_external`](../../src/orchestrator/pkg/external_docs.py#L541), [`collapse_stats`](../../src/orchestrator/pkg/external_docs.py#L474), [`doc_drift`](../../src/orchestrator/pkg/doc_link.py#L74), [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L48), [`link_docs`](../../src/orchestrator/pkg/doc_link.py#L51), [`score_drift`](../../src/orchestrator/pkg/accuracy.py#L500), [`test_a_comment_inside_a_code_fence_is_not_a_section`](../../tests/pkg/test_doc_source.py#L237), [`test_a_line_opening_with_inline_backticks_is_not_a_fence`](../../tests/pkg/test_doc_source.py#L294), [`test_a_longer_fence_is_only_closed_by_one_as_long`](../../tests/pkg/test_doc_source.py#L249), [`test_a_section_id_is_capped_at_100_characters`](../../tests/pkg/test_doc_source.py#L269), [`test_an_html_pre_block_does_not_become_a_heading`](../../tests/pkg/test_doc_source.py#L256), [`test_an_ordinary_long_heading_keeps_its_github_anchor`](../../tests/pkg/test_doc_source.py#L280), [`test_corrupt_office_file_is_skipped_not_fatal`](../../tests/pkg/test_doc_source.py#L227), [`test_doc_ingestion_stops_at_a_nested_checkout`](../../tests/pkg/test_nested_repos.py#L72), [`test_docx_heading_styles_become_sections`](../../tests/pkg/test_doc_source.py#L181), [`test_docx_monospace_run_becomes_backticks`](../../tests/pkg/test_doc_source.py#L188), [`test_docx_table_text_is_kept`](../../tests/pkg/test_doc_source.py#L197), [`test_front_matter_keeps_values_drops_keys`](../../tests/pkg/test_doc_source.py#L134), [`test_html_drops_script_and_style`](../../tests/pkg/test_doc_source.py#L105), [`test_html_headings_become_sections`](../../tests/pkg/test_doc_source.py#L89), [`test_html_inline_code_becomes_backticks`](../../tests/pkg/test_doc_source.py#L97), [`test_html_pre_block_is_not_backticked`](../../tests/pkg/test_doc_source.py#L112), +18 more
-- **Calls** (5): [`DocPage`](../../src/orchestrator/pkg/docs.py#L115), [`is_nested_repo`](../../src/orchestrator/pkg/extractor.py#L655), `pathlib.Path`, [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L137), `walk`
+- **Calls** (5): [`DocPage`](../../src/orchestrator/pkg/docs.py#L115), [`is_nested_repo`](../../src/orchestrator/pkg/extractor.py#L668), `pathlib.Path`, [`split_sections`](../../src/orchestrator/pkg/doc_source.py#L137), `walk`
 - **Documented in**: `docs/specs/doc-binding-walkthrough.md#step-1-walk-in-detail`, `docs/specs/document-ingestion-reference.md#1-walk`, `docs/specs/gap2-document-modality-roadmap.md#design-decisions`, `docs/specs/gap3-media-ingestion-roadmap.md#the-determinism-problem-read-this-first`
 
 ### `register_reader`

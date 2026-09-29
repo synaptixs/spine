@@ -13,16 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985) — reaches **25** symbols · **no test path visible**
-- [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L980) — reaches **9** symbols · **no test path visible**
-- [`JavaExtractor`](../../src/orchestrator/pkg/java_extractor.py#L79) — reaches **8** symbols
-- [`_string_literal`](../../src/orchestrator/pkg/java_extractor.py#L903) — reaches **8** symbols · **no test path visible**
-- [`_strip_generics`](../../src/orchestrator/pkg/java_extractor.py#L388) — reaches **7** symbols · **no test path visible**
-- [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L397) — reaches **6** symbols · **no test path visible**
-- [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L875) — reaches **6** symbols · **no test path visible**
-- [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L860) — reaches **5** symbols · **no test path visible**
-
-_28 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+- [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985) — reaches **26** symbols
+- [`JavaExtractor`](../../src/orchestrator/pkg/java_extractor.py#L79) — reaches **9** symbols
+- [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L980) — reaches **9** symbols
+- [`_strip_generics`](../../src/orchestrator/pkg/java_extractor.py#L388) — reaches **9** symbols
+- [`_java_type_ref`](../../src/orchestrator/pkg/java_extractor.py#L397) — reaches **8** symbols
+- [`_string_literal`](../../src/orchestrator/pkg/java_extractor.py#L903) — reaches **8** symbols
+- [`_java_type_node_ref`](../../src/orchestrator/pkg/java_extractor.py#L443) — reaches **6** symbols
+- [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L875) — reaches **6** symbols
 
 ## Documented in
 
@@ -34,7 +32,7 @@ _28 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/java_extractor.py:79`](../../src/orchestrator/pkg/java_extractor.py#L79)
 
-- **Called by** (1 production · 3 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L587), [`_facts`](../../tests/pkg/test_java_extractor.py#L40), [`_java_facts`](../../tests/pkg/test_java_extractor.py#L349), [`test_repo_extractor_dispatches_java_by_suffix`](../../tests/pkg/test_java_extractor.py#L90)
+- **Called by** (1 production · 3 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L600), [`_facts`](../../tests/pkg/test_java_extractor.py#L40), [`_java_facts`](../../tests/pkg/test_java_extractor.py#L349), [`test_repo_extractor_dispatches_java_by_suffix`](../../tests/pkg/test_java_extractor.py#L90)
 - **Fields**: `_receivers`, `language`, `suffixes`
 - **Documented in**: `docs/specs/README.md#3-gap-taxonomy-g1g17`, `docs/specs/kotlin-support-roadmap.md#8-blast-radius-measured-from-the-pkg-per-registration-site`, `docs/specs/multi-language-java.md#slice-1-java-comprehension-this-build`, `docs/specs/multi-language-java.md#where-java-stands-today`, `docs/specs/typescript-codegen.md#slice-1-typescript-comprehension-ships-first-cheap`, `docs/specs/typescript-codegen.md#where-typescript-stands-today`
 
@@ -80,14 +78,14 @@ _28 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/java_extractor.py:668`](../../src/orchestrator/pkg/java_extractor.py#L668)
 
 - **Called by** (1): [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L256)
-- **Calls** (1): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L125)
+- **Calls** (2): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L125), [`node_ref`](../../src/orchestrator/pkg/java_extractor.py#L557)
 
 ### `_deferred_call`
 
 [`src/orchestrator/pkg/java_extractor.py:682`](../../src/orchestrator/pkg/java_extractor.py#L682)
 
 - **Called by** (1): [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L256)
-- **Calls** (3): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L125), [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L980), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985)
+- **Calls** (4): [`DeferredCall`](../../src/orchestrator/pkg/typed_receivers.py#L125), [`_field_text`](../../src/orchestrator/pkg/java_extractor.py#L980), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985), [`lookup`](../../src/orchestrator/pkg/typed_receivers.py#L170)
 
 ### `_field_names`
 
@@ -142,7 +140,7 @@ _28 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/java_extractor.py:715`](../../src/orchestrator/pkg/java_extractor.py#L715)
 
 - **Called by** (1): [`_emit_type`](../../src/orchestrator/pkg/java_extractor.py#L152)
-- **Calls** (8): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L891), [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L860), [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L880), [`_join_path`](../../src/orchestrator/pkg/java_extractor.py#L934), [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L875)
+- **Calls** (10): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_annotation_string_arg`](../../src/orchestrator/pkg/java_extractor.py#L891), [`_annotations`](../../src/orchestrator/pkg/java_extractor.py#L860), [`_is_jax_rs_annotation`](../../src/orchestrator/pkg/java_extractor.py#L880), [`_join_path`](../../src/orchestrator/pkg/java_extractor.py#L934), [`_simple_annotation_name`](../../src/orchestrator/pkg/java_extractor.py#L875), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175)
 
 ### `_join_path`
 
@@ -155,7 +153,7 @@ _28 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/java_extractor.py:566`](../../src/orchestrator/pkg/java_extractor.py#L566)
 
 - **Called by** (1): [`_calls`](../../src/orchestrator/pkg/java_extractor.py#L256)
-- **Calls** (5): [`Scope`](../../src/orchestrator/pkg/typed_receivers.py#L154), [`_Sites`](../../src/orchestrator/pkg/java_extractor.py#L480), [`_block_of`](../../src/orchestrator/pkg/java_extractor.py#L464), [`_statement_of`](../../src/orchestrator/pkg/java_extractor.py#L471), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985)
+- **Calls** (6): [`Scope`](../../src/orchestrator/pkg/typed_receivers.py#L154), [`_Sites`](../../src/orchestrator/pkg/java_extractor.py#L480), [`_block_of`](../../src/orchestrator/pkg/java_extractor.py#L464), [`_statement_of`](../../src/orchestrator/pkg/java_extractor.py#L471), [`_text`](../../src/orchestrator/pkg/java_extractor.py#L985), [`bind`](../../src/orchestrator/pkg/typed_receivers.py#L166)
 
 ### `_path_annotation`
 

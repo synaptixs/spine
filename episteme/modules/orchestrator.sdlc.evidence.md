@@ -133,6 +133,7 @@
 [`src/orchestrator/sdlc/evidence.py:435`](../../src/orchestrator/sdlc/evidence.py#L435)
 
 - **Called by** (1): [`default_registry`](../../src/orchestrator/runtime/tool_registry.py#L106)
+- **Calls** (1): [`register`](../../src/orchestrator/core/digest.py#L33)
 
 ### `render_evidence_md`
 

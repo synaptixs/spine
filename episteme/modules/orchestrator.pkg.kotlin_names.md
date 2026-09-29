@@ -16,13 +16,11 @@
 - [`text`](../../src/orchestrator/pkg/kotlin_names.py#L26) — reaches **57** symbols
 - [`decoded_escape`](../../src/orchestrator/pkg/kotlin_names.py#L234) — reaches **28** symbols
 - [`string_value`](../../src/orchestrator/pkg/kotlin_names.py#L245) — reaches **26** symbols
-- [`bare_type`](../../src/orchestrator/pkg/kotlin_names.py#L38) — reaches **23** symbols · **no test path visible**
-- [`_child_of`](../../src/orchestrator/pkg/kotlin_names.py#L194) — reaches **21** symbols · **no test path visible**
-- [`_read_annotation`](../../src/orchestrator/pkg/kotlin_names.py#L177) — reaches **21** symbols · **no test path visible**
-- [`Annotation`](../../src/orchestrator/pkg/kotlin_names.py#L76) — reaches **20** symbols · **no test path visible**
-- [`_simple_name`](../../src/orchestrator/pkg/kotlin_names.py#L223) — reaches **20** symbols · **no test path visible**
-
-_16 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+- [`bare_type`](../../src/orchestrator/pkg/kotlin_names.py#L38) — reaches **23** symbols
+- [`_child_of`](../../src/orchestrator/pkg/kotlin_names.py#L194) — reaches **21** symbols
+- [`_read_annotation`](../../src/orchestrator/pkg/kotlin_names.py#L177) — reaches **21** symbols
+- [`Annotation`](../../src/orchestrator/pkg/kotlin_names.py#L76) — reaches **20** symbols
+- [`_simple_name`](../../src/orchestrator/pkg/kotlin_names.py#L223) — reaches **20** symbols
 
 ## Types
 

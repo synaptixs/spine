@@ -45,7 +45,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/layout.py:866`](../../src/orchestrator/sdlc/layout.py#L866)
 
 - **Called by** (2): [`_csproj_candidates`](../../src/orchestrator/sdlc/layout.py#L855), [`_nested_project`](../../src/orchestrator/sdlc/layout.py#L900)
-- **Calls** (4): [`_claimed`](../../src/orchestrator/sdlc/layout.py#L238), [`is_nested_repo`](../../src/orchestrator/pkg/extractor.py#L655), `pathlib.Path`, `walk`
+- **Calls** (4): [`_claimed`](../../src/orchestrator/sdlc/layout.py#L238), [`is_nested_repo`](../../src/orchestrator/pkg/extractor.py#L668), `pathlib.Path`, `walk`
 
 ### `_claimed`
 
@@ -142,7 +142,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/layout.py:253`](../../src/orchestrator/sdlc/layout.py#L253)
 
 - **Called by** (1): [`detect_java_layout`](../../src/orchestrator/sdlc/layout.py#L309)
-- **Calls** (4): [`_claimed`](../../src/orchestrator/sdlc/layout.py#L238), [`is_nested_repo`](../../src/orchestrator/pkg/extractor.py#L655), `pathlib.Path`, `walk`
+- **Calls** (4): [`_claimed`](../../src/orchestrator/sdlc/layout.py#L238), [`is_nested_repo`](../../src/orchestrator/pkg/extractor.py#L668), `pathlib.Path`, `walk`
 
 ### `_nearest_go_module_dir`
 
@@ -292,7 +292,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/sdlc/layout.py:802`](../../src/orchestrator/sdlc/layout.py#L802)
 
 - **Called by** (2): [`choose_project`](../../src/orchestrator/sdlc/layout.py#L700), [`existing_source_count`](../../src/orchestrator/sdlc/layout.py#L1445)
-- **Calls** (3): [`is_nested_repo`](../../src/orchestrator/pkg/extractor.py#L655), `pathlib.Path`, `walk`
+- **Calls** (3): [`is_nested_repo`](../../src/orchestrator/pkg/extractor.py#L668), `pathlib.Path`, `walk`
 
 ### `_top_level_modules`
 

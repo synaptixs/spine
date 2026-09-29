@@ -13,16 +13,16 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_attachment_key`](../../src/orchestrator/intake/jira_source.py#L262) — reaches **12** symbols
+- [`_attachment_key`](../../src/orchestrator/intake/jira_source.py#L262) — reaches **13** symbols
 - [`_description_text`](../../src/orchestrator/intake/jira_source.py#L135) — reaches **11** symbols
 - [`issue_type_of`](../../src/orchestrator/intake/jira_source.py#L144) — reaches **11** symbols
 - [`_adf_to_text`](../../src/orchestrator/intake/jira_source.py#L111) — reaches **10** symbols
 - [`issue_meta_header`](../../src/orchestrator/intake/jira_source.py#L162) — reaches **10** symbols
-- [`_BoundedView`](../../src/orchestrator/intake/jira_source.py#L320) — reaches **9** symbols · **no test path visible**
+- [`_BoundedView`](../../src/orchestrator/intake/jira_source.py#L320) — reaches **9** symbols
 - [`_attachment_names`](../../src/orchestrator/intake/jira_source.py#L272) — reaches **9** symbols
-- [`_attachments_read_in_full_text`](../../src/orchestrator/intake/jira_source.py#L310) — reaches **9** symbols · **no test path visible**
+- [`_attachments_read_in_full_text`](../../src/orchestrator/intake/jira_source.py#L310) — reaches **9** symbols
 
-_11 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_3 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Types
 
@@ -102,7 +102,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/intake/jira_source.py:389`](../../src/orchestrator/intake/jira_source.py#L389)
 
 - **Called by** (2): [`_fetch_jira_issue`](../../src/orchestrator/intake/mcp_source.py#L341), [`fetch_document`](../../src/orchestrator/intake/jira_source.py#L606)
-- **Calls** (1): [`_BoundedView`](../../src/orchestrator/intake/jira_source.py#L320)
+- **Calls** (2): [`_BoundedView`](../../src/orchestrator/intake/jira_source.py#L320), [`take`](../../src/orchestrator/intake/jira_source.py#L341)
 
 ### `_collapse`
 
@@ -161,7 +161,7 @@ _11 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/intake/jira_source.py:474`](../../src/orchestrator/intake/jira_source.py#L474)
 
 - **Called by** (2): [`_attachment_texts`](../../src/orchestrator/intake/jira_source.py#L615), [`_fetch_jira_issue`](../../src/orchestrator/intake/mcp_source.py#L341)
-- **Calls** (5): [`_BoundedView`](../../src/orchestrator/intake/jira_source.py#L320), [`_attachment_key`](../../src/orchestrator/intake/jira_source.py#L262), [`_read_in_full`](../../src/orchestrator/intake/jira_source.py#L536), [`is_doc_file`](../../src/orchestrator/pkg/doc_source.py#L98), `pathlib.Path`
+- **Calls** (6): [`_BoundedView`](../../src/orchestrator/intake/jira_source.py#L320), [`_attachment_key`](../../src/orchestrator/intake/jira_source.py#L262), [`_read_in_full`](../../src/orchestrator/intake/jira_source.py#L536), [`is_doc_file`](../../src/orchestrator/pkg/doc_source.py#L98), `pathlib.Path`, [`take`](../../src/orchestrator/intake/jira_source.py#L341)
 
 ### `render_issue_bodies`
 

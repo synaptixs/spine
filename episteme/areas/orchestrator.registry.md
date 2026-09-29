@@ -84,7 +84,7 @@ _Showing 16 of 31 neighbouring areas._
 - [`orchestrator.registry.api.web.registry`](../../src/orchestrator/registry/api/web/registry.py#L1)
 - [`orchestrator.registry.api.web.shell`](../../src/orchestrator/registry/api/web/shell.py#L1)
 - [`orchestrator.registry.api.web.system`](../../src/orchestrator/registry/api/web/system.py#L1)
-- [`orchestrator.registry.api.workspace`](../modules/orchestrator.registry.api.workspace.md)
+- [`orchestrator.registry.api.workspace`](../../src/orchestrator/registry/api/workspace.py#L1)
 - [`orchestrator.registry.calibration`](../../src/orchestrator/registry/calibration.py#L1)
 - [`orchestrator.registry.db`](../../src/orchestrator/registry/db/__init__.py#L1)
 - [`orchestrator.registry.db.models`](../../src/orchestrator/registry/db/models.py#L1)

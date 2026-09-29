@@ -57,7 +57,7 @@
 [`src/orchestrator/mcp/rag_pull.py:294`](../../src/orchestrator/mcp/rag_pull.py#L294)
 
 - **Called by** (1): [`pull_rag`](../../src/orchestrator/mcp/rag_pull.py#L364)
-- **Calls** (3): [`Pulled`](../../src/orchestrator/mcp/pull_base.py#L90), [`_base_args`](../../src/orchestrator/mcp/rag_pull.py#L290), [`normalise`](../../src/orchestrator/mcp/rag_pull.py#L242)
+- **Calls** (4): [`Pulled`](../../src/orchestrator/mcp/pull_base.py#L90), [`_base_args`](../../src/orchestrator/mcp/rag_pull.py#L290), [`call_result`](../../src/orchestrator/mcp/pull_base.py#L48), [`normalise`](../../src/orchestrator/mcp/rag_pull.py#L242)
 
 ### `_find_uri`
 
@@ -119,7 +119,7 @@
 [`src/orchestrator/mcp/rag_pull.py:329`](../../src/orchestrator/mcp/rag_pull.py#L329)
 
 - **Called by** (1): [`pull_rag`](../../src/orchestrator/mcp/rag_pull.py#L364)
-- **Calls** (6): [`Chunk`](../../src/orchestrator/mcp/rag_pull.py#L70), [`Pulled`](../../src/orchestrator/mcp/pull_base.py#L90), [`_base_args`](../../src/orchestrator/mcp/rag_pull.py#L290), [`normalise`](../../src/orchestrator/mcp/rag_pull.py#L242), [`rag_queries`](../../src/orchestrator/pkg/external_docs.py#L190), [`search_ids`](../../src/orchestrator/mcp/rag_pull.py#L277)
+- **Calls** (7): [`Chunk`](../../src/orchestrator/mcp/rag_pull.py#L70), [`Pulled`](../../src/orchestrator/mcp/pull_base.py#L90), [`_base_args`](../../src/orchestrator/mcp/rag_pull.py#L290), [`call_result`](../../src/orchestrator/mcp/pull_base.py#L48), [`normalise`](../../src/orchestrator/mcp/rag_pull.py#L242), [`rag_queries`](../../src/orchestrator/pkg/external_docs.py#L190), [`search_ids`](../../src/orchestrator/mcp/rag_pull.py#L277)
 
 ### `normalise`
 

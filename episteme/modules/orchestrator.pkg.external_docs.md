@@ -13,14 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_now`](../../src/orchestrator/pkg/external_docs.py#L87) — reaches **9** symbols
+- [`_now`](../../src/orchestrator/pkg/external_docs.py#L87) — reaches **11** symbols
+- [`normalized`](../../src/orchestrator/pkg/external_docs.py#L421) — reaches **10** symbols
+- [`_repo_files`](../../src/orchestrator/pkg/external_docs.py#L465) — reaches **9** symbols
+- [`_repo_sections`](../../src/orchestrator/pkg/external_docs.py#L426) — reaches **9** symbols
 - [`chunk_id`](../../src/orchestrator/pkg/external_docs.py#L175) — reaches **9** symbols
+- [`doc_pages`](../../src/orchestrator/pkg/external_docs.py#L405) — reaches **9** symbols
 - [`failure_path`](../../src/orchestrator/pkg/external_docs.py#L119) — reaches **9** symbols
-- [`_previous_path`](../../src/orchestrator/pkg/external_docs.py#L125) — reaches **8** symbols
-- [`normalized`](../../src/orchestrator/pkg/external_docs.py#L421) — reaches **8** symbols
-- [`_repo_files`](../../src/orchestrator/pkg/external_docs.py#L465) — reaches **7** symbols
-- [`_repo_sections`](../../src/orchestrator/pkg/external_docs.py#L426) — reaches **7** symbols
-- [`doc_pages`](../../src/orchestrator/pkg/external_docs.py#L405) — reaches **7** symbols
+- [`repo_relative`](../../src/orchestrator/pkg/external_docs.py#L439) — reaches **9** symbols
 
 ## Types
 

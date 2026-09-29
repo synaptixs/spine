@@ -13,16 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_text`](../../src/orchestrator/pkg/php_routes.py#L61) — reaches **18** symbols · **no test path visible**
-- [`_literal_string`](../../src/orchestrator/pkg/php_routes.py#L81) — reaches **14** symbols · **no test path visible**
-- [`_arg_value`](../../src/orchestrator/pkg/php_routes.py#L65) — reaches **11** symbols · **no test path visible**
-- [`_join_route`](../../src/orchestrator/pkg/php_routes.py#L113) — reaches **8** symbols · **no test path visible**
-- [`_call_args`](../../src/orchestrator/pkg/php_routes.py#L76) — reaches **6** symbols · **no test path visible**
-- [`PendingRoute`](../../src/orchestrator/pkg/php_routes.py#L51) — reaches **5** symbols · **no test path visible**
-- [`_arg_name`](../../src/orchestrator/pkg/php_routes.py#L71) — reaches **5** symbols · **no test path visible**
-- [`_array_prefix`](../../src/orchestrator/pkg/php_routes.py#L345) — reaches **5** symbols · **no test path visible**
-
-_26 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+- [`_text`](../../src/orchestrator/pkg/php_routes.py#L61) — reaches **18** symbols
+- [`_literal_string`](../../src/orchestrator/pkg/php_routes.py#L81) — reaches **14** symbols
+- [`_arg_value`](../../src/orchestrator/pkg/php_routes.py#L65) — reaches **11** symbols
+- [`_join_route`](../../src/orchestrator/pkg/php_routes.py#L113) — reaches **8** symbols
+- [`_call_args`](../../src/orchestrator/pkg/php_routes.py#L76) — reaches **6** symbols
+- [`PendingRoute`](../../src/orchestrator/pkg/php_routes.py#L51) — reaches **5** symbols
+- [`_arg_name`](../../src/orchestrator/pkg/php_routes.py#L71) — reaches **5** symbols
+- [`_array_prefix`](../../src/orchestrator/pkg/php_routes.py#L345) — reaches **5** symbols
 
 ## Documented in
 
@@ -191,7 +189,7 @@ _26 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/php_routes.py:392`](../../src/orchestrator/pkg/php_routes.py#L392)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/php_extractor.py#L163)
-- **Calls** (2): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175)
 
 ### `scan_laravel_routes`
 
@@ -205,7 +203,7 @@ _26 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/php_routes.py:407`](../../src/orchestrator/pkg/php_routes.py#L407)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/php_extractor.py#L163)
-- **Calls** (8): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_attributes`](../../src/orchestrator/pkg/php_routes.py#L443), [`_join_route`](../../src/orchestrator/pkg/php_routes.py#L113), [`_named_arg`](../../src/orchestrator/pkg/php_routes.py#L476), [`_route_path`](../../src/orchestrator/pkg/php_routes.py#L483), [`_string_list`](../../src/orchestrator/pkg/php_routes.py#L100)
+- **Calls** (10): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_attributes`](../../src/orchestrator/pkg/php_routes.py#L443), [`_join_route`](../../src/orchestrator/pkg/php_routes.py#L113), [`_named_arg`](../../src/orchestrator/pkg/php_routes.py#L476), [`_route_path`](../../src/orchestrator/pkg/php_routes.py#L483), [`_string_list`](../../src/orchestrator/pkg/php_routes.py#L100), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175)
 
 ## Imports
 
