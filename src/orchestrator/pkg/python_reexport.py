@@ -292,4 +292,10 @@ def resolve_reexports(batch: FactBatch, exports: dict[str, ModuleExports]) -> Fa
     return result
 
 
-__all__ = ["ModuleExports", "collect_exports", "resolve_reexports"]
+def reexport_resolver(batch: FactBatch, exports: dict[str, ModuleExports]) -> Callable[[str], str | None]:
+    """The grounded id a ``py:`` id names through re-exports, or ``None`` — for a later pass that
+    must resolve a *written* name (a type annotation) the way a call target is resolved here."""
+    return _Resolver(exports, {n.id for n in batch.nodes if n.grounded}).resolve
+
+
+__all__ = ["ModuleExports", "collect_exports", "reexport_resolver", "resolve_reexports"]

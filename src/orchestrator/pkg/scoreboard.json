@@ -8,9 +8,9 @@
       },
       "note": "provenance measured on this repo, offline; the pinned corpus is run explicitly",
       "provenance": {
-        "anchored": 14735,
-        "excluded": 926,
-        "resolved": 14735,
+        "anchored": 15910,
+        "excluded": 959,
+        "resolved": 15910,
         "unreadable": 0
       }
     },
@@ -734,16 +734,16 @@
         "python": {
           "edges": {
             "CALLS": {
-              "emitted": 24,
-              "expected": 27,
-              "known_gaps": 3,
-              "matched": 24
+              "emitted": 48,
+              "expected": 54,
+              "known_gaps": 6,
+              "matched": 48
             },
             "CONTAINS": {
-              "emitted": 60,
-              "expected": 60,
+              "emitted": 108,
+              "expected": 108,
               "known_gaps": 0,
-              "matched": 60
+              "matched": 108
             },
             "EXPOSES": {
               "emitted": 2,
@@ -752,16 +752,16 @@
               "matched": 2
             },
             "IMPLEMENTS": {
-              "emitted": 1,
-              "expected": 1,
+              "emitted": 7,
+              "expected": 7,
               "known_gaps": 0,
-              "matched": 1
+              "matched": 7
             },
             "IMPORTS": {
-              "emitted": 37,
-              "expected": 37,
+              "emitted": 47,
+              "expected": 47,
               "known_gaps": 0,
-              "matched": 37
+              "matched": 47
             }
           },
           "nodes": {
@@ -772,28 +772,28 @@
               "matched": 2
             },
             "Field": {
-              "emitted": 3,
-              "expected": 3,
+              "emitted": 9,
+              "expected": 9,
               "known_gaps": 0,
-              "matched": 3
+              "matched": 9
             },
             "Function": {
-              "emitted": 47,
-              "expected": 47,
+              "emitted": 79,
+              "expected": 79,
               "known_gaps": 0,
-              "matched": 47
+              "matched": 79
             },
             "Module": {
-              "emitted": 38,
-              "expected": 38,
+              "emitted": 43,
+              "expected": 43,
               "known_gaps": 0,
-              "matched": 38
+              "matched": 43
             },
             "Type": {
-              "emitted": 10,
-              "expected": 10,
+              "emitted": 20,
+              "expected": 20,
               "known_gaps": 0,
-              "matched": 10
+              "matched": 20
             }
           }
         },
@@ -927,10 +927,10 @@
       "skipped_languages": []
     },
     "drift": {
-      "count": 1974,
-      "docs": 1938,
+      "count": 1999,
+      "docs": 1882,
       "gated": false,
-      "mentions": 14076,
+      "mentions": 14344,
       "note": "recorded, never gated \u2014 an upper bound: a tenth of the population cannot bind by construction. See GATES"
     },
     "invention": {
@@ -1014,7 +1014,7 @@
           "invented": 0,
           "shadowable": 0,
           "status": "measured",
-          "total_calls": 23247,
+          "total_calls": 27634,
           "unexamined": 0
         },
         "sql": {
@@ -1035,7 +1035,7 @@
         }
       },
       "note": "gated at zero per language, not against this baseline \u2014 see GATES",
-      "total_calls": 23846
+      "total_calls": 28233
     },
     "parity": {
       "declared": 75,

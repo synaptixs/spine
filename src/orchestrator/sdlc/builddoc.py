@@ -897,8 +897,9 @@ def _blast_prose(bd: dict[str, Any], language: str = "python") -> str:
         )
     else:
         caveat = (
-            "**Caveat:** method calls through an instance emit no `CALLS` edge, so "
-            "per-method counts under-report. Module-function counts are exact."
+            "**Caveat:** some method calls through an instance emit no `CALLS` edge — one "
+            "through a variable whose type the code does not declare — so per-method counts "
+            "can under-report. Module-function counts are exact."
         )
         # The measured version of the same caveat. "Counts under-report" tells a reader to be
         # vaguely careful; "recall is 0.73" tells them roughly one call in four is missing and

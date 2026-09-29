@@ -1,7 +1,7 @@
 {
   "language": "python",
   "case": "dispatch",
-  "why": "Calls reached through a variable rather than a name — an annotated parameter, a chained call on a return value, and a class fetched from a lookup table. These are the shapes the extractors document as skipped, and this case exists to put a number on how much is lost.",
+  "why": "Calls reached through a variable rather than a name — an annotated parameter, a chained call on a return value, and a class fetched from a lookup table. These are the shapes the extractors document as skipped, and this case exists to put a number on how much is lost. The annotated parameter resolves since B35 (SSPN-48); the other two remain gaps.",
   "root": ".repo",
   "nodes": [
     {"id": "py:svc", "kind": "Module"},
@@ -33,10 +33,6 @@
     {"src": "py:svc.registry.build", "dst": "py:svc.handlers.Handler", "kind": "CALLS"}
   ],
   "known_gaps": [
-    {
-      "edge": {"src": "py:svc.handlers.dispatch", "dst": "py:svc.handlers.Handler.run", "kind": "CALLS"},
-      "why": "`handler.run(payload)` on an annotated parameter. Resolving it needs type inference; the front-ends document this skip deliberately (typescript_extractor.py:20 states the equivalent for TS). Counted as a recall miss, not exempted."
-    },
     {
       "edge": {"src": "py:svc.registry.invoke", "dst": "py:svc.handlers.Handler.run", "kind": "CALLS"},
       "why": "`build(name).run(payload)` — a method call on the return value of another call. Needs the return type of `build`. Counted as a recall miss, not exempted."
