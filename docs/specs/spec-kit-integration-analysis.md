@@ -10,6 +10,10 @@ through the Codex CLI (2026-09-26), against Spine + PKG 3.52 on the same tickets
 commit ([reason 10](#10-what-it-costs-at-fleet-scale--measured)).
 **Scope of that measurement:** cost, tokens and time. Every other claim below about spec-kit is
 still a claim about what it says it does, and is labelled as such.
+**Corrected 2026-09-29:** Q3's PKG saving is now a measured upper bound (8–12%, leaving
+spec-kit 29–41× Spine + PKG) instead of an assumption, and `NEW-DRIFTMD-1`'s held-out test was
+re-graded after its fixture was fixed ([SSPN-97](https://fibonacci-solutions.atlassian.net/browse/SSPN-97),
+[SSPN-110](https://fibonacci-solutions.atlassian.net/browse/SSPN-110)).
 **Objections:** answered in [questions that come back](#questions-that-come-back) — tighter
 requirements, engineer-validated context, and spec-kit with the PKG underneath.
 **Revisit condition:** stated at the end. This is a decision with a tripwire, not a dismissal.
@@ -42,7 +46,8 @@ year against $418,000**, and the gap scales linearly from there
 ([reason 10](#10-what-it-costs-at-fleet-scale--measured)).
 
 The saving doesn't come at the expense of quality or control. On held-out tests, Spine + PKG
-matched spec-kit's working-code rate. It also stayed inside the ticket: across 21 runs on three
+passed all 21 runs; spec-kit passed every run in which it produced code, but 3 of its 21 runs
+stalled and produced none. Spine + PKG also stayed inside the ticket: across 21 runs on three
 models it changed no file the ticket didn't call for, and all 21 passed Spine's own acceptance
 gate. That discipline is itself a measured result. This research surfaced a scope defect in
 Spine, and it was fixed, re-measured and shipped in 3.52. The comparison covered three small
@@ -55,8 +60,11 @@ reviewer can check every step of it.
 Spec-kit is a well-made set of prompts, and nothing more: markdown templates and slash commands
 that ask a model to write a spec, a plan and a task list, then the code. There is no
 deterministic step anywhere in it. It has no parser or graph of the codebase, so on an existing
-system the plan is written from whatever files the model happens to open. That is the situation
-where, in Spine's measurements, new code integrated correctly in 3 of 68 runs. Its acceptance
+system its plan rests on whichever files the model decides to open. Spine's own tests show why
+that matters: when a ticket did not say where new code belonged, models integrated a new module
+correctly in 47 of 68 runs with Spine's graph and in 3 of 68 without it. spec-kit was not one of
+the tools in those tests, but it gives the model no graph, so finding the right place in the code
+is left to the model alone. Its acceptance
 criteria are written by the same model that wrote the spec, and nothing binds them to real code.
 It has no gate that can refuse a bad ticket, and it doesn't attempt blast radius or root cause.
 Its own checks (`analyze`, `converge`) ask a model whether one document agrees with another, so
@@ -145,7 +153,8 @@ This is the gap Spine has actually measured, across 260 ticket-runs on two front
 The control is the part that makes it an argument rather than an anecdote: when the model
 already knows where the change lands, the graph makes no difference. **The graph pays precisely
 where the model cannot see the target, and ties where it can.** A workflow that produces a plan
-without reading the repository is permanently in the arm that scored 3 of 68.
+without a deterministic read of the repository leaves finding the right place in the code to the
+model alone, which is the condition that scored 3 of 68.
 
 The original 200-run A/B scored `create` tickets at **29/50 grounded against 0/50 ungrounded**;
 replicating on an unrelated external repository takes the combined figure across two codebases
@@ -194,9 +203,9 @@ For contrast, what is currently gated in this repository:
 
 | | Result |
 |---|---|
-| Precision | **1.00** on every node and edge kind, all 8 front-ends |
-| `CALLS` recall | 1.00 (c, sql) → 0.50 (typescript) — scored separately, never averaged away |
-| Invention | **0** across 6 walked front-ends, gated `strict` at zero per language |
+| Precision | **1.00** on every node and edge kind, in all 12 languages (13 language front-ends) |
+| `CALLS` recall | 1.00 (C, C++, SQL) down to 0.75 (Go, PHP), scored per language, never averaged away |
+| Invention | **0**, on Spine's own repository and 11 public repositories, gated at zero per language |
 | Grounding effect | 47/68 vs 3/68, with a control |
 
 ### 9. If we ingested its output, it would pollute the knowledge base
@@ -267,17 +276,18 @@ bills those re-reads at a tenth of the input price.
 | Per month | 51.9M tokens | ~182k tokens | 286× |
 | Per year | 623.4M tokens | 2.18M tokens | 286× |
 
-| Model | spec-kit: month | spec-kit: year | Spine: month | Spine: year | Ratio |
-|---|---|---|---|---|---|
-| `claude-fable-5-1` ($10/$50) | $49.58 | $595.00 | $2.45 | $29.39 | 20.2× |
-| `claude-opus-5-5` ($4/$20) | $24.82 | $297.89 | $0.98 | $11.76 | 25.3× |
-| `claude-sonnet-5` ($2/$10) | $17.40 | $208.83 | $0.49 | $5.88 | 35.5× |
-| `claude-haiku-4-5` ($1/$5) | $8.70 | $104.42 | $0.24 | $2.94 | 35.5× |
-| `gpt-5.6-sol` ($4/$20), priced, not run | $34.81 | $417.66 | $0.98 | $11.76 | 35.5× |
-| `gpt-5.6-terra` ($2/$12), priced, not run | $18.02 | $216.25 | $0.52 | $6.26 | 34.6× |
-| `gpt-5.6-luna` ($0.2/$1.2), priced, not run | $1.80 | $21.62 | $0.05 | $0.63 | 34.6× |
-| `grok-4.7` ($2/$6) | $30.27 | $363.27 | $0.43 | $5.12 | 70.9× |
-| `grok-build-0.1` ($1/$2) | $12.33 | $147.98 | $0.20 | $2.37 | 62.4× |
+| Model | Basis | spec-kit: month | spec-kit: year | Spine: month | Spine: year | Ratio |
+|---|---|---|---|---|---|---|
+| `claude-fable-5-1` ($10/$50) | priced | $49.58 | $595.00 | $2.45 | $29.39 | 20.2× |
+| `claude-opus-5-5` ($4/$20) | priced | $24.82 | $297.89 | $0.98 | $11.76 | 25.3× |
+| `claude-sonnet-5` ($2/$10) | **measured** | $17.40 | $208.83 | $0.49 | $5.88 | 35.5× |
+| `claude-haiku-4-5` ($1/$5) | priced | $8.70 | $104.42 | $0.24 | $2.94 | 35.5× |
+| `gpt-5.6-sol` ($4/$20) | **measured** | $21.39 | $256.68 | $0.48 | $5.77 | 44.5× |
+| `gpt-6-astra` | **measured** | $50.28 | $603.30 | $1.54 | $18.47 | 32.7× |
+| `gpt-5.6-terra` ($2/$12) | priced | $18.02 | $216.25 | $0.52 | $6.26 | 34.6× |
+| `gpt-5.6-luna` ($0.2/$1.2) | priced | $1.80 | $21.62 | $0.05 | $0.63 | 34.6× |
+| `grok-4.7` ($2/$6) | priced | $30.27 | $363.27 | $0.43 | $5.12 | 70.9× |
+| `grok-build-0.1` ($1/$2) | priced | $12.33 | $147.98 | $0.20 | $2.37 | 62.4× |
 
 **Tokens per year:**
 
@@ -289,41 +299,44 @@ bills those re-reads at a tenth of the input price.
 
 **Cost per year:**
 
-| Model | Setup | 500 | 1,000 | 1,500 | 2,000 | 5,000 | 10,000 |
-|---|---|---|---|---|---|---|---|
-| `claude-fable-5-1` ($10/$50) | no PKG | $297,499 | $594,997 | $892,496 | $1,189,995 | $2,974,987 | $5,949,974 |
-| | with PKG | $14,696 | $29,392 | $44,089 | $58,785 | $146,962 | $293,924 |
-| `claude-opus-5-5` ($4/$20) | no PKG | $148,944 | $297,888 | $446,831 | $595,775 | $1,489,438 | $2,978,876 |
-| | with PKG | $5,878 | $11,757 | $17,635 | $23,514 | $58,785 | $117,570 |
-| `claude-sonnet-5` ($2/$10) | no PKG | $104,416 | $208,832 | $313,249 | $417,665 | $1,044,162 | $2,088,325 |
-| | with PKG | $2,939 | $5,878 | $8,818 | $11,757 | $29,392 | $58,785 |
-| `claude-haiku-4-5` ($1/$5) | no PKG | $52,208 | $104,416 | $156,624 | $208,832 | $522,081 | $1,044,162 |
-| | with PKG | $1,470 | $2,939 | $4,409 | $5,878 | $14,696 | $29,392 |
-| `gpt-5.6-sol` ($4/$20), priced, not run | no PKG | $208,832 | $417,665 | $626,497 | $835,330 | $2,088,325 | $4,176,650 |
-| | with PKG | $5,878 | $11,757 | $17,635 | $23,514 | $58,785 | $117,570 |
-| `gpt-5.6-terra` ($2/$12), priced, not run | no PKG | $108,125 | $216,250 | $324,375 | $432,500 | $1,081,249 | $2,162,498 |
-| | with PKG | $3,128 | $6,257 | $9,385 | $12,513 | $31,283 | $62,567 |
-| `gpt-5.6-luna` ($0.2/$1.2), priced, not run | no PKG | $10,812 | $21,625 | $32,437 | $43,250 | $108,125 | $216,250 |
-| | with PKG | $313 | $626 | $939 | $1,251 | $3,128 | $6,257 |
-| `grok-4.7` ($2/$6) | no PKG | $181,637 | $363,274 | $544,910 | $726,547 | $1,816,368 | $3,632,736 |
-| | with PKG | $2,561 | $5,122 | $7,683 | $10,244 | $25,610 | $51,221 |
-| `grok-build-0.1` ($1/$2) | no PKG | $73,992 | $147,984 | $221,976 | $295,968 | $739,919 | $1,479,839 |
-| | with PKG | $1,186 | $2,372 | $3,558 | $4,744 | $11,860 | $23,719 |
+| Model | Basis | Setup | 500 | 1,000 | 1,500 | 2,000 | 5,000 | 10,000 |
+|---|---|---|---|---|---|---|---|---|
+| `claude-fable-5-1` ($10/$50) | priced | no PKG | $297,499 | $594,997 | $892,496 | $1,189,995 | $2,974,987 | $5,949,974 |
+| | | with PKG | $14,696 | $29,392 | $44,089 | $58,785 | $146,962 | $293,924 |
+| `claude-opus-5-5` ($4/$20) | priced | no PKG | $148,944 | $297,888 | $446,831 | $595,775 | $1,489,438 | $2,978,876 |
+| | | with PKG | $5,878 | $11,757 | $17,635 | $23,514 | $58,785 | $117,570 |
+| `claude-sonnet-5` ($2/$10) | **measured** | no PKG | $104,416 | $208,832 | $313,249 | $417,665 | $1,044,162 | $2,088,325 |
+| | | with PKG | $2,939 | $5,878 | $8,818 | $11,757 | $29,392 | $58,785 |
+| `claude-haiku-4-5` ($1/$5) | priced | no PKG | $52,208 | $104,416 | $156,624 | $208,832 | $522,081 | $1,044,162 |
+| | | with PKG | $1,470 | $2,939 | $4,409 | $5,878 | $14,696 | $29,392 |
+| `gpt-5.6-sol` ($4/$20) | **measured** | no PKG | $128,342 | $256,683 | $385,025 | $513,367 | $1,283,417 | $2,566,833 |
+| | | with PKG | $2,884 | $5,767 | $8,651 | $11,534 | $28,835 | $57,670 |
+| `gpt-6-astra` | **measured** | no PKG | $301,650 | $603,301 | $904,951 | $1,206,602 | $3,016,505 | $6,033,009 |
+| | | with PKG | $9,236 | $18,473 | $27,709 | $36,945 | $92,363 | $184,727 |
+| `gpt-5.6-terra` ($2/$12) | priced | no PKG | $108,125 | $216,250 | $324,375 | $432,500 | $1,081,249 | $2,162,498 |
+| | | with PKG | $3,128 | $6,257 | $9,385 | $12,513 | $31,283 | $62,567 |
+| `gpt-5.6-luna` ($0.2/$1.2) | priced | no PKG | $10,812 | $21,625 | $32,437 | $43,250 | $108,125 | $216,250 |
+| | | with PKG | $313 | $626 | $939 | $1,251 | $3,128 | $6,257 |
+| `grok-4.7` ($2/$6) | priced | no PKG | $181,637 | $363,274 | $544,910 | $726,547 | $1,816,368 | $3,632,736 |
+| | | with PKG | $2,561 | $5,122 | $7,683 | $10,244 | $25,610 | $51,221 |
+| `grok-build-0.1` ($1/$2) | priced | no PKG | $73,992 | $147,984 | $221,976 | $295,968 | $739,919 | $1,479,839 |
+| | | with PKG | $1,186 | $2,372 | $3,558 | $4,744 | $11,860 | $23,719 |
 
 **How to read these tables:**
 
-- **Only the `claude-sonnet-5` rows were run.** The others price the same measured token mix
-  (uncached input, cache writes, cache reads, output) at each model's list rates, including its
-  own cache prices, with cache writes at the input rate where a vendor lists none. The formula
-  reproduces the measured Sonnet 5 bill exactly for both arms ($4.351 and $0.122). Spec-kit
-  would not run through Claude Code on GPT or Grok models, so read those rows as "this workload
-  at that price", not as runs. The two OpenAI models were then measured directly; see below.
-- **The ratio moves with cache pricing, from 20× to 71×.** Most of spec-kit's volume is cache
+- **Rows marked *measured* were run; rows marked *priced* were not.** `claude-sonnet-5` is the
+  Claude run above, and `gpt-5.6-sol` and `gpt-6-astra` are the OpenAI runs described below. The
+  priced rows take the token mix measured on `claude-sonnet-5` (uncached input, cache writes,
+  cache reads, output) and price it at each model's list rates, including its own cache prices,
+  with cache writes at the input rate where a vendor lists none. The formula reproduces the
+  measured Sonnet 5 bill exactly for both tools ($4.351 and $0.122). Read a priced row as "this
+  workload at that price", not as a run.
+- **Across the priced rows, the ratio moves with cache pricing, from 20× to 71×.** Most of spec-kit's volume is cache
   reads, so a model with cheap cache reads (`claude-fable-5-1`, 2.5% of input) narrows the gap
   and one with dear cache reads (`grok-4.7`, 25%) widens it.
 - **Model choice spreads spec-kit's bill 28×; the PKG cuts it 20–71× on any model.** At 10,000
-  developers with no PKG the range is $216,250 (`gpt-5.6-luna`) to $5,949,974
-  (`claude-fable-5-1`).
+  developers with no PKG the range is $216,250 (`gpt-5.6-luna`, priced) to $6,033,009
+  (`gpt-6-astra`, measured).
 - **Every row scales linearly with the one remaining assumption,** 4 features per developer per
   month. Halve it and every figure halves.
 - **Three small tickets, three passes each.** Enough to fix the order of magnitude and the
@@ -335,7 +348,8 @@ bills those re-reads at a tenth of the input price.
 `gpt-6-astra`: spec-kit driven by the Codex CLI (Claude Code cannot drive GPT models), with
 `CLAUDE.md` copied to `AGENTS.md` so both agents had the same repository instructions, against
 Spine + PKG on the same model. Three tickets, two passes each (a $150 cap stopped the third), 24
-runs, all complete. Unlike the GPT rows above, these were run, not priced.
+runs, all complete. Their per-developer and yearly costs are in the tables above, marked
+measured.
 
 | | spec-kit, `gpt-5.6-sol` | Spine + PKG, `gpt-5.6-sol` | spec-kit, `gpt-6-astra` | Spine + PKG, `gpt-6-astra` |
 |---|---|---|---|---|
@@ -348,11 +362,6 @@ runs, all complete. Unlike the GPT rows above, these were run, not priced.
 Spec-kit's steps before any code cost $2.33 (sol) and $5.40 (astra): 44% and 43% of its bill, and
 19.4× and 14.0× Spine + PKG's whole pipeline.
 
-| Model | spec-kit tokens/yr | Spine tokens/yr | spec-kit $/month | spec-kit $/yr | Spine $/month | Spine $/yr | Cost ratio |
-|---|---|---|---|---|---|---|---|
-| `gpt-5.6-sol` | 444M | 1.0M | $21.39 | $256.68 | $0.48 | $5.77 | 44.5× |
-| `gpt-6-astra` | 417M | 1.0M | $50.28 | $603.30 | $1.54 | $18.47 | 32.7× |
-
 Tokens per year:
 
 | Model | Setup | 500 | 1,000 | 1,500 | 2,000 | 5,000 | 10,000 |
@@ -362,20 +371,12 @@ Tokens per year:
 | `gpt-6-astra` | no PKG | 208B | 417B | 625B | 834B | 2,085B | 4,169B |
 | | with PKG | 0.5B | 1.0B | 1.6B | 2.1B | 5.2B | 10.5B |
 
-Cost per year:
-
-| Model | Setup | 500 | 1,000 | 1,500 | 2,000 | 5,000 | 10,000 |
-|---|---|---|---|---|---|---|---|
-| `gpt-5.6-sol` | no PKG | $128,342 | $256,683 | $385,025 | $513,367 | $1,283,417 | $2,566,833 |
-| | with PKG | $2,884 | $5,767 | $8,651 | $11,534 | $28,835 | $57,670 |
-| `gpt-6-astra` | no PKG | $301,650 | $603,301 | $904,951 | $1,206,602 | $3,016,505 | $6,033,009 |
-| | with PKG | $9,236 | $18,473 | $27,709 | $36,945 | $92,363 | $184,727 |
-
 On OpenAI, Codex stops at `/speckit-implement`'s checklist question every time; the runs answer it
 once with a scripted "yes, proceed", as a person would. Spine + PKG could only call `gpt-6-astra`
 through a harness-only shim: its client sends `max_tokens`, and OpenAI accepts tools with reasoning
 for that model only on the Responses API. That is a Spine gap, tracked separately. Held-out tests
-passed in 4 of 6 runs in every arm; one ticket failed in all of them.
+passed in all 6 runs in every arm (one ticket's test was corrected after the runs; see the outcomes
+below).
 
 **How confident these numbers are.** The cost gap is statistically significant on every model
 tested; its exact size, and any difference in quality, are not.
@@ -393,28 +394,36 @@ tested; its exact size, and any difference in quality, are not.
   ticket-and-model combinations go the same way, at 26× to 48× (sign test p ≈ 0.004).
 - **Quote the range, not a point.** "About 30–45× cheaper per feature" is supported; "44.5×" is
   one model's mean inside a wide interval.
-- **Quality is not established either way.** Held-out tests passed in 4/9 vs 6/9 (Claude), 4/6
-  vs 4/6 (sol) and 4/6 vs 4/6 (astra); none of these differences is significant. The supported
-  statement is "no detectable difference in working-code rate", not "equal" or "better".
+- **Quality: no detectable difference in working-code rate.** Both tools passed the held-out
+  tests in every run that produced code: Spine + PKG 21 of 21, spec-kit 18 of 18. spec-kit's
+  other 3 runs stalled before producing code; counting those as failures, 21/21 against 18/21 is
+  not a significant difference (Fisher's exact test, p ≈ 0.23). The supported statement is "no
+  detectable difference in working-code rate", not "equal" or "better".
 - **Scope.** Three small tickets, one repository, spec-kit v1.0.11, a headless protocol with two
   scripted answers. Per-run Spine + PKG cost is that run's codegen plus its model's mean intake
   cost. The rows priced rather than run carry no statistical claim, and the fleet
   tables multiply the measured per-feature gap by an assumed four features per developer per
   month.
 
-**What the measurement corrected.** The estimate this section used before it was measured had
-spec-kit at 1.25M tokens over 26 calls per feature with the coding loop at 83% of the cost, and
-Spine at 3 calls. Measured: 13.0M tokens over 101–123 turns, with the steps before any code at
-41%; Spine at 4.8 calls, because its intake step makes two. The dollar gap is far wider than
-estimated: 35.5× against about 8×.
+**Outcomes, for context.** The held-out tests (written in advance, never shown to either tool)
+show that both tools produced working code whenever they produced code at all:
 
-**Outcomes, for context.** Held-out tests passed in 4 of 9 spec-kit runs (three of the five
-misses are the stalled runs) and 6 of 9 Spine runs on Claude, and 4 of 6 in every arm on OpenAI;
-`NEW-DRIFTMD-1` failed in every run of both tools. Every Spine + PKG run passed Spine's own
-acceptance gate (tests, preflight and fit, 21 of 21), and none changed a tracked file outside the
-ticket; spec-kit changed 1.1–1.5 per run ([Q4](#q4-does-either-tool-edit-files-it-shouldnt)).
-Spec-kit's agent did read code: in the first trial run it opened 13 files, including one
-holding a convention Spine's grounding had not shown. It also updated this repo's count gate in
+- **Spine + PKG passed every run: 21 of 21,** on every ticket and every model.
+- **spec-kit passed every run in which it produced code: 18 of 18.** Its three other runs, all on
+  Claude, stalled at its own checklist question and produced no code to test.
+
+**One ticket's test was corrected.** The benchmark's original held-out test for `NEW-DRIFTMD-1`
+passed a hand-made fake finding instead of the real `DocDriftFinding` the ticket told both tools to
+use. The fake's `kind` was a plain string rather than the real enum, and it had no `message`, so
+code written correctly for the real type crashed on it: every run of both tools failed that
+ticket, whatever it produced. Every run was re-graded from its kept code with a corrected test that
+uses the real type and reads the rendered Markdown text, so an escaped name such as
+`missing\_symbol` counts. No run was repeated; the same code was graded again.
+
+Every Spine + PKG run passed Spine's own acceptance gate (tests, preflight and fit, 21 of 21), and
+none changed a tracked file outside the ticket; spec-kit changed 1.1–1.5 per run
+([Q4](#q4-does-either-tool-edit-files-it-shouldnt)). Spec-kit's agent did read code: in the first
+trial run it opened 13 files, including one holding a convention Spine's grounding had not shown. It also updated this repo's count gate in
 `STATE-OF-SPINE.md`, which Spine never does. Where both produced working code, the difference
 this section measures is price.
 
@@ -637,35 +646,57 @@ model plan has been shown not to help".
   spec-kit. It does not meet the revisit condition below, because spec-kit itself has gained no
   deterministic step: the grounding is still Spine's.
 
-**Would the PKG bring spec-kit's cost down?** Partly, and reason 10's measurements bound how
-far. Spec-kit's bill has two parts, and the PKG can reduce only one:
+**Would the PKG bring spec-kit's cost down?** Barely: by 12% at most on the measured runs. A
+graph can only replace the work of *reading the code*, and spec-kit spends little on that. An
+earlier version of this answer assumed the opposite: that its implement and converge steps (56–59%
+of the bill) were mostly the agent reading files, which the graph would replace. Broken down
+request by request, the saved runs show where those two steps actually spend:
 
-| Part of spec-kit's bill | Measured share | Does the PKG reduce it? |
-|---|---|---|
-| Steps before any code (specify, clarify, plan, checklist, tasks, analyze) | 41–44% | **No.** These are model calls writing and checking documents; they happen whatever the model knows about the code |
-| Implement and converge (exploring the code, writing it) | 56–59% | **Yes.** The graph replaces much of the agent's file-by-file reading |
-
-Take the most generous case: the PKG makes spec-kit's implement and converge steps as cheap as
-Spine + PKG's *entire* pipeline. Spec-kit still pays for its steps before code:
-
-| Model | spec-kit + PKG, best case | Spine + PKG | Still |
+| Implement step, per completed run | `claude-sonnet-5` | `gpt-5.6-sol` | `gpt-6-astra` |
 |---|---|---|---|
-| `claude-sonnet-5` | $1.80 + $0.12 = $1.92 | $0.12 | **15.8×** |
-| `gpt-5.6-sol` | $2.33 + $0.12 = $2.45 | $0.12 | **20.4×** |
-| `gpt-6-astra` | $5.40 + $0.39 = $5.79 | $0.39 | **15.0×** |
+| Reading the code | $0.16 (9%) | $0.05 (2%) | $1.03 (17%) |
+| Writing the code | $0.33 (18%) | $0.29 (12%) | $0.36 (6%) |
+| Running tests and lint, and waiting on them | $0.67 (37%) | $1.44 (59%) | $2.64 (44%) |
+| spec-kit's own documents (`tasks.md`, checklists, its scripts) | $0.36 (20%) | $0.47 (19%) | $0.70 (12%) |
+| Everything else | $0.29 (16%) | $0.20 (8%) | $1.33 (22%) |
+| **Step total** | **$1.81** | **$2.45** | **$6.06** |
+| …of which re-reading the conversation so far | 82% | 85% | 86% |
 
-The remaining 15–20× can only be removed by replacing spec-kit's model-written planning steps with a
-plan built deterministically from the graph. That is what Spine already is. Cutting spec-kit's
-cost to Spine's level does not produce a cheaper spec-kit; it produces Spine, without spec-kit's
-documents.
+Converge reads even less code (2–9% of its cost). Its money goes to spec-kit checking its own
+documents and re-running tests; on `claude-sonnet-5`, 69% of it is the first request re-caching
+the whole conversation before any work starts.
 
-**This is a bound, not a measurement.** Nobody has run spec-kit with the PKG plugged in. The
-best-case rows assume the PKG removes all of spec-kit's extra implement-and-converge cost, which it
-would not in practice, and they leave out the graph output added to every call's input.
+So the most the PKG could save is the requests that read code, plus the cost of every later
+request re-reading what those reads returned. Measured on every completed run:
+
+| Model | spec-kit today | Reading code | Re-reading it later | **Most the PKG could save** | spec-kit + PKG, best case | Spine + PKG | Still |
+|---|---|---|---|---|---|---|---|
+| `claude-sonnet-5` | $4.35 | $0.44 | $0.07 | **$0.52 (12%)** | $3.83 | $0.12 | **32×** |
+| `gpt-5.6-sol` | $5.35 | $0.15 | $0.28 | **$0.43 (8%)** | $4.92 | $0.12 | **41×** |
+| `gpt-6-astra` | $12.57 | $1.13 | $0.18 | **$1.32 (10%)** | $11.25 | $0.39 | **29×** |
+
+**This is a generous upper bound.** It assumes the PKG answers every code question for free and
+adds nothing to the conversation, and neither is true. A real spec-kit + PKG run would save less.
+
+**How it was measured:** from the saved logs of the published runs, with no model calls. Each
+model request is credited to the tool call it made. A code read is `Read`/`Grep`, or a shell read
+that touches `src/`, `tests/` or `scripts/`. "Re-reading it later" is the tokens those reads
+returned, times the number of later requests in the same session, at the cache-read price. Runs
+are counted exactly as in reason 10: completed runs only.
+
+**Why the PKG can't do more:** spec-kit's cost is its model steps, not its reading. A feature
+takes about a hundred model requests across specify, clarify, plan, checklist, tasks, analyze,
+implement and converge, and each one re-reads everything said so far. Most of that conversation
+is spec-kit's own prompts and documents, not code. A graph answers "where is this?"; it removes
+none of the steps. The remaining 29–41× can only be removed by replacing spec-kit's model-written
+steps with a plan built deterministically from the graph. That is what Spine already is. Cutting
+spec-kit's cost to Spine's level does not produce a cheaper spec-kit; it produces Spine, without
+spec-kit's documents.
 
 **The answer in one line:** adding the PKG to spec-kit gives it Spine's facts without Spine's
-checks, and even in the best case it still costs 15–20× as much, because its model-written steps
-before code remain. What is left of spec-kit is its prompts, and the one time a model-written plan
+checks, and saves at most 8–12% of its cost, because nearly all of that cost is model steps that
+happen whatever the model knows about the code. Even in the best case it still costs 29–41× as
+much as Spine + PKG. What is left of spec-kit is its prompts, and the one time a model-written plan
 was measured against a graph-built one, it cost twice as much and did not help.
 
 **In plain terms:** it is like handing a contractor the surveyed site map but letting them
@@ -697,6 +728,19 @@ reviewer would want: a package `__init__.py` export, a `CHANGELOG.md` entry, and
 repository's STATE-OF-SPINE count gate. Spine touches none of those on a create ticket. That is
 tighter, but it also means Spine does not yet do that bookkeeping; the count gate is tracked as
 B46 ([SSPN-91](https://fibonacci-solutions.atlassian.net/browse/SSPN-91)).
+
+## What this research has not measured yet
+
+- **Larger tickets.** All three tickets were small. spec-kit's agent loop grows with the work, so
+  the gap probably widens on bigger changes, but that is not measured.
+- **spec-kit with the PKG, run for real.** Q3 measures an upper bound instead: the PKG could save
+  at most 8–12% of spec-kit's cost, leaving it 29–41× Spine + PKG. A real run could still show
+  a difference in *scope* (Q4: files changed outside the ticket), but not a material one in cost.
+- **Prompt caching for Spine.** Spine is billed without prompt caching. Its uncached input is the
+  main part of its cost on expensive models such as `gpt-6-astra`, so caching could lower it
+  further.
+- **Greenfield.** The record names it as the one case where spec-kit may be the better tool, but
+  that has not been measured.
 
 ## Revisit condition
 
