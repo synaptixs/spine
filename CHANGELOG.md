@@ -8,6 +8,16 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **Concurrent features on one SDLC worker no longer switch each other's codegen guards off.**
+  The worker shares one codegen adapter across features running in parallel, and refine stored
+  its edit allowlist on it — as single-shot implement did its edit scope — before awaiting the
+  model, clearing it afterwards. A feature that finished first cleared the other's value: its
+  refine then applied with the pre-existing-file guard (NSS-1243) and the weakened-test guard
+  off, while an implement running alongside a refine got refine-only guards. Both values now
+  ride down as arguments on every attempt, retries included; a test runs each interleaving, and
+  another fails if any adapter method stores state on the adapter again. `sdlc feature` and
+  `autorun` (one adapter per run) were never affected.
+  ([SSPN-95](https://fibonacci-solutions.atlassian.net/browse/SSPN-95))
 - **The codegen benchmark's `NEW-DRIFTMD-1` ticket can be passed.** Its held-out test built a
   stand-in for the doc-drift finding (a `str` kind, no `message`) where the ticket requires the
   real `DocDriftFinding`, so correct code failed on `kind.value` — every run of every tool on
