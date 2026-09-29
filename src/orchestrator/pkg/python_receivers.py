@@ -111,6 +111,10 @@ class _FileScan:
         # PEP 695 type parameters in scope (`def f[T](x: T)`, `class Box[T]`): a written name that
         # is one of them means the parameter, never a class of the same name (typed-receivers B3).
         self._type_params: list[frozenset[str]] = []
+        # Names each enclosing function binds. A written type that one of them binds means that
+        # local (a class defined in the function, say), never the module-level name (review 1).
+        self._local_names: list[frozenset[str]] = []
+        self._bindings_memo: dict[int, dict[str, str]] = {}
 
     # -- the tree, with the parent ids the per-file pass gives every def --------------------
 
@@ -130,9 +134,11 @@ class _FileScan:
             elif isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef):
                 func_id = f"{parent}.{stmt.name}"
                 self._type_params.append(_type_param_names(stmt))
+                self._local_names.append(_local_names(stmt))
                 self._function(stmt, func_id, cls, methods)
                 # Nested defs belong to this function; `self` inside them is not the class's.
                 self.walk(stmt.body, func_id)
+                self._local_names.pop()
                 self._type_params.pop()
             else:
                 for inner in _sub_bodies(stmt):
@@ -153,18 +159,31 @@ class _FileScan:
         for method in _flat(node.body):
             if not isinstance(method, ast.FunctionDef | ast.AsyncFunctionDef):
                 continue
+            # Read the method's assignments as its own body reads names: with its locals in scope.
+            self._type_params.append(_type_param_names(method))
+            self._local_names.append(_local_names(method))
             scope = self._bindings(method)
-            for stmt in _statements(method.body):
-                if isinstance(stmt, ast.AnnAssign) and (attr := _self_attr(stmt.target)):
-                    fields.setdefault(attr, []).append(self.type_of(stmt.annotation) or _UNREADABLE)
-                elif isinstance(stmt, ast.Assign):
-                    for tgt in stmt.targets:
-                        for leaf in _targets(tgt):
-                            if attr := _self_attr(leaf):
-                                source = self._value_type(stmt.value, scope) if leaf is tgt else _UNREADABLE
-                                fields.setdefault(attr, []).append(source)
-                elif isinstance(stmt, ast.AugAssign) and (attr := _self_attr(stmt.target)):
-                    fields.setdefault(attr, []).append(_UNREADABLE)
+            self._collect_self_fields(method, scope, fields)
+            self._local_names.pop()
+            self._type_params.pop()
+
+    def _collect_self_fields(
+        self,
+        method: ast.FunctionDef | ast.AsyncFunctionDef,
+        scope: dict[str, str],
+        fields: dict[str, list[str]],
+    ) -> None:
+        for stmt in _statements(method.body):
+            if isinstance(stmt, ast.AnnAssign) and (attr := _self_attr(stmt.target)):
+                fields.setdefault(attr, []).append(self.type_of(stmt.annotation) or _UNREADABLE)
+            elif isinstance(stmt, ast.Assign):
+                for tgt in stmt.targets:
+                    for leaf in _targets(tgt):
+                        if attr := _self_attr(leaf):
+                            source = self._value_type(stmt.value, scope) if leaf is tgt else _UNREADABLE
+                            fields.setdefault(attr, []).append(source)
+            elif isinstance(stmt, ast.AugAssign) and (attr := _self_attr(stmt.target)):
+                fields.setdefault(attr, []).append(_UNREADABLE)
 
     # -- a function: its own names, and the receiver calls in its body ----------------------
 
@@ -198,11 +217,23 @@ class _FileScan:
 
     def _bindings(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str, str]:
         """Each name this function binds -> its one readable type (a candidate id), or
-        ``_UNREADABLE``. A name absent from the result is not the function's own."""
+        ``_UNREADABLE``. A name absent from the result is not the function's own. Memoised: a
+        method is read once for its class's fields and once for its own calls."""
+        key = id(node)
+        if key not in self._bindings_memo:
+            self._bindings_memo[key] = self._read_bindings(node)
+        return self._bindings_memo[key]
+
+    def _read_bindings(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str, str]:
         sources: dict[str, list[str]] = {}
         args = node.args
+        # A signature's annotations are evaluated where the `def` runs, not inside the function:
+        # `def f(box: box.Box)` means the module's `box`, though the parameter shadows it within.
+        own = self._local_names.pop() if self._local_names else None
         for a in [*args.posonlyargs, *args.args, *args.kwonlyargs]:
             sources.setdefault(a.arg, []).append(self.type_of(a.annotation) or _UNREADABLE)
+        if own is not None:
+            self._local_names.append(own)
         for extra in (args.vararg, args.kwarg):
             if extra is not None:
                 sources.setdefault(extra.arg, []).append(_UNREADABLE)  # *args / **kwargs: a tuple, a dict
@@ -266,6 +297,8 @@ class _FileScan:
         if isinstance(expr, ast.Name):
             if any(expr.id in params for params in self._type_params):
                 return None
+            if any(expr.id in names for names in self._local_names):
+                return None  # bound by an enclosing function: a local class or variable, not the module's
             imported, defined = self.imports.get(expr.id), self.names.get(expr.id)
             if imported and defined:
                 return None  # bound twice at module level: nobody can say which
@@ -383,8 +416,13 @@ class _Index:
         return out
 
     def owner(self, type_id: str, member: str) -> str | None:
+        """The nearest class declaring ``member`` as a method. An attribute of that name on a
+        class at or before it — ``m = helper``, ``self.m = lambda: …`` — is what Python runs
+        instead, and its value is not a method we can name, so the lookup refuses (review 1)."""
         for t in self.chain(type_id):
             if t is None:
+                return None
+            if member in self.scan.fields.get(t, {}):
                 return None
             if member in self.members.get(t, ()):
                 return t
@@ -394,6 +432,8 @@ class _Index:
         for t in self.chain(type_id):
             if t is None:
                 return None
+            if name in self.members.get(t, ()):
+                return None  # a method or property of that name on the chain shadows an inherited field
             found = self.scan.fields.get(t, {}).get(name)
             if found:
                 agreed = _agree(found)
@@ -446,6 +486,22 @@ def _agree(sources: list[str]) -> str:
     if len(typed) == 1:
         return typed.pop()
     return _NONE if not typed else _UNREADABLE
+
+
+def _local_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> frozenset[str]:
+    """Every name a function binds in its own scope — what shadows a module-level name there."""
+    args = node.args
+    names = {a.arg for a in [*args.posonlyargs, *args.args, *args.kwonlyargs]}
+    names |= {a.arg for a in (args.vararg, args.kwarg) if a is not None}
+    for stmt in _statements(node.body):
+        if isinstance(stmt, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            names.add(stmt.name)
+        elif isinstance(stmt, ast.Assign):
+            names |= {leaf.id for t in stmt.targets for leaf in _targets(t) if isinstance(leaf, ast.Name)}
+        elif isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+            names.add(stmt.target.id)
+        names |= set(_other_bound_names(stmt))
+    return frozenset(names)
 
 
 def _type_param_names(node: ast.AST) -> frozenset[str]:

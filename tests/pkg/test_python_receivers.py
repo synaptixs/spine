@@ -251,3 +251,74 @@ def test_fields_typed_by_annotation_constructor_or_parameter(tmp_path: Path) -> 
 def test_the_same_tree_gives_the_same_edges(tmp_path: Path) -> None:
     files = {"app/use.py": "from app.store import Store\ndef f(s: Store):\n    return s.get(1)\n"}
     assert _calls(tmp_path / "one", files) == _calls(tmp_path / "two", files)
+
+
+def test_a_class_defined_inside_the_function_shadows_the_module_one(tmp_path: Path) -> None:
+    """Review, real-repo smoke test: a function-local `class Model` is not the module's `Model`."""
+    src = """\
+    class Model:
+        def run(self):
+            return 1
+    def f():
+        class Model:
+            def run(self):
+                return 2
+        m = Model()
+        return m.run()
+    def g(m: Model):
+        return m.run()
+    """
+    calls = _calls(tmp_path, {"app/use.py": src})
+    assert "py:app.use.Model.run" not in _from(calls, "f")
+    assert _from(calls, "g") == {"py:app.use.Model.run"}
+
+
+def test_an_attribute_on_the_chain_shadows_an_inherited_method(tmp_path: Path) -> None:
+    """Review, real-repo smoke test: Python runs the subclass attribute, not the base method."""
+    src = """\
+    def helper(self):
+        return 3
+    class Base:
+        def m(self):
+            return 1
+        def n(self):
+            return 2
+    class Child(Base):
+        m = helper
+        def __init__(self):
+            self.n = lambda: 2
+        def run(self):
+            return self.m() + self.n()
+    def f(c: Child):
+        return c.m() + c.n()
+    """
+    calls = _calls(tmp_path, {"app/use.py": src})
+    shadowed = {"py:app.use.Base.m", "py:app.use.Base.n"}
+    assert not ({d for s, d in calls if s == "py:app.use.Child.run"} & shadowed)
+    assert not (_from(calls, "f") & shadowed)
+
+
+def test_a_parameter_annotation_is_read_where_the_def_runs(tmp_path: Path) -> None:
+    """`def f(store: store.Store)` — the parameter shadows the module inside `f`, not in its
+    own annotation (a shape the review's smoke test found in rich)."""
+    src = "import app.store as store\ndef f(store: store.Store):\n    return store.get(1)\n"
+    # (The per-file pass also emits `py:app.store.get`, reading `store` as the imported module —
+    # a pre-existing edge, unchanged by B35.)
+    assert GET in _from(_calls(tmp_path, {"app/use.py": src}), "f")
+
+
+def test_a_property_on_the_chain_shadows_an_inherited_field(tmp_path: Path) -> None:
+    src = """\
+    from app.store import Rocket, Store
+    class Base:
+        def __init__(self):
+            self.store = Store()
+    class Sub(Base):
+        @property
+        def store(self):
+            return Rocket()
+        def go(self):
+            return self.store.get(1)
+    """
+    calls = _calls(tmp_path, {"app/use.py": src})
+    assert {d for s, d in calls if s == "py:app.use.Sub.go"} & {GET, ROCKET_GET} == set()
