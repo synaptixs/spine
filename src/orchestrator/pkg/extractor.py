@@ -30,7 +30,13 @@ from orchestrator.pkg.python_client import scan_module as scan_calls
 from orchestrator.pkg.python_orm import OrmState
 from orchestrator.pkg.python_orm import emit as emit_orm
 from orchestrator.pkg.python_orm import scan_module as scan_orm
-from orchestrator.pkg.python_reexport import ModuleExports, collect_exports, resolve_reexports
+from orchestrator.pkg.python_receivers import ReceiverScan, resolve_receivers
+from orchestrator.pkg.python_reexport import (
+    ModuleExports,
+    collect_exports,
+    reexport_resolver,
+    resolve_reexports,
+)
 from orchestrator.pkg.python_routes import RouteState, scan_module
 from orchestrator.pkg.python_routes import emit as emit_routes
 
@@ -206,6 +212,9 @@ class PythonExtractor:
         # What each module binds at module level, so a call made through a re-export can be
         # landed on the defining symbol once every module is known (`python_reexport`).
         self._exports: dict[str, ModuleExports] = {}
+        # Calls through a typed variable wait for every class to be known (B35): whether a written
+        # type is a class declared here, and which ancestor declares the member.
+        self._receivers = ReceiverScan()
 
     def module_name(self, path: Path, root: Path) -> str:
         return module_qualname(path, root)
@@ -238,6 +247,7 @@ class PythonExtractor:
         scan_module(tree, module_id=module_id, rel=rel, imports=imports, state=self._routes)
         scan_orm(tree, module_id=module_id, rel=rel, state=self._orm)
         scan_calls(tree, module_id=module_id, rel=rel, state=self._calls)
+        self._receivers.scan(tree, module_id=module_id, rel=rel, imports=imports, names=module_names)
         return batch
 
     def finalize(self, batch: FactBatch) -> FactBatch:
@@ -257,8 +267,10 @@ class PythonExtractor:
         # endpoints have to be in the batch already or every call would be dropped.
         emit_calls(self._calls, batch)
         self._calls.clear()
-        # Last, so an edge any pass above added is repointed too.
+        # After routes/ORM/HTTP, so an edge any pass above added is repointed too.
         batch = resolve_reexports(batch, self._exports)
+        # Last: a written type is resolved through the same re-exports a call target is (B35).
+        batch = resolve_receivers(batch, self._receivers, reexport_resolver(batch, self._exports))
         self._exports.clear()
         return batch
 
