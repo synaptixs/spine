@@ -735,8 +735,8 @@
           "edges": {
             "CALLS": {
               "emitted": 48,
-              "expected": 54,
-              "known_gaps": 6,
+              "expected": 56,
+              "known_gaps": 8,
               "matched": 48
             },
             "CONTAINS": {

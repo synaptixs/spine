@@ -672,6 +672,16 @@
       "src": "py:app.use.via_closure",
       "dst": "py:app.use.via_closure.inner",
       "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.via_reassigned",
+      "dst": "py:app.store.Rocket.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.use.Service.via_mixed_field",
+      "dst": "py:app.store.Rocket.get",
+      "kind": "CALLS"
     }
   ],
   "known_gaps": [
@@ -706,6 +716,22 @@
         "kind": "CALLS"
       },
       "why": "PREDICTED BEFORE SCORING. True under Python's MRO (`Left` before `Right`), but D3 keeps the precision-first rule shared with Java/C#: a lookup that reaches a class with two or more bases refuses rather than rank them. Counted as a recall miss."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.via_reassigned",
+        "dst": "py:app.store.Rocket.get",
+        "kind": "CALLS"
+      },
+      "why": "`s = Store(); s = Rocket(); s.get(1)` runs `Rocket.get` \u2014 the last binding wins at runtime. FOUND BY THE #501 REVIEW: this was filed as a refusal, which was wrong; the call is real and the extractor refuses it because B35 is not flow-sensitive (D1), so it is a recall miss."
+    },
+    {
+      "edge": {
+        "src": "py:app.use.Service.via_mixed_field",
+        "dst": "py:app.store.Rocket.get",
+        "kind": "CALLS"
+      },
+      "why": "`self.mixed` is `Store()` then `Rocket()` in `__init__`; `mixed.get(1)` runs `Rocket.get`. FOUND BY THE #501 REVIEW: filed as a refusal, wrong for the same reason \u2014 a field with two types is refused (D1), so this real call is a recall miss."
     }
   ],
   "refusals": [
@@ -743,27 +769,11 @@
     },
     {
       "edge": {
-        "src": "py:app.use.Service.via_mixed_field",
-        "dst": "py:app.store.Rocket.get",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. Same field, the other assignment."
-    },
-    {
-      "edge": {
         "src": "py:app.use.via_reassigned",
         "dst": "py:app.store.Store.get",
         "kind": "CALLS"
       },
       "why": "PREDICTED BEFORE SCORING. `s` is bound twice in the function, to different types \u2014 refused, never first- or last-wins (D1)."
-    },
-    {
-      "edge": {
-        "src": "py:app.use.via_reassigned",
-        "dst": "py:app.store.Rocket.get",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. Same local, the other binding."
     },
     {
       "edge": {
