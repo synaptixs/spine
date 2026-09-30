@@ -15,6 +15,7 @@ class Service:
 
     def __init__(self, store: Store) -> None:
         self._store = store
+        self.cache = store
         self._rocket = Rocket()
         self.later = None
         self.later = Store()

@@ -1,7 +1,7 @@
 {
   "language": "python",
   "case": "instance_calls",
-  "why": "B35 (SSPN-48): calls through a variable whose type the code itself declares \u2014 an annotated parameter (plain, Optional, X | None), a local assigned once from a constructor, a `self.attr` typed by a class annotation, a constructor or a typed parameter, an inherited `self.m()`, an inherited classmethod on a class name, a Protocol, multiple inheritance. And the shapes that must be refused: a decoy class sharing the method name, a two-class union, a name bound to two types, an external type, an external base.",
+  "why": "B35 (SSPN-48): calls through a variable whose type the code itself declares \u2014 an annotated parameter (plain, Optional, X | None), a local assigned once from a constructor, a `self.attr` typed by a class annotation, a constructor or a typed parameter, an inherited `self.m()`, an inherited classmethod on a class name, a Protocol, multiple inheritance. And the shapes that must be refused: a decoy class sharing the method name, a two-class union, a name bound to two types, an external type, an external base. B53 adds decoys for every refusal rule the #501 review added (app/decoys.py) and records the shapes left out on purpose \u2014 `super().m()`, `cls.m()`, `cls()` (app/gaps.py).",
   "root": ".repo",
   "nodes": [
     {
@@ -47,6 +47,18 @@
     {
       "id": "py:app.decoys.Holder.store",
       "kind": "Field"
+    },
+    {
+      "id": "py:app.decoys.Impostor",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.decoys.Impostor.rebound",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.Impostor.static",
+      "kind": "Function"
     },
     {
       "id": "py:app.decoys.Outer",
@@ -194,6 +206,22 @@
     },
     {
       "id": "py:app.fast.Pick.run",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.gaps",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.gaps.Child",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.gaps.Child.build",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.gaps.Child.get",
       "kind": "Function"
     },
     {
@@ -1286,6 +1314,66 @@
       "src": "py:app.use.via_class_attribute",
       "dst": "py:app.decoys.Tool.run",
       "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.Impostor",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Impostor",
+      "dst": "py:app.decoys.Impostor.rebound",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Impostor",
+      "dst": "py:app.decoys.Impostor.static",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Impostor",
+      "dst": "py:app.store.Base",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:app.gaps",
+      "dst": "py:app.gaps.Child",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.gaps",
+      "dst": "py:app.store.Store",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.gaps.Child",
+      "dst": "py:app.gaps.Child.build",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.gaps.Child",
+      "dst": "py:app.gaps.Child.get",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.gaps.Child",
+      "dst": "py:app.store.Store",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:app.gaps.Child.get",
+      "dst": "py:app.store.Store.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.gaps.Child.build",
+      "dst": "py:app.store.Base.make",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.store.Base.make",
+      "dst": "py:app.store.Base",
+      "kind": "CALLS"
     }
   ],
   "known_gaps": [
@@ -1336,6 +1424,30 @@
         "kind": "CALLS"
       },
       "why": "`self.mixed` is `Store()` then `Rocket()` in `__init__`; `mixed.get(1)` runs `Rocket.get`. FOUND BY THE #501 REVIEW: filed as a refusal, wrong for the same reason \u2014 a field with two types is refused (D1), so this real call is a recall miss."
+    },
+    {
+      "edge": {
+        "src": "py:app.gaps.Child.get",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `super().get(key)` runs the parent's method; `super()` is out of scope for v1 (D5), counted as a recall miss."
+    },
+    {
+      "edge": {
+        "src": "py:app.gaps.Child.build",
+        "dst": "py:app.store.Base.make",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `cls.make()` in a classmethod runs the inherited classmethod; `cls.m()` is out of scope for v1 (D5), counted as a recall miss."
+    },
+    {
+      "edge": {
+        "src": "py:app.store.Base.make",
+        "dst": "py:app.store.Base",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `cls()` constructs `Base` or any subclass; `Base` is the one statically known. Labelled a gap, as `dispatch` labels the same shape, rather than left out \u2014 an unlabelled gap reads as precision."
     }
   ],
   "refusals": [
@@ -1378,22 +1490,6 @@
         "kind": "CALLS"
       },
       "why": "PREDICTED BEFORE SCORING. `s` is bound twice in the function, to different types \u2014 refused, never first- or last-wins (D1)."
-    },
-    {
-      "edge": {
-        "src": "py:app.use.Service.via_external_field",
-        "dst": "py:somelib.Client.get",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. `Client` is not declared in this repository: no edge to an invented external member (typed-receivers D11)."
-    },
-    {
-      "edge": {
-        "src": "py:app.use.via_external_param",
-        "dst": "py:somelib.Client.get",
-        "kind": "CALLS"
-      },
-      "why": "PREDICTED BEFORE SCORING. Same rule, through a parameter."
     },
     {
       "edge": {
@@ -1610,12 +1706,28 @@
         "kind": "CALLS"
       },
       "why": "PREDICTED BEFORE SCORING (B53). `List[Store]` is a list of stores, not a `Store`: the inner class of a generic is not the receiver's type."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.Impostor.rebound",
+        "dst": "py:app.store.Base.shared",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `self = other` rebinds `self`: it is no longer the instance, so `Base.shared` is not what runs. Landed on `Base.shared` before B53."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.Impostor.static",
+        "dst": "py:app.store.Base.shared",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). a `@staticmethod` has no instance: its first parameter, though named `self`, is whatever the caller passes. Landed on `Base.shared` before B53."
     }
   ],
   "false_positives": [],
   "excluded": [
-    "`cls()` inside `Base.make` \u2014 construction through `cls` builds `Base` or any subclass; not labelled.",
-    "Calls to builtins \u2014 the graph emits no node or edge for them."
+    "Calls to builtins \u2014 the graph emits no node or edge for them.",
+    "`client.get(1)` through `Service.client` and `via_external_param` \u2014 `Client` is imported from `somelib`, which this repository does not declare, so there is no in-repo target and no edge (typed-receivers D11). Filed like Java's `hs.forEach(...)` and `e.getMessage()`: excluded, not a refusal, since no in-repo reading is being refused."
   ],
   "open_questions": [],
   "note": "Written before the B35 front-end change; every CALLS edge under 'new receiver rules' was predicted, not read off output."

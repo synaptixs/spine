@@ -735,15 +735,15 @@
           "edges": {
             "CALLS": {
               "emitted": 63,
-              "expected": 71,
-              "known_gaps": 8,
+              "expected": 74,
+              "known_gaps": 11,
               "matched": 63
             },
             "CONTAINS": {
-              "emitted": 156,
-              "expected": 156,
+              "emitted": 162,
+              "expected": 162,
               "known_gaps": 0,
-              "matched": 156
+              "matched": 162
             },
             "EXPOSES": {
               "emitted": 2,
@@ -752,16 +752,16 @@
               "matched": 2
             },
             "IMPLEMENTS": {
-              "emitted": 13,
-              "expected": 13,
+              "emitted": 15,
+              "expected": 15,
               "known_gaps": 0,
-              "matched": 13
+              "matched": 15
             },
             "IMPORTS": {
-              "emitted": 58,
-              "expected": 58,
+              "emitted": 59,
+              "expected": 59,
               "known_gaps": 0,
-              "matched": 58
+              "matched": 59
             }
           },
           "nodes": {
@@ -778,22 +778,22 @@
               "matched": 14
             },
             "Function": {
-              "emitted": 110,
-              "expected": 110,
+              "emitted": 114,
+              "expected": 114,
               "known_gaps": 0,
-              "matched": 110
+              "matched": 114
             },
             "Module": {
-              "emitted": 46,
-              "expected": 46,
+              "emitted": 47,
+              "expected": 47,
               "known_gaps": 0,
-              "matched": 46
+              "matched": 47
             },
             "Type": {
-              "emitted": 32,
-              "expected": 32,
+              "emitted": 34,
+              "expected": 34,
               "known_gaps": 0,
-              "matched": 32
+              "matched": 34
             }
           }
         },

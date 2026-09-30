@@ -55,6 +55,18 @@ class Shadow(Base):
         self.shared = lambda: 2
 
 
+class Impostor(Base):
+    """`self` is the instance only while it is the first parameter and nothing rebinds it."""
+
+    def rebound(self, other: Rocket) -> int:
+        self = other
+        return self.shared()
+
+    @staticmethod
+    def static(self) -> int:
+        return self.shared()
+
+
 class Cell:
     def __init__(self) -> None:
         self.store = Store()

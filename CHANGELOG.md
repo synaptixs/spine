@@ -27,6 +27,17 @@ All notable changes to this project are documented here. Format loosely follows
   pydantic's `model_validate`) are dropped instead. **Build documents render new caller counts, so
   a plan approved before the upgrade reads as stale once** — re-plan and re-approve.
   ([SSPN-48](https://fibonacci-solutions.atlassian.net/browse/SSPN-48))
+- **The Python accuracy corpus now pins the receiver refusals the review added, and two wrong
+  edges are gone.** `corpus/python/instance_calls` had filed two true calls
+  (`via_reassigned`, `via_mixed_field` → `Rocket.get`) as refusals, so the published Python
+  `CALLS` recall of 0.889 was really 0.857 on the same cases; both are labelled as gaps now.
+  Most refusal rules added in review were pinned only by unit tests — 16 of 24 mutants of them
+  passed `pkg accuracy --check`; a decoy module and the `super()`/`cls` gaps take that to 2 of 24
+  (both unreachable from a corpus shape). Recall on the enlarged set reads 0.85 (63/74). Two
+  shapes landed on an inherited method they should not have: `self = other; self.m()` and a
+  `@staticmethod` whose first parameter is `self` — `self` is now the instance only as the first
+  parameter of a method that is not a static or class method and is never rebound.
+  ([SSPN-113](https://fibonacci-solutions.atlassian.net/browse/SSPN-113))
 - **Concurrent features on one SDLC worker no longer switch each other's codegen guards off.**
   The worker shares one codegen adapter across features running in parallel, and refine stored
   its edit allowlist on it — as single-shot implement did its edit scope — before awaiting the
