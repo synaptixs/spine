@@ -8,6 +8,10 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Fixed
 
+- **The locked `pyjwt` moves from 2.13.0 to 2.15.1.** Ten advisories published against 2.13.0
+  (fixed in 2.14.0) made the dependency audit fail every pull request. Only the `pyjwt` entry
+  in `uv.lock` changes; `pyproject.toml` already allows it (`>=2.9`).
+  ([SSPN-115](https://fibonacci-solutions.atlassian.net/browse/SSPN-115))
 - **Python methods called through a typed variable now have callers in the graph.** The Python
   front-end dropped every call through a parameter, a local or a stored attribute, so
   `blast_radius` answered "0 callers" for most methods — `FactStore.impact_of`, `edges_of_kind`,
