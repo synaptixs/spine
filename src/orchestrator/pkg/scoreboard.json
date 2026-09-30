@@ -734,16 +734,16 @@
         "python": {
           "edges": {
             "CALLS": {
-              "emitted": 48,
-              "expected": 56,
+              "emitted": 63,
+              "expected": 71,
               "known_gaps": 8,
-              "matched": 48
+              "matched": 63
             },
             "CONTAINS": {
-              "emitted": 108,
-              "expected": 108,
+              "emitted": 156,
+              "expected": 156,
               "known_gaps": 0,
-              "matched": 108
+              "matched": 156
             },
             "EXPOSES": {
               "emitted": 2,
@@ -752,16 +752,16 @@
               "matched": 2
             },
             "IMPLEMENTS": {
-              "emitted": 7,
-              "expected": 7,
+              "emitted": 13,
+              "expected": 13,
               "known_gaps": 0,
-              "matched": 7
+              "matched": 13
             },
             "IMPORTS": {
-              "emitted": 47,
-              "expected": 47,
+              "emitted": 58,
+              "expected": 58,
               "known_gaps": 0,
-              "matched": 47
+              "matched": 58
             }
           },
           "nodes": {
@@ -772,28 +772,28 @@
               "matched": 2
             },
             "Field": {
-              "emitted": 9,
-              "expected": 9,
+              "emitted": 14,
+              "expected": 14,
               "known_gaps": 0,
-              "matched": 9
+              "matched": 14
             },
             "Function": {
-              "emitted": 79,
-              "expected": 79,
+              "emitted": 110,
+              "expected": 110,
               "known_gaps": 0,
-              "matched": 79
+              "matched": 110
             },
             "Module": {
-              "emitted": 43,
-              "expected": 43,
+              "emitted": 46,
+              "expected": 46,
               "known_gaps": 0,
-              "matched": 43
+              "matched": 46
             },
             "Type": {
-              "emitted": 20,
-              "expected": 20,
+              "emitted": 32,
+              "expected": 32,
               "known_gaps": 0,
-              "matched": 20
+              "matched": 32
             }
           }
         },

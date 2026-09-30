@@ -9,6 +9,194 @@
       "kind": "Module"
     },
     {
+      "id": "py:app.decoys",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.decoys.Cell",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.decoys.Cell.__init__",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.Cell.rebind_in_closure",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.Cell.rebind_in_closure.reset",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.Cell.rebind_in_with",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.Cell.store",
+      "kind": "Field"
+    },
+    {
+      "id": "py:app.decoys.Holder",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.decoys.Holder.__init__",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.Holder.store",
+      "kind": "Field"
+    },
+    {
+      "id": "py:app.decoys.Outer",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.decoys.Outer.Store",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.decoys.Outer.field",
+      "kind": "Field"
+    },
+    {
+      "id": "py:app.decoys.Outer.via_class_frame",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.Prop",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.decoys.Prop.store",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.Prop.via_property",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.Shadow",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.decoys.Shadow.__init__",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.Shadow.shared",
+      "kind": "Field"
+    },
+    {
+      "id": "py:app.decoys.Tool",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.decoys.Tool.run",
+      "kind": "Field"
+    },
+    {
+      "id": "py:app.decoys.Wide",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.decoys.WideFirst",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.decoys.helper",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.outer_with_match",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_annotation_before_local",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_annotation_before_local.Store",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.decoys.via_comprehension",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_disagreeing_imports",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_except_star",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_generic",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_lambda",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_list",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_loop",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_match",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_nonlocal",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_nonlocal.reset",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_shadow",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_type_alias",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_type_param",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_walrus",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_wide",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.decoys.via_wide_first",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.fast",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.fast.Pick",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.fast.Pick.run",
+      "kind": "Function"
+    },
+    {
       "id": "py:app.mixins",
       "kind": "Module"
     },
@@ -50,6 +238,18 @@
     },
     {
       "id": "py:app.proto.Reader.read",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.slow",
+      "kind": "Module"
+    },
+    {
+      "id": "py:app.slow.Pick",
+      "kind": "Type"
+    },
+    {
+      "id": "py:app.slow.Pick.run",
       "kind": "Function"
     },
     {
@@ -158,6 +358,10 @@
     },
     {
       "id": "py:app.use.via_chain",
+      "kind": "Function"
+    },
+    {
+      "id": "py:app.use.via_class_attribute",
       "kind": "Function"
     },
     {
@@ -682,6 +886,406 @@
       "src": "py:app.use.Service.via_mixed_field",
       "dst": "py:app.store.Rocket.get",
       "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.Cell",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.Outer",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.Prop",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.Shadow",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.Wide",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.WideFirst",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.outer_with_match",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_annotation_before_local",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_comprehension",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_disagreeing_imports",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_except_star",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_generic",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_lambda",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_loop",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_match",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_nonlocal",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_shadow",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_type_alias",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_type_param",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_walrus",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_wide",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_wide_first",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.fast.Pick",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.slow.Pick",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.store.Base",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.store.Rocket",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.store.Store",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:somelib.Widget",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:somelib.register",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:typing.Dict",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.decoys.Cell",
+      "dst": "py:app.decoys.Cell.__init__",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Cell",
+      "dst": "py:app.decoys.Cell.rebind_in_closure",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Cell",
+      "dst": "py:app.decoys.Cell.rebind_in_with",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Cell",
+      "dst": "py:app.decoys.Cell.store",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Cell.__init__",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys.Cell.rebind_in_closure",
+      "dst": "py:app.decoys.Cell.rebind_in_closure.reset",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Cell.rebind_in_closure",
+      "dst": "py:somelib.register",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys.Cell.rebind_in_closure.reset",
+      "dst": "py:app.store.Rocket",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys.Outer",
+      "dst": "py:app.decoys.Outer.Store",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Outer",
+      "dst": "py:app.decoys.Outer.field",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Outer",
+      "dst": "py:app.decoys.Outer.via_class_frame",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Prop",
+      "dst": "py:app.decoys.Prop.store",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Prop",
+      "dst": "py:app.decoys.Prop.via_property",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Shadow",
+      "dst": "py:app.decoys.Shadow.__init__",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Shadow",
+      "dst": "py:app.decoys.Shadow.shared",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Shadow",
+      "dst": "py:app.store.Base",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:app.decoys.Wide",
+      "dst": "py:app.store.Base",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:app.decoys.Wide",
+      "dst": "py:somelib.Widget",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:app.decoys.WideFirst",
+      "dst": "py:app.store.Base",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:app.decoys.WideFirst",
+      "dst": "py:somelib.Widget",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:app.decoys.via_annotation_before_local",
+      "dst": "py:app.decoys.via_annotation_before_local.Store",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.via_annotation_before_local",
+      "dst": "py:app.store.Store.get",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys.via_comprehension",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys.via_except_star",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys.via_lambda",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys.via_loop",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys.via_match",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys.via_nonlocal",
+      "dst": "py:app.decoys.via_nonlocal.reset",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.via_nonlocal",
+      "dst": "py:somelib.register",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys.via_nonlocal.reset",
+      "dst": "py:app.store.Rocket",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys.via_type_alias",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys.via_walrus",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.fast",
+      "dst": "py:app.fast.Pick",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.fast.Pick",
+      "dst": "py:app.fast.Pick.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.slow",
+      "dst": "py:app.slow.Pick",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.slow.Pick",
+      "dst": "py:app.slow.Pick.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.Holder",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.Tool",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:app.decoys.via_list",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys",
+      "dst": "py:typing.List",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.decoys.Holder",
+      "dst": "py:app.decoys.Holder.__init__",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Holder",
+      "dst": "py:app.decoys.Holder.store",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.decoys.Holder.__init__",
+      "dst": "py:app.store.Store",
+      "kind": "CALLS"
+    },
+    {
+      "src": "py:app.decoys.Prop",
+      "dst": "py:app.decoys.Holder",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "py:app.decoys.Tool",
+      "dst": "py:app.decoys.Tool.run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app",
+      "dst": "py:app.decoys.Tool",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.decoys.Tool",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "py:app.use",
+      "dst": "py:app.use.via_class_attribute",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "py:app.use.via_class_attribute",
+      "dst": "py:app.decoys.Tool.run",
+      "kind": "CALLS"
     }
   ],
   "known_gaps": [
@@ -822,6 +1426,190 @@
         "kind": "CALLS"
       },
       "why": "PREDICTED BEFORE SCORING. The same phantom after re-export resolution: `Store` does not declare `make`."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_loop",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `for s in xs` rebinds `s`: it is no longer the `Store`."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_comprehension",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). the comprehension's own `s` shadows the local; a comprehension variable is a fresh binding."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_lambda",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). the lambda's parameter `s` shadows the local inside its body."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_walrus",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `(s := xs)` rebinds `s`."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_except_star",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `except* \u2026 as s` binds `s`."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_match",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `case {**s}` binds `s`."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_type_alias",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `type s = int` binds `s`."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_type_param",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `def f[Store](s: Store)`: `Store` here is the PEP 695 type parameter, not the imported class."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_generic",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `Dict[str, Store]` is a mapping, not a `Store`: the inner class is not the receiver's type."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.Cell.rebind_in_with",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `with open(\u2026) as self.store` rebinds the attribute the census counts."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.Cell.rebind_in_closure",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). a nested def assigns `self.store = Rocket()`; the field has two types."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.Cell.rebind_in_closure",
+        "dst": "py:app.store.Rocket.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). Same rebinding, the other type."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_nonlocal",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `nonlocal s` lets a nested def rebind the parameter to a `Rocket`."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_nonlocal",
+        "dst": "py:app.store.Rocket.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). Same rebinding, the other type."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.Outer.via_class_frame",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). the signature is read in the class body, where `Store` is the nested `Outer.Store` \u2014 refused rather than claiming the module's."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.Prop.via_property",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `Prop.store` is a property; `Cell.__init__`'s assignment does not decide what `self.store` is."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_wide",
+        "dst": "py:app.store.Base.shared",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `Wide(Base, Widget)`: the external base may override `shared`; two bases refuse."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_wide_first",
+        "dst": "py:app.store.Base.shared",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `WideFirst(Widget, Base)`: same, external base first."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_shadow",
+        "dst": "py:app.store.Base.shared",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `Shadow` replaces `shared` with a class attribute and an instance attribute; `Base.shared` is not what runs."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_disagreeing_imports",
+        "dst": "py:app.fast.Pick.run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `Pick` is imported from `app.fast` in the `try` and from `app.slow` in the `except`: the two module-level imports disagree."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_disagreeing_imports",
+        "dst": "py:app.slow.Pick.run",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). Same imports, the other arm."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.outer_with_match.hidden",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). A def inside a `match` case gets no node from the per-file pass, so no edge may start from it."
+    },
+    {
+      "edge": {
+        "src": "py:app.decoys.via_list",
+        "dst": "py:app.store.Store.get",
+        "kind": "CALLS"
+      },
+      "why": "PREDICTED BEFORE SCORING (B53). `List[Store]` is a list of stores, not a `Store`: the inner class of a generic is not the receiver's type."
     }
   ],
   "false_positives": [],
