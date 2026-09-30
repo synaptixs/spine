@@ -33,6 +33,19 @@ The rules, precision-first — a wrong edge is worse than a missing one (SSPN-48
   (D4), true to the source.
 - **Fields follow the same chain**: the receiver class's own ``self.attr``, else an ancestor's.
   Two agreeing records are one type; disagreeing ones refuse.
+- **Anything that could rebind or shadow a name refuses** (the review's rules, each pinned by a
+  corpus decoy in ``corpus/python/instance_calls``): a binding form nobody listed (``except*``,
+  ``match``, ``type``, ``with … as``, ``:=``), a comprehension or lambda variable, a PEP 695 type
+  parameter, a ``nonlocal`` in a nested def, a class or import of the same name in an enclosing
+  function, and — for fields — any ``self.x`` store anywhere in the class, in a nested def
+  included. A name imported twice at module level must agree on one target. A method signature
+  is read in its class body, where a nested class of the same name wins. An attribute,
+  property or method of the same name on the chain shadows an inherited field or method.
+- **``self`` is the instance only when it is the first parameter of a method that is not a
+  ``@staticmethod`` or ``@classmethod`` and nothing rebinds it** (B53); otherwise ``self.m()``
+  refuses.
+- **No edge starts from a caller without a node** (a def inside a ``match`` case): the edge
+  would dangle.
 
 Out of scope, refused by omission (D5): chains (``build().run()``, ``a.b.m()``), properties,
 ``super().m()``, ``cls.m()``, closures over an enclosing function's locals, module-level
@@ -250,6 +263,7 @@ class _FileScan:
         methods: frozenset[str],
     ) -> None:
         scope = self._bindings(node)
+        instance = cls is not None and self._is_instance_method(node)
         for expr in _expressions(node.body):
             for call in (n for n in ast.walk(expr) if isinstance(n, ast.Call)):
                 func = call.func
@@ -259,16 +273,37 @@ class _FileScan:
                 if isinstance(recv, ast.Name):
                     if recv.id == "self":
                         # Own methods are resolved per file; an inherited one is decided here.
-                        if cls is not None and func.attr not in methods:
+                        if instance and cls is not None and func.attr not in methods:
                             self.out.calls.append(_Call(func_id, func.attr, self.rel, line, self_of=cls))
                         continue
                     source = scope.get(recv.id)
                     if source and source not in (_UNREADABLE, _NONE):
                         self.out.calls.append(_Call(func_id, func.attr, self.rel, line, receiver=source))
-                elif cls is not None and (attr := _self_attr(recv)):
+                elif instance and cls is not None and (attr := _self_attr(recv)):
                     self.out.calls.append(
                         _Call(func_id, func.attr, self.rel, line, field_of=cls, field_name=attr)
                     )
+
+    def _is_instance_method(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        """Whether ``self`` in this method's body is the instance: the first parameter, not a
+        ``@staticmethod`` or ``@classmethod``, and never rebound in the body (B53)."""
+        first = (node.args.posonlyargs + node.args.args)[:1]
+        if not first or first[0].arg != "self":
+            return False
+        for deco in node.decorator_list:
+            name = (
+                deco.id
+                if isinstance(deco, ast.Name)
+                else deco.attr
+                if isinstance(deco, ast.Attribute)
+                else ""
+            )
+            if name in {"staticmethod", "classmethod"}:
+                return False
+        stored, strings, _ = _scope_bindings(node.body, self.import_base)
+        return "self" not in {n.id for n in stored} | set(strings) | set(
+            self._nonlocal_below.get(id(node), ())
+        )
 
     def _bindings(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str, str]:
         """Each name this function binds -> its one readable type (a candidate id), or

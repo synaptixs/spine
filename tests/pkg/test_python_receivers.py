@@ -203,6 +203,67 @@ def test_nothing_is_claimed_past_an_external_base(tmp_path: Path) -> None:
     assert _from(calls, "g") == set()
 
 
+def test_self_that_is_not_the_instance_refuses(tmp_path: Path) -> None:
+    """B53: `self` names the instance only while it is the method's first parameter and nothing
+    rebinds it. A rebound `self`, a `@staticmethod` whose first parameter is `self`, and a
+    `@classmethod` (where the first parameter is the class) must not land on an inherited method."""
+    src = """\
+    from app.store import Store
+    class Sub(Store):
+        def plain(self):
+            return self.shared()
+        def rebound(self, other):
+            self = other
+            return self.shared()
+        def looped(self, items):
+            for self in items:
+                pass
+            return self.shared()
+        def nested(self, items):
+            return [self.shared() for self in items]
+        @staticmethod
+        def static(self):
+            return self.shared()
+        @classmethod
+        def klass(self):
+            return self.shared()
+        def __init__(self):
+            self.store = Store()
+        def field_rebound(self, other):
+            self = other
+            return self.store.get(1)
+    """
+    calls = _calls(tmp_path, {"app/use.py": src})
+    by = {
+        n: {d for s, d in calls if s == f"py:app.use.Sub.{n}"}
+        for n in ("plain", "rebound", "looped", "nested", "static", "klass", "field_rebound")
+    }
+    assert by["plain"] == {"py:app.store.Base.shared"}
+    assert {n: v for n, v in by.items() if n != "plain"} == {n: set() for n in by if n != "plain"}
+
+
+def test_a_mixed_external_and_in_repo_base_refuses_in_either_order(tmp_path: Path) -> None:
+    """`class W(Widget, Base)` and `class W(Base, Widget)`: the external base may override what the
+    in-repo one declares, so neither claims `Base.shared` (B53 — nothing pinned this before)."""
+    src = """\
+    from somelib import Widget
+    from app.store import Base
+    class First(Widget, Base):
+        pass
+    class Second(Base, Widget):
+        def own(self):
+            return self.shared()
+    def f(w: First):
+        return w.shared()
+    def g(w: Second):
+        return w.shared()
+    """
+    calls = _calls(tmp_path, {"app/use.py": src})
+    assert _from(calls, "f") == set()
+    assert _from(calls, "g") == set()
+    assert {d for s, d in calls if s == "py:app.use.Second.own"} == set()
+
+
 def test_an_inherited_classmethod_on_a_class_name_lands_on_its_owner(tmp_path: Path) -> None:
     calls = _calls(
         tmp_path, {"app/use.py": "from app.store import Store\ndef f():\n    return Store.make()\n"}
@@ -251,6 +312,45 @@ def test_fields_typed_by_annotation_constructor_or_parameter(tmp_path: Path) -> 
 def test_the_same_tree_gives_the_same_edges(tmp_path: Path) -> None:
     files = {"app/use.py": "from app.store import Store\ndef f(s: Store):\n    return s.get(1)\n"}
     assert _calls(tmp_path / "one", files) == _calls(tmp_path / "two", files)
+
+
+def test_two_processes_give_the_same_edges(tmp_path: Path) -> None:
+    """Invariant 2 across interpreters: hash randomisation must not change what is emitted."""
+    import json
+    import os
+    import subprocess
+    import sys
+
+    root = tmp_path / "repo"
+    files = {
+        "app/__init__.py": "",
+        "app/store.py": STORE,
+        "app/use.py": "from app.store import Rocket, Store\n"
+        "class W(Store):\n"
+        "    def go(self, r: Rocket, s: Store):\n"
+        "        return self.shared(), r.get(1), s.get(1)\n",
+    }
+    for rel, text in files.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text, encoding="utf-8")
+    script = (
+        "import json,sys;from pathlib import Path;from orchestrator.pkg import EdgeKind, RepoCodeExtractor;"
+        "from orchestrator.pkg.extractor import default_extractors;"
+        "b=RepoCodeExtractor(default_extractors()).extract(Path(sys.argv[1]));"
+        "print(json.dumps([[e.src,e.dst] for e in b.edges if e.kind is EdgeKind.CALLS]))"
+    )
+    runs = [
+        subprocess.run(
+            [sys.executable, "-c", script, str(root)],
+            capture_output=True,
+            text=True,
+            check=True,
+            env={**os.environ, "PYTHONHASHSEED": seed},
+        ).stdout
+        for seed in ("1", "2", "3")
+    ]
+    assert len(set(runs)) == 1
+    assert len(json.loads(runs[0])) >= 3
 
 
 def test_a_class_defined_inside_the_function_shadows_the_module_one(tmp_path: Path) -> None:
@@ -447,10 +547,11 @@ def test_a_method_signature_sees_its_class_body(tmp_path: Path) -> None:
         for e in batch.edges
         if e.kind is EdgeKind.CALLS and e.src == "py:app.use.Outer.m" and e.dst == "py:app.use.Inner.run"
     )
-    # Only `y.run()` (line 12): `y = Inner()` runs in the method body, which skips the class scope.
-    # `x.run()` (line 10) and `self.field.run()` (line 13) are typed by `Inner` as the class body
-    # reads it — the nested class, which this pass refuses rather than claim the module's.
-    assert lines == [12]
+    # Only `y.run()`: `y = Inner()` runs in the method body, which skips the class scope.
+    # `x.run()` and `self.field.run()` are typed by `Inner` as the class body reads it — the
+    # nested class, which this pass refuses rather than claim the module's.
+    (y_run,) = [n for n, line in enumerate(textwrap.dedent(src).splitlines(), 1) if line.strip() == "y.run()"]
+    assert lines == [y_run]
 
 
 def test_no_edge_from_a_caller_without_a_node(tmp_path: Path) -> None:

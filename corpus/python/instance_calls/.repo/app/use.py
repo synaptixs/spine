@@ -4,7 +4,7 @@ from typing import Optional
 
 from somelib import Client
 
-from app import Store
+from app import Store, Tool
 from app.mixins import Both, Wrapped
 from app.proto import Reader
 from app.store import Rocket
@@ -15,6 +15,7 @@ class Service:
 
     def __init__(self, store: Store) -> None:
         self._store = store
+        self.cache = store
         self._rocket = Rocket()
         self.later = None
         self.later = Store()
@@ -109,3 +110,7 @@ def via_closure() -> int:
 
 def via_chain() -> int:
     return Service(Store()).cache.get(1)
+
+
+def via_class_attribute() -> int:
+    return Tool.run(1)
