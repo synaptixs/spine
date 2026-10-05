@@ -44,6 +44,7 @@ _REVIEWABLE_SUFFIXES = frozenset(
         ".py",
         ".java",
         ".go",
+        ".rs",
         ".php",
         ".pm",
         ".pl",

@@ -1190,7 +1190,7 @@ orchestrator sdlc feature [OPTIONS]
 | `--package-name` | Target project/package — naming a .NET project selects it; otherwise overrides the scaffold package name (default: derived from repo). In a multi-module Gradle/Android repo this also selects the module the change belongs to. |
 | `--spec` | Implement a hand-written spec (JSON) instead of deriving one from the source — see `sdlc autorun` above for the format. |
 | `--refresh` | Re-extract intents from the source (default: reuse the cached, deterministic backlog). |
-| `--language` | Target language: auto (detect), python, java, kotlin, typescript, csharp, c, cpp, go, php, perl, or sql. (default: `auto`) |
+| `--language` | Target language: auto (detect), python, java, kotlin, typescript, csharp, c, cpp, go, rust, php, perl, or sql. (default: `auto`) |
 
 Perl requires `perl` and `prove`; `cpanm` is optional. Greenfield uses `lib/`, `t/`
 and `cpanfile`; existing distributions keep their package layout and packaging files.

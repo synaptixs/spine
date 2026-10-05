@@ -72,6 +72,12 @@ _SEED: tuple[Capability, ...] = (
         CapabilitySelector(languages=frozenset({"go"}), task_types=frozenset({"feature"})),
     ),
     Capability(
+        "rust-conventions",
+        CapabilityKind.SKILL,
+        "Match the repo's Cargo target, Rust edition and code conventions",
+        CapabilitySelector(languages=frozenset({"rust"}), task_types=frozenset({"feature"})),
+    ),
+    Capability(
         "kotlin-conventions",
         CapabilityKind.SKILL,
         "Match the repo's Kotlin conventions",

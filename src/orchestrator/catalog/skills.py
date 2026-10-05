@@ -156,6 +156,13 @@ NATIVE_SKILLS: tuple[Skill, ...] = (
         "(not panics), and co-located table-driven tests.",
     ),
     Skill(
+        "rust-conventions",
+        "Match the selected Cargo package and target, edition and minimum Rust version. "
+        "Preserve module paths, feature gates and async runtime. Prefer existing dependencies; "
+        "use Result/Option for recoverable errors, avoid unnecessary clones and unsafe code, "
+        "and follow neighboring co-located or integration test conventions.",
+    ),
+    Skill(
         "kotlin-conventions",
         "Match the repo's Kotlin conventions. Put code where the repo already puts it — "
         "most Kotlin lives under src/main/java, not src/main/kotlin, so follow the tree "
