@@ -134,6 +134,18 @@ def test_empty_test_run_is_reported_as_missing_coverage(tmp_path: Path) -> None:
     assert not result.passed and "No Rust tests executed" in result.output
 
 
+def test_missing_test_report_is_not_a_green_run(tmp_path: Path) -> None:
+    _workspace(tmp_path)
+
+    async def capture(argv: tuple[str, ...], *, cwd: str, timeout: float) -> tuple[int, str]:
+        if argv[:2] == ("git", "status"):
+            return 0, " M crates/app/src/main.rs\n"
+        return 0, "Finished without running any test harness\n"
+
+    result = asyncio.run(CargoTestRunner(capture=capture).run(path=str(tmp_path)))
+    assert not result.passed and "No Rust tests executed" in result.output
+
+
 def test_manifest_change_updates_lock_before_fixed_test(tmp_path: Path) -> None:
     _workspace(tmp_path)
     (tmp_path / "Cargo.lock").write_text("# existing lock\n", encoding="utf-8")
@@ -210,3 +222,18 @@ def test_changed_path_with_spaces_is_not_split(tmp_path: Path) -> None:
         return 0, " M crates/core/source/new feature.rs\0"
 
     assert asyncio.run(_changed_paths(tmp_path, capture)) == [tmp_path / "crates/core/source/new feature.rs"]
+
+
+def test_renamed_path_includes_old_and_new_crate_owners(tmp_path: Path) -> None:
+    _workspace(tmp_path)
+    seen: list[tuple[str, ...]] = []
+
+    async def capture(argv: tuple[str, ...], *, cwd: str, timeout: float) -> tuple[int, str]:
+        seen.append(argv)
+        if argv[:2] == ("git", "status"):
+            return 0, "R  crates/app/src/moved.rs\0crates/core/source/core.rs\0"
+        return 0, "running 1 test\ntest result: ok. 1 passed\n"
+
+    result = asyncio.run(CargoTestRunner(capture=capture).run(path=str(tmp_path)))
+    assert result.passed
+    assert seen[1][2:] == ("-p", "app", "-p", "core")

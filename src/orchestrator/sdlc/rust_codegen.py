@@ -235,7 +235,7 @@ async def _changed_paths(root: Path, capture: ExecCapture) -> list[Path]:
         return []
     paths: list[Path] = []
     # `-z` keeps paths with spaces/newlines literal and puts the destination first
-    # for renames; the next NUL record is the old path and is not verified.
+    # for renames; include the old owner too when a file moves between crates.
     records = output.split("\0") if "\0" in output else output.splitlines()
     index = 0
     while index < len(records):
@@ -243,12 +243,15 @@ async def _changed_paths(root: Path, capture: ExecCapture) -> list[Path]:
         index += 1
         if len(record) < 4:
             continue
-        name = record[3:].split(" -> ")[-1].strip('"')
+        names = [record[3:].split(" -> ")[-1].strip('"')]
         if "\0" in output and any(flag in record[:2] for flag in "RC"):
+            if index < len(records):
+                names.append(records[index])
             index += 1
-        path = (root / name).resolve()
-        if path.is_relative_to(root.resolve()):
-            paths.append(path)
+        for name in names:
+            path = (root / name).resolve()
+            if path.is_relative_to(root.resolve()):
+                paths.append(path)
     return paths
 
 
@@ -340,7 +343,7 @@ class CargoTestRunner:
                     return TestRunResult(False, rc, _diagnostic_output(output))
             test_output = output[-1]
             counts = [int(n) for n in re.findall(r"running (\d+) tests?", test_output)]
-            if counts and not any(counts):
+            if not any(counts):
                 return TestRunResult(False, 5, _diagnostic_output(output) + "\nNo Rust tests executed")
             return TestRunResult(True, 0, _diagnostic_output(output))
         except (OSError, ValueError, RuntimeError) as exc:

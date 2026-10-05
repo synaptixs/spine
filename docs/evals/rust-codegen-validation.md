@@ -7,7 +7,7 @@
 | Phase | Implementation | Evidence |
 |---|---|---|
 | P6 | `TOOLCHAINS["rust"]`, Cargo environment, package and target aware layout, library or binary scaffold, Rustfmt and Clippy preflight | Greenfield crate builds and tests with Rust 1.90.0; real preflight passes. The scaffold is idempotent. The selected Synaptreesitter custom target is `tree-sitter-cli` / `lib` / `crates/cli/src/tree_sitter_cli.rs`; Cargo metadata confirms it. |
-| P7 | Cargo build before test; changed package plus transitive reverse path dependents; workspace escalation for root manifest, lockfile, toolchain and `.cargo` configuration | A two-package workspace selects both `core` and dependent `app` when `core` changes. Deliberate compile and test failures return red. A manifest edit permits lock update on build and fixes the lock on final test. |
+| P7 | Cargo build before test; changed package plus transitive reverse path dependents; workspace escalation for root manifest, lockfile, toolchain and `.cargo` configuration | A two-package workspace selects both `core` and dependent `app` when `core` changes or a file is renamed across them. Deliberate compile and test failures, including no test report, return red. A manifest edit permits lock update on build and fixes the lock on final test. |
 | P8 | Rust implement/test/refine prompts, Cargo layout and edition/MSRV guidance, `rust-conventions` catalog and native skill | A scripted response passes the actual codegen file guards and real Cargo verification. A live run with the configured `claude-opus-5` model generated a greenfield addition feature and nine passing tests; Cargo build/test, Rustfmt and Clippy passed. |
 | P9 | Pinned brownfield Cargo execution | Two configured-model codegen runs, affected-package build/test, repository `make test`, and clean checkout rerun are recorded below. Strict upstream lint remains red. |
 
@@ -36,4 +36,4 @@ The generated implementations and tests remain in disposable Synaptreesitter wor
 
 ## Spine gates
 
-The full Python suite passed with the repository's normal local test access: **5,484 passed, 13 skipped, 51 deselected**. The focused Rust suite passed **16 tests** with Rust 1.90.0, including four real Cargo integration cases. Ruff, mypy, docs audit, state numbers, roadmap status, architecture rendering, and package accuracy checks passed. The dedicated Rust CI job will run the real Cargo cases on Linux.
+The full Python suite passed before the two final runner unit cases were added: **5,484 passed, 13 skipped, 51 deselected**. The focused Rust suite now passes **18 tests** with Rust 1.90.0, including four real Cargo integration cases. Ruff, mypy, docs audit, state numbers, roadmap status, architecture rendering, and package accuracy checks passed. The dedicated Rust CI job passed on Linux; the main PR check is running again for the final commit.
