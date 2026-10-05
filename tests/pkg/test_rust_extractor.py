@@ -12,7 +12,7 @@ from orchestrator.pkg.rust_cargo import CargoIndex
 from orchestrator.pkg.rust_extractor import RustExtractor
 from orchestrator.pkg.verify import verify_batch
 
-pytest.importorskip("tree_sitter_rust", reason="install the 'rust' extra")
+pytest.importorskip("tree_sitter_rust_orchard", reason="install the 'rust' extra")
 
 
 def _write(root: Path, files: dict[str, str]) -> None:

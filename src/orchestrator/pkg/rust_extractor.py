@@ -19,10 +19,10 @@ if TYPE_CHECKING:
 
 
 def _parser() -> Any:
-    import tree_sitter_rust
+    import tree_sitter_rust_orchard
     from tree_sitter import Language, Parser
 
-    return Parser(Language(tree_sitter_rust.language()))
+    return Parser(Language(tree_sitter_rust_orchard.language()))
 
 
 def _text(node: TSNode | None, src: bytes) -> str:
@@ -184,12 +184,19 @@ class RustExtractor:
                 )
                 continue
             explicit: str | None = None
-            for previous in reversed(siblings[:i]):
-                if previous.type != "attribute_item":
-                    break
-                raw = _text(previous, src)
+            attributes = node.child_by_field_name("attributes")
+            if attributes is not None:
+                path_attributes = attributes.named_children
+            else:
+                path_attributes = []
+                for previous in reversed(siblings[:i]):
+                    if previous.type != "attribute_item":
+                        break
+                    path_attributes.append(previous)
+            for attribute in path_attributes:
+                raw = _text(attribute, src)
                 if raw.startswith("#[path"):
-                    value = next((n for n in _walk(previous) if n.type == "string_literal"), None)
+                    value = next((n for n in _walk(attribute) if n.type == "string_literal"), None)
                     if value is not None:
                         explicit = _text(value, src).strip('"')
             if explicit is not None:

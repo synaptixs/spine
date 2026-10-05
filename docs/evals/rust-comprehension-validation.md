@@ -9,13 +9,13 @@
 | [Synaptreesitter](https://github.com/synaptixs/Synaptreesitter) | explicit `master`, `867aa6d14418163560bf89f12c48107098b1ec8f` | 109 | 1 file, 4 of 63,981 source lines | 0 files, 0 lines |
 | [itoa](https://github.com/dtolnay/itoa) | explicit `master`, `1577ed901354d0d7448ac162328f9dbf5183124c` | 5 | 0 of 630 source lines | 0 files, 0 lines |
 
-The installed `tree-sitter-rust 0.24.2` has an error in `crates/generate/src/generate.rs`, around lines 517–520, where a `#[cfg(feature = "load")]` attribute occurs on a struct destructuring field. Version 0.24.1 has the same error. The stock parser emits a partial tree, so facts in that span cannot be claimed complete. A source patch now parses both pinned repositories cleanly, but the optional `[rust]` extra still installs the stock PyPI wheel; P0 stays open until a patched wheel or upstream release is pinned.
+At the time of PR #509, the installed `tree-sitter-rust 0.24.2` had an error in `crates/generate/src/generate.rs`, around lines 517–520, where a `#[cfg(feature = "load")]` attribute occurs on a struct destructuring field. Version 0.24.1 has the same error. The stock parser emits a partial tree, so facts in that span cannot be claimed complete. A source patch parsed both pinned repositories cleanly, but the optional `[rust]` extra still installed the stock PyPI wheel. A subsequent [Orchard grammar validation](rust-orchard-grammar-validation.md) tests a published alternative.
 
 ## Grammar patch — tested 2026-10-05
 
 The latest published [upstream release](https://github.com/tree-sitter/tree-sitter-rust/releases) is v0.24.2, commit `77a3747266f4d621d0757825e6b11edcbf991ca5`. The [local patch](../../patches/tree-sitter-rust-0.24.2-field-pattern-attributes.patch) adds `repeat($.attribute_item)` at the start of `field_pattern` and an upstream-style regression case. This admits Rust attributes on struct pattern fields, which the 0.24.2 grammar omitted. The full upstream grammar corpus passes `tree-sitter test` (152/152, including the new case). The generated parser was built into an isolated Python binding and loaded ahead of the stock wheel via `PYTHONPATH`; Spine's dependency and lockfile were not changed by this experiment.
 
-The fix is proposed upstream in [tree-sitter-rust PR #319](https://github.com/tree-sitter/tree-sitter-rust/pull/319), with regenerated parser files. A merged PR alone is not an installed grammar version; the `[rust]` extra stays on the stock release until a published wheel can be pinned and rechecked.
+The fix was proposed upstream in [tree-sitter-rust PR #319](https://github.com/tree-sitter/tree-sitter-rust/pull/319), with regenerated parser files. The `[rust]` extra remained on the stock release at PR #509 merge. The PR discussion subsequently identified the published Orchard fork as another path to a clean installed grammar.
 
 Reproduce from an upstream v0.24.2 source checkout, with Tree-sitter CLI 0.26.7 and a C compiler:
 
@@ -63,7 +63,7 @@ The public repositories must be checked out at the exact SHAs above; do not foll
 
 ## Post-merge release gate
 
-Spine [PR #509](https://github.com/synaptixs/spine/pull/509) merged on 2026-10-05. The codegen branch is open. The installed-parser release gate remains: merge [upstream PR #319](https://github.com/tree-sitter/tree-sitter-rust/pull/319), obtain a published grammar wheel containing the fix, pin it in `[rust]`, and repeat the census through a normal install. The stock install still has the four-line error.
+Spine [PR #509](https://github.com/synaptixs/spine/pull/509) and codegen [PR #511](https://github.com/synaptixs/spine/pull/511) merged on 2026-10-05. The installed-parser release gate remains open on `develop`: its stock grammar still has the four-line error. A [follow-up Orchard grammar validation](rust-orchard-grammar-validation.md) tests a published alternative from the PR #319 discussion against the pinned census and corpus; this source-only package requires a C compiler during installation.
 
 The Cargo metadata comparison, pinned `make test` baseline, and full Spine suite are complete. Synaptreesitter's two Clippy warnings above are recorded as an upstream lint baseline, not a Spine parser failure or a claim that `make lint` is green.
 

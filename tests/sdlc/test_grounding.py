@@ -86,7 +86,7 @@ def test_context_empty_when_repo_has_nothing_relevant(tmp_path: Path) -> None:
 
 
 def test_rust_symbol_source_uses_rust_fence(tmp_path: Path) -> None:
-    pytest.importorskip("tree_sitter_rust", reason="install the 'rust' extra")
+    pytest.importorskip("tree_sitter_rust_orchard", reason="install the 'rust' extra")
     (tmp_path / "Cargo.toml").write_text('[package]\nname="demo"\nversion="0.1.0"\n')
     src = tmp_path / "src"
     src.mkdir()
