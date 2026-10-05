@@ -73,7 +73,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4943 symbols; 
 | `_as_float` | `orchestrator.spine.drift` | [`_as_float`](../src/orchestrator/spine/drift.py#L112) |
 | `_assemble` | `orchestrator.codereview.reviewer` | [`_assemble`](../src/orchestrator/codereview/reviewer.py#L300) |
 | `_assert_dumps` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_assert_dumps) | [`_assert_dumps`](../src/orchestrator/sdlc/codegen.py#L2512) |
-| `_associated` | `orchestrator.pkg.rust_extractor` | [`_associated`](../src/orchestrator/pkg/rust_extractor.py#L330) |
+| `_associated` | `orchestrator.pkg.rust_extractor` | [`_associated`](../src/orchestrator/pkg/rust_extractor.py#L337) |
 | `_association` | [`orchestrator.pkg.js_orm`](modules/orchestrator.pkg.js_orm.md#_association) | [`_association`](../src/orchestrator/pkg/js_orm.py#L648) |
 | `_at_ref` | [`scripts.docs_audit`](modules/scripts.docs_audit.md#_at_ref) | [`_at_ref`](../scripts/docs_audit.py#L402) |
 | `_attachment_key` | [`orchestrator.intake.jira_source`](modules/orchestrator.intake.jira_source.md#_attachment_key) | [`_attachment_key`](../src/orchestrator/intake/jira_source.py#L262) |
@@ -387,11 +387,11 @@ _Every first-party symbol, A–Z, and the page that describes it. 4943 symbols; 
 | `_declaration` | [`orchestrator.pkg.c_extractor`](modules/orchestrator.pkg.c_extractor.md#_declaration) | [`_declaration`](../src/orchestrator/pkg/c_extractor.py#L226) |
 | `_declaration` | `orchestrator.pkg.cpp_extractor` | [`_declaration`](../src/orchestrator/pkg/cpp_extractor.py#L252) |
 | `_declaration_scope_matches` | `orchestrator.pkg.clang_link` | [`_declaration_scope_matches`](../src/orchestrator/pkg/clang_link.py#L161) |
-| `_declarations` | `orchestrator.pkg.rust_extractor` | [`_declarations`](../src/orchestrator/pkg/rust_extractor.py#L233) |
+| `_declarations` | `orchestrator.pkg.rust_extractor` | [`_declarations`](../src/orchestrator/pkg/rust_extractor.py#L240) |
 | `_declarator_name` | [`orchestrator.pkg.c_extractor`](modules/orchestrator.pkg.c_extractor.md#_declarator_name) | [`_declarator_name`](../src/orchestrator/pkg/c_extractor.py#L433) |
 | `_declarator_name` | [`orchestrator.pkg.scope`](modules/orchestrator.pkg.scope.md#_declarator_name) | [`_declarator_name`](../src/orchestrator/pkg/scope.py#L498) |
 | `_declare` | [`orchestrator.pkg.kotlin_routes`](modules/orchestrator.pkg.kotlin_routes.md#_declare) | [`_declare`](../src/orchestrator/pkg/kotlin_routes.py#L287) |
-| `_declare` | `orchestrator.pkg.rust_extractor` | [`_declare`](../src/orchestrator/pkg/rust_extractor.py#L292) |
+| `_declare` | `orchestrator.pkg.rust_extractor` | [`_declare`](../src/orchestrator/pkg/rust_extractor.py#L299) |
 | `_declared` | `orchestrator.sdlc.csharp_names` | [`_declared`](../src/orchestrator/sdlc/csharp_names.py#L113) |
 | `_declared_name` | [`orchestrator.pkg.kotlin_extractor`](modules/orchestrator.pkg.kotlin_extractor.md#_declared_name) | [`_declared_name`](../src/orchestrator/pkg/kotlin_extractor.py#L1843) |
 | `_declared_name` | `orchestrator.pkg.cpp_extractor` | [`_declared_name`](../src/orchestrator/pkg/cpp_extractor.py#L376) |
@@ -523,7 +523,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4943 symbols; 
 | `_emit_members` | [`orchestrator.pkg.php_extractor`](modules/orchestrator.pkg.php_extractor.md#_emit_members) | [`_emit_members`](../src/orchestrator/pkg/php_extractor.py#L349) |
 | `_emit_module` | [`orchestrator.pkg.js_extractor`](modules/orchestrator.pkg.js_extractor.md#_emit_module) | [`_emit_module`](../src/orchestrator/pkg/js_extractor.py#L250) |
 | `_emit_module` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_emit_module) | [`_emit_module`](../src/orchestrator/pkg/typescript_extractor.py#L230) |
-| `_emit_module` | `orchestrator.pkg.rust_extractor` | [`_emit_module`](../src/orchestrator/pkg/rust_extractor.py#L224) |
+| `_emit_module` | `orchestrator.pkg.rust_extractor` | [`_emit_module`](../src/orchestrator/pkg/rust_extractor.py#L231) |
 | `_emit_object_member` | [`orchestrator.pkg.js_extractor`](modules/orchestrator.pkg.js_extractor.md#_emit_object_member) | [`_emit_object_member`](../src/orchestrator/pkg/js_extractor.py#L1437) |
 | `_emit_receiver_call` | [`orchestrator.pkg.php_extractor`](modules/orchestrator.pkg.php_extractor.md#_emit_receiver_call) | [`_emit_receiver_call`](../src/orchestrator/pkg/php_extractor.py#L752) |
 | `_emit_relations` | [`orchestrator.pkg.kotlin_room`](modules/orchestrator.pkg.kotlin_room.md#_emit_relations) | [`_emit_relations`](../src/orchestrator/pkg/kotlin_room.py#L253) |
@@ -640,7 +640,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4943 symbols; 
 | `_field_text` | [`orchestrator.pkg.php_extractor`](modules/orchestrator.pkg.php_extractor.md#_field_text) | [`_field_text`](../src/orchestrator/pkg/php_extractor.py#L951) |
 | `_field_text` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_field_text) | [`_field_text`](../src/orchestrator/pkg/typescript_extractor.py#L1050) |
 | `_field_text` | `orchestrator.pkg.go_extractor` | [`_field_text`](../src/orchestrator/pkg/go_extractor.py#L503) |
-| `_fields` | `orchestrator.pkg.rust_extractor` | [`_fields`](../src/orchestrator/pkg/rust_extractor.py#L298) |
+| `_fields` | `orchestrator.pkg.rust_extractor` | [`_fields`](../src/orchestrator/pkg/rust_extractor.py#L305) |
 | `_file_declares` | [`orchestrator.pkg.js_extractor`](modules/orchestrator.pkg.js_extractor.md#_file_declares) | [`_file_declares`](../src/orchestrator/pkg/js_extractor.py#L749) |
 | `_file_index` | `orchestrator.sdlc.impact` | [`_file_index`](../src/orchestrator/sdlc/impact.py#L110) |
 | `_file_rows` | [`orchestrator.sdlc.builddoc`](modules/orchestrator.sdlc.builddoc.md#_file_rows) | [`_file_rows`](../src/orchestrator/sdlc/builddoc.py#L1164) |
@@ -787,7 +787,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4943 symbols; 
 | `_Iface` | `orchestrator.pkg.go_extractor` | [`_Iface`](../src/orchestrator/pkg/go_extractor.py#L83) |
 | `_iface_set` | `orchestrator.pkg.go_extractor` | [`_iface_set`](../src/orchestrator/pkg/go_extractor.py#L348) |
 | `_imperative` | [`orchestrator.sdlc.autorun`](modules/orchestrator.sdlc.autorun.md#_imperative) | [`_imperative`](../src/orchestrator/sdlc/autorun.py#L773) |
-| `_impl` | `orchestrator.pkg.rust_extractor` | [`_impl`](../src/orchestrator/pkg/rust_extractor.py#L356) |
+| `_impl` | `orchestrator.pkg.rust_extractor` | [`_impl`](../src/orchestrator/pkg/rust_extractor.py#L363) |
 | `_impl_system` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_impl_system) | [`_impl_system`](../src/orchestrator/sdlc/codegen.py#L1136) |
 | `_implement` | `orchestrator.sdlc.workflows` | [`_implement`](../src/orchestrator/sdlc/workflows.py#L301) |
 | `_implement_result` | `orchestrator.sdlc.activities` | [`_implement_result`](../src/orchestrator/sdlc/activities.py#L581) |
@@ -1151,7 +1151,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4943 symbols; 
 | `_normalise` | [`orchestrator.sdlc.design`](modules/orchestrator.sdlc.design.md#_normalise) | [`_normalise`](../src/orchestrator/sdlc/design.py#L389) |
 | `_normalise` | `orchestrator.runtime.verifiers.glossary` | [`_normalise`](../src/orchestrator/runtime/verifiers/glossary.py#L52) |
 | `_normalize` | `orchestrator.pkg.data_layer_link` | [`_normalize`](../src/orchestrator/pkg/data_layer_link.py#L24) |
-| `_normalize_path` | `orchestrator.pkg.rust_extractor` | [`_normalize_path`](../src/orchestrator/pkg/rust_extractor.py#L374) |
+| `_normalize_path` | `orchestrator.pkg.rust_extractor` | [`_normalize_path`](../src/orchestrator/pkg/rust_extractor.py#L381) |
 | `_not_read` | `orchestrator.intake.follow_links` | [`_not_read`](../src/orchestrator/intake/follow_links.py#L124) |
 | `_not_verified` | `orchestrator.sdlc.investigate` | [`_not_verified`](../src/orchestrator/sdlc/investigate.py#L226) |
 | `_not_verified` | `orchestrator.sdlc.rca` | [`_not_verified`](../src/orchestrator/sdlc/rca.py#L272) |
@@ -1322,7 +1322,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 4943 symbols; 
 | `_qualified_text` | `orchestrator.pkg.cpp_extractor` | [`_qualified_text`](../src/orchestrator/pkg/cpp_extractor.py#L481) |
 | `_query` | [`orchestrator.mcp.rag_pull`](modules/orchestrator.mcp.rag_pull.md#_query) | [`_query`](../src/orchestrator/mcp/rag_pull.py#L329) |
 | `_query_text` | [`orchestrator.sdlc.design`](modules/orchestrator.sdlc.design.md#_query_text) | [`_query_text`](../src/orchestrator/sdlc/design.py#L169) |
-| `_queue_calls` | `orchestrator.pkg.rust_extractor` | [`_queue_calls`](../src/orchestrator/pkg/rust_extractor.py#L419) |
+| `_queue_calls` | `orchestrator.pkg.rust_extractor` | [`_queue_calls`](../src/orchestrator/pkg/rust_extractor.py#L426) |
 | `_rag_source` | `orchestrator.pkg.repos` | [`_rag_source`](../src/orchestrator/pkg/repos.py#L266) |
 | `_rank` | `orchestrator.spine.drift` | [`_rank`](../src/orchestrator/spine/drift.py#L39) |
 | `_rasterise` | `scripts.render_architecture_svg` | [`_rasterise`](../scripts/render_architecture_svg.py#L466) |
