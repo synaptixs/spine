@@ -1,6 +1,6 @@
 # Rust codegen validation — 2026-10-05
 
-**Branch:** `codex/rust-codegen`, merged as [PR #511](https://github.com/synaptixs/spine/pull/511) after [PR #509](https://github.com/synaptixs/spine/pull/509). This is validation evidence for Part B of the reviewed Rust roadmap; it is not a Core Rust release sign-off.
+**Branch:** `codex/rust-codegen`, merged as [PR #511](https://github.com/synaptixs/spine/pull/511) after [PR #509](https://github.com/synaptixs/spine/pull/509). This records the original Part B validation. The later [Core release evidence](rust-core-signoff.md) records resolution of its upstream gates.
 
 ## Implemented path
 
@@ -9,7 +9,7 @@
 | P6 | `TOOLCHAINS["rust"]`, Cargo environment, package and target aware layout, library or binary scaffold, Rustfmt and Clippy preflight | Greenfield crate builds and tests with Rust 1.90.0; real preflight passes. The scaffold is idempotent. The selected Synaptreesitter custom target is `tree-sitter-cli` / `lib` / `crates/cli/src/tree_sitter_cli.rs`; Cargo metadata confirms it. |
 | P7 | Cargo build before test; changed package plus transitive reverse path dependents; workspace escalation for root manifest, lockfile, toolchain and `.cargo` configuration | A two-package workspace selects both `core` and dependent `app` when `core` changes or a file is renamed across them. Deliberate compile and test failures, including no test report, return red. A manifest edit permits lock update on build and fixes the lock on final test. |
 | P8 | Rust implement/test/refine prompts, Cargo layout and edition/MSRV guidance, `rust-conventions` catalog and native skill | A scripted response passes the actual codegen file guards and real Cargo verification. A live run with the configured `claude-opus-5` model generated a greenfield addition feature and nine passing tests; Cargo build/test, Rustfmt and Clippy passed. |
-| P9 | Pinned brownfield Cargo execution | Two configured-model codegen runs, affected-package build/test, repository `make test`, and clean checkout rerun are recorded below. Strict upstream lint remains red. |
+| P9 | Pinned brownfield Cargo execution | Two configured-model codegen runs, affected-package build/test, repository `make test`, and clean checkout rerun are recorded below. The strict lint baseline was resolved and both generated diffs passed lint and test in the [post-merge replay](rust-core-signoff.md). |
 
 All real Cargo runs used Rust 1.90.0, Rustfmt and Clippy from the temporary toolchain, Xcode 26.2 SDK, and a writable `XDG_CACHE_HOME`. These variables were test-host setup, not new codegen requirements.
 
@@ -28,11 +28,11 @@ The three proof additions above were deterministic local test edits. The followi
 
 The generated implementations and tests remain in disposable Synaptreesitter worktrees; this Spine branch contains only the generic codegen support and validation evidence.
 
-## Open gates
+## Gate resolution after PR #511
 
-- The repository-equivalent Rust preflight respects Synaptreesitter's `cargo clippy --workspace --all-targets -- -D warnings` policy. `make lint` fails on two pre-existing `cognitive_complexity` findings in `crates/tags/src/tags.rs:345` and `crates/highlight/src/highlight.rs:892`, already recorded before codegen. Scoped Clippy can also expose existing complexity findings in `crates/generate`. Rustfmt passes. Generated warnings were corrected in the live runs; the upstream lint baseline is still red.
-- At PR #511 merge, the normal `[rust]` installation still received `tree-sitter-rust 0.24.2`, which has the four-line parse error at the pinned source. A [follow-up Orchard grammar validation](rust-orchard-grammar-validation.md) tests a published alternative; it is not part of PR #511.
-- PR #511 passed CI and merged, completing its review and delivery work. P9 remains open because the repository's strict lint gate is red at the pinned upstream baseline. Core Rust support is not yet a release claim.
+- At PR #511 merge, Synaptreesitter's strict `make lint` failed on existing Clippy complexity findings; the first run stopped after two. A warning-only scan found 18 affected functions. [Synaptreesitter PR #3](https://github.com/synaptixs/Synaptreesitter/pull/3) recorded those with function-scoped expectations and merged as `24d4bc18e58df2ddded3af32e51cf816a0bc8e75`. Strict lint now passes. This records existing complexity debt without claiming the functions were simplified.
+- At PR #511 merge, `[rust]` still installed `tree-sitter-rust 0.24.2`, which produced the four-line parse error. [Spine PR #512](https://github.com/synaptixs/spine/pull/512) pinned the Orchard grammar and merged. The [Orchard validation](rust-orchard-grammar-validation.md) records the clean census and corpus.
+- The model-generated config and highlight diffs were replayed independently on the exact tree merged by Synaptreesitter PR #3. Both passed repository `make lint` and `make test`; see [Core release evidence](rust-core-signoff.md). P9's previously open repository lint gate is closed.
 
 ## Spine gates
 
