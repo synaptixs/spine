@@ -642,7 +642,7 @@ def default_extractors(*, sql_dialect: str | None = None) -> list[LanguageExtrac
         from orchestrator.pkg.go_extractor import GoExtractor
 
         extractors.append(GoExtractor())
-    if has_tree_sitter and importlib.util.find_spec("tree_sitter_rust"):
+    if has_tree_sitter and importlib.util.find_spec("tree_sitter_rust_orchard"):
         from orchestrator.pkg.rust_extractor import RustExtractor
 
         extractors.append(RustExtractor())

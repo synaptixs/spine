@@ -1,6 +1,6 @@
 # Rust codegen validation — 2026-10-05
 
-**Branch:** `codex/rust-codegen`, based on merged `develop` after [PR #509](https://github.com/synaptixs/spine/pull/509). This is validation evidence for Part B of the reviewed Rust roadmap; it is not a Core Rust release sign-off.
+**Branch:** `codex/rust-codegen`, merged as [PR #511](https://github.com/synaptixs/spine/pull/511) after [PR #509](https://github.com/synaptixs/spine/pull/509). This is validation evidence for Part B of the reviewed Rust roadmap; it is not a Core Rust release sign-off.
 
 ## Implemented path
 
@@ -31,9 +31,9 @@ The generated implementations and tests remain in disposable Synaptreesitter wor
 ## Open gates
 
 - The repository-equivalent Rust preflight respects Synaptreesitter's `cargo clippy --workspace --all-targets -- -D warnings` policy. `make lint` fails on two pre-existing `cognitive_complexity` findings in `crates/tags/src/tags.rs:345` and `crates/highlight/src/highlight.rs:892`, already recorded before codegen. Scoped Clippy can also expose existing complexity findings in `crates/generate`. Rustfmt passes. Generated warnings were corrected in the live runs; the upstream lint baseline is still red.
-- The normal `[rust]` installation still receives `tree-sitter-rust 0.24.2`, which has the four-line parse error at the pinned source. [Upstream grammar PR #319](https://github.com/tree-sitter/tree-sitter-rust/pull/319) and the released-wheel census remain open.
-- Final CI and review are pending. P9 remains open because the repository's strict lint gate is red at the pinned upstream baseline; P10 remains open until review and CI finish. Core Rust support is not yet a release claim.
+- At PR #511 merge, the normal `[rust]` installation still received `tree-sitter-rust 0.24.2`, which has the four-line parse error at the pinned source. A [follow-up Orchard grammar validation](rust-orchard-grammar-validation.md) tests a published alternative; it is not part of PR #511.
+- PR #511 passed CI and merged, completing its review and delivery work. P9 remains open because the repository's strict lint gate is red at the pinned upstream baseline. Core Rust support is not yet a release claim.
 
 ## Spine gates
 
-The full Python suite passed before the two final runner unit cases were added: **5,484 passed, 13 skipped, 51 deselected**. The focused Rust suite now passes **18 tests** with Rust 1.90.0, including four real Cargo integration cases. Ruff, mypy, docs audit, state numbers, roadmap status, architecture rendering, and package accuracy checks passed. The dedicated Rust CI job passed on Linux; the main PR check is running again for the final commit.
+The full Python suite passed before the two final runner unit cases were added: **5,484 passed, 13 skipped, 51 deselected**. The focused Rust suite passed **18 tests** with Rust 1.90.0, including four real Cargo integration cases. Ruff, mypy, docs audit, state numbers, roadmap status, architecture rendering, and package accuracy checks passed. The dedicated Rust CI job and the full main check passed on the final commit of PR #511.

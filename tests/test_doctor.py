@@ -32,7 +32,7 @@ EMPTY_ENV: dict[str, str] = {}
 
 
 def test_rust_extra_has_a_parser_probe() -> None:
-    assert EXTRA_PROBES["rust"] == "tree_sitter_rust"
+    assert EXTRA_PROBES["rust"] == "tree_sitter_rust_orchard"
 
 
 def _result_by_name(results: list[CheckResult], name: str) -> CheckResult:

@@ -134,7 +134,7 @@ def test_deleted_file_makes_all_its_facts_stale(tmp_path: Path) -> None:
 _SOURCES: dict[str, tuple[str, str, str]] = {
     # suffix: (grammar module to skip on, filename, source)
     ".go": ("tree_sitter_go", "main.go", 'package main\n\nfunc Greet() string {\n\treturn "hi"\n}\n'),
-    ".rs": ("tree_sitter_rust", "lib.rs", 'pub fn greet() -> &\'static str { "hi" }\n'),
+    ".rs": ("tree_sitter_rust_orchard", "lib.rs", 'pub fn greet() -> &\'static str { "hi" }\n'),
     ".ts": (
         "tree_sitter_typescript",
         "app.ts",

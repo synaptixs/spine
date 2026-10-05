@@ -76,10 +76,11 @@ go = [
     "tree-sitter>=0.21",
     "tree-sitter-go>=0.21",
 ]
-# Rust PKG comprehension only. Cargo/rustc are required by the later codegen track.
+# Rust PKG comprehension. Orchard 0.16.8 is source-only on PyPI, so installing
+# this extra requires a C compiler; Cargo/rustc are needed for codegen execution.
 rust = [
     "tree-sitter>=0.21",
-    "tree-sitter-rust>=0.24.2",
+    "tree-sitter-rust-orchard==0.16.8",
 ]
 # PHP PKG front-end (.php). Same lazy-import contract as the `java` extra. Uses the
 # `language_php_only` grammar (pure PHP; no HTML host layer) — see docs/specs/php-support-roadmap.md D1.
@@ -309,7 +310,7 @@ files = ["src", "tests"]
 # tree-sitter is an optional extra (the `java`/`typescript` PKG front-ends); not
 # installed in the default/CI env, so don't fail type-checking on its absence.
 [[tool.mypy.overrides]]
-module = ["tree_sitter", "tree_sitter.*", "tree_sitter_java", "tree_sitter_typescript", "tree_sitter_c_sharp", "tree_sitter_c", "tree_sitter_cpp", "tree_sitter_go", "tree_sitter_rust", "tree_sitter_php", "tree_sitter_perl", "tree_sitter_kotlin"]
+module = ["tree_sitter", "tree_sitter.*", "tree_sitter_java", "tree_sitter_typescript", "tree_sitter_c_sharp", "tree_sitter_c", "tree_sitter_cpp", "tree_sitter_go", "tree_sitter_rust_orchard", "tree_sitter_php", "tree_sitter_perl", "tree_sitter_kotlin"]
 ignore_missing_imports = true
 
 # `mcp` is an optional extra (the MCP client transport), lazy-imported; not in

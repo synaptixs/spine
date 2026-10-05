@@ -27,7 +27,7 @@ _SUFFIX = {
 _EXTRA = {
     "typescript": "tree_sitter_typescript",
     "go": "tree_sitter_go",
-    "rust": "tree_sitter_rust",
+    "rust": "tree_sitter_rust_orchard",
     "csharp": "tree_sitter_c_sharp",
     "cpp": "tree_sitter_cpp",
     "c": "tree_sitter_c",
