@@ -87,7 +87,7 @@ _Showing 9 of 20 neighbouring areas._
 - [`orchestrator.pkg.php_orm`](../../src/orchestrator/pkg/php_orm.py#L1)
 - [`orchestrator.pkg.php_routes`](../modules/orchestrator.pkg.php_routes.md)
 - [`orchestrator.pkg.python_client`](../../src/orchestrator/pkg/python_client.py#L1)
-- [`orchestrator.pkg.python_orm`](../modules/orchestrator.pkg.python_orm.md)
+- [`orchestrator.pkg.python_orm`](../../src/orchestrator/pkg/python_orm.py#L1)
 - [`orchestrator.pkg.python_receivers`](../modules/orchestrator.pkg.python_receivers.md)
 - [`orchestrator.pkg.python_reexport`](../../src/orchestrator/pkg/python_reexport.py#L1)
 - [`orchestrator.pkg.python_routes`](../../src/orchestrator/pkg/python_routes.py#L1)

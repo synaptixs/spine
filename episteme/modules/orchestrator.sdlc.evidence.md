@@ -91,7 +91,7 @@
 
 [`src/orchestrator/sdlc/evidence.py:394`](../../src/orchestrator/sdlc/evidence.py#L394)
 
-- **Calls** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L636)
+- **Calls** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L637)
 
 ### `build_evidence`
 

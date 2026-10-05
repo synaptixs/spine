@@ -62,7 +62,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/design.py:405`](../../src/orchestrator/sdlc/design.py#L405)
 
 - **Called by** (1 production · 2 test): [`produce_design`](../../src/orchestrator/sdlc/design.py#L484), [`test_memory_bank_conventions_are_fenced_as_untrusted`](../../tests/sdlc/test_design.py#L89), [`test_the_design_model_answer_parses_out_of_a_fence`](../../tests/sdlc/test_design_validator.py#L146)
-- **Calls** (6): [`Message`](../../src/orchestrator/core/llm/client.py#L48), [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L3117), [`_normalise`](../../src/orchestrator/sdlc/design.py#L389), [`_structure_lines`](../../src/orchestrator/sdlc/design.py#L53), [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L48)
+- **Calls** (6): [`Message`](../../src/orchestrator/core/llm/client.py#L48), [`_loads_json_object`](../../src/orchestrator/sdlc/codegen.py#L3159), [`_normalise`](../../src/orchestrator/sdlc/design.py#L389), [`_structure_lines`](../../src/orchestrator/sdlc/design.py#L53), [`fence_untrusted`](../../src/orchestrator/core/prompt_safety.py#L23), [`resolve_codegen_model`](../../src/orchestrator/sdlc/codegen.py#L48)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/design-promotion-ab-results.md#consequences`, `docs/specs/design-promotion-ab-results.md#the-question-and-why-it-had-to-be-asked`, `docs/specs/design-promotion-ab-results.md#three-defects-the-pre-flight-found-for-about-250`, `docs/specs/graphir-sdlc-workflow.md#class-model`
 
 ### `_load_context`
@@ -90,7 +90,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/design.py:169`](../../src/orchestrator/sdlc/design.py#L169)
 
-- **Called by** (7): [`_landing_state`](../../src/orchestrator/sdlc/design.py#L194), [`_overview_files`](../../src/orchestrator/sdlc/design.py#L229), [`_spec_text_all`](../../src/orchestrator/sdlc/validity.py#L475), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L976), [`_stated_modules`](../../src/orchestrator/sdlc/design.py#L112), [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L73), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1489)
+- **Called by** (7): [`_landing_state`](../../src/orchestrator/sdlc/design.py#L194), [`_overview_files`](../../src/orchestrator/sdlc/design.py#L229), [`_spec_text_all`](../../src/orchestrator/sdlc/validity.py#L476), [`_stage_investigate`](../../src/orchestrator/sdlc/autorun.py#L976), [`_stated_modules`](../../src/orchestrator/sdlc/design.py#L112), [`_stated_paths`](../../src/orchestrator/sdlc/design.py#L73), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1489)
 
 ### `_stated_modules`
 
@@ -104,7 +104,7 @@ _2 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/design.py:73`](../../src/orchestrator/sdlc/design.py#L73)
 
 - **Called by** (2 production · 8 test): [`_fallback_design`](../../src/orchestrator/sdlc/design.py#L283), [`build_plan`](../../src/orchestrator/sdlc/builddoc.py#L1489), [`test_a_path_named_in_the_description_is_a_stated_path`](../../tests/sdlc/test_design.py#L446), [`test_a_stated_path_that_does_not_exist_is_dropped`](../../tests/sdlc/test_design.py#L329), [`test_a_windows_path_in_the_ticket_is_read`](../../tests/sdlc/test_design.py#L482), [`test_an_ambiguous_bare_name_is_not_guessed`](../../tests/sdlc/test_design.py#L491), [`test_duplicate_mentions_are_listed_once`](../../tests/sdlc/test_design.py#L345), [`test_several_bare_names_in_a_ticket_cost_one_walk`](../../tests/sdlc/test_design.py#L500), [`test_stated_paths_are_taken_as_written_without_a_root`](../../tests/sdlc/test_design.py#L338), [`test_technical_notes_are_read_too`](../../tests/sdlc/test_design.py#L320)
-- **Calls** (4): [`_query_text`](../../src/orchestrator/sdlc/design.py#L169), [`basename_index`](../../src/orchestrator/sdlc/source_paths.py#L108), [`named_paths`](../../src/orchestrator/sdlc/source_paths.py#L76), [`resolve`](../../src/orchestrator/sdlc/source_paths.py#L131)
+- **Calls** (4): [`_query_text`](../../src/orchestrator/sdlc/design.py#L169), [`basename_index`](../../src/orchestrator/sdlc/source_paths.py#L109), [`named_paths`](../../src/orchestrator/sdlc/source_paths.py#L77), [`resolve`](../../src/orchestrator/sdlc/source_paths.py#L132)
 - **Documented in**: `CHANGELOG.md`, `docs/specs/graphir-sdlc-workflow.md#half-two-the-bounded-replan-built-then-reverted-as-unreachable`
 
 ### `_structure_lines`

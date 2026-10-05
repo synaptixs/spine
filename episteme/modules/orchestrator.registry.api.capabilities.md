@@ -141,7 +141,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/registry/api/capabilities.py:111`](../../src/orchestrator/registry/api/capabilities.py#L111)
 
-- **Calls** (3): [`CapabilityInfo`](../../src/orchestrator/registry/api/capabilities.py#L96), [`CatalogResponse`](../../src/orchestrator/registry/api/capabilities.py#L104), [`default_catalog`](../../src/orchestrator/catalog/catalog.py#L147)
+- **Calls** (3): [`CapabilityInfo`](../../src/orchestrator/registry/api/capabilities.py#L96), [`CatalogResponse`](../../src/orchestrator/registry/api/capabilities.py#L104), [`default_catalog`](../../src/orchestrator/catalog/catalog.py#L153)
 
 ### `memory_bank`
 
