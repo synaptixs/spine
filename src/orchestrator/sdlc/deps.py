@@ -34,6 +34,7 @@ from orchestrator.sdlc.codegen import CodegenAdapter, StubCodegenAdapter
 from orchestrator.sdlc.escalation import EscalationPolicy
 from orchestrator.sdlc.forge import PRAdapter, StubPRAdapter
 from orchestrator.sdlc.preflight import PreflightRunner, StubPreflightRunner
+from orchestrator.sdlc.required_behavior import RequiredBehaviorRunner, StubRequiredBehaviorRunner
 from orchestrator.sdlc.review import ReviewAdapter, StubReviewAdapter
 from orchestrator.sdlc.testrunner import StubTestRunner, TestRunner
 from orchestrator.sdlc.workspace import WorkspaceManager
@@ -64,6 +65,10 @@ class SDLCDeps:
     budget: RunBudget | None = None
     escalation: EscalationPolicy = field(default_factory=EscalationPolicy)
     preflight: PreflightRunner = field(default_factory=StubPreflightRunner)
+    # SSPN-118/119: a fourth, independently-budgeted check in run_feature's loop, distinct
+    # from both preflight (lint/type quality) and tests (the model's own tests). Self-skips
+    # when the project has no `.spine/required-behavior.yaml` — see required_behavior.py.
+    required_behavior: RequiredBehaviorRunner = field(default_factory=StubRequiredBehaviorRunner)
     # The LLM client for post-merge memory consolidation (Phase 2b). None when no
     # LLM is configured (stub codegen) — the consolidate activity then no-ops.
     llm: LLMClient | None = None
