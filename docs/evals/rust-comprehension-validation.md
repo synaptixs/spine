@@ -9,7 +9,7 @@
 | [Synaptreesitter](https://github.com/synaptixs/Synaptreesitter) | explicit `master`, `867aa6d14418163560bf89f12c48107098b1ec8f` | 109 | 1 file, 4 of 63,981 source lines | 0 files, 0 lines |
 | [itoa](https://github.com/dtolnay/itoa) | explicit `master`, `1577ed901354d0d7448ac162328f9dbf5183124c` | 5 | 0 of 630 source lines | 0 files, 0 lines |
 
-At the time of PR #509, the installed `tree-sitter-rust 0.24.2` had an error in `crates/generate/src/generate.rs`, around lines 517–520, where a `#[cfg(feature = "load")]` attribute occurs on a struct destructuring field. Version 0.24.1 has the same error. The stock parser emits a partial tree, so facts in that span cannot be claimed complete. A source patch parsed both pinned repositories cleanly, but the optional `[rust]` extra still installed the stock PyPI wheel. A subsequent [Orchard grammar validation](rust-orchard-grammar-validation.md) tests a published alternative.
+At the time of PR #509, the installed `tree-sitter-rust 0.24.2` had an error in `crates/generate/src/generate.rs`, around lines 517–520, where a `#[cfg(feature = "load")]` attribute occurs on a struct destructuring field. Version 0.24.1 has the same error. The stock parser emits a partial tree, so facts in that span cannot be claimed complete. A source patch parsed both pinned repositories cleanly, but the optional `[rust]` extra still installed the stock PyPI wheel. The later [Orchard grammar validation](rust-orchard-grammar-validation.md) records the installed fix.
 
 ## Grammar patch — tested 2026-10-05
 
@@ -63,8 +63,8 @@ The public repositories must be checked out at the exact SHAs above; do not foll
 
 ## Post-merge release gate
 
-Spine [PR #509](https://github.com/synaptixs/spine/pull/509) and codegen [PR #511](https://github.com/synaptixs/spine/pull/511) merged on 2026-10-05. The installed-parser release gate remains open on `develop`: its stock grammar still has the four-line error. A [follow-up Orchard grammar validation](rust-orchard-grammar-validation.md) tests a published alternative from the PR #319 discussion against the pinned census and corpus; this source-only package requires a C compiler during installation.
+Spine [PR #509](https://github.com/synaptixs/spine/pull/509) and codegen [PR #511](https://github.com/synaptixs/spine/pull/511) merged on 2026-10-05. At that point the installed-parser release gate remained open: the stock grammar still had the four-line error. [PR #512](https://github.com/synaptixs/spine/pull/512) later pinned the published Orchard grammar and closed that gate; see the [Orchard validation](rust-orchard-grammar-validation.md). This source-only package requires a C compiler during installation.
 
-The Cargo metadata comparison, pinned `make test` baseline, and full Spine suite are complete. Synaptreesitter's two Clippy warnings above are recorded as an upstream lint baseline, not a Spine parser failure or a claim that `make lint` is green.
+The Cargo metadata comparison, pinned `make test` baseline, and full Spine suite were complete at PR #509 merge. Synaptreesitter's two initially reported Clippy warnings above were an upstream lint baseline, not a Spine parser failure. A later scan found 18 existing complexity warnings, recorded in merged [Synaptreesitter PR #3](https://github.com/synaptixs/Synaptreesitter/pull/3); the [Core release evidence](rust-core-signoff.md) records the now-green `make lint` gate.
 
 P2X's cross-module/workspace `CALLS` experiment is deferred per the roadmap's bounded fallback. The three missing corpus edges are counted as recall gaps, not silently excluded.

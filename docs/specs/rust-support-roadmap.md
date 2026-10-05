@@ -1,9 +1,9 @@
 # Design + Plan: adding Rust to the PKG — comprehension, then codegen
 
-**Status:** Part A implementation in progress on `codex/rust-comprehension` (2026-10-05). The grammar patch is in upstream PR #319; Cargo metadata, pinned `make test`, and the full Spine suite pass. The installed grammar release and Part A review/merge remain before codegen; see [validation evidence](../evals/rust-comprehension-validation.md).
+**Status:** As of 2026-10-05, Core Rust implementation P0–P10 is merged through Spine [PR #509](https://github.com/synaptixs/spine/pull/509), [PR #511](https://github.com/synaptixs/spine/pull/511), and [PR #512](https://github.com/synaptixs/spine/pull/512). The pinned Synaptreesitter lint baseline was fixed in [PR #3](https://github.com/synaptixs/Synaptreesitter/pull/3). See the [Core release evidence](../evals/rust-core-signoff.md) for final host-native validation and scope limits.
 **Base:** spine `v3.52.0`.
-**Branch A:** `codex/rust-comprehension` off `origin/develop` (implementation branch).
-**Branch B:** `feat/rust-codegen` after comprehension merges.
+**Branch A:** `codex/rust-comprehension`, merged in PR #509.
+**Branch B:** `codex/rust-codegen`, merged in PR #511 after comprehension.
 
 **Delivery model**
 
@@ -18,7 +18,7 @@ The public validation repository is now accessible and has been inspected direct
 
 **Repository:** `https://github.com/synaptixs/Synaptreesitter`
 
-**Important branch rule:** GitHub currently reports `leaf-error-cost` as the default branch, but that branch is **1 commit ahead and 1,375 commits behind `master`**. Its reviewed head is `1a99bfd9ff2819f428c8c935857f56b5f9fec2c2`; `master` was `867aa6d14418163560bf89f12c48107098b1ec8f` at roadmap review. Therefore validation must **never blindly follow the repository default branch**. Use an explicitly named `master` (or intentionally selected release) branch and pin the exact commit SHA for every evidence run.
+**Important branch rule:** At roadmap review, GitHub reported `leaf-error-cost` as the default branch, but that branch was **1 commit ahead and 1,375 commits behind `master`**. Its reviewed head was `1a99bfd9ff2819f428c8c935857f56b5f9fec2c2`; `master` was `867aa6d14418163560bf89f12c48107098b1ec8f`. Therefore validation must **never blindly follow the repository default branch**. Use an explicitly named `master` (or intentionally selected release) branch and pin the exact commit SHA for every evidence run.
 
 At the reviewed `master` state, Synaptreesitter is a substantial mixed Rust/C/web Cargo workspace:
 
@@ -593,15 +593,15 @@ Build-script output is also not part of comprehension.
 
 | Phase | Work | Effort | Exit criteria | Status | Started | Finished | Evidence |
 |---|---|---:|---|---|---|---|---|
-| **P0 Grammar + identity proof** | Parser census plus Cargo-target/module-ID prototype; pin Synaptreesitter baseline | **2-3 ED** | Grammar ceiling measured; lib/bin/test/module cases have non-colliding IDs | ⬜ | | | |
-| **P1 Cargo/module index + core extraction** | `rust_cargo.py`; `rust_extractor.py`; semantic Module tree; Type/Field/Function; `CONTAINS`; target-aware source admission; `target/` ignore; all mandatory front-end registrations | **5-7 ED** | Validation repos go from zero Rust nodes to valid graphs; every Cargo member/target expected by hand inspection appears once; `pkg verify` 0 errors | ⬜ | | | |
-| **P2 Core imports + local `CALLS` + `IMPLEMENTS`** | `use` trees/re-exports as graph facts; lexical shadowing; **local guaranteed CALLS only per §7.1**; inherent/trait method IDs; direct trait impl; supertraits; cfg ambiguity suppression | **4-5 ED** | Precision 1.00 for emitted CALLS/IMPLEMENTS in corpus; no method-ID collisions; no shadowed-call false positive; cross-module CALLS may remain documented gaps | ⬜ | | | |
-| **P2X Cross-module/workspace `CALLS` experiment** *(non-blocking)* | Attempt exact import/path-qualified CALLS using P1/P2 indexes; stop at gate in §7.2 | **0-3 ED max** | Either precision-1.00 indexed resolver lands **or** evidence records deferral; **P3 starts either way** | ⬜ | | | |
-| **P3 Corpus + accuracy hardening** | Rust corpus described below; scoreboard; known gaps predicted before scoring | **3-4 ED** | 1.00 precision for every emitted node/edge kind; recall measured and written down | ⬜ | | | |
-| **P4 Profiling/detection** | `.rs`; bounded Cargo manifest reading; `cargo` test runner; framework detection from member manifests | **2 ED** | Rust profiles correctly in single package + virtual workspace; `test_runner="cargo"`; axum/actix/rocket detection works without calling Tokio a web framework | ⬜ | | | |
-| **P5 Consumer integration + docs + review** | generic grounding fence fix; documentation/visibility/source-extension registration; all user docs/checklists; `/review-pr` | **2-3 ED** | Full docs audit/state-number checks green; Rust snippet renders as `rust`; comprehension PR mergeable | ⬜ | | | |
+| **P0 Grammar + identity proof** | Parser census plus Cargo-target/module-ID prototype; pin Synaptreesitter baseline | **2-3 ED** | Grammar ceiling measured; lib/bin/test/module cases have non-colliding IDs | ✅ | | 2026-10-05 | [Comprehension evidence](../evals/rust-comprehension-validation.md) |
+| **P1 Cargo/module index + core extraction** | `rust_cargo.py`; `rust_extractor.py`; semantic Module tree; Type/Field/Function; `CONTAINS`; target-aware source admission; `target/` ignore; all mandatory front-end registrations | **5-7 ED** | Validation repos go from zero Rust nodes to valid graphs; every Cargo member/target expected by hand inspection appears once; `pkg verify` 0 errors | ✅ | | 2026-10-05 | [Comprehension evidence](../evals/rust-comprehension-validation.md) |
+| **P2 Core imports + local `CALLS` + `IMPLEMENTS`** | `use` trees/re-exports as graph facts; lexical shadowing; **local guaranteed CALLS only per §7.1**; inherent/trait method IDs; direct trait impl; supertraits; cfg ambiguity suppression | **4-5 ED** | Precision 1.00 for emitted CALLS/IMPLEMENTS in corpus; no method-ID collisions; no shadowed-call false positive; cross-module CALLS may remain documented gaps | ✅ | | 2026-10-05 | [Comprehension evidence](../evals/rust-comprehension-validation.md) |
+| **P2X Cross-module/workspace `CALLS` experiment** *(non-blocking)* | Attempt exact import/path-qualified CALLS using P1/P2 indexes; stop at gate in §7.2 | **0-3 ED max** | Either precision-1.00 indexed resolver lands **or** evidence records deferral; **P3 starts either way** | Deferred | | 2026-10-05 | [Three measured gaps](../evals/rust-comprehension-validation.md) |
+| **P3 Corpus + accuracy hardening** | Rust corpus described below; scoreboard; known gaps predicted before scoring | **3-4 ED** | 1.00 precision for every emitted node/edge kind; recall measured and written down | ✅ | | 2026-10-05 | [Comprehension evidence](../evals/rust-comprehension-validation.md) |
+| **P4 Profiling/detection** | `.rs`; bounded Cargo manifest reading; `cargo` test runner; framework detection from member manifests | **2 ED** | Rust profiles correctly in single package + virtual workspace; `test_runner="cargo"`; axum/actix/rocket detection works without calling Tokio a web framework | ✅ | | 2026-10-05 | [Comprehension evidence](../evals/rust-comprehension-validation.md) |
+| **P5 Consumer integration + docs + review** | generic grounding fence fix; documentation/visibility/source-extension registration; all user docs/checklists; `/review-pr` | **2-3 ED** | Full docs audit/state-number checks green; Rust snippet renders as `rust`; comprehension PR mergeable | ✅ | | 2026-10-05 | [PR #509](https://github.com/synaptixs/spine/pull/509) |
 
-Implementation status and measured exceptions are maintained in the [Rust comprehension validation record](../evals/rust-comprehension-validation.md). The phase cells above remain open until every exit criterion has been independently verified; implementation work alone does not satisfy a release gate.
+Measured limitations remain in the [Rust comprehension validation record](../evals/rust-comprehension-validation.md). P2X followed its documented deferral path; the three missing cross-module/workspace call edges remain counted as recall gaps.
 
 ---
 
@@ -1012,11 +1012,11 @@ Do not create or modify `rust-toolchain.toml` in greenfield unless explicitly pa
 
 | Phase | Work | Effort | Exit criteria | Status | Started | Finished | Evidence |
 |---|---|---:|---|---|---|---|---|
-| **P6 Toolchain/layout/scaffold/preflight** | Environment, Cargo-aware layout, scaffold, Rust preflight, complete `TOOLCHAINS["rust"]` row | **5-7 ED** | Greenfield scaffold builds; brownfield resolves correct package+target; `--language rust` becomes valid only now; idempotency green | ⬜ | | | |
-| **P7 Runner + affected-package graph** | Cargo build/test runner, reverse workspace dependent selection | **4-5 ED** | Changing shared crate tests its dependents; root manifest change tests workspace; deliberately broken code produces red result | ⬜ | | | |
-| **P8 Prompts/guidance/skill** | implement/tests/refine prompts; Rust layout guidance; rust-conventions skill/catalog entry | **2-3 ED** | Rust skill selected; generated code obeys edition/layout; idiomatic error handling and tests | ⬜ | | | |
-| **P9 Live proof** | greenfield plus Synaptreesitter targeted + reverse-dependent brownfield runs; compile-red/test-red; clean rerun | **5-7 ED** | Native baseline and Spine-generated runs green; deliberate reds caught; affected-package selection correct; clean rerun reproduces result | ⬜ | | | |
-| **P10 Review + docs + MR** | `/review-pr`, full CI/docs gates, evidence table | **1-2 ED** | mergeable; no stale counts/docs; no unrelated graph changes | ⬜ | | | |
+| **P6 Toolchain/layout/scaffold/preflight** | Environment, Cargo-aware layout, scaffold, Rust preflight, complete `TOOLCHAINS["rust"]` row | **5-7 ED** | Greenfield scaffold builds; brownfield resolves correct package+target; `--language rust` becomes valid only now; idempotency green | ✅ | | 2026-10-05 | [Codegen evidence](../evals/rust-codegen-validation.md) |
+| **P7 Runner + affected-package graph** | Cargo build/test runner, reverse workspace dependent selection | **4-5 ED** | Changing shared crate tests its dependents; root manifest change tests workspace; deliberately broken code produces red result | ✅ | | 2026-10-05 | [Codegen evidence](../evals/rust-codegen-validation.md) |
+| **P8 Prompts/guidance/skill** | implement/tests/refine prompts; Rust layout guidance; rust-conventions skill/catalog entry | **2-3 ED** | Rust skill selected; generated code obeys edition/layout; idiomatic error handling and tests | ✅ | | 2026-10-05 | [Codegen evidence](../evals/rust-codegen-validation.md) |
+| **P9 Live proof** | greenfield plus Synaptreesitter targeted + reverse-dependent brownfield runs; compile-red/test-red; clean rerun | **5-7 ED** | Native baseline and Spine-generated runs green; deliberate reds caught; affected-package selection correct; clean rerun reproduces result | ✅ | | 2026-10-05 | [Core release evidence](../evals/rust-core-signoff.md) |
+| **P10 Review + docs + MR** | `/review-pr`, full CI/docs gates, evidence table | **1-2 ED** | mergeable; no stale counts/docs; no unrelated graph changes | ✅ | | 2026-10-05 | [PR #511](https://github.com/synaptixs/spine/pull/511), [Core release evidence](../evals/rust-core-signoff.md) |
 
 ---
 
