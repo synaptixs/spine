@@ -42,6 +42,12 @@ class Requirement:
     command: tuple[str, ...]
     timeout: float = _DEFAULT_TIMEOUT
     required: bool = True
+    # The symbol this requirement exercises, dotted-path or short name (e.g.
+    # "ontomesh.rules.DefaultLoader" or just "DefaultLoader") — SSPN-120's grounding
+    # resolves this against the PKG to surface a sibling implementation that wires
+    # correctly. Optional: a requirement with no resolvable entry point just gets no
+    # extra grounding, never an error.
+    entry_point: str | None = None
 
 
 def _requirement_from_mapping(entry: Any, *, where: str) -> Requirement:
@@ -55,12 +61,18 @@ def _requirement_from_mapping(entry: Any, *, where: str) -> Requirement:
         raise RequiredBehaviorManifestError(
             f"{where}: requirement {req_id!r} needs a non-empty 'command' list"
         )
+    entry_point = entry.get("entry_point")
+    if entry_point is not None and not isinstance(entry_point, str):
+        raise RequiredBehaviorManifestError(
+            f"{where}: requirement {req_id!r}'s 'entry_point' must be a string"
+        )
     return Requirement(
         requirement_id=req_id,
         description=str(entry.get("description", "")),
         command=tuple(command),
         timeout=float(entry.get("timeout", _DEFAULT_TIMEOUT)),
         required=bool(entry.get("required", True)),
+        entry_point=entry_point,
     )
 
 

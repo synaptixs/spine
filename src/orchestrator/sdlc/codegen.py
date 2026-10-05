@@ -1175,6 +1175,23 @@ class LLMCodegenAdapter:
         if grounder is None:
             return ""
         context = grounder.context_for_spec(spec)
+        # SSPN-120: additive, not gated on context_for_spec finding anything — a sibling
+        # implementation is a different signal from a lexical match, and the lexical match
+        # being empty says nothing about whether a sibling exists.
+        from orchestrator.sdlc.required_behavior import RequiredBehaviorManifestError, load_manifest
+
+        try:
+            requirements = load_manifest(root)
+        except RequiredBehaviorManifestError:
+            # Grounding is an enhancement; a malformed manifest is SSPN-118's gate's
+            # problem to report loudly, not something that should break codegen here.
+            requirements = ()
+        if requirements:
+            # Not every CodegenGrounder implements this (test doubles, in particular) —
+            # same defensive pattern context_for_symbols already uses below.
+            sibling_lookup = getattr(grounder, "context_for_required_entry_points", None)
+            sibling_context = sibling_lookup(requirements) if sibling_lookup is not None else ""
+            context = "\n\n".join(c for c in (context, sibling_context) if c)
         if not context:
             return ""
         # The base system prompt assumes Block C's fresh, empty worktree. When

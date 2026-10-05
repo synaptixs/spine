@@ -18,6 +18,54 @@ def _manifest(root: Path, body: str) -> None:
     (root / ".spine" / "required-behavior.yaml").write_text(body, encoding="utf-8")
 
 
+# ---- ONTM-4-shaped fixture: a default loader that may or may not compile its rules ------
+#
+# SSPN-120's exit criterion: the same check must fail on the broken version and pass on the
+# fix, end to end through the real runner — not a generic sys.exit(1), the actual shape of
+# the gap the roadmap was written for (default wiring skips a required call).
+
+_COMPILER = (
+    "class Compiler:\n    def compile(self, rules):\n        return [f'compiled:{r}' for r in rules]\n"
+)
+
+_CHECK_SCRIPT = (
+    "import sys\n"
+    "sys.path.insert(0, '.')\n"
+    "from app import DefaultRuleLoader\n"
+    "loaded = DefaultRuleLoader().load()\n"
+    "assert all(str(r).startswith('compiled:') for r in loaded), "
+    "f'default loader never compiled its rules: {loaded}'\n"
+)
+
+
+def _ontm4_fixture(root: Path, *, broken: bool) -> None:
+    load_body = (
+        "return self.read_raw()"  # the ONTM-4 bug: default loading skips the compiler
+        if broken
+        else "return self.compiler.compile(self.read_raw())"
+    )
+    app = (
+        _COMPILER
+        + "\n\nclass RuleLoader:\n    def load(self):\n        raise NotImplementedError\n"
+        + "\n\nclass DefaultRuleLoader(RuleLoader):\n"
+        "    def __init__(self):\n"
+        "        self.compiler = Compiler()\n\n"
+        "    def read_raw(self):\n"
+        "        return ['r1', 'r2']\n\n"
+        f"    def load(self):\n        {load_body}\n"
+    )
+    (root / "app.py").write_text(app, encoding="utf-8")
+    (root / "check_default_wiring.py").write_text(_CHECK_SCRIPT, encoding="utf-8")
+    _manifest(
+        root,
+        "requirements:\n"
+        "  - id: default-wiring-compiles-rules\n"
+        "    description: Default rule loading must invoke the configured compiler\n"
+        "    entry_point: DefaultRuleLoader\n"
+        "    command: ['python3', 'check_default_wiring.py']\n",
+    )
+
+
 async def test_no_manifest_self_skips_with_pass(tmp_path: Path) -> None:
     result = await SubprocessRequiredBehaviorRunner().run(path=str(tmp_path))
     assert result.passed and "unverified" in result.output
@@ -110,6 +158,50 @@ def test_load_manifest_rejects_a_requirement_with_no_command(tmp_path: Path) -> 
         raise AssertionError("expected RequiredBehaviorManifestError")
 
 
+def test_load_manifest_reads_an_optional_entry_point(tmp_path: Path) -> None:
+    _manifest(
+        tmp_path,
+        "requirements:\n"
+        "  - id: default-wiring\n"
+        "    entry_point: ontomesh.rules.DefaultLoader\n"
+        "    command: ['python3', '-c', 'pass']\n",
+    )
+    (requirement,) = load_manifest(tmp_path)
+    assert requirement.entry_point == "ontomesh.rules.DefaultLoader"
+
+
+def test_load_manifest_defaults_entry_point_to_none(tmp_path: Path) -> None:
+    _manifest(tmp_path, "requirements:\n  - id: no-entry-point\n    command: ['python3', '-c', 'pass']\n")
+    (requirement,) = load_manifest(tmp_path)
+    assert requirement.entry_point is None
+
+
+def test_load_manifest_rejects_a_non_string_entry_point(tmp_path: Path) -> None:
+    _manifest(
+        tmp_path,
+        "requirements:\n  - id: bad\n    entry_point: 5\n    command: ['python3', '-c', 'pass']\n",
+    )
+    try:
+        load_manifest(tmp_path)
+    except RequiredBehaviorManifestError as exc:
+        assert "entry_point" in str(exc)
+    else:
+        raise AssertionError("expected RequiredBehaviorManifestError")
+
+
 async def test_stub_always_passes_and_is_unverified(tmp_path: Path) -> None:
     result = await StubRequiredBehaviorRunner().run(path=str(tmp_path))
     assert result.passed
+
+
+async def test_ontm4_shaped_fixture_fails_on_the_broken_default_loader(tmp_path: Path) -> None:
+    _ontm4_fixture(tmp_path, broken=True)
+    result = await SubprocessRequiredBehaviorRunner().run(path=str(tmp_path))
+    assert not result.passed
+    assert "default loader never compiled its rules" in result.output
+
+
+async def test_ontm4_shaped_fixture_passes_once_the_default_loader_is_fixed(tmp_path: Path) -> None:
+    _ontm4_fixture(tmp_path, broken=False)
+    result = await SubprocessRequiredBehaviorRunner().run(path=str(tmp_path))
+    assert result.passed, result.output
