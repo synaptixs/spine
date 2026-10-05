@@ -140,6 +140,58 @@ class _PassingRunner:
         return SimpleNamespace(passed=True, returncode=0, output="1 passed")
 
 
+class _PassingRequiredBehavior:
+    """A manifest whose checks are green on the first look."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        return SimpleNamespace(passed=True, items=[], output="rb passed")
+
+
+class _FailingRequiredBehavior:
+    """A manifest that never goes green — exhausts its own refine budget."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            passed=False,
+            items=[SimpleNamespace(environment_blocked=False)],
+            output="rb failed",
+        )
+
+
+class _EventuallyPassingRequiredBehavior:
+    """Fails the first look, passes every one after — proves refine -> re-check -> pass."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        passed = self.calls > 1
+        items = [] if passed else [SimpleNamespace(environment_blocked=False)]
+        return SimpleNamespace(passed=passed, items=items, output="" if passed else "rb failed once")
+
+
+class _EnvironmentBlockedRequiredBehavior:
+    """A manifest requirement whose command can't even run — not a code problem."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls = 0
+
+    async def run(self, *, path: str) -> SimpleNamespace:
+        self.calls += 1
+        return SimpleNamespace(
+            passed=False,
+            items=[SimpleNamespace(environment_blocked=True)],
+            output="command not found",
+        )
+
+
 def _aresult(value: Any) -> Any:
     """Wrap a value in an awaitable so a lambda can stand in for an async method."""
 
@@ -234,10 +286,17 @@ def _install_pipeline(
     codegen: type[_StubCodegen] = _StubCodegen,
     jira: _FakeJira | None = None,
     workspaces: list[str] | None = None,
+    required_behavior: type | None = None,
 ) -> list[_StubCodegen]:
     """Stub everything downstream of spec resolution so run_feature drives the
     real layout/scaffold/preflight + test-loop logic against a tmp worktree.
-    Returns the list that captures each constructed stub codegen."""
+    Returns the list that captures each constructed stub codegen.
+
+    ``required_behavior`` is left unpatched by default: the real
+    ``SubprocessRequiredBehaviorRunner`` self-skips without a `.spine/required-behavior.yaml`
+    in ``tmp_path``, which none of these fixtures create — so every existing test here
+    exercises the new kind as an inert no-op, same as before SSPN-119.
+    """
     monkeypatch.setattr("orchestrator.core.env.load_local_env", lambda *a, **k: 0)
     monkeypatch.delenv("SDLC_REPO_URL", raising=False)
     _patch_service(monkeypatch, [_Spec("intent-a")])
@@ -253,6 +312,10 @@ def _install_pipeline(
     monkeypatch.setattr("orchestrator.sdlc.codegen.LLMCodegenAdapter", _make_codegen)
     monkeypatch.setattr("orchestrator.sdlc.codegen.resolve_codegen_model", lambda *a, **k: None)
     monkeypatch.setattr("orchestrator.sdlc.testrunner.SubprocessTestRunner", runner)
+    if required_behavior is not None:
+        monkeypatch.setattr(
+            "orchestrator.sdlc.required_behavior.SubprocessRequiredBehaviorRunner", required_behavior
+        )
     monkeypatch.setattr("orchestrator.intake.jira.JiraAdapter", lambda *a, **k: jira or _FakeJira())
     # The semantic judge now runs on every green change. Approve by default so these tests
     # keep testing what they were written for; the judge's own behaviour is covered where a
@@ -325,6 +388,84 @@ async def test_refine_that_changes_files_still_uses_the_whole_budget(
     # max_refine is an allowance of *correction attempts*, per kind of problem: three
     # refines, each followed by a run, then a fourth run that finds the budget spent.
     assert created and created[0].refine_calls == 3
+
+
+# ---- required_behavior: the fourth gate (SSPN-118/119) ---------------------------
+
+
+async def test_required_behavior_pass_completes_the_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A green manifest doesn't change the happy path at all."""
+    _install_pipeline(
+        monkeypatch, tmp_path, runner=_PassingRunner, required_behavior=_PassingRequiredBehavior
+    )
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", repo="https://github.com/x/widget")
+
+    assert result.passed
+
+
+async def test_required_behavior_failure_drives_refine_then_succeeds(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A manifest that fails once and passes after is exactly the roadmap's own
+    fail -> refine -> pass demonstration — and proves required_behavior is re-checked
+    after the refine, not just run once."""
+    created = _install_pipeline(
+        monkeypatch,
+        tmp_path,
+        runner=_PassingRunner,
+        codegen=_EditingCodegen,
+        required_behavior=_EventuallyPassingRequiredBehavior,
+    )
+
+    result = await run_feature("file://./spec.md", intent_id="intent-a", repo="https://github.com/x/widget")
+
+    assert result.passed
+    assert created and created[0].refine_calls == 1
+
+
+async def test_required_behavior_failure_exhausts_its_own_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """required_behavior has its own refine pool — proven by it alone exhausting the
+    budget while tests/types stayed green the whole time."""
+    created = _install_pipeline(
+        monkeypatch,
+        tmp_path,
+        runner=_PassingRunner,
+        codegen=_EditingCodegen,
+        required_behavior=_FailingRequiredBehavior,
+    )
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", repo="https://github.com/x/widget", max_refine=2
+        )
+
+    assert created and created[0].refine_calls == 2
+
+
+async def test_required_behavior_environment_blocked_stops_without_spending_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A missing fixture/command is refine's problem to diagnose, not to edit around —
+    the loop must stop immediately rather than burn its refine budget on it."""
+    created = _install_pipeline(
+        monkeypatch,
+        tmp_path,
+        runner=_PassingRunner,
+        codegen=_EditingCodegen,
+        required_behavior=_EnvironmentBlockedRequiredBehavior,
+    )
+
+    with pytest.raises(FeatureRunError, match="VERDICT: FAILED"):
+        await run_feature(
+            "file://./spec.md", intent_id="intent-a", repo="https://github.com/x/widget", max_refine=3
+        )
+
+    assert created and created[0].refine_calls == 0
 
 
 async def test_greenfield_run_scaffolds_and_passes_layout_to_codegen(
