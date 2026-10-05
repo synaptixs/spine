@@ -1,0 +1,67 @@
+{
+  "language": "rust",
+  "case": "imports",
+  "root": ".repo",
+  "why": "Grouped use, alias, and pub use point to the defining first-party symbol. An imported field type can be resolved without a guessed external node.",
+  "nodes": [
+    {
+      "id": "rust:imports@lib/imports",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:imports@lib/imports::user",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:imports@lib/imports::user::User",
+      "kind": "Type"
+    },
+    {
+      "id": "rust:imports@lib/imports::Order",
+      "kind": "Type"
+    },
+    {
+      "id": "rust:imports@lib/imports::Order::owner",
+      "kind": "Field"
+    }
+  ],
+  "edges": [
+    {
+      "src": "rust:imports@lib/imports",
+      "dst": "rust:imports@lib/imports::user",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:imports@lib/imports::user",
+      "dst": "rust:imports@lib/imports::user::User",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:imports@lib/imports",
+      "dst": "rust:imports@lib/imports::Order",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:imports@lib/imports::Order",
+      "dst": "rust:imports@lib/imports::Order::owner",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:imports@lib/imports",
+      "dst": "rust:imports@lib/imports::user::User",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "rust:imports@lib/imports",
+      "dst": "rust:imports@lib/imports::user",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "rust:imports@lib/imports::Order::owner",
+      "dst": "rust:imports@lib/imports::user::User",
+      "kind": "REFERENCES"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": []
+}

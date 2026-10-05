@@ -30,6 +30,10 @@ Only the matching rule is per-language:
   packages (or path aliases we can't see) and stay external.
 - **go** — the import path is matched against the ``module`` directive in
   ``go.mod``; the remainder is the package directory.
+- **rust** — its front-end resolves Cargo target/module paths and exact ``use``
+  bindings in ``RustExtractor.finalize``. This generic matcher deliberately
+  leaves remaining external Rust imports alone; a path-suffix guess could join
+  two independent crate targets with the same module name.
 - **c / cpp** — an include the front-end could not resolve is matched as a
   path-suffix of exactly one first-party translation unit (the ``-I
   include-dir`` case); an ambiguous suffix is left alone rather than guessed.

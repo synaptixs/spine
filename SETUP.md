@@ -75,14 +75,15 @@ Optional extras, added when you need them:
   validation. The tested native version is 18.1.1; the declared `>=18` dependency
   is not proof that every newer release behaves identically. See the
   [support and platform matrix](docs/evals/clang-semantic-release-readiness.md#support-contract).
-- `[java]`, `[typescript]`, `[csharp]`, `[c]`, `[cpp]`, `[go]`, `[php]`, `[perl]`, `[kotlin]`, `[sql]` — language
+- `[java]`, `[typescript]`, `[csharp]`, `[c]`, `[cpp]`, `[go]`, `[rust]`, `[php]`, `[perl]`, `[kotlin]`, `[sql]` — language
   parsers for comprehension + grounding (Python needs no extra). `[typescript]` also reads
   **JavaScript** (`.js`/`.jsx`/`.mjs`/`.cjs`) — the same grammar, so there is no separate extra, as
   `[kotlin]` also gives the Gradle `.kts` reader. JavaScript is comprehension-only: there is no
   JavaScript codegen toolchain. C# codegen also needs the **.NET
   SDK** (`dotnet`) on PATH; C / C++ codegen needs a C / C++ compiler plus **CMake** (greenfield) or
   **Meson + Ninja** (matching the target repo's build system); **Go** codegen needs the **`go`
-  toolchain** on PATH (`go build`/`go test`). `[sql]` adds `.sql`
+  toolchain** on PATH (`go build`/`go test`). `[rust]` adds Cargo-aware `.rs` comprehension;
+  Cargo is not needed to read the graph, and Rust codegen is not yet enabled. `[sql]` adds `.sql`
   comprehension (schema/queries/procedures + migration folding) — no toolchain needed. `[php]`
   adds `.php` comprehension + a call graph (namespaces, classes/interfaces/traits, `CALLS`,
   typed-receiver resolution) + Laravel/Slim/Symfony routes + Eloquent/Doctrine entities —

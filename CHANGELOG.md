@@ -9,6 +9,17 @@ All notable changes to this project are documented here. Format loosely follows
 Python's call graph now reaches through a typed variable, and a locked `pyjwt` closes ten
 published advisories.
 
+### Added
+
+- **Rust comprehension groundwork.** A static Cargo package/target index and semantic module
+  tree give `.rs` declarations target-scoped IDs. The graph records exact imports, explicit
+  trait implementations, fields, references, and precision-safe local calls. The optional
+  `[rust]` parser is included in `[languages]`; comprehension does not execute Cargo. The
+  stock parser census records one four-line upstream grammar error on the pinned validation
+  repository. A one-rule grammar patch now parses it cleanly and passes the Rust corpus; a
+  versioned patched wheel or upstream release is still needed before the Rust release gate
+  closes. Codegen is a separate later phase.
+
 ### Fixed
 
 - **The locked `pyjwt` moves from 2.13.0 to 2.15.1.** Ten advisories published against 2.13.0

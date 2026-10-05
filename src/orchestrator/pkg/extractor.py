@@ -108,6 +108,7 @@ DEFAULT_IGNORE_DIRS = frozenset(
         ".tox",
         "obj",  # .NET build output (generated *.g.cs, *.AssemblyInfo.cs)
         "bin",  # .NET build output
+        "target",  # Cargo build output, including generated Rust sources
         # Composer's `node_modules` (D5, php-support-roadmap.md): a Laravel app carries
         # ~10k vendored .php files, which would otherwise present a dependency as part
         # of the repo. Checked against the five pinned comprehension repos before
@@ -641,6 +642,10 @@ def default_extractors(*, sql_dialect: str | None = None) -> list[LanguageExtrac
         from orchestrator.pkg.go_extractor import GoExtractor
 
         extractors.append(GoExtractor())
+    if has_tree_sitter and importlib.util.find_spec("tree_sitter_rust"):
+        from orchestrator.pkg.rust_extractor import RustExtractor
+
+        extractors.append(RustExtractor())
     if has_tree_sitter and importlib.util.find_spec("tree_sitter_php"):
         from orchestrator.pkg.php_extractor import PhpExtractor
 
@@ -797,6 +802,10 @@ class RepoCodeExtractor:
         registered = list(dict.fromkeys(self._by_suffix.values()))
         used: list[LanguageExtractor] = []
         paths = list(self._iter_files(root_path))
+        for front_end in registered:
+            prepare = getattr(front_end, "prepare", None)
+            if callable(prepare):
+                prepare(root_path, paths)
         cpp = self._by_suffix.get(".cpp")
         cpp_headers: frozenset[str] = frozenset()
         if cpp is not None:

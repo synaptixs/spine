@@ -1,0 +1,88 @@
+{
+  "language": "rust",
+  "case": "qualified_calls",
+  "root": ".repo",
+  "why": "crate:: and super:: paths that leave the current module are exact in syntax but deferred as P2X CALLS until a reusable whole-crate resolver is proved.",
+  "nodes": [
+    {
+      "id": "rust:qualified@lib/qualified",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:qualified@lib/qualified::outer",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:qualified@lib/qualified::outer::f",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:qualified@lib/qualified::outer::inner",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:qualified@lib/qualified::outer::inner::run",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:qualified@lib/qualified::entry",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "rust:qualified@lib/qualified",
+      "dst": "rust:qualified@lib/qualified::outer",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:qualified@lib/qualified::outer",
+      "dst": "rust:qualified@lib/qualified::outer::f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:qualified@lib/qualified::outer",
+      "dst": "rust:qualified@lib/qualified::outer::inner",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:qualified@lib/qualified::outer::inner",
+      "dst": "rust:qualified@lib/qualified::outer::inner::run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:qualified@lib/qualified",
+      "dst": "rust:qualified@lib/qualified::entry",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:qualified@lib/qualified::entry",
+      "dst": "rust:qualified@lib/qualified::outer::f",
+      "kind": "CALLS"
+    },
+    {
+      "src": "rust:qualified@lib/qualified::outer::inner::run",
+      "dst": "rust:qualified@lib/qualified::outer::f",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "rust:qualified@lib/qualified::entry",
+        "dst": "rust:qualified@lib/qualified::outer::f",
+        "kind": "CALLS"
+      },
+      "why": "P2X deferred: exact cross-module CALLS are outside the Core guarantee."
+    },
+    {
+      "edge": {
+        "src": "rust:qualified@lib/qualified::outer::inner::run",
+        "dst": "rust:qualified@lib/qualified::outer::f",
+        "kind": "CALLS"
+      },
+      "why": "P2X deferred: exact cross-module CALLS are outside the Core guarantee."
+    }
+  ],
+  "refusals": []
+}

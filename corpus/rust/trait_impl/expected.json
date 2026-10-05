@@ -1,0 +1,32 @@
+{
+  "language": "rust",
+  "case": "trait_impl",
+  "root": ".repo",
+  "why": "A default trait method, a required method, its override, an inherent method, and a supertrait carry distinct grounded identities.",
+  "nodes": [
+    {"id": "rust:traits@lib/traits", "kind": "Module"},
+    {"id": "rust:traits@lib/traits::Base", "kind": "Type"},
+    {"id": "rust:traits@lib/traits::Base::base", "kind": "Function"},
+    {"id": "rust:traits@lib/traits::Show", "kind": "Type"},
+    {"id": "rust:traits@lib/traits::Show::show", "kind": "Function"},
+    {"id": "rust:traits@lib/traits::Show::fallback", "kind": "Function"},
+    {"id": "rust:traits@lib/traits::Item", "kind": "Type"},
+    {"id": "rust:traits@lib/traits::Item::<Show>::show", "kind": "Function"},
+    {"id": "rust:traits@lib/traits::Item::own", "kind": "Function"}
+  ],
+  "edges": [
+    {"src": "rust:traits@lib/traits", "dst": "rust:traits@lib/traits::Base", "kind": "CONTAINS"},
+    {"src": "rust:traits@lib/traits::Base", "dst": "rust:traits@lib/traits::Base::base", "kind": "CONTAINS"},
+    {"src": "rust:traits@lib/traits", "dst": "rust:traits@lib/traits::Show", "kind": "CONTAINS"},
+    {"src": "rust:traits@lib/traits::Show", "dst": "rust:traits@lib/traits::Show::show", "kind": "CONTAINS"},
+    {"src": "rust:traits@lib/traits::Show", "dst": "rust:traits@lib/traits::Show::fallback", "kind": "CONTAINS"},
+    {"src": "rust:traits@lib/traits", "dst": "rust:traits@lib/traits::Item", "kind": "CONTAINS"},
+    {"src": "rust:traits@lib/traits::Item", "dst": "rust:traits@lib/traits::Item::<Show>::show", "kind": "CONTAINS"},
+    {"src": "rust:traits@lib/traits::Item", "dst": "rust:traits@lib/traits::Item::own", "kind": "CONTAINS"},
+    {"src": "rust:traits@lib/traits::Show", "dst": "rust:traits@lib/traits::Base", "kind": "IMPLEMENTS"},
+    {"src": "rust:traits@lib/traits::Item", "dst": "rust:traits@lib/traits::Base", "kind": "IMPLEMENTS"},
+    {"src": "rust:traits@lib/traits::Item", "dst": "rust:traits@lib/traits::Show", "kind": "IMPLEMENTS"}
+  ],
+  "known_gaps": [],
+  "refusals": []
+}

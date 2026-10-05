@@ -4,6 +4,9 @@ This is Spine doing the whole job on a **real, public codebase you can clone you
 [`pallets/click`](https://github.com/pallets/click). Every command below is one you can run, and
 **every output on this page is real** — copied from an actual run, not illustrated.
 
+This worked example uses Python. The separate [Rust comprehension validation](docs/evals/rust-comprehension-validation.md)
+records Cargo target and module extraction on pinned Rust repositories; Rust codegen is not part of this example.
+
 > **The one part that isn't:** the code-generation step near the end needs a model API key, so its
 > output is shown as a shape rather than a transcript. It's clearly marked. Everything before it is
 > deterministic, needs no credentials, and will produce the **same output for you** — that's the

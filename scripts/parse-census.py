@@ -44,6 +44,7 @@ _IGNORE_DIRS = frozenset(
         "venv",
         "dist",
         "build",
+        "target",
         "__pycache__",
         ".mypy_cache",
         ".pytest_cache",

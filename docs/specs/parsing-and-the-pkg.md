@@ -77,7 +77,7 @@ distinctive syntax and can be overridden with `--dialect`.
 ## 3. Resolution — the only place a front-end may be wrong
 
 Parsing is not where accuracy is lost. **Every node kind and every edge kind except `CALLS`
-scores 1.00 precision and 1.00 recall on the corpus, in all 12 languages.** Structure is
+scores 1.00 precision and 1.00 recall on the corpus, in all 13 languages.** Structure is
 either in the tree or it is not.
 
 > **Read that sentence as the conditional it is: 1.00 *on the corpus*.** It held at 1.00 for
@@ -503,9 +503,9 @@ The parser choice is not an aesthetic preference. It is what makes the accuracy 
 
 | | Result |
 |---|---|
-| Precision | **1.00** on every node kind and every edge kind, all 12 languages — on the corpus, which now includes the shadowed-callee shape (§3) |
+| Precision | **1.00** on every emitted node kind and every edge kind, all 13 languages — on the corpus, which now includes Rust target and module identity cases plus the shadowed-callee shape (§3) |
 | Recall | 1.00 on every kind except `CALLS` |
-| `CALLS` recall | 1.00 (c, sql, cpp with clang) · 0.97 (javascript) · 0.92 (java) · 0.89 (csharp, perl, python) · 0.87 (kotlin) · 0.86 (typescript) · 0.75 (go, php) |
+| `CALLS` recall | 1.00 (c, sql, cpp with clang) · 0.97 (javascript) · 0.92 (java) · 0.89 (csharp, perl, python) · 0.87 (kotlin) · 0.86 (typescript) · 0.75 (go, php) · 0.57 (rust, 4/7 labelled edges) |
 | Invention | **0** on this repo, and **0** across 11 pinned public repos in 6 front-ends (2026-08-24). Java and SQL are recorded *not-applicable* with reasons rather than scored 0 |
 | Invention gate | **`strict`, zero per language** — the one metric gated on an absolute value rather than against the baseline, because it is the one with a correct value |
 

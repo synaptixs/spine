@@ -1,0 +1,5 @@
+[package]
+name="app"
+version="0.1.0"
+[dependencies]
+renamed={package="shared",path="../shared"}

@@ -1,0 +1,43 @@
+{
+  "language": "rust",
+  "case": "cfg_macro",
+  "root": ".repo",
+  "why": "Configuration-agnostic source keeps the canonical declaration but suppresses ambiguous CALLS; macro-generated declarations remain absent without expansion.",
+  "nodes": [
+    {
+      "id": "rust:cfg-macro@lib/cfg_macro",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:cfg-macro@lib/cfg_macro::f",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:cfg-macro@lib/cfg_macro::platform",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "rust:cfg-macro@lib/cfg_macro",
+      "dst": "rust:cfg-macro@lib/cfg_macro::f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:cfg-macro@lib/cfg_macro",
+      "dst": "rust:cfg-macro@lib/cfg_macro::platform",
+      "kind": "CONTAINS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "rust:cfg-macro@lib/cfg_macro::f",
+        "dst": "rust:cfg-macro@lib/cfg_macro::platform",
+        "kind": "CALLS"
+      },
+      "why": "Mutually exclusive cfg variants share one canonical ID; choosing one is not justified by source alone."
+    }
+  ]
+}

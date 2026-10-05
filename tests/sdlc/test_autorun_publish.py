@@ -32,6 +32,11 @@ def _isolate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("SDLC_RUN_BUDGET_USD", raising=False)
     monkeypatch.setattr("orchestrator.core.env.load_local_env", lambda *a, **k: 0)
 
+    async def _add_worklog(*_args: Any, **_kwargs: Any) -> None:
+        return
+
+    monkeypatch.setattr("orchestrator.intake.jira.JiraAdapter.add_worklog", _add_worklog)
+
 
 SPEC = {"title": "Add CSV export", "intent_id": "intent-a", "summary": "s", "acceptance_criteria": ["c"]}
 
@@ -182,6 +187,23 @@ def test_the_pr_opens_after_the_review_with_its_fixes_committed(
     names = [s.name for s in ctx.stages]
     assert names.index("review") < names.index("publish")
     assert ctx.passed
+
+
+def test_worklog_transport_failure_does_not_fail_published_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import httpx
+
+    async def _offline(*_args: Any, **_kwargs: Any) -> None:
+        raise httpx.ConnectError("offline")
+
+    monkeypatch.setattr("orchestrator.intake.jira.JiraAdapter.add_worklog", _offline)
+    seen = _install(monkeypatch, tmp_path, outcome=CLEAN)
+
+    ctx = _run(tmp_path)
+
+    assert ctx.passed
+    assert len(seen["published"].calls) == 1
 
 
 def test_a_review_that_changed_nothing_adds_no_commit(

@@ -884,8 +884,8 @@ def test_an_unmeasured_language_is_named_rather_than_dropped() -> None:
     """Silence reads as "no gap here". Unmeasured is not zero, and it is not perfect either."""
     from orchestrator.sdlc.builddoc import _blast_prose
 
-    prose = _blast_prose({"call_graph_available": True, "modules": [], "languages": ["rust"]}, "python")
-    assert "No corpus measurement exists for rust" in prose
+    prose = _blast_prose({"call_graph_available": True, "modules": [], "languages": ["ruby"]}, "python")
+    assert "No corpus measurement exists for ruby" in prose
     assert "unknown, not perfect" in prose
     assert "0.00" not in prose
 
@@ -1016,7 +1016,7 @@ def test_an_unmeasured_language_keeps_the_original_wording() -> None:
     """
     from orchestrator.sdlc.builddoc import _blast_prose
 
-    prose = _blast_prose({"call_graph_available": True, "modules": []}, "rust")
+    prose = _blast_prose({"call_graph_available": True, "modules": []}, "ruby")
     assert "per-method counts can under-report" in prose
     assert "Measured `CALLS` recall" not in prose
     assert "0.00" not in prose

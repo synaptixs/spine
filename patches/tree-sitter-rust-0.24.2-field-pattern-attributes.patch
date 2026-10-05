@@ -1,0 +1,56 @@
+diff --git a/grammar.js b/grammar.js
+index 4a0ff4b..c3ae00d 100644
+--- a/grammar.js
++++ b/grammar.js
+@@ -1442,4 +1442,5 @@ module.exports = grammar({
+     field_pattern: $ => seq(
++      repeat($.attribute_item),
+       optional('ref'),
+       optional($.mutable_specifier),
+       choice(
+diff --git a/test/corpus/attributes_on_struct_patterns.txt b/test/corpus/attributes_on_struct_patterns.txt
+new file mode 100644
+index 0000000..d54bd45
+--- /dev/null
++++ b/test/corpus/attributes_on_struct_patterns.txt
+@@ -0,0 +1,40 @@
++================================================================================
++Attributes on struct pattern fields
++================================================================================
++
++fn unpack(value: JSONOutput) {
++    let JSONOutput {
++        syntax_grammar,
++        #[cfg(feature = "load")]
++        node_types_json,
++        str_pool,
++    } = value;
++}
++
++--------------------------------------------------------------------------------
++
++(source_file
++  (function_item
++    (identifier)
++    (parameters
++      (parameter
++        (identifier)
++        (type_identifier)))
++    (block
++      (let_declaration
++        (struct_pattern
++          (type_identifier)
++          (field_pattern
++            (shorthand_field_identifier))
++          (field_pattern
++            (attribute_item
++              (attribute
++                (identifier)
++                (token_tree
++                  (identifier)
++                  (string_literal
++                    (string_content)))))
++            (shorthand_field_identifier))
++          (field_pattern
++            (shorthand_field_identifier)))
++        (identifier)))))
