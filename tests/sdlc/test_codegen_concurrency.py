@@ -20,7 +20,6 @@ from typing import Any
 import pytest
 
 import orchestrator.sdlc.codegen as codegen
-from orchestrator.sdlc.codegen import CodeChange, LLMCodegenAdapter
 from orchestrator.sdlc.scope import EditScope
 
 _SCOPE = EditScope(files=("src/a.py",), confident=True)
@@ -38,12 +37,12 @@ class _Harness:
         self.calls: dict[str, int] = {}
         self.tmp = tmp_path
 
-        def _record(files: Any, root: Path, **kw: Any) -> CodeChange:
+        def _record(files: Any, root: Path, **kw: Any) -> codegen.CodeChange:
             self.applied.append((Path(root).name, kw.get("editable_existing"), kw.get("scope")))
-            return CodeChange(summary="recorded")
+            return codegen.CodeChange(summary="recorded")
 
         monkeypatch.setattr(codegen, "apply_files", _record)
-        self.adapter = LLMCodegenAdapter(object(), edit_scope=_SCOPE)  # type: ignore[arg-type]
+        self.adapter = codegen.LLMCodegenAdapter(object(), edit_scope=_SCOPE)  # type: ignore[arg-type]
         self.adapter._complete = self._complete  # type: ignore[method-assign]
 
     async def _complete(self, system: str, user: str) -> str:
@@ -72,12 +71,12 @@ class _Harness:
         return [(e, s) for root, e, s in self.applied if root == name]
 
 
-def _refine(h: _Harness, root: Path, key: str, module: str) -> asyncio.Task[CodeChange]:
+def _refine(h: _Harness, root: Path, key: str, module: str) -> asyncio.Task[codegen.CodeChange]:
     failures = f'File "src/{module}", line 1\nAssertionError: boom'
     return asyncio.create_task(h.adapter.refine(spec=_SPEC, path=str(root), issue_key=key, failures=failures))
 
 
-def _implement(h: _Harness, root: Path, key: str) -> asyncio.Task[CodeChange]:
+def _implement(h: _Harness, root: Path, key: str) -> asyncio.Task[codegen.CodeChange]:
     return asyncio.create_task(h.adapter.implement(spec=_SPEC, path=str(root), issue_key=key))
 
 
