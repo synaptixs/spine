@@ -12,8 +12,10 @@ All notable changes to this project are documented here. Format loosely follows
   tree give `.rs` declarations target-scoped IDs. The graph records exact imports, explicit
   trait implementations, fields, references, and precision-safe local calls. The optional
   `[rust]` parser is included in `[languages]`; comprehension does not execute Cargo. The
-  parser census still records one four-line upstream grammar error on the pinned validation
-  repository, so the Rust release gate remains open. Codegen is a separate later phase.
+  stock parser census records one four-line upstream grammar error on the pinned validation
+  repository. A one-rule grammar patch now parses it cleanly and passes the Rust corpus; a
+  versioned patched wheel or upstream release is still needed before the Rust release gate
+  closes. Codegen is a separate later phase.
 
 ### Fixed
 

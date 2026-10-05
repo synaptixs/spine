@@ -1,15 +1,32 @@
-# Rust comprehension validation — 2026-10-04
+# Rust comprehension validation — 2026-10-04; grammar recheck 2026-10-05
 
 **Branch:** `codex/rust-comprehension` (Part A, before codegen). This is an implementation and validation record, not a release sign-off. Rust codegen, Cargo execution, build and test selection are outside this branch.
 
 ## Pinned repositories and grammar
 
-| Repository | Ref and commit | Rust files | Grammar errors |
-|---|---|---:|---:|
-| [Synaptreesitter](https://github.com/synaptixs/Synaptreesitter) | explicit `master`, `867aa6d14418163560bf89f12c48107098b1ec8f` | 109 | 1 file, 4 of 63,981 source lines |
-| [itoa](https://github.com/dtolnay/itoa) | explicit `master`, `1577ed901354d0d7448ac162328f9dbf5183124c` | 5 | 0 of 630 source lines |
+| Repository | Ref and commit | Rust files | Stock 0.24.2 errors | Patched errors |
+|---|---|---:|---:|---:|
+| [Synaptreesitter](https://github.com/synaptixs/Synaptreesitter) | explicit `master`, `867aa6d14418163560bf89f12c48107098b1ec8f` | 109 | 1 file, 4 of 63,981 source lines | 0 files, 0 lines |
+| [itoa](https://github.com/dtolnay/itoa) | explicit `master`, `1577ed901354d0d7448ac162328f9dbf5183124c` | 5 | 0 of 630 source lines | 0 files, 0 lines |
 
-The environment uses `tree-sitter-rust 0.24.2`. Run `python scripts/parse-census.py tree_sitter_rust <checkout> --suffix .rs --json` to reproduce the parser ceiling. Synaptreesitter's error is in `crates/generate/src/generate.rs`, around lines 517–520, where a `#[cfg(feature = "load")]` attribute occurs on a struct destructuring field. Both 0.24.1 and 0.24.2 report it. The parser emits a partial tree; facts in that span cannot be claimed complete. This holds P0 open. The installed grammar version should be reconsidered when an upstream grammar parses the pinned source cleanly.
+The installed `tree-sitter-rust 0.24.2` has an error in `crates/generate/src/generate.rs`, around lines 517–520, where a `#[cfg(feature = "load")]` attribute occurs on a struct destructuring field. Version 0.24.1 has the same error. The stock parser emits a partial tree, so facts in that span cannot be claimed complete. A source patch now parses both pinned repositories cleanly, but the optional `[rust]` extra still installs the stock PyPI wheel; P0 stays open until a patched wheel or upstream release is pinned.
+
+## Grammar patch — tested 2026-10-05
+
+The latest published [upstream release](https://github.com/tree-sitter/tree-sitter-rust/releases) is v0.24.2, commit `77a3747266f4d621d0757825e6b11edcbf991ca5`. The [local patch](../../patches/tree-sitter-rust-0.24.2-field-pattern-attributes.patch) adds `repeat($.attribute_item)` at the start of `field_pattern` and an upstream-style regression case. This admits Rust attributes on struct pattern fields, which the 0.24.2 grammar omitted. The full upstream grammar corpus passes `tree-sitter test` (152/152, including the new case). The generated parser was built into an isolated Python binding and loaded ahead of the stock wheel via `PYTHONPATH`; Spine's dependency and lockfile were not changed by this experiment.
+
+Reproduce from an upstream v0.24.2 source checkout, with Tree-sitter CLI 0.26.7 and a C compiler:
+
+```bash
+git apply /absolute/path/to/spine/patches/tree-sitter-rust-0.24.2-field-pattern-attributes.patch
+tree-sitter generate
+tree-sitter test --file-name attributes_on_struct_patterns.txt
+python setup.py build_ext --inplace
+```
+
+On this macOS host, the Command Line Tools SDK linker rejected `arm64e.x1`. The successful Python build used Homebrew LLVM `clang` with `LDFLAGS=-isysroot` pointing to the Xcode 26.2 SDK. The patched binding was loaded from `bindings/python` in the checkout. With that binding on `PYTHONPATH`, `parse-census.py tree_sitter_rust ... --suffix .rs --json` reported 109/109 clean files and 0/63,981 error lines for Synaptreesitter, and 5/5 clean files and 0/630 error lines for itoa.
+
+The eleven Rust corpus cases still have 1.00 precision for every emitted node and edge kind; `CALLS` recall remains 4/7 with the same three declared gaps. The full `pkg accuracy --check` reports **0 gated regressions**. Rust-only extraction on pinned Synaptreesitter remains 4,701 nodes, 8,186 edges, and zero `verify_batch` errors or warnings. This proves the syntax fix against the pinned source and current corpus; it does not make the stock 0.24.2 installation parse that source cleanly.
 
 The host has no `cargo` or `rustc`. The static Cargo index was hand-checked against manifests, but `cargo metadata`, Synaptreesitter's `make lint` and `make test`, and the roadmap's toolchain baseline have not run. No build or test result is implied by extraction.
 
@@ -42,7 +59,7 @@ The public repositories must be checked out at the exact SHAs above; do not foll
 
 ## Open release gates
 
-1. Find a Rust grammar version or fix that parses the pinned Synaptreesitter source without the four-line error, then rerun the census and corpus. Until then P0 is not complete.
+1. Distribute the tested grammar fix as a versioned wheel or pin an upstream release that includes it, then repeat the census under the installed `[rust]` extra. The source patch and corpus recheck are complete; the stock install still has the error.
 2. Compare the static workspace/target index with `cargo metadata` on a host with the required Rust toolchain. Run the pinned repository's `make lint` and `make test` baseline there.
 3. Run the whole suite in a test environment with a writable package cache and mocked Jira transport. Review the resulting diff before calling P5 complete.
 

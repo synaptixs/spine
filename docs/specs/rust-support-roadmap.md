@@ -1,6 +1,6 @@
 # Design + Plan: adding Rust to the PKG — comprehension, then codegen
 
-**Status:** Part A implementation in progress on `codex/rust-comprehension` (2026-10-04). The parser and Cargo baseline gates remain open; see [validation evidence](../evals/rust-comprehension-validation.md).
+**Status:** Part A implementation in progress on `codex/rust-comprehension` (2026-10-05). A tested upstream grammar patch removes the parser error, but its distribution and the Cargo baseline gates remain open; see [validation evidence](../evals/rust-comprehension-validation.md).
 **Base:** spine `v3.52.0`.
 **Branch A:** `codex/rust-comprehension` off `origin/develop` (implementation branch).
 **Branch B:** `feat/rust-codegen` after comprehension merges.
