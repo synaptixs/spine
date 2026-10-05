@@ -83,7 +83,10 @@ Optional extras, added when you need them:
   SDK** (`dotnet`) on PATH; C / C++ codegen needs a C / C++ compiler plus **CMake** (greenfield) or
   **Meson + Ninja** (matching the target repo's build system); **Go** codegen needs the **`go`
   toolchain** on PATH (`go build`/`go test`). `[rust]` adds Cargo-aware `.rs` comprehension;
-  Cargo is not needed to read the graph, and Rust codegen is not yet enabled. `[sql]` adds `.sql`
+  Cargo is not needed to read the graph. Rust codegen additionally needs Cargo, rustc and
+  Rustfmt at the repository's declared MSRV or newer; Clippy is run when available and is
+  required when the repository configures it. The published grammar fix remains a release gate.
+  `[sql]` adds `.sql`
   comprehension (schema/queries/procedures + migration folding) — no toolchain needed. `[php]`
   adds `.php` comprehension + a call graph (namespaces, classes/interfaces/traits, `CALLS`,
   typed-receiver resolution) + Laravel/Slim/Symfony routes + Eloquent/Doctrine entities —

@@ -41,6 +41,7 @@ _DISPLAY_NAMES = {
     "c": "C",
     "cpp": "C++",
     "go": "Go",
+    "rust": "Rust",
     "php": "PHP",
     "perl": "Perl",
     "sql": "SQL",

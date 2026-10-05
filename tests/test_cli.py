@@ -94,9 +94,9 @@ def test_sdlc_help_lists_run(runner: CliRunner) -> None:
 
 def test_sdlc_feature_rejects_unknown_language(runner: CliRunner) -> None:
     # An unsupported --language must error (historically it silently scaffolded Python).
-    result = runner.invoke(app, ["sdlc", "feature", "--source", "jira://X-1", "--language", "rust"])
+    result = runner.invoke(app, ["sdlc", "feature", "--source", "jira://X-1", "--language", "elixir"])
     assert result.exit_code == 2
-    assert "not supported" in result.output and "rust" in result.output
+    assert "not supported" in result.output and "elixir" in result.output
 
 
 def test_sdlc_plan_rejects_unknown_language(runner: CliRunner) -> None:

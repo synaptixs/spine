@@ -32,6 +32,9 @@ from pathlib import Path
 
 from orchestrator.sdlc.contracts import TestEnvironment as TestEnvironment
 from orchestrator.sdlc.contracts import ToolchainLayout
+from orchestrator.sdlc.rust_codegen import CargoToolEnvironment as CargoToolEnvironment
+from orchestrator.sdlc.rust_codegen import cargo_toolchain_available as cargo_toolchain_available
+from orchestrator.sdlc.rust_codegen import rust_project_error as rust_project_error
 from orchestrator.sdlc.sam import RUNTIME_PROVIDED, function_requirements, sam_template
 from orchestrator.sdlc.testrunner import TestRunner, TestRunResult
 

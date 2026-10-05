@@ -61,10 +61,9 @@ The full Python suite passed in one run with a writable temporary home/cache, an
 
 The public repositories must be checked out at the exact SHAs above; do not follow Synaptreesitter's default branch implicitly. The Rust-only graph check uses `RepoCodeExtractor([RustExtractor()]).extract(root)` followed by `verify_batch(batch, root)`.
 
-## Remaining handoff gates
+## Post-merge release gate
 
-1. Merge [upstream PR #319](https://github.com/tree-sitter/tree-sitter-rust/pull/319), obtain a published grammar wheel containing the fix, pin it in `[rust]`, and repeat the census through a normal install. The source patch and corpus recheck are complete; the stock install still has the error.
-2. Review and merge the Part A branch after the installed-parser gate closes. Only then open the codegen branch per the roadmap's handoff rule.
+Spine [PR #509](https://github.com/synaptixs/spine/pull/509) merged on 2026-10-05. The codegen branch is open. The installed-parser release gate remains: merge [upstream PR #319](https://github.com/tree-sitter/tree-sitter-rust/pull/319), obtain a published grammar wheel containing the fix, pin it in `[rust]`, and repeat the census through a normal install. The stock install still has the four-line error.
 
 The Cargo metadata comparison, pinned `make test` baseline, and full Spine suite are complete. Synaptreesitter's two Clippy warnings above are recorded as an upstream lint baseline, not a Spine parser failure or a claim that `make lint` is green.
 

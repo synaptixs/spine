@@ -77,6 +77,7 @@ jobs:
             echo "::error file=README.md::Relative markdown link(s) above — use absolute https:// URLs (they 404 on PyPI)."
             fail=1
           fi
+
           if grep -nP 'src="(?!https?://)[^"]+"' README.md; then
             echo "::error file=README.md::Relative image src above — use an absolute raw.githubusercontent.com URL."
             fail=1
@@ -203,3 +204,30 @@ jobs:
             git diff --stat FETCH_HEAD HEAD -- episteme/
             exit 1
           fi
+
+  rust-codegen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Set up Rust 1.90 with Rustfmt and Clippy
+        run: |
+          rustup toolchain install 1.90.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.90.0
+          rustc --version
+          cargo fmt --version
+          cargo clippy --version
+
+      - name: Install project
+        run: uv sync --extra dev
+
+      - name: Real Cargo codegen gates
+        run: uv run pytest -q tests/sdlc/test_rust_integration.py

@@ -31,6 +31,7 @@ from orchestrator.sdlc.contracts import Baseline as Baseline
 from orchestrator.sdlc.contracts import PreflightResult as PreflightResult
 from orchestrator.sdlc.contracts import PreflightRunner as PreflightRunner
 from orchestrator.sdlc.process import _SECRET_ENV_PREFIXES, ExecCapture, exec_capture
+from orchestrator.sdlc.rust_codegen import RustPreflightRunner as RustPreflightRunner
 
 _MAX_OUTPUT_CHARS = 4000
 _TOOL_TIMEOUT = 180.0

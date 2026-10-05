@@ -133,6 +133,16 @@ class TargetLayout:
     # the root. The test environment and runner work from here — `npm test` at a root with no
     # `package.json` runs nothing. `source_dir` and `tests_dir` already include it.
     project_dir: str = ""
+    # Cargo target identity and repository toolchain constraints (Rust only).
+    workspace_root: str = ""
+    package_root: str = ""
+    target_kind: str = ""
+    target_name: str = ""
+    target_source: str = ""
+    edition: str = ""
+    rust_version: str = ""
+    cargo_lock: bool = False
+    toolchain_file: str = ""
 
     def module_rel_path(self, module: str) -> str:
         """Worktree-relative path for a new source module/class (no leading dir)."""
@@ -841,6 +851,7 @@ SOURCE_SUFFIXES_BY_LANGUAGE: dict[str, frozenset[str]] = {
     "kotlin": frozenset({".kt"}),
     "typescript": frozenset({".ts", ".tsx"}),
     "go": frozenset({".go"}),
+    "rust": frozenset({".rs"}),
     "c": frozenset({".c", ".h"}),
     "cpp": frozenset({".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx"}),
     "perl": frozenset({".pl", ".pm"}),
@@ -1362,6 +1373,21 @@ def _resolve_go_layout(
     return TargetLayout(derived, ".", ".", False, "new", language="go", build_tool="go")
 
 
+def _resolve_rust_layout(
+    root: Path,
+    *,
+    mode: str,
+    package_name: str | None,
+    repo: str | None,
+    prefer_paths: Sequence[str] = (),
+) -> TargetLayout:
+    from orchestrator.sdlc.rust_codegen import resolve_rust_layout
+
+    return resolve_rust_layout(
+        root, mode=mode, package_name=package_name, repo=repo, prefer_paths=prefer_paths
+    )
+
+
 def detect_php_layout(root: Path) -> tuple[str, str, str] | None:
     """Composer, PHPUnit config, or loose PHP source marks an existing project."""
     from orchestrator.sdlc.php import php_files, read_composer, read_phpunit_config, safe_relative
@@ -1433,6 +1459,7 @@ LOOKED_FOR: dict[str, str] = {
     "kotlin": "no `src/main/kotlin` source tree (the Gradle layout)",
     "typescript": "no `package.json`",
     "go": "no `go.mod`",
+    "rust": "no `Cargo.toml`",
     "c": "no `CMakeLists.txt`, `meson.build` or `Makefile`",
     "cpp": "no `CMakeLists.txt`, `meson.build` or `Makefile`",
     # Loose Perl and PHP source already resolves `existing`, so these two are reached only if a

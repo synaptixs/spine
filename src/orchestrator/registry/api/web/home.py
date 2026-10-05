@@ -65,8 +65,9 @@ def _cards_html() -> str:
 _CAPS: tuple[tuple[str, str, str], ...] = (
     (
         "terminal",
-        "Ten languages",
-        "Python, Java, Kotlin, TypeScript, C#, C, C++, Go, PHP and Perl (plus SQL data-layer).",
+        "Eleven languages",
+        "Python, Java, Kotlin, TypeScript, C#, C, C++, Go, PHP and Perl; "
+        "Rust codegen is in validation (plus SQL data-layer).",
     ),
     (
         "branch",

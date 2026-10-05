@@ -636,6 +636,8 @@ def _is_test_path(rel: str) -> bool:
         or (path.suffix in (".kt", ".kts", ".java", ".go") and stem.endswith(("Test", "Tests", "Spec")))
         or path.suffix == ".go"
         and stem.endswith("_test")
+        or path.suffix == ".rs"
+        and (stem.endswith("_test") or "tests" in parts)
         # `tests/` is the Python/PHP convention; Gradle and Maven both use `src/test/`.
         or bool(parts & {"tests", "test", "androidtest"})
     )

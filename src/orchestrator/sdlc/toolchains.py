@@ -124,6 +124,13 @@ def _go_runner(env: TestEnvironment) -> TestRunner:
     )
 
 
+def _cargo_runner(env: TestEnvironment) -> TestRunner:
+    return cast(
+        "TestRunner",
+        _load("rust_codegen", "CargoTestRunner")(project_dir=getattr(env, "project_dir", "")),
+    )
+
+
 def _php_runner(env: TestEnvironment) -> TestRunner:
     return cast(
         "TestRunner",
@@ -382,6 +389,23 @@ TOOLCHAINS: Mapping[str, Toolchain] = MappingProxyType(
             available=_probe("go_toolchain_available"),
             auto_priority=4,
             missing_hint="Go codegen needs the Go toolchain (`go`) on PATH (install it, then retry).",
+        ),
+        "rust": Toolchain(
+            "rs",
+            _layout("_resolve_rust_layout"),
+            _scaffold("_rust_files"),
+            _environment("CargoToolEnvironment"),
+            _cargo_runner,
+            _prompts("_RUST"),
+            "rust_guidance",
+            available=_probe("cargo_toolchain_available"),
+            project_error=_project_probe("rust_project_error"),
+            preflight=_preflight("RustPreflightRunner", argument="cargo"),
+            auto_priority=4,
+            missing_hint=(
+                "Rust codegen needs Cargo, rustc and Rustfmt on PATH; install a Rust "
+                "toolchain that satisfies the repository's rust-version, then retry."
+            ),
         ),
         "kotlin": Toolchain(
             "kt",
