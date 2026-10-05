@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from orchestrator.catalog import ProjectProfile, task_type_from_intent
 
 
@@ -201,3 +203,36 @@ def test_a_blazor_project_is_named_blazor_not_aspnet(tmp_path: Path) -> None:
     prof = ProjectProfile.from_repo(tmp_path)
     assert "csharp" in prof.languages
     assert prof.framework == "blazor"
+
+
+def test_rust_virtual_workspace_profiles_member_manifests(tmp_path: Path) -> None:
+    _write(tmp_path, "Cargo.toml", '[workspace]\nmembers=["crates/*"]\n')
+    _write(
+        tmp_path,
+        "crates/server/Cargo.toml",
+        '[package]\nname="server"\nversion="0.1.0"\n[dependencies]\naxum="0.8"\ntokio="1"\n',
+    )
+    _write(tmp_path, "crates/server/src/lib.rs", "pub fn serve() {}\n")
+    profile = ProjectProfile.from_repo(tmp_path)
+    assert profile.languages == frozenset({"rust"})
+    assert profile.framework == "axum"
+    assert profile.test_runner == "cargo"
+
+
+def test_tokio_is_not_a_web_framework(tmp_path: Path) -> None:
+    _write(tmp_path, "Cargo.toml", '[package]\nname="worker"\nversion="0.1.0"\n[dependencies]\ntokio="1"\n')
+    _write(tmp_path, "src/main.rs", "fn main() {}\n")
+    profile = ProjectProfile.from_repo(tmp_path)
+    assert profile.framework is None
+    assert profile.test_runner == "cargo"
+
+
+@pytest.mark.parametrize("dependency,framework", [("actix-web", "actix"), ("rocket", "rocket")])
+def test_rust_web_framework_dependencies(tmp_path: Path, dependency: str, framework: str) -> None:
+    _write(
+        tmp_path,
+        "Cargo.toml",
+        f'[package]\nname="server"\nversion="0.1.0"\n[dependencies]\n"{dependency}"="1"\n',
+    )
+    _write(tmp_path, "src/lib.rs", "pub fn serve() {}\n")
+    assert ProjectProfile.from_repo(tmp_path).framework == framework

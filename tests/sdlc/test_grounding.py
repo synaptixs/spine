@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from orchestrator.core.llm import CompletionResult, Message
 from orchestrator.pkg import (
     FactBatch,
@@ -81,6 +83,17 @@ def test_context_empty_when_repo_has_nothing_relevant(tmp_path: Path) -> None:
     (tmp_path / "webhook.py").write_text(UNRELATED, encoding="utf-8")
     grounder = PKGCodegenGrounder.from_repo(tmp_path)
     assert grounder.context_for_spec(SPEC) == ""
+
+
+def test_rust_symbol_source_uses_rust_fence(tmp_path: Path) -> None:
+    pytest.importorskip("tree_sitter_rust", reason="install the 'rust' extra")
+    (tmp_path / "Cargo.toml").write_text('[package]\nname="demo"\nversion="0.1.0"\n')
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "lib.rs").write_text("pub struct Widget;\n", encoding="utf-8")
+    context = PKGCodegenGrounder.from_repo(tmp_path, use_cache=False).context_for_symbols(["Widget"])
+    assert "rust:demo@lib/demo::Widget" in context
+    assert "```rust\npub struct Widget;" in context
 
 
 def test_context_folds_in_documentation_for_reused_symbols(tmp_path: Path) -> None:

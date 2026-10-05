@@ -41,7 +41,7 @@ jobs:
       # someone who had installed the extra locally. An optional extra the repo ships code
       # for is not optional to test.
       #
-      # The seven language extras, for the same reason and one sharper one. Without them only
+      # The language extras, for the same reason and one sharper one. Without them only
       # `python` and `sql` front-ends register, so:
       #   * the tree-sitter tests skip — a tree-sitter API change lands green;
       #   * and `pkg accuracy` cannot score any corpus case for those languages. The
@@ -60,7 +60,7 @@ jobs:
         run: >-
           uv sync --extra dev --extra mcp
           --extra typescript --extra java --extra csharp
-          --extra c --extra cpp --extra go --extra php --extra perl --extra kotlin --extra clang
+          --extra c --extra cpp --extra go --extra rust --extra php --extra perl --extra kotlin --extra clang
 
       - name: Lint (ruff)
         run: uv run ruff check .

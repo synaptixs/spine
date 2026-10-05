@@ -134,6 +134,7 @@ def test_deleted_file_makes_all_its_facts_stale(tmp_path: Path) -> None:
 _SOURCES: dict[str, tuple[str, str, str]] = {
     # suffix: (grammar module to skip on, filename, source)
     ".go": ("tree_sitter_go", "main.go", 'package main\n\nfunc Greet() string {\n\treturn "hi"\n}\n'),
+    ".rs": ("tree_sitter_rust", "lib.rs", 'pub fn greet() -> &\'static str { "hi" }\n'),
     ".ts": (
         "tree_sitter_typescript",
         "app.ts",
@@ -219,16 +220,16 @@ def test_a_language_with_no_front_end_is_skipped_not_judged(tmp_path: Path) -> N
     """Silence over fiction — and on a base install this is *every* non-Python file."""
     repo = tmp_path / "repo"
     repo.mkdir()
-    (repo / "lib.rs").write_text('pub fn greet() -> &\'static str { "hi" }\n', encoding="utf-8")
-    # Rust has no front-end, so nothing extracts it: assert the recorded fact by hand,
+    (repo / "lib.rb").write_text('def greet\n  "hi"\nend\n', encoding="utf-8")
+    # Ruby has no front-end, so nothing extracts it: assert the recorded fact by hand,
     # which is also what a graph carried over from a build that *did* know the file looks
     # like.
     batch = FactBatch()
-    batch.add_node(Node("rs:lib.greet", NodeKind.FUNCTION, "greet", "code", Provenance("lib.rs", 1)))
+    batch.add_node(Node("rb:lib.greet", NodeKind.FUNCTION, "greet", "code", Provenance("lib.rb", 1)))
 
     verifier = GroundingVerifier(batch)
-    assert verifier.stale_findings(repo, ["lib.rs"]) == []
-    assert verifier.skipped_freshness == ["lib.rs"]
+    assert verifier.stale_findings(repo, ["lib.rb"]) == []
+    assert verifier.skipped_freshness == ["lib.rb"]
 
 
 def test_a_file_its_own_front_end_cannot_parse_is_still_stale(tmp_path: Path) -> None:

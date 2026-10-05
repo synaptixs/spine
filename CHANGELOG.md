@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Added
+
+- **Rust comprehension groundwork.** A static Cargo package/target index and semantic module
+  tree give `.rs` declarations target-scoped IDs. The graph records exact imports, explicit
+  trait implementations, fields, references, and precision-safe local calls. The optional
+  `[rust]` parser is included in `[languages]`; comprehension does not execute Cargo. The
+  parser census still records one four-line upstream grammar error on the pinned validation
+  repository, so the Rust release gate remains open. Codegen is a separate later phase.
+
 ### Fixed
 
 - **The locked `pyjwt` moves from 2.13.0 to 2.15.1.** Ten advisories published against 2.13.0

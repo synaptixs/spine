@@ -1,0 +1,48 @@
+{
+  "language": "rust",
+  "case": "external_impl",
+  "root": ".repo",
+  "why": "The external concrete owner stays an external placeholder; the impl method itself is grounded at its source line.",
+  "nodes": [
+    {
+      "id": "rust:external-impl@lib/external_impl",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:external-impl@lib/external_impl::Local",
+      "kind": "Type"
+    },
+    {
+      "id": "rust:external-impl@lib/external_impl::Local::run",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:external-impl@lib/external_impl::std::path::PathBuf::<Local>::run",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "rust:external-impl@lib/external_impl",
+      "dst": "rust:external-impl@lib/external_impl::Local",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:external-impl@lib/external_impl::Local",
+      "dst": "rust:external-impl@lib/external_impl::Local::run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:external-impl@lib/external_impl::std::path::PathBuf",
+      "dst": "rust:external-impl@lib/external_impl::std::path::PathBuf::<Local>::run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:external-impl@lib/external_impl::std::path::PathBuf",
+      "dst": "rust:external-impl@lib/external_impl::Local",
+      "kind": "IMPLEMENTS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": []
+}

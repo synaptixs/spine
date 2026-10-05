@@ -313,16 +313,16 @@ def test_c_is_the_control_and_stays_clean(tmp_path: Path) -> None:
 def test_a_language_with_no_walker_is_unwalked_not_clean() -> None:
     """The failure this project keeps having: a 0 that means 'nothing ran'."""
     batch = FactBatch()
-    batch.add_node(Node("rust:a.f", NodeKind.FUNCTION, "f", "rust", Provenance("a.rs", 1)))
-    batch.add_node(Node("rust:a.g", NodeKind.FUNCTION, "g", "rust", Provenance("a.rs", 2)))
-    batch.add_edge(Edge("rust:a.f", "rust:a.g", EdgeKind.CALLS, Provenance("a.rs", 2)))
+    batch.add_node(Node("ruby:a.f", NodeKind.FUNCTION, "f", "ruby", Provenance("a.rb", 1)))
+    batch.add_node(Node("ruby:a.g", NodeKind.FUNCTION, "g", "ruby", Provenance("a.rb", 2)))
+    batch.add_edge(Edge("ruby:a.f", "ruby:a.g", EdgeKind.CALLS, Provenance("a.rb", 2)))
 
     report = find_invented_calls(batch, Path("."))
-    entry = next(e for e in report.by_language if e.language == "rust")
+    entry = next(e for e in report.by_language if e.language == "ruby")
     assert entry.status == UNWALKED
     assert entry.total_calls == 1
     assert entry.unexamined == 1
-    assert report.unmeasured_languages == ("rust",)
+    assert report.unmeasured_languages == ("ruby",)
 
 
 def test_java_and_sql_are_excluded_with_a_stated_reason() -> None:

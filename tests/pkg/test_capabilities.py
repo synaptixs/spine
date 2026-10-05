@@ -136,6 +136,12 @@ _FIXTURES: dict[str, tuple[str, str]] = {
         'package demo\n\nimport "fmt"\n\ntype Thing struct{ Name string }\n\n'
         "func (t Thing) Go() { fmt.Println(t.Name) }\n",
     ),
+    "rust": (
+        "sample.rs",
+        "struct Thing { name: String }\ntrait Named { fn name(&self) -> &str; }\n"
+        "impl Named for Thing { fn name(&self) -> &str { &self.name } }\n"
+        "fn run() { let value = Thing { name: String::new() }; value.name(); }\n",
+    ),
     "c": ("sample.c", '#include <stdio.h>\n\nstruct Thing { int n; };\n\nvoid go(void) { printf("x"); }\n'),
     "cpp": (
         "sample.cpp",

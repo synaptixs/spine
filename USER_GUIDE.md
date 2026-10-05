@@ -239,7 +239,9 @@ is: `orchestrator understand .` → commit `episteme/`, then re-run whenever the
 > greenfield projects.
 
 > **Multi-language.** Comprehension covers Python, Java, TypeScript, JavaScript, C#, C, C++,
-> Go, PHP, Perl, Kotlin and SQL. Install the matching [SETUP extras](SETUP.md#optional-extras).
+> Go, Rust, PHP, Perl, Kotlin and SQL. Install the matching [SETUP extras](SETUP.md#optional-extras).
+> Rust comprehension reads Cargo target and semantic module identities without running Cargo;
+> Rust code generation and build/test execution are a later phase.
 > Kotlin reads `.kt` only — a `.kts` Gradle script is a build DSL, not source, so it gets a
 > separate reader that turns `include(":core:data")` and `project(":core:model")` into a
 > module dependency graph instead of parsing it as code. It also reads the Android data

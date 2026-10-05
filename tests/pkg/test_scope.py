@@ -15,10 +15,19 @@ import pytest
 
 from orchestrator.pkg.scope import NOT_APPLICABLE, WALKERS, scopes_for_source
 
-_SUFFIX = {"typescript": ".ts", "go": ".go", "csharp": ".cs", "cpp": ".cpp", "c": ".c", "kotlin": ".kt"}
+_SUFFIX = {
+    "typescript": ".ts",
+    "go": ".go",
+    "rust": ".rs",
+    "csharp": ".cs",
+    "cpp": ".cpp",
+    "c": ".c",
+    "kotlin": ".kt",
+}
 _EXTRA = {
     "typescript": "tree_sitter_typescript",
     "go": "tree_sitter_go",
+    "rust": "tree_sitter_rust",
     "csharp": "tree_sitter_c_sharp",
     "cpp": "tree_sitter_cpp",
     "c": "tree_sitter_c",
@@ -278,3 +287,16 @@ def test_kotlin_is_walked_rather_than_excused() -> None:
     """Kotlin has one namespace and an `invoke` convention, so it cannot be NOT_APPLICABLE."""
     assert "kotlin" in WALKERS
     assert "kotlin" not in NOT_APPLICABLE
+
+
+def test_rust_parameter_and_let_shadow_bare_calls() -> None:
+    src = "fn helper() {}\nfn run(helper: fn()) {\n    helper();\n    let local = || {};\n    local();\n}\n"
+    assert "helper" in _shadowed("rust", src, 3)
+    assert "local" in _shadowed("rust", src, 5)
+    assert "helper" in _bare("rust", src, 3)
+
+
+def test_rust_for_and_match_bindings_are_local() -> None:
+    src = "fn run(xs: Vec<fn()>) {\n for f in xs { f(); }\n match None { Some(g) => g(), _ => {} }\n}\n"
+    assert "f" in _shadowed("rust", src, 2)
+    assert "g" in _shadowed("rust", src, 3)

@@ -72,6 +72,22 @@ def test_default_includes_go_when_available() -> None:
     assert ("go" in langs) == have_go
 
 
+def test_default_includes_rust_when_available() -> None:
+    have_rust = importlib.util.find_spec("tree_sitter_rust") is not None
+    langs = {e.language for e in default_extractors()}
+    assert ("rust" in langs) == have_rust
+
+
+def test_repo_extractor_default_handles_rust(tmp_path: Path) -> None:
+    pytest.importorskip("tree_sitter_rust", reason="install the 'rust' extra")
+    (tmp_path / "Cargo.toml").write_text('[package]\nname="demo"\nversion="0.1.0"\n')
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "lib.rs").write_text("pub struct Widget;\nimpl Widget { pub fn score() -> u8 { 1 } }\n")
+    batch = RepoCodeExtractor().extract(tmp_path)
+    assert "rust:demo@lib/demo::Widget::score" in {n.id for n in batch.nodes}
+
+
 def test_default_includes_php_when_available() -> None:
     have_php = importlib.util.find_spec("tree_sitter_php") is not None
     langs = {e.language for e in default_extractors()}

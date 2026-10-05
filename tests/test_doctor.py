@@ -31,6 +31,10 @@ FULL_ENV = {
 EMPTY_ENV: dict[str, str] = {}
 
 
+def test_rust_extra_has_a_parser_probe() -> None:
+    assert EXTRA_PROBES["rust"] == "tree_sitter_rust"
+
+
 def _result_by_name(results: list[CheckResult], name: str) -> CheckResult:
     for r in results:
         if r.name == name:

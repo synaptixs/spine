@@ -759,13 +759,16 @@ approval — Spine refuses a live write without it. `live=true` needs a reachabl
 
 ## 10. Language support & toolchains
 
-Comprehension covers **thirteen front-ends** — twelve languages, plus a Gradle reader
+Comprehension covers **fourteen front-ends** — thirteen languages, plus a Gradle reader
 that turns `.kts` build scripts into a module dependency graph (it is not a language
 and has no toolchain row). Kotlin reads structure, calls, Room entities, Retrofit
 calls, Compose routes and Hilt wiring, and is a **codegen target** for both plain
 Kotlin/JVM and Android projects.
 Spine only needs a language's toolchain when it **builds/tests** generated code in that
 language:
+
+Rust comprehension uses the optional `[rust]` grammar and a static Cargo index; it does not
+invoke Cargo or require a Rust toolchain. Rust is not yet a `sdlc feature --language` target.
 
 | Language | Build/test needs on PATH |
 |---|---|

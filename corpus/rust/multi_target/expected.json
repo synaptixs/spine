@@ -1,0 +1,64 @@
+{
+  "language": "rust",
+  "case": "multi_target",
+  "root": ".repo",
+  "why": "One package has lib, default bin, explicit bin and integration-test crates. Identical source names must retain four identities.",
+  "nodes": [
+    {
+      "id": "rust:multi@lib/multi",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:multi@bin/multi",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:multi@bin/cli",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:multi@test/api",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:multi@lib/multi::run",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:multi@bin/multi::run",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:multi@bin/cli::run",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:multi@test/api::run",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "rust:multi@lib/multi",
+      "dst": "rust:multi@lib/multi::run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:multi@bin/multi",
+      "dst": "rust:multi@bin/multi::run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:multi@bin/cli",
+      "dst": "rust:multi@bin/cli::run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:multi@test/api",
+      "dst": "rust:multi@test/api::run",
+      "kind": "CONTAINS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": []
+}

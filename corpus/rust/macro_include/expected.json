@@ -1,0 +1,25 @@
+{
+  "language": "rust",
+  "case": "macro_include",
+  "root": ".repo",
+  "why": "Macro-generated and include!-sourced declarations are absent from the source-level graph. The unowned generated.rs is not admitted as a Cargo module.",
+  "nodes": [
+    {
+      "id": "rust:macro-boundary@lib/macro_boundary",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:macro-boundary@lib/macro_boundary::visible",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "rust:macro-boundary@lib/macro_boundary",
+      "dst": "rust:macro-boundary@lib/macro_boundary::visible",
+      "kind": "CONTAINS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": []
+}

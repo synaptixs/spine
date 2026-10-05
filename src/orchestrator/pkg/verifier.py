@@ -224,6 +224,7 @@ class GroundingVerifier:
 
         targets = files if files is not None else sorted(by_file)
         findings: list[GroundingFinding] = []
+        prepared: set[int] = set()
         for rel in targets:
             recorded = by_file.get(rel)
             if not recorded:
@@ -243,6 +244,16 @@ class GroundingVerifier:
             fresh_ids: set[str] = set()
             if path.exists() and extractor is not None:
                 try:
+                    prepare = getattr(extractor, "prepare", None)
+                    if callable(prepare) and id(extractor) not in prepared:
+                        paths = [
+                            root_path / source
+                            for source in by_file
+                            if (root_path / source).suffix in extractor.suffixes
+                            and (root_path / source).exists()
+                        ]
+                        prepare(root_path, paths)
+                        prepared.add(id(extractor))
                     # `module_name` too, not just `extract`: each front-end owns its notion
                     # of a module — Go's is the package directory, not the file — and the
                     # Python-shaped `module_qualname` this used to hardcode would rename

@@ -563,6 +563,72 @@ _C = _CFamily(scope_nodes=frozenset({"function_definition"}))
 _CPP = _CFamily(scope_nodes=frozenset({"function_definition", "lambda_expression"}))
 
 
+class _Rust:
+    scope_nodes = frozenset({"function_item", "block", "closure_expression", "for_expression", "match_arm"})
+    call_nodes = frozenset({"call_expression"})
+
+    def params(self, node: TSNode, src: bytes) -> Iterable[str]:
+        if node.type == "function_item":
+            params = next((c for c in node.named_children if c.type == "parameters"), None)
+            if params is None:
+                return []
+            return [
+                _text(c, src)
+                for p in params.named_children
+                if p.type == "parameter"
+                for c in p.named_children
+                if c.type == "identifier"
+            ]
+        if node.type in {"closure_expression", "for_expression", "match_arm"}:
+            pattern = node.child_by_field_name("pattern")
+            if pattern is None:
+                pattern = next(
+                    (
+                        c
+                        for c in node.named_children
+                        if c.type
+                        in {
+                            "closure_parameters",
+                            "identifier",
+                            "tuple_pattern",
+                            "tuple_struct_pattern",
+                            "struct_pattern",
+                        }
+                    ),
+                    None,
+                )
+            return [_text(c, src) for c in _rust_pattern_names(pattern)]
+        return []
+
+    def declares(self, node: TSNode, src: bytes) -> Iterable[str]:
+        if node.type != "let_declaration":
+            return []
+        pattern = node.child_by_field_name("pattern")
+        if pattern is None:
+            pattern = next(
+                (
+                    c
+                    for c in node.named_children
+                    if c.type in {"identifier", "tuple_pattern", "tuple_struct_pattern", "struct_pattern"}
+                ),
+                None,
+            )
+        return [_text(c, src) for c in _rust_pattern_names(pattern)]
+
+
+def _rust_pattern_names(node: TSNode | None) -> list[TSNode]:
+    if node is None:
+        return []
+    if node.type == "identifier":
+        return [node]
+    if node.type in {"type_identifier", "scoped_identifier", "scoped_type_identifier"}:
+        return []
+    out: list[TSNode] = []
+    for child in node.named_children:
+        out.extend(_rust_pattern_names(child))
+    return out
+
+
 # ---- dispatch ---------------------------------------------------------------
 
 #: Languages this module can walk. A language absent here is *not measured*, and the oracle
@@ -573,6 +639,7 @@ WALKERS: dict[str, _Lang] = {
     # JavaScript front-end parses with the same grammar (javascript-support-roadmap D1).
     "javascript": _TypeScript(),
     "go": _Go(),
+    "rust": _Rust(),
     "csharp": _CSharp(),
     "c": _C,
     "cpp": _CPP,
@@ -602,6 +669,10 @@ def _parser_for(language: str, suffix: str) -> Any:
         from orchestrator.pkg.go_extractor import _go_parser
 
         return _go_parser()
+    if language == "rust":
+        from orchestrator.pkg.rust_extractor import _parser
+
+        return _parser()
     if language == "csharp":
         from orchestrator.pkg.csharp_extractor import _csharp_parser
 

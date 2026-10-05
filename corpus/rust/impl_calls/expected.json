@@ -1,0 +1,131 @@
+{
+  "language": "rust",
+  "case": "impl_calls",
+  "root": ".repo",
+  "why": "Trait and inherent methods with the same name have distinct identities. Local calls are exact; a parameter shadow suppresses one plausible but false edge.",
+  "nodes": [
+    {
+      "id": "rust:impl-demo@lib/impl_demo",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:impl-demo@lib/impl_demo::A",
+      "kind": "Type"
+    },
+    {
+      "id": "rust:impl-demo@lib/impl_demo::T",
+      "kind": "Type"
+    },
+    {
+      "id": "rust:impl-demo@lib/impl_demo::T::f",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:impl-demo@lib/impl_demo::A::f",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:impl-demo@lib/impl_demo::A::new",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:impl-demo@lib/impl_demo::A::<T>::f",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:impl-demo@lib/impl_demo::helper",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:impl-demo@lib/impl_demo::run",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:impl-demo@lib/impl_demo::direct",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "rust:impl-demo@lib/impl_demo",
+      "dst": "rust:impl-demo@lib/impl_demo::A",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:impl-demo@lib/impl_demo",
+      "dst": "rust:impl-demo@lib/impl_demo::T",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:impl-demo@lib/impl_demo::T",
+      "dst": "rust:impl-demo@lib/impl_demo::T::f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:impl-demo@lib/impl_demo::A",
+      "dst": "rust:impl-demo@lib/impl_demo::A::f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:impl-demo@lib/impl_demo::A",
+      "dst": "rust:impl-demo@lib/impl_demo::A::new",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:impl-demo@lib/impl_demo::A",
+      "dst": "rust:impl-demo@lib/impl_demo::A::<T>::f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:impl-demo@lib/impl_demo",
+      "dst": "rust:impl-demo@lib/impl_demo::helper",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:impl-demo@lib/impl_demo",
+      "dst": "rust:impl-demo@lib/impl_demo::run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:impl-demo@lib/impl_demo",
+      "dst": "rust:impl-demo@lib/impl_demo::direct",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:impl-demo@lib/impl_demo::A",
+      "dst": "rust:impl-demo@lib/impl_demo::T",
+      "kind": "IMPLEMENTS"
+    },
+    {
+      "src": "rust:impl-demo@lib/impl_demo::A::new",
+      "dst": "rust:impl-demo@lib/impl_demo::A::new",
+      "kind": "CALLS"
+    },
+    {
+      "src": "rust:impl-demo@lib/impl_demo::A::new",
+      "dst": "rust:impl-demo@lib/impl_demo::A::f",
+      "kind": "CALLS"
+    },
+    {
+      "src": "rust:impl-demo@lib/impl_demo::direct",
+      "dst": "rust:impl-demo@lib/impl_demo::helper",
+      "kind": "CALLS"
+    },
+    {
+      "src": "rust:impl-demo@lib/impl_demo::direct",
+      "dst": "rust:impl-demo@lib/impl_demo::A::new",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {
+      "edge": {
+        "src": "rust:impl-demo@lib/impl_demo::run",
+        "dst": "rust:impl-demo@lib/impl_demo::helper",
+        "kind": "CALLS"
+      },
+      "why": "The parameter shadows the free function."
+    }
+  ]
+}

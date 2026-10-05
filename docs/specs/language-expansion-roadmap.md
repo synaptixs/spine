@@ -1,5 +1,10 @@
 # Language expansion roadmap — Go + 3 (focused)
 
+**Rust update (2026-10-04):** the [dedicated Rust roadmap](rust-support-roadmap.md) now governs
+the Rust track. A comprehension branch implements Cargo target identities, semantic modules and
+precision-safe facts; codegen is a separate later phase. The historical estimates and status
+below are retained as the earlier prioritization record.
+
 **Status:** Roadmap / prioritization. **Scope decided: Go · Rust · Kotlin · PHP** (Go shipped, PHP
 comprehension + `CALLS` shipped, **Kotlin shipped through P9** — comprehension, `CALLS`,
 Room/Retrofit, Compose navigation + Hilt, Gradle modules, Ktor/Spring routes, Multiplatform source sets, and codegen for both

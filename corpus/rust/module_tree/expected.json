@@ -1,0 +1,102 @@
+{
+  "language": "rust",
+  "case": "module_tree",
+  "root": ".repo",
+  "why": "Semantic modules follow mod declarations and #[path], while source files provide provenance. A generic field wrapper still refers to the local Foo constructor.",
+  "nodes": [
+    {
+      "id": "rust:module-demo@lib/module_demo",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:module-demo@lib/module_demo::foo",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:module-demo@lib/module_demo::foo::Foo",
+      "kind": "Type"
+    },
+    {
+      "id": "rust:module-demo@lib/module_demo::foo::Foo::next",
+      "kind": "Field"
+    },
+    {
+      "id": "rust:module-demo@lib/module_demo::inline",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:module-demo@lib/module_demo::inline::ping",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:module-demo@lib/module_demo::changed",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:module-demo@lib/module_demo::changed::E",
+      "kind": "Type"
+    },
+    {
+      "id": "rust:module-demo@lib/module_demo::changed::E::A",
+      "kind": "Field"
+    },
+    {
+      "id": "rust:module-demo@lib/module_demo::changed::E::B",
+      "kind": "Field"
+    }
+  ],
+  "edges": [
+    {
+      "src": "rust:module-demo@lib/module_demo",
+      "dst": "rust:module-demo@lib/module_demo::foo",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:module-demo@lib/module_demo::foo",
+      "dst": "rust:module-demo@lib/module_demo::foo::Foo",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:module-demo@lib/module_demo::foo::Foo",
+      "dst": "rust:module-demo@lib/module_demo::foo::Foo::next",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:module-demo@lib/module_demo::foo::Foo::next",
+      "dst": "rust:module-demo@lib/module_demo::foo::Foo",
+      "kind": "REFERENCES"
+    },
+    {
+      "src": "rust:module-demo@lib/module_demo",
+      "dst": "rust:module-demo@lib/module_demo::inline",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:module-demo@lib/module_demo::inline",
+      "dst": "rust:module-demo@lib/module_demo::inline::ping",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:module-demo@lib/module_demo",
+      "dst": "rust:module-demo@lib/module_demo::changed",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:module-demo@lib/module_demo::changed",
+      "dst": "rust:module-demo@lib/module_demo::changed::E",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:module-demo@lib/module_demo::changed::E",
+      "dst": "rust:module-demo@lib/module_demo::changed::E::A",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:module-demo@lib/module_demo::changed::E",
+      "dst": "rust:module-demo@lib/module_demo::changed::E::B",
+      "kind": "CONTAINS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": []
+}

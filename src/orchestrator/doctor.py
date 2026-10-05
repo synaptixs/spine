@@ -146,6 +146,7 @@ EXTRA_PROBES: Mapping[str, str] = {
     "cpp": "tree_sitter_cpp",
     "clang": "clang",
     "go": "tree_sitter_go",
+    "rust": "tree_sitter_rust",
     "php": "tree_sitter_php",
     "perl": "tree_sitter_perl",
     "kotlin": "tree_sitter_kotlin",

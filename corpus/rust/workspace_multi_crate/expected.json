@@ -1,0 +1,57 @@
+{
+  "language": "rust",
+  "case": "workspace_multi_crate",
+  "root": ".repo",
+  "why": "A workspace dependency alias resolves exactly for IMPORTS. Calling through that imported binding is the separately time-boxed P2X gap.",
+  "nodes": [
+    {
+      "id": "rust:app@bin/app",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:app@bin/app::run",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:shared@lib/shared",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:shared@lib/shared::f",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "rust:app@bin/app",
+      "dst": "rust:app@bin/app::run",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:shared@lib/shared",
+      "dst": "rust:shared@lib/shared::f",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:app@bin/app",
+      "dst": "rust:shared@lib/shared::f",
+      "kind": "IMPORTS"
+    },
+    {
+      "src": "rust:app@bin/app::run",
+      "dst": "rust:shared@lib/shared::f",
+      "kind": "CALLS"
+    }
+  ],
+  "known_gaps": [
+    {
+      "edge": {
+        "src": "rust:app@bin/app::run",
+        "dst": "rust:shared@lib/shared::f",
+        "kind": "CALLS"
+      },
+      "why": "P2X deferred: imported function calls require the exact cross-crate call resolver, beyond Core P2."
+    }
+  ],
+  "refusals": []
+}
