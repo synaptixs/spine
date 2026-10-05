@@ -95,7 +95,7 @@ _8 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/registry.py:426`](../../src/orchestrator/cli/registry.py#L426)
 
-- **Calls** (5): [`_print`](../../src/orchestrator/cli/_common.py#L34), [`_repo_arg`](../../src/orchestrator/cli/_common.py#L39), `echo`, [`from_repo`](../../src/orchestrator/catalog/profile.py#L76), [`plan_capabilities`](../../src/orchestrator/catalog/planner.py#L16)
+- **Calls** (5): [`_print`](../../src/orchestrator/cli/_common.py#L34), [`_repo_arg`](../../src/orchestrator/cli/_common.py#L39), `echo`, [`from_repo`](../../src/orchestrator/catalog/profile.py#L77), [`plan_capabilities`](../../src/orchestrator/catalog/planner.py#L16)
 
 ### `contract_deprecate`
 

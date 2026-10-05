@@ -41,7 +41,7 @@ _4 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/sdlc/toolchains.py:227`](../../src/orchestrator/sdlc/toolchains.py#L227)
 
 - **Fields**: `author_tests`, `auto_priority`, `available`, `build_ignores`, `conventions`, `environment`, `guidance`, `layout`, `missing_hint`, `module_name`, `native_label`, `preflight`, `prepare_layout`, `project_error`, `prompts`, `requires_pytest`, `runner`, `scaffold`, `source_ext`
-- **Documented in**: `docs/reviewing/language-frontend-checklist.md#codegen-registration-and-runner-proof`, `docs/specs/kotlin-support-roadmap.md#5-phases-the-living-table`, `docs/specs/perl-codegen-roadmap.md#51-sdlctoolchainspy-one-registry-instead-of-five-if-chains-perl-builds-it-c-1-first`
+- **Documented in**: `docs/reviewing/language-frontend-checklist.md#codegen-registration-and-runner-proof`, `docs/specs/kotlin-support-roadmap.md#5-phases-the-living-table`, `docs/specs/perl-codegen-roadmap.md#51-sdlctoolchainspy-one-registry-instead-of-five-if-chains-perl-builds-it-c-1-first`, `docs/specs/rust-support-roadmap.md`
 
 ## Functions
 
@@ -213,8 +213,8 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/sdlc/toolchains.py:490`](../../src/orchestrator/sdlc/toolchains.py#L490)
 
-- **Called by** (3 production · 2 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L858), [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L570), [`_resolve_language`](../../src/orchestrator/sdlc/feature_runner.py#L757), [`test_resolve_language_prefers_the_graph_when_one_is_in_hand`](../../tests/sdlc/test_toolchains.py#L107), [`test_the_react_native_shape_resolves_to_typescript_from_the_tree`](../../tests/sdlc/test_toolchains.py#L124)
-- **Calls** (2): [`detect_language`](../../src/orchestrator/sdlc/toolchains.py#L460), [`language_file_counts`](../../src/orchestrator/catalog/profile.py#L114)
+- **Called by** (3 production · 2 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L858), [`_require_plan`](../../src/orchestrator/sdlc/autorun.py#L572), [`_resolve_language`](../../src/orchestrator/sdlc/feature_runner.py#L757), [`test_resolve_language_prefers_the_graph_when_one_is_in_hand`](../../tests/sdlc/test_toolchains.py#L107), [`test_the_react_native_shape_resolves_to_typescript_from_the_tree`](../../tests/sdlc/test_toolchains.py#L124)
+- **Calls** (2): [`detect_language`](../../src/orchestrator/sdlc/toolchains.py#L460), [`language_file_counts`](../../src/orchestrator/catalog/profile.py#L116)
 - **Documented in**: `CHANGELOG.md`
 
 ## Imports

@@ -25,7 +25,7 @@ _Read from manifests, build files, and container configs. Absence means "not dec
 - **Auth / crypto:** JWT auth
 - **Domain / semantic:** RDF graph (rdflib), SHACL validation
 - **Containers & deploy:** docker-compose: PostgreSQL, MinIO (S3 object storage), MinIO client, Temporal (workflow engine), Temporal UI, Jaeger (tracing)
-- **Build & CI:** GitHub Actions
+- **Build & CI:** Cargo, GitHub Actions
 - **External services (env):** Anthropic API, Jira, Confluence
 
 ## Entry points
@@ -43,15 +43,15 @@ _How this system starts._
 ## Most-used external imports
 _Everything imported from outside this codebase, by how often — standard library and test dependencies included, so this is wider than the install list._
 
-- `__future__.annotations` — imported 809 times
-- `pathlib.Path` — imported 386 times
-- `typing.Any` — imported 299 times
-- `pytest` — imported 258 times
+- `__future__.annotations` — imported 812 times
+- `pathlib.Path` — imported 389 times
+- `typing.Any` — imported 301 times
+- `pytest` — imported 261 times
 - `collections.abc` — imported 187 times
-- `dataclasses.dataclass` — imported 181 times
+- `dataclasses.dataclass` — imported 183 times
 - `json` — imported 170 times
 - `os` — imported 128 times
 - `re` — imported 105 times
-- `dataclasses.field` — imported 90 times
+- `dataclasses.field` — imported 91 times
 
-_Top 10 of 231._
+_Top 10 of 234._

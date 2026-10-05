@@ -32,7 +32,7 @@
 
 [`src/orchestrator/pkg/csharp_extractor.py:120`](../../src/orchestrator/pkg/csharp_extractor.py#L120)
 
-- **Called by** (1 production · 5 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L600), [`_facts`](../../tests/pkg/test_csharp_extractor.py#L41), [`test_a_receiver_call_waits_for_finalize`](../../tests/pkg/test_csharp_extractor.py#L91), [`test_first_party_base_type_keeps_its_namespace`](../../tests/pkg/test_csharp_extractor.py#L374), [`test_framework_base_type_is_not_placed_in_the_local_namespace`](../../tests/pkg/test_csharp_extractor.py#L350), [`test_repo_extractor_dispatches_csharp_by_suffix`](../../tests/pkg/test_csharp_extractor.py#L108)
+- **Called by** (1 production · 5 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L601), [`_facts`](../../tests/pkg/test_csharp_extractor.py#L41), [`test_a_receiver_call_waits_for_finalize`](../../tests/pkg/test_csharp_extractor.py#L91), [`test_first_party_base_type_keeps_its_namespace`](../../tests/pkg/test_csharp_extractor.py#L374), [`test_framework_base_type_is_not_placed_in_the_local_namespace`](../../tests/pkg/test_csharp_extractor.py#L350), [`test_repo_extractor_dispatches_csharp_by_suffix`](../../tests/pkg/test_csharp_extractor.py#L108)
 - **Fields**: `_bindings`, `_projects`, `_receivers`, `language`, `suffixes`
 - **Documented in**: `docs/specs/language-support-roadmap.md#track-1-c-cs-do-first-lowest-risk`
 
@@ -117,7 +117,7 @@
 
 [`src/orchestrator/pkg/csharp_extractor.py:1376`](../../src/orchestrator/pkg/csharp_extractor.py#L1376)
 
-- **Called by** (2): [`_extract_source`](../../src/orchestrator/pkg/csharp_extractor.py#L220), [`_parser_for`](../../src/orchestrator/pkg/scope.py#L595)
+- **Called by** (2): [`_extract_source`](../../src/orchestrator/pkg/csharp_extractor.py#L220), [`_parser_for`](../../src/orchestrator/pkg/scope.py#L662)
 - **Calls** (3): `language`, `tree_sitter.Language`, `tree_sitter.Parser`
 
 ### `_endpoint_edges`

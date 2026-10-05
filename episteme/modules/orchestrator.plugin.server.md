@@ -174,7 +174,7 @@ _17 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:616`](../../src/orchestrator/plugin/server.py#L616)
 
 - **Called by** (2): [`_in_repos_store`](../../src/orchestrator/plugin/server.py#L642), [`pkg_joins`](../../src/orchestrator/plugin/server.py#L908)
-- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L406), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432)
+- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L407), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432)
 
 ### `_open_repo`
 
@@ -237,7 +237,7 @@ _17 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:261`](../../src/orchestrator/plugin/server.py#L261)
 
 - **Called by** (2): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L601), [`root_cause`](../../src/orchestrator/plugin/server.py#L1094)
-- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`_open_repo`](../../src/orchestrator/plugin/server.py#L249), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L261)
+- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`_open_repo`](../../src/orchestrator/plugin/server.py#L249), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L262)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#phases`
 
 ### `_repos_note`
@@ -349,7 +349,7 @@ _17 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:112`](../../src/orchestrator/plugin/server.py#L112)
 
 - **Called by** (0 production · 2 test): [`test_doctor_returns_readiness_structure`](../../tests/plugin/test_server.py#L43), [`test_doctor_says_which_install_is_answering`](../../tests/plugin/test_server.py#L50)
-- **Calls** (2): [`run_env_checks`](../../src/orchestrator/doctor.py#L130), [`server_identity`](../../src/orchestrator/doctor.py#L170)
+- **Calls** (2): [`run_env_checks`](../../src/orchestrator/doctor.py#L130), [`server_identity`](../../src/orchestrator/doctor.py#L171)
 
 ### `explain_symbol`
 
