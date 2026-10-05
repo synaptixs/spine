@@ -78,7 +78,16 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.52.0 (current)** — docs in the blast radius, and codegen that stays in scope.
+**3.53.0 (current)** — Python's call graph reaches through a typed variable, and a locked
+`pyjwt` closes ten published advisories. A parameter annotation, a local assigned once from a
+constructor, or a `self.attr` typed by a class annotation now gives a method a caller in the
+graph (`blast_radius`, `impact_of`, `docs_for` and codegen's `refine` all see it): +2,077
+`CALLS` edges on this repository, precision held at 1.00 with a decoy-backed corpus case.
+Concurrent `sdlc` features on one worker no longer switch each other's codegen guards off.
+**Upgrade notes:** a plan grounded in a method that gained callers can read as changed —
+re-approve it; `pyjwt` moves to 2.15.1 (ten advisories against the old pin).
+
+**3.52.0** — docs in the blast radius, and codegen that stays in scope.
 `blast_radius`, `explain_symbol` and `docs_for` list the doc sections that describe a symbol: the
 repository's own, plus Confluence and Jira pages and any RAG system's chunks pulled over MCP
 (`orchestrator mcp ingest-docs`, a `docs:` block in `.spine/repos.yaml`). `${VAR}` in `mcp.json`
