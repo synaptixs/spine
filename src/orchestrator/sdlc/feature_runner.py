@@ -116,6 +116,25 @@ def _pr_body(spec: dict[str, Any], withdrawn: list[str]) -> str:
     )
 
 
+def _attempt_outcome(spent: dict[str, int]) -> str:
+    """Which of the roadmap's "distinct outcomes" this successful run was (SSPN-121/D28).
+
+    Two of the three: an initial generated candidate needed no correction at all, or the
+    run reached "first completed autonomous workflow" only after one or more internal
+    repairs. (The third, a later human-assisted continuation, happens in a separate call —
+    see ``ReviewResponse.required_behavior_note``.) Derived from ``spent``, which the loop
+    already tracks; no new bookkeeping.
+    """
+    refines = spent.get("tests", 0) + spent.get("types", 0) + spent.get("required_behavior", 0)
+    coverage = spent.get("coverage", 0)
+    if refines == 0 and coverage == 0:
+        return "initial generated candidate passed with no correction needed"
+    if refines == 0:
+        return f"initial candidate passed after {coverage} coverage-authoring pass(es), no refine needed"
+    parts = ", ".join(f"{v} {k}" for k, v in spent.items() if v)
+    return f"first completed autonomous workflow after {refines} refine(s) ({parts})"
+
+
 def _named_in_failures(rel: str, failures: str) -> bool:
     """Whether the runner blamed *this* file — its full path, on a line that reports a failure.
 
@@ -983,12 +1002,15 @@ async def run_feature(
     # a run that dies at codegen leaves no sign it was ever picked up.
     await move("In Progress")
 
-    async def log_run_cost(verdict: str) -> None:
+    async def log_run_cost(verdict: str, *, outcome: str = "") -> None:
         """Post what this run spent onto the issue it was working.
 
         Telemetry never fails the work: a tracker that rejects the worklog leaves a line in
         the log and nothing else. Safe mode posts nothing — ``add_worklog`` honors dry-run,
         and the guard keeps even the render off the path.
+
+        ``outcome`` (SSPN-121/D28) distinguishes an initial candidate from a first completed
+        autonomous workflow that needed internal repairs — see ``render_worklog``.
         """
         if not live or not post_worklog:
             # A supervisor that owns the ledger posts once, at the end of the whole run.
@@ -998,7 +1020,9 @@ async def run_feature(
             await jira.add_worklog(
                 issue_key,
                 time_spent=jira_duration(time.monotonic() - started_at),
-                comment=render_worklog(llm.ledger, seconds=time.monotonic() - started_at, verdict=verdict),
+                comment=render_worklog(
+                    llm.ledger, seconds=time.monotonic() - started_at, verdict=verdict, outcome=outcome
+                ),
             )
             total = llm.ledger.total()
             emit(f"[jira] worklog on {issue_key}: {total.total_tokens:,} tokens, {total.calls} call(s)")
@@ -1240,7 +1264,11 @@ async def run_feature(
                         # SSPN-118/119: the last, most specific gate — a project's own
                         # required-behavior manifest, run after every cheaper check has
                         # already cleared. Self-skips (passed=True) without a manifest.
+                        rb_started = time.monotonic()
                         rb_result = await required_behavior_runner.run(path=str(path))
+                        # SSPN-121/D27: zero LLM calls here, but real wall-clock cost —
+                        # recorded explicitly so the worklog doesn't read as "didn't run".
+                        llm.ledger.record_deterministic("required_behavior", time.monotonic() - rb_started)
                         emit(f"[required_behavior] passed={rb_result.passed}")
                         if rb_result.passed:
                             passed = True
@@ -1411,7 +1439,7 @@ async def run_feature(
                 # that is `sdlc complete`, after someone has actually looked at the change. A
                 # draft is not waiting on a reviewer: the ticket stays In Progress.
                 await move("In Review")
-            await log_run_cost("PASSED")
+            await log_run_cost("PASSED", outcome=_attempt_outcome(spent))
             return str(pr.url)
 
         if publish:

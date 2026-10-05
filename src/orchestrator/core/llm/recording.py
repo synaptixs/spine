@@ -39,6 +39,12 @@ class StageUsage:
     # Models seen in this stage, in first-seen order (a stage may fan out
     # across fallbacks/candidates, e.g. codegen trying gpt-5-codex then gpt-5).
     models: list[str] = field(default_factory=list)
+    # Wall-clock time this stage spent on deterministic (non-LLM) work -- e.g. SSPN-119's
+    # required_behavior check, a subprocess run with no model call at all. Separate from
+    # latency_ms (LLM round-trip time specifically): a stage can carry real cost here while
+    # every token/call/cost field above stays genuinely zero, and that is a fact worth
+    # showing, not an empty-looking row (SSPN-121/D27).
+    deterministic_seconds: float = 0.0
 
     @property
     def total_tokens(self) -> int:
@@ -53,6 +59,9 @@ class StageUsage:
         if result.model not in self.models:
             self.models.append(result.model)
 
+    def record_deterministic(self, seconds: float) -> None:
+        self.deterministic_seconds += seconds
+
 
 @dataclass
 class TokenLedger:
@@ -62,6 +71,15 @@ class TokenLedger:
 
     def record(self, stage: str, result: CompletionResult) -> None:
         self.stages.setdefault(stage, StageUsage(stage=stage)).add(result)
+
+    def record_deterministic(self, stage: str, seconds: float) -> None:
+        """Record non-LLM wall-clock time for ``stage`` -- SSPN-121/D27.
+
+        A stage recorded only this way never makes an LLM call: its tokens/calls/cost stay
+        zero and ``deterministic_seconds`` is the whole of what it cost. Still gets its own
+        row, same as any other stage -- a zero-token stage is not a stage that didn't run.
+        """
+        self.stages.setdefault(stage, StageUsage(stage=stage)).record_deterministic(seconds)
 
     def ordered(self) -> list[StageUsage]:
         """Stages in insertion order (the order legs first ran)."""
@@ -75,6 +93,7 @@ class TokenLedger:
             grand.completion_tokens += usage.completion_tokens
             grand.cost_usd += usage.cost_usd
             grand.latency_ms += usage.latency_ms
+            grand.deterministic_seconds += usage.deterministic_seconds
             for m in usage.models:
                 if m not in grand.models:
                     grand.models.append(m)

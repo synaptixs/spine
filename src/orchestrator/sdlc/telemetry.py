@@ -30,11 +30,17 @@ def jira_duration(seconds: float) -> str:
     return f"{hours}h {minutes}m" if hours else f"{minutes}m"
 
 
-def render_worklog(ledger: TokenLedger, *, seconds: float, verdict: str) -> str:
+def render_worklog(ledger: TokenLedger, *, seconds: float, verdict: str, outcome: str = "") -> str:
     """The worklog body: what ran, on which models, for how many tokens.
 
     Markdown, because ``intake.adf`` renders headings, tables and lists into the ADF Jira
     draws natively — the same renderer issue bodies use.
+
+    ``outcome`` (SSPN-121/D28) distinguishes an initial generated candidate that needed no
+    correction from a first completed autonomous workflow that took one or more internal
+    repairs — the roadmap's own "three distinct outcomes" framing, for the two of those three
+    this single run can speak to. The third (a later human-assisted continuation) happens in
+    a separate call outside this run's ledger; see ``ReviewResponse.required_behavior_note``.
     """
     total = ledger.total()
     models = ", ".join(f"`{m}`" for m in total.models) or "_none — no LLM call was made_"
@@ -42,6 +48,10 @@ def render_worklog(ledger: TokenLedger, *, seconds: float, verdict: str) -> str:
         "## Spine run telemetry",
         "",
         f"**Verdict:** {verdict}",
+    ]
+    if outcome:
+        lines.append(f"**Outcome:** {outcome}")
+    lines += [
         f"**Models:** {models}",
         f"**Wall clock:** {jira_duration(seconds)}",
         "",
@@ -52,22 +62,26 @@ def render_worklog(ledger: TokenLedger, *, seconds: float, verdict: str) -> str:
         return "\n".join(lines)
 
     lines += [
-        "| Stage | Calls | Prompt | Completion | Total | Cost (USD) |",
-        "|---|---|---|---|---|---|",
+        "| Stage | Calls | Prompt | Completion | Total | Cost (USD) | Deterministic (s) |",
+        "|---|---|---|---|---|---|---|",
     ]
     for usage in stages:
         lines.append(
             f"| {usage.stage} | {usage.calls} | {usage.prompt_tokens:,} | "
-            f"{usage.completion_tokens:,} | {usage.total_tokens:,} | ${usage.cost_usd:.4f} |"
+            f"{usage.completion_tokens:,} | {usage.total_tokens:,} | ${usage.cost_usd:.4f} | "
+            f"{usage.deterministic_seconds:.1f} |"
         )
     lines.append(
         f"| **TOTAL** | **{total.calls}** | **{total.prompt_tokens:,}** | "
-        f"**{total.completion_tokens:,}** | **{total.total_tokens:,}** | **${total.cost_usd:.4f}** |"
+        f"**{total.completion_tokens:,}** | **{total.total_tokens:,}** | **${total.cost_usd:.4f}** | "
+        f"**{total.deterministic_seconds:.1f}** |"
     )
     lines += [
         "",
         "Logged automatically by `orchestrator sdlc feature --live`. Token counts come from "
-        "the provider's own usage figures, not an estimate.",
+        "the provider's own usage figures, not an estimate. A stage with 0 tokens and a "
+        "nonzero Deterministic time ran real (non-LLM) work, not nothing — e.g. a "
+        "required-behavior check.",
     ]
     return "\n".join(lines)
 
@@ -79,6 +93,7 @@ def render_run_worklog(
     verdict: str,
     stages: list[tuple[str, str, str]],
     review: str = "",
+    outcome: str = "",
 ) -> str:
     """One account of a whole run — every stage, not just the one that spent the most.
 
@@ -87,7 +102,7 @@ def render_run_worklog(
     fixes are LLM calls of their own. A worklog posted from the middle of that would bill the
     ticket for part of its own history and call it the total.
     """
-    body = [render_worklog(ledger, seconds=seconds, verdict=verdict), "", "## Stages", ""]
+    body = [render_worklog(ledger, seconds=seconds, verdict=verdict, outcome=outcome), "", "## Stages", ""]
     body += ["| Stage | Result | Detail |", "|---|---|---|"]
     body += [f"| {name} | {status} | {detail} |" for name, status, detail in stages]
     if review:

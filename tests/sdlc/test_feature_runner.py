@@ -468,6 +468,59 @@ async def test_required_behavior_environment_blocked_stops_without_spending_budg
     assert created and created[0].refine_calls == 0
 
 
+# ---- three-outcome reporting: initial candidate vs needed-refinement (SSPN-121/D28) -----
+
+
+async def test_worklog_reports_initial_candidate_when_no_refine_was_needed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    jira = _FakeJira()
+    _install_pipeline(
+        monkeypatch, tmp_path, runner=_PassingRunner, jira=jira, required_behavior=_PassingRequiredBehavior
+    )
+
+    await run_feature(
+        "file://./spec.md",
+        intent_id="intent-a",
+        repo="https://github.com/x/widget",
+        live=True,
+        issue="SSPN-1",
+    )
+
+    assert len(jira.worklogs) == 1
+    body = jira.worklogs[0][2]
+    assert "**Outcome:** initial generated candidate passed with no correction needed" in body
+    # required_behavior ran (zero LLM calls, real wall-clock time) and gets its own row,
+    # not an omitted one -- SSPN-121/D27.
+    assert "| required_behavior |" in body
+
+
+async def test_worklog_reports_autonomous_completion_after_a_refine(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    jira = _FakeJira()
+    _install_pipeline(
+        monkeypatch,
+        tmp_path,
+        runner=_PassingRunner,
+        codegen=_EditingCodegen,
+        jira=jira,
+        required_behavior=_EventuallyPassingRequiredBehavior,
+    )
+
+    await run_feature(
+        "file://./spec.md",
+        intent_id="intent-a",
+        repo="https://github.com/x/widget",
+        live=True,
+        issue="SSPN-1",
+    )
+
+    body = jira.worklogs[0][2]
+    assert "**Outcome:** first completed autonomous workflow after 1 refine(s)" in body
+    assert "required_behavior" in body
+
+
 async def test_greenfield_run_scaffolds_and_passes_layout_to_codegen(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
