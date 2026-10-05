@@ -13,16 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1885) — reaches **22** symbols · **no test path visible**
-- [`_bare_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L1786) — reaches **12** symbols · **no test path visible**
-- [`KotlinExtractor`](../../src/orchestrator/pkg/kotlin_extractor.py#L301) — reaches **8** symbols
-- [`_declared_name_or_first`](../../src/orchestrator/pkg/kotlin_extractor.py#L1782) — reaches **7** symbols · **no test path visible**
-- [`_DeferredCall`](../../src/orchestrator/pkg/kotlin_extractor.py#L177) — reaches **6** symbols · **no test path visible**
-- [`_declared_name`](../../src/orchestrator/pkg/kotlin_extractor.py#L1843) — reaches **6** symbols · **no test path visible**
-- [`_Extension`](../../src/orchestrator/pkg/kotlin_extractor.py#L149) — reaches **5** symbols · **no test path visible**
-- [`_add_member`](../../src/orchestrator/pkg/kotlin_extractor.py#L1794) — reaches **5** symbols · **no test path visible**
-
-_33 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+- [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1885) — reaches **22** symbols
+- [`_bare_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L1786) — reaches **12** symbols
+- [`KotlinExtractor`](../../src/orchestrator/pkg/kotlin_extractor.py#L301) — reaches **9** symbols
+- [`_declared_name_or_first`](../../src/orchestrator/pkg/kotlin_extractor.py#L1782) — reaches **7** symbols
+- [`_DeferredCall`](../../src/orchestrator/pkg/kotlin_extractor.py#L177) — reaches **6** symbols
+- [`_declared_name`](../../src/orchestrator/pkg/kotlin_extractor.py#L1843) — reaches **6** symbols
+- [`_Extension`](../../src/orchestrator/pkg/kotlin_extractor.py#L149) — reaches **5** symbols
+- [`_add_member`](../../src/orchestrator/pkg/kotlin_extractor.py#L1794) — reaches **5** symbols
 
 ## Documented in
 
@@ -34,7 +32,7 @@ _33 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/kotlin_extractor.py:301`](../../src/orchestrator/pkg/kotlin_extractor.py#L301)
 
-- **Called by** (1 production · 8 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L587), [`_facts`](../../tests/pkg/test_kotlin_extractor.py#L95), [`_facts`](../../tests/pkg/test_kotlin_room.py#L79), [`_repo_facts`](../../tests/pkg/test_kotlin_extractor.py#L104), [`_run`](../../tests/pkg/test_kotlin_http.py#L44), [`test_a_get_annotation_from_another_library_is_not_a_retrofit_call`](../../tests/pkg/test_kotlin_http.py#L205), [`test_a_retrofit_wildcard_import_is_enough`](../../tests/pkg/test_kotlin_http.py#L233), [`test_a_root_file_and_a_same_named_package_keep_distinct_types`](../../tests/pkg/test_kotlin_extractor.py#L155), [`test_kts_build_scripts_are_not_kotlin_source`](../../tests/pkg/test_kotlin_extractor.py#L452)
+- **Called by** (1 production · 8 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L600), [`_facts`](../../tests/pkg/test_kotlin_extractor.py#L95), [`_facts`](../../tests/pkg/test_kotlin_room.py#L79), [`_repo_facts`](../../tests/pkg/test_kotlin_extractor.py#L104), [`_run`](../../tests/pkg/test_kotlin_http.py#L44), [`test_a_get_annotation_from_another_library_is_not_a_retrofit_call`](../../tests/pkg/test_kotlin_http.py#L205), [`test_a_retrofit_wildcard_import_is_enough`](../../tests/pkg/test_kotlin_http.py#L233), [`test_a_root_file_and_a_same_named_package_keep_distinct_types`](../../tests/pkg/test_kotlin_extractor.py#L155), [`test_kts_build_scripts_are_not_kotlin_source`](../../tests/pkg/test_kotlin_extractor.py#L452)
 - **Fields**: `_client`, `_deferred`, `_extensions`, `_ktor`, `_nav`, `_opaque_supertypes`, `language`, `suffixes`, `unresolved_calls`
 
 ### `_DeferredCall`
@@ -87,7 +85,7 @@ _33 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/kotlin_extractor.py:1794`](../../src/orchestrator/pkg/kotlin_extractor.py#L1794)
 
 - **Called by** (3): [`_emit_constructor_properties`](../../src/orchestrator/pkg/kotlin_extractor.py#L603), [`_emit_function`](../../src/orchestrator/pkg/kotlin_extractor.py#L675), [`_emit_members`](../../src/orchestrator/pkg/kotlin_extractor.py#L636)
-- **Calls** (3): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88)
+- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175)
 
 ### `_bare_type`
 
@@ -113,7 +111,7 @@ _33 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/kotlin_extractor.py:1541`](../../src/orchestrator/pkg/kotlin_extractor.py#L1541)
 
 - **Called by** (1): [`_calls`](../../src/orchestrator/pkg/kotlin_extractor.py#L763)
-- **Calls** (5): [`_declared_name_or_first`](../../src/orchestrator/pkg/kotlin_extractor.py#L1782), [`_declared_property_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L1774), [`_property_names`](../../src/orchestrator/pkg/kotlin_extractor.py#L1824), [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1885), [`_walk`](../../src/orchestrator/pkg/kotlin_extractor.py#L1689)
+- **Calls** (6): [`_declared_name_or_first`](../../src/orchestrator/pkg/kotlin_extractor.py#L1782), [`_declared_property_type`](../../src/orchestrator/pkg/kotlin_extractor.py#L1774), [`_property_names`](../../src/orchestrator/pkg/kotlin_extractor.py#L1824), [`_text`](../../src/orchestrator/pkg/kotlin_extractor.py#L1885), [`_walk`](../../src/orchestrator/pkg/kotlin_extractor.py#L1689), [`bind`](../../src/orchestrator/pkg/kotlin_extractor.py#L1525)
 - **Documented in**: `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class`
 
 ### `_declared_name`
@@ -248,7 +246,7 @@ _33 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/kotlin_extractor.py:1891`](../../src/orchestrator/pkg/kotlin_extractor.py#L1891)
 
 - **Called by** (1): [`extract`](../../src/orchestrator/pkg/kotlin_extractor.py#L354)
-- **Calls** (2): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L157), `replace`
+- **Calls** (4): [`FactBatch`](../../src/orchestrator/pkg/facts.py#L157), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175), `replace`
 
 ### `_resolve_inherited_member`
 

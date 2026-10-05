@@ -97,7 +97,7 @@
 
 [`src/orchestrator/sdlc/evidence.py:185`](../../src/orchestrator/sdlc/evidence.py#L185)
 
-- **Called by** (1 production · 5 test): [`build_design`](../../scripts/codegen_benchmark.py#L1616), [`test_an_ungrounded_graph_says_so_rather_than_looking_clean`](../../tests/sdlc/test_evidence.py#L91), [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100), [`test_landing_keeps_the_whole_fact_not_the_filename`](../../tests/sdlc/test_evidence.py#L61), [`test_rca_runs_and_is_recorded_without_a_model`](../../tests/sdlc/test_evidence.py#L83), [`test_the_blast_radius_is_keyed_off_landing_not_off_a_proposal`](../../tests/sdlc/test_evidence.py#L72)
+- **Called by** (1 production · 5 test): [`build_design`](../../scripts/codegen_benchmark.py#L1623), [`test_an_ungrounded_graph_says_so_rather_than_looking_clean`](../../tests/sdlc/test_evidence.py#L91), [`test_both_paths_that_build_evidence_assemble_it_identically`](../../tests/sdlc/test_evidence.py#L100), [`test_landing_keeps_the_whole_fact_not_the_filename`](../../tests/sdlc/test_evidence.py#L61), [`test_rca_runs_and_is_recorded_without_a_model`](../../tests/sdlc/test_evidence.py#L83), [`test_the_blast_radius_is_keyed_off_landing_not_off_a_proposal`](../../tests/sdlc/test_evidence.py#L72)
 - **Calls** (7): [`_tool_blast_radius`](../../src/orchestrator/sdlc/evidence.py#L387), [`_tool_churn`](../../src/orchestrator/sdlc/evidence.py#L425), [`_tool_investigate`](../../src/orchestrator/sdlc/evidence.py#L356), [`_tool_rca`](../../src/orchestrator/sdlc/evidence.py#L381), [`evidence_from_parts`](../../src/orchestrator/sdlc/evidence.py#L141), [`landing_files`](../../src/orchestrator/sdlc/evidence.py#L122), [`rca_problem`](../../src/orchestrator/sdlc/evidence.py#L117)
 - **Documented in**: `docs/specs/graphir-sdlc-workflow.md#phase-1-the-tool-node-type-the-evidence-artifact-and-the-sdlc-ir-in-shadow`
 
@@ -133,6 +133,7 @@
 [`src/orchestrator/sdlc/evidence.py:435`](../../src/orchestrator/sdlc/evidence.py#L435)
 
 - **Called by** (1): [`default_registry`](../../src/orchestrator/runtime/tool_registry.py#L106)
+- **Calls** (1): [`register`](../../src/orchestrator/core/digest.py#L33)
 
 ### `render_evidence_md`
 

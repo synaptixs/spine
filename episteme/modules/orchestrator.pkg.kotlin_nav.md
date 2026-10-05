@@ -13,16 +13,16 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_Part`](../../src/orchestrator/pkg/kotlin_nav.py#L59) — reaches **4** symbols · **no test path visible**
-- [`_callee_name`](../../src/orchestrator/pkg/kotlin_nav.py#L367) — reaches **3** symbols · **no test path visible**
-- [`_split_bare_interpolation`](../../src/orchestrator/pkg/kotlin_nav.py#L305) — reaches **3** symbols · **no test path visible**
-- [`_walk`](../../src/orchestrator/pkg/kotlin_nav.py#L420) — reaches **3** symbols · **no test path visible**
-- [`_Site`](../../src/orchestrator/pkg/kotlin_nav.py#L71) — reaches **2** symbols · **no test path visible**
-- [`_argument_node`](../../src/orchestrator/pkg/kotlin_nav.py#L233) — reaches **2** symbols · **no test path visible**
-- [`_arguments_holder`](../../src/orchestrator/pkg/kotlin_nav.py#L361) — reaches **2** symbols · **no test path visible**
-- [`_is_inner_callee`](../../src/orchestrator/pkg/kotlin_nav.py#L351) — reaches **2** symbols · **no test path visible**
+- [`_Part`](../../src/orchestrator/pkg/kotlin_nav.py#L59) — reaches **4** symbols
+- [`_callee_name`](../../src/orchestrator/pkg/kotlin_nav.py#L367) — reaches **3** symbols
+- [`_split_bare_interpolation`](../../src/orchestrator/pkg/kotlin_nav.py#L305) — reaches **3** symbols
+- [`_walk`](../../src/orchestrator/pkg/kotlin_nav.py#L420) — reaches **3** symbols
+- [`_Site`](../../src/orchestrator/pkg/kotlin_nav.py#L71) — reaches **2** symbols
+- [`_argument_node`](../../src/orchestrator/pkg/kotlin_nav.py#L233) — reaches **2** symbols
+- [`_arguments_holder`](../../src/orchestrator/pkg/kotlin_nav.py#L361) — reaches **2** symbols
+- [`_is_inner_callee`](../../src/orchestrator/pkg/kotlin_nav.py#L351) — reaches **2** symbols
 
-_16 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_1 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Types
 
@@ -92,6 +92,7 @@ _16 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/kotlin_nav.py:319`](../../src/orchestrator/pkg/kotlin_nav.py#L319)
 
 - **Called by** (1): [`emit`](../../src/orchestrator/pkg/kotlin_nav.py#L202)
+- **Calls** (1): [`lookup`](../../src/orchestrator/pkg/kotlin_nav.py#L117)
 
 ### `_single_screen`
 
@@ -132,7 +133,7 @@ _16 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/kotlin_nav.py:202`](../../src/orchestrator/pkg/kotlin_nav.py#L202)
 
 - **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L1112)
-- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_key`](../../src/orchestrator/pkg/kotlin_nav.py#L342), [`_resolve`](../../src/orchestrator/pkg/kotlin_nav.py#L319)
+- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_key`](../../src/orchestrator/pkg/kotlin_nav.py#L342), [`_resolve`](../../src/orchestrator/pkg/kotlin_nav.py#L319), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175)
 
 ### `scan_calls`
 

@@ -13,8 +13,8 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`SubprocessTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L64) — reaches **13** symbols
-- [`_exec_capture`](../../src/orchestrator/sdlc/testrunner.py#L732) — reaches **10** symbols · **no test path visible**
+- [`SubprocessTestRunner`](../../src/orchestrator/sdlc/testrunner.py#L64) — reaches **15** symbols
+- [`_exec_capture`](../../src/orchestrator/sdlc/testrunner.py#L732) — reaches **10** symbols
 - [`pytest_available`](../../src/orchestrator/sdlc/testrunner.py#L47) — reaches **9** symbols
 - [`_clip`](../../src/orchestrator/sdlc/testrunner.py#L728) — reaches **6** symbols · **no test path visible**
 - [`_nearest_go_mod`](../../src/orchestrator/sdlc/testrunner.py#L715) — reaches **2** symbols · **no test path visible**
@@ -22,7 +22,7 @@
 - [`_discover_dotnet_target`](../../src/orchestrator/sdlc/testrunner.py#L740) — reaches **1** symbol · **no test path visible**
 - [`_timeout_from_env`](../../src/orchestrator/sdlc/testrunner.py#L39) — reaches **1** symbol · **no test path visible**
 
-_5 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_4 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Documented in
 
@@ -130,7 +130,7 @@ _5 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/sdlc/testrunner.py:64`](../../src/orchestrator/sdlc/testrunner.py#L64)
 
-- **Called by** (3 production · 12 test): [`_agentic_tools`](../../src/orchestrator/sdlc/codegen.py#L1218), [`build_codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L58), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L181), [`test_a_garbage_timeout_falls_back_to_the_default`](../../tests/sdlc/test_testrunner.py#L74), [`test_a_new_failure_still_fails_and_refine_is_told_which_are_not_its`](../../tests/sdlc/test_baseline.py#L99), [`test_an_explicit_timeout_still_wins`](../../tests/sdlc/test_testrunner.py#L79), [`test_implement_then_author_tests_runs_green`](../../tests/sdlc/test_codegen.py#L119), [`test_one_unimportable_file_no_longer_stops_the_suite`](../../tests/sdlc/test_baseline.py#L70), [`test_python_suite_gets_the_same_budget_as_every_other_language`](../../tests/sdlc/test_testrunner.py#L63), [`test_refine_fixes_a_failing_test`](../../tests/sdlc/test_codegen.py#L147), [`test_subprocess_runner_fails_on_red_test`](../../tests/sdlc/test_testrunner.py#L46), [`test_subprocess_runner_passes_on_green_test`](../../tests/sdlc/test_testrunner.py#L39), [`test_subprocess_runner_treats_no_tests_as_failure`](../../tests/sdlc/test_testrunner.py#L54), [`test_the_baseline_passes_a_change_that_adds_only_passing_tests`](../../tests/sdlc/test_baseline.py#L82), [`test_timeout_is_overridable_for_a_slow_suite`](../../tests/sdlc/test_testrunner.py#L69)
+- **Called by** (3 production · 12 test): [`_agentic_tools`](../../src/orchestrator/sdlc/codegen.py#L1213), [`build_codegen_tools`](../../src/orchestrator/agentic/codegen_tools.py#L58), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L181), [`test_a_garbage_timeout_falls_back_to_the_default`](../../tests/sdlc/test_testrunner.py#L74), [`test_a_new_failure_still_fails_and_refine_is_told_which_are_not_its`](../../tests/sdlc/test_baseline.py#L99), [`test_an_explicit_timeout_still_wins`](../../tests/sdlc/test_testrunner.py#L79), [`test_implement_then_author_tests_runs_green`](../../tests/sdlc/test_codegen.py#L119), [`test_one_unimportable_file_no_longer_stops_the_suite`](../../tests/sdlc/test_baseline.py#L70), [`test_python_suite_gets_the_same_budget_as_every_other_language`](../../tests/sdlc/test_testrunner.py#L63), [`test_refine_fixes_a_failing_test`](../../tests/sdlc/test_codegen.py#L147), [`test_subprocess_runner_fails_on_red_test`](../../tests/sdlc/test_testrunner.py#L46), [`test_subprocess_runner_passes_on_green_test`](../../tests/sdlc/test_testrunner.py#L39), [`test_subprocess_runner_treats_no_tests_as_failure`](../../tests/sdlc/test_testrunner.py#L54), [`test_the_baseline_passes_a_change_that_adds_only_passing_tests`](../../tests/sdlc/test_baseline.py#L82), [`test_timeout_is_overridable_for_a_slow_suite`](../../tests/sdlc/test_testrunner.py#L69)
 - **Fields**: `_python`, `_timeout`, `names_problems`
 - **Documented in**: `docs/specs/archive/BLOCK-C-DESIGN.md#3-module-layout`, `docs/specs/archive/BLOCK-C-DESIGN.md#5-child-featureimplementationworkflow`, `docs/specs/archive/BLOCK-C-DESIGN.md#5a-adapter-seams-the-block-d-plug-points`, `docs/specs/phase5-agentic-codegen-loop.md#3-the-in-loop-tool-surface`, `docs/specs/sandboxed-test-execution.md#problem-root-cause`, `docs/specs/sdlc-target-layout-scaffold.md#5-pytest-runtime-gap-bundled`
 

@@ -37,7 +37,7 @@ _23 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_orm.py:648`](../../src/orchestrator/pkg/js_orm.py#L648)
 
 - **Called by** (1): [`scan`](../../src/orchestrator/pkg/js_orm.py#L174)
-- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_args`](../../src/orchestrator/pkg/js_orm.py#L164), [`_model_end`](../../src/orchestrator/pkg/js_orm.py#L609), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142)
+- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_args`](../../src/orchestrator/pkg/js_orm.py#L164), [`_model_end`](../../src/orchestrator/pkg/js_orm.py#L609), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180)
 
 ### `_called_here`
 
@@ -64,7 +64,7 @@ _23 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_orm.py:556`](../../src/orchestrator/pkg/js_orm.py#L556)
 
 - **Called by** (2): [`_define`](../../src/orchestrator/pkg/js_orm.py#L511), [`_init`](../../src/orchestrator/pkg/js_orm.py#L530)
-- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142), [`entity_id`](../../src/orchestrator/pkg/js_orm.py#L170)
+- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_text`](../../src/orchestrator/pkg/js_orm.py#L142), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175), [`entity_id`](../../src/orchestrator/pkg/js_orm.py#L170)
 
 ### `_exported_literal`
 
@@ -179,7 +179,7 @@ _23 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/js_orm.py:675`](../../src/orchestrator/pkg/js_orm.py#L675)
 
 - **Called by** (1): [`finalize`](../../src/orchestrator/pkg/js_extractor.py#L167)
-- **Calls** (2): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L157)
+- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`FactBatch`](../../src/orchestrator/pkg/facts.py#L157), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175)
 
 ## Imports
 

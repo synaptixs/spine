@@ -83,7 +83,7 @@ _9 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/cli/sdlc.py:1409`](../../src/orchestrator/cli/sdlc.py#L1409)
 
 - **Called by** (1): [`sdlc_remediate`](../../src/orchestrator/cli/sdlc.py#L1367)
-- **Calls** (8): `Exit`, [`MappingStore`](../../src/orchestrator/spine/store.py#L56), `echo`, [`execute_remediations`](../../src/orchestrator/spine/execute.py#L55), [`from_infodrift`](../../src/orchestrator/spine/drift.py#L84), [`infer_entity_iris`](../../src/orchestrator/spine/execute.py#L39), `loads`, `pathlib.Path`
+- **Calls** (10): `Exit`, [`MappingStore`](../../src/orchestrator/spine/store.py#L56), [`code_for_iri`](../../src/orchestrator/spine/store.py#L75), `echo`, [`execute_remediations`](../../src/orchestrator/spine/execute.py#L55), [`from_infodrift`](../../src/orchestrator/spine/drift.py#L84), [`infer_entity_iris`](../../src/orchestrator/spine/execute.py#L39), [`load`](../../src/orchestrator/spine/store.py#L70), `loads`, `pathlib.Path`
 
 ### `_terminal_gate`
 
@@ -108,7 +108,7 @@ _9 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/sdlc.py:543`](../../src/orchestrator/cli/sdlc.py#L543)
 
-- **Calls** (9): `Exit`, [`PlanApproval`](../../src/orchestrator/sdlc/builddoc.py#L133), [`decided_by_default`](../../src/orchestrator/sdlc/builddoc.py#L232), [`derived_at`](../../src/orchestrator/sdlc/builddoc.py#L101), `echo`, [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L156), [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L1643), [`planned_issue_type`](../../src/orchestrator/sdlc/builddoc.py#L89), [`save_approval`](../../src/orchestrator/sdlc/builddoc.py#L225)
+- **Calls** (9): `Exit`, [`PlanApproval`](../../src/orchestrator/sdlc/builddoc.py#L133), [`decided_by_default`](../../src/orchestrator/sdlc/builddoc.py#L232), [`derived_at`](../../src/orchestrator/sdlc/builddoc.py#L101), `echo`, [`plan_digest`](../../src/orchestrator/sdlc/builddoc.py#L156), [`plan_dir`](../../src/orchestrator/sdlc/builddoc.py#L1644), [`planned_issue_type`](../../src/orchestrator/sdlc/builddoc.py#L89), [`save_approval`](../../src/orchestrator/sdlc/builddoc.py#L225)
 
 ### `sdlc_autorun`
 
@@ -162,7 +162,7 @@ _9 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/cli/sdlc.py:380`](../../src/orchestrator/cli/sdlc.py#L380)
 
-- **Calls** (11): [`ApprovalStore`](../../src/orchestrator/sdlc/escalate.py#L83), `Exit`, [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L90), `dataclasses.asdict`, [`decide`](../../src/orchestrator/sdlc/escalate.py#L208), [`default_approval_dir`](../../src/orchestrator/sdlc/escalate.py#L125), `dumps`, `echo`, [`render_approvals`](../../src/orchestrator/sdlc/escalate.py#L225), [`render_reap`](../../src/orchestrator/sdlc/runstate.py#L167), [`render_runs`](../../src/orchestrator/sdlc/runstate.py#L153)
+- **Calls** (14): [`ApprovalStore`](../../src/orchestrator/sdlc/escalate.py#L83), `Exit`, [`RunStore`](../../src/orchestrator/sdlc/runstate.py#L90), [`all`](../../src/orchestrator/sdlc/runstate.py#L123), `dataclasses.asdict`, [`decide`](../../src/orchestrator/sdlc/escalate.py#L208), [`default_approval_dir`](../../src/orchestrator/sdlc/escalate.py#L125), `dumps`, `echo`, [`load`](../../src/orchestrator/sdlc/runstate.py#L112), [`render_approvals`](../../src/orchestrator/sdlc/escalate.py#L225), [`render_reap`](../../src/orchestrator/sdlc/runstate.py#L167), [`render_runs`](../../src/orchestrator/sdlc/runstate.py#L153), [`stale`](../../src/orchestrator/sdlc/runstate.py#L141)
 
 ### `sdlc_workflow`
 

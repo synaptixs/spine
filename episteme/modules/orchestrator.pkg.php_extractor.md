@@ -13,16 +13,14 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_strip_sigil`](../../src/orchestrator/pkg/php_extractor.py#L938) — reaches **11** symbols · **no test path visible**
-- [`PhpExtractor`](../../src/orchestrator/pkg/php_extractor.py#L105) — reaches **8** symbols
-- [`_type_name`](../../src/orchestrator/pkg/php_extractor.py#L879) — reaches **8** symbols · **no test path visible**
-- [`_field_text`](../../src/orchestrator/pkg/php_extractor.py#L951) — reaches **5** symbols · **no test path visible**
-- [`_property_names`](../../src/orchestrator/pkg/php_extractor.py#L854) — reaches **5** symbols · **no test path visible**
-- [`_base_type_names`](../../src/orchestrator/pkg/php_extractor.py#L825) — reaches **4** symbols · **no test path visible**
-- [`_const_names`](../../src/orchestrator/pkg/php_extractor.py#L843) — reaches **4** symbols · **no test path visible**
-- [`_interface_names`](../../src/orchestrator/pkg/php_extractor.py#L832) — reaches **4** symbols · **no test path visible**
-
-_22 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+- [`_strip_sigil`](../../src/orchestrator/pkg/php_extractor.py#L938) — reaches **11** symbols
+- [`PhpExtractor`](../../src/orchestrator/pkg/php_extractor.py#L105) — reaches **9** symbols
+- [`_type_name`](../../src/orchestrator/pkg/php_extractor.py#L879) — reaches **8** symbols
+- [`_field_text`](../../src/orchestrator/pkg/php_extractor.py#L951) — reaches **5** symbols
+- [`_property_names`](../../src/orchestrator/pkg/php_extractor.py#L854) — reaches **5** symbols
+- [`_base_type_names`](../../src/orchestrator/pkg/php_extractor.py#L825) — reaches **4** symbols
+- [`_const_names`](../../src/orchestrator/pkg/php_extractor.py#L843) — reaches **4** symbols
+- [`_interface_names`](../../src/orchestrator/pkg/php_extractor.py#L832) — reaches **4** symbols
 
 ## Documented in
 
@@ -34,7 +32,7 @@ _22 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/php_extractor.py:105`](../../src/orchestrator/pkg/php_extractor.py#L105)
 
-- **Called by** (1 production · 6 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L587), [`_calls_facts`](../../tests/pkg/test_php_extractor.py#L221), [`_facts`](../../tests/pkg/test_php_extractor.py#L67), [`_facts`](../../tests/pkg/test_php_orm.py#L46), [`_graph`](../../tests/pkg/test_php_routes.py#L19), [`test_end_to_end_via_repo_extractor_resolves_require_by_path_suffix`](../../tests/pkg/test_php_extractor.py#L161), [`test_legacy_require_literal_and_computed`](../../tests/pkg/test_php_extractor.py#L139)
+- **Called by** (1 production · 6 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L600), [`_calls_facts`](../../tests/pkg/test_php_extractor.py#L221), [`_facts`](../../tests/pkg/test_php_extractor.py#L67), [`_facts`](../../tests/pkg/test_php_orm.py#L46), [`_graph`](../../tests/pkg/test_php_routes.py#L19), [`test_end_to_end_via_repo_extractor_resolves_require_by_path_suffix`](../../tests/pkg/test_php_extractor.py#L161), [`test_legacy_require_literal_and_computed`](../../tests/pkg/test_php_extractor.py#L139)
 - **Fields**: `language`, `suffixes`
 - **Documented in**: `CHANGELOG.md`, `docs/specs/language-expansion-roadmap.md#where-we-are-today`, `docs/specs/php-support-roadmap.md#4-phases`
 
@@ -80,7 +78,7 @@ _22 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/php_extractor.py:752`](../../src/orchestrator/pkg/php_extractor.py#L752)
 
 - **Called by** (1): [`_scan_calls_in`](../../src/orchestrator/pkg/php_extractor.py#L571)
-- **Calls** (4): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_resolve_type_name`](../../src/orchestrator/pkg/php_names.py#L116)
+- **Calls** (6): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_resolve_type_name`](../../src/orchestrator/pkg/php_names.py#L116), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175)
 
 ### `_field_text`
 
@@ -144,7 +142,7 @@ _22 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/php_extractor.py:571`](../../src/orchestrator/pkg/php_extractor.py#L571)
 
 - **Called by** (1): [`_emit_calls`](../../src/orchestrator/pkg/php_extractor.py#L488)
-- **Calls** (9): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_emit_receiver_call`](../../src/orchestrator/pkg/php_extractor.py#L752), [`_is_this_property`](../../src/orchestrator/pkg/php_extractor.py#L746), [`_resolve_type_name`](../../src/orchestrator/pkg/php_names.py#L116), [`_strip_sigil`](../../src/orchestrator/pkg/php_extractor.py#L938), [`_text`](../../src/orchestrator/pkg/php_names.py#L26), [`_to_dotted`](../../src/orchestrator/pkg/php_names.py#L32)
+- **Calls** (11): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_emit_receiver_call`](../../src/orchestrator/pkg/php_extractor.py#L752), [`_is_this_property`](../../src/orchestrator/pkg/php_extractor.py#L746), [`_resolve_type_name`](../../src/orchestrator/pkg/php_names.py#L116), [`_strip_sigil`](../../src/orchestrator/pkg/php_extractor.py#L938), [`_text`](../../src/orchestrator/pkg/php_names.py#L26), [`_to_dotted`](../../src/orchestrator/pkg/php_names.py#L32), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175)
 
 ### `_string_content`
 

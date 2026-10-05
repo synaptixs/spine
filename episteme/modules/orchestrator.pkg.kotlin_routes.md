@@ -13,16 +13,16 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_mapping_methods`](../../src/orchestrator/pkg/kotlin_routes.py#L484) — reaches **5** symbols · **no test path visible**
-- [`_mapping_path`](../../src/orchestrator/pkg/kotlin_routes.py#L466) — reaches **5** symbols · **no test path visible**
-- [`_positional_arguments`](../../src/orchestrator/pkg/kotlin_routes.py#L531) — reaches **5** symbols · **no test path visible**
-- [`_Mount`](../../src/orchestrator/pkg/kotlin_routes.py#L116) — reaches **4** symbols · **no test path visible**
-- [`_Route`](../../src/orchestrator/pkg/kotlin_routes.py#L104) — reaches **4** symbols · **no test path visible**
-- [`_arguments_holder`](../../src/orchestrator/pkg/kotlin_routes.py#L509) — reaches **4** symbols · **no test path visible**
-- [`_callable_reference`](../../src/orchestrator/pkg/kotlin_routes.py#L553) — reaches **4** symbols · **no test path visible**
-- [`_declare`](../../src/orchestrator/pkg/kotlin_routes.py#L287) — reaches **4** symbols · **no test path visible**
+- [`_mapping_methods`](../../src/orchestrator/pkg/kotlin_routes.py#L484) — reaches **5** symbols
+- [`_mapping_path`](../../src/orchestrator/pkg/kotlin_routes.py#L466) — reaches **5** symbols
+- [`_positional_arguments`](../../src/orchestrator/pkg/kotlin_routes.py#L531) — reaches **5** symbols
+- [`_Mount`](../../src/orchestrator/pkg/kotlin_routes.py#L116) — reaches **4** symbols
+- [`_Route`](../../src/orchestrator/pkg/kotlin_routes.py#L104) — reaches **4** symbols
+- [`_arguments_holder`](../../src/orchestrator/pkg/kotlin_routes.py#L509) — reaches **4** symbols
+- [`_callable_reference`](../../src/orchestrator/pkg/kotlin_routes.py#L553) — reaches **4** symbols
+- [`_declare`](../../src/orchestrator/pkg/kotlin_routes.py#L287) — reaches **4** symbols
 
-_24 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_1 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Types
 
@@ -161,7 +161,7 @@ _24 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/pkg/kotlin_routes.py:203`](../../src/orchestrator/pkg/kotlin_routes.py#L203)
 
 - **Called by** (1): [`finalize`](../../src/orchestrator/pkg/kotlin_extractor.py#L1112)
-- **Calls** (5): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_mount_points`](../../src/orchestrator/pkg/kotlin_routes.py#L329), [`join_path`](../../src/orchestrator/pkg/jvm_routes.py#L178)
+- **Calls** (7): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Node`](../../src/orchestrator/pkg/facts.py#L128), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_mount_points`](../../src/orchestrator/pkg/kotlin_routes.py#L329), [`add_edge`](../../src/orchestrator/pkg/facts.py#L180), [`add_node`](../../src/orchestrator/pkg/facts.py#L175), [`join_path`](../../src/orchestrator/pkg/jvm_routes.py#L178)
 
 ### `read_controller`
 

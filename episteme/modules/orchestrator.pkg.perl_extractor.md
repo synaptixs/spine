@@ -13,16 +13,16 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_first_named_of_type`](../../src/orchestrator/pkg/perl_extractor.py#L157) — reaches **23** symbols · **no test path visible**
-- [`_text`](../../src/orchestrator/pkg/perl_extractor.py#L151) — reaches **21** symbols · **no test path visible**
-- [`_to_dotted`](../../src/orchestrator/pkg/perl_extractor.py#L143) — reaches **17** symbols · **no test path visible**
-- [`_TypeRec`](../../src/orchestrator/pkg/perl_extractor.py#L326) — reaches **15** symbols · **no test path visible**
-- [`_plain_string_literal_text`](../../src/orchestrator/pkg/perl_extractor.py#L176) — reaches **14** symbols · **no test path visible**
-- [`_string_content_of`](../../src/orchestrator/pkg/perl_extractor.py#L171) — reaches **11** symbols · **no test path visible**
-- [`_varname_of`](../../src/orchestrator/pkg/perl_extractor.py#L164) — reaches **9** symbols · **no test path visible**
-- [`PerlExtractor`](../../src/orchestrator/pkg/perl_extractor.py#L360) — reaches **8** symbols
+- [`_first_named_of_type`](../../src/orchestrator/pkg/perl_extractor.py#L157) — reaches **23** symbols
+- [`_text`](../../src/orchestrator/pkg/perl_extractor.py#L151) — reaches **21** symbols
+- [`_to_dotted`](../../src/orchestrator/pkg/perl_extractor.py#L143) — reaches **17** symbols
+- [`_TypeRec`](../../src/orchestrator/pkg/perl_extractor.py#L326) — reaches **15** symbols
+- [`_plain_string_literal_text`](../../src/orchestrator/pkg/perl_extractor.py#L176) — reaches **14** symbols
+- [`_string_content_of`](../../src/orchestrator/pkg/perl_extractor.py#L171) — reaches **11** symbols
+- [`PerlExtractor`](../../src/orchestrator/pkg/perl_extractor.py#L360) — reaches **9** symbols
+- [`_varname_of`](../../src/orchestrator/pkg/perl_extractor.py#L164) — reaches **9** symbols
 
-_19 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_2 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Documented in
 
@@ -34,7 +34,7 @@ _19 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/perl_extractor.py:360`](../../src/orchestrator/pkg/perl_extractor.py#L360)
 
-- **Called by** (1 production · 4 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L587), [`_facts`](../../tests/pkg/test_perl_extractor.py#L51), [`_repo_facts`](../../tests/pkg/test_perl_extractor.py#L318), [`test_end_to_end_via_repo_extractor_resolves_require_by_path_suffix`](../../tests/pkg/test_perl_extractor.py#L293), [`test_types_and_subs_do_not_leak_across_repos_sharing_one_extractor`](../../tests/pkg/test_perl_extractor.py#L872)
+- **Called by** (1 production · 4 test): [`default_extractors`](../../src/orchestrator/pkg/extractor.py#L600), [`_facts`](../../tests/pkg/test_perl_extractor.py#L51), [`_repo_facts`](../../tests/pkg/test_perl_extractor.py#L318), [`test_end_to_end_via_repo_extractor_resolves_require_by_path_suffix`](../../tests/pkg/test_perl_extractor.py#L293), [`test_types_and_subs_do_not_leak_across_repos_sharing_one_extractor`](../../tests/pkg/test_perl_extractor.py#L872)
 - **Fields**: `_subs`, `_types`, `language`, `suffixes`
 - **Documented in**: `CHANGELOG.md`, `docs/specs/perl-support-roadmap.md#4-phases-the-living-table`
 

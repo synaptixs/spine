@@ -1017,7 +1017,7 @@ def test_an_unmeasured_language_keeps_the_original_wording() -> None:
     from orchestrator.sdlc.builddoc import _blast_prose
 
     prose = _blast_prose({"call_graph_available": True, "modules": []}, "rust")
-    assert "per-method counts under-report" in prose
+    assert "per-method counts can under-report" in prose
     assert "Measured `CALLS` recall" not in prose
     assert "0.00" not in prose
 

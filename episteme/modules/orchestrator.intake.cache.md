@@ -47,7 +47,7 @@
 [`src/orchestrator/intake/cache.py:105`](../../src/orchestrator/intake/cache.py#L105)
 
 - **Called by** (2): [`complete_by_pr`](../../src/orchestrator/intake/cache.py#L231), [`load_cached_plan`](../../src/orchestrator/intake/cache.py#L272)
-- **Calls** (6): [`BacklogPlan`](../../src/orchestrator/intake/service.py#L162), [`GapFinding`](../../src/orchestrator/intake/gaps.py#L75), [`GapSeverity`](../../src/orchestrator/intake/gaps.py#L44), [`SourceDocument`](../../src/orchestrator/intake/source.py#L35), `model_validate`, `model_validate`
+- **Calls** (4): [`BacklogPlan`](../../src/orchestrator/intake/service.py#L162), [`GapFinding`](../../src/orchestrator/intake/gaps.py#L75), [`GapSeverity`](../../src/orchestrator/intake/gaps.py#L44), [`SourceDocument`](../../src/orchestrator/intake/source.py#L35)
 
 ### `_plan_to_dict`
 
@@ -74,7 +74,7 @@
 [`src/orchestrator/intake/cache.py:336`](../../src/orchestrator/intake/cache.py#L336)
 
 - **Called by** (5 production · 8 test): [`_go`](../../src/orchestrator/cli/sdlc.py#L858), [`_run_ingest`](../../src/orchestrator/cli/build.py#L68), [`_run_openspec_draft`](../../src/orchestrator/cli/build.py#L305), [`_stage_intake`](../../src/orchestrator/sdlc/autorun.py#L624), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L767), [`test_a_cache_hit_names_the_callers_own_way_to_re_extract`](../../tests/intake/test_follow_links.py#L221), [`test_a_remote_source_is_not_re_read_on_a_hit`](../../tests/intake/test_cache_fingerprint.py#L79), [`test_an_edited_file_is_re_extracted_and_says_why`](../../tests/intake/test_cache_fingerprint.py#L52), [`test_an_entry_from_before_fingerprints_is_used_with_a_note_and_not_stamped`](../../tests/intake/test_cache_fingerprint.py#L67), [`test_an_unchanged_file_is_a_hit`](../../tests/intake/test_cache_fingerprint.py#L40), [`test_analyze_cached_extracts_once_then_reuses`](../../tests/intake/test_cache.py#L84), [`test_following_links_is_its_own_cache_entry_and_never_the_flag_off_one`](../../tests/intake/test_follow_links.py#L208), [`test_refresh_forces_reextract`](../../tests/intake/test_cache.py#L92)
-- **Calls** (6): [`cache_path`](../../src/orchestrator/intake/cache.py#L70), [`cached_fingerprint`](../../src/orchestrator/intake/cache.py#L165), [`load_cached_plan`](../../src/orchestrator/intake/cache.py#L272), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40), [`save_plan`](../../src/orchestrator/intake/cache.py#L290), [`source_fingerprint`](../../src/orchestrator/intake/cache.py#L133)
+- **Calls** (7): [`analyze`](../../src/orchestrator/intake/service.py#L248), [`cache_path`](../../src/orchestrator/intake/cache.py#L70), [`cached_fingerprint`](../../src/orchestrator/intake/cache.py#L165), [`load_cached_plan`](../../src/orchestrator/intake/cache.py#L272), [`parse_source_uri`](../../src/orchestrator/intake/service.py#L40), [`save_plan`](../../src/orchestrator/intake/cache.py#L290), [`source_fingerprint`](../../src/orchestrator/intake/cache.py#L133)
 - **Documented in**: `docs/specs/intake-backlog-progress.md#components`
 
 ### `cache_path`

@@ -4,6 +4,62 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.53.0 — 2026-10-04
+
+Python's call graph now reaches through a typed variable, and a locked `pyjwt` closes ten
+published advisories.
+
+### Fixed
+
+- **The locked `pyjwt` moves from 2.13.0 to 2.15.1.** Ten advisories published against 2.13.0
+  (fixed in 2.14.0) made the dependency audit fail every pull request. Only the `pyjwt` entry
+  in `uv.lock` changes; `pyproject.toml` already allows it (`>=2.9`).
+  ([SSPN-115](https://fibonacci-solutions.atlassian.net/browse/SSPN-115))
+- **Python methods called through a typed variable now have callers in the graph.** The Python
+  front-end dropped every call through a parameter, a local or a stored attribute, so
+  `blast_radius` answered "0 callers" for most methods — `FactStore.impact_of`, `edges_of_kind`,
+  `docs_for` and `summary` and `LLMCodegenAdapter.refine`/`author_tests` among them. A call now
+  lands on the method its declared type means: a parameter annotation (`Optional[X]` and
+  `X | None` included), a local assigned once from a constructor, a `self.attr` typed by a class
+  annotation, a constructor or a typed parameter, and an inherited `self.m()`. It refuses rather
+  than guesses — a name bound to two types, a union of two classes, a type this repository does
+  not declare, a class with two bases or an external base — and a new corpus case with decoys
+  holds precision at 1.00. On this repository: +2,077 `CALLS` edges (779 from non-test code); a
+  20-edge hand sample was 20/20 correct. `Class.inherited()` on a class name now lands on the
+  ancestor that declares it; the 25 edges that pointed at an invented `Class.member` (22 of them
+  pydantic's `model_validate`) are dropped instead. **Build documents render new caller counts, so
+  a plan approved before the upgrade reads as stale once** — re-plan and re-approve.
+  ([SSPN-48](https://fibonacci-solutions.atlassian.net/browse/SSPN-48))
+- **The Python accuracy corpus now pins the receiver refusals the review added, and two wrong
+  edges are gone.** `corpus/python/instance_calls` had filed two true calls
+  (`via_reassigned`, `via_mixed_field` → `Rocket.get`) as refusals, so the published Python
+  `CALLS` recall of 0.889 was really 0.857 on the same cases; both are labelled as gaps now.
+  Most refusal rules added in review were pinned only by unit tests — 16 of 24 mutants of them
+  passed `pkg accuracy --check`; a decoy module and the `super()`/`cls` gaps take that to 2 of 24
+  (both unreachable from a corpus shape). Recall on the enlarged set reads 0.85 (63/74). Two
+  shapes landed on an inherited method they should not have: `self = other; self.m()` and a
+  `@staticmethod` whose first parameter is `self` — `self` is now the instance only as the first
+  parameter of a method that is not a static or class method and is never rebound.
+  ([SSPN-113](https://fibonacci-solutions.atlassian.net/browse/SSPN-113))
+- **Concurrent features on one SDLC worker no longer switch each other's codegen guards off.**
+  The worker shares one codegen adapter across features running in parallel, and refine stored
+  its edit allowlist on it — as single-shot implement did its edit scope — before awaiting the
+  model, clearing it afterwards. A feature that finished first cleared the other's value: its
+  refine then applied with the pre-existing-file guard (NSS-1243) and the weakened-test guard
+  off, while an implement running alongside a refine got refine-only guards. Both values now
+  ride down as arguments on every attempt, retries included; a test runs each interleaving, and
+  another fails if any adapter method stores state on the adapter again. `sdlc feature` and
+  `autorun` (one adapter per run) were never affected.
+  ([SSPN-95](https://fibonacci-solutions.atlassian.net/browse/SSPN-95))
+- **The codegen benchmark's `NEW-DRIFTMD-1` ticket can be passed.** Its held-out test built a
+  stand-in for the doc-drift finding (a `str` kind, no `message`) where the ticket requires the
+  real `DocDriftFinding`, so correct code failed on `kind.value` — every run of every tool on
+  every model failed the ticket. The test now builds real findings and checks the rendered text,
+  so a Markdown-escaped `missing\_symbol` counts. Re-graded on the kept runs: 7/7 for Spine + PKG,
+  and 6/7 for spec-kit, whose one failure never wrote the function. A new guard runs the suite
+  against a reference solution, and against a wrong one that must fail.
+  ([SSPN-97](https://fibonacci-solutions.atlassian.net/browse/SSPN-97))
+
 ## 3.52.0 — 2026-09-27
 
 Docs join the blast radius — the repository's own, Confluence and Jira pages, and any RAG system

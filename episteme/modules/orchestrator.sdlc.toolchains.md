@@ -13,7 +13,7 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`get_toolchain`](../../src/orchestrator/sdlc/toolchains.py#L455) — reaches **32** symbols
+- [`get_toolchain`](../../src/orchestrator/sdlc/toolchains.py#L455) — reaches **36** symbols
 - [`_load`](../../src/orchestrator/sdlc/toolchains.py#L26) — reaches **21** symbols · **no test path visible**
 - [`detect_language`](../../src/orchestrator/sdlc/toolchains.py#L460) — reaches **12** symbols
 - [`resolve_language`](../../src/orchestrator/sdlc/toolchains.py#L490) — reaches **12** symbols
@@ -207,7 +207,7 @@ _No relationships extracted — nothing in the graph calls it or extends it._
 
 [`src/orchestrator/sdlc/toolchains.py:455`](../../src/orchestrator/sdlc/toolchains.py#L455)
 
-- **Called by** (12): [`_convention_block`](../../src/orchestrator/sdlc/codegen.py#L1066), [`_impl_system`](../../src/orchestrator/sdlc/codegen.py#L1107), [`_layout_block`](../../src/orchestrator/sdlc/codegen.py#L1096), [`_refine_system`](../../src/orchestrator/sdlc/codegen.py#L1117), [`_tests_system`](../../src/orchestrator/sdlc/codegen.py#L1112), [`make_preflight_runner`](../../src/orchestrator/sdlc/preflight.py#L388), [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L683), [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L695), [`module_rel_path`](../../src/orchestrator/sdlc/layout.py#L137), [`resolve_layout`](../../src/orchestrator/sdlc/layout.py#L1482), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L767), [`scaffold`](../../src/orchestrator/sdlc/scaffold.py#L89)
+- **Called by** (12): [`_convention_block`](../../src/orchestrator/sdlc/codegen.py#L1065), [`_impl_system`](../../src/orchestrator/sdlc/codegen.py#L1106), [`_layout_block`](../../src/orchestrator/sdlc/codegen.py#L1095), [`_refine_system`](../../src/orchestrator/sdlc/codegen.py#L1116), [`_tests_system`](../../src/orchestrator/sdlc/codegen.py#L1111), [`make_preflight_runner`](../../src/orchestrator/sdlc/preflight.py#L388), [`make_test_environment`](../../src/orchestrator/sdlc/testenv.py#L683), [`make_test_runner`](../../src/orchestrator/sdlc/testenv.py#L695), [`module_rel_path`](../../src/orchestrator/sdlc/layout.py#L137), [`resolve_layout`](../../src/orchestrator/sdlc/layout.py#L1482), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L767), [`scaffold`](../../src/orchestrator/sdlc/scaffold.py#L89)
 
 ### `resolve_language`
 
