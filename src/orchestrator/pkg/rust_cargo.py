@@ -138,6 +138,7 @@ class CargoIndex:
                         continue
                     pkg.path_dependencies[alias] = dep_dir
                     if dep_dir not in seen and dep_dir not in excludes and (dep_dir / "Cargo.toml").is_file():
+                        members.add(dep_dir)
                         pending.append(dep_dir)
             self.packages[name] = pkg
         default_paths = self._expand(workspace.get("default-members", []))
@@ -187,7 +188,8 @@ class CargoIndex:
 
         lib = _table(data.get("lib"))
         lib_name = str(lib.get("name", pkg.name.replace("-", "_")))
-        add("lib", lib_name, str(lib.get("path", "src/lib.rs")))
+        lib_kind = "proc-macro" if lib.get("proc-macro") is True else "lib"
+        add(lib_kind, lib_name, str(lib.get("path", "src/lib.rs")))
         for spec in data.get("bin", []):
             if isinstance(spec, dict):
                 name = spec.get("name")

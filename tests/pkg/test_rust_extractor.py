@@ -250,3 +250,22 @@ def test_workspace_glob_exclude_inheritance_and_path_alias(tmp_path: Path) -> No
     assert idx.packages["app"].path_dependencies["shared"] == (tmp_path / "crates/shared").resolve()
     batch, _ = _extract(tmp_path)
     assert not any(n.id.startswith("rust:ignored@") for n in batch.nodes)
+
+
+def test_implicit_workspace_proc_macro_member_matches_cargo(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        {
+            "Cargo.toml": '[workspace]\nmembers=["crates/app"]\n',
+            "crates/app/Cargo.toml": '[package]\nname="app"\nversion="0.1.0"\n'
+            '[dependencies]\nderive={path="../derive"}\n',
+            "crates/app/src/lib.rs": "pub fn run() {}\n",
+            "crates/derive/Cargo.toml": '[package]\nname="derive"\nversion="0.1.0"\n[lib]\nproc-macro=true\n',
+            "crates/derive/src/lib.rs": "",
+        },
+    )
+    index = CargoIndex(tmp_path)
+    assert index.workspace_members == ("app", "derive")
+    assert [(target.kind, target.name) for target in index.packages["derive"].targets] == [
+        ("proc-macro", "derive")
+    ]
