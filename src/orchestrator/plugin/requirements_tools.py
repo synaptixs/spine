@@ -59,10 +59,14 @@ def _code_check(loaded: rq.LoadedChange, repo_path: str) -> rq.CodeCheck:
     # Imported inside the call: `cli.build` imports nothing from the plugin, so there is no cycle.
     from orchestrator.cli.build import _facts_for_spec
     from orchestrator.intake.specs import FeatureSpec
+    from orchestrator.pkg import FactStore, load_or_extract
     from orchestrator.pkg.persistence import repo_state
-    from orchestrator.plugin.server import _repo_store
+    from orchestrator.plugin.repo_access import open_repo
 
-    with _repo_store(repo_path) as (store, repo, _docs):
+    # The same code-only store `server._repo_store` yields without docs, opened here rather than
+    # imported from it: `server` imports this module, so importing it back is a cycle.
+    with open_repo(repo_path) as repo:
+        store = FactStore(load_or_extract(repo))
         _sha, dirty = repo_state(repo)
         base = pkg_evidence.from_store(store, where=repo_path, untrusted=(repo_path,) if dirty else ())
         intent = loaded.intent
