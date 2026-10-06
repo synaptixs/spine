@@ -1,20 +1,24 @@
-# Default gap rules for the intent-approval bookend (Block B.3).
+# Strict gap rules for the requirements-check flow (`openspec check` / `openspec answer`).
 #
-# Each rule is a predicate over an extracted Intent; when it FAILS, a
-# finding fires with the given severity:
-#   blocker     — gates approval (intent too incomplete to build)
-#   needs_input — gates approval (a human must resolve open questions)
-#   warning     — advisory, does not gate
+# The default set (intent_gaps.yaml) runs on every `ingest` and only ever *warns* about the
+# why-fields, so adopting Spine never starts blocking a source it used to accept. This set is
+# opt-in: it gates on a missing problem, users or outcome, and on any open question with no
+# recorded answer (or no named owner it is deferred to).
+#
+#   blocker     — gates approval
+#   needs_input — gates approval
+#   warning     — advisory
 #
 # check kinds: field_present | min_length | min_items | max_items | pattern | question_state
-# fields:      title | description | scope | problem | outcome | users | non_goals | nfrs |
-#              dependencies | acceptance_criteria | open_questions
+#   pattern        regex (case-insensitive) over a string field, or over any/all items of a list
+#                  (mode: any | all). An empty field is not judged. A regex nudges; it never
+#                  judges, which is why the pattern rules are warnings.
+#   question_state every open_questions entry has a Resolution: answered (not a model proposal)
+#                  or deferred with an owner. Replaces open_questions_unresolved.
+# fields: title | description | scope | problem | outcome | users | non_goals | nfrs |
+#         dependencies | acceptance_criteria | open_questions
 #
-# The last six rules are the requirements-clarity checks. In this default set they are all
-# warnings, so they never change what `ingest` gates on; requirements_gaps.yaml is the strict set.
-#
-# Copy + edit this file and point the analyzer at it to tune the gate for
-# your team — no code change required. These mirror DEFAULT_GAP_RULES.
+# Mirrors STRICT_GAP_RULES; tests/intake/test_gap_clarity.py fails if the two drift.
 
 rules:
 - id: description_present
@@ -28,11 +32,6 @@ rules:
   severity: warning
   check: field_present
   field: scope
-- id: open_questions_unresolved
-  description: Intent has open questions a human must resolve.
-  severity: needs_input
-  check: max_items
-  field: open_questions
 - id: nfrs_missing
   description: Intent should list at least one non-functional requirement.
   severity: warning
@@ -41,18 +40,18 @@ rules:
   count: 1
 - id: problem_stated
   description: Intent should state the problem it solves.
-  severity: warning
+  severity: blocker
   check: field_present
   field: problem
 - id: users_named
   description: Intent should name who has the problem.
-  severity: warning
+  severity: needs_input
   check: min_items
   field: users
   count: 1
 - id: outcome_stated
   description: Intent should state the outcome that means it worked.
-  severity: warning
+  severity: needs_input
   check: field_present
   field: outcome
 - id: outcome_observable
@@ -74,3 +73,8 @@ rules:
   field: acceptance_criteria
   pattern: \b(given|when|then|shall|must|should|returns?|rejects?|displays?|shows?|creates?|sends?|logs?|fails?|exits?|prints?|writes?|emits?|records?|stops?|allows?|prevents?|raises?|responds?|redirects?|accepts?|refuses?)\b
   mode: all
+- id: questions_resolved
+  description: Every open question needs a recorded answer, or an owner it is deferred to.
+  severity: needs_input
+  check: question_state
+  field: open_questions
