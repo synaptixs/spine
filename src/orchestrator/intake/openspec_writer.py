@@ -17,7 +17,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from orchestrator.intake.intents import Intent, _slug
+from orchestrator.intake.intents import Intent, Resolution, _slug
+from orchestrator.intake.openspec_source import _humanize
 from orchestrator.intake.pkg_evidence import DraftGrounding, absence_section, banner_sentence, fact_section
 from orchestrator.intake.specs import FeatureSpec
 
@@ -25,6 +26,11 @@ _DRAFT_NOTE = (
     "> ⚠️ **Auto-drafted by Spine** from an unstructured source — review before use: "
     "sharpen each requirement into a SHALL/MUST statement and each scenario into "
     "Given/When/Then, then run `orchestrator sdlc feature --source openspec://{change_id}`.\n"
+)
+_SKELETON_NOTE = (
+    "> ⚠️ **Skeleton drafted by Spine from one sentence** — nothing below is stated by anyone yet. "
+    "Answer the open questions (`orchestrator openspec answer`), then run "
+    "`orchestrator openspec check {change_id}`.\n"
 )
 #: The grounding line rides *in* the banner, not only in its own section. A reader who skims
 #: `proposal.md` sees the banner and nothing else, and "which mode produced this page" is
@@ -35,6 +41,11 @@ _GWT = re.compile(r"\b(GIVEN|WHEN|THEN|AND|BUT)\b", re.IGNORECASE)
 # BDD keywords for *splitting* a criterion into bullets are UPPERCASE by convention —
 # case-sensitive so a mid-sentence prose "and"/"then" isn't mistaken for a step keyword.
 _BDD_UPPER = re.compile(r"\b(GIVEN|WHEN|THEN|AND|BUT)\b")
+
+
+#: The one scenario a delta spec gets when a change has no criteria yet. It stands in for
+#: criteria nobody has written — `requirements.check_intent` says so rather than count it.
+PLACEHOLDER_CRITERION = "The behavior described in the proposal holds."
 
 
 def change_id_for(intent: Intent) -> str:
@@ -63,7 +74,7 @@ def _spec_md(spec: FeatureSpec) -> str:
     lines = [f"# Delta for {spec.title}", "", "## ADDED Requirements", "", f"### Requirement: {spec.title}"]
     statement = (spec.summary or spec.user_story or f"The system SHALL support {spec.title}.").strip()
     lines += [statement, ""]
-    criteria = spec.acceptance_criteria or ["The behavior described in the proposal holds."]
+    criteria = spec.acceptance_criteria or [PLACEHOLDER_CRITERION]
     for i, crit in enumerate(criteria, 1):
         label = _short_label(crit) or f"Criterion {i}"
         lines.append(f"#### Scenario: {label}")
@@ -80,25 +91,70 @@ def _short_label(criterion: str) -> str:
     return head[:60].strip()
 
 
+def _resolution_line(res: Resolution) -> str:
+    """One nested bullet recording an answer, in the layout ``openspec_source`` reads back.
+
+    Single-line by construction: an answer's whitespace is collapsed, because a line break
+    would end the bullet and the rest would be read as another question. ``model`` and ``route``
+    are reserved for model proposals and never written."""
+    if res.status == "deferred":
+        owner = f" to {res.owner if res.owner.startswith('@') else '@' + res.owner}" if res.owner else ""
+        return f"  - **Deferred**{owner}" + (f" ({res.at})" if res.at else "")
+    label = "Proposed" if res.status == "proposed" else "Answer"
+    meta = " · ".join(p for p in (res.origin, res.channel, res.at) if p)
+    return f"  - **{label}** ({meta}): {_one_line(res.answer)}"
+
+
+def _why_parts(intent: Intent, fallback: str) -> list[str]:
+    """``## Why`` — the bare text as it always was, or, when the source stated a problem, users or
+    outcome, those as ``###`` subsections. Only what is set is written."""
+    if not (intent.problem or intent.users or intent.outcome):
+        return ["## Why", fallback or "TODO"]
+    parts = ["## Why"]
+    # The description is the lead text, unless it is only the fallback the reader supplies
+    # when nothing else is there (the problem, or the humanised id) — writing that back would
+    # make a second round trip differ from the first.
+    lead = intent.description.strip()
+    if lead and lead not in (intent.problem.strip(), _humanize(change_id_for(intent))):
+        parts += [lead, ""]
+    if intent.problem:
+        parts += ["### Problem", intent.problem.strip()]
+    if intent.users:
+        parts += ["### Users"] + [f"- {u}" for u in intent.users]
+    if intent.outcome:
+        parts += ["### Outcome", intent.outcome.strip()]
+    return parts
+
+
 def _proposal_md(
     spec: FeatureSpec, intent: Intent, change_id: str, grounding: DraftGrounding | None = None
 ) -> str:
     why = (intent.description or spec.summary or "").strip()
     what = (intent.scope or spec.user_story or "").strip()
     impact = spec.technical_notes.strip()
-    parts = [
-        f"# Proposal: {spec.title}",
-        "",
-        _DRAFT_NOTE.format(change_id=change_id),
-    ]
+    parts = [f"# Proposal: {spec.title}"]
+    if intent.idea_id:
+        parts.append(f"idea: {intent.idea_id}")
+    note = _SKELETON_NOTE if intent.idea_id and not intent.problem else _DRAFT_NOTE
+    parts += ["", note.format(change_id=change_id)]
     if grounding is not None:
         parts.append(_GROUNDING_NOTE.format(sentence=banner_sentence(grounding)))
-    parts += ["## Why", why or "TODO"]
-    parts += ["", "## What Changes", what or "TODO"]
+    parts += _why_parts(intent, why)
+    if intent.non_goals:
+        parts += ["", "## What Changes"]
+        if what:
+            parts += [what, ""]
+        parts += ["### Non-goals"] + [f"- {g}" for g in intent.non_goals]
+    else:
+        parts += ["", "## What Changes", what or "TODO"]
     if impact:
         parts += ["", "## Impact", impact]
     if intent.open_questions:
-        parts += ["", "## Open Questions"] + [f"- {q}" for q in intent.open_questions]
+        parts += ["", "## Open Questions"]
+        for q in intent.open_questions:
+            parts.append(f"- {q}")
+            if q in intent.resolutions:
+                parts.append(_resolution_line(intent.resolutions[q]))
     if grounding is not None:
         # Last, and fenced off by its own heading: a fact region must never be interleaved
         # with the derived prose above it, or the citation lends its authority to the sentence
@@ -215,4 +271,4 @@ def write_change(root: Path, intent: Intent, files: dict[str, str], *, overwrite
     return written
 
 
-__all__ = ["change_id_for", "render_change", "write_change"]
+__all__ = ["PLACEHOLDER_CRITERION", "change_id_for", "render_change", "write_change"]

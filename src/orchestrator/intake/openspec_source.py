@@ -35,7 +35,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from orchestrator.intake.intents import Intent, _slug
+from orchestrator.intake.intents import Intent, Resolution, _slug
 from orchestrator.intake.source import FetchTreeResult, SourceDocument, SourceRef
 
 _ARCHIVE = "archive"
@@ -50,7 +50,108 @@ _REQ = re.compile(r"^###\s+Requirement:\s*(.+?)\s*$", re.MULTILINE)
 _SCENARIO = re.compile(r"^####\s+Scenario:\s*(.+?)\s*$", re.MULTILINE)
 
 
+# `### Name` subsection splitter (level-3), and the `idea: <id>` header line the requirements
+# check writes directly under the H1.
+_H3 = re.compile(r"^###\s+(.+?)\s*$", re.MULTILINE)
+_IDEA = re.compile(r"^idea:[ \t]*(\S.*?)\s*$", re.MULTILINE)
+# A recorded answer, nested under its question (see `openspec_writer._resolution_line`):
+#   **Answer** (user · elicitation · 2026-10-02): EUR and USD only.
+#   **Deferred** to @finance-lead (2026-10-02)
+_ANSWER = re.compile(r"^\*\*(Answer|Proposed)\*\*\s*\(([^)]*)\)\s*:\s*(.*)$")
+_DEFERRED = re.compile(r"^\*\*Deferred\*\*(?:\s+to\s+@?(\S+))?(?:\s*\(([^)]*)\))?\s*$")
+_ORIGINS = {"stated", "user", "relayed", "proposed"}
+_CHANNELS = {"source", "elicitation", "mcp", "answers-file", "cli"}
+_WHY_SUBSECTIONS = ("problem", "users", "outcome")
+
+
 # --- markdown parsing (pure, unit-testable) --------------------------------
+
+
+def _fence_mask(text: str) -> list[bool]:
+    """For each line of ``text``: is it inside (or is it) a fenced code block? A ``###`` in a code
+    sample is not a subsection."""
+    inside = False
+    mask: list[bool] = []
+    for line in text.split("\n"):
+        if line.lstrip().startswith(("```", "~~~")):
+            mask.append(True)
+            inside = not inside
+        else:
+            mask.append(inside)
+    return mask
+
+
+def _h3_split(body: str) -> tuple[str, list[tuple[str, str]]]:
+    """Split a section body into its lead text (before the first ``###``) and its ``### Name``
+    subsections as ``(name as written, text)``, in document order. Fence-aware."""
+    lines = body.split("\n")
+    mask = _fence_mask(body)
+    starts = [i for i, ln in enumerate(lines) if not mask[i] and _H3.match(ln)]
+    if not starts:
+        return body.strip(), []
+    subs: list[tuple[str, str]] = []
+    for n, i in enumerate(starts):
+        end = starts[n + 1] if n + 1 < len(starts) else len(lines)
+        match = _H3.match(lines[i])
+        name = match.group(1).strip() if match else ""
+        subs.append((name, "\n".join(lines[i + 1 : end]).strip()))
+    return "\n".join(lines[: starts[0]]).strip(), subs
+
+
+def _rebuild(lead: str, subs: list[tuple[str, str]]) -> str:
+    """Lead text and subsections joined back, each ``### Name`` as it was written."""
+    return "\n\n".join(p for p in (lead, *(f"### {n}\n{t}".rstrip() for n, t in subs)) if p)
+
+
+def _items(body: str) -> list[str]:
+    """One item per non-empty line, list markers stripped."""
+    return [t for t in (ln.strip().lstrip("-*").strip() for ln in body.splitlines()) if t]
+
+
+def _parse_resolution(text: str) -> Resolution | None:
+    """A nested ``**Answer**`` / ``**Proposed**`` / ``**Deferred**`` bullet, or ``None`` for any
+    other text — which the caller then treats exactly as it always did."""
+    m = _ANSWER.match(text)
+    if m:
+        parts = [p.strip() for p in m.group(2).split("·")]
+        origin = parts[0] if parts and parts[0] in _ORIGINS else ""
+        channel = parts[1] if len(parts) > 1 and parts[1] in _CHANNELS else ""
+        if not origin or not channel:
+            return None
+        return Resolution(
+            status="proposed" if m.group(1) == "Proposed" else "answered",
+            answer=m.group(3).strip(),
+            origin=origin,  # type: ignore[arg-type]
+            channel=channel,  # type: ignore[arg-type]
+            at=parts[2] if len(parts) > 2 else "",
+        )
+    m = _DEFERRED.match(text)
+    if m:
+        return Resolution(status="deferred", owner=m.group(1) or "", at=(m.group(2) or "").strip())
+    return None
+
+
+def _questions(body: str) -> tuple[list[str], dict[str, Resolution]]:
+    """Open questions, and the answers recorded under them.
+
+    Every line is a question, as it always was — except an *indented* line directly under one
+    that is a recognised resolution bullet, which is that question's answer and never a
+    question of its own."""
+    questions: list[str] = []
+    resolutions: dict[str, Resolution] = {}
+    current = ""
+    for raw in body.splitlines():
+        if not raw.strip():
+            continue
+        text = raw.strip().lstrip("-*").strip()
+        if raw[:1] in " \t" and current:
+            res = _parse_resolution(text)
+            if res is not None:
+                resolutions[current] = res
+                continue
+        questions.append(text)
+        current = text
+    return questions, resolutions
 
 
 def _h2_sections(md: str) -> dict[str, str]:
@@ -124,16 +225,43 @@ def _requirements(spec_md: str) -> list[tuple[str, list[str]]]:
     return out
 
 
+def _split_non_goals(what_changes: str) -> tuple[str, list[str]]:
+    """``## What Changes`` without its ``### Non-goals`` subsection, and that subsection's items.
+    A section with no such subsection comes back untouched."""
+    lead, subs = _h3_split(what_changes)
+    goals = [t for n, t in subs if n.lower() == "non-goals"]
+    if not goals:
+        return what_changes, []
+    return _rebuild(lead, [(n, t) for n, t in subs if n.lower() != "non-goals"]), _items(goals[0])
+
+
 def change_to_intent(
     change_id: str, *, proposal_md: str = "", spec_texts: tuple[str, ...] = (), tasks_md: str = ""
 ) -> Intent:
     """Map one OpenSpec change to an ``Intent`` (deterministic; scenarios → criteria)."""
     sections = _h2_sections(proposal_md)
     description = _first_section(sections, "why", "intent", "purpose", "what changes")
-    scope = _first_section(sections, "scope", "what changes", "impact")
+    what_changes, non_goals = _split_non_goals(sections.get("what changes", ""))
+    if description == sections.get("what changes"):
+        description = what_changes
+    scope = _first_section({**sections, "what changes": what_changes}, "scope", "what changes", "impact")
     approach = _first_section(sections, "approach")
     if approach and approach not in scope:
         scope = f"{scope}\n\nApproach: {approach}".strip()
+
+    # A bare `## Why` is the description, whatever it contains. Only when it carries a
+    # `### Problem` / `### Users` / `### Outcome` subsection is it read as the why-fields — and
+    # then anything else in it (lead text, any other subsection) still lands in `description`.
+    problem = outcome = ""
+    users: list[str] = []
+    if sections.get("why") and description == sections["why"]:
+        lead, subs = _h3_split(sections["why"])
+        named = {n.lower(): t for n, t in subs}
+        if any(name in named for name in _WHY_SUBSECTIONS):
+            problem, outcome = named.get("problem", ""), named.get("outcome", "")
+            users = _items(named.get("users", ""))
+            rest = [(n, t) for n, t in subs if n.lower() not in _WHY_SUBSECTIONS]
+            description = _rebuild(lead, rest) or problem
 
     criteria: list[str] = []
     for spec_md in spec_texts:
@@ -141,12 +269,10 @@ def change_to_intent(
             criteria.append(req_text)
             criteria.extend(scenarios)
 
-    # Open questions: a proposal may carry them explicitly; keep them verbatim.
-    open_q = [
-        ln.strip().lstrip("-*").strip()
-        for ln in _first_section(sections, "open questions", "questions").splitlines()
-        if ln.strip().lstrip("-*").strip()
-    ]
+    # Open questions: a proposal may carry them explicitly; keep them verbatim. An answer
+    # recorded under a question is that question's resolution, not another question.
+    open_q, resolutions = _questions(_first_section(sections, "open questions", "questions"))
+    idea = _IDEA.search(re.split(r"^##\s", proposal_md, maxsplit=1, flags=re.MULTILINE)[0])
 
     return Intent(
         id=f"intent-{_slug(change_id)}",
@@ -156,6 +282,12 @@ def change_to_intent(
         acceptance_criteria=criteria,
         open_questions=open_q,
         source_doc_ids=[f"openspec:{change_id}"],
+        problem=problem,
+        users=users,
+        outcome=outcome,
+        non_goals=non_goals,
+        idea_id=idea.group(1) if idea else "",
+        resolutions=resolutions,
     )
 
 

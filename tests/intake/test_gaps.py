@@ -47,8 +47,18 @@ def test_rule_rejects_unknown_field() -> None:
 # ---- analyzer with defaults -----------------------------------------------
 
 
-def test_complete_intent_has_no_findings() -> None:
-    assert GapAnalyzer().analyze([_intent()]) == []
+def test_a_complete_intent_gates_nothing_and_only_warns_about_the_why() -> None:
+    """Nothing the four original rules check — and the only new findings are the why-field
+    warnings an intent that states no "why" now earns (never gating, D14)."""
+    findings = GapAnalyzer().analyze([_intent()])
+    assert {f.rule_id for f in findings} == {
+        "problem_stated",
+        "users_named",
+        "outcome_stated",
+        "non_goal_named",
+    }
+    assert {f.severity for f in findings} == {GapSeverity.WARNING}
+    assert not blocks_approval(findings)
 
 
 def test_missing_description_is_blocker() -> None:

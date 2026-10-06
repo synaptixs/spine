@@ -501,6 +501,17 @@ orchestrator sdlc feature --source confluence://<page_id> --safe
   adds the code's facts beside it, labelled, so you can tell a checked line from a written
   one. Without a repo you still get that section, saying the draft is ungrounded and that
   nothing checked it. `tasks.md` is one checkbox per criterion in **either** mode.
+  **Check a requirement before you build it.** Spine does not write requirements — a person,
+  Claude in a chat or a wiki page does — but it can say whether they are clear and what the code
+  already holds: `orchestrator openspec check <change> ./my-service` runs a deterministic gate
+  (a problem, named users, an observable outcome, every open question answered or handed to a
+  named owner) and lists the criteria that already name code that exists. No model is called.
+  Start from one sentence with `openspec draft --idea "…"`, answer what it asks with
+  `openspec answer <change> --question … --answer …` (or `--answers file.yaml`), and check again.
+  Each answer is recorded in `proposal.md` with who gave it as Spine saw it; the spec writer then
+  treats it as a fact, and lists any question still open as an *unanswered assumption* instead of
+  guessing. From an assistant, the same two steps are the `requirements_check` and
+  `requirements_answer` tools.
 - `--safe` is the safe default: dry-run tracker, local commit, **no push**.
 - Pin one requirement with `--intent <intent-id>` if a page has several.
 

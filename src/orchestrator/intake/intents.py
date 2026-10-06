@@ -25,7 +25,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol, runtime_checkable
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer
 
 from orchestrator.core.llm import CompletionResult, LLMClient, Message, ToolSpec, catalog
 from orchestrator.intake.source import SourceDocument
@@ -120,6 +120,42 @@ _SUBMIT_TOOL = ToolSpec(
 )
 
 
+# The fields the requirements-check track added. Every one is **absent when empty** from every
+# serialisation (cache, build document, OpenSpec): the models are ``extra="forbid"`` and cached,
+# and an approval is a digest of the rendered document, so writing a new empty key would make an
+# older Spine re-extract and would move every existing approval (D26).
+WHY_KEYS: tuple[str, ...] = ("problem", "users", "outcome", "non_goals")
+_INTENT_ONLY_KEYS: tuple[str, ...] = ("idea_id", "resolutions")
+
+
+def omit_empty(data: dict[str, Any], keys: tuple[str, ...]) -> dict[str, Any]:
+    """``data`` without the ``keys`` whose value is empty — the absent-when-empty rule."""
+    for key in keys:
+        if key in data and not data[key]:
+            del data[key]
+    return data
+
+
+class Resolution(BaseModel):
+    """The recorded answer to one open question, with the channel Spine actually observed.
+
+    Spine cannot see who typed an answer that arrives through a tool, so ``origin`` and
+    ``channel`` record what it saw, never an identity. ``model`` and ``route`` are reserved for
+    model proposals (deferred, SSPN-104) and are never written today."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["answered", "proposed", "deferred"]
+    answer: str = ""
+    origin: Literal["stated", "user", "relayed", "proposed"] = "user"
+    channel: Literal["source", "elicitation", "mcp", "answers-file", "cli"] = "cli"
+    model: str = ""
+    route: str = ""
+    # Who will answer it — set only on a ``deferred`` resolution.
+    owner: str = ""
+    at: str = ""
+
+
 class Intent(BaseModel):
     """A discrete, buildable capability derived from requirements."""
 
@@ -137,6 +173,43 @@ class Intent(BaseModel):
     nfrs: list[str] = Field(default_factory=list)
     open_questions: list[str] = Field(default_factory=list)
     source_doc_ids: list[str] = Field(default_factory=list)
+    # Why this is being built. Empty on every intent read from a source that states none, and
+    # then omitted from every serialisation — see WHY_KEYS.
+    problem: str = ""
+    users: list[str] = Field(default_factory=list)
+    outcome: str = ""
+    non_goals: list[str] = Field(default_factory=list)
+    # The idea this intent was drafted from (``openspec draft --idea``).
+    idea_id: str = ""
+    # Answers to ``open_questions``, keyed by the question's exact text — the shape of
+    # ``FeatureSpec.met_criteria``, so ``open_questions`` stays a ``list[str]`` for every
+    # existing reader (D24). A reworded question orphans its answer; ``check`` reports that.
+    resolutions: dict[str, Resolution] = Field(default_factory=dict)
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_new_fields(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        return omit_empty(handler(self), (*WHY_KEYS, *_INTENT_ONLY_KEYS))
+
+
+def question_states(intent: Intent) -> tuple[list[str], list[str], list[str]]:
+    """The intent's open questions as ``(answered, deferred, unresolved)``.
+
+    *Answered* — a recorded answer that is not a model's unconfirmed proposal. *Deferred* — a
+    deferral that names an owner. Everything else is *unresolved*: no resolution recorded, a
+    proposal nobody confirmed, or a deferral with no one to answer it. Keyed on the question's
+    exact text (D24), so an answer to a reworded question resolves nothing."""
+    answered: list[str] = []
+    deferred: list[str] = []
+    unresolved: list[str] = []
+    for question in intent.open_questions:
+        res = intent.resolutions.get(question)
+        if res is not None and res.status == "answered" and res.origin != "proposed" and res.answer.strip():
+            answered.append(question)
+        elif res is not None and res.status == "deferred" and res.owner.strip():
+            deferred.append(question)
+        else:
+            unresolved.append(question)
+    return answered, deferred, unresolved
 
 
 @runtime_checkable

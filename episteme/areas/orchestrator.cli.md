@@ -3,20 +3,21 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.cli`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 11 modules — 1 types and 103 functions. No other area imports it, and it draws on 18 — nothing else in this repo depends on it. That's the shape of an entry point or a top-level application as much as a leaf utility, so it bounds the outward reach of a change here, not its difficulty.
+**`orchestrator.cli`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 11 modules — 1 types and 106 functions. It sits in the middle of the graph: 18 areas below it, 1 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
   n0["orchestrator.cli"]
-  n1["orchestrator"]
-  n2["orchestrator.agentic"]
-  n3["orchestrator.catalog"]
-  n4["orchestrator.core"]
-  n5["orchestrator.doctor"]
-  n6["orchestrator.evals"]
-  n7["orchestrator.init_scaffold"]
-  n8["orchestrator.intake"]
-  n0 --> n1
+  n1["orchestrator.plugin"]
+  n2["orchestrator"]
+  n3["orchestrator.agentic"]
+  n4["orchestrator.catalog"]
+  n5["orchestrator.core"]
+  n6["orchestrator.doctor"]
+  n7["orchestrator.evals"]
+  n8["orchestrator.init_scaffold"]
+  n9["orchestrator.intake"]
+  n1 --> n0
   n0 --> n2
   n0 --> n3
   n0 --> n4
@@ -24,11 +25,12 @@ flowchart LR
   n0 --> n6
   n0 --> n7
   n0 --> n8
+  n0 --> n9
 ```
 
-**In the diagram:** **`orchestrator.cli`** (this area) · `orchestrator` · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · `orchestrator.doctor` · [`orchestrator.evals`](orchestrator.evals.md) · `orchestrator.init_scaffold` · [`orchestrator.intake`](orchestrator.intake.md)
+**In the diagram:** **`orchestrator.cli`** (this area) · [`orchestrator.plugin`](orchestrator.plugin.md) · `orchestrator` · [`orchestrator.agentic`](orchestrator.agentic.md) · [`orchestrator.catalog`](orchestrator.catalog.md) · [`orchestrator.core`](orchestrator.core.md) · `orchestrator.doctor` · [`orchestrator.evals`](orchestrator.evals.md) · `orchestrator.init_scaffold` · [`orchestrator.intake`](orchestrator.intake.md)
 
-_Showing 8 of 18 neighbouring areas._
+_Showing 9 of 19 neighbouring areas._
 
 ## Modules
 
@@ -47,3 +49,7 @@ _Showing 8 of 18 neighbouring areas._
 ## Depends on
 
 `orchestrator`, [`orchestrator.agentic`](orchestrator.agentic.md), [`orchestrator.catalog`](orchestrator.catalog.md), [`orchestrator.core`](orchestrator.core.md), `orchestrator.doctor`, [`orchestrator.evals`](orchestrator.evals.md), `orchestrator.init_scaffold`, [`orchestrator.intake`](orchestrator.intake.md), `orchestrator.ir`, [`orchestrator.knowledge`](orchestrator.knowledge.md), [`orchestrator.launch`](orchestrator.launch.md), [`orchestrator.mcp`](orchestrator.mcp.md), [`orchestrator.personas`](orchestrator.personas.md), [`orchestrator.pkg`](orchestrator.pkg.md), [`orchestrator.registry`](orchestrator.registry.md), [`orchestrator.sdlc`](orchestrator.sdlc.md), [`orchestrator.spine`](orchestrator.spine.md), [`orchestrator.temporal`](orchestrator.temporal.md)
+
+## Depended on by
+
+[`orchestrator.plugin`](orchestrator.plugin.md)

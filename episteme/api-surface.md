@@ -17,7 +17,7 @@
 | `GET /app/governance` | [`governance_page`](../src/orchestrator/registry/api/web/governance.py#L49) | [`src/orchestrator/registry/api/web/governance.py:48`](../src/orchestrator/registry/api/web/governance.py#L48) |
 | `GET /app/graph` | [`graph_page`](../src/orchestrator/registry/api/web/intelligence.py#L122) | [`src/orchestrator/registry/api/web/intelligence.py:121`](../src/orchestrator/registry/api/web/intelligence.py#L121) |
 | `GET /app/inbox` | [`inbox_page`](../src/orchestrator/registry/api/inbox.py#L108) | [`src/orchestrator/registry/api/inbox.py:107`](../src/orchestrator/registry/api/inbox.py#L107) |
-| `GET /app/intake` | [`intake_studio_page`](../src/orchestrator/registry/api/web/intake_studio.py#L58) | [`src/orchestrator/registry/api/web/intake_studio.py:57`](../src/orchestrator/registry/api/web/intake_studio.py#L57) |
+| `GET /app/intake` | [`intake_studio_page`](../src/orchestrator/registry/api/web/intake_studio.py#L64) | [`src/orchestrator/registry/api/web/intake_studio.py:63`](../src/orchestrator/registry/api/web/intake_studio.py#L63) |
 | `GET /app/memory` | [`memory_page`](../src/orchestrator/registry/api/web/memory.py#L20) | [`src/orchestrator/registry/api/web/memory.py:19`](../src/orchestrator/registry/api/web/memory.py#L19) |
 | `GET /app/memory-bank` | [`memory_bank_page`](../src/orchestrator/registry/api/web/intelligence.py#L103) | [`src/orchestrator/registry/api/web/intelligence.py:102`](../src/orchestrator/registry/api/web/intelligence.py#L102) |
 | `GET /app/personas` | [`personas_page`](../src/orchestrator/registry/api/web/home.py#L143) | [`src/orchestrator/registry/api/web/home.py:142`](../src/orchestrator/registry/api/web/home.py#L142) |

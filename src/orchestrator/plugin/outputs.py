@@ -511,6 +511,25 @@ class SdlcApproveOut(Failure, total=False):
     path: str
 
 
+@with_config(_OPEN)
+class RequirementsCheckOut(Failure, total=False):
+    change: str
+    passes: bool
+    open_items: list[dict[str, Any]]
+    questions: dict[str, list[str]]
+    orphaned_resolutions: list[str]
+    code_check: dict[str, Any] | None
+    notes: list[str]
+
+
+@with_config(_OPEN)
+class RequirementsAnswerOut(Failure, total=False):
+    change: str
+    recorded: list[dict[str, Any]]
+    passes: bool
+    unresolved: list[str]
+
+
 # ---- the run ----------------------------------------------------------------------------
 
 
@@ -745,6 +764,8 @@ OUTPUTS: dict[str, type] = {
     "sdlc_plan": SdlcPlanOut,
     "sdlc_approve": SdlcApproveOut,
     "docs_for": DocsForOut,
+    "requirements_check": RequirementsCheckOut,
+    "requirements_answer": RequirementsAnswerOut,
     "sdlc_start_run": SdlcStartRunOut,
     "sdlc_run_status": SdlcRunStatusOut,
     "sdlc_decide_gate": SdlcDecideGateOut,
