@@ -19,10 +19,10 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer
 
 from orchestrator.core.llm import CompletionResult, LLMClient, Message, ToolSpec, catalog
-from orchestrator.intake.intents import Intent
+from orchestrator.intake.intents import WHY_KEYS, Intent, omit_empty
 
 logger = logging.getLogger("orchestrator.intake.specs")
 
@@ -137,6 +137,17 @@ class FeatureSpec(BaseModel):
     nfrs: list[str] = Field(default_factory=list)
     dependencies: list[str] = Field(default_factory=list)
     estimate: str = ""
+    # The intent's why-fields, carried verbatim like ``description`` and ``scope`` — never
+    # paraphrased by the writer. Empty (and then omitted from every serialisation) unless the
+    # source stated them; see ``intents.WHY_KEYS``.
+    problem: str = ""
+    users: list[str] = Field(default_factory=list)
+    outcome: str = ""
+    non_goals: list[str] = Field(default_factory=list)
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_why(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        return omit_empty(handler(self), WHY_KEYS)
 
 
 class SpecWriter:
@@ -215,6 +226,10 @@ class SpecWriter:
                 summary=intent.description,
                 description=intent.description,
                 scope=intent.scope,
+                problem=intent.problem,
+                users=list(intent.users),
+                outcome=intent.outcome,
+                non_goals=list(intent.non_goals),
                 acceptance_criteria=list(intent.acceptance_criteria),
                 nfrs=list(intent.nfrs),
                 dependencies=list(intent.dependencies),
@@ -240,6 +255,10 @@ class SpecWriter:
             summary=summary,
             description=intent.description,
             scope=intent.scope,
+            problem=intent.problem,
+            users=list(intent.users),
+            outcome=intent.outcome,
+            non_goals=list(intent.non_goals),
             user_story=str(payload.get("user_story") or "").strip(),
             acceptance_criteria=stated,
             proposed_criteria=proposed,

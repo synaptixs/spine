@@ -1161,6 +1161,26 @@ def _criteria_block(spec: dict[str, Any], source_text: str = "") -> str:
 # ---- sections 7 and 10: files and the prompt -------------------------------
 
 
+def _why_block(spec: dict[str, Any]) -> str:
+    """Problem / users / outcome / non-goals as the source stated them; "" when it stated none."""
+    rows: list[str] = []
+    for label, key in (
+        ("Problem", "problem"),
+        ("Users", "users"),
+        ("Outcome", "outcome"),
+        ("Non-goals", "non_goals"),
+    ):
+        value = spec.get(key)
+        if isinstance(value, list):
+            value = "; ".join(str(v).strip() for v in value if str(v).strip())
+        text = str(value or "").strip()
+        if text:
+            rows.append(f"- **{label}:** {text}")
+    if not rows:
+        return ""
+    return _label(STATED, "the source's own why — carried verbatim by intake") + "\n".join(rows) + "\n"
+
+
 def _file_rows(paths: list[str], root: Path) -> tuple[list[str], list[str], int]:
     """Split named paths into those that exist and those that do not, with sizes."""
     changed: list[str] = []
@@ -1317,6 +1337,11 @@ def render_build_md(
             )
         )
         add(str(spec.get("summary") or "_The ticket says nothing beyond its title._") + "\n")
+    # The why, only when the source stated it: a spec without these keys renders byte-for-byte
+    # as before, so no existing approval's digest moves (D26).
+    why = _why_block(spec)
+    if why:
+        add(why)
 
     add("## 2. Intent")
     add(_label(MODEL, "`intake/specs.py` — the spec writer"))
