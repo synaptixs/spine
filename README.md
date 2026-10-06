@@ -78,17 +78,23 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.54.0 (current)** — required-behavior gates, and Core Rust support signed off. A project
+**3.55.0 (current)** — Extensive Rust support on supported hosts. Async/Tokio,
+procedural-macro source boundaries, `no_std`, and one non-default Cargo feature
+have pinned corpus and real-repository evidence; Rust facts retain 1.00 precision
+across all 14 hand-labelled cases. Cargo codegen now identifies missing targets,
+linkers, and custom JSON target files before running. The three known cross-module
+`CALLS` misses, macro expansion, type-aware dispatch, full feature matrices, and
+embedded firmware execution remain explicit limits. See the
+[validation record](https://github.com/synaptixs/spine/blob/main/docs/evals/rust-extensive-validation.md).
+
+**3.54.0** — required-behavior gates, and Core Rust support signed off. A project
 opts in by committing `.spine/required-behavior.yaml`: checks the model does not author and
 cannot edit away, re-verified after every refinement in `sdlc feature`'s native loop —
 closing the ONTM-4 gap where a generated test passed without exercising a feature's real
 default wiring. `[rust]` comprehension (Cargo topology, precision-safe local calls) and
 Cargo-aware codegen/build/test are both signed off for supported hosts; the installed
 parser's upstream grammar error is closed by pinning `tree-sitter-rust-orchard`.
-The P11–P14 extension validates async, proc-macro boundaries, `no_std` source, and one
-non-default Cargo feature; [its evidence](https://github.com/synaptixs/spine/blob/main/docs/evals/rust-extensive-validation.md)
-keeps embedded execution and type-aware dispatch as explicit limits. **Upgrade
-notes:** a legacy project without a manifest takes the exact code path it took before —
+**Upgrade notes:** a legacy project without a manifest takes the exact code path it took before —
 opting in is additive, not a breaking change.
 
 **3.53.0** — Python's call graph reaches through a typed variable, and a locked
