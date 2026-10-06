@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import subprocess
+import tomllib
 from collections import deque
 from collections.abc import Sequence
 from pathlib import Path
@@ -410,7 +411,7 @@ class RustPreflightRunner:
 
 
 def rust_project_error(root: Path, layout: TargetLayout) -> str | None:
-    """Check the selected compiler against Cargo's declared MSRV in this checkout."""
+    """Check the selected compiler, cross target and Cargo layout."""
     workspace = root / layout.workspace_root
     try:
         result = subprocess.run(
@@ -436,6 +437,9 @@ def rust_project_error(root: Path, layout: TargetLayout) -> str | None:
                     f"Rust {layout.rust_version} or newer is required by Cargo.toml; "
                     f"selected compiler is {'.'.join(map(str, selected))}."
                 )
+    target_error = _cargo_target_error(workspace)
+    if target_error:
+        return target_error
     if layout.mode == "existing":
         try:
             metadata = subprocess.run(
@@ -469,4 +473,47 @@ def rust_project_error(root: Path, layout: TargetLayout) -> str | None:
                 f"Cargo metadata does not confirm package {layout.package_name}, target "
                 f"{layout.target_name} at {layout.target_source}; refresh the layout."
             )
+    return None
+
+
+def _cargo_target_error(workspace: Path) -> str | None:
+    """Fail before Cargo execution when an explicit cross target is unavailable."""
+    config_path = next(
+        (path for path in (workspace / ".cargo/config.toml", workspace / ".cargo/config") if path.is_file()),
+        None,
+    )
+    try:
+        config = tomllib.loads(config_path.read_text(encoding="utf-8")) if config_path else {}
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        return f"Cargo target configuration is unreadable at {config_path}: {exc}"
+    target = os.environ.get("CARGO_BUILD_TARGET") or config.get("build", {}).get("target")
+    if not isinstance(target, str) or not target:
+        return None
+    if target.endswith(".json"):
+        return (
+            f"Custom Rust target {target} needs project-specific build-std, linker and toolchain "
+            "configuration; verify those prerequisites before codegen."
+        )
+    try:
+        libdir = subprocess.run(
+            ("rustc", "--print", "target-libdir", "--target", target),
+            cwd=workspace,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return f"Cannot inspect Rust target {target}: {exc}"
+    if libdir.returncode or not Path(libdir.stdout.strip()).is_dir():
+        return (
+            f"Rust target {target} is unavailable in the selected toolchain; "
+            f"install it with `rustup target add {target}` or select an installed target."
+        )
+    linker = os.environ.get(f"CARGO_TARGET_{target.upper().replace('-', '_')}_LINKER")
+    if linker is None:
+        target_config = config.get("target", {}).get(target, {})
+        linker = target_config.get("linker") if isinstance(target_config, dict) else None
+    if isinstance(linker, str) and linker and shutil.which(linker) is None:
+        return f"Rust target {target} requires linker {linker}; install or configure that linker."
     return None

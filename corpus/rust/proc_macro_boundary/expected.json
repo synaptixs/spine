@@ -1,0 +1,24 @@
+{
+  "language": "rust",
+  "case": "proc_macro_boundary",
+  "root": ".repo",
+  "why": "Source declarations under derive and attribute macros remain visible; generated functions and trait implementations are not invented.",
+  "nodes": [
+    {"id": "rust:proc-boundary@lib/proc_boundary", "kind": "Module"},
+    {"id": "rust:proc-boundary@lib/proc_boundary::Visible", "kind": "Type"},
+    {"id": "rust:proc-boundary@lib/proc_boundary::Handler", "kind": "Type"},
+    {"id": "rust:proc-boundary@lib/proc_boundary::Handler::handle", "kind": "Function"},
+    {"id": "rust:proc-boundary@lib/proc_boundary::Visible::source_method", "kind": "Function"}
+  ],
+  "edges": [
+    {"src": "rust:proc-boundary@lib/proc_boundary", "dst": "rust:proc-boundary@lib/proc_boundary::Visible", "kind": "CONTAINS"},
+    {"src": "rust:proc-boundary@lib/proc_boundary", "dst": "rust:proc-boundary@lib/proc_boundary::Handler", "kind": "CONTAINS"},
+    {"src": "rust:proc-boundary@lib/proc_boundary::Handler", "dst": "rust:proc-boundary@lib/proc_boundary::Handler::handle", "kind": "CONTAINS"},
+    {"src": "rust:proc-boundary@lib/proc_boundary::Visible", "dst": "rust:proc-boundary@lib/proc_boundary::Visible::source_method", "kind": "CONTAINS"}
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {"edge": {"src": "rust:proc-boundary@lib/proc_boundary::Visible", "dst": "rust:external::Clone", "kind": "IMPLEMENTS"}, "why": "derive-generated Clone implementation is not in source."},
+    {"edge": {"src": "rust:proc-boundary@lib/proc_boundary", "dst": "rust:proc-boundary@lib/proc_boundary::invisible", "kind": "CONTAINS"}, "why": "macro invocation tokens are not a function declaration."}
+  ]
+}

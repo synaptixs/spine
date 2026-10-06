@@ -235,7 +235,7 @@ _1 of the symbols other code depends on here have no test path the graph can see
 [`src/orchestrator/pkg/accuracy.py:456`](../../src/orchestrator/pkg/accuracy.py#L456)
 
 - **Called by** (2 production · 4 test): [`_parity_oracle`](../../src/orchestrator/cli/pkg.py#L387), [`build_scoreboard`](../../src/orchestrator/pkg/accuracy.py#L737), [`test_parity_needs_no_corpus_and_no_tests`](../../tests/pkg/test_accuracy.py#L315), [`test_parity_on_a_missing_repo_is_an_error`](../../tests/pkg/test_accuracy.py#L325), [`test_parity_reports_shortfall_when_the_graph_misses_a_route`](../../tests/pkg/test_accuracy.py#L290), [`test_parity_separates_surplus_from_shortfall`](../../tests/pkg/test_accuracy.py#L302)
-- **Calls** (5): [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57), [`ParityReport`](../../src/orchestrator/pkg/accuracy.py#L422), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L748), `pathlib.Path`, [`source_parity_counts`](../../src/orchestrator/pkg/verify.py#L513)
+- **Calls** (5): [`CorpusError`](../../src/orchestrator/pkg/accuracy.py#L57), [`ParityReport`](../../src/orchestrator/pkg/accuracy.py#L422), [`RepoCodeExtractor`](../../src/orchestrator/pkg/extractor.py#L748), `pathlib.Path`, [`source_parity_counts`](../../src/orchestrator/pkg/verify.py#L524)
 - **Documented in**: `docs/specs/build-documents/PKG-ACC-3-build.md#7-files`
 
 ### `scoreboard_explained_drops`

@@ -490,6 +490,18 @@ class RustExtractor:
             self.known_gaps.add("cfg-ambiguous duplicate declarations")
 
         bound: dict[str, str] = {}
+        external_aliases: dict[tuple[str, str], set[str]] = defaultdict(set)
+        for item in self._imports:
+            if item.binding and item.path.split("::", 1)[0] in {"std", "core", "alloc"}:
+                external_aliases[(item.module, item.binding)].add(item.path)
+
+        def external_path(path: str, module: str) -> str:
+            head, separator, tail = path.partition("::")
+            if separator:
+                imports = external_aliases.get((module, head), set())
+                if len(imports) == 1:
+                    return f"{next(iter(imports))}::{tail}"
+            return path
 
         def resolve(
             path: str, module: str, kind: NodeKind | None = None, *, bindings_allowed: bool = True
@@ -549,7 +561,7 @@ class RustExtractor:
         for source, path, module, prov in self._impls:
             target = resolve(path, module, NodeKind.TYPE)
             if target is None:
-                target = f"rust:external::{path}"
+                target = f"rust:external::{external_path(path, module)}"
                 batch.add_node(Node(target, NodeKind.TYPE, path.rsplit("::", 1)[-1], "rust", external=True))
             batch.add_edge(Edge(source, target, EdgeKind.IMPLEMENTS, prov))
         for source, path, module, prov in self._refs:
