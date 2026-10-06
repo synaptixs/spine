@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
+from orchestrator.core.llm import CompletionResult, Message
 from orchestrator.intake.cache import load_cached_plan, save_plan
 from orchestrator.intake.intents import Intent, Resolution
 from orchestrator.intake.service import BacklogPlan
@@ -132,3 +134,95 @@ def test_the_spec_writer_carries_the_why_verbatim_on_both_paths() -> None:
     for text in ("not json", json.dumps({"summary": "s", "user_story": "As a u I want x."})):
         spec = writer._parse(text, intent)
         assert (spec.problem, spec.users, spec.outcome, spec.non_goals) == ("P", ["u1"], "O", ["n1"])
+
+
+# ---- D32: what the spec writer is told about open questions ------------------------------------
+
+
+class _CapturingLLM:
+    """Records the user message the writer sent; answers with an unparseable body (the minimal path)."""
+
+    def __init__(self) -> None:
+        self.user = ""
+
+    async def complete(self, messages: list[Message], **_: Any) -> CompletionResult:
+        self.user = next(m.content for m in messages if m.role == "user")
+        return CompletionResult(
+            text="not json", model="fake", prompt_tokens=0, completion_tokens=0, cost_usd=0.0, latency_ms=0.0
+        )
+
+
+def _prompt(intent: Intent) -> str:
+    import asyncio
+
+    from orchestrator.intake.specs import SpecWriter
+
+    llm = _CapturingLLM()
+    asyncio.run(SpecWriter(llm, model="fake-model").write(intent))
+    return llm.user
+
+
+def test_an_intent_with_no_open_questions_gets_the_prompt_it_always_did() -> None:
+    assert "OPEN QUESTIONS" not in _prompt(Intent(id="a", title="A", description="d"))
+    assert "Open questions" not in _prompt(Intent(id="a", title="A", description="d"))
+
+
+def test_an_unanswered_question_is_to_be_listed_as_an_assumption_never_resolved() -> None:
+    prompt = _prompt(Intent(id="a", title="A", description="d", open_questions=["Which currencies?"]))
+    assert "UNANSWERED OPEN QUESTIONS" in prompt and "Unanswered assumption" in prompt
+    assert "Which currencies?" in prompt
+    assert "resolve in technical_notes" not in prompt  # the line that asked for a silent guess
+
+
+def test_an_answered_question_is_a_fact_not_an_assumption() -> None:
+    res = Resolution(status="answered", answer="EUR and USD only.", origin="user", channel="cli")
+    prompt = _prompt(
+        Intent(
+            id="a",
+            title="A",
+            description="d",
+            open_questions=["Which currencies?"],
+            resolutions={"Which currencies?": res},
+        )
+    )
+    assert "ANSWERED OPEN QUESTIONS" in prompt and "EUR and USD only." in prompt
+    assert "UNANSWERED OPEN QUESTIONS" not in prompt
+
+
+def test_a_deferred_question_names_its_owner_and_is_still_an_assumption() -> None:
+    res = Resolution(status="deferred", owner="finance-lead")
+    prompt = _prompt(
+        Intent(
+            id="a",
+            title="A",
+            description="d",
+            open_questions=["Which currencies?"],
+            resolutions={"Which currencies?": res},
+        )
+    )
+    assert (
+        "DEFERRED OPEN QUESTIONS" in prompt and "finance-lead" in prompt and "Unanswered assumption" in prompt
+    )
+
+
+def test_a_models_unconfirmed_proposal_is_not_an_answer() -> None:
+    res = Resolution(status="proposed", answer="EUR", origin="proposed", channel="elicitation")
+    prompt = _prompt(
+        Intent(
+            id="a",
+            title="A",
+            description="d",
+            open_questions=["Which currencies?"],
+            resolutions={"Which currencies?": res},
+        )
+    )
+    assert "UNANSWERED OPEN QUESTIONS" in prompt and "ANSWERED OPEN QUESTIONS (recorded" not in prompt
+
+
+def test_the_stated_why_reaches_the_writer_and_an_absent_one_adds_no_line() -> None:
+    prompt = _prompt(
+        Intent(id="a", title="A", description="d", problem="P", users=["u"], outcome="O", non_goals=["n"])
+    )
+    for line in ("Problem (stated", "Users (stated", "Outcome (stated", "Non-goals (stated"):
+        assert line in prompt
+    assert "(stated by the source)" not in _prompt(Intent(id="a", title="A", description="d"))

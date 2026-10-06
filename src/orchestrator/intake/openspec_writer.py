@@ -27,6 +27,11 @@ _DRAFT_NOTE = (
     "sharpen each requirement into a SHALL/MUST statement and each scenario into "
     "Given/When/Then, then run `orchestrator sdlc feature --source openspec://{change_id}`.\n"
 )
+_SKELETON_NOTE = (
+    "> ⚠️ **Skeleton drafted by Spine from one sentence** — nothing below is stated by anyone yet. "
+    "Answer the open questions (`orchestrator openspec answer`), then run "
+    "`orchestrator openspec check {change_id}`.\n"
+)
 #: The grounding line rides *in* the banner, not only in its own section. A reader who skims
 #: `proposal.md` sees the banner and nothing else, and "which mode produced this page" is
 #: exactly the question they must not have to answer by scrolling.
@@ -36,6 +41,11 @@ _GWT = re.compile(r"\b(GIVEN|WHEN|THEN|AND|BUT)\b", re.IGNORECASE)
 # BDD keywords for *splitting* a criterion into bullets are UPPERCASE by convention —
 # case-sensitive so a mid-sentence prose "and"/"then" isn't mistaken for a step keyword.
 _BDD_UPPER = re.compile(r"\b(GIVEN|WHEN|THEN|AND|BUT)\b")
+
+
+#: The one scenario a delta spec gets when a change has no criteria yet. It stands in for
+#: criteria nobody has written — `requirements.check_intent` says so rather than count it.
+PLACEHOLDER_CRITERION = "The behavior described in the proposal holds."
 
 
 def change_id_for(intent: Intent) -> str:
@@ -64,7 +74,7 @@ def _spec_md(spec: FeatureSpec) -> str:
     lines = [f"# Delta for {spec.title}", "", "## ADDED Requirements", "", f"### Requirement: {spec.title}"]
     statement = (spec.summary or spec.user_story or f"The system SHALL support {spec.title}.").strip()
     lines += [statement, ""]
-    criteria = spec.acceptance_criteria or ["The behavior described in the proposal holds."]
+    criteria = spec.acceptance_criteria or [PLACEHOLDER_CRITERION]
     for i, crit in enumerate(criteria, 1):
         label = _short_label(crit) or f"Criterion {i}"
         lines.append(f"#### Scenario: {label}")
@@ -125,7 +135,8 @@ def _proposal_md(
     parts = [f"# Proposal: {spec.title}"]
     if intent.idea_id:
         parts.append(f"idea: {intent.idea_id}")
-    parts += ["", _DRAFT_NOTE.format(change_id=change_id)]
+    note = _SKELETON_NOTE if intent.idea_id and not intent.problem else _DRAFT_NOTE
+    parts += ["", note.format(change_id=change_id)]
     if grounding is not None:
         parts.append(_GROUNDING_NOTE.format(sentence=banner_sentence(grounding)))
     parts += _why_parts(intent, why)
@@ -260,4 +271,4 @@ def write_change(root: Path, intent: Intent, files: dict[str, str], *, overwrite
     return written
 
 
-__all__ = ["change_id_for", "render_change", "write_change"]
+__all__ = ["PLACEHOLDER_CRITERION", "change_id_for", "render_change", "write_change"]

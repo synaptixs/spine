@@ -191,6 +191,27 @@ class Intent(BaseModel):
         return omit_empty(handler(self), (*WHY_KEYS, *_INTENT_ONLY_KEYS))
 
 
+def question_states(intent: Intent) -> tuple[list[str], list[str], list[str]]:
+    """The intent's open questions as ``(answered, deferred, unresolved)``.
+
+    *Answered* — a recorded answer that is not a model's unconfirmed proposal. *Deferred* — a
+    deferral that names an owner. Everything else is *unresolved*: no resolution recorded, a
+    proposal nobody confirmed, or a deferral with no one to answer it. Keyed on the question's
+    exact text (D24), so an answer to a reworded question resolves nothing."""
+    answered: list[str] = []
+    deferred: list[str] = []
+    unresolved: list[str] = []
+    for question in intent.open_questions:
+        res = intent.resolutions.get(question)
+        if res is not None and res.status == "answered" and res.origin != "proposed":
+            answered.append(question)
+        elif res is not None and res.status == "deferred" and res.owner.strip():
+            deferred.append(question)
+        else:
+            unresolved.append(question)
+    return answered, deferred, unresolved
+
+
 @runtime_checkable
 class StructuredIntentSource(Protocol):
     """A source that yields fully-formed ``Intent``s **deterministically** (no LLM).

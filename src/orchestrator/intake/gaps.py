@@ -41,7 +41,7 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict
 
-from orchestrator.intake.intents import Intent
+from orchestrator.intake.intents import Intent, question_states
 
 _LIST_FIELDS = {
     "acceptance_criteria",
@@ -296,16 +296,8 @@ def _matches(value: object, rule: GapRule) -> bool:
 
 
 def _unresolved(intent: Intent) -> list[str]:
-    """The open questions with no usable answer: none recorded, a model's unconfirmed proposal,
-    or a deferral that names no owner."""
-    out = []
-    for question in intent.open_questions:
-        res = intent.resolutions.get(question)
-        answered = res is not None and res.status == "answered" and res.origin != "proposed"
-        deferred = res is not None and res.status == "deferred" and bool(res.owner.strip())
-        if not (answered or deferred):
-            out.append(question)
-    return out
+    """The open questions with no usable answer — see :func:`intents.question_states`."""
+    return question_states(intent)[2]
 
 
 def blocks_approval(findings: list[GapFinding]) -> bool:
