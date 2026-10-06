@@ -41,6 +41,7 @@ from orchestrator.sdlc.codegen import (
 from orchestrator.sdlc.deps import SDLCDeps
 from orchestrator.sdlc.grounding import PKGCodegenGrounder
 from orchestrator.sdlc.preflight import SubprocessPreflightRunner
+from orchestrator.sdlc.required_behavior import SubprocessRequiredBehaviorRunner
 from orchestrator.sdlc.review import ReviewAdapter, SemanticReviewAdapter, StubReviewAdapter
 from orchestrator.sdlc.testrunner import SubprocessTestRunner
 from orchestrator.sdlc.workflows import FeatureImplementationWorkflow, SDLCWorkflow
@@ -209,6 +210,8 @@ def build_deps() -> SDLCDeps:
         tests=SubprocessTestRunner(),
         # CI-parity gate; self-skips in scratch worktrees (no pyproject).
         preflight=SubprocessPreflightRunner(),
+        # SSPN-118/119; self-skips without a `.spine/required-behavior.yaml`.
+        required_behavior=SubprocessRequiredBehaviorRunner(),
         budget=budget,
         llm=llm() if codegen_is_llm else None,
         artifact_store=artifact_store_from_env(),

@@ -116,6 +116,25 @@ def _pr_body(spec: dict[str, Any], withdrawn: list[str]) -> str:
     )
 
 
+def _attempt_outcome(spent: dict[str, int]) -> str:
+    """Which of the roadmap's "distinct outcomes" this successful run was (SSPN-121/D28).
+
+    Two of the three: an initial generated candidate needed no correction at all, or the
+    run reached "first completed autonomous workflow" only after one or more internal
+    repairs. (The third, a later human-assisted continuation, happens in a separate call —
+    see ``ReviewResponse.required_behavior_note``.) Derived from ``spent``, which the loop
+    already tracks; no new bookkeeping.
+    """
+    refines = spent.get("tests", 0) + spent.get("types", 0) + spent.get("required_behavior", 0)
+    coverage = spent.get("coverage", 0)
+    if refines == 0 and coverage == 0:
+        return "initial generated candidate passed with no correction needed"
+    if refines == 0:
+        return f"initial candidate passed after {coverage} coverage-authoring pass(es), no refine needed"
+    parts = ", ".join(f"{v} {k}" for k, v in spent.items() if v)
+    return f"first completed autonomous workflow after {refines} refine(s) ({parts})"
+
+
 def _named_in_failures(rel: str, failures: str) -> bool:
     """Whether the runner blamed *this* file — its full path, on a line that reports a failure.
 
@@ -848,6 +867,7 @@ async def run_feature(
         is_effectively_empty,
         resolve_layout,
     )
+    from orchestrator.sdlc.required_behavior import SubprocessRequiredBehaviorRunner
     from orchestrator.sdlc.scaffold import scaffold
     from orchestrator.sdlc.telemetry import jira_duration, render_worklog
     from orchestrator.sdlc.testenv import (
@@ -982,12 +1002,15 @@ async def run_feature(
     # a run that dies at codegen leaves no sign it was ever picked up.
     await move("In Progress")
 
-    async def log_run_cost(verdict: str) -> None:
+    async def log_run_cost(verdict: str, *, outcome: str = "") -> None:
         """Post what this run spent onto the issue it was working.
 
         Telemetry never fails the work: a tracker that rejects the worklog leaves a line in
         the log and nothing else. Safe mode posts nothing — ``add_worklog`` honors dry-run,
         and the guard keeps even the render off the path.
+
+        ``outcome`` (SSPN-121/D28) distinguishes an initial candidate from a first completed
+        autonomous workflow that needed internal repairs — see ``render_worklog``.
         """
         if not live or not post_worklog:
             # A supervisor that owns the ledger posts once, at the end of the whole run.
@@ -997,7 +1020,9 @@ async def run_feature(
             await jira.add_worklog(
                 issue_key,
                 time_spent=jira_duration(time.monotonic() - started_at),
-                comment=render_worklog(llm.ledger, seconds=time.monotonic() - started_at, verdict=verdict),
+                comment=render_worklog(
+                    llm.ledger, seconds=time.monotonic() - started_at, verdict=verdict, outcome=outcome
+                ),
             )
             total = llm.ledger.total()
             emit(f"[jira] worklog on {issue_key}: {total.total_tokens:,} tokens, {total.calls} call(s)")
@@ -1152,6 +1177,10 @@ async def run_feature(
         codegen_kwargs["model"] = codegen_model
     codegen = LLMCodegenAdapter(llm, **codegen_kwargs)
     runner = make_test_runner(lang, testenv)
+    # SSPN-118/119: a project's own required-behavior manifest, if it has one. Language-
+    # agnostic (the manifest carries argv, not code), so there is one implementation, not
+    # a per-toolchain factory like `make_test_runner`'s. Self-skips without a manifest.
+    required_behavior_runner = SubprocessRequiredBehaviorRunner()
     # What already fails, measured before anything is generated, so it is never counted against
     # this run (CB-764: four pre-existing test files that could not import in a fresh env failed
     # six runs of six while the new test passed). One extra suite run; SDLC_TEST_BASELINE=0 skips.
@@ -1200,10 +1229,17 @@ async def run_feature(
         # probe found its gap on iteration 5 there was nothing left to answer it with — the
         # change was fixable and the run reported FAILED. Each check now gets guaranteed room,
         # with a hard ceiling so a pathological run still terminates.
-        spent = {"tests": 0, "types": 0, "coverage": 0}
+        spent = {"tests": 0, "types": 0, "coverage": 0, "required_behavior": 0}
         cover_written: list[str] = []
         withdrawn: list[str] = []
-        budgets = {"tests": max_refine, "types": max_refine, "coverage": _MAX_COVERAGE_FIXES}
+        # SSPN-119: required_behavior gets its own pool rather than sharing tests'/types' —
+        # the same reasoning as the comment above, applied to a fourth check.
+        budgets = {
+            "tests": max_refine,
+            "types": max_refine,
+            "coverage": _MAX_COVERAGE_FIXES,
+            "required_behavior": max_refine,
+        }
         ceiling = sum(budgets.values()) + 1
         while iterations < ceiling:
             result = await run_with_autoheal(runner, testenv, str(path), emit=emit)
@@ -1225,28 +1261,49 @@ async def run_feature(
                     # test, not by editing the implementation, so it goes to author_tests.
                     gaps = await _files_no_test_exercises(path, changed, runner, emit)
                     if not gaps:
-                        passed = True
-                        break
-                    if spent["coverage"] >= budgets["coverage"]:
-                        emit("[cover] out of coverage attempts — the change is not proven tested")
-                        break
-                    spent["coverage"] += 1
-                    with llm.stage("author_tests"):
-                        covered = await codegen.author_tests(
-                            spec=spec, path=str(path), issue_key=issue_key, gaps=gaps
+                        # SSPN-118/119: the last, most specific gate — a project's own
+                        # required-behavior manifest, run after every cheaper check has
+                        # already cleared. Self-skips (passed=True) without a manifest.
+                        rb_started = time.monotonic()
+                        rb_result = await required_behavior_runner.run(path=str(path))
+                        # SSPN-121/D27: zero LLM calls here, but real wall-clock cost —
+                        # recorded explicitly so the worklog doesn't read as "didn't run".
+                        llm.ledger.record_deterministic("required_behavior", time.monotonic() - rb_started)
+                        emit(f"[required_behavior] passed={rb_result.passed}")
+                        if rb_result.passed:
+                            passed = True
+                            break
+                        if any(item.environment_blocked for item in rb_result.items):
+                            # Same reasoning as the `tests` environment_blocker below:
+                            # refine cannot edit its way out of a missing fixture/command.
+                            emit("[required_behavior] stopping — environment-blocked, not a code problem")
+                            break
+                        kind = "required_behavior"
+                        failures = rb_result.output
+                    else:
+                        if spent["coverage"] >= budgets["coverage"]:
+                            emit("[cover] out of coverage attempts — the change is not proven tested")
+                            break
+                        spent["coverage"] += 1
+                        with llm.stage("author_tests"):
+                            covered = await codegen.author_tests(
+                                spec=spec, path=str(path), issue_key=issue_key, gaps=gaps
+                            )
+                        emit(f"[cover] {[Path(f).name for f in covered.files]} - {covered.summary}")
+                        # Only what the cover stage *created*. Nothing is committed until the
+                        # run ends, so every generated test is untracked and `git checkout`
+                        # cannot bring one back: withdrawing a file an earlier stage wrote —
+                        # the spec's tests, or the file `author_tests` created and the cover
+                        # stage appended to — would delete the ticket's own tests and open a
+                        # PR with none of them.
+                        cover_written.extend(
+                            f for f in covered.files if _is_test_path(f) and f not in authored
                         )
-                    emit(f"[cover] {[Path(f).name for f in covered.files]} - {covered.summary}")
-                    # Only what the cover stage *created*. Nothing is committed until the run
-                    # ends, so every generated test is untracked and `git checkout` cannot bring
-                    # one back: withdrawing a file an earlier stage wrote — the spec's tests, or
-                    # the file `author_tests` created and the cover stage appended to — would
-                    # delete the ticket's own tests and open a PR with none of them.
-                    cover_written.extend(f for f in covered.files if _is_test_path(f) and f not in authored)
-                    authored.update(covered.files)
-                    if not covered.files:
-                        emit("[cover] no tests written for the gap — stopping rather than looping")
-                        break
-                    continue
+                        authored.update(covered.files)
+                        if not covered.files:
+                            emit("[cover] no tests written for the gap — stopping rather than looping")
+                            break
+                        continue
             if kind == "tests":
                 # Not a code problem: files this run never wrote cannot import a dependency the
                 # environment lacks. Refine cannot edit its way out, and CB-764 watched it try.
@@ -1382,7 +1439,7 @@ async def run_feature(
                 # that is `sdlc complete`, after someone has actually looked at the change. A
                 # draft is not waiting on a reviewer: the ticket stays In Progress.
                 await move("In Review")
-            await log_run_cost("PASSED")
+            await log_run_cost("PASSED", outcome=_attempt_outcome(spent))
             return str(pr.url)
 
         if publish:

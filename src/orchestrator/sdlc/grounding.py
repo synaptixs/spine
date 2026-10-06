@@ -16,11 +16,13 @@ it's for*. Deterministic and read-only: lexical retrieval + file reads, no LLM.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 from orchestrator.pkg import FactStore, GroundedRetriever, Node, RepoCodeExtractor, load_or_extract
 from orchestrator.pkg.docs import DocPage
+from orchestrator.sdlc.required_behavior import Requirement
 
 _MAX_SNIPPET_LINES = 24  # per-symbol source excerpt
 _MAX_CONTEXT_CHARS = 8_000  # total context budget
@@ -141,6 +143,69 @@ class PKGCodegenGrounder:
                 "name:\n"
             )
         ) + "\n".join(blocks)
+
+    def context_for_required_entry_points(self, requirements: Sequence[Requirement]) -> str:
+        """Sibling implementations of each requirement's declared entry point, if any.
+
+        SSPN-120 (D26). ``context_for_spec``'s lexical match would, for a requirement
+        whose entry point is the buggy symbol itself, just show that same (missing-a-call)
+        source back — proving nothing, since the bug is an absence. What actually helps is
+        a sibling implementation that wires correctly: a different rule type's loader that
+        does call its compiler. Uses only facts the graph already captures (``IMPLEMENTS``
+        edges via ``implements_of``/``implementors_of`` — no new PKG fact type, no extractor
+        change, per D25). Empty whenever nothing resolves, same as every other empty-result
+        case in this file.
+        """
+        if self._store is None:
+            return ""
+        blocks: list[str] = []
+        budget = _MAX_CONTEXT_CHARS
+        seen: set[str] = set()
+        skipped = 0
+        for req in requirements:
+            if not req.entry_point:
+                continue
+            target = self._resolve_entry_point(req.entry_point)
+            if target is None:
+                continue
+            bases = self._store.implements_of(target.id)
+            siblings = {
+                sibling.id: sibling
+                for base in bases
+                for sibling in self._store.implementors_of(base.id)
+                if sibling.id != target.id
+            }
+            for sibling in siblings.values():
+                if sibling.id in seen:
+                    continue
+                block = self._symbol_block(sibling)
+                if len(block) > budget:
+                    skipped += 1
+                    continue
+                budget -= len(block)
+                seen.add(sibling.id)
+                blocks.append(block)
+        if not blocks:
+            return ""
+        if skipped:
+            blocks.append(
+                f"\n[{skipped} further sibling implementation(s) omitted for size — their "
+                "absence is not evidence they do not exist.]\n"
+            )
+        return (
+            "SIBLING IMPLEMENTATIONS that wire correctly (from the Product Knowledge Graph) — "
+            "each required-behavior check below names an entry point; these are OTHER "
+            "implementations of the same base type. If the one you are changing is missing "
+            "a call one of these already makes, that is very likely the gap:\n\n" + "\n".join(blocks)
+        )
+
+    def _resolve_entry_point(self, entry_point: str) -> Node | None:
+        """The grounded node a manifest's dotted-path or short-name entry point names."""
+        short_name = entry_point.rsplit(".", 1)[-1]
+        for node in self._store.find(short_name) if self._store else ():
+            if node.grounded:
+                return node
+        return None
 
     def _symbol_block(self, symbol: Node) -> str:
         prov = symbol.provenance

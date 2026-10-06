@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
@@ -83,6 +84,102 @@ def test_context_empty_when_repo_has_nothing_relevant(tmp_path: Path) -> None:
     (tmp_path / "webhook.py").write_text(UNRELATED, encoding="utf-8")
     grounder = PKGCodegenGrounder.from_repo(tmp_path)
     assert grounder.context_for_spec(SPEC) == ""
+
+
+# ---- context_for_required_entry_points (SSPN-120) --------------------------
+
+RULE_LOADERS = '''\
+class RuleLoader:
+    def load(self):
+        raise NotImplementedError
+
+
+class ColumnRuleLoader(RuleLoader):
+    """Loads column rules without ever compiling them -- the ONTM-4 bug."""
+
+    def load(self):
+        return self.read_raw()
+
+    def read_raw(self):
+        return []
+
+
+class ReferenceRuleLoader(RuleLoader):
+    """Loads reference rules and compiles them -- the correctly-wired sibling."""
+
+    def load(self):
+        return self.compiler.compile(self.read_raw())
+
+    def read_raw(self):
+        return []
+'''
+
+
+def _rule_loader_repo(tmp_path: Path) -> Path:
+    (tmp_path / "rules.py").write_text(RULE_LOADERS, encoding="utf-8")
+    return tmp_path
+
+
+def _requirement(entry_point: str | None) -> Any:
+    from orchestrator.sdlc.required_behavior import Requirement
+
+    return Requirement(
+        requirement_id="default-wiring",
+        description="",
+        command=("python3", "-c", "pass"),
+        entry_point=entry_point,
+    )
+
+
+def test_surfaces_the_sibling_that_wires_correctly(tmp_path: Path) -> None:
+    grounder = PKGCodegenGrounder.from_repo(_rule_loader_repo(tmp_path), use_cache=False)
+    context = grounder.context_for_required_entry_points([_requirement("ColumnRuleLoader")])
+    assert "ReferenceRuleLoader" in context
+    assert "compiles them -- the correctly-wired sibling" in context
+
+
+def test_does_not_surface_the_target_itself_or_the_base(tmp_path: Path) -> None:
+    grounder = PKGCodegenGrounder.from_repo(_rule_loader_repo(tmp_path), use_cache=False)
+    context = grounder.context_for_required_entry_points([_requirement("ColumnRuleLoader")])
+    assert "ColumnRuleLoader" not in context  # the buggy symbol itself proves nothing
+    assert "class RuleLoader" not in context  # the base, not a sibling implementation
+
+
+def test_empty_without_an_entry_point(tmp_path: Path) -> None:
+    grounder = PKGCodegenGrounder.from_repo(_rule_loader_repo(tmp_path), use_cache=False)
+    assert grounder.context_for_required_entry_points([_requirement(None)]) == ""
+
+
+def test_empty_when_the_entry_point_does_not_resolve(tmp_path: Path) -> None:
+    grounder = PKGCodegenGrounder.from_repo(_rule_loader_repo(tmp_path), use_cache=False)
+    assert grounder.context_for_required_entry_points([_requirement("NoSuchSymbol")]) == ""
+
+
+def test_empty_when_the_entry_point_has_no_siblings(tmp_path: Path) -> None:
+    """A target with no shared base (or no PKG at all) just gets no extra grounding."""
+    (tmp_path / "standalone.py").write_text("class Standalone:\n    pass\n", encoding="utf-8")
+    grounder = PKGCodegenGrounder.from_repo(tmp_path, use_cache=False)
+    assert grounder.context_for_required_entry_points([_requirement("Standalone")]) == ""
+
+
+def test_grounding_is_additive_not_gated_on_lexical_match(tmp_path: Path) -> None:
+    """_grounding() must combine context_for_spec and the sibling grounding -- an empty
+    lexical match must not suppress a sibling finding (and vice versa)."""
+    from orchestrator.sdlc.codegen import LLMCodegenAdapter
+
+    grounder = PKGCodegenGrounder.from_repo(_rule_loader_repo(tmp_path), use_cache=False)
+    (tmp_path / ".spine").mkdir()
+    (tmp_path / ".spine" / "required-behavior.yaml").write_text(
+        "requirements:\n"
+        "  - id: default-wiring\n"
+        "    entry_point: ColumnRuleLoader\n"
+        "    command: ['python3', '-c', 'pass']\n",
+        encoding="utf-8",
+    )
+    adapter = LLMCodegenAdapter(Mock(), grounder=grounder)
+    # An unrelated spec: context_for_spec alone would find nothing relevant here.
+    block = adapter._grounding({"title": "Unrelated", "summary": "Nothing to do with rules"}, tmp_path)
+    assert "ReferenceRuleLoader" in block
 
 
 def test_rust_symbol_source_uses_rust_fence(tmp_path: Path) -> None:

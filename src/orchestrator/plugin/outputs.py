@@ -630,6 +630,10 @@ class SdlcAddressReviewOut(Failure, total=False):
     green: bool
     refines: int
     detail: str
+    # SSPN-121/D28: this loop never re-verifies a required-behavior manifest (it only
+    # re-runs tests + preflight) -- a documented, standing fact on every ReviewResponse,
+    # not a blank field, so MCP callers see it too.
+    required_behavior_note: str
 
 
 @with_config(_OPEN)
