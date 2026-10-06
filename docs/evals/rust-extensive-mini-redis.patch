@@ -1,0 +1,28 @@
+diff --git a/src/clients/client.rs b/src/clients/client.rs
+index 741b012..0672dab 100644
+--- a/src/clients/client.rs
++++ b/src/clients/client.rs
+@@ -124,0 +125,9 @@ impl Client {
++    /// Ping once for each message, preserving the order of the responses.
++    pub async fn ping_many(&mut self, messages: &[Bytes]) -> crate::Result<Vec<Bytes>> {
++        let mut responses = Vec::with_capacity(messages.len());
++        for message in messages {
++            responses.push(self.ping(Some(message.clone())).await?);
++        }
++        Ok(responses)
++    }
++
+diff --git a/tests/client.rs b/tests/client.rs
+index 154384d..84266d2 100644
+--- a/tests/client.rs
++++ b/tests/client.rs
+@@ -27,0 +28,9 @@ async fn ping_pong_with_message() {
++#[tokio::test]
++async fn ping_many_preserves_message_order() {
++    let (addr, _) = start_server().await;
++    let mut client = Client::connect(addr).await.unwrap();
++    let messages = vec!["first".into(), "second".into()];
++
++    assert_eq!(client.ping_many(&messages).await.unwrap(), messages);
++}
++
