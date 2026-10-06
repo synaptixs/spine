@@ -26,7 +26,7 @@ The PKG is built **from your code** (deterministic, no LLM). Spine reads it befo
 writes anything, so generated code matches your repo's real structure and conventions.
 
 Its accuracy is measured rather than asserted: **precision 1.00 on every node and edge kind
-across all 10 of Spine's front-ends** — nothing in the graph is invented — with the
+across all 14 of Spine's front-ends on the labelled corpus** — with the
 remaining gap being missing `CALLS` edges, not wrong ones (§10).
 
 ---
@@ -133,6 +133,7 @@ a variable yields no edge, because a wrong edge is worse than an absent one.
 | `c` | ✓ | ✓ | ✓ | ✓ | · | · | · | · |
 | `cpp` | ✓ | ✓ | ✓ | ✓ | · | · | · | · |
 | `go` | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · |
+| `rust` | ✓ | ✓ | ✓ | ✓ | · | · | · | · |
 | `php` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · |
 | `perl` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · |
 | `kotlin` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · |
@@ -151,6 +152,7 @@ a variable yields no edge, because a wrong edge is worse than an absent one.
 | `c` | ✓ | ✓ | ✓ | · | · | · | · | · | ✓ | · | · | · |
 | `cpp` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | ✓ | · | · | · |
 | `go` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · | · |
+| `rust` | ✓ | ✓ | ✓ | ✓ | · | · | · | · | ✓ | · | · | · |
 | `php` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · | · |
 | `perl` | ✓ | ✓ | ✓ | ✓ | · | · | ✓ | · | ✓ | · | · | · |
 | `kotlin` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | ✓ |

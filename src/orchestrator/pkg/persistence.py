@@ -193,6 +193,7 @@ _GRAMMAR_MODULES = (
     "tree_sitter_c",
     "tree_sitter_cpp",
     "tree_sitter_go",
+    "tree_sitter_rust_orchard",
     "tree_sitter_php",
     "tree_sitter_perl",
     "tree_sitter_kotlin",

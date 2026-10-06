@@ -25,16 +25,17 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **GroundingVerifier** | [`GroundingVerifier`](../src/orchestrator/pkg/verifier.py#L52) | `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#2-what-ontomesh-produced-evidence`, `docs/specs/PRODUCT-KNOWLEDGE-GRAPH.md#3b-round-trip-verified-2026-06-10` |
 | **IRValidationFailure** | [`IRValidationFailure`](../src/orchestrator/ir/validator.py#L27) | — |
 | **LiteLLMClient** | [`LiteLLMClient`](../src/orchestrator/core/llm/litellm_client.py#L75) | `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this`, `docs/specs/codex-plugin-keyless-roadmap.md#3-the-real-tension-keyless-vs-governed` |
-| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L938) | `CHANGELOG.md`, `docs/specs/cross-run-semantic-memory.md#design-cross-run-semantic-memory-the-experience-true-layer` |
+| **LLMCodegenAdapter** | [`LLMCodegenAdapter`](../src/orchestrator/sdlc/codegen.py#L968) | `CHANGELOG.md`, `docs/evals/rust-codegen-validation.md#pinned-synaptreesitter-runs` |
 | **Message** | [`Message`](../src/orchestrator/core/llm/client.py#L48) | — |
 | **Node** | [`Node`](../src/orchestrator/pkg/facts.py#L128) | `docs/specs/kotlin-support-roadmap.md#maintainer-review-2026-09-17-the-fabrication-class` |
 | **NodeKind** | [`NodeKind`](../src/orchestrator/pkg/facts.py#L38) | `CLAUDE.md#layout-where-things-live`, `docs/evals/clang-semantic-ab-harness.txt` |
+| **PKGCodegenGrounder** | [`PKGCodegenGrounder`](../src/orchestrator/sdlc/grounding.py#L33) | `CHANGELOG.md`, `KNOWLEDGE_GRAPH.md#7-how-grounding-uses-the-pkg` |
 | **PlannerError** | [`PlannerError`](../src/orchestrator/planner/v0.py#L38) | — |
 | **PreflightResult** | [`PreflightResult`](../src/orchestrator/sdlc/contracts.py#L86) | `docs/evidence/perl-codegen-c5-validation.txt` |
 | **Provenance** | [`Provenance`](../src/orchestrator/pkg/facts.py#L88) | — |
-| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L192) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#8-outstanding-everything-else` |
-| **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L84) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
-| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L743) | `docs/evals/clang-semantic-ab-harness.txt`, `docs/evals/clang-semantic-p5-harness.txt` |
+| **PythonExtractor** | [`PythonExtractor`](../src/orchestrator/pkg/extractor.py#L193) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#8-outstanding-everything-else` |
+| **RecordingLLMClient** | [`RecordingLLMClient`](../src/orchestrator/core/llm/recording.py#L103) | `docs/specs/README.md#built-proven`, `docs/specs/archive/STATUS-2026-06-09.md#21-foundation-built-tested` |
+| **RepoCodeExtractor** | [`RepoCodeExtractor`](../src/orchestrator/pkg/extractor.py#L748) | `docs/evals/clang-semantic-ab-harness.txt`, `docs/evals/clang-semantic-p5-harness.txt` |
 | **RepoConfigError** | [`RepoConfigError`](../src/orchestrator/pkg/repos.py#L74) | — |
 | **RunContext** | [`RunContext`](../src/orchestrator/sdlc/autorun.py#L79) | `docs/specs/STATE-OF-SPINE.md#7-the-graphir-programme-phases-13-delivered-phase-4-closed-unshipped`, `docs/specs/graphir-sdlc-workflow.md#appendix-what-was-rejected-from-the-source-analysis` |
 | **SDLCActivities** | [`SDLCActivities`](../src/orchestrator/sdlc/activities.py#L44) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/archive/BLOCK-C-DESIGN.md#8-worker-registration` |
@@ -42,8 +43,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **SourceDocument** | [`SourceDocument`](../src/orchestrator/intake/source.py#L35) | `CHANGELOG.md`, `docs/specs/capability-recommendations-kg-grounded.md#c10-generalized-mcp-backed-sources-confluence-jira-any-source-effort-m-enhancement` |
 | **TargetLayout** | [`TargetLayout`](../src/orchestrator/sdlc/layout.py#L70) | `docs/evidence/perl-codegen-c0-php-conventions.txt`, `docs/specs/java-codegen.md#feature-runner` |
 | **TestRunResult** | [`TestRunResult`](../src/orchestrator/sdlc/contracts.py#L27) | `docs/evidence/perl-codegen-c5-validation.txt`, `docs/specs/java-codegen.md#test-runner-env` |
-| **TypeIndex** | [`TypeIndex`](../src/orchestrator/pkg/typed_receivers.py#L241) | — |
 | **VerifierFailure** | [`VerifierFailure`](../src/orchestrator/runtime/verifiers/base.py#L35) | — |
 | **WorkspaceManager** | [`WorkspaceManager`](../src/orchestrator/sdlc/workspace.py#L112) | `CHANGELOG.md`, `docs/specs/STATE-OF-SPINE.md#6-how-spine-is-adopted-without-entering-anyones-build-image` |
 
-_Top 40 of 790 types by graph centrality._
+_Top 40 of 804 types by graph centrality._

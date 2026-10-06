@@ -71,13 +71,26 @@ async def checkout_pr_worktree(
 
 @dataclass(frozen=True)
 class ReviewResponse:
-    """Outcome of one pass at addressing a PR's human review comments."""
+    """Outcome of one pass at addressing a PR's human review comments.
+
+    This is the roadmap's third reported outcome, "a later human-assisted continuation" —
+    distinct from `run_feature`'s own "initial candidate" / "first completed autonomous
+    workflow" (see `_attempt_outcome` in feature_runner.py). A documented design choice,
+    not an oversight (SSPN-121/D28): ``required_behavior_note`` is always the same fixed
+    string below, because this loop only drives tests + preflight (SSPN-119/D22
+    deliberately scoped `required_behavior` out of it) — a required-behavior manifest's
+    checks are never re-verified on this path.
+    """
 
     comments: int  # human comments found
     addressed: bool  # a fix was pushed to the PR branch
     green: bool  # tests + preflight passed after refining
     refines: int  # codegen refine cycles spent
     detail: str = ""
+    required_behavior_note: str = (
+        "required_behavior status unchanged — this path only re-runs tests + preflight, "
+        "not a project's required-behavior manifest (SSPN-119/D22)"
+    )
 
 
 async def respond_to_pr_feedback(

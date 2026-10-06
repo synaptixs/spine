@@ -37,6 +37,7 @@ _LANG_BY_SUFFIX = {
     ".hh": "cpp",
     ".hxx": "cpp",
     ".go": "go",
+    ".rs": "rust",
     ".rb": "ruby",
     ".sql": "sql",
     ".php": "php",
@@ -83,7 +84,8 @@ class ProjectProfile:
         root_path = Path(root)
         languages = _detect_languages(root_path)
         markers = _read_markers(root_path)
-        framework = _detect_framework(markers, languages)
+        framework = _detect_rust_framework(root_path) if "rust" in languages else None
+        framework = framework or _detect_framework(markers, languages)
         has_migrations = _detect_migrations(root_path, markers)
         has_db = has_migrations or _detect_db(markers)
         test_runner = _detect_test_runner(root_path, markers, languages)
@@ -171,7 +173,37 @@ def _read_markers(root: Path) -> str:
     for req in root.glob("requirements*.txt"):
         blobs.append(_safe_read(req))
     blobs.extend(_read_dotnet_markers(root))  # .csproj/.sln can live in subdirs
+    if (root / "Cargo.toml").is_file():
+        from orchestrator.pkg.rust_cargo import CargoIndex
+
+        index = CargoIndex(root)
+        for package in list(index.packages.values())[:50]:
+            blobs.append(_safe_read(package.manifest)[:65536])
     return "\n".join(blobs).lower()
+
+
+def _detect_rust_framework(root: Path) -> str | None:
+    """Only web framework dependency keys count; Tokio is a runtime."""
+    if not (root / "Cargo.toml").is_file():
+        return None
+    import tomllib
+
+    from orchestrator.pkg.rust_cargo import CargoIndex
+
+    for package in list(CargoIndex(root).packages.values())[:50]:
+        try:
+            data = tomllib.loads(package.manifest.read_text(encoding="utf-8")[:65536])
+        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+            continue
+        deps: set[str] = set()
+        for section in ("dependencies", "dev-dependencies", "build-dependencies"):
+            table = data.get(section, {})
+            if isinstance(table, dict):
+                deps.update(table)
+        for key, name in (("axum", "axum"), ("actix-web", "actix"), ("rocket", "rocket")):
+            if key in deps:
+                return name
+    return None
 
 
 def _read_dotnet_markers(root: Path, *, limit: int = 50) -> list[str]:
@@ -241,6 +273,8 @@ def _detect_db(markers: str) -> bool:
 
 
 def _detect_test_runner(root: Path, markers: str, languages: frozenset[str]) -> str | None:
+    if "rust" in languages and (root / "Cargo.toml").is_file():
+        return "cargo"
     if (root / "pytest.ini").is_file() or "[tool.pytest" in markers or "pytest" in markers:
         return "pytest"
     if '"jest"' in markers or "jest" in markers:

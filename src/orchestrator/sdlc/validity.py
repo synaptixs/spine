@@ -464,6 +464,7 @@ _RUN_LANGUAGES: dict[str, frozenset[str]] = {
     "kotlin": frozenset({"Kotlin", "Java"}),
     "typescript": frozenset({"TypeScript", "JavaScript"}),
     "go": frozenset({"Go"}),
+    "rust": frozenset({"Rust"}),
     "php": frozenset({"PHP"}),
     "perl": frozenset({"Perl"}),
     "c": frozenset({"C", "C/C++"}),

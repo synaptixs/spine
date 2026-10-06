@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.sdlc`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 63 modules — 140 types and 574 functions. It sits in the middle of the graph: 17 areas below it, 17 above. Changes here can reach both ways.
+**`orchestrator.sdlc`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 65 modules — 150 types and 593 functions. It sits in the middle of the graph: 17 areas below it, 17 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -86,13 +86,15 @@ _Showing 16 of 34 neighbouring areas._
 - [`orchestrator.sdlc.profile_select`](../../src/orchestrator/sdlc/profile_select.py#L1)
 - [`orchestrator.sdlc.profiles`](../../src/orchestrator/sdlc/profiles/__init__.py#L1)
 - [`orchestrator.sdlc.rca`](../../src/orchestrator/sdlc/rca.py#L1)
+- [`orchestrator.sdlc.required_behavior`](../../src/orchestrator/sdlc/required_behavior.py#L1)
 - [`orchestrator.sdlc.review`](../../src/orchestrator/sdlc/review.py#L1)
 - [`orchestrator.sdlc.review_response`](../../src/orchestrator/sdlc/review_response.py#L1)
 - [`orchestrator.sdlc.reviewloop`](../../src/orchestrator/sdlc/reviewloop.py#L1)
 - [`orchestrator.sdlc.run_control`](../../src/orchestrator/sdlc/run_control.py#L1)
 - [`orchestrator.sdlc.runstate`](../../src/orchestrator/sdlc/runstate.py#L1)
+- [`orchestrator.sdlc.rust_codegen`](../../src/orchestrator/sdlc/rust_codegen.py#L1)
 - [`orchestrator.sdlc.sam`](../../src/orchestrator/sdlc/sam.py#L1)
-- [`orchestrator.sdlc.scaffold`](../../src/orchestrator/sdlc/scaffold.py#L1)
+- [`orchestrator.sdlc.scaffold`](../modules/orchestrator.sdlc.scaffold.md)
 - [`orchestrator.sdlc.scope`](../../src/orchestrator/sdlc/scope.py#L1)
 - [`orchestrator.sdlc.source_paths`](../../src/orchestrator/sdlc/source_paths.py#L1)
 - [`orchestrator.sdlc.spec_context`](../../src/orchestrator/sdlc/spec_context.py#L1)

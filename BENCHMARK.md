@@ -44,8 +44,12 @@ Five repositories, one per language front-end, each pinned to an exact commit.
 tree Spine searches is the **pre-fix** state. We are asking it to find where a fix will go, not
 to notice one that has already happened.
 
-**C# has no slot.** Five repositories, six front-ends at 3.29.0 (there are thirteen now) — one
+**C# has no slot.** Five repositories, six front-ends at 3.29.0 (there are fourteen now) — one
 language measured then is unrepresented, and nothing here says anything about it.
+
+Rust has a separate [source-fact validation](docs/evals/rust-comprehension-validation.md),
+including two pinned repositories and a labelled corpus. It is not part of this five-repository
+bug-localization benchmark.
 
 ---
 

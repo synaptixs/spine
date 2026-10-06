@@ -825,6 +825,36 @@ _REFINE_SYSTEM_SQL = (
     "smallest change that applies cleanly. Same path rules — relative, no '..'."
 )
 
+# Rust (Cargo build/test) variants — selected when the layout's language is "rust".
+_IMPLEMENT_SYSTEM_RUST = (
+    "Implement the SPEC as compiling Rust in the selected Cargo target. "
+    "Output ONE JSON object, no prose or code fences:\n" + _FILE_FORMS + "\n"
+    "Use worktree-relative paths, no leading slash or '..'. Write production source only. "
+    "Match the LAYOUT's edition and minimum compiler, existing module structure, feature "
+    "gates and async runtime. Prefer existing dependencies and the standard library. "
+    "Use Result/Option for recoverable errors; avoid panic and unwrap in production. "
+    "Follow neighboring ownership patterns without reflexive cloning. Do not introduce "
+    "unsafe code unless the SPEC requires it and surrounding code supports it. "
+    "Edit Cargo.toml only when required; never add an unrelated crate."
+)
+
+_TESTS_SYSTEM_RUST = (
+    "Write Rust tests for the implemented SPEC. Output ONE JSON object, no prose or code "
+    "fences:\n" + _FILE_FORMS + "\n"
+    "Follow the LAYOUT's tests convention: co-located #[cfg(test)] mod tests or integration "
+    "tests in the owning package. Cover each acceptance criterion with an assertion. "
+    "Use existing dependencies; unwrap/expect are acceptable in tests when idiomatic. "
+    "Keep feature gates and compiler version compatible. Tests must execute under cargo test."
+)
+
+_REFINE_SYSTEM_RUST = (
+    "Fix the Rust cargo build, test, Rustfmt or Clippy failure using the SPEC, current files "
+    "and failure output. Output ONE JSON object, no prose or code fences:\n" + _FILE_FORMS + "\n"
+    "Resend only files created in this session; edit other existing files with anchored edits. "
+    "Preserve the selected Cargo package and target, edition, MSRV, feature gates, and "
+    "repository conventions. Make the smallest correction."
+)
+
 # Go (go build/go test) variants — selected when the layout's language is "go".
 _IMPLEMENT_SYSTEM_GO = (
     "You are a senior engineer. Implement the feature described by the SPEC as "
@@ -1145,6 +1175,23 @@ class LLMCodegenAdapter:
         if grounder is None:
             return ""
         context = grounder.context_for_spec(spec)
+        # SSPN-120: additive, not gated on context_for_spec finding anything — a sibling
+        # implementation is a different signal from a lexical match, and the lexical match
+        # being empty says nothing about whether a sibling exists.
+        from orchestrator.sdlc.required_behavior import RequiredBehaviorManifestError, load_manifest
+
+        try:
+            requirements = load_manifest(root)
+        except RequiredBehaviorManifestError:
+            # Grounding is an enhancement; a malformed manifest is SSPN-118's gate's
+            # problem to report loudly, not something that should break codegen here.
+            requirements = ()
+        if requirements:
+            # Not every CodegenGrounder implements this (test doubles, in particular) —
+            # same defensive pattern context_for_symbols already uses below.
+            sibling_lookup = getattr(grounder, "context_for_required_entry_points", None)
+            sibling_context = sibling_lookup(requirements) if sibling_lookup is not None else ""
+            context = "\n\n".join(c for c in (context, sibling_context) if c)
         if not context:
             return ""
         # The base system prompt assumes Block C's fresh, empty worktree. When
@@ -1216,11 +1263,22 @@ class LLMCodegenAdapter:
         resumed loop sees exactly the same tools."""
         from orchestrator.agentic import build_readonly_tools
         from orchestrator.agentic.codegen_tools import build_codegen_tools
+        from orchestrator.sdlc.contracts import TestRunner
         from orchestrator.sdlc.testrunner import SubprocessTestRunner
 
         grounded = self._resolve_grounder(root) is not None
+        runner: TestRunner = SubprocessTestRunner()
+        if self._layout is not None and self._layout.language != "python":
+            from orchestrator.sdlc.testenv import make_test_environment, make_test_runner
+
+            env = make_test_environment(
+                self._layout.language,
+                build_tool=self._layout.build_tool,
+                project_dir=self._layout.project_dir,
+            )
+            runner = make_test_runner(self._layout.language, env)
         tools = build_readonly_tools(root) + build_codegen_tools(
-            root, grounded=grounded, session=session, runner=SubprocessTestRunner()
+            root, grounded=grounded, session=session, runner=runner
         )
         # Phase 1b — cross-run semantic memory: let the agent recall facts learned
         # on past runs of this repo (gated; no-op when memory deps/flag are off).
@@ -1873,6 +1931,7 @@ _TESTABLE_SUFFIXES = frozenset(
         ".py",
         ".java",
         ".go",
+        ".rs",
         ".php",
         ".pm",
         ".pl",

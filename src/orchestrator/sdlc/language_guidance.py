@@ -249,6 +249,28 @@ def go_guidance(layout: TargetLayout) -> str:
     )
 
 
+def rust_guidance(layout: TargetLayout) -> str:
+    scope = (
+        f"workspace `{layout.workspace_root}`, package `{layout.package_name}` "
+        f"at `{layout.package_root}`, {layout.target_kind} target `{layout.target_name}`"
+        if layout.mode == "existing"
+        else f"new {layout.target_kind} crate `{layout.package_name}`"
+    )
+    return (
+        "PROJECT LAYOUT (authoritative):\n"
+        f"- Cargo target: {scope}. Source directory: `{layout.source_dir}`; "
+        f"target entry: `{layout.target_source}`.\n"
+        f"- Edition: {layout.edition or 'from Cargo.toml'}; "
+        f"minimum Rust version: {layout.rust_version or 'not declared'}. "
+        f"Toolchain file: `{layout.toolchain_file or '(none)'}`.\n"
+        f"- Tests follow the repository's convention at `{layout.tests_dir}`: "
+        "co-located `#[cfg(test)] mod tests` or Cargo integration tests.\n"
+        "- Preserve existing modules, feature gates, and async runtime. Prefer std and "
+        "declared dependencies. Edit Cargo.toml only for a necessary dependency or config "
+        "change; never create a second package for one feature.\n\n"
+    )
+
+
 def sql_guidance(layout: TargetLayout) -> str:
     return (
         "PROJECT LAYOUT (authoritative — overrides any default path guidance):\n"

@@ -759,13 +759,17 @@ approval — Spine refuses a live write without it. `live=true` needs a reachabl
 
 ## 10. Language support & toolchains
 
-Comprehension covers **thirteen front-ends** — twelve languages, plus a Gradle reader
+Comprehension covers **fourteen front-ends** — thirteen languages, plus a Gradle reader
 that turns `.kts` build scripts into a module dependency graph (it is not a language
 and has no toolchain row). Kotlin reads structure, calls, Room entities, Retrofit
 calls, Compose routes and Hilt wiring, and is a **codegen target** for both plain
 Kotlin/JVM and Android projects.
 Spine only needs a language's toolchain when it **builds/tests** generated code in that
 language:
+
+Rust comprehension uses the optional `[rust]` grammar and a static Cargo index; it does not
+invoke Cargo or require a Rust toolchain. Rust codegen is on a validation branch and requires
+the toolchain listed below; the installed grammar fix remains a release gate.
 
 | Language | Build/test needs on PATH |
 |---|---|
@@ -776,6 +780,7 @@ language:
 | C | **CMake** (or **Meson + Ninja**) + a C compiler |
 | C++ | **CMake** (or **Meson + Ninja**) + a C++ compiler |
 | Go | the **`go`** toolchain (`go build` / `go test`); multi-module aware |
+| Rust | **Cargo**, **rustc** at the repository's edition/MSRV, and **Rustfmt**; Clippy when configured, otherwise its absence is reported as a skip |
 | PHP | **PHP** (8.3 recommended); **Composer** when `composer.json` exists, otherwise a verified PHPUnit PHAR is downloaded outside the worktree |
 | Kotlin | a JDK + **Gradle** — a committed `./gradlew` is enough, since it downloads the version the project pins; no Kotlin install is needed, as `kotlin("jvm")` brings the compiler |
 | Kotlin (Android) | the above **plus an Android SDK** (`ANDROID_HOME`). Unit tests only — no emulator and no device, ever |

@@ -93,6 +93,36 @@ async def test_unattributed_when_no_stage() -> None:
     assert "unattributed" in rec.ledger.stages
 
 
+def test_record_deterministic_adds_a_zero_token_stage_with_real_duration() -> None:
+    ledger = TokenLedger()
+    ledger.record_deterministic("required_behavior", 4.2)
+
+    stage = ledger.stages["required_behavior"]
+    assert stage.deterministic_seconds == 4.2
+    assert stage.calls == 0
+    assert stage.total_tokens == 0
+    assert stage.cost_usd == 0.0
+
+
+def test_record_deterministic_accumulates_across_calls() -> None:
+    ledger = TokenLedger()
+    ledger.record_deterministic("required_behavior", 1.0)
+    ledger.record_deterministic("required_behavior", 2.5)
+    assert ledger.stages["required_behavior"].deterministic_seconds == 3.5
+
+
+async def test_deterministic_time_folds_into_the_grand_total() -> None:
+    inner = _FakeLLM([_result("gpt-4o", 10, 5)])
+    rec = RecordingLLMClient(inner)
+    with rec.stage("refine"):
+        await rec.complete([Message(role="user", content="x")], model="gpt-4o")
+    rec.ledger.record_deterministic("required_behavior", 3.0)
+
+    total = rec.ledger.total()
+    assert total.deterministic_seconds == 3.0
+    assert total.total_tokens == 15  # the LLM stage's tokens are untouched
+
+
 async def test_shared_ledger_across_clients() -> None:
     ledger = TokenLedger()
     a = RecordingLLMClient(_FakeLLM([_result("gpt-4o", 5, 5)]), ledger=ledger)

@@ -50,6 +50,7 @@ FRONT_ENDS: tuple[FrontEnd, ...] = (
     FrontEnd("c", "c_extractor.py", "CExtractor"),
     FrontEnd("cpp", "cpp_extractor.py", "CppExtractor"),
     FrontEnd("go", "go_extractor.py", "GoExtractor"),
+    FrontEnd("rust", "rust_extractor.py", "RustExtractor"),
     FrontEnd("php", "php_extractor.py", "PhpExtractor"),
     FrontEnd("perl", "perl_extractor.py", "PerlExtractor"),
     FrontEnd("kotlin", "kotlin_extractor.py", "KotlinExtractor"),

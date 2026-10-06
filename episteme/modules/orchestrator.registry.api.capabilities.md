@@ -141,7 +141,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/registry/api/capabilities.py:111`](../../src/orchestrator/registry/api/capabilities.py#L111)
 
-- **Calls** (3): [`CapabilityInfo`](../../src/orchestrator/registry/api/capabilities.py#L96), [`CatalogResponse`](../../src/orchestrator/registry/api/capabilities.py#L104), [`default_catalog`](../../src/orchestrator/catalog/catalog.py#L147)
+- **Calls** (3): [`CapabilityInfo`](../../src/orchestrator/registry/api/capabilities.py#L96), [`CatalogResponse`](../../src/orchestrator/registry/api/capabilities.py#L104), [`default_catalog`](../../src/orchestrator/catalog/catalog.py#L153)
 
 ### `memory_bank`
 
@@ -171,7 +171,7 @@ _10 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/registry/api/capabilities.py:86`](../../src/orchestrator/registry/api/capabilities.py#L86)
 
-- **Calls** (4): [`ProfileResponse`](../../src/orchestrator/registry/api/capabilities.py#L79), [`_in_repo`](../../src/orchestrator/registry/api/capabilities.py#L55), [`_source`](../../src/orchestrator/registry/api/capabilities.py#L46), [`from_repo`](../../src/orchestrator/catalog/profile.py#L76)
+- **Calls** (4): [`ProfileResponse`](../../src/orchestrator/registry/api/capabilities.py#L79), [`_in_repo`](../../src/orchestrator/registry/api/capabilities.py#L55), [`_source`](../../src/orchestrator/registry/api/capabilities.py#L46), [`from_repo`](../../src/orchestrator/catalog/profile.py#L77)
 
 ### `state`
 

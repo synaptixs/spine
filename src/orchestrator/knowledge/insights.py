@@ -44,6 +44,7 @@ VISIBILITY_RULES = {
     "cpp": "`static` (internal linkage)",
     "go": "a lower-case initial (unexported)",
     "perl": "a leading underscore",
+    "rust": "visibility modifier not retained in facts; unknown",
 }
 
 

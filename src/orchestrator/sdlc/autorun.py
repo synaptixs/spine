@@ -515,6 +515,8 @@ async def _log_run_cost(
     """
     if not ctx.live or not ctx.issue_key:
         return
+    from httpx import HTTPError
+
     from orchestrator.intake.jira import IssueTrackerError, JiraAdapter, JiraConfig
     from orchestrator.sdlc.telemetry import jira_duration, render_run_worklog
 
@@ -530,7 +532,7 @@ async def _log_run_cost(
     try:
         await jira.add_worklog(ctx.issue_key, time_spent=jira_duration(elapsed), comment=body)
         emit(f"[jira] worklog on {ctx.issue_key}: {ledger.total().total_tokens:,} tokens across the run")
-    except (IssueTrackerError, OSError) as exc:
+    except (IssueTrackerError, HTTPError, OSError) as exc:
         emit(f"[jira] could not log run cost on {ctx.issue_key}: {exc}")
     finally:
         await jira.aclose()

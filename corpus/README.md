@@ -59,6 +59,7 @@ Labelling in the wrong vocabulary scores 0.00 and reads as a catastrophic front-
 | `java` | `java:package` | `java:app.Cart` | `.` |
 | `csharp` | `csharp:Namespace` | `csharp:App.Cart` | `.` |
 | `go` | `go:package` | `go:cart.Cart` | `.` |
+| `rust` | `rust:package@lib/crate::module` | `rust:package@lib/crate::module::Type` | `::`; trait-impl method: `::<Trait>::` |
 | `php` | `php:App.Svc` | `php:App.Svc.Cart` | `.` |
 | `perl` | `perl:lib/Shop/Cart.pm` *(always a path)* | `perl:Shop.Cart` | `.` |
 | **`kotlin`** | **`java:package`** *(Java's prefix, not `kt:`)* | **`java:shop.Cart`** | `.` |

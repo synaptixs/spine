@@ -13,8 +13,8 @@ inspect the graph and a build plan before spending model tokens, build locally,
 then choose when to push a pull request for human review.
 
 The product is **Spine**, its package is **`synaptixs-spine`**, and its command is
-**`orchestrator`**. Comprehension supports thirteen front-ends: Python, Java, TypeScript,
-JavaScript, C#, C, C++, Go, PHP, Perl, Kotlin and SQL — plus a Gradle reader that turns `.kts`
+**`orchestrator`**. Comprehension supports fourteen front-ends: Python, Java, TypeScript,
+JavaScript, C#, C, C++, Go, Rust, PHP, Perl, Kotlin and SQL — plus a Gradle reader that turns `.kts`
 build scripts into the module graph an Android app is assembled from — with the
 matching parser extras installed.
 
@@ -78,7 +78,17 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.53.0 (current)** — Python's call graph reaches through a typed variable, and a locked
+**3.54.0 (current)** — required-behavior gates, and Core Rust support signed off. A project
+opts in by committing `.spine/required-behavior.yaml`: checks the model does not author and
+cannot edit away, re-verified after every refinement in `sdlc feature`'s native loop —
+closing the ONTM-4 gap where a generated test passed without exercising a feature's real
+default wiring. `[rust]` comprehension (Cargo topology, precision-safe local calls) and
+Cargo-aware codegen/build/test are both signed off for supported hosts; the installed
+parser's upstream grammar error is closed by pinning `tree-sitter-rust-orchard`. **Upgrade
+notes:** a legacy project without a manifest takes the exact code path it took before —
+opting in is additive, not a breaking change.
+
+**3.53.0** — Python's call graph reaches through a typed variable, and a locked
 `pyjwt` closes ten published advisories. A parameter annotation, a local assigned once from a
 constructor, or a `self.attr` typed by a class annotation now gives a method a caller in the
 graph (`blast_radius`, `impact_of`, `docs_for` and codegen's `refine` all see it): +2,077
@@ -333,6 +343,7 @@ in [CLI_REFERENCE.md](https://github.com/synaptixs/spine/blob/main/CLI_REFERENCE
 | Java and C# typed-receiver call graphs (fields, parameters, typed locals, `var x = new T()`), constructor calls, C# static calls and ASP.NET Core DI bindings; `blast_radius` through interfaces | ✅ | `pkg extract`, `blast_radius`; [Knowledge Graph](https://github.com/synaptixs/spine/blob/main/KNOWLEDGE_GRAPH.md) |
 | C/C++ include graphs, C++ routing for included `.h` files and header/source merging; CMake or brownfield Meson builds | ✅ | `sdlc feature --language c` / `cpp` |
 | Go packages, calls and interface satisfaction; multi-module build/test selection | ✅ | `sdlc feature --language go` |
+| Rust Cargo packages/targets, semantic modules, imports, traits and precision-safe local calls; Cargo-aware codegen/build/test | 🟡 codegen validation | `[rust]`; `pkg extract`, `sdlc feature --language rust`; [validation](https://github.com/synaptixs/spine/blob/main/docs/evals/rust-codegen-validation.md). The published grammar fix and full brownfield sign-off are pending. |
 | PHP namespaces/traits/calls, Laravel/Slim/Symfony routes, Eloquent/Doctrine entities; Composer/PHAR PHPUnit | ✅ | [PHP workflow](https://github.com/synaptixs/spine/blob/main/USER_GUIDE.md#php-code-generation) |
 | Perl packages/inheritance/fields/calls, routes and data layer; syntax checks and `prove` | ✅ | [Perl workflow](https://github.com/synaptixs/spine/blob/main/USER_GUIDE.md#perl-code-generation) |
 | Kotlin classes/objects/companions/extensions and typed-receiver calls; Room entities and DAO reads/writes; Retrofit calls as cross-repo consumers; Compose navigation routes; Hilt/Dagger wiring via `PROVIDES`; Gradle `.kts` module graph; **Ktor and Spring MVC server routes**; **Multiplatform source sets and `expect`/`actual`** | 🟡 comprehension only, no codegen | `[kotlin]`; [Kotlin roadmap](https://github.com/synaptixs/spine/blob/main/docs/specs/kotlin-support-roadmap.md) |
@@ -393,7 +404,8 @@ Comprehension and codegen cover **Python, Java, TypeScript, C#, C, C++, Go, PHP,
 Kotlin**, and comprehension alone covers **JavaScript** — each
 front-end going beyond structure into what that stack actually does (Java and C# REST
 endpoints, EF Core entities, C's `#include` graph, C++ templates and namespaces, Go
-interface satisfaction by method-set matching). **PHP** adds a call graph too (namespaces,
+interface satisfaction by method-set matching). Rust comprehension is merged; Cargo-aware
+Rust codegen is in validation while the parser-wheel release gate remains open. **PHP** adds a call graph too (namespaces,
 classes, interfaces, traits, `CALLS`), plus Composer/PHAR PHPUnit codegen with changed-file lint.
 **Perl** adds a call graph too (packages, inheritance across its five spellings,
 `$self`/`SUPER::`/qualified/bare `CALLS`) — codegen uses `perl -c` then `prove`,

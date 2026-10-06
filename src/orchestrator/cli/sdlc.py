@@ -1234,7 +1234,7 @@ def sdlc_feature(
             "--language",
             help=(
                 "Target language: auto (detect), python, java, kotlin, typescript, "
-                "csharp, c, cpp, go, php, perl, or sql."
+                "csharp, c, cpp, go, rust, php, perl, or sql."
             ),
         ),
     ] = "auto",

@@ -4,6 +4,48 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.54.0 — 2026-10-06
+
+Required-behavior gates close the ONTM-4 gap where a generated test could pass without
+exercising a feature's real default wiring, and Core Rust support (comprehension +
+Cargo-aware codegen/build/test) is signed off end to end.
+
+### Added
+
+- **Required-behavior gates.** A project opts in by committing `.spine/required-behavior.yaml`:
+  checks that must pass before `orchestrator sdlc feature` reports a run verified, distinct
+  from the existing lint/type-quality preflight and from the model's own generated tests.
+  ONTM-4 showed generated tests passing while the feature under test never exercised its own
+  default wiring; `RequiredBehaviorRunner` (`sdlc/required_behavior.py`) closes that gap with
+  checks the model does not author and cannot edit away, re-verified after every refinement as
+  a fourth independently-budgeted check in `run_feature`'s loop. `PKGCodegenGrounder` grounds
+  the model in a correctly-wired sibling implementation (via the existing `IMPLEMENTS` graph —
+  no new PKG fact type) when a requirement names a resolvable entry point. Worklogs gain a
+  `Deterministic (s)` column (the check is a subprocess run, not a model call — zero tokens
+  does not mean it did not run) and an `Outcome` line distinguishing an initial candidate from
+  a first completed autonomous workflow that needed internal repairs.
+  ([SSPN-116](https://fibonacci-solutions.atlassian.net/browse/SSPN-116))
+
+- **Rust language support (Core).** A new `[rust]` comprehension and Cargo-aware codegen
+  front-end, closed end-to-end across three follow-on PRs that resolved every gate opened
+  along the way. Comprehension indexes Cargo package/target topology and builds a semantic
+  module tree, giving `.rs` declarations target-scoped IDs and recording exact imports,
+  explicit trait implementations, fields, references, and precision-safe local calls; the
+  Rust corpus holds 1.00 precision on every emitted node/edge kind, with three cross-module/
+  workspace `CALLS` gaps declared rather than silently dropped. Codegen adds
+  `TOOLCHAINS["rust"]`: a Cargo-aware scaffold, build-before-test with changed-package and
+  reverse-dependent selection, workspace escalation for root-manifest/lockfile/toolchain
+  edits, and Rust-specific implement/test/refine prompts — validated with live
+  `claude-opus-5` runs against a pinned real-world crate, including deliberate compile/test-red
+  cases and clean-checkout replays. The installed `[rust]` parser's four-line upstream grammar
+  error, open at both merges, is now closed by pinning the published
+  `tree-sitter-rust-orchard` 0.16.8 grammar, which parses the pinned validation repository's
+  109/109 files cleanly. Core Rust support (comprehension + Cargo-aware codegen/build/test) is
+  signed off for supported host environments; the `[rust]` extra needs a C compiler since
+  Orchard is source-only. Macro-generated declarations, `include!` expansion, receiver type
+  inference, and ambiguous `cfg` variants remain out of scope, as do multi-target/embedded
+  execution and rust-analyzer enrichment.
+
 ## 3.53.0 — 2026-10-04
 
 Python's call graph now reaches through a typed variable, and a locked `pyjwt` closes ten

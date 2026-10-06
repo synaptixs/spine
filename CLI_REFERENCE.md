@@ -44,7 +44,7 @@ Set up your environment and run the platform.
 Prints the installed version **and the path it is running from**:
 
 ```
-Spine 3.53.0  (synaptixs-spine)
+Spine 3.54.0  (synaptixs-spine)
   running from /path/to/site-packages/orchestrator
 ```
 
@@ -537,8 +537,8 @@ orchestrator pkg accuracy [PATH] [OPTIONS]
 | `--tests` | Test target(s) for `--oracle runtime`; defaults to the repo's own. |
 | `--dialect` | SQL dialect (postgres\|mysql\|tsql\|oracle\|…); default: auto-detect. |
 
-**Current corpus results** (108 fixture cases — 102 single-language, 6 multi-repo — across
-all 13 front-ends, Perl's own corpus grown across P2–P5 of its track: 9 cases). Precision is
+**Current corpus results** (119 fixture cases — 113 single-language, 6 multi-repo — across
+all 14 front-ends, including eleven Rust cases). Precision is
 **1.00 on every node kind and every edge kind in every language**; recall is 1.00 on every
 kind except `CALLS`, JavaScript `IMPORTS` (189 of 190: an immediately-called `require`) and
 multi-repo `CONSUMES` (5 of 6) — each a declared known gap:
@@ -551,6 +551,7 @@ multi-repo `CONSUMES` (5 of 6) — each a declared known gap:
 | `csharp` `perl` `python` | 0.89 |
 | `kotlin` | 0.87 |
 | `typescript` | 0.86 |
+| `rust` | 0.57 (4 of 7; three declared cross-module/workspace `CALLS` gaps) |
 | `cpp` `go` `php` | 0.75 |
 
 C# and Java carry typed-receiver cases (B21) that label every true call in their source,
@@ -588,7 +589,7 @@ is not computable from a trace, and the report says so on every run.
 **Two coverage limits worth knowing before you quote a number:**
 
 - **`--oracle runtime` is Python-only.** It uses `sys.monitoring` (PEP 669), which has no
-  equivalent in the other twelve front-ends. "Runtime-verified" means "runtime-verified for
+  equivalent in the other thirteen front-ends. "Runtime-verified" means "runtime-verified for
   Python".
 - **`--oracle invention` only examines Python.** It resolves caller-scope bindings with
   Python's `ast`, so calls in other languages are counted as *unexaminable* rather than
@@ -1189,7 +1190,7 @@ orchestrator sdlc feature [OPTIONS]
 | `--package-name` | Target project/package — naming a .NET project selects it; otherwise overrides the scaffold package name (default: derived from repo). In a multi-module Gradle/Android repo this also selects the module the change belongs to. |
 | `--spec` | Implement a hand-written spec (JSON) instead of deriving one from the source — see `sdlc autorun` above for the format. |
 | `--refresh` | Re-extract intents from the source (default: reuse the cached, deterministic backlog). |
-| `--language` | Target language: auto (detect), python, java, kotlin, typescript, csharp, c, cpp, go, php, perl, or sql. (default: `auto`) |
+| `--language` | Target language: auto (detect), python, java, kotlin, typescript, csharp, c, cpp, go, rust, php, perl, or sql. (default: `auto`) |
 
 Perl requires `perl` and `prove`; `cpanm` is optional. Greenfield uses `lib/`, `t/`
 and `cpanfile`; existing distributions keep their package layout and packaging files.

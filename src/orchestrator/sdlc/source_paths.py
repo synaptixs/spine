@@ -34,6 +34,7 @@ SOURCE_SUFFIXES: tuple[str, ...] = (
     "kt",
     "kts",
     "go",
+    "rs",
     "php",
     "pl",
     "pm",

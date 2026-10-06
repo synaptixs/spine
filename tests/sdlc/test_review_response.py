@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from orchestrator.sdlc.forge import PRComment, StubPRAdapter, _comment_from, format_review_feedback
-from orchestrator.sdlc.review_response import respond_to_pr_feedback
+from orchestrator.sdlc.review_response import ReviewResponse, respond_to_pr_feedback
 
 # ---- comment parsing / filtering ------------------------------------------
 
@@ -141,3 +141,11 @@ async def test_no_push_when_cannot_reach_green() -> None:
     assert out.addressed is False
     assert out.refines == 2  # exhausted the budget
     assert pr.pushed == []
+
+
+def test_required_behavior_note_documents_the_scope_cut_by_default() -> None:
+    """SSPN-121/D28: this path never re-verifies required_behavior -- documented on every
+    ReviewResponse, not a blank field someone has to source-dive to explain."""
+    out = ReviewResponse(comments=0, addressed=False, green=False, refines=0)
+    assert "required_behavior status unchanged" in out.required_behavior_note
+    assert "SSPN-119" in out.required_behavior_note

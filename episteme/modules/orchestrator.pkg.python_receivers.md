@@ -30,7 +30,7 @@ _20 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_receivers.py:87`](../../src/orchestrator/pkg/python_receivers.py#L87)
 
-- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L202)
+- **Called by** (1): [`__init__`](../../src/orchestrator/pkg/extractor.py#L203)
 - **Fields**: `bases`, `calls`, `fields`
 
 ### `_Call`
@@ -166,7 +166,7 @@ _20 of the symbols other code depends on here have no test path the graph can se
 
 [`src/orchestrator/pkg/python_receivers.py:421`](../../src/orchestrator/pkg/python_receivers.py#L421)
 
-- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L254)
+- **Called by** (1): [`finalize`](../../src/orchestrator/pkg/extractor.py#L255)
 - **Calls** (8): [`Edge`](../../src/orchestrator/pkg/facts.py#L144), [`Provenance`](../../src/orchestrator/pkg/facts.py#L88), [`_Index`](../../src/orchestrator/pkg/python_receivers.py#L462), [`_repoint_phantoms`](../../src/orchestrator/pkg/python_receivers.py#L531), [`clear`](../../src/orchestrator/pkg/python_receivers.py#L96), [`field_type`](../../src/orchestrator/pkg/python_receivers.py#L518), [`owner`](../../src/orchestrator/pkg/python_receivers.py#L505), [`type_of`](../../src/orchestrator/pkg/python_receivers.py#L476)
 
 ## Imports

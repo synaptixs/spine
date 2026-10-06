@@ -565,6 +565,12 @@ def _go_files(layout: TargetLayout) -> dict[str, str]:
     }
 
 
+def _rust_files(layout: TargetLayout) -> dict[str, str]:
+    from orchestrator.sdlc.rust_codegen import rust_files
+
+    return rust_files(layout)
+
+
 _GO_GITIGNORE = """\
 # Binaries / test artifacts
 *.exe

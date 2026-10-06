@@ -5,7 +5,7 @@
 
 **Source:** [`src/orchestrator/pkg/scope.py`](../../src/orchestrator/pkg/scope.py)
 
-11 types · 10 functions · python
+12 types · 11 functions · python
 
 ## Changing this safely
 
@@ -13,16 +13,16 @@
 
 **Most depended-upon here** — a change to these reaches the most code (call graph, ≤4 hops):
 
-- [`_text`](../../src/orchestrator/pkg/scope.py#L139) — reaches **17** symbols · **no test path visible**
+- [`_text`](../../src/orchestrator/pkg/scope.py#L139) — reaches **19** symbols · **no test path visible**
 - [`_Open`](../../src/orchestrator/pkg/scope.py#L144) — reaches **4** symbols
 - [`FileScopes`](../../src/orchestrator/pkg/scope.py#L94) — reaches **3** symbols
 - [`Scope`](../../src/orchestrator/pkg/scope.py#L64) — reaches **3** symbols
 - [`_declarator_name`](../../src/orchestrator/pkg/scope.py#L498) — reaches **2** symbols · **no test path visible**
 - [`_named_fields`](../../src/orchestrator/pkg/scope.py#L215) — reaches **2** symbols · **no test path visible**
 - [`_own_name`](../../src/orchestrator/pkg/scope.py#L329) — reaches **2** symbols · **no test path visible**
-- [`_parser_for`](../../src/orchestrator/pkg/scope.py#L595) — reaches **2** symbols
+- [`_parser_for`](../../src/orchestrator/pkg/scope.py#L662) — reaches **2** symbols
 
-_9 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
+_10 of the symbols other code depends on here have no test path the graph can see — worth a second look before changing them. Absence of a path is not proof of absence of a test: calls through an attribute chain (`obj.method()`) are skipped rather than guessed at, so indirect coverage is invisible._
 
 ## Documented in
 
@@ -98,6 +98,12 @@ _9 of the symbols other code depends on here have no test path the graph can see
 - **Called by** (2): [`collect`](../../src/orchestrator/pkg/scope.py#L151), [`visit`](../../src/orchestrator/pkg/scope.py#L160)
 - **Fields**: `bindings`, `end`, `local`, `start`
 
+### `_Rust`
+
+[`src/orchestrator/pkg/scope.py:566`](../../src/orchestrator/pkg/scope.py#L566)
+
+- **Fields**: `call_nodes`, `scope_nodes`
+
 ### `_TypeScript`
 
 [`src/orchestrator/pkg/scope.py:250`](../../src/orchestrator/pkg/scope.py#L250)
@@ -142,16 +148,23 @@ _9 of the symbols other code depends on here have no test path the graph can see
 
 ### `_parser_for`
 
-[`src/orchestrator/pkg/scope.py:595`](../../src/orchestrator/pkg/scope.py#L595)
+[`src/orchestrator/pkg/scope.py:662`](../../src/orchestrator/pkg/scope.py#L662)
 
-- **Called by** (1): [`scopes_for_source`](../../src/orchestrator/pkg/scope.py#L624)
-- **Calls** (6): [`_c_parser`](../../src/orchestrator/pkg/c_extractor.py#L512), [`_cpp_parser`](../../src/orchestrator/pkg/cpp_extractor.py#L527), [`_csharp_parser`](../../src/orchestrator/pkg/csharp_extractor.py#L1376), [`_go_parser`](../../src/orchestrator/pkg/go_extractor.py#L514), [`_kotlin_parser`](../../src/orchestrator/pkg/kotlin_extractor.py#L2097), [`_ts_parser`](../../src/orchestrator/pkg/typescript_extractor.py#L1061)
+- **Called by** (1): [`scopes_for_source`](../../src/orchestrator/pkg/scope.py#L695)
+- **Calls** (7): [`_c_parser`](../../src/orchestrator/pkg/c_extractor.py#L512), [`_cpp_parser`](../../src/orchestrator/pkg/cpp_extractor.py#L527), [`_csharp_parser`](../../src/orchestrator/pkg/csharp_extractor.py#L1376), [`_go_parser`](../../src/orchestrator/pkg/go_extractor.py#L514), [`_kotlin_parser`](../../src/orchestrator/pkg/kotlin_extractor.py#L2097), [`_parser`](../../src/orchestrator/pkg/rust_extractor.py#L21), [`_ts_parser`](../../src/orchestrator/pkg/typescript_extractor.py#L1061)
+
+### `_rust_pattern_names`
+
+[`src/orchestrator/pkg/scope.py:619`](../../src/orchestrator/pkg/scope.py#L619)
+
+- **Called by** (3): [`_rust_pattern_names`](../../src/orchestrator/pkg/scope.py#L619), [`declares`](../../src/orchestrator/pkg/scope.py#L603), [`params`](../../src/orchestrator/pkg/scope.py#L570)
+- **Calls** (1): [`_rust_pattern_names`](../../src/orchestrator/pkg/scope.py#L619)
 
 ### `_text`
 
 [`src/orchestrator/pkg/scope.py:139`](../../src/orchestrator/pkg/scope.py#L139)
 
-- **Called by** (11): [`_declarator_name`](../../src/orchestrator/pkg/scope.py#L498), [`_idents`](../../src/orchestrator/pkg/scope.py#L199), [`_named_fields`](../../src/orchestrator/pkg/scope.py#L215), [`_own_name`](../../src/orchestrator/pkg/scope.py#L329), [`_ts_pattern_names`](../../src/orchestrator/pkg/scope.py#L234), [`callee`](../../src/orchestrator/pkg/scope.py#L425), [`declares`](../../src/orchestrator/pkg/scope.py#L464), [`declares`](../../src/orchestrator/pkg/scope.py#L283), [`params`](../../src/orchestrator/pkg/scope.py#L453), [`params`](../../src/orchestrator/pkg/scope.py#L375), [`visit`](../../src/orchestrator/pkg/scope.py#L160)
+- **Called by** (13): [`_declarator_name`](../../src/orchestrator/pkg/scope.py#L498), [`_idents`](../../src/orchestrator/pkg/scope.py#L199), [`_named_fields`](../../src/orchestrator/pkg/scope.py#L215), [`_own_name`](../../src/orchestrator/pkg/scope.py#L329), [`_ts_pattern_names`](../../src/orchestrator/pkg/scope.py#L234), [`callee`](../../src/orchestrator/pkg/scope.py#L425), [`declares`](../../src/orchestrator/pkg/scope.py#L464), [`declares`](../../src/orchestrator/pkg/scope.py#L603), [`declares`](../../src/orchestrator/pkg/scope.py#L283), [`params`](../../src/orchestrator/pkg/scope.py#L453), [`params`](../../src/orchestrator/pkg/scope.py#L375), [`params`](../../src/orchestrator/pkg/scope.py#L570), [`visit`](../../src/orchestrator/pkg/scope.py#L160)
 
 ### `_ts_pattern_names`
 
@@ -164,19 +177,19 @@ _9 of the symbols other code depends on here have no test path the graph can see
 
 [`src/orchestrator/pkg/scope.py:151`](../../src/orchestrator/pkg/scope.py#L151)
 
-- **Called by** (1): [`scopes_for_source`](../../src/orchestrator/pkg/scope.py#L624)
+- **Called by** (1): [`scopes_for_source`](../../src/orchestrator/pkg/scope.py#L695)
 - **Calls** (3): [`FileScopes`](../../src/orchestrator/pkg/scope.py#L94), [`Scope`](../../src/orchestrator/pkg/scope.py#L64), [`_Open`](../../src/orchestrator/pkg/scope.py#L144)
 
 ### `scopes_for_source`
 
-[`src/orchestrator/pkg/scope.py:624`](../../src/orchestrator/pkg/scope.py#L624)
+[`src/orchestrator/pkg/scope.py:695`](../../src/orchestrator/pkg/scope.py#L695)
 
-- **Called by** (1 production · 2 test): [`scopes_for`](../../src/orchestrator/pkg/invention.py#L289), [`_bare`](../../tests/pkg/test_scope.py#L35), [`_shadowed`](../../tests/pkg/test_scope.py#L29)
-- **Calls** (2): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L595), [`collect`](../../src/orchestrator/pkg/scope.py#L151)
+- **Called by** (1 production · 2 test): [`scopes_for`](../../src/orchestrator/pkg/invention.py#L289), [`_bare`](../../tests/pkg/test_scope.py#L44), [`_shadowed`](../../tests/pkg/test_scope.py#L38)
+- **Calls** (2): [`_parser_for`](../../src/orchestrator/pkg/scope.py#L662), [`collect`](../../src/orchestrator/pkg/scope.py#L151)
 
 ## Imports
 
-`__future__.annotations`, `collections.abc.Iterable`, `collections.abc.Iterator`, `dataclasses.dataclass`, `dataclasses.field`, [`orchestrator.pkg.c_extractor`](orchestrator.pkg.c_extractor.md), [`orchestrator.pkg.cpp_extractor`](../../src/orchestrator/pkg/cpp_extractor.py#L1), [`orchestrator.pkg.csharp_extractor`](orchestrator.pkg.csharp_extractor.md), [`orchestrator.pkg.go_extractor`](../../src/orchestrator/pkg/go_extractor.py#L1), [`orchestrator.pkg.kotlin_extractor`](orchestrator.pkg.kotlin_extractor.md), [`orchestrator.pkg.typescript_extractor`](orchestrator.pkg.typescript_extractor.md), `tree_sitter.Node`, `typing.Any`, `typing.Protocol`, `typing.TYPE_CHECKING`
+`__future__.annotations`, `collections.abc.Iterable`, `collections.abc.Iterator`, `dataclasses.dataclass`, `dataclasses.field`, [`orchestrator.pkg.c_extractor`](orchestrator.pkg.c_extractor.md), [`orchestrator.pkg.cpp_extractor`](../../src/orchestrator/pkg/cpp_extractor.py#L1), [`orchestrator.pkg.csharp_extractor`](orchestrator.pkg.csharp_extractor.md), [`orchestrator.pkg.go_extractor`](../../src/orchestrator/pkg/go_extractor.py#L1), [`orchestrator.pkg.kotlin_extractor`](orchestrator.pkg.kotlin_extractor.md), [`orchestrator.pkg.rust_extractor`](../../src/orchestrator/pkg/rust_extractor.py#L1), [`orchestrator.pkg.typescript_extractor`](orchestrator.pkg.typescript_extractor.md), `tree_sitter.Node`, `typing.Any`, `typing.Protocol`, `typing.TYPE_CHECKING`
 
 ## Imported by
 

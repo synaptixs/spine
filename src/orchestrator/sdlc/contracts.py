@@ -95,3 +95,40 @@ class PreflightRunner(Protocol):
     """Runs the repo's quality bar in a worktree."""
 
     async def run(self, *, path: str, baseline: Baseline | None = None) -> PreflightResult: ...
+
+
+@dataclass(frozen=True)
+class RequirementResult:
+    """Outcome of one check from a project's required-behavior manifest."""
+
+    requirement_id: str
+    passed: bool
+    required: bool
+    command: tuple[str, ...]
+    output: str = ""
+    # True when the check could not run at all (missing command, timeout) rather than ran
+    # and failed — SSPN-118/D21: distinguishes an environment problem refine cannot fix from
+    # a real behavioral gap, structurally (by exit code), not by sniffing output text.
+    environment_blocked: bool = False
+
+
+@dataclass(frozen=True)
+class RequiredBehaviorResult:
+    """Outcome of a project's required-behavior manifest, or the fact it has none.
+
+    A project without ``.spine/required-behavior.yaml`` is unverified, not failed —
+    ``passed`` is ``True`` with an empty ``items`` and an explicit ``output`` saying so,
+    mirroring ``SubprocessPreflightRunner``'s own "no pyproject.toml" self-skip. ``passed``
+    only considers items where ``required`` is true.
+    """
+
+    passed: bool
+    items: tuple[RequirementResult, ...] = ()
+    output: str = ""
+
+
+@runtime_checkable
+class RequiredBehaviorRunner(Protocol):
+    """Runs a project's declared required-behavior checks, if it has any configured."""
+
+    async def run(self, *, path: str) -> RequiredBehaviorResult: ...

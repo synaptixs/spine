@@ -1,0 +1,66 @@
+{
+  "language": "rust",
+  "case": "generic_impl",
+  "root": ".repo",
+  "why": "A generic impl names one concrete constructor; a blanket impl over T does not. The tuple field is ordinal 0.",
+  "nodes": [
+    {
+      "id": "rust:repository@lib/repository",
+      "kind": "Module"
+    },
+    {
+      "id": "rust:repository@lib/repository::Store",
+      "kind": "Type"
+    },
+    {
+      "id": "rust:repository@lib/repository::Store::save",
+      "kind": "Function"
+    },
+    {
+      "id": "rust:repository@lib/repository::Sql",
+      "kind": "Type"
+    },
+    {
+      "id": "rust:repository@lib/repository::Sql::0",
+      "kind": "Field"
+    },
+    {
+      "id": "rust:repository@lib/repository::Sql::<Store>::save",
+      "kind": "Function"
+    }
+  ],
+  "edges": [
+    {
+      "src": "rust:repository@lib/repository",
+      "dst": "rust:repository@lib/repository::Store",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:repository@lib/repository::Store",
+      "dst": "rust:repository@lib/repository::Store::save",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:repository@lib/repository",
+      "dst": "rust:repository@lib/repository::Sql",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:repository@lib/repository::Sql",
+      "dst": "rust:repository@lib/repository::Sql::0",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:repository@lib/repository::Sql",
+      "dst": "rust:repository@lib/repository::Sql::<Store>::save",
+      "kind": "CONTAINS"
+    },
+    {
+      "src": "rust:repository@lib/repository::Sql",
+      "dst": "rust:repository@lib/repository::Store",
+      "kind": "IMPLEMENTS"
+    }
+  ],
+  "known_gaps": [],
+  "refusals": []
+}

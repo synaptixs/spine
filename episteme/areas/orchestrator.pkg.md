@@ -3,7 +3,7 @@
 
 [← Episteme](../README.md) · [Architecture](../architecture.md)
 
-**`orchestrator.pkg`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 74 modules — 167 types and 786 functions. It sits in the middle of the graph: 1 area below it, 19 above. Changes here can reach both ways.
+**`orchestrator.pkg`** is one of 61 areas in this repo, in the `orchestrator` zone. It holds 76 modules — 175 types and 797 functions. It sits in the middle of the graph: 1 area below it, 19 above. Changes here can reach both ways.
 
 ```mermaid
 flowchart LR
@@ -87,7 +87,7 @@ _Showing 9 of 20 neighbouring areas._
 - [`orchestrator.pkg.php_orm`](../../src/orchestrator/pkg/php_orm.py#L1)
 - [`orchestrator.pkg.php_routes`](../modules/orchestrator.pkg.php_routes.md)
 - [`orchestrator.pkg.python_client`](../../src/orchestrator/pkg/python_client.py#L1)
-- [`orchestrator.pkg.python_orm`](../modules/orchestrator.pkg.python_orm.md)
+- [`orchestrator.pkg.python_orm`](../../src/orchestrator/pkg/python_orm.py#L1)
 - [`orchestrator.pkg.python_receivers`](../modules/orchestrator.pkg.python_receivers.md)
 - [`orchestrator.pkg.python_reexport`](../../src/orchestrator/pkg/python_reexport.py#L1)
 - [`orchestrator.pkg.python_routes`](../../src/orchestrator/pkg/python_routes.py#L1)
@@ -96,6 +96,8 @@ _Showing 9 of 20 neighbouring areas._
 - [`orchestrator.pkg.repos`](../../src/orchestrator/pkg/repos.py#L1)
 - [`orchestrator.pkg.retrieval`](../../src/orchestrator/pkg/retrieval.py#L1)
 - [`orchestrator.pkg.runtime_oracle`](../../src/orchestrator/pkg/runtime_oracle.py#L1)
+- [`orchestrator.pkg.rust_cargo`](../../src/orchestrator/pkg/rust_cargo.py#L1)
+- [`orchestrator.pkg.rust_extractor`](../../src/orchestrator/pkg/rust_extractor.py#L1)
 - [`orchestrator.pkg.schema`](../../src/orchestrator/pkg/schema.py#L1)
 - [`orchestrator.pkg.scope`](../modules/orchestrator.pkg.scope.md)
 - [`orchestrator.pkg.scoping`](../../src/orchestrator/pkg/scoping.py#L1)

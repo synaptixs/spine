@@ -174,7 +174,7 @@ _17 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:616`](../../src/orchestrator/plugin/server.py#L616)
 
 - **Called by** (2): [`_in_repos_store`](../../src/orchestrator/plugin/server.py#L642), [`pkg_joins`](../../src/orchestrator/plugin/server.py#L908)
-- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L406), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432)
+- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`load_or_extract_repos`](../../src/orchestrator/pkg/persistence.py#L407), [`load_repo_config`](../../src/orchestrator/pkg/repos.py#L432)
 
 ### `_open_repo`
 
@@ -237,7 +237,7 @@ _17 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:261`](../../src/orchestrator/plugin/server.py#L261)
 
 - **Called by** (2): [`_in_repo_store`](../../src/orchestrator/plugin/server.py#L601), [`root_cause`](../../src/orchestrator/plugin/server.py#L1094)
-- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`_open_repo`](../../src/orchestrator/plugin/server.py#L249), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L261)
+- **Calls** (3): [`FactStore`](../../src/orchestrator/pkg/store.py#L36), [`_open_repo`](../../src/orchestrator/plugin/server.py#L249), [`load_or_extract`](../../src/orchestrator/pkg/persistence.py#L262)
 - **Documented in**: `docs/specs/comprehension-skill-spec.md#phases`
 
 ### `_repos_note`
@@ -349,7 +349,7 @@ _17 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:112`](../../src/orchestrator/plugin/server.py#L112)
 
 - **Called by** (0 production · 2 test): [`test_doctor_returns_readiness_structure`](../../tests/plugin/test_server.py#L43), [`test_doctor_says_which_install_is_answering`](../../tests/plugin/test_server.py#L50)
-- **Calls** (2): [`run_env_checks`](../../src/orchestrator/doctor.py#L130), [`server_identity`](../../src/orchestrator/doctor.py#L170)
+- **Calls** (2): [`run_env_checks`](../../src/orchestrator/doctor.py#L130), [`server_identity`](../../src/orchestrator/doctor.py#L171)
 
 ### `explain_symbol`
 
@@ -394,7 +394,7 @@ _17 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:214`](../../src/orchestrator/plugin/server.py#L214)
 
 - **Called by** (0 production · 2 test): [`test_pkg_grounding_empty_for_unrelated_repo`](../../tests/plugin/test_server.py#L69), [`test_pkg_grounding_surfaces_existing_symbols`](../../tests/plugin/test_server.py#L62)
-- **Calls** (1): [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L48)
+- **Calls** (1): [`from_repo`](../../src/orchestrator/sdlc/grounding.py#L50)
 - **Documented in**: `AGENT_GUIDE.md#6-the-tools-spine-exposes`, `AGENT_GUIDE.md#8-walkthrough-brownfield`, `AGENT_GUIDE.md#pkg-grounding`, `codex-marketplace/README.md#credentials`, `codex-marketplace/README.md#what-it-exposes`, `docs/evidence/perl-codegen-c3-build.md#recorded-live-execution`
 
 ### `pkg_joins`
@@ -479,7 +479,7 @@ _17 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:1777`](../../src/orchestrator/plugin/server.py#L1777)
 
 - **Called by** (0 production · 3 test): [`test_sdlc_address_review_checks_out_then_responds`](../../tests/plugin/test_server.py#L759), [`test_sdlc_address_review_reports_a_failed_checkout_step`](../../tests/plugin/test_server.py#L790), [`test_the_gated_tools_refuse_without_confirm_before_touching_anything`](../../tests/plugin/test_server.py#L739)
-- **Calls** (7): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L181), [`checkout_pr_worktree`](../../src/orchestrator/sdlc/review_response.py#L51), `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`respond_to_pr_feedback`](../../src/orchestrator/sdlc/review_response.py#L83), [`step`](../../src/orchestrator/plugin/progress.py#L89)
+- **Calls** (7): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`build_deps`](../../src/orchestrator/sdlc/worker.py#L182), [`checkout_pr_worktree`](../../src/orchestrator/sdlc/review_response.py#L51), `getenv`, [`load_local_env`](../../src/orchestrator/core/env.py#L20), [`respond_to_pr_feedback`](../../src/orchestrator/sdlc/review_response.py#L96), [`step`](../../src/orchestrator/plugin/progress.py#L89)
 
 ### `sdlc_approve`
 
@@ -515,7 +515,7 @@ _17 of the symbols other code depends on here have no test path the graph can se
 [`src/orchestrator/plugin/server.py:148`](../../src/orchestrator/plugin/server.py#L148)
 
 - **Called by** (0 production · 4 test): [`test_sdlc_feature_live_requires_confirm`](../../tests/plugin/test_server.py#L445), [`test_sdlc_feature_maps_run_error`](../../tests/plugin/test_server.py#L510), [`test_sdlc_feature_passes_greenfield_brownfield_params`](../../tests/plugin/test_server.py#L474), [`test_sdlc_feature_safe_maps_result`](../../tests/plugin/test_server.py#L451)
-- **Calls** (3): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`as_log`](../../src/orchestrator/plugin/progress.py#L109), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L767)
+- **Calls** (3): [`Reporter`](../../src/orchestrator/plugin/progress.py#L68), [`as_log`](../../src/orchestrator/plugin/progress.py#L109), [`run_feature`](../../src/orchestrator/sdlc/feature_runner.py#L788)
 
 ### `sdlc_plan`
 
