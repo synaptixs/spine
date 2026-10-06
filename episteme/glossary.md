@@ -9,7 +9,7 @@ _The codebase's vocabulary, most-depended-upon first, then alphabetical. Definit
 | **ApprovalRequestRepo** | [`ApprovalRequestRepo`](../src/orchestrator/approval/repository.py#L36) | `docs/specs/archive/BLOCK-C-DESIGN.md#2-reuse-vs-build-new`, `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist` |
 | **AuditLogRepo** | [`AuditLogRepo`](../src/orchestrator/registry/repositories.py#L161) | `docs/specs/bet2-trust-spine.md#building-blocks-that-already-exist`, `docs/specs/bet2-trust-spine.md#why-this-stands-out` |
 | **AutorunError** | [`AutorunError`](../src/orchestrator/sdlc/autorun.py#L60) | — |
-| **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L309) | `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this` |
+| **CodegenError** | [`CodegenError`](../src/orchestrator/sdlc/codegen.py#L309) | `CHANGELOG.md`, `docs/specs/codegen-model-comparison-results.md#5-defects-found-by-running-this` |
 | **CorpusError** | [`CorpusError`](../src/orchestrator/pkg/accuracy.py#L57) | — |
 | **CurrentState** | [`CurrentState`](../src/orchestrator/knowledge/current_state.py#L125) | `docs/specs/pkg-navigable-reports.md#risks-the-things-that-will-bite`, `docs/specs/shareable-report-spec.md#components-where-the-code-goes` |
 | **DeferredCall** | [`DeferredCall`](../src/orchestrator/pkg/typed_receivers.py#L125) | — |
