@@ -28,7 +28,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Protocol, runtime_checkable
 
 from orchestrator.catalog.skills import skill_guidance, skill_phases
-from orchestrator.core.llm import LLMClient, Message, ToolSpec, catalog
+from orchestrator.core.llm import LLMClient, LLMError, Message, StructuredOutputError, ToolSpec, catalog
 from orchestrator.sdlc.csharp_names import directive_error
 from orchestrator.sdlc.diagnostics import dotnet_errors, paths_named
 from orchestrator.sdlc.excerpt import _excerpt_files, _spec_anchors
@@ -1664,7 +1664,6 @@ class LLMCodegenAdapter:
         guards, handed to every attempt's ``apply_files``. They are arguments, not adapter
         state, because each attempt awaits the model and the adapter is shared (B49).
         """
-        text = await self._complete(system, user)
         # A corrective allowance per KIND of failure, not one shared by all of them.
         #
         # It used to be a single retry for every kind, and a live run showed why that is
@@ -1679,11 +1678,29 @@ class LLMCodegenAdapter:
         # a bad draw rather than a loop. `_MAX_GENERATE_ATTEMPTS` bounds the whole thing
         # regardless.
         spent: Counter[str] = Counter()
+        prompt = user
         for _ in range(_MAX_GENERATE_ATTEMPTS):
             try:
+                text = await self._complete(system, prompt)
                 return self._apply(
                     text, root, allow_empty=allow_empty, editable_existing=editable_existing, scope=scope
                 )
+            except LLMError as exc:
+                # Some clients parse a forced tool call before returning CompletionResult.
+                # Their malformed JSON therefore never reaches _apply's parse retry. The
+                # Codex app adapter historically used LLMError with this exact prefix;
+                # native clients can use the typed StructuredOutputError. Other transport,
+                # timeout and budget failures are not safe to retry as a format mistake.
+                if not (
+                    isinstance(exc, StructuredOutputError)
+                    or str(exc).startswith("Invalid structured response:")
+                ):
+                    raise
+                if spent["parse"] >= _DEFAULT_CORRECTIONS:
+                    raise CodegenError("model output was not valid structured JSON") from exc
+                spent["parse"] += 1
+                logger.warning("sdlc.codegen.provider_parse_retry detail=%r", str(exc)[:160])
+                prompt = f"{user}{_parse_repair_block(str(exc))}"
             except CodegenError as exc:
                 kind = _failure_kind(exc)
                 if spent[kind] >= _CORRECTIONS_PER_KIND.get(kind, _DEFAULT_CORRECTIONS):
@@ -1692,7 +1709,7 @@ class LLMCodegenAdapter:
                 if suffix is None:
                     raise
                 spent[kind] += 1
-                text = await self._complete(system, f"{user}{suffix}")
+                prompt = f"{user}{suffix}"
         raise CodegenError("codegen retries did not produce a usable change")  # unreachable
 
     def _corrective_suffix(self, exc: CodegenError, root: Path) -> str | None:

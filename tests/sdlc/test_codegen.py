@@ -16,7 +16,14 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from orchestrator.core.llm import CompletionResult, Message, ToolCall, ToolSpec
+from orchestrator.core.llm import (
+    CompletionResult,
+    LLMError,
+    Message,
+    StructuredOutputError,
+    ToolCall,
+    ToolSpec,
+)
 from orchestrator.sdlc.codegen import (
     CodegenAdapter,
     CodegenError,
@@ -29,7 +36,7 @@ from orchestrator.sdlc.testrunner import SubprocessTestRunner
 class _ScriptedLLM:
     """Returns queued responses in order; quacks like ``LLMClient``."""
 
-    def __init__(self, responses: list[str]) -> None:
+    def __init__(self, responses: list[str | Exception]) -> None:
         self._responses = list(responses)
         self.calls: list[list[Message]] = []
 
@@ -48,6 +55,8 @@ class _ScriptedLLM:
         _ = (model, response_format, json_object, temperature, max_tokens, tools, tool_choice)
         self.calls.append(list(messages))
         text = self._responses.pop(0)
+        if isinstance(text, Exception):
+            raise text
         return CompletionResult(
             text=text,
             model="fake",
@@ -1099,6 +1108,43 @@ async def test_malformed_json_is_retried_once_and_recovers(tmp_path: Path) -> No
     retry_prompt = "\n".join(m.content for m in llm.calls[1])
     assert "NOT VALID JSON" in retry_prompt
     assert "position" in retry_prompt
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        StructuredOutputError("tool arguments were malformed"),
+        LLMError("Invalid structured response: missing comma at position 6400"),
+    ],
+)
+async def test_provider_structured_parse_failure_retries_once(tmp_path: Path, error: LLMError) -> None:
+    """An adapter that parses the forced tool before returning still gets repair."""
+    llm = _ScriptedLLM([error, _files_response({"src/x.py": "x = 1\n"})])
+
+    change = await LLMCodegenAdapter(llm).author_tests(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert change.files == [str(tmp_path / "src" / "x.py")]
+    assert len(llm.calls) == 2
+    assert "NOT VALID JSON" in llm.calls[1][-1].content
+
+
+async def test_provider_structured_parse_retry_is_bounded(tmp_path: Path) -> None:
+    error = LLMError("Invalid structured response: missing comma")
+    llm = _ScriptedLLM([error, error])
+
+    with pytest.raises(CodegenError, match="not valid structured JSON"):
+        await LLMCodegenAdapter(llm).author_tests(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert len(llm.calls) == 2
+
+
+async def test_transport_error_is_not_retried_as_parse_error(tmp_path: Path) -> None:
+    llm = _ScriptedLLM([LLMError("connection failed")])
+
+    with pytest.raises(LLMError, match="connection failed"):
+        await LLMCodegenAdapter(llm).author_tests(spec=_SPEC, path=str(tmp_path), issue_key="E-1")
+
+    assert len(llm.calls) == 1
 
 
 async def test_a_second_parse_failure_raises(tmp_path: Path) -> None:
