@@ -78,7 +78,17 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.55.0 (current)** — Extensive Rust support on supported hosts. Async/Tokio,
+**3.56.0 (current)** — Spine checks requirements, not only builds from them. `orchestrator openspec check`
+is a deterministic clarity gate (stated problem, named users, observable outcome, every open question
+answered or deferred to a named owner) that also lists which criteria already name code that exists;
+`openspec answer` records an answer under its question with the channel Spine observed; both are
+available as MCP tools. No new model call anywhere in it. A malformed structured response from the
+model now gets a bounded corrective retry instead of ending a codegen run. **Upgrade note:** a cache
+entry written with why-fields is a miss for an older Spine, so an approval granted on that spec goes
+stale there; caches without why-fields read and write exactly as before. See the
+[CHANGELOG](https://github.com/synaptixs/spine/blob/main/CHANGELOG.md).
+
+**3.55.0** — Extensive Rust support on supported hosts. Async/Tokio,
 procedural-macro source boundaries, `no_std`, and one non-default Cargo feature
 have pinned corpus and real-repository evidence; Rust facts retain 1.00 precision
 across all 14 hand-labelled cases. Cargo codegen now identifies missing targets,
