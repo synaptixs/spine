@@ -98,6 +98,7 @@ from typing import Any
 
 from orchestrator.plugin.auth import SCOPE_PLAN, SCOPE_READ, SCOPE_RUN
 from orchestrator.plugin.progress import Reporter
+from orchestrator.plugin.repo_access import open_repo as _open_repo
 
 # The SDK injects its ``Context`` into a parameter annotated with this class and keeps it
 # out of the input schema — but it resolves the annotation through this module's globals
@@ -243,18 +244,6 @@ def read_memory_bank(repo_path: str, section: str | None = None) -> dict[str, An
 # plus a ``markdown`` rendering. ``repo_path`` is a local path OR a git URL (shallow-cloned
 # behind the same SSRF/host-allow-list guard as the CLI). Read-only + deterministic + no
 # credentials — except ``root_cause``'s opt-in ``use_llm`` enrichment.
-
-
-@contextmanager
-def _open_repo(repo_path: str) -> Iterator[Any]:
-    """Yield a local repo ``Path`` for a local path OR a git URL (shallow-cloned + cleaned up),
-    resolved through the same guard as the CLI's ``_repo_arg``."""
-    from orchestrator.registry.api.config import Settings
-    from orchestrator.registry.api.workspace import materialize_repo_source, resolve_repo_source
-
-    source = resolve_repo_source(repo_path, Settings(repo_allow_any_local=True))
-    with materialize_repo_source(source, log=lambda _m: None) as path:
-        yield path
 
 
 @contextmanager

@@ -185,3 +185,19 @@ def test_an_answer_is_only_written_into_a_real_change_directory(tmp_path: Path) 
     assert victim.read_text().count("**Answer**") == 0
     # …and the ordinary change still works.
     assert "error" not in requirements_answer(str(change), _PROBLEM_Q, answer="x")
+
+
+def test_requirements_tools_does_not_import_the_server_back() -> None:
+    """`server` imports `requirements_tools` lazily; importing `server` back from it is a
+    two-module import cycle CodeQL flags (alerts 303–305), so the repository opener lives in
+    `repo_access`."""
+    import ast
+    import inspect
+
+    from orchestrator.plugin import requirements_tools
+
+    tree = ast.parse(inspect.getsource(requirements_tools))
+    imported = {
+        node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module is not None
+    }
+    assert "orchestrator.plugin.server" not in imported
