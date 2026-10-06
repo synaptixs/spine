@@ -1,6 +1,6 @@
 # Design + Plan: adding Rust to the PKG — comprehension, then codegen
 
-**Status:** Core Rust implementation P0–P10 is merged through Spine [PR #509](https://github.com/synaptixs/spine/pull/509), [PR #511](https://github.com/synaptixs/spine/pull/511), and [PR #512](https://github.com/synaptixs/spine/pull/512). The pinned Synaptreesitter lint baseline was fixed in [PR #3](https://github.com/synaptixs/Synaptreesitter/pull/3). The separately approved P11–P14 tranche is validated on `codex/rust-extensive-support` in [PR #516](https://github.com/synaptixs/spine/pull/516); see the [Core release evidence](../evals/rust-core-signoff.md) and [Extensive validation](../evals/rust-extensive-validation.md) for the bounded claims.
+**Status:** Core Rust implementation P0–P10 is merged through Spine [PR #509](https://github.com/synaptixs/spine/pull/509), [PR #511](https://github.com/synaptixs/spine/pull/511), and [PR #512](https://github.com/synaptixs/spine/pull/512). The pinned Synaptreesitter lint baseline was fixed in [PR #3](https://github.com/synaptixs/Synaptreesitter/pull/3). The separately approved P11–P14 tranche merged in [PR #516](https://github.com/synaptixs/spine/pull/516) and is included in the 3.55.0 release cut; see the [Core release evidence](../evals/rust-core-signoff.md) and [Extensive validation](../evals/rust-extensive-validation.md) for the bounded claims.
 **Base:** spine `v3.52.0`.
 **Branch A:** `codex/rust-comprehension`, merged in PR #509.
 **Branch B:** `codex/rust-codegen`, merged in PR #511 after comprehension.

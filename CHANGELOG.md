@@ -4,6 +4,28 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## 3.55.0 — 2026-10-06
+
+Extensive Rust support broadens the Core Rust release with measured async, procedural
+macro, `no_std`, and Cargo feature boundaries on supported hosts.
+
+### Added
+
+- **Extensive Rust validation.** Three hand-labelled corpus cases cover Tokio-style
+  async calls, procedural-macro source boundaries, and `no_std` with `core`/`alloc`
+  imports and conflicting `cfg` branches. All 14 Rust cases retain 1.00 precision
+  on every emitted fact kind; the three known cross-module/workspace `CALLS` misses
+  remain labelled. Pinned real-repository runs cover mini-redis, async-trait,
+  embedded-hal, and Synaptreesitter, including one non-default Cargo feature and
+  a clean-checkout async codegen patch. The extractor now normalizes external
+  `core`/`std` trait aliases, and the verifier follows Rust semantic module
+  containment. Before governed codegen, the runner detects a missing cross
+  compilation target, linker, or custom JSON target and reports an actionable
+  refusal. Macro expansion, type-aware dispatch, full feature matrices, and
+  embedded firmware execution remain outside this release.
+  ([PR #516](https://github.com/synaptixs/spine/pull/516),
+  [validation](docs/evals/rust-extensive-validation.md))
+
 ## 3.54.0 — 2026-10-06
 
 Required-behavior gates close the ONTM-4 gap where a generated test could pass without
