@@ -2135,6 +2135,32 @@ def _trace_markdown(task_id: str, trace: dict[str, Any], audit: list[dict[str, A
     return "\n".join(lines)
 
 
+def requirements_check(change_path: str, repo_path: str = "") -> dict[str, Any]:
+    """Check a requirements change: the strict clarity gate (problem, users, outcome, every open
+    question answered or deferred to a named owner), and — with a ``repo_path`` — which of its
+    criteria already name code that exists. Works on any OpenSpec change, however it was drafted.
+    Deterministic and model-free, so the same change answers the same way twice. ``passes`` is
+    the gate; the open items come blockers first. Without a repository the code half says
+    ``ungrounded`` rather than reporting nothing found."""
+    from orchestrator.plugin.requirements_tools import check
+
+    return check(change_path, repo_path)
+
+
+def requirements_answer(
+    change_path: str, question: str, answer: str = "", defer_to: str = ""
+) -> dict[str, Any]:
+    """Record one answer under an open question of a requirements change — or, with ``defer_to``,
+    name who will answer it. Written into ``proposal.md`` as a nested bullet and recorded with
+    channel ``mcp`` and origin ``relayed``: Spine cannot see who typed an answer that arrives
+    through a tool, so it never claims a person. Give exactly one of ``answer`` or ``defer_to``;
+    ``question`` is the open question's text, as ``requirements_check`` lists it. Returns the
+    gate's new standing."""
+    from orchestrator.plugin.requirements_tools import answer as record
+
+    return record(change_path, question, answer, defer_to)
+
+
 _TOOLS = (
     doctor,
     ingest_preview,
@@ -2153,6 +2179,9 @@ _TOOLS = (
     sdlc_plan,
     sdlc_approve,
     docs_for,
+    # requirements: check a change, record an answer (deterministic, no model)
+    requirements_check,
+    requirements_answer,
     # gated codegen / run control
     sdlc_feature,
     sdlc_start_run,
@@ -2236,6 +2265,8 @@ _TIER: dict[str, Tier] = {
     "sdlc_plan": PLAN,
     "sdlc_approve": PLAN,
     "docs_for": COMPREHEND,
+    "requirements_check": COMPREHEND,
+    "requirements_answer": PLAN,  # edits one change's proposal.md; the same answer twice is the same file
     "sdlc_feature": RUN,
     "sdlc_start_run": RUN,
     "sdlc_run_status": RUN_OBSERVE,
@@ -2506,6 +2537,8 @@ __all__ = [
     "registry_runs",
     "registry_trace",
     "regression_gaps",
+    "requirements_answer",
+    "requirements_check",
     "root_cause",
     "scope_denial",
     "sdlc_address_review",

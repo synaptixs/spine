@@ -61,7 +61,7 @@ def test_check_fails_the_gate_with_exit_1_and_says_it_is_ungrounded(
     assert result.exit_code == 1
     payload = _json(result.stdout)
     assert payload["passes"] is False
-    assert payload["code"]["grounding"] == "ungrounded"  # type: ignore[index]
+    assert payload["code_check"]["grounding"] == "ungrounded"  # type: ignore[index]
     assert payload["open_items"][0]["rule"] == "problem_stated"  # type: ignore[index]
 
 
@@ -161,6 +161,6 @@ def test_check_against_a_repository_reports_criteria_naming_existing_code(
     )
     result = runner.invoke(app, ["openspec", "check", "exp", str(repo), "--root", str(root)])
     assert result.exit_code == 0, result.output
-    code = _json(result.stdout)["code"]
+    code = _json(result.stdout)["code_check"]
     assert code["grounding"] in ("grounded", "untrusted")  # type: ignore[index]
     assert any("export_invoices_csv" in json.dumps(c) for c in code["criteria_naming_existing_code"])  # type: ignore[index]

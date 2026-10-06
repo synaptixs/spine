@@ -1067,7 +1067,8 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
         "sdlc_complete",
         "sdlc_remediate",
     }
-    plans = {"sdlc_plan", "sdlc_approve", "understand_repo"}  # the last: a write under episteme/
+    # understand_repo: a write under episteme/. requirements_answer: one change's proposal.md.
+    plans = {"sdlc_plan", "sdlc_approve", "understand_repo", "requirements_answer"}
     observes_a_run = {
         "sdlc_run_status",
         "sdlc_run_result",
@@ -1093,6 +1094,7 @@ def test_tiers_say_what_a_tool_can_cost() -> None:
         "pkg_joins",
         "sdlc_plan",
         "sdlc_approve",
+        "requirements_answer",
     }
 
 

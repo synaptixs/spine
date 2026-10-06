@@ -205,7 +205,7 @@ class CheckReport:
                 "unresolved": list(self.unresolved),
             },
             "orphaned_resolutions": list(self.orphaned),
-            "code": self.code.to_dict() if self.code else None,
+            "code_check": self.code.to_dict() if self.code else None,
             "notes": list(self.notes),
         }
 
