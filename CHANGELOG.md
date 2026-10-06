@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+## 3.56.0 — 2026-10-06
+
 Spine now checks requirements, not only builds from them. Whoever drafts a requirement — a
 person, Claude in a chat, a Confluence page — Spine runs a deterministic clarity gate over it,
 says which of its criteria already name code that exists, and records the answers people give
