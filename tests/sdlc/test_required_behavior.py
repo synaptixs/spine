@@ -166,14 +166,16 @@ def test_load_manifest_reads_an_optional_entry_point(tmp_path: Path) -> None:
         "    entry_point: ontomesh.rules.DefaultLoader\n"
         "    command: ['python3', '-c', 'pass']\n",
     )
-    (requirement,) = load_manifest(tmp_path)
-    assert requirement.entry_point == "ontomesh.rules.DefaultLoader"
+    requirements = load_manifest(tmp_path)
+    assert len(requirements) == 1
+    assert requirements[0].entry_point == "ontomesh.rules.DefaultLoader"
 
 
 def test_load_manifest_defaults_entry_point_to_none(tmp_path: Path) -> None:
     _manifest(tmp_path, "requirements:\n  - id: no-entry-point\n    command: ['python3', '-c', 'pass']\n")
-    (requirement,) = load_manifest(tmp_path)
-    assert requirement.entry_point is None
+    requirements = load_manifest(tmp_path)
+    assert len(requirements) == 1
+    assert requirements[0].entry_point is None
 
 
 def test_load_manifest_rejects_a_non_string_entry_point(tmp_path: Path) -> None:
