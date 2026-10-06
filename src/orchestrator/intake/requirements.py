@@ -408,6 +408,10 @@ def _write_atomic(path: Path, text: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
             handle.write(text)
+        # mkstemp makes the file 0600; the change keeps the mode it had, or a shared checkout
+        # would find its proposal unreadable after one answer.
+        with contextlib.suppress(OSError):
+            os.chmod(tmp, path.stat().st_mode & 0o7777)
         os.replace(tmp, path)
     except BaseException:
         with contextlib.suppress(OSError):

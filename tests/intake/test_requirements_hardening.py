@@ -214,6 +214,13 @@ def test_a_proposal_that_starts_with_a_heading_gains_no_leading_blank_line(tmp_p
     assert change.proposal_path.read_text().startswith("## Why\n")
 
 
+def test_a_write_keeps_the_files_mode(tmp_path: Path) -> None:
+    change = _change(tmp_path, "# P\n\n## Why\nw\n\n## Open Questions\n- Q?\n")
+    change.proposal_path.chmod(0o644)
+    rq.record_answers(change, [rq.AnswerRequest("Q?", "yes")], at="2026-10-06")
+    assert change.proposal_path.stat().st_mode & 0o777 == 0o644
+
+
 def test_a_write_replaces_the_file_and_leaves_no_temp_file(tmp_path: Path) -> None:
     change = _change(tmp_path, "# P\n\n## Why\nw\n\n## Open Questions\n- Q?\n")
     rq.record_answers(change, [rq.AnswerRequest("Q?", "yes")], at="2026-10-06")

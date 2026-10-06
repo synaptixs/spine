@@ -44,6 +44,9 @@ with the channel it actually observed. **No new model call anywhere in this.**
   re-extracts — which makes an approval granted on the old spec stale. Only caches that *have*
   a why-field carry the new keys; everything else reads and writes exactly as before. Same
   shape as the 3.45 `variants` note.
+- **A legacy `proposal.md` that already has `### Problem`, `### Users`, `### Outcome` or
+  `### Non-goals` is now read as the why-fields**, not as part of the description or scope
+  (a bare `## Why` or `## What Changes`, and any other subsection, reads exactly as before).
 - **`ingest` now shows up to four extra *warning* findings** for an intent that states no why
   (`problem_stated`, `users_named`, `outcome_stated`, `non_goal_named`; plus
   `outcome_observable` and `criteria_testable` when there is something to judge). They never
