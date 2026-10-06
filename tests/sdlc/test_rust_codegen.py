@@ -12,6 +12,7 @@ from orchestrator.sdlc.layout import resolve_layout
 from orchestrator.sdlc.rust_codegen import (
     CargoTestRunner,
     RustPreflightRunner,
+    _cargo_target_error,
     _changed_paths,
     rust_files,
     rust_project_error,
@@ -214,6 +215,49 @@ def test_project_rejects_compiler_below_declared_msrv(
         lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, "rustc 1.89.0", ""),
     )
     assert "Rust 1.90 or newer" in (rust_project_error(tmp_path, layout) or "")
+
+
+def test_explicit_cross_target_reports_missing_standard_library(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cargo_config = tmp_path / ".cargo"
+    cargo_config.mkdir()
+    (cargo_config / "config.toml").write_text('[build]\ntarget = "thumbv7em-none-eabihf"\n', encoding="utf-8")
+    monkeypatch.delenv("CARGO_BUILD_TARGET", raising=False)
+    monkeypatch.setattr(
+        "orchestrator.sdlc.rust_codegen.subprocess.run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, str(tmp_path / "absent"), ""),
+    )
+    error = _cargo_target_error(tmp_path)
+    assert error is not None and "rustup target add thumbv7em-none-eabihf" in error
+
+
+def test_explicit_cross_target_reports_missing_linker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cargo_config = tmp_path / ".cargo"
+    cargo_config.mkdir()
+    (cargo_config / "config.toml").write_text(
+        '[build]\ntarget = "thumbv7em-none-eabihf"\n'
+        '[target.thumbv7em-none-eabihf]\nlinker = "missing-arm-linker"\n',
+        encoding="utf-8",
+    )
+    libdir = tmp_path / "installed-target"
+    libdir.mkdir()
+    monkeypatch.delenv("CARGO_BUILD_TARGET", raising=False)
+    monkeypatch.setattr(
+        "orchestrator.sdlc.rust_codegen.subprocess.run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, str(libdir), ""),
+    )
+    monkeypatch.setattr("orchestrator.sdlc.rust_codegen.shutil.which", lambda name: None)
+    assert "missing-arm-linker" in (_cargo_target_error(tmp_path) or "")
+
+
+def test_custom_target_is_reported_before_cargo_build(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CARGO_BUILD_TARGET", "targets/device.json")
+    assert "build-std" in (_cargo_target_error(tmp_path) or "")
 
 
 def test_changed_path_with_spaces_is_not_split(tmp_path: Path) -> None:

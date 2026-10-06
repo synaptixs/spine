@@ -1,0 +1,26 @@
+{
+  "language": "rust",
+  "case": "no_std_features",
+  "root": ".repo",
+  "why": "A no_std source graph admits core and alloc as external imports and keeps both feature-gated declarations without selecting a configuration or inventing an ambiguous call.",
+  "nodes": [
+    {"id": "rust:device-core@lib/device_core", "kind": "Module"},
+    {"id": "rust:device-core@lib/device_core::Device", "kind": "Type"},
+    {"id": "rust:device-core@lib/device_core::Device::<fmt::Display>::fmt", "kind": "Function"},
+    {"id": "rust:device-core@lib/device_core::mode", "kind": "Function"},
+    {"id": "rust:device-core@lib/device_core::selected", "kind": "Function"}
+  ],
+  "edges": [
+    {"src": "rust:device-core@lib/device_core", "dst": "rust:device-core@lib/device_core::Device", "kind": "CONTAINS"},
+    {"src": "rust:device-core@lib/device_core::Device", "dst": "rust:device-core@lib/device_core::Device::<fmt::Display>::fmt", "kind": "CONTAINS"},
+    {"src": "rust:device-core@lib/device_core", "dst": "rust:device-core@lib/device_core::mode", "kind": "CONTAINS"},
+    {"src": "rust:device-core@lib/device_core", "dst": "rust:device-core@lib/device_core::selected", "kind": "CONTAINS"},
+    {"src": "rust:device-core@lib/device_core", "dst": "rust:external::alloc", "kind": "IMPORTS"},
+    {"src": "rust:device-core@lib/device_core", "dst": "rust:external::core::fmt", "kind": "IMPORTS"},
+    {"src": "rust:device-core@lib/device_core::Device", "dst": "rust:external::core::fmt::Display", "kind": "IMPLEMENTS"}
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {"edge": {"src": "rust:device-core@lib/device_core::selected", "dst": "rust:device-core@lib/device_core::mode", "kind": "CALLS"}, "why": "The two cfg variants share one canonical ID; no feature was selected for comprehension."}
+  ]
+}

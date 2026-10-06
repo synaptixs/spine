@@ -100,6 +100,26 @@ def test_joined_import_graph_passes_the_rates(tmp_path: Path) -> None:
     assert report.ok, [i.message for i in report.issues]
 
 
+def test_rust_semantic_child_modules_are_reachable_without_imports(tmp_path: Path) -> None:
+    """Rust `mod child;` is a relationship, even with no `use` statement."""
+    (tmp_path / "lib.rs").write_text("mod child;\n", encoding="utf-8")
+    batch = FactBatch()
+    root = "rust:package@lib/package"
+    batch.add_node(Node(root, NodeKind.MODULE, "package", "rust", Provenance("lib.rs", 1)))
+    for i in range(9):
+        child = f"{root}::m{i}"
+        batch.add_node(Node(child, NodeKind.MODULE, f"m{i}", "rust", Provenance("lib.rs", 1)))
+        batch.add_edge(Edge(root, child, EdgeKind.CONTAINS))
+    for i in range(20):
+        external = f"rust:external::dependency{i}"
+        batch.add_node(Node(external, NodeKind.MODULE, f"dependency{i}", "rust", external=True))
+        batch.add_edge(Edge(f"{root}::m{i % 9}", external, EdgeKind.IMPORTS))
+    for i in range(2):
+        batch.add_edge(Edge(root, f"{root}::m{i}", EdgeKind.IMPORTS))
+    report = verify_batch(batch, tmp_path)
+    assert report.ok, [i.message for i in report.issues]
+
+
 def test_small_fixtures_are_exempt_from_rates(tmp_path: Path) -> None:
     _write_module_files(tmp_path, 2)
     batch = FactBatch()

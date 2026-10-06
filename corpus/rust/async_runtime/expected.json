@@ -1,0 +1,31 @@
+{
+  "language": "rust",
+  "case": "async_runtime",
+  "root": ".repo",
+  "why": "Async functions are source Functions. Exact local calls survive await syntax, while inferred receiver calls and select! contents stay outside the source-level CALLS graph.",
+  "nodes": [
+    {"id": "rust:async-runtime@lib/async_runtime", "kind": "Module"},
+    {"id": "rust:async-runtime@lib/async_runtime::fetch", "kind": "Function"},
+    {"id": "rust:async-runtime@lib/async_runtime::helper", "kind": "Function"},
+    {"id": "rust:async-runtime@lib/async_runtime::Worker", "kind": "Type"},
+    {"id": "rust:async-runtime@lib/async_runtime::Worker::run", "kind": "Function"},
+    {"id": "rust:async-runtime@lib/async_runtime::Worker::local", "kind": "Function"},
+    {"id": "rust:async-runtime@lib/async_runtime::inferred", "kind": "Function"}
+  ],
+  "edges": [
+    {"src": "rust:async-runtime@lib/async_runtime", "dst": "rust:async-runtime@lib/async_runtime::fetch", "kind": "CONTAINS"},
+    {"src": "rust:async-runtime@lib/async_runtime", "dst": "rust:async-runtime@lib/async_runtime::helper", "kind": "CONTAINS"},
+    {"src": "rust:async-runtime@lib/async_runtime", "dst": "rust:async-runtime@lib/async_runtime::Worker", "kind": "CONTAINS"},
+    {"src": "rust:async-runtime@lib/async_runtime::Worker", "dst": "rust:async-runtime@lib/async_runtime::Worker::run", "kind": "CONTAINS"},
+    {"src": "rust:async-runtime@lib/async_runtime::Worker", "dst": "rust:async-runtime@lib/async_runtime::Worker::local", "kind": "CONTAINS"},
+    {"src": "rust:async-runtime@lib/async_runtime", "dst": "rust:async-runtime@lib/async_runtime::inferred", "kind": "CONTAINS"},
+    {"src": "rust:async-runtime@lib/async_runtime", "dst": "rust:external::tokio::sync::mpsc", "kind": "IMPORTS"},
+    {"src": "rust:async-runtime@lib/async_runtime::fetch", "dst": "rust:async-runtime@lib/async_runtime::helper", "kind": "CALLS"},
+    {"src": "rust:async-runtime@lib/async_runtime::Worker::run", "dst": "rust:async-runtime@lib/async_runtime::Worker::local", "kind": "CALLS"}
+  ],
+  "known_gaps": [],
+  "refusals": [
+    {"edge": {"src": "rust:async-runtime@lib/async_runtime::inferred", "dst": "rust:async-runtime@lib/async_runtime::Worker::run", "kind": "CALLS"}, "why": "worker.run() requires receiver type inference."},
+    {"edge": {"src": "rust:async-runtime@lib/async_runtime::Worker::run", "dst": "rust:async-runtime@lib/async_runtime::fetch", "kind": "CALLS"}, "why": "fetch() occurs inside opaque tokio::select! macro tokens."}
+  ]
+}
