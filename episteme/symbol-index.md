@@ -51,7 +51,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_apply_edit_list` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_apply_edit_list) | [`_apply_edit_list`](../src/orchestrator/sdlc/codegen.py#L2676) |
 | `_approval_failures` | `orchestrator.runtime.verifiers.policy` | [`_approval_failures`](../src/orchestrator/runtime/verifiers/policy.py#L185) |
 | `_approval_points_reference_known_nodes` | `orchestrator.ir.graph` | [`_approval_points_reference_known_nodes`](../src/orchestrator/ir/graph.py#L145) |
-| `_approvals_markdown` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_approvals_markdown) | [`_approvals_markdown`](../src/orchestrator/plugin/server.py#L2109) |
+| `_approvals_markdown` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_approvals_markdown) | [`_approvals_markdown`](../src/orchestrator/plugin/server.py#L2098) |
 | `_approve_in_loop` | `orchestrator.sdlc.workflows` | [`_approve_in_loop`](../src/orchestrator/sdlc/workflows.py#L341) |
 | `_architecture_section` | [`orchestrator.knowledge.report_html`](modules/orchestrator.knowledge.report_html.md#_architecture_section) | [`_architecture_section`](../src/orchestrator/knowledge/report_html.py#L100) |
 | `_area_diagram` | [`orchestrator.knowledge.renderers`](modules/orchestrator.knowledge.renderers.md#_area_diagram) | [`_area_diagram`](../src/orchestrator/knowledge/renderers.py#L799) |
@@ -116,7 +116,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_basename` | [`orchestrator.pkg.verify`](modules/orchestrator.pkg.verify.md#_basename) | [`_basename`](../src/orchestrator/pkg/verify.py#L154) |
 | `_basename` | `orchestrator.sdlc.impact` | [`_basename`](../src/orchestrator/sdlc/impact.py#L86) |
 | `_basename` | `orchestrator.sdlc.localize` | [`_basename`](../src/orchestrator/sdlc/localize.py#L81) |
-| `_bind_external` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_bind_external) | [`_bind_external`](../src/orchestrator/plugin/server.py#L459) |
+| `_bind_external` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_bind_external) | [`_bind_external`](../src/orchestrator/plugin/server.py#L448) |
 | `_Binding` | `orchestrator.pkg.python_reexport` | [`_Binding`](../src/orchestrator/pkg/python_reexport.py#L66) |
 | `_binding` | `scripts.state-numbers` | [`_binding`](../scripts/state-numbers.py#L83) |
 | `_binding_key` | `orchestrator.pkg.kotlin_di` | [`_binding_key`](../src/orchestrator/pkg/kotlin_di.py#L166) |
@@ -125,7 +125,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_binds_property` | [`orchestrator.pkg.kotlin_extractor`](modules/orchestrator.pkg.kotlin_extractor.md#_binds_property) | [`_binds_property`](../src/orchestrator/pkg/kotlin_extractor.py#L1815) |
 | `_blame` | `orchestrator.pkg.intent_link` | [`_blame`](../src/orchestrator/pkg/intent_link.py#L163) |
 | `_blast_coverage` | [`orchestrator.knowledge.report_html`](modules/orchestrator.knowledge.report_html.md#_blast_coverage) | [`_blast_coverage`](../src/orchestrator/knowledge/report_html.py#L220) |
-| `_blast_markdown` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_blast_markdown) | [`_blast_markdown`](../src/orchestrator/plugin/server.py#L1475) |
+| `_blast_markdown` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_blast_markdown) | [`_blast_markdown`](../src/orchestrator/plugin/server.py#L1464) |
 | `_blast_prose` | [`orchestrator.sdlc.builddoc`](modules/orchestrator.sdlc.builddoc.md#_blast_prose) | [`_blast_prose`](../src/orchestrator/sdlc/builddoc.py#L846) |
 | `_blast_radius` | `orchestrator.agentic.tools` | [`_blast_radius`](../src/orchestrator/agentic/tools.py#L49) |
 | `_blast_radius_section` | [`orchestrator.knowledge.report_html`](modules/orchestrator.knowledge.report_html.md#_blast_radius_section) | [`_blast_radius_section`](../src/orchestrator/knowledge/report_html.py#L166) |
@@ -341,7 +341,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_configured_module` | `orchestrator.pkg.gradle_extractor` | [`_configured_module`](../src/orchestrator/pkg/gradle_extractor.py#L197) |
 | `_confluence_page` | `orchestrator.mcp.doc_pull` | [`_confluence_page`](../src/orchestrator/mcp/doc_pull.py#L132) |
 | `_const_names` | [`orchestrator.pkg.php_extractor`](modules/orchestrator.pkg.php_extractor.md#_const_names) | [`_const_names`](../src/orchestrator/pkg/php_extractor.py#L843) |
-| `_constructed_type` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_constructed_type) | [`_constructed_type`](../src/orchestrator/plugin/server.py#L1459) |
+| `_constructed_type` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_constructed_type) | [`_constructed_type`](../src/orchestrator/plugin/server.py#L1448) |
 | `_contains` | `orchestrator.runtime.verifiers.glossary` | [`_contains`](../src/orchestrator/runtime/verifiers/glossary.py#L124) |
 | `_Context` | `orchestrator.pkg.rust_extractor` | [`_Context`](../src/orchestrator/pkg/rust_extractor.py#L86) |
 | `_context` | [`orchestrator.pkg.java_extractor`](modules/orchestrator.pkg.java_extractor.md#_context) | [`_context`](../src/orchestrator/pkg/java_extractor.py#L547) |
@@ -369,7 +369,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_criteria_text` | [`orchestrator.sdlc.validity`](modules/orchestrator.sdlc.validity.md#_criteria_text) | [`_criteria_text`](../src/orchestrator/sdlc/validity.py#L113) |
 | `_criteria_text` | `orchestrator.pkg.criteria_binding` | [`_criteria_text`](../src/orchestrator/pkg/criteria_binding.py#L188) |
 | `_cross_repo_dependents` | `orchestrator.sdlc.investigate` | [`_cross_repo_dependents`](../src/orchestrator/sdlc/investigate.py#L71) |
-| `_cross_repo_reach` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_cross_repo_reach) | [`_cross_repo_reach`](../src/orchestrator/plugin/server.py#L656) |
+| `_cross_repo_reach` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_cross_repo_reach) | [`_cross_repo_reach`](../src/orchestrator/plugin/server.py#L645) |
 | `_CSharp` | [`orchestrator.pkg.scope`](modules/orchestrator.pkg.scope.md#_csharp) | [`_CSharp`](../src/orchestrator/pkg/scope.py#L438) |
 | `_csharp_dirs` | [`orchestrator.sdlc.layout`](modules/orchestrator.sdlc.layout.md#_csharp_dirs) | [`_csharp_dirs`](../src/orchestrator/sdlc/layout.py#L705) |
 | `_csharp_files` | `orchestrator.sdlc.scaffold` | [`_csharp_files`](../src/orchestrator/sdlc/scaffold.py#L305) |
@@ -476,9 +476,9 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_doc_block` | `orchestrator.sdlc.grounding` | [`_doc_block`](../src/orchestrator/sdlc/grounding.py#L226) |
 | `_doc_findings` | `orchestrator.codereview.grounding` | [`_doc_findings`](../src/orchestrator/codereview/grounding.py#L178) |
 | `_doc_id` | `orchestrator.pkg.doc_link` | [`_doc_id`](../src/orchestrator/pkg/doc_link.py#L47) |
-| `_doc_neighbours` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_doc_neighbours) | [`_doc_neighbours`](../src/orchestrator/plugin/server.py#L537) |
+| `_doc_neighbours` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_doc_neighbours) | [`_doc_neighbours`](../src/orchestrator/plugin/server.py#L526) |
 | `_doc_source` | `orchestrator.pkg.repos` | [`_doc_source`](../src/orchestrator/pkg/repos.py#L198) |
-| `_Docs` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_docs) | [`_Docs`](../src/orchestrator/plugin/server.py#L278) |
+| `_Docs` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_docs) | [`_Docs`](../src/orchestrator/plugin/server.py#L267) |
 | `_documentation_block` | [`orchestrator.knowledge.renderers`](modules/orchestrator.knowledge.renderers.md#_documentation_block) | [`_documentation_block`](../src/orchestrator/knowledge/renderers.py#L1099) |
 | `_documentation_section` | [`orchestrator.knowledge.current_state`](modules/orchestrator.knowledge.current_state.md#_documentation_section) | [`_documentation_section`](../src/orchestrator/knowledge/current_state.py#L760) |
 | `_documentation_section` | [`orchestrator.knowledge.report_html`](modules/orchestrator.knowledge.report_html.md#_documentation_section) | [`_documentation_section`](../src/orchestrator/knowledge/report_html.py#L289) |
@@ -603,11 +603,11 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_extension_receiver` | [`orchestrator.pkg.kotlin_extractor`](modules/orchestrator.pkg.kotlin_extractor.md#_extension_receiver) | [`_extension_receiver`](../src/orchestrator/pkg/kotlin_extractor.py#L1759) |
 | `_extension_refused` | [`orchestrator.pkg.kotlin_extractor`](modules/orchestrator.pkg.kotlin_extractor.md#_extension_refused) | [`_extension_refused`](../src/orchestrator/pkg/kotlin_extractor.py#L1408) |
 | `_external_deps_block` | [`orchestrator.knowledge.renderers`](modules/orchestrator.knowledge.renderers.md#_external_deps_block) | [`_external_deps_block`](../src/orchestrator/knowledge/renderers.py#L1006) |
-| `_external_markdown` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_external_markdown) | [`_external_markdown`](../src/orchestrator/plugin/server.py#L517) |
+| `_external_markdown` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_external_markdown) | [`_external_markdown`](../src/orchestrator/plugin/server.py#L506) |
 | `_external_members` | `orchestrator.pkg.typed_receivers` | [`_external_members`](../src/orchestrator/pkg/typed_receivers.py#L416) |
-| `_external_ref_fields` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_external_ref_fields) | [`_external_ref_fields`](../src/orchestrator/plugin/server.py#L475) |
-| `_external_refs` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_external_refs) | [`_external_refs`](../src/orchestrator/plugin/server.py#L1395) |
-| `_external_summary` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_external_summary) | [`_external_summary`](../src/orchestrator/plugin/server.py#L1415) |
+| `_external_ref_fields` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_external_ref_fields) | [`_external_ref_fields`](../src/orchestrator/plugin/server.py#L464) |
+| `_external_refs` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_external_refs) | [`_external_refs`](../src/orchestrator/plugin/server.py#L1384) |
+| `_external_summary` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_external_summary) | [`_external_summary`](../src/orchestrator/plugin/server.py#L1404) |
 | `_extract` | `orchestrator.core.llm.litellm_client` | [`_extract`](../src/orchestrator/core/llm/litellm_client.py#L311) |
 | `_extract_definitions` | `orchestrator.runtime.verifiers.glossary` | [`_extract_definitions`](../src/orchestrator/runtime/verifiers/glossary.py#L112) |
 | `_extract_frames` | `orchestrator.sdlc.localize` | [`_extract_frames`](../src/orchestrator/sdlc/localize.py#L85) |
@@ -662,7 +662,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_find_results` | `scripts.skill_promote` | [`_find_results`](../scripts/skill_promote.py#L65) |
 | `_find_string` | [`orchestrator.pkg.csharp_extractor`](modules/orchestrator.pkg.csharp_extractor.md#_find_string) | [`_find_string`](../src/orchestrator/pkg/csharp_extractor.py#L1223) |
 | `_find_uri` | [`orchestrator.mcp.rag_pull`](modules/orchestrator.mcp.rag_pull.md#_find_uri) | [`_find_uri`](../src/orchestrator/mcp/rag_pull.py#L112) |
-| `_finding_dict` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_finding_dict) | [`_finding_dict`](../src/orchestrator/plugin/server.py#L1936) |
+| `_finding_dict` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_finding_dict) | [`_finding_dict`](../src/orchestrator/plugin/server.py#L1925) |
 | `_finding_from_llm` | `orchestrator.codereview.reviewer` | [`_finding_from_llm`](../src/orchestrator/codereview/reviewer.py#L150) |
 | `_findings` | `orchestrator.codereview.semgrep` | [`_findings`](../src/orchestrator/codereview/semgrep.py#L101) |
 | `_findings_from_report` | `orchestrator.pkg.verifier` | [`_findings_from_report`](../src/orchestrator/pkg/verifier.py#L100) |
@@ -804,7 +804,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_import_base` | `orchestrator.pkg.extractor` | [`_import_base`](../src/orchestrator/pkg/extractor.py#L286) |
 | `_import_bindings` | [`orchestrator.pkg.python_receivers`](modules/orchestrator.pkg.python_receivers.md#_import_bindings) | [`_import_bindings`](../src/orchestrator/pkg/python_receivers.py#L687) |
 | `_import_edge` | [`orchestrator.pkg.js_extractor`](modules/orchestrator.pkg.js_extractor.md#_import_edge) | [`_import_edge`](../src/orchestrator/pkg/js_extractor.py#L1429) |
-| `_import_server_class` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_import_server_class) | [`_import_server_class`](../src/orchestrator/plugin/server.py#L2388) |
+| `_import_server_class` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_import_server_class) | [`_import_server_class`](../src/orchestrator/plugin/server.py#L2377) |
 | `_import_target` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_import_target) | [`_import_target`](../src/orchestrator/pkg/typescript_extractor.py#L462) |
 | `_importable` | `orchestrator.doctor` | [`_importable`](../src/orchestrator/doctor.py#L191) |
 | `_importable_names` | `scripts.codegen_benchmark` | [`_importable_names`](../scripts/codegen_benchmark.py#L1556) |
@@ -818,17 +818,17 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_imports` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_imports) | [`_imports`](../src/orchestrator/pkg/typescript_extractor.py#L242) |
 | `_imports` | `orchestrator.pkg.go_extractor` | [`_imports`](../src/orchestrator/pkg/go_extractor.py#L158) |
 | `_in_function` | [`orchestrator.pkg.js_extractor`](modules/orchestrator.pkg.js_extractor.md#_in_function) | [`_in_function`](../src/orchestrator/pkg/js_extractor.py#L797) |
-| `_in_repo` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_in_repo) | [`_in_repo`](../src/orchestrator/plugin/server.py#L590) |
+| `_in_repo` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_in_repo) | [`_in_repo`](../src/orchestrator/plugin/server.py#L579) |
 | `_in_repo` | [`orchestrator.registry.api.capabilities`](modules/orchestrator.registry.api.capabilities.md#_in_repo) | [`_in_repo`](../src/orchestrator/registry/api/capabilities.py#L55) |
-| `_in_repo_store` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_in_repo_store) | [`_in_repo_store`](../src/orchestrator/plugin/server.py#L601) |
-| `_in_repos_store` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_in_repos_store) | [`_in_repos_store`](../src/orchestrator/plugin/server.py#L642) |
+| `_in_repo_store` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_in_repo_store) | [`_in_repo_store`](../src/orchestrator/plugin/server.py#L590) |
+| `_in_repos_store` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_in_repos_store) | [`_in_repos_store`](../src/orchestrator/plugin/server.py#L631) |
 | `_in_scope` | [`orchestrator.pkg.js_orm`](modules/orchestrator.pkg.js_orm.md#_in_scope) | [`_in_scope`](../src/orchestrator/pkg/js_orm.py#L344) |
 | `_in_tree` | `orchestrator.pkg.runtime_oracle` | [`_in_tree`](../src/orchestrator/pkg/runtime_oracle.py#L65) |
 | `_include` | [`orchestrator.pkg.c_extractor`](modules/orchestrator.pkg.c_extractor.md#_include) | [`_include`](../src/orchestrator/pkg/c_extractor.py#L124) |
 | `_include` | `orchestrator.pkg.cpp_extractor` | [`_include`](../src/orchestrator/pkg/cpp_extractor.py#L127) |
 | `_Index` | [`orchestrator.pkg.python_receivers`](modules/orchestrator.pkg.python_receivers.md#_index) | [`_Index`](../src/orchestrator/pkg/python_receivers.py#L462) |
 | `_Index` | `orchestrator.pkg.import_link` | [`_Index`](../src/orchestrator/pkg/import_link.py#L75) |
-| `_index` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_index) | [`_index`](../src/orchestrator/plugin/server.py#L373) |
+| `_index` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_index) | [`_index`](../src/orchestrator/plugin/server.py#L362) |
 | `_index_file` | `orchestrator.pkg.rust_extractor` | [`_index_file`](../src/orchestrator/pkg/rust_extractor.py#L159) |
 | `_index_mods` | `orchestrator.pkg.rust_extractor` | [`_index_mods`](../src/orchestrator/pkg/rust_extractor.py#L169) |
 | `_InferredGlossaryEntry` | `orchestrator.planner.v1` | [`_InferredGlossaryEntry`](../src/orchestrator/planner/v1.py#L53) |
@@ -931,9 +931,9 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_join_route` | [`orchestrator.pkg.csharp_extractor`](modules/orchestrator.pkg.csharp_extractor.md#_join_route) | [`_join_route`](../src/orchestrator/pkg/csharp_extractor.py#L1146) |
 | `_join_route` | [`orchestrator.pkg.php_routes`](modules/orchestrator.pkg.php_routes.md#_join_route) | [`_join_route`](../src/orchestrator/pkg/php_routes.py#L113) |
 | `_joins_check` | [`orchestrator.cli.pkg`](modules/orchestrator.cli.pkg.md#_joins_check) | [`_joins_check`](../src/orchestrator/cli/pkg.py#L188) |
-| `_joins_proposal` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_joins_proposal) | [`_joins_proposal`](../src/orchestrator/plugin/server.py#L934) |
+| `_joins_proposal` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_joins_proposal) | [`_joins_proposal`](../src/orchestrator/plugin/server.py#L923) |
 | `_joins_propose` | [`orchestrator.cli.pkg`](modules/orchestrator.cli.pkg.md#_joins_propose) | [`_joins_propose`](../src/orchestrator/cli/pkg.py#L160) |
-| `_joins_report` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_joins_report) | [`_joins_report`](../src/orchestrator/plugin/server.py#L955) |
+| `_joins_report` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_joins_report) | [`_joins_report`](../src/orchestrator/plugin/server.py#L944) |
 | `_journal_outcome` | [`orchestrator.sdlc.autorun`](modules/orchestrator.sdlc.autorun.md#_journal_outcome) | [`_journal_outcome`](../src/orchestrator/sdlc/autorun.py#L487) |
 | `_journey_block` | [`orchestrator.sdlc.builddoc`](modules/orchestrator.sdlc.builddoc.md#_journey_block) | [`_journey_block`](../src/orchestrator/sdlc/builddoc.py#L346) |
 | `_json` | `orchestrator.plugin.registry_client` | [`_json`](../src/orchestrator/plugin/registry_client.py#L105) |
@@ -980,7 +980,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_lines` | `orchestrator.pkg.razor` | [`_lines`](../src/orchestrator/pkg/razor.py#L45) |
 | `_lines_in_fence` | [`orchestrator.intake.requirements`](modules/orchestrator.intake.requirements.md#_lines_in_fence) | [`_lines_in_fence`](../src/orchestrator/intake/requirements.py#L505) |
 | `_link` | [`orchestrator.knowledge.renderers`](modules/orchestrator.knowledge.renderers.md#_link) | [`_link`](../src/orchestrator/knowledge/renderers.py#L184) |
-| `_link` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_link) | [`_link`](../src/orchestrator/plugin/server.py#L315) |
+| `_link` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_link) | [`_link`](../src/orchestrator/plugin/server.py#L304) |
 | `_link_data` | `orchestrator.pkg.join_link` | [`_link_data`](../src/orchestrator/pkg/join_link.py#L270) |
 | `_link_dependencies` | `orchestrator.intake.service` | [`_link_dependencies`](../src/orchestrator/intake/service.py#L326) |
 | `_link_package` | `orchestrator.pkg.join_link` | [`_link_package`](../src/orchestrator/pkg/join_link.py#L300) |
@@ -1031,7 +1031,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_loads_json_object` | `orchestrator.intake.specs` | [`_loads_json_object`](../src/orchestrator/intake/specs.py#L429) |
 | `_loads_json_object` | `orchestrator.sdlc.review` | [`_loads_json_object`](../src/orchestrator/sdlc/review.py#L374) |
 | `_local_commit` | [`orchestrator.sdlc.feature_runner`](modules/orchestrator.sdlc.feature_runner.md#_local_commit) | [`_local_commit`](../src/orchestrator/sdlc/feature_runner.py#L714) |
-| `_local_doc_sources` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_local_doc_sources) | [`_local_doc_sources`](../src/orchestrator/plugin/server.py#L442) |
+| `_local_doc_sources` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_local_doc_sources) | [`_local_doc_sources`](../src/orchestrator/plugin/server.py#L431) |
 | `_log` | `orchestrator.registry.api.middleware` | [`_log`](../src/orchestrator/registry/api/middleware.py#L73) |
 | `_log` | `orchestrator.registry.api.tasks` | [`_log`](../src/orchestrator/registry/api/tasks.py#L508) |
 | `_log_json_failure` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_log_json_failure) | [`_log_json_failure`](../src/orchestrator/sdlc/codegen.py#L3271) |
@@ -1095,7 +1095,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_merge_glossaries` | `orchestrator.planner.v1` | [`_merge_glossaries`](../src/orchestrator/planner/v1.py#L518) |
 | `_merge_json_documents` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_merge_json_documents) | [`_merge_json_documents`](../src/orchestrator/sdlc/codegen.py#L3234) |
 | `_merged_knowledge` | `orchestrator.sdlc.investigate` | [`_merged_knowledge`](../src/orchestrator/sdlc/investigate.py#L91) |
-| `_merged_store` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_merged_store) | [`_merged_store`](../src/orchestrator/plugin/server.py#L616) |
+| `_merged_store` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_merged_store) | [`_merged_store`](../src/orchestrator/plugin/server.py#L605) |
 | `_merged_store` | `orchestrator.cli._common` | [`_merged_store`](../src/orchestrator/cli/_common.py#L68) |
 | `_mermaid_blast` | [`orchestrator.sdlc.builddoc`](modules/orchestrator.sdlc.builddoc.md#_mermaid_blast) | [`_mermaid_blast`](../src/orchestrator/sdlc/builddoc.py#L670) |
 | `_mermaid_id` | [`orchestrator.knowledge.renderers`](modules/orchestrator.knowledge.renderers.md#_mermaid_id) | [`_mermaid_id`](../src/orchestrator/knowledge/renderers.py#L794) |
@@ -1190,7 +1190,6 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_ontomesh_tickets` | `scripts.codegen_benchmark` | [`_ontomesh_tickets`](../scripts/codegen_benchmark.py#L974) |
 | `_Open` | [`orchestrator.pkg.scope`](modules/orchestrator.pkg.scope.md#_open) | [`_Open`](../src/orchestrator/pkg/scope.py#L144) |
 | `_open_question_lines` | `orchestrator.intake.specs` | [`_open_question_lines`](../src/orchestrator/intake/specs.py#L153) |
-| `_open_repo` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_open_repo) | [`_open_repo`](../src/orchestrator/plugin/server.py#L249) |
 | `_opens_receiver_lambda` | [`orchestrator.pkg.kotlin_extractor`](modules/orchestrator.pkg.kotlin_extractor.md#_opens_receiver_lambda) | [`_opens_receiver_lambda`](../src/orchestrator/pkg/kotlin_extractor.py#L1624) |
 | `_option` | [`orchestrator.pkg.js_orm`](modules/orchestrator.pkg.js_orm.md#_option) | [`_option`](../src/orchestrator/pkg/js_orm.py#L501) |
 | `_optional_extras` | [`scripts.docs_audit`](modules/scripts.docs_audit.md#_optional_extras) | [`_optional_extras`](../scripts/docs_audit.py#L211) |
@@ -1267,7 +1266,7 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_Pending` | [`orchestrator.pkg.kotlin_extractor`](modules/orchestrator.pkg.kotlin_extractor.md#_pending) | [`_Pending`](../src/orchestrator/pkg/kotlin_extractor.py#L245) |
 | `_pending` | [`orchestrator.sdlc.builddoc`](modules/orchestrator.sdlc.builddoc.md#_pending) | [`_pending`](../src/orchestrator/sdlc/builddoc.py#L96) |
 | `_PendingCall` | [`orchestrator.pkg.typescript_extractor`](modules/orchestrator.pkg.typescript_extractor.md#_pendingcall) | [`_PendingCall`](../src/orchestrator/pkg/typescript_extractor.py#L666) |
-| `_per_repo` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_per_repo) | [`_per_repo`](../src/orchestrator/plugin/server.py#L1429) |
+| `_per_repo` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_per_repo) | [`_per_repo`](../src/orchestrator/plugin/server.py#L1418) |
 | `_perl_conventions` | [`orchestrator.sdlc.toolchains`](modules/orchestrator.sdlc.toolchains.md#_perl_conventions) | [`_perl_conventions`](../src/orchestrator/sdlc/toolchains.py#L199) |
 | `_perl_files` | `orchestrator.sdlc.scaffold` | [`_perl_files`](../src/orchestrator/sdlc/scaffold.py#L72) |
 | `_perl_language` | [`orchestrator.pkg.perl_extractor`](modules/orchestrator.pkg.perl_extractor.md#_perl_language) | [`_perl_language`](../src/orchestrator/pkg/perl_extractor.py#L1096) |
@@ -1435,12 +1434,12 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_refuse_undecided_resume` | [`orchestrator.sdlc.autorun`](modules/orchestrator.sdlc.autorun.md#_refuse_undecided_resume) | [`_refuse_undecided_resume`](../src/orchestrator/sdlc/autorun.py#L545) |
 | `_refuse_weakened_test` | [`orchestrator.sdlc.codegen`](modules/orchestrator.sdlc.codegen.md#_refuse_weakened_test) | [`_refuse_weakened_test`](../src/orchestrator/sdlc/codegen.py#L2414) |
 | `_register` | [`orchestrator.cli.registry`](modules/orchestrator.cli.registry.md#_register) | [`_register`](../src/orchestrator/cli/registry.py#L43) |
-| `_register_all` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_register_all) | [`_register_all`](../src/orchestrator/plugin/server.py#L2444) |
-| `_register_prompts` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_register_prompts) | [`_register_prompts`](../src/orchestrator/plugin/server.py#L2422) |
-| `_register_resources` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_register_resources) | [`_register_resources`](../src/orchestrator/plugin/server.py#L2432) |
+| `_register_all` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_register_all) | [`_register_all`](../src/orchestrator/plugin/server.py#L2433) |
+| `_register_prompts` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_register_prompts) | [`_register_prompts`](../src/orchestrator/plugin/server.py#L2411) |
+| `_register_resources` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_register_resources) | [`_register_resources`](../src/orchestrator/plugin/server.py#L2421) |
 | `_register_route` | [`orchestrator.pkg.php_routes`](modules/orchestrator.pkg.php_routes.md#_register_route) | [`_register_route`](../src/orchestrator/pkg/php_routes.py#L369) |
-| `_register_tools` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_register_tools) | [`_register_tools`](../src/orchestrator/plugin/server.py#L2403) |
-| `_registry` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_registry) | [`_registry`](../src/orchestrator/plugin/server.py#L1995) |
+| `_register_tools` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_register_tools) | [`_register_tools`](../src/orchestrator/plugin/server.py#L2392) |
+| `_registry` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_registry) | [`_registry`](../src/orchestrator/plugin/server.py#L1984) |
 | `_registry_names` | [`orchestrator.pkg.js_orm`](modules/orchestrator.pkg.js_orm.md#_registry_names) | [`_registry_names`](../src/orchestrator/pkg/js_orm.py#L587) |
 | `_regression_surface` | `orchestrator.sdlc.rca` | [`_regression_surface`](../src/orchestrator/sdlc/rca.py#L84) |
 | `_rejects_temperature` | `orchestrator.core.llm.litellm_client` | [`_rejects_temperature`](../src/orchestrator/core/llm/litellm_client.py#L37) |
@@ -1482,12 +1481,12 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_repo_has_module` | `orchestrator.sdlc.baseline` | [`_repo_has_module`](../src/orchestrator/sdlc/baseline.py#L107) |
 | `_repo_of` | `orchestrator.sdlc.coverage` | [`_repo_of`](../src/orchestrator/sdlc/coverage.py#L178) |
 | `_repo_of` | `orchestrator.sdlc.localize` | [`_repo_of`](../src/orchestrator/sdlc/localize.py#L145) |
-| `_repo_of_node` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_repo_of_node) | [`_repo_of_node`](../src/orchestrator/plugin/server.py#L854) |
+| `_repo_of_node` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_repo_of_node) | [`_repo_of_node`](../src/orchestrator/plugin/server.py#L843) |
 | `_repo_sections` | [`orchestrator.pkg.external_docs`](modules/orchestrator.pkg.external_docs.md#_repo_sections) | [`_repo_sections`](../src/orchestrator/pkg/external_docs.py#L426) |
-| `_repo_store` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_repo_store) | [`_repo_store`](../src/orchestrator/plugin/server.py#L261) |
+| `_repo_store` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_repo_store) | [`_repo_store`](../src/orchestrator/plugin/server.py#L250) |
 | `_repoint` | `orchestrator.pkg.join_link` | [`_repoint`](../src/orchestrator/pkg/join_link.py#L224) |
 | `_repoint_phantoms` | [`orchestrator.pkg.python_receivers`](modules/orchestrator.pkg.python_receivers.md#_repoint_phantoms) | [`_repoint_phantoms`](../src/orchestrator/pkg/python_receivers.py#L531) |
-| `_repos_note` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_repos_note) | [`_repos_note`](../src/orchestrator/plugin/server.py#L542) |
+| `_repos_note` | [`orchestrator.plugin.server`](modules/orchestrator.plugin.server.md#_repos_note) | [`_repos_note`](../src/orchestrator/plugin/server.py#L531) |
 | `_request` | `orchestrator.codereview.github_client` | [`_request`](../src/orchestrator/codereview/github_client.py#L250) |
 | `_request` | `orchestrator.intake.confluence` | [`_request`](../src/orchestrator/intake/confluence.py#L181) |
 | `_request_header` | `orchestrator.registry.api.middleware` | [`_request_header`](../src/orchestrator/registry/api/middleware.py#L65) |
@@ -1505,5 +1504,6 @@ _Every first-party symbol, A–Z, and the page that describes it. 5023 symbols; 
 | `_requirements_table` | `orchestrator.intake.report` | [`_requirements_table`](../src/orchestrator/intake/report.py#L93) |
 | `_research_pass` | [`orchestrator.sdlc.autorun`](modules/orchestrator.sdlc.autorun.md#_research_pass) | [`_research_pass`](../src/orchestrator/sdlc/autorun.py#L778) |
 | `_resolution_line` | `orchestrator.intake.openspec_writer` | [`_resolution_line`](../src/orchestrator/intake/openspec_writer.py#L94) |
+| `_resolve` | [`orchestrator.pkg.kotlin_nav`](modules/orchestrator.pkg.kotlin_nav.md#_resolve) | [`_resolve`](../src/orchestrator/pkg/kotlin_nav.py#L319) |
 
 _Showing the first 1500 of 5023._
