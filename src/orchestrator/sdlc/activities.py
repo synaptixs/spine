@@ -30,6 +30,7 @@ from orchestrator.approval import (
 )
 from orchestrator.core.llm import BudgetExceededError
 from orchestrator.intake.factory import IntakeNotConfiguredError
+from orchestrator.intake.intents import question_states
 from orchestrator.intake.service import SourceUriError, parse_source_uri
 from orchestrator.registry.repositories import AuditLogRepo
 from orchestrator.sdlc.deps import SDLCDeps
@@ -203,8 +204,12 @@ class SDLCActivities:
         # codegen instead of the model guessing (deduped, order-preserved).
         open_questions: list[str] = []
         for intent in plan.intents:
+            # A question with a recorded answer is no longer the approver's to settle; one
+            # deferred to an owner still is. With no resolutions this is every open question,
+            # exactly as before.
+            answered = set(question_states(intent)[0])
             for q in intent.open_questions:
-                if q and q not in open_questions:
+                if q and q not in answered and q not in open_questions:
                     open_questions.append(q)
 
         return {

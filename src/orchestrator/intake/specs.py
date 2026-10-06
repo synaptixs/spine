@@ -19,10 +19,10 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer
 
 from orchestrator.core.llm import CompletionResult, LLMClient, Message, ToolSpec, catalog
-from orchestrator.intake.intents import Intent
+from orchestrator.intake.intents import WHY_KEYS, Intent, omit_empty, question_states
 
 logger = logging.getLogger("orchestrator.intake.specs")
 
@@ -137,6 +137,51 @@ class FeatureSpec(BaseModel):
     nfrs: list[str] = Field(default_factory=list)
     dependencies: list[str] = Field(default_factory=list)
     estimate: str = ""
+    # The intent's why-fields, carried verbatim like ``description`` and ``scope`` — never
+    # paraphrased by the writer. Empty (and then omitted from every serialisation) unless the
+    # source stated them; see ``intents.WHY_KEYS``.
+    problem: str = ""
+    users: list[str] = Field(default_factory=list)
+    outcome: str = ""
+    non_goals: list[str] = Field(default_factory=list)
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_why(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        return omit_empty(handler(self), WHY_KEYS)
+
+
+def _open_question_lines(intent: Intent) -> list[str]:
+    """How the writer is told about open questions (D32).
+
+    A question someone answered is a **fact** — the writer must not re-open it. A question
+    nobody answered is **not the writer's to decide**: it is listed in ``technical_notes`` as a
+    labelled, unanswered assumption, so a guess is visible in the spec instead of silent. (It
+    used to say "resolve in technical_notes", which asked the model to settle it quietly.)"""
+    if not intent.open_questions:
+        return []
+    answered, deferred, unresolved = question_states(intent)
+    lines: list[str] = []
+    if answered:
+        lines.append(
+            "ANSWERED OPEN QUESTIONS (recorded; treat as facts, do not re-open or restate as assumptions):"
+        )
+        for q in answered:
+            res = intent.resolutions[q]
+            lines.append(f"  - {q} -> {res.answer} ({res.origin})")
+    if deferred:
+        lines.append(
+            "DEFERRED OPEN QUESTIONS (an owner will decide; not decided yet — list each in "
+            "technical_notes as an 'Unanswered assumption', like the unanswered ones below):"
+        )
+        for q in deferred:
+            lines.append(f"  - {q} -> {intent.resolutions[q].owner}")
+    if unresolved:
+        lines.append(
+            "UNANSWERED OPEN QUESTIONS — do NOT decide these. List each in technical_notes as "
+            "'Unanswered assumption: <question> — assuming <what you assumed>', so the guess is visible: "
+            + "; ".join(unresolved)
+        )
+    return lines
 
 
 class SpecWriter:
@@ -190,8 +235,15 @@ class SpecWriter:
             lines.append(f"Dependencies: {', '.join(intent.dependencies)}")
         if intent.nfrs:
             lines.append(f"NFRs: {', '.join(intent.nfrs)}")
-        if intent.open_questions:
-            lines.append(f"Open questions (resolve in technical_notes): {'; '.join(intent.open_questions)}")
+        if intent.problem:
+            lines.append(f"Problem (stated by the source): {intent.problem}")
+        if intent.users:
+            lines.append(f"Users (stated by the source): {'; '.join(intent.users)}")
+        if intent.outcome:
+            lines.append(f"Outcome (stated by the source): {intent.outcome}")
+        if intent.non_goals:
+            lines.append(f"Non-goals (stated by the source): {'; '.join(intent.non_goals)}")
+        lines.extend(_open_question_lines(intent))
         if self.context_for is not None:
             try:
                 context = self.context_for(f"{intent.title}\n{intent.description}\n{intent.scope}")
@@ -215,6 +267,10 @@ class SpecWriter:
                 summary=intent.description,
                 description=intent.description,
                 scope=intent.scope,
+                problem=intent.problem,
+                users=list(intent.users),
+                outcome=intent.outcome,
+                non_goals=list(intent.non_goals),
                 acceptance_criteria=list(intent.acceptance_criteria),
                 nfrs=list(intent.nfrs),
                 dependencies=list(intent.dependencies),
@@ -240,6 +296,10 @@ class SpecWriter:
             summary=summary,
             description=intent.description,
             scope=intent.scope,
+            problem=intent.problem,
+            users=list(intent.users),
+            outcome=intent.outcome,
+            non_goals=list(intent.non_goals),
             user_story=str(payload.get("user_story") or "").strip(),
             acceptance_criteria=stated,
             proposed_criteria=proposed,

@@ -125,9 +125,17 @@ async def _run_ingest(
 @openspec_app.command("draft")
 def openspec_draft(
     source: Annotated[
-        str,
+        str | None,
         typer.Option("--source", help="Unstructured source to bootstrap FROM, e.g. confluence://<id>."),
-    ],
+    ] = None,
+    idea: Annotated[
+        str | None,
+        typer.Option(
+            "--idea",
+            help="One sentence to start from instead of a source: writes a skeleton change whose "
+            "open questions are the why-fields, with no model call.",
+        ),
+    ] = None,
     out: Annotated[
         str,
         typer.Option("--out", help="OpenSpec root to write into (changes/<id>/ is created under it)."),
@@ -167,14 +175,72 @@ def openspec_draft(
     the draft is **ungrounded, and says so on its own face** rather than leaving a reader to
     wonder which mode produced it: the requirements and scenarios are unchanged, and the page
     states that nothing checked them.
+
+    `--idea "<one sentence>"` starts from nothing instead: a skeleton whose open questions are
+    the why-fields (problem, users, outcome, non-goals), in fixed wording and with no model call.
+    Answer them with `openspec answer`, check with `openspec check`.
     """
     import asyncio
+
+    if source is None:
+        if not idea:
+            typer.echo("ERROR: give exactly one of --source or --idea.", err=True)
+            raise typer.Exit(code=2)
+        _run_openspec_idea(idea, out=out, overwrite=overwrite)
+        return
+    if idea:
+        typer.echo("ERROR: give exactly one of --source or --idea.", err=True)
+        raise typer.Exit(code=2)
 
     asyncio.run(
         _run_openspec_draft(
             source, out=out, refresh=refresh, overwrite=overwrite, path=path, repos=repos, dialect=dialect
         )
     )
+
+
+def _run_openspec_idea(idea: str, *, out: str, overwrite: bool) -> None:
+    from pathlib import Path
+
+    from orchestrator.intake import requirements
+    from orchestrator.intake.openspec_writer import change_id_for, render_change, write_change
+    from orchestrator.intake.specs import FeatureSpec
+
+    try:
+        intent = requirements.skeleton(idea)
+    except requirements.RequirementsError as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    spec = FeatureSpec(intent_id=intent.id, title=intent.title, summary=intent.description)
+    written = write_change(Path(out), intent, render_change(spec, intent), overwrite=overwrite)
+    change_id = change_id_for(intent)
+    if not written:
+        typer.echo(
+            f"Not written: {out}/changes/{change_id} already exists (pass --overwrite to replace it). "
+            "Ideas sharing their first eight words share an id.",
+            err=True,
+        )
+    _print(
+        {
+            "root": out,
+            "drafted": [
+                {
+                    "change_id": change_id,
+                    "idea": intent.idea_id,
+                    "files": [str(p) for p in written],
+                    "skipped_existing": not written,
+                    "questions": intent.open_questions,
+                }
+            ],
+        }
+    )
+    if written:
+        typer.echo(
+            f"\nSkeleton written under {out}/changes/{change_id}/. Answer its questions with "
+            f"`orchestrator openspec answer {change_id} --question ... --answer ...`, then "
+            f"`orchestrator openspec check {change_id}`.",
+            err=True,
+        )
 
 
 def _grounding_for(
@@ -369,6 +435,140 @@ async def _run_openspec_draft(
         "Review + polish them, then: orchestrator sdlc feature --source openspec://<change-id> --safe",
         err=True,
     )
+
+
+@openspec_app.command("check")
+def openspec_check(
+    change: Annotated[
+        str, typer.Argument(help="A change id under --root, or the path of a change directory.")
+    ],
+    root: Annotated[str, typer.Option("--root", help="OpenSpec root holding changes/<id>/.")] = "openspec",
+    path: Annotated[
+        str | None,
+        typer.Argument(help="Repo path to check the change against (default: ungrounded — and says so)."),
+    ] = None,
+    repos: Annotated[
+        str | None,
+        typer.Option("--repos", help="A `.spine/repos.yaml` — check against every declared repo."),
+    ] = None,
+    rules: Annotated[
+        str | None,
+        typer.Option("--rules", help="A gap-rules YAML to use instead of the strict requirements set."),
+    ] = None,
+    dialect: Annotated[
+        str | None, typer.Option("--dialect", help="SQL dialect; default: auto-detect.")
+    ] = None,
+) -> None:
+    """Check a requirements change: the strict clarity gate, and what the code already says.
+
+    Works on **any** OpenSpec change, however it was drafted — by `openspec draft`, by a person,
+    by Claude in a chat. Deterministic: no model is called, so the same change answers the same
+    way twice. Exit 0 when the gate passes, 1 when it does not (a blocker, or a need for input:
+    a missing problem, users or outcome, or an open question with neither an answer nor an
+    owner it is deferred to). Warnings are listed and never fail it.
+
+    The code half names criteria that **already reference code that exists** (confirm before
+    building them — evidence, not a verdict) and criteria naming code the graph **cannot find**.
+    With no repository it says `ungrounded` rather than reporting nothing found.
+    """
+    import yaml
+
+    from orchestrator.intake import requirements
+    from orchestrator.intake.gaps import load_gap_rules
+    from orchestrator.intake.specs import FeatureSpec
+
+    try:
+        loaded = requirements.load_change(change, root=root)
+        rule_set = load_gap_rules(rules) if rules else requirements.STRICT_GAP_RULES
+    except (
+        requirements.RequirementsError,
+        OSError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        yaml.YAMLError,
+    ) as exc:
+        # Exit 2, never 1: 1 is what a failed gate returns, and a broken rules file is not that.
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    base, store, repo_root, repo_roots = _grounding_for(path, repos, dialect)
+    grounding = base
+    if store is not None:
+        intent = loaded.intent
+        spec = FeatureSpec(
+            intent_id=intent.id,
+            title=intent.title,
+            description=intent.description,
+            acceptance_criteria=list(intent.acceptance_criteria),
+        )
+        grounding = _facts_for_spec(base, store, repo_root, repo_roots, spec)
+    report = requirements.check_intent(
+        loaded.intent,
+        change_id=loaded.change_id,
+        rules=tuple(rule_set),
+        code=requirements.code_check(grounding),
+    )
+    _print(report.to_dict())
+    typer.echo(
+        f"\n{loaded.change_id}: gate {'PASSES' if report.passes else 'DOES NOT PASS'} "
+        f"({len(report.unresolved)} unresolved question(s), {len(report.findings)} open item(s)).",
+        err=True,
+    )
+    if not report.passes:
+        raise typer.Exit(code=1)
+
+
+@openspec_app.command("answer")
+def openspec_answer(
+    change: Annotated[
+        str, typer.Argument(help="A change id under --root, or the path of a change directory.")
+    ],
+    root: Annotated[str, typer.Option("--root", help="OpenSpec root holding changes/<id>/.")] = "openspec",
+    question: Annotated[
+        str | None,
+        typer.Option("--question", help="The open question, exactly as `openspec check` lists it."),
+    ] = None,
+    answer: Annotated[str | None, typer.Option("--answer", help="Your answer.")] = None,
+    defer_to: Annotated[
+        str | None,
+        typer.Option("--defer-to", help="Name who will answer it instead (an owner, e.g. @finance-lead)."),
+    ] = None,
+    answers: Annotated[
+        str | None,
+        typer.Option("--answers", help="A YAML file: `answers:` as a list of {question, answer | defer_to}."),
+    ] = None,
+) -> None:
+    """Record an answer (or a deferral to a named owner) under an open question.
+
+    Written into the change's `proposal.md` as a nested bullet under the question — with who
+    gave it as Spine observed it (`cli`, or an `--answers` file: both recorded as `user`). The
+    edit is surgical: a change a person wrote keeps its prose; only the bullet, and the why-field
+    one of the fixed skeleton questions maps to, change. All-or-nothing: if any question in a
+    batch does not match, nothing is written.
+
+        orchestrator openspec answer export-invoices --question "Which currencies?" --answer "EUR and USD"
+        orchestrator openspec answer export-invoices --answers answers.yaml
+    """
+    from orchestrator.intake import requirements
+
+    try:
+        if answers:
+            if question or answer or defer_to:
+                raise requirements.RequirementsError("--answers replaces --question / --answer / --defer-to")
+            requests = requirements.load_answers_file(answers)
+            channel: requirements.Channel = "answers-file"
+        else:
+            if not question:
+                raise requirements.RequirementsError("give --question (or --answers FILE)")
+            requests = [requirements.AnswerRequest(question, answer=answer or "", defer_to=defer_to or "")]
+            channel = "cli"
+        loaded = requirements.load_change(change, root=root)
+        result = requirements.record_answers(loaded, requests, channel=channel)
+    except requirements.RequirementsError as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    _print(result)
+    typer.echo(f"\nRecorded. Next: orchestrator openspec check {loaded.change_id}", err=True)
 
 
 @app.command("backlog", rich_help_panel=PANEL_BUILD)

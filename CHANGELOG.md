@@ -4,6 +4,59 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## Unreleased
+
+Spine now checks requirements, not only builds from them. Whoever drafts a requirement — a
+person, Claude in a chat, a Confluence page — Spine runs a deterministic clarity gate over it,
+says which of its criteria already name code that exists, and records the answers people give
+with the channel it actually observed. **No new model call anywhere in this.**
+
+### Added
+
+- **`orchestrator openspec check <change> [PATH|--repos]`.** The strict clarity gate: a stated
+  problem, named users, an observable outcome, and every open question answered or deferred to
+  a named owner. With a repository it also lists the criteria that already name code that
+  exists (evidence, not a verdict) and those naming code the graph cannot find; with none it
+  says `ungrounded` rather than reporting nothing. Exit 1 when the gate fails. Works on any
+  OpenSpec change, however it was drafted. ([spec](docs/specs/mcp-plugin-surface.md))
+- **`orchestrator openspec answer <change>`** (`--question`/`--answer`, `--defer-to`, or
+  `--answers FILE`). Writes the answer under its question in `proposal.md` as a nested bullet
+  with the channel Spine observed (`cli` / `answers-file` → `user`). The edit is surgical — a
+  change a person wrote keeps its prose — and all-or-nothing across a batch.
+- **`orchestrator openspec draft --idea "<one sentence>"`.** A skeleton change, no model call:
+  the why-fields (problem, users, outcome, non-goals) are its open questions, in fixed wording;
+  answering one fills the field it names.
+- **MCP tools `requirements_check` and `requirements_answer`.** Over MCP every answer is
+  recorded as `relayed`, never `user`: Spine cannot see who typed it, so it never claims a person.
+- **Why-fields on `Intent` and `FeatureSpec`** (`problem`, `users`, `outcome`, `non_goals`,
+  `idea_id`, `resolutions`), and an OpenSpec layout for them (`### Problem` / `### Users` /
+  `### Outcome` under `## Why`, `### Non-goals` under `## What Changes`, `idea:` under the title,
+  answers nested under their question). Every new field is **absent when empty**: an input with
+  no why produces a byte-identical cache and build-document digest, so no existing approval moves.
+- **Gap-rule check kinds `pattern` and `question_state`**, and a strict rule set —
+  `examples/gap_rules/requirements_gaps.yaml`.
+
+### Changed
+
+- **A cache written with why-fields cannot be read by an older Spine.** `Intent` and
+  `FeatureSpec` are strict, so an older version reading an entry that carries `problem`,
+  `users`, `outcome`, `non_goals`, `idea_id` or `resolutions` treats it as a miss and
+  re-extracts — which makes an approval granted on the old spec stale. Only caches that *have*
+  a why-field carry the new keys; everything else reads and writes exactly as before. Same
+  shape as the 3.45 `variants` note.
+- **A legacy `proposal.md` that already has `### Problem`, `### Users`, `### Outcome` or
+  `### Non-goals` is now read as the why-fields**, not as part of the description or scope
+  (a bare `## Why` or `## What Changes`, and any other subsection, reads exactly as before).
+- **`ingest` now shows up to four extra *warning* findings** for an intent that states no why
+  (`problem_stated`, `users_named`, `outcome_stated`, `non_goal_named`; plus
+  `outcome_observable` and `criteria_testable` when there is something to judge). They never
+  gate: what `ingest` blocks on is unchanged. `examples/gap_rules/intent_gaps.yaml` mirrors the
+  new default set.
+- **The spec writer no longer resolves open questions silently.** An answered question is
+  passed as a stated fact; an unanswered one is listed in `technical_notes` as a labelled
+  *Unanswered assumption*, replacing "resolve in technical_notes". Only a **re-extracted** spec
+  differs (`--refresh`); cached specs and their approvals do not move.
+
 ## 3.55.0 — 2026-10-06
 
 Extensive Rust support broadens the Core Rust release with measured async, procedural
