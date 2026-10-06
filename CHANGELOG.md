@@ -57,6 +57,15 @@ with the channel it actually observed. **No new model call anywhere in this.**
   *Unanswered assumption*, replacing "resolve in technical_notes". Only a **re-extracted** spec
   differs (`--refresh`); cached specs and their approvals do not move.
 
+### Fixed
+
+- **A malformed structured response no longer ends codegen outright.** A client that parses a
+  forced tool call before returning (the Codex app adapter, or a native client raising
+  `StructuredOutputError`) raised before the parse retry could see any text, so one bad response
+  stopped a run during test authoring. It now gets the same bounded corrective retry as text that
+  fails to parse, then a `CodegenError`; transport, timeout and budget errors still raise at once.
+  (SSPN-127, B57)
+
 ## 3.55.0 — 2026-10-06
 
 Extensive Rust support broadens the Core Rust release with measured async, procedural
