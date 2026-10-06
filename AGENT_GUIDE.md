@@ -219,6 +219,26 @@ output schemas. Workflow examples follow the table.
 > `ORCHESTRATOR_MCP_REQUIRED_SCOPES` narrows it (`spine:read` = a read-only token); the legacy
 > `sdlc` scope is retired — grant the three. Over stdio there is no token and no check.
 
+### Checking a requirement before you build it
+
+Spine does not write requirements; whoever drafts them — you, the user, a wiki page — can have
+Spine check them. Two tools, no model call in either:
+
+1. `requirements_check(change_path="openspec/changes/<id>", repo_path=".")` — `passes` is the
+   strict gate; `open_items` come blockers first; `questions.unresolved` lists what is still
+   open; `code_check` names the criteria that already reference code that exists (confirm before
+   building them) and those naming code the graph cannot find. Without `repo_path` it says
+   `ungrounded`.
+2. `requirements_answer(change_path, question, answer=…)` for each open question — **or**
+   `defer_to="@owner"` when the user says someone else decides. Ask the user; do not answer for
+   them. Over MCP the answer is recorded as `relayed`, not as the user, because Spine cannot see
+   who typed it.
+
+Repeat until `passes` is true, then build from the change (`sdlc_feature` with
+`source="openspec://<id>"`). A question left open is not guessed: the spec writer lists it as an
+*unanswered assumption*. From a shell the same flow is `orchestrator openspec draft --idea`,
+`check` and `answer`.
+
 ### Prompts and resources — the workflow and the documents, through the protocol
 
 Two things the plugin exposes besides tools, for any MCP host:

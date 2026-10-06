@@ -9,7 +9,7 @@ description: >-
   "where do I fix this / where does this land", "what's untested here", "explain this symbol",
   "map this codebase", "which docs cover this", "what depends on this in our other services".
   Tools: map_repo, blast_radius, explain_symbol, investigate, localize, regression_gaps,
-  root_cause, docs_for, pkg_joins (all read-only, no credentials, from the Spine plugin).
+  root_cause, docs_for, pkg_joins (all read-only, no credentials, from the Spine plugin), and requirements_check (is a requirements change clear, and what does the code already say about it — deterministic, no model).
 ---
 
 # Understand a codebase with Spine
@@ -37,6 +37,7 @@ and they cite their sources.
 | root-cause a bug (hypotheses + fix approach) | **`root_cause(bug=…)`** — fault site, ranked hypotheses with evidence, regression surface, fix approach; deterministic (add `use_llm=true` for richer hypotheses) |
 | find which docs describe code (or how documented it is) | **`docs_for(symbol=…)`** — the doc pages that mention a symbol; call with no symbol for a doc-coverage summary + top drift. Ingests `.md`/`.rst`/`.txt`/PDF |
 | ask any of the above **across several repositories** | **`blast_radius`**, **`investigate`**, **`explain_symbol`**, **`regression_gaps`**, **`localize`**, **`docs_for`** all take **`repos=…`** — pass a `.spine/repos.yaml` instead of `repo_path`. `regression_gaps` then reports `uncovered_elsewhere` (a change reaching a *different* service nothing tests); `localize` says which repo each frame landed in and lists `ambiguous_frames`; `docs_for` answers each repo on its own |
+| check whether a requirements change is clear before building it | **`requirements_check(change_path=…, repo_path=…)`** — the strict gate (problem, users, outcome, every open question answered or deferred to a named owner) and, with a repo, which criteria already name code that exists. Deterministic, no model. Record an answer with **`requirements_answer(change_path, question, answer \| defer_to)`** (plan scope; recorded as `relayed`) |
 | see or sanity-check the cross-repo topology | **`pkg_joins(config=…, mode="propose"\|"check")`** — read-only; it never writes a config |
 
 Read a repo's committed knowledge base with **`read_memory_bank`** when one exists (built by

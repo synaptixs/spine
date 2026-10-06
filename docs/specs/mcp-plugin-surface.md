@@ -54,15 +54,15 @@ as an alias for all three through 3.31.x and is retired.
 **Packaging.** A Claude Code plugin at `plugins/spine/` bundling the `understand-codebase` skill;
 marketplace entry in `.claude-plugin/marketplace.json`; `pip install 'synaptixs-spine[all]'`.
 
-## 2. The 32 tools, in three tiers plus an operator set
+## 2. The 34 tools, in three tiers plus an operator set
 
 The tiers are separated by what a tool can cost you if it is wrong. An assistant works **down**
 them: comprehend, then plan and get the plan approved, then build.
 
 | Tier | Tools | Cost |
 |---|---|---|
-| **1 · comprehend** | `doctor`, `map_repo`, `blast_radius`, `explain_symbol`, `investigate`, `localize`, `regression_gaps`, `root_cause`, `docs_for`, `pkg_joins`, `read_memory_bank`, `pkg_grounding`, `ingest_preview` | No credentials, no model, deterministic. `root_cause(use_llm=true)` is the one opt-in model call, and it still never changes code. `repo_path` is a local path or a git URL; `blast_radius` and `investigate` answer across repositories via `repos` (`.spine/repos.yaml`). |
-| **2 · plan** | `sdlc_plan`, `sdlc_approve` | Writes only under `.spine/`. Still no model, no credentials — which is what lets a host with its own model drive Spine on a machine where Spine has neither. |
+| **1 · comprehend** | `doctor`, `map_repo`, `blast_radius`, `explain_symbol`, `investigate`, `localize`, `regression_gaps`, `root_cause`, `docs_for`, `pkg_joins`, `read_memory_bank`, `pkg_grounding`, `ingest_preview`, `requirements_check` | No credentials, no model, deterministic. `root_cause(use_llm=true)` is the one opt-in model call, and it still never changes code. `repo_path` is a local path or a git URL; `blast_radius` and `investigate` answer across repositories via `repos` (`.spine/repos.yaml`). |
+| **2 · plan** | `sdlc_plan`, `sdlc_approve`, `requirements_answer` | `sdlc_plan` / `sdlc_approve` write only under `.spine/`; `requirements_answer` edits one change's `proposal.md` and records the answer as `relayed` — Spine cannot see who typed an answer that arrives through a tool. Still no model, no credentials — which is what lets a host with its own model drive Spine on a machine where Spine has neither. |
 | **the free back half** | `understand_repo`, `profile_repo`, `design_change`, `sdlc_baseline` | Deterministic, no credentials (`design_change(use_llm=true)` is the opt-in model call). `understand_repo` is the one write — under `episteme/` or `out` — so it carries plan scope; the rest are tier 1. |
 | **the gated back half** | `sdlc_address_review`, `sdlc_complete`, `sdlc_remediate`, `audit_repo` | Each spends money or writes outside the repo. The first two have no local mode and need `confirm=true` on every call; `remediate` gates `live` like `sdlc_feature`; `audit_repo` writes nothing but runs a model — read-only for the host, run scope for the token. |
 | **operate** | `registry_runs`, `registry_approvals`, `registry_trace`, `registry_decide` | Over HTTP to the registry (`orchestrator up`); needs only the API URL and key. Observing is read-only; `registry_decide` is destructive because a rejection ends a run. |
@@ -77,7 +77,7 @@ what to confirm. From Phase 1 every registration carries the four hints, derived
 |---|---|---|---|---|
 | Tier 1 | yes | no | yes | yes — `repo_path` may be a URL, a `source` may be remote |
 | `doctor`, `pkg_joins` | yes | no | yes | no — local only |
-| `sdlc_plan`, `sdlc_approve` | no | no | yes — re-running rewrites the same document | no |
+| `sdlc_plan`, `sdlc_approve`, `requirements_answer` | no | no | yes — re-running rewrites the same document or bullet | no |
 | `understand_repo` | no | no | yes | yes — `repo_path` may be a URL; the write stays under `episteme/` |
 | `sdlc_run_status`, `sdlc_run_result` | yes | no | yes | yes — they read Temporal |
 | `registry_runs`, `registry_approvals`, `registry_trace` | yes | no | yes | yes — they read the registry |

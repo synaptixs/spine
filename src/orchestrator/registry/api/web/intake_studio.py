@@ -50,6 +50,12 @@ _BODY = (
     "         # revise a PR from review comments</div>"
     "<div class='cli'>orchestrator openspec draft --source &lt;uri&gt;"
     "          # bootstrap OpenSpec changes</div>"
+    "<div class='cli'>orchestrator openspec draft --idea \"&lt;one sentence&gt;\""
+    "          # a skeleton whose open questions are the why</div>"
+    "<div class='cli'>orchestrator openspec check &lt;change&gt;"
+    "                     # is it clear? what does the code already say?</div>"
+    "<div class='cli'>orchestrator openspec answer &lt;change&gt; --question … --answer …"
+    "   # record who decided what</div>"
     "</div>"
 )
 

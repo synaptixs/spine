@@ -21,7 +21,7 @@
 `design` · `investigate` · `localize` · `rca` · `regression` · `audit`
 
 **Requirements intake — source to backlog** — Turn a requirements source (Confluence, Jira, Notion, files, OpenSpec, MCP) into intents/specs and (optionally) tracker issues.  
-`ingest` · `backlog` · `openspec draft`
+`ingest` · `backlog` · `openspec draft` · `openspec check` · `openspec answer`
 
 **The SDLC pipeline — build features** — The autonomous build path: requirements → code → tests → reviewed PR, with human gates.  
 `sdlc plan` · `sdlc approve` · `sdlc autorun` · `sdlc feature` · `sdlc run` · `sdlc runs` · `sdlc baseline` · `sdlc workflow` · `sdlc workflows` · `sdlc explain` · `sdlc complete` · `sdlc address-review` · `sdlc remediate`
@@ -900,7 +900,8 @@ orchestrator backlog [OPTIONS]
 
 ### `orchestrator openspec draft`
 
-Bootstrap OpenSpec change proposals FROM an unstructured source (the write-back).
+Bootstrap OpenSpec change proposals FROM an unstructured source (the write-back) — or, with
+`--idea`, a skeleton from one sentence.
 
 Runs the LLM intake once (source → intents → specs), then renders each as a
 structured `openspec/changes/<id>/` proposal (proposal.md + specs delta + tasks).
@@ -937,6 +938,12 @@ section naming which mode produced it, and `tasks.md` is now one checkbox per cr
 rather than the two fixed lines it emitted for every change ever drafted. A repository adds
 the facts; it is not what turns the task list on.
 
+**`--idea "<one sentence>"` starts from nothing, with no model call.** It writes a skeleton
+change whose open questions *are* the why-fields — *What problem does this solve?*, *Who has
+this problem?*, *How will we know it worked?*, *What is explicitly out of scope?* — in fixed
+wording, so the same sentence always asks the same questions. Answer them with
+`openspec answer`, then `openspec check`. Give exactly one of `--source` or `--idea`.
+
 ```
 orchestrator openspec draft [OPTIONS] [PATH]
 ```
@@ -947,12 +954,77 @@ orchestrator openspec draft [OPTIONS] [PATH]
 
 | Option | Description |
 |---|---|
-| `--source` | Unstructured source to bootstrap FROM, e.g. confluence://<id>. |
+| `--source` | Unstructured source to bootstrap FROM, e.g. confluence://<id>. One of `--source` / `--idea`. |
+| `--idea` | One sentence to start from instead of a source: a skeleton change, **no model call**. |
 | `--out` | OpenSpec root to write into (changes/<id>/ is created under it). (default: `openspec`) |
 | `--refresh` | Re-extract from the source (default: reuse the cached backlog). **Not the PKG** — that cache is commit-keyed and invalidates itself. |
 | `--overwrite` | Overwrite existing change files (default: never clobber). |
 | `--repos` | A `.spine/repos.yaml` — ground against every declared repo. Landing sites are then grouped by repository key. |
 | `--dialect` | SQL dialect; default: auto-detect. |
+
+### `orchestrator openspec check`
+
+Check a requirements change: the strict clarity gate, and what the code already says.
+
+Works on **any** OpenSpec change, however it was drafted — by `openspec draft`, by a person, by
+Claude in a chat. **Deterministic: no model is called**, so the same change answers the same
+way twice. Exit **0** when the gate passes, **1** when it does not: a blocker (no problem
+stated), or a need for input (no users, no outcome, or an open question with neither an answer
+nor an owner it is deferred to). Warnings — a vague outcome, a criterion with no testable
+verb, no stated non-goal — are listed and never fail it. A regex can nudge; it cannot judge.
+
+The code half names the criteria that **already reference code that exists** — confirm before
+building them; it is evidence, not a verdict — and those naming code the graph **cannot find**.
+It has the same four states as a draft: with no repository it says `ungrounded`, never "nothing
+found". A deferral with an owner satisfies the question gate; it does not supply a missing
+problem. An answer recorded under a question that was later reworded is listed as **orphaned**,
+never silently dropped.
+
+```
+orchestrator openspec check [OPTIONS] CHANGE [PATH]
+```
+
+| Argument | Description |
+|---|---|
+| `CHANGE` | A change id under `--root`, or the path of a change directory. |
+| `PATH` | Repo path to check the change against (default: ungrounded — and says so). |
+
+| Option | Description |
+|---|---|
+| `--root` | OpenSpec root holding `changes/<id>/`. (default: `openspec`) |
+| `--repos` | A `.spine/repos.yaml` — check against every declared repo. |
+| `--rules` | A gap-rules YAML to use instead of the strict set ([`examples/gap_rules/requirements_gaps.yaml`](examples/gap_rules/requirements_gaps.yaml)). |
+| `--dialect` | SQL dialect; default: auto-detect. |
+
+### `orchestrator openspec answer`
+
+Record an answer — or a deferral to a named owner — under an open question.
+
+Written into the change's `proposal.md` as a nested bullet under the question, with who gave it
+**as Spine observed it**: `cli` and an `--answers` file are both recorded as `user`; over MCP it
+is `relayed`, because Spine cannot see who typed an answer that arrives through a tool. The edit
+is **surgical** — a change a person wrote keeps its prose, Impact and Grounding byte for byte;
+only the bullet, and the why-field one of the skeleton's four fixed questions maps to, change.
+**All-or-nothing**: if any question in a batch does not match an open one, nothing is written
+and the error lists what is open.
+
+    orchestrator openspec answer export-invoices --question "Which currencies?" --answer "EUR and USD"
+    orchestrator openspec answer export-invoices --question "Who owns the format?" --defer-to @finance-lead
+    orchestrator openspec answer export-invoices --answers answers.yaml
+
+The answers file is `answers:` as a list of `{question, answer}` or `{question, defer_to}`.
+
+```
+orchestrator openspec answer [OPTIONS] CHANGE
+```
+
+| Option | Description |
+|---|---|
+| `--root` | OpenSpec root holding `changes/<id>/`. (default: `openspec`) |
+| `--question` | The open question, exactly as `openspec check` lists it (case and spacing are forgiven). |
+| `--answer` | Your answer. |
+| `--defer-to` | Name who will answer it instead (an owner, e.g. `@finance-lead`). Exactly one of `--answer` / `--defer-to`. |
+| `--answers` | A YAML file of answers; replaces the three options above. |
 
 ---
 
