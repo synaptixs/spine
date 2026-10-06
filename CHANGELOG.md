@@ -4,6 +4,24 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the package is `synaptixs-spine`
 (import/CLI stay `orchestrator`).
 
+## Unreleased
+
+### Added
+
+- **Required-behavior gates.** A project opts in by committing `.spine/required-behavior.yaml`:
+  checks that must pass before `orchestrator sdlc feature` reports a run verified, distinct
+  from the existing lint/type-quality preflight and from the model's own generated tests.
+  ONTM-4 showed generated tests passing while the feature under test never exercised its own
+  default wiring; `RequiredBehaviorRunner` (`sdlc/required_behavior.py`) closes that gap with
+  checks the model does not author and cannot edit away, re-verified after every refinement as
+  a fourth independently-budgeted check in `run_feature`'s loop. `PKGCodegenGrounder` grounds
+  the model in a correctly-wired sibling implementation (via the existing `IMPLEMENTS` graph —
+  no new PKG fact type) when a requirement names a resolvable entry point. Worklogs gain a
+  `Deterministic (s)` column (the check is a subprocess run, not a model call — zero tokens
+  does not mean it did not run) and an `Outcome` line distinguishing an initial candidate from
+  a first completed autonomous workflow that needed internal repairs.
+  ([SSPN-116](https://fibonacci-solutions.atlassian.net/browse/SSPN-116))
+
 ## 3.53.0 — 2026-10-04
 
 Python's call graph now reaches through a typed variable, and a locked `pyjwt` closes ten
