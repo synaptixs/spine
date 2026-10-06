@@ -78,7 +78,17 @@ and [five-repository evaluation](https://github.com/synaptixs/spine/blob/main/do
 
 ## What's new
 
-**3.53.0 (current)** — Python's call graph reaches through a typed variable, and a locked
+**3.54.0 (current)** — required-behavior gates, and Core Rust support signed off. A project
+opts in by committing `.spine/required-behavior.yaml`: checks the model does not author and
+cannot edit away, re-verified after every refinement in `sdlc feature`'s native loop —
+closing the ONTM-4 gap where a generated test passed without exercising a feature's real
+default wiring. `[rust]` comprehension (Cargo topology, precision-safe local calls) and
+Cargo-aware codegen/build/test are both signed off for supported hosts; the installed
+parser's upstream grammar error is closed by pinning `tree-sitter-rust-orchard`. **Upgrade
+notes:** a legacy project without a manifest takes the exact code path it took before —
+opting in is additive, not a breaking change.
+
+**3.53.0** — Python's call graph reaches through a typed variable, and a locked
 `pyjwt` closes ten published advisories. A parameter annotation, a local assigned once from a
 constructor, or a `self.attr` typed by a class annotation now gives a method a caller in the
 graph (`blast_radius`, `impact_of`, `docs_for` and codegen's `refine` all see it): +2,077
