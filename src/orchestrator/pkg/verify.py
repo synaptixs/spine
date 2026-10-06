@@ -12,9 +12,9 @@ Checks, cheapest first:
 - **stale-provenance** (error) — every grounded node's ``file:line`` resolves
   to a real file and a line inside it.
 - **orphan-rate** (error) — the share of first-party modules no other
-  first-party module imports. 91% of a real package being "never imported" is
-  how the bug looked from the outside; a healthy package is far below the
-  threshold.
+  first-party module imports. Rust semantic child modules are reachable through
+  ``CONTAINS`` and do not need an import. 91% of a Python package being "never
+  imported" is how the original bug looked from the outside.
 - **external-ratio** (error) — the share of ``IMPORTS`` edges still pointing
   at ``external`` targets. Near-100% on a multi-module repo means resolution
   is broken, not that the repo only uses third-party code.
@@ -249,9 +249,17 @@ def _module_of(node_id: str, parents: dict[str, str], nodes: dict[str, Node]) ->
 
 def _check_rates(batch: FactBatch, nodes: dict[str, Node]) -> list[VerifyIssue]:
     parents: dict[str, str] = {}
+    contained_modules: set[str] = set()
     for edge in batch.edges:
         if edge.kind is EdgeKind.CONTAINS:
             parents.setdefault(edge.dst, edge.src)
+            if (
+                nodes.get(edge.src) is not None
+                and nodes[edge.src].kind is NodeKind.MODULE
+                and nodes.get(edge.dst) is not None
+                and nodes[edge.dst].kind is NodeKind.MODULE
+            ):
+                contained_modules.add(edge.dst)
 
     modules_by_lang: dict[str, list[Node]] = {}
     for node in batch.nodes:
@@ -282,7 +290,9 @@ def _check_rates(batch: FactBatch, nodes: dict[str, Node]) -> list[VerifyIssue]:
         total_edges = edges_by_lang.get(lang, 0)
         if len(modules) < MIN_MODULES or total_edges < MIN_IMPORT_EDGES:
             continue
-        orphans = [m for m in modules if not imported.get(m.id)]
+        orphans = [
+            m for m in modules if not imported.get(m.id) and (lang != "rust" or m.id not in contained_modules)
+        ]
         orphan_rate = len(orphans) / len(modules)
         if orphan_rate >= ORPHAN_RATE_LIMIT:
             issues.append(
@@ -290,7 +300,8 @@ def _check_rates(batch: FactBatch, nodes: dict[str, Node]) -> list[VerifyIssue]:
                     "orphan-rate",
                     "error",
                     f"{lang}: {len(orphans)} of {len(modules)} first-party modules "
-                    f"({orphan_rate:.0%}) are imported by nothing — import resolution is "
+                    f"({orphan_rate:.0%}) are unreachable through imports"
+                    f"{' or module containment' if lang == 'rust' else ''} — resolution is "
                     f"likely broken. E.g. {_examples([m.id for m in orphans])}",
                 )
             )

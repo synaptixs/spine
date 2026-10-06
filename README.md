@@ -84,7 +84,10 @@ cannot edit away, re-verified after every refinement in `sdlc feature`'s native 
 closing the ONTM-4 gap where a generated test passed without exercising a feature's real
 default wiring. `[rust]` comprehension (Cargo topology, precision-safe local calls) and
 Cargo-aware codegen/build/test are both signed off for supported hosts; the installed
-parser's upstream grammar error is closed by pinning `tree-sitter-rust-orchard`. **Upgrade
+parser's upstream grammar error is closed by pinning `tree-sitter-rust-orchard`.
+The P11–P14 extension validates async, proc-macro boundaries, `no_std` source, and one
+non-default Cargo feature; [its evidence](https://github.com/synaptixs/spine/blob/main/docs/evals/rust-extensive-validation.md)
+keeps embedded execution and type-aware dispatch as explicit limits. **Upgrade
 notes:** a legacy project without a manifest takes the exact code path it took before —
 opting in is additive, not a breaking change.
 
@@ -343,7 +346,7 @@ in [CLI_REFERENCE.md](https://github.com/synaptixs/spine/blob/main/CLI_REFERENCE
 | Java and C# typed-receiver call graphs (fields, parameters, typed locals, `var x = new T()`), constructor calls, C# static calls and ASP.NET Core DI bindings; `blast_radius` through interfaces | ✅ | `pkg extract`, `blast_radius`; [Knowledge Graph](https://github.com/synaptixs/spine/blob/main/KNOWLEDGE_GRAPH.md) |
 | C/C++ include graphs, C++ routing for included `.h` files and header/source merging; CMake or brownfield Meson builds | ✅ | `sdlc feature --language c` / `cpp` |
 | Go packages, calls and interface satisfaction; multi-module build/test selection | ✅ | `sdlc feature --language go` |
-| Rust Cargo packages/targets, semantic modules, imports, traits and precision-safe local calls; Cargo-aware codegen/build/test | 🟡 codegen validation | `[rust]`; `pkg extract`, `sdlc feature --language rust`; [validation](https://github.com/synaptixs/spine/blob/main/docs/evals/rust-codegen-validation.md). The published grammar fix and full brownfield sign-off are pending. |
+| Rust Cargo packages/targets, semantic modules, imports, traits and precision-safe local calls; Cargo-aware codegen/build/test | ✅ Core; ✅ Extensive validation | `[rust]`; `pkg extract`, `sdlc feature --language rust`; [Core sign-off](https://github.com/synaptixs/spine/blob/main/docs/evals/rust-core-signoff.md) and [Extensive validation](https://github.com/synaptixs/spine/blob/main/docs/evals/rust-extensive-validation.md). Async, macro-boundary, feature-gated and `no_std` source patterns are covered within the documented limits. |
 | PHP namespaces/traits/calls, Laravel/Slim/Symfony routes, Eloquent/Doctrine entities; Composer/PHAR PHPUnit | ✅ | [PHP workflow](https://github.com/synaptixs/spine/blob/main/USER_GUIDE.md#php-code-generation) |
 | Perl packages/inheritance/fields/calls, routes and data layer; syntax checks and `prove` | ✅ | [Perl workflow](https://github.com/synaptixs/spine/blob/main/USER_GUIDE.md#perl-code-generation) |
 | Kotlin classes/objects/companions/extensions and typed-receiver calls; Room entities and DAO reads/writes; Retrofit calls as cross-repo consumers; Compose navigation routes; Hilt/Dagger wiring via `PROVIDES`; Gradle `.kts` module graph; **Ktor and Spring MVC server routes**; **Multiplatform source sets and `expect`/`actual`** | 🟡 comprehension only, no codegen | `[kotlin]`; [Kotlin roadmap](https://github.com/synaptixs/spine/blob/main/docs/specs/kotlin-support-roadmap.md) |
@@ -404,8 +407,10 @@ Comprehension and codegen cover **Python, Java, TypeScript, C#, C, C++, Go, PHP,
 Kotlin**, and comprehension alone covers **JavaScript** — each
 front-end going beyond structure into what that stack actually does (Java and C# REST
 endpoints, EF Core entities, C's `#include` graph, C++ templates and namespaces, Go
-interface satisfaction by method-set matching). Rust comprehension is merged; Cargo-aware
-Rust codegen is in validation while the parser-wheel release gate remains open. **PHP** adds a call graph too (namespaces,
+interface satisfaction by method-set matching). Rust comprehension and Cargo-aware codegen
+are signed off for supported hosts; async, macro-boundary, feature-gated and `no_std` source
+validation is recorded in the [Extensive Rust evidence](https://github.com/synaptixs/spine/blob/main/docs/evals/rust-extensive-validation.md).
+**PHP** adds a call graph too (namespaces,
 classes, interfaces, traits, `CALLS`), plus Composer/PHAR PHPUnit codegen with changed-file lint.
 **Perl** adds a call graph too (packages, inheritance across its five spellings,
 `$self`/`SUPER::`/qualified/bare `CALLS`) — codegen uses `perl -c` then `prove`,

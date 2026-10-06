@@ -1,6 +1,6 @@
 # Design + Plan: adding Rust to the PKG — comprehension, then codegen
 
-**Status:** As of 2026-10-05, Core Rust implementation P0–P10 is merged through Spine [PR #509](https://github.com/synaptixs/spine/pull/509), [PR #511](https://github.com/synaptixs/spine/pull/511), and [PR #512](https://github.com/synaptixs/spine/pull/512). The pinned Synaptreesitter lint baseline was fixed in [PR #3](https://github.com/synaptixs/Synaptreesitter/pull/3). See the [Core release evidence](../evals/rust-core-signoff.md) for final host-native validation and scope limits.
+**Status:** Core Rust implementation P0–P10 is merged through Spine [PR #509](https://github.com/synaptixs/spine/pull/509), [PR #511](https://github.com/synaptixs/spine/pull/511), and [PR #512](https://github.com/synaptixs/spine/pull/512). The pinned Synaptreesitter lint baseline was fixed in [PR #3](https://github.com/synaptixs/Synaptreesitter/pull/3). The separately approved P11–P14 tranche is validated on `codex/rust-extensive-support` in [PR #516](https://github.com/synaptixs/spine/pull/516); see the [Core release evidence](../evals/rust-core-signoff.md) and [Extensive validation](../evals/rust-extensive-validation.md) for the bounded claims.
 **Base:** spine `v3.52.0`.
 **Branch A:** `codex/rust-comprehension`, merged in PR #509.
 **Branch B:** `codex/rust-codegen`, merged in PR #511 after comprehension.
@@ -1705,10 +1705,10 @@ Add a small breadth-hardening track after core Rust codegen rather than expandin
 
 | Phase | Work | Effort | Exit criteria | Status | Started | Finished | Evidence |
 |---|---|---:|---|---|---|---|---|
-| **P11 Ecosystem coverage census** | Compare Synaptreesitter + Rust corpus against the gap matrix; select only the minimum targeted repos needed for uncovered shapes | **2-3 ED** | Each gap has an owner: corpus, Synaptreesitter, targeted repo, or explicitly out-of-scope; validation repo count is bounded | ⬜ | | | |
-| **P12 Async + macro hardening** | Async corpus/repo; proc-macro boundary corpus/repo; no macro expansion | **7-10 ED** | Async build/test green; zero invented macro-generated facts; macro recall documented | ⬜ | | | |
-| **P13 `no_std` + feature hardening** | `no_std` corpus/repo; explicit non-default Cargo feature run; target/toolchain capability detection | **6-8 ED** | `no_std` comprehension green; feature run green; unavailable cross-target reported actionably | ⬜ | | | |
-| **P14 Extensive-support review** | Re-run full matrix and docs; classify remaining limitations by R1-R6 | **2-3 ED** | R1-R4 complete; async/macro/`no_std` gates green; remaining R5/R6 limitations explicit | ⬜ | | | |
+| **P11 Ecosystem coverage census** | Compare Synaptreesitter + Rust corpus against the gap matrix; select only the minimum targeted repos needed for uncovered shapes | **2-3 ED** | Each gap has an owner: corpus, Synaptreesitter, targeted repo, or explicitly out-of-scope; validation repo count is bounded | ✅ | 2026-10-06 | 2026-10-06 | [Gap ownership and pinned repos](../evals/rust-extensive-validation.md#p11--coverage-census-and-ownership) |
+| **P12 Async + macro hardening** | Async corpus/repo; proc-macro boundary corpus/repo; no macro expansion | **7-10 ED** | Async build/test green; zero invented macro-generated facts; macro recall documented | ✅ | 2026-10-06 | 2026-10-06 | [Async and macro runs](../evals/rust-extensive-validation.md#p12--async-and-macro-boundary) |
+| **P13 `no_std` + feature hardening** | `no_std` corpus/repo; explicit non-default Cargo feature run; target/toolchain capability detection | **6-8 ED** | `no_std` comprehension green; feature run green; unavailable cross-target reported actionably | ✅ | 2026-10-06 | 2026-10-06 | [`no_std`, feature, and target checks](../evals/rust-extensive-validation.md#p13--no_std-features-and-environment) |
+| **P14 Extensive-support review** | Re-run full matrix and docs; classify remaining limitations by R1-R6 | **2-3 ED** | R1-R4 complete; async/macro/`no_std` gates green; remaining R5/R6 limitations explicit | ✅ | 2026-10-06 | 2026-10-06 | [Final evidence and claim boundary](../evals/rust-extensive-validation.md#p14--final-evidence-and-claim-boundary); [PR #516 CI](https://github.com/synaptixs/spine/actions/runs/37406177580) |
 
 **Scope decision:** P11-P14 are **not in the initial Core Rust kickoff**. They are a separate **17-24 ED** tranche requiring a go/no-go after P10. They are mandatory only if the product/release objective is upgraded from **Core Rust support** to **Extensive Rust support**.
 
