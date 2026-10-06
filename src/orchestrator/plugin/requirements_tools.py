@@ -21,11 +21,23 @@ from typing import Any
 from orchestrator.intake import requirements as rq
 
 
-def _load(change_path: str) -> rq.LoadedChange:
+def _load(change_path: str, *, writing: bool = False) -> rq.LoadedChange:
     """A change by the path of its directory. Unlike the CLI there is no ``--root`` to resolve an
     id against — a tool's working directory is whatever the host launched it in — so a path that
-    is not a change directory is an error that says so, never a silent look in the wrong place."""
+    is not a change directory is an error that says so, never a silent look in the wrong place.
+
+    Writing is held to the shape of an OpenSpec tree: the directory must be ``<root>/changes/<id>``
+    and neither it nor its ``proposal.md`` may be a symlink. A tool an agent calls should not be
+    able to point an edit at an arbitrary file, the way the other plan-tier tools write only
+    where Spine puts things."""
     path = Path(change_path).expanduser()
+    if writing and (
+        path.is_symlink() or (path / "proposal.md").is_symlink() or path.resolve().parent.name != "changes"
+    ):
+        raise rq.RequirementsError(
+            f"{change_path!r}: an answer is only written into an OpenSpec change directory "
+            "(<root>/changes/<id>, not a symlink, with a real proposal.md)"
+        )
     if not (path / "proposal.md").is_file():
         raise rq.RequirementsError(
             f"{change_path!r} is not a change directory: there is no proposal.md in it. "
@@ -80,7 +92,7 @@ def check(change_path: str, repo_path: str = "") -> dict[str, Any]:
 def answer(change_path: str, question: str, answer: str = "", defer_to: str = "") -> dict[str, Any]:
     """Record one answer (or a deferral to a named owner), then say where the gate stands."""
     try:
-        loaded = _load(change_path)
+        loaded = _load(change_path, writing=True)
         result = rq.record_answers(loaded, [rq.AnswerRequest(question, answer, defer_to)], channel="mcp")
         after = rq.check_intent(_load(change_path).intent, change_id=loaded.change_id)
     except rq.RequirementsError as exc:

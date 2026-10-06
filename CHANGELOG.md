@@ -38,6 +38,12 @@ with the channel it actually observed. **No new model call anywhere in this.**
 
 ### Changed
 
+- **A cache written with why-fields cannot be read by an older Spine.** `Intent` and
+  `FeatureSpec` are strict, so an older version reading an entry that carries `problem`,
+  `users`, `outcome`, `non_goals`, `idea_id` or `resolutions` treats it as a miss and
+  re-extracts — which makes an approval granted on the old spec stale. Only caches that *have*
+  a why-field carry the new keys; everything else reads and writes exactly as before. Same
+  shape as the 3.45 `variants` note.
 - **`ingest` now shows up to four extra *warning* findings** for an intent that states no why
   (`problem_stated`, `users_named`, `outcome_stated`, `non_goal_named`; plus
   `outcome_observable` and `criteria_testable` when there is something to judge). They never

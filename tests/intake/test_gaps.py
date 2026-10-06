@@ -47,7 +47,7 @@ def test_rule_rejects_unknown_field() -> None:
 # ---- analyzer with defaults -----------------------------------------------
 
 
-def test_complete_intent_has_no_findings() -> None:
+def test_a_complete_intent_gates_nothing_and_only_warns_about_the_why() -> None:
     """Nothing the four original rules check — and the only new findings are the why-field
     warnings an intent that states no "why" now earns (never gating, D14)."""
     findings = GapAnalyzer().analyze([_intent()])

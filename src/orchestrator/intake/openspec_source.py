@@ -67,17 +67,40 @@ _WHY_SUBSECTIONS = ("problem", "users", "outcome")
 # --- markdown parsing (pure, unit-testable) --------------------------------
 
 
-def _h3_sections(body: str) -> tuple[str, dict[str, str]]:
-    """Split a section body into its lead text (before the first ``###``) and its
-    ``### Name`` subsections, keyed by lowercased name, in document order."""
-    matches = list(_H3.finditer(body))
-    if not matches:
-        return body.strip(), {}
-    subs: dict[str, str] = {}
-    for i, m in enumerate(matches):
-        end = matches[i + 1].start() if i + 1 < len(matches) else len(body)
-        subs[m.group(1).strip().lower()] = body[m.end() : end].strip()
-    return body[: matches[0].start()].strip(), subs
+def _fence_mask(text: str) -> list[bool]:
+    """For each line of ``text``: is it inside (or is it) a fenced code block? A ``###`` in a code
+    sample is not a subsection."""
+    inside = False
+    mask: list[bool] = []
+    for line in text.split("\n"):
+        if line.lstrip().startswith(("```", "~~~")):
+            mask.append(True)
+            inside = not inside
+        else:
+            mask.append(inside)
+    return mask
+
+
+def _h3_split(body: str) -> tuple[str, list[tuple[str, str]]]:
+    """Split a section body into its lead text (before the first ``###``) and its ``### Name``
+    subsections as ``(name as written, text)``, in document order. Fence-aware."""
+    lines = body.split("\n")
+    mask = _fence_mask(body)
+    starts = [i for i, ln in enumerate(lines) if not mask[i] and _H3.match(ln)]
+    if not starts:
+        return body.strip(), []
+    subs: list[tuple[str, str]] = []
+    for n, i in enumerate(starts):
+        end = starts[n + 1] if n + 1 < len(starts) else len(lines)
+        match = _H3.match(lines[i])
+        name = match.group(1).strip() if match else ""
+        subs.append((name, "\n".join(lines[i + 1 : end]).strip()))
+    return "\n".join(lines[: starts[0]]).strip(), subs
+
+
+def _rebuild(lead: str, subs: list[tuple[str, str]]) -> str:
+    """Lead text and subsections joined back, each ``### Name`` as it was written."""
+    return "\n\n".join(p for p in (lead, *(f"### {n}\n{t}".rstrip() for n, t in subs)) if p)
 
 
 def _items(body: str) -> list[str]:
@@ -205,11 +228,11 @@ def _requirements(spec_md: str) -> list[tuple[str, list[str]]]:
 def _split_non_goals(what_changes: str) -> tuple[str, list[str]]:
     """``## What Changes`` without its ``### Non-goals`` subsection, and that subsection's items.
     A section with no such subsection comes back untouched."""
-    lead, subs = _h3_sections(what_changes)
-    if "non-goals" not in subs:
+    lead, subs = _h3_split(what_changes)
+    goals = [t for n, t in subs if n.lower() == "non-goals"]
+    if not goals:
         return what_changes, []
-    rest = [f"### {name}\n{body}".rstrip() for name, body in subs.items() if name != "non-goals"]
-    return "\n\n".join(p for p in (lead, *rest) if p), _items(subs["non-goals"])
+    return _rebuild(lead, [(n, t) for n, t in subs if n.lower() != "non-goals"]), _items(goals[0])
 
 
 def change_to_intent(
@@ -232,14 +255,13 @@ def change_to_intent(
     problem = outcome = ""
     users: list[str] = []
     if sections.get("why") and description == sections["why"]:
-        lead, subs = _h3_sections(sections["why"])
-        if any(name in subs for name in _WHY_SUBSECTIONS):
-            problem, outcome = subs.get("problem", ""), subs.get("outcome", "")
-            users = _items(subs.get("users", ""))
-            rest = [
-                f"### {name}\n{body}".rstrip() for name, body in subs.items() if name not in _WHY_SUBSECTIONS
-            ]
-            description = "\n\n".join(p for p in (lead, *rest) if p) or problem
+        lead, subs = _h3_split(sections["why"])
+        named = {n.lower(): t for n, t in subs}
+        if any(name in named for name in _WHY_SUBSECTIONS):
+            problem, outcome = named.get("problem", ""), named.get("outcome", "")
+            users = _items(named.get("users", ""))
+            rest = [(n, t) for n, t in subs if n.lower() not in _WHY_SUBSECTIONS]
+            description = _rebuild(lead, rest) or problem
 
     criteria: list[str] = []
     for spec_md in spec_texts:
@@ -250,7 +272,7 @@ def change_to_intent(
     # Open questions: a proposal may carry them explicitly; keep them verbatim. An answer
     # recorded under a question is that question's resolution, not another question.
     open_q, resolutions = _questions(_first_section(sections, "open questions", "questions"))
-    idea = _IDEA.search(proposal_md.split("\n## ", 1)[0])
+    idea = _IDEA.search(re.split(r"^##\s", proposal_md, maxsplit=1, flags=re.MULTILINE)[0])
 
     return Intent(
         id=f"intent-{_slug(change_id)}",

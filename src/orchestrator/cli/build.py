@@ -214,6 +214,12 @@ def _run_openspec_idea(idea: str, *, out: str, overwrite: bool) -> None:
     spec = FeatureSpec(intent_id=intent.id, title=intent.title, summary=intent.description)
     written = write_change(Path(out), intent, render_change(spec, intent), overwrite=overwrite)
     change_id = change_id_for(intent)
+    if not written:
+        typer.echo(
+            f"Not written: {out}/changes/{change_id} already exists (pass --overwrite to replace it). "
+            "Ideas sharing their first eight words share an id.",
+            err=True,
+        )
     _print(
         {
             "root": out,
@@ -228,12 +234,13 @@ def _run_openspec_idea(idea: str, *, out: str, overwrite: bool) -> None:
             ],
         }
     )
-    typer.echo(
-        f"\nSkeleton written under {out}/changes/{change_id}/. Answer its questions with "
-        f"`orchestrator openspec answer {change_id} --question ... --answer ...`, then "
-        f"`orchestrator openspec check {change_id}`.",
-        err=True,
-    )
+    if written:
+        typer.echo(
+            f"\nSkeleton written under {out}/changes/{change_id}/. Answer its questions with "
+            f"`orchestrator openspec answer {change_id} --question ... --answer ...`, then "
+            f"`orchestrator openspec check {change_id}`.",
+            err=True,
+        )
 
 
 def _grounding_for(
@@ -464,6 +471,8 @@ def openspec_check(
     building them — evidence, not a verdict) and criteria naming code the graph **cannot find**.
     With no repository it says `ungrounded` rather than reporting nothing found.
     """
+    import yaml
+
     from orchestrator.intake import requirements
     from orchestrator.intake.gaps import load_gap_rules
     from orchestrator.intake.specs import FeatureSpec
@@ -471,7 +480,15 @@ def openspec_check(
     try:
         loaded = requirements.load_change(change, root=root)
         rule_set = load_gap_rules(rules) if rules else requirements.STRICT_GAP_RULES
-    except (requirements.RequirementsError, OSError, ValueError) as exc:
+    except (
+        requirements.RequirementsError,
+        OSError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        yaml.YAMLError,
+    ) as exc:
+        # Exit 2, never 1: 1 is what a failed gate returns, and a broken rules file is not that.
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=2) from exc
     base, store, repo_root, repo_roots = _grounding_for(path, repos, dialect)

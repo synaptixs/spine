@@ -231,7 +231,7 @@ Spine check them. Two tools, no model call in either:
    `ungrounded`.
 2. `requirements_answer(change_path, question, answer=…)` for each open question — **or**
    `defer_to="@owner"` when the user says someone else decides. Ask the user; do not answer for
-   them. Over MCP the answer is recorded as `relayed`, not as the user, because Spine cannot see
+   them. It only writes into an OpenSpec change directory (`<root>/changes/<id>`, not a symlink). Over MCP the answer is recorded as `relayed`, not as the user, because Spine cannot see
    who typed it.
 
 Repeat until `passes` is true, then build from the change (`sdlc_feature` with

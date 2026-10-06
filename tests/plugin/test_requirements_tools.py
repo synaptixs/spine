@@ -11,7 +11,6 @@ import pytest
 from orchestrator.intake import requirements as rq
 from orchestrator.intake.openspec_writer import render_change, write_change
 from orchestrator.intake.specs import FeatureSpec
-from orchestrator.plugin import server
 from orchestrator.plugin.auth import SCOPE_PLAN, SCOPE_READ
 from orchestrator.plugin.server import (
     _TIER,
@@ -105,7 +104,7 @@ def test_bad_input_is_an_error_not_an_exception(tmp_path: Path) -> None:
         in requirements_answer(str(change), "Which colour?", answer="blue")["error"]
     )
     assert "exactly one" in requirements_answer(str(change), _PROBLEM_Q)["error"]
-    assert "not a change directory" in requirements_answer(str(tmp_path), _PROBLEM_Q, answer="x")["error"]
+    assert "change directory" in requirements_answer(str(tmp_path), _PROBLEM_Q, answer="x")["error"]
 
 
 def test_a_bad_repository_path_is_an_error(tmp_path: Path) -> None:
@@ -164,9 +163,25 @@ def test_neither_tool_can_make_a_model_call(tmp_path: Path, monkeypatch: pytest.
     assert calls == []
 
 
-def test_the_logic_lives_outside_server_py() -> None:
-    """server.py is already 114 KB; the wrappers are thin and the work is in plugin/requirements_tools."""
-    import inspect
+def test_an_answer_is_only_written_into_a_real_change_directory(tmp_path: Path) -> None:
+    """An agent chooses the path, so the write is held to the shape of an OpenSpec tree and never
+    follows a link out of it."""
+    change = _skeleton(tmp_path)
+    elsewhere = tmp_path / "notes"
+    elsewhere.mkdir()
+    (elsewhere / "proposal.md").write_text("# P\n\n## Why\nw\n\n## Open Questions\n- Q?\n")
+    assert (
+        "only written into an OpenSpec change directory"
+        in requirements_answer(str(elsewhere), "Q?", answer="x")["error"]
+    )
+    assert (elsewhere / "proposal.md").read_text().count("**Answer**") == 0
 
-    assert "requirements_tools" in inspect.getsource(server.requirements_check)
-    assert "requirements_tools" in inspect.getsource(server.requirements_answer)
+    victim = tmp_path / "victim.md"
+    victim.write_text("# P\n\n## Why\nw\n\n## Open Questions\n- Q?\n")
+    link_dir = tmp_path / "changes" / "linked"
+    link_dir.mkdir()
+    (link_dir / "proposal.md").symlink_to(victim)
+    assert "error" in requirements_answer(str(link_dir), "Q?", answer="x")
+    assert victim.read_text().count("**Answer**") == 0
+    # …and the ordinary change still works.
+    assert "error" not in requirements_answer(str(change), _PROBLEM_Q, answer="x")

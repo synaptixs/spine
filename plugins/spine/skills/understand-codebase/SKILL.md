@@ -9,7 +9,7 @@ description: >-
   "where do I fix this / where does this land", "what's untested here", "explain this symbol",
   "map this codebase", "which docs cover this", "what depends on this in our other services".
   Tools: map_repo, blast_radius, explain_symbol, investigate, localize, regression_gaps,
-  root_cause, docs_for, pkg_joins (all read-only, no credentials, from the Spine plugin), and requirements_check (is a requirements change clear, and what does the code already say about it — deterministic, no model).
+  root_cause, docs_for, pkg_joins (all read-only, no credentials, from the Spine plugin), and requirements_check (is a requirements change clear, and what does the code already say about it — deterministic, no model); requirements_answer records an answer in the change (plan scope, not read-only).
 ---
 
 # Understand a codebase with Spine

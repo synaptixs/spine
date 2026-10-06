@@ -65,6 +65,17 @@ def _source_link(url: str, title: str) -> str:
     return f'<a href="{_esc(url)}">{_esc(title)}</a>'
 
 
+def _questions_with_state(it: Mapping[str, Any]) -> list[str]:
+    """Open questions, each marked when someone has answered or deferred it. An intent with no
+    recorded resolutions lists them exactly as it always did."""
+    resolutions = it.get("resolutions") or {}
+    out = []
+    for q in it.get("open_questions") or []:
+        res = resolutions.get(q)
+        out.append(f"{q} — {res.get('status')}" if isinstance(res, Mapping) and res.get("status") else q)
+    return out
+
+
 def _intents_table(intents: Sequence[Mapping[str, Any]], source_cell: str) -> str:
     head = "<tr><th>#</th><th>Intent</th><th>Description</th><th>Open questions</th><th>Source</th></tr>"
     rows = []
@@ -73,7 +84,7 @@ def _intents_table(intents: Sequence[Mapping[str, Any]], source_cell: str) -> st
             f"<tr><td>{intent_number(i)}</td>"
             f"<td><strong>{_esc(it.get('title'))}</strong></td>"
             f"<td>{_esc(it.get('description'))}</td>"
-            f"<td>{_ul(it.get('open_questions') or [])}</td>"
+            f"<td>{_ul(_questions_with_state(it))}</td>"
             f"<td>{source_cell}</td></tr>"
         )
     return f"<h2>1. Intents</h2><table><tbody>{head}{''.join(rows)}</tbody></table>"

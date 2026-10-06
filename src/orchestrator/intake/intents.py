@@ -203,7 +203,7 @@ def question_states(intent: Intent) -> tuple[list[str], list[str], list[str]]:
     unresolved: list[str] = []
     for question in intent.open_questions:
         res = intent.resolutions.get(question)
-        if res is not None and res.status == "answered" and res.origin != "proposed":
+        if res is not None and res.status == "answered" and res.origin != "proposed" and res.answer.strip():
             answered.append(question)
         elif res is not None and res.status == "deferred" and res.owner.strip():
             deferred.append(question)
