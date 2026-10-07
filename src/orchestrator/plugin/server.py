@@ -700,6 +700,33 @@ def map_repo(repo_path: str, lens: str = "developer") -> dict[str, Any]:
     return _in_repo(repo_path, run)
 
 
+# How many same-named symbols a comprehension tool details. The rest are *counted*, never dropped
+# silently (B52, CLAUDE.md invariant 7): every answer carries `match_count` and `truncated`.
+_MAX_MATCHES = 7
+
+
+def _pick_matches(store: Any, symbol: str) -> tuple[list[Any], int]:
+    """The matches to detail for ``symbol``, and how many there were in all.
+
+    ``resolve`` rather than ``find``, so a qualified name (``Store.summary``) or a full node id picks
+    one symbol out of many; the order is deterministic, so the same graph clips the same way."""
+    found = store.resolve(symbol)
+    return found[:_MAX_MATCHES], len(found)
+
+
+def _match_report(shown: int, total: int) -> dict[str, Any]:
+    return {"match_count": total, "truncated": total > shown}
+
+
+def _truncation_note(shown: int, total: int) -> str | None:
+    if total <= shown:
+        return None
+    return (
+        f"_Showing {shown} of {total} matches — pass a qualified name (`Class.name`) "
+        "or a full node id to select one._"
+    )
+
+
 def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
     """ "What breaks if I change X" — a symbol's direct callers, the callers that reach it
     through an interface member it implements (``interface_callers``, each with its ``via``
@@ -723,11 +750,11 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
         return {"error": "provide exactly one of repo_path or repos"}
 
     def run(store: Any, _ctx: Any, docs: _Docs) -> dict[str, Any]:
-        matches = store.find(symbol)
+        matches, total = _pick_matches(store, symbol)
         if not matches:
-            return {"symbol": symbol, "found": False, "matches": []}
+            return {"symbol": symbol, "found": False, "matches": [], **_match_report(0, 0)}
         out: list[dict[str, Any]] = []
-        for node in matches[:5]:
+        for node in matches:
             callers = store.callers_of(node.id)
             through = store.interface_callers_of(node.id)
             touched = store.touches(node.id)
@@ -760,13 +787,14 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
                 entry["cross_repo_count"] = len(reach)
                 entry["cross_repo"] = reach[:25]
             out.append(entry)
-        markdown = _blast_markdown(out)
+        markdown = _blast_markdown(out, total)
         if docs.external:
             markdown = "\n".join([markdown, *_external_markdown(docs.external)])
         result: dict[str, Any] = {
             "symbol": symbol,
             "found": True,
             "matches": out,
+            **_match_report(len(out), total),
             "markdown": markdown,
         }
         if docs.error:
@@ -799,11 +827,11 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
         return {"error": "provide exactly one of repo_path or repos"}
 
     def run(store: Any, _repo: Any, docs: _Docs) -> dict[str, Any]:
-        matches = store.find(symbol)
+        matches, total = _pick_matches(store, symbol)
         if not matches:
-            return {"symbol": symbol, "found": False, "matches": []}
+            return {"symbol": symbol, "found": False, "matches": [], **_match_report(0, 0)}
         out: list[dict[str, Any]] = []
-        for node in matches[:5]:
+        for node in matches:
             callers = store.callers_of(node.id)
             through = store.interface_callers_of(node.id)
             entry: dict[str, Any] = {
@@ -828,7 +856,12 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
                 entry["cross_repo_count"] = len(reach)
                 entry["cross_repo"] = reach[:25]
             out.append(entry)
-        result: dict[str, Any] = {"symbol": symbol, "found": True, "matches": out}
+        result: dict[str, Any] = {
+            "symbol": symbol,
+            "found": True,
+            "matches": out,
+            **_match_report(len(out), total),
+        }
         if docs.error:
             result["docs_unavailable"] = docs.error
         if docs.external:
@@ -1290,12 +1323,14 @@ def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) ->
             return empty
         if symbol:
             store = FactStore(batch)
-            matches = store.find(symbol)
+            matches, total = _pick_matches(store, symbol)
             if not matches:
-                return {"symbol": symbol, "found": False, "matches": []}
+                return {"symbol": symbol, "found": False, "matches": [], **_match_report(0, 0)}
             out: list[dict[str, Any]] = []
             lines = [f"# Docs describing `{symbol}`", ""]
-            for node in matches[:5]:
+            if (note := _truncation_note(len(matches), total)) is not None:
+                lines += [note, ""]
+            for node in matches:
                 repo_docs = store.docs_for(node.id)
                 doc_names = [d.name for d in repo_docs]
                 where = str(node.provenance) if node.provenance else None
@@ -1323,7 +1358,12 @@ def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) ->
                     if (retrieval := _retrieval_line(match)) is not None:
                         lines.append(retrieval)
                 out.append(match)
-            answer: dict[str, Any] = {"symbol": symbol, "found": True, "matches": out}
+            answer: dict[str, Any] = {
+                "symbol": symbol,
+                "found": True,
+                "matches": out,
+                **_match_report(len(out), total),
+            }
             if standings:
                 answer["external_docs"] = standings
                 lines += ["", *_external_markdown(standings)]
@@ -1461,8 +1501,10 @@ def _constructed_type(store: Any, node: Any) -> str | None:
     return str(owner.id) if any(c.id == node.id for c in store.children_of(owner.id)) else None
 
 
-def _blast_markdown(matches: list[dict[str, Any]]) -> str:
+def _blast_markdown(matches: list[dict[str, Any]], total: int | None = None) -> str:
     lines: list[str] = []
+    if total is not None and (note := _truncation_note(len(matches), total)) is not None:
+        lines += [note, ""]
     for m in matches:
         lines.append(f"### `{m['id']}` — {m['kind']}" + (f" @ {m['where']}" if m["where"] else ""))
         lines.append(

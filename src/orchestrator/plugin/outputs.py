@@ -281,6 +281,8 @@ class BlastRadiusOut(Failure, total=False):
     symbol: str
     found: bool
     matches: list[BlastMatch]
+    match_count: int  # every symbol the name resolved to, before the cap (B52)
+    truncated: bool  # match_count > len(matches): the rest were counted, not shown
     markdown: str
     docs_unavailable: str  # docs could not be linked; the code answer above still stands
     external_docs: list[ExternalDocStanding]
@@ -315,6 +317,8 @@ class ExplainSymbolOut(Failure, total=False):
     symbol: str
     found: bool
     matches: list[SymbolMatch]
+    match_count: int  # every symbol the name resolved to, before the cap (B52)
+    truncated: bool  # match_count > len(matches): the rest were counted, not shown
     docs_unavailable: str  # docs could not be linked; the code answer above still stands
     external_docs: list[ExternalDocStanding]
     standing: Standing
@@ -472,6 +476,8 @@ class DocsForOut(Failure, total=False):
     symbol: str | None
     found: bool
     matches: list[DocMatch]
+    match_count: int  # every symbol the name resolved to, before the cap (B52)
+    truncated: bool  # match_count > len(matches): the rest were counted, not shown
     docs: int
     note: str
     documented_symbols: int
