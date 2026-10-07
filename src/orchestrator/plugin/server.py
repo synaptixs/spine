@@ -730,15 +730,18 @@ def _truncation_note(shown: int, total: int) -> str | None:
 def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
     """ "What breaks if I change X" — a symbol's direct callers, the callers that reach it
     through an interface member it implements (``interface_callers``, each with its ``via``
-    member — they may reach it, not must), plus the cross-layer set a change ripples into
-    (CALLS + IMPORTS + REFERENCES), each with ``file:line``. A type's callers are the code that
-    creates it; a Java/C# constructor reports those creators as ``instantiated_via_type``.
+    member — they may reach it, not must), plus ``touches``: every node one edge away, in either
+    direction and of any kind (calls, containment, imports, references), each with ``file:line``.
+    ``touches`` is a one-hop neighbourhood, not a transitive ripple set. A type's callers are the
+    code that creates it; a Java/C# constructor reports those creators as ``instantiated_via_type``.
     Also the repository's docs that describe it (``docs``, each with ``via``). Deterministic.
+    A name shared by many symbols details the first 7 and reports ``match_count`` and
+    ``truncated``; pass a qualified name (``Class.name``) or a full node id to select one.
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to answer across every
     declared repository: each match then also reports the dependents a change reaches **in
-    other repositories**, which is what a single-repo graph cannot see. An HTTP handler with
-    zero callers in its own source is the case this exists for.
+    other repositories** — a transitive walk, up to 4 hops — which is what a single-repo graph
+    cannot see. An HTTP handler with zero callers in its own source is the case this exists for.
 
     Each match also lists the repository's own **docs** that describe it — pages naming the
     symbol, its class or its module (``via``) — with ``doc_count``, and counts
@@ -820,7 +823,9 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
     cannot see.
 
     Each match also lists the docs that describe it (``docs``, ``doc_count``,
-    ``related_doc_count``) — the same doc radius ``blast_radius`` reports."""
+    ``related_doc_count``) — the same doc radius ``blast_radius`` reports. A name shared by many
+    symbols details the first 7 and reports ``match_count`` and ``truncated``; pass a qualified
+    name (``Class.name``) or a full node id to select one."""
     if not symbol:
         return {"error": "provide a symbol"}
     if bool(repo_path) == bool(repos):
