@@ -135,9 +135,12 @@ PR — in that order, every time.
 
 **`develop` is the repository's default branch**, so a new PR is based on `develop` unless you
 say otherwise. `main` takes **no** PR except the `develop → main` promotion — never open one into
-`main` from any other branch. Both branches are ruleset-protected against deletion and
-force-push; "Protect main" names `refs/heads/main` explicitly because `~DEFAULT_BRANCH` now
-resolves to `develop`.
+`main` from any other branch. `main` carries the full ruleset (PR, review, `security scan`);
+`develop` is protected against deletion and force-push only, so a PR into it is a convention,
+not enforced. That is deliberate: the episteme bot pushes to `develop` with `GITHUB_TOKEN`,
+which cannot be a bypass actor on a ruleset. A ruleset must target `refs/heads/main` by name,
+never `~DEFAULT_BRANCH` — the default branch is `develop`, and a ruleset aimed at it silently
+moves onto `develop` and blocks the bot.
 
 **Never commit `episteme/`.** It is regenerated after merge by
 [`.github/workflows/episteme.yml`](.github/workflows/episteme.yml), and CI fails any PR that
