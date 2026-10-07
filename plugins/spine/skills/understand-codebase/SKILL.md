@@ -81,8 +81,8 @@ dependents it has **in other repositories**:
 1. **Orient first.** For an unfamiliar repo, call `map_repo` before answering structural questions
    or planning a change — one call beats many greps.
 2. **Check the blast radius before editing.** `blast_radius(symbol=…)` shows who depends on what
-   you're about to touch; `regression_gaps` shows what has no test, so you know what could break
-   silently.
+   you're about to touch (callers the graph can type — read `caller_count` as a floor);
+   `regression_gaps` shows what has no test, so you know what could break silently.
 3. **For a bug, go trace → fault → coverage.** `localize(trace=…)` finds the fault site; then
    `regression_gaps(trace=…)` shows the coverage around it.
 4. **Cite `file:line`.** Every tool returns provenance and a `markdown` field you can show the user
