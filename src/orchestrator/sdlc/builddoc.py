@@ -31,10 +31,13 @@ import re
 import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from orchestrator.pkg.accuracy import measured_recall
 from orchestrator.sdlc import brief
+
+if TYPE_CHECKING:
+    from orchestrator.pkg import FactStore
 
 # The four provenance labels of docs/specs/build-document.md §1. Re-exported from
 # `brief`, not redeclared: this document and the briefs say the same four things, and two
@@ -924,7 +927,7 @@ def _blast_prose(bd: dict[str, Any], language: str = "python") -> str:
 # ---- section 5, fourth block: the evidence ---------------------------------
 
 
-def collect_evidence(store: Any, *, files: list[str], root: Path) -> dict[str, Any]:
+def collect_evidence(store: FactStore, *, files: list[str], root: Path) -> dict[str, Any]:
     """The deterministic facts about the neighbourhood that the diagram cannot draw.
 
     Computed here rather than in the renderer because it needs the graph, and a renderer

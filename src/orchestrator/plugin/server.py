@@ -94,11 +94,16 @@ from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from orchestrator.plugin.auth import SCOPE_PLAN, SCOPE_READ, SCOPE_RUN
 from orchestrator.plugin.progress import Reporter
 from orchestrator.plugin.repo_access import open_repo as _open_repo
+
+if TYPE_CHECKING:
+    # Annotation only. The PKG is imported lazily in this module on purpose, so this stays out of module
+    # load — but naming the class lets the graph bind `store.method()` calls to `FactStore` (B60).
+    from orchestrator.pkg import FactStore
 
 # The SDK injects its ``Context`` into a parameter annotated with this class and keeps it
 # out of the input schema — but it resolves the annotation through this module's globals
@@ -359,7 +364,7 @@ class _Docs:
 
         return cls(resolve, scope=lambda node_id: unscope_id(node_id)[0])
 
-    def _index(self, store: Any) -> tuple[dict[str, list[str]], dict[str, str]]:
+    def _index(self, store: FactStore) -> tuple[dict[str, list[str]], dict[str, str]]:
         """``(symbol id → the doc ids naming it, child → parent)`` for one linked store, built once."""
         from orchestrator.pkg.facts import EdgeKind
 
@@ -642,7 +647,7 @@ def _in_repos_store(repos: str, fn: Callable[..., dict[str, Any]], *, docs: bool
     return out
 
 
-def _cross_repo_reach(store: Any, node_id: str) -> list[dict[str, Any]]:
+def _cross_repo_reach(store: FactStore, node_id: str) -> list[dict[str, Any]]:
     """The symbols in *other* repositories that a change to this one reaches.
 
     This is the whole point of a merged graph. An HTTP handler with ``0 caller(s)`` is telling
@@ -705,7 +710,7 @@ def map_repo(repo_path: str, lens: str = "developer") -> dict[str, Any]:
 _MAX_MATCHES = 7
 
 
-def _pick_matches(store: Any, symbol: str) -> tuple[list[Any], int]:
+def _pick_matches(store: FactStore, symbol: str) -> tuple[list[Any], int]:
     """The matches to detail for ``symbol``, and how many there were in all.
 
     ``resolve`` rather than ``find``, so a qualified name (``Store.summary``) or a full node id picks
@@ -754,7 +759,7 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
-    def run(store: Any, _ctx: Any, docs: _Docs) -> dict[str, Any]:
+    def run(store: FactStore, _ctx: Any, docs: _Docs) -> dict[str, Any]:
         matches, total = _pick_matches(store, symbol)
         if not matches:
             return {"symbol": symbol, "found": False, "matches": [], **_match_report(0, 0)}
@@ -833,7 +838,7 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
-    def run(store: Any, _repo: Any, docs: _Docs) -> dict[str, Any]:
+    def run(store: FactStore, _repo: Any, docs: _Docs) -> dict[str, Any]:
         matches, total = _pick_matches(store, symbol)
         if not matches:
             return {"symbol": symbol, "found": False, "matches": [], **_match_report(0, 0)}
@@ -903,7 +908,7 @@ def investigate(
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
-    def build(store: Any, root: Any) -> dict[str, Any]:
+    def build(store: FactStore, root: Any) -> dict[str, Any]:
         from orchestrator.sdlc.investigate import build_investigation, render_investigation_md
 
         inv = build_investigation(title, problem, store=store, root=root)
@@ -1016,7 +1021,7 @@ def localize(repo_path: str = "", trace: str = "", repos: str | None = None) -> 
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
-    def run(store: Any, _repo: Any) -> dict[str, Any]:
+    def run(store: FactStore, _repo: Any) -> dict[str, Any]:
         from orchestrator.sdlc.localize import localize_trace, render_localization_md
 
         loc = localize_trace(trace, store=store)
@@ -1073,7 +1078,7 @@ def regression_gaps(
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
-    def run(store: Any, _repo: Any) -> dict[str, Any]:
+    def run(store: FactStore, _repo: Any) -> dict[str, Any]:
         from orchestrator.sdlc.coverage import (
             build_regression_plan,
             render_regression_plan_md,
@@ -1452,7 +1457,7 @@ def _external_refs(binding: Any, node_id: str) -> list[dict[str, Any]]:
     return sorted(refs, key=lambda r: r["doc"])
 
 
-def _external_summary(binding: Any, store: Any) -> dict[str, Any]:
+def _external_summary(binding: Any, store: FactStore) -> dict[str, Any]:
     """External coverage and drift for ``docs_for``'s summary — its own lines (D20, D25)."""
     from orchestrator.pkg.facts import NodeKind
 
@@ -1496,7 +1501,7 @@ def _per_repo(repos: str, fn: Callable[[Any], dict[str, Any]]) -> dict[str, Any]
     }
 
 
-def _constructed_type(store: Any, node: Any) -> str | None:
+def _constructed_type(store: FactStore, node: Any) -> str | None:
     """The Type a Java/C# constructor node constructs, else None. A constructor is a Function its
     Type contains under the Type's own name (``Foo.Foo``) — one node for every overload. A Java
     method spelled like its class, or a C# static constructor, mints the same id (member ids carry
