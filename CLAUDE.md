@@ -127,6 +127,12 @@ Run the gate from [CONTRIBUTING.md](CONTRIBUTING.md) — `mypy src tests` (**not
 `src`) and `ruff format --check .`. CI also runs the tests. Work off `develop`, never
 commit to `main`.
 
+**Every change starts on a new branch cut from `develop`** — `git checkout -b <name>
+origin/develop` — never a commit made directly on a local `develop` or `main`. This holds
+even for a one-line fix: `develop` only moves via a merged PR, and `main` only moves via a
+`develop → main` release-promotion PR (see CONTRIBUTING.md). Branch, commit, push, open the
+PR — in that order, every time.
+
 **Never commit `episteme/`.** It is regenerated after merge by
 [`.github/workflows/episteme.yml`](.github/workflows/episteme.yml), and CI fails any PR that
 carries it. A branch *cannot* keep it current — CI checks the merge ref, so anything landing
