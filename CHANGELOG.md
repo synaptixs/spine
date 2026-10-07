@@ -6,6 +6,21 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## Unreleased
 
+### Fixed
+
+- **`blast_radius`, `explain_symbol` and `docs_for` no longer hide matches without saying so.**
+  A name shared by many symbols was cut to its first five with no total, so the one you asked about
+  could be missing and the answer still read as complete — on this repository `summary` has 28
+  matches and `FactStore.summary` was never shown. Each tool now details the first 7 and reports
+  `match_count` and `truncated` (a "Showing 7 of N matches" line in the markdown), and a qualified
+  name (`FactStore.summary`) or a full node id selects one symbol. Both keys are additive; nothing
+  existing changed. ([SSPN-112](https://fibonacci-solutions.atlassian.net/browse/SSPN-112), B52)
+- **`blast_radius`'s description said what it does not do.** It claimed a "cross-layer set a change
+  ripples into (CALLS + IMPORTS + REFERENCES)"; it reports `touches` — every node one edge away, in
+  either direction, of any kind — and the transitive walk (4 hops) runs only with `repos=`. The
+  tool description, `AGENT_GUIDE.md` and the `understand-codebase` skill now say so.
+  ([SSPN-84](https://fibonacci-solutions.atlassian.net/browse/SSPN-84), B40)
+
 ## 3.56.0 — 2026-10-06
 
 Spine now checks requirements, not only builds from them. Whoever drafts a requirement — a
