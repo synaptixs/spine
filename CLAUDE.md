@@ -133,6 +133,12 @@ even for a one-line fix: `develop` only moves via a merged PR, and `main` only m
 `develop → main` release-promotion PR (see CONTRIBUTING.md). Branch, commit, push, open the
 PR — in that order, every time.
 
+**`develop` is the repository's default branch**, so a new PR is based on `develop` unless you
+say otherwise. `main` takes **no** PR except the `develop → main` promotion — never open one into
+`main` from any other branch. Both branches are ruleset-protected against deletion and
+force-push; "Protect main" names `refs/heads/main` explicitly because `~DEFAULT_BRANCH` now
+resolves to `develop`.
+
 **Never commit `episteme/`.** It is regenerated after merge by
 [`.github/workflows/episteme.yml`](.github/workflows/episteme.yml), and CI fails any PR that
 carries it. A branch *cannot* keep it current — CI checks the merge ref, so anything landing
