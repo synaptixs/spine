@@ -128,7 +128,7 @@
 [`src/orchestrator/sdlc/validity.py:341`](../../src/orchestrator/sdlc/validity.py#L341)
 
 - **Called by** (1): [`assess`](../../src/orchestrator/sdlc/validity.py#L637)
-- **Calls** (3): [`Finding`](../../src/orchestrator/sdlc/validity.py#L84), [`is_bug`](../../src/orchestrator/sdlc/profile_select.py#L82), [`summary`](../../src/orchestrator/pkg/store.py#L408)
+- **Calls** (3): [`Finding`](../../src/orchestrator/sdlc/validity.py#L84), [`is_bug`](../../src/orchestrator/sdlc/profile_select.py#L82), [`summary`](../../src/orchestrator/pkg/store.py#L428)
 
 ### `_check_unbound_criteria`
 
