@@ -72,6 +72,42 @@ def test_a_quoted_and_a_dotted_annotation_resolve(tmp_path: Path) -> None:
     assert _from(calls, "dotted") == {GET}
 
 
+def test_an_any_parameter_has_no_type_to_bind(tmp_path: Path) -> None:
+    """`s: Any` declares nothing, so the call is refused rather than guessed (B60: this is why a
+    helper annotated `store: Any` never showed up as a caller of `FactStore` methods)."""
+    src = "from typing import Any\ndef f(s: Any):\n    return s.get(1)\n"
+    assert _from(_calls(tmp_path, {"app/use.py": src}), "f") == set()
+
+
+def test_a_type_checking_import_types_an_annotation_without_a_runtime_import(tmp_path: Path) -> None:
+    """The way to type a parameter whose class cannot be imported at module load (B60): import it under
+    `TYPE_CHECKING` and annotate. Quoted or not, the call lands on the class's member."""
+    src = """\
+    from __future__ import annotations
+    from typing import TYPE_CHECKING
+    if TYPE_CHECKING:
+        from app.store import Store
+    def plain(s: Store):
+        return s.get(1)
+    def quoted(s: "Store"):
+        return s.get(1)
+    """
+    calls = _calls(tmp_path, {"app/use.py": src})
+    assert _from(calls, "plain") == {GET}
+    assert _from(calls, "quoted") == {GET}
+
+
+def test_a_function_local_import_does_not_type_a_signature_annotation(tmp_path: Path) -> None:
+    """A signature annotation is read in the enclosing scope, where the function's own lazy import does
+    not exist yet — so importing inside the body does not make `s: "Store"` mean the class (B60)."""
+    src = """\
+    def f(s: "Store"):
+        from app.store import Store
+        return s.get(1)
+    """
+    assert _from(_calls(tmp_path, {"app/use.py": src}), "f") == set()
+
+
 def test_an_explicit_external_import_ends_the_lookup(tmp_path: Path) -> None:
     """`Store` from a third-party package is not the repository's `Store` (typed-receivers B1)."""
     calls = _calls(
