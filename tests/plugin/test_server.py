@@ -1905,3 +1905,47 @@ def test_a_multi_repo_answer_reports_its_match_count_too(tmp_path: Path) -> None
     for tool in (blast_radius, explain_symbol):
         out = tool(symbol="create_order", repos=config)
         assert out["match_count"] == len(out["matches"]) and out["truncated"] is False
+
+
+def test_docs_for_and_explain_symbol_say_what_they_clipped(tmp_path: Path) -> None:
+    repo = _same_name_repo(tmp_path, 9)
+    docs = docs_for(repo, "summary")
+    assert docs["match_count"] == 9 and docs["truncated"] is True and len(docs["matches"]) == 7
+    assert "Showing 7 of 9 matches" in docs["markdown"]
+    explained = explain_symbol(repo, "summary")
+    assert explained["match_count"] == 9 and explained["truncated"] is True
+    assert len(explained["matches"]) == 7
+
+
+def _two_repos_sharing_a_name(tmp_path: Path, each: int) -> str:
+    def body(owner: str) -> str:
+        return "".join(
+            f"class {owner}{i}:\n    def summary(self):\n        return {i}\n\n\n" for i in range(each)
+        )
+
+    billing = _repo_at(tmp_path / "billing", "shapes.py", body("B"))
+    web = _repo_at(tmp_path / "web", "shapes.py", body("W"))
+    cfg = tmp_path / "repos.yaml"
+    cfg.write_text(f"repos:\n  billing: {billing}\n  web: {web}\n", encoding="utf-8")
+    return str(cfg)
+
+
+def test_a_merged_graph_clips_honestly_across_repositories(tmp_path: Path) -> None:
+    config = _two_repos_sharing_a_name(tmp_path, 5)  # 5 + 5 = 10 `summary` methods in all
+    for tool in (blast_radius, explain_symbol):
+        out = tool(symbol="summary", repos=config)
+        assert out["match_count"] == 10 and out["truncated"] is True and len(out["matches"]) == 7
+    assert "Showing 7 of 10 matches" in blast_radius(symbol="summary", repos=config)["markdown"]
+    # a Class.name picks one, across the repositories, and is counted as one
+    one = blast_radius(symbol="W3.summary", repos=config)
+    assert one["match_count"] == 1 and one["truncated"] is False and len(one["matches"]) == 1
+
+
+def test_docs_for_answers_each_repository_with_its_own_count(tmp_path: Path) -> None:
+    config = _two_repos_sharing_a_name(tmp_path, 9)
+    for name in ("billing", "web"):
+        (tmp_path / name / "README.md").write_text("Each shape has a `summary` method.\n", encoding="utf-8")
+    out = docs_for(symbol="summary", repos=config)
+    for name in ("billing", "web"):
+        per_repo = out["repos"][name]
+        assert per_repo["match_count"] == 9 and per_repo["truncated"] is True

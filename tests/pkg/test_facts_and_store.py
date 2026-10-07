@@ -126,6 +126,17 @@ def test_resolve_a_qualified_name_covers_java_and_go_ids() -> None:
     assert [n.id for n in store.resolve("recordingSpan.End")] == ["go:trace.recordingSpan.End"]
 
 
+def test_resolve_a_dotted_name_also_matches_ids_that_end_with_it() -> None:
+    # Unlike `find`, which matches short names only: a dotted query is a suffix of more than one id.
+    # It can only gain results over `find` — and a plain name never takes this branch.
+    store = _resolver_store(("py:orchestrator.notify", "notify"), ("py:tests.orchestrator.notify", "notify"))
+    assert [n.id for n in store.resolve("orchestrator.notify")] == [
+        "py:orchestrator.notify",
+        "py:tests.orchestrator.notify",
+    ]
+    assert store.find("orchestrator.notify") == []
+
+
 def test_resolve_a_plain_name_is_exactly_find() -> None:
     store = _resolver_store(*_SUMMARIES)
     assert [n.id for n in store.resolve("summary")] == [n.id for n in store.find("summary")]

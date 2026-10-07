@@ -742,6 +742,8 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
     declared repository: each match then also reports the dependents a change reaches **in
     other repositories** — a transitive walk, up to 4 hops — which is what a single-repo graph
     cannot see. An HTTP handler with zero callers in its own source is the case this exists for.
+    In that merged graph ids carry their repository (``java:lib@shared.Money``): select by short
+    name, ``Class.name``, or that scoped id.
 
     Each match also lists the repository's own **docs** that describe it — pages naming the
     symbol, its class or its module (``via``) — with ``doc_count``, and counts
@@ -1295,7 +1297,11 @@ def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) ->
     mcp ingest-docs``) also gets its **external** docs: per match ``external`` (with ``origin``
     ``mcp:<server>``), and in the summary their own coverage and drift lines — kept apart from the
     repository's numbers, which ``understand``/``state`` report and never include them in. Every
-    answer that read them carries ``external_docs``: each source's age, staleness and failures."""
+    answer that read them carries ``external_docs``: each source's age, staleness and failures.
+
+    With a ``symbol``, a name shared by many symbols details the first 7 and reports ``match_count``
+    and ``truncated``; pass a qualified name (``Class.name``) or a full node id to select one. A
+    repository with no docs answers before resolving the symbol, so it carries neither key."""
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
@@ -1506,9 +1512,9 @@ def _constructed_type(store: Any, node: Any) -> str | None:
     return str(owner.id) if any(c.id == node.id for c in store.children_of(owner.id)) else None
 
 
-def _blast_markdown(matches: list[dict[str, Any]], total: int | None = None) -> str:
+def _blast_markdown(matches: list[dict[str, Any]], total: int) -> str:
     lines: list[str] = []
-    if total is not None and (note := _truncation_note(len(matches), total)) is not None:
+    if (note := _truncation_note(len(matches), total)) is not None:
         lines += [note, ""]
     for m in matches:
         lines.append(f"### `{m['id']}` — {m['kind']}" + (f" @ {m['where']}" if m["where"] else ""))
