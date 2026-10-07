@@ -71,6 +71,80 @@ def test_find_prefers_grounded() -> None:
     assert store.find("TARGET")[0].id == "py:m.target"  # case-insensitive
 
 
+def _resolver_store(*ids_and_names: tuple[str, str]) -> FactStore:
+    batch = FactBatch()
+    for node_id, name in ids_and_names:
+        batch.add_node(_grounded(node_id, name))
+    return FactStore(batch)
+
+
+_SUMMARIES = (
+    ("py:m.Store.summary", "summary"),
+    ("py:n.Store.summary", "summary"),
+    ("py:m.Other.summary", "summary"),
+    ("py:m.MyStore.summary", "summary"),
+    ("py:m.summary", "summary"),
+)
+
+
+def test_resolve_an_exact_id_returns_just_that_node() -> None:
+    store = _resolver_store(*_SUMMARIES)
+    assert [n.id for n in store.resolve("py:n.Store.summary")] == ["py:n.Store.summary"]
+
+
+def test_resolve_a_qualified_name_selects_only_that_class_s_members() -> None:
+    store = _resolver_store(*_SUMMARIES)
+    # both `Store.summary` match, in id order; `Other.summary` and `MyStore.summary` do not
+    assert [n.id for n in store.resolve("Store.summary")] == ["py:m.Store.summary", "py:n.Store.summary"]
+
+
+def test_resolve_a_qualified_name_needs_a_boundary_before_it() -> None:
+    store = _resolver_store(*_SUMMARIES)
+    assert "py:m.MyStore.summary" not in [n.id for n in store.resolve("Store.summary")]
+
+
+def test_resolve_a_qualified_name_ignores_case_like_find_does() -> None:
+    store = _resolver_store(*_SUMMARIES)
+    assert [n.id for n in store.resolve("store.SUMMARY")] == ["py:m.Store.summary", "py:n.Store.summary"]
+
+
+def test_resolve_a_colon_boundary_covers_c_style_ids() -> None:
+    store = _resolver_store(("c:Point.x", "x"), ("c:Point.y", "y"), ("cpp:HSL2RGB", "HSL2RGB"))
+    assert [n.id for n in store.resolve("Point.x")] == ["c:Point.x"]
+    assert [n.id for n in store.resolve("cpp:HSL2RGB")] == ["cpp:HSL2RGB"]  # an exact id
+    assert [n.id for n in store.resolve("c:Point.y")] == ["c:Point.y"]
+
+
+def test_resolve_a_qualified_name_covers_java_and_go_ids() -> None:
+    store = _resolver_store(
+        ("java:a.Car.run", "run"),
+        ("java:a.Bike.run", "run"),
+        ("go:trace.recordingSpan.End", "End"),
+        ("go:trace.Tracer", "Tracer"),
+    )
+    assert [n.id for n in store.resolve("Car.run")] == ["java:a.Car.run"]
+    assert [n.id for n in store.resolve("recordingSpan.End")] == ["go:trace.recordingSpan.End"]
+
+
+def test_resolve_a_plain_name_is_exactly_find() -> None:
+    store = _resolver_store(*_SUMMARIES)
+    assert [n.id for n in store.resolve("summary")] == [n.id for n in store.find("summary")]
+    assert len(store.resolve("summary")) == 5  # nothing is clipped here — the caller decides
+
+
+def test_resolve_a_name_nothing_matches_is_empty() -> None:
+    store = _resolver_store(*_SUMMARIES)
+    assert store.resolve("Nope.summary") == []
+    assert store.resolve("nope") == []
+
+
+def test_resolve_is_independent_of_insertion_order() -> None:
+    forward = _resolver_store(*_SUMMARIES)
+    backward = _resolver_store(*reversed(_SUMMARIES))
+    for query in ("Store.summary", "summary", "py:m.summary"):
+        assert [n.id for n in forward.resolve(query)] == [n.id for n in backward.resolve(query)]
+
+
 def test_summary_counts_grounded_vs_external() -> None:
     batch = FactBatch()
     batch.add_node(_grounded("py:a.f", "f"))
