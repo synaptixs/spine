@@ -137,8 +137,9 @@ the repository keeps the reference documents and the scripts, which need no assi
    working rather than a contributor carrying the artifact, so the check skips when the base
    is `main`. Since 3.20.0 that promotion is the **only** way `main`'s bank moves:
    regeneration runs on `develop` alone, and `main` inherits it verbatim.
-4. Open the PR **against `develop`** — GitHub pre-selects `main`, the default branch; change
-   it — with a clear description of **what** and **why**, linking any issue.
+4. Open the PR **against `develop`** — the default branch, so GitHub pre-selects it. Never
+   target `main`: it takes only the `develop → main` release promotion. Write a clear
+   description of **what** and **why**, linking any issue.
 5. A maintainer reviews; the `security scan` check must pass.
 
 ### Release-cut documentation notes
