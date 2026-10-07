@@ -1,12 +1,14 @@
 name: Security scan
 
 # Produces the "security scan" status check that the synaptixs/spine "Protect main"
-# ruleset requires on PRs into main. The job NAME must stay exactly "security scan"
-# — the ruleset matches the required check by that context name. Runs on PRs into
-# main (and on demand); a clean tree passes, committed secrets fail it.
+# ruleset requires. That ruleset targets ~DEFAULT_BRANCH plus refs/heads/main, and the
+# default branch is develop — so the check is required on PRs into develop AND main, and
+# must run on both or those PRs block forever. The job NAME must stay exactly
+# "security scan" — the ruleset matches the required check by that context name. Runs on
+# PRs into develop or main (and on demand); a clean tree passes, committed secrets fail it.
 on:
   pull_request:
-    branches: [main]
+    branches: [develop, main]
   workflow_dispatch:
 
 permissions:
