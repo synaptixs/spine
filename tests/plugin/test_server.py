@@ -1828,3 +1828,124 @@ def test_a_constructors_reach_across_repos_is_its_types(tmp_path: Path) -> None:
     assert ctor["cross_repo_count"] == by_id["java:lib@shared.Money"]["cross_repo_count"] == 1
     explained = {m["id"]: m for m in explain_symbol(symbol="Money", repos=str(cfg))["matches"]}
     assert explained["java:lib@shared.Money.Money"]["cross_repo_count"] == 1
+
+
+# ---- B52: a name with many matches is clipped honestly ---------------------------------
+
+
+def _same_name_repo(tmp_path: Path, how_many: int) -> str:
+    """`how_many` classes, each with a method called `summary` — one short name, many symbols."""
+    body = "".join(f"class C{i}:\n    def summary(self):\n        return {i}\n\n\n" for i in range(how_many))
+    (tmp_path / "shapes.py").write_text(body, encoding="utf-8")
+    (tmp_path / "README.md").write_text("Every shape has a `summary` method.\n", encoding="utf-8")
+    return str(tmp_path)
+
+
+def test_blast_radius_says_how_many_matches_it_clipped(tmp_path: Path) -> None:
+    out = blast_radius(_same_name_repo(tmp_path, 9), "summary")
+    assert out["match_count"] == 9 and out["truncated"] is True
+    assert len(out["matches"]) == 7  # the cap
+    assert "Showing 7 of 9 matches" in out["markdown"]
+    assert "Class.name" in out["markdown"]  # and how to select one
+
+
+def test_a_name_within_the_cap_is_not_reported_truncated(tmp_path: Path) -> None:
+    repo = _same_name_repo(tmp_path, 7)
+    for out in (blast_radius(repo, "summary"), explain_symbol(repo, "summary"), docs_for(repo, "summary")):
+        assert out["match_count"] == len(out["matches"]) == 7
+        assert out["truncated"] is False
+    assert "Showing" not in blast_radius(repo, "summary")["markdown"]
+
+
+def test_a_qualified_name_reaches_a_match_past_the_cap(tmp_path: Path) -> None:
+    repo = _same_name_repo(tmp_path, 9)
+    # by id order C0..C6 are shown for the plain name, so C8 is hidden without a qualifier
+    assert "py:shapes.C8.summary" not in [m["id"] for m in blast_radius(repo, "summary")["matches"]]
+    for out in (
+        blast_radius(repo, "C8.summary"),
+        explain_symbol(repo, "C8.summary"),
+        docs_for(repo, "C8.summary"),
+    ):
+        assert [m["id"] for m in out["matches"]] == ["py:shapes.C8.summary"]
+        assert out["match_count"] == 1 and out["truncated"] is False
+    # and a full id selects the same one
+    assert [m["id"] for m in blast_radius(repo, "py:shapes.C8.summary")["matches"]] == [
+        "py:shapes.C8.summary"
+    ]
+
+
+def test_the_three_tools_agree_on_the_match_count(tmp_path: Path) -> None:
+    repo = _same_name_repo(tmp_path, 9)
+    counts = {
+        blast_radius(repo, "summary")["match_count"],
+        explain_symbol(repo, "summary")["match_count"],
+        docs_for(repo, "summary")["match_count"],
+    }
+    assert counts == {9}
+    assert docs_for(repo, "summary")["truncated"] is True
+
+
+def test_a_name_nothing_matches_reports_zero_matches(tmp_path: Path) -> None:
+    repo = _same_name_repo(tmp_path, 3)
+    for out in (blast_radius(repo, "nope"), explain_symbol(repo, "nope"), docs_for(repo, "nope")):
+        assert out["found"] is False and out["matches"] == []
+        assert out["match_count"] == 0 and out["truncated"] is False
+
+
+def test_the_clipped_list_is_the_same_every_time(tmp_path: Path) -> None:
+    repo = _same_name_repo(tmp_path, 9)
+    first = blast_radius(repo, "summary")
+    second = blast_radius(repo, "summary")
+    assert [m["id"] for m in first["matches"]] == [m["id"] for m in second["matches"]]
+    assert [m["id"] for m in first["matches"]] == [f"py:shapes.C{i}.summary" for i in range(7)]
+
+
+def test_a_multi_repo_answer_reports_its_match_count_too(tmp_path: Path) -> None:
+    config = _repos_config(tmp_path)
+    for tool in (blast_radius, explain_symbol):
+        out = tool(symbol="create_order", repos=config)
+        assert out["match_count"] == len(out["matches"]) and out["truncated"] is False
+
+
+def test_docs_for_and_explain_symbol_say_what_they_clipped(tmp_path: Path) -> None:
+    repo = _same_name_repo(tmp_path, 9)
+    docs = docs_for(repo, "summary")
+    assert docs["match_count"] == 9 and docs["truncated"] is True and len(docs["matches"]) == 7
+    assert "Showing 7 of 9 matches" in docs["markdown"]
+    explained = explain_symbol(repo, "summary")
+    assert explained["match_count"] == 9 and explained["truncated"] is True
+    assert len(explained["matches"]) == 7
+
+
+def _two_repos_sharing_a_name(tmp_path: Path, each: int) -> str:
+    def body(owner: str) -> str:
+        return "".join(
+            f"class {owner}{i}:\n    def summary(self):\n        return {i}\n\n\n" for i in range(each)
+        )
+
+    billing = _repo_at(tmp_path / "billing", "shapes.py", body("B"))
+    web = _repo_at(tmp_path / "web", "shapes.py", body("W"))
+    cfg = tmp_path / "repos.yaml"
+    cfg.write_text(f"repos:\n  billing: {billing}\n  web: {web}\n", encoding="utf-8")
+    return str(cfg)
+
+
+def test_a_merged_graph_clips_honestly_across_repositories(tmp_path: Path) -> None:
+    config = _two_repos_sharing_a_name(tmp_path, 5)  # 5 + 5 = 10 `summary` methods in all
+    for tool in (blast_radius, explain_symbol):
+        out = tool(symbol="summary", repos=config)
+        assert out["match_count"] == 10 and out["truncated"] is True and len(out["matches"]) == 7
+    assert "Showing 7 of 10 matches" in blast_radius(symbol="summary", repos=config)["markdown"]
+    # a Class.name picks one, across the repositories, and is counted as one
+    one = blast_radius(symbol="W3.summary", repos=config)
+    assert one["match_count"] == 1 and one["truncated"] is False and len(one["matches"]) == 1
+
+
+def test_docs_for_answers_each_repository_with_its_own_count(tmp_path: Path) -> None:
+    config = _two_repos_sharing_a_name(tmp_path, 9)
+    for name in ("billing", "web"):
+        (tmp_path / name / "README.md").write_text("Each shape has a `summary` method.\n", encoding="utf-8")
+    out = docs_for(symbol="summary", repos=config)
+    for name in ("billing", "web"):
+        per_repo = out["repos"][name]
+        assert per_repo["match_count"] == 9 and per_repo["truncated"] is True

@@ -72,8 +72,8 @@ def investigate_ticket(title: str, problem: str = "", repo_path: str | None = No
             "1. Call `investigate` with the title and problem: the real symbols to start from, with "
             "caller counts and owning areas. If the answer carries `multi_repo_available`, stop and "
             "re-run with the `repos=` path it names — the change may land in more than one service.",
-            "2. For each landing symbol worth touching, call `blast_radius` — direct callers plus the "
-            "cross-layer set a change ripples into.",
+            "2. For each landing symbol worth touching, call `blast_radius` — direct callers plus what "
+            "sits one edge away (`touches`); it is a neighbourhood, not a transitive ripple set.",
             "3. Call `regression_gaps` for the same symbols: the production code a change reaches that "
             "no test covers is what could break silently.",
             "4. Report: where the work lands, what depends on it, what is untested, and a scoped "

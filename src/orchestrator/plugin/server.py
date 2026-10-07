@@ -700,18 +700,50 @@ def map_repo(repo_path: str, lens: str = "developer") -> dict[str, Any]:
     return _in_repo(repo_path, run)
 
 
+# How many same-named symbols a comprehension tool details. The rest are *counted*, never dropped
+# silently (B52, CLAUDE.md invariant 7): every answer carries `match_count` and `truncated`.
+_MAX_MATCHES = 7
+
+
+def _pick_matches(store: Any, symbol: str) -> tuple[list[Any], int]:
+    """The matches to detail for ``symbol``, and how many there were in all.
+
+    ``resolve`` rather than ``find``, so a qualified name (``Store.summary``) or a full node id picks
+    one symbol out of many; the order is deterministic, so the same graph clips the same way."""
+    found = store.resolve(symbol)
+    return found[:_MAX_MATCHES], len(found)
+
+
+def _match_report(shown: int, total: int) -> dict[str, Any]:
+    return {"match_count": total, "truncated": total > shown}
+
+
+def _truncation_note(shown: int, total: int) -> str | None:
+    if total <= shown:
+        return None
+    return (
+        f"_Showing {shown} of {total} matches — pass a qualified name (`Class.name`) "
+        "or a full node id to select one._"
+    )
+
+
 def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None) -> dict[str, Any]:
     """ "What breaks if I change X" — a symbol's direct callers, the callers that reach it
     through an interface member it implements (``interface_callers``, each with its ``via``
-    member — they may reach it, not must), plus the cross-layer set a change ripples into
-    (CALLS + IMPORTS + REFERENCES), each with ``file:line``. A type's callers are the code that
-    creates it; a Java/C# constructor reports those creators as ``instantiated_via_type``.
+    member — they may reach it, not must), plus ``touches``: every node one edge away, in either
+    direction and of any kind (calls, containment, imports, references), each with ``file:line``.
+    ``touches`` is a one-hop neighbourhood, not a transitive ripple set. A type's callers are the
+    code that creates it; a Java/C# constructor reports those creators as ``instantiated_via_type``.
     Also the repository's docs that describe it (``docs``, each with ``via``). Deterministic.
+    A name shared by many symbols details the first 7 and reports ``match_count`` and
+    ``truncated``; pass a qualified name (``Class.name``) or a full node id to select one.
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to answer across every
     declared repository: each match then also reports the dependents a change reaches **in
-    other repositories**, which is what a single-repo graph cannot see. An HTTP handler with
-    zero callers in its own source is the case this exists for.
+    other repositories** — a transitive walk, up to 4 hops — which is what a single-repo graph
+    cannot see. An HTTP handler with zero callers in its own source is the case this exists for.
+    In that merged graph ids carry their repository (``java:lib@shared.Money``): select by short
+    name, ``Class.name``, or that scoped id.
 
     Each match also lists the repository's own **docs** that describe it — pages naming the
     symbol, its class or its module (``via``) — with ``doc_count``, and counts
@@ -723,11 +755,11 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
         return {"error": "provide exactly one of repo_path or repos"}
 
     def run(store: Any, _ctx: Any, docs: _Docs) -> dict[str, Any]:
-        matches = store.find(symbol)
+        matches, total = _pick_matches(store, symbol)
         if not matches:
-            return {"symbol": symbol, "found": False, "matches": []}
+            return {"symbol": symbol, "found": False, "matches": [], **_match_report(0, 0)}
         out: list[dict[str, Any]] = []
-        for node in matches[:5]:
+        for node in matches:
             callers = store.callers_of(node.id)
             through = store.interface_callers_of(node.id)
             touched = store.touches(node.id)
@@ -760,13 +792,14 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
                 entry["cross_repo_count"] = len(reach)
                 entry["cross_repo"] = reach[:25]
             out.append(entry)
-        markdown = _blast_markdown(out)
+        markdown = _blast_markdown(out, total)
         if docs.external:
             markdown = "\n".join([markdown, *_external_markdown(docs.external)])
         result: dict[str, Any] = {
             "symbol": symbol,
             "found": True,
             "matches": out,
+            **_match_report(len(out), total),
             "markdown": markdown,
         }
         if docs.error:
@@ -792,18 +825,20 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
     cannot see.
 
     Each match also lists the docs that describe it (``docs``, ``doc_count``,
-    ``related_doc_count``) — the same doc radius ``blast_radius`` reports."""
+    ``related_doc_count``) — the same doc radius ``blast_radius`` reports. A name shared by many
+    symbols details the first 7 and reports ``match_count`` and ``truncated``; pass a qualified
+    name (``Class.name``) or a full node id to select one."""
     if not symbol:
         return {"error": "provide a symbol"}
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
     def run(store: Any, _repo: Any, docs: _Docs) -> dict[str, Any]:
-        matches = store.find(symbol)
+        matches, total = _pick_matches(store, symbol)
         if not matches:
-            return {"symbol": symbol, "found": False, "matches": []}
+            return {"symbol": symbol, "found": False, "matches": [], **_match_report(0, 0)}
         out: list[dict[str, Any]] = []
-        for node in matches[:5]:
+        for node in matches:
             callers = store.callers_of(node.id)
             through = store.interface_callers_of(node.id)
             entry: dict[str, Any] = {
@@ -828,7 +863,12 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
                 entry["cross_repo_count"] = len(reach)
                 entry["cross_repo"] = reach[:25]
             out.append(entry)
-        result: dict[str, Any] = {"symbol": symbol, "found": True, "matches": out}
+        result: dict[str, Any] = {
+            "symbol": symbol,
+            "found": True,
+            "matches": out,
+            **_match_report(len(out), total),
+        }
         if docs.error:
             result["docs_unavailable"] = docs.error
         if docs.external:
@@ -1257,7 +1297,11 @@ def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) ->
     mcp ingest-docs``) also gets its **external** docs: per match ``external`` (with ``origin``
     ``mcp:<server>``), and in the summary their own coverage and drift lines — kept apart from the
     repository's numbers, which ``understand``/``state`` report and never include them in. Every
-    answer that read them carries ``external_docs``: each source's age, staleness and failures."""
+    answer that read them carries ``external_docs``: each source's age, staleness and failures.
+
+    With a ``symbol``, a name shared by many symbols details the first 7 and reports ``match_count``
+    and ``truncated``; pass a qualified name (``Class.name``) or a full node id to select one. A
+    repository with no docs answers before resolving the symbol, so it carries neither key."""
     if bool(repo_path) == bool(repos):
         return {"error": "provide exactly one of repo_path or repos"}
 
@@ -1290,12 +1334,14 @@ def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) ->
             return empty
         if symbol:
             store = FactStore(batch)
-            matches = store.find(symbol)
+            matches, total = _pick_matches(store, symbol)
             if not matches:
-                return {"symbol": symbol, "found": False, "matches": []}
+                return {"symbol": symbol, "found": False, "matches": [], **_match_report(0, 0)}
             out: list[dict[str, Any]] = []
             lines = [f"# Docs describing `{symbol}`", ""]
-            for node in matches[:5]:
+            if (note := _truncation_note(len(matches), total)) is not None:
+                lines += [note, ""]
+            for node in matches:
                 repo_docs = store.docs_for(node.id)
                 doc_names = [d.name for d in repo_docs]
                 where = str(node.provenance) if node.provenance else None
@@ -1323,7 +1369,12 @@ def docs_for(repo_path: str = "", symbol: str = "", repos: str | None = None) ->
                     if (retrieval := _retrieval_line(match)) is not None:
                         lines.append(retrieval)
                 out.append(match)
-            answer: dict[str, Any] = {"symbol": symbol, "found": True, "matches": out}
+            answer: dict[str, Any] = {
+                "symbol": symbol,
+                "found": True,
+                "matches": out,
+                **_match_report(len(out), total),
+            }
             if standings:
                 answer["external_docs"] = standings
                 lines += ["", *_external_markdown(standings)]
@@ -1461,8 +1512,10 @@ def _constructed_type(store: Any, node: Any) -> str | None:
     return str(owner.id) if any(c.id == node.id for c in store.children_of(owner.id)) else None
 
 
-def _blast_markdown(matches: list[dict[str, Any]]) -> str:
+def _blast_markdown(matches: list[dict[str, Any]], total: int) -> str:
     lines: list[str] = []
+    if (note := _truncation_note(len(matches), total)) is not None:
+        lines += [note, ""]
     for m in matches:
         lines.append(f"### `{m['id']}` — {m['kind']}" + (f" @ {m['where']}" if m["where"] else ""))
         lines.append(
