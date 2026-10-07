@@ -75,8 +75,14 @@ def test_a_quoted_and_a_dotted_annotation_resolve(tmp_path: Path) -> None:
 def test_an_any_parameter_has_no_type_to_bind(tmp_path: Path) -> None:
     """`s: Any` declares nothing, so the call is refused rather than guessed (B60: this is why a
     helper annotated `store: Any` never showed up as a caller of `FactStore` methods)."""
-    src = "from typing import Any\ndef f(s: Any):\n    return s.get(1)\n"
-    assert _from(_calls(tmp_path, {"app/use.py": src}), "f") == set()
+    src = (
+        "from typing import Any\nfrom app.store import Store\n"
+        "def untyped(s: Any):\n    return s.get(1)\n"
+        "def typed(s: Store):\n    return s.get(1)\n"
+    )
+    calls = _calls(tmp_path, {"app/use.py": src})
+    assert _from(calls, "untyped") == set()
+    assert _from(calls, "typed") == {GET}  # the control: same file, same call, a declared class
 
 
 def test_a_type_checking_import_types_an_annotation_without_a_runtime_import(tmp_path: Path) -> None:

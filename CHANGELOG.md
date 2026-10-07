@@ -23,16 +23,19 @@ All notable changes to this project are documented here. Format loosely follows
   either direction, of any kind — and the transitive walk (4 hops) runs only with `repos=`. The
   tool description, `AGENT_GUIDE.md` and the `understand-codebase` skill now say so.
   ([SSPN-84](https://fibonacci-solutions.atlassian.net/browse/SSPN-84), B40)
-- **`blast_radius` no longer implies it lists every caller.** The graph binds a call only through a
-  receiver's declared type (on purpose: a wrong edge is worse than a missing one), so a call through
-  an `Any` parameter, a name bound twice, a closure or a chain is not a caller — and the tool did not
-  say so. Its description now says `caller_count` is a floor. On this repository 11 functions took
-  `store: Any` and hid 23 of 137 store-method call sites; they are typed now (a `TYPE_CHECKING`
-  import, no runtime change), so 100 → 123 of those sites are in the graph, and `FactStore.touches`
-  went from 0 callers to 2. That is Spine's own code: another repository's untyped receivers are
-  unchanged, and reporting how many calls could not be bound is tracked separately
-  ([SSPN-133](https://fibonacci-solutions.atlassian.net/browse/SSPN-133), B62; closures:
-  [SSPN-132](https://fibonacci-solutions.atlassian.net/browse/SSPN-132), B61).
+- **`blast_radius`'s description now says it lists only the callers the graph can type.** The graph
+  binds a call only through a receiver's declared type (on purpose: a wrong edge is worse than a
+  missing one), so a call whose receiver the source does not declare — in Python, an `Any` or
+  unannotated parameter, a name bound twice, a closure, a chain — is not a caller, and the tool did
+  not say so. The description (and `explain_symbol`'s, the guide and the skill) now say
+  `caller_count` is a floor; the markdown line `Called by (N)` still carries no such marker.
+  On this repository 11 functions took `store: Any` and hid 23 of the 137 call sites on a
+  store-named receiver we could recognise; they are typed now (a `TYPE_CHECKING` import, no runtime
+  change), so 100 → 123 of those sites are in the graph and `FactStore.touches` went from 0 callers
+  to 2. The other 14 (11 ambiguous bindings, 3 closures) are not reshaped. That is Spine's own code:
+  another repository's untyped receivers are unchanged. Reporting how many calls could not be bound
+  is tracked separately ([SSPN-133](https://fibonacci-solutions.atlassian.net/browse/SSPN-133), B62;
+  closures: [SSPN-132](https://fibonacci-solutions.atlassian.net/browse/SSPN-132), B61).
   ([SSPN-131](https://fibonacci-solutions.atlassian.net/browse/SSPN-131), B60)
 
 ## 3.56.0 — 2026-10-06

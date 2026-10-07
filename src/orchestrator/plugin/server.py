@@ -740,9 +740,10 @@ def blast_radius(repo_path: str = "", symbol: str = "", repos: str | None = None
     ``touches`` is a one-hop neighbourhood, not a transitive ripple set. A type's callers are the
     code that creates it; a Java/C# constructor reports those creators as ``instantiated_via_type``.
     Also the repository's docs that describe it (``docs``, each with ``via``). Deterministic.
-    Callers are the calls the graph can bind to a receiver's declared type: a call through an
-    untyped receiver (an ``Any`` parameter, a name bound twice, a closure over an enclosing local, a
-    chain such as ``a.b.m()``) is not listed, so ``caller_count`` is a floor, not a total.
+    Callers are the calls the graph can bind to a receiver's declared type: a call whose receiver's
+    type the source does not declare is not listed, so ``caller_count`` is a floor, not a total (in
+    Python, e.g. an ``Any`` or unannotated parameter, a name bound twice, a local assigned from a
+    call's result, a closure over an enclosing local, a chain such as ``a.b.m()``).
     A name shared by many symbols details the first 7 and reports ``match_count`` and
     ``truncated``; pass a qualified name (``Class.name``) or a full node id to select one.
 
@@ -825,7 +826,8 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
     """What a symbol is and how it connects: kind, location, who calls it (and who calls it
     through an interface member it implements, with the ``via`` member; for a Java/C#
     constructor, who creates its type), what it calls, what it contains, and the docs that
-    describe it. Deterministic (no LLM).
+    describe it. Deterministic (no LLM). Callers are those the graph can type, as for
+    ``blast_radius``: a call whose receiver's type the source does not declare is not listed.
 
     Pass ``repos`` (a ``.spine/repos.yaml``) instead of ``repo_path`` to explain it across every
     declared repository: each match then says which repository it lives in and lists the
@@ -835,8 +837,7 @@ def explain_symbol(repo_path: str = "", symbol: str = "", repos: str | None = No
     Each match also lists the docs that describe it (``docs``, ``doc_count``,
     ``related_doc_count``) — the same doc radius ``blast_radius`` reports. A name shared by many
     symbols details the first 7 and reports ``match_count`` and ``truncated``; pass a qualified
-    name (``Class.name``) or a full node id to select one. ``called_by`` is bounded as
-    ``blast_radius``'s callers are: a call through an untyped receiver is not listed."""
+    name (``Class.name``) or a full node id to select one."""
     if not symbol:
         return {"error": "provide a symbol"}
     if bool(repo_path) == bool(repos):
