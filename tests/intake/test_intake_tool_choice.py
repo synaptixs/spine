@@ -128,6 +128,10 @@ async def test_intents_come_from_the_forced_call_arguments() -> None:
                 "description": "Download invoices as CSV.",
                 "scope": "src/orchestrator/pkg/stats.py only",
                 "acceptance_criteria": ["export_csv returns bytes"],
+                "problem": "Finance cannot reconcile invoices quickly.",
+                "users": ["Finance operations"],
+                "outcome": "Finance can download a CSV of invoices.",
+                "non_goals": ["PDF export"],
                 "source_title": "Export",
             }
         ]
@@ -141,6 +145,10 @@ async def test_intents_come_from_the_forced_call_arguments() -> None:
     assert [i.title for i in intents] == ["Add CSV export"]
     assert intents[0].id == "intent-add-csv-export"
     assert intents[0].scope == "src/orchestrator/pkg/stats.py only"
+    assert intents[0].problem == "Finance cannot reconcile invoices quickly."
+    assert intents[0].users == ["Finance operations"]
+    assert intents[0].outcome == "Finance can download a CSV of invoices."
+    assert intents[0].non_goals == ["PDF export"]
     assert intents[0].source_doc_ids == ["doc-1"]
 
 
