@@ -28,7 +28,7 @@ All notable changes to this project are documented here. Format loosely follows
   missing one), so a call whose receiver the source does not declare — in Python, an `Any` or
   unannotated parameter, a name bound twice, a closure, a chain — is not a caller, and the tool did
   not say so. The description (and `explain_symbol`'s, the guide and the skill) now say
-  `caller_count` is a floor; the markdown line `Called by (N)` still carries no such marker.
+  `caller_count` is a floor, and the markdown `Called by (N, at least …)` line says so too (B62).
   On this repository 11 functions took `store: Any` and hid 23 of the 137 call sites on a
   store-named receiver we could recognise; they are typed now (a `TYPE_CHECKING` import, no runtime
   change), so 100 → 123 of those sites are in the graph and `FactStore.touches` went from 0 callers

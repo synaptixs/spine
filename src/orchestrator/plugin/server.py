@@ -1529,7 +1529,8 @@ def _blast_markdown(matches: list[dict[str, Any]], total: int) -> str:
     for m in matches:
         lines.append(f"### `{m['id']}` — {m['kind']}" + (f" @ {m['where']}" if m["where"] else ""))
         lines.append(
-            f"- **Called by ({m['caller_count']}):** " + ", ".join(c["id"] for c in m["callers"][:10])
+            f"- **Called by ({m['caller_count']}, at least — callers the graph can type):** "
+            + ", ".join(c["id"] for c in m["callers"][:10])
         )
         if m.get("interface_caller_count"):
             reached = ", ".join(f"{c['id']} (via `{c['via']}`)" for c in m["interface_callers"][:10])

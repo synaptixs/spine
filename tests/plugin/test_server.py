@@ -1949,3 +1949,22 @@ def test_docs_for_answers_each_repository_with_its_own_count(tmp_path: Path) -> 
     for name in ("billing", "web"):
         per_repo = out["repos"][name]
         assert per_repo["match_count"] == 9 and per_repo["truncated"] is True
+
+
+# ---- B62: the Called by line says it is a floor -----------------------------------------
+
+
+def test_the_called_by_line_says_it_counts_only_what_the_graph_can_type(tmp_path: Path) -> None:
+    repo = _comprehension_repo(tmp_path)
+    line = next(ln for ln in blast_radius(repo, "validate")["markdown"].splitlines() if "Called by (" in ln)
+    assert "at least" in line and "the graph can type" in line
+
+
+def test_zero_callers_is_not_reported_as_none(tmp_path: Path) -> None:
+    # `handler` has no caller in the graph; "(0)" alone reads as "nothing calls this".
+    line = next(
+        ln
+        for ln in blast_radius(_comprehension_repo(tmp_path), "handler")["markdown"].splitlines()
+        if "Called by (" in ln
+    )
+    assert line.startswith("- **Called by (0, at least")
